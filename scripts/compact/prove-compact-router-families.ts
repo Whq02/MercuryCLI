@@ -31,7 +31,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — to fix: compactConversation in src/services/compact/compact.ts must send the summary request on the seated model own family wire with the session posture and install the summary; the wire log is captured by scripts/lib/crossfamilyConcourseFixture.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -39,7 +39,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — compact router families prover exceeded 120s')
+  console.log('\nTIMEOUT — compact router families prover exceeded 120s; compactConversation in src/services/compact/compact.ts did not return, or the fixture from scripts/lib/crossfamilyConcourseFixture.ts did not answer')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

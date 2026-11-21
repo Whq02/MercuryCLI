@@ -30,19 +30,23 @@ section('§1 the roster is exactly the three appearances')
   check(
     'THEME_NAMES equals [dark, true-black, mono]',
     JSON.stringify(themeMod.THEME_NAMES) === JSON.stringify(['dark', 'true-black', 'mono']),
-    JSON.stringify(themeMod.THEME_NAMES),
+    `${JSON.stringify(themeMod.THEME_NAMES)}; THEME_NAMES in src/utils/theme.ts must list exactly dark, true-black, mono`,
   )
   check(
     'the reachable settings equal the roster (every chooser offers exactly it)',
     JSON.stringify(themeMod.REACHABLE_THEME_SETTINGS) === JSON.stringify(themeMod.THEME_NAMES),
-    JSON.stringify(themeMod.REACHABLE_THEME_SETTINGS),
+    `${JSON.stringify(themeMod.REACHABLE_THEME_SETTINGS)}; make REACHABLE_THEME_SETTINGS in src/utils/theme.ts list the same names as THEME_NAMES`,
   )
   check(
     'the settings vocabulary is auto first, then the roster',
     JSON.stringify(themeMod.THEME_SETTINGS) === JSON.stringify(['auto', 'dark', 'true-black', 'mono']),
-    JSON.stringify(themeMod.THEME_SETTINGS),
+    `${JSON.stringify(themeMod.THEME_SETTINGS)}; THEME_SETTINGS in src/utils/theme.ts must be auto followed by THEME_NAMES`,
   )
-  check('the one default owner names True Black', systemMod.DEFAULT_THEME_SETTING === 'true-black')
+  check(
+    'the one default owner names True Black',
+    systemMod.DEFAULT_THEME_SETTING === 'true-black',
+    `got ${String(systemMod.DEFAULT_THEME_SETTING)}; DEFAULT_THEME_SETTING in src/utils/systemTheme.ts must be true-black`,
+  )
 }
 
 section('§2 the chooser rows equal the roster')
@@ -63,18 +67,22 @@ section('§4 a retired name resolves exactly as an unknown name does')
     check(
       `${name}: getTheme resolves as the unknown name does`,
       JSON.stringify(themeMod.getTheme(name)) === unknownTheme,
+      'getTheme in src/utils/theme.ts must send a retired name to the same fallback as an unknown name',
     )
     check(
       `${name}: adaptive tokens resolve as the unknown name's do`,
       JSON.stringify(tokensMod.resolveMercuryTokens(name, '#DD4444')) === unknownTokens,
+      'resolveMercuryTokens in src/utils/mercuryTokens.ts must send a retired name to the same fallback as an unknown name',
     )
     check(
       `${name}: the ground gate answers as it does for the unknown name`,
       tokensMod.isDarkThemeFamily(name) === tokensMod.isDarkThemeFamily(UNKNOWN),
+      'isDarkThemeFamily in src/utils/mercuryTokens.ts must answer a retired name as it answers an unknown name',
     )
     check(
       `${name}: the syntax theme resolves as the unknown name's does`,
       JSON.stringify(getSyntaxTheme(name)) === unknownSyntax,
+      'getSyntaxTheme in src/components/StructuredDiff/colorDiff.ts must resolve a retired name as it resolves an unknown name',
     )
   }
 }
@@ -91,7 +99,7 @@ section('§5 a stored retired name steers nothing, exactly as a stored unknown n
     check(
       `stored ${name}: the resolution owner answers the default, like any unknown name`,
       provider.currentStoredThemeSetting() === DEFAULT_THEME_SETTING,
-      provider.currentStoredThemeSetting(),
+      `got ${provider.currentStoredThemeSetting()}; currentStoredThemeSetting in src/components/design-system/ThemeProvider.tsx must fall back to DEFAULT_THEME_SETTING for a stored name outside the roster`,
     )
   }
   cfg.saveGlobalConfig(c => ({ ...c, theme: storedAtStart }))
@@ -99,18 +107,34 @@ section('§5 a stored retired name steers nothing, exactly as a stored unknown n
   check(
     'a retired name through the pin is ignored like any invalid pin (the stored value stands)',
     provider.currentStoredThemeSetting() === storedAtStart,
-    provider.currentStoredThemeSetting(),
+    `got ${provider.currentStoredThemeSetting()}; currentStoredThemeSetting in src/components/design-system/ThemeProvider.tsx must ignore a MERCURY_THEME_PIN outside the roster`,
   )
   process.env.MERCURY_THEME_PIN = 'dark'
-  check('a living appearance through the pin pins this process', provider.currentStoredThemeSetting() === 'dark')
+  check(
+    'a living appearance through the pin pins this process',
+    provider.currentStoredThemeSetting() === 'dark',
+    `got ${provider.currentStoredThemeSetting()}; currentStoredThemeSetting in src/components/design-system/ThemeProvider.tsx must honour a valid MERCURY_THEME_PIN`,
+  )
   delete process.env.MERCURY_THEME_PIN
-  check('the config under test is restored', cfg.getGlobalConfig().theme === storedAtStart)
+  check(
+    'the config under test is restored',
+    cfg.getGlobalConfig().theme === storedAtStart,
+    'saveGlobalConfig in src/utils/config.ts did not write the stored theme back',
+  )
 }
 
 section('§6 auto resolves to the oasis appearance on every terminal')
 {
-  check('resolveThemeSetting(auto) is the oasis appearance', systemMod.resolveThemeSetting('auto') === 'dark')
-  check('the system-theme name is the oasis appearance', systemMod.getSystemThemeName() === 'dark')
+  check(
+    'resolveThemeSetting(auto) is the oasis appearance',
+    systemMod.resolveThemeSetting('auto') === 'dark',
+    `got ${systemMod.resolveThemeSetting('auto')}; resolveThemeSetting in src/utils/systemTheme.ts must answer dark for auto`,
+  )
+  check(
+    'the system-theme name is the oasis appearance',
+    systemMod.getSystemThemeName() === 'dark',
+    `got ${systemMod.getSystemThemeName()}; getSystemThemeName in src/utils/systemTheme.ts must answer dark`,
+  )
   const cfg = await import('../../src/utils/config.js')
   const provider = await import('../../src/components/design-system/ThemeProvider.js')
   const storedAtStart = cfg.getGlobalConfig().theme
@@ -118,7 +142,7 @@ section('§6 auto resolves to the oasis appearance on every terminal')
   check(
     'a stored auto keeps working: the resolution owner answers the default appearance',
     provider.currentStoredThemeSetting() === systemMod.DEFAULT_THEME_SETTING,
-    provider.currentStoredThemeSetting(),
+    `got ${provider.currentStoredThemeSetting()}; currentStoredThemeSetting in src/components/design-system/ThemeProvider.tsx must answer DEFAULT_THEME_SETTING for a stored auto`,
   )
   cfg.saveGlobalConfig(c => ({ ...c, theme: storedAtStart }))
 }
@@ -130,13 +154,13 @@ section('§7 the stored-grid census carries only living families')
   }
   const roster = new Set<string>(themeMod.THEME_NAMES)
   const retired = manifest.entries.filter(e => !roster.has(e.theme)).map(e => e.id)
-  check('every manifest entry records a living appearance', retired.length === 0, retired.join(', '))
+  check('every manifest entry records a living appearance', retired.length === 0, `${retired.join(', ')}; regenerate or remove these entries in design-system/live/manifest.json`)
   const grids = readdirSync(join(ROOT, 'design-system/live/grids')).filter(f => f.endsWith('.grid.json')).sort()
   const named = manifest.entries.map(e => e.gridPath.replace(/^grids\//, '')).sort()
   check(
     'the grids directory holds exactly the manifest entries',
     JSON.stringify(grids) === JSON.stringify(named),
-    `${grids.length} grids vs ${named.length} entries`,
+    `${grids.length} grids vs ${named.length} entries; make design-system/live/grids and design-system/live/manifest.json list the same grid files`,
   )
 }
 

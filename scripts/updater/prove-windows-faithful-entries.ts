@@ -16,11 +16,24 @@ const WIN32_POWERSHELL_ENTRY: string = optional.WIN32_POWERSHELL_ENTRY ?? 'mercu
 const powershellEntryContent = (): string => optional.powershellEntryContent?.() ?? ''
 
 let failures = 0
+const whereToFix: Record<string, string> = {
+  '(1)': 'change resolveLayoutRoots or WIN32_POWERSHELL_ENTRY in src/services/privateChannel/installLayout.ts',
+  '(2)': 'change powershellEntryContent in src/services/privateChannel/installLayout.ts',
+  '(3)': 'change writeShimSet, reconcileManagedShims or uninstallLayout in src/services/privateChannel/installLayout.ts',
+  '(4)': 'change the shell text built by shimContent in src/services/privateChannel/installLayout.ts',
+  '(5)': 'change the shell text built by shimContent in src/services/privateChannel/installLayout.ts (the facade run by this fixture)',
+  '(6)': 'change installingDoc in scripts/release/launcherTemplates.mjs',
+}
+let fixWhere = ''
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
+  const shown = cond ? '' : [detail, fixWhere].filter(part => part !== '').join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${shown ? ` — ${shown}` : ''}`)
   if (!cond) failures++
 }
-const section = (s: string): void => console.log(`\n── ${s} ──`)
+const section = (s: string): void => {
+  fixWhere = whereToFix[s.slice(0, 3)] ?? ''
+  console.log(`\n── ${s} ──`)
+}
 
 const scratch = mkdtempSync(join(tmpdir(), 'win-entries-'))
 process.on('exit', () => { try { removeScratch(scratch) } catch {} })

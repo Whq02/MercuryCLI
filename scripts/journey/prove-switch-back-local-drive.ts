@@ -34,7 +34,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' · the drive runs the built dist/mercury.mjs, so rebuild with bun run build.ts after a source change; the /model switch is in src/commands/model/model.tsx and src/commands/model/picker/apply.ts and its preview card in src/components/TransitionPreviewCard.tsx; the session record of the failed arm is kept at the [forensics] path printed at the end'}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

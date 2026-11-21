@@ -41,9 +41,10 @@ const SUITES: Suite[] = [
 ]
 
 let failures = 0
+const CEILING_FIX = 'set the suite row in scripts/gate/suite-ceilings.tsv (suite name, a tab, whole seconds) to the stretch value the last check names, or correct the measured walls in SUITES at the top of this file'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${CEILING_FIX}` : ''}`)
 }
 
 function rowOf(suite: string): number | undefined {

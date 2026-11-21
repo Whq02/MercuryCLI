@@ -13,7 +13,7 @@ let failures = 0
 const check = (name: string, value: unknown, detail: unknown = ''): void => {
   checks++
   if (!value) failures++
-  console.log((value ? 'PASS ' : 'FAIL ') + name + (value ? '' : ' — ' + JSON.stringify(detail)))
+  console.log((value ? 'PASS ' : 'FAIL ') + name + (value ? '' : ' — ' + JSON.stringify(detail) + ' — a vendor document moved: re-read it, then update the adapter words in src/services/host/vendors/ (vendor.ts holds HOST_VENDOR_INFO), the images in src/services/host/recipes.ts, or the pinned URL or node version in vendor/*.lock.json that this check names'))
 }
 const record = (value: unknown): Record<string, any> | undefined => typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, any> : undefined
 const fetchText = async (url: string, init: RequestInit = {}): Promise<{ status: number; headers: Headers; text: string }> => {

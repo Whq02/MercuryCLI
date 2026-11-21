@@ -14,9 +14,10 @@ mkdirSync(home, { recursive: true })
 mkdirSync(cwd, { recursive: true })
 
 let failures = 0
+const WHERE_TO_FIX = 'the extensions verbs are in src/extensions/cli.ts (their install, trust, blocklist and source steps are in install.ts, blocklist.ts and sources.ts beside it, the install card in card.ts); rebuild dist with bun run build.ts if the source is already right'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' | where to fix: ' + WHERE_TO_FIX}`)
 }
 if (!existsSync(DIST)) {
   console.log('  – dist/mercury.mjs absent — build first: bun run build.ts')
@@ -57,7 +58,7 @@ console.log('[1] the verb walk: add → sources → list → install(--yes) → 
   const craftRows = json<{ extensions: Array<{ name: string; version: string }> }>(run(['extensions', 'list', '--json']).stdout).extensions
   check('list --json carries the same pinned release as each Craft row\'s version', Object.entries(CRAFT_PINS).every(([name, version]) => craftRows.find(e => e.name === name)?.version === version), JSON.stringify(craftRows.filter(e => e.name in CRAFT_PINS).map(e => [e.name, e.version])))
   const extensionsDoc = readFileSync(join(ROOT, 'docs', 'EXTENSIONS.md'), 'utf8')
-  check('docs/EXTENSIONS.md names each Craft row\'s pinned release as it stands', Object.entries(CRAFT_PINS).every(([name, version]) => extensionsDoc.includes(`\`${name} ${version}\``)), Object.entries(CRAFT_PINS).filter(([name, version]) => !extensionsDoc.includes(`\`${name} ${version}\``)).map(([name]) => name).join(','))
+  check('docs/EXTENSIONS.md names each Craft row\'s pinned release as it stands', Object.entries(CRAFT_PINS).every(([name, version]) => extensionsDoc.includes(`\`${name} ${version}\``)), 'update docs/EXTENSIONS.md so these Craft extensions carry their pinned release in backticks, or update CRAFT_PINS here: ' + Object.entries(CRAFT_PINS).filter(([name, version]) => !extensionsDoc.includes(`\`${name} ${version}\``)).map(([name]) => name).join(','))
   const emptySources = run(['extensions', 'sources'])
   check('sources on a fresh home names the add act', emptySources.code === 0 && emptySources.stdout.includes('add'), emptySources.stdout.slice(0, 160))
 
@@ -68,7 +69,7 @@ console.log('[1] the verb walk: add → sources → list → install(--yes) → 
   check('sources --json carries the row', sourcesParsed.sources[0]?.label === 'fixture-source' && sourcesParsed.sources[0]?.offered === 3)
 
   const bad = run(['extensions', 'add', 'owner/repo'])
-  check('the owner/repo shorthand refuses with exit 1 naming the missing host', bad.code === 1 && bad.stderr.includes('names no host'))
+  check('the owner/repo shorthand refuses with exit 1 naming the missing host', bad.code === 1 && bad.stderr.includes('names no host'), 'extensions add owner/repo must exit 1 with a message containing names no host (src/extensions/sources.ts); got ' + bad.code + ': ' + bad.stderr.slice(0, 160))
 
   const installed = run(['extensions', 'install', 'kitchen-sink', '--yes'])
   check('install --yes approves and switches on', installed.code === 0 && installed.stdout.includes('approved and on'), (installed.stderr + installed.stdout).slice(0, 200))
@@ -77,7 +78,7 @@ console.log('[1] the verb walk: add → sources → list → install(--yes) → 
   check('list --json shows it on with health', row?.trust === 'on' && row?.health !== null, JSON.stringify(row))
 
   const off = run(['extensions', 'disable', 'kitchen-sink@fixture-source'])
-  check('disable exits 0', off.code === 0)
+  check('disable exits 0', off.code === 0, off.stderr.slice(0, 160))
   const offRow = json<{ extensions: Array<{ id: string; trust: string }> }>(run(['extensions', 'list', '--json']).stdout).extensions.find(e => e.id === 'kitchen-sink@fixture-source')
   check('the row reads off', offRow?.trust === 'off')
   check('enable restores', run(['extensions', 'enable', 'kitchen-sink@fixture-source']).code === 0)
@@ -86,7 +87,7 @@ console.log('[1] the verb walk: add → sources → list → install(--yes) → 
   check('refresh exits 0 and prints the offer count', checked.code === 0 && checked.stdout.includes('offered'), (checked.stderr + checked.stdout).slice(0, 160))
 
   const blocked = run(['extensions', 'fence', 'kitchen-sink@fixture-source'])
-  check('fence exits 0', blocked.code === 0)
+  check('fence exits 0', blocked.code === 0, blocked.stderr.slice(0, 160))
   const blockedRow = json<{ extensions: Array<{ id: string; trust: string }> }>(run(['extensions', 'list', '--json']).stdout).extensions.find(e => e.id === 'kitchen-sink@fixture-source')
   check('the row reads blocked', blockedRow?.trust === 'blocked')
   const enableBlocked = run(['extensions', 'enable', 'kitchen-sink@fixture-source'])
@@ -105,13 +106,13 @@ console.log('[2] a TTY-less install without --yes: the card as text, exit 1, ins
 {
   check('re-add the source', run(['extensions', 'add', FIXTURE, '--label', 'fixture-source']).code === 0)
   const asked = run(['extensions', 'install', 'kitchen-sink'])
-  check('exit 1 without a TTY and without --yes', asked.code === 1)
+  check('exit 1 without a TTY and without --yes', asked.code === 1, 'extensions install without --yes and without a TTY must print the card and exit 1, read exit ' + asked.code + '; ' + (asked.stderr + asked.stdout).slice(0, 160))
   check('the card printed as text (runs on your machine · reaches the model · needs)', asked.stdout.includes('runs on your machine') && asked.stdout.includes('reaches the model') && asked.stdout.includes('needs'), asked.stdout.slice(0, 300))
-  check('the refusal names --yes', (asked.stderr + asked.stdout).includes('--yes'))
+  check('the refusal names --yes', (asked.stderr + asked.stdout).includes('--yes'), 'the refusal text of extensions install must name --yes; read: ' + (asked.stderr + asked.stdout).slice(0, 160))
   const row = json<{ extensions: Array<{ id: string; trust: string; approved: boolean }> }>(run(['extensions', 'list', '--json']).stdout).extensions.find(e => e.id === 'kitchen-sink@fixture-source')
   check('the copy stays installed, off, unapproved', row?.trust === 'off' && row?.approved === false, JSON.stringify(row))
   const envTrick = run(['extensions', 'trust', 'kitchen-sink@fixture-source'], { MERCURY_YES: '1', YES: '1', ASSUME_YES: '1' })
-  check('no env var implies --yes (still exit 1)', envTrick.code === 1)
+  check('no env var implies --yes (still exit 1)', envTrick.code === 1, 'extensions trust must not read MERCURY_YES, YES or ASSUME_YES; read exit ' + envTrick.code)
   const approved = run(['extensions', 'trust', 'kitchen-sink@fixture-source', '--yes'])
   check('approve --yes lands', approved.code === 0, (approved.stderr + approved.stdout).slice(0, 160))
 }
@@ -148,15 +149,15 @@ console.log('[5] /extensions is in the catalogue with its help-domain row; the r
   process.env.MERCURY_CONFIG_DIR = home
   const commands = await commandsMod.getCommands(cwd)
   const names = new Set(commands.map((c: { name: string }) => c.name))
-  check('/extensions exists', names.has('extensions'))
+  check('/extensions exists', names.has('extensions'), 'register the extensions command in src/commands.ts (its folder is src/commands/extensions)')
   const J = (...parts: string[]): string => parts.join('')
   check('the retired routes are absent', !names.has(J('plug', 'in')) && !names.has(J('reload-', 'plug', 'ins')), [...names].filter(n => n.includes('plug')).join(','))
   const extensions = commands.find((c: { name: string }) => c.name === 'extensions') as { description: string; argumentHint?: string } | undefined
-  check('the description says what it does', extensions !== undefined && extensions.description.includes('extensions') && extensions.description.includes('sources'))
-  check('reload rides the command (argument hint)', (extensions?.argumentHint ?? '').includes('reload'))
+  check('the description says what it does', extensions !== undefined && extensions.description.includes('extensions') && extensions.description.includes('sources'), 'the description of the extensions command in src/commands/extensions must mention extensions and sources')
+  check('reload rides the command (argument hint)', (extensions?.argumentHint ?? '').includes('reload'), 'the argumentHint of the extensions command in src/commands/extensions must include reload; read: ' + (extensions?.argumentHint ?? ''))
   const domains = await import('../../src/components/HelpV2/commandDomains.ts')
   const rows = JSON.stringify((domains as { COMMAND_DOMAINS?: unknown }).COMMAND_DOMAINS ?? domains)
-  check("the help domain 'config & setup' lists extensions", rows.includes("'extensions'") || rows.includes('"extensions"'))
+  check("the help domain 'config & setup' lists extensions", rows.includes("'extensions'") || rows.includes('"extensions"'), 'list extensions in the config & setup domain in src/components/HelpV2/commandDomains.ts')
 }
 
 removeScratch(scratch)

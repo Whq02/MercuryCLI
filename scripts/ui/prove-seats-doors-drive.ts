@@ -24,7 +24,8 @@ if (driver.kind !== 'posix-pty') {
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const seatsDoorsWhere = 'to fix: the Boot Menu row text (reading, inputs, doors line) is in src/utils/switchboard/capacityCheck.ts, its arrow and backspace commits in src/components/bootSettings/commits.ts, the /seats verb and its confirmations in src/commands/seats/applySeats.ts; a capture or send failure is a build or vshot problem, so rebuild dist (bun run build.ts) and read the frames dumped below'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail || !cond ? ` — ${detail}${!cond ? `${detail ? ' · ' : ''}${seatsDoorsWhere}` : ''}` : ''}`)
 }
 
 const FIXTURE_API_KEY = 'fixture-key-000'

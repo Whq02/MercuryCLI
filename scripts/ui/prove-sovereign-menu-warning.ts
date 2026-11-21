@@ -7,7 +7,8 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  const sovereignWarningWhere = 'to fix: the row data (warnWhenOn, label, options, default, summary) and menuRowWarning are in src/substrate/startupMenu.ts, which src/components/bootSettings/menuModel.ts reads to place the warning line; if only a stored still differs on purpose, regenerate with bun scripts/ui/sovereign-menu-stills.ts --write'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail.slice(0, 600)} · ` : ''}${sovereignWarningWhere}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 

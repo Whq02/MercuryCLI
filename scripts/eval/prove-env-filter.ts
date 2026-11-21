@@ -3,13 +3,16 @@ import { execSync } from 'node:child_process'
 import { check, cleanup, finish, refusingBridge, loadEval, section, setup, within } from './lib.js'
 
 const { work } = setup()
+
+const hintedCheck = (label: string, cond: boolean, detail: string | undefined, hint: string): void =>
+  check(label, cond, cond ? detail : `${detail ? `${detail}; ` : ''}${hint}`)
 const { credentialEnvNames } = await import('../../src/utils/accounts/providerSecrets.js')
 const { isDeniedKernelEnvName, buildKernelEnv } = await import('../../src/services/eval/kernelEnv.js')
 const { evalKernelManager } = await loadEval()
 
 section('the enumeration mirrors real resolvers (anti-drift)')
 const names = credentialEnvNames()
-check('the enumeration is non-trivial', names.length >= 10, String(names.length))
+hintedCheck('the enumeration is non-trivial', names.length >= 10, String(names.length), 'credentialEnvNames in src/utils/accounts/providerSecrets.ts returned too few names')
 for (const name of names) {
   let hits: string[] = []
   try {
@@ -24,22 +27,22 @@ for (const name of names) {
   } catch {
     hits = []
   }
-  check(`${name} has a live reader in src`, hits.length > 0, hits[0] ?? '')
+  hintedCheck(`${name} has a live reader in src`, hits.length > 0, hits[0] ?? '', 'no file under src outside services/eval reads this name; drop it from credentialEnvNames in src/utils/accounts/providerSecrets.ts or add its reader')
 }
 
 section('the pure filter: derived names, suffix belt, allowed rest')
-for (const name of names) check(`${name} denied`, isDeniedKernelEnvName(name))
-check('generic _TOKEN suffix denied', isDeniedKernelEnvName('SOME_VENDOR_TOKEN'))
-check('generic _SECRET suffix denied', isDeniedKernelEnvName('MY_APP_SECRET'))
-check('GITHUB_TOKEN denied (extra belt)', isDeniedKernelEnvName('GITHUB_TOKEN'))
-check('PATH allowed', !isDeniedKernelEnvName('PATH'))
-check('HOME allowed', !isDeniedKernelEnvName('HOME'))
-check('VIRTUAL_ENV allowed', !isDeniedKernelEnvName('VIRTUAL_ENV'))
+for (const name of names) hintedCheck(`${name} denied`, isDeniedKernelEnvName(name), undefined, 'isDeniedKernelEnvName in src/services/eval/kernelEnv.ts must deny every name credentialEnvNames returns')
+hintedCheck('generic _TOKEN suffix denied', isDeniedKernelEnvName('SOME_VENDOR_TOKEN'), undefined, 'SECRET_SUFFIX in src/services/eval/kernelEnv.ts must match names ending in _TOKEN')
+hintedCheck('generic _SECRET suffix denied', isDeniedKernelEnvName('MY_APP_SECRET'), undefined, 'SECRET_SUFFIX in src/services/eval/kernelEnv.ts must match names ending in _SECRET')
+hintedCheck('GITHUB_TOKEN denied (extra belt)', isDeniedKernelEnvName('GITHUB_TOKEN'), undefined, 'EXTRA_DENY in src/services/eval/kernelEnv.ts must list GITHUB_TOKEN')
+hintedCheck('PATH allowed', !isDeniedKernelEnvName('PATH'), undefined, 'isDeniedKernelEnvName in src/services/eval/kernelEnv.ts denies PATH; narrow its deny rules')
+hintedCheck('HOME allowed', !isDeniedKernelEnvName('HOME'), undefined, 'isDeniedKernelEnvName in src/services/eval/kernelEnv.ts denies HOME; narrow its deny rules')
+hintedCheck('VIRTUAL_ENV allowed', !isDeniedKernelEnvName('VIRTUAL_ENV'), undefined, 'isDeniedKernelEnvName in src/services/eval/kernelEnv.ts denies VIRTUAL_ENV; narrow its deny rules')
 const built = buildKernelEnv({ PATH: '/usr/bin', ANTHROPIC_API_KEY: 'sk-x', INNOCENT_VAR: 'yes' })
-check('buildKernelEnv strips the credential', !('ANTHROPIC_API_KEY' in built))
-check('buildKernelEnv keeps the innocent var', built.INNOCENT_VAR === 'yes')
-check('buildKernelEnv pins MPLBACKEND=Agg', built.MPLBACKEND === 'Agg')
-check('buildKernelEnv pins PYTHONUNBUFFERED', built.PYTHONUNBUFFERED === '1')
+hintedCheck('buildKernelEnv strips the credential', !('ANTHROPIC_API_KEY' in built), undefined, 'buildKernelEnv in src/services/eval/kernelEnv.ts must drop names isDeniedKernelEnvName denies')
+hintedCheck('buildKernelEnv keeps the innocent var', built.INNOCENT_VAR === 'yes', undefined, 'buildKernelEnv in src/services/eval/kernelEnv.ts must copy names that are not denied')
+hintedCheck('buildKernelEnv pins MPLBACKEND=Agg', built.MPLBACKEND === 'Agg', undefined, 'buildKernelEnv in src/services/eval/kernelEnv.ts must set MPLBACKEND to Agg')
+hintedCheck('buildKernelEnv pins PYTHONUNBUFFERED', built.PYTHONUNBUFFERED === '1', undefined, 'buildKernelEnv in src/services/eval/kernelEnv.ts must set PYTHONUNBUFFERED to 1')
 
 section('a LIVE kernel sees none of the planted credentials')
 const planted: string[] = []
@@ -64,9 +67,9 @@ try {
       serveBridge: refusingBridge(),
     }),
   )
-  check('probe cell ran', probe.status === 'ok', JSON.stringify(probe.error ?? probe.annotations))
-  check('ZERO credentials visible in the kernel', (probe.resultRepr ?? '').includes('([], '), probe.resultRepr)
-  check('the innocent var passed through', (probe.resultRepr ?? '').includes("'visible'"), probe.resultRepr)
+  hintedCheck('probe cell ran', probe.status === 'ok', JSON.stringify(probe.error ?? probe.annotations), 'the py kernel did not run the probe cell; read the error above and src/services/eval/kernelManager.ts runCell')
+  hintedCheck('ZERO credentials visible in the kernel', (probe.resultRepr ?? '').includes('([], '), probe.resultRepr, 'the kernel env still holds a planted name; the kernel must start from buildKernelEnv in src/services/eval/kernelEnv.ts')
+  hintedCheck('the innocent var passed through', (probe.resultRepr ?? '').includes("'visible'"), probe.resultRepr, 'buildKernelEnv in src/services/eval/kernelEnv.ts removed a name it should keep, or the kernel does not use it')
 } finally {
   for (const name of planted) delete process.env[name]
   delete process.env.EVIL_EXTRA_TOKEN

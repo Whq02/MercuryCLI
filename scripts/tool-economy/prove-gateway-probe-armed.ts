@@ -20,7 +20,8 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  const whereToChange = 'change the probe and its kept verdict in src/services/providers/deferralProbe.ts, or what each call sends in src/services/providers/deferralWire.ts'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${whereToChange}${detail ? ` · ${detail.slice(0, 600)}` : ''}` : ''}`)
 }
 const section = (title: string): void => {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)

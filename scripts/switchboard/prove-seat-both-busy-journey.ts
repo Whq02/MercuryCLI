@@ -31,7 +31,8 @@ if (!existsSync(DIST)) {
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}rerun with SWITCH_KEEP=1 to print every sent step and grabbed frame and to keep ${SCRATCH} (daemon.log is the daemon's output); the seat records are read through src/daemon/concourseWorkers.ts`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')

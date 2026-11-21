@@ -17,7 +17,7 @@ const keys = await import('../../src/substrate/identity/operatorKey.js')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix ensureOperatorKey, operatorKeyPath, operatorKeyId, signAsOperator or verifyOperatorSignature in src/substrate/identity/operatorKey.ts, or operatorPrincipal and assistantPrincipal in src/substrate/identity/identity.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

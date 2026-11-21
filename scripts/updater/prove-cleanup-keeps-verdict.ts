@@ -57,15 +57,15 @@ const homes = [...new Set([...out.matchAll(new RegExp(`(/\\S*?${HOME_STEM}-[A-Za
 const note = lines.find(line => line.startsWith('scratch home ') && line.includes(MARK)) ?? ''
 
 section('§1 the fault was planted and the proof under test was green on its own terms')
-check(`the planted rmSync fault fired on the scratch home (${MARK} appears in the output)`, out.includes(MARK), lines.slice(-12).join(' | '))
-check('every inner check passed and none failed (the verdict the cleanup must keep is ALL PASS)', passes >= 15 && fails === 0, `${passes} [PASS], ${fails} [FAIL]`)
+check(`the planted rmSync fault fired on the scratch home (${MARK} appears in the output)`, out.includes(MARK), `the plant did not reach the prover: check the preload and bunfig built at the top of this file and that prove-update-notice-stay.ts still calls releaseScratchHome (scripts/lib/settingsPopupHarness.ts) on success; ${lines.slice(-12).join(' | ')}`)
+check('every inner check passed and none failed (the verdict the cleanup must keep is ALL PASS)', passes >= 15 && fails === 0, `${passes} [PASS], ${fails} [FAIL]; run scripts/updater/prove-update-notice-stay.ts by itself and fix its failing checks first`)
 
 section('§2 the verdict stands: the failed removal is a note, never a red')
-check('the prover exits 0 when every check passed and only the scratch-home removal failed', run.status === 0, `rc=${String(run.status)} — the cleanup fault turned a green proof red: ${lines.filter(line => line.includes('EFAULT')).join(' | ').slice(0, 300)}`)
-check('the ALL PASS verdict is printed after the failed removal', out.includes('ALL PASS'), lines.slice(-6).join(' | '))
-check('the fault was caught, not crashed (no uncaught EFAULT trace with its syscall frame)', !out.includes('syscall: "rm"'), lines.filter(line => line.includes('syscall')).join(' | '))
-check('one line names the scratch home, the error, and says the verdict stands', note !== '' && homes.some(home => note.includes(home)) && note.includes('EFAULT') && note.endsWith('; the verdict stands'), note || lines.filter(line => line.startsWith('scratch home')).join(' | ') || 'no scratch-home line')
-check('the fallback road swept the home once rmSync had failed twice (rm -rf)', note.includes('rmSync failed twice') && note.includes('removed by rm -rf') && homes.length > 0 && homes.every(home => !existsSync(home)), `${note} · homes: ${homes.join(', ')}`)
+check('the prover exits 0 when every check passed and only the scratch-home removal failed', run.status === 0, `release the scratch home without failing the proof: releaseScratchHome in scripts/lib/settingsPopupHarness.ts must catch a failing rmSync; rc=${String(run.status)} — the cleanup fault turned a green proof red: ${lines.filter(line => line.includes('EFAULT')).join(' | ').slice(0, 300)}`)
+check('the ALL PASS verdict is printed after the failed removal', out.includes('ALL PASS'), `prove-update-notice-stay.ts must reach its ALL PASS line after releaseScratchHome (scripts/lib/settingsPopupHarness.ts) returns; ${lines.slice(-6).join(' | ')}`)
+check('the fault was caught, not crashed (no uncaught EFAULT trace with its syscall frame)', !out.includes('syscall: "rm"'), `releaseScratchHome in scripts/lib/settingsPopupHarness.ts must catch the rmSync error; ${lines.filter(line => line.includes('syscall')).join(' | ')}`)
+check('one line names the scratch home, the error, and says the verdict stands', note !== '' && homes.some(home => note.includes(home)) && note.includes('EFAULT') && note.endsWith('; the verdict stands'), `the console.log at the end of releaseScratchHome in scripts/lib/settingsPopupHarness.ts must name the home, the error and end with "; the verdict stands"; ${note || lines.filter(line => line.startsWith('scratch home')).join(' | ') || 'no scratch-home line'}`)
+check('the fallback road swept the home once rmSync had failed twice (rm -rf)', note.includes('rmSync failed twice') && note.includes('removed by rm -rf') && homes.length > 0 && homes.every(home => !existsSync(home)), `releaseScratchHome in scripts/lib/settingsPopupHarness.ts must retry rmSync once, then sweep with rm -rf; ${note} · homes: ${homes.join(', ')}`)
 
 if (failures > 0) {
   console.log('\n  the prover\'s last lines:')

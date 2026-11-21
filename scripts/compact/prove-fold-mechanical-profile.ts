@@ -29,18 +29,21 @@ const STALL_PORT = 0
 
 let failures = 0
 let checks = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', changeHint = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && (detail || changeHint) ? ` — ${[detail, changeHint].filter(Boolean).join(' | ')}` : ''}`)
 }
+const foldRunWhere = 'change compactConversation (src/services/compact/compact.ts) and its summary request in src/services/compact/compact/summarise.ts'
+const foldGateWhere = 'change shouldRideCacheSharingFork in src/services/compact/compact/foldBound.ts'
+const foldTimeoutWhere = 'change the fold stall bound and its typed sentence ERROR_MESSAGE_FOLD_TIMEOUT in src/services/compact/compact/foldBound.ts, and where summarise.ts throws it'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — fold session profile prover exceeded 120s')
+  console.log('\nTIMEOUT — fold session profile prover exceeded 120s; a fold request hung against the fixture (scripts/lib/crossfamilyConcourseFixture.ts) or the stall server, see the fold stall bound in src/services/compact/compact/foldBound.ts')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -180,13 +183,14 @@ for (const family of [
 ]) {
   console.log(`\n  · ${family.route} — session effort xhigh, model ${family.model}`)
   const run = await runFold(family.model)
-  check(`${family.route}: the fold resolved`, run.result !== undefined && run.error === undefined, (run.error?.stack ?? '').slice(0, 400))
-  check(`${family.route}: the wire saw the fold (count ${run.hits.length} ≥ 1)`, run.hits.length >= 1)
+  check(`${family.route}: the fold resolved`, run.result !== undefined && run.error === undefined, (run.error?.stack ?? '').slice(0, 400), foldRunWhere)
+  check(`${family.route}: the wire saw the fold (count ${run.hits.length} ≥ 1)`, run.hits.length >= 1, '', foldRunWhere)
   const words = run.hits.flatMap(h => effortWordsOf(h.body))
   check(
     `${family.route}: every fold hit carries the session effort tier`,
     words.length > 0 && words.every(w => SESSION_TIERS.has(w.toLowerCase())),
     `effort words on the wire: ${j(words)}`,
+    foldRunWhere + ' so the fold request carries the session effort tier',
   )
   check(
     `${family.route}: no fold hit enables provider thinking`,
@@ -195,6 +199,7 @@ for (const family of [
       return t === undefined || t.type === 'disabled'
     }),
     run.hits.map(h => j((h.body as { thinking?: unknown }).thinking)).join(' | '),
+    foldRunWhere + ' so the fold request never enables provider thinking',
   )
 }
 
@@ -202,27 +207,28 @@ section("§2 the home family — output_config.effort is the SESSION's word (the
 {
   console.log('\n  · anthropic — session effort xhigh, model claude-opus-4-8')
   const run = await runFold('claude-opus-4-8')
-  check('anthropic: the fold resolved', run.result !== undefined && run.error === undefined, (run.error?.stack ?? '').slice(0, 400))
-  check(`anthropic: the wire saw the fold (count ${run.hits.length} ≥ 1)`, run.hits.length >= 1)
+  check('anthropic: the fold resolved', run.result !== undefined && run.error === undefined, (run.error?.stack ?? '').slice(0, 400), foldRunWhere)
+  check(`anthropic: the wire saw the fold (count ${run.hits.length} ≥ 1)`, run.hits.length >= 1, '', foldRunWhere)
   const words = run.hits.flatMap(h => effortWordsOf(h.body))
   check(
     "anthropic: every fold hit carries the session's effort tier (a pinned 'low' re-wrote the messages cache on every fold)",
     words.length >= 1 && words.every(w => SESSION_TIERS.has(w.toLowerCase())),
     `effort words on the wire: ${j(words)}`,
+    foldRunWhere + ' so output_config.effort is the session word, not a pinned low',
   )
 }
 
 section('§3 the fork admission is a pure law — home transport regardless of thinking budget')
 {
   const gate = seams.shouldRideCacheSharingFork
-  check('the fork-admission seam exists (shouldRideCacheSharingFork)', typeof gate === 'function')
+  check('the fork-admission seam exists (shouldRideCacheSharingFork)', typeof gate === 'function', '', 'export shouldRideCacheSharingFork from src/services/compact/compact.ts (defined in src/services/compact/compact/foldBound.ts)')
   if (typeof gate === 'function') {
-    check('home id + disabled thinking ⇒ fork eligible', gate('claude-opus-4-8', { type: 'disabled' }) === true)
-    check('home id + adaptive thinking ⇒ fork eligible (the cache key rides)', gate('claude-opus-4-8', { type: 'adaptive' }) === true)
-    check('home id + explicit thinking budget ⇒ fork eligible', gate('claude-opus-4-8', { type: 'enabled' }) === true)
-    check('unrecognised stranger (gateway home ride) ⇒ fork eligible', gate('totally-unknown-model-id', { type: 'disabled' }) === true)
+    check('home id + disabled thinking ⇒ fork eligible', gate('claude-opus-4-8', { type: 'disabled' }) === true, '', foldGateWhere)
+    check('home id + adaptive thinking ⇒ fork eligible (the cache key rides)', gate('claude-opus-4-8', { type: 'adaptive' }) === true, '', foldGateWhere)
+    check('home id + explicit thinking budget ⇒ fork eligible', gate('claude-opus-4-8', { type: 'enabled' }) === true, '', foldGateWhere)
+    check('unrecognised stranger (gateway home ride) ⇒ fork eligible', gate('totally-unknown-model-id', { type: 'disabled' }) === true, '', foldGateWhere)
     for (const engine of ['gpt-5.5', 'glm-5.2', 'deepseek-chat', 'kimi-k2-0905-preview', 'openrouter/nvidia/nemotron-nano-9b-v2:free']) {
-      check(`engine id ${engine} ⇒ direct session request, never the fork`, gate(engine, { type: 'disabled' }) === false)
+      check(`engine id ${engine} ⇒ direct session request, never the fork`, gate(engine, { type: 'disabled' }) === false, '', foldGateWhere)
     }
   }
 }
@@ -231,8 +237,8 @@ section('§4 dead-connection detection — a wedged wire refuses TYPED, the conv
 {
   const bounds = seams.setFoldBoundsForTests
   const sentence = seams.ERROR_MESSAGE_FOLD_TIMEOUT
-  check('the bounds seam exists (setFoldBoundsForTests)', typeof bounds === 'function')
-  check('the typed timeout sentence exists (ERROR_MESSAGE_FOLD_TIMEOUT)', typeof sentence === 'string' && sentence.length > 0)
+  check('the bounds seam exists (setFoldBoundsForTests)', typeof bounds === 'function', '', 'export setFoldBoundsForTests from src/services/compact/compact.ts (defined in src/services/compact/compact/foldBound.ts)')
+  check('the typed timeout sentence exists (ERROR_MESSAGE_FOLD_TIMEOUT)', typeof sentence === 'string' && sentence.length > 0, '', 'export ERROR_MESSAGE_FOLD_TIMEOUT from src/services/compact/compact.ts (defined in src/services/compact/compact/foldBound.ts)')
   if (typeof bounds === 'function' && typeof sentence === 'string') {
     const prevBase = process.env.ANTHROPIC_BASE_URL
     process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(stallServer.address() as { port: number }).port}`
@@ -240,16 +246,18 @@ section('§4 dead-connection detection — a wedged wire refuses TYPED, the conv
     const run = await runFold('claude-opus-4-8')
     bounds(null)
     process.env.ANTHROPIC_BASE_URL = prevBase
-    check('the wedged fold REFUSED (no result)', run.result === undefined)
+    check('the wedged fold REFUSED (no result)', run.result === undefined, '', foldTimeoutWhere)
     check(
       'the refusal is the typed fold-timeout sentence',
       run.error !== undefined && run.error.message === sentence,
       `error: ${run.error?.message ?? '(none)'}`,
+      foldTimeoutWhere,
     )
     check(
       'the conversation stands untouched (read-file state intact)',
       run.readFileState.size === 1,
       `readFileState.size=${run.readFileState.size}`,
+      'change compactConversation (src/services/compact/compact.ts) so a refused fold leaves the read-file state alone',
     )
   }
 }
@@ -265,14 +273,15 @@ section("§5 the operator's abort keeps its own sentence — never dressed as a 
     const run = await runFold('claude-opus-4-8', { abortAfterMs: 300 })
     bounds(null)
     process.env.ANTHROPIC_BASE_URL = prevBase
-    check('the aborted fold REFUSED (no result)', run.result === undefined)
+    check('the aborted fold REFUSED (no result)', run.result === undefined, '', 'change compactConversation (src/services/compact/compact.ts) so an aborted fold throws')
     check(
       'the abort surfaces as an abort, never the timeout sentence',
       run.error !== undefined && run.error.message !== sentence,
       `error: ${run.error?.message ?? '(none)'}`,
+      'change summarise.ts (src/services/compact/compact/summarise.ts) so an operator abort is not turned into ERROR_MESSAGE_FOLD_TIMEOUT',
     )
   } else {
-    check('abort-vs-timeout distinction provable (seams exist)', false)
+    check('abort-vs-timeout distinction provable (seams exist)', false, '', 'export setFoldBoundsForTests and ERROR_MESSAGE_FOLD_TIMEOUT from src/services/compact/compact.ts')
   }
 }
 

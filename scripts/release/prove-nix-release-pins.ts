@@ -10,7 +10,7 @@ const at = process.argv.indexOf('--source')
 const root = resolve(at === -1 ? join(dirname(fileURLToPath(import.meta.url)), '../..') : process.argv[at + 1]!)
 const script = join(root, 'scripts/release/refresh-nix-release-pins.mjs')
 if (!existsSync(script)) {
-  console.log('[FAIL] the finalized-release to Nix pins step is missing')
+  console.log(`[FAIL] the finalized-release to Nix pins step is missing — restore scripts/release/refresh-nix-release-pins.mjs under ${root} (or pass --source <tree> that has it)`)
   process.exit(1)
 }
 const { refreshNixReleasePins, releasePins } = await import(pathToFileURL(script).href)
@@ -29,7 +29,8 @@ let failures = 0
 function check(name: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  const pinsHint = 'change refreshNixReleasePins or releasePins in scripts/release/refresh-nix-release-pins.mjs (the verification it delegates to is dist/verify-artifact.mjs)'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${!ok ? ` — ${detail ? `${detail} | ` : ''}${pinsHint}` : ''}`)
 }
 function fixture(name: string, change: string = ''): { archives: string; sums: string; out: string } {
   const archives = join(scratch, name)

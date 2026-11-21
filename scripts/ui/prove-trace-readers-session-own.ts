@@ -72,28 +72,28 @@ writeFileSync(
 section('§0 the emitted record carries the session it ran in')
 {
   const trace = buildInvocationTrace({ name: 'Bash', isReadOnly: () => false } as never, { ok: true })
-  check('an invocation trace record names its session', trace.sessionId === String(getSessionId()), JSON.stringify(trace))
+  check('an invocation trace record names its session', trace.sessionId === String(getSessionId()), `${JSON.stringify(trace)}; buildInvocationTrace in src/utils/observability/invocationTrace.ts must stamp the record with getSessionId()`)
 }
 
 section('§1 THE ONE NARROWING — a live trace snapshot narrowed to a session keeps its own records and re-derives the counts')
 {
   const box = await traceSnapshot()
-  check('the box-wide snapshot is live with six records (three sessions\' calls, one unstamped)', box.state === 'live' && box.data.total === 6, j({ state: box.state, total: box.state === 'live' ? box.data.total : null }))
+  check('the box-wide snapshot is live with six records (three sessions\' calls, one unstamped)', box.state === 'live' && box.data.total === 6, `${j({ state: box.state, total: box.state === 'live' ? box.data.total : null })}; traceSnapshot in src/utils/cockpit/traceSnapshot.ts must read all six lines of the trace file at getInvocationTracePath()`)
   const own = sessionTraceSnapshot(box, OWN)
-  check('RED ON THE BASE: the session\'s own snapshot carries its two calls and nothing of the box', own.state === 'live' && own.data.total === 2 && own.data.records.every(r => r.sessionId === OWN), j(own.state === 'live' ? own.data.records : own))
-  check('…the counts are its own: 2 total · 1 high-risk class · 1 killed · 0 errored', own.state === 'live' && own.data.highRisk === 1 && own.data.killed === 1 && own.data.errors === 0, j(own.state === 'live' ? [own.data.highRisk, own.data.killed, own.data.errors] : own))
+  check('RED ON THE BASE: the session\'s own snapshot carries its two calls and nothing of the box', own.state === 'live' && own.data.total === 2 && own.data.records.every(r => r.sessionId === OWN), `${j(own.state === 'live' ? own.data.records : own)}; sessionTraceSnapshot in src/utils/cockpit/traceSnapshot.ts must keep only the records stamped with the session id`)
+  check('…the counts are its own: 2 total · 1 high-risk class · 1 killed · 0 errored', own.state === 'live' && own.data.highRisk === 1 && own.data.killed === 1 && own.data.errors === 0, `${j(own.state === 'live' ? [own.data.highRisk, own.data.killed, own.data.errors] : own)}; sessionTraceSnapshot in src/utils/cockpit/traceSnapshot.ts must recount total, highRisk, killed and errors from the kept records`)
   const other = sessionTraceSnapshot(box, OTHER)
-  check('the other session reads its own three (one errored)', other.state === 'live' && other.data.total === 3 && other.data.errors === 1, j(other.state === 'live' ? [other.data.total, other.data.errors] : other))
+  check('the other session reads its own three (one errored)', other.state === 'live' && other.data.total === 3 && other.data.errors === 1, `${j(other.state === 'live' ? [other.data.total, other.data.errors] : other)}; sessionTraceSnapshot in src/utils/cockpit/traceSnapshot.ts must recount from the records of the session asked for`)
   const none = sessionTraceSnapshot(box, null)
-  check('no session at all reads zero (an unstamped record belongs to no session)', none.state === 'live' && none.data.total === 0)
+  check('no session at all reads zero (an unstamped record belongs to no session)', none.state === 'live' && none.data.total === 0, 'sessionTraceSnapshot in src/utils/cockpit/traceSnapshot.ts must keep no record when the session id is null, including unstamped records')
   const off = sessionTraceSnapshot({ state: 'off', reason: 'enable with MERCURY_TRACE=1' } as never, OWN)
-  check('a snapshot that is not live passes through untouched', off.state === 'off')
+  check('a snapshot that is not live passes through untouched', off.state === 'off', 'sessionTraceSnapshot in src/utils/cockpit/traceSnapshot.ts must return a snapshot that is not live unchanged')
 }
 
 section('§2 /trace — the view reads the focused session\'s own records through the same narrowing')
 {
   focusOn(OWN)
-  check('the conversation reader answers the focused session', conversationIdHere() === OWN)
+  check('the conversation reader answers the focused session', conversationIdHere() === OWN, `got ${String(conversationIdHere())}; conversationIdHere in src/services/engine-connector/focusedConnector.ts must answer the sessionId of the focused connector`)
   let written = ''
   const stdout = Object.assign(
     new Writable({ write(chunk: Buffer, _enc, cb) { written += chunk.toString(); cb() } }),
@@ -104,13 +104,13 @@ section('§2 /trace — the view reads the focused session\'s own records throug
   pokeVitals()
   const deadline = Date.now() + 8000
   while (Date.now() < deadline && getVitals().trace?.state !== 'live') await settle(50)
-  check('the vitals bus read the box-wide trace once the view subscribed', getVitals().trace?.state === 'live', j({ trace: getVitals().trace?.state ?? null, refreshedAt: getVitals().refreshedAt, version: getVitals().version, bus: _statsForProofs() }))
+  check('the vitals bus read the box-wide trace once the view subscribed', getVitals().trace?.state === 'live', j({ trace: getVitals().trace?.state ?? null, refreshedAt: getVitals().refreshedAt, version: getVitals().version, bus: _statsForProofs() }) + '; the vitals bus in src/state/vitalsBus.ts did not publish a live trace after pokeVitals, or the view in src/components/TraceView.tsx did not subscribe')
   await settle(600)
   const frame = strip(instance.lastFrame())
   instance.unmount?.()
   await settle(30)
-  check('RED ON THE BASE: the trace view lists the session\'s own calls (Glob, its killed Bash) and none of the other session\'s (Computer)', frame.includes('Glob') && !frame.includes('Computer'), frame.split('\n').filter(l => /Glob|Computer|Bash|Read/.test(l)).join(' | '))
-  check('the view names no repo-wide count', !/\brepo\b/.test(frame), frame.split('\n').find(l => /repo/.test(l)) ?? '')
+  check('RED ON THE BASE: the trace view lists the session\'s own calls (Glob, its killed Bash) and none of the other session\'s (Computer)', frame.includes('Glob') && !frame.includes('Computer'), frame.split('\n').filter(l => /Glob|Computer|Bash|Read/.test(l)).join(' | ') + '; src/components/TraceView.tsx must list only the focused session records, narrowed by sessionTraceSnapshot in src/utils/cockpit/traceSnapshot.ts')
+  check('the view names no repo-wide count', !/\brepo\b/.test(frame), (frame.split('\n').find(l => /repo/.test(l)) ?? '') + '; remove the repo-wide count from src/components/TraceView.tsx')
 }
 
 section('§3 the deck pane narrows the same way and names no repo tail')

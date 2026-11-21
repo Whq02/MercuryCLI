@@ -15,8 +15,9 @@ const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPer
 const { checkReadPermissionForTool } = await import('../../src/utils/permissions/filesystem.ts')
 const { PERMISSION_MODES } = await import('../../src/utils/permissions/PermissionMode.ts')
 let failures = 0
+const remotePathHint = 'change uncPathRisk and uncPathMessage in src/utils/permissions/uncPath.ts (what counts as a remote path and its SMB/WebDAV sentence), or where the Read check and the Bash check apply it (checkReadPermissionForTool in src/utils/permissions/filesystem.ts, bashToolHasPermission in src/tools/BashTool/bashPermissions.ts) and how decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts turns it into an ask, a deny or the sovereign allowance'
 function check(label: string, ok: boolean, detail = '') {
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + detail}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + (detail === '' ? '' : detail + ' — ') + remotePathHint}`)
   if (!ok) failures++
 }
 const SENTENCE = 'SMB/WebDAV'

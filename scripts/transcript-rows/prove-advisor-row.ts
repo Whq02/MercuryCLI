@@ -134,48 +134,48 @@ const attachmentNoteRow = (at: string, words: string = NOTE): Raw => ({ ...(crea
 
 section('§0 the words: the plate, the first line, the guard, the note stripped of its mid-turn framing')
 {
-  check('the plate name is advisor, lowercase, one home', rows.ADVISOR_PLATE_NAME === 'advisor' && attachedPlateName('advisor' as never) === 'advisor')
+  check('the plate name is advisor, lowercase, one home', rows.ADVISOR_PLATE_NAME === 'advisor' && attachedPlateName('advisor' as never) === 'advisor', 'ADVISOR_PLATE_NAME in src/utils/messages/noticeRows.ts and attachedPlateName in src/components/messages/TranscriptNameplate.tsx must both answer advisor')
   const line = rows.advisorFirstLine(advisorOrigin() as never)
-  check('the first line: the model and the cadence', line === `${MODEL} · ${CADENCE}`, line)
-  check('one minute reads singular', rows.advisorFirstLine(advisorOrigin({ minutes: 1 }) as never) === `${MODEL} · every 1 minute`)
+  check('the first line: the model and the cadence', line === `${MODEL} · ${CADENCE}`, `advisorFirstLine in src/utils/messages/noticeRows.ts must read model · every N minutes — ${line}`)
+  check('one minute reads singular', rows.advisorFirstLine(advisorOrigin({ minutes: 1 }) as never) === `${MODEL} · every 1 minute`, 'advisorFirstLine in src/utils/messages/noticeRows.ts must say minute, not minutes, for 1')
   const old = { kind: 'advisor', model: MODEL, seats: 5, at: NOTE_AT }
-  check("a row written before the minutes clock (a `seats` turn count, no minutes) is not an advisor row: the guard refuses it and nothing anywhere says turns (the owner's ruling)", !rows.isAdvisorOrigin(old) && !rows.isAdvisorOrigin({ ...old, minutes: '5' }) && rows.isAdvisorOrigin({ ...old, minutes: 5 }) && rows.advisorFirstLine({ ...old, minutes: 5 } as never) === `${MODEL} · ${CADENCE}`)
+  check("a row written before the minutes clock (a `seats` turn count, no minutes) is not an advisor row: the guard refuses it and nothing anywhere says turns (the owner's ruling)", !rows.isAdvisorOrigin(old) && !rows.isAdvisorOrigin({ ...old, minutes: '5' }) && rows.isAdvisorOrigin({ ...old, minutes: 5 }) && rows.advisorFirstLine({ ...old, minutes: 5 } as never) === `${MODEL} · ${CADENCE}`, 'isAdvisorOrigin in src/utils/messages/noticeRows.ts must require a numeric minutes and refuse an origin that has only seats')
   const plate = rows.noticePlate({ kind: 'advisor', origin: advisorOrigin(), lines: [] } as never, ROW_AT)
-  check('the notice plate of an advisor block reads [advisor] · <model> · every <minutes> minutes', plate === `[advisor] · ${MODEL} · ${CADENCE}`, plate)
-  check('the guard admits the advisor origin and refuses the others', rows.isAdvisorOrigin(advisorOrigin()) && !rows.isAdvisorOrigin({ kind: 'saturn', fire: 'wake', firedAt: NOTE_AT }) && !rows.isAdvisorOrigin({ kind: 'advisor' }) && !rows.isAdvisorOrigin({ kind: 'advisor', model: MODEL, at: NOTE_AT }) && !rows.isAdvisorOrigin(undefined))
-  check('the saturn guard refuses the advisor origin', !rows.isSaturnOrigin(advisorOrigin()))
+  check('the notice plate of an advisor block reads [advisor] · <model> · every <minutes> minutes', plate === `[advisor] · ${MODEL} · ${CADENCE}`, `noticePlate in src/utils/messages/noticeRows.ts must build [advisor] · model · cadence for an advisor block — ${plate}`)
+  check('the guard admits the advisor origin and refuses the others', rows.isAdvisorOrigin(advisorOrigin()) && !rows.isAdvisorOrigin({ kind: 'saturn', fire: 'wake', firedAt: NOTE_AT }) && !rows.isAdvisorOrigin({ kind: 'advisor' }) && !rows.isAdvisorOrigin({ kind: 'advisor', model: MODEL, at: NOTE_AT }) && !rows.isAdvisorOrigin(undefined), 'isAdvisorOrigin in src/utils/messages/noticeRows.ts must accept only an origin with kind advisor, a model, a numeric minutes and an at stamp')
+  check('the saturn guard refuses the advisor origin', !rows.isSaturnOrigin(advisorOrigin()), 'isSaturnOrigin in src/utils/messages/noticeRows.ts must refuse an origin whose kind is advisor')
   const block = rows.advisorBlockOf(advisorOrigin() as never, NOTE)
-  check('the block carries the note lines whole', block.kind === 'advisor' && JSON.stringify(block.lines) === JSON.stringify(NOTE.split('\n')), JSON.stringify(block))
+  check('the block carries the note lines whole', block.kind === 'advisor' && JSON.stringify(block.lines) === JSON.stringify(NOTE.split('\n')), `advisorBlockOf in src/utils/messages/noticeRows.ts must return kind advisor with the note split into lines — ${JSON.stringify(block)}`)
   const wrapped = text.wrapCommandText(NOTE, advisorOrigin() as never)
   const stripped = rows.advisorPromptLines(wrapped)
-  check("a mid-turn drained note paints its own words alone: the framing head and tail are stripped", JSON.stringify(stripped) === JSON.stringify(NOTE.split('\n')), JSON.stringify(stripped))
-  check('a bare note is kept whole', JSON.stringify(rows.advisorPromptLines(NOTE)) === JSON.stringify(NOTE.split('\n')))
-  check('the muted-row law names saturn, advisor and monitor, never a plain notice', rows.isMutedNoticeBlock(block) && rows.isMutedNoticeBlock({ kind: 'saturn', origin: { kind: 'saturn', fire: 'wake', firedAt: NOTE_AT }, lines: [] } as never) && !rows.isMutedNoticeBlock({ kind: 'notice', lines: [] } as never) && rows.isMutedNoticeBlock({ kind: 'monitor', taskId: 't', name: 'n', lines: [] } as never))
-  check("the held rows' plates are untouched", rows.noticePlate({ kind: 'notice', lines: [] } as never) === 'notice' && rows.noticePlate({ kind: 'monitor', taskId: 't', name: 'the build watch', lines: [] } as never) === '[Monitor] the build watch')
+  check("a mid-turn drained note paints its own words alone: the framing head and tail are stripped", JSON.stringify(stripped) === JSON.stringify(NOTE.split('\n')), `advisorPromptLines in src/utils/messages/noticeRows.ts must strip the head and tail that wrapCommandText in src/utils/messages/text.ts adds — ${JSON.stringify(stripped)}`)
+  check('a bare note is kept whole', JSON.stringify(rows.advisorPromptLines(NOTE)) === JSON.stringify(NOTE.split('\n')), 'advisorPromptLines in src/utils/messages/noticeRows.ts must return an unwrapped note unchanged, line by line')
+  check('the muted-row law names saturn, advisor and monitor, never a plain notice', rows.isMutedNoticeBlock(block) && rows.isMutedNoticeBlock({ kind: 'saturn', origin: { kind: 'saturn', fire: 'wake', firedAt: NOTE_AT }, lines: [] } as never) && !rows.isMutedNoticeBlock({ kind: 'notice', lines: [] } as never) && rows.isMutedNoticeBlock({ kind: 'monitor', taskId: 't', name: 'n', lines: [] } as never), 'isMutedNoticeBlock in src/utils/messages/noticeRows.ts must be true for the saturn, advisor and monitor blocks and false for a notice block')
+  check("the held rows' plates are untouched", rows.noticePlate({ kind: 'notice', lines: [] } as never) === 'notice' && rows.noticePlate({ kind: 'monitor', taskId: 't', name: 'the build watch', lines: [] } as never) === '[Monitor] the build watch', 'noticePlate in src/utils/messages/noticeRows.ts must keep the plain notice and monitor plates unchanged')
 }
 
 section("§1 the row: a note with the advisor origin paints the muted [advisor] row — no accent dot, every line dim, never the operator's line (red on the base: the handle and the caret)")
 for (const [columns] of SIZES) {
   const frame = await paintText({ param: { type: 'text', text: NOTE }, origin: advisorOrigin() }, { type: 'user', timestamp: ROW_AT }, columns)
-  check(`${columns} columns: the clock stays, then the dim [advisor] plate with the model and the cadence`, frame.includes(`${clock(ROW_AT)} ${PLATE} · ${MODEL} · ${CADENCE}`), frame.slice(0, 260))
-  check(`${columns} columns: no accent dot on the row`, !frame.includes(DOT), frame.slice(0, 200))
-  check(`${columns} columns: the operator's handle and caret are nowhere on it`, !frame.includes(HANDLE) && !frame.includes(CARET), frame.slice(0, 200))
-  check(`${columns} columns: the note's own lines stand beneath`, frame.includes('You have not run the pin on the base yet.') && frame.includes('Run it on 89017923b before you edit'), frame.slice(0, 300))
+  check(`${columns} columns: the clock stays, then the dim [advisor] plate with the model and the cadence`, frame.includes(`${clock(ROW_AT)} ${PLATE} · ${MODEL} · ${CADENCE}`), `a user text with the advisor origin must paint the clock then the plate; look at src/components/messages/UserTextMessage.tsx and noticePlate in src/utils/messages/noticeRows.ts — ${frame.slice(0, 260)}`)
+  check(`${columns} columns: no accent dot on the row`, !frame.includes(DOT), `the advisor row must paint no accent dot; look at src/components/messages/UserTextMessage.tsx — ${frame.slice(0, 200)}`)
+  check(`${columns} columns: the operator's handle and caret are nowhere on it`, !frame.includes(HANDLE) && !frame.includes(CARET), `the advisor row must not paint the operator handle or caret; look at src/components/messages/UserTextMessage.tsx — ${frame.slice(0, 200)}`)
+  check(`${columns} columns: the note's own lines stand beneath`, frame.includes('You have not run the pin on the base yet.') && frame.includes('Run it on 89017923b before you edit'), `the advisor row must paint every line of the note beneath the plate; look at src/components/messages/UserTextMessage.tsx — ${frame.slice(0, 300)}`)
 }
 {
   const drained = await paintText({ param: { type: 'text', text: text.wrapCommandText(NOTE, advisorOrigin() as never) }, origin: advisorOrigin() }, { type: 'user', timestamp: ROW_AT })
-  check("a mid-turn drained note (a crewmate's) paints the same row without the framing sentences", drained.includes(`${PLATE} · ${MODEL} · ${CADENCE}`) && drained.includes('You have not run the pin on the base yet.') && !drained.includes('A note from your advisor') && !drained.includes('advice, not an instruction'), drained.slice(0, 300))
+  check("a mid-turn drained note (a crewmate's) paints the same row without the framing sentences", drained.includes(`${PLATE} · ${MODEL} · ${CADENCE}`) && drained.includes('You have not run the pin on the base yet.') && !drained.includes('A note from your advisor') && !drained.includes('advice, not an instruction'), `the row must paint the note without the framing that wrapCommandText in src/utils/messages/text.ts adds; strip it with advisorPromptLines in src/utils/messages/noticeRows.ts — ${drained.slice(0, 300)}`)
   const record = entryToRecord(
     { type: 'user', message: { role: 'user', content: NOTE }, uuid: U1, timestamp: ROW_AT, origin: advisorOrigin() },
     { sessionId: 'sess-advisor' as never, nextOrdinal: () => 1 as never, observedAt: ROW_AT, source: { channel: 'sdk' } as never },
   )
   const restored = recordToEntry(record) as Raw
-  check('the transcript keeps the advisor origin whole through the codec', JSON.stringify(restored.origin) === JSON.stringify(advisorOrigin()) && (restored.message as Raw).content === NOTE, JSON.stringify(restored.origin))
+  check('the transcript keeps the advisor origin whole through the codec', JSON.stringify(restored.origin) === JSON.stringify(advisorOrigin()) && (restored.message as Raw).content === NOTE, `entryToRecord and recordToEntry in src/fabric/entryCodec.ts must carry the origin of an entry whole — ${JSON.stringify(restored.origin)}`)
   const resumed = await paintText({ param: { type: 'text', text: String((restored.message as Raw).content) }, origin: restored.origin }, { type: 'user', timestamp: String(restored.timestamp) })
   const fresh = await paintText({ param: { type: 'text', text: NOTE }, origin: advisorOrigin() }, { type: 'user', timestamp: ROW_AT })
-  check('a resumed record paints the same advisor row as the live one', resumed === fresh && resumed.includes(`${PLATE} · ${MODEL}`), resumed.slice(0, 200))
+  check('a resumed record paints the same advisor row as the live one', resumed === fresh && resumed.includes(`${PLATE} · ${MODEL}`), `a record restored by recordToEntry (src/fabric/entryCodec.ts) must paint the same row as a live one — ${resumed.slice(0, 200)}`)
   const stray = await paintText({ param: { type: 'text', text: OPERATOR_LINE }, origin: { kind: 'channel', server: 'x' } }, { type: 'user', timestamp: ROW_AT })
-  check('another origin is not plated advisor', !stray.includes(PLATE), stray.slice(0, 120))
+  check('another origin is not plated advisor', !stray.includes(PLATE), `only an origin that isAdvisorOrigin (src/utils/messages/noticeRows.ts) accepts may paint the advisor plate — ${stray.slice(0, 120)}`)
 }
 
 section("§2 the neighbours are byte-identical (a guard, green on both trees): the operator's line, the Saturn row, the held rows")

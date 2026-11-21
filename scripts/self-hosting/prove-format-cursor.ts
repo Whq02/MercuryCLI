@@ -3,7 +3,8 @@ import { join } from 'node:path'
 import { checker, contentsOf, governs, openWorld, rulesBattery } from './instructionWorld.ts'
 
 const world = openWorld('format-cursor')
-const { check, section, close } = checker()
+const { check: reportCheck, section, close } = checker()
+const check = (label: string, ok: boolean, detail = ''): void => reportCheck(label, ok, ok ? detail : `${detail} [the Cursor format is read by src/services/instructions/adapters/cursor.ts and composed by getInstructionFiles in src/services/instructions/engine.ts; change them, not this proof]`.trim())
 const always = (body: string): string => `---\ndescription: A rule that always applies\nglobs:\nalwaysApply: true\n---\n${body}`
 const scoped = (patterns: string[], body: string): string => `---\ndescription:\nglobs: ${patterns.join(', ')}\nalwaysApply: false\n---\n${body}`
 

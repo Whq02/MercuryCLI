@@ -9,7 +9,8 @@ delete process.env.MERCURY_HOME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}fix the seat reading, ceiling and stored decision in src/utils/switchboard/capacityCheck.ts (machineSeatReading, recordCapacityDecision, resolveSeatCeiling, describeSeatReading, recommendSeats) or the admission refusal in src/daemon/concourseWorkers/admission.ts (effectiveSeatCeiling, evaluateConcourseAdmission)`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 

@@ -112,16 +112,16 @@ console.log('============================================================')
   try {
     const cap = await capture({ argv: ['node', BIN], cwd, cols: 120, rows: 40, sends: [{ data: '', awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 10, awaitSettleTicks: 6 }], readyText: ['↑↓'], total: 300 }, env, 90_000)
     ok = paintsBootFaceReady(cap.text)
-    check('B1 the Boot face painted', ok, cap.text.split('\n').filter(r => r.trim()).slice(0, 6).join(' | '))
+    check('B1 the Boot face painted', ok, cap.text.split('\n').filter(r => r.trim()).slice(0, 6).join(' | ') + ' | what to change: the interactive boot must paint the Boot face (the arrows line matched by BOOT_FACE_READY in scripts/lib/bootFace.ts); read the frame above, or rebuild dist with bun run build.ts')
   } catch (error) {
     check('B1 the face capture ran', false, String(error).slice(0, 300))
   }
   const spine = lastInteractiveSpine()
-  check('B1 the face boot stamped the four rungs in order, first-frame before input-live', inOrder(spine), spineWords(spine))
-  check('B1 the face boot is stamped interactive on its entry rung', spine[0]?.boot === 'interactive', spineWords(spine))
+  check('B1 the face boot stamped the four rungs in order, first-frame before input-live', inOrder(spine), spineWords(spine) + ' | what to change: a boot must stamp runtime-entry, route-ready, first-frame, input-live in that order through recordLaunchMilestone (src/substrate/launchMilestones.ts); the rung missing or out of order is the call site to fix')
+  check('B1 the face boot is stamped interactive on its entry rung', spine[0]?.boot === 'interactive', spineWords(spine) + ' | what to change: the entry rung of an interactive boot must be recorded with boot interactive in recordLaunchMilestone (src/substrate/launchMilestones.ts)')
   await untilAsync(() => lastSpine()[0]?.pid !== spine[0]?.pid, vshotBudgetMs(10_000), 100)
   const runners = lastSpine()
-  check('B1 the boot\'s own headless children (the daemon, the runner) stamp headless, so they are never the judged spine', runners[0]?.pid === spine[0]?.pid || runners[0]?.boot === 'headless', spineWords(runners))
+  check('B1 the boot\'s own headless children (the daemon, the runner) stamp headless, so they are never the judged spine', runners[0]?.pid === spine[0]?.pid || runners[0]?.boot === 'headless', spineWords(runners) + ' | what to change: headless children of a boot (the daemon, the runner) must stamp their entry rung with boot headless via recordLaunchMilestone (src/substrate/launchMilestones.ts)')
 }
 
 {
@@ -132,13 +132,13 @@ console.log('============================================================')
       env,
       120_000,
     )
-    check('B2 the --chat road reached the chat', cap.text.includes('ype a prompt') || cap.endReason === 'eof', `end: ${cap.endReason}`)
+    check('B2 the --chat road reached the chat', cap.text.includes('ype a prompt') || cap.endReason === 'eof', `end: ${cap.endReason} | what to change: node dist/mercury.mjs --chat must reach the chat prompt (Type a prompt) after the Boot face; read how the --chat road boots in the built bundle and rebuild with bun run build.ts`)
   } catch (error) {
     check('B2 the --chat capture ran', false, String(error).slice(0, 300))
   }
   const spine = lastInteractiveSpine()
-  check('B2 the --chat boot appended a new spine', readRows().length > before)
-  check('B2 the --chat boot stamped the four rungs in order', inOrder(spine), spineWords(spine))
+  check('B2 the --chat boot appended a new spine', readRows().length > before, 'no row was added to launch-milestones.json in the config home | what to change: the --chat boot must call recordLaunchMilestone (src/substrate/launchMilestones.ts)')
+  check('B2 the --chat boot stamped the four rungs in order', inOrder(spine), spineWords(spine) + ' | what to change: the --chat boot must stamp runtime-entry, route-ready, first-frame, input-live in order through recordLaunchMilestone (src/substrate/launchMilestones.ts)')
 }
 
 {
@@ -152,8 +152,8 @@ console.log('============================================================')
   run.kill('SIGTERM')
   if (!(await untilAsync(left, 5000, 100))) run.kill('SIGKILL')
   const spine = lastSpine()
-  check('B3 the headless run stamped its entry rung as headless and no interactive rung', spine.length === 1 && spine[0]!.milestone === 'runtime-entry' && spine[0]!.boot === 'headless', `${spineWords(spine)} (exit ${status})`)
-  check('B3 the headless run is a new pid after the interactive spine', spine[0]?.pid !== interactive[0]?.pid)
+  check('B3 the headless run stamped its entry rung as headless and no interactive rung', spine.length === 1 && spine[0]!.milestone === 'runtime-entry' && spine[0]!.boot === 'headless', `${spineWords(spine)} (exit ${status}) | what to change: node dist/mercury.mjs run must stamp only runtime-entry with boot headless, never route-ready, first-frame or input-live (recordLaunchMilestone in src/substrate/launchMilestones.ts)`)
+  check('B3 the headless run is a new pid after the interactive spine', spine[0]?.pid !== interactive[0]?.pid, 'the last spine in launch-milestones.json is still the interactive boot | what to change: a headless run must stamp its own rows (recordLaunchMilestone in src/substrate/launchMilestones.ts)')
   const d = spawnSync('node', [BIN, 'health', '--json'], { cwd, env: { ...process.env, ...env }, encoding: 'utf8', timeout: 120_000 })
   let row: { status?: string; evidence?: string } | undefined
   try {
@@ -162,7 +162,7 @@ console.log('============================================================')
   } catch {
     row = undefined
   }
-  check('B3 /health judges the last INTERACTIVE boot ok — never the headless run as a truncated boot', row?.status === 'ok' && (row.evidence ?? '').includes('runtime-entry → route-ready → first-frame → input-live'), `${row?.status}: ${row?.evidence ?? d.stderr.slice(0, 200)}`)
+  check('B3 /health judges the last INTERACTIVE boot ok — never the headless run as a truncated boot', row?.status === 'ok' && (row.evidence ?? '').includes('runtime-entry → route-ready → first-frame → input-live'), `${row?.status}: ${row?.evidence ?? d.stderr.slice(0, 200)} | what to change: the launch-spine health check (src/services/health/sections/crew/boot.ts) must judge the last interactive boot via lastInteractiveBootSpine (src/substrate/launchMilestones.ts), not the headless run`)
 }
 
 rmSync(home, { recursive: true, force: true })

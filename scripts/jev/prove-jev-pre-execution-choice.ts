@@ -12,10 +12,12 @@ for (const key of ['TYPESAFE_API_KEY', 'NODE_ENV', 'MERCURY_API_UNIX_SOCKET']) d
 
 let failures = 0
 let checks = 0
+const preExecutionFailHint =
+  'fix the request assembly in src/tools/JevEvalTool/jevEvalRequest.ts (assembleJevEvalRequest), the evidence handling in src/tools/JevEvalTool/jevEvalEvidence.ts, or the refusal wording in src/tools/JevEvalTool/jevEvalResult.ts (jevEvalRefusedText), whichever this check names'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 400)}; ` : ''}${preExecutionFailHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

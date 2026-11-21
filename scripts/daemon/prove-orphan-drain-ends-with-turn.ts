@@ -197,7 +197,7 @@ console.log(OWED_TURN
   ? "a park asked for while a turn runs waits for the turn the runner still owes: a follow-up it already holds runs to its end, then the session parks and the daemon leaves"
   : "an orphaned daemon leaves when its last turn ends: a park asked for while a turn runs completes at that turn's own end, never at the drain ceiling")
 try {
-  check('the daemon serves under an owner', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
+  check('the daemon serves under an owner', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), 'the daemon never answered ping; read daemon.log in the kept scratch folder')
   const dispatched = (await daemonControlRpc({
     op: 'concourseDispatch',
     clientMessageId: 'orphan-drain',
@@ -207,46 +207,46 @@ try {
     model: 'claude-opus-5',
     effort: 'high',
   } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
-  check('a session dispatched onto a real runner', dispatched.ok === true && typeof dispatched.sessionId === 'string', JSON.stringify(dispatched))
+  check('a session dispatched onto a real runner', dispatched.ok === true && typeof dispatched.sessionId === 'string', `${JSON.stringify(dispatched)} — the concourseDispatch op did not start a runner; read daemon.log in the kept scratch folder and answerSessionDispatch in src/daemon/controlServer.ts`)
   const sid = dispatched.sessionId ?? ''
-  check('its turn is in flight (the reply stream is open and held by the fixture)', await untilAsync(() => seatStreams >= 1, 90_000), `seat streams ${seatStreams}`)
+  check('its turn is in flight (the reply stream is open and held by the fixture)', await untilAsync(() => seatStreams >= 1, 90_000), `seat streams ${seatStreams} — the runner never opened its reply stream on the fixture; read daemon.log in the kept scratch folder`)
   await sleep(400)
   const before = readRec(sid)
   const pid = before?.pid
-  check('the record is live and mid-turn, no park asked for yet', before !== undefined && alive(pid) && sup.turnInFlightOf(before as never) && before.parkRequestedAt === undefined && before.parkedAt === undefined, JSON.stringify(before))
+  check('the record is live and mid-turn, no park asked for yet', before !== undefined && alive(pid) && sup.turnInFlightOf(before as never) && before.parkRequestedAt === undefined && before.parkedAt === undefined, `${JSON.stringify(before)} — the record in concourse-workers.json should show a live pid with a delivery not yet settled (turnInFlightOf in src/daemon/concourseWorkers/record.ts) and no park stamp`)
   if (OWED_TURN) {
     const followed = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'orphan-drain-follow-up', prompt: FOLLOW_UP, workspaceDir: '', targetSessionId: sid, by: 'operator' } as never, { timeoutMs: 15_000 })) as { ok?: boolean; state?: string }
-    check('a follow-up sent while the turn runs is taken: the runner holds it for its next turn', followed.ok === true && seatStreams === 1, JSON.stringify(followed))
+    check('a follow-up sent while the turn runs is taken: the runner holds it for its next turn', followed.ok === true && seatStreams === 1, `${JSON.stringify(followed)} — a dispatch with targetSessionId to a session mid-turn must be accepted and held for the next turn without opening a second stream`)
   }
 
   owner.kill('SIGKILL')
-  check('the daemon notices its owner is gone and asks every session to park: the one mid-turn drains', await untilAsync(() => /the screen is gone — parking every active session: parked 0, draining 1 /.test(daemonLog()), 45_000), logTail())
+  check('the daemon notices its owner is gone and asks every session to park: the one mid-turn drains', await untilAsync(() => /the screen is gone — parking every active session: parked 0, draining 1 /.test(daemonLog()), 45_000), `${logTail()} — the owner watch in src/daemon/run/owner.ts did not log the park of a mid-turn session as draining 1 within 45 seconds of the owner dying`)
   const draining = readRec(sid)
-  check('the park is asked for, not applied: the runner finishes its own turn and the daemon waits for it', draining?.parkRequestedAt !== undefined && draining.parkedAt === undefined && alive(pid) && !daemonGone(), JSON.stringify(draining))
+  check('the park is asked for, not applied: the runner finishes its own turn and the daemon waits for it', draining?.parkRequestedAt !== undefined && draining.parkedAt === undefined && alive(pid) && !daemonGone(), `${JSON.stringify(draining)} — on owner loss the session should carry parkRequestedAt only, with the runner and daemon still up; see src/daemon/run/owner.ts and src/daemon/concourseWorkers/park.ts`)
 
   releaseSeat(1)
   check('the turn ends on the wire and in the record', await untilAsync(() => {
     const r = readRec(sid)
     return seatStreamsEnded >= 1 && r !== undefined && (OWED_TURN || !sup.turnInFlightOf(r as never))
-  }, 30_000), JSON.stringify(readRec(sid)))
+  }, 30_000), `${JSON.stringify(readRec(sid))} — the fixture stream did not end or the record still shows the turn in flight (turnInFlightOf in src/daemon/concourseWorkers/record.ts)`)
   if (OWED_TURN) {
-    check('the follow-up reaches the model: the runner starts the turn it owed', await untilAsync(() => seatStreams >= 2, 30_000), `seat streams ${seatStreams}`)
+    check('the follow-up reaches the model: the runner starts the turn it owed', await untilAsync(() => seatStreams >= 2, 30_000), `seat streams ${seatStreams} — the runner never started the turn it owed after the first reply ended; read daemon.log in the kept scratch folder`)
     await sleep(2_500)
     const owing = readRec(sid)
-    check('while that turn runs the session is not parked, its runner lives and the daemon waits (red when the park completes at the first turn end: the follow-up cut mid-reply)', owing?.parkedAt === undefined && owing?.parkRequestedAt !== undefined && alive(pid) && !daemonGone() && seatStreamsEnded === 1, JSON.stringify({ parkedAt: owing?.parkedAt, parkRequestedAt: owing?.parkRequestedAt, runnerAlive: alive(pid), daemonGone: daemonGone(), ended: seatStreamsEnded }))
+    check('while that turn runs the session is not parked, its runner lives and the daemon waits (red when the park completes at the first turn end: the follow-up cut mid-reply)', owing?.parkedAt === undefined && owing?.parkRequestedAt !== undefined && alive(pid) && !daemonGone() && seatStreamsEnded === 1, `${JSON.stringify({ parkedAt: owing?.parkedAt, parkRequestedAt: owing?.parkRequestedAt, runnerAlive: alive(pid), daemonGone: daemonGone(), ended: seatStreamsEnded })} — a park requested during a turn must wait for the follow-up turn the runner still owes; see src/daemon/run/roster.ts and src/daemon/concourseWorkers/park.ts`)
     releaseSeat(2)
-    check("the follow-up's reply ends on the wire", await untilAsync(() => seatStreamsEnded >= 2, 30_000), `ended ${seatStreamsEnded}`)
+    check("the follow-up's reply ends on the wire", await untilAsync(() => seatStreamsEnded >= 2, 30_000), `ended ${seatStreamsEnded} — the fixture reply of the follow-up never ended`)
   }
   const settledAt = Date.now()
   const parkedInTime = await untilAsync(() => readRec(sid)?.parkedAt !== undefined, PARK_BOUND_MS)
   const parked = readRec(sid)
-  check(`the session parks at its ${OWED_TURN ? 'last' : ''} turn's end, within ${PARK_BOUND_MS / 1000} s (red on the base: the request still stands and the daemon waits for the ceiling)`, parkedInTime && parked?.parkRequestedAt === undefined, JSON.stringify(parked))
-  check('…parked as asked, not as a turn cut at the drain ceiling', parked?.parkedAt !== undefined && parked.parkReason !== sup.PARK_DRAIN_CUT_REASON, String(parked?.parkReason))
-  check('the runner is gone', await untilAsync(() => !alive(pid), 10_000), `pid ${pid} alive=${alive(pid)}`)
+  check(`the session parks at its ${OWED_TURN ? 'last' : ''} turn's end, within ${PARK_BOUND_MS / 1000} s (red on the base: the request still stands and the daemon waits for the ceiling)`, parkedInTime && parked?.parkRequestedAt === undefined, `${JSON.stringify(parked)} — the park must complete when the last turn settles, not wait for the drain ceiling; see src/daemon/run/roster.ts and src/daemon/concourseWorkers/park.ts`)
+  check('…parked as asked, not as a turn cut at the drain ceiling', parked?.parkedAt !== undefined && parked.parkReason !== sup.PARK_DRAIN_CUT_REASON, `${String(parked?.parkReason)} — the park reason must not be the drain-ceiling cut (PARK_DRAIN_CUT_REASON in src/daemon/concourseWorkers/park.ts)`)
+  check('the runner is gone', await untilAsync(() => !alive(pid), 10_000), `pid ${pid} alive=${alive(pid)} — the parked runner must exit; see src/daemon/concourseWorkers/park.ts`)
   const left = await untilAsync(daemonGone, Math.max(1_000, LEAVE_BOUND_MS - (Date.now() - settledAt)))
-  check(`the daemon leaves with its last turn, within ${LEAVE_BOUND_MS / 1000} s of the turn's end and far inside the ${DRAIN_CEILING_MINUTES}-minute ceiling`, left, `still up ${Math.round((Date.now() - settledAt) / 1000)} s after the turn ended · ${logTail()}`)
-  check('the daemon log tells it that way: the turn finished and the session parked, and nothing was cut', /finished its turn and parked \(a park was requested while it worked\)/.test(daemonLog()) && !/drain ceiling/.test(daemonLog()), logTail())
-  check(`the model was asked ${OWED_TURN ? 'twice' : 'once'} and every reply ran to its end`, seatStreams === (OWED_TURN ? 2 : 1) && seatStreamsEnded === seatStreams, `streams ${seatStreams}, ended ${seatStreamsEnded}`)
+  check(`the daemon leaves with its last turn, within ${LEAVE_BOUND_MS / 1000} s of the turn's end and far inside the ${DRAIN_CEILING_MINUTES}-minute ceiling`, left, `still up ${Math.round((Date.now() - settledAt) / 1000)} s after the turn ended · ${logTail()} — the daemon should exit once its last session parks; read src/daemon/run/owner.ts and roster.ts`)
+  check('the daemon log tells it that way: the turn finished and the session parked, and nothing was cut', /finished its turn and parked \(a park was requested while it worked\)/.test(daemonLog()) && !/drain ceiling/.test(daemonLog()), `${logTail()} — the park-after-turn line comes from src/daemon/run/roster.ts; a drain ceiling line means the turn was cut`)
+  check(`the model was asked ${OWED_TURN ? 'twice' : 'once'} and every reply ran to its end`, seatStreams === (OWED_TURN ? 2 : 1) && seatStreamsEnded === seatStreams, `streams ${seatStreams}, ended ${seatStreamsEnded} — a reply was cut or an extra turn ran; read daemon.log in the kept scratch folder`)
 } finally {
   await cleanup()
 }

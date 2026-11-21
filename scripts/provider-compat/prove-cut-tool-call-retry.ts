@@ -18,14 +18,15 @@ let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = 'to fix, see decideCutToolCallRecovery (re-exported by src/run-core/turn-machine.ts), cutToolCallOf in src/services/providers/anthropic/streamCore.ts, and toolCallRefusalNote and toolCallRefusalCorrection in src/services/providers/toolCallGate.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${where}` : ''}`)
   if (!cond) failures++
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — cut tool call prover exceeded 180s')
+  console.log('\nTIMEOUT — cut tool call prover exceeded 180s; a loopback fixture call or a scripted model turn never finished, look at the P2 fixture (../compact/overflowFixture.ts) and the P3 query loop in src/query.ts')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

@@ -8,10 +8,11 @@ const ROOT = join(import.meta.dir, '..', '..')
 const SCRIPT = 'scripts/jev/red-road.ts'
 let checks = 0
 let failures = 0
+const redRoadFailHint = `change the road in ${SCRIPT} (the function or exit this check names) or the stand-in answers in scripts/jev/lib/jevStandin.ts`
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${redRoadFailHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

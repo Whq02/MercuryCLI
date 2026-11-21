@@ -19,8 +19,9 @@ const { validatePath } = await import('../../src/utils/permissions/pathValidatio
 type Ctx = import('../../src/utils/permissions/permissions.ts').ToolPermissionContext
 
 let failures = 0
+const grantLabelHint = 'change the suggestions checkPathConstraints builds for an outside write in src/tools/BashTool/pathValidation.ts, the rule builders createEditRuleSuggestion and createReadRuleSuggestion in src/utils/permissions/PermissionUpdate.ts, or validatePath in src/utils/permissions/pathValidation.ts, so the granted rule matches what the card offers'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ' — ' + (detail ? detail + ' — ' : '') + grantLabelHint}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

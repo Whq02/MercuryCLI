@@ -10,14 +10,15 @@ let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = 'fix createTurnDriver (the settle window via ports.settleWindowMs, and the queue order) or foldNotificationValues in src/cli/headless/turnDriver.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + '; ' : ''}${hint}` : ''}`)
   if (!cond) failures++
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — notification-settle prover exceeded 60s')
+  console.log('\nTIMEOUT — notification-settle prover exceeded 60s; a turn or the settle hold in createTurnDriver (src/cli/headless/turnDriver.ts) never finished')
   process.exit(1)
 }, 60_000)
 watchdog.unref?.()

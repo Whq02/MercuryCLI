@@ -13,7 +13,8 @@ const ENGINE = 'scripts/release/release-local.sh'
 
 let failures = 0
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
+  const localHint = 'change scripts/release/release-local.sh (its steps and fetch order, kept in line with the package job of .github/workflows/private-release.yml) or scripts/release/package.mjs; the step logs are listed above and in the kept scratch folder'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail} | ` : ''}${localHint}`}`)
   if (!cond) failures++
 }
 const finish = (scratch?: string): never => {

@@ -15,6 +15,10 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
+function hintOnFail(ok: boolean, detail: string, hint: string): string {
+  return ok ? detail : `${detail}${detail ? ' — ' : ''}${hint}`
+}
+
 function rawControlLines(source: Buffer): number[] {
   const hits: number[] = []
   let line = 1
@@ -52,10 +56,10 @@ for (const file of walk(join(REPO, 'scripts'))) {
   const lines = rawControlLines(readFileSync(file))
   if (lines.length > 0) offenders.push(`${file.slice(REPO.length + 1)}:${lines.join(',')}`)
 }
-check(`no scripts source carries a raw C0 control byte (${scanned} files scanned)`, offenders.length === 0, offenders.join(' · '))
+check(`no scripts source carries a raw C0 control byte (${scanned} files scanned)`, offenders.length === 0, hintOnFail(offenders.length === 0, offenders.join(' · '), 'in each listed file:line replace the raw control byte with its escaped spelling such as \\x1b'))
 const poison = Buffer.concat([Buffer.from("const DOWN = '"), Buffer.from([0x1b]), Buffer.from("[B'\nconst ok = '\\x1b[B'\n")])
-check('poison: a source holding a raw ESC is flagged at its line', JSON.stringify(rawControlLines(poison)) === '[1]', JSON.stringify(rawControlLines(poison)))
-check('control: the escaped spelling is clean', rawControlLines(Buffer.from("const DOWN = '\\x1b[B'\n")).length === 0)
+check('poison: a source holding a raw ESC is flagged at its line', JSON.stringify(rawControlLines(poison)) === '[1]', hintOnFail(JSON.stringify(rawControlLines(poison)) === '[1]', JSON.stringify(rawControlLines(poison)), 'rawControlLines in this file must report the 1-based line of a raw ESC byte'))
+check('control: the escaped spelling is clean', rawControlLines(Buffer.from("const DOWN = '\\x1b[B'\n")).length === 0, hintOnFail(rawControlLines(Buffer.from("const DOWN = '\\x1b[B'\n")).length === 0, '', 'rawControlLines in this file flags an escaped spelling; it must flag only bytes below 0x20'))
 
 console.log('L2 the rig round trip: vshot delivers ESC-led chords whole to a raw-mode PTY child')
 const scratch = join(tmpdir(), `esc-led-sends-${process.pid}`)
@@ -82,11 +86,11 @@ function roundTrip(tag: string, sends: string[]): string[] {
   return existsSync(tapPath) ? readFileSync(tapPath, 'utf8').trim().split('\n').filter(Boolean) : []
 }
 const whole = roundTrip('whole', [`${ESC}[B`, `${ESC}[A`, `${ESC}[1;2D`])
-check('↓ arrives as 1b5b42 (ESC intact)', whole[0] === '1b5b42', JSON.stringify(whole))
-check('↑ arrives as 1b5b41', whole[1] === '1b5b41', JSON.stringify(whole))
-check('⇧← arrives as 1b5b313b3244', whole[2] === '1b5b313b3244', JSON.stringify(whole))
+check('↓ arrives as 1b5b42 (ESC intact)', whole[0] === '1b5b42', hintOnFail(whole[0] === '1b5b42', JSON.stringify(whole), 'the send reached the child altered; check how scripts/ui/vshot.py writes each send payload to the PTY'))
+check('↑ arrives as 1b5b41', whole[1] === '1b5b41', hintOnFail(whole[1] === '1b5b41', JSON.stringify(whole), 'the send reached the child altered; check how scripts/ui/vshot.py writes each send payload to the PTY'))
+check('⇧← arrives as 1b5b313b3244', whole[2] === '1b5b313b3244', hintOnFail(whole[2] === '1b5b313b3244', JSON.stringify(whole), 'the send reached the child altered; check how scripts/ui/vshot.py writes each send payload to the PTY'))
 const bare = roundTrip('bare', ['[B'])
-check("poison: a bare '[B' send arrives as 5b42 — the very signature the class wore", bare[0] === '5b42', JSON.stringify(bare))
+check("poison: a bare '[B' send arrives as 5b42 — the very signature the class wore", bare[0] === '5b42', hintOnFail(bare[0] === '5b42', JSON.stringify(bare), 'the rig no longer delivers a send verbatim; check how scripts/ui/vshot.py writes each send payload to the PTY'))
 removeScratch(scratch)
 
 console.log(failures === 0 ? 'ESC-LED SEND LAWS HOLD' : `${failures} FAILURE(S)`)

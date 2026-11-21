@@ -150,11 +150,11 @@ section('§1 an uncached sign-in at an overridden endpoint: the wire answers, on
   await api.close()
   const errLines = lines(run.stderr)
   const line = errLines[0] ?? ''
-  check('exit 1', run.status === 1, `status ${run.status} · stdout ${run.stdout.slice(0, 200)} · stderr ${run.stderr.slice(0, 400)}`)
+  check('exit 1', run.status === 1, `a bad model at an overridden endpoint must end the run with exit 1 (files in the gate-watch line at the top of this file) · status ${run.status} · stdout ${run.stdout.slice(0, 200)} · stderr ${run.stderr.slice(0, 400)}`)
   check('stdout empty, stderr exactly one line', run.stdout.trim() === '' && errLines.length === 1, `stdout ${JSON.stringify(run.stdout.slice(0, 200))} · stderr lines ${errLines.length}: ${errLines.join(' |').slice(0, 600)}`)
-  check('the wire refusal names the requested model and the endpoint answer', line.includes(BAD_MODEL) && line.includes('404') && !line.includes('not offered'), line)
-  check('the line carries no address, no @', !line.includes('@') && !line.includes(EMAIL), line)
-  check('no catalogue probe preceded the wire request', api.hits.every(h => !h.url.startsWith('/v1/models')) && api.hits.some(h => h.method === 'POST' && h.url.startsWith('/v1/messages')), JSON.stringify(api.hits.map(h => `${h.method} ${h.url}`)))
+  check('the wire refusal names the requested model and the endpoint answer', line.includes(BAD_MODEL) && line.includes('404') && !line.includes('not offered'), `the line must name ${BAD_MODEL} and the 404 and not say not offered; see getAssistantMessageFromError in src/services/api/errors.ts — ${line}`)
+  check('the line carries no address, no @', !line.includes('@') && !line.includes(EMAIL), `the error line must not print the account address; see getAssistantMessageFromError in src/services/api/errors.ts — ${line}`)
+  check('no catalogue probe preceded the wire request', api.hits.every(h => !h.url.startsWith('/v1/models')) && api.hits.some(h => h.method === 'POST' && h.url.startsWith('/v1/messages')), `an uncached first-party door at an overridden endpoint must go straight to the wire with no /v1/models request; see anthropicCatalogueRefusal in src/services/providers/catalogueAdmission.ts — ${JSON.stringify(api.hits.map(h => `${h.method} ${h.url}`))}`)
   check('no request carried the address either', api.hits.every(h => !h.url.includes('@')), JSON.stringify(api.hits.map(h => h.url)))
   rmSync(run.home, { recursive: true, force: true })
   rmSync(run.cwd, { recursive: true, force: true })
@@ -165,8 +165,8 @@ section('§1b a fixture-only model at an overridden endpoint reaches the wire wi
   const api = await fixture('served')
   const run = await runProduct('served', Date.now() + 3_600_000, api.url, 'claude-fixture-medic')
   await api.close()
-  check('the fixture model answers with exit 0', run.status === 0 && run.stdout.includes('fixture model answered'), `${run.status}: ${run.stdout} ${run.stderr}`)
-  check('exactly one inference request and no catalogue request', api.hits.length === 1 && api.hits[0]?.method === 'POST' && api.hits[0]?.url.startsWith('/v1/messages') === true, JSON.stringify(api.hits.map(h => `${h.method} ${h.url}`)))
+  check('the fixture model answers with exit 0', run.status === 0 && run.stdout.includes('fixture model answered'), `a model unknown to any catalogue must reach the wire at an overridden endpoint and answer with exit 0; see anthropicCatalogueRefusal in src/services/providers/catalogueAdmission.ts — ${run.status}: ${run.stdout} ${run.stderr}`)
+  check('exactly one inference request and no catalogue request', api.hits.length === 1 && api.hits[0]?.method === 'POST' && api.hits[0]?.url.startsWith('/v1/messages') === true, `the run must send one POST /v1/messages and no catalogue request; see anthropicCatalogueRefusal in src/services/providers/catalogueAdmission.ts — ${JSON.stringify(api.hits.map(h => `${h.method} ${h.url}`))}`)
   rmSync(run.home, { recursive: true, force: true })
   rmSync(run.cwd, { recursive: true, force: true })
 }
@@ -180,9 +180,9 @@ section(`§2 the same sign-in with its token expired and the refresh refused: on
   const line = errLines[0] ?? ''
   check('exit 1', run.status === 1, `status ${run.status} · stderr ${run.stderr.slice(0, 400)}`)
   check('stdout empty, stderr exactly one line', run.stdout.trim() === '' && errLines.length === 1, `stdout ${JSON.stringify(run.stdout.slice(0, 200))} · stderr lines ${errLines.length}: ${errLines.join(' |').slice(0, 600)}`)
-  check('the line names the family and the door', line.includes('Anthropic') && line.includes('/logins anthropic'), line)
+  check('the line names the family and the door', line.includes('Anthropic') && line.includes('/logins anthropic'), `an expired sign-in line must name Anthropic and /logins anthropic; see getAssistantMessageFromError in src/services/api/errors.ts — ${line}`)
   check('the line carries no address, no @', !line.includes('@') && !line.includes(EMAIL), line)
-  check('the line is not the model-not-offered sentence (the catalogue could not be read on an expired token — the door is the honest cause)', !line.includes('not offered'), line)
+  check('the line is not the model-not-offered sentence (the catalogue could not be read on an expired token — the door is the honest cause)', !line.includes('not offered'), `an expired token must give the sign-in line, not the not-offered line; see anthropicCatalogueRefusal in src/services/providers/catalogueAdmission.ts — ${line}`)
   rmSync(run.home, { recursive: true, force: true })
   rmSync(run.cwd, { recursive: true, force: true })
 }
@@ -210,8 +210,8 @@ section('§3 the error composer with a stored account record: the sign-in wall r
   }
   const revoked = rowFor(401, 'OAuth access token has been revoked')
   const expired = rowFor(401, 'OAuth token has expired')
-  check('the revoked-sign-in row names the family and the door and carries no address', revoked.includes('Anthropic sign-in expired') && revoked.includes('/logins anthropic') && !revoked.includes('@'), revoked.slice(0, 300))
-  check('the expired-sign-in row carries no address', expired.includes('Anthropic sign-in expired') && !expired.includes('@'), expired.slice(0, 300))
+  check('the revoked-sign-in row names the family and the door and carries no address', revoked.includes('Anthropic sign-in expired') && revoked.includes('/logins anthropic') && !revoked.includes('@'), `getAssistantMessageFromError in src/services/api/errors.ts must give a revoked 401 the Anthropic sign-in expired row with /logins anthropic and no address — ${revoked.slice(0, 300)}`)
+  check('the expired-sign-in row carries no address', expired.includes('Anthropic sign-in expired') && !expired.includes('@'), `getAssistantMessageFromError in src/services/api/errors.ts must give an expired 401 the Anthropic sign-in expired row with no address — ${expired.slice(0, 300)}`)
   const { anthropicCatalogueRefusal } = await import('../../src/services/providers/catalogueAdmission.ts')
   const catalogue = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts')
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
@@ -228,7 +228,7 @@ section('§3 the error composer with a stored account record: the sign-in wall r
   }) as typeof fetch
   globalThis.fetch = fetchCatalogue
   try {
-    check('an uncached first-party door admits without discovery', await anthropicCatalogueRefusal(BAD_MODEL) === null && requests === 0, `${requests} request(s)`)
+    check('an uncached first-party door admits without discovery', await anthropicCatalogueRefusal(BAD_MODEL) === null && requests === 0, `${requests} request(s) — anthropicCatalogueRefusal in src/services/providers/catalogueAdmission.ts must admit an uncached model with no discovery request`)
     await catalogue.refreshAnthropicCatalogue({ door: 'subscription', fetchImpl: fetchCatalogue })
     requests = 0
     const rows: unknown[] = []
@@ -238,17 +238,17 @@ section('§3 the error composer with a stored account record: the sign-in wall r
       options: { model: BAD_MODEL, querySource: 'sdk', agents: [], isNonInteractiveSession: true, mcpTools: [] } as never,
     })) rows.push(row)
     const refusal = JSON.stringify(rows)
-    check('a cached active catalogue refuses one unknown-model turn without a request or an address', rows.length === 1 && refusal.includes('not offered') && refusal.includes('Claude subscription live catalogue') && OFFERED.every(id => refusal.includes(id)) && !refusal.includes('@') && requests === 0, refusal)
-    check('a listed model remains admitted without discovery', await anthropicCatalogueRefusal(OFFERED[0]!) === null && requests === 0)
+    check('a cached active catalogue refuses one unknown-model turn without a request or an address', rows.length === 1 && refusal.includes('not offered') && refusal.includes('Claude subscription live catalogue') && OFFERED.every(id => refusal.includes(id)) && !refusal.includes('@') && requests === 0, `a cached active catalogue must refuse one unknown model with one row naming the catalogue and the offered ids, no request, no address; see routedCallModel in src/services/providers/callModelRouter.ts and anthropicCatalogueRefusal in src/services/providers/catalogueAdmission.ts — requests=${requests} ${refusal}`)
+    check('a listed model remains admitted without discovery', await anthropicCatalogueRefusal(OFFERED[0]!) === null && requests === 0, `a listed model must be admitted with no request; see anthropicCatalogueRefusal in src/services/providers/catalogueAdmission.ts — requests=${requests}`)
     process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
     await catalogue.refreshAnthropicCatalogue({ door: 'subscription', fetchImpl: fetchCatalogue })
     requests = 0
-    check('an override bypasses even a populated catalogue', await anthropicCatalogueRefusal(BAD_MODEL) === null && requests === 0)
+    check('an override bypasses even a populated catalogue', await anthropicCatalogueRefusal(BAD_MODEL) === null && requests === 0, `with ANTHROPIC_BASE_URL set the refusal must be skipped; see anthropicCatalogueRefusal in src/services/providers/catalogueAdmission.ts — requests=${requests}`)
     delete process.env.ANTHROPIC_BASE_URL
     writeFileSync(join(home, '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken: 'fixture-other-account', refreshToken: 'fixture-refresh', expiresAt: Date.now() + 3_600_000, scopes: ['user:inference'], subscriptionType: 'max', rateLimitTier: null } }))
     const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.ts')
     clearOAuthTokenCache()
-    check('another credential cannot borrow the previous catalogue', await anthropicCatalogueRefusal(BAD_MODEL) === null && requests === 0)
+    check('another credential cannot borrow the previous catalogue', await anthropicCatalogueRefusal(BAD_MODEL) === null && requests === 0, `a catalogue cached for one credential must not refuse for another; see src/services/providers/anthropic/anthropicCatalogue.ts and anthropicCatalogueRefusal in src/services/providers/catalogueAdmission.ts — requests=${requests}`)
   } finally {
     globalThis.fetch = originalFetch
     catalogue.__resetAnthropicCatalogueForTest()

@@ -18,10 +18,11 @@ process.chdir(PROJ)
 
 let failures = 0
 let checks = 0
+let fixHintNow = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${!ok && fixHintNow ? ` — fix: ${fixHintNow}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -70,6 +71,7 @@ const text = (lines: string[]): string => lines.join('\n')
 
 section('§1 lsp list prints the whole catalogue: every row installed (with its binary) or absent (with its remedy)')
 {
+  fixHintNow = 'lspListCli in src/cli/lspVerb.ts prints the list lines; SERVER_CATALOGUE and probeCatalogueEntry in src/services/lsp/serverCatalogue.ts hold the rows and the probe'
   usePath(scratchPath())
   const marksman = fakeBinary('marksman')
   const run = harness()
@@ -87,6 +89,7 @@ section('§1 lsp list prints the whole catalogue: every row installed (with its 
 
 section('§2 lsp install shows the remedy, asks, runs exactly it, and reports where the binary landed')
 {
+  fixHintNow = 'lspInstallCli in src/cli/lspVerb.ts must show the remedy, ask once, run the remedy as argv and report where the binary landed'
   usePath(scratchPath())
   const brewLog = join(HOME, 'brew.log')
   fakeTool('brew', `echo "$@" >> ${JSON.stringify(brewLog)}\nif [ "$1" = install ] && [ "$2" = marksman ]; then printf '#!/bin/sh\\nexit 0\\n' > ${JSON.stringify(join(BIN, 'marksman'))}; chmod +x ${JSON.stringify(join(BIN, 'marksman'))}; fi`)
@@ -117,6 +120,7 @@ section('§2 lsp install shows the remedy, asks, runs exactly it, and reports wh
 
 section('§3 refusals: an unknown server (with the roster), a failing remedy, a remedy whose tool is absent, a remedy that is words, a remedy that lands nothing')
 {
+  fixHintNow = 'lspInstallCli and installCommandOf in src/cli/lspVerb.ts own these refusals, messages and exit codes'
   usePath(scratchPath())
   const unknown = harness()
   const code = verb ? await verb.lspInstallCli('clangd-ultra', { yes: true }, unknown.io) : -1
@@ -147,6 +151,7 @@ section('§3 refusals: an unknown server (with the roster), a failing remedy, a 
 
 section('§3b the install grammar: only the package managers the catalogue uses run; a quoted span is one word; a trailing note is dropped; the 34 remedies parse as pinned')
 {
+  fixHintNow = 'installCommandOf in src/cli/lspVerb.ts parses each remedy in SERVER_CATALOGUE (src/services/lsp/serverCatalogue.ts); fix the parser or the remedy text, or update the pin table here when a remedy changed on purpose'
   const verdictOf = (remedy: string): string => {
     const command = verb ? verb.installCommandOf(remedy) : { kind: 'words' as const, words: remedy }
     return JSON.stringify(command.kind === 'command' ? command.argv : 'words')
@@ -186,6 +191,7 @@ section('§3b the install grammar: only the package managers the catalogue uses 
 section('§4 never an automatic install: nothing under the language service imports the verb, and the verb lives in the CLI alone')
 section('§4 the win32 scene: an npm delivered as npm.cmd beside the extensionless npm script (the Windows box\'s shape) is resolved through PATHEXT and started through cmd.exe, never spawned by its bare word')
 {
+  fixHintNow = 'spawnPlanOf in src/utils/spawnPlan.ts plans the win32 spawn; lspInstallCli and lspListLines in src/cli/lspVerb.ts carry the world and the Windows remedies (remedyWin32 in src/services/lsp/serverCatalogue.ts)'
   usePath(scratchPath())
   const WINBIN = join(HOME, 'Program Files', 'nodejs')
   mkdirSync(WINBIN, { recursive: true })
@@ -248,6 +254,7 @@ section('§4 the win32 scene: an npm delivered as npm.cmd beside the extensionle
 
 section('§5 never an automatic install: nothing under the language service imports the verb, and the verb lives in the CLI alone')
 {
+  fixHintNow = 'the lsp verb is wired in src/main/subcommands.ts to lspListCli and lspInstallCli in src/cli/lspVerb.ts; the completion files are under assets/completions/'
   const { builtCli, builtHelp } = await import('../lib/builtProduct.ts')
   const refusedHere = harness()
   const refusedCode = verb ? await verb.lspInstallCli('clangd-ultra', { yes: true }, refusedHere.io) : -1

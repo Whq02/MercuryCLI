@@ -15,13 +15,14 @@ process.env.MERCURY_MCP_TIMEOUT_MS = '1500'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+let fixHintNow = ''
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}${!ok && fixHintNow ? ` — fix: ${fixHintNow}` : ''}`)
   if (!ok) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — connect-reason prover exceeded 60s')
+  console.log('\nTIMEOUT — connect-reason prover exceeded 60s; a live connect did not settle, so check reconnectMcpServerImpl and its connect deadline in src/services/mcp/client.ts')
   process.exit(1)
 }, 60_000)
 watchdog.unref?.()
@@ -40,6 +41,7 @@ console.log('============================================================')
 
 section('§1 the composer, shape by shape')
 {
+  fixHintNow = 'describeMcpConnectFailure in src/services/mcp/utils.ts composes the reason for each error shape; fix the branch for the shape this check names'
   const deadline = new TelemetrySafeError('MCP server "x" (stdio) did not answer in 1.5s — retry from /mcp', utils.MCP_CONNECT_TIMEOUT_TELEMETRY)
   const deadlineReason = utils.describeMcpConnectFailure(deadline, { transport: 'stdio', command: 'node', stderrTail: '' })
   t('§1 the deadline keeps its own sentence, untouched', deadlineReason === deadline.message, deadlineReason)
@@ -78,6 +80,7 @@ section('§1 the composer, shape by shape')
 
 section('§2 clipToWord · ensureConfigScope · describeMcpConfigIssues')
 {
+  fixHintNow = 'clipToWord, ensureConfigScope and describeMcpConfigIssues in src/services/mcp/utils.ts own these sentences; fix the one this check names'
   t('§2 a short reason passes through', utils.clipToWord('short', 160) === 'short')
   const long = 'MCP server "hangs" (stdio) did not answer in 3s — retry from /mcp — the server wrote nothing to stderr before closing (run the command by hand to see why it exits)'
   const clipped = utils.clipToWord(long, 160)
@@ -119,6 +122,7 @@ const failedReason = async (name: string, config: Record<string, unknown>): Prom
 
 section('§3 LIVE — stdio')
 {
+  fixHintNow = 'a live stdio connect in reconnectMcpServerImpl (src/services/mcp/client.ts) must surface the reason from describeMcpConnectFailure (src/services/mcp/utils.ts)'
   const enoent = await failedReason('missing-command', { type: 'stdio', command: '/nonexistent/bin/mcp-server-probe', args: ['--flag'], env: {} })
   t('§3 a missing command reads "command not found" with the path and the fix', enoent.startsWith('command not found: /nonexistent/bin/mcp-server-probe') && enoent.includes('retry from /mcp'), enoent)
   const loud = await failedReason('exits-loudly', {
@@ -134,6 +138,7 @@ section('§3 LIVE — stdio')
 
 section('§4 LIVE — http and sse against a port nobody listens on')
 {
+  fixHintNow = 'a live http or sse connect in reconnectMcpServerImpl (src/services/mcp/client.ts) must surface the reason from describeMcpConnectFailure (src/services/mcp/utils.ts), never the bare fetch wrapper'
   const port = await new Promise<number>((resolve, reject) => {
     const probe = createServer()
     probe.once('error', reject)

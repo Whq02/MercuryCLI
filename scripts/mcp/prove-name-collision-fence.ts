@@ -37,13 +37,13 @@ section('§1 THE FENCE')
   const reports = await drive(['col.one', 'col_one'])
   const first = reports.find(r => r.name === 'col.one')
   const second = reports.find(r => r.name === 'col_one')
-  check('both configured servers are REPORTED (nothing silent)', first !== undefined && second !== undefined, JSON.stringify(reports))
-  check('the first name keeps the prefix (connected)', first?.type === 'connected', JSON.stringify(first))
-  check('the collider is FAILED, never spawned as a ghost', second?.type === 'failed', JSON.stringify(second))
+  check('both configured servers are REPORTED (nothing silent)', first !== undefined && second !== undefined, JSON.stringify(reports) + ' (getMcpToolsCommandsAndResources in src/services/mcp/client.ts must report every configured server, collided ones included; the fence itself is fenceMcpPrefixCollisions in src/services/mcp/client/bulkParts.ts)')
+  check('the first name keeps the prefix (connected)', first?.type === 'connected', JSON.stringify(first) + ' (the first server per folded prefix must survive fenceMcpPrefixCollisions in src/services/mcp/client/bulkParts.ts and connect; if the fixture did not start, check scripts/mcp/_fixture-stdio-server.mjs)')
+  check('the collider is FAILED, never spawned as a ghost', second?.type === 'failed', JSON.stringify(second) + ' (a server whose folded prefix collides must be reported failed by getMcpToolsCommandsAndResources in src/services/mcp/client.ts using the verdict of fenceMcpPrefixCollisions in src/services/mcp/client/bulkParts.ts)')
   check(
     'and the reason names the collision and the winner',
     /collid/i.test(second?.error ?? '') && (second?.error ?? '').includes('col.one'),
-    second?.error?.slice(0, 160),
+    String(second?.error?.slice(0, 160)) + ' (the collision error text built in fenceMcpPrefixCollisions in src/services/mcp/client/bulkParts.ts must contain the word collides and the winning server name)',
   )
 }
 
@@ -53,7 +53,7 @@ section('§2 THE CONTROL')
   check(
     'distinct names both connect',
     reports.filter(r => r.type === 'connected').length === 2,
-    JSON.stringify(reports.map(r => [r.name, r.type])),
+    JSON.stringify(reports.map(r => [r.name, r.type])) + ' (names with distinct folded prefixes must both connect: fenceMcpPrefixCollisions in src/services/mcp/client/bulkParts.ts fenced one wrongly, or the fixture scripts/mcp/_fixture-stdio-server.mjs did not start)',
   )
 }
 
@@ -62,16 +62,16 @@ section('§3 ONE FENCE OWNER (rank 35)')
   const fence = fenceMcpPrefixCollisions as
     | ((configs: Record<string, unknown>) => { survivors: Record<string, unknown>; collided: Array<{ name: string; winner: string; error: string }> })
     | undefined
-  check('the fence is exported for every connect road', typeof fence === 'function')
+  check('the fence is exported for every connect road', typeof fence === 'function', 'export fenceMcpPrefixCollisions from src/services/mcp/client.ts (it lives in src/services/mcp/client/bulkParts.ts)')
   if (fence) {
     const verdict = fence({ 'col.one': { ...stdioConfig }, col_one: { ...stdioConfig }, 'github mcp': { ...stdioConfig }, github_mcp: { ...stdioConfig }, plain: { ...stdioConfig } })
-    check('survivors keep the first name per folded prefix, in precedence order', Object.keys(verdict.survivors).join(',') === 'col.one,github mcp,plain', Object.keys(verdict.survivors).join(','))
-    check('every later collider is named with its winner', verdict.collided.map(c => `${c.name}<${c.winner}`).join(',') === 'col_one<col.one,github_mcp<github mcp', JSON.stringify(verdict.collided.map(c => [c.name, c.winner])))
-    check('the reason names the collision, the folded prefix and the winner', verdict.collided.every(c => /collid/i.test(c.error) && c.error.includes(`'${c.winner}'`) && c.error.includes('mcp__')), verdict.collided[0]?.error)
+    check('survivors keep the first name per folded prefix, in precedence order', Object.keys(verdict.survivors).join(',') === 'col.one,github mcp,plain', Object.keys(verdict.survivors).join(',') + ' (fenceMcpPrefixCollisions in src/services/mcp/client/bulkParts.ts must keep the first name per folded prefix in the order given)')
+    check('every later collider is named with its winner', verdict.collided.map(c => `${c.name}<${c.winner}`).join(',') === 'col_one<col.one,github_mcp<github mcp', JSON.stringify(verdict.collided.map(c => [c.name, c.winner])) + ' (fenceMcpPrefixCollisions in src/services/mcp/client/bulkParts.ts must list each later collider with its winner)')
+    check('the reason names the collision, the folded prefix and the winner', verdict.collided.every(c => /collid/i.test(c.error) && c.error.includes(`'${c.winner}'`) && c.error.includes('mcp__')), String(verdict.collided[0]?.error) + ' (the error text built in fenceMcpPrefixCollisions in src/services/mcp/client/bulkParts.ts must say collides, quote the winner in single quotes and show the mcp__ prefix)')
     const proto = fence(Object.fromEntries([['__proto__', { ...stdioConfig }], ['safe', { ...stdioConfig }]]) as never)
-    check("a '__proto__' server name is an own survivor key, never the prototype", Object.keys(proto.survivors).join(',') === '__proto__,safe' && Object.getPrototypeOf(proto.survivors) === null, Object.keys(proto.survivors).join(','))
+    check("a '__proto__' server name is an own survivor key, never the prototype", Object.keys(proto.survivors).join(',') === '__proto__,safe' && Object.getPrototypeOf(proto.survivors) === null, Object.keys(proto.survivors).join(',') + ' (fenceMcpPrefixCollisions in src/services/mcp/client/bulkParts.ts must build survivors as a null-prototype object keyed by the name)')
     const walk = await drive(['col.one', 'col_one'])
-    check('the interactive walk reports the fence verdict verbatim', walk.find(r => r.name === 'col_one')?.error === verdict.collided[0]?.error)
+    check('the interactive walk reports the fence verdict verbatim', walk.find(r => r.name === 'col_one')?.error === verdict.collided[0]?.error, 'getMcpToolsCommandsAndResources in src/services/mcp/client.ts must report the fence error text unchanged, not a reworded one')
   }
 }
 

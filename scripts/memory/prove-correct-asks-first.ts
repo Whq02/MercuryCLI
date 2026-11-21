@@ -13,9 +13,14 @@ delete process.env.MERCURY_HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+const correctFixHint = (label: string): string => {
+  if (/Correct prompt/.test(label)) return 'fix CORRECT_PROMPT in src/constants/tools/memory.ts'
+  if (/judge is the one asking rule|refus/.test(label)) return 'fix correctAskRefusal or CREWMATE_CORRECT_REFUSAL in src/mneme/memoryPinIntent.ts, and where CorrectTool applies it in src/tools/MemoryTools/MemoryTools.ts'
+  return 'fix CorrectTool or RetainTool in src/tools/MemoryTools/MemoryTools.ts (the gate words live in src/mneme/memoryPinIntent.ts)'
+}
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}${!ok ? ` — to fix: ${correctFixHint(label)}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 

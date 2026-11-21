@@ -373,7 +373,7 @@ try {
     240_000,
   )
 } catch (error) {
-  check('the capture ran', false, String(error).slice(0, 400))
+  check('the capture ran', false, String(error).slice(0, 400) + ' | what to change: rebuild with bun run build.ts so dist/mercury.mjs is current, then read the vshot stderr above and scripts/ui/vshot.py for why no grid was written')
 }
 await fixture.close()
 
@@ -387,41 +387,41 @@ if (cap !== null) {
   for (const label of ['waiting', 'after-esc', 'folded', 'after', 'end']) dump(label, m[label])
 
   console.log('\n— H0 the journey —')
-  check('a first turn stands before the launch (a first fold needs a head worth folding)', hits.some(h => h.route === 'warm'))
-  check('the launch turn went out', hits.some(h => h.route === 'launch'))
-  check('the turn was waiting on the crew when esc landed', rowsWith(m['waiting'], /waiting on/).length > 0, rowsWith(m['waiting'], /waiting/).map(flat).join(' | ').slice(0, 200))
+  check('a first turn stands before the launch (a first fold needs a head worth folding)', hits.some(h => h.route === 'warm'), 'no warm turn reached the fixture | what to change: the Boot face must open the chat and send the warm prompt; read the routes printed above and the capture end reason')
+  check('the launch turn went out', hits.some(h => h.route === 'launch'), 'no launch turn reached the fixture | what to change: the warm turn must finish and the launch prompt must go out with the Crewmate tool offered; read the routes printed above')
+  check('the turn was waiting on the crew when esc landed', rowsWith(m['waiting'], /waiting on/).length > 0, rowsWith(m['waiting'], /waiting/).map(flat).join(' | ').slice(0, 200) + ' | what to change: with background Crewmate agents running, the turn must show the waiting on line when esc lands; read the waiting frame dump above')
   const summary = hits.find(h => h.route === 'summary')
-  check('the fold fired (the summariser request went out from the runner)', summary !== undefined, hits.map(h => h.route).join(' → '))
+  check('the fold fired (the summariser request went out from the runner)', summary !== undefined, hits.map(h => h.route).join(' → ') + ' | what to change: /compact on a seated chat must send the summary request (Reply with prose only) from the runner; the fold did not reach the wire, read the routes above')
   const post = hits.find(h => h.route === 'post')
-  check('the prompt after the fold went out from the summary row', post !== undefined)
+  check('the prompt after the fold went out from the summary row', post !== undefined, 'no post-fold turn reached the fixture | what to change: the prompt sent after /compact must go out with the summary row at its head (The context window turned over); read the routes printed above')
 
   console.log('\n— H1 the summariser asks for the agents in flight —')
   const promptText = summary?.lastUserText ?? ''
-  check('ten numbered sections, the tenth Agents in flight, with its laws', promptText.includes('these ten numbered sections') && /10\. Agents in flight/.test(promptText) && /never re-spawned/.test(promptText))
+  check('ten numbered sections, the tenth Agents in flight, with its laws', promptText.includes('these ten numbered sections') && /10\. Agents in flight/.test(promptText) && /never re-spawned/.test(promptText), 'what to change: the compact summary prompt in src/services/compact/prompt.ts must ask for ten numbered sections, the tenth Agents in flight, with its never re-spawned law')
 
   console.log('\n— H2 the post-fold request carries ONE roster —')
   const postText = post !== undefined ? userTextsOf(itemsOf(post.body)).join('\n') : ''
   const reminders = postText.split('<system-reminder>').filter(t => t.includes('Agents in flight at the context turnover'))
-  check('ONE roster attachment rides the request', reminders.length === 1, `${reminders.length} roster reminder(s)`)
+  check('ONE roster attachment rides the request', reminders.length === 1, `${reminders.length} roster reminder(s) | what to change: the post-fold request must carry exactly one Agents in flight at the context turnover attachment (text in src/services/messages/attachmentText.ts)`)
   const roster = reminders[0] ?? ''
   for (const line of roster.split('\n').filter(l => l.startsWith('- '))) console.log(`  roster: ${line.slice(0, 220)}`)
-  check(`…naming the long sub-agent ${LONG_DESCRIPTION}`, new RegExp(`local_agent "${LONG_DESCRIPTION}" \\[a[0-9a-z]+\\]: (running|waiting)`).test(roster))
-  check(`…and the sub-agent ${PLAIN_DESCRIPTION} with its SendMessage address`, new RegExp(`local_agent "${PLAIN_DESCRIPTION}" \\[a[0-9a-z]+\\]: (running|waiting)`).test(roster) && /reach it: SendMessage to "a[0-9a-z]+"/.test(roster))
-  check('…with the never-re-spawn law', roster.includes('A running agent is never re-spawned'))
-  check('the old per-task announcer is gone', !postText.includes('is still running. Do NOT spawn a duplicate'))
+  check(`…naming the long sub-agent ${LONG_DESCRIPTION}`, new RegExp(`local_agent "${LONG_DESCRIPTION}" \\[a[0-9a-z]+\\]: (running|waiting)`).test(roster), 'the roster lacks this sub-agent | what to change: the roster attachment (src/services/messages/attachmentText.ts) must list every running local_agent by description and id')
+  check(`…and the sub-agent ${PLAIN_DESCRIPTION} with its SendMessage address`, new RegExp(`local_agent "${PLAIN_DESCRIPTION}" \\[a[0-9a-z]+\\]: (running|waiting)`).test(roster) && /reach it: SendMessage to "a[0-9a-z]+"/.test(roster), 'the roster lacks this sub-agent or its reach it line | what to change: the roster attachment (src/services/messages/attachmentText.ts) must list each local_agent with its SendMessage address')
+  check('…with the never-re-spawn law', roster.includes('A running agent is never re-spawned'), 'what to change: the roster attachment text in src/services/messages/attachmentText.ts must carry the never-re-spawned law')
+  check('the old per-task announcer is gone', !postText.includes('is still running. Do NOT spawn a duplicate'), 'the old per-task announcer line is still in the post-fold request | what to change: remove that announcer from the post-fold attachments; the roster in src/services/messages/attachmentText.ts replaces it')
 
   console.log('\n— H3 the crew is untouched by the fold —')
   const summaryAnsweredAt = summary?.answeredAtMs ?? Number.POSITIVE_INFINITY
   for (const s of [LONG_SEAT, PLAIN_SEAT] as Seat[]) {
     const after = hits.filter(h => h.seat === s && h.atMs > summaryAnsweredAt).length
-    check(`seat ${s} kept calling after the fold (${after} calls)`, after >= 1)
+    check(`seat ${s} kept calling after the fold (${after} calls)`, after >= 1, 'the fold must not stop or starve running sub-agents | what to change: the fold path in src/commands/compact/compact.ts must leave the crew seats running')
   }
   const notes = hits.filter(h => h.route === 'note')
-  check('no killed notice reached the main', notes.every(n => !n.lastUserText.includes('<status>killed</status>')))
+  check('no killed notice reached the main', notes.every(n => !n.lastUserText.includes('<status>killed</status>')), 'what to change: the fold must not kill the crew; no task-notification with killed status may reach the main')
 
   console.log('\n— H4 the roster is never painted —')
   const painted = Object.entries(m).filter(([, frame]) => frame.includes('Agents in flight') || frame.includes('still running in the background'))
-  check('no frame paints the roster or the old per-task line', painted.length === 0, painted.map(([k]) => k).join(','))
+  check('no frame paints the roster or the old per-task line', painted.length === 0, painted.map(([k]) => k).join(',') + ' | what to change: the roster is model-facing only; whatever paints Agents in flight or still running in the background in the frames listed here must stop painting it')
 }
 
 console.log('\n============================================================')

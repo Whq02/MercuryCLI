@@ -24,9 +24,11 @@ const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings
 const { findCommand, getCommands } = await import('../../src/commands.ts')
 
 let failures = 0
+const copyReplyFailHint =
+  'reply assembly, the result row and /copy arguments live in src/commands/copy/copy.ts (collectReplies, copyResultLine, COPY_WORDS, call); the clipboard bytes and locale live in src/ink/termio/osc.ts (setClipboardWithReceipt, pbcopyLocaleEnv, windowsPowershellInput, windowsClipInput); the ctrl+x y chord lives in src/keybindings/defaultBindings.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${copyReplyFailHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

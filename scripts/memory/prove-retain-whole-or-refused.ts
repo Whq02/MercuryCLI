@@ -12,7 +12,7 @@ delete process.env.MERCURY_HOME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${cond ? '' : ` — to fix, read retainItems in src/mneme/memoryVerbs.ts (the length limit and refusal), appendObservation in src/mneme/mnemeBuffer.ts (the buffer write), RetainTool in src/tools/MemoryTools/MemoryTools.ts (the answer the model reads) and RETAIN_PROMPT in src/constants/tools/memory.ts`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

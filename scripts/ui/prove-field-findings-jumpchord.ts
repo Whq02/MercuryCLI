@@ -21,10 +21,10 @@ console.log('§1 ctr-4 — the advertised chord fires')
   const { parseKeystroke } = await import('../../src/keybindings/parser.ts')
   const { matchesKeystroke } = await import('../../src/keybindings/match.ts')
   const key = { ctrl: false, meta: true, shift: false, super: false, downArrow: true } as unknown as Parameters<typeof matchesKeystroke>[1]
-  check('the wire fact: alt+down arrives as meta+↓ and the matcher folds alt/meta into one', matchesKeystroke('', key, parseKeystroke('alt+down')))
+  check('the wire fact: alt+down arrives as meta+↓ and the matcher folds alt/meta into one', matchesKeystroke('', key, parseKeystroke('alt+down')), 'alt and meta must match as one modifier; fix matchesKeystroke in src/keybindings/match.ts')
   const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
   const scroll = DEFAULT_BINDINGS.find(block => block.context === 'Scroll')?.bindings ?? {}
-  check("the Scroll context binds alt+down to scroll:bottom (beside the ctrl+end the pill's drill already proved live)", scroll['alt+down'] === 'scroll:bottom' && scroll['ctrl+end'] === 'scroll:bottom')
+  check("the Scroll context binds alt+down to scroll:bottom (beside the ctrl+end the pill's drill already proved live)", scroll['alt+down'] === 'scroll:bottom' && scroll['ctrl+end'] === 'scroll:bottom', `Scroll bindings=${JSON.stringify(scroll)}; bind alt+down and ctrl+end to scroll:bottom in the Scroll block of DEFAULT_BINDINGS in src/keybindings/defaultBindings.ts`)
 }
 console.log('§2 the transcript viewer — PgUp paints the pill, PgDn clears it, alt+↓ jumps')
 {
@@ -32,7 +32,7 @@ console.log('§2 the transcript viewer — PgUp paints the pill, PgDn clears it,
   const driver = resolveCaptureDriver()
   const BIN = join(ROOT, 'dist', 'mercury.mjs')
   if (!existsSync(BIN)) {
-    check('dist/mercury.mjs exists (build first)', false)
+    check('dist/mercury.mjs exists (build first)', false, 'run bun run build.ts to write dist/mercury.mjs, then rerun this proof')
   } else if (driver.kind !== 'posix-pty') {
     console.log(`  (skipped: capture driver ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind})`)
   } else {
@@ -72,7 +72,7 @@ console.log('§2 the transcript viewer — PgUp paints the pill, PgDn clears it,
       timeout: vshotBudgetMs(120_000),
       env: { ...process.env, MERCURY_CONFIG_DIR: CONFIG_HOME, MERCURY_OPERATOR: 'op' },
     })
-    check('the viewer journey delivered every send', res.status === 0, (res.stderr ?? '').trim().slice(-300))
+    check('the viewer journey delivered every send', res.status === 0, `${(res.stderr ?? '').trim().slice(-300)} | scripts/ui/vshot.py exited ${res.status}; read its stderr above and the scenario cockpit-scrolled in scripts/ui/renderScenarios.ts`)
     if (res.status === 0) {
       const payload = JSON.parse(readFileSync(gridPath, 'utf8')) as { marks?: Array<{ label: string; grid: Array<Array<{ c: string }>> }> }
       const frames: Record<string, string[]> = {}
@@ -80,9 +80,9 @@ console.log('§2 the transcript viewer — PgUp paints the pill, PgDn clears it,
       const rows = (label: string): string[] => frames[label] ?? []
       const pillRow = (label: string): number => rows(label).findIndex(l => l.includes(PILL))
       const has = (label: string, needle: string): boolean => rows(label).some(l => l.includes(needle))
-      check('the viewer is open (its own footer)', has('paged-up', 'detailed transcript'))
+      check('the viewer is open (its own footer)', has('paged-up', 'detailed transcript'), 'ctrl+o did not open the transcript viewer; check the viewer open path from the cockpit and that dist is current')
       check('PgUp scrolled the view (the first reply is on screen)', has('paged-up', 'Reply 1:'))
-      check('PgUp painted the pill with its words', pillRow('paged-up') > 0, `row ${pillRow('paged-up')}`)
+      check('PgUp painted the pill with its words', pillRow('paged-up') > 0, `row ${pillRow('paged-up')}; the viewer must paint the back-to-the-bottom pill when scrolled up`)
       check('PgDn back to the bottom cleared the pill', pillRow('paged-down') === -1 && !has('paged-down', 'Reply 1:'))
       check('the bottom is back after PgDn (the last reply is on screen)', has('paged-down', 'Reply 18:'))
       check('PgUp again paints the pill again', pillRow('paged-up-again') > 0 && has('paged-up-again', 'Reply 1:'))

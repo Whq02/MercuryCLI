@@ -49,18 +49,18 @@ for (const modal of [true, false]) for (const cols of [80, 120]) {
   try {
     await settledFrame(scene, text => text.includes('Default provider'))
     const first = focus()
-    check(`${cols}: footer teaches move, page, select and close within the host`, /↑↓ move/.test(scene.screen()) && /pgup\/pgdn page/.test(scene.screen()) && /↵ sets · esc closes/.test(scene.screen()), scene.screen())
-    check(`${cols}: hidden providers have a separate lower edge marker`, scene.lines().some(line => /↓\s*$/.test(line) && !/↑↓/.test(line)), scene.screen())
+    check(`${cols}: footer teaches move, page, select and close within the host`, /↑↓ move/.test(scene.screen()) && /pgup\/pgdn page/.test(scene.screen()) && /↵ sets · esc closes/.test(scene.screen()), `fix the footer text in src/commands/defaultprovider/defaultprovider.tsx; frame was ${scene.screen()}`)
+    check(`${cols}: hidden providers have a separate lower edge marker`, scene.lines().some(line => /↓\s*$/.test(line) && !/↑↓/.test(line)), `fix the lower-edge more marker of the list in src/commands/defaultprovider/defaultprovider.tsx; frame was ${scene.screen()}`)
     scene.push('\x1b[6~')
-    check(`${cols}: PageDown moves to a visible provider`, await waitFor(() => focus() !== first && /not connected/.test(focus()), 1800), scene.screen())
+    check(`${cols}: PageDown moves to a visible provider`, await waitFor(() => focus() !== first && /not connected/.test(focus()), 1800), `fix PageDown handling of the list in src/commands/defaultprovider/defaultprovider.tsx; frame was ${scene.screen()}`)
     const page = focus()
-    check(`${cols}: one page does not skip the whole catalogue`, !page.includes('Qwen'), page)
-    check(`${cols}: the explanation is not overlapped by the list`, scene.screen().replace(/\s+/g, ' ').includes('Explicit /model picks always win.'), scene.screen())
+    check(`${cols}: one page does not skip the whole catalogue`, !page.includes('Qwen'), `${page} | fix the page size of the list in src/commands/defaultprovider/defaultprovider.tsx`)
+    check(`${cols}: the explanation is not overlapped by the list`, scene.screen().replace(/\s+/g, ' ').includes('Explicit /model picks always win.'), `fix the layout so the explanation keeps its rows in src/commands/defaultprovider/defaultprovider.tsx; frame was ${scene.screen()}`)
     scene.push('\x1b[5~')
-    check(`${cols}: PageUp restores the first provider`, await waitFor(() => focus() === first, 1800), scene.screen())
+    check(`${cols}: PageUp restores the first provider`, await waitFor(() => focus() === first, 1800), `fix PageUp handling of the list in src/commands/defaultprovider/defaultprovider.tsx; frame was ${scene.screen()}`)
     scene.push('\x1b[F')
     await settledFrame(scene)
-    check(`${cols}: the final provider and close guide remain reachable`, /not connected/.test(focus()) && scene.screen().includes('esc closes'), scene.screen())
+    check(`${cols}: the final provider and close guide remain reachable`, /not connected/.test(focus()) && scene.screen().includes('esc closes'), `fix End handling or the footer in src/commands/defaultprovider/defaultprovider.tsx; frame was ${scene.screen()}`)
     if (frames) {
       const name = join(frames, `defaultprovider-${modal ? 'modal' : 'standalone'}-${cols}`)
       writeFileSync(name + '.txt', scene.screen())
@@ -69,7 +69,7 @@ for (const modal of [true, false]) for (const cols of [80, 120]) {
       await gridToPng(name + '.json', name + '.png')
     }
     scene.push('\r')
-    check(`${cols}: Enter switches only the injected provider callback`, await waitFor(() => switched !== '' && closed, 1800), switched)
+    check(`${cols}: Enter switches only the injected provider callback`, await waitFor(() => switched !== '' && closed, 1800), `switched=${JSON.stringify(switched)} closed=${closed}; Enter must call switchDefaultProvider and then close, in src/commands/defaultprovider/defaultprovider.tsx`)
     assert.notEqual(page, '')
   } finally { scene.unmount() }
 }

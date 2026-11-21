@@ -22,9 +22,10 @@ if (driver.kind !== 'posix-pty') {
 }
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  if (!cond && hint) console.log(`      what to change: ${hint}`)
 }
 
 const SIZE = process.env.FOLD_DRIVE_SIZE === '100x30' ? { cols: 100, rows: 30 } : { cols: 120, rows: 40 }
@@ -50,6 +51,7 @@ const READ_ASK = 'station 0: read the notes files and report'
 const READ_DONE = 'READ-DONE'
 const NOTES = ['notes-a.txt', 'notes-b.txt'] as const
 const AUTO_REPLY = 'ok — surveyed.'
+const ROW_FIX_HINT = 'the fold row is painted by src/components/FoldStatusRow.tsx from foldRowWords, foldRowVisible and foldBarCells in src/services/compact/foldStatus.ts; change what they paint or when, then read the frame dumps above'
 
 function seedRows(sid: string, cwd: string, turns: number, fillers: number, inputTokens: number): string {
   const base = { isSidechain: false, entrypoint: 'cli', cwd, sessionId: sid, version: '1.0.0', gitBranch: 'main' }
@@ -356,7 +358,7 @@ async function scene(label: string, sid: string, world: { home: string; cwd: str
       240_000,
     )
   } catch (error) {
-    check(`[${label}] the capture ran`, false, String(error).slice(0, 400))
+    check(`[${label}] the capture ran`, false, String(error).slice(0, 400), 'rebuild with bun run build.ts so dist/mercury.mjs is current, then read the vshot stderr above and scripts/ui/vshot.py for why no grid was written')
     return null
   }
 }
@@ -453,7 +455,7 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
     const m = cap.marks
     const sent = cap.receipts[10]
     const foldHits = fixture.hits.slice(hitsBefore).filter(h => h.route === 'fold')
-    check('[fold] the turn before the fold read both notes files', fixture.hits.slice(hitsBefore).some(h => h.route === 'read') && fixture.hits.slice(hitsBefore).some(h => h.route === 'read-done') && rowsWith(m['read-done'], READ_DONE).length > 0, fixture.hits.slice(hitsBefore).map(h => h.route).join(' → '))
+    check('[fold] the turn before the fold read both notes files', fixture.hits.slice(hitsBefore).some(h => h.route === 'read') && fixture.hits.slice(hitsBefore).some(h => h.route === 'read-done') && rowsWith(m['read-done'], READ_DONE).length > 0, fixture.hits.slice(hitsBefore).map(h => h.route).join(' → '), 'the turn before /compact must call Read on both notes files and end with READ-DONE; read the routes above and the fixture route logic in this drive, then the Read tool path if the route chain stops early')
     console.log(`\n[fold] sends fired ${cap.receipts.length} · end ${cap.endReason} · routes ${fixture.hits.slice(hitsBefore).map(h => h.route).join(' → ')}`)
     if (sent && foldHits[0]) console.log(`[fold] /compact sent at +0 ms · the summary call reached the wire at +${foldHits[0].atMs - sent.ts} ms · its stream ended at +${foldHits[0].endMs - sent.ts} ms`)
     dump('fold · before the send', m['before-send'])
@@ -472,36 +474,36 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
     const blank = foldMarks('fold').find(k => m[k] !== undefined && foldRowOf(m[k]) === null && rowsWith(m[k], CARD).length === 0 && firstLive !== undefined && cap.markMs[k]! > cap.markMs[firstLive.key]!)
     if (blank !== undefined) dump(`fold · ${blank} (a frame with neither the row nor the card)`, m[blank])
     dump('fold · the card', m['card'])
-    check('[fold] the summary call ran on the wire once', foldHits.length === 1, `${foldHits.length}`)
-    check('F1 [fold] the row stands in the chat within a second of the send, under the echo', firstLive !== undefined && (cap.startedMs + cap.markMs[firstLive.key]! - (sent?.ts ?? 0)) < 1500 && rowsWith(m[firstLive.key], '❯ /compact').length > 0, firstLive ? `${firstLive.key} · ${firstLive.row}` : 'no live row in any frame')
-    check('F1 [fold] the row carries the head, a bar and a clock', live.every(l => /compacting context · .*[█◐░]+ · \d+s/.test(l.row) && (l.row.match(/[█◐░]+/)?.[0].length ?? 0) === 2 * FOLD_BAR_CELLS_PER_STAGE), live.map(l => l.row).slice(0, 3).join(' | '))
-    check('F1 [fold] the row stands in every frame until the card takes its place (no blank beat)', live.length > 0 && foldMarks('fold').every(k => m[k] === undefined || foldRowOf(m[k]) !== null || rowsWith(m[k], CARD).length > 0 || cap.markMs[k]! < cap.markMs[firstLive!.key]!), foldMarks('fold').map(k => `${k}:${foldRowOf(m[k]) ? 'row' : rowsWith(m[k], CARD).length ? 'card' : '—'}`).join(' '))
-    check('F1 [fold] no frame paints the live row and the card together', !foldMarks('fold').some(k => rowsWith(m[k], CARD).length > 0 && foldRowOf(m[k]) !== null && !foldRowOf(m[k])!.includes('compacted')), withCard.map(k => foldRowOf(m[k]) ?? '').filter(Boolean).join(' | '))
-    check('F1 [fold] the card landed', rowsWith(m['card'], CARD).length > 0 && foldRowOf(m['card']) === null, rowsWith(m['card'], /Compact/).map(flat).join(' | ').slice(0, 200))
+    check('[fold] the summary call ran on the wire once', foldHits.length === 1, `${foldHits.length}`, 'the /compact fold must send exactly one summary request whose last user text contains Reply with prose only; check src/commands/compact/compact.ts and the summary call it makes')
+    check('F1 [fold] the row stands in the chat within a second of the send, under the echo', firstLive !== undefined && (cap.startedMs + cap.markMs[firstLive.key]! - (sent?.ts ?? 0)) < 1500 && rowsWith(m[firstLive.key], '❯ /compact').length > 0, firstLive ? `${firstLive.key} · ${firstLive.row}` : 'no live row in any frame', ROW_FIX_HINT + '; the row must stand under the /compact echo within 1.5 s of the send')
+    check('F1 [fold] the row carries the head, a bar and a clock', live.every(l => /compacting context · .*[█◐░]+ · \d+s/.test(l.row) && (l.row.match(/[█◐░]+/)?.[0].length ?? 0) === 2 * FOLD_BAR_CELLS_PER_STAGE), live.map(l => l.row).slice(0, 3).join(' | '), ROW_FIX_HINT + '; each live row needs the head, a bar of two stages and a seconds clock')
+    check('F1 [fold] the row stands in every frame until the card takes its place (no blank beat)', live.length > 0 && foldMarks('fold').every(k => m[k] === undefined || foldRowOf(m[k]) !== null || rowsWith(m[k], CARD).length > 0 || cap.markMs[k]! < cap.markMs[firstLive!.key]!), foldMarks('fold').map(k => `${k}:${foldRowOf(m[k]) ? 'row' : rowsWith(m[k], CARD).length ? 'card' : '—'}`).join(' '), ROW_FIX_HINT + '; no frame between the first row and the card may lack the row')
+    check('F1 [fold] no frame paints the live row and the card together', !foldMarks('fold').some(k => rowsWith(m[k], CARD).length > 0 && foldRowOf(m[k]) !== null && !foldRowOf(m[k])!.includes('compacted')), withCard.map(k => foldRowOf(m[k]) ?? '').filter(Boolean).join(' | '), ROW_FIX_HINT + '; foldRowVisible must hide the live row once the landing card is painted')
+    check('F1 [fold] the card landed', rowsWith(m['card'], CARD).length > 0 && foldRowOf(m['card']) === null, rowsWith(m['card'], /Compact/).map(flat).join(' | ').slice(0, 200), ROW_FIX_HINT + '; the card must replace the row when the fold lands')
     const stages = live.map(l => l.facts.stage).filter((s): s is string => s !== null)
     const order = ['micro-compaction', 'summarising', 'restoring', 'compacted']
     const seen = [...new Set(stages)]
-    check('F2 [fold] the bar advances in the fold\'s order without phase words', seen.length >= 2 && seen.every(s => order.includes(s)) && nonDecreasing(seen.map(s => order.indexOf(s))) && live.every(l => !/micro-compaction|summarising|restoring|session memory/.test(l.row)), seen.join(' → '))
-    check('F2 [fold] the bar shows summarising and restoring', seen.includes('summarising') && seen.includes('restoring'), seen.join(' → '))
-    check('F2 [fold] the filled cells never decrease', nonDecreasing(live.map(l => l.facts.filled)), live.map(l => l.facts.filled).join(','))
+    check('F2 [fold] the bar advances in the fold\'s order without phase words', seen.length >= 2 && seen.every(s => order.includes(s)) && nonDecreasing(seen.map(s => order.indexOf(s))) && live.every(l => !/micro-compaction|summarising|restoring|session memory/.test(l.row)), seen.join(' → '), ROW_FIX_HINT + '; stages must advance summarising then restoring and the row must carry no phase words')
+    check('F2 [fold] the bar shows summarising and restoring', seen.includes('summarising') && seen.includes('restoring'), seen.join(' → '), ROW_FIX_HINT + '; the bar must reach both the summarising and the restoring stage')
+    check('F2 [fold] the filled cells never decrease', nonDecreasing(live.map(l => l.facts.filled)), live.map(l => l.facts.filled).join(','), 'foldBarCells in src/services/compact/foldStatus.ts must never unfill a cell while the fold runs')
     const tokens = live.filter(l => l.facts.stage === 'summarising').map(l => l.facts.tokens ?? 0)
-    check('F2 [fold] the streamed tokens grow while summarising', tokens.length >= 2 && nonDecreasing(tokens) && tokens[tokens.length - 1]! > tokens[0]!, tokens.join(','))
-    check('F2 [fold] the clock grows from the fold\'s own start (never the session\'s age)', nonDecreasing(live.map(l => l.facts.seconds ?? 0)) && live.every(l => (l.facts.seconds ?? 0) <= 40), live.map(l => l.facts.seconds).join(','))
+    check('F2 [fold] the streamed tokens grow while summarising', tokens.length >= 2 && nonDecreasing(tokens) && tokens[tokens.length - 1]! > tokens[0]!, tokens.join(','), 'the streamed token count in the row (foldRowWords in src/services/compact/foldStatus.ts, fed by foldStatusOnEvent) must grow while summarising')
+    check('F2 [fold] the clock grows from the fold\'s own start (never the session\'s age)', nonDecreasing(live.map(l => l.facts.seconds ?? 0)) && live.every(l => (l.facts.seconds ?? 0) <= 40), live.map(l => l.facts.seconds).join(','), 'the row clock (foldRowWords in src/services/compact/foldStatus.ts) must count from the fold start, not the session start')
     const strips = live.map(l => stripOf(m[l.key])).filter((s): s is { glyph: string; words: string } => s !== null)
-    check('F3 [fold] the working strip never says thinking while the fold runs', strips.every(s => !/thinking/i.test(s.words)), strips.map(s => s.words).slice(0, 3).join(' | '))
-    check('F3 [fold] the working strip\'s glyph stands still through the fold', strips.length >= 3 && new Set(strips.map(s => s.glyph)).size === 1, strips.map(s => s.glyph).join(''))
+    check('F3 [fold] the working strip never says thinking while the fold runs', strips.every(s => !/thinking/i.test(s.words)), strips.map(s => s.words).slice(0, 3).join(' | '), 'the working strip must read compacting, not thinking, while a fold runs; change the strip label source for a running fold')
+    check('F3 [fold] the working strip\'s glyph stands still through the fold', strips.length >= 3 && new Set(strips.map(s => s.glyph)).size === 1, strips.map(s => s.glyph).join(''), 'the working strip glyph must stay fixed through a fold; change the strip animation while a fold runs')
     const liveTurn = live.filter(l => l.facts.stage !== 'compacted' && stripOf(m[l.key]) !== null)
     const below = liveTurn.map(l => belowChat(m[l.key]).join('\n'))
     const variants = [...new Set(below)]
     const diff = variants.length > 1 ? variants[0]!.split('\n').map((line, i) => (line === variants[1]!.split('\n')[i] ? null : `${i}: ${line} ⇄ ${variants[1]!.split('\n')[i] ?? ''}`)).filter((x): x is string => x !== null).join('\n') : ''
-    check('F6 [fold] no row below the chat moves while the row stands', below.length > 0 && variants.length === 1, variants.length > 1 ? `${variants.length} variants over ${liveTurn.length} frames — the rows that differ:\n${diff}`.slice(0, 900) : '')
+    check('F6 [fold] no row below the chat moves while the row stands', below.length > 0 && variants.length === 1, variants.length > 1 ? `${variants.length} variants over ${liveTurn.length} frames — the rows that differ:\n${diff}`.slice(0, 900) : '', 'rows below the chat must not shift while the fold row stands; the rows that differ are listed above, change the layout that moves them')
     for (const row of wireRows(world.home)) {
       const rel = sent ? `+${row.at - sent.ts} ms` : '?'
       console.log(`  wire #${row.seq} ${row.url} ${row.model} at ${rel} · first byte ${row.response.firstByteMs ?? '?'} ms · total ${row.response.ms} ms · usage ${JSON.stringify(row.response.usage ?? {})} · ${row.response.stop_reason ?? row.response.error ?? '?'}`)
     }
     const postFold = wireRows(world.home).filter(r => r.model !== 'fixture' && !r.model.includes('haiku')).at(-1)
     const postFoldReply = rowsWith(m['post-fold'], AUTO_REPLY).length > 0
-    check('F7 [fold] the first request after the fold landed its reply', postFoldReply, rowsWith(m['post-fold'], /station 31|surveyed/).map(flat).join(' | ').slice(0, 200))
+    check('F7 [fold] the first request after the fold landed its reply', postFoldReply, rowsWith(m['post-fold'], /station 31|surveyed/).map(flat).join(' | ').slice(0, 200), 'the first request after a fold must get its reply; read the wire rows and post-fold request dump above')
     if (postFold !== undefined) {
       const parts = requestParts(postFold.body)
       for (const [i, item] of (((postFold.body as { messages?: Array<{ role?: string; content?: unknown }> }).messages ?? [])).entries()) {
@@ -512,7 +514,7 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
         }
       }
       console.log(`  post-fold request: ${parts.items} items · ${parts.total} chars ≈ ${Math.round(parts.total / 4)} tokens — summary ${parts.summary} · restored files ${parts.files} (${parts.fileCount} rows) · kept tail ${parts.tail} (${parts.tailRows} rows) · the ask ${parts.ask} · other ${parts.other} · first byte ${postFold.response.firstByteMs ?? '?'} ms (the fixture's)`)
-      check('F7 [fold] the post-fold request carries the summary, the ask and both restored files, no file block over the per-file limit', parts.summary > 0 && parts.ask > 0 && parts.filesNamed === 2 && parts.largestFile <= 5_000 * 4 + 400, `summary ${parts.summary} chars · ask ${parts.ask} · files named ${parts.filesNamed} in ${parts.fileCount} blocks · largest block ${parts.largestFile} chars`)
+      check('F7 [fold] the post-fold request carries the summary, the ask and both restored files, no file block over the per-file limit', parts.summary > 0 && parts.ask > 0 && parts.filesNamed === 2 && parts.largestFile <= 5_000 * 4 + 400, `summary ${parts.summary} chars · ask ${parts.ask} · files named ${parts.filesNamed} in ${parts.fileCount} blocks · largest block ${parts.largestFile} chars`, 'the post-fold request must hold the summary, the ask and both restored notes files, each under POST_COMPACT_MAX_TOKENS_PER_FILE (src/services/compact/compact/limits.ts); read the item dump above')
     }
   }
 }
@@ -538,9 +540,9 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
     dump('cancel · after-01', m['after-01'])
     dump('cancel · after-03', m['after-03'])
     dump('cancel · the line', m['line'])
-    check('F4 [cancel] the row stood before esc', foldRowOf(m['esc']) !== null, foldRowOf(m['esc']) ?? 'none')
-    check('F4 [cancel] the cancel line lands where the row stood, and no live row remains', rowsWith(m['line'], CANCELLED_LINE).length > 0 && foldRowOf(m['line']) === null, rowsWith(m['line'], /Compact/).map(flat).join(' | ').slice(0, 200))
-    check('F4 [cancel] no frame paints the live row beside the cancel line', !Object.keys(m).some(k => rowsWith(m[k], CANCELLED_LINE).length > 0 && foldRowOf(m[k]) !== null && !foldRowOf(m[k])!.includes('cancelled')))
+    check('F4 [cancel] the row stood before esc', foldRowOf(m['esc']) !== null, foldRowOf(m['esc']) ?? 'none', ROW_FIX_HINT + '; the row must stand before esc is sent')
+    check('F4 [cancel] the cancel line lands where the row stood, and no live row remains', rowsWith(m['line'], CANCELLED_LINE).length > 0 && foldRowOf(m['line']) === null, rowsWith(m['line'], /Compact/).map(flat).join(' | ').slice(0, 200), ROW_FIX_HINT + '; the cancelled line must replace the row')
+    check('F4 [cancel] no frame paints the live row beside the cancel line', !Object.keys(m).some(k => rowsWith(m[k], CANCELLED_LINE).length > 0 && foldRowOf(m[k]) !== null && !foldRowOf(m[k])!.includes('cancelled')), '', ROW_FIX_HINT + '; the live row and the cancel line must never be painted in one frame')
   }
 }
 
@@ -562,9 +564,9 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
       console.log(`  ${key} row: ${foldRowOf(m[key]) ?? '(none)'} · line: ${rowsWith(m[key], FAILED_LINE).length > 0 ? 'yes' : 'no'}`)
     }
     dump('refuse · the line', m['line'])
-    check('F4 [refuse] the summary call was refused on the wire', fixture.hits.slice(hitsBefore).some(h => h.refused))
-    check('F4 [refuse] the failure line lands where the row stood, and no live row remains', rowsWith(m['line'], FAILED_LINE).length > 0 && foldRowOf(m['line']) === null, rowsWith(m['line'], /ompact/).map(flat).join(' | ').slice(0, 240))
-    check('F4 [refuse] no frame paints the live row beside the failure line', !Object.keys(m).some(k => rowsWith(m[k], FAILED_LINE).length > 0 && foldRowOf(m[k]) !== null && !foldRowOf(m[k])!.includes('failed')))
+    check('F4 [refuse] the summary call was refused on the wire', fixture.hits.slice(hitsBefore).some(h => h.refused), '', 'the fixture refuses the summary call only while foldMode is refuse and the route is fold; read the routes printed above')
+    check('F4 [refuse] the failure line lands where the row stood, and no live row remains', rowsWith(m['line'], FAILED_LINE).length > 0 && foldRowOf(m['line']) === null, rowsWith(m['line'], /ompact/).map(flat).join(' | ').slice(0, 240), ROW_FIX_HINT + '; the failure line (Error during compaction, src/commands/compact/compact.ts) must replace the row')
+    check('F4 [refuse] no frame paints the live row beside the failure line', !Object.keys(m).some(k => rowsWith(m[k], FAILED_LINE).length > 0 && foldRowOf(m[k]) !== null && !foldRowOf(m[k])!.includes('failed')), '', ROW_FIX_HINT + '; the live row and the failure line must never be painted in one frame')
   }
 }
 
@@ -587,10 +589,10 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
     }
     if (live.length > 0) dump(`auto · ${live[Math.min(live.length - 1, 3)]!.key}`, m[live[Math.min(live.length - 1, 3)]!.key])
     dump('auto · the reply', m['reply'])
-    check('F5 [auto] the fold ran before the turn\'s request (summary call first, then the reply)', routes.indexOf('fold') !== -1 && routes.indexOf('chat') > routes.indexOf('fold'), routes.join(' → '))
-    check('F5 [auto] the automatic fold paints the quiet row without an auto or phase label', live.length > 0 && live.every(l => l.facts.head === ROW_HEAD && !/\(auto\)|micro-compaction|summarising|restoring|session memory/.test(l.row)), live.map(l => l.row).slice(0, 2).join(' | '))
-    check('F5 [auto] the row leaves with the fold and the reply lands', rowsWith(m['reply'], AUTO_REPLY).length > 0 && foldRowOf(m['reply']) === null, rowsWith(m['reply'], /compacting|surveyed/).map(flat).join(' | ').slice(0, 200))
-    check('F5 [auto] the stages walked: summarising, then restoring', live.some(l => l.facts.stage === 'summarising') && live.some(l => l.facts.stage === 'restoring'), [...new Set(live.map(l => l.facts.stage))].join(' → '))
+    check('F5 [auto] the fold ran before the turn\'s request (summary call first, then the reply)', routes.indexOf('fold') !== -1 && routes.indexOf('chat') > routes.indexOf('fold'), routes.join(' → '), 'an automatic fold must send the summary call before the turn request; check where the auto-compact threshold (MERCURY_AUTOCOMPACT_PCT_OVERRIDE) is read and the fold runs before the request')
+    check('F5 [auto] the automatic fold paints the quiet row without an auto or phase label', live.length > 0 && live.every(l => l.facts.head === ROW_HEAD && !/\(auto\)|micro-compaction|summarising|restoring|session memory/.test(l.row)), live.map(l => l.row).slice(0, 2).join(' | '), ROW_FIX_HINT + '; an automatic fold must paint the same head as a manual one, without an auto or phase label')
+    check('F5 [auto] the row leaves with the fold and the reply lands', rowsWith(m['reply'], AUTO_REPLY).length > 0 && foldRowOf(m['reply']) === null, rowsWith(m['reply'], /compacting|surveyed/).map(flat).join(' | ').slice(0, 200), ROW_FIX_HINT + '; the row must leave when the fold ends and the reply lands')
+    check('F5 [auto] the stages walked: summarising, then restoring', live.some(l => l.facts.stage === 'summarising') && live.some(l => l.facts.stage === 'restoring'), [...new Set(live.map(l => l.facts.stage))].join(' → '), ROW_FIX_HINT + '; the automatic fold must walk summarising then restoring')
   }
 }
 

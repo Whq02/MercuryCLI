@@ -17,17 +17,17 @@ const headless = (untrusted: boolean): void => {
 
 section('§1 control: in a trusted folder a refusal names the rule as it is written')
 headless(false)
-check('the folder is not held back for trust', untrustedWorkspaceHeadless() === false)
+check('the folder is not held back for trust', untrustedWorkspaceHeadless() === false, 'untrustedWorkspaceHeadless in src/utils/config/trust.ts must be false once the session trust is accepted')
 {
   const read = await decide('Read', { file_path: fill('<PROJECT>/notes.txt') }, 'default', rules)
-  check('a Read the rule denies is refused and the rule is named as written', read.behavior === 'deny' && (read.message ?? '').includes(READ_RULE), said(read))
+  check('a Read the rule denies is refused and the rule is named as written', read.behavior === 'deny' && (read.message ?? '').includes(READ_RULE), said(read) + ' (a trusted folder must name the rule as written; see ruleWords in src/utils/permissions/ruleReason.ts)')
   const shell = await decide('Bash', { command: 'echo x > notes.txt' }, 'default', rules)
-  check('a shell write the rule denies is refused and the rule is named as written', shell.behavior === 'deny' && (shell.message ?? '').includes(EDIT_RULE), said(shell))
+  check('a shell write the rule denies is refused and the rule is named as written', shell.behavior === 'deny' && (shell.message ?? '').includes(EDIT_RULE), said(shell) + ' (a trusted folder must name the rule as written; see ruleWords in src/utils/permissions/ruleReason.ts)')
 }
 
 section('§2 a headless run in a folder nobody trusted: the folder\'s rule still refuses, and its spelling is not said')
 headless(true)
-check('the folder\'s own layers are held back for trust', untrustedWorkspaceHeadless() === true)
+check('the folder\'s own layers are held back for trust', untrustedWorkspaceHeadless() === true, 'untrustedWorkspaceHeadless in src/utils/config/trust.ts must be true for a headless run in a folder nobody trusted')
 const calls: Array<[string, string, Record<string, unknown>, string]> = [
   ['a Read the folder\'s rule denies', 'Read', { file_path: fill('<PROJECT>/notes.txt') }, 'default'],
   ['a cat of the same file', 'Bash', { command: 'cat notes.txt' }, 'default'],
@@ -40,17 +40,17 @@ const calls: Array<[string, string, Record<string, unknown>, string]> = [
 for (const [label, tool, input, mode] of calls) {
   const decision = await decide(tool, input, mode, rules)
   const words = decision.message ?? ''
-  check(`${label} (${mode}) is refused`, decision.behavior === 'deny', said(decision))
-  check(`${label}: the sentence in the rule's spelling is not in the refusal`, !words.includes('CANARY-RULE-WORDS-5150') && !words.includes('IMPORTANT'), words.slice(0, 300))
-  check(`${label}: the refusal names the layer and says the folder is not trusted`, /a rule in the project local settings of this folder, which is not trusted/.test(words), words.slice(0, 300))
+  check(`${label} (${mode}) is refused`, decision.behavior === 'deny', said(decision) + ' (the folder rule must still refuse in an untrusted folder; the decision is made in src/utils/permissions/decision/engine.ts)')
+  check(`${label}: the sentence in the rule's spelling is not in the refusal`, !words.includes('CANARY-RULE-WORDS-5150') && !words.includes('IMPORTANT'), 'fix ruleWords in src/utils/permissions/ruleReason.ts so an untrusted rule is not spelled; ' + words.slice(0, 300))
+  check(`${label}: the refusal names the layer and says the folder is not trusted`, /a rule in the project local settings of this folder, which is not trusted/.test(words), 'fix ruleWords in src/utils/permissions/ruleReason.ts to name the layer and say the folder is not trusted; ' + words.slice(0, 300))
 }
 {
   const local = { source: 'localSettings', ruleValue: { toolName: 'Read', ruleContent: `**/[${SENTENCE} n]otes.txt` } } as never
   const shared = { source: 'projectSettings', ruleValue: { toolName: 'Read', ruleContent: `**/[${SENTENCE} n]otes.txt` } } as never
   const own = { source: 'userSettings', ruleValue: { toolName: 'Read', ruleContent: 'secrets/**' } } as never
-  check('the words for a rule of the shared project settings leave its spelling unsaid too', !ruleWords(shared).includes('CANARY') && /in the shared project settings of this folder, which is not trusted/.test(ruleWords(shared)), ruleWords(shared))
-  check('the line that says a tool was withheld leaves it unsaid', !withheldByRuleWords('Bash', local).includes('CANARY') && /withheld by a deny rule in the project local settings of this folder, which is not trusted/.test(withheldByRuleWords('Bash', local)), withheldByRuleWords('Bash', local))
-  check('a rule of the user\'s own settings is still named as written in the same run', ruleWords(own) === 'the rule Read(secrets/**) in your user settings', ruleWords(own))
+  check('the words for a rule of the shared project settings leave its spelling unsaid too', !ruleWords(shared).includes('CANARY') && /in the shared project settings of this folder, which is not trusted/.test(ruleWords(shared)), ruleWords(shared) + ' (fix ruleWords in src/utils/permissions/ruleReason.ts)')
+  check('the line that says a tool was withheld leaves it unsaid', !withheldByRuleWords('Bash', local).includes('CANARY') && /withheld by a deny rule in the project local settings of this folder, which is not trusted/.test(withheldByRuleWords('Bash', local)), withheldByRuleWords('Bash', local) + ' (fix withheldByRuleWords in src/utils/permissions/ruleReason.ts)')
+  check('a rule of the user\'s own settings is still named as written in the same run', ruleWords(own) === 'the rule Read(secrets/**) in your user settings', ruleWords(own) + ' (fix ruleWords in src/utils/permissions/ruleReason.ts)')
 }
 headless(false)
 note('nothing in this proof is executed: tool inputs handed to the decision function with the real tools; the folder is the proof\'s scratch folder')

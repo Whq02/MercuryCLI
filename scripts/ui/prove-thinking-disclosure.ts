@@ -24,19 +24,20 @@ const { getTheme, THEME_NAMES } = await import('../../src/utils/theme.ts');
 const { getSessionAccent } = await import('../../src/components/mercury-ui/sessionAccent.ts');
 
 const GLYPH = '\u273B';
-check('owner: the glyph is U+273B (no Emoji property — never a pictograph)', grammar.THINKING_GLYPH === GLYPH);
-check('owner: the glyph measures one cell', stringWidth(grammar.THINKING_GLYPH) === 1, `width=${stringWidth(grammar.THINKING_GLYPH)}`);
-check('owner: the word is lowercase', grammar.THINKING_WORD === 'thinking');
-check('owner: the label is glyph + space + word + ellipsis', grammar.THINKING_LABEL === `${GLYPH} thinking…`);
-check('owner: the colour is the theme role `subtle`', grammar.THINKING_COLOR === 'subtle');
+check('owner: the glyph is U+273B (no Emoji property — never a pictograph)', grammar.THINKING_GLYPH === GLYPH, 'set THINKING_GLYPH to U+273B in src/components/messages/thinkingGrammar.tsx');
+check('owner: the glyph measures one cell', stringWidth(grammar.THINKING_GLYPH) === 1, `width=${stringWidth(grammar.THINKING_GLYPH)}; THINKING_GLYPH in src/components/messages/thinkingGrammar.tsx must be one cell wide`);
+check('owner: the word is lowercase', grammar.THINKING_WORD === 'thinking', 'set THINKING_WORD to thinking in src/components/messages/thinkingGrammar.tsx');
+check('owner: the label is glyph + space + word + ellipsis', grammar.THINKING_LABEL === `${GLYPH} thinking…`, 'THINKING_LABEL in src/components/messages/thinkingGrammar.tsx must be glyph, space, word, ellipsis');
+check('owner: the colour is the theme role `subtle`', grammar.THINKING_COLOR === 'subtle', 'set THINKING_COLOR to subtle in src/components/messages/thinkingGrammar.tsx');
 check(
   'owner: every theme family resolves the role (a grey of its own, never the accent)',
   THEME_NAMES.every(name => {
     const theme = getTheme(name);
     return typeof theme.subtle === 'string' && theme.subtle !== '' && theme.subtle !== getSessionAccent().accent;
   }),
+  'every family in src/utils/theme.ts needs a subtle role of its own that differs from the session accent',
 );
-check('owner: exports the row element', typeof grammar.ThinkingLabel === 'function');
+check('owner: exports the row element', typeof grammar.ThinkingLabel === 'function', 'src/components/messages/thinkingGrammar.tsx must export the ThinkingLabel component');
 
 const React = (await import('react')).default;
 const { renderToAnsiString } = await import('../../src/utils/staticRender.tsx');
@@ -55,33 +56,33 @@ const rgbOf = (value: string): string | null => {
 };
 const subtle = rgbOf(getTheme('dark').subtle);
 const accent = rgbOf(getSessionAccent().accent);
-check('fixture: the dark family\'s subtle and the accent are truecolor values', subtle !== null && accent !== null, `${subtle} / ${accent}`);
+check('fixture: the dark family\'s subtle and the accent are truecolor values', subtle !== null && accent !== null, `${subtle} / ${accent}; the subtle role of the dark family in src/utils/theme.ts or the accent from src/components/mercury-ui/sessionAccent.ts is not a hex or rgb() value`);
 
 const collapsedAnsi = await renderToAnsiString(
   mounted(React.createElement(AssistantThinkingMessage, { param: { type: 'thinking', thinking: 'the reasoning body' } })),
   60,
 );
 const collapsed = stripAnsi(collapsedAnsi);
-check('rendered collapsed row: the label paints', collapsed.includes(grammar.THINKING_LABEL), JSON.stringify(collapsed.trim()));
-check('rendered collapsed row: the fold cue rides the same row', /thinking…\s+\(.*to expand\)|thinking…\s+⌄/.test(collapsed), JSON.stringify(collapsed.trim()));
-check('rendered collapsed row: the body stays folded', !collapsed.includes('the reasoning body'));
-check('rendered collapsed row: painted in the subtle colour', collapsedAnsi.includes(`38;2;${subtle}`), JSON.stringify(collapsedAnsi.slice(0, 120)));
-check('rendered collapsed row: the accent is absent from its bytes', !collapsedAnsi.includes(`38;2;${accent}`));
-check('rendered collapsed row: italic', collapsedAnsi.includes('\x1b[3m'));
+check('rendered collapsed row: the label paints', collapsed.includes(grammar.THINKING_LABEL), `${JSON.stringify(collapsed.trim())}; AssistantThinkingMessage in src/components/messages/AssistantThinkingMessage.tsx must render ThinkingLabel`);
+check('rendered collapsed row: the fold cue rides the same row', /thinking…\s+\(.*to expand\)|thinking…\s+⌄/.test(collapsed), `${JSON.stringify(collapsed.trim())}; AssistantThinkingMessage in src/components/messages/AssistantThinkingMessage.tsx must put the expand cue on the label row`);
+check('rendered collapsed row: the body stays folded', !collapsed.includes('the reasoning body'), 'AssistantThinkingMessage in src/components/messages/AssistantThinkingMessage.tsx must not print the body unless verbose');
+check('rendered collapsed row: painted in the subtle colour', collapsedAnsi.includes(`38;2;${subtle}`), `${JSON.stringify(collapsedAnsi.slice(0, 120))}; paint the row with THINKING_COLOR (subtle) in src/components/messages/AssistantThinkingMessage.tsx`);
+check('rendered collapsed row: the accent is absent from its bytes', !collapsedAnsi.includes(`38;2;${accent}`), 'the row in src/components/messages/AssistantThinkingMessage.tsx must not use the session accent');
+check('rendered collapsed row: italic', collapsedAnsi.includes('\x1b[3m'), 'the row in src/components/messages/AssistantThinkingMessage.tsx must be italic');
 
 const expandedAnsi = await renderToAnsiString(
   mounted(React.createElement(AssistantThinkingMessage, { param: { type: 'thinking', thinking: 'the reasoning body' }, verbose: true })),
   60,
 );
 const expanded = stripAnsi(expandedAnsi);
-check('rendered expanded block: the same header, then the body', expanded.includes(grammar.THINKING_LABEL) && expanded.includes('the reasoning body'));
-check('rendered expanded block: no fold cue when the body is open', !/to expand|⌄/.test(expanded));
-check('rendered expanded block: the accent is absent from its bytes', !expandedAnsi.includes(`38;2;${accent}`));
+check('rendered expanded block: the same header, then the body', expanded.includes(grammar.THINKING_LABEL) && expanded.includes('the reasoning body'), 'AssistantThinkingMessage in src/components/messages/AssistantThinkingMessage.tsx must print the label then the body when verbose');
+check('rendered expanded block: no fold cue when the body is open', !/to expand|⌄/.test(expanded), 'AssistantThinkingMessage in src/components/messages/AssistantThinkingMessage.tsx must drop the expand cue when verbose');
+check('rendered expanded block: the accent is absent from its bytes', !expandedAnsi.includes(`38;2;${accent}`), 'the expanded block in src/components/messages/AssistantThinkingMessage.tsx must not use the session accent');
 
 const redactedAnsi = await renderToAnsiString(mounted(React.createElement(AssistantRedactedThinkingMessage, { addMargin: false })), 60);
 const redacted = stripAnsi(redactedAnsi);
-check('rendered redacted stub: the same label, nothing to expand', redacted.trim() === grammar.THINKING_LABEL, JSON.stringify(redacted.trim()));
-check('rendered redacted stub: painted in the subtle colour, never the accent', redactedAnsi.includes(`38;2;${subtle}`) && !redactedAnsi.includes(`38;2;${accent}`));
+check('rendered redacted stub: the same label, nothing to expand', redacted.trim() === grammar.THINKING_LABEL, `${JSON.stringify(redacted.trim())}; src/components/messages/AssistantRedactedThinkingMessage.tsx must render only ThinkingLabel`);
+check('rendered redacted stub: painted in the subtle colour, never the accent', redactedAnsi.includes(`38;2;${subtle}`) && !redactedAnsi.includes(`38;2;${accent}`), 'src/components/messages/AssistantRedactedThinkingMessage.tsx must paint the stub in the subtle colour and not the accent');
 
 const { Message } = await import('../../src/components/Message.tsx');
 const { declaredRouteOf } = await import('../../src/services/providers/callModelRouter.ts');
@@ -124,15 +125,15 @@ const dispatched = async (model: string): Promise<string> =>
     ),
     60,
   );
-check('fixture: the two ids route to openai and anthropic', declaredRouteOf(GPT_MODEL) === 'openai' && declaredRouteOf(CLAUDE_MODEL) === 'anthropic', `${declaredRouteOf(GPT_MODEL)} / ${declaredRouteOf(CLAUDE_MODEL)}`);
+check('fixture: the two ids route to openai and anthropic', declaredRouteOf(GPT_MODEL) === 'openai' && declaredRouteOf(CLAUDE_MODEL) === 'anthropic', `${declaredRouteOf(GPT_MODEL)} / ${declaredRouteOf(CLAUDE_MODEL)}; declaredRouteOf in src/services/providers/callModelRouter.ts must route these ids to openai and anthropic, or pick ids it does`);
 const gptRowAnsi = await dispatched(GPT_MODEL);
 const claudeRowAnsi = await dispatched(CLAUDE_MODEL);
 const gptRow = stripAnsi(gptRowAnsi);
-check('dispatched GPT-route row: the collapsed label paints in the default view', gptRow.includes(grammar.THINKING_LABEL), JSON.stringify(gptRow.trim()));
-check('dispatched GPT-route row: the expand cue rides the same row', /thinking…\s+\(.*to expand\)|thinking…\s+⌄/.test(gptRow), JSON.stringify(gptRow.trim()));
-check('dispatched GPT-route row: the body stays folded', !gptRow.includes('the reasoning body'));
-check('dispatched GPT-route row: painted in the subtle colour, never the accent', gptRowAnsi.includes(`38;2;${subtle}`) && !gptRowAnsi.includes(`38;2;${accent}`));
-check('dispatched rows: the GPT-route row and the Claude row are the same bytes', gptRowAnsi === claudeRowAnsi, JSON.stringify({ gpt: gptRow.trim(), claude: stripAnsi(claudeRowAnsi).trim() }));
+check('dispatched GPT-route row: the collapsed label paints in the default view', gptRow.includes(grammar.THINKING_LABEL), `${JSON.stringify(gptRow.trim())}; src/components/Message.tsx must send a thinking block of a GPT-route message to AssistantThinkingMessage`);
+check('dispatched GPT-route row: the expand cue rides the same row', /thinking…\s+\(.*to expand\)|thinking…\s+⌄/.test(gptRow), `${JSON.stringify(gptRow.trim())}; src/components/Message.tsx must send a thinking block of a GPT-route message to AssistantThinkingMessage with the expand cue`);
+check('dispatched GPT-route row: the body stays folded', !gptRow.includes('the reasoning body'), 'src/components/Message.tsx must keep the thinking body folded for a GPT-route message in the default view');
+check('dispatched GPT-route row: painted in the subtle colour, never the accent', gptRowAnsi.includes(`38;2;${subtle}`) && !gptRowAnsi.includes(`38;2;${accent}`), 'src/components/Message.tsx must paint a GPT-route thinking row in the subtle colour and not the accent');
+check('dispatched rows: the GPT-route row and the Claude row are the same bytes', gptRowAnsi === claudeRowAnsi, JSON.stringify({ gpt: gptRow.trim(), claude: stripAnsi(claudeRowAnsi).trim() }) + '; src/components/Message.tsx must render a thinking row the same for every model route');
 
 rmSync(HOME, { recursive: true, force: true });
 process.exit(fail);

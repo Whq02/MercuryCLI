@@ -10,7 +10,8 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spell
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}fix the floor and the receipts file in src/services/switchboard/sessionReceipts.ts (deriveSessionFloor, appendSessionReceipt, readSessionReceipts, receiptsPathBesideTranscript), the park and settle seams that write them in src/daemon/concourseWorkers.ts (parkConcourseSession, settleConcourseWorker), or the delete door in src/services/switchboard/transcriptPruneDoor.ts (buildPruneOffer, operatorPruneTranscripts)`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const { enableConfigs } = await import('../../src/utils/config.js')

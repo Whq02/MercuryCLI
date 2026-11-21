@@ -51,7 +51,7 @@ function check(label: string, run: () => void): void {
     console.log(`  [PASS] ${label}`)
   } catch (error) {
     failures++
-    console.log(`  [FAIL] ${label} — ${String(error instanceof Error ? error.message : error).split('\n')[0]}`)
+    console.log(`  [FAIL] ${label} — ${String(error instanceof Error ? error.message : error).split('\n')[0]}; restore the table or generator this check names in src/ink/termio/ansi.ts, csi.ts, display-types.ts or osc.ts`)
   }
 }
 

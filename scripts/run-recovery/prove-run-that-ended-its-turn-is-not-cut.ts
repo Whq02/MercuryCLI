@@ -39,7 +39,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}${!cond ? ' [a run that ended its own turn must not read as cut from outside: see detectInterruption in src/services/resume/conversationRecovery.ts for the loader checks, and the run that writes the ending (its outcome row and the result for the unrun call) for the record checks]' : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)
@@ -47,7 +47,7 @@ function section(title: string): void {
 const j = (value: unknown): string => JSON.stringify(value) ?? ''
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the own-ending proof exceeded 300s')
+  console.log('\n❌ TIMEOUT — the own-ending proof exceeded 300s — a spawned dist/mercury.mjs run or the fixture API never finished; the last section printed above names the step that hung')
   process.exit(1)
 }, 300_000)
 guard.unref?.()

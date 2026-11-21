@@ -39,7 +39,7 @@ for (const scene of scenes) {
   check(
     `determinism: ${scene.name}`,
     JSON.stringify(run1) === JSON.stringify(run2),
-    firstDivergence(run1, run2),
+    `${firstDivergence(run1, run2)}; the same scene gave two different layouts, so make createLayoutNode in src/ink/layout/engine.ts depend only on its inputs`,
   )
   results[scene.name] = run1
 }
@@ -48,7 +48,7 @@ for (const scene of scenes) {
   const rc = results['relayout-content-change']
   check('relayout purity: content restored ⇒ rects restored',
     rc !== undefined && JSON.stringify(rc[0]) === JSON.stringify(rc[3]),
-    rc ? firstDivergence([rc[0]!], [rc[3]!]) : 'scene missing')
+    rc ? `${firstDivergence([rc[0]!], [rc[3]!])}; pass 3 must equal pass 0 after the content is restored, so fix the relayout in src/ink/layout/engine.ts` : 'scene relayout-content-change is missing from allScenes in scripts/ink-runtime/layoutScenes.ts')
 }
 
 console.log(`  ${scenes.length} scenes exercised`)
@@ -57,7 +57,7 @@ if (record) {
   writeFileSync(GOLDEN, JSON.stringify(results, null, 1) + '\n')
   console.log(`  recorded → ${GOLDEN}`)
 } else {
-  check('golden exists (run --record once)', existsSync(GOLDEN))
+  check('golden exists (run --record once)', existsSync(GOLDEN), `${GOLDEN} is missing; run scripts/ink-runtime/prove-layout-corpus.ts with --record once and keep the file`)
   if (existsSync(GOLDEN)) {
     const golden: Record<string, SceneRects[]> = JSON.parse(readFileSync(GOLDEN, 'utf8'))
     const goldenNames = Object.keys(golden)
@@ -65,7 +65,7 @@ if (record) {
     check(
       `scene inventory matches (${goldenNames.length} recorded)`,
       JSON.stringify(goldenNames.sort()) === JSON.stringify([...liveNames].sort()),
-      'corpus drift — regenerate deliberately with --record',
+      'corpus drift — regenerate deliberately with --record; the scene list in scripts/ink-runtime/layoutScenes.ts no longer matches goldens/layout-corpus.json',
     )
     let mismatches = 0
     for (const name of goldenNames) {
@@ -73,10 +73,10 @@ if (record) {
       const d = firstDivergence(golden[name]!, results[name]!)
       if (d) {
         mismatches++
-        if (mismatches <= 5) console.log(`  [FAIL] ${name}: ${d}`)
+        if (mismatches <= 5) console.log(`  [FAIL] ${name}: ${d}; fix createLayoutNode in src/ink/layout/engine.ts, or run with --record if the new layout is intended`)
       }
     }
-    check(`all scene rectangles match the golden`, mismatches === 0, `${mismatches} scenes diverged`)
+    check(`all scene rectangles match the golden`, mismatches === 0, `${mismatches} scenes diverged from goldens/layout-corpus.json; fix createLayoutNode in src/ink/layout/engine.ts, or run with --record if the new layout is intended`)
   }
 }
 

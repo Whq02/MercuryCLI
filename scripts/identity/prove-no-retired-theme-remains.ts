@@ -47,7 +47,7 @@ function hits(rel: string, text: string): Array<{ line: number; text: string }> 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? '\n    to fix: for a file:line list, rewrite that line to the three appearances (dark, true-black, mono) or, for a record that must stay, add its path to EXCUSED in this file; for a census check, correct retired(), ROW_EXCUSED or the pattern constants above in this file' : ''}`)
 }
 
 console.log('============================================================')

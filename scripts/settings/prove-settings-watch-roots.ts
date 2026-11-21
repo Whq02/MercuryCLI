@@ -19,6 +19,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
+const watchRootsWhere = 'see initialize and projectWatchRoots in src/utils/settings/changeDetector.ts'
 const same = (a: string[], b: string[]): boolean => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort())
 
 const state = await import('../../src/bootstrap/state.ts')
@@ -42,12 +43,12 @@ const armedFor = async (cwd: string): Promise<Armed> => {
 }
 const pinRoots = (label: string, armed: Armed, projectDirs: string[], expectedRoots: string[], expectedAwaited: string[]): void => {
   const mcpDirs = armed.targets.filter(t => t.endsWith('mcp.json')).map(t => dirname(dirname(t)))
-  check(`${label}: the mcp.json targets name the project folders only — ${projectDirs.map(r => r.replace(ROOT, '<root>')).join(', ')} — never an ancestor above them`, same(mcpDirs, projectDirs), mcpDirs.join(' · '))
-  check(`${label}: the armed-roots seam answers`, armed.roots !== null, 'changeDetector exports no _watchRootsForTesting')
+  check(`${label}: the mcp.json targets name the project folders only — ${projectDirs.map(r => r.replace(ROOT, '<root>')).join(', ')} — never an ancestor above them`, same(mcpDirs, projectDirs), `${mcpDirs.join(' · ')}; ${watchRootsWhere}: the mcp.json targets must come only from the folders projectWatchRoots returns for the cwd`)
+  check(`${label}: the armed-roots seam answers`, armed.roots !== null, 'changeDetector exports no _watchRootsForTesting; export it from src/utils/settings/changeDetector.ts returning the watchedRoots and awaitedParents sets sorted')
   if (armed.roots === null || armed.awaited === null) return
-  check(`${label}: the armed roots are exactly ${expectedRoots.map(r => r.replace(ROOT, '<root>')).join(', ')}`, same(armed.roots, expectedRoots), armed.roots.join(' · '))
-  check(`${label}: the awaited project folders are exactly ${expectedAwaited.length === 0 ? 'none' : expectedAwaited.map(r => r.replace(ROOT, '<root>')).join(', ')}`, same(armed.awaited, expectedAwaited), armed.awaited.join(' · '))
-  check(`${label}: no root is the scratch temp root, a system root, the home's parent or the managed root's parent`, !armed.roots.some(r => r === ROOT || r === sep || r === '/private' || r === '/tmp' || r === '/private/tmp' || r === '/etc' || r === dirname(HOME) || r === dirname(managedRoot)), armed.roots.join(' · '))
+  check(`${label}: the armed roots are exactly ${expectedRoots.map(r => r.replace(ROOT, '<root>')).join(', ')}`, same(armed.roots, expectedRoots), `${armed.roots.join(' · ')}; ${watchRootsWhere}: the directories set built in initialize must hold exactly the expected roots`)
+  check(`${label}: the awaited project folders are exactly ${expectedAwaited.length === 0 ? 'none' : expectedAwaited.map(r => r.replace(ROOT, '<root>')).join(', ')}`, same(armed.awaited, expectedAwaited), `${armed.awaited.join(' · ')}; ${watchRootsWhere}: the awaited set in initialize must hold only project config folders that do not exist yet`)
+  check(`${label}: no root is the scratch temp root, a system root, the home's parent or the managed root's parent`, !armed.roots.some(r => r === ROOT || r === sep || r === '/private' || r === '/tmp' || r === '/private/tmp' || r === '/etc' || r === dirname(HOME) || r === dirname(managedRoot)), `${armed.roots.join(' · ')}; ${watchRootsWhere}: initialize must never arm a temp, system, home-parent or managed-parent folder`)
 }
 
 section('§1 a deep cwd inside a git repository: the launch folder, the repository top and the config home — nothing between, nothing above')
@@ -88,8 +89,8 @@ section('§4 the config home is armed only as itself: a missing home arms nothin
   process.env.MERCURY_CONFIG_DIR = ghost
   const armed = await armedFor(cwd)
   process.env.MERCURY_CONFIG_DIR = HOME
-  check('§4 the home that does not exist is not armed and neither is the scratch root above it', armed.roots !== null && !armed.roots.includes(ghost) && !armed.roots.includes(ROOT), (armed.roots ?? []).join(' · '))
-  check('§4 the project folder is still armed', armed.roots !== null && armed.roots.includes(cwd), (armed.roots ?? []).join(' · '))
+  check('§4 the home that does not exist is not armed and neither is the scratch root above it', armed.roots !== null && !armed.roots.includes(ghost) && !armed.roots.includes(ROOT), `${(armed.roots ?? []).join(' · ')}; ${watchRootsWhere}: initialize must arm a missing config home as nothing, not its parent`)
+  check('§4 the project folder is still armed', armed.roots !== null && armed.roots.includes(cwd), `${(armed.roots ?? []).join(' · ')}; ${watchRootsWhere}: the project folder from projectWatchRoots must still be armed`)
   await detector.dispose()
 }
 

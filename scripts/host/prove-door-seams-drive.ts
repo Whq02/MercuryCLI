@@ -36,7 +36,8 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
 let mounted: Mounted | undefined
 let ssh: ReturnType<typeof fakeSshRunner> | undefined
 let checks = 0
-const check = (name: string, truth: unknown) => { assert.ok(truth, name); checks++; console.log('PASS ' + name) }
+const doorSeamsHint = 'Fix the door road in modelDoorRoad (src/services/host/door.ts) or the host road in createHostRoad (src/services/host/index.ts); rerun this drive with --only <narrow|cluster|box|sweep|catalogue|lambda-model|manual-endpoint> --frames <dir> to see the screen.'
+const check = (name: string, truth: unknown) => { assert.ok(truth, name + '\n' + doorSeamsHint); checks++; console.log('PASS ' + name) }
 try {
   const React = await import('react')
   const { Box } = await import('../../src/ink.ts')
@@ -69,7 +70,7 @@ try {
     const observed: LlmHostRoad = (ask, emit, signal) => chosen(question => { plan = question; return ask(question) }, emit, signal)
     popup.openSettingsPopup(llmHostPopupRequest(observed)); await mount(columns, rows)
   }
-  const until = async (predicate: () => boolean, name: string) => assert.ok(await waitFor(predicate, 15000), name + '\n' + mounted!.screen())
+  const until = async (predicate: () => boolean, name: string) => assert.ok(await waitFor(predicate, 15000), name + '\n' + doorSeamsHint + '\n' + mounted!.screen())
   const step = (name: string) => until(() => plan?.step === name && mounted!.screen().includes(plan.title), name)
   const selected = () => mounted!.lines().find(line => line.includes('› ')) ?? ''
   const choose = async (text: string) => {

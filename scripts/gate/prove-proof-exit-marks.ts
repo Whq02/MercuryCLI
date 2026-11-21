@@ -12,7 +12,8 @@ writeFileSync(stub, '#!/bin/sh\nprintf "FAIL  diagnostic wording is not the resu
 chmodSync(stub, 0o755)
 const env = (code: number) => ({ PATH: `${scratch}:${process.env.PATH}`, HOME: scratch, BUN: stub, MERCURY_CONFIG_DIR: scratch, MERCURY_LOCAL_PROBE_TARGETS: 'none', PROOF_FIXTURE_RC: String(code) })
 let checks = 0
-const check = (label: string, ok: unknown): void => { assert(ok, label); checks++; console.log(`PASS ${label}`) }
+const EXIT_MARK_FIX = 'fix the runner the check names: every timed command in scripts/<suite>/run-all.sh must print its mark through run_proof (scripts/lib/proof-runner.sh) or prover_mark with the captured exit code, keep the suite result, and not end on a red proof; the mark line format is read by scripts/gate/timeline.py'
+const check = (label: string, ok: unknown): void => { assert(ok, `${label} | ${EXIT_MARK_FIX}`); checks++; console.log(`PASS ${label}`) }
 const marks = (text: string) => [...text.matchAll(/^── (.+?)\s+(\d+)s rc=(\d+)$/gm)].map(match => ({ path: match[1]!, code: Number(match[3]) }))
 const globToRegExp = (glob: string): RegExp => {
   const escaped = glob.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')

@@ -25,7 +25,7 @@ for (const key of ['MERCURY_MODEL', 'MERCURY_EFFORT_LEVEL', 'ANTHROPIC_AUTH_TOKE
 let failures = 0
 function check(label: string, good: boolean, detail = ''): void {
   if (!good) failures++
-  console.log(`  [${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}${good ? '' : ` — to fix, read call in src/commands/model/model.tsx (the switch preview card and its cancel receipt must name the session's own model for a daemon-carried session) and renderDefaultModelSetting and renderDefaultModelLabel in src/services/model/model.ts`}`)
 }
 const section = (t: string): void => console.log(`\n${t}`)
 async function until(predicate: () => boolean, budgetMs = 6000): Promise<boolean> {
@@ -102,7 +102,7 @@ async function mount(carrier: 'daemon' | 'in-process', screenMessages: unknown[]
   }
 }
 
-const deadline = setTimeout(() => { console.error('prove-model-cancel-names-session exceeded its deadline'); process.exit(1) }, 60_000)
+const deadline = setTimeout(() => { console.error('prove-model-cancel-names-session exceeded its deadline of 60s; a preview card that never opens or a cancel that never reports stalls an until() wait, so read call in src/commands/model/model.tsx'); process.exit(1) }, 60_000)
 deadline.unref()
 
 section(`§1 a daemon-carried session on ${SESSION_MODEL}: the preview names the session's model, and so does the cancel`)

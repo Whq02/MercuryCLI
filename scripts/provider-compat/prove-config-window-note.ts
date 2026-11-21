@@ -16,7 +16,8 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 1400)}` : ''}`)
+  const where = 'to fix, see localModelWindowRow in src/components/Settings/Config.tsx (the note text), chooseLocalWindow in src/services/providers/local/localWindow.ts (the window auto picks), and localRecordFor in src/services/providers/local/localCatalogue.ts (the Modelfile num_ctx read)'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? ` — ${detail.slice(0, 1400)}` : ''} — ${where}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

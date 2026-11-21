@@ -15,9 +15,11 @@ const { toBridgeMessages } = await import('../../src/services/providers/openai/o
 const { mapMessagesToOpenaiInput } = await import('../../src/services/providers/openai/responsesBridge.ts')
 
 let failures = 0
+const failureHint =
+  'fix buildTransitionPlan, transitionPlanSummary, transitionSourceRevision or transitionCapabilityEpoch in src/services/providers/transitionPreview.ts, confirmTransitionPlan in src/services/model/modelTransition.ts, or, when the plan disagrees with the wire walk, toBridgeMessages in src/services/providers/openai/openaiCallModel.ts and mapMessagesToOpenaiInput in src/services/providers/openai/responsesBridge.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${failureHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

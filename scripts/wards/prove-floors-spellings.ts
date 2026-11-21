@@ -12,7 +12,8 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks += 1
   if (!ok) failures += 1
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  const floorHint = 'to fix, change the floor reading in src/utils/permissions/shellProtectedPaths.ts (shellMercurySecretPath, shellCredentialWritePath, shellSelfProtectionReason), which src/tools/BashTool/bashPermissions.ts and src/tools/PowerShellTool/powershellPermissions.ts call, or the wards in src/utils/wards/wards.ts for a delete-ward row; a page row reads docs/TRUST.md'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${floorHint}${detail ? ` | ${detail.slice(0, 600)}` : ''}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}`)

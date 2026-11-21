@@ -16,9 +16,10 @@ const argument = (name: string): string | undefined => {
 const DIST = resolve(argument('--dist') ?? join(ROOT, 'dist', 'mercury.mjs'))
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail.slice(0, 300)}` : ''}`)
+  const hintText = !cond && hint ? ` — ${hint}` : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail.slice(0, 300)}` : ''}${hintText}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
@@ -30,7 +31,7 @@ const READY_ROW = /ready · .+? · (max|xhigh|high|medium|low)\b/
 section('§1 by construction — the notice names the word the status chip names')
 {
   const modulePath = join(ROOT, 'src', 'components', 'PromptInput', 'composerEffortNotice.ts')
-  check('the composer owns an effort-notice module beside the chip label', existsSync(modulePath), modulePath)
+  check('the composer owns an effort-notice module beside the chip label', existsSync(modulePath), modulePath, 'restore src/components/PromptInput/composerEffortNotice.ts')
   if (existsSync(modulePath)) {
     const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
     enableConfigs()
@@ -48,9 +49,9 @@ section('§1 by construction — the notice names the word the status chip names
       const chip = composerEffortLabel(facts)
       const notice = composerEffortNotice(facts)
       const word = notice === undefined ? undefined : EFFORT_ROW.exec(notice)?.[1]
-      check(`${label}: the notice carries the chip's word (${chip})`, chip !== undefined && word === chip, `notice ${JSON.stringify(notice)} chip ${JSON.stringify(chip)}`)
+      check(`${label}: the notice carries the chip's word (${chip})`, chip !== undefined && word === chip, `notice ${JSON.stringify(notice)} chip ${JSON.stringify(chip)}`, 'composerEffortNotice and composerEffortLabel in src/components/PromptInput/composerEffortNotice.ts must name the same effort word')
     }
-    check('a model without an effort axis has no notice', composerEffortNotice({ model: 'claude-haiku-4-5-20251001', seatEffort: 'max', sentEffort: undefined, effortValue: 'max', bornEffort: null }) === undefined)
+    check('a model without an effort axis has no notice', composerEffortNotice({ model: 'claude-haiku-4-5-20251001', seatEffort: 'max', sentEffort: undefined, effortValue: 'max', bornEffort: null }) === undefined, '', 'composerEffortNotice in src/components/PromptInput/composerEffortNotice.ts must return undefined for a model without an effort axis')
   }
 }
 
@@ -157,7 +158,7 @@ if (driver.kind !== 'posix-pty') {
     encoding: 'utf8',
     timeout: vshotBudgetMs(150_000),
   })
-  check('the capture ran', res.status === 0 && existsSync(gridPath), `status ${res.status}: ${(res.stderr ?? '').slice(-400)}`)
+  check('the capture ran', res.status === 0 && existsSync(gridPath), `status ${res.status}: ${(res.stderr ?? '').slice(-400)}`, 'the pty capture needs a built dist/mercury.mjs and the posix capture driver of scripts/lib/captureDriver.ts; read the stderr above')
   if (res.status === 0 && existsSync(gridPath)) {
     const payload = JSON.parse(readFileSync(gridPath, 'utf8')) as { marks?: Mark[] }
     const marks = new Map((payload.marks ?? []).map(m => [m.label, m]))
@@ -179,18 +180,19 @@ if (driver.kind !== 'posix-pty') {
     const idle = marks.get('idle')
     const switched = marks.get('switched')
     const after = ['picked', 'switched', 'picked-later', 'picked-latest'].map(label => marks.get(label)).filter((m): m is Mark => m !== undefined)
-    check('the hosted chat booted with an empty composer', idle !== undefined && rows(idle.grid).some(r => r.includes(PROMPT)), idle ? rows(idle.grid).filter(r => r.includes('❯')).join(' | ') : 'no mark')
-    check('the session has landed at max before the picker opens', idle !== undefined && statusWord(idle.grid) === 'max', idle ? rows(idle.grid).filter(r => READY_ROW.test(r)).join(' | ') : 'no mark')
-    check('the four readings after the pick were taken', after.length === 4, after.map(m => m.label).join(','))
+    check('the hosted chat booted with an empty composer', idle !== undefined && rows(idle.grid).some(r => r.includes(PROMPT)), idle ? rows(idle.grid).filter(r => r.includes('❯')).join(' | ') : 'no mark', 'the chat did not boot to an empty composer; check the rebuilt dist/mercury.mjs --chat')
+    check('the session has landed at max before the picker opens', idle !== undefined && statusWord(idle.grid) === 'max', idle ? rows(idle.grid).filter(r => READY_ROW.test(r)).join(' | ') : 'no mark', 'the settings.json engine.effort max did not reach the status row; check the status chip label in src/components/PromptInput/composerEffortNotice.ts')
+    check('the four readings after the pick were taken', after.length === 4, after.map(m => m.label).join(','), 'a mark was not captured; the sends script of this test timed out waiting for the picker or the model switch')
     const status = after.map(m => statusWord(m.grid))
-    check('the status row carries the seat word max after the pick', status.every(w => w === 'max'), after.map(m => rows(m.grid).filter(r => r.includes('ready ·')).join(' | ')).join(' || '))
+    check('the status row carries the seat word max after the pick', status.every(w => w === 'max'), after.map(m => rows(m.grid).filter(r => r.includes('ready ·')).join(' | ')).join(' || '), 'the picker pick moved the status chip off max; check composerEffortLabel in src/components/PromptInput/composerEffortNotice.ts')
     const seen = after.map(m => ({ label: m.label, word: noticeWord(m.grid), status: statusWord(m.grid) }))
     check(
       'no effort notice after the pick names a word the status row does not show',
       seen.every(s => s.word === undefined || s.word === s.status),
       seen.map(s => `${s.label}: notice ${JSON.stringify(s.word)} status ${JSON.stringify(s.status)}`).join(' · '),
+      'composerEffortNotice in src/components/PromptInput/composerEffortNotice.ts must name the word composerEffortLabel shows',
     )
-    check('the switch itself was announced', switched !== undefined && rows(switched.grid).some(r => r.includes('Set model to')), switched ? rows(switched.grid).filter(r => r.includes('model')).join(' | ') : 'no mark')
+    check('the switch itself was announced', switched !== undefined && rows(switched.grid).some(r => r.includes('Set model to')), switched ? rows(switched.grid).filter(r => r.includes('model')).join(' | ') : 'no mark', 'the Set model to line never appeared after the pick; the model switch announcement is missing')
     for (const m of after) writeFileSync(join(scratch, `${m.label}.txt`), rows(m.grid).join('\n'))
     console.log(`  frames: ${scratch}`)
   }

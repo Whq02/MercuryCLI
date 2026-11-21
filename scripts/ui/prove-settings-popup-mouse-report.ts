@@ -15,11 +15,19 @@ const frameDir = ((): string | undefined => {
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let failures = 0
+let reportSectionTitle = ''
+function mouseReportHint(): string {
+  if (reportSectionTitle.startsWith('§1')) return 'change parseMultipleKeypresses in src/ink/input/input-decoder.ts so a lone ESC held in the scanner still decodes the mouse report as a mouse atom'
+  if (reportSectionTitle.startsWith('§2')) return 'change interpretKey in src/ink/input/interpreter.ts or the text projection in src/ink/events/input-event.ts so a report-shaped key projects no text'
+  return 'change how the popup text box takes keys (src/components/Settings/Config.tsx for /config, src/components/MercuryFilesMenu.tsx for the files popup) so a report behind a lone ESC is never typed, and the popup slot (src/components/SettingsPopupSlot.tsx or src/components/FilesMenuSlot.tsx) for the click outside'
+}
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = ok ? detail : `${detail}${detail ? ' · ' : ''}to fix: ${mouseReportHint()}`
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(title: string): void {
+  reportSectionTitle = title
   console.log(`\n${title}`)
 }
 

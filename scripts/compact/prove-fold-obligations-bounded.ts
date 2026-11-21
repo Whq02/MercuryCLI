@@ -25,11 +25,14 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/file
 
 let checks = 0
 let failures = 0
-const check = (label: string, condition: boolean, detail = ''): void => {
+const check = (label: string, condition: boolean, detail = '', changeHint = ''): void => {
   checks++
   if (!condition) failures++
-  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${condition || !detail ? '' : `: ${detail}`}`)
+  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${condition || !(detail || changeHint) ? '' : `: ${[detail, changeHint].filter(Boolean).join(' | ')}`}`)
 }
+const ledgerWhere = 'change the fold ledger index built in compactConversation (src/services/compact/compact.ts) or rendered by renderFoldLedger (src/services/compact/foldLedger.ts)'
+const operatorBlockWhere = 'change how the fold builds the operator messages block in compactConversation (src/services/compact/compact.ts) or operatorMessagesBlockText (src/utils/compact/operatorMessages.ts)'
+const refuseWhere = 'change the over-threshold refusal in compactConversation (src/services/compact/compact.ts), ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD'
 
 let clock = Date.UTC(2026, 9, 16)
 const user = (content: unknown): Message => ({ type: 'user', uuid: randomUUID(), timestamp: new Date(clock++).toISOString(), message: { role: 'user', content } }) as Message
@@ -70,38 +73,38 @@ try {
   const first = await fold([...stretch(14, 1_200, 'one')], context())
   const firstIndex = indexJson(first)
   const firstBlock = blockOf(first)
-  check('fold 1: the index covers its own stretch (14 tools) with nothing earlier', firstIndex.tools.length === 14 && firstIndex.earlierFolds.tools === 0 && firstIndex.earlierFolds.operatorMessages === 0 && firstIndex.earlierFolds.records === 0, JSON.stringify(firstIndex.earlierFolds))
+  check('fold 1: the index covers its own stretch (14 tools) with nothing earlier', firstIndex.tools.length === 14 && firstIndex.earlierFolds.tools === 0 && firstIndex.earlierFolds.operatorMessages === 0 && firstIndex.earlierFolds.records === 0, JSON.stringify(firstIndex.earlierFolds), ledgerWhere)
   const keptOne = keptAsks(first, 'one')
-  check(`fold 1: the operator block carries whole every ask that leaves the context (${14 - keptOne}; the ${keptOne} in the kept rounds ride in the tail)`, firstBlock !== undefined && keptOne > 0 && firstBlock.messages.length === 14 - keptOne && firstBlock.omitted === 0 && firstBlock.messages.every(entry => entry.text.startsWith('one ask ')), JSON.stringify(firstBlock?.messages.map(m => m.ordinal)))
-  check('fold 1: the index carries no per-message open-ask rows', !('openAsks' in firstIndex))
+  check(`fold 1: the operator block carries whole every ask that leaves the context (${14 - keptOne}; the ${keptOne} in the kept rounds ride in the tail)`, firstBlock !== undefined && keptOne > 0 && firstBlock.messages.length === 14 - keptOne && firstBlock.omitted === 0 && firstBlock.messages.every(entry => entry.text.startsWith('one ask ')), JSON.stringify(firstBlock?.messages.map(m => m.ordinal)), operatorBlockWhere)
+  check('fold 1: the index carries no per-message open-ask rows', !('openAsks' in firstIndex), '', ledgerWhere)
 
   const second = await fold([...buildPostCompactMessages(first), ...stretch(14, 1_200, 'two')], context())
   const secondIndex = indexJson(second)
   const secondBlock = blockOf(second)
   const secondLedger = second.boundaryMarker.compactMetadata.ledger!
-  check('fold 2: the index covers only the second stretch (14 new tools) and counts the earlier fold', secondIndex.tools.length === 14 && secondIndex.tools.every((tool: { command?: string }) => tool.command?.startsWith('two-command-')) && secondIndex.earlierFolds.tools === 14, JSON.stringify({ tools: secondIndex.tools.length, earlier: secondIndex.earlierFolds }))
+  check('fold 2: the index covers only the second stretch (14 new tools) and counts the earlier fold', secondIndex.tools.length === 14 && secondIndex.tools.every((tool: { command?: string }) => tool.command?.startsWith('two-command-')) && secondIndex.earlierFolds.tools === 14, JSON.stringify({ tools: secondIndex.tools.length, earlier: secondIndex.earlierFolds }), ledgerWhere)
   const pair = [first.boundaryMarker.compactMetadata.ledger!, secondLedger]
   const calls = pair.flatMap(l => l.tools.filter(t => l.version !== 1 || t.epoch === l.epoch).map(t => t.id))
   const asks = pair.flatMap(l => l.operator.filter(t => l.version !== 1 || t.epoch === l.epoch).map(t => t.sourceId))
-  check('fold 2: the earlier operator messages are counted, not repeated, and the boundary chain carries every receipt whole', secondIndex.earlierFolds.operatorMessages === 14 && calls.length === 28 && new Set(calls).size === 28 && asks.length === 28 && new Set(asks).size === 28 && secondIndex.witnessesInBoundary.argumentHashes === 28, JSON.stringify(secondIndex.witnessesInBoundary))
+  check('fold 2: the earlier operator messages are counted, not repeated, and the boundary chain carries every receipt whole', secondIndex.earlierFolds.operatorMessages === 14 && calls.length === 28 && new Set(calls).size === 28 && asks.length === 28 && new Set(asks).size === 28 && secondIndex.witnessesInBoundary.argumentHashes === 28, JSON.stringify(secondIndex.witnessesInBoundary), ledgerWhere)
   const keptTwo = keptAsks(second, 'two')
-  check(`fold 2: the operator block carries whole every ask leaving the context now (the ${keptOne} that rode in fold 1's tail and the ${14 - keptTwo} new ones) and fold 1's ${14 - keptOne} with them, within the budget — each ask once, nothing omitted`, secondBlock !== undefined && secondBlock.messages.length === 28 - keptTwo && secondBlock.omitted === 0 && secondBlock.messages.filter(entry => entry.text.startsWith('one ask ')).length === 14 && secondBlock.messages.filter(entry => entry.text.startsWith('two ask ')).length === 14 - keptTwo && secondBlock.messages[0]!.ordinal === 28 - keptTwo && secondBlock.messages.at(-1)!.ordinal === 1 && operatorMessagesBlockText(secondBlock as never).includes(`(all ${28 - keptTwo} of them)`), JSON.stringify({ omitted: secondBlock?.omitted, ordinals: secondBlock?.messages.map(m => m.ordinal) }))
+  check(`fold 2: the operator block carries whole every ask leaving the context now (the ${keptOne} that rode in fold 1's tail and the ${14 - keptTwo} new ones) and fold 1's ${14 - keptOne} with them, within the budget — each ask once, nothing omitted`, secondBlock !== undefined && secondBlock.messages.length === 28 - keptTwo && secondBlock.omitted === 0 && secondBlock.messages.filter(entry => entry.text.startsWith('one ask ')).length === 14 && secondBlock.messages.filter(entry => entry.text.startsWith('two ask ')).length === 14 - keptTwo && secondBlock.messages[0]!.ordinal === 28 - keptTwo && secondBlock.messages.at(-1)!.ordinal === 1 && operatorMessagesBlockText(secondBlock as never).includes(`(all ${28 - keptTwo} of them)`), JSON.stringify({ omitted: secondBlock?.omitted, ordinals: secondBlock?.messages.map(m => m.ordinal) }), operatorBlockWhere)
   const indexBytes = [Buffer.byteLength(indexOf(first)), Buffer.byteLength(indexOf(second))]
   const blockBytes = [Buffer.byteLength(operatorMessagesBlockText(firstBlock as never)), Buffer.byteLength(operatorMessagesBlockText(secondBlock as never))]
-  check(`the index stays bounded per fold (${indexBytes[0]} → ${indexBytes[1]} bytes) and the block grows only to the session's asks within its 20k-token budget (${blockBytes[0]} → ${blockBytes[1]} bytes)`, indexBytes[1] < indexBytes[0] * 1.5 && blockBytes[1] <= 20_000 * 4 + 2_000)
+  check(`the index stays bounded per fold (${indexBytes[0]} → ${indexBytes[1]} bytes) and the block grows only to the session's asks within its 20k-token budget (${blockBytes[0]} → ${blockBytes[1]} bytes)`, indexBytes[1] < indexBytes[0] * 1.5 && blockBytes[1] <= 20_000 * 4 + 2_000, `index bytes ${indexBytes.join(' -> ')}, block bytes ${blockBytes.join(' -> ')}`, ledgerWhere + ' (index size) or ' + operatorBlockWhere + ' (block budget)')
   const second2 = (first.summaryMessages[0]!.message.content as string)
-  check('the summary message opens with the summary and ends with the stretch\'s index', second2.startsWith('The context window turned over') && second2.includes('## Fold ledger'))
+  check('the summary message opens with the summary and ends with the stretch\'s index', second2.startsWith('The context window turned over') && second2.includes('## Fold ledger'), second2.slice(0, 120), 'change how compactConversation (src/services/compact/compact.ts) assembles the summary message and appends the ledger')
 
   const paged = await fold(stretch(50, 300, 'paged'), context())
   const pagedIndex = indexJson(paged)
-  check('a stretch of fifty tool calls: the index pages the newest forty receipts whole, counts the ten older ones and every call by tool, and the boundary record carries all fifty', pagedIndex.tools.length === 40 && pagedIndex.page.olderToolsOmitted === 10 && pagedIndex.stretch.tools === 50 && pagedIndex.stretch.byTool.Bash.calls === 50 && pagedIndex.tools[39].command === 'paged-command-49 --check' && paged.boundaryMarker.compactMetadata.ledger!.tools.length === 50, JSON.stringify(pagedIndex.page))
+  check('a stretch of fifty tool calls: the index pages the newest forty receipts whole, counts the ten older ones and every call by tool, and the boundary record carries all fifty', pagedIndex.tools.length === 40 && pagedIndex.page.olderToolsOmitted === 10 && pagedIndex.stretch.tools === 50 && pagedIndex.stretch.byTool.Bash.calls === 50 && pagedIndex.tools[39].command === 'paged-command-49 --check' && paged.boundaryMarker.compactMetadata.ledger!.tools.length === 50, JSON.stringify(pagedIndex.page), ledgerWhere + ' (the newest-forty page)')
 
   const smallWindow = 40_000
   const bigAsks = stretch(12, 6_000, 'wide')
   const third = await fold(bigAsks, context(), smallWindow)
   const thirdBlock = blockOf(third)
   const thirdBlockTokens = thirdBlock ? thirdBlock.messages.reduce((n, m) => n + roughTokenCountEstimation(m.text), 0) : 0
-  check(`a small window: fold 1 of a wide stretch lands under ${smallWindow} tokens with its block whole`, third.truePostCompactTokenCount !== undefined && third.truePostCompactTokenCount < smallWindow && thirdBlock !== undefined && thirdBlock.omitted === 0, String(third.truePostCompactTokenCount))
+  check(`a small window: fold 1 of a wide stretch lands under ${smallWindow} tokens with its block whole`, third.truePostCompactTokenCount !== undefined && third.truePostCompactTokenCount < smallWindow && thirdBlock !== undefined && thirdBlock.omitted === 0, String(third.truePostCompactTokenCount), 'change how compactConversation (src/services/compact/compact.ts) fits the fold and its operator block under the autoCompactThreshold option')
   const fourthInput = [...buildPostCompactMessages(third), ...stretch(12, 6_000, 'wider')]
   const fourth = await fold(fourthInput, context(), smallWindow)
   const fourthBlock = blockOf(fourth)
@@ -110,7 +113,7 @@ try {
   const keptWider = keptAsks(fourth, 'wider')
   const currentAsks = fourthBlock?.messages.filter(entry => entry.text.startsWith('wider ask ')) ?? []
   const earlierAsks = fourthBlock?.messages.filter(entry => entry.text.startsWith('wide ask ')) ?? []
-  check(`fold 46ao: fold 2 lands under ${smallWindow}, keeps every retiring ask whole and carries earlier asks within the 20k budget`, fourth.truePostCompactTokenCount !== undefined && fourth.truePostCompactTokenCount < smallWindow && fourthBlock !== undefined && fourthBlock.omitted === 24 - keptWider - fourthBlock.messages.length && currentAsks.length === 12 - keptWider && earlierAsks.length >= keptWide && fourthBlockTokens <= 20_000 && fourthBlock.messages.every(entry => fourthInput.some(row => row.type === 'user' && row.message.content === entry.text) || thirdBlock?.messages.some(prior => prior.text === entry.text)) && (fourth.boundaryMarker.compactMetadata.recentRounds?.kept ?? 0) >= 1 && thirdBlockTokens > 0, JSON.stringify({ rounds: fourth.boundaryMarker.compactMetadata.recentRounds, omitted: fourthBlock?.omitted, current: currentAsks.length, earlier: earlierAsks.length }))
+  check(`fold 46ao: fold 2 lands under ${smallWindow}, keeps every retiring ask whole and carries earlier asks within the 20k budget`, fourth.truePostCompactTokenCount !== undefined && fourth.truePostCompactTokenCount < smallWindow && fourthBlock !== undefined && fourthBlock.omitted === 24 - keptWider - fourthBlock.messages.length && currentAsks.length === 12 - keptWider && earlierAsks.length >= keptWide && fourthBlockTokens <= 20_000 && fourthBlock.messages.every(entry => fourthInput.some(row => row.type === 'user' && row.message.content === entry.text) || thirdBlock?.messages.some(prior => prior.text === entry.text)) && (fourth.boundaryMarker.compactMetadata.recentRounds?.kept ?? 0) >= 1 && thirdBlockTokens > 0, JSON.stringify({ rounds: fourth.boundaryMarker.compactMetadata.recentRounds, omitted: fourthBlock?.omitted, current: currentAsks.length, earlier: earlierAsks.length }), operatorBlockWhere + ' (earlier asks within the 20k budget)')
 
   const paidBefore = api.messageRequests().length
   const events: Progress[] = []
@@ -120,8 +123,8 @@ try {
   ;(ctxHeavy as { readFileState: Map<string, unknown> }).readFileState.set('kept.ts', { content: 'original', timestamp: 1 } as never)
   let refusal = ''
   try { await fold(heavy, ctxHeavy, 10_000) } catch (error) { refusal = error instanceof Error ? error.message : String(error) }
-  check('obligations over the ceiling: the fold refuses BEFORE any summary request, with the threshold key so the prune rung opens', refusal.startsWith(ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD) && refusal.includes('no summary was requested') && api.messageRequests().length === paidBefore, `${refusal.slice(0, 120)} requests=${api.messageRequests().length - paidBefore}`)
-  check('…the original context is byte-identical, the read state kept, and no compaction.after hook fired', JSON.stringify(heavy) === before && (ctxHeavy as { readFileState: Map<string, { content: string }> }).readFileState.get('kept.ts')?.content === 'original' && postCompactHooks(events) === 0, JSON.stringify(events.map(e => e.hookType ?? e.stage ?? e.type)))
+  check('obligations over the ceiling: the fold refuses BEFORE any summary request, with the threshold key so the prune rung opens', refusal.startsWith(ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD) && refusal.includes('no summary was requested') && api.messageRequests().length === paidBefore, `${refusal.slice(0, 120)} requests=${api.messageRequests().length - paidBefore}`, refuseWhere + ' so it throws before any summary request')
+  check('…the original context is byte-identical, the read state kept, and no compaction.after hook fired', JSON.stringify(heavy) === before && (ctxHeavy as { readFileState: Map<string, { content: string }> }).readFileState.get('kept.ts')?.content === 'original' && postCompactHooks(events) === 0, JSON.stringify(events.map(e => e.hookType ?? e.stage ?? e.type)), 'change compactConversation (src/services/compact/compact.ts) so a refused fold leaves the context, the read state and the post_compact hook untouched')
 
   const events2: Progress[] = []
   const giantId = randomUUID()
@@ -132,13 +135,13 @@ try {
   try { giant = await fold(oneGiantRound, context(events2), 20_000) } catch (error) { tailRefusal = error instanceof Error ? error.message : String(error) }
   const giantRounds = giant?.boundaryMarker.compactMetadata.recentRounds
   const giantResults = (giant?.messagesToKeep ?? []).flatMap(row => row.type === 'user' && Array.isArray(row.message.content) ? row.message.content.filter(block => block.type === 'tool_result').map(block => String(block.content)) : [])
-  check('a stretch whose latest complete round cannot fit whole: the round is kept with its giant result folded into the summary (one summary paid) and the fold lands under the threshold — no refusal, no prune rung', tailRefusal === '' && giant !== undefined && (giantRounds?.kept ?? 0) >= 1 && giantRounds?.folded === 1 && giantResults.filter(text => text.startsWith('[result folded into the summary above')).length === 1 && (giant.truePostCompactTokenCount ?? Infinity) < 20_000 && api.messageRequests().length === paid2 + 1, `${tailRefusal.slice(0, 140)} rounds=${JSON.stringify(giantRounds)} requests=${api.messageRequests().length - paid2}`)
-  check('…and compaction.after fired once for the landed fold', postCompactHooks(events2) === 1, JSON.stringify(events2.map(e => e.hookType ?? e.stage ?? e.type)))
+  check('a stretch whose latest complete round cannot fit whole: the round is kept with its giant result folded into the summary (one summary paid) and the fold lands under the threshold — no refusal, no prune rung', tailRefusal === '' && giant !== undefined && (giantRounds?.kept ?? 0) >= 1 && giantRounds?.folded === 1 && giantResults.filter(text => text.startsWith('[result folded into the summary above')).length === 1 && (giant.truePostCompactTokenCount ?? Infinity) < 20_000 && api.messageRequests().length === paid2 + 1, `${tailRefusal.slice(0, 140)} rounds=${JSON.stringify(giantRounds)} requests=${api.messageRequests().length - paid2}`, 'change compactConversation (src/services/compact/compact.ts) so the latest round is kept with its giant tool result folded into the summary, one summary request, and no refusal')
+  check('…and compaction.after fired once for the landed fold', postCompactHooks(events2) === 1, JSON.stringify(events2.map(e => e.hookType ?? e.stage ?? e.type)), 'change compactConversation (src/services/compact/compact.ts) so the post_compact hook fires once for a landed fold')
 
   const events3: Progress[] = []
   const landed = await fold(stretch(6, 400, 'hooks'), context(events3), 200_000)
   const order = events3.map(e => e.hookType ?? e.stage ?? e.type)
-  check('a landed fold fires compaction.after exactly once, after the restore stage', postCompactHooks(events3) === 1 && order.includes('restoring') && order.indexOf('post_compact') > order.indexOf('restoring') && landed.summaryMessages.length === 1, JSON.stringify(order))
+  check('a landed fold fires compaction.after exactly once, after the restore stage', postCompactHooks(events3) === 1 && order.includes('restoring') && order.indexOf('post_compact') > order.indexOf('restoring') && landed.summaryMessages.length === 1, JSON.stringify(order), 'change compactConversation (src/services/compact/compact.ts) so the post_compact hook fires once, after the restoring stage')
 } finally {
   await api.close()
   rmSync(home, { recursive: true, force: true })

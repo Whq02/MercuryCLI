@@ -100,7 +100,9 @@ function poisoned(frame: string, box: PopupFrame, poison: 'square corners' | 'a 
   return cells.map(line => line.join('')).join('\n')
 }
 
-const { check, finish } = tally()
+const { check: tallyCheck, finish } = tally()
+const zaiFramesHint = 'change the Z.AI reading in src/services/providers/zai/zaiUsageState.ts or src/services/providers/providerUsage.ts (usageForProvider, refreshProviderUsage); card rows in src/components/HelmVitalsRail.tsx, popup frame in src/components/SettingsPopupSlot.tsx and src/components/PopupGutter.tsx, popup sections in src/components/Settings/usage/'
+const check = (name: string, ok: boolean, detail = ''): void => tallyCheck(name, ok, ok ? detail : `${detail ? `${detail} | ` : ''}${zaiFramesHint}`)
 const world = await usagePlanWorld()
 try {
   const { owner, fresh, quota, ink } = world

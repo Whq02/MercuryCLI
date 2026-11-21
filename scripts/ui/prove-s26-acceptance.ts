@@ -13,16 +13,23 @@ import {
 
 let failures = 0
 let passes = 0
+let s26SectionName = ''
+function s26Where(): string {
+  if (s26SectionName === 'hunk patch grammar') return 'change hunkPatchText in src/components/diff/DiffDialog.tsx'
+  if (s26SectionName === 'memory path helper') return 'change getRelativeMemoryPath in src/components/memory/MemoryUpdateNotification.tsx'
+  return 'change NULL_RENDERING_ATTACHMENT_TYPES or isNullRenderingAttachment in src/components/messages/nullRenderingAttachments.ts'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (cond) {
     passes++
     console.log(`  [PASS] ${label}`)
   } else {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  [FAIL] ${label} — ${detail ? `${detail} · ` : ''}to fix: ${s26Where()}`)
   }
 }
 function section(name: string): void {
+  s26SectionName = name
   console.log(`\n── ${name} ──`)
 }
 

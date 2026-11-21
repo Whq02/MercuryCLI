@@ -13,9 +13,10 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
+const BASH_LINE_LOOK = 'where to look: the row text a bash-mode line writes in src/services/processUserInput/processBashCommand.tsx, the queue/add and turn/interrupt verbs in src/runner/wire/sessionVerbs.ts, and the interrupt receipt INTERRUPT_MESSAGE in src/utils/messages/rejectionText.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${BASH_LINE_LOOK}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

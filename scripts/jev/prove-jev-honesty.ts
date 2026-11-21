@@ -12,10 +12,12 @@ for (const key of ['TYPESAFE_API_KEY', 'NODE_ENV', 'https_proxy', 'HTTPS_PROXY',
 
 let failures = 0
 let checks = 0
+const jevHonestyFailHint =
+  'the tool call and its gating live in src/tools/JevEvalTool/JevEvalTool.ts (jevEvalCall, jevEvalEnabled), the status words in src/services/jev/jevStatus.ts (jevStatus), the counters in src/services/jev/jevLedger.ts, the switches in src/services/jev/jevSetting.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${jevHonestyFailHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

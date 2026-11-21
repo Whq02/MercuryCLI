@@ -27,9 +27,9 @@ guard.unref?.()
 section('§1 — dialect readers · step clock · scorer arithmetic')
 {
   const fixtureRoot = '/fixture/private-recording-root'
-  check('saved error excerpts replace only the measured output root', recordedErrorExcerpt(`Read ${fixtureRoot}/task/file.ts before editing`, fixtureRoot) === 'Read <fixture>/task/file.ts before editing')
-  check('a clipped root at the end of an excerpt is private too', recordedErrorExcerpt('at file:///fixture/private-record', fixtureRoot) === 'at <fixture>')
-  check('unrelated paths and numbers stay untouched', recordedErrorExcerpt('Read /different/file.ts, exit 1 after 17ms', fixtureRoot) === 'Read /different/file.ts, exit 1 after 17ms')
+  check('saved error excerpts replace only the measured output root', recordedErrorExcerpt(`Read ${fixtureRoot}/task/file.ts before editing`, fixtureRoot) === 'Read <fixture>/task/file.ts before editing', 'fix recordedErrorExcerpt in scripts/agent-experience/benchmark.ts')
+  check('a clipped root at the end of an excerpt is private too', recordedErrorExcerpt('at file:///fixture/private-record', fixtureRoot) === 'at <fixture>', 'fix recordedErrorExcerpt in scripts/agent-experience/benchmark.ts')
+  check('unrelated paths and numbers stay untouched', recordedErrorExcerpt('Read /different/file.ts, exit 1 after 17ms', fixtureRoot) === 'Read /different/file.ts, exit 1 after 17ms', 'fix recordedErrorExcerpt in scripts/agent-experience/benchmark.ts')
   const anthropic = {
     system: [{ type: 'text', text: 'SYS-A' }],
     tools: [{ name: 'Read', input_schema: {} }],
@@ -59,26 +59,26 @@ section('§1 — dialect readers · step clock · scorer arithmetic')
       { role: 'user', content: '[ax:resume-b] recall' },
     ],
   }
-  check('anthropic: three tool results counted across two rounds', toolResultCount(anthropic, 'anthropic') === 3)
-  check('anthropic: the opener is the first user message', openerText(anthropic, 'anthropic') === '[ax:fix-bug] do it')
-  check('anthropic: the system prompt text reads back', systemPromptText(anthropic, 'anthropic') === 'SYS-A')
-  check('responses: one function_call_output counted', toolResultCount(responses, 'responses') === 1)
-  check('responses: the opener carries the seat marker', openerText(responses, 'responses').includes('[ax-seat:count]'))
-  check('responses: instructions are the system prompt', systemPromptText(responses, 'responses') === 'SYS-R')
-  check('chat: zero tool results on a text-only conversation', toolResultCount(chat, 'chat') === 0)
-  check('chat: user texts list both turns (the resumed conversation)', userTexts(chat, 'chat').length === 2 && userTexts(chat, 'chat')[1] === '[ax:resume-b] recall')
-  check('chat: the tool roster reads function names', toolRoster(chat, 'chat').names.join() === 'Read')
+  check('anthropic: three tool results counted across two rounds', toolResultCount(anthropic, 'anthropic') === 3, 'fix toolResultCount in scripts/agent-experience/lib/wire.ts')
+  check('anthropic: the opener is the first user message', openerText(anthropic, 'anthropic') === '[ax:fix-bug] do it', 'fix openerText in scripts/agent-experience/lib/wire.ts')
+  check('anthropic: the system prompt text reads back', systemPromptText(anthropic, 'anthropic') === 'SYS-A', 'fix systemPromptText in scripts/agent-experience/lib/wire.ts')
+  check('responses: one function_call_output counted', toolResultCount(responses, 'responses') === 1, 'fix toolResultCount in scripts/agent-experience/lib/wire.ts')
+  check('responses: the opener carries the seat marker', openerText(responses, 'responses').includes('[ax-seat:count]'), 'fix openerText in scripts/agent-experience/lib/wire.ts')
+  check('responses: instructions are the system prompt', systemPromptText(responses, 'responses') === 'SYS-R', 'fix systemPromptText in scripts/agent-experience/lib/wire.ts')
+  check('chat: zero tool results on a text-only conversation', toolResultCount(chat, 'chat') === 0, 'fix toolResultCount in scripts/agent-experience/lib/wire.ts')
+  check('chat: user texts list both turns (the resumed conversation)', userTexts(chat, 'chat').length === 2 && userTexts(chat, 'chat')[1] === '[ax:resume-b] recall', 'fix userTexts in scripts/agent-experience/lib/wire.ts')
+  check('chat: the tool roster reads function names', toolRoster(chat, 'chat').names.join() === 'Read', 'fix toolRoster in scripts/agent-experience/lib/wire.ts')
 
   const script = [
     { calls: [{ name: 'A', input: {} }] },
     { calls: [{ name: 'B', input: {} }, { name: 'C', input: {} }] },
     { final: 'done' },
   ]
-  check('step clock: 0 results ⇒ step 1', 'calls' in pickTurn(script, 0) && (pickTurn(script, 0) as { calls: { name: string }[] }).calls[0]!.name === 'A')
-  check('step clock: 1 result ⇒ the parallel round', 'calls' in pickTurn(script, 1) && (pickTurn(script, 1) as { calls: unknown[] }).calls.length === 2)
-  check('step clock: 3 results ⇒ the final', 'final' in pickTurn(script, 3) && (pickTurn(script, 3) as { final: string }).final === 'done')
+  check('step clock: 0 results ⇒ step 1', 'calls' in pickTurn(script, 0) && (pickTurn(script, 0) as { calls: { name: string }[] }).calls[0]!.name === 'A', 'fix pickTurn in scripts/agent-experience/lib/fixture.ts')
+  check('step clock: 1 result ⇒ the parallel round', 'calls' in pickTurn(script, 1) && (pickTurn(script, 1) as { calls: unknown[] }).calls.length === 2, 'fix pickTurn in scripts/agent-experience/lib/fixture.ts')
+  check('step clock: 3 results ⇒ the final', 'final' in pickTurn(script, 3) && (pickTurn(script, 3) as { final: string }).final === 'done', 'fix pickTurn in scripts/agent-experience/lib/fixture.ts')
   check('step clock: the final replays on a continuation (3 again)', 'final' in pickTurn(script, 3))
-  check('step clock: a half-delivered parallel round (2) is a loud mismatch', 'final' in pickTurn(script, 2) && (pickTurn(script, 2) as { final: string }).final.startsWith('ax-mismatch'))
+  check('step clock: a half-delivered parallel round (2) is a loud mismatch', 'final' in pickTurn(script, 2) && (pickTurn(script, 2) as { final: string }).final.startsWith('ax-mismatch'), 'fix pickTurn in scripts/agent-experience/lib/fixture.ts')
 
   const envelopes = [
     { type: 'session', session_id: 's1', tools: ['Read', 'Edit'] },
@@ -99,20 +99,20 @@ section('§1 — dialect readers · step clock · scorer arithmetic')
   ]
   const parsed = parseEnvelopes(envelopes)
   const run: RunRecord = { spec: {} as never, envelopes, ...parsed, exitCode: 0, stderr: '', unparseable: 0, wallMs: 10, timedOut: false, sessionId: 's1' }
-  check('parser: one assistant message per message id (two rows of one round merge)', parsed.assistantMessages.length === 4, String(parsed.assistantMessages.length))
-  check('parser: a round\'s blocks are deduped by call id (t2 once, t2b once)', parsed.toolUses.filter(u => u.messageId === 'm2').length === 2 && parsed.toolUses.length === 4)
-  check('parser: subagent traffic stays off the main thread (its Read and its 900-char result)', parsed.subagentAssistantMessages === 1 && parsed.subagentToolUses.length === 1 && parsed.subagentToolResults.length === 1 && parsed.toolResults.length === 4)
+  check('parser: one assistant message per message id (two rows of one round merge)', parsed.assistantMessages.length === 4, String(parsed.assistantMessages.length) + ' · fix parseEnvelopes in scripts/agent-experience/lib/runner.ts')
+  check('parser: a round\'s blocks are deduped by call id (t2 once, t2b once)', parsed.toolUses.filter(u => u.messageId === 'm2').length === 2 && parsed.toolUses.length === 4, 'fix parseEnvelopes in scripts/agent-experience/lib/runner.ts')
+  check('parser: subagent traffic stays off the main thread (its Read and its 900-char result)', parsed.subagentAssistantMessages === 1 && parsed.subagentToolUses.length === 1 && parsed.subagentToolResults.length === 1 && parsed.toolResults.length === 4, 'fix parseEnvelopes in scripts/agent-experience/lib/runner.ts')
   const score = scoreRun(run, { pass: true, detail: 'canned' }, [{ tool: 'Edit', probe: true }])
-  check('scorer: turns from the outcome row (steps)', score.turns === 4)
-  check('scorer: four main-thread tool calls (the subagent\'s Read is not the model\'s)', score.toolCalls === 4)
-  check('scorer: the error result is wasted and matched to its probe', score.wasted === 2 && score.errors.length === 1 && score.errors[0]!.probe === true, JSON.stringify({ wasted: score.wasted, errors: score.errors }))
-  check('scorer: the repeated identical Read is a duplicate (unexpected)', score.duplicates === 1 && score.unexpectedErrors === 1)
-  check('scorer: the error text names a fix', score.errors[0]!.namesFix === true)
-  check('scorer: result chars count main-thread text only (the subagent\'s 900 chars excluded); an image rides as its placeholder word', score.toolResultChars === 400 + '\n[image]'.length + 'old_string not found in file — read the file first'.length + 'Permission for this action has been denied.'.length && score.imageChars === 0, String(score.toolResultChars))
-  check('scorer: asks = denials + ask-class results', score.asks === 2 && score.denials === 1)
-  check('scorer: the rows echo no input, so injected text reads 0; the subagent\'s reads counted apart (900 chars ≈ 225)', score.injectedTokensEst === 0 && score.subagentResultTokensEst === 225, JSON.stringify({ inj: score.injectedTokensEst, sub: score.subagentResultTokensEst }))
+  check('scorer: turns from the outcome row (steps)', score.turns === 4, 'fix scoreRun in scripts/agent-experience/lib/score.ts')
+  check('scorer: four main-thread tool calls (the subagent\'s Read is not the model\'s)', score.toolCalls === 4, 'fix scoreRun in scripts/agent-experience/lib/score.ts')
+  check('scorer: the error result is wasted and matched to its probe', score.wasted === 2 && score.errors.length === 1 && score.errors[0]!.probe === true, JSON.stringify({ wasted: score.wasted, errors: score.errors }) + ' · fix scoreRun in scripts/agent-experience/lib/score.ts')
+  check('scorer: the repeated identical Read is a duplicate (unexpected)', score.duplicates === 1 && score.unexpectedErrors === 1, 'fix scoreRun in scripts/agent-experience/lib/score.ts')
+  check('scorer: the error text names a fix', score.errors[0]!.namesFix === true, 'fix scoreRun in scripts/agent-experience/lib/score.ts')
+  check('scorer: result chars count main-thread text only (the subagent\'s 900 chars excluded); an image rides as its placeholder word', score.toolResultChars === 400 + '\n[image]'.length + 'old_string not found in file — read the file first'.length + 'Permission for this action has been denied.'.length && score.imageChars === 0, String(score.toolResultChars) + ' · fix scoreRun in scripts/agent-experience/lib/score.ts')
+  check('scorer: asks = denials + ask-class results', score.asks === 2 && score.denials === 1, 'fix scoreRun in scripts/agent-experience/lib/score.ts')
+  check('scorer: the rows echo no input, so injected text reads 0; the subagent\'s reads counted apart (900 chars ≈ 225)', score.injectedTokensEst === 0 && score.subagentResultTokensEst === 225, JSON.stringify({ inj: score.injectedTokensEst, sub: score.subagentResultTokensEst }) + ' · fix scoreRun in scripts/agent-experience/lib/score.ts')
   const poison = scoreRun(run, { pass: false, detail: 'poison' }, [])
-  check('poison control: with no probe declared the error is UNEXPECTED', poison.unexpectedErrors === 2 && poison.errors[0]!.probe === false)
+  check('poison control: with no probe declared the error is UNEXPECTED', poison.unexpectedErrors === 2 && poison.errors[0]!.probe === false, 'fix scoreRun in scripts/agent-experience/lib/score.ts')
 }
 
 section('§2 — the mechanical benchmark: every family, every task, on the built bundle')
@@ -127,22 +127,22 @@ const opts = parseArgs(['--out', out, '--families', 'all', '--port', process.env
 opts.quiet = process.env.MERCURY_AX_VERBOSE !== '1'
 const result = await runBenchmark(opts)
 const tables = result.tables
-check(`every mechanical family produced a table (${tables.map(t => t.header.family).join(', ')})`, MECHANICAL_FAMILIES.every(f => tables.some(t => t.header.family === f)))
+check(`every mechanical family produced a table (${tables.map(t => t.header.family).join(', ')})`, MECHANICAL_FAMILIES.every(f => tables.some(t => t.header.family === f)), 'runBenchmark in scripts/agent-experience/benchmark.ts returned no table for a family listed in MECHANICAL_FAMILIES (scripts/agent-experience/lib/fixture.ts); run bash scripts/agent-experience/benchmark.sh and read why that family produced none')
 const skips = new Map<string, string[]>()
 for (const table of tables) {
   const f = table.header.family
   const rows = table.rows.filter(r => !r.skipped)
-  check(`${f}: no run timed out or died without an outcome row`, rows.every(r => !r.timedOut && r.resultStatus !== 'no-result' && r.resultStatus !== 'timeout'), rows.filter(r => r.timedOut || r.resultStatus === 'no-result').map(r => `${r.task}:${r.resultStatus}`).join(', '))
+  check(`${f}: no run timed out or died without an outcome row`, rows.every(r => !r.timedOut && r.resultStatus !== 'no-result' && r.resultStatus !== 'timeout'), rows.filter(r => r.timedOut || r.resultStatus === 'no-result').map(r => `${r.task}:${r.resultStatus}`).join(', ') + ' · a run ended without an outcome row; read the run record kept under the out directory printed below, and check runBenchmark in scripts/agent-experience/benchmark.ts')
   const daily = ['Bash', 'Read', 'Edit', 'Write', 'Glob', 'Grep', 'Eval', 'ToolSearch']
   const deferred = f === 'openai' || f === 'chat'
   const rosterPresent = deferred
     ? (table.header.toolCount ?? 0) >= daily.length && daily.every(name => table.header.toolNames.includes(name))
     : (table.header.toolCount ?? 0) >= 15
-  check(`${f}: the first request carries its complete tool set and a system prompt (> 2000 chars)`, (table.header.promptChars ?? 0) > 2000 && rosterPresent, `prompt ${table.header.promptChars} · tools ${table.header.toolCount}`)
+  check(`${f}: the first request carries its complete tool set and a system prompt (> 2000 chars)`, (table.header.promptChars ?? 0) > 2000 && rosterPresent, `prompt ${table.header.promptChars} · tools ${table.header.toolCount} · the first request of this family is short of a system prompt or tools; read the request recorded by runBenchmark in scripts/agent-experience/benchmark.ts`)
   const two = table.rows.find(r => r.task === 'two-seats')
-  check(`${f}: the two-seats round replayed whole — one assistant message, two Agent calls, both answered`, two?.success === true, two?.oracle)
+  check(`${f}: the two-seats round replayed whole — one assistant message, two Agent calls, both answered`, two?.success === true, `${two?.oracle ?? ''} · the two-seats task of this family failed; read its run record under the out directory printed below`)
   const resumed = table.rows.find(r => r.task === 'resume-b')
-  check(`${f}: the resumed session carried the prior turn and recalled the codeword`, resumed?.success === true, resumed?.oracle)
+  check(`${f}: the resumed session carried the prior turn and recalled the codeword`, resumed?.success === true, `${resumed?.oracle ?? ''} · the resume-b task of this family failed; read its run record under the out directory printed below`)
   for (const r of table.rows.filter(r => r.skipped)) {
     const key = `${r.task} — ${r.skipped}`
     skips.set(key, [...(skips.get(key) ?? []), f])
@@ -172,9 +172,9 @@ if (!existsSync(baselineDir)) {
       const errorTexts = row.errors.map(e => `${e.tool}${e.probe ? ' (probe)' : ''}: ${e.text.replace(/\s+/g, ' ').slice(0, 240)}`).join(' | ')
       const stderrTail = row.stderrTail.trim().replace(/\s+/g, ' ').slice(-300)
       const evidence = `${row.oracle}${errorTexts ? ` · errors: ${errorTexts}` : ''}${stderrTail ? ` · stderr: ${stderrTail}` : ''}`
-      if (b.success === true) check(`${table.header.family}/${row.task}: still passes (baseline PASS)`, row.success === true, evidence)
-      check(`${table.header.family}/${row.task}: wasted ${row.wasted} ≤ baseline ${b.wasted}`, row.wasted <= b.wasted, evidence)
-      check(`${table.header.family}/${row.task}: asks ${row.asks} ≤ baseline ${b.asks}`, row.asks <= b.asks)
+      if (b.success === true) check(`${table.header.family}/${row.task}: still passes (baseline PASS)`, row.success === true, `${evidence} · the task regressed against scripts/agent-experience/baselines/mechanical; read its run record under the out directory printed below`)
+      check(`${table.header.family}/${row.task}: wasted ${row.wasted} ≤ baseline ${b.wasted}`, row.wasted <= b.wasted, `${evidence} · a tool result of this task now wastes a step; fix the tool text that produced it, then compare with scripts/agent-experience/baselines/mechanical`)
+      check(`${table.header.family}/${row.task}: asks ${row.asks} ≤ baseline ${b.asks}`, row.asks <= b.asks, 'this task now asks more than scripts/agent-experience/baselines/mechanical records; find what asked in the run record under the out directory printed below')
     }
     if (base.header.promptChars && table.header.promptChars) {
       const delta = table.header.promptChars - base.header.promptChars

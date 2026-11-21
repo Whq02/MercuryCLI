@@ -106,7 +106,7 @@ console.log(`  census: ${tracked.length} tracked files · ${OLD_WORDS.length} ol
 for (const guard of guards) console.log(`    guard: ${guard}`)
 for (const mention of mentions) console.log(`    mention: ${mention}`)
 for (const reader of readers) console.log(`    READER: ${reader}`)
-check('every occurrence of an old picker word is an absence guard, a comment or a check label — never a reader waiting on it', readers.length === 0, `${readers.length} stale reader(s), listed above`)
+check('every occurrence of an old picker word is an absence guard, a comment or a check label — never a reader waiting on it', readers.length === 0, `change each READER line listed above (file:line) to wait on the current picker wording, or turn it into a negated check; ${readers.length} stale reader(s), listed above`)
 
 section('§2 the census has teeth: a planted reader on each old word is caught, and each absence-guard shape clears')
 {
@@ -116,7 +116,7 @@ section('§2 the census has teeth: a planted reader on each old word is caught, 
     const at = needle.test(line)
     return at >= 0 && !absenceGuard(line, at, word.length) && !(labelSpan(line) >= 0 && at < labelSpan(line))
   })
-  check('a positive includes on each old word reads as a reader', planted.every(Boolean), OLD_WORDS.filter((_, k) => !planted[k]).map(needle => needle.word).join(', '))
+  check('a positive includes on each old word reads as a reader', planted.every(Boolean), 'fix OLD_WORDS, absenceGuard or labelSpan in this file so a planted positive includes counts as a reader; words not caught: ' + OLD_WORDS.filter((_, k) => !planted[k]).map(needle => needle.word).join(', '))
   const cleared = [
     "  check('the second line is gone', !frame.includes('CHOOSE A MODEL') && !frame.includes('model IDs are real'))",
     "  tally.check('P16 the click closes it', !(m['picker-clicked'] ?? '').includes('Mercury — model') && (m['picker-clicked'] ?? '').includes('Type a prompt'))",
@@ -128,10 +128,10 @@ section('§2 the census has teeth: a planted reader on each old word is caught, 
     const at = line.lastIndexOf(needle.word)
     return absenceGuard(line, at, needle.word.length)
   })
-  check('the absence-guard shapes clear: a negated includes, a negated includes on a coalesced frame, an empty-row compare, a filter with a negated includes, a source guard', cleared.every(Boolean), cleared.map(String).join(','))
+  check('the absence-guard shapes clear: a negated includes, a negated includes on a coalesced frame, an empty-row compare, a filter with a negated includes, a source guard', cleared.every(Boolean), 'fix absenceGuard in this file so each negated shape clears; results per shape: ' + cleared.map(String).join(','))
   const awaited = "      { atTick: 160, awaitText: 'Mercury — model', minTick: 100, awaitSettleTicks: 3, requireAwait: true, mark: 'open', data: CTRL_N },"
   const needle = OLD_WORDS[0]!
-  check('a drive that awaits the old title reads as a reader', !absenceGuard(awaited, needle.test(awaited), needle.word.length) && labelSpan(awaited) < 0)
+  check('a drive that awaits the old title reads as a reader', !absenceGuard(awaited, needle.test(awaited), needle.word.length) && labelSpan(awaited) < 0, 'fix absenceGuard or labelSpan in this file so an awaitText of an old word counts as a reader')
 }
 
 console.log(`\nprove-model-picker-reader-census: ${failures === 0 ? 'green' : `${failures} failed`}`)

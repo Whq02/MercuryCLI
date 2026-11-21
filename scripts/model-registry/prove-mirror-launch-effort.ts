@@ -15,7 +15,7 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}${ok ? '' : ` — to fix, read resolveEffortTruth, isLaunchEffortPinned and getDefaultEffortForModel in src/utils/effort.ts (the launch default of a Mythos mirror must follow its Fable row), executeEffort in src/commands/effort/effort.tsx (the typed effort), and for the wire checks the capture child scripts/model-registry/context1mHeaderCapture.ts`}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

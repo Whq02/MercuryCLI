@@ -38,7 +38,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}${!cond ? ' [a tool call, its result and the operator prompt must be written to the transcript before the next request that carries them is sent; for the resume checks see detectInterruption in src/services/resume/conversationRecovery.ts]' : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)
@@ -46,7 +46,7 @@ function section(title: string): void {
 const j = (value: unknown): string => JSON.stringify(value) ?? ''
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the tool-round record proof exceeded 300s')
+  console.log('\n❌ TIMEOUT — the tool-round record proof exceeded 300s — a spawned dist/mercury.mjs run or the fixture API never finished; the last section printed above names the step that hung')
   process.exit(1)
 }, 300_000)
 guard.unref?.()

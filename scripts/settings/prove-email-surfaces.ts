@@ -88,6 +88,7 @@ let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
   console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}`)
+  if (!pass) console.log('       change: the surface named in the label must show the credential\'s own email (never the config record); by surface see logins in src/components/BootLoginsScreen.tsx, face chip in sessionAccountWords in src/services/accounts/sessionAccount.ts, usage popup and card via anthropicCredentialPresence and anthropicSignInEmail in src/services/providers/providerUsage.ts, /accounts board in scopeSlotTail in src/services/providers/accountSlots.ts, auth status in authStatus in src/cli/handlers/auth.ts, seat wire in src/services/engine-connector/seatWire.ts; the text after the dash is what was found')
 }
 function section(title: string): void {
   console.log(`\n── ${title}`)

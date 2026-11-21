@@ -30,7 +30,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${ok ? '' : ` — to fix, read CorrectTool and RetainTool in src/tools/MemoryTools/MemoryTools.ts, the card text in src/tools/MemoryTools/ruleCard.ts, the card view in src/components/permissions/MemoryRulePermissionRequest/MemoryRulePermissionRequest.tsx, and retainItems in src/mneme/memoryVerbs.ts`}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const j = (v: unknown): string => JSON.stringify(v)

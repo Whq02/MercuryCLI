@@ -25,7 +25,7 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — to fix, read requestConversationPlan in src/services/messages/apiPlan.ts (which rows and words reach the wire; a refused turn and its error row must be left out, tool pairs kept, roles alternating) and, for the ward checks, evaluateWards, buildWardDenial and REFUSAL_WARDS in src/utils/wards/wards.ts`}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

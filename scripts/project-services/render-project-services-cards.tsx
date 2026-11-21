@@ -69,9 +69,10 @@ if (process.env.VANGUARD_CARDS_CHILD) {
   setTimeout(() => process.exit(0), 1500)
 } else {
   let failures = 0
-  const check = (label: string, cond: boolean, detail = ''): void => {
+  const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
     if (!cond) failures++
-    console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+    const shownDetail = cond ? detail : [detail, hint].filter(Boolean).join(' — ')
+    console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shownDetail ? ` — ${shownDetail}` : ''}`)
   }
   if (!existsSync(VSHOT)) {
     console.error(`vshot.py not found at ${VSHOT} — the render-verify harness (scripts/ui/vshot.py) is required.`)
@@ -110,11 +111,11 @@ if (process.env.VANGUARD_CARDS_CHILD) {
   for (const cols of [120, 80]) {
     console.log(`\n  ── cards @ ${cols} ──`)
     const grid = capture(cols)
-    check(`@${cols}: the Inspect card header renders on the grammar (● + title)`, /●.*INSPECTCARD/.test(grid))
-    check(`@${cols}: the Service card reads IN-MOTION for running (◐)`, /◐.*SERVICECARD|◐.*describe/.test(grid))
-    check(`@${cols}: the Debug card reads indeterminate (?)`, /\?.*stack|\? *stack/.test(grid))
-    check(`@${cols}: hostile long tokens TRUNCATE inside the width (no ENDMARK)`, !grid.includes('ENDMARK'))
-    check(`@${cols}: NO emoji in the grid`, !EMOJI.test(grid))
+    check(`@${cols}: the Inspect card header renders on the grammar (● + title)`, /●.*INSPECTCARD/.test(grid), '', 'check renderToolResultMessage in src/tools/InspectTool/UI.tsx and the card glyphs in src/components/mercury-ui/toolCardGrammar.ts')
+    check(`@${cols}: the Service card reads IN-MOTION for running (◐)`, /◐.*SERVICECARD|◐.*describe/.test(grid), '', 'check renderToolResultMessage in src/tools/ServiceTool/UI.tsx and the running-state glyph in src/components/mercury-ui/toolCardGrammar.ts')
+    check(`@${cols}: the Debug card reads indeterminate (?)`, /\?.*stack|\? *stack/.test(grid), '', 'check renderToolResultMessage in src/tools/DebugTool/UI.tsx and the indeterminate glyph in src/components/mercury-ui/toolCardGrammar.ts')
+    check(`@${cols}: hostile long tokens TRUNCATE inside the width (no ENDMARK)`, !grid.includes('ENDMARK'), '', 'a card line is no longer truncated; check the wrap="truncate-end" lines in renderToolResultMessage of src/tools/InspectTool/UI.tsx, ServiceTool/UI.tsx and DebugTool/UI.tsx')
+    check(`@${cols}: NO emoji in the grid`, !EMOJI.test(grid), '', 'an emoji reaches a card; look in the three tool UI.tsx files above and src/components/mercury-ui/toolCardGrammar.ts')
   }
 
   console.log('\n' + '='.repeat(60))

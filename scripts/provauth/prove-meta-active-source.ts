@@ -17,6 +17,8 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
+const metaLoginWhere = 'see src/services/providers/meta/metaLogin.ts (storeMetaApiKeyLogin, runMetaDeviceLogin, activateMetaSource, otherSourceTail) and src/services/providers/meta/metaAccounts.ts (resolveMetaAccount, writePreferredMetaSource)'
+
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const accounts = await import('../../src/services/providers/meta/metaAccounts.ts')
@@ -73,12 +75,12 @@ try {
       accounts.resolveMetaAccount()?.kind === 'api-key' &&
       keyOnly.receipt.includes('the active source') &&
       keyOnly.receipt.includes('api.meta.ai/v1'),
-    keyOnly.receipt,
+    `${keyOnly.receipt} — the pasted-key receipt or the resolved source is wrong; ${metaLoginWhere}`,
   )
   check(
     'the key receipt names no second source when none is stored',
     !keyOnly.receipt.includes('Muse Code sign-in stays stored'),
-    keyOnly.receipt,
+    `${keyOnly.receipt} — the receipt must not mention a second source when none is stored; otherSourceTail in src/services/providers/meta/metaLogin.ts`,
   )
   secrets.writeStoredMetaApiKey(null)
   accounts.writePreferredMetaSource(null)
@@ -92,7 +94,7 @@ try {
       accounts.resolveMetaAccount()?.kind === 'muse-code' &&
       museOnly.receipt.includes('the active source') &&
       !museOnly.receipt.includes('An API key is also stored'),
-    museOnly.receipt,
+    `${museOnly.receipt} — the sign-in receipt or the resolved source is wrong; runMetaDeviceLogin in src/services/providers/meta/metaLogin.ts`,
   )
 
   console.log('── both stored: the latest sign-in action is the active source ──')
@@ -100,7 +102,7 @@ try {
   check(
     'a key pasted while a Muse Code grant stands becomes the active source',
     accounts.resolveMetaAccount()?.kind === 'api-key' && accounts.readPreferredMetaSource() === 'api-key',
-    `active=${accounts.resolveMetaAccount()?.kind} preferred=${accounts.readPreferredMetaSource()}`,
+    `active=${accounts.resolveMetaAccount()?.kind} preferred=${accounts.readPreferredMetaSource()} — storing a key must write the preferred source api-key; storeMetaApiKeyLogin in src/services/providers/meta/metaLogin.ts`,
   )
   check(
     'its receipt names the key as the active source and the stored Muse Code sign-in with its row',
@@ -108,12 +110,13 @@ try {
       keyAfterGrant.receipt.includes('api.meta.ai/v1') &&
       keyAfterGrant.receipt.includes('Muse Code sign-in stays stored') &&
       keyAfterGrant.receipt.includes('/logins'),
-    keyAfterGrant.receipt,
+    `${keyAfterGrant.receipt} — ${metaLoginWhere}`,
   )
   check(
     'the resolved API key for the active source is the pasted key, not the minted key',
     accounts.resolveMetaApiKey()?.key === 'LLM|222222|key-after-grant-fixture-0002' &&
       accounts.resolveMetaApiKey()?.source === 'stored',
+    `got ${JSON.stringify(accounts.resolveMetaApiKey()?.source)} — the active api-key source must resolve to the stored pasted key; resolveMetaApiKey in src/services/providers/meta/metaAccounts.ts`,
   )
   const grantAfterKey = await login.runMetaDeviceLogin({
     io: { fetchImpl: museFetch(2), now: () => 1_760_000_060_000 },
@@ -122,18 +125,20 @@ try {
   check(
     'a Muse Code sign-in completed while a key is stored becomes the active source',
     accounts.resolveMetaAccount()?.kind === 'muse-code' && accounts.readPreferredMetaSource() === 'muse-code',
+    `active=${accounts.resolveMetaAccount()?.kind} preferred=${accounts.readPreferredMetaSource()} — a finished device login must write the preferred source muse-code; runMetaDeviceLogin in src/services/providers/meta/metaLogin.ts`,
   )
   check(
     'its receipt names the Muse Code sign-in as the active source and the stored key with its row',
     grantAfterKey.receipt.includes('the active source') &&
       grantAfterKey.receipt.includes('An API key is also stored') &&
       grantAfterKey.receipt.includes('/logins'),
-    grantAfterKey.receipt,
+    `${grantAfterKey.receipt} — ${metaLoginWhere}`,
   )
   check(
     'the resolved API key for the active source is the minted key, not the pasted key',
     accounts.resolveMetaApiKey()?.key === 'LLM|100002|minted-key-fixture-2' &&
       accounts.resolveMetaApiKey()?.source === 'muse-code',
+    `got ${JSON.stringify(accounts.resolveMetaApiKey()?.source)} — the active muse-code source must resolve to the minted key; resolveMetaApiKey in src/services/providers/meta/metaAccounts.ts`,
   )
 
   console.log('── a stored source is made active from its row, nothing re-entered ──')
@@ -145,11 +150,12 @@ try {
       toKey.receipt.includes('the API key is now the active source') &&
       toKey.receipt.includes('pay-as-you-go') &&
       toKey.receipt.includes('Muse Code sign-in stays stored'),
-    toKey.receipt,
+    `${toKey.receipt} — activateMetaSource in src/services/providers/meta/metaLogin.ts must switch the preferred source and word the receipt`,
   )
   check(
     'the key value stored before is the one that rides (nothing re-entered)',
     accounts.resolveMetaApiKey()?.key === 'LLM|222222|key-after-grant-fixture-0002',
+    'activateMetaSource in src/services/providers/meta/metaLogin.ts must switch the source without clearing or replacing the stored key',
   )
   const toGrant = login.activateMetaSource('muse-code')
   check(
@@ -159,12 +165,13 @@ try {
       toGrant.receipt.includes('the Muse Code sign-in is now the active source') &&
       toGrant.receipt.includes('An API key is also stored') &&
       secrets.readStoredMetaApiKey() === 'LLM|222222|key-after-grant-fixture-0002',
-    toGrant.receipt,
+    `${toGrant.receipt} — activateMetaSource in src/services/providers/meta/metaLogin.ts must switch to muse-code and keep the stored key`,
   )
   check(
     'the grant stored before is the one that rides (no new sign-in)',
     accounts.readMetaMuseCodeGrant()?.accessToken === 'META-AT-2' &&
       accounts.resolveMetaApiKey()?.key === 'LLM|100002|minted-key-fixture-2',
+    'activateMetaSource in src/services/providers/meta/metaLogin.ts must reuse the stored grant and must not discard it or ask for a new sign-in',
   )
 
   console.log('── the rows say which source rides and offer the switch ──')
@@ -214,7 +221,7 @@ try {
   check(
     'an environment key that is not active names its variable and offers the switch',
     envKeyInactive[1]?.label === 'API key — MODEL_API_KEY in the environment, not active · ↵ makes it active',
-    envKeyInactive[1]?.label,
+    `${envKeyInactive[1]?.label} — metaConnectRows in src/services/providers/meta/metaLogin.ts`,
   )
   check(
     'the row action: a stored, inactive source activates; an active or absent one enters its road',
@@ -223,19 +230,20 @@ try {
       login.metaConnectRowAction({ keySource: 'stored', museCodeConnected: false, active: 'api-key' }, 'key') === 'enter' &&
       login.metaConnectRowAction({ keySource: 'stored', museCodeConnected: true, active: 'muse-code' }, 'device') === 'enter' &&
       login.metaConnectRowAction({ museCodeConnected: false }, 'device') === 'enter',
+    'metaConnectRowAction in src/services/providers/meta/metaLogin.ts must return activate for a stored inactive source and enter otherwise',
   )
   const live = login.liveMetaConnectFacts()
   check(
     'the live facts carry the active source',
     live.active === 'muse-code' && live.keySource === 'stored' && live.museCodeConnected,
-    JSON.stringify(live),
+    `${JSON.stringify(live)} — liveMetaConnectFacts in src/services/providers/meta/metaLogin.ts`,
   )
   const singleKey = login.metaConnectRows({ keySource: 'stored', museCodeConnected: false, active: 'api-key' }, now)
   check(
     'with one source stored the first row offers Sign in with Meta and the key row offers replacement',
     singleKey[0]?.label === login.META_MUSE_CODE_ROW &&
       singleKey[1]?.label === 'API key — connected (stored locally) · ↵ pastes a replacement',
-    JSON.stringify(singleKey),
+    `${JSON.stringify(singleKey)} — metaConnectRows in src/services/providers/meta/metaLogin.ts`,
   )
   check(
     'the stored-sources note names the active source and the other row',
@@ -244,6 +252,7 @@ try {
       login.metaStoredSourcesNote({ keySource: 'env', keyEnvName: 'META_API_KEY', museCodeConnected: true, active: 'api-key' }) ===
         'Active source: the API key (META_API_KEY) · the Muse Code sign-in is also stored — ↵ on its /logins meta row makes it active' &&
       login.metaStoredSourcesNote({ keySource: 'stored', museCodeConnected: false, active: 'api-key' }) === undefined,
+    'metaStoredSourcesNote in src/services/providers/meta/metaLogin.ts must return the exact note text, or undefined with one source',
   )
 
   console.log('── the disconnects keep the rule honest ──')
@@ -251,9 +260,14 @@ try {
   check(
     'removing the active grant leaves the stored key active',
     accounts.resolveMetaAccount()?.kind === 'api-key' && accounts.readPreferredMetaSource() === undefined,
+    `active=${accounts.resolveMetaAccount()?.kind} preferred=${accounts.readPreferredMetaSource()} — disconnectMetaMuseCode in src/services/providers/meta/metaAccounts.ts must clear the preferred source`,
   )
   secrets.writeStoredMetaApiKey(null)
-  check('with nothing stored no source is active', accounts.resolveMetaAccount() === undefined)
+  check(
+    'with nothing stored no source is active',
+    accounts.resolveMetaAccount() === undefined,
+    `active=${accounts.resolveMetaAccount()?.kind} — resolveMetaAccount in src/services/providers/meta/metaAccounts.ts must return undefined with no key and no grant`,
+  )
 
   console.log(`\n${passes} passed, ${failures} failed`)
 } finally {

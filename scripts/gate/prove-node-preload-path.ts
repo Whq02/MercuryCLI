@@ -14,9 +14,10 @@ if (process.platform === 'win32') {
 }
 const world = mkdtempSync(join(tmpdir(), 'node-preload-path-'))
 let failures = 0
+const PRELOAD_LOOK = 'fix the function the check exercises in scripts/lib/suite-env.sh (suite_node_require_option for NODE_OPTIONS, suite_bun_preload_option for BUN_OPTIONS, suite_scratch_init for what the suite exports), or the preload itself in scripts/lib/proofScratch.cjs'
 const check = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? `: ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? (detail ? `: ${detail}` : '') : `: ${detail ? `${detail} | ` : ''}${PRELOAD_LOOK}`}`)
 }
 const plainPath = '/usr/bin:/bin'
 const fakeBin = join(world, 'fake-bin')

@@ -6,9 +6,9 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 let failures = 0
-function check(label: string, ok: boolean, detail = ''): void {
+function check(label: string, ok: boolean, detail = '', hint = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok && hint ? ` — change: ${hint}` : ''}`)
 }
 
 const repoRoot = resolve(import.meta.dir, '..', '..')
@@ -59,34 +59,34 @@ try {
   const cert = runHealth()
 
   const census = findCheck(cert, 'capability-census')
-  check('fast: capability census ok in the artifact (no source-only registration)', census?.status === 'ok', `${census?.status}: ${census?.evidence}`)
+  check('fast: capability census ok in the artifact (no source-only registration)', census?.status === 'ok', `${census?.status}: ${census?.evidence}`, 'the capability-census check in src/services/health/sections/tool-capability-fast.ts failed inside dist/mercury.mjs; a tool is registered only from source, so register it where the bundle sees it')
   const integrations = findCheck(cert, 'capability-integrations')
-  check('fast: lifecycle integrations reported', integrations?.status === 'ok', integrations?.evidence)
+  check('fast: lifecycle integrations reported', integrations?.status === 'ok', integrations?.evidence, 'read the capability-integrations check in src/services/health/sections/tool-capability-fast.ts')
   const search = findCheck(cert, 'capability-search')
-  check('fast: the declared-intent index ranks Git first IN the bundle', search?.status === 'ok', `${search?.status}: ${search?.evidence}`)
+  check('fast: the declared-intent index ranks Git first IN the bundle', search?.status === 'ok', `${search?.status}: ${search?.evidence}`, 'read the capability-search check in src/services/health/sections/tool-capability-fast.ts')
 
   const structure = findCheck(cert, 'structure-loop')
-  check('deep: the structural closed loop (vendored compiler)', structure?.status === 'ok', `${structure?.status}: ${structure?.evidence}`)
-  check('     …on the VENDORED facility', (structure?.evidence ?? '').includes('facility: vendored'), structure?.evidence)
+  check('deep: the structural closed loop (vendored compiler)', structure?.status === 'ok', `${structure?.status}: ${structure?.evidence}`, 'read the structure-loop check in src/services/health/sections/arsenal-deep.ts')
+  check('     …on the VENDORED facility', (structure?.evidence ?? '').includes('facility: vendored'), structure?.evidence, 'the structure-loop check in src/services/health/sections/arsenal-deep.ts must report the vendored facility from the bundle')
   const git = findCheck(cert, 'git-graph')
-  check('deep: the git work-graph journey (verified commits · stale refusal)', git?.status === 'ok', `${git?.status}: ${git?.evidence}`)
+  check('deep: the git work-graph journey (verified commits · stale refusal)', git?.status === 'ok', `${git?.status}: ${git?.evidence}`, 'read the git-graph check in src/services/health/sections/arsenal-deep.ts')
   const journey = findCheck(cert, 'journey-loop')
-  check('deep: the application journey (real service · honest failure)', journey?.status === 'ok', `${journey?.status}: ${journey?.evidence}`)
+  check('deep: the application journey (real service · honest failure)', journey?.status === 'ok', `${journey?.status}: ${journey?.evidence}`, 'read the journey-loop check in src/services/health/sections/arsenal-deep.ts')
 
   console.log('── bounded output ──')
   const oversized = cert.sections
     .flatMap(s => s.checks)
     .filter(c => (c.evidence ?? '').length > 600)
     .map(c => c.id)
-  check('every evidence string is bounded (≤600 chars)', oversized.length === 0, oversized.join(', '))
+  check('every evidence string is bounded (≤600 chars)', oversized.length === 0, oversized.join(', '), 'shorten the evidence of the health checks listed (the ids above) to 600 characters or fewer')
 
   console.log('── authority-toggle honesty (all three, one flags-off pass) ──')
   const offCert = runHealth({ MERCURY_STRUCTURE: '0', MERCURY_GIT_GRAPH: '0', MERCURY_JOURNEYS: '0' })
-  check("MERCURY_STRUCTURE=0 reads 'off'", findCheck(offCert, 'structure-loop')?.status === 'off')
-  check("MERCURY_GIT_GRAPH=0 reads 'off'", findCheck(offCert, 'git-graph')?.status === 'off')
-  check("MERCURY_JOURNEYS=0 reads 'off'", findCheck(offCert, 'journey-loop')?.status === 'off')
+  check("MERCURY_STRUCTURE=0 reads 'off'", findCheck(offCert, 'structure-loop')?.status === 'off', '', 'the structure-loop check in src/services/health/sections/arsenal-deep.ts must read off when MERCURY_STRUCTURE=0')
+  check("MERCURY_GIT_GRAPH=0 reads 'off'", findCheck(offCert, 'git-graph')?.status === 'off', '', 'the git-graph check in src/services/health/sections/arsenal-deep.ts must read off when MERCURY_GIT_GRAPH=0')
+  check("MERCURY_JOURNEYS=0 reads 'off'", findCheck(offCert, 'journey-loop')?.status === 'off', '', 'the journey-loop check in src/services/health/sections/arsenal-deep.ts must read off when MERCURY_JOURNEYS=0')
   const offSearch = findCheck(offCert, 'capability-search')
-  check("…and capability-search reads 'off' (no Git target), never a fault", offSearch?.status === 'off', `${offSearch?.status}: ${offSearch?.evidence}`)
+  check("…and capability-search reads 'off' (no Git target), never a fault", offSearch?.status === 'off', `${offSearch?.status}: ${offSearch?.evidence}`, 'the capability-search check in src/services/health/sections/tool-capability-fast.ts must read off, not fault, when the Git target is off')
 } finally {
   rmSync(outsideCwd, { recursive: true, force: true })
   rmSync(configDir, { recursive: true, force: true })

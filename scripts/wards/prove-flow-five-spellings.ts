@@ -12,7 +12,8 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks += 1
   if (!ok) failures += 1
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  const flowHint = 'to fix, change the Flow ask reading in src/utils/permissions/flowLaw.ts (flowShellAsk, flowAskSentence), reached through decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts, or for a rule or Sovereign row the shell reading in src/tools/BashTool/bashPermissions.ts'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${flowHint}${detail ? ` | ${detail.slice(0, 600)}` : ''}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}`)

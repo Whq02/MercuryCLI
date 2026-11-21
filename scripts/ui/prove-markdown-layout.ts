@@ -22,9 +22,9 @@ section('HB-0203: marked token-structure premise + source wiring')
 const itemTypes = (src: string) =>
   (marked.lexer(src).find(t => t.type === 'list') as { items: { tokens?: { type: string }[] }[] })
     .items.map(it => (it.tokens ?? []).map(t => t.type).join(','))
-check('tight list item → bare `text` child', itemTypes('- one\n- two').every(t => t === 'text'))
-check('loose list item → `paragraph` child', itemTypes('- one\n\n- two').every(t => t.startsWith('paragraph')))
-check('ordered loose item → `paragraph` child', itemTypes('1. a\n\n2. b').every(t => t.startsWith('paragraph')))
+check('tight list item → bare `text` child', itemTypes('- one\n- two').every(t => t === 'text'), 'marked changed its token shape for tight lists; update the list_item case of formatToken in src/utils/markdown.ts to match')
+check('loose list item → `paragraph` child', itemTypes('- one\n\n- two').every(t => t.startsWith('paragraph')), 'marked changed its token shape for loose lists; update the list_item case of formatToken in src/utils/markdown.ts to match')
+check('ordered loose item → `paragraph` child', itemTypes('1. a\n\n2. b').every(t => t.startsWith('paragraph')), 'marked changed its token shape for ordered loose lists; update the list_item case of formatToken in src/utils/markdown.ts to match')
 
 
 section('HB-0167: budgeting algorithm behaviour (real sliceAnsi/stringWidth)')
@@ -62,14 +62,14 @@ const rows = [['a very long value in column one', `colored ${ESC}bold${RST} valu
 const widthsOf = (t: string) => t.split('\n').filter(Boolean).map(l => stringWidth(stripAnsi(l)))
 
 const wide = renderTable(header, rows, 200)
-check('a table that already fits is left unbudgeted (no ellipsis)', !wide.includes('…'))
-check('wide: all rows are equal width', new Set(widthsOf(wide)).size === 1)
+check('a table that already fits is left unbudgeted (no ellipsis)', !wide.includes('…'), 'a table within budget got an ellipsis; fix the width budgeting loop in renderTable in src/utils/markdown.ts and the copy in this file')
+check('wide: all rows are equal width', new Set(widthsOf(wide)).size === 1, 'rows differ in width; fix the padding in renderTable in src/utils/markdown.ts and the copy in this file')
 
 const narrow = renderTable(header, rows, 40)
 const nw = widthsOf(narrow)
 check('narrow: all rows (incl. the border) are equal width (aligned)', new Set(nw).size === 1, `widths=${[...new Set(nw)].join(',')}`)
-check('narrow: the table fits the 40-col budget', nw.every(w => w <= 40))
-check('narrow: truncation is VISIBLE (ellipsis), not a silent chop', narrow.includes('…'))
+check('narrow: the table fits the 40-col budget', nw.every(w => w <= 40), `widths=${nw.join(',')}; fix the column shrinking loop in renderTable in src/utils/markdown.ts and the copy in this file`)
+check('narrow: truncation is VISIBLE (ellipsis), not a silent chop', narrow.includes('…'), 'cells were cut with no ellipsis; fix fit() in renderTable in src/utils/markdown.ts and the copy in this file')
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL MARKDOWN-LAYOUT PROOFS PASS')

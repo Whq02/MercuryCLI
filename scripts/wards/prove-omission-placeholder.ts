@@ -4,7 +4,8 @@
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const wardHint = 'to fix, change the no-omission-placeholder rule in BUILTIN_WARDS (src/utils/wards/wards.ts), its matching in evaluateWards and its teaching text in buildWardDenial in the same file; a hook row reads the guard in src/guards/wardsGuard.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${wardHint}${detail ? ` | ${detail}` : ''}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

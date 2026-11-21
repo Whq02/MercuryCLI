@@ -9,7 +9,8 @@ let failures = 0
 let checks = 0
 function fail(label: string, detail: string): void {
   failures += 1
-  if (failures <= 25) console.log(`  ❌ ${label} — ${detail}`)
+  const whereToChange = label.startsWith('draftWindow') ? 'change draftWindow in src/components/concourse/lineDraft.ts' : 'change switchboardGeometry in src/components/concourse/ConcourseLayout.tsx'
+  if (failures <= 25) console.log(`  ❌ ${label} — ${detail} · ${whereToChange}`)
 }
 
 const cases: string[] = []

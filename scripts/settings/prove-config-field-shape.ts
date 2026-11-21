@@ -11,7 +11,10 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
-  if (!cond) failures++
+  if (!cond) {
+    failures++
+    console.log('         change: the read seam in src/utils/config/globalConfig.ts (getGlobalConfig, getGlobalConfigFieldDrops) must drop a field that fails its declared shape and name it; for the typed readers see isCustomApiKeyApproved in src/utils/auth.ts, getTheme in src/utils/theme.ts, hasAnthropicConnectorEverConnected in src/services/mcp/anthropicConnectors.ts; for the config-fields row see runHealthReport in src/services/health/healthReport.ts')
+  }
 }
 const section = (t: string): void => {
   console.log(`\n${t}`)

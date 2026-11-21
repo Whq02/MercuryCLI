@@ -18,9 +18,20 @@ const ROOT = join(import.meta.dir, '..', '..')
 const { mcpRouteArm, mcpRosterLine, MCP_EMPTY_ROSTER_LINE } = await import(join(ROOT, 'src/commands/mcp/route.ts'))
 
 let failures = 0
+function routeFixHint(label: string): string {
+  if (label.startsWith('§1')) return 'fix mcpRouteArm in src/commands/mcp/route.ts'
+  if (label.startsWith('§2')) return 'fix mcpRosterLine or MCP_EMPTY_ROSTER_LINE in src/commands/mcp/route.ts'
+  if (label.startsWith('§4')) return 'fix the /mcp command in src/commands/mcp/mcp.tsx so the popup paints the focused session roster (mcpRoster of the connector in src/services/engine-connector/focusedConnector.ts)'
+  if (label.startsWith('§5 the popup')) return 'fix mcpServerState in src/commands/mcp/McpPopup.tsx'
+  if (label.startsWith('§5 the face line') || label.startsWith('§5 …')) return 'fix mcpRosterLine in src/commands/mcp/route.ts'
+  if (label.startsWith('§5')) return 'fix mcpRosterEntriesOf in src/services/engine-connector/rosterTerms.ts'
+  if (label.startsWith('§6 every')) return 'fix mcpRosterRowsFailedFirst in src/commands/mcp/route.ts'
+  return 'fix mcpRosterLine in src/commands/mcp/route.ts'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const hint = cond ? '' : ' — to fix: ' + routeFixHint(label)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${hint}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

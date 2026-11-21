@@ -20,19 +20,20 @@ const nodeBin = nodeBinPath()
 const pythonBin = Bun.which('python3') ?? 'python3'
 
 let failures = 0
+const automationFixHint = 'to fix: run the matching example block of docs/AUTOMATION.md by hand against the built dist/mercury.mjs (rebuild with bun run build.ts) and change the page or the run and runner stream so they agree with this check'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${cond ? '' : ` | ${automationFixHint}`}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const j = (value: unknown): string => JSON.stringify(value)
 
 if (!existsSync(dist)) {
-  console.error(`FAIL dist/mercury.mjs absent: ${dist}`)
+  console.error(`FAIL dist/mercury.mjs absent: ${dist}; build it first with bun run build.ts`)
   process.exit(1)
 }
 if (!existsSync(docPath)) {
-  console.error(`FAIL docs/AUTOMATION.md absent: ${docPath}`)
+  console.error(`FAIL docs/AUTOMATION.md absent: ${docPath}; restore the page, the proof reads its code blocks`)
   process.exit(1)
 }
 
@@ -48,7 +49,10 @@ check(
   blocks.length === 4 && blocks[0]?.lang === 'ts' && blocks[1]?.lang === 'py' && blocks[2]?.lang === 'ts' && blocks[3]?.lang === 'py',
   blocks.map(b => b.lang).join(','),
 )
-if (blocks.length !== 4) process.exit(1)
+if (blocks.length !== 4) {
+  console.error('FAIL docs/AUTOMATION.md must carry exactly four fenced ts or py code blocks in the order ts, py, ts, py; fix the page')
+  process.exit(1)
+}
 
 type RunResult = { status: number | null; stdout: string; stderr: string }
 function execAsync(cmd: string, args: string[], opts: { cwd: string; env: Record<string, string | undefined>; timeoutMs: number }): Promise<RunResult> {
@@ -278,7 +282,7 @@ section('§5 the setters on the wire: set_mode at once, set_model held to the tu
 }
 
 if (failures > 0) {
-  console.error(`\nFAIL prove-automation-examples: ${failures} failure(s)`)
+  console.error(`\nFAIL prove-automation-examples: ${failures} failure(s); each FAIL line above says which example of docs/AUTOMATION.md disagrees with the built mercury`)
   process.exit(1)
 }
 console.log('\nPASS prove-automation-examples: the four examples ran against the built mercury as the page says, and the page says what the product does')

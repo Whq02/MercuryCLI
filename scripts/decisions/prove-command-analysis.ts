@@ -43,7 +43,7 @@ section('(2) provider shape — every op present; effectful ops bound, not drive
     'classifyCommandName',
   ]
   for (const op of ops) {
-    check(`op ${op} bound`, typeof (pinnedCommandAnalysis as Record<string, unknown>)[op] === 'function')
+    check(`op ${op} bound`, typeof (pinnedCommandAnalysis as Record<string, unknown>)[op] === 'function', `pinnedCommandAnalysis in src/utils/permissions/decision/commandAnalysis.ts must bind ${op} as a function`)
   }
   const held = Object.keys(pinnedCommandAnalysis).sort().join(' ')
   const listed = [...ops].sort().join(' ')
@@ -136,7 +136,7 @@ if (record) {
 } else {
   section('(3) the behavior corpus vs recorded goldens')
   if (!existsSync(GOLDEN)) {
-    check('corpus goldens exist (run --record first)', false)
+    check('corpus goldens exist (run --record first)', false, `${GOLDEN} is missing; run bun scripts/decisions/prove-command-analysis.ts --record once and keep the file`)
   } else {
     const golden = JSON.parse(readFileSync(GOLDEN, 'utf8')) as Golden
     for (const [family, rows] of Object.entries(golden)) {

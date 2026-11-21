@@ -38,7 +38,8 @@ const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.t
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}rerun with MERCURY_REACTIVATE_CAPTURE_DIR=<dir> to write every frame the drive painted to <dir>/<id>.txt, then change the park/reactivate road in src/daemon/concourseWorkers/reactivate.ts (reactivateConcourseSession) or the board's parked marks in src/services/concourse/concourseSnapshot.ts`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const driver = resolveCaptureDriver()

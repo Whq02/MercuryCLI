@@ -31,7 +31,7 @@ if (!(process.env.SHELL ?? '').includes('bash') && existsSync('/bin/bash')) proc
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix subprocessEnv in src/utils/subprocessEnv.ts (its callers are src/utils/Shell.ts for Bash, startCommandHook in src/utils/hooks/commandRunner.ts for hooks, connectToServer in src/services/mcp/client.ts for MCP), or the wording in docs/HOOKS.md for the docs checks` : ''}`)
 }
 const storeToken = 'm46-store-token-not-for-children'
 writeFileSync(join(home, '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken: storeToken, refreshToken: 'fixture-refresh', expiresAt: Date.now() + 3600_000, scopes: ['user:inference'] } }))

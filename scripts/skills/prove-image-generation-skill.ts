@@ -43,7 +43,8 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? `: ${detail.slice(0, 400)}` : ''}`)
+  const proofFixHint = ' | fix: edit mercury-skills/image-generation (SKILL.md and references/), then run bun scripts/skills/gen-bundled.ts to regenerate the bundled modules; schema and tool checks read the media server src/extensions/bundled/mercury-media/server/server.js'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? `: ${detail.slice(0, 400)}` : ''}${proofFixHint}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${'-'.repeat(76)}\n${title}`)
 

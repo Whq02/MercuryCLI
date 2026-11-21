@@ -24,13 +24,13 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${!cond ? ' — change resolveTestLane or discoverSubPackages in src/services/ide/projectRunners.ts, or the Test tool in src/tools/TestTool/TestTool.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — sub-package-manifests proof exceeded 300s')
+  console.log('\nTIMEOUT — sub-package-manifests proof exceeded 300s; a Test tool run (src/tools/TestTool/TestTool.ts) did not finish, so look at the last section header above')
   process.exit(1)
 }, 300_000)
 guard.unref?.()

@@ -30,7 +30,12 @@ let failures = 0
 const check = (label: string, ok: boolean, value?: unknown) => {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${value === undefined ? '' : ` — ${JSON.stringify(value)}`}`)
+  const warningsWhere = /wildcard/.test(label)
+    ? 'fix getSimpleCommandPrefix or getFirstWordPrefix in src/tools/BashTool/bashPermissions.ts so a warned command gets no prefix'
+    : /^(default|implement|sovereign):/.test(label)
+      ? 'fix decideToolPermission in src/utils/permissions/decision/engine.ts or powershellToolHasPermission in src/tools/PowerShellTool/powershellPermissions.ts'
+      : 'fix the warning patterns in getDestructiveCommandWarning, src/utils/shell/destructiveCommandWarning.ts'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${value === undefined ? '' : ` — ${JSON.stringify(value)}`}${ok ? '' : ` (${warningsWhere})`}`)
 }
 async function decide(command: string, mode: 'default' | 'implement' | 'sovereign', deny = false) {
   const permission = { ...getEmptyToolPermissionContext(), mode, alwaysAllowRules: { session: ['PowerShell'] }, alwaysDenyRules: deny ? { session: ['PowerShell(vssadmin *)'] } : {} }

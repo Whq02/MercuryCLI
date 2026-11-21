@@ -7,10 +7,11 @@ import * as path from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
+const GODOT_LANE_FAIL_HINT = 'fix the gate, ports, project detection and LSP config in src/services/lsp/godotLane.ts (registered by src/services/lsp/builtinServers.ts), the DAP adapter in src/services/dap/dapClient.ts, the TCP bridge in src/services/tcpBridge/entry.ts, and the MERCURY_GODOT rows in src/substrate/flagRegistry.ts'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : `${detail ? ' · ' : ' — '}${GODOT_LANE_FAIL_HINT}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

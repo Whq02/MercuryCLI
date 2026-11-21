@@ -16,17 +16,18 @@ process.env.MERCURY_CACHE_CLOCK = '0'
 
 let failures = 0
 let checks = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', changeHint = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && (detail || changeHint) ? ` — ${[detail, changeHint].filter(Boolean).join(' | ')}` : ''}`)
 }
+const ttlWhere = 'change the prompt-cache TTL decision in src/utils/cache/cacheClock.ts, or the request that carries it: runForkedAgent in src/services/agents/forkedAgent.ts, routedCallModel in src/services/providers/callModelRouter.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the fork TTL prover exceeded 120s')
+  console.log('\nTIMEOUT — the fork TTL prover exceeded 120s; a request to the fixture API (scripts/lib/fixtureApi.ts) or runForkedAgent (src/services/agents/forkedAgent.ts) did not finish')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -179,14 +180,14 @@ section('§1 default lifetimes match across query sources')
   bootstrap.setPromptCache1hEligible(true)
 
   const parent = markersOf(await parentRequest())
-  check('parent markers use the default lifetime', allWord(parent.system, null) && parent.message === null, j(parent))
+  check('parent markers use the default lifetime', allWord(parent.system, null) && parent.message === null, j(parent), ttlWhere)
 
   const fork = markersOf(await forkRequest('compact'))
-  check('compaction markers use the same default lifetime', allWord(fork.system, null) && fork.message === null, j(fork))
-  check('…and its markers are present (a marker on the shared prefix, not a request without one)', fork.system.length === parent.system.length && fork.message !== 'none', j({ fork, parent }))
+  check('compaction markers use the same default lifetime', allWord(fork.system, null) && fork.message === null, j(fork), ttlWhere)
+  check('…and its markers are present (a marker on the shared prefix, not a request without one)', fork.system.length === parent.system.length && fork.message !== 'none', j({ fork, parent }), ttlWhere)
 
   const control = markersOf(await forkRequest('session_memory'))
-  check('a different query source also uses the default lifetime', allWord(control.system, null) && control.message === null, j(control))
+  check('a different query source also uses the default lifetime', allWord(control.system, null) && control.message === null, j(control), ttlWhere)
 }
 
 section('§2 an explicit one-hour lifetime applies to every request')
@@ -195,11 +196,11 @@ section('§2 an explicit one-hour lifetime applies to every request')
   process.env.MERCURY_CACHE_TTL = '1h'
 
   const parent = markersOf(await parentRequest())
-  check("the parent's request carries the clock's word (ttl:'1h') on every marker", allWord(parent.system, '1h') && parent.message === '1h', j(parent))
+  check("the parent's request carries the clock's word (ttl:'1h') on every marker", allWord(parent.system, '1h') && parent.message === '1h', j(parent), ttlWhere + ' (MERCURY_CACHE_TTL=1h must reach every marker)')
   const fork = markersOf(await forkRequest('compact'))
-  check("the compaction request carries the clock's word too", allWord(fork.system, '1h') && fork.message === '1h', j(fork))
+  check("the compaction request carries the clock's word too", allWord(fork.system, '1h') && fork.message === '1h', j(fork), ttlWhere + ' (MERCURY_CACHE_TTL=1h must reach every marker)')
   const unnamed = markersOf(await forkRequest('session_memory'))
-  check("the other query source carries the same clock-selected lifetime", allWord(unnamed.system, '1h') && unnamed.message === '1h', j(unnamed))
+  check("the other query source carries the same clock-selected lifetime", allWord(unnamed.system, '1h') && unnamed.message === '1h', j(unnamed), ttlWhere + ' (MERCURY_CACHE_TTL=1h must reach every marker)')
 }
 
 await api.close()

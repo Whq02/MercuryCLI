@@ -16,7 +16,7 @@ import { startFixtureApi, handoffTurn, isHandoffRequest, type ScriptedTurn } fro
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' [a session killed after its first reply must still resume: the turn has to be on disk before the reply is printed, and the --resume road is loadInitialMessages in src/cli/headless/resume.ts (its miss text is in src/utils/sessionStorage/resumeMiss.ts)]' : ''}`)
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -31,7 +31,7 @@ if (!nodeBin) {
   process.exit(1)
 }
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — scenario exceeded 240s')
+  console.log('\n❌ TIMEOUT — scenario exceeded 240s — a spawned dist/mercury.mjs run or the fixture API never finished; the last leg printed above names the step that hung')
   process.exit(1)
 }, 240_000)
 guard.unref?.()

@@ -12,6 +12,7 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  if (!ok) console.log('         change: findMostRecentBackup in src/utils/config/globalConfig.ts must keep this order of preference: backup-home copies, then the greatest-stamp .backup.<stamp> sibling, then the bare .backup sibling, else null; the value after the dash is what it returned')
 }
 
 const config = await import(join(SRC, 'utils/config/globalConfig.ts'))

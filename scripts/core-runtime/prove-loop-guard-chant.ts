@@ -37,12 +37,19 @@ const { resetSettingsCache } = await import('../../src/utils/settings/settingsCa
 
 let failures = 0
 let checks = 0
+const CHANT_HINTS: Record<string, string> = {
+  P5: 'change finalizeAgentTool in src/tools/AgentTool/agentToolUtils.ts (the loop_stopped outcome) or the chant road in src/run-core/turn/noToolReply.ts and src/services/tools/chantGuard.ts',
+}
+const CHANT_DEFAULT_HINT = 'change the chant road of the reply turn in src/run-core/turn/noToolReply.ts and the detector in src/services/tools/chantGuard.ts, and the turns.loopGuard setting in src/utils/settings/types.ts'
+let chantHint = CHANT_DEFAULT_HINT
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failText = [detail, chantHint].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && failText ? ` — ${failText}` : ''}`)
   if (!cond) failures++
 }
 function section(t: string): void {
+  chantHint = CHANT_HINTS[t.slice(0, 2)] ?? CHANT_DEFAULT_HINT
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {

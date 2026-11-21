@@ -24,10 +24,15 @@ delete process.env.ANTHROPIC_BASE_URL
 
 let failures = 0
 let checks = 0
+function noveltyFixHint(label: string): string {
+  if (/hosted session|unattended|session exits/.test(label)) return 'rebuild dist/mercury.mjs with bun run build.ts, then fix askForHandoff in src/mneme/handoffAsk.ts or the checked path it drives'
+  if (/runner was asked|re-ask rides|re-ask request|second answer|novel note is stored|nothing new. as the second|re-ask that fails/.test(label)) return 'fix askForHandoff in src/mneme/handoffAsk.ts'
+  return 'fix src/mneme/handoffNovelty.ts (noveltyRecord, measureNovelty, handoffReask, repetitionInWords or the NOVELTY_ thresholds)'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}${!cond ? ` — to fix: ${noveltyFixHint(label)}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

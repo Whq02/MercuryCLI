@@ -25,16 +25,17 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 let failures = 0
 let checks = 0
+const anchorFixHint = 'to fix: a Write or ranged Read result must end with the whole-file anchor that mintFileAnchor (src/services/changeTransaction/snapshotAnchor.ts) mints from the file content, and a stale-anchor refusal from Edit or ChangeSet must name the Read to do and carry no anchor value; see src/tools/FileWriteTool/FileWriteTool.ts, src/tools/FileReadTool/FileReadTool.ts, src/tools/FileEditTool/FileEditTool.ts, src/tools/ChangeSetTool/ChangeSetTool.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 700 ? `${detail.slice(0, 700)}…` : detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 700 ? `${detail.slice(0, 700)}…` : detail}` : ''}${cond ? '' : ` | ${anchorFixHint}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the write/ranges anchor proof exceeded 60s')
+  console.log('\nTIMEOUT — the write/ranges anchor proof exceeded 60s; a Write, Read, Edit or ChangeSet call from src/tools (FileWriteTool, FileReadTool, FileEditTool, ChangeSetTool) did not return')
   process.exit(1)
 }, 60_000)
 guard.unref?.()

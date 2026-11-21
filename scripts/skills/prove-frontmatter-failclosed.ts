@@ -21,7 +21,8 @@ const contributionsMod = await import('../../src/extensions/load/contributions.t
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  const loaderHint = ' | change the loader the failing section names: skills in src/skills/loadSkillsDir.ts (getSkillDirCommands, skillFrontmatterProblem), agents in src/tools/AgentTool/loadAgentsDir.ts (getAgentDefinitionsWithOverrides), extensions in src/extensions/load/contributions.ts (resolveContributions)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? (detail ? ' — ' + detail : ' —') + loaderHint : ''}`)
 }
 
 const VALID = '---\nname: probe\ndescription: Author forbids model invocation.\ndisable-model-invocation: true\n---\n\nBody.\n'

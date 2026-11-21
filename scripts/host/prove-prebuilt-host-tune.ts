@@ -9,7 +9,8 @@ f.state.dialect = 'llamacpp'
 f.state.window = 131072
 f.state.slots = 4
 let checks = 0
-const check = (name: string, truth: unknown) => { assert.ok(truth, name); checks++; console.log('PASS ' + name) }
+const prebuiltTuneHint = 'Fix the launch script, the process-identity guard and the retune or rollback in startHostEngine, restartHostScript and readHostEngine (src/services/host/ssh.ts); a prebuilt llama-server must be kept as the bare command and a source-built one at its build path.'
+const check = (name: string, truth: unknown) => { assert.ok(truth, name + '\n' + prebuiltTuneHint); checks++; console.log('PASS ' + name) }
 try {
   const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
   const { hostRunner, startHostEngine, restartHostScript, readHostEngine } = await import('../../src/services/host/ssh.ts')

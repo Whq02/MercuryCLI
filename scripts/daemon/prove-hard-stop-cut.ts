@@ -98,7 +98,7 @@ const rosterRow = async (short: string | undefined): Promise<RosterRow | undefin
 
 const fixture = spawn('node', [join(REPO, 'scripts', 'journey', 'switch-fixture-server.ts'), captureFile], { stdio: ['ignore', 'pipe', 'pipe'] })
 const port = await new Promise<number>((resolve, reject) => {
-  const killer = setTimeout(() => reject(new Error('fixture server never printed PORT')), 15_000)
+  const killer = setTimeout(() => reject(new Error('fixture server never printed PORT — run scripts/journey/switch-fixture-server.ts by hand and read its output')), 15_000)
   let buffer = ''
   fixture.stdout.on('data', (chunk: Buffer) => {
     buffer += chunk.toString('utf8')
@@ -166,9 +166,9 @@ const openThinking = async (id: string): Promise<{ sid: string; rec: Rec | undef
     model: 'claude-opus-5',
     effort: 'high',
   } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
-  check(`${id}: the session dispatched onto a real runner`, dispatched.ok === true && typeof dispatched.sessionId === 'string', JSON.stringify(dispatched))
+  check(`${id}: the session dispatched onto a real runner`, dispatched.ok === true && typeof dispatched.sessionId === 'string', `${JSON.stringify(dispatched)} — the concourseDispatch op did not start a runner; read the daemon log in the kept scratch folder and answerSessionDispatch in src/daemon/controlServer.ts`)
   const sid = dispatched.sessionId ?? ''
-  check(`${id}: the runner opened the never-ending thinking phase`, await untilAsync(() => wire().filter(c => c.kind === 'anthropic-open').length > opensBefore, 60_000), JSON.stringify(wire().map(c => c.kind)))
+  check(`${id}: the runner opened the never-ending thinking phase`, await untilAsync(() => wire().filter(c => c.kind === 'anthropic-open').length > opensBefore, 60_000), `${JSON.stringify(wire().map(c => c.kind))} — the runner never reached the fixture server; read the daemon log in the kept scratch folder and the runner start in src/daemon/concourseDispatch.ts`)
   await sleep(400)
   return { sid, rec: readRec(sid) }
 }
@@ -178,51 +178,51 @@ const interrupt = async (sid: string, hard: boolean, by = 'operator'): Promise<{
 console.log('the second esc — the interrupt goes again, the runner is never cut; the stop verb is the cut, recorded as a stop')
 console.log(" red on the base: H2 (the frozen runner was cut a second after the second press), H4 (its record carried the cut stamp or, on the older base, nothing and then a crash), H6's reconcile (a stop-requested runner found dead read as crashed) and H6's reason ('relaunch', never 'stop')")
 try {
-  check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
+  check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), 'the daemon never answered ping; read daemon.log in the kept scratch folder and the ping op in src/daemon/controlServer.ts')
 
   console.log('\nH1–H4 the frozen runner: two presses, no signal, then the answer')
   const a = await openThinking('secondesc-a')
   const pidA = a.rec?.pid
-  check('the runner is live and mid-turn', a.rec !== undefined && alive(pidA) && (a.rec.lastTurnSettledAt ?? 0) < (a.rec.lastDeliveryAt ?? 0), JSON.stringify(a.rec))
+  check('the runner is live and mid-turn', a.rec !== undefined && alive(pidA) && (a.rec.lastTurnSettledAt ?? 0) < (a.rec.lastDeliveryAt ?? 0), `${JSON.stringify(a.rec)} — the record in concourse-workers.json shows no live pid or no delivery after the last settle; the dispatch should leave the runner mid-turn`)
   if (pidA !== undefined) {
     process.kill(pidA, 'SIGSTOP')
     frozen.add(pidA)
   }
   const first = await interrupt(a.sid, false)
   const second = await interrupt(a.sid, true)
-  check("the first press answered applied ('interrupt <runner>')", first.ok === true && first.outcome === 'applied' && /^interrupt /.test(first.detail ?? ''), JSON.stringify(first))
-  check("H1 the second press answered applied ('second interrupt <runner>') — a re-delivery, never a hard stop", second.ok === true && second.outcome === 'applied' && /^second interrupt /.test(second.detail ?? ''), JSON.stringify(second))
+  check("the first press answered applied ('interrupt <runner>')", first.ok === true && first.outcome === 'applied' && /^interrupt /.test(first.detail ?? ''), `${JSON.stringify(first)} — the interrupt branch of the session control handler in src/daemon/run/concourseControl.ts should settle applied with detail starting interrupt`)
+  check("H1 the second press answered applied ('second interrupt <runner>') — a re-delivery, never a hard stop", second.ok === true && second.outcome === 'applied' && /^second interrupt /.test(second.detail ?? ''), `${JSON.stringify(second)} — with hard set, the interrupt branch in src/daemon/run/concourseControl.ts must only re-deliver the interrupt (detail second interrupt), never cut the runner`)
   await sleep(3_000)
   const rowFrozen = await rosterRow(a.rec?.runnerId)
-  check('H2 three seconds on, the frozen runner lives: no signal was sent (red on the base: cut at one second)', alive(pidA), `pid ${pidA} alive=${alive(pidA)}`)
-  check('H2 the daemon logged no cut', !/hard stop:|cutting the runner/.test(daemonLog()), daemonLog().split('\n').filter(l => /hard stop|cutting/.test(l)).join(' | '))
-  check('H2 the roster row stays live (no outcome)', rowFrozen !== undefined && rowFrozen.outcome === undefined, JSON.stringify(rowFrozen ?? null))
-  check('H2 the record carries no cut, stop or crash stamp while the runner holds its turn', noStamps(readRec(a.sid)), JSON.stringify(readRec(a.sid)))
+  check('H2 three seconds on, the frozen runner lives: no signal was sent (red on the base: cut at one second)', alive(pidA), `pid ${pidA} alive=${alive(pidA)} — the second interrupt must not signal the runner; remove any kill on the hard flag in src/daemon/run/concourseControl.ts`)
+  check('H2 the daemon logged no cut', !/hard stop:|cutting the runner/.test(daemonLog()), `${daemonLog().split('\n').filter(l => /hard stop|cutting/.test(l)).join(' | ')} — the daemon cut the runner on the second interrupt; only the stop verb may cut, see src/daemon/concourseWorkers/stop.ts`)
+  check('H2 the roster row stays live (no outcome)', rowFrozen !== undefined && rowFrozen.outcome === undefined, `${JSON.stringify(rowFrozen ?? null)} — the roster row ended while the runner was frozen; the second interrupt must leave the runner on the roster`)
+  check('H2 the record carries no cut, stop or crash stamp while the runner holds its turn', noStamps(readRec(a.sid)), `${JSON.stringify(readRec(a.sid))} — an interrupt must not write turnCutAt, stoppedAt, stopRequestedAt or crash; only stopConcourseSession in src/daemon/concourseWorkers/stop.ts stamps a cut`)
   const closedBefore = wire().filter(c => c.kind === 'anthropic-closed').length
   if (pidA !== undefined) {
     process.kill(pidA, 'SIGCONT')
     frozen.delete(pidA)
   }
-  check('H3 thawed, the runner reads the interrupts and drops its stream', await untilAsync(() => wire().filter(c => c.kind === 'anthropic-closed').length > closedBefore, 8_000), JSON.stringify(wire().map(c => c.kind)))
+  check('H3 thawed, the runner reads the interrupts and drops its stream', await untilAsync(() => wire().filter(c => c.kind === 'anthropic-closed').length > closedBefore, 8_000), `${JSON.stringify(wire().map(c => c.kind))} — the thawed runner never dropped its stream; the interrupt was not delivered to it, see the interrupt branch in src/daemon/run/concourseControl.ts`)
   const transcriptA = join(paths.getProjectDir(folderOf('secondesc-a')), `${a.sid}.jsonl`)
-  check('H3 its transcript carries the interruption row', await untilAsync(() => existsSync(transcriptA) && readFileSync(transcriptA, 'utf8').includes('Request interrupted by user'), 8_000), transcriptA)
-  check("H3 the seat's facts read idle once the turn is answered", await untilAsync(() => readFacts(a.sid)?.busy === false, 8_000), JSON.stringify(readFacts(a.sid) ?? null))
-  check('H3 the pid lives on — the same runner takes the next words', alive(pidA), `pid ${pidA} alive=${alive(pidA)}`)
+  check('H3 its transcript carries the interruption row', await untilAsync(() => existsSync(transcriptA) && readFileSync(transcriptA, 'utf8').includes('Request interrupted by user'), 8_000), `${transcriptA} — the runner did not write the interruption row after the interrupt`)
+  check("H3 the seat's facts read idle once the turn is answered", await untilAsync(() => readFacts(a.sid)?.busy === false, 8_000), `${JSON.stringify(readFacts(a.sid) ?? null)} — the session-facts file in the daemon folder never read busy false after the interrupted turn; the runner must report idle once the turn is answered`)
+  check('H3 the pid lives on — the same runner takes the next words', alive(pidA), `pid ${pidA} alive=${alive(pidA)} — the runner exited after the interrupts; it must stay up and take the next words`)
   const afterA = readRec(a.sid)
-  check('H4 the record carries no stamp of any kind after it all', noStamps(afterA), JSON.stringify(afterA))
-  check("H4 a relaunch of this session would read 'relaunch' — never 'stop', never 'crash'", sup.runnerRestartReasonOf(afterA ?? {}) === 'relaunch', sup.runnerRestartReasonOf(afterA ?? {}))
+  check('H4 the record carries no stamp of any kind after it all', noStamps(afterA), `${JSON.stringify(afterA)} — no turnCutAt, stoppedAt, stopRequestedAt or crash may stand on a record that only took interrupts`)
+  check("H4 a relaunch of this session would read 'relaunch' — never 'stop', never 'crash'", sup.runnerRestartReasonOf(afterA ?? {}) === 'relaunch', `${sup.runnerRestartReasonOf(afterA ?? {})} — runnerRestartReasonOf in src/daemon/concourseWorkers/revive.ts reads stop only from turnCutAt and crash from crash; check which stamp the record carries`)
 
   console.log('\nH5 the control — a healthy runner answers the second-press interrupt at once')
   const b = await openThinking('secondesc-b')
   const pidB = b.rec?.pid
   const closedBeforeB = wire().filter(c => c.kind === 'anthropic-closed').length
   const replyB = await interrupt(b.sid, true)
-  check('the second-press verb applied to the healthy runner', replyB.ok === true && replyB.outcome === 'applied', JSON.stringify(replyB))
-  check('the stream dropped at once (the runner answered the interrupt)', await untilAsync(() => wire().filter(c => c.kind === 'anthropic-closed').length > closedBeforeB, 3_000))
+  check('the second-press verb applied to the healthy runner', replyB.ok === true && replyB.outcome === 'applied', `${JSON.stringify(replyB)} — the interrupt branch in src/daemon/run/concourseControl.ts refused or noop for a live runner`)
+  check('the stream dropped at once (the runner answered the interrupt)', await untilAsync(() => wire().filter(c => c.kind === 'anthropic-closed').length > closedBeforeB, 3_000), 'the healthy runner did not drop its stream within 3 seconds of the second-press interrupt; check that the interrupt reaches the runner door in src/daemon/run/concourseControl.ts')
   await sleep(2_000)
-  check('two seconds on, the healthy runner lives and nothing was logged as a cut', alive(pidB) && !/hard stop:|cutting the runner/.test(daemonLog()), `pid ${pidB} alive=${alive(pidB)}`)
+  check('two seconds on, the healthy runner lives and nothing was logged as a cut', alive(pidB) && !/hard stop:|cutting the runner/.test(daemonLog()), `pid ${pidB} alive=${alive(pidB)} — the runner died or the daemon logged a cut after the second-press interrupt; it must stay alive with no cut`)
   const transcriptB = join(paths.getProjectDir(folderOf('secondesc-b')), `${b.sid}.jsonl`)
-  check('its transcript carries the interruption row', existsSync(transcriptB) && readFileSync(transcriptB, 'utf8').includes('Request interrupted by user'), transcriptB)
+  check('its transcript carries the interruption row', existsSync(transcriptB) && readFileSync(transcriptB, 'utf8').includes('Request interrupted by user'), `${transcriptB} — the runner did not write the interruption row after the interrupt`)
 
   console.log('\nH6 the stop verb — the one cut, recorded as a stop; the reconcile never calls it a crash; the resume brings it back')
   const c = await openThinking('secondesc-c')
@@ -231,10 +231,10 @@ try {
   const stopAt = Date.now()
   const stopped = (await daemonControlRpc({ op: 'sessionControl', action: 'stop', sessionId: c.sid, by: 'operator' } as never)) as { ok?: boolean; outcome?: string; detail?: string }
   const snapshot = JSON.parse(readFileSync(recordsFile, 'utf8')) as Workers
-  check('H6 the stop verb applied to the live runner (the kill is dispatched, the exit acknowledges)', stopped.ok === true && stopped.outcome === 'applied', JSON.stringify(stopped))
+  check('H6 the stop verb applied to the live runner (the kill is dispatched, the exit acknowledges)', stopped.ok === true && stopped.outcome === 'applied', `${JSON.stringify(stopped)} — the stop action should come back applied from stopConcourseSession in src/daemon/concourseWorkers/stop.ts (refused means no kill channel or an unknown session)`)
   const requested = Object.values(snapshot.workers).find(w => w.sessionId === c.sid)
-  check('H6 the stop request carries the cut stamp, by the operator (red on the base: no stamp)', requested !== undefined && requested.stopRequestedAt !== undefined && typeof requested.turnCutAt === 'number' && requested.turnCutAt >= stopAt && requested.turnCutBy === 'operator', JSON.stringify(requested))
-  check('H6 the killed runner exits', await untilAsync(() => !alive(pidC), 10_000), `pid ${pidC} alive=${alive(pidC)}`)
+  check('H6 the stop request carries the cut stamp, by the operator (red on the base: no stamp)', requested !== undefined && requested.stopRequestedAt !== undefined && typeof requested.turnCutAt === 'number' && requested.turnCutAt >= stopAt && requested.turnCutBy === 'operator', `${JSON.stringify(requested)} — stopConcourseSession in src/daemon/concourseWorkers/stop.ts must set stopRequestedAt, turnCutAt and turnCutBy on the record when it kills a live runner`)
+  check('H6 the killed runner exits', await untilAsync(() => !alive(pidC), 10_000), `pid ${pidC} alive=${alive(pidC)} — the stop verb did not kill the runner; see the kill call in src/daemon/concourseWorkers/stop.ts`)
   const windowDir = join(SCRATCH, 'reconcile-window')
   const bareDir = join(SCRATCH, 'reconcile-bare')
   for (const d of [windowDir, bareDir]) mkdirSync(d, { recursive: true })
@@ -251,26 +251,26 @@ try {
   writeFileSync(join(bareDir, 'concourse-workers.json'), JSON.stringify(bareShape))
   const windowReceipt = sup.reconcileConcourseWorkers(new Set<string>(), windowDir)
   const windowAfter = (JSON.parse(readFileSync(join(windowDir, 'concourse-workers.json'), 'utf8')) as Workers).workers[runnerC]
-  check('H6 the reconcile over the stop-requested record with its pid dead reads it stopped, never crashed (red on the base: CRASHED)', !windowReceipt.settled.includes(runnerC) && windowReceipt.live.includes(runnerC) && windowAfter?.crash === undefined && windowAfter?.stoppedAt !== undefined && windowAfter.stoppedBy === 'operator', JSON.stringify({ receipt: windowReceipt, after: windowAfter }))
+  check('H6 the reconcile over the stop-requested record with its pid dead reads it stopped, never crashed (red on the base: CRASHED)', !windowReceipt.settled.includes(runnerC) && windowReceipt.live.includes(runnerC) && windowAfter?.crash === undefined && windowAfter?.stoppedAt !== undefined && windowAfter.stoppedBy === 'operator', `${JSON.stringify({ receipt: windowReceipt, after: windowAfter })} — reconcileConcourseWorkers in src/daemon/concourseWorkers/settle.ts must stamp a dead stop-requested record stopped (and list it live), never settle it as a crash`)
   const bareReceipt = sup.reconcileConcourseWorkers(new Set<string>(), bareDir)
-  check('H6 the same record with no stop request and no cut stamp is what the reconcile calls a crash — the stamps are what keep the stop honest', bareReceipt.settled.includes(runnerC), JSON.stringify(bareReceipt))
+  check('H6 the same record with no stop request and no cut stamp is what the reconcile calls a crash — the stamps are what keep the stop honest', bareReceipt.settled.includes(runnerC), `${JSON.stringify(bareReceipt)} — reconcileConcourseWorkers in src/daemon/concourseWorkers/settle.ts must settle a dead record that has no stop request and no turnCutAt as a crash`)
   check('H6 the real record acknowledges the stop at the exit: stoppedAt lands, the cut stamp stands, no crash', await untilAsync(() => {
     const rec = readRec(c.sid)
     return rec !== undefined && rec.stoppedAt !== undefined && rec.turnCutAt !== undefined && rec.crash === undefined && rec.stopRequestedAt === undefined
-  }, 10_000), JSON.stringify(readRec(c.sid)))
-  check("H6 a relaunch of the stopped session reads 'stop', never 'crash' (red on the base: 'relaunch')", sup.runnerRestartReasonOf(readRec(c.sid) ?? {}) === 'stop', sup.runnerRestartReasonOf(readRec(c.sid) ?? {}))
+  }, 10_000), `${JSON.stringify(readRec(c.sid))} — completeRequestedStop in src/daemon/concourseWorkers/stop.ts should stamp stoppedAt when the killed runner exits, keep turnCutAt and write no crash`)
+  check("H6 a relaunch of the stopped session reads 'stop', never 'crash' (red on the base: 'relaunch')", sup.runnerRestartReasonOf(readRec(c.sid) ?? {}) === 'stop', `${sup.runnerRestartReasonOf(readRec(c.sid) ?? {})} — runnerRestartReasonOf in src/daemon/concourseWorkers/revive.ts returns stop only while turnCutAt stands and no crash is recorded`)
   const resumed = (await daemonControlRpc({ op: 'sessionControl', action: 'resume', sessionId: c.sid, by: 'operator' } as never)) as { ok?: boolean; outcome?: string; detail?: string }
-  check('H6 the resume verb brings the stopped session back (revived)', resumed.ok === true && resumed.outcome === 'applied' && /revived/.test(resumed.detail ?? ''), JSON.stringify(resumed))
+  check('H6 the resume verb brings the stopped session back (revived)', resumed.ok === true && resumed.outcome === 'applied' && /revived/.test(resumed.detail ?? ''), `${JSON.stringify(resumed)} — the resume action should revive the stopped runner through reviveConcourseWorker in src/daemon/concourseWorkers/revive.ts`)
   const cameBack = await untilAsync(() => {
     const rec = readRec(c.sid)
     return rec?.pid !== undefined && rec.pid !== pidC && alive(rec.pid)
   }, 15_000)
   const backRec = readRec(c.sid)
-  check('H6 the record names a new live runner pid', cameBack, JSON.stringify({ before: pidC, after: backRec?.pid }))
-  check('H6 the revived record carries no cut stamp, no stop stamp and no crash stamp (the runner is back)', backRec !== undefined && backRec.turnCutAt === undefined && backRec.stoppedAt === undefined && backRec.crash === undefined, JSON.stringify(backRec))
+  check('H6 the record names a new live runner pid', cameBack, `${JSON.stringify({ before: pidC, after: backRec?.pid })} — reviveConcourseWorker in src/daemon/concourseWorkers/revive.ts did not leave a new live pid on the record`)
+  check('H6 the revived record carries no cut stamp, no stop stamp and no crash stamp (the runner is back)', backRec !== undefined && backRec.turnCutAt === undefined && backRec.stoppedAt === undefined && backRec.crash === undefined, `${JSON.stringify(backRec)} — reviving must clear turnCutAt, stoppedAt and crash from the record, see src/daemon/concourseWorkers/revive.ts and reactivate.ts`)
   const ledger = existsSync(join(daemonDir, 'spawn-ledger.jsonl')) ? readFileSync(join(daemonDir, 'spawn-ledger.jsonl'), 'utf8') : ''
   const spawnRows = ledger.split('\n').filter(l => l.includes(`"${runnerC}@`) && !l.includes('"event":"exit"'))
-  check('H6 the ledger holds the resume as a second spawn row of the same seat', spawnRows.length >= 2, `${spawnRows.length} spawn row(s)`)
+  check('H6 the ledger holds the resume as a second spawn row of the same seat', spawnRows.length >= 2, `${spawnRows.length} spawn row(s) — the revive must append a second spawn row for the same runner to spawn-ledger.jsonl in the daemon folder`)
   copyFileSync(recordsFile, join(SCRATCH, 'records-at-end.json'))
 } finally {
   await cleanup()

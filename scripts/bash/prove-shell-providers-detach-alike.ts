@@ -23,7 +23,7 @@ console.log('[2] the live providers answer the same value on this platform')
   const { getPlatform } = await import('../../src/utils/platform.ts')
   const powershell = createPowerShellProvider('pwsh')
   const expected = getPlatform() !== 'windows'
-  check(`the PowerShell provider's detached is ${expected} here (${getPlatform()})`, powershell.detached === expected, String(powershell.detached))
+  check(`the PowerShell provider's detached is ${expected} here (${getPlatform()})`, powershell.detached === expected, `${String(powershell.detached)} — the provider's detached field is set by childGetsOwnProcessGroup in src/utils/shell/powershellProvider.ts; it must be true off Windows and false on Windows, like the other shell providers`)
 }
 
 

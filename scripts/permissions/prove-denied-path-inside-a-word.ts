@@ -33,10 +33,11 @@ setProjectRoot(run)
 
 let checks = 0
 let failures = 0
+const insideAWordHint = 'change denyRuleReach (the hide calls for a program Mercury cannot follow), hiddenDenyRuleAsk and hiddenDenyRuleRefusal in src/tools/BashTool/denyRuleReach.ts, which decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts reaches through bashToolHasPermission'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 520)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 520)}` : ''}${ok ? '' : ` — ${insideAWordHint}`}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const shown = (text: string): string => text.replaceAll(world, '<world>')

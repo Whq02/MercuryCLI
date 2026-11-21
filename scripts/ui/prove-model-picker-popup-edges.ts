@@ -59,6 +59,7 @@ const DOWN = '\x1b[B'
 const UP = '\x1b[A'
 const ESC = '\x1b'
 const BACKSPACE = '\x7f'
+const EDGES_WHERE = 'see src/components/MercuryModelPicker.tsx (the picker), src/components/ModelPickerPopupSlot.tsx (the pop-up window) and src/utils/model/modelPickerGroups.ts (columns and panel width)'
 
 const arg = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)
@@ -110,7 +111,7 @@ class Input extends EventEmitter {
 const faults: string[] = []
 const originalError = console.error
 console.error = (...args: unknown[]): void => { faults.push(args.map(String).join(' ')); originalError(...args) }
-const hardLimit = setTimeout(() => { console.error('picker-popup-edges exceeded its deadline'); process.exit(1) }, 240_000)
+const hardLimit = setTimeout(() => { console.error('picker-popup-edges exceeded its deadline; a scene never painted or a wait in a scene never finished, look at the last check printed above and at src/components/ModelPickerPopupSlot.tsx'); process.exit(1) }, 240_000)
 hardLimit.unref()
 
 const ANTHROPIC = 'Mercury — Anthropic models'
@@ -242,7 +243,7 @@ async function popupScene(columns: number, rows: number, opts: { pendingNext?: s
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(Harness)))
   const lines = (): string[] => stripAnsi(ink.lastFrameText()).replace(/\n$/, '').split('\n')
   const painted = await until(() => lines().join('\n').includes(TITLE) && windowOf(lines()) !== null)
-  check(`${columns}x${rows}: the cockpit painted with the picker in its pop-up window`, painted, lines().slice(0, 6).join(' | '))
+  check(`${columns}x${rows}: the cockpit painted with the picker in its pop-up window`, painted, `the picker never painted a closed bordered window; ${EDGES_WHERE}; top rows: ${lines().slice(0, 6).join(' | ')}`)
   await sleep(400)
   return {
     lines,
@@ -280,11 +281,11 @@ for (const [columns, rows] of SIZES) {
   if (window !== null) {
     geometry[`${columns}x${rows}`] = { width: window.width, rows: window.height }
     const composer = scene.lines().findIndex(line => line.includes('Type a prompt'))
-    check(`${columns}x${rows}: the composer stays on screen under the window`, composer > window.bottom, `composer row ${composer} · window bottom ${window.bottom}`)
-    check(`${columns}x${rows}: the window is no wider than the panel cap and at least the panel floor`, window.width <= pure.MODEL_PICKER_PANEL.cap && window.width >= pure.MODEL_PICKER_PANEL.min, `${window.width}`)
+    check(`${columns}x${rows}: the composer stays on screen under the window`, composer > window.bottom, `the pop-up window must end above the composer, ${EDGES_WHERE}; composer row ${composer} · window bottom ${window.bottom}`)
+    check(`${columns}x${rows}: the window is no wider than the panel cap and at least the panel floor`, window.width <= pure.MODEL_PICKER_PANEL.cap && window.width >= pure.MODEL_PICKER_PANEL.min, `the panel width comes from MODEL_PICKER_PANEL in src/utils/model/modelPickerGroups.ts and the host in src/components/ModelPickerPopupSlot.tsx; width ${window.width}`)
     const budget = Math.min(Math.max(10, rows - 7), composer - 2 - window.top)
     const overflows = window.rows.some(row => /[↑↓] \d+ more/.test(row))
-    check(`${columns}x${rows}: the window's height is within the pop-up's row budget (${budget}) and fills it when the rows overflow`, window.height <= budget && (!overflows || window.height === budget), `${window.height} · overflows ${overflows}`)
+    check(`${columns}x${rows}: the window's height is within the pop-up's row budget (${budget}) and fills it when the rows overflow`, window.height <= budget && (!overflows || window.height === budget), `the pop-up row budget is set in src/components/ModelPickerPopupSlot.tsx; height ${window.height} · overflows ${overflows}`)
   }
   await scene.close()
 }
@@ -304,12 +305,12 @@ for (const [columns, rows] of SIZES) {
     const modelRows = scene.window()!.rows.filter(row => /\d+(?:\.\d+)?[kM] ctx/.test(row)).length
     const cursorOnly = unfocused === '' && landedFocused && modelRows <= 2
     console.log(`  ${columns}x${rows}: panel ${window.width} · ${compactAt(window) ? 'compact' : 'full'} tier · tail cell ${budget} · the line's room for it ${room} · expected "${expected}"`)
-    if (cursorOnly) check(`${columns}x${rows}: a two-line window between both markers — the no-alias row stands only as the cursor row (the door line after it is no stop), so its tail is read focused alone`, scene.window()!.rows.filter(row => /[↑↓] \d+ more/.test(row)).length === 2, `${modelRows} model rows in the window: ${scene.window()!.rows.map(bare).join(' | ')}`)
-    else check(`${columns}x${rows}: the unfocused no-alias row's tail reads "${expected}"${room < budget ? ` (the cell's clip is ${budget} wide, the line's room ${room}: the caret prefix's column)` : ' (the cell budget, the row\'s own ellipsis)'}`, budget === 0 ? !bare(unfocused).includes('new') : tailCell(unfocused) === expected, bare(unfocused))
+    if (cursorOnly) check(`${columns}x${rows}: a two-line window between both markers — the no-alias row stands only as the cursor row (the door line after it is no stop), so its tail is read focused alone`, scene.window()!.rows.filter(row => /[↑↓] \d+ more/.test(row)).length === 2, `${EDGES_WHERE}; ${modelRows} model rows in the window: ${scene.window()!.rows.map(bare).join(' | ')}`)
+    else check(`${columns}x${rows}: the unfocused no-alias row's tail reads "${expected}"${room < budget ? ` (the cell's clip is ${budget} wide, the line's room ${room}: the caret prefix's column)` : ' (the cell budget, the row\'s own ellipsis)'}`, budget === 0 ? !bare(unfocused).includes('new') : tailCell(unfocused) === expected, `the tail cell is sized by pickerColumns in src/utils/model/modelPickerGroups.ts; row painted: ${bare(unfocused)}`)
     if (landedFocused) { scene.push(UP); await sleep(120) }
     for (let step = 0; step < 6 && !cursorRow(scene.window()!).includes(PREVIEW_NEEDLE); step++) { scene.push(DOWN); await sleep(120) }
     const focused = cursorRow(scene.window()!)
-    check(`${columns}x${rows}: the focused no-alias row reads ${cursorOnly ? `"${expected}"` : 'the same tail'}`, budget === 0 ? !focused.includes('new') : lastCellOf(focused) === expected && (cursorOnly || lastCellOf(focused) === tailCell(unfocused)), `focused "${focused}" · unfocused "${bare(unfocused)}"`)
+    check(`${columns}x${rows}: the focused no-alias row reads ${cursorOnly ? `"${expected}"` : 'the same tail'}`, budget === 0 ? !focused.includes('new') : lastCellOf(focused) === expected && (cursorOnly || lastCellOf(focused) === tailCell(unfocused)), `the focused and unfocused row must paint the same tail, see pickerColumns in src/utils/model/modelPickerGroups.ts; focused "${focused}" · unfocused "${bare(unfocused)}"`)
   }
   await scene.close()
 }
@@ -321,9 +322,9 @@ for (const [columns, rows] of SIZES) {
   for (let step = 0; step < 12 && !cursorRow(scene.window()!).startsWith('❯ OPENAI'); step++) { scene.push(DOWN); await sleep(120) }
   save('popup-q2-heading-email', columns, rows, scene.lines())
   const heading = cursorRow(scene.window()!)
-  check(`${columns}x${rows}: the OPENAI heading ends with its count, "· 1 live"`, /· 1 live$/.test(heading), heading)
-  check(`${columns}x${rows}: the email is whole or clipped inside its own cell`, heading.includes(` · ${EMAIL40} · `) || /· a-forty[^ ]*… · 1 live$/.test(heading), heading)
-  check(`${columns}x${rows}: the login door line ends with "· active"`, /· 3 live · active$/.test(bare(door)), bare(door))
+  check(`${columns}x${rows}: the OPENAI heading ends with its count, "· 1 live"`, /· 1 live$/.test(heading), `the heading must end with its count, ${EDGES_WHERE}; heading: ${heading}`)
+  check(`${columns}x${rows}: the email is whole or clipped inside its own cell`, heading.includes(` · ${EMAIL40} · `) || /· a-forty[^ ]*… · 1 live$/.test(heading), `the email must clip inside its own cell, ${EDGES_WHERE}; heading: ${heading}`)
+  check(`${columns}x${rows}: the login door line ends with "· active"`, /· 3 live · active$/.test(bare(door)), `the door line must keep its active word, ${EDGES_WHERE}; line: ${bare(door)}`)
   await scene.close()
 }
 
@@ -337,12 +338,12 @@ for (const [columns, rows] of SIZES) {
   await scene.type(text)
   save('popup-q3-filter-tail', columns, rows, scene.lines())
   const line = bare(rowWith(scene.window()!, '/ '))
-  check(`${columns}x${rows}: the filter line ends with the last characters typed ("the-end")`, line.endsWith('the-end'), line)
-  check(`${columns}x${rows}: the cut is marked at the start, "/ …"`, line.startsWith('/ …'), line)
+  check(`${columns}x${rows}: the filter line ends with the last characters typed ("the-end")`, line.endsWith('the-end'), `the filter line must show the tail of a long filter, ${EDGES_WHERE}; line: ${line}`)
+  check(`${columns}x${rows}: the cut is marked at the start, "/ …"`, line.startsWith('/ …'), `the cut filter line must start with / and an ellipsis, ${EDGES_WHERE}; line: ${line}`)
   scene.push(BACKSPACE)
   await sleep(200)
   const shorter = bare(rowWith(scene.window()!, '/ '))
-  check(`${columns}x${rows}: ⌫ takes the last character and the tail follows ("the-en")`, shorter.endsWith('the-en'), shorter)
+  check(`${columns}x${rows}: ⌫ takes the last character and the tail follows ("the-en")`, shorter.endsWith('the-en'), `backspace must drop the last typed character and the tail must follow, ${EDGES_WHERE}; line: ${shorter}`)
   scene.push(ESC)
   await sleep(200)
   await scene.close()
@@ -354,10 +355,10 @@ section('§5 the floor inside the pop-up: the pop-up never hands fewer than ten 
   const window = scene.window()
   save('popup-q4-floor', 80, 17, scene.lines())
   console.log(`  80x17 window: ${describe(window)}`)
-  check('80x17: the host bounds the aspirational ten-row floor to nine with a gutter', window !== null && window.height === 9, describe(window))
+  check('80x17: the host bounds the aspirational ten-row floor to nine with a gutter', window !== null && window.height === 9, `the pop-up host must bound the floor to nine rows, see modelPickerPopupGeometry in src/components/ModelPickerPopupSlot.tsx; ${describe(window)}`)
   if (window !== null) {
     const rows = window.rows.map(inner)
-    check('80x17: the smaller host preserves the title, filter, close hint, cursor and a named cut; optional effort yields', rows.some(r => r.includes(TITLE)) && rows.some(r => r.includes('/ type to search by name or id')) && rows.some(r => /esc (?:or click outside )?closes/.test(r)) && rows.some(r => /[↑↓] \d+ more/.test(r)) && rows.some(r => r.includes('❯ ')), rows.join(' | '))
+    check('80x17: the smaller host preserves the title, filter, close hint, cursor and a named cut; optional effort yields', rows.some(r => r.includes(TITLE)) && rows.some(r => r.includes('/ type to search by name or id')) && rows.some(r => /esc (?:or click outside )?closes/.test(r)) && rows.some(r => /[↑↓] \d+ more/.test(r)) && rows.some(r => r.includes('❯ ')), `the compact picker must keep those rows inside nine rows, ${EDGES_WHERE}; rows: ${rows.join(' | ')}`)
   }
   await scene.close()
 }
@@ -365,7 +366,7 @@ for (const [columns, rows] of SIZES) {
   const scene = await popupScene(columns, rows)
   save('popup-q4-floor', columns, rows, scene.lines())
   const window = scene.window()
-  check(`${columns}x${rows}: the box stays within the pop-up's budget (${Math.max(10, rows - 7)} rows) and sheds nothing — the effort row stands`, window !== null && window.height <= Math.max(10, rows - 7) && window.rows.some(r => r.includes('e changes it')), describe(window))
+  check(`${columns}x${rows}: the box stays within the pop-up's budget (${Math.max(10, rows - 7)} rows) and sheds nothing — the effort row stands`, window !== null && window.height <= Math.max(10, rows - 7) && window.rows.some(r => r.includes('e changes it')), `the box must fit the pop-up budget and keep the effort row, see modelPickerPopupGeometry in src/components/ModelPickerPopupSlot.tsx; ${describe(window)}`)
   await scene.close()
 }
 
@@ -375,16 +376,16 @@ for (const [columns, rows] of SIZES) {
   save('popup-q5-pending-glyph', columns, rows, scene.lines())
   const window = scene.window()!
   const spoken = window.rows.map(inner).filter(r => /current Fable 5\.1|next Opus 5\.5|applies when the turn settles/.test(r)).map(r => r.trim()).join(' ')
-  check(`${columns}x${rows}: the line reads "current Fable 5.1 · ${GLYPH.pending} next Opus 5.5 · applies when the turn settles" (whole or wrapped)`, spoken.replace(/\s+/g, ' ') === `current Fable 5.1 · ${GLYPH.pending} next Opus 5.5 · applies when the turn settles`, spoken)
+  check(`${columns}x${rows}: the line reads "current Fable 5.1 · ${GLYPH.pending} next Opus 5.5 · applies when the turn settles" (whole or wrapped)`, spoken.replace(/\s+/g, ' ') === `current Fable 5.1 · ${GLYPH.pending} next Opus 5.5 · applies when the turn settles`, `the pending line must read as expected, ${EDGES_WHERE}; line: ${spoken}`)
   for (let step = 0; step < 12 && rowWith(scene.window()!, 'claude-opus-5-5') === ''; step++) { scene.push(DOWN); await sleep(120) }
   const queued = rowWith(scene.window()!, 'claude-opus-5-5')
-  check(`${columns}x${rows}: the queued row carries "next" in its calm state column (walked into the window where the rows overflow it)`, /\s{2}next\s{2}/.test(queued), bare(queued))
+  check(`${columns}x${rows}: the queued row carries "next" in its calm state column (walked into the window where the rows overflow it)`, /\s{2}next\s{2}/.test(queued), `the queued row must show next in its state column, ${EDGES_WHERE}; row: ${bare(queued)}`)
   await scene.close()
 }
 
 console.error = originalError
 clearTimeout(hardLimit)
-check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), faults.join('\n').slice(0, 600))
+check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), 'a render or hook-order error was logged to console.error while a scene ran, look at ' + EDGES_WHERE + '; ' + faults.join('\n').slice(0, 300))
 console.log(`\n  measured windows: ${JSON.stringify(geometry)} · the pop-up law at 80x21 over a full-width host: ${JSON.stringify(modelPickerPopupGeometry({ left: 0, top: 0, columns: 80, rows: 21 }, 21))}`)
 rmSync(HOME, { recursive: true, force: true })
 console.log(`\nprove-model-picker-popup-edges: ${checks} checks, ${failures === 0 ? 'green' : `${failures} failed`}`)

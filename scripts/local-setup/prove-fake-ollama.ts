@@ -40,10 +40,11 @@ const SERVER = join(FIXTURES, 'fake-ollama.ts')
 const BUN = process.execPath
 const KEEP = process.env.FAKE_OLLAMA_PROOF_KEEP === '1'
 
+const FAKE_OLLAMA_FAIL_HINT = ' — to fix, change the route, reply or script in scripts/local-setup/fixtures/fake-ollama.ts (or fixtures/install-ollama.sh and fixtures/homebrew/brew for the scratch-prefix checks); the in-process checks read src/services/providers/local/localDiscovery.ts, src/services/localServer/localServerTruth.ts, src/services/localServer/localServerMemory.ts and src/services/providers/local/ollamaChatTransport.ts'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${cond ? '' : FAKE_OLLAMA_FAIL_HINT}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

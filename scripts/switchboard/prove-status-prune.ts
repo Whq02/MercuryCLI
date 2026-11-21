@@ -12,7 +12,8 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spell
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}fix the census in src/utils/sessionStorage/logs.ts (transcriptCensus), the sweep in src/services/cleanup.ts (recordingsUnderSweep, retentionWindowDays, cleanupOldSessionFiles) or the offer and the delete door in src/services/switchboard/transcriptPruneDoor.ts (buildPruneOffer, operatorPruneTranscripts)`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const { enableConfigs } = await import('../../src/utils/config.js')

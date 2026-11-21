@@ -17,13 +17,14 @@ const FIXTURE_MARK = `mcp-frozen-fixture-${process.pid}`
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+let fixHintNow = ''
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}${!ok && fixHintNow ? ` — fix: ${fixHintNow}` : ''}`)
   if (!ok) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — connect-deadline prover exceeded 90s')
+  console.log('\nTIMEOUT — connect-deadline prover exceeded 90s; a connect did not settle, so check the connect deadline in src/services/mcp/client.ts (connectTimeoutMs in src/services/mcp/client/limits.ts) and the fixture it waits on')
   process.exit(1)
 }, 90_000)
 watchdog.unref?.()
@@ -78,6 +79,7 @@ console.log('============================================================')
 
 section('§1 stdio — frozen child settles failed; reason honest; the WHOLE TREE gone')
 {
+  fixHintNow = 'the connect deadline in src/services/mcp/client.ts (connectTimeoutMs from src/services/mcp/client/limits.ts, MERCURY_MCP_TIMEOUT_MS) must settle a frozen stdio server as failed with the did not answer in <seconds> reason, and end the whole child tree (endStdioTree)'
   const gcMarker = join(SCRATCH, 'grandchild.pid')
   const grandchildScript = `process.title=${JSON.stringify(`${FIXTURE_MARK}-grandchild`)}; require('fs').writeFileSync(${JSON.stringify(gcMarker)}, String(process.pid)); setInterval(() => {}, 1000)`
   const childScript =
@@ -136,6 +138,7 @@ section('§1 stdio — frozen child settles failed; reason honest; the WHOLE TRE
 
 section('§2 sse — frozen loopback settles failed with the honest reason')
 {
+  fixHintNow = 'the connect deadline in src/services/mcp/client.ts (connectTimeoutMs, src/services/mcp/client/limits.ts) must settle a frozen sse server as failed with the did not answer in <seconds> reason'
   const { port, close } = await listenFrozen()
   const { outcome, wallMs } = await connectOnce('frozen-sse', { type: 'sse', url: `http://127.0.0.1:${port}/sse` })
   t('§2 the frozen listener closes once its accepted sockets are destroyed (the close returns)', await close())
@@ -147,6 +150,7 @@ section('§2 sse — frozen loopback settles failed with the honest reason')
 
 section('§3 http — frozen loopback settles failed with the honest reason')
 {
+  fixHintNow = 'the connect deadline in src/services/mcp/client.ts (connectTimeoutMs, src/services/mcp/client/limits.ts) must settle a frozen http server as failed with the did not answer in <seconds> reason'
   const { port, close } = await listenFrozen()
   const { outcome, wallMs } = await connectOnce('frozen-http', { type: 'http', url: `http://127.0.0.1:${port}/mcp` })
   t('§3 the frozen listener closes once its accepted sockets are destroyed (the close returns)', await close())
@@ -159,6 +163,7 @@ section('§3 http — frozen loopback settles failed with the honest reason')
 
 section('§6 the advertised deadline is the whole truth — one burn per retry')
 {
+  fixHintNow = 'reconnectMcpServerImpl in src/services/mcp/client.ts must spend one connect deadline per retry, spawn one child, and end that child when the connect times out'
   const spawnLog = join(SCRATCH, 'retry-spawn-log.txt')
   const { outcome, wallMs } = await connectOnce('frozen-retry', {
     type: 'stdio',

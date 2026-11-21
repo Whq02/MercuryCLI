@@ -12,7 +12,8 @@ delete process.env.NODE_ENV
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const freshnessHint = ' | fix: getSkillDirCommands memoises the skill listing per directory and clearSkillCaches must drop that memo, both in src/skills/loadSkillsDir.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : freshnessHint}`)
 }
 
 

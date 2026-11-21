@@ -12,7 +12,8 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  const noticeHint = 'change remoteFilesNotice in src/utils/remoteFiles/notice.ts (which prompts get the ssh:// notice, its words, and saying it once per conversation)'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail.slice(0, 500)} | ` : ''}${noticeHint}` : ''}`)
 }
 const WORDS =
   "`ssh://host/path` is a file on another machine: Read, Edit, Write, Grep and Glob take it as a path. `host` is what `ssh host` accepts; `ssh://host/~/x` is under that account's home; Read of `ssh://` alone lists the hosts of the ssh configuration."

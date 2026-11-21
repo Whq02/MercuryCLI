@@ -41,10 +41,12 @@ const savedArgv1 = process.argv[1]
 
 let checks = 0
 let failures = 0
+const longpathHint =
+  'Strip the \\\\?\\ prefix before it reaches the output: in src/services/privateChannel/installProvenance.ts (gatherInstallProbeFacts, provenanceLine) and src/services/privateChannel/installPath.ts (commandOnPath, ownCommandWord); the health rows are built in src/services/health/sections/identity.ts and src/services/health/sections/crew/daemon.ts.'
 const check = (label: string, pass: boolean, detail = ''): void => {
   checks++
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass ? `${detail ? ` — ${detail}` : ''} — ${longpathHint}` : ''}`)
 }
 
 process.chdir(callerDir)

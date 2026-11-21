@@ -5,7 +5,7 @@ const source = await import(join(root, 'utils/settings/constants.ts'))
 let failures = 0
 function check(name: string, actual: unknown, wanted: unknown) {
   const ok = JSON.stringify(actual) === JSON.stringify(wanted)
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — got ${JSON.stringify(actual)}, wanted ${JSON.stringify(wanted)}; change the matching list or label function in src/utils/settings/constants.ts`}`)
   if (!ok) failures++
 }
 const keys = ['userSettings', 'projectSettings', 'localSettings', 'flagSettings', 'policySettings']

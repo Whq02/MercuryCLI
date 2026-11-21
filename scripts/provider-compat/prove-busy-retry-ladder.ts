@@ -66,7 +66,9 @@ let failures = 0
 function check(label: string, condition: boolean, detail = ''): void {
   checks++
   if (!condition) failures++
-  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail ? ` — ${detail}` : ''}`)
+  const where = 'to fix, see the ladder in src/services/providers/busyRetry.ts (openBusyRetryLadder, nextBusyRetry, isBusyRefusal, takesBusyLadder), the road call model under src/services/providers/, and the home road retry in src/services/api/withRetry.ts'
+  const failText = detail ? `${detail} — ${where}` : where
+  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${!condition ? ` — ${failText}` : ''}`)
 }
 
 const realRandom = Math.random

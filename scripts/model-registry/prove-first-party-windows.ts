@@ -33,7 +33,7 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}${ok ? '' : ` — to fix, read resolveContextWindow and getContextWindowForModel in src/utils/model/capabilities.ts (the window per model id), getAutoCompactThreshold in src/services/compact/autoCompact.ts (the fold point), focusedOptionSupports1m in src/services/model/modelOptions.ts (which rows offer the 1M switch) and the picker in src/commands/model/mercuryModel.tsx`}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

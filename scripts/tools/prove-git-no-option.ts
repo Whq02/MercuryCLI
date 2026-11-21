@@ -170,30 +170,30 @@ console.log('the Git tool\'s input: a field that would reach git and begins with
       if (got.stage !== 'validation' || got.message !== `${field} may not begin with a dash`) wrong.push(`${op} ${field} ${option.slice(0, 12)}: ${got.stage} ${got.message.slice(0, 50)}`)
     }
   }
-  check(`${FIELDS.length} fields, seven options each (${asked} calls): each is refused before any question, in one sentence that names the field`, wrong.length === 0, wrong.slice(0, 6).join(' | '))
-  check('and no file was written by any of them', written().length === 0, written().join(' '))
+  check(`${FIELDS.length} fields, seven options each (${asked} calls): each is refused before any question, in one sentence that names the field`, wrong.length === 0, `change validateInput in src/tools/GitTool/GitTool.ts so each listed field is refused with the message of its field name followed by may not begin with a dash · ${wrong.slice(0, 6).join(' | ')}`)
+  check('and no file was written by any of them', written().length === 0, `change validateInput in src/tools/GitTool/GitTool.ts so a dashed field is refused before git runs · written: ${written().join(' ')}`)
 }
 
 console.log('under the tool: a revision that reads as an option never reaches git as one')
 {
   const before = written().length
   const wrong = await optionRevisions()
-  check('the same eleven revisions and paths handed to the tool\'s call with no validation: no file appears, and each is answered as a revision that is not there', wrong.length === 0 && written().length === before, wrong.join(' | '))
+  check('the same eleven revisions and paths handed to the tool\'s call with no validation: no file appears, and each is answered as a revision that is not there', wrong.length === 0 && written().length === before, `a revision or path that begins with a dash must reach git as a revision, never as an option, so change the spawn arguments the Git tool builds · ${wrong.join(' | ')}`)
 }
 
 console.log('by reference: a git reference whose revision reads as an option writes nothing, through Inspect and through Read')
 {
   const before = written().length
   const wrong = await optionReferences()
-  check('five forms through two doors: no file appears', wrong.length === 0 && written().length === before, wrong.join(' | '))
+  check('five forms through two doors: no file appears', wrong.length === 0 && written().length === before, `a git reference whose revision begins with a dash must not reach git as an option, through Inspect and through Read · ${wrong.join(' | ')}`)
 }
 
 console.log('nothing an honest revision does moves')
 {
   const wrong = await honestCalls()
-  check(`${HONEST.length} honest calls: each runs and answers as it did`, wrong.length === 0, wrong.join(' | '))
+  check(`${HONEST.length} honest calls: each runs and answers as it did`, wrong.length === 0, `an honest revision must still run and answer as before, so loosen whatever now refuses or mangles it · ${wrong.join(' | ')}`)
   const refs = await honestReferences()
-  check('and four honest git references resolve', refs.length === 0, refs.join(' | '))
+  check('and four honest git references resolve', refs.length === 0, `an honest git reference must still resolve through Inspect, so loosen whatever now refuses or mangles it · ${refs.join(' | ')}`)
 }
 
 console.log('whichever git is installed: the marker that ends the options goes only where that git reads it, and the refusal does not rest on it')
@@ -254,9 +254,9 @@ exec "$real" "$@"
     observe.forgetGitVersion?.()
     const before = written().length
     const moved = [...(await honestCalls()), ...(await honestReferences())]
-    check(`git ${version}: the ${HONEST.length} honest calls and the four honest references answer as they do on the installed git`, moved.length === 0, moved.slice(0, 5).join(' | '))
+    check(`git ${version}: the ${HONEST.length} honest calls and the four honest references answer as they do on the installed git`, moved.length === 0, `the honest calls must answer the same under the stand-in git version, so check what endOfOptions in src/services/gitGraph/observe.ts hands a git that does not read the marker · ${moved.slice(0, 5).join(' | ')}`)
     const wrote = [...(await optionRevisions()), ...(await optionReferences())]
-    check(`git ${version}: the option revisions write no file, through the tool's call with no validation and through the two doors`, wrote.length === 0 && written().length === before, wrote.join(' | '))
+    check(`git ${version}: the option revisions write no file, through the tool's call with no validation and through the two doors`, wrote.length === 0 && written().length === before, `an option-like revision must write no file under this git version, so check endOfOptions in src/services/gitGraph/observe.ts and the dash refusal in src/tools/GitTool/GitTool.ts · ${wrote.join(' | ')}`)
     const spawns = readFileSync(join(standIn, 'log'), 'utf8').split('\n').filter(Boolean).map(line => line.split('\t') as [string, string])
     const marked = spawns.filter(([, marker]) => marker === '1').map(([command]) => command)
     const refused = spawns.filter(([, marker]) => marker === 'refused').map(([command]) => command)
@@ -265,7 +265,7 @@ exec "$real" "$@"
     const others = marked.filter(command => !WALKERS.includes(command) && command !== 'rev-parse')
     const table = spawns.length > 0 && refused.length === 0 && others.length === 0 && (reads(version, 24) ? walkers > 0 : walkers === 0) && (reads(version, 30) ? parses > 0 : parses === 0)
     const where = reads(version, 30) ? 'show, diff, log, merge-base, the walkers and rev-parse' : reads(version, 24) ? 'show, diff, log, merge-base and the walkers, and not rev-parse' : 'no spawn'
-    check(`git ${version}: the marker rides ${where}, and no spawn is handed a marker its git does not read`, table, `${spawns.length} spawns through the stand-in · marked: ${walkers} walkers, ${parses} rev-parse, others ${others.join(' ') || 'none'} · refused: ${[...new Set(refused)].join(' ') || 'none'}`)
+    check(`git ${version}: the marker rides ${where}, and no spawn is handed a marker its git does not read`, table, `change endOfOptions in src/services/gitGraph/observe.ts so the marker goes only to the git versions that read it (2.24 and later for walkers, 2.30 and later for rev-parse) · ${spawns.length} spawns through the stand-in · marked: ${walkers} walkers, ${parses} rev-parse, others ${others.join(' ') || 'none'} · refused: ${[...new Set(refused)].join(' ') || 'none'}`)
   }
   process.env.PATH = path
   observe.forgetGitVersion?.()

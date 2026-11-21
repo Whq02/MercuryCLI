@@ -16,12 +16,13 @@ delete process.env.MERCURY_SESSION_KIT
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  const kitFixHint = ' | fix: the classifier and overlay halves are isKitGovernedSkillCommand, kitDropsCommand and withKitSkillMark in src/skills/kitGovernance.ts; the three seams are getCommands and getSkillToolCommands in src/commands.ts and skillsRosterOf in src/services/engine-connector/rosterTerms.ts; the pin is consumeSessionKitPin in src/services/mcp/sessionKitPin.ts'
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? `${detail ? ` — ${detail}` : ''}${kitFixHint}` : ''}`)
   if (!ok) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — tri-state prover exceeded 120s')
+  console.log('\nTIMEOUT — tri-state prover exceeded 120s; a load or import hung, look at getCommands in src/commands.ts and getSkillDirCommands in src/skills/loadSkillsDir.ts')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()

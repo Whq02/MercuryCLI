@@ -14,12 +14,27 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 
 let failures = 0
 let checks = 0
+const zeroCardsWhereBySection: Record<string, string> = {
+  '§0': 'fix postureBypassesAsks in src/utils/permissions/decision/engine.ts',
+  '§1': 'under sovereign the decideToolPermission stages in src/utils/permissions/decision/engine.ts must allow every ask (the wrapper is src/utils/permissions/decision/wrapper.ts)',
+  '§2': 'under sovereign the share-path ask must be allowed by the engine in src/utils/permissions/decision/engine.ts, and in default mode the tool must still ask with the SMB/WebDAV sentence',
+  '§3': 'fix resolveComputerAccess in src/substrate/startupMenu.ts, or the ask stages of decideToolPermission in src/utils/permissions/decision/engine.ts',
+  '§4': 'fix resolveHookPermissionDecision in src/services/tools/toolHooks.ts',
+  '§5': 'fix createRunnerAsks in src/cli/headless/runnerAsks.ts, or AsksPart in src/services/engine-connector/daemon/asks.ts',
+  '§6': 'fix resolveSessionPermissionMode or validateModeEntry in src/utils/permissions/permissionSetup.ts',
+  '§7': 'a command a tool starts must get the Bash decision under sovereign; fix decideToolPermission in src/utils/permissions/decision/engine.ts and the tool named in the label',
+  '§8': 'under sovereign a command the Bash layer cannot follow must be allowed or refused, never asked; fix decideToolPermission in src/utils/permissions/decision/engine.ts or src/tools/BashTool/bashPermissions.ts',
+}
+let zeroCardsWhere = ''
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — (${zeroCardsWhere})${detail ? ' ' + detail.slice(0, 700) : ''}` : ''}`)
 }
-const section = (title: string): void => console.log(`\n${title}`)
+const section = (title: string): void => {
+  zeroCardsWhere = zeroCardsWhereBySection[title.slice(0, 2)] ?? ''
+  console.log(`\n${title}`)
+}
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')

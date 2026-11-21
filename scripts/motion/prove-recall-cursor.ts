@@ -3,6 +3,8 @@
 import { grabScreens, runArtifactArena } from '../streaming/artifactArena.ts'
 
 let failures = 0
+const recallApplyHint = 'fix applyEntry (where it calls setCursorOffset) in src/hooks/useArrowKeyHistory.tsx'
+const recallWalkHint = 'fix onHistoryUp in src/hooks/useArrowKeyHistory.tsx'
 function check(name: string, ok: boolean, detail = ''): void {
   console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}`)
   if (!ok) failures++
@@ -24,8 +26,8 @@ console.log('── recall-cursor law (shipped artifact) ──')
   })
   const [snap] = grabScreens(run, 120, 40, [-1])
   const rows = snap!.rows
-  check('recall-then-type APPENDS (alpha oneZZ)', rows.some(r => r.includes('alpha oneZZ')), rows.filter(r => r.includes('❯') && (r.includes('alpha') || r.includes('ZZ'))).join(' ↵ ').slice(0, 160))
-  check('no prepend artifact (ZZalpha one absent)', !rows.some(r => r.includes('ZZalpha one')))
+  check('recall-then-type APPENDS (alpha oneZZ)', rows.some(r => r.includes('alpha oneZZ')), `${rows.filter(r => r.includes('❯') && (r.includes('alpha') || r.includes('ZZ'))).join(' ↵ ').slice(0, 160)} — ${recallApplyHint}`)
+  check('no prepend artifact (ZZalpha one absent)', !rows.some(r => r.includes('ZZalpha one')), `the cursor sat at offset 0 after a one-row recall; ${recallApplyHint}`)
   run.cleanup()
 }
 
@@ -51,7 +53,7 @@ console.log('── recall-cursor law (shipped artifact) ──')
   check(
     'the second Up WALKS to the older entry (composer shows it)',
     rows.some(r => r.startsWith('│❯ first entry')),
-    rows.filter(r => r.startsWith('│❯')).join(' ↵ ').slice(0, 120),
+    `${rows.filter(r => r.startsWith('│❯')).join(' ↵ ').slice(0, 120)} — ${recallWalkHint}`,
   )
   run.cleanup()
 }
@@ -71,8 +73,8 @@ console.log('── recall-cursor law (shipped artifact) ──')
   })
   const [snap] = grabScreens(run, 120, 40, [-1])
   const rows = snap!.rows
-  check('a wrapped recall keeps cursor at start (QQwww…)', rows.some(r => r.includes('QQwww')))
-  check('no append artifact on the wrapped recall (…wwwQQ absent)', !rows.some(r => r.includes('wwwQQ')))
+  check('a wrapped recall keeps cursor at start (QQwww…)', rows.some(r => r.includes('QQwww')), `a recalled entry wider than one row must put the cursor at offset 0; ${recallApplyHint}`)
+  check('no append artifact on the wrapped recall (…wwwQQ absent)', !rows.some(r => r.includes('wwwQQ')), `the cursor went to the end of a wrapped recall; ${recallApplyHint}`)
   run.cleanup()
 }
 

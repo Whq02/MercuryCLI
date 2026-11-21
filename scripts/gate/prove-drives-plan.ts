@@ -10,9 +10,10 @@ const WORKFLOW = join(ROOT, '.github', 'workflows', 'drives.yml')
 const SCRIPTS = join(ROOT, 'scripts')
 
 let failures = 0
+const PLAN_LOOK = 'where to look: the planner scripts/gate/ci-shard.sh (ceiling and bucket rules, class filters), the # gate-class line in scripts/<suite>/run-all.sh, .github/workflows/drives.yml (shard count, matrix, timeout-minutes), scripts/run-all-suites.sh (local plans), scripts/gate/ci-darwin-suites.txt, scripts/journey/ and the scripts/journey-N/members.txt lists'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${PLAN_LOOK}` : ''}`)
 }
 
 function classOf(runnerText: string): string {

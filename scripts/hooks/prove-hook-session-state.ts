@@ -14,9 +14,10 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_HOME
 
 let failures = 0
+const sessionStateHint = 'Fix the session.state firing in observeSessionStates and noteSessionAsking (src/daemon/sessionStateHooks.ts), or the state lists and payload of session.state in src/utils/hooks/contract.ts.'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? ` — ${detail}` : ''} — ${sessionStateHint}` : ''}`)
 }
 
 const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')

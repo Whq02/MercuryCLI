@@ -8,7 +8,7 @@ const check = (name: string, ok: boolean, detail = ''): void => {
   if (ok) console.log(`  ok  ${name}`)
   else {
     failures++
-    console.error(`  RED ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error(`  RED ${name}${detail ? ` — ${detail}` : ''} — fix isBrokenPipeError, BROKEN_STDOUT_LINE or StructuredIO.write in src/cli/structuredIO.ts`)
   }
 }
 

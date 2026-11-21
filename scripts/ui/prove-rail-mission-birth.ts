@@ -21,7 +21,8 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const missionBirthWhere = 'to fix: if the capture or a send failed, read engine.log in the artifacts folder and rebuild dist (bun run build.ts); if the Mission set result is missing, look at /mission in src/commands/mission/mission-jsx.tsx; if the card row is missing or late, look at missionSection in src/services/cockpit/helmLanesModel.ts and the mission card read in src/components/HelmLanesRail.tsx'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${missionBirthWhere}` : ''}`)
 }
 
 type Grid = Array<Array<{ c: string }>>

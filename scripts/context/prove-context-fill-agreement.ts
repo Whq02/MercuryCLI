@@ -11,11 +11,22 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-ctx-fill-'))
 process.env.MERCURY_OPENROUTER_API_BASE = 'http://127.0.0.1:9/api/v1'
 
 let failures = 0
+const FILL_HINTS: Record<string, string> = {
+  N1: 'change mapCompatUsageToAnthropic (src/services/providers/openaicompat/compatChatCallModel.ts), mapOpenaiUsageToAnthropic (src/services/providers/openai/openaiCallModel.ts) or getTokenCountFromUsage (src/services/context/tokens.ts)',
+  N2: 'change tokenCountWithEstimation or contextFill in src/services/context/tokens.ts',
+  N3: 'change tokenCountWithEstimation in src/services/context/tokens.ts',
+  N4: 'change getTokenUsage, getCurrentUsage or tokenCountFromLastAPIResponse in src/services/context/tokens.ts',
+  N5: 'change contextFillView in src/services/context/contextFill.ts (and contextGauge in src/services/cockpit/contextGauge.ts, contextFillPercent in src/utils/context.ts for the gauge and percent checks)',
+  N6: 'change publishContextUsage in src/services/cockpit/contextUsageLive.ts',
+}
+let fillHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failText = [detail, fillHint].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && failText ? ` — ${failText}` : ''}`)
 }
 function section(t: string): void {
+  fillHint = FILL_HINTS[t.slice(0, 2)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

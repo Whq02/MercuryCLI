@@ -25,15 +25,19 @@ type Outcome =
   | { kind: 'none' }
 
 let failures = 0
+const forgivingFixHint = (label: string): string =>
+  /^[CDEF]/.test(label)
+    ? 'to fix: the edit path of src/tools/FileEditTool/FileEditTool.ts (validateInput, call, mapToolResultToToolResultBlockParam) and the matcher it uses in src/utils/fileEditUtils.ts (locateActualString)'
+    : 'to fix: locateActualString, findActualString, preserveQuoteStyleForFile or FORGIVENESS_CONTENT_DRIFT_LIMIT in src/utils/fileEditUtils.ts (the result mapper is in src/tools/FileEditTool/FileEditTool.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` | ${forgivingFixHint(label)}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — forgiving match proof exceeded 90s')
+  console.log('\nTIMEOUT — forgiving match proof exceeded 90s; a FileEditTool call or a locateActualString pass (src/tools/FileEditTool/FileEditTool.ts, src/utils/fileEditUtils.ts) is hanging or far too slow')
   process.exit(1)
 }, 90_000)
 guard.unref?.()

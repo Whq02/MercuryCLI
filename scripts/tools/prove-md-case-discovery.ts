@@ -30,8 +30,8 @@ section('§1 BOTH SPELLINGS DISCOVERED')
   const { loadMarkdownFilesForSubdir } = await import('../../src/utils/markdownConfigLoader.js')
   const files = await loadMarkdownFilesForSubdir('agents', PROJ)
   const names = files.map(f => f.filePath.split('/').pop())
-  check('lower.md is discovered', names.includes('lower.md'), names.join(', '))
-  check('Upper.MD is discovered too', names.includes('Upper.MD'), names.join(', '))
+  check('lower.md is discovered', names.includes('lower.md'), names.join(', ') + (names.includes('lower.md') ? '' : ' | fix: loadMarkdownFilesForSubdir in src/utils/markdownConfigLoader.ts must discover .md files'))
+  check('Upper.MD is discovered too', names.includes('Upper.MD'), names.join(', ') + (names.includes('Upper.MD') ? '' : ' | fix: loadMarkdownFilesForSubdir in src/utils/markdownConfigLoader.ts must match the .md extension case-insensitively (its directory walk lowercases the name before endsWith)'))
 }
 
 

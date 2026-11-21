@@ -58,9 +58,10 @@ const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('.
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
 
 let failures = 0
+const SIGNIN_VIEW_FAIL_HINT = 'change the daemon-sign-ins row in src/services/health/sections/crew/daemon.ts, or compareSignInViews in src/daemon/signInView.ts; rebuild dist first (bun run build.ts) since sections 1 to 3 run dist/mercury.mjs'
 const check = (name: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  ${cond ? '✅' : '❌'} ${name}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  ${cond ? '✅' : '❌'} ${name}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${SIGNIN_VIEW_FAIL_HINT}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const wait = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
@@ -73,7 +74,7 @@ async function untilAsync(cond: () => Promise<boolean> | boolean, ms = 60_000): 
   }
 }
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — daemon-signin-view exceeded 240s')
+  console.log('\n❌ TIMEOUT — daemon-signin-view exceeded 240s; the daemon or a health run did not finish, read the daemon log tail printed on failure and the daemon verbs in src/daemon/controlSocket.ts')
   process.exit(1)
 }, 240_000)
 guard.unref?.()

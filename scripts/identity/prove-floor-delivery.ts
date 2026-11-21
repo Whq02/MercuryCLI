@@ -10,11 +10,20 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'floor-delivery-'))
 
 
 let failures = 0
+const sectionHints: Record<string, string> = {
+  '§1': 'restore the owner text of MERCURY_CONSTITUTION in src/prompt/mercuryContract.ts (the digest anchors that text)',
+  '§2': 'change buildEffectiveSystemPrompt in src/utils/systemPrompt.ts',
+  '§3': 'change getMercuryContractSections in src/prompt/mercuryContract.ts',
+  '§4': 'change composeSystemPrompt in src/prompt/composer.ts or buildBehaviourContract and the renderers in src/prompt/behaviourContract.ts',
+  '§5': 'change buildSubagentMercurySections in src/constants/subagentDoctrine.ts',
+}
+let currentSectionHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && currentSectionHint ? ` — ${currentSectionHint}` : ''}`)
 }
 function section(t: string): void {
+  currentSectionHint = sectionHints[t.slice(0, 2)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

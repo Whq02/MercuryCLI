@@ -32,11 +32,31 @@ import type { Key } from '../../src/ink/events/input-event.js'
 
 let failures = 0
 let checks = 0
+const WHERE_TO_LOOK: ReadonlyArray<readonly [readonly string[], string]> = [
+  [['queue', 'drain', 'hold', 'reset', 'pen-retired', 'slash', 'restage', 'identity'], 'change the queue code in src/input-core/command-queue.ts until this check holds'],
+  [['rekey: the Chat hop', 'rekey: the landing word', 'lock:'], ''],
+  [['rekey'], 'change rekeyCommandQueueToSession in src/input-core/command-queue.ts until this check holds'],
+  [['draft'], 'change the draft save and read code in src/utils/promptDraft.ts until this check holds'],
+  [['seed'], 'change trySeedComposer in src/utils/cockpit/composerSeed.ts until this check holds'],
+  [['resubmit'], 'change textForResubmit in src/utils/messages/text.ts until this check holds'],
+  [['choke', 'restore-matrix', 'staged', 'no-lost'], 'change src/input-core/pending-input.ts until this check holds'],
+  [['bound', 'registry'], 'change the tail store in src/utils/messages/streamingTailStore.ts (and src/ink/root/flush-registry.ts for registry checks) until this check holds'],
+  [['echo'], 'change RenderScheduler in src/ink/root/render-scheduler.ts until this check holds'],
+  [['dispatch'], 'change the stdin reader in src/ink/components/AppInputLoop.ts until this check holds'],
+]
+function whereToLook(label: string): string {
+  for (const [prefixes, hint] of WHERE_TO_LOOK) {
+    if (prefixes.some(p => label.startsWith(p))) return hint
+  }
+  return ''
+}
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    const hint = whereToLook(label)
+    const full = [detail, hint].filter(Boolean).join(' — ')
+    console.log(`  [FAIL] ${label}${full ? ` — ${full}` : ''}`)
   }
 }
 

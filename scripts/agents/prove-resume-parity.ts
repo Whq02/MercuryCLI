@@ -34,9 +34,9 @@ section('§1 the metadata carrier (round-trip, hermetic home)')
     effortOverride: 'high',
   })
   const back = await storage.readAgentMetadata(id as Parameters<typeof storage.readAgentMetadata>[0])
-  check('model round-trips', back?.model === 'glm-5.2', JSON.stringify(back))
-  check('effortOverride round-trips', back?.effortOverride === 'high')
-  check('agentType/description intact', back?.agentType === 'mercury-crew' && back?.description === 'proof')
+  check('model round-trips', back?.model === 'glm-5.2', JSON.stringify(back) + ' · fix writeAgentMetadata and readAgentMetadata in src/utils/sessionStorage.ts')
+  check('effortOverride round-trips', back?.effortOverride === 'high', JSON.stringify(back) + ' · fix writeAgentMetadata and readAgentMetadata in src/utils/sessionStorage.ts')
+  check('agentType/description intact', back?.agentType === 'mercury-crew' && back?.description === 'proof', JSON.stringify(back) + ' · fix writeAgentMetadata and readAgentMetadata in src/utils/sessionStorage.ts')
 }
 
 section('§2 the restore chain (getAgentModel is id-stable)')
@@ -45,18 +45,19 @@ section('§2 the restore chain (getAgentModel is id-stable)')
   check(
     "restored 'claude-sonnet-5' dispatches claude-sonnet-5 (not the parent)",
     agent.getAgentModel('inherit', parent, 'claude-sonnet-5' as never) === 'claude-sonnet-5',
-    agent.getAgentModel('inherit', parent, 'claude-sonnet-5' as never),
+    agent.getAgentModel('inherit', parent, 'claude-sonnet-5' as never) + ' · fix getAgentModel in src/services/model/agent.ts',
   )
   check(
     "restored 'glm-5.2' dispatches glm-5.2 (the zai transport — no silent provider switch)",
     agent.getAgentModel('inherit', parent, 'glm-5.2' as never) === 'glm-5.2',
-    agent.getAgentModel('inherit', parent, 'glm-5.2' as never),
+    agent.getAgentModel('inherit', parent, 'glm-5.2' as never) + ' · fix getAgentModel in src/services/model/agent.ts',
   )
   const haikuRestore = agent.getAgentModel('inherit', parent, 'haiku' as never)
-  check('a restored haiku alias dispatches as the haiku row', /haiku/i.test(haikuRestore), haikuRestore)
+  check('a restored haiku alias dispatches as the haiku row', /haiku/i.test(haikuRestore), haikuRestore + ' · fix getAgentModel in src/services/model/agent.ts')
   check(
     'absent persisted model ⇒ legacy re-resolution (inherit → parent)',
     agent.getAgentModel('inherit', parent, undefined) === parent,
+    'fix getAgentModel in src/services/model/agent.ts to return the parent model when no persisted model is given',
   )
 }
 
@@ -68,7 +69,7 @@ section('§2 the restore chain (getAgentModel is id-stable)')
       'the run-start merge writes the dispatched model and the effort override the run resolved, and no effortOverride key when none was given (crewmateRecord)',
       withOverride.model === 'claude-sonnet-5' && withOverride.effortOverride === 'high' && withOverride.effort === 'high'
         && without.model === 'claude-sonnet-5' && !('effortOverride' in without) && !('effort' in without),
-      JSON.stringify({ withOverride, without }),
+      JSON.stringify({ withOverride, without }) + ' · fix recordAtRunStart in src/services/crew/crewmateRecord.ts',
     )
   }
 

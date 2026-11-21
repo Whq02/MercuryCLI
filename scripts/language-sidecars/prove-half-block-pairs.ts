@@ -10,7 +10,7 @@ const ESC = String.fromCharCode(27)
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' · fix the half-block cell in spriteToAnsi in src/services/visual/spriteToAnsi.ts or imageToCells in src/services/visual/imageDisplay.ts (a 256-colour check reads rgbToXterm256 in src/ink/cell-grid.ts, a ground check reads terminalGround in src/utils/cockpit/oasisBg.ts)'}`)
 }
 const show = (s: string): string => JSON.stringify(s.replace(/\x1b/g, 'ESC'))
 

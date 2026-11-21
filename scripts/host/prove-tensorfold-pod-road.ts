@@ -17,7 +17,8 @@ const { vendorClient } = await import('../../src/services/host/vendors/client.ts
 const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
 
 let checks = 0
-const check = (name: string, truth: unknown): void => { assert.ok(truth, name); checks++; console.log('PASS ' + name) }
+const failureHint = 'fix the function this check names in src/services/host/tensorfoldPod.ts (pod key, registration, facts, rent row, card words, stopTensorFoldPod), or in src/services/host/tensorfoldRelease.ts for the key-write and readiness commands'
+const check = (name: string, truth: unknown): void => { assert.ok(truth, name + ' · ' + failureHint); checks++; console.log('PASS ' + name) }
 const bash = (command: string): Promise<{ status: number | null; stdout: string; stderr: string }> => new Promise((resolve, reject) => {
   const child = spawn('bash', ['-c', command], { stdio: ['ignore', 'pipe', 'pipe'] })
   let stdout = ''; let stderr = ''

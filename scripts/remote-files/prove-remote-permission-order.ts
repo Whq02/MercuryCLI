@@ -40,7 +40,8 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  const orderHint = 'change decideToolPermission in src/utils/permissions/decision/engine.ts or the tool validateInput and call under src/tools/ (FileReadTool, FileWriteTool, FileEditTool, GlobTool, GrepTool) so the decision and refusal come before any ssh start; the ssh start itself is in src/services/remoteFiles/'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail.slice(0, 700)} | ` : ''}${orderHint}` : ''}`)
 }
 const tools = [FileReadTool, FileWriteTool, FileEditTool, GlobTool, GrepTool]
 const family = (name: string): string => name === 'Write' || name === 'Edit' ? 'Edit' : 'Read'

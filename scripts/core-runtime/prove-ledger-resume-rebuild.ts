@@ -17,9 +17,11 @@ delete process.env.MERCURY_TRANSCRIPT_READER
 delete process.env.MERCURY_RESUME_SNAPSHOT
 
 let failures = 0
+const RESUME_HINT = 'change restoreCostStateForSession in src/cost-tracker.ts so a resume rebuilds the ledger from the raw transcript records priced by calculateUSDCost (src/services/usage/modelCost.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failText = [detail, RESUME_HINT].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && failText ? ` — ${failText}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

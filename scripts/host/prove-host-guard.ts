@@ -38,7 +38,8 @@ const vllm = HOST_RECIPES.find(row => row.engine === 'vllm')!
 const failures: string[] = []
 let checks = 0
 let serial = 0
-const check = (name: string, truth: unknown) => { assert.ok(truth, name); checks++; console.log('PASS ' + name) }
+const guardHint = 'A tripped guard must pause the setup with the machine up and send no terminate: fix runHostJob in src/services/host/worker.ts (and the job it was queued by in src/services/host/jobs.ts), then rerun this proof.'
+const check = (name: string, truth: unknown) => { assert.ok(truth, name + '\n' + guardHint); checks++; console.log('PASS ' + name) }
 const trial = async (name: string, work: () => Promise<void>) => {
   try { await work() } catch (error) { failures.push(name + ': ' + String(error)); console.error('FAIL ' + name + ': ' + String(error)) }
 }

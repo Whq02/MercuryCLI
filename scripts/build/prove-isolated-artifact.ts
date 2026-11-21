@@ -19,9 +19,9 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && hint ? ` — change: ${hint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -95,27 +95,28 @@ section('(1) isolated main artifact runs on stock node (no node_modules anywhere
 const isoBundle = join(iso, 'mercury.mjs')
 {
   const v = runIso([isoBundle, '--version'], iso)
-  check('--version exits 0', v.status === 0, v.stderr.slice(0, 300))
-  check('--version prints a Mercury version', /^Mercury \d+\.\d+\.\d+/.test(v.stdout.trim()), v.stdout.slice(0, 80))
+  check('--version exits 0', v.status === 0, v.stderr.slice(0, 300), 'the built dist/mercury.mjs fails to start on stock node alone; rebuild with bun run build.ts and read the stderr above')
+  check('--version prints a Mercury version', /^Mercury \d+\.\d+\.\d+/.test(v.stdout.trim()), v.stdout.slice(0, 80), 'the --version output of dist/mercury.mjs must start with Mercury and a version number')
 
   const h = runIso([isoBundle, '--help'], iso)
-  check('--help exits 0 (full CLI module graph loads)', h.status === 0, (h.stderr || h.stdout).slice(0, 300))
-  check('--help reports no module-load failure', !/Cannot find module|MERCURY COULD NOT START/.test(h.stderr), h.stderr.slice(0, 200))
+  check('--help exits 0 (full CLI module graph loads)', h.status === 0, (h.stderr || h.stdout).slice(0, 300), 'a module the CLI loads is missing from dist/mercury.mjs; rebuild with bun run build.ts and read the output above')
+  check('--help reports no module-load failure', !/Cannot find module|MERCURY COULD NOT START/.test(h.stderr), h.stderr.slice(0, 200), 'the module named in the stderr above must be bundled into dist/mercury.mjs, not left as a package import')
   check(
     '--help renders the command tree',
     /usage/i.test(h.stdout) && h.stdout.length > 500,
     h.stdout.slice(0, 120),
+    'dist/mercury.mjs --help must print the usage text of the command tree',
   )
 
   const d = runIso([isoBundle, 'health', '--json'], iso, 60_000)
-  check('health --json produces the record in isolation (0/3 by verdict — FC-044; a signed-out scratch home is honestly fault)', d.status === 0 || d.status === 3, d.stderr.slice(0, 300))
-  check('health --json in isolation reports no module-load failure', !/Cannot find module|MERCURY COULD NOT START/.test(d.stderr), d.stderr.slice(0, 200))
+  check('health --json produces the record in isolation (0/3 by verdict — FC-044; a signed-out scratch home is honestly fault)', d.status === 0 || d.status === 3, d.stderr.slice(0, 300), 'the health verb of dist/mercury.mjs must exit 0 or 3 in a scratch home; read the stderr above')
+  check('health --json in isolation reports no module-load failure', !/Cannot find module|MERCURY COULD NOT START/.test(d.stderr), d.stderr.slice(0, 200), 'the module named in the stderr above must be bundled into dist/mercury.mjs, not left as a package import')
   let verdict = ''
   try {
     verdict = String(JSON.parse(d.stdout).verdict ?? '')
   } catch {
   }
-  check('health --json emits a parseable certificate with a verdict', verdict.length > 0, d.stdout.slice(0, 120))
+  check('health --json emits a parseable certificate with a verdict', verdict.length > 0, d.stdout.slice(0, 120), 'health --json must print one JSON record with a verdict field on stdout')
 }
 
 section('(2) no bare STATIC package import survives in the bundle (AST scan)')
@@ -137,13 +138,13 @@ section('(2) no bare STATIC package import survives in the bundle (AST scan)')
         .map(i => i.path),
     ),
   ]
-  check('zero bare static imports', staticBare.length === 0, staticBare.join(', '))
+  check('zero bare static imports', staticBare.length === 0, staticBare.join(', '), 'the packages listed must be bundled into dist/mercury.mjs by build.ts, not left as bare static imports')
 }
 
 section('(3) manifest truth (dist/manifest.json describes the real files)')
 let manifestOk = false
 {
-  check('manifest.json exists beside the bundle', existsSync(manifestPath))
+  check('manifest.json exists beside the bundle', existsSync(manifestPath), '', 'build.ts must write dist/manifest.json beside the bundle; rebuild with bun run build.ts')
   if (existsSync(manifestPath)) {
     try {
       const m = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
@@ -156,76 +157,91 @@ let manifestOk = false
         degraded: string[]
       }
       manifestOk = true
-      check('schema 2 + bundle name', m.schema === 2 && m.bundle === 'mercury.mjs')
+      check('schema 2 + bundle name', m.schema === 2 && m.bundle === 'mercury.mjs', `schema ${m.schema} bundle ${m.bundle}`, 'the manifest written by build.ts must carry schema 2 and bundle mercury.mjs')
       const booted = runIso([isoBundle, '--version'], iso).stdout.trim()
       check(
         `manifest version matches booted version (${m.version})`,
         booted === `Mercury ${m.version}`,
         booted,
+        'the version in dist/manifest.json must equal the version dist/mercury.mjs prints; rebuild both together with bun run build.ts',
       )
       check(
         'bundleBytes matches the real file',
         m.bundleBytes === statSync(dist).size,
         `manifest ${m.bundleBytes} vs real ${statSync(dist).size}`,
+        'dist/manifest.json is stale against dist/mercury.mjs; rebuild with bun run build.ts',
       )
-      check('selfContained claimed (and proven by leg 1)', m.selfContained === true)
+      check('selfContained claimed (and proven by leg 1)', m.selfContained === true, '', 'the manifest written by build.ts must claim selfContained true')
       const rgOnDisk = existsSync(join(root, 'dist', m.search.path))
       check(
         'search claim matches disk',
         m.search.vendored === rgOnDisk,
         `vendored=${m.search.vendored} rgOnDisk=${rgOnDisk}`,
+        'the search record in dist/manifest.json must match whether the ripgrep binary sits under dist; rebuild with bun run build.ts',
       )
       check(
         'degraded[] agrees with the search claim',
         m.search.vendored ? !m.degraded.includes('search') : m.degraded.includes('search'),
+        '',
+        'degraded in dist/manifest.json must list search exactly when the search record says not vendored; rebuild with bun run build.ts',
       )
       const py = (m as unknown as { pythonDebugger?: { vendored: boolean; path: string } }).pythonDebugger
-      check('manifest carries the pythonDebugger record', py !== undefined)
+      check('manifest carries the pythonDebugger record', py !== undefined, '', 'build.ts must write a pythonDebugger record into dist/manifest.json')
       if (py) {
         const pyOnDisk = existsSync(join(root, 'dist', py.path, 'debugpy', 'adapter', '__main__.py'))
         check(
           'pythonDebugger claim matches disk',
           py.vendored === pyOnDisk,
           `vendored=${py.vendored} treeOnDisk=${pyOnDisk}`,
+          'the pythonDebugger record in dist/manifest.json must match the debugpy tree under dist; rebuild with bun run build.ts',
         )
         check(
           'degraded[] agrees with the pythonDebugger claim',
           py.vendored ? !m.degraded.includes('python-debugger') : m.degraded.includes('python-debugger'),
+          '',
+          'degraded in dist/manifest.json must list python-debugger exactly when the pythonDebugger record says not vendored',
         )
       }
       const pyright = (m as unknown as { pyright?: { vendored: boolean; path: string } }).pyright
-      check('manifest carries the pyright record', pyright !== undefined)
+      check('manifest carries the pyright record', pyright !== undefined, '', 'build.ts must write a pyright record into dist/manifest.json')
       if (pyright) {
         const onDisk = existsSync(join(root, 'dist', pyright.path, 'langserver.index.js'))
         check(
           'pyright claim matches disk',
           pyright.vendored === onDisk,
           `vendored=${pyright.vendored} treeOnDisk=${onDisk}`,
+          'the pyright record in dist/manifest.json must match the pyright tree under dist; rebuild with bun run build.ts',
         )
         check(
           'degraded[] agrees with the pyright claim',
           pyright.vendored ? !m.degraded.includes('python-intelligence') : m.degraded.includes('python-intelligence'),
+          '',
+          'degraded in dist/manifest.json must list python-intelligence exactly when the pyright record says not vendored',
         )
       }
       const splash = (m as unknown as { splash?: { path: string; core: string; bytes: number; sha256: string } }).splash
-      check('manifest carries the splash record', splash !== undefined)
+      check('manifest carries the splash record', splash !== undefined, '', 'build.ts must write a splash record into dist/manifest.json')
       if (splash) {
         const driverPath = join(root, 'dist', splash.path)
         const corePath = join(root, 'dist', splash.core)
-        check('splash driver + core sit beside the bundle', existsSync(driverPath) && existsSync(corePath), `${splash.path} · ${splash.core}`)
+        check('splash driver + core sit beside the bundle', existsSync(driverPath) && existsSync(corePath), `${splash.path} · ${splash.core}`, 'the splash driver and core named by the manifest must be copied under dist; rebuild with bun run build.ts')
         if (existsSync(driverPath)) {
           const real = readFileSync(driverPath)
-          check('splash record bytes match the real file', splash.bytes === real.length, `manifest ${splash.bytes} vs real ${real.length}`)
-          check('splash record sha256 matches the real file', splash.sha256 === createHash('sha256').update(real).digest('hex'))
+          check('splash record bytes match the real file', splash.bytes === real.length, `manifest ${splash.bytes} vs real ${real.length}`, 'the splash bytes in dist/manifest.json are stale against the shipped driver; rebuild with bun run build.ts')
+          check('splash record sha256 matches the real file', splash.sha256 === createHash('sha256').update(real).digest('hex'), '', 'the splash sha256 in dist/manifest.json is stale against the shipped driver; rebuild with bun run build.ts')
           check(
             'the shipped driver is the canonical asset byte-for-byte',
             real.equals(readFileSync(join(root, 'assets', 'splash', 'mercury-splash.mjs'))),
+            '',
+            'the dist driver differs from assets/splash/mercury-splash.mjs; rebuild with bun run build.ts',
           )
         }
         if (existsSync(corePath)) {
           check(
             'the shipped core is the canonical asset byte-for-byte',
             readFileSync(corePath).equals(readFileSync(join(root, 'assets', 'splash', 'splash-core.mjs'))),
+            '',
+            'the dist core differs from assets/splash/splash-core.mjs; rebuild with bun run build.ts',
           )
         }
       }

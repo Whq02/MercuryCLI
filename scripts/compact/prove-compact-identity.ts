@@ -28,14 +28,14 @@ const FIXTURE_PORT = 0
 
 let failures = 0
 let checks = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && hint ? ` — to fix: ${hint}` : ''}`)
 }
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — compact identity prover exceeded 120s')
+  console.log('\nTIMEOUT — compact identity prover exceeded 120s; the fold in call() of src/commands/compact/compact.ts did not return, or the fixture from scripts/lib/crossfamilyConcourseFixture.ts did not answer')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -111,12 +111,12 @@ console.log('\nI1 the session id and the transcript file survive the fold byte-i
     },
   }
   const result = (await call('', context as never)) as { type?: string; compactionResult?: { summaryMessages?: Array<{ isCompactSummary?: boolean }> } }
-  check('the fold landed', result.type === 'compact')
-  check('the session id is byte-identical across the fold', getSessionId() === idBefore, `${idBefore} → ${getSessionId()}`)
-  check('the transcript path is byte-identical across the fold', getTranscriptPath() === pathBefore, `${pathBefore} → ${getTranscriptPath()}`)
+  check('the fold landed', result.type === 'compact', String(result.type), 'call() in src/commands/compact/compact.ts must return type compact for this history; read its refusal and error branches')
+  check('the session id is byte-identical across the fold', getSessionId() === idBefore, `${idBefore} → ${getSessionId()}`, 'the fold in src/commands/compact/compact.ts must not change the session id')
+  check('the transcript path is byte-identical across the fold', getTranscriptPath() === pathBefore, `${pathBefore} → ${getTranscriptPath()}`, 'the fold in src/commands/compact/compact.ts must keep writing to the same transcript file')
   const summary = result.compactionResult?.summaryMessages?.[0]
   console.log('\nI4 the summary row keeps its own identity flag')
-  check('the summary row stays flagged isCompactSummary', summary?.isCompactSummary === true)
+  check('the summary row stays flagged isCompactSummary', summary?.isCompactSummary === true, '', 'call() in src/commands/compact/compact.ts must return summaryMessages whose first row carries isCompactSummary')
 }
 
 
@@ -124,7 +124,7 @@ console.log('\nI5 THE FOCUS LAW — /compact applies to the FOCUSED session (ope
 {
   const { commandSeat } = await import('../../src/commands.ts')
   const compactCommand = (await import('../../src/commands/compact/index.ts')).default
-  check('F1 /compact is a session-seat command (the one dispatch rule routes it to the focused chat)', commandSeat(compactCommand as never) === 'session')
+  check('F1 /compact is a session-seat command (the one dispatch rule routes it to the focused chat)', commandSeat(compactCommand as never) === 'session', '', 'remove seat: screen, uiRouteAlias and userPrivate from the command in src/commands/compact/index.ts; commandSeat() in src/commands.ts makes those screen-seat')
 
 }
 

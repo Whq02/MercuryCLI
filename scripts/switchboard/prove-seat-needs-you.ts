@@ -32,7 +32,8 @@ if (!existsSync(DIST)) {
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}rerun with SWITCH_KEEP=1 to print every grabbed frame and to keep ${SCRATCH} (daemon.log is the daemon's output); the ask obligations are read through src/services/crew/obligations.ts and the typed words ride the dispatch ledger in src/daemon/concourseDispatch.ts`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')

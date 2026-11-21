@@ -33,10 +33,12 @@ const TS_KEY = 'proof-typesafe-key-not-real'
 const road = () => (setting.readJevSettings() as unknown as { road?: string }).road
 let checks = 0
 let failures = 0
+const jevRoadsFailHint =
+  'the road setting lives in src/services/jev/jevSetting.ts, the request path in src/services/jev/jevClient.ts, the call in src/tools/JevEvalTool/JevEvalTool.ts (jevEvalCall), the /jev command in src/commands/jev/jev.tsx, the status words in src/services/jev/jevStatus.ts'
 function check(name: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok || !detail ? '' : ` — ${detail}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` — ${detail ? `${detail}; ` : ''}${jevRoadsFailHint}`}`)
 }
 async function select(words: string): Promise<void> {
   await command.call(words.replace('/jev ', '').replace('/jevor ', 'or '), {} as never)

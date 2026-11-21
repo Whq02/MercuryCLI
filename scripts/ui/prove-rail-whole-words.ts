@@ -10,7 +10,8 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const railWordsWhere = 'to fix: a wrong cut or ellipsis is fitRailName in src/components/HelmLanesRail.tsx; a wrong name budget is railRowBudgets in the same file; a wrong rail width or tier is railPlanAt in src/utils/helmGeometry.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${railWordsWhere}` : ''}`)
 }
 
 

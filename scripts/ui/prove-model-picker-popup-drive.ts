@@ -25,6 +25,7 @@ const ROWS = 51
 const TITLE = 'Mercury · model'
 const COMPOSER = 'Type a prompt'
 const KEYS = '↑↓ select'
+const PICKER_WHERE = 'the /model picker window is placed by src/components/ModelPickerPopupSlot.tsx and laid out by src/components/MercuryModelPicker.tsx'
 
 let failures = 0
 let checks = 0
@@ -194,7 +195,7 @@ section(`§1 ${COLS}x${ROWS}: m on the Boot face, then /model in the chat born f
     { requireAwait: true, awaitText: COMPOSER, awaitPattern: `\\A(?![\\s\\S]*${TITLE})`, awaitSettleTicks: 2, data: '', mark: 'closed' },
   ]
   const c = capture('popup', home, sends, { total: 420, ready: [COMPOSER] })
-  check('the drive delivered every send (exit 0)', c.status === 0 && c.receipts === sends.length, `exit ${c.status} · ${c.receipts}/${sends.length} sends`)
+  check('the drive delivered every send (exit 0)', c.status === 0 && c.receipts === sends.length, `a send was not delivered, so the screen never reached the awaited text (see the frame printed above); ${PICKER_WHERE}; exit ${c.status} · ${c.receipts}/${sends.length} sends`)
   const face = c.marks.get('face-picker') ?? []
   const chat = c.marks.get('chat') ?? []
   const session = c.marks.get('session-picker') ?? []
@@ -210,28 +211,28 @@ section(`§1 ${COLS}x${ROWS}: m on the Boot face, then /model in the chat born f
   console.log(`  Boot face window: ${describe(faceWindow)}`)
   console.log(`  session window:   ${describe(sessionWindow)}`)
   console.log(`  scrolled window:  ${describe(scrolledWindow)}`)
-  check('m opens the picker over the Boot face as one closed bordered window', faceWindow !== null, face.slice(2, 6).join(' | '))
-  check('esc closes it back to the face', paintsBootFaceReady((c.marks.get('face-closed') ?? []).join('\n')) && !(c.marks.get('face-closed') ?? []).some(l => l.includes(TITLE)))
-  check('the chat landed with its composer', chat.some(l => l.includes(COMPOSER)) && trimmedRow(chat, '← back') !== '', chat.slice(-6).join(' | '))
-  check('/model opens the picker in the session as one closed bordered window', sessionWindow !== null, session.slice(-8).join(' | '))
+  check('m opens the picker over the Boot face as one closed bordered window', faceWindow !== null, `${PICKER_WHERE}; the window must be one closed bordered box; rows seen: ${face.slice(2, 6).join(' | ')}`)
+  check('esc closes it back to the face', paintsBootFaceReady((c.marks.get('face-closed') ?? []).join('\n')) && !(c.marks.get('face-closed') ?? []).some(l => l.includes(TITLE)), `esc must close the picker and leave the Boot face painted; ${PICKER_WHERE}`)
+  check('the chat landed with its composer', chat.some(l => l.includes(COMPOSER)) && trimmedRow(chat, '← back') !== '', `the chat born from the Boot face did not paint its composer and back row; last rows: ${chat.slice(-6).join(' | ')}`)
+  check('/model opens the picker in the session as one closed bordered window', sessionWindow !== null, `${PICKER_WHERE}; the window must be one closed bordered box; last rows: ${session.slice(-8).join(' | ')}`)
   const sheetRule = session.findIndex(line => /^▔+$/.test(line.trim()) && line.trim().length >= COLS - 2)
-  check('no full-width sheet rule crosses the terminal', sheetRule < 0, `rule at row ${sheetRule}`)
-  check('the composer stays on screen under the picker', session.some(l => l.includes(COMPOSER)), 'the composer placeholder is not on screen')
-  check('the lanes rail stays on screen beside the picker', session.some(l => l.includes('lanes')), session.slice(0, 4).join(' | '))
+  check('no full-width sheet rule crosses the terminal', sheetRule < 0, `the picker must paint as a bordered window, not a full-width rule; ${PICKER_WHERE}; rule at row ${sheetRule}`)
+  check('the composer stays on screen under the picker', session.some(l => l.includes(COMPOSER)), `the composer placeholder is not on screen; the picker window must not cover it, see ${PICKER_WHERE}`)
+  check('the lanes rail stays on screen beside the picker', session.some(l => l.includes('lanes')), `the picker window must not cover the lanes rail, see ${PICKER_WHERE}; top rows: ${session.slice(0, 4).join(' | ')}`)
   if (faceWindow !== null && sessionWindow !== null) {
-    check(`the window's left edge equals the Boot face's (${faceWindow.left})`, sessionWindow.left === faceWindow.left, `session ${sessionWindow.left}`)
-    check(`the window's top row equals the Boot face's (${faceWindow.top})`, sessionWindow.top === faceWindow.top, `session ${sessionWindow.top}`)
-    check(`the window's width equals the Boot face's (${faceWindow.width})`, sessionWindow.width === faceWindow.width, `session ${sessionWindow.width}`)
+    check(`the window's left edge equals the Boot face's (${faceWindow.left})`, sessionWindow.left === faceWindow.left, `the session picker must start at the same column as the Boot face picker, see ${PICKER_WHERE}; session ${sessionWindow.left}`)
+    check(`the window's top row equals the Boot face's (${faceWindow.top})`, sessionWindow.top === faceWindow.top, `the session picker must start at the same row as the Boot face picker, see ${PICKER_WHERE}; session ${sessionWindow.top}`)
+    check(`the window's width equals the Boot face's (${faceWindow.width})`, sessionWindow.width === faceWindow.width, `the session picker must be as wide as the Boot face picker, see ${PICKER_WHERE}; session ${sessionWindow.width}`)
     const viewLeft = Array.from(session[0] ?? '').indexOf('╭')
     const viewBottom = session.findIndex((line, row) => row > 0 && Array.from(line)[viewLeft] === '╰')
-    check(`the window ends above the view's bottom border (row ${viewBottom})`, viewBottom > 0 && sessionWindow.bottom < viewBottom, `window bottom ${sessionWindow.bottom}`)
-    check('the keys and page guide are the window\'s last two inner rows', inner(sessionWindow.rows[sessionWindow.height - 3]!).startsWith(KEYS) && inner(sessionWindow.rows[sessionWindow.height - 2]!) === 'pgup/pgdn page', sessionWindow.rows.slice(-3, -1).map(inner).join(' | '))
+    check(`the window ends above the view's bottom border (row ${viewBottom})`, viewBottom > 0 && sessionWindow.bottom < viewBottom, `the picker window must end above the view border, see ${PICKER_WHERE}; window bottom ${sessionWindow.bottom}`)
+    check('the keys and page guide are the window\'s last two inner rows', inner(sessionWindow.rows[sessionWindow.height - 3]!).startsWith(KEYS) && inner(sessionWindow.rows[sessionWindow.height - 2]!) === 'pgup/pgdn page', `the picker must end with the keys row then the pgup/pgdn page row, see src/components/MercuryModelPicker.tsx; rows seen: ${sessionWindow.rows.slice(-3, -1).map(inner).join(' | ')}`)
     const firstRow = inner(sessionWindow.rows[4]!)
-    check('↓ past the last visible row keeps the window in place', scrolledWindow !== null && scrolledWindow.top === sessionWindow.top && scrolledWindow.left === sessionWindow.left && scrolledWindow.width === sessionWindow.width && scrolledWindow.height === sessionWindow.height, describe(scrolledWindow))
-    check('the rows scroll inside the window (a ↑ more line leads and the first row changed)', scrolledWindow !== null && scrolledWindow.rows.some(row => /↑ \d+ more/.test(row)) && inner(scrolledWindow.rows[4]!) !== firstRow, scrolledWindow === null ? '' : scrolledWindow.rows.slice(1, 5).map(inner).join(' | '))
-    check('the keys and page guide stay the window\'s last two inner rows while the rows scroll', scrolledWindow !== null && inner(scrolledWindow.rows[scrolledWindow.height - 3]!).startsWith(KEYS) && inner(scrolledWindow.rows[scrolledWindow.height - 2]!) === 'pgup/pgdn page', scrolledWindow === null ? '' : scrolledWindow.rows.slice(-3, -1).map(inner).join(' | '))
+    check('↓ past the last visible row keeps the window in place', scrolledWindow !== null && scrolledWindow.top === sessionWindow.top && scrolledWindow.left === sessionWindow.left && scrolledWindow.width === sessionWindow.width && scrolledWindow.height === sessionWindow.height, `the window must keep its place and size while rows scroll, see ${PICKER_WHERE}; ${describe(scrolledWindow)}`)
+    check('the rows scroll inside the window (a ↑ more line leads and the first row changed)', scrolledWindow !== null && scrolledWindow.rows.some(row => /↑ \d+ more/.test(row)) && inner(scrolledWindow.rows[4]!) !== firstRow, `the list must scroll inside the window with an up-more line, see src/components/MercuryModelPicker.tsx; rows seen: ${scrolledWindow === null ? '' : scrolledWindow.rows.slice(1, 5).map(inner).join(' | ')}`)
+    check('the keys and page guide stay the window\'s last two inner rows while the rows scroll', scrolledWindow !== null && inner(scrolledWindow.rows[scrolledWindow.height - 3]!).startsWith(KEYS) && inner(scrolledWindow.rows[scrolledWindow.height - 2]!) === 'pgup/pgdn page', `the keys row and the pgup/pgdn page row must stay last while rows scroll, see src/components/MercuryModelPicker.tsx; rows seen: ${scrolledWindow === null ? '' : scrolledWindow.rows.slice(-3, -1).map(inner).join(' | ')}`)
   }
-  check('esc closes the picker and the chat stands as it was', !closed.some(l => l.includes(TITLE)) && closed.some(l => l.includes(COMPOSER)) && trimmedRow(closed, '← back') !== '', closed.slice(-6).join(' | '))
+  check('esc closes the picker and the chat stands as it was', !closed.some(l => l.includes(TITLE)) && closed.some(l => l.includes(COMPOSER)) && trimmedRow(closed, '← back') !== '', `esc must close the picker window (${PICKER_WHERE}); last rows: ${closed.slice(-6).join(' | ')}`)
 }
 
 if (!KEEP) rmSync(ROOT, { recursive: true, force: true })

@@ -48,25 +48,25 @@ console.log('a Grep cut at its limit says it is a page, to the model and in the 
 {
   const counted = await search(fixture, { output_mode: 'count' })
   const line = lastLine(counted.text)
-  check('400 files hold the word and the count is cut at the limit', counted.data.appliedLimit !== undefined && counted.data.numFiles === counted.data.appliedLimit && counted.data.numFiles < 400, JSON.stringify(counted.data).slice(0, 200))
-  check("the model's line names the page before the numbers and says more exist", line.startsWith('First page: ') && line.includes('; more exist') && line.includes('use offset to paginate'), line)
-  check('the row says so too', /Found \d+ matches across \d+ files · first page, more exist/.test(counted.row), counted.row)
+  check('400 files hold the word and the count is cut at the limit', counted.data.appliedLimit !== undefined && counted.data.numFiles === counted.data.appliedLimit && counted.data.numFiles < 400, 'fix: GrepTool.call in src/tools/GrepTool/GrepTool.ts must set appliedLimit when the count is cut at the head limit | ' + JSON.stringify(counted.data).slice(0, 200))
+  check("the model's line names the page before the numbers and says more exist", line.startsWith('First page: ') && line.includes('; more exist') && line.includes('use offset to paginate'), 'fix: the count case of mapToolResultToToolResultBlockParam in src/tools/GrepTool/GrepTool.ts (pageWord) must say First page and more exist | ' + line)
+  check('the row says so too', /Found \d+ matches across \d+ files · first page, more exist/.test(counted.row), 'fix: the count row in src/tools/GrepTool/UI.tsx must end with first page, more exist when appliedLimit is set | ' + counted.row)
   const files = await search(fixture, { output_mode: 'files_with_matches' })
   const head = files.text.split('\n')[0] ?? ''
-  check('a list of files cut at the limit: the same, in the line and in the row', head.startsWith('First page: ') && head.includes('; more exist') && !head.startsWith('Found ') && /Found \d+ files · first page, more exist/.test(files.row), `${head} · ${files.row}`)
+  check('a list of files cut at the limit: the same, in the line and in the row', head.startsWith('First page: ') && head.includes('; more exist') && !head.startsWith('Found ') && /Found \d+ files · first page, more exist/.test(files.row), `fix: the files_with_matches case in src/tools/GrepTool/GrepTool.ts and the row in src/tools/GrepTool/UI.tsx must say first page when cut | ${head} · ${files.row}`)
   const second = await search(fixture, { output_mode: 'count', offset: 50, head_limit: 100 })
-  check('a later page cut at its limit is called a page, not the first', lastLine(second.text).startsWith('This page: ') && second.row.includes('· one page, more exist'), `${lastLine(second.text)} · ${second.row}`)
+  check('a later page cut at its limit is called a page, not the first', lastLine(second.text).startsWith('This page: ') && second.row.includes('· one page, more exist'), `fix: pageWord in src/tools/GrepTool/GrepTool.ts and the row in src/tools/GrepTool/UI.tsx must say This page and one page behind an offset | ${lastLine(second.text)} · ${second.row}`)
 }
 
 console.log('\na Grep that is not cut reads as before')
 {
   const counted = await search(few, { output_mode: 'count' })
-  check("the model's line is the total, no page word", lastLine(counted.text) === '3 matches across 3 files', lastLine(counted.text))
-  check('the row is the total, no trailer', /Found 3 matches across 3 files/.test(counted.row) && !counted.row.includes('page'), counted.row)
+  check("the model's line is the total, no page word", lastLine(counted.text) === '3 matches across 3 files', 'fix: the count case in src/tools/GrepTool/GrepTool.ts must print the bare total when appliedLimit is unset | ' + lastLine(counted.text))
+  check('the row is the total, no trailer', /Found 3 matches across 3 files/.test(counted.row) && !counted.row.includes('page'), 'fix: the count row in src/tools/GrepTool/UI.tsx must add no page trailer when appliedLimit is unset | ' + counted.row)
   const files = await search(few, { output_mode: 'files_with_matches' })
-  check('a list of files: "Found 3 files"', files.text.startsWith('Found 3 files\n') && !files.row.includes('page'), `${files.text.split('\n')[0]} · ${files.row}`)
+  check('a list of files: "Found 3 files"', files.text.startsWith('Found 3 files\n') && !files.row.includes('page'), `fix: the files_with_matches case in src/tools/GrepTool/GrepTool.ts and the row in src/tools/GrepTool/UI.tsx must add no page word when not cut | ${files.text.split('\n')[0]} · ${files.row}`)
   const rest = await search(fixture, { output_mode: 'count', offset: 390 })
-  check('the last page, read whole behind an offset, states its numbers with the offset note and no "more exist"', !lastLine(rest.text).includes('more exist') && lastLine(rest.text).includes('offset 390') && !rest.row.includes('more exist'), `${lastLine(rest.text)} · ${rest.row}`)
+  check('the last page, read whole behind an offset, states its numbers with the offset note and no "more exist"', !lastLine(rest.text).includes('more exist') && lastLine(rest.text).includes('offset 390') && !rest.row.includes('more exist'), `fix: the count case in src/tools/GrepTool/GrepTool.ts and the row in src/tools/GrepTool/UI.tsx must not say more exist when the offset page is read whole | ${lastLine(rest.text)} · ${rest.row}`)
 }
 
 console.log(`\nprove-grep-capped-says-page: ${checks} checks, ${failures} failed`)

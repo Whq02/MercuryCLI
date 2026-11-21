@@ -16,7 +16,7 @@ let failures = 0
 
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}for the tree's own date or release fix NOUS_CLIENT_CONTRACT_AS_OF and NOUS_CLIENT_CONTRACT_RELEASE in src/services/providers/nous/nousClientContract.ts, for the learned-release checks fix presentedNousClient there, and for the fixture checks fix assess in this file` : ''}`)
 }
 
 function isDate(value: unknown): value is string {

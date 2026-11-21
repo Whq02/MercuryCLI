@@ -47,13 +47,13 @@ console.log('============================================================')
 console.log(`  engine lane: ${lane.state} — ${lane.reason}`)
 console.log(`  system lane shell: ${shell ?? process.env.SHELL ?? '(discovery)'}`)
 if (lane.state !== 'wired') console.log('  [SKIP] the vendored engine is not exercised on this machine — the table below is system/system and proves the harness only')
-check('every enrolled prover exists', missing.length === 0, missing.join(', '))
-check('at least one prover is selected', chosen.length > 0, `--only ${only.join(',')}`)
+check('every enrolled prover exists', missing.length === 0, `${missing.join(', ')} — fix the path in ENGINE_AWARE or OWNER_LEVEL at the top of scripts/bash/prove-shell-engine-parity.ts, or restore the prover`)
+check('at least one prover is selected', chosen.length > 0, `--only ${only.join(',')} — name a prover by its file name from ENGINE_AWARE or OWNER_LEVEL (OWNER_LEVEL ones are enrolled only on a wired lane or with --all)`)
 
 if (chosen.length > 0) {
   const report = runParity(chosen, { out, shell, timeoutMs: 280_000 })
   for (const prover of report.provers) {
-    check(`parity: ${summarize(prover)}`, prover.verdict === 'same')
+    check(`parity: ${summarize(prover)}`, prover.verdict === 'same', 'the system shell and the vendored engine disagree on the rows listed below; make the engine match the system shell, or open the report path printed after the table (rows come from runParity in scripts/bash/shell-engine-parity.ts)')
     for (const row of prover.mismatches.slice(0, 20)) {
       console.log(`         ↳ ${row.label}: system ${row.system}${row.systemDetail ? ` (${row.systemDetail})` : ''} · brush ${row.brush}${row.brushDetail ? ` (${row.brushDetail})` : ''}`)
     }
@@ -64,7 +64,7 @@ if (chosen.length > 0) {
   }
   const controlOnly = report.provers.filter(prover => prover.grade === 'control-only').map(prover => basename(prover.prover))
   if (controlOnly.length > 0) console.log(`  control-only (the harness, not the engine): ${controlOnly.join(', ')}`)
-  check(`on a wired lane at least one enrolled prover exercised the engine (${report.exercised} of ${report.provers.length} carry the live-engine line)`, lane.state !== 'wired' || report.exercised > 0)
+  check(`on a wired lane at least one enrolled prover exercised the engine (${report.exercised} of ${report.provers.length} carry the live-engine line)`, lane.state !== 'wired' || report.exercised > 0, 'the lane is wired but no enrolled prover carries the live-engine line; check engineLaneState and the engine selection in scripts/bash/shell-engine-parity.ts, and that the provers run with the engine enabled')
   console.log(`\n  report: ${report.reportPath}`)
   if (process.env.PARITY_PRINT_REPORT === '1') console.log(renderReport(report))
 }

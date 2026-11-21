@@ -29,9 +29,10 @@ const cli = await import('../../src/extensions/cli.ts')
 const manifestMod = await import('../../src/extensions/manifest.ts')
 
 let failures = 0
+const WHERE_TO_FIX = 'change computeHealth in src/extensions/health.ts or resolveContributions in src/extensions/load/contributions.ts (the probes that write each reason); the /health row and the readiness rows come from extensionsHealthRow and extensionReadinessRows in src/extensions/boot.ts, the CLI row from listRows in src/extensions/cli.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'FAIL' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`.replace('[FAIL]', cond ? '[PASS]' : '[FAIL]'))
+  console.log(`  [${cond ? 'FAIL' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' | where to fix: ' + WHERE_TO_FIX}`.replace('[FAIL]', cond ? '[PASS]' : '[FAIL]'))
 }
 const FIXTURE = join(import.meta.dir, 'fixtures', 'fixture-source')
 

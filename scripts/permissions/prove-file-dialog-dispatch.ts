@@ -16,8 +16,9 @@ process.env.NODE_ENV = 'test'
 process.chdir(PROJ)
 
 let failures = 0
+const fileDialogHint = 'change the dialog hook useFilePermissionDialog in src/components/permissions/FilePermissionDialog/useFilePermissionDialog.ts (options, input modes, the confirm:cycleMode chord, onChange dispatch) or, for the symlink and card checks, FilePermissionDialog in src/components/permissions/FilePermissionDialog/FilePermissionDialog.tsx'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + fileDialogHint + (detail ? ' — ' + detail : '')}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

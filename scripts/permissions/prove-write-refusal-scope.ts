@@ -20,7 +20,8 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const refusalWhere = 'a shell write is an ordinary permission ask naming the permission card and the single starting folder; fix checkPathConstraints in src/tools/BashTool/pathValidation.ts'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${ok ? '' : `${detail ? ' ' : ' — '}(${refusalWhere})`}`)
 }
 try {
   const ctx = getEmptyToolPermissionContext()

@@ -4,9 +4,10 @@ import { join } from 'node:path'
 const ROOT = process.cwd()
 
 let failures = 0
+const STATE_FIX_HINT = 'mcpServerState in src/commands/mcp/McpPopup.tsx must return the state text this check names for that row type'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail && !cond ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail && !cond ? ` — ${detail}` : ''}${!cond ? ` — fix: ${STATE_FIX_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log(`\n${t}`)

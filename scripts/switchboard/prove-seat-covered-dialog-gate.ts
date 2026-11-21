@@ -19,7 +19,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   }
   const uncovered = await drawnWhen(false)
   const covered = await drawnWhen(true)
-  check('G2 the permission overlay render requires !chatSurfaceCovered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered}`)
+  check('G2 the permission overlay render requires !chatSurfaceCovered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered} — useChatAsksCard in src/screens/chat/useChatAsks.tsx must paint the overlay only when chatSurfaceCovered is false`)
 }
 
 {
@@ -29,7 +29,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   await selector.plant({ chatSurfaceCovered: true })
   const covered = selector.part.value().messageSelector !== null
   await selector.close()
-  check('G3 the message selector render requires !chatSurfaceCovered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered}`)
+  check('G3 the message selector render requires !chatSurfaceCovered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered} — the message selector in src/screens/chat/useChatSelector.tsx must paint only when chatSurfaceCovered is false`)
 }
 
 {
@@ -40,7 +40,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   await dialogs.plant({ chatSurfaceCovered: true })
   const covered = dialogs.part.value().focusedBottomDialog !== null
   await dialogs.close()
-  check('G4 the bottom dialogs are null when covered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered}`)
+  check('G4 the bottom dialogs are null when covered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered} — focusedBottomDialog in src/screens/chat/useChatDialogs.tsx must be null while chatSurfaceCovered is true`)
 }
 
 

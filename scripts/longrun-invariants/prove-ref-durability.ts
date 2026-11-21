@@ -49,12 +49,12 @@ section('§A a settled agent outlives the registry (disk probe on miss)')
   writeFileSync(file, rows.join('\n'))
 
   const hit = await resolve(`mercury://agent/${id}`)
-  check('registry miss + record on disk resolves OK (never absent)', hit.state === 'ok', JSON.stringify(hit).slice(0, 120))
+  check('registry miss + record on disk resolves OK (never absent)', hit.state === 'ok', JSON.stringify(hit).slice(0, 120) + ' · resolve in src/services/resources/adapters/agent.ts must read the transcript on disk when the registry has no task')
   check("the summary reads the transcript on disk for the end — a file of raw lines the codec cannot read says so, never a fabricated live status",
-    /^no readable rows \(transcript on disk\)/.test(hit.resource?.summary ?? ''), hit.resource?.summary)
+    /^no readable rows \(transcript on disk\)/.test(hit.resource?.summary ?? ''), (hit.resource?.summary ?? '') + ' · fix the summary text of the disk-transcript branch in src/services/resources/adapters/agent.ts')
 
   const missing = await resolve('mercury://agent/aref-nosuch')
-  check('a genuinely recordless id still answers absent', missing.state === 'absent')
+  check('a genuinely recordless id still answers absent', missing.state === 'absent', 'got state ' + missing.state + ' · resolve in src/services/resources/adapters/agent.ts must answer absent when neither the registry nor the disk has the id')
 }
 
 section('§B tail-by-default + the page is always reachable')
@@ -62,20 +62,20 @@ section('§B tail-by-default + the page is always reachable')
   const id = 'aref-durable-1'
   const hit = await resolve(`mercury://agent/${id}`)
   const text = hit.resource?.text ?? ''
-  check('the default window is the TAIL (last line present)', /line-300/.test(text))
-  check('…and the head is NOT in the default window', !/"line-1"/.test(text) && !/line-1\b/.test(text.split('\n')[0] ?? 'x'))
+  check('the default window is the TAIL (last line present)', /line-300/.test(text), 'resolve in src/services/resources/adapters/agent.ts must pass defaultToTail to boundedTextView in src/services/resources/contracts.ts')
+  check('…and the head is NOT in the default window', !/"line-1"/.test(text) && !/line-1\b/.test(text.split('\n')[0] ?? 'x'), 'the default window must start at total minus limit; see boundedTextView in src/services/resources/contracts.ts')
   const page = hit.resource?.structured?.page
-  check('structured carries the page', page !== undefined && page.total === 300, JSON.stringify(page))
-  check('the tail window is anchored at total−limit', page?.cursor === 200, String(page?.cursor))
+  check('structured carries the page', page !== undefined && page.total === 300, JSON.stringify(page) + ' · the agent adapter in src/services/resources/adapters/agent.ts must put boundedTextView page into structured.page')
+  check('the tail window is anchored at total−limit', page?.cursor === 200, String(page?.cursor) + ' · boundedTextView in src/services/resources/contracts.ts must anchor the tail window at total minus limit')
   check('an explicit hint line names the window and how to page',
     /\[lines 201–300 of 300 — page with \?cursor=<n>&limit=<n>\]/.test(text),
-    text.split('\n').slice(-1)[0])
+    String(text.split('\n').slice(-1)[0]) + ' · the paging hint line is written from the boundedTextView page in src/services/resources/contracts.ts')
 
   const paged = await resolve(`mercury://agent/${id}?cursor=0&limit=5`)
   const pagedText = paged.resource?.text ?? ''
   check('an explicit cursor pages from the head deterministically',
-    /line-1\b/.test(pagedText) && /line-5\b/.test(pagedText) && !/line-6\b/.test(pagedText))
-  check('the paged view reports hasMore', paged.resource?.structured?.page?.hasMore === true)
+    /line-1\b/.test(pagedText) && /line-5\b/.test(pagedText) && !/line-6\b/.test(pagedText), 'an explicit cursor and limit must page from the head; see boundedTextView in src/services/resources/contracts.ts')
+  check('the paged view reports hasMore', paged.resource?.structured?.page?.hasMore === true, 'boundedTextView in src/services/resources/contracts.ts must set page.hasMore when lines remain after the window')
 }
 
 section('§C the shared view law')
@@ -83,12 +83,12 @@ section('§C the shared view law')
   const long = Array.from({ length: 50 }, (_, i) => `row-${i + 1}`).join('\n')
   const tail = boundedTextView(long, {}, 10, { defaultToTail: true })
   check('boundedTextView defaultToTail serves the last window',
-    tail.text.startsWith('row-41') && tail.page.cursor === 40 && tail.page.hasMore === false)
+    tail.text.startsWith('row-41') && tail.page.cursor === 40 && tail.page.hasMore === false, JSON.stringify(tail.page) + ' · defaultToTail in boundedTextView, src/services/resources/contracts.ts, must serve the last window')
   const head = boundedTextView(long, {}, 10)
   check('without the option the historical head behavior is untouched',
-    head.text.startsWith('row-1') && head.page.cursor === 0 && head.page.hasMore === true)
+    head.text.startsWith('row-1') && head.page.cursor === 0 && head.page.hasMore === true, JSON.stringify(head.page) + ' · boundedTextView in src/services/resources/contracts.ts must keep the head window when defaultToTail is not set')
   const explicit = boundedTextView(long, { cursor: 20, limit: 10 } as never, 10, { defaultToTail: true })
-  check('an explicit cursor beats the tail default', explicit.text.startsWith('row-21'))
+  check('an explicit cursor beats the tail default', explicit.text.startsWith('row-21'), explicit.text.slice(0, 40) + ' · boundedTextView in src/services/resources/contracts.ts must let an explicit cursor win over defaultToTail')
 }
 
 rmSync(HOME, { recursive: true, force: true })

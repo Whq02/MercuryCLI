@@ -7,16 +7,17 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
-const check = (label: string, ok: boolean, detail = ''): void => {
+const check = (label: string, ok: boolean, detail = '', changeHint = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && (detail || changeHint) ? ` — ${[detail, changeHint].filter(Boolean).join(' | ')}` : ''}`)
 }
+const newestFirstWhere = 'change the fold road that carries the newest operator message around the summary request: query (src/query.ts) and compactConversation (src/services/compact/compact.ts)'
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the newest-message-first prover exceeded 180s')
+  console.log('\nTIMEOUT — the newest-message-first prover exceeded 180s; a request to the overflow fixture (scripts/compact/overflowFixture.ts) got no scripted turn, or query (src/query.ts) did not finish')
   process.exit(1)
 }, 180_000)
 watchdog.unref?.()
@@ -146,20 +147,20 @@ section('N1 a fresh operator message on a history over the threshold: the fold c
   process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = '40000'
   const r = await drive([...seed(8, 12_000), createUserMessage({ content: QUESTION })])
   delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
-  check('the run completed', r.threw === undefined && r.terminal.reason === 'completed', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)}`)
+  check('the run completed', r.threw === undefined && r.terminal.reason === 'completed', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)}`, newestFirstWhere)
   const summariser = r.wire.find(w => isSummariser(w.body))
   const post = r.wire.filter(w => !isSummariser(w.body)).at(-1)
-  check('exactly one summariser call, then one post-fold call', r.wire.filter(w => isSummariser(w.body)).length === 1 && r.wire.length === 2, `${r.wire.length} requests`)
-  check('the summariser never saw the newest message: it is carried, not folded (red on the base: it rode inside the fold)', summariser !== undefined && !JSON.stringify(summariser.body).includes(QUESTION), summariser === undefined ? 'no summariser call' : 'the question was in the summariser request')
+  check('exactly one summariser call, then one post-fold call', r.wire.filter(w => isSummariser(w.body)).length === 1 && r.wire.length === 2, `${r.wire.length} requests`, newestFirstWhere + ' so one summary request is paid, then one post-fold request')
+  check('the summariser never saw the newest message: it is carried, not folded (red on the base: it rode inside the fold)', summariser !== undefined && !JSON.stringify(summariser.body).includes(QUESTION), summariser === undefined ? 'no summariser call' : 'the question was in the summariser request', newestFirstWhere + ' so the newest message is left out of the summary request')
   const postTexts = post !== undefined ? userTexts(post.body) : []
   const lastBlocks = post !== undefined ? textBlocksOf(rowsOf(post.body).filter(r => r.role === 'user').at(-1)?.content) : []
-  check('the post-fold request ENDS on the operator\'s newest message, verbatim: the last text block of the last user message, after the summary and the preserved rounds', (lastBlocks.at(-1) ?? '').trim() === QUESTION && postTexts.findIndex(t => t.includes('The context window turned over')) < postTexts.length - 1, JSON.stringify(lastBlocks.map(t => t.slice(0, 60))))
+  check('the post-fold request ENDS on the operator\'s newest message, verbatim: the last text block of the last user message, after the summary and the preserved rounds', (lastBlocks.at(-1) ?? '').trim() === QUESTION && postTexts.findIndex(t => t.includes('The context window turned over')) < postTexts.length - 1, JSON.stringify(lastBlocks.map(t => t.slice(0, 60))), newestFirstWhere + ' so the post-fold request ends on the newest message')
   const summaryRow = postTexts.find(t => t.includes('The context window turned over')) ?? ''
-  check('the summary message says the newest message has the floor: answer it first, the task in flight only afterwards (red on the base: "carry the last task on as if the break never happened")', summaryRow.includes(FLOOR) && !summaryRow.includes(RESUME_WORDS), summaryRow.slice(-400))
+  check('the summary message says the newest message has the floor: answer it first, the task in flight only afterwards (red on the base: "carry the last task on as if the break never happened")', summaryRow.includes(FLOOR) && !summaryRow.includes(RESUME_WORDS), summaryRow.slice(-400), 'change the summary message wording built by the fold (src/services/compact/compact.ts, src/services/compact/prompt.ts) so the newest message has the floor and the resume words are dropped')
   check('the opening message rides whole in the post-fold request (the operator block)', postTexts.some(t => t.includes(FIRST)))
   check('the reply answered the question, not the task', textOfYield(r.yields.filter(y => y.type === 'assistant').at(-1)) === 'Your first message was quoted from the record.', textOfYield(r.yields.filter(y => y.type === 'assistant').at(-1)))
   const boundary = r.yields.find(y => y.type === 'system' && (y as { subtype?: string }).subtype === 'compact_boundary') as { compactMetadata?: { preTokens?: number; postTokens?: number } } | undefined
-  check('one boundary, with its own before and after figures', boundary !== undefined && typeof boundary.compactMetadata?.preTokens === 'number' && typeof boundary.compactMetadata?.postTokens === 'number' && boundary.compactMetadata.postTokens < boundary.compactMetadata.preTokens, JSON.stringify(boundary?.compactMetadata))
+  check('one boundary, with its own before and after figures', boundary !== undefined && typeof boundary.compactMetadata?.preTokens === 'number' && typeof boundary.compactMetadata?.postTokens === 'number' && boundary.compactMetadata.postTokens < boundary.compactMetadata.preTokens, JSON.stringify(boundary?.compactMetadata), newestFirstWhere + ' (the compact_boundary row carries preTokens and postTokens)')
 }
 
 section('N3 the decision counts the whole view: a history under the threshold plus a just-sent message that crosses the blocking limit folds at the head and answers')
@@ -180,10 +181,10 @@ section('N3 the decision counts the whole view: a history under the threshold pl
   delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
   const summaries = r.wire.filter(w => isSummariser(w.body))
   check('the history alone sits under the threshold and the whole view over the blocking limit (the rig)', historyTokens + 20_000 < wholeTokens, `history=${historyTokens} whole=${wholeTokens}`)
-  check('the fold ran at the head and the turn answered (red before the fix: no fold tried, "the fold did not bring the conversation under the window", no model call)', r.threw === undefined && r.terminal.reason === 'completed' && summaries.length === 1 && textOfYield(r.yields.filter(y => y.type === 'assistant').at(-1)) === 'the big ask was answered after the fold', `terminal=${JSON.stringify(r.terminal)} summaries=${summaries.length} errors=${JSON.stringify(r.yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage === true).map(textOfYield)).slice(0, 300)}`)
+  check('the fold ran at the head and the turn answered (red before the fix: no fold tried, "the fold did not bring the conversation under the window", no model call)', r.threw === undefined && r.terminal.reason === 'completed' && summaries.length === 1 && textOfYield(r.yields.filter(y => y.type === 'assistant').at(-1)) === 'the big ask was answered after the fold', `terminal=${JSON.stringify(r.terminal)} summaries=${summaries.length} errors=${JSON.stringify(r.yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage === true).map(textOfYield)).slice(0, 300)}`, newestFirstWhere + ' so the blocking-limit decision counts the whole view including the just-sent message')
   const post = r.wire.filter(w => !isSummariser(w.body)).at(-1)
   const lastBlocks = post !== undefined ? textBlocksOf(rowsOf(post.body).filter(r => r.role === 'user').at(-1)?.content) : []
-  check('the big ask rides whole and last in the post-fold request, outside the summariser\'s request', (lastBlocks.at(-1) ?? '').startsWith(BIG_ASK_HEAD) && summaries[0] !== undefined && !JSON.stringify(summaries[0].body).includes(BIG_ASK_HEAD), JSON.stringify(lastBlocks.map(t => t.slice(0, 40))))
+  check('the big ask rides whole and last in the post-fold request, outside the summariser\'s request', (lastBlocks.at(-1) ?? '').startsWith(BIG_ASK_HEAD) && summaries[0] !== undefined && !JSON.stringify(summaries[0].body).includes(BIG_ASK_HEAD), JSON.stringify(lastBlocks.map(t => t.slice(0, 40))), newestFirstWhere)
 }
 
 section('N4 a lone message with no history behind it: nothing is folded (no summariser call), and over the window the refusal names the message itself')
@@ -197,12 +198,12 @@ section('N4 a lone message with no history behind it: nothing is folded (no summ
   const loneTokens = tokenCountWithEstimation([lone] as never, MODEL)
   process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = String(loneTokens + 10_000)
   const fits = await drive([lone])
-  check('over the threshold but under the window: no summariser call, the message answered as sent', fits.threw === undefined && fits.terminal.reason === 'completed' && fits.wire.length === 1 && !isSummariser(fits.wire[0]!.body) && textOfYield(fits.yields.filter(y => y.type === 'assistant').at(-1)) === 'the lone message was answered directly', `terminal=${JSON.stringify(fits.terminal)} wire=${fits.wire.length}`)
+  check('over the threshold but under the window: no summariser call, the message answered as sent', fits.threw === undefined && fits.terminal.reason === 'completed' && fits.wire.length === 1 && !isSummariser(fits.wire[0]!.body) && textOfYield(fits.yields.filter(y => y.type === 'assistant').at(-1)) === 'the lone message was answered directly', `terminal=${JSON.stringify(fits.terminal)} wire=${fits.wire.length}`, newestFirstWhere + ' so a lone message under the window is not folded')
   process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = String(loneTokens - 2_000)
   const over = await drive([lone])
   delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
   const refusals = over.yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage === true).map(textOfYield)
-  check('over the window: no summariser call, the refusal says this message alone is larger than the window', over.wire.length === 0 && over.terminal.reason === 'blocking_limit' && refusals.some(t => t.includes('this message alone is larger than the window')), `wire=${over.wire.length} terminal=${JSON.stringify(over.terminal)} ${JSON.stringify(refusals).slice(0, 300)}`)
+  check('over the window: no summariser call, the refusal says this message alone is larger than the window', over.wire.length === 0 && over.terminal.reason === 'blocking_limit' && refusals.some(t => t.includes('this message alone is larger than the window')), `wire=${over.wire.length} terminal=${JSON.stringify(over.terminal)} ${JSON.stringify(refusals).slice(0, 300)}`, 'change the blocking_limit refusal text in query (src/query.ts) so it says this message alone is larger than the window, with no summary request')
 }
 
 section('N2 a fold with no fresh operator message (the view ends in the model\'s own reply) keeps the resume words')
@@ -217,7 +218,7 @@ section('N2 a fold with no fresh operator message (the view ends in the model\'s
   delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
   const post = r.wire.filter(w => !isSummariser(w.body)).at(-1)
   const summaryRow = post !== undefined ? userTexts(post.body).find(t => t.includes('The context window turned over')) ?? '' : ''
-  check('the fold happened and the summary message carries the resume words, not the floor words', r.wire.some(w => isSummariser(w.body)) && summaryRow.includes(RESUME_WORDS) && !summaryRow.includes(FLOOR), summaryRow.slice(-300))
+  check('the fold happened and the summary message carries the resume words, not the floor words', r.wire.some(w => isSummariser(w.body)) && summaryRow.includes(RESUME_WORDS) && !summaryRow.includes(FLOOR), summaryRow.slice(-300), 'change the summary message wording built by the fold (src/services/compact/compact.ts, src/services/compact/prompt.ts) so a view ending in the model reply keeps the resume words')
 }
 
 await fixture.close()

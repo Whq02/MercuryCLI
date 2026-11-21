@@ -34,10 +34,11 @@ const { plainTextStorage } = await load('src/utils/secureStorage/plainTextStorag
 const providerSecrets = await load('src/utils/accounts/providerSecrets.ts')
 let failures = 0
 let checks = 0
+const secretFloorHint = 'change mercurySecretPath and mercurySecretReadIgnores (the credential-file patterns) in src/utils/permissions/protectedPaths.ts, the decision in src/utils/permissions/decision/engine.ts (decideToolPermission), or the tool that listed or read the secret (src/tools/GrepTool, GlobTool, FileReadTool, src/services/resources/adapters/file.ts)'
 function check(label: string, ok: boolean, detail = '') {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${secretFloorHint}${detail ? ` — ${detail}` : ''}`}`)
 }
 function context(mode: string, allow: string[] = [], ask: string[] = []) {
   const state = { toolPermissionContext: { ...getEmptyToolPermissionContext(), mode, alwaysAllowRules: { userSettings: allow }, alwaysAskRules: { userSettings: ask } }, tasks: {}, sessionHooks: new Map() }

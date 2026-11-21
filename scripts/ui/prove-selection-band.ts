@@ -5,7 +5,8 @@ process.env.NODE_ENV = 'test'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const selectionBandWhere = 'to fix: deriveSelectionBand and the selectionBand token in resolveMercuryTokens, src/utils/mercuryTokens.ts (change the derived band so it keeps its contrast, follows the accent and differs from surface1, surface2, selection and the raw accent)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail || !cond ? ` — ${detail}${!cond ? `${detail ? ' · ' : ''}${selectionBandWhere}` : ''}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

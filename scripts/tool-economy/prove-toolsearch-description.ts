@@ -8,7 +8,8 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const whereToChange = 'change getPrompt in src/tools/ToolSearchTool/prompt.ts (the description text), the field descriptions in src/tools/ToolSearchTool/ToolSearchTool.ts, or the form choice in deferralWireFormFor in src/services/providers/deferralWire.ts'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${whereToChange}${detail ? ` · ${detail}` : ''}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

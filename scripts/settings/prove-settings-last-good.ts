@@ -26,6 +26,7 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  if (!ok) console.log('         change: for the held-settings and fault-grade checks see parseSettingsFile and getSettingsWithErrors in src/utils/settings/settings.ts; for the one-line fault wording see settingsFaultLine in src/utils/settings/validation.ts; for told-once behaviour see untoldSettingsFaults in src/services/settings/faultNotices.ts; the text after the dash is what was found')
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v).slice(0, 300)

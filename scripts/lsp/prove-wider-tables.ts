@@ -17,11 +17,12 @@ const dap = await import('../../src/services/dap/dapClient.ts')
 const { GRAMMAR_REGISTRY } = await import('../../src/utils/structure/grammarRegistry.ts')
 
 let failures = 0
+let fixHintNow = ''
 function check(name: string, ok: boolean, detail?: string): void {
   if (ok) console.log(`  ok  ${name}`)
   else {
     failures++
-    console.error(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error(`  FAIL ${name}${detail ? ` — ${detail}` : ''}${fixHintNow ? ` — fix: ${fixHintNow}` : ''}`)
   }
 }
 function section(title: string): void {
@@ -30,6 +31,7 @@ function section(title: string): void {
 const byId = new Map(SERVER_CATALOGUE.map(entry => [entry.id, entry]))
 
 section('a language-server row for each of the thirteen languages')
+fixHintNow = 'SERVER_CATALOGUE in src/services/lsp/serverCatalogue.ts holds each row (languages, binaries, rootMarkers, extensionToLanguage, remedy, remedyWin32); fix the row it names'
 const expected: Array<[language: string, id: string, binary: string, marker: string, extension: string]> = [
   ['powershell', 'powershell-editor-services', 'pwsh', '*.ps1', '.ps1'],
   ['haskell', 'haskell-language-server', 'haskell-language-server-wrapper', 'stack.yaml', '.hs'],
@@ -71,6 +73,7 @@ check('no row sends a Windows user to brew: every brew remedy carries a Windows 
 check('a Windows twin exists only where the roads differ; the Mac remedy is the default everywhere else', SERVER_CATALOGUE.every(row => row.remedyWin32 === undefined || row.remedyWin32 !== row.remedy))
 
 section('refusals: a table row never installs anything')
+fixHintNow = 'probeCatalogueEntry in src/services/lsp/serverCatalogue.ts decides detected versus offered from the PATH binary and the root marker; check it and the row in SERVER_CATALOGUE'
 const listing: string[] = []
 for (const [, id] of expected) {
   const row = byId.get(id)!
@@ -97,6 +100,7 @@ check('a PowerShell project is one with a .ps1, .psm1 or .psd1 in the folder', p
 process.env.PATH = emptyBin
 
 section('a debug-adapter row where one exists in the wild: dart, kotlin and the elixir-ls adapter')
+fixHintNow = 'the adapter table in src/services/dap/client/adapters.ts (resolveAdapter, dormantBuiltinAdapterHints, knownAdapterKeys) must carry the dart, kotlin and elixir rows and name their install while dormant'
 const dormant = dap.dormantBuiltinAdapterHints('live')
 for (const key of ['dart', 'kotlin', 'elixir']) {
   check(`${key}: absent on this PATH, the adapter is dormant with its install named`, !dap.knownAdapterKeys().includes(key) && dormant.some(row => row.key === key && row.hint.length > 0), JSON.stringify(dormant.map(row => row.key)))
@@ -122,6 +126,7 @@ check('PHP and Bash remain dormant without their dependencies', dap.resolveAdapt
 check('an unknown adapter key still resolves to nothing', dap.resolveAdapter('not-an-adapter') === null)
 
 section('a grammar row only for a grammar the build already carries')
+fixHintNow = 'GRAMMAR_REGISTRY in src/utils/structure/grammarRegistry.ts must carry one row per wasm in vendor/grammars.lock.json and in the editor pack, and none the build lacks'
 const registryWasms = new Set(GRAMMAR_REGISTRY.map(entry => entry.wasm))
 const lock = JSON.parse(readFileSync(join(ROOT, 'vendor/grammars.lock.json'), 'utf8')) as { grammars?: Array<{ wasm: string }>; files?: Array<{ wasm: string }> }
 const lockWasms = (lock.grammars ?? lock.files ?? []).map(entry => entry.wasm)

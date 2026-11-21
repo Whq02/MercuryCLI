@@ -30,10 +30,11 @@ const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool
 
 let failures = 0
 let checks = 0
+const staleResolutionHint = 'change getResolvedWorkingDirPaths (its per-burst cache and the clearCache sweep that runs on the next loop turn) and checkReadPermissionForTool in src/utils/permissions/filesystem.ts, so a path is resolved again after the folder becomes a link; the Bash side is bashToolHasPermission in src/tools/BashTool/bashPermissions.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? detail + ' — ' : ''}${staleResolutionHint}`}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 

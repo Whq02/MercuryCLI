@@ -23,8 +23,9 @@ const { permissionRuleValueToString } = await import('../../src/utils/permission
 const { checkWritePermissionForTool } = await import('../../src/utils/permissions/filesystem.ts')
 
 let failures = 0
+const rememberedYesHint = 'change decisionOfAnswer (and createRunnerAsks) in src/cli/headless/runnerAsks.ts, which turns an answer and its rules into a decision and saved rule, or the Flow ask in decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts and its saved-rule handling in src/utils/permissions/PermissionUpdate.ts'
 function check(label: string, ok: boolean, detail = ''): void {
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok || detail === '' ? '' : ' — ' + detail}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + (detail === '' ? '' : detail + ' — ') + rememberedYesHint}`)
   if (!ok) failures++
 }
 const assistant = { message: { id: 'flow-yes' } } as never

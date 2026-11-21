@@ -34,6 +34,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('         change: by section, (1)-(2) and (6)-(8) the merge and precedence in getInitialSettings, getSettingsWithSources, settingsMergeCustomizer and the parse cache in src/utils/settings/settings.ts; (3)-(4) the settings schema and the held or skipped fault grades in parseSettingsFile (src/utils/settings/settings.ts) with SettingsSchema in src/utils/settings/types.ts; (5) updateSettingsForSource in src/utils/settings/settings.ts; FC-146 lines SettingsSchema (extensions.exclusive) in src/utils/settings/types.ts and settingsChecks in src/services/health/sections/settings.ts; the text after the dash is what was found')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

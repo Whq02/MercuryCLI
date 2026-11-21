@@ -9,12 +9,14 @@ import {
 } from '../../src/utils/healthDeployedAssets.ts'
 
 let failures = 0
+const DEPLOYED_ASSETS_FAIL_HINT =
+  'change assessDeployedAssets or DEPLOYED_ASSET_PAIRS in src/utils/healthDeployedAssets.ts; for the launcher and splash checks, the sources are scripts/ops/launcher-mercury.sh, assets/splash/launcher-action-block.sh and scripts/splash/deploy.sh'
 function check(name: string, cond: boolean, detail?: string): void {
   if (cond) {
     console.log(`  ✅ ${name}`)
   } else {
     failures++
-    console.log(`  ❌ ${name}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  ❌ ${name}${detail ? ` — ${detail}` : ''} — ${DEPLOYED_ASSETS_FAIL_HINT}`)
   }
 }
 
@@ -157,7 +159,7 @@ console.log('\n── empty home ⇒ info (direct-run setup, never a fault) ─�
 
 console.log('\n── the real repo carries every pair source ─────────────────────')
 for (const pair of DEPLOYED_ASSET_PAIRS) {
-  check(`repo canon exists: ${pair.repoRel}`, existsSync(join(repoRoot, pair.repoRel)))
+  check(`repo canon exists: ${pair.repoRel}`, existsSync(join(repoRoot, pair.repoRel)), `restore ${pair.repoRel} or fix its entry in DEPLOYED_ASSET_PAIRS in src/utils/healthDeployedAssets.ts`)
 }
 
 console.log('\n── src-side ratchet: the retired fallbacks stay retired ────────')
@@ -167,11 +169,12 @@ console.log('\n── src-side ratchet: the retired fallbacks stay retired ─�
     .split('\n')
     .filter(l => !/^\s*#/.test(l))
     .join('\n')
-  check('no live welcome.py reference in the launcher', !live.includes('welcome.py'))
-  check('no live python dependency in the launcher', !live.includes('python'))
+  check('no live welcome.py reference in the launcher', !live.includes('welcome.py'), 'remove the live welcome.py reference from scripts/ops/launcher-mercury.sh')
+  check('no live python dependency in the launcher', !live.includes('python'), 'remove the live python call from scripts/ops/launcher-mercury.sh')
   check(
     'RETIRED_HOME_ARTIFACTS names exactly the byte-patcher pair',
     RETIRED_HOME_ARTIFACTS.length === 2,
+    `RETIRED_HOME_ARTIFACTS has ${RETIRED_HOME_ARTIFACTS.length} entries; keep exactly patches.d and patches.json in src/utils/healthDeployedAssets.ts`,
   )
 }
 

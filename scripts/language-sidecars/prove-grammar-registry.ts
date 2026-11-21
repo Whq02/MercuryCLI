@@ -11,7 +11,7 @@ const { languageForFile, languageByName, patternLanguageForFile } = await import
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' · fix the rows in src/utils/structure/grammarRegistry.ts, the routing in src/utils/structure/grammarFacility.ts, or the lock vendor/grammars.lock.json with its texts in vendor/grammar-licences; a missing wasm needs bun install or scripts/vendor/fetch-grammars.ts, a dist check needs a rebuild with bun run build.ts'}`)
 }
 
 {

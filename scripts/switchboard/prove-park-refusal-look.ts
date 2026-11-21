@@ -19,7 +19,8 @@ mkdirSync(OUT_DIR, { recursive: true })
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}the NOW words come from concourseNowLabel in src/services/concourse/concourseSnapshot.ts and the compact foot note from compactParkNoteOf in src/components/concourse/compactBoard.ts; the painted board frames are under ${OUT_DIR}`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')

@@ -10,10 +10,10 @@ process.env.BROWSER = '/usr/bin/true'
 
 let failures = 0
 let checks = 0
-function check(label: string, ok: boolean, detail = ''): void {
+function check(label: string, ok: boolean, detail = '', fix = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 1600)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 1600)}` : ''}${!ok && fix ? ` — to fix: ${fix}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
@@ -87,23 +87,23 @@ for (const detail of [OLDER_DAEMON, Array.from({ length: 20 }, (_, i) => `Failur
   answer = { server: 'runpod', state: 'unavailable', tools: [], omitted: 0, detail }
   const m = await mounted()
   const unfolded = await press(m, KEY.enter, '  tools')
-  check('↵ unfolds the connected server with its tools row', unfolded && m.lines().some(line => /│\s+›?\s+tools\s*│/.test(line)), m.screen())
+  check('↵ unfolds the connected server with its tools row', unfolded && m.lines().some(line => /│\s+›?\s+tools\s*│/.test(line)), m.screen(), 'the connected server row in src/commands/mcp/McpPopup.tsx must unfold a tools row')
   await press(m, KEY.down, '›   tools')
   const reasonShown = await press(m, KEY.enter, 'tools not listed')
   const lines = m.lines()
   const frame = frameOf(lines)
   const plain = m.screen().replace(/[│\s]+/g, ' ')
-  check("the reason replaces the list — never 'This server exposes no tools.'", reasonShown && plain.includes(detail === OLDER_DAEMON ? 'This Mercury background process is too old to list tools.' : 'Failure detail 1:') && !plain.includes('This server exposes no tools.'), m.screen())
-  check('the reason view stays inside the 12-row grant with its way back and page hint in the two-row footer', frame !== null && frame.rows === FRAME.rows && listFooter(frame), m.screen())
+  check("the reason replaces the list — never 'This server exposes no tools.'", reasonShown && plain.includes(detail === OLDER_DAEMON ? 'This Mercury background process is too old to list tools.' : 'Failure detail 1:') && !plain.includes('This server exposes no tools.'), m.screen(), 'a failed tools answer must show its reason, not the empty-list text: see mcpToolsFailureWords and the tools view in src/commands/mcp/McpPopup.tsx')
+  check('the reason view stays inside the 12-row grant with its way back and page hint in the two-row footer', frame !== null && frame.rows === FRAME.rows && listFooter(frame), m.screen(), 'the reason view in src/commands/mcp/McpPopup.tsx must stay within the granted rows and keep the esc and pgup/pgdn footer')
   if (detail === OLDER_DAEMON) {
-    check('an old daemon gives the user the supported update and restart road', plain.includes('Update Mercury. Run /restart, then open /mcp again.') && !plain.includes('protocol 15'))
+    check('an old daemon gives the user the supported update and restart road', plain.includes('Update Mercury. Run /restart, then open /mcp again.') && !plain.includes('protocol 15'), '', 'the old-daemon wording comes from mcpToolsFailureWords in src/commands/mcp/McpPopup.tsx: it must give the update and /restart road and hide protocol numbers')
   } else {
-    check('a reason longer than the grant is marked ↓, never pushed past the frame', frame !== null && frame.body.some(line => /↓ \d+ more/.test(line)), m.screen())
+    check('a reason longer than the grant is marked ↓, never pushed past the frame', frame !== null && frame.body.some(line => /↓ \d+ more/.test(line)), m.screen(), 'the detail window in src/commands/mcp/McpPopup.tsx must show a ↓ N more marker when the reason is longer than the grant')
     const scrolled = await press(m, KEY.down, '↑ 1 more')
-    check('↓ scrolls the reason and marks what scrolled off ↑', scrolled && listFooter(frameOf(m.lines())), m.screen())
+    check('↓ scrolls the reason and marks what scrolled off ↑', scrolled && listFooter(frameOf(m.lines())), m.screen(), 'the detail window scroll in src/commands/mcp/McpPopup.tsx must move on down and show an ↑ N more marker')
   }
   const back = await press(m, KEY.esc, '1 servers · this session')
-  check('esc steps back to the server list (the popup stays open)', back && m.screen().includes('esc or click outside closes'), m.screen())
+  check('esc steps back to the server list (the popup stays open)', back && m.screen().includes('esc or click outside closes'), m.screen(), 'esc in the tools view of src/commands/mcp/McpPopup.tsx must return to the server list without closing the popup')
   m.unmount()
 }
 
@@ -125,17 +125,17 @@ section('§2 the marks of a bounded answer reach the screen: omitted tools, a he
   await press(m, KEY.down, '›   tools')
   const listed = await press(m, KEY.enter, 'late_joiner')
   const screen = m.screen()
-  check('the count names every tool the session has, and how many crossed the bound', listed && screen.includes('300 tools · this session · 3 shown, the rest past the 512 KB read'), screen)
-  check("a held tool says so on the status line (the model cannot call it until the next compaction or /clear)", screen.includes('held · joins the tool list at the next compaction or /clear'), screen)
-  check('the list stays inside the grant with its way back and page hint in the two-row footer', frameOf(m.lines())?.rows === FRAME.rows && listFooter(frameOf(m.lines())), screen)
+  check('the count names every tool the session has, and how many crossed the bound', listed && screen.includes('300 tools · this session · 3 shown, the rest past the 512 KB read'), screen, 'the tools list header in src/commands/mcp/McpPopup.tsx must name the full count and how many were omitted')
+  check("a held tool says so on the status line (the model cannot call it until the next compaction or /clear)", screen.includes('held · joins the tool list at the next compaction or /clear'), screen, 'the loading status words (the held entry) in src/commands/mcp/McpPopup.tsx must carry this text')
+  check('the list stays inside the grant with its way back and page hint in the two-row footer', frameOf(m.lines())?.rows === FRAME.rows && listFooter(frameOf(m.lines())), screen, 'the tools list in src/commands/mcp/McpPopup.tsx must stay within the granted rows with the two-row footer')
   const opened = await press(m, KEY.enter, 'mcp__runpod__late_joiner · held')
-  check('the detail names the tool as the model calls it, and its loading', opened, m.screen())
+  check('the detail names the tool as the model calls it, and its loading', opened, m.screen(), 'the tool detail view in src/commands/mcp/McpPopup.tsx must title the tool by its registeredAs name plus its loading state')
   const ended = await press(m, '\x1b[F', '(the description is cut at 8,192 characters)')
-  check('a cut description is marked at its end, inside the grant', ended && frameOf(m.lines())?.rows === FRAME.rows && frameOf(m.lines())?.lastRow.includes('esc back to tools') === true, m.screen())
+  check('a cut description is marked at its end, inside the grant', ended && frameOf(m.lines())?.rows === FRAME.rows && frameOf(m.lines())?.lastRow.includes('esc back to tools') === true, m.screen(), 'the tool detail view in src/commands/mcp/McpPopup.tsx must mark a cut description (descriptionCut) at its end and keep the footer in the grant')
   await press(m, KEY.esc, 'late_joiner ·')
   await press(m, KEY.down, 'deferred · schema loads on demand')
   const withheld = await press(m, KEY.enter, 'did not fit this view')
-  check("a withheld schema says so with its size instead of an empty parameter list", withheld && m.screen().includes('The input schema (200 KB)') && !m.screen().includes('Parameters'), m.screen())
+  check("a withheld schema says so with its size instead of an empty parameter list", withheld && m.screen().includes('The input schema (200 KB)') && !m.screen().includes('Parameters'), m.screen(), 'the tool detail view in src/commands/mcp/McpPopup.tsx must say the schema was withheld (schemaWithheldBytes) instead of listing parameters')
   m.unmount()
 }
 
@@ -150,7 +150,7 @@ section('§3 only a connected server offers its tools: a server the kit dial tur
   )
   await waitFor(() => m.screen().includes('offsrv · off'), 10_000)
   const unfolded = await press(m, KEY.enter, 'enable for this session')
-  check('the off server unfolds enable and reconnect, and no tools row', unfolded && m.screen().includes('reconnect') && !m.lines().some(line => /│\s+›?\s+tools\s*│/.test(line)), m.screen())
+  check('the off server unfolds enable and reconnect, and no tools row', unfolded && m.screen().includes('reconnect') && !m.lines().some(line => /│\s+›?\s+tools\s*│/.test(line)), m.screen(), 'a disabled server in src/commands/mcp/McpPopup.tsx must offer enable and reconnect and no tools row')
   m.unmount()
 }
 
@@ -163,21 +163,21 @@ section('§4 a focus change drops the old tool request and keeps the new session
   await press(m, KEY.enter, '  tools')
   await press(m, KEY.down, '›   tools')
   await press(m, KEY.enter, 'listing tools…')
-  check('the first session has an unfinished tools request', finishOld !== undefined)
+  check('the first session has an unfinished tools request', finishOld !== undefined, '', 'the tools view in src/commands/mcp/McpPopup.tsx must call connector.mcpTools when the tools row opens')
   const other = Object.assign(Object.create(connector), {
     sessionId: () => 'other-session',
     mcpRoster: () => ({ clients: [{ name: 'other-server', type: 'connected', toolCount: 1 }] }),
     mcpTools: async () => ({ server: 'other-server', state: 'connected', omitted: 0, tools: [{ name: 'other_tool', registeredAs: 'mcp__other__other_tool', description: 'the other session tool', inputSchema: {}, loading: 'listed' }] }),
   })
   setFocusedSessionConnector(other)
-  check('the server list follows the focused session', await waitFor(() => m.screen().includes('other-server · connected'), 1500))
+  check('the server list follows the focused session', await waitFor(() => m.screen().includes('other-server · connected'), 1500), '', 'src/commands/mcp/McpPopup.tsx must re-read the roster from the newly focused session connector')
   await press(m, KEY.up, 'other-server')
   await press(m, KEY.enter, '  tools', 1500)
   await press(m, KEY.down, '›   tools', 1500)
-  check('the new session can list tools while the old request is pending', await press(m, KEY.enter, 'other_tool', 1500), m.screen())
+  check('the new session can list tools while the old request is pending', await press(m, KEY.enter, 'other_tool', 1500), m.screen(), 'src/commands/mcp/McpPopup.tsx must call mcpTools on the new focused connector even while the old request is pending')
   finishOld?.({ server: 'runpod', state: 'connected', omitted: 0, tools: [{ name: 'old_tool', registeredAs: 'mcp__old', description: 'stale', inputSchema: {}, loading: 'listed' }] })
   await settle(100)
-  check('the old request cannot replace the new session tool list', m.screen().includes('other_tool') && !m.screen().includes('old_tool'), m.screen())
+  check('the old request cannot replace the new session tool list', m.screen().includes('other_tool') && !m.screen().includes('old_tool'), m.screen(), 'src/commands/mcp/McpPopup.tsx must drop a tools answer that arrives after the focused session changed')
   m.unmount()
 }
 

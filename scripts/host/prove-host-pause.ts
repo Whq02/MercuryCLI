@@ -17,7 +17,8 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
 }, nativeFetch)
 const failures: string[] = []
 let checks = 0
-const check = (name: string, truth: unknown, detail = ''): void => { if (truth) { checks++; console.log('PASS ' + name) } else { failures.push(name + (detail ? ': ' + detail : '')); console.error('FAIL ' + name + (detail ? ': ' + detail : '')) } }
+const pauseHint = '\nWhat to change: a watchdog trip must pause with the machine up and no terminate, in runHostJob (src/services/host/worker.ts); the two-hour rule lives in sweepHostIdle and hostIdleVerdict (src/services/host/idle.ts).'
+const check = (name: string, truth: unknown, detail = ''): void => { if (truth) { checks++; console.log('PASS ' + name) } else { failures.push(name + (detail ? ': ' + detail : '') + pauseHint); console.error('FAIL ' + name + (detail ? ': ' + detail : '') + pauseHint) } }
 const houseWords = /\b(door|road|seat|fold|lane|ladder|owner|law|pin|prover)s?\b/i
 let ssh: ReturnType<typeof fakeSshRunner> | undefined
 try {

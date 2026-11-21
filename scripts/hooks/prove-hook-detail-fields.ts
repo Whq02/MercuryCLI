@@ -9,8 +9,9 @@ process.env['FORCE_COLOR'] = '0'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+const detailFieldsHint = 'Fix the rows of the hook detail screen in src/components/hooks/ViewHookMode.tsx (sections 1 and 2), the event list in src/components/hooks/SelectEventMode.tsx (section 3), or the event table in src/utils/hooks/contract.ts.'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — ' + detailFieldsHint}`)
   if (!cond) failures++
 }
 

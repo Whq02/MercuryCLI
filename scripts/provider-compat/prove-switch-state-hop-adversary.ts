@@ -237,44 +237,44 @@ section('leg 1 · gpt → claude → gpt (reasoning items out and back)')
 {
   let history: Message[] = [createUserMessage({ content: 'H1 run the hop probe' }) as Message]
   const t1 = await driveTurn(history, 'gpt-5.6-sol')
-  check('T1 (gpt) settled clean over a tool round', t1.threw === undefined && t1.terminal.reason === 'completed' && t1.requests.length >= 2, `threw=${String(t1.threw)} rounds=${t1.requests.length}`)
+  check('T1 (gpt) settled clean over a tool round', t1.threw === undefined && t1.terminal.reason === 'completed' && t1.requests.length >= 2, `threw=${String(t1.threw)} rounds=${t1.requests.length} terminal=${JSON.stringify(t1.terminal)} — the gpt turn must finish with a tool round and a second request; look at the Responses request path starting at queryEvents in src/query.ts`)
   const round2 = t1.requests.at(-1)
   if (round2) {
     const items = (round2.body.input as Array<Record<string, unknown>> | undefined) ?? []
     const reasoningAt = items.findIndex(i => i.type === 'reasoning')
     const callAt = items.findIndex(i => i.type === 'function_call')
     const outputAt = items.findIndex(i => i.type === 'function_call_output')
-    check('the WITHIN-TURN continuation replays the reasoning item with its encrypted content, in position (before its call)', reasoningAt !== -1 && callAt !== -1 && outputAt === callAt + 1 && reasoningAt < callAt && raw(round2.body).includes(ENC_NEEDLE), items.map(i => String(i.type)).join(','))
-    check('the continuation stays stateless (store:false, no previous_response_id)', round2.body.store === false && !('previous_response_id' in round2.body))
+    check('the WITHIN-TURN continuation replays the reasoning item with its encrypted content, in position (before its call)', reasoningAt !== -1 && callAt !== -1 && outputAt === callAt + 1 && reasoningAt < callAt && raw(round2.body).includes(ENC_NEEDLE), `${items.map(i => String(i.type)).join(',')} — the reasoning item must precede its function_call and keep encrypted_content; see mapMessagesToOpenaiInput in src/services/providers/openai/responsesBridge.ts`)
+    check('the continuation stays stateless (store:false, no previous_response_id)', round2.body.store === false && !('previous_response_id' in round2.body), `store=${String(round2.body.store)} previous_response_id present=${String('previous_response_id' in round2.body)} — the continuation request must send store:false and no previous_response_id`)
   }
 
   history = [...history, ...t1.settled, createUserMessage({ content: 'H2 hop to the home lane' }) as Message]
   const t2 = await driveTurn(history, 'claude-sonnet-5')
   const t2main = t2.requests.find(r => raw(r.body).includes('H2 '))
-  check('T2 (claude) settled clean', t2.threw === undefined && t2.terminal.reason === 'completed' && t2main !== undefined, `threw=${String(t2.threw)}`)
+  check('T2 (claude) settled clean', t2.threw === undefined && t2.terminal.reason === 'completed' && t2main !== undefined, `threw=${String(t2.threw)} terminal=${JSON.stringify(t2.terminal)} request seen=${String(t2main !== undefined)} — the hop from gpt history to the claude model must complete and send a request carrying H2`)
   if (t2main) {
     const b = raw(t2main.body)
-    check('the hop-out body carries NO Responses state (no reasoning item, no encrypted content, no rs_ id)', !b.includes('"reasoning"') && !b.includes(ENC_NEEDLE) && !b.includes(REASONING_ID), b.slice(0, 400))
-    check("T1's tool pair converted to tool_use/tool_result with the call id preserved", b.includes('"tool_use"') && b.includes('"tool_result"') && b.includes('call_hop_'), 'pair or id missing')
-    check('the reasoning SUMMARY text does not leak as visible content either', !b.includes('hop reasoning summary'))
+    check('the hop-out body carries NO Responses state (no reasoning item, no encrypted content, no rs_ id)', !b.includes('"reasoning"') && !b.includes(ENC_NEEDLE) && !b.includes(REASONING_ID), `${b.slice(0, 400)} — a claude-bound request must drop Responses reasoning state when the gpt history is converted`)
+    check("T1's tool pair converted to tool_use/tool_result with the call id preserved", b.includes('"tool_use"') && b.includes('"tool_result"') && b.includes('call_hop_'), 'pair or id missing — the gpt tool call and its output must convert to tool_use and tool_result with the call id kept')
+    check('the reasoning SUMMARY text does not leak as visible content either', !b.includes('hop reasoning summary'), 'the reasoning summary text reached the claude request body; the history conversion for a claude-bound request must drop it')
   }
 
   history = [...history, ...t2.settled, createUserMessage({ content: 'H3 hop back out' }) as Message]
   const t3 = await driveTurn(history, 'gpt-5.6-sol')
   const t3main = t3.requests.find(r => raw(r.body).includes('H3 '))
-  check('T3 (gpt again) settled clean — the return hop dispatches', t3.threw === undefined && t3.terminal.reason === 'completed' && t3main !== undefined, `threw=${String(t3.threw)} terminal=${JSON.stringify(t3.terminal)}`)
+  check('T3 (gpt again) settled clean — the return hop dispatches', t3.threw === undefined && t3.terminal.reason === 'completed' && t3main !== undefined, `threw=${String(t3.threw)} terminal=${JSON.stringify(t3.terminal)} — the return hop to gpt must complete and send a request carrying H3`)
   if (t3main) {
     const items = (t3main.body.input as Array<Record<string, unknown>> | undefined) ?? []
     const KNOWN = new Set(['message', 'function_call', 'function_call_output', 'reasoning'])
-    check('every replayed item is a known Responses type (nothing malformed rides back)', items.every(i => KNOWN.has(String(i.type))), items.map(i => String(i.type)).join(','))
+    check('every replayed item is a known Responses type (nothing malformed rides back)', items.every(i => KNOWN.has(String(i.type))), `${items.map(i => String(i.type)).join(',')} — an unknown item type was replayed; see mapMessagesToOpenaiInput in src/services/providers/openai/responsesBridge.ts`)
     const openCalls = items.filter(i => i.type === 'function_call').map(i => String(i.call_id))
     const answered = items.filter(i => i.type === 'function_call_output').map(i => String(i.call_id))
-    check('every function_call is answered on the return hop (id-paired)', openCalls.length > 0 && openCalls.every(id => answered.includes(id)), `calls=${openCalls.join(',')} answered=${answered.join(',')}`)
-    check('the return hop stays stateless (store:false, no previous_response_id)', t3main.body.store === false && !('previous_response_id' in t3main.body))
+    check('every function_call is answered on the return hop (id-paired)', openCalls.length > 0 && openCalls.every(id => answered.includes(id)), `calls=${openCalls.join(',')} answered=${answered.join(',')} — each function_call replayed to gpt needs a function_call_output with the same call_id; see mapMessagesToOpenaiInput in src/services/providers/openai/responsesBridge.ts`)
+    check('the return hop stays stateless (store:false, no previous_response_id)', t3main.body.store === false && !('previous_response_id' in t3main.body), `store=${String(t3main.body.store)} previous_response_id present=${String('previous_response_id' in t3main.body)} — the return hop request must send store:false and no previous_response_id`)
     const survived = raw(t3main.body).includes(ENC_NEEDLE)
     const reasoningItems = items.filter(i => i.type === 'reasoning').length
     note(`reasoning survival on the return hop: encrypted_content ${survived ? 'REPLAYS' : 'does NOT replay'} · ${reasoningItems} reasoning item(s) in the replay`)
-    check("the claude-served middle turn rides back as plain content (its text present)", raw(t3main.body).includes('settled on the home lane'))
+    check("the claude-served middle turn rides back as plain content (its text present)", raw(t3main.body).includes('settled on the home lane'), 'the claude turn text is missing from the gpt request; the history conversion in mapMessagesToOpenaiInput (src/services/providers/openai/responsesBridge.ts) must carry a claude-served assistant turn as an assistant message')
   }
 }
 
@@ -282,36 +282,36 @@ section('leg 2 · claude → gpt → claude (signed thinking out and back)')
 {
   let history: Message[] = [createUserMessage({ content: 'H1 run the hop probe' }) as Message]
   const t1 = await driveTurn(history, 'claude-sonnet-5')
-  check('T1 (claude) settled clean over a tool round', t1.threw === undefined && t1.terminal.reason === 'completed' && t1.requests.length >= 2, `threw=${String(t1.threw)} rounds=${t1.requests.length}`)
+  check('T1 (claude) settled clean over a tool round', t1.threw === undefined && t1.terminal.reason === 'completed' && t1.requests.length >= 2, `threw=${String(t1.threw)} rounds=${t1.requests.length} terminal=${JSON.stringify(t1.terminal)} — the claude turn must finish with a tool round and a second request; look at queryEvents in src/query.ts`)
   const round2 = t1.requests.at(-1)
   if (round2) {
     const b = raw(round2.body)
     const signedPresent = b.includes(SIG_NEEDLE)
     note(`within-turn continuation: the signed thinking block ${signedPresent ? 'REPLAYS on the home wire' : 'does NOT replay (thinking disabled run)'}`)
-    check('the continuation never carries an UNSIGNED thinking block', !b.includes('"signature":""'))
+    check('the continuation never carries an UNSIGNED thinking block', !b.includes('"signature":""'), 'a thinking block with an empty signature was sent on the claude continuation; an unsigned block must be dropped before the request is built')
   }
 
   history = [...history, ...t1.settled, createUserMessage({ content: 'H2 hop out to gpt' }) as Message]
   const t2 = await driveTurn(history, 'gpt-5.6-sol')
   const t2main = t2.requests.find(r => raw(r.body).includes('H2 '))
-  check('T2 (gpt) settled clean', t2.threw === undefined && t2.terminal.reason === 'completed' && t2main !== undefined, `threw=${String(t2.threw)}`)
+  check('T2 (gpt) settled clean', t2.threw === undefined && t2.terminal.reason === 'completed' && t2main !== undefined, `threw=${String(t2.threw)} terminal=${JSON.stringify(t2.terminal)} request seen=${String(t2main !== undefined)} — the hop from claude history to the gpt model must complete and send a request carrying H2`)
   if (t2main) {
     const b = raw(t2main.body)
-    check('NO thinking text and NO signature leak onto the Responses wire', !b.includes(THINK_NEEDLE) && !b.includes(SIG_NEEDLE), b.slice(0, 300))
-    check("T1's tool pair rides as function_call/function_call_output with the id preserved", b.includes('"function_call"') && b.includes('"function_call_output"') && b.includes('toolu_hop_'))
+    check('NO thinking text and NO signature leak onto the Responses wire', !b.includes(THINK_NEEDLE) && !b.includes(SIG_NEEDLE), `${b.slice(0, 300)} — claude thinking text and signature must be dropped when the history is converted to Responses input; see mapMessagesToOpenaiInput in src/services/providers/openai/responsesBridge.ts`)
+    check("T1's tool pair rides as function_call/function_call_output with the id preserved", b.includes('"function_call"') && b.includes('"function_call_output"') && b.includes('toolu_hop_'), 'the claude tool pair did not reach the gpt request as function_call and function_call_output with its toolu_ id; see mapDerivedAssistantMessage and mapUserMessage in src/services/providers/openai/responsesBridge.ts')
   }
 
   history = [...history, ...t2.settled, createUserMessage({ content: 'H3 hop home again' }) as Message]
   const t3 = await driveTurn(history, 'claude-sonnet-5')
   const t3main = t3.requests.find(r => raw(r.body).includes('H3 '))
-  check('T3 (claude again) settled clean — the return hop dispatches', t3.threw === undefined && t3.terminal.reason === 'completed' && t3main !== undefined, `threw=${String(t3.threw)}`)
+  check('T3 (claude again) settled clean — the return hop dispatches', t3.threw === undefined && t3.terminal.reason === 'completed' && t3main !== undefined, `threw=${String(t3.threw)} terminal=${JSON.stringify(t3.terminal)} request seen=${String(t3main !== undefined)} — the return hop to the claude model must complete and send a request carrying H3`)
   if (t3main) {
     const b = raw(t3main.body)
-    check('the return home never carries an unsigned thinking block', !b.includes('"signature":""'))
-    check('no Responses reasoning state contaminates the home wire', !b.includes(ENC_NEEDLE) && !b.includes('"reasoning"'))
+    check('the return home never carries an unsigned thinking block', !b.includes('"signature":""'), 'a thinking block with an empty signature was sent on the return to claude; an unsigned block must be dropped before the request is built')
+    check('no Responses reasoning state contaminates the home wire', !b.includes(ENC_NEEDLE) && !b.includes('"reasoning"'), 'Responses reasoning state reached the claude request; it must be dropped when the history is converted for a claude-bound request')
     const thinkingSurvived = b.includes(SIG_NEEDLE)
     note(`thinking survival on the return home: the T1 signed block ${thinkingSurvived ? 'REPLAYS' : 'does NOT replay'}`)
-    check('both tool pairs (home-born and gpt-born) ride whole and paired', b.includes('toolu_hop_') && b.includes('"tool_use"') && b.includes('"tool_result"') && b.includes('hop-ok'))
+    check('both tool pairs (home-born and gpt-born) ride whole and paired', b.includes('toolu_hop_') && b.includes('"tool_use"') && b.includes('"tool_result"') && b.includes('hop-ok'), 'a tool pair is missing or unpaired in the claude request; both the claude-born and the gpt-born pair must convert to tool_use and tool_result with ids kept')
   }
 }
 

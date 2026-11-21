@@ -27,7 +27,7 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the stream-cut road proof exceeded 120s')
+  console.log('\nTIMEOUT — the stream-cut road proof exceeded 120s; a scripted request never settled, look at the stream-cut reissue in queryModelWithStreaming (src/services/providers/anthropic/streamCore.ts) and the retry loop in src/services/api/withRetry.ts')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -63,17 +63,17 @@ const h2ResetBeforeHeaders = (): Error =>
 section('§1 the predicate: the exact objects the runtime produces for a cut connection')
 {
   const reset = evidence.transportCutOf(h2StreamReset())
-  check('an HTTP/2 RST_STREAM mid-body (TypeError terminated → ERR_HTTP2_STREAM_ERROR) is a cut with its code and words', reset?.code === 'ERR_HTTP2_STREAM_ERROR' && reset.words === 'Stream closed with error code NGHTTP2_INTERNAL_ERROR', JSON.stringify(reset))
-  check('an HTTP/2 GOAWAY that closes the session mid-body (ERR_HTTP2_SESSION_ERROR) is a cut', evidence.transportCutOf(h2SessionGone())?.code === 'ERR_HTTP2_SESSION_ERROR')
-  check('the HTTP/1.1 twin (the socket closed under the body, UND_ERR_SOCKET) is the same cut', evidence.transportCutOf(h1SocketClosed())?.code === 'UND_ERR_SOCKET')
-  check('every HTTP/2 stream and session code is a stale-socket code for the API loop and MCP', ['ERR_HTTP2_STREAM_ERROR', 'ERR_HTTP2_STREAM_CANCEL', 'ERR_HTTP2_GOAWAY_SESSION', 'ERR_HTTP2_SESSION_ERROR', 'ERR_HTTP2_INVALID_SESSION'].every(code => evidence.isStaleSocketCode(code)))
-  check('a reset before the headers (the SDK connection error over fetch failed) is a stale connection: the retry rebuilds the client on a fresh pool', retry.isStaleConnectionError(h2ResetBeforeHeaders()) && evidence.transportCutOf(h2ResetBeforeHeaders()) === null)
-  check('the mid-body cut is a stale connection for the retry loop', retry.isStaleConnectionError(h2StreamReset()) && retry.isStaleConnectionError(h1SocketClosed()))
-  check('the mid-body cut is retryable', retry.isRetryableError(h2StreamReset()) && retry.isRetryableError(h2SessionGone()))
-  check('a bare Error naming ECONNRESET is neither a cut nor stale (an auth failure must still fail the turn)', evidence.transportCutOf(Object.assign(new Error('ECONNRESET'), { code: 'ECONNRESET' })) === null && !retry.isStaleConnectionError(Object.assign(new Error('ECONNRESET'), { code: 'ECONNRESET' })))
-  check('a terminated body whose cause is not a socket event (ENOTFOUND) is not a cut', evidence.transportCutOf(new TypeError('terminated', { cause: Object.assign(new Error('getaddrinfo ENOTFOUND'), { code: 'ENOTFOUND' }) })) === null)
-  check('a terminated body with no cause at all is not a cut', evidence.transportCutOf(new TypeError('terminated')) === null && !retry.isRetryableError(new TypeError('terminated')))
-  check('the words name the road, the event and the code', reset !== null && evidence.transportCutWords('Anthropic', reset) === 'Anthropic cut the connection mid-response — Stream closed with error code NGHTTP2_INTERNAL_ERROR (ERR_HTTP2_STREAM_ERROR)')
+  check('an HTTP/2 RST_STREAM mid-body (TypeError terminated → ERR_HTTP2_STREAM_ERROR) is a cut with its code and words', reset?.code === 'ERR_HTTP2_STREAM_ERROR' && reset.words === 'Stream closed with error code NGHTTP2_INTERNAL_ERROR', 'transportCutOf in src/utils/api/transportEvidence.ts must return the code and words of the cause: ' + JSON.stringify(reset))
+  check('an HTTP/2 GOAWAY that closes the session mid-body (ERR_HTTP2_SESSION_ERROR) is a cut', evidence.transportCutOf(h2SessionGone())?.code === 'ERR_HTTP2_SESSION_ERROR', 'transportCutOf in src/utils/api/transportEvidence.ts must treat ERR_HTTP2_SESSION_ERROR as a cut')
+  check('the HTTP/1.1 twin (the socket closed under the body, UND_ERR_SOCKET) is the same cut', evidence.transportCutOf(h1SocketClosed())?.code === 'UND_ERR_SOCKET', 'transportCutOf in src/utils/api/transportEvidence.ts must treat UND_ERR_SOCKET as a cut')
+  check('every HTTP/2 stream and session code is a stale-socket code for the API loop and MCP', ['ERR_HTTP2_STREAM_ERROR', 'ERR_HTTP2_STREAM_CANCEL', 'ERR_HTTP2_GOAWAY_SESSION', 'ERR_HTTP2_SESSION_ERROR', 'ERR_HTTP2_INVALID_SESSION'].every(code => evidence.isStaleSocketCode(code)), 'isStaleSocketCode in src/utils/api/transportEvidence.ts must accept every HTTP/2 stream and session code')
+  check('a reset before the headers (the SDK connection error over fetch failed) is a stale connection: the retry rebuilds the client on a fresh pool', retry.isStaleConnectionError(h2ResetBeforeHeaders()) && evidence.transportCutOf(h2ResetBeforeHeaders()) === null, 'isStaleConnectionError in src/services/api/withRetry.ts must accept a reset before headers, which transportCutOf in src/utils/api/transportEvidence.ts must not call a cut')
+  check('the mid-body cut is a stale connection for the retry loop', retry.isStaleConnectionError(h2StreamReset()) && retry.isStaleConnectionError(h1SocketClosed()), 'isStaleConnectionError in src/services/api/withRetry.ts must accept a terminated body cut by a socket event')
+  check('the mid-body cut is retryable', retry.isRetryableError(h2StreamReset()) && retry.isRetryableError(h2SessionGone()), 'isRetryableError in src/services/api/withRetry.ts must treat a mid-body cut as retryable')
+  check('a bare Error naming ECONNRESET is neither a cut nor stale (an auth failure must still fail the turn)', evidence.transportCutOf(Object.assign(new Error('ECONNRESET'), { code: 'ECONNRESET' })) === null && !retry.isStaleConnectionError(Object.assign(new Error('ECONNRESET'), { code: 'ECONNRESET' })), 'transportCutOf (src/utils/api/transportEvidence.ts) and isStaleConnectionError (src/services/api/withRetry.ts) must not match a bare ECONNRESET error')
+  check('a terminated body whose cause is not a socket event (ENOTFOUND) is not a cut', evidence.transportCutOf(new TypeError('terminated', { cause: Object.assign(new Error('getaddrinfo ENOTFOUND'), { code: 'ENOTFOUND' }) })) === null, 'transportCutOf in src/utils/api/transportEvidence.ts must return null when the cause code is not a socket event')
+  check('a terminated body with no cause at all is not a cut', evidence.transportCutOf(new TypeError('terminated')) === null && !retry.isRetryableError(new TypeError('terminated')), 'transportCutOf (src/utils/api/transportEvidence.ts) and isRetryableError (src/services/api/withRetry.ts) must reject a terminated body with no cause')
+  check('the words name the road, the event and the code', reset !== null && evidence.transportCutWords('Anthropic', reset) === 'Anthropic cut the connection mid-response — Stream closed with error code NGHTTP2_INTERNAL_ERROR (ERR_HTTP2_STREAM_ERROR)', 'transportCutWords in src/utils/api/transportEvidence.ts must read: <road> cut the connection mid-response — <words> (<code>)')
 }
 
 const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.js')
@@ -159,27 +159,27 @@ section('§2 one HTTP/2 reset mid-reply: the stream-cut notice names the road, t
 {
   const o = await drive(['cut', 'full'], h2StreamReset)
   const cuts = cutNotices(o.notices)
-  check('the turn settled on the streamed reply, never an error row', o.threw === undefined && o.errors.length === 0 && o.answers.at(-1) === 'the whole reply', `threw=${String(o.threw)} errors=${o.errors.join('|')} answers=${o.answers.join('|')} notices=${apiErrorWords(o.notices)}`)
-  check('exactly one stream-cut notice, naming Anthropic and the HTTP/2 code', cuts.length === 1 && cuts[0]?.road === 'Anthropic' && cuts[0].code === 'ERR_HTTP2_STREAM_ERROR' && (cuts[0].content ?? '').startsWith('Anthropic cut the connection mid-response — Stream closed with error code NGHTTP2_INTERNAL_ERROR (ERR_HTTP2_STREAM_ERROR)'), JSON.stringify(o.notices.map(n => [n.subtype, n.content ?? n.error?.message])))
-  check('the reissue is a STREAMING request (the seat stays live), not the blocking fallback', o.seen.map(s => `${s.step}${s.stream ? '' : '(collected)'}`).join(',') === 'cut,full', JSON.stringify(o.seen))
-  check('the connection pool was dropped before the reissue (a fresh connection, never the cut one)', o.poolReset)
+  check('the turn settled on the streamed reply, never an error row', o.threw === undefined && o.errors.length === 0 && o.answers.at(-1) === 'the whole reply', `the stream-cut reissue in queryModelWithStreaming (src/services/providers/anthropic/streamCore.ts) must end on the streamed reply; threw=${String(o.threw)} errors=${o.errors.join('|')} answers=${o.answers.join('|')} notices=${apiErrorWords(o.notices)}`)
+  check('exactly one stream-cut notice, naming Anthropic and the HTTP/2 code', cuts.length === 1 && cuts[0]?.road === 'Anthropic' && cuts[0].code === 'ERR_HTTP2_STREAM_ERROR' && (cuts[0].content ?? '').startsWith('Anthropic cut the connection mid-response — Stream closed with error code NGHTTP2_INTERNAL_ERROR (ERR_HTTP2_STREAM_ERROR)'), 'the stream_cut system notice in src/services/providers/anthropic/streamCore.ts must carry road, code and words from transportCutWords: ' + JSON.stringify(o.notices.map(n => [n.subtype, n.content ?? n.error?.message])))
+  check('the reissue is a STREAMING request (the seat stays live), not the blocking fallback', o.seen.map(s => `${s.step}${s.stream ? '' : '(collected)'}`).join(',') === 'cut,full', 'streamCore.ts (src/services/providers/anthropic) must reissue as a streaming request, not the blocking fallback: ' + JSON.stringify(o.seen))
+  check('the connection pool was dropped before the reissue (a fresh connection, never the cut one)', o.poolReset, 'the stream-cut path must reset the API dispatcher (getApiDispatcher in src/utils/proxy.ts) before the reissue')
 }
 
 section('§3 the reissue is cut too: the fallback names the cut, and its own cut is retried on a fresh connection instead of ending the turn')
 {
   const o = await drive(['cut', 'cut', 'cut', 'full'], h2StreamReset)
-  check('the turn settled on the collected reply after two stream cuts and one fallback cut', o.threw === undefined && o.errors.length === 0 && o.answers.at(-1) === 'recovered without streaming', `threw=${String(o.threw)} errors=${o.errors.join('|')} answers=${o.answers.join('|')}`)
-  check('four requests: stream, reissued stream, collected, collected again', o.seen.map(s => `${s.step}${s.stream ? '' : '(collected)'}`).join(',') === 'cut,cut,cut(collected),full(collected)', JSON.stringify(o.seen))
+  check('the turn settled on the collected reply after two stream cuts and one fallback cut', o.threw === undefined && o.errors.length === 0 && o.answers.at(-1) === 'recovered without streaming', `the fallback in src/services/providers/anthropic/streamCore.ts and its retry in src/services/api/withRetry.ts must settle on the collected reply; threw=${String(o.threw)} errors=${o.errors.join('|')} answers=${o.answers.join('|')}`)
+  check('four requests: stream, reissued stream, collected, collected again', o.seen.map(s => `${s.step}${s.stream ? '' : '(collected)'}`).join(',') === 'cut,cut,cut(collected),full(collected)', 'the fallback in src/services/providers/anthropic/streamCore.ts must retry its own cut once on a fresh connection: ' + JSON.stringify(o.seen))
   const words = apiErrorWords(o.notices)
-  check('the fallback notice names the second cut in words, never a bare "terminated"', /Anthropic cut the connection mid-response — .*\(ERR_HTTP2_STREAM_ERROR\), twice — waiting up to/.test(words) && !/^terminated/.test(words), words)
-  check('the fallback\'s own cut yields a retry row naming the cut and the fresh connection', /The provider cut the connection mid-response — .*\(ERR_HTTP2_STREAM_ERROR\); retrying on a fresh connection/.test(words), words)
+  check('the fallback notice names the second cut in words, never a bare "terminated"', /Anthropic cut the connection mid-response — .*\(ERR_HTTP2_STREAM_ERROR\), twice — waiting up to/.test(words) && !/^terminated/.test(words), 'the fallback notice in src/services/providers/anthropic/streamCore.ts must name the second cut via transportCutWords: ' + words)
+  check('the fallback\'s own cut yields a retry row naming the cut and the fresh connection', /The provider cut the connection mid-response — .*\(ERR_HTTP2_STREAM_ERROR\); retrying on a fresh connection/.test(words), 'the retry row from src/services/api/withRetry.ts must name the cut and the fresh connection: ' + words)
 }
 
 section('§4 the HTTP/1.1 twin: a socket closed under the body walks the same road')
 {
   const o = await drive(['cut', 'full'], h1SocketClosed)
   const cuts = cutNotices(o.notices)
-  check('one stream-cut notice carrying UND_ERR_SOCKET, then the streamed reply', o.threw === undefined && o.errors.length === 0 && o.answers.at(-1) === 'the whole reply' && cuts.length === 1 && cuts[0]?.code === 'UND_ERR_SOCKET', `answers=${o.answers.join('|')} notices=${JSON.stringify(o.notices.map(n => [n.subtype, n.code ?? n.error?.message]))}`)
+  check('one stream-cut notice carrying UND_ERR_SOCKET, then the streamed reply', o.threw === undefined && o.errors.length === 0 && o.answers.at(-1) === 'the whole reply' && cuts.length === 1 && cuts[0]?.code === 'UND_ERR_SOCKET', `the HTTP/1.1 socket cut must take the same road as HTTP/2 in src/services/providers/anthropic/streamCore.ts; answers=${o.answers.join('|')} notices=${JSON.stringify(o.notices.map(n => [n.subtype, n.code ?? n.error?.message]))}`)
 }
 
 console.log('\n' + '='.repeat(60))

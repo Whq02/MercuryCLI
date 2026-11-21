@@ -32,7 +32,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — to fix, read getModelMaxOutputTokens, getMaxThinkingTokensForModel, resolveModelCapabilities and resolveContextWindow in src/utils/model/capabilities.ts (the default and upper limit per model), getMaxOutputTokensForModel, adjustParamsForNonStreaming and MAX_NON_STREAMING_TOKENS in src/services/providers/anthropic/streamCore.ts (the max_tokens on the wire), and compactConversation in src/services/compact/compact.ts (the fold request)`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -40,7 +40,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — prove-output-ceiling exceeded 180s')
+  console.log('\nTIMEOUT — prove-output-ceiling exceeded 180s; the last section printed above shows where it stalled, most likely a captured request in captureRequest or a fold in runFold never reaching the fixture')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

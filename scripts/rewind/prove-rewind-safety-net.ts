@@ -23,7 +23,8 @@ process.chdir(cwd)
 let failures = 0
 const check = (name: string, ok: boolean, detail?: unknown): void => {
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok || detail === undefined ? '' : ` — ${JSON.stringify(detail)}`}`)
+  const rewindHint = 'change handleRewindSession or handleFileRestoreSession in src/cli/headless/controlHandlers.ts, the snapshots in src/services/changeTransaction/fileHistory.ts, the daemon route rewindSession in src/daemon/sessionSeat/verbs.ts, or the 500 MB sweep cleanupOldMessageFilesInBackground in src/services/cleanup.ts (the /health row lifecycle-collection is in src/services/health/sections/crew/scratch.ts)'
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${detail === undefined ? '' : `${JSON.stringify(detail)} | `}${rewindHint}`}`)
 }
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()

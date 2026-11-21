@@ -19,7 +19,8 @@ mkdirSync(OUT_DIR, { recursive: true })
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}the split words and widths come from src/components/concourse/splitView.ts and the chat pane header from src/components/concourse/SplitChatPane.tsx; the painted frames are under ${OUT_DIR} (mark-<label>.txt)`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')

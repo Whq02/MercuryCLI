@@ -23,23 +23,24 @@ section('§A the derivation: child threshold ≠ parent threshold when windows d
   const parent = 'claude-opus-4-6[1m]'
   const childOverride = 'claude-opus-4-6'
   const effective = getAgentModel(undefined, parent, childOverride as never)
-  check('the chokepoint resolves the OVERRIDE, not the parent', effective === childOverride, effective)
+  check('the chokepoint resolves the OVERRIDE, not the parent', effective === childOverride, `${effective} · getAgentModel in src/services/model/agent.ts must return the child override model when one is given, not the parent model`)
   const parentThreshold = getAutoCompactThreshold(parent)
   const childThreshold = getAutoCompactThreshold(effective)
   check(
     'the two models genuinely size differently (the fixture is meaningful)',
     parentThreshold !== childThreshold,
-    `parent=${parentThreshold} child=${childThreshold}`,
+    `parent=${parentThreshold} child=${childThreshold} · getAutoCompactThreshold in src/utils/compact/autoCompactWindow.ts must size the [1m] model and the plain model by their own windows`,
   )
   check(
     'a 1m-window parent must not inflate a 200k child threshold',
     childThreshold < parentThreshold,
-    `parent=${parentThreshold} child=${childThreshold}`,
+    `parent=${parentThreshold} child=${childThreshold} · the child threshold must come from the model getAgentModel (src/services/model/agent.ts) returns, via getAutoCompactThreshold in src/utils/compact/autoCompactWindow.ts`,
   )
   const inherited = getAgentModel(undefined, parent, undefined)
   check(
     'no override + no definition model ⇒ the parent model (inherit unchanged)',
     getAutoCompactThreshold(inherited) === parentThreshold,
+    `getAgentModel in src/services/model/agent.ts must return the parent model when there is no override and no definition model (got ${inherited})`,
   )
 }
 

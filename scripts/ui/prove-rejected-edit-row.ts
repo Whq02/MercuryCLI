@@ -17,7 +17,8 @@ process.chdir(PROJ)
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`)
+  const rejectedRowWhere = 'to fix: the headline, the ten-line preview with its count, (no content) and the dimmed diff are all painted by src/components/FileEditToolUseRejectedMessage.tsx'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + ' · ' : '') + rejectedRowWhere : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

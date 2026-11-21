@@ -10,14 +10,14 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — change parseGodotProjectFile, buildGodotIdeSession or discoverGodotLaunchProfiles in src/services/ide/godotSession.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — proof exceeded 120s')
+  console.log('\n❌ TIMEOUT — proof exceeded 120s; a call into src/services/ide/godotSession.ts (buildGodotIdeSession or discoverGodotLaunchProfiles) did not return')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

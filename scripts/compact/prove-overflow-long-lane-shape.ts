@@ -7,16 +7,18 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
-const check = (label: string, ok: boolean, detail: unknown = ''): void => {
+const check = (label: string, ok: boolean, detail: unknown = '', changeHint = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && (detail || changeHint) ? ` — ${[detail ? (typeof detail === 'string' ? detail : JSON.stringify(detail)) : '', changeHint].filter(Boolean).join(' | ')}` : ''}`)
 }
+const autoFoldWhere = 'change the automatic fold road in query (src/query.ts) or compactConversation (src/services/compact/compact.ts)'
+const thresholdWhere = 'change getAutoCompactThreshold or getBlockingLimit in src/services/compact/autoCompact.ts, or the autoCompactWindow setting this rig saves, or this rig seed numbers'
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — long-lane shape prover exceeded 300s')
+  console.log('\nTIMEOUT — long-lane shape prover exceeded 300s; a request to the overflow fixture (scripts/compact/overflowFixture.ts) got no scripted turn, or query (src/query.ts) did not finish')
   process.exit(1)
 }, 300_000)
 watchdog.unref?.()
@@ -195,10 +197,10 @@ const seed = seedLongLane(320, 760_000, 10_000)
 const ctx = makeCtx()
 const estimate = tokenCountWithEstimation(seed as never, MODEL)
 const seedBytes = Buffer.byteLength(JSON.stringify(seed))
-check(`the window setting gives the owner's numbers: fold at ${fmt(THRESHOLD)}, blocked at ${fmt(BLOCKING)}; the wire's own window is ${fmt(WIRE_WINDOW)}`, THRESHOLD === 757_000 && BLOCKING === 777_000 && WIRE_WINDOW === 1_000_000)
-check(`the view by Mercury's count is over the fold threshold and under the blocking limit (${fmt(estimate)})`, estimate >= THRESHOLD && estimate < BLOCKING, String(estimate))
-check('the captured conversation retains its multi-megabyte shape', seedBytes > 3_000_000, String(seedBytes))
-check('the shape holds hundreds of tool rounds (641 rows)', seed.length === 641, String(seed.length))
+check(`the window setting gives the owner's numbers: fold at ${fmt(THRESHOLD)}, blocked at ${fmt(BLOCKING)}; the wire's own window is ${fmt(WIRE_WINDOW)}`, THRESHOLD === 757_000 && BLOCKING === 777_000 && WIRE_WINDOW === 1_000_000, { THRESHOLD, BLOCKING, WIRE_WINDOW }, thresholdWhere)
+check(`the view by Mercury's count is over the fold threshold and under the blocking limit (${fmt(estimate)})`, estimate >= THRESHOLD && estimate < BLOCKING, String(estimate), thresholdWhere)
+check('the captured conversation retains its multi-megabyte shape', seedBytes > 3_000_000, String(seedBytes), 'change seedLongLane in this file so the seed stays multi-megabyte')
+check('the shape holds hundreds of tool rounds (641 rows)', seed.length === 641, String(seed.length), 'change seedLongLane in this file so 320 rounds give 641 rows')
 
 section('S2 the road — a refused summary keeps the history; the next message makes a fresh automatic fold')
 {
@@ -209,19 +211,19 @@ section('S2 the road — a refused summary keeps the history; the next message m
     { text: 'the reply after the fold', usage: { input: 9_000, output: 12 } },
   ])
   const first = await drive(ctx, seed)
-  check('the refused summary is one request, followed by the ordinary turn', first.wire.length === 2 && first.wire.filter(w => isSummariserRequest(w.body)).length === 1, first.wire.map(w => isSummariserRequest(w.body) ? 'summary' : 'turn'))
+  check('the refused summary is one request, followed by the ordinary turn', first.wire.length === 2 && first.wire.filter(w => isSummariserRequest(w.body)).length === 1, first.wire.map(w => isSummariserRequest(w.body) ? 'summary' : 'turn'), autoFoldWhere + ' so a refused summary is one request and the ordinary turn follows')
   check('a refused fold installs no boundary or summary', boundaryOf(first.yields) === undefined && !first.yields.some(y => y.type === 'user' && y.isCompactSummary === true))
-  check('the ordinary turn still carries the original tool rounds', JSON.stringify(first.wire.at(-1)?.body.messages).includes('Bash result 3:'))
-  check('the first turn completes without treating refusal text as a summary', first.threw === undefined && first.terminal.reason === 'completed' && textOf(first.yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage !== true).at(-1)) === 'the reply after the refused fold', first.terminal)
+  check('the ordinary turn still carries the original tool rounds', JSON.stringify(first.wire.at(-1)?.body.messages).includes('Bash result 3:'), '', autoFoldWhere + ' so a refused fold keeps the original history')
+  check('the first turn completes without treating refusal text as a summary', first.threw === undefined && first.terminal.reason === 'completed' && textOf(first.yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage !== true).at(-1)) === 'the reply after the refused fold', first.terminal, autoFoldWhere + ' so refusal text is not taken as a summary')
   const nextRows = [...seed, ...first.yields.filter(y => y.type === 'user' || y.type === 'assistant' || y.type === 'system'), createUserMessage({ content: 'Continue the remaining suites on this next message.' })]
   const r = await drive(ctx, nextRows)
   const summaries = r.wire.filter(w => isSummariserRequest(w.body))
-  check('the next message starts a fresh fold and the turn completes', r.threw === undefined && r.terminal.reason === 'completed' && r.wire.length === 2 && summaries.length === 1, { terminal: r.terminal, requests: r.wire.length, summaries: summaries.length })
+  check('the next message starts a fresh fold and the turn completes', r.threw === undefined && r.terminal.reason === 'completed' && r.wire.length === 2 && summaries.length === 1, { terminal: r.terminal, requests: r.wire.length, summaries: summaries.length }, autoFoldWhere + ' so the next message starts one fresh fold')
   check('the fresh summary request retains the original tool rounds and never the new message — the operator\'s just-sent turn is carried around the fold and ends the post-fold request', !JSON.stringify(summaries[0]?.body).includes('Continue the remaining suites') && JSON.stringify(summaries[0]?.body).includes('Bash result 3:') && JSON.stringify(r.wire.at(-1)?.body.messages).includes('Continue the remaining suites'))
-  check('every request fits the wire window', fixture.refusals.length === 0 && [...first.wire, ...r.wire].every(w => bodyTokens(w.body) <= WIRE_WINDOW), [...first.wire, ...r.wire].map(w => bodyTokens(w.body)))
+  check('every request fits the wire window', fixture.refusals.length === 0 && [...first.wire, ...r.wire].every(w => bodyTokens(w.body) <= WIRE_WINDOW), [...first.wire, ...r.wire].map(w => bodyTokens(w.body)), autoFoldWhere + ' so no request exceeds the wire window')
   const boundary = boundaryOf(r.yields)
   const meta = (boundary as { compactMetadata?: { trigger?: string; preTokens?: number } } | undefined)?.compactMetadata
-  check('the fresh fold yields its automatic boundary with the folded weight', meta?.trigger === 'auto' && typeof meta.preTokens === 'number' && meta.preTokens >= THRESHOLD, meta)
+  check('the fresh fold yields its automatic boundary with the folded weight', meta?.trigger === 'auto' && typeof meta.preTokens === 'number' && meta.preTokens >= THRESHOLD, meta, autoFoldWhere + ' (the compact_boundary row carries trigger auto and preTokens)')
   const summaryRow = r.yields.find(y => y.type === 'user' && y.isCompactSummary === true)
   check('the accepted summary is the one installed', summaryRow !== undefined && textOf(summaryRow).includes('WHOLE SUMMARY: the lane worked through every module'))
   const retry = r.wire.at(-1)
@@ -230,7 +232,7 @@ section('S2 the road — a refused summary keeps the history; the next message m
   check('the accepted fold emits no error or overflow notice', errorTexts(r.yields).length === 0 && !noticeTexts(r.yields).some(t => t.startsWith('context overflowed')))
   const transcript = [...nextRows, ...r.yields.filter(y => y.type === 'user' || y.type === 'assistant' || y.type === 'system' || y.type === 'attachment')]
   const fill = contextFill(transcript as never, MODEL)
-  check('the gauge after the fold anchors on the reply usage (the transcript as the product holds it, attachment rows included)', fill.source === 'usage' && fill.tokens === 9_012, fill)
+  check('the gauge after the fold anchors on the reply usage (the transcript as the product holds it, attachment rows included)', fill.source === 'usage' && fill.tokens === 9_012, fill, 'change contextFill in src/services/context/tokens.ts so the gauge anchors on the last reply usage')
 }
 
 section('S3 the wire\'s own law stands in the rig — a request over the wire\'s window is refused as the home wire refuses it')

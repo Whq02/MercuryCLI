@@ -13,7 +13,8 @@ const dist = resolve(at < 0 ? join(import.meta.dir, '../../dist/mercury.mjs') : 
 if (!existsSync(dist)) { console.error(`FAIL run bundle exists: ${dist}`); process.exit(1) }
 
 let failures = 0
-const check = (label: string, ok: boolean, detail = ''): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail}`}`); if (!ok) failures++ }
+let failHint = ''
+const check = (label: string, ok: boolean, detail = ''): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail}${failHint}`}`); if (!ok) failures++ }
 const j = (value: unknown): string => JSON.stringify(value)?.slice(0, 400) ?? ''
 
 type Run = { code: number | null; out: string; err: string }
@@ -53,6 +54,7 @@ const writeTurn: ScriptedTurn = { kind: 'tool_use', name: 'Write', input: { file
 const afterRefusal: ScriptedTurn = { kind: 'text', text: 'The write was refused, so the file does not exist.' }
 
 console.log('§1 RUN-03 — an ask nobody could answer ends the turn blocked and exits 1; the operator\'s own deny rule does not')
+failHint = ' | to fix: the blocked outcome, its resume line and the askNobodyAnswered decision table are built in src/services/run/unansweredAsk.ts; change them there, or the exit code where the run verb ends its turn'
 for (const [label, modeArgs] of [['default mode, no host', []], ['dontAsk mode', ['--mode', 'dontAsk']]] as const) {
   const run = await mercuryRun(['--format', 'rows', ...modeArgs, 'create made-by-run.txt with hello in it'], [writeTurn, afterRefusal, handoffTurn()])
   const outcome = run.outcome
@@ -75,6 +77,7 @@ for (const [label, modeArgs] of [['default mode, no host', []], ['dontAsk mode',
 }
 
 console.log('§2 UPD-03 — an unknown slash command is refused with the cockpit\'s sentence and exits 1')
+failHint = ' | to fix: the unknown-command sentence is built in src/services/processUserInput/processSlashCommand.tsx (the Unknown command line); a run that prints Unknown skill or exits 0 is taking the wrong road there'
 {
   const run = await mercuryRun(['--format', 'rows', '/update-notez'], [])
   const outcome = run.outcome
@@ -87,6 +90,7 @@ console.log('§2 UPD-03 — an unknown slash command is refused with the cockpit
 }
 
 console.log('§3 L02a — a model the provider does not serve fails in words, never a JavaScript stack')
+failHint = ' | to fix: the run verb must end a rejected model with a failed outcome whose error carries a message and a one-line detail, and no stack frame on error.detail or stderr'
 {
   const run = await mercuryRun(['--format', 'rows', '--model', 'claude-banana-9', 'say hi'], [])
   const outcome = run.outcome
@@ -97,6 +101,7 @@ console.log('§3 L02a — a model the provider does not serve fails in words, ne
 }
 
 console.log('§4 UPD-02 — update --check --json writes its failure document to stdout')
+failHint = ' | to fix: the --check --json document and its exit code come from src/cli/update.ts (the access-unavailable cases); the JSON must go to stdout and the exit code must be 1'
 {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'exit-truth-upd-')))
   seedFirstRun(home, [home])

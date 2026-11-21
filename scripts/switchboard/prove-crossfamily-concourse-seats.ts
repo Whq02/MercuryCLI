@@ -36,16 +36,16 @@ if (!existsSync(DIST)) {
 
 let failures = 0
 let checks = 0
-const check = (label: string, ok: boolean, detail = ''): void => {
+const check = (label: string, ok: boolean, detail = '', hint = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok && hint ? ` — ${hint}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — crossfamily concourse seats prover exceeded 300s')
+  console.log('\nTIMEOUT — crossfamily concourse seats prover exceeded 300s; read daemon.log in the scratch folder (rerun with CMA_KEEP=1 to keep it) for the daemon or seat that stalled')
   process.exit(1)
 }, 300_000)
 guard.unref?.()
@@ -101,7 +101,7 @@ const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.
 const { executeBoardControl } = await import('../../src/services/concourse/boardControl.ts')
 const q = await import('../../src/services/providers/openai/qualificationStore.ts')
 
-check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' } as never)).ok === true, 60_000))
+check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' } as never)).ok === true, 60_000), '', 'node dist/mercury.mjs daemon run did not answer ping within 60 s; rebuild with bun run build.ts and read daemon.log (CMA_KEEP=1 keeps the scratch folder)')
 
 const seatJsonl = (sid: string, dir: string): string => join(paths.getProjectDir(dir), `${sid}.jsonl`)
 const landed = (sid: string, dir: string, words: string): Promise<boolean> =>
@@ -132,22 +132,22 @@ section('§1 no model named — the seat lands on the operator default, on the A
 {
   const before = captured.length
   const born = await dispatch('plain', 'seat-task-plain: work the plain brief', workPlain, 'CMA Plain')
-  check('the dispatch is admitted at the daemon door', born.ok === true && /^[0-9a-f-]{36}$/.test(String(born.sessionId ?? '')), text(born))
+  check('the dispatch is admitted at the daemon door', born.ok === true && /^[0-9a-f-]{36}$/.test(String(born.sessionId ?? '')), text(born), 'the concourseDispatch op at the daemon door (src/daemon/controlSocket.ts) must admit a dispatch with no model named')
   plainSid = String(born.sessionId ?? '')
-  check('the door names the model it resolved, an Anthropic id', declaredRouteOf(String(born.modelId ?? '')) === 'anthropic', String(born.modelId))
-  check('the seat streams its turn (its transcript lands)', await landed(plainSid, workPlain, 'plain-landed body.'), plainSid)
+  check('the door names the model it resolved, an Anthropic id', declaredRouteOf(String(born.modelId ?? '')) === 'anthropic', String(born.modelId), 'the daemon door must resolve the operator default model to an Anthropic id (declaredRouteOf, src/services/providers/routeLaw.ts)')
+  check('the seat streams its turn (its transcript lands)', await landed(plainSid, workPlain, 'plain-landed body.'), plainSid, 'the seat never wrote its transcript; read daemon.log in the scratch folder for the seat that failed to stream')
   const hits = captured.slice(before).filter(h => h.lane !== 'other')
-  check('every call of the turn rode /v1/messages with the id the door named', hits.length >= 1 && hits.every(h => h.lane === 'anthropic-seat' && h.path.endsWith('/v1/messages') && h.model === born.modelId), hits.map(h => `${h.lane}:${h.model}`).join(','))
+  check('every call of the turn rode /v1/messages with the id the door named', hits.length >= 1 && hits.every(h => h.lane === 'anthropic-seat' && h.path.endsWith('/v1/messages') && h.model === born.modelId), hits.map(h => `${h.lane}:${h.model}`).join(','), 'a plain seat call left the Anthropic /v1/messages wire or used another model id than the door named')
 }
 
 section('§2 a steer from the board reaches that seat and is answered on its own wire')
 {
   const before = captured.length
   const receipt = await executeBoardControl({ verb: 'session.redirect', sessionId: plainSid, clientMessageId: 'cma-seat-steer', instruction: CMA_STEER_TEXT, by: 'operator' })
-  check("the board's message is applied", receipt.outcome === 'applied', text(receipt))
-  check('the words land in the seat transcript and the seat answers them', await landed(plainSid, workPlain, 'steer-landed body.') && readFileSync(seatJsonl(plainSid, workPlain), 'utf8').includes(CMA_STEER_TEXT), plainSid)
+  check("the board's message is applied", receipt.outcome === 'applied', text(receipt), 'executeBoardControl for session.redirect (src/services/concourse/boardControl.ts) must apply a steer to a live seat')
+  check('the words land in the seat transcript and the seat answers them', await landed(plainSid, workPlain, 'steer-landed body.') && readFileSync(seatJsonl(plainSid, workPlain), 'utf8').includes(CMA_STEER_TEXT), plainSid, 'the redirect reached no live seat or the seat did not answer it; check session.redirect in src/services/concourse/boardControl.ts')
   const hits = captured.slice(before).filter(h => h.lane !== 'other')
-  check('the answer rode the same Anthropic wire', hits.length >= 1 && hits.every(h => h.lane === 'anthropic-seat'), hits.map(h => `${h.lane}:${h.model}`).join(','))
+  check('the answer rode the same Anthropic wire', hits.length >= 1 && hits.every(h => h.lane === 'anthropic-seat'), hits.map(h => `${h.lane}:${h.model}`).join(','), 'the steered seat answered on a wire other than its own Anthropic one')
   await freeSeat(plainSid)
 }
 
@@ -155,12 +155,12 @@ section('§3 a GPT id — the seat runs on the Responses endpoint with the exact
 {
   const before = captured.length
   const born = await dispatch('gpt', 'seat-task-gpt: work on the gpt engine', workGpt, 'CMA Gpt Seat', GPT_ID)
-  check('a gpt dispatch is admitted at the daemon door', born.ok === true, text(born))
-  check('the door names the model it was asked for (never a silent substitute)', born.modelId === GPT_ID, String(born.modelId))
+  check('a gpt dispatch is admitted at the daemon door', born.ok === true, text(born), 'the concourseDispatch op (src/daemon/controlSocket.ts) must admit a dispatch that names a gpt model')
+  check('the door names the model it was asked for (never a silent substitute)', born.modelId === GPT_ID, String(born.modelId), 'the daemon door must return the exact model id the dispatch named, never a substitute')
   const sid = String(born.sessionId ?? '')
-  check('the seat streams whole on its own dialect (its transcript lands)', await landed(sid, workGpt, 'gpt-landed body.'), sid)
+  check('the seat streams whole on its own dialect (its transcript lands)', await landed(sid, workGpt, 'gpt-landed body.'), sid, 'the gpt seat never wrote its transcript; read daemon.log in the scratch folder')
   const hits = captured.slice(before).filter(h => h.lane !== 'other')
-  check('every call rode the Responses endpoint with the exact id', hits.length >= 1 && hits.every(h => h.lane === 'openai-seat' && h.path === '/openai/v1/responses' && h.model === GPT_ID), hits.map(h => `${h.lane}:${h.path}:${h.model}`).join(','))
+  check('every call rode the Responses endpoint with the exact id', hits.length >= 1 && hits.every(h => h.lane === 'openai-seat' && h.path === '/openai/v1/responses' && h.model === GPT_ID), hits.map(h => `${h.lane}:${h.path}:${h.model}`).join(','), 'a gpt seat call left the OpenAI Responses endpoint or changed the model id')
   await freeSeat(sid)
 }
 
@@ -168,11 +168,11 @@ section('§4 a small Anthropic id — the seat carries it on its own family wire
 {
   const before = captured.length
   const born = await dispatch('haiku', 'seat-task-haiku: work the economy brief', workHaiku, 'CMA Haiku Seat', HAIKU_ID)
-  check('the haiku dispatch is admitted', born.ok === true, text(born))
+  check('the haiku dispatch is admitted', born.ok === true, text(born), 'the concourseDispatch op (src/daemon/controlSocket.ts) must admit a dispatch that names a haiku model')
   const sid = String(born.sessionId ?? '')
-  check('the seat streams on the Anthropic wire (its transcript lands)', await landed(sid, workHaiku, 'haiku-landed body.'), sid)
+  check('the seat streams on the Anthropic wire (its transcript lands)', await landed(sid, workHaiku, 'haiku-landed body.'), sid, 'the haiku seat never wrote its transcript; read daemon.log in the scratch folder')
   const hits = captured.slice(before).filter(h => h.lane !== 'other')
-  check('the seat call carried the haiku id', hits.length >= 1 && hits.every(h => h.lane === 'anthropic-seat' && /haiku/i.test(h.model)), hits.map(h => `${h.lane}:${h.model}`).join(','))
+  check('the seat call carried the haiku id', hits.length >= 1 && hits.every(h => h.lane === 'anthropic-seat' && /haiku/i.test(h.model)), hits.map(h => `${h.lane}:${h.model}`).join(','), 'a haiku seat call left the Anthropic wire or lost the haiku id')
   await freeSeat(sid)
 }
 
@@ -180,20 +180,20 @@ section('§5 a routed id — the seat rides the OpenRouter wire')
 {
   const before = captured.length
   const born = await dispatch('routed', 'seat-task-nemotron: work the routed brief', workRouted, 'CMA Nemotron Seat', ROUTED_ID)
-  check('the routed dispatch is admitted', born.ok === true, text(born))
+  check('the routed dispatch is admitted', born.ok === true, text(born), 'the concourseDispatch op (src/daemon/controlSocket.ts) must admit a dispatch that names an openrouter model')
   const sid = String(born.sessionId ?? '')
-  check('the seat streams on the OpenRouter wire (its transcript lands)', await landed(sid, workRouted, 'nemotron-landed body.'), sid)
+  check('the seat streams on the OpenRouter wire (its transcript lands)', await landed(sid, workRouted, 'nemotron-landed body.'), sid, 'the routed seat never wrote its transcript; read daemon.log in the scratch folder')
   const hits = captured.slice(before).filter(h => h.lane !== 'other')
-  check('the seat call rode the OpenRouter wire with the nemotron id', hits.length >= 1 && hits.every(h => h.lane === 'openrouter-seat' && /nemotron/i.test(h.model)), hits.map(h => `${h.lane}:${h.model}`).join(','))
+  check('the seat call rode the OpenRouter wire with the nemotron id', hits.length >= 1 && hits.every(h => h.lane === 'openrouter-seat' && /nemotron/i.test(h.model)), hits.map(h => `${h.lane}:${h.model}`).join(','), 'a routed seat call left the OpenRouter wire or lost the nemotron id')
   await freeSeat(sid)
 }
 
 section('§6 the wire-separation law over the whole run')
 {
   const anthropicSeats = captured.filter(h => h.lane === 'anthropic-seat')
-  check('every Anthropic seat call in the run rode /v1/messages', anthropicSeats.length >= 3 && anthropicSeats.every(h => h.path.endsWith('/v1/messages')), String(anthropicSeats.length))
+  check('every Anthropic seat call in the run rode /v1/messages', anthropicSeats.length >= 3 && anthropicSeats.every(h => h.path.endsWith('/v1/messages')), String(anthropicSeats.length), 'an Anthropic seat call used a path other than /v1/messages, or fewer than 3 seat calls were captured')
   const gptSeats = captured.filter(h => h.lane === 'openai-seat')
-  check('every GPT seat call rode its own Responses endpoint', gptSeats.length >= 1 && gptSeats.every(h => h.path === '/openai/v1/responses'), String(gptSeats.length))
+  check('every GPT seat call rode its own Responses endpoint', gptSeats.length >= 1 && gptSeats.every(h => h.path === '/openai/v1/responses'), String(gptSeats.length), 'a GPT seat call used a path other than /openai/v1/responses, or none was captured')
   const routedSeats = captured.filter(h => h.lane === 'openrouter-seat')
   const openrouterEndpointOf = (h: { body: unknown }): string =>
     Array.isArray((h.body as { tools?: unknown }).tools) && ((h.body as { tools: Array<{ type?: string }> }).tools).some(t => t?.type === 'openrouter:tool_search')
@@ -201,13 +201,13 @@ section('§6 the wire-separation law over the whole run')
       : '/openrouter/api/v1/chat/completions'
   check('every routed seat call rode the OpenRouter wire — the Responses endpoint when the seat defers (its search tool first), the chat endpoint when it does not',
     routedSeats.length >= 1 && routedSeats.every(h => h.path === openrouterEndpointOf(h)),
-    routedSeats.map(h => `${h.path}${openrouterEndpointOf(h) === h.path ? '' : ' (expected ' + openrouterEndpointOf(h) + ')'}`).join(','))
-  check('no call of the run rode a wire no seat was asked for', captured.filter(h => h.lane === 'zai-seat').length === 0, captured.filter(h => h.lane === 'zai-seat').map(h => h.model).join(','))
+    routedSeats.map(h => `${h.path}${openrouterEndpointOf(h) === h.path ? '' : ' (expected ' + openrouterEndpointOf(h) + ')'}`).join(','), 'a routed seat call used the wrong OpenRouter endpoint for whether its body carries the openrouter:tool_search tool')
+  check('no call of the run rode a wire no seat was asked for', captured.filter(h => h.lane === 'zai-seat').length === 0, captured.filter(h => h.lane === 'zai-seat').map(h => h.model).join(','), 'a seat was routed to the zai wire that no dispatch asked for')
   check('only the GPT family minted qualification receipts, and none in a chair\'s name',
     q.readQualificationReceipts().every(r => declaredRouteOf(r.receipt.modelId) === 'openai' && String(r.receipt.role) !== 'coordinator'),
-    text(q.readQualificationReceipts().map(r => [r.receipt.modelId, r.receipt.role])))
+    text(q.readQualificationReceipts().map(r => [r.receipt.modelId, r.receipt.role])), 'a receipt in src/services/providers/openai/qualificationStore.ts belongs to a non-GPT model or a coordinator role')
   const unknown = captured.filter(h => h.lane === 'other' && !h.path.startsWith('GET'))
-  check('no un-modelled POST reached the fixture', unknown.length === 0, unknown.map(h => h.path).join(','))
+  check('no un-modelled POST reached the fixture', unknown.length === 0, unknown.map(h => h.path).join(','), 'a POST reached the fixture that no lane in scripts/lib/crossfamilyConcourseFixture.ts models')
 }
 
 try {

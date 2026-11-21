@@ -6,8 +6,8 @@ import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-function check(ok: boolean, label: string, detail = ''): void {
-  console.log(`${ok ? '✓' : '✗'} ${label}${detail ? ` — ${detail}` : ''}`)
+function check(ok: boolean, label: string, detail = '', hint = ''): void {
+  console.log(`${ok ? '✓' : '✗'} ${label}${detail ? ` — ${detail}` : ''}${!ok && hint ? ` — ${hint}` : ''}`)
   if (!ok) failures++
 }
 function section(t: string): void {
@@ -45,7 +45,7 @@ section('§2 SCOPE-SETTER FLOOR — setAuthScope/clearAuthScope only in the swit
   for (const call of ['setAuthScope(', 'clearAuthScope(']) {
     const callers = callerFiles(call)
     const rogue = callers.filter(f => !sanctioned.has(f))
-    check(rogue.length === 0, `no unexpected caller of ${call}…)`, rogue.length ? `ROGUE: ${rogue.join(', ')}` : callers.join(', '))
+    check(rogue.length === 0, `no unexpected caller of ${call}…)`, rogue.length ? `ROGUE: ${rogue.join(', ')}` : callers.join(', '), 'only src/utils/accounts/scopedCredentialRead.ts and src/utils/envUtils.ts may call setAuthScope and clearAuthScope; move each ROGUE caller onto the isolated scoped read in scopedCredentialRead.ts')
   }
 }
 
@@ -61,8 +61,8 @@ section('§3 REST = IDENTITY — no override ⇒ getAuthConfigHomeDir() === getM
 {
   env.clearAuthScope()
   process.env.MERCURY_CONFIG_DIR = join(homedir(), '.mercury')
-  check(env.getAuthScope() === undefined, 'no auth scope at rest')
-  check(env.getAuthConfigHomeDir() === env.getMercuryHome(), 'auth home === session home at rest (byte-identical)')
+  check(env.getAuthScope() === undefined, 'no auth scope at rest', '', 'change getAuthScope and clearAuthScope in src/utils/envUtils.ts so a cleared scope reads undefined')
+  check(env.getAuthConfigHomeDir() === env.getMercuryHome(), 'auth home === session home at rest (byte-identical)', '', 'change getAuthConfigHomeDir in src/utils/envUtils.ts to return getMercuryHome() when no auth scope is set')
 }
 
 section('§4 NO KEYCHAIN COLLISION — Mercury ~/.mercury and a foreign-named home are DISTINCT entries, both hashed')
@@ -72,9 +72,9 @@ section('§4 NO KEYCHAIN COLLISION — Mercury ~/.mercury and a foreign-named ho
   const mercurySvc = keychain.getMacOsKeychainStorageServiceName(keychain.CREDENTIALS_SERVICE_SUFFIX)
   process.env.MERCURY_CONFIG_DIR = join(homedir(), '.claude')
   const foreignSvc = keychain.getMacOsKeychainStorageServiceName(keychain.CREDENTIALS_SERVICE_SUFFIX)
-  check(mercurySvc !== foreignSvc, 'sovereign and foreign keychain service names differ', `${mercurySvc} vs ${foreignSvc}`)
-  check(/-[0-9a-f]{8}$/.test(mercurySvc), 'sovereign home is HASH-suffixed', mercurySvc)
-  check(/-[0-9a-f]{8}$/.test(foreignSvc), 'the foreign-named home is hashed too — never an un-suffixed entry', foreignSvc)
+  check(mercurySvc !== foreignSvc, 'sovereign and foreign keychain service names differ', `${mercurySvc} vs ${foreignSvc}`, 'change getMacOsKeychainStorageServiceName in src/utils/secureStorage/macOsKeychainHelpers.ts so two config homes give two service names')
+  check(/-[0-9a-f]{8}$/.test(mercurySvc), 'sovereign home is HASH-suffixed', mercurySvc, 'change getMacOsKeychainStorageServiceName in src/utils/secureStorage/macOsKeychainHelpers.ts to always end the name with a dash and eight hex digits')
+  check(/-[0-9a-f]{8}$/.test(foreignSvc), 'the foreign-named home is hashed too — never an un-suffixed entry', foreignSvc, 'change getMacOsKeychainStorageServiceName in src/utils/secureStorage/macOsKeychainHelpers.ts to hash the foreign-named home too')
 }
 
 section('§5 SESSION HOME PINNED — an override moves the auth home, NOT the session home')
@@ -83,20 +83,20 @@ section('§5 SESSION HOME PINNED — an override moves the auth home, NOT the se
   const sessionHome = env.getMercuryHome()
   const target = join(homedir(), '.mercury-account-b')
   env.setAuthScope(target)
-  check(env.getAuthConfigHomeDir() === target, 'override moves the credential store to the switched account', env.getAuthConfigHomeDir())
-  check(env.getMercuryHome() === sessionHome, 'the session home (transcripts/config/rooms) is UNMOVED', env.getMercuryHome())
+  check(env.getAuthConfigHomeDir() === target, 'override moves the credential store to the switched account', env.getAuthConfigHomeDir(), 'change getAuthConfigHomeDir and setAuthScope in src/utils/envUtils.ts so the override moves the credential home')
+  check(env.getMercuryHome() === sessionHome, 'the session home (transcripts/config/rooms) is UNMOVED', env.getMercuryHome(), 'change getMercuryHome in src/utils/envUtils.ts so setAuthScope does not move the session home')
   env.clearAuthScope()
-  check(env.getAuthConfigHomeDir() === sessionHome, 'clearing the override restores the session home for creds too')
+  check(env.getAuthConfigHomeDir() === sessionHome, 'clearing the override restores the session home for creds too', '', 'change clearAuthScope and getAuthConfigHomeDir in src/utils/envUtils.ts so clearing falls back to the session home')
 }
 
 section('§6 NO RELAY RING EXISTS — the roster module and its stations are gone')
 {
-  check(!existsSync(join(import.meta.dir, '../../src/utils/accountSnapshot.ts')), 'the roster module is deleted')
+  check(!existsSync(join(import.meta.dir, '../../src/utils/accountSnapshot.ts')), 'the roster module is deleted', '', 'delete src/utils/accountSnapshot.ts')
   const hits = execSync(
     "grep -rl 'launchAccounts(' ../../src --include='*.ts' --include='*.tsx' || true",
     { cwd: import.meta.dir, encoding: 'utf8' },
   ).trim()
-  check(hits === '', 'no live source consumes a launch-account ring', hits)
+  check(hits === '', 'no live source consumes a launch-account ring', hits, 'remove each launchAccounts( caller listed from src; the roster ring no longer exists')
 }
 
 section('§7 EXPORT REDACTION reads the active credential scope without moving session state')
@@ -120,9 +120,9 @@ section('§7 EXPORT REDACTION reads the active credential scope without moving s
     const { sessionSecretValues } = await import('../../src/utils/redactSecrets.js')
     env.setAuthScope(authHome)
     const values = await sessionSecretValues()
-    check(values.includes('scopedCredentialFixture') && !values.includes('sessionCredentialFixture'), 'the export masker reads credentials from the auth scope, not the session home')
-    check(env.getMercuryHome() === sessionHome, 'the export masker leaves the session home unchanged')
-    check(readFileSync(join(sessionHome, '.credentials.json'), 'utf8') === sessionBytes && readFileSync(join(authHome, '.credentials.json'), 'utf8') === authBytes, 'the export masker rewrites neither credential store')
+    check(values.includes('scopedCredentialFixture') && !values.includes('sessionCredentialFixture'), 'the export masker reads credentials from the auth scope, not the session home', '', 'change sessionSecretValues in src/utils/redactSecrets.ts to read credentials through the auth scope (getAuthConfigHomeDir)')
+    check(env.getMercuryHome() === sessionHome, 'the export masker leaves the session home unchanged', '', 'change sessionSecretValues in src/utils/redactSecrets.ts so it reads the auth scope without changing the session home')
+    check(readFileSync(join(sessionHome, '.credentials.json'), 'utf8') === sessionBytes && readFileSync(join(authHome, '.credentials.json'), 'utf8') === authBytes, 'the export masker rewrites neither credential store', '', 'change sessionSecretValues in src/utils/redactSecrets.ts so reading credentials writes nothing to either .credentials.json')
   } finally {
     env.clearAuthScope()
     if (credentialStore === undefined) delete process.env.MERCURY_CREDENTIAL_STORE

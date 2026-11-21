@@ -12,7 +12,7 @@ const PLANTED = process.argv.includes('--planted-only')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' [if sdk/src or sdk-py drifted from src/rows/vocabulary.ts, run bun scripts/sdk/generate.ts and commit the regenerated files; otherwise fix the generator in scripts/sdk/generate.ts]' : ''}`)
 }
 function section(t: string): void {
   console.log(`\n${'─'.repeat(76)}\n${t}`)

@@ -30,7 +30,8 @@ if (!existsSync(DIST)) {
 
 let failures = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}`)
+  const emptyInputHint = ' | fix: a resumed Bash tool_use with input {} must render without a crash; start at renderToolUseMessage in src/tools/BashTool/UI.tsx and the row component that calls it, and read the app-root crash report under the config home crashes folder for the failing component; if the capture did not run to its deadline, the driver is scripts/streaming/ptydrive.py'
+  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok ? '' : `${detail ? ` — ${detail}` : ''}${emptyInputHint}`}`)
   if (!ok) failures++
 }
 

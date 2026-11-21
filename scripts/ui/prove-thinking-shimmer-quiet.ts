@@ -103,9 +103,9 @@ async function mountAndSample(reducedMotion: boolean, samplesMs: number[], respo
 
 console.log('the working strip paints no thinking label at any moment of a think: the verb, the clock and the count are the row')
 const [quiet] = await mountAndSample(true, [400])
-check('a reduced-motion think paints no thinking label', quiet === null, `label ink ${quiet}`)
+check('a reduced-motion think paints no thinking label', quiet === null, `label ink ${quiet}; SpinnerAnimationRow in src/components/Spinner/SpinnerAnimationRow.tsx must not paint the thinking label when reducedMotion is on`)
 const [early, late1, late2] = await mountAndSample(false, [400, 3_900, 4_250], 3_600)
-check('a think that begins 3.6 s into the turn paints no thinking label at 0.4 s, 3.9 s or 4.25 s', early === null && late1 === null && late2 === null, `early ${early} · 3.9 s ${late1} · 4.25 s ${late2}`)
+check('a think that begins 3.6 s into the turn paints no thinking label at 0.4 s, 3.9 s or 4.25 s', early === null && late1 === null && late2 === null, `early ${early} · 3.9 s ${late1} · 4.25 s ${late2}; SpinnerAnimationRow in src/components/Spinner/SpinnerAnimationRow.tsx must not paint or shimmer the thinking label in thinking mode`)
 
 console.log(failures === 0 ? '\n✅ thinking shimmer quiet GREEN — no phase word on the strip' : `\n❌ thinking shimmer quiet RED — ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

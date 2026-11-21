@@ -39,11 +39,12 @@ const { compactConversation, shouldRideCacheSharingFork } = await import('../../
 
 let failures = 0
 let checks = 0
-const check = (name: string, ok: boolean, details: unknown = ''): void => {
+const check = (name: string, ok: boolean, details: unknown = '', changeHint = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${JSON.stringify(details)}`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${JSON.stringify(details)}${changeHint ? ` | ${changeHint}` : ''}`}`)
 }
+const foldRequestWhere = 'change how the fold builds its request so it matches the session request: compactConversation (src/services/compact/compact.ts) and the summary request in src/services/compact/compact/summarise.ts'
 const summary = 'The synthetic parser accepts quoted commas and its 14 checks passed. Preserve the test command and continue with CLI verification.'
 const ENVELOPE_KEYS_OUTSIDE = new Set(['messages', 'input', 'system', 'instructions', 'tools', 'metadata', 'stream', 'stream_options', 'tool_choice', 'prompt_cache_key', 'previous_response_id', 'store', 'user', 'safety_identifier', 'model', 'max_tokens', 'max_completion_tokens', 'max_output_tokens', 'include', 'cache_control', 'n', 'contents', 'systemInstruction', 'toolConfig', 'max_tokens', 'max_completion_tokens', 'max_output_tokens'])
 type Body = Record<string, any>
@@ -119,29 +120,29 @@ async function drive(road: { lane: string; model: string; dialect: string }, eff
 }
 
 function compare(label: string, reference: Body | undefined, fold: Body | undefined, messagesRef: any[], expectSameTail: boolean, ownRowsAfter = false): void {
-  check(`${label}: a request was built on both sides`, reference !== undefined && fold !== undefined, { reference: reference !== undefined, fold: fold !== undefined })
+  check(`${label}: a request was built on both sides`, reference !== undefined && fold !== undefined, { reference: reference !== undefined, fold: fold !== undefined }, foldRequestWhere + ' so it sends a request on the declared wire')
   if (reference === undefined || fold === undefined) return
   const refPosture = posture(reference)
   const foldPosture = posture(fold)
-  check(`${label}: every effort and thinking field outside the envelope is the session request's`, JSON.stringify(refPosture) === JSON.stringify(foldPosture), { session: refPosture, fold: foldPosture })
-  check(`${label}: the output ceiling is the session request's, or the fit's answer for the fold prompt's few extra tokens (under 4,000 lower, never higher)`, ceilingFollows(ceilingOf(fold), ceilingOf(reference)), { session: ceilingOf(reference), fold: ceilingOf(fold) })
+  check(`${label}: every effort and thinking field outside the envelope is the session request's`, JSON.stringify(refPosture) === JSON.stringify(foldPosture), { session: refPosture, fold: foldPosture }, foldRequestWhere + ' (effort and thinking fields)')
+  check(`${label}: the output ceiling is the session request's, or the fit's answer for the fold prompt's few extra tokens (under 4,000 lower, never higher)`, ceilingFollows(ceilingOf(fold), ceilingOf(reference)), { session: ceilingOf(reference), fold: ceilingOf(fold) }, foldRequestWhere + ' (output ceiling)')
   const refRows = assistantRows(reference)
   const foldRows = assistantRows(fold)
-  check(`${label}: every preserved thinking block rides byte-identically at its original position`, JSON.stringify(refRows) === JSON.stringify(ownRowsAfter ? foldRows.slice(0, refRows.length) : foldRows), { session: refRows, fold: foldRows })
-  if (ownRowsAfter) check(`${label}: the fold's own turn rides after the session's rows, never among them`, foldRows.length > refRows.length && foldRows.slice(refRows.length).every(row => row.at > (refRows.at(-1)?.at ?? -1)), { session: refRows, fold: foldRows })
+  check(`${label}: every preserved thinking block rides byte-identically at its original position`, JSON.stringify(refRows) === JSON.stringify(ownRowsAfter ? foldRows.slice(0, refRows.length) : foldRows), { session: refRows, fold: foldRows }, foldRequestWhere + ' (preserved thinking blocks)')
+  if (ownRowsAfter) check(`${label}: the fold's own turn rides after the session's rows, never among them`, foldRows.length > refRows.length && foldRows.slice(refRows.length).every(row => row.at > (refRows.at(-1)?.at ?? -1)), { session: refRows, fold: foldRows }, foldRequestWhere + ' (the fold own turn goes after the session rows)')
   const wire = JSON.stringify(fold)
   const refWire = JSON.stringify(reference)
   const count = (text: string, needle: RegExp): number => (text.match(needle) ?? []).length
-  check(`${label}: no preserved block is duplicated or dropped`, count(wire, /fixture-signature-byte-exact/g) === count(refWire, /fixture-signature-byte-exact/g) && count(wire, /fixture-signature-two/g) === count(refWire, /fixture-signature-two/g) && count(wire, /fixture-encrypted-byte-exact/g) === count(refWire, /fixture-encrypted-byte-exact/g) && count(wire, /fixture-redacted-bytes-exact/g) === count(refWire, /fixture-redacted-bytes-exact/g), { fold: wire.match(/fixture-(?:signature|encrypted|redacted)[a-z-]*/g), session: refWire.match(/fixture-(?:signature|encrypted|redacted)[a-z-]*/g) })
+  check(`${label}: no preserved block is duplicated or dropped`, count(wire, /fixture-signature-byte-exact/g) === count(refWire, /fixture-signature-byte-exact/g) && count(wire, /fixture-signature-two/g) === count(refWire, /fixture-signature-two/g) && count(wire, /fixture-encrypted-byte-exact/g) === count(refWire, /fixture-encrypted-byte-exact/g) && count(wire, /fixture-redacted-bytes-exact/g) === count(refWire, /fixture-redacted-bytes-exact/g), { fold: wire.match(/fixture-(?:signature|encrypted|redacted)[a-z-]*/g), session: refWire.match(/fixture-(?:signature|encrypted|redacted)[a-z-]*/g) }, foldRequestWhere + ' (no preserved block duplicated or dropped)')
   if (expectSameTail) {
     const rows = (body: Body): unknown[] => Array.isArray(body.input) ? body.input : Array.isArray(body.messages) ? body.messages : Array.isArray(body.contents) ? body.contents : []
     const uncached = (value: unknown): unknown => JSON.parse(JSON.stringify(value, (key, inner) => (key === 'cache_control' ? undefined : inner)))
     const refRowsAll = uncached(rows(reference)) as unknown[]
     const foldRowsAll = uncached(rows(fold)) as unknown[]
     const lastAssistantAt = refRowsAll.map((row: any, at: number) => (row.role === 'assistant' || row.role === 'model' || row.type === 'reasoning' ? at : -1)).reduce((a, b) => Math.max(a, b), -1)
-    check(`${label}: the session's rows through its last assistant row ride byte-identically ahead of the prompt`, lastAssistantAt >= 0 && JSON.stringify(refRowsAll.slice(0, lastAssistantAt + 1)) === JSON.stringify(foldRowsAll.slice(0, lastAssistantAt + 1)) && wire.includes('summary of the conversation') === wire.includes('summary of the conversation'), { lastAssistantAt, session: refRowsAll.slice(0, lastAssistantAt + 1), fold: foldRowsAll.slice(0, lastAssistantAt + 1) })
+    check(`${label}: the session's rows through its last assistant row ride byte-identically ahead of the prompt`, lastAssistantAt >= 0 && JSON.stringify(refRowsAll.slice(0, lastAssistantAt + 1)) === JSON.stringify(foldRowsAll.slice(0, lastAssistantAt + 1)) && wire.includes('summary of the conversation') === wire.includes('summary of the conversation'), { lastAssistantAt, session: refRowsAll.slice(0, lastAssistantAt + 1), fold: foldRowsAll.slice(0, lastAssistantAt + 1) }, foldRequestWhere + ' (the session rows ride byte-identically ahead of the prompt)')
   }
-  check(`${label}: no per-message effort row`, Array.isArray(fold.messages) ? fold.messages.every((row: any) => row.output_config === undefined) : true, fold.messages)
+  check(`${label}: no per-message effort row`, Array.isArray(fold.messages) ? fold.messages.every((row: any) => row.output_config === undefined) : true, fold.messages, foldRequestWhere + ' (no per-message output_config)')
   void messagesRef
 }
 
@@ -153,7 +154,7 @@ try {
         for (const continued of [false, true]) {
           const label = `${road.lane} · effort ${effort} · thinking ${thinkingConfig.type}${'budgetTokens' in thinkingConfig ? ` ${thinkingConfig.budgetTokens}` : ''} · ${continued ? 'continued' : 'fresh'} history`
           const driven = await drive(road, effort, thinkingConfig, { continued, redacted: road.dialect === 'anthropic' })
-          check(`${label}: the fold made one request on its declared wire and settled`, driven.fold.length === 1 && driven.error === undefined && driven.result?.summaryMessages.some(row => String(row.message.content).includes(summary)) === true, { requests: driven.fold.length, error: driven.error })
+          check(`${label}: the fold made one request on its declared wire and settled`, driven.fold.length === 1 && driven.error === undefined && driven.result?.summaryMessages.some(row => String(row.message.content).includes(summary)) === true, { requests: driven.fold.length, error: driven.error }, foldRequestWhere + ' so the fold makes one request and settles')
           compare(label, driven.reference, driven.fold.at(-1), [], true)
         }
       }
@@ -164,19 +165,19 @@ try {
     for (const thinkingConfig of [{ type: 'adaptive' }, { type: 'enabled' }] as const) {
       const label = `${road.lane} · thinking ${thinkingConfig.type} · fork spends its turn on a tool call and answers on its tool-free closing turn`
       const driven = await drive(road, 'max', thinkingConfig, { continued: true, redacted: true, script: [{ calls: [{ id: 'toolu_fixture_fork', name: 'Read', args: '{"file_path":"/tmp/x"}' }] }, { text: summary }] })
-      check(`${label}: two requests, the fork's then its closing turn — no direct-lane request`, driven.fold.length === 2 && driven.error === undefined, { requests: driven.fold.length, error: driven.error })
+      check(`${label}: two requests, the fork's then its closing turn — no direct-lane request`, driven.fold.length === 2 && driven.error === undefined, { requests: driven.fold.length, error: driven.error }, 'change summarizeViaCacheSharingFork in src/services/compact/compact.ts or the fork turn so the fork and its closing turn are the only two requests')
       compare(`${label} (fork)`, driven.reference, driven.fold[0], [], true)
       compare(`${label} (closing turn)`, driven.reference, driven.fold[1], [], true, true)
       const closing = driven.fold[1] as any
-      check(`${label}: the closing turn forbids tool calls and settles the wasted call as spent`, closing?.tool_choice?.type === 'none' && JSON.stringify(closing?.messages ?? []).includes('The turn budget is spent'), { tool_choice: closing?.tool_choice })
-      check(`${label}: the fork and its closing turn carry one posture`, JSON.stringify(posture(driven.fold[0])) === JSON.stringify(posture(driven.fold[1])) && ceilingsNear(ceilingOf(driven.fold[0]), ceilingOf(driven.fold[1])), { fork: posture(driven.fold[0]), closing: posture(driven.fold[1]), ceilings: [ceilingOf(driven.fold[0]), ceilingOf(driven.fold[1])] })
+      check(`${label}: the closing turn forbids tool calls and settles the wasted call as spent`, closing?.tool_choice?.type === 'none' && JSON.stringify(closing?.messages ?? []).includes('The turn budget is spent'), { tool_choice: closing?.tool_choice }, 'change the fork closing turn in src/services/compact/compact.ts so it sends tool_choice none and settles the spent call')
+      check(`${label}: the fork and its closing turn carry one posture`, JSON.stringify(posture(driven.fold[0])) === JSON.stringify(posture(driven.fold[1])) && ceilingsNear(ceilingOf(driven.fold[0]), ceilingOf(driven.fold[1])), { fork: posture(driven.fold[0]), closing: posture(driven.fold[1]), ceilings: [ceilingOf(driven.fold[0]), ceilingOf(driven.fold[1])] }, foldRequestWhere + ' so the fork and its closing turn share one posture')
     }
   }
   {
     const road = roads.find(r => r.lane === 'anthropic-budget')!
     const budget = await drive(road, 'max', { type: 'enabled' }, { continued: true, redacted: false })
     compare(`${road.lane} · thinking enabled with the model's own budget`, budget.reference, budget.fold.at(-1), [], true)
-    check(`${road.lane}: the budget_tokens the session carries rides the fold`, budget.reference?.thinking?.budget_tokens !== undefined && JSON.stringify(budget.reference?.thinking) === JSON.stringify(budget.fold.at(-1)?.thinking), { session: budget.reference?.thinking, fold: budget.fold.at(-1)?.thinking })
+    check(`${road.lane}: the budget_tokens the session carries rides the fold`, budget.reference?.thinking?.budget_tokens !== undefined && JSON.stringify(budget.reference?.thinking) === JSON.stringify(budget.fold.at(-1)?.thinking), { session: budget.reference?.thinking, fold: budget.fold.at(-1)?.thinking }, foldRequestWhere + ' so budget_tokens rides the fold')
   }
   for (const pinned of ['16000', '4096']) {
     process.env.MERCURY_MAX_OUTPUT_TOKENS = pinned
@@ -192,7 +193,7 @@ try {
     const auto = await drive(road, 'max', { type: 'adaptive' }, { continued: true, redacted: false, auto: true })
     const overflow = await drive(road, 'max', { type: 'adaptive' }, { continued: true, redacted: false, auto: true, overflow: true })
     const same = (a: Body | undefined, b: Body | undefined): boolean => JSON.stringify(posture(a)) === JSON.stringify(posture(b)) && ceilingsNear(ceilingOf(a), ceilingOf(b))
-    check(`${road.lane}: /compact, the threshold fold and the overflow fold carry one posture`, same(manual.fold.at(-1), auto.fold.at(-1)) && same(auto.fold.at(-1), overflow.fold.at(-1)) && manual.error === undefined && auto.error === undefined && overflow.error === undefined, { manual: posture(manual.fold.at(-1)), auto: posture(auto.fold.at(-1)), overflow: posture(overflow.fold.at(-1)), errors: [manual.error, auto.error, overflow.error] })
+    check(`${road.lane}: /compact, the threshold fold and the overflow fold carry one posture`, same(manual.fold.at(-1), auto.fold.at(-1)) && same(auto.fold.at(-1), overflow.fold.at(-1)) && manual.error === undefined && auto.error === undefined && overflow.error === undefined, { manual: posture(manual.fold.at(-1)), auto: posture(auto.fold.at(-1)), overflow: posture(overflow.fold.at(-1)), errors: [manual.error, auto.error, overflow.error] }, foldRequestWhere + ' so the manual, threshold and overflow folds build one posture')
   }
   {
     const { conversationAtThreshold } = await import('./thresholdFixture.ts')
@@ -205,8 +206,8 @@ try {
       const label = `${road.lane} · real-sized Read results (${built.ids.length} rounds, ${(JSON.stringify(built.messages).length / 1_048_576).toFixed(1)} MB) with a calibrated gauge AT the fold threshold (${built.gauge.toLocaleString('en-US')} of ${getContextWindowForModel(road.model).toLocaleString('en-US')}; blocking limit ${getBlockingLimit(road.model).toLocaleString('en-US')}) · continued history · the threshold fold`
       const driven = await drive(road, 'max', { type: 'adaptive' }, { continued: true, redacted: false, auto: true, messages: built.messages, threshold })
       const wire = JSON.stringify(driven.fold[0] ?? {})
-      check(`${label}: the gauge sits at the threshold and the fold made one request on its declared wire and settled`, built.gauge === threshold && driven.fold.length === 1 && driven.error === undefined && driven.result?.summaryMessages.some(row => String(row.message.content).includes(summary)) === true, { gauge: built.gauge, threshold, requests: driven.fold.length, error: driven.error })
-      check(`${label}: every round's Read and every result's bytes ride, the newest round included, nothing capped`, built.paths.every(path => wire.includes(JSON.stringify(path).slice(1, -1))) && built.results.every(body => wire.includes(JSON.stringify(body).slice(1, -1))) && !wire.includes('characters omitted for the compaction') && !wire.includes('earlier turns folded into this summary'), { newest: wire.includes(built.paths.at(-1) ?? ''), capped: wire.includes('characters omitted for the compaction') })
+      check(`${label}: the gauge sits at the threshold and the fold made one request on its declared wire and settled`, built.gauge === threshold && driven.fold.length === 1 && driven.error === undefined && driven.result?.summaryMessages.some(row => String(row.message.content).includes(summary)) === true, { gauge: built.gauge, threshold, requests: driven.fold.length, error: driven.error }, foldRequestWhere + ' so a fold at the threshold makes one request and settles')
+      check(`${label}: every round's Read and every result's bytes ride, the newest round included, nothing capped`, built.paths.every(path => wire.includes(JSON.stringify(path).slice(1, -1))) && built.results.every(body => wire.includes(JSON.stringify(body).slice(1, -1))) && !wire.includes('characters omitted for the compaction') && !wire.includes('earlier turns folded into this summary'), { newest: wire.includes(built.paths.at(-1) ?? ''), capped: wire.includes('characters omitted for the compaction') }, foldRequestWhere + ' so every Read round and result rides uncapped')
       compare(label, driven.reference, driven.fold.at(-1), [], true)
     }
   }

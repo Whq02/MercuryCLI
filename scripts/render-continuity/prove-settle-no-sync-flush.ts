@@ -5,7 +5,8 @@ import { Readable, Writable } from 'node:stream'
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  const settleHint = 'change the store subscription that flushes in src/components/LiveStreamingTail.tsx, or how the settle updates the tail store in handleMessageFromStream (src/utils/messages/streaming.ts) and src/utils/messages/streamingTailStore.ts: a delta flushes synchronously, the settle clears the tail with no flush and keeps the text for readSettled'
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? `${detail} | ` : ''}${settleHint}` : ''}`)
   if (!ok) failures = 1
 }
 

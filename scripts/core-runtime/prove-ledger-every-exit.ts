@@ -16,9 +16,11 @@ delete process.env.MERCURY_EFFORT_LEVEL
 process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '5000'
 
 let failures = 0
+const LEDGER_EXIT_HINT = 'change the exit paths of queryModelWithStreaming in src/services/providers/anthropic/streamCore.ts so every billed request is recorded in the usage ledger of src/cost-tracker.ts exactly once'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failText = [detail, LEDGER_EXIT_HINT].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && failText ? ` — ${failText}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

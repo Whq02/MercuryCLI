@@ -4,7 +4,7 @@
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' · fix kvGeometryOf, kvCacheBytes and slidingLayerMask in src/services/localServer/localServerMemory.ts, fitLocalWindow in src/services/localServer/localWindowFit.ts, or the GGUF array reading in parseGgufHeader in src/services/host/ggufHeader.ts'}`)
 }
 const GIB = 1024 ** 3
 

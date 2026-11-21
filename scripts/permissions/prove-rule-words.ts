@@ -18,11 +18,22 @@ process.env.NODE_ENV = 'test'
 process.chdir(PROJ)
 
 let failures = 0
+const ruleWordsWhereBySection: Record<string, string> = {
+  '§1': 'fix parsePermissionRule, permissionRuleExtractPrefix or suggestionForPrefix in src/utils/permissions/shellRuleMatching.ts',
+  '§2': 'fix the rule matching in src/utils/permissions/shellRuleMatching.ts and src/tools/BashTool/bashPermissions.ts (PowerShell: src/tools/PowerShellTool/powershellPermissions.ts)',
+  '§3': 'fix validatePermissionRule in src/utils/settings/permissionValidation.ts, filterInvalidPermissionRules in src/utils/settings/validation.ts, or isDangerousBashPermission in src/utils/permissions/permissionSetup.ts',
+  '§4': 'fix the screen named in the label: src/components/permissions/rules/PermissionRuleDescription.tsx, src/components/permissions/rules/PermissionRuleInput.tsx or src/components/permissions/BashPermissionRequest/bashToolUseOptions.tsx',
+  '§5': 'fix ruleSentence, ruleSourceWords or refusalWithReason in src/utils/permissions/ruleReason.ts, the road that speaks the sentence (Bash, PowerShell, src/utils/permissions/filesystem.ts, src/utils/permissions/decision/requestMessage.ts), or src/components/permissions/PermissionRuleExplanation.tsx',
+}
+let ruleWordsWhere = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + ' ' : '') + '(' + ruleWordsWhere + ')' : ''}`)
   if (!ok) failures++
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
+const section = (t: string): void => {
+  ruleWordsWhere = ruleWordsWhereBySection[t.slice(0, 2)] ?? ''
+  console.log('\n' + '─'.repeat(76) + '\n' + t)
+}
 const j = (v: unknown): string => JSON.stringify(v)
 
 async function stub(path: string, fixture: () => Record<string, unknown>): Promise<void> {

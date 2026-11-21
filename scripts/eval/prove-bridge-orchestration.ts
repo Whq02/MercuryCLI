@@ -5,6 +5,9 @@ import { check, cleanup, finish, loadEval, makeContext, section, setup, within }
 
 const { work } = setup()
 
+const hintedCheck = (label: string, cond: boolean, detail: string | undefined, hint: string): void =>
+  check(label, cond, cond ? detail : `${detail ? `${detail}; ` : ''}${hint}`)
+
 const sse = (payload: unknown): string => `data: ${JSON.stringify(payload)}\n\n`
 const anthropicSse = (text: string): string =>
   [
@@ -168,46 +171,46 @@ try {
     prompt: 'say the word',
     signal: new AbortController().signal,
   })
-  check('anthropic-lane completion answers', first === 'settled by the first-party lane', first)
+  hintedCheck('anthropic-lane completion answers', first === 'settled by the first-party lane', first, 'fix oneShotCompletion in src/services/eval/evalBridge.ts so a claude model streams its text back from the /v1/messages road')
   const glm = await oneShotCompletion({
     model: 'glm-5.2',
     prompt: 'say the word',
     signal: new AbortController().signal,
   })
-  check('glm-lane completion answers (multi-auth by construction)', glm === 'settled by the glm lane', glm)
-  check('the two lanes hit DIFFERENT fixture paths', captured.some(c => c.path.endsWith('/v1/messages')) && captured.some(c => c.path === '/zai/v4/chat/completions'), JSON.stringify(captured))
+  hintedCheck('glm-lane completion answers (multi-auth by construction)', glm === 'settled by the glm lane', glm, 'fix oneShotCompletion in src/services/eval/evalBridge.ts so a glm model streams its text back from the zai chat/completions road')
+  hintedCheck('the two lanes hit DIFFERENT fixture paths', captured.some(c => c.path.endsWith('/v1/messages')) && captured.some(c => c.path === '/zai/v4/chat/completions'), JSON.stringify(captured), 'oneShotCompletion in src/services/eval/evalBridge.ts must route through routedCallModel so each model reaches its own provider base URL')
   const trailing = await oneShotCompletion({
     model: 'glm-5.2',
     prompt: 'say the word, then think',
     signal: new AbortController().signal,
   })
-  check('a reasoning block minted AFTER the answer never blanks the completion', trailing === 'settled by the glm lane', trailing)
+  hintedCheck('a reasoning block minted AFTER the answer never blanks the completion', trailing === 'settled by the glm lane', trailing, 'oneShotCompletion in src/services/eval/evalBridge.ts must keep the answer text when a reasoning block arrives after it')
 
   section('completion() schema failure raises typed into the cell')
   const cs = await runCell(
     'py',
     "try:\n    completion('give me data', schema={'type': 'object'})\n    r = 'ok'\nexcept Exception as e:\n    r = 'raised: ' + str(e)\nr",
   )
-  check('schema-less reply → typed raise', (cs.resultRepr ?? '').includes('raised:') && (cs.resultRepr ?? '').includes('JSON'), cs.resultRepr)
+  hintedCheck('schema-less reply → typed raise', (cs.resultRepr ?? '').includes('raised:') && (cs.resultRepr ?? '').includes('JSON'), cs.resultRepr, 'applySchemaToReply in src/services/eval/evalBridge.ts must return ok:false naming JSON when the reply has none, and completion() in src/services/eval/pyRunnerSource.ts must raise it')
 
   section('agent() — schema parse, strict and permissive surfaces')
   const ag1 = await runCell(
     'py',
     "data = agent('summarize the repo', schema={'type': 'object', 'properties': {'count': {'type': 'number'}, 'label': {'type': 'string'}}, 'required': ['count', 'label']})\nrepr((data['count'], data['label']))",
   )
-  check('schema agent returns PARSED data', (ag1.resultRepr ?? '').includes("(3, 'from-agent')"), ag1.resultRepr ?? JSON.stringify(ag1.error))
+  hintedCheck('schema agent returns PARSED data', (ag1.resultRepr ?? '').includes("(3, 'from-agent')"), ag1.resultRepr ?? JSON.stringify(ag1.error), 'agent() in src/services/eval/pyRunnerSource.ts and applySchemaToReply in src/services/eval/evalBridge.ts must hand back the parsed object, not the raw text')
   const ag2 = await runCell(
     'py',
     "try:\n    agent('answer-badly please', schema={'type': 'object', 'properties': {'count': {'type': 'number'}}, 'required': ['count']})\n    r = 'ok'\nexcept Exception as e:\n    r = 'raised: ' + str(e)\nr",
   )
-  check('strict schema violation raises with the exact path', (ag2.resultRepr ?? '').includes('raised:') && (ag2.resultRepr ?? '').includes('count'), ag2.resultRepr)
+  hintedCheck('strict schema violation raises with the exact path', (ag2.resultRepr ?? '').includes('raised:') && (ag2.resultRepr ?? '').includes('count'), ag2.resultRepr, 'applySchemaToReply in src/services/eval/evalBridge.ts must return ok:false with the formatted issue path when strict is true')
   const ag3 = await runCell(
     'py',
     "v = agent('answer-badly please', schema={'type': 'object', 'properties': {'count': {'type': 'number'}}, 'required': ['count']}, strict=False)\nrepr(v)",
   )
-  check('permissive mode returns the parsed-but-invalid value', (ag3.resultRepr ?? '').includes('not-a-number'), ag3.resultRepr)
+  hintedCheck('permissive mode returns the parsed-but-invalid value', (ag3.resultRepr ?? '').includes('not-a-number'), ag3.resultRepr, 'applySchemaToReply in src/services/eval/evalBridge.ts must return the parsed value when strict is false')
   const ag4 = await runCell('py', "agent('plain prose request')")
-  check('plain agent returns final text', ag4.status === 'ok' && (ag4.resultRepr ?? '').includes('agent says:'), ag4.resultRepr)
+  hintedCheck('plain agent returns final text', ag4.status === 'ok' && (ag4.resultRepr ?? '').includes('agent says:'), ag4.resultRepr, 'agent() in src/services/eval/pyRunnerSource.ts and its bridge case in src/services/eval/evalBridge.ts must return the Crewmate tool final text')
 
   section('parallel() — order, width, lowest-index failure (Python)')
   probeCalls.length = 0
@@ -215,36 +218,36 @@ try {
     'py',
     "results = parallel([\n    lambda: tool.Probe(tag='a'),\n    lambda: tool.Probe(tag='b'),\n    lambda: tool.Probe(tag='c'),\n])\nrepr(results)",
   )
-  check('parallel preserves input order', (par1.resultRepr ?? '').includes("['probe:a', 'probe:b', 'probe:c']"), par1.resultRepr ?? JSON.stringify(par1.error))
+  hintedCheck('parallel preserves input order', (par1.resultRepr ?? '').includes("['probe:a', 'probe:b', 'probe:c']"), par1.resultRepr ?? JSON.stringify(par1.error), 'parallel() in src/services/eval/pyRunnerSource.ts must return results in input order')
   const par2 = await runCell(
     'py',
     "try:\n    parallel([\n        lambda: tool.Probe(tag='x0'),\n        lambda: tool.Probe(tag='x1', fail=True),\n        lambda: tool.Probe(tag='x2', fail=True),\n    ])\n    r = 'ok'\nexcept Exception as e:\n    r = 'raised: ' + str(e)\nr",
   )
-  check('the LOWEST-index failure propagates', (par2.resultRepr ?? '').includes('x1 failed'), par2.resultRepr)
+  hintedCheck('the LOWEST-index failure propagates', (par2.resultRepr ?? '').includes('x1 failed'), par2.resultRepr, 'parallel() in src/services/eval/pyRunnerSource.ts must raise the failure with the lowest index, not the first to finish')
 
   section('parallel()/pipeline() in the JS kernel')
   const jsPar = await runCell(
     'js',
     "const results = await parallel([\n  () => tool.Probe({ tag: 'ja' }),\n  () => tool.Probe({ tag: 'jb' }),\n])\nresults.join('|')",
   )
-  check('js parallel ordered', (jsPar.resultRepr ?? '').includes('probe:ja|probe:jb'), jsPar.resultRepr ?? JSON.stringify(jsPar.error))
+  hintedCheck('js parallel ordered', (jsPar.resultRepr ?? '').includes('probe:ja|probe:jb'), jsPar.resultRepr ?? JSON.stringify(jsPar.error), 'parallel() in src/services/eval/jsRunnerSource.ts must return results in input order')
   const jsPipe = await runCell(
     'js',
     "const out = await pipeline(['p', 'q'], async item => tool.Probe({ tag: item }), async prev => prev + '!')\nout.join('|')",
   )
-  check('js pipeline staged waves', (jsPipe.resultRepr ?? '').includes('probe:p!|probe:q!'), jsPipe.resultRepr ?? JSON.stringify(jsPipe.error))
+  hintedCheck('js pipeline staged waves', (jsPipe.resultRepr ?? '').includes('probe:p!|probe:q!'), jsPipe.resultRepr ?? JSON.stringify(jsPipe.error), 'pipeline() in src/services/eval/jsRunnerSource.ts must run each stage over all items before the next stage')
 
   section('pipeline() staged waves (Python) + live width')
   const pyPipe = await runCell(
     'py',
     "out = pipeline(['m', 'n'], lambda item: tool.Probe(tag=item), lambda prev: prev + '!')\nrepr(out)",
   )
-  check('py pipeline staged waves', (pyPipe.resultRepr ?? '').includes("['probe:m!', 'probe:n!']"), pyPipe.resultRepr)
+  hintedCheck('py pipeline staged waves', (pyPipe.resultRepr ?? '').includes("['probe:m!', 'probe:n!']"), pyPipe.resultRepr, 'pipeline() in src/services/eval/pyRunnerSource.ts must run each stage over all items before the next stage')
   const width = await runCell('py', 'repr(type(parallel([])).__name__)')
-  check('parallel([]) short-circuits without a width query', width.status === 'ok')
+  hintedCheck('parallel([]) short-circuits without a width query', width.status === 'ok', undefined, 'parallel() in src/services/eval/pyRunnerSource.ts must return an empty list for an empty input before it asks the bridge for a width; cell status was ' + String(width.status))
 } finally {
   await evalKernelManager.disposeAll()
-  check('no kernel left behind', evalKernelManager.kernelCount() === 0)
+  hintedCheck('no kernel left behind', evalKernelManager.kernelCount() === 0, undefined, 'evalKernelManager.disposeAll in src/services/eval/kernelManager.ts must close every kernel a cell opened')
   server.close()
   cleanup()
 }

@@ -60,8 +60,9 @@ try {
   const road: LlmHostRoad = (ask, emit, signal) => implementation(plan => { question = plan; return ask(plan) }, emit, signal)
   let width = 120, height = 40
   const screen = () => mounted!.screen()
-  const check = (name: string, truth: unknown) => { assert.ok(truth, name + '\n' + screen()); checks++; console.log('PASS ' + name) }
-  const step = async (name: string) => assert.ok(await waitFor(() => question?.step === name && screen().includes(question.title.slice(0, 24)), 15000), 'question reaches ' + name + '\n' + screen())
+  const plainWordsHint = 'Fix the screen text in the host road (createHostRoad, src/services/host/index.ts) or the /llmhost popup (llmHostPopupRequest, src/commands/llmhost/llmhost.tsx); rerun this drive with --frames <dir> to save the screens.'
+  const check = (name: string, truth: unknown) => { assert.ok(truth, name + '\n' + plainWordsHint + '\n' + screen()); checks++; console.log('PASS ' + name) }
+  const step = async (name: string) => assert.ok(await waitFor(() => question?.step === name && screen().includes(question.title.slice(0, 24)), 15000), 'question reaches ' + name + '\n' + plainWordsHint + '\n' + screen())
   const selected = () => mounted!.lines().find(line => line.includes('› ')) ?? ''
   let tracked: { plan: LlmHostQuestion; at: number | null } | undefined
   const select = async (value: string) => {
@@ -123,7 +124,7 @@ try {
     const bankPlan = question
     await choose(tiny.id)
     assert.ok(await waitFor(() => question !== bankPlan && question?.step === 'door-bank' && screen().includes('MODEL'), 5000), 'Bank detail settles before capture')
-    if (!baseline || width === 120) assert.ok(await waitFor(() => screen().includes('hash differs'), 5000), 'Bank detail retains the hash failure\n' + screen())
+    if (!baseline || width === 120) assert.ok(await waitFor(() => screen().includes('hash differs'), 5000), 'Bank detail retains the hash failure\n' + plainWordsHint + '\n' + screen())
     await capture(width + '-bank-error'); await close()
     await open(); await choose('pods'); await step('paid-pods'); await capture(width + '-machines')
     await choose('fixture-paused'); await step('pod-controls'); await capture(width + '-paused')

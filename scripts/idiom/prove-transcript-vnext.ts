@@ -24,9 +24,11 @@ const { decodeTranscriptBuffer, TRANSCRIPT_FORMAT_REFUSAL } = await import('../.
 const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.js')
 
 let failures = 0
+const transcriptVnextHint =
+  'fix the transcript writer (recordTranscript, settleTranscriptMessage in src/utils/sessionStorage/writer.ts), the record decoder (decodeTranscriptBuffer in src/fabric/transcriptDecode.ts) or the loader (loadTranscriptFile in src/utils/sessionStorage/loading.ts), whichever owns the line this check names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${transcriptVnextHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

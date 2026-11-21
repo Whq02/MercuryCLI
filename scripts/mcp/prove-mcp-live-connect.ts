@@ -24,7 +24,7 @@ console.log(' MCP live connect — real PTY, real artifact, stdio fixture')
 console.log('============================================================')
 
 if (!existsSync(BIN)) {
-  check('dist/mercury.mjs exists (build first)', false)
+  check('dist/mercury.mjs exists (build first)', false, 'run bun run build.ts to write dist/mercury.mjs, then rerun this proof')
   process.exit(1)
 }
 
@@ -88,7 +88,7 @@ const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
   },
 })
 if (res.status !== 0 && res.status !== 3) {
-  check('PTY capture ran', false, (res.stderr ?? '').slice(0, 300))
+  check('PTY capture ran', false, 'scripts/ui/vshot.py exited with status ' + String(res.status) + ' (a timeout or crash; read its stderr): ' + (res.stderr ?? '').slice(0, 300))
   process.exit(1)
 }
 
@@ -98,19 +98,19 @@ const lines = grid.map(r => r.map(c => c.c).join(''))
 const screen = lines.join('\n')
 
 const inkCells = screen.replace(/\s/g, '').length
-check('frame is painted (no all-blank grid)', inkCells > 400, `${inkCells} ink cells`)
+check('frame is painted (no all-blank grid)', inkCells > 400, `${inkCells} ink cells; the built dist/mercury.mjs painted nothing in the PTY, so run node dist/mercury.mjs --only-mcp by hand and read its startup error`)
 
 const fixsrvLine = lines.find(l => l.includes('fixsrv'))
-check('the /mcp panel lists the fixture server', fixsrvLine !== undefined, screen.slice(0, 1500))
+check('the /mcp panel lists the fixture server', fixsrvLine !== undefined, 'the /mcp panel (src/commands/mcp/McpPopup.tsx) shows no row for fixsrv, the server the --mcp config names; screen: ' + screen.slice(0, 1500))
 check(
   'fixsrv reached CONNECTED through the owned registry path',
   /connected/.test(fixsrvLine ?? ''),
-  `line: ${JSON.stringify(fixsrvLine)}`,
+  `line: ${JSON.stringify(fixsrvLine)}; the stdio fixture scripts/mcp/_fixture-stdio-server.mjs never reached connected, so check that it starts under node and that the registry connect path does not stall`,
 )
 check(
   'the server is not stuck connecting/failed',
   !/connecting|failed|needs auth/i.test(fixsrvLine ?? ''),
-  `line: ${JSON.stringify(fixsrvLine)}`,
+  `line: ${JSON.stringify(fixsrvLine)}; the row shows a non-connected state, so read the state text in the /mcp panel for the reason`,
 )
 
 {
@@ -121,17 +121,17 @@ check(
   } catch {
     initParams = null
   }
-  check('the fixture recorded the initialize params', initParams !== null)
+  check('the fixture recorded the initialize params', initParams !== null, 'the fixture scripts/mcp/_fixture-stdio-server.mjs wrote no first line to its MCP_FIXTURE_LOG file, so the server was never started or never received initialize')
   check(
     "OP-4: on-wire clientInfo.name === 'mercury'",
     initParams?.clientInfo?.name === 'mercury',
-    JSON.stringify(initParams?.clientInfo ?? null),
+    JSON.stringify(initParams?.clientInfo ?? null) + ' (the name sent on the wire is set in buildClient in src/services/mcp/client/protocolClient.ts)',
   )
-  check("OP-4: on-wire clientInfo.title === 'Mercury'", initParams?.clientInfo?.title === 'Mercury')
+  check("OP-4: on-wire clientInfo.title === 'Mercury'", initParams?.clientInfo?.title === 'Mercury', 'title sent on the wire: ' + String(initParams?.clientInfo?.title) + ' (set in buildClient in src/services/mcp/client/protocolClient.ts)')
   check(
     'OP-4: no borrowed product URL in clientInfo',
     initParams?.clientInfo?.websiteUrl === undefined,
-    String(initParams?.clientInfo?.websiteUrl),
+    String(initParams?.clientInfo?.websiteUrl) + ' (remove websiteUrl from the client info built in buildClient in src/services/mcp/client/protocolClient.ts)',
   )
 }
 

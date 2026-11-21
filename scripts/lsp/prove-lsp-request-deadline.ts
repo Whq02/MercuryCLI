@@ -14,11 +14,12 @@ delete process.env.MERCURY_LSP
 delete process.env.MERCURY_LSP_SERVERS
 
 let failures = 0
+let fixHintNow = ''
 function check(name: string, ok: boolean, detail?: string): void {
   if (ok) console.log(`  ok  ${name}`)
   else {
     failures++
-    console.error(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error(`  FAIL ${name}${detail ? ` — ${detail}` : ''}${fixHintNow ? ` — fix: ${fixHintNow}` : ''}`)
   }
 }
 function section(t: string): void {
@@ -56,6 +57,7 @@ console.log('prove-lsp-request-deadline — a wedged server can never hang the t
 
 section('§1 a wedged request settles at its budget, typed, and cancels on the wire')
 {
+  fixHintNow = 'sendRequestOf in src/services/lsp/LSPServerInstance/requests.ts must settle a request at its requestTimeout with an LspRequestTimeout error naming the method, the server and the seconds, and send $/cancelRequest'
   const server = instance('deadline-proof', 'wedged', { requestTimeout: 700 })
   await server.start()
   const t0 = Date.now()
@@ -80,6 +82,7 @@ section('§1 a wedged request settles at its budget, typed, and cancels on the w
 
 section('§2 the operator\'s abort reaches an in-flight request')
 {
+  fixHintNow = 'sendRequestOf in src/services/lsp/LSPServerInstance/requests.ts must listen to currentLspAbortSignal() (src/services/lsp/lspAbort.ts) and settle an in-flight request with an AbortError naming the method and server, and send $/cancelRequest'
   check('the ambient abort owner exists', lspAbort !== null)
   if (lspAbort) {
     const server = instance('abort-proof', 'wedged', { requestTimeout: 60_000 })
@@ -104,6 +107,7 @@ section('§2 the operator\'s abort reaches an in-flight request')
 
 section('§3 an already-aborted signal never sends the request')
 if (lspAbort) {
+  fixHintNow = 'sendRequestOf in src/services/lsp/LSPServerInstance/requests.ts must refuse at once with an AbortError, without sending, when the ambient signal (src/services/lsp/lspAbort.ts) is already aborted'
   const server = instance('pre-abort-proof', 'wedged', { requestTimeout: 60_000 })
   await server.start()
   const controller = new AbortController()
@@ -120,6 +124,7 @@ if (lspAbort) {
 
 section('§4 a healthy server still answers, and one budget covers the retry ladder')
 {
+  fixHintNow = 'sendRequestOf in src/services/lsp/LSPServerInstance/requests.ts must resolve normal requests and remove its abort listener from the operation signal once each request settles'
   const server = instance('healthy-proof', 'normal', { requestTimeout: 5000 })
   await server.start()
   const answer = await server.sendRequest('textDocument/documentSymbol', {})
@@ -134,6 +139,7 @@ section('§4 a healthy server still answers, and one budget covers the retry lad
 
 section('§5 the per-request budget is config-driven and the tool arms the one door')
 {
+  fixHintNow = 'LspServerConfigSchema in src/services/lsp/schema.ts must accept requestTimeout as a positive integer and refuse zero'
   const { LspServerConfigSchema } = await import('../../src/services/lsp/schema.js')
   const parsed = LspServerConfigSchema().safeParse({
     command: '/usr/bin/true',

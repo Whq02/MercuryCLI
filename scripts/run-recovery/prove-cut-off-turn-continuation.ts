@@ -23,7 +23,7 @@ const SENTENCE = 'The previous run ended before its turn finished — stopped fr
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}${!cond ? ' [change detectInterruption, deserializeMessagesWithInterruptDetection or getResumePrompt in src/services/resume/conversationRecovery.ts]' : ''}`)
   if (!cond) failures = 1
 }
 

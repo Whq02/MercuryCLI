@@ -17,7 +17,8 @@ delete process.env.ANTHROPIC_AUTH_TOKEN
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const windowHint = 'change the window reading in src/services/anthropicLimits.ts (extractQuotaStatusFromError, anthropicWindowClosed) or src/services/providers/providerUsage.ts (anthropicLimitedWindow, usageWindowReached, limitBindsWords); screen text lives in fullWindowLine (src/components/Settings/usage/lines.tsx), usagePopupLine (src/components/Settings/usageLine.ts) and composeUsageReading (src/cli/handlers/usage.ts); hop checks in src/services/api/backupEngines.ts'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${windowHint}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + t)
 

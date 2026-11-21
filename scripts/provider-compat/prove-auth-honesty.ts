@@ -15,6 +15,9 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
+const honestyRefusalWhere = 'the refusal text is built in src/services/providers/openaicompat/compatChatCallModel/faults.ts and the family call model under src/services/providers/ (routedCallModel in callModelRouter.ts picks the family)'
+const honestyRefreshWhere = 'the one forced refresh on a 401 and its refusal text live in the family call model under src/services/providers/ (geminiCallModel.ts, openai/openaiCallModel.ts) and its accounts file'
+
 delete process.env.NODE_ENV
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'auth-honesty-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -202,21 +205,21 @@ for (const f of FAMILIES) {
   check(
     `${f.family}: ONE typed authentication_failed refusal, no throw, no settled turn`,
     o.threw === undefined && o.errors.length === 1 && e?.error === 'authentication_failed' && o.settled.length === 0,
-    `threw=${String(o.threw)} errors=${o.errors.length} class=${e?.error} text=${o.text.slice(0, 160)}`,
+    `threw=${String(o.threw)} errors=${o.errors.length} class=${e?.error} text=${o.text.slice(0, 160)} — ${honestyRefusalWhere}`,
   )
-  check(`${f.family}: the refusal names the provider and quotes the wire's words`, /rejected the .*credential/.test(o.text) && o.text.includes(vendorWords) && o.text.toLowerCase().includes(f.label.toLowerCase()), o.text.slice(0, 200))
-  check(`${f.family}: the refusal carries the exact remedy (${f.remedy.join(' · ')})`, f.remedy.every(r => o.text.includes(r)), o.text.slice(0, 240))
-  check(`${f.family}: the key value never appears`, !o.text.includes(f.secret))
-  check(`${f.family}: a key that cannot change is not retried (one wire hit)`, hits.length === 1, `hits=${hits.length}`)
-  check(`${f.family}: no refresh was attempted (no token POST)`, tokenPosts.length === 0)
+  check(`${f.family}: the refusal names the provider and quotes the wire's words`, /rejected the .*credential/.test(o.text) && o.text.includes(vendorWords) && o.text.toLowerCase().includes(f.label.toLowerCase()), `${o.text.slice(0, 200)} — ${honestyRefusalWhere}`)
+  check(`${f.family}: the refusal carries the exact remedy (${f.remedy.join(' · ')})`, f.remedy.every(r => o.text.includes(r)), `${o.text.slice(0, 240)} — the refusal must carry every remedy listed; ${honestyRefusalWhere}`)
+  check(`${f.family}: the key value never appears`, !o.text.includes(f.secret), `the refusal text leaks the key; ${honestyRefusalWhere}`)
+  check(`${f.family}: a key that cannot change is not retried (one wire hit)`, hits.length === 1, `hits=${hits.length} — a rejected API key must not be retried; ${honestyRefusalWhere}`)
+  check(`${f.family}: no refresh was attempted (no token POST)`, tokenPosts.length === 0, `token POSTs=${tokenPosts.length} — an API-key family must not try a token refresh on a 401; ${honestyRefreshWhere}`)
 }
 
 section('§2 · an exhausted balance: typed billing_error with the top-up remedy')
 for (const f of FAMILIES.filter(f => f.reject402)) {
   answers = [f.reject402!]
   const o = await drive(f.model)
-  check(`${f.family}: typed billing_error`, o.errors.length === 1 && o.errors[0]?.error === 'billing_error', `class=${o.errors[0]?.error} text=${o.text.slice(0, 160)}`)
-  check(`${f.family}: the refusal says out of credit and names a top-up / credits remedy`, o.text.includes('out of credit') && /top up|credits|balance/i.test(o.text) && o.text.toLowerCase().includes(f.label.toLowerCase()), o.text.slice(0, 240))
+  check(`${f.family}: typed billing_error`, o.errors.length === 1 && o.errors[0]?.error === 'billing_error', `class=${o.errors[0]?.error} text=${o.text.slice(0, 160)} — a 402 or exhausted-balance answer must map to billing_error; ${honestyRefusalWhere}`)
+  check(`${f.family}: the refusal says out of credit and names a top-up / credits remedy`, o.text.includes('out of credit') && /top up|credits|balance/i.test(o.text) && o.text.toLowerCase().includes(f.label.toLowerCase()), `${o.text.slice(0, 240)} — ${honestyRefusalWhere}`)
 }
 
 section('§3 · refresh-on-401 for the OAuth families (one forced refresh, one retry, new bearer)')
@@ -230,16 +233,16 @@ const now = Date.now()
   tokenAnswer = { status: 200, body: { access_token: 'gemini-at-new', refresh_token: 'gemini-rt', expires_in: 3600 } }
   answers = [{ status: 401, body: { error: { code: 401, message: 'Request had invalid authentication credentials.', status: 'UNAUTHENTICATED' } } }, 'ok']
   const o = await drive('gemini-3-pro')
-  check('gemini OAuth: the turn SETTLES after the refresh (no error message)', o.errors.length === 0 && o.settled.length > 0, o.text.slice(0, 200))
-  check('gemini OAuth: two wire hits, the retry carrying the NEW bearer', hits.length === 2 && hits[0]?.bearer === 'Bearer gemini-at-old' && hits[1]?.bearer === 'Bearer gemini-at-new', JSON.stringify(hits))
-  check('gemini OAuth: exactly ONE token POST to the pinned Google token endpoint', tokenPosts.length === 1 && tokenPosts[0]?.path === '/gemini/oauth/token' && tokenPosts[0].body.includes('grant_type=refresh_token'), JSON.stringify(tokenPosts))
+  check('gemini OAuth: the turn SETTLES after the refresh (no error message)', o.errors.length === 0 && o.settled.length > 0, `${o.text.slice(0, 200)} — ${honestyRefreshWhere}`)
+  check('gemini OAuth: two wire hits, the retry carrying the NEW bearer', hits.length === 2 && hits[0]?.bearer === 'Bearer gemini-at-old' && hits[1]?.bearer === 'Bearer gemini-at-new', `${JSON.stringify(hits)} — ${honestyRefreshWhere}`)
+  check('gemini OAuth: exactly ONE token POST to the pinned Google token endpoint', tokenPosts.length === 1 && tokenPosts[0]?.path === '/gemini/oauth/token' && tokenPosts[0].body.includes('grant_type=refresh_token'), `${JSON.stringify(tokenPosts)} — ${honestyRefreshWhere}`)
   geminiAccounts.__resetGeminiAccountsForTest()
   writeFileSync(geminiAccounts.geminiAuthPathForDisplay(), JSON.stringify({ version: 1, client: { clientId: 'client-fixture' }, preferredSource: 'oauth', tokens: { accessToken: 'gemini-at-stale', refreshToken: 'gemini-rt', accessTokenExpiresAtMs: now + 3_600_000 } }))
   tokenAnswer = { status: 500, body: {} }
   answers = [{ status: 401, body: { error: { code: 401, message: 'invalid credentials', status: 'UNAUTHENTICATED' } } }]
   const failed = await drive('gemini-3-pro')
-  check('gemini OAuth: a failed refresh surfaces ONE typed refusal that says the refresh was attempted', failed.errors.length === 1 && failed.errors[0]?.error === 'authentication_failed' && failed.text.includes('refresh was attempted') && failed.text.includes('/logins'), failed.text.slice(0, 240))
-  check('gemini OAuth: no second wire hit with the same refused token', hits.length === 1 && tokenPosts.length === 1, `hits=${hits.length} tokenPosts=${tokenPosts.length}`)
+  check('gemini OAuth: a failed refresh surfaces ONE typed refusal that says the refresh was attempted', failed.errors.length === 1 && failed.errors[0]?.error === 'authentication_failed' && failed.text.includes('refresh was attempted') && failed.text.includes('/logins'), `${failed.text.slice(0, 240)} — ${honestyRefreshWhere}`)
+  check('gemini OAuth: no second wire hit with the same refused token', hits.length === 1 && tokenPosts.length === 1, `hits=${hits.length} tokenPosts=${tokenPosts.length} — ${honestyRefreshWhere}`)
   process.env.GEMINI_API_KEY = KEYS.GEMINI_API_KEY
   geminiAccounts.__resetGeminiAccountsForTest()
   writeFileSync(geminiAccounts.geminiAuthPathForDisplay(), JSON.stringify({ version: 1, client: { clientId: 'client-fixture' } }))
@@ -251,13 +254,13 @@ const now = Date.now()
   tokenAnswer = { status: 200, body: { access_token: 'hf-at-new', refresh_token: 'hf-rt', expires_in: 3600 } }
   answers = [{ status: 401, body: { error: 'Invalid username or password.' } }, 'ok']
   const o = await drive('huggingface/fixture-org/fixture-model')
-  check('huggingface OAuth: the turn SETTLES after the refresh', o.errors.length === 0 && o.settled.length > 0, o.text.slice(0, 200))
-  check('huggingface OAuth: two wire hits, the retry carrying the NEW bearer', hits.length === 2 && hits[0]?.bearer === 'Bearer hf-at-old' && hits[1]?.bearer === 'Bearer hf-at-new', JSON.stringify(hits))
-  check('huggingface OAuth: exactly ONE token POST to the pinned Hub token endpoint', tokenPosts.length === 1 && tokenPosts[0]?.path === '/hf/hub/oauth/token', JSON.stringify(tokenPosts))
+  check('huggingface OAuth: the turn SETTLES after the refresh', o.errors.length === 0 && o.settled.length > 0, `${o.text.slice(0, 200)} — ${honestyRefreshWhere}`)
+  check('huggingface OAuth: two wire hits, the retry carrying the NEW bearer', hits.length === 2 && hits[0]?.bearer === 'Bearer hf-at-old' && hits[1]?.bearer === 'Bearer hf-at-new', `${JSON.stringify(hits)} — ${honestyRefreshWhere}`)
+  check('huggingface OAuth: exactly ONE token POST to the pinned Hub token endpoint', tokenPosts.length === 1 && tokenPosts[0]?.path === '/hf/hub/oauth/token', `${JSON.stringify(tokenPosts)} — ${honestyRefreshWhere}`)
   process.env.HF_TOKEN = KEYS.HF_TOKEN
   answers = [{ status: 401, body: { error: 'Invalid username or password.' } }]
   const keyed = await drive('huggingface/fixture-org/fixture-model')
-  check('huggingface HF_TOKEN: the env key is refused once, no refresh, remedy names HF_TOKEN', keyed.errors.length === 1 && hits.length === 1 && tokenPosts.length === 0 && keyed.text.includes('HF_TOKEN'), `hits=${hits.length} tokenPosts=${tokenPosts.length}`)
+  check('huggingface HF_TOKEN: the env key is refused once, no refresh, remedy names HF_TOKEN', keyed.errors.length === 1 && hits.length === 1 && tokenPosts.length === 0 && keyed.text.includes('HF_TOKEN'), `hits=${hits.length} tokenPosts=${tokenPosts.length} — an env HF_TOKEN must be refused once with no refresh and a remedy naming HF_TOKEN; ${honestyRefusalWhere}`)
   hfAccounts.writeHuggingfaceTokens(null)
 }
 {
@@ -271,15 +274,15 @@ const now = Date.now()
   tokenAnswer = { status: 200, body: { id_token: '', access_token: newAccess, refresh_token: 'rt-2' } }
   answers = [{ status: 401, body: { error: { message: 'Invalid token', type: 'invalid_request_error', code: 'invalid_token' } } }, 'ok']
   const o = await drive('gpt-5.6-sol')
-  check('openai subscription: the turn SETTLES after the refresh', o.errors.length === 0 && o.settled.length > 0, o.text.slice(0, 200))
-  check('openai subscription: two /responses hits on the ChatGPT base, the retry carrying the NEW bearer', hits.length === 2 && hits.every(h => h.path === '/openai/chatgpt/responses') && hits[0]?.bearer === `Bearer ${oldAccess}` && hits[1]?.bearer === `Bearer ${newAccess}`, JSON.stringify(hits.map(h => h.path)))
-  check('openai subscription: exactly ONE token POST to the pinned issuer', tokenPosts.length === 1 && tokenPosts[0]?.path === '/openai/auth/oauth/token', JSON.stringify(tokenPosts.map(t => t.path)))
+  check('openai subscription: the turn SETTLES after the refresh', o.errors.length === 0 && o.settled.length > 0, `${o.text.slice(0, 200)} — ${honestyRefreshWhere}`)
+  check('openai subscription: two /responses hits on the ChatGPT base, the retry carrying the NEW bearer', hits.length === 2 && hits.every(h => h.path === '/openai/chatgpt/responses') && hits[0]?.bearer === `Bearer ${oldAccess}` && hits[1]?.bearer === `Bearer ${newAccess}`, `${JSON.stringify(hits.map(h => h.path))} — ${honestyRefreshWhere}`)
+  check('openai subscription: exactly ONE token POST to the pinned issuer', tokenPosts.length === 1 && tokenPosts[0]?.path === '/openai/auth/oauth/token', `${JSON.stringify(tokenPosts.map(t => t.path))} — ${honestyRefreshWhere}`)
   answers = [{ status: 401, body: { error: { message: 'Invalid token', code: 'invalid_token' } } }]
   tokenAnswer = { status: 500, body: {} }
   openaiAccounts.__resetOpenaiAccountsForTest()
   writeFileSync(openaiAccounts.openaiAuthPathForDisplay(), JSON.stringify({ version: 1, preferredSource: 'chatgpt-subscription', tokens: { idToken: '', accessToken: oldAccess, refreshToken: 'rt-1', accessTokenExpiresAtMs: now + 3_600_000 } }))
   const failed = await drive('gpt-5.6-sol')
-  check('openai subscription: a failed refresh surfaces ONE typed refusal naming /logins and the attempted refresh', failed.errors.length === 1 && failed.errors[0]?.error === 'authentication_failed' && failed.text.includes('/logins') && failed.text.includes('refresh was attempted'), failed.text.slice(0, 240))
+  check('openai subscription: a failed refresh surfaces ONE typed refusal naming /logins and the attempted refresh', failed.errors.length === 1 && failed.errors[0]?.error === 'authentication_failed' && failed.text.includes('/logins') && failed.text.includes('refresh was attempted'), `${failed.text.slice(0, 240)} — ${honestyRefreshWhere}`)
   process.env.OPENAI_API_KEY = KEYS.OPENAI_API_KEY
   writeFileSync(openaiAccounts.openaiAuthPathForDisplay(), JSON.stringify({ version: 1 }))
 }
@@ -294,12 +297,12 @@ section('§4 · readiness derivations tell the truth the dispatch would tell')
   delete process.env.ZAI_API_KEY
   writeStoredZaiApiKey('stored-zai-key-fixture')
   const storedOnly = resolveProviderUsability().zai
-  check('zai usability: a stored key with no env pin reads USABLE (the resolver truth, not an env-only read)', storedOnly.usable === true && storedOnly.credential === 'api-key' && storedOnly.blockers.length === 0, JSON.stringify(storedOnly))
+  check('zai usability: a stored key with no env pin reads USABLE (the resolver truth, not an env-only read)', storedOnly.usable === true && storedOnly.credential === 'api-key' && storedOnly.blockers.length === 0, `${JSON.stringify(storedOnly)} — resolveProviderUsability in src/services/providers/providerUsability.ts must read the stored key, not only the environment`)
   writeStoredZaiApiKey(null)
   const none = resolveProviderUsability().zai
-  check('zai usability: no key anywhere reads unusable with the attach route named', none.usable === false && none.blockers.some(b => b.includes('ZAI_API_KEY')), JSON.stringify(none))
+  check('zai usability: no key anywhere reads unusable with the attach route named', none.usable === false && none.blockers.some(b => b.includes('ZAI_API_KEY')), `${JSON.stringify(none)} — resolveProviderUsability in src/services/providers/providerUsability.ts must report unusable and name ZAI_API_KEY`)
   process.env.ZAI_API_KEY = KEYS.ZAI_API_KEY
-  check('zai usability: the env pin reads usable', resolveProviderUsability().zai.usable === true)
+  check('zai usability: the env pin reads usable', resolveProviderUsability().zai.usable === true, 'resolveProviderUsability in src/services/providers/providerUsability.ts must read an env ZAI_API_KEY as usable')
 
   const hfSlot = (oauth: { accessToken: string; refreshToken?: string; accessTokenExpiresAtMs?: number }) =>
     deriveFamilySlotGroups(undefined, {
@@ -312,11 +315,11 @@ section('§4 · readiness derivations tell the truth the dispatch would tell')
       .flatMap(g => g.slots)
       .find(s => s.id === 'huggingface:oauth')
   const expired = hfSlot({ accessToken: 'hf-expired', accessTokenExpiresAtMs: Date.now() - 1 })
-  check('hf slot: expired + no refresh token ⇒ signedIn false, inactive, the note routes to /logins', expired !== undefined && expired.signedIn === false && expired.active === false && (expired.stateNote ?? '').includes('/logins'), JSON.stringify(expired))
+  check('hf slot: expired + no refresh token ⇒ signedIn false, inactive, the note routes to /logins', expired !== undefined && expired.signedIn === false && expired.active === false && (expired.stateNote ?? '').includes('/logins'), `${JSON.stringify(expired)} — deriveFamilySlotGroups in src/services/providers/accountSlots.ts`)
   const refreshable = hfSlot({ accessToken: 'hf-expired', refreshToken: 'rt', accessTokenExpiresAtMs: Date.now() - 1 })
-  check('hf slot: expired WITH a refresh token stays signed in (the dispatch resolver refreshes it)', refreshable?.signedIn === true && refreshable.active === true && refreshable.stateNote === undefined, JSON.stringify(refreshable))
+  check('hf slot: expired WITH a refresh token stays signed in (the dispatch resolver refreshes it)', refreshable?.signedIn === true && refreshable.active === true && refreshable.stateNote === undefined, `${JSON.stringify(refreshable)} — deriveFamilySlotGroups in src/services/providers/accountSlots.ts`)
   const fresh = hfSlot({ accessToken: 'hf-fresh', accessTokenExpiresAtMs: Date.now() + 3_600_000 })
-  check('hf slot: a fresh token is signed in and active', fresh?.signedIn === true && fresh.active === true)
+  check('hf slot: a fresh token is signed in and active', fresh?.signedIn === true && fresh.active === true, `${JSON.stringify(fresh)} — deriveFamilySlotGroups in src/services/providers/accountSlots.ts`)
 }
 
 section('§5 · the ANTHROPIC lane: an OBSERVED-expired claude.ai sign-in fails fast and says so (item 11)')
@@ -349,33 +352,33 @@ const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLife
   const textOf = (m: { message: { content: unknown } }): string => JSON.stringify(m.message.content)
 
   seed({ accessToken: 'at-dead', refreshToken: '', expiresAt: Date.now() - 60_000, scopes: ['user:inference'], subscriptionType: 'pro', rateLimitTier: null })
-  check('dead sign-in: the estate observes it (isAnthropicOAuthSignInExpired)', isAnthropicOAuthSignInExpired() === true)
-  check('dead sign-in: a 401 is NOT retryable — fail fast, no backoff ladder', isRetryableError(err401) === false)
+  check('dead sign-in: the estate observes it (isAnthropicOAuthSignInExpired)', isAnthropicOAuthSignInExpired() === true, 'isAnthropicOAuthSignInExpired in src/utils/auth.ts must be true for an expired token with no refresh token')
+  check('dead sign-in: a 401 is NOT retryable — fail fast, no backoff ladder', isRetryableError(err401) === false, 'isRetryableError in src/services/api/withRetry.ts must not retry a 401 when the sign-in is observed expired')
   const deadLine = textOf(getAssistantMessageFromError(err401, 'claude-opus-5') as never)
-  check('dead sign-in: the ATTRIBUTED line names the reconnect', deadLine.includes('Anthropic sign-in expired') && deadLine.includes('/logins'), deadLine.slice(0, 200))
+  check('dead sign-in: the ATTRIBUTED line names the reconnect', deadLine.includes('Anthropic sign-in expired') && deadLine.includes('/logins'), `${deadLine.slice(0, 200)} — getAssistantMessageFromError in src/services/api/errors.ts must name the expired sign-in and /logins`)
   const deadPresence = anthropicCredentialPresence()
-  check('dead sign-in: the presence owner carries expired (the /model row reads it)', deadPresence.expired === true, JSON.stringify(deadPresence))
+  check('dead sign-in: the presence owner carries expired (the /model row reads it)', deadPresence.expired === true, `${JSON.stringify(deadPresence)} — anthropicCredentialPresence in src/services/providers/providerUsage.ts must carry expired`)
 
   seed({ accessToken: 'at-old', refreshToken: 'rt-alive', expiresAt: Date.now() - 60_000, scopes: ['user:inference'], subscriptionType: 'pro', rateLimitTier: null })
-  check('refreshable: NOT observed-expired', isAnthropicOAuthSignInExpired() === false)
-  check('refreshable: a 401 never enters the backoff ladder; credential recovery is separate', isRetryableError(err401) === false)
-  check('refreshable: no expired flag on the presence owner', anthropicCredentialPresence().expired === undefined)
+  check('refreshable: NOT observed-expired', isAnthropicOAuthSignInExpired() === false, 'isAnthropicOAuthSignInExpired in src/utils/auth.ts must stay false while a refresh token exists')
+  check('refreshable: a 401 never enters the backoff ladder; credential recovery is separate', isRetryableError(err401) === false, 'isRetryableError in src/services/api/withRetry.ts must not retry a 401')
+  check('refreshable: no expired flag on the presence owner', anthropicCredentialPresence().expired === undefined, 'anthropicCredentialPresence in src/services/providers/providerUsage.ts must not set expired while a refresh token exists')
 
   seed(null)
-  check('no oauth: predicate inert', isAnthropicOAuthSignInExpired() === false)
+  check('no oauth: predicate inert', isAnthropicOAuthSignInExpired() === false, 'isAnthropicOAuthSignInExpired in src/utils/auth.ts must be false with no claude.ai sign-in stored')
   const genericLine = textOf(getAssistantMessageFromError(err401, 'claude-opus-5') as never)
-  check('no oauth: the generic 401 text stands (no false attribution)', !genericLine.includes('sign-in expired'), genericLine.slice(0, 200))
+  check('no oauth: the generic 401 text stands (no false attribution)', !genericLine.includes('sign-in expired'), `${genericLine.slice(0, 200)} — getAssistantMessageFromError in src/services/api/errors.ts must not blame an expired sign-in when none is stored`)
 
   seed({ accessToken: 'at-dead', refreshToken: '', expiresAt: Date.now() - 60_000, scopes: ['user:inference'], subscriptionType: 'pro', rateLimitTier: null })
   clearOAuthTokenCache()
   const { authChecks } = await import('../../src/services/health/sections/auth.ts')
   const { anthropicSignInWords } = await import('../../src/services/providers/anthropicRefusal.ts')
   const expiredRow = await (await authChecks()).find(row => row.id === 'auth-anthropic')?.run()
-  check('health AUTH row: expired branch present (warn on the observed or checked state, the one line as the fix)', expiredRow?.status === 'warn' && expiredRow.evidence.endsWith('— sign-in expired') && expiredRow.fix === anthropicSignInWords(), JSON.stringify(expiredRow))
+  check('health AUTH row: expired branch present (warn on the observed or checked state, the one line as the fix)', expiredRow?.status === 'warn' && expiredRow.evidence.endsWith('— sign-in expired') && expiredRow.fix === anthropicSignInWords(), `${JSON.stringify(expiredRow)} — the auth-anthropic row in authChecks, src/services/health/sections/auth.ts`)
   seed({ accessToken: 'at-dead', refreshToken: '', expiresAt: Date.now() - 60_000, scopes: ['user:inference'], subscriptionType: 'pro', rateLimitTier: null })
   process.env.ANTHROPIC_AUTH_TOKEN = 'env-shadow-token'
   clearOAuthTokenCache()
-  check('env-shadowed: the expiry attribution stands down (the shadow owns the 401)', isAnthropicOAuthSignInExpired() === false)
+  check('env-shadowed: the expiry attribution stands down (the shadow owns the 401)', isAnthropicOAuthSignInExpired() === false, 'isAnthropicOAuthSignInExpired in src/utils/auth.ts must be false while ANTHROPIC_AUTH_TOKEN is set')
   delete process.env.ANTHROPIC_AUTH_TOKEN
 
   process.env.ANTHROPIC_AUTH_TOKEN = savedEnvBearer

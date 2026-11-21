@@ -19,7 +19,8 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  const filterFixHint = ' | fix: the path and glob seam is posixRelative and normalizeFileGlobs in src/services/structure/scanPaths.ts; the files filter is admitsScannedFile and discoverSourceFiles in src/services/structure/query.ts and admitsPolyglotFile and discoverPolyglotFiles in src/services/structure/polyglotQuery.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail.slice(0, 400)}` : ''}${filterFixHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

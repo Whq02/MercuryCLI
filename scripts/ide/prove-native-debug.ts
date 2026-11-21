@@ -9,14 +9,14 @@ import { fakeCommand } from '../dap/fakeCommand.ts'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — change the adapter and gdb-probe code in src/services/dap/dapClient.ts or the Debug tool in src/tools/DebugTool/DebugTool.ts; the mock adapter is scripts/ide/mock-native-dap-adapter.mjs' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — proof exceeded 480s')
+  console.log('\nTIMEOUT — proof exceeded 480s; a Debug tool call (src/tools/DebugTool/DebugTool.ts) or the mock adapter scripts/ide/mock-native-dap-adapter.mjs did not answer')
   process.exit(1)
 }, 480_000)
 guard.unref?.()

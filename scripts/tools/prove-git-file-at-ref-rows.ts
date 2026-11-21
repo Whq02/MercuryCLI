@@ -34,7 +34,8 @@ const { GitTool } = await import('../../src/tools/GitTool/GitTool.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const whereToChange = 'change the fileAtRef case in src/tools/GitTool/GitTool.ts (its line count, shown rows and more-lines note)'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${whereToChange}${detail ? ` · ${detail}` : ''}` : ''}`)
   if (!ok) failures++
 }
 const context = { abortController: new AbortController(), messages: [], options: {}, getAppState: () => ({}), setAppState: () => {} } as never

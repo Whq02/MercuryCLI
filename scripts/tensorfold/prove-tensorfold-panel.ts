@@ -39,7 +39,8 @@ const fit = await import('../../src/services/tensorfold/fit.ts')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  const whereToChange = 'change the /tensorfold panel in src/commands/tensorfold/tensorfold.tsx or the facts it reads in src/commands/tensorfold/scene.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${whereToChange}${detail ? ` · ${detail.slice(0, 700)}` : ''}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)

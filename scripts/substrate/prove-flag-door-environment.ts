@@ -10,7 +10,8 @@ const J = (...parts: string[]): string => parts.join('')
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const doorFixHint = ' | fix: the door is the flagEnv signature and body in src/substrate/flagRegistry.ts (its optional environment parameter is a one-element tuple, and an environment handed in must be read instead of the process); the section 2 checks read the compiler diagnostics on a planted file that calls it'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''}${doorFixHint}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 

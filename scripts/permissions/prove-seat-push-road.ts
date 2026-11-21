@@ -35,11 +35,19 @@ const { setAskChannel } = await import('../../src/bootstrap/state.ts')
 const posture = await import('../../src/utils/cockpit/runtimePosture.ts')
 
 let failures = 0
+const pushRoadWhereBySection: Record<string, string> = {
+  '§1': 'fix the boot posture text in src/utils/cockpit/runtimePosture.ts (getRuntimePostureSection, composeOperatorNeedsLine, markSessionBootRules)',
+  '§2': 'fix the verdict in decideToolPermissionWithModes, src/utils/permissions/decision/wrapper.ts, bashToolHasPermission, src/tools/BashTool/bashPermissions.ts, or stripDangerousPermissionsForFlow, src/utils/permissions/permissionSetup.ts',
+  '§3': 'fix loadAllPermissionRulesFromDisk, src/utils/permissions/permissionsLoader.ts, applyPermissionRulesToPermissionContext, src/utils/permissions/permissions.ts, or the posture text in src/utils/cockpit/runtimePosture.ts',
+  '§4': 'the headless entry must stamp the boot rules with markSessionBootRules (src/utils/cockpit/runtimePosture.ts) before the first system prompt',
+}
+let pushRoadWhere = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + ' ' : ''}(${pushRoadWhere})` : ''}`)
 }
 function section(t: string): void {
+  pushRoadWhere = pushRoadWhereBySection[t.slice(0, 2)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const j = (v: unknown): string => JSON.stringify(v)
