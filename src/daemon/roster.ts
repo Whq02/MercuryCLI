@@ -20,6 +20,7 @@ const DELIVERED_ID_CAP = 500
 export class TaskRoster {
   private readonly handles = new Map<string, WorkerHandle>()
   private readonly degradedSeats = new Map<string, string>()
+  private readonly exitListeners = new Map<string, Set<() => void>>()
   private readonly endPart: EndPart
   private readonly lifePart: LifePart
   private readonly spawnPart: SpawnPart
@@ -28,7 +29,10 @@ export class TaskRoster {
 
   constructor(private readonly opts: RosterOptions) {
     this.endPart = new EndPart(this.opts)
-    this.lifePart = new LifePart(this.opts, this.degradedSeats, { spawnLongLived: short => this.spawnPart.spawnLongLived(short) })
+    this.lifePart = new LifePart(this.opts, this.degradedSeats, {
+      spawnLongLived: short => this.spawnPart.spawnLongLived(short),
+      notifyExit: short => this.notifyExit(short),
+    })
     this.spawnPart = new SpawnPart(this.opts, this.handles, this.degradedSeats, {
       keepChildStderr: (short, child, ll) => this.lifePart.keepChildStderr(short, child, ll),
       superviseChildLife: (short, h, ll, child) => this.lifePart.superviseChildLife(short, h, ll, child),
@@ -124,6 +128,27 @@ export class TaskRoster {
     return { alive, present: true, ready: h.entry.state === 'running' }
   }
 
+  onExit(short: string, listener: () => void): () => void {
+    let listeners = this.exitListeners.get(short)
+    if (!listeners) {
+      listeners = new Set()
+      this.exitListeners.set(short, listeners)
+    }
+    listeners.add(listener)
+    return () => {
+      const current = this.exitListeners.get(short)
+      if (!current) return
+      current.delete(listener)
+      if (current.size === 0) this.exitListeners.delete(short)
+    }
+  }
+
+  private notifyExit(short: string): void {
+    const listeners = this.exitListeners.get(short)
+    if (!listeners) return
+    for (const listener of [...listeners]) listener()
+  }
+
   expectExit(short: string, expected: boolean): boolean {
     const h = this.handles.get(short)
     if (!h || !h.longLived || h.entry.outcome) return false
@@ -139,8 +164,11 @@ export class TaskRoster {
     if (h.longLived === undefined || door === undefined || door.closed) return false
     const ll = h.longLived
     const edgesBefore = ll.turnEdges
-    ll.turnActive = true
-    ll.turnStartedAt = Date.now()
+    const opensTurn = !ll.turnActive
+    if (opensTurn) {
+      ll.turnActive = true
+      ll.turnStartedAt = Date.now()
+    }
     const worker = short.startsWith('concourse-w')
     if (worker) {
       void import('./concourseWorkers.js')
@@ -148,7 +176,7 @@ export class TaskRoster {
         .catch(passedOver)
     }
     if (!(await door.deliver(row))) {
-      if (ll.turnEdges === edgesBefore) {
+      if (opensTurn && ll.turnEdges === edgesBefore) {
         ll.turnActive = false
         ll.turnStartedAt = undefined
         if (worker) {
@@ -185,6 +213,7 @@ export class TaskRoster {
     if (respawnPending) {
       h.entry.state = 'settled'
       h.entry.outcome = 'killed'
+      this.notifyExit(short)
       this.lifePart.completeIntentionalStop(short)
       return true
     }
