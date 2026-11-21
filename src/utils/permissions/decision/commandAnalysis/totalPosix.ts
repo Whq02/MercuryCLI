@@ -608,7 +608,8 @@ function posixVariable(this: PosixWalk, node: Node, frame: Frame): Words {
   const known = name === undefined ? undefined : this.reading.scope.get(name)
   if (known !== undefined && known.length > 0) return { values: [...known].reverse(), inner }
   if (name === 'PWD' && this.reading.cwd !== undefined && (node.type === 'simple_expansion' || node.text === '${PWD}')) return { values: [this.reading.cwd], inner }
-  if (name === 'OLDPWD' && this.reading.oldpwd !== undefined && (node.type === 'simple_expansion' || node.text === '${OLDPWD}')) return { values: [this.reading.oldpwd], inner }
+  const old = this.reading.world.returnsTo ?? this.reading.oldpwd
+  if (name === 'OLDPWD' && old !== undefined && (node.type === 'simple_expansion' || node.text === '${OLDPWD}')) return { values: [old], inner }
   return { values: [node.text], inner }
 }
 

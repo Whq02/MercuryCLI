@@ -53,6 +53,7 @@ export type ReadWorld = {
   uid?: string
   windows?: boolean
   folderOf?: (word: string) => string | undefined
+  returnsTo?: string
 }
 
 export type Redirect = {

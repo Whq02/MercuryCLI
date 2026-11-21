@@ -834,7 +834,8 @@ function textExpandVar(this: TextWalk, raw: string, braced: boolean, frame: Fram
   const known = name === undefined ? undefined : this.reading.scope.get(name)
   if (known !== undefined && known.length > 0) return { values: [...known].reverse(), inner }
   if (name === 'PWD' && this.reading.cwd !== undefined && (!braced || raw === '${PWD}')) return { values: [this.reading.cwd], inner }
-  if (name === 'OLDPWD' && this.reading.oldpwd !== undefined && (!braced || raw === '${OLDPWD}')) return { values: [this.reading.oldpwd], inner }
+  const old = this.reading.world.returnsTo ?? this.reading.oldpwd
+  if (name === 'OLDPWD' && old !== undefined && (!braced || raw === '${OLDPWD}')) return { values: [old], inner }
   return { values: [raw], inner }
 }
 
