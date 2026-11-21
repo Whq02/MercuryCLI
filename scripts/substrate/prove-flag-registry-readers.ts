@@ -630,20 +630,20 @@ section('§0 the reading on a planted estate: every reader the net reaches is na
   const { unlisted, stale } = judge(got.mentions, [{ file: 'scripts/a/gen-list.ts', line: spell("'src/@S@/@M@.ts',"), why: 'a label' }])
   const seen = unlisted.map(where).join(' ')
   const want = planted.flatMap(p => p.named.map(n => `${p.file}:${n}`)).join(' ')
-  check('a direct read, a read through a helper, a read of a rows file, a path test in a sweep and a shell grep are each named with their line', ['scripts/a/prove-read.ts:3', 'scripts/a/prove-read.ts:4', 'scripts/a/prove-read.ts:5', 'scripts/a/prove-read.ts:6', 'scripts/a/prove-read.ts:7', 'scripts/a/run.sh:3'].every(at => unlisted.some(m => where(m) === at)), `seen ${seen}`)
-  check("each reader the review planted is named with its line and nothing else is: a path built from parts, a template with a hole, a second helper and its caller, a walk of the folder, a glob, a command over the folder, a shell variable and wildcard, an import with an attribute, the rows folder, a path test of a sweep's own, a script with no extension, a path in a data file", seen === want, `seen ${seen} · want ${want}`)
-  check('a named row excuses its whole line once: a copy of the line and a longer line that holds it are named, and the row is not stale', unlisted.some(m => where(m) === 'scripts/a/gen-list.ts:5') && unlisted.some(m => where(m) === 'scripts/a/gen-list.ts:7') && !unlisted.some(m => where(m) === 'scripts/a/gen-list.ts:2') && stale.length === 0)
-  check('module-state.tsv accepts only valid inventory first-column paths under its generator header; a path in a reason, a malformed row, the same table under another name and module-state.tsv without its header are all named', !seen.includes(`${MODULE_STATE_TABLE}:3`) && !seen.includes(`${MODULE_STATE_TABLE}:4`) && !seen.includes(`${MODULE_STATE_TABLE}:5`) && [6, 7, 8, 9, 10].every(n => unlisted.some(m => where(m) === `${MODULE_STATE_TABLE}:${n}`)) && unlisted.some(m => where(m) === 'scripts/a/module-state-copy.tsv:3') && headerless.mentions.map(where).join(' ') === `${MODULE_STATE_TABLE}:1` && partialHeader.mentions.map(where).join(' ') === `${MODULE_STATE_TABLE}:2`, `headerless ${headerless.mentions.map(where).join(' ')} · partial ${partialHeader.mentions.map(where).join(' ')}`)
-  check('five plain imports are counted as lookups, and a comment, a document, the door, another file of the folder and a label that says the name are not named', got.imports === 5 && !seen.includes('prove-lookup') && !seen.includes('notes.md') && !seen.includes(DOOR), `imports ${got.imports}`)
-  check(`out of reach, as the estate check's label says: ${OUT_OF_REACH}`, !seen.includes('out-of-reach') && !seen.includes('hole-list-reader'))
+  check('a direct read, a read through a helper, a read of a rows file, a path test in a sweep and a shell grep are each named with their line', ['scripts/a/prove-read.ts:3', 'scripts/a/prove-read.ts:4', 'scripts/a/prove-read.ts:5', 'scripts/a/prove-read.ts:6', 'scripts/a/prove-read.ts:7', 'scripts/a/run.sh:3'].every(at => unlisted.some(m => where(m) === at)), `seen ${seen} · to fix: scan in this file must name each of these planted lines as file:line; adjust its literal, segment or shell-line rule (SPELLINGS, FOLDER, nearOf), or the planted line`)
+  check("each reader the review planted is named with its line and nothing else is: a path built from parts, a template with a hole, a second helper and its caller, a walk of the folder, a glob, a command over the folder, a shell variable and wildcard, an import with an attribute, the rows folder, a path test of a sweep's own, a script with no extension, a path in a data file", seen === want, `seen ${seen} · want ${want} · to fix: scan in this file names a planted line it should not, or misses one; compare the two lists and adjust the matching rule it uses (SPELLINGS, FOLDER, nearOf, importKind), or the named list of the planted estate`)
+  check('a named row excuses its whole line once: a copy of the line and a longer line that holds it are named, and the row is not stale', unlisted.some(m => where(m) === 'scripts/a/gen-list.ts:5') && unlisted.some(m => where(m) === 'scripts/a/gen-list.ts:7') && !unlisted.some(m => where(m) === 'scripts/a/gen-list.ts:2') && stale.length === 0, `seen ${seen} · stale ${stale.length} · to fix: judge in this file must let a named row excuse one whole line, once; compare the row line with the text scan reads`)
+  check('module-state.tsv accepts only valid inventory first-column paths under its generator header; a path in a reason, a malformed row, the same table under another name and module-state.tsv without its header are all named', !seen.includes(`${MODULE_STATE_TABLE}:3`) && !seen.includes(`${MODULE_STATE_TABLE}:4`) && !seen.includes(`${MODULE_STATE_TABLE}:5`) && [6, 7, 8, 9, 10].every(n => unlisted.some(m => where(m) === `${MODULE_STATE_TABLE}:${n}`)) && unlisted.some(m => where(m) === 'scripts/a/module-state-copy.tsv:3') && headerless.mentions.map(where).join(' ') === `${MODULE_STATE_TABLE}:1` && partialHeader.mentions.map(where).join(' ') === `${MODULE_STATE_TABLE}:2`, `headerless ${headerless.mentions.map(where).join(' ')} · partial ${partialHeader.mentions.map(where).join(' ')} · to fix: moduleStateRowTail and isModuleStateHeader in this file decide which rows of the table are inventory; adjust them or the planted rows`)
+  check('five plain imports are counted as lookups, and a comment, a document, the door, another file of the folder and a label that says the name are not named', got.imports === 5 && !seen.includes('prove-lookup') && !seen.includes('notes.md') && !seen.includes(DOOR), `imports ${got.imports} · seen ${seen} · to fix: importKind and scan in this file count a plain import as a lookup and name every other mention; adjust them or the planted lines`)
+  check(`out of reach, as the estate check's label says: ${OUT_OF_REACH}`, !seen.includes('out-of-reach') && !seen.includes('hole-list-reader'), `seen ${seen} · to fix: scan in this file now names a planted line that the label says is out of reach; narrow the rule that matched it`)
 }
 
 section("§1 the door: the registry's files, their text and the path test")
 {
   const files = flagRegistryFiles()
-  check('the list holds the registry module first and only registry files', files[0] === MODULE_PATH && files.every(isFlagRegistryFile), files.join(', '))
-  check('the path test takes the module and anything under the rows folder, in either spelling of the separator', isFlagRegistryFile(MODULE_PATH) && isFlagRegistryFile(`${ROWS_DIR}/core.ts`) && isFlagRegistryFile(spell('src\\@S@\\flags\\deep\\core.ts')) && isFlagRegistryFile(spell('src\\@S@\\@M@.ts')))
-  check('the path test refuses a neighbour, a look-alike and the door itself', !isFlagRegistryFile(spell('src/@S@/flagOff.ts')) && !isFlagRegistryFile(`${ROWS_DIR}.ts`) && !isFlagRegistryFile(`${ROWS_DIR}Extra/core.ts`) && !isFlagRegistryFile(`${MODULE_PATH}x`) && !isFlagRegistryFile(DOOR))
+  check('the list holds the registry module first and only registry files', files[0] === MODULE_PATH && files.every(isFlagRegistryFile), files.join(', ') + ' · to fix: flagRegistryFiles and isFlagRegistryFile in scripts/lib/flagRegistrySource.ts must list the registry module first and then only registry files')
+  check('the path test takes the module and anything under the rows folder, in either spelling of the separator', isFlagRegistryFile(MODULE_PATH) && isFlagRegistryFile(`${ROWS_DIR}/core.ts`) && isFlagRegistryFile(spell('src\\@S@\\flags\\deep\\core.ts')) && isFlagRegistryFile(spell('src\\@S@\\@M@.ts')), 'to fix: isFlagRegistryFile in scripts/lib/flagRegistrySource.ts must take the module and every path under the rows folder, with either separator')
+  check('the path test refuses a neighbour, a look-alike and the door itself', !isFlagRegistryFile(spell('src/@S@/flagOff.ts')) && !isFlagRegistryFile(`${ROWS_DIR}.ts`) && !isFlagRegistryFile(`${ROWS_DIR}Extra/core.ts`) && !isFlagRegistryFile(`${MODULE_PATH}x`) && !isFlagRegistryFile(DOOR), 'to fix: isFlagRegistryFile in scripts/lib/flagRegistrySource.ts must refuse a neighbour, a look-alike and the door file itself')
   const split = mkdtempSync(join(tmpdir(), 'flag-registry-door-'))
   const w = (rel: string, body: string): void => {
     mkdirSync(dirname(join(split, rel)), { recursive: true })
@@ -657,10 +657,10 @@ section("§1 the door: the registry's files, their text and the path test")
   w(`${ROWS_DIR}/.DS_Store`, 'A FINDER FILE')
   w(spell('src/@S@/flagOff.ts'), 'OFF')
   const after = flagRegistryFiles(split)
-  check('on a tree whose rows live in the rows folder the list is the module and every .ts file under the folder, in order', after.join(' ') === [MODULE_PATH, `${ROWS_DIR}/a.ts`, `${ROWS_DIR}/b.ts`, `${ROWS_DIR}/deep/c.ts`].join(' '), after.join(' '))
+  check('on a tree whose rows live in the rows folder the list is the module and every .ts file under the folder, in order', after.join(' ') === [MODULE_PATH, `${ROWS_DIR}/a.ts`, `${ROWS_DIR}/b.ts`, `${ROWS_DIR}/deep/c.ts`].join(' '), after.join(' ') + ' · to fix: flagRegistryFiles in scripts/lib/flagRegistrySource.ts must list the module and then every .ts file under the rows folder in name order, and nothing else')
   rmSync(join(split, MODULE_PATH))
   rmSync(join(split, ROWS_DIR), { recursive: true, force: true })
-  check('a tree with no registry has no files', flagRegistryFiles(split).length === 0)
+  check('a tree with no registry has no files', flagRegistryFiles(split).length === 0, 'to fix: flagRegistryFiles in scripts/lib/flagRegistrySource.ts must return an empty list when neither the module nor the rows folder exists')
   rmSync(split, { recursive: true, force: true })
 }
 
@@ -670,14 +670,14 @@ section("§2 the estate: a script reads the registry's text through the door or 
   const got = scan(ROOT, files)
   const { unlisted, stale } = judge(got.mentions, NAMED)
   console.log(`  ${files.length} files under scripts · ${got.read} read, whatever their extension (documents and binary files aside) · ${got.imports} plain imports of the registry · 1 door (${DOOR}) · ${got.mentions.length - unlisted.length} named lines that read nothing · ${unlisted.length} unlisted`)
-  check('the door is a script of this tree', files.includes(DOOR))
+  check('the door is a script of this tree', files.includes(DOOR), `${DOOR} is not among the git files under scripts; restore it or correct DOOR at the top of this file`)
   check(
     `no script names the registry's files outside a plain import and the door (0 unlisted readers; out of reach: ${OUT_OF_REACH})`,
     unlisted.length === 0,
     `${unlisted.length} found — ${INSTEAD}; the named list only shrinks:` + unlisted.slice(0, 40).map(m => `\n      ${where(m)} ${m.text.slice(0, 140)}`).join(''),
   )
-  check('every named row still stands, on its whole line and once (a row whose line is gone is removed, and the count below with it)', stale.length === 0, stale.map(r => `${r.file} [${r.line.slice(0, 60)}]`).join(' · '))
-  check(`the named list holds ${NAMED_ROWS} rows, each with its reason, and none of them reads the text`, NAMED.length === NAMED_ROWS && NAMED.every(r => r.why.trim().length > 0), `rows ${NAMED.length}`)
+  check('every named row still stands, on its whole line and once (a row whose line is gone is removed, and the count below with it)', stale.length === 0, stale.map(r => `${r.file} [${r.line.slice(0, 60)}]`).join(' · ') + ' · to fix: delete each listed row from NAMED in this file and lower NAMED_ROWS with it')
+  check(`the named list holds ${NAMED_ROWS} rows, each with its reason, and none of them reads the text`, NAMED.length === NAMED_ROWS && NAMED.every(r => r.why.trim().length > 0), `rows ${NAMED.length} · to fix: make NAMED_ROWS in this file equal the rows of NAMED, each with a reason`)
 }
 
 section('§3 the reading of src on a planted estate: a registered flag named at the environment is named with its file, its line, the flag and the verb')
@@ -757,10 +757,10 @@ section('§3 the reading of src on a planted estate: a registered flag named at 
   const want = planted.flatMap(p => p.named.map(n => `${p.file}:${n}`)).join(' ')
   const at = (line: number): Place | undefined => got.places.find(p => p.file === FORMS && p.line === line)
   const forms = (lines: number[], form: string): boolean => lines.every(line => at(line)?.form === form)
-  check('a read by member, by key, through a constant of the file, through a constant another file exports and through that export renamed is named, each with its flag', forms([3], 'member') && forms([4, 5, 6, 7], 'key') && [3, 4, 5, 6].every(line => at(line)?.flag === 'MERCURY_PLANT_A') && at(7)?.flag === 'MERCURY_PLANT_B', `seen ${seen}`)
-  check('a read through a constant that holds the environment, a parameter that defaults to it, a typed parameter, a member of an object, an optional chain and globalThis is named', forms([9, 10, 12, 13, 14], 'member') && forms([11], 'key'), `seen ${seen}`)
-  check('a destructure (plain, renamed, in a parameter), an in test, a write (plain and compound), a delete (by member and by key), a reflection (three spellings) and a helper that reads by the name it is handed are named', forms([15, 16, 17], 'destructure') && forms([18], 'in') && forms([19, 20], 'write') && forms([21, 22], 'delete') && forms([23, 24, 25], 'reflection') && forms([27], 'helper'), `seen ${seen}`)
-  check('each planted place is named with its line and nothing else is: a .tsx file and a payload are read too, and the door, a row file, a read through the door, a flag with no row, a platform variable, a name in a list, a sentence, the key of an object literal, a label and a lookup of a table are not named', seen === want, `seen ${seen} · want ${want}`)
+  check('a read by member, by key, through a constant of the file, through a constant another file exports and through that export renamed is named, each with its flag', forms([3], 'member') && forms([4, 5, 6, 7], 'key') && [3, 4, 5, 6].every(line => at(line)?.flag === 'MERCURY_PLANT_A') && at(7)?.flag === 'MERCURY_PLANT_B', `seen ${seen} · to fix: flagPlaces in this file must name each of these planted lines with its form and flag`)
+  check('a read through a constant that holds the environment, a parameter that defaults to it, a typed parameter, a member of an object, an optional chain and globalThis is named', forms([9, 10, 12, 13, 14], 'member') && forms([11], 'key'), `seen ${seen} · to fix: flagPlaces in this file must name each of these planted lines with its form; check isProcessEnv, constantsOf and the member and key branch of its visit`)
+  check('a destructure (plain, renamed, in a parameter), an in test, a write (plain and compound), a delete (by member and by key), a reflection (three spellings) and a helper that reads by the name it is handed are named', forms([15, 16, 17], 'destructure') && forms([18], 'in') && forms([19, 20], 'write') && forms([21, 22], 'delete') && forms([23, 24, 25], 'reflection') && forms([27], 'helper'), `seen ${seen} · to fix: flagPlaces in this file must name each of these planted lines with its form; check the destructure, in, write, delete, reflection and helper branches of its visit`)
+  check('each planted place is named with its line and nothing else is: a .tsx file and a payload are read too, and the door, a row file, a read through the door, a flag with no row, a platform variable, a name in a list, a sentence, the key of an object literal, a label and a lookup of a table are not named', seen === want, `seen ${seen} · want ${want} · to fix: flagPlaces in this file names a planted line it should not, or misses one; compare the two lists and adjust the branch of its visit that decides it, or the planted lines`)
   check(
     'each place is told the verb that fits: flagEnv with the name, and with the environment where it is not the process, setFlagEnv, stampFlagEnv or stampFlagOnEnv for a write, deleteFlagEnv or flagSpellings for a delete',
     at(3)?.say === "read it with flagEnv('MERCURY_PLANT_A')" &&
@@ -772,7 +772,7 @@ section('§3 the reading of src on a planted estate: a registered flag named at 
       at(21)?.say === "delete it with deleteFlagEnv('MERCURY_PLANT_A')" &&
       at(22)?.say === "delete it with for (const spelling of flagSpellings('MERCURY_PLANT_A')) delete env[spelling]" &&
       (at(27)?.say ?? '').startsWith('read reads the environment by the name it is handed'),
-    got.places.filter(p => p.file === FORMS).map(p => `${p.line} ${p.say}`).join(' | '),
+    got.places.filter(p => p.file === FORMS).map(p => `${p.line} ${p.say}`).join(' | ') + ' · to fix: the sentence of each place is built by the note calls in flagPlaces in this file; make it match the expected sentence for the form',
   )
   const payload = 'src/planted/payload.mjs'
   const screen = 'src/planted/Screen.tsx'
@@ -784,10 +784,10 @@ section('§3 the reading of src on a planted estate: a registered flag named at 
   check(
     'a kept row excuses its places and no more, and a row above what stands is told to fall',
     !judged.unlisted.some(p => p.file === payload || p.file === screen) && judged.unlisted.length === got.places.length - 3 && judged.unlisted.filter(p => p.file === FORMS && p.flag === 'MERCURY_PLANT_B').length === 5 && judged.stale.length === 1 && (judged.stale[0] ?? '').startsWith(`${screen} MERCURY_PLANT_A: the row keeps 2 and 1 stand`),
-    `unlisted ${judged.unlisted.length} of ${got.places.length} · stale ${judged.stale.join(' | ')}`,
+    `unlisted ${judged.unlisted.length} of ${got.places.length} · stale ${judged.stale.join(' | ')} · to fix: judgeKept in this file must excuse a place per row place and report a row above what stands as stale`,
   )
   const optional = at(13)?.say
-  check('an optional holder is told ?? {}, so an absent holder reads nothing and never the process', optional === "read it with flagEnv('MERCURY_PLANT_A', spec.extraEnv ?? {})", String(optional))
+  check('an optional holder is told ?? {}, so an absent holder reads nothing and never the process', optional === "read it with flagEnv('MERCURY_PLANT_A', spec.extraEnv ?? {})", String(optional) + ' · to fix: the optional-holder branch of the property access case in flagPlaces in this file must add ?? {} to the sentence')
   const lawful = 'src/planted/lawful.ts'
   const keyed = 'src/planted/keyed.ts'
   const more = mkdtempSync(join(tmpdir(), 'flag-door-laws-'))
@@ -834,19 +834,19 @@ section('§3 the reading of src on a planted estate: a registered flag named at 
   check(
     'a file under an absence row is red for the flag spelled through any verb of the door, and a file whose read must be taken into a constant is red for a read used in place and not for the constant',
     laws.broken.length === 3 && laws.broken.some(b => b.startsWith(`${lawful}:4 flagEnv('MERCURY_PLANT_B')`)) && laws.broken.some(b => b.startsWith(`${lawful}:5 flagEnabled('MERCURY_PLANT_B')`)) && laws.broken.some(b => b.startsWith(`${lawful}:3 flagEnv('MERCURY_PLANT_A') used in place`)) && laws.stale.length === 1 && (laws.stale[0] ?? '').startsWith(`${keyed} MERCURY_PLANT_B`),
-    `broken ${laws.broken.join(' | ')} · stale ${laws.stale.join(' | ')}`,
+    `broken ${laws.broken.join(' | ')} · stale ${laws.stale.join(' | ')} · to fix: judgeLaws in this file reports a read of an absence row and a read used in place; adjust it or the planted rows`,
   )
   const unseen = judgeUnseen(plantedRows, seenMore.keys, seenMore.computed, seenMore.told)
   rmSync(more, { recursive: true, force: true })
   check(
     'the key of an object literal is seen by name and through a constant, and a key built by flagPair, a key with no row and a type are not; a key with no row of the list is named',
     seenMore.keys.map(k => `${k.line} ${k.flag}`).join(' · ') === '3 MERCURY_PLANT_A · 3 MERCURY_PLANT_B · 7 MERCURY_PLANT_A' && unseen.loose.map(k => `${k.line} ${k.flag}`).join(' · ') === '3 MERCURY_PLANT_B',
-    `keys ${seenMore.keys.map(k => `${k.line} ${k.flag}`).join(' · ')} · loose ${unseen.loose.map(k => `${k.line} ${k.flag}`).join(' · ')}`,
+    `keys ${seenMore.keys.map(k => `${k.line} ${k.flag}`).join(' · ')} · loose ${unseen.loose.map(k => `${k.line} ${k.flag}`).join(' · ')} · to fix: the key branch of flagPlaces and the loose list of judgeUnseen in this file decide which keys are seen; adjust them or the planted lines`,
   )
   check(
     'a listed place is held from the syntax tree by its file, its function and its holder: a delete by a name from a list and a read inside program text stand as listed, a row above what stands is told to fall, a row whose place is gone is told to go, and a second place of a listed shape is told to go through the door',
     seenMore.computed.map(c => `${c.line} ${c.fn} ${c.at} ${c.use}`).join(' · ') === '8 scrub env delete · 9 walked process.env read' && seenMore.told.map(t => `${t.line} ${t.flag}`).join(' · ') === '10 MERCURY_PLANT_A' && unseen.stale.length === 3 && unseen.stale.some(s => s.includes('a new place of the same shape')) && unseen.stale.some(s => s.includes('lower it and the count')) && unseen.stale.some(s => s.includes('lower it (delete the row)')),
-    `computed ${seenMore.computed.map(c => `${c.line} ${c.fn} ${c.at} ${c.use}`).join(' · ')} · text ${seenMore.told.map(t => `${t.line} ${t.flag}`).join(' · ')} · stale ${unseen.stale.join(' | ')}`,
+    `computed ${seenMore.computed.map(c => `${c.line} ${c.fn} ${c.at} ${c.use}`).join(' · ')} · text ${seenMore.told.map(t => `${t.line} ${t.flag}`).join(' · ')} · stale ${unseen.stale.join(' | ')} · to fix: flagPlaces (the computed and text lists) and judgeUnseen in this file must hold each planted place as its row says; adjust them or the planted rows`,
   )
 }
 
@@ -865,8 +865,8 @@ section('§4 the estate: no file under src but the door and the row files names 
     unlisted.length === 0,
     `${unlisted.length} found — ${THE_VERBS}; the kept list only falls:` + told(unlisted),
   )
-  check('every kept row still holds its places (a row above what stands is lowered, and the count below with it)', stale.length === 0, stale.join(' · '))
-  check(`the kept list holds ${KEPT_PLACES} places, each row once and with its reason`, keptPlaces === KEPT_PLACES && KEPT.every(row => row.why.trim().length > 0 && row.places > 0) && new Set(KEPT.map(row => `${row.file}\t${row.flag}`)).size === KEPT.length, `places ${keptPlaces}`)
+  check('every kept row still holds its places (a row above what stands is lowered, and the count below with it)', stale.length === 0, stale.join(' · ') + ' · to fix: lower the places of each listed row of KEPT in this file (delete the row at 0) and KEPT_PLACES with it')
+  check(`the kept list holds ${KEPT_PLACES} places, each row once and with its reason`, keptPlaces === KEPT_PLACES && KEPT.every(row => row.why.trim().length > 0 && row.places > 0) && new Set(KEPT.map(row => `${row.file}\t${row.flag}`)).size === KEPT.length, `places ${keptPlaces} · to fix: make KEPT_PLACES in this file the sum of the places in KEPT, each row once, with a reason`)
   const laws = judgeLaws(got.places, got.calls, ABSENT, TAKEN_ONCE)
   check(
     `a flag a file must not read is read there by no verb and no bare form, and a read that must be taken once is used nowhere in place (${ABSENT.length} absence rows, ${TAKEN_ONCE.length} taken-once rows)`,
@@ -891,8 +891,8 @@ section('§4 the estate: no file under src but the door and the row files names 
     unseen.loose.length === 0,
     unseen.loose.map(key => `\n      ${key.file}:${key.line} ${key.flag} — write it with ...flagPair('${key.flag}', value)`).join(''),
   )
-  check('every listed place still stands, as often as its row says (a row above what stands is lowered, and the count below with it; a computed name in a function with no row is out of reach, as the label above says)', unseen.stale.length === 0, unseen.stale.map(line => `\n      ${line}`).join(''))
-  check(`the list of what the check cannot name holds ${UNSEEN_PLACES} places, each with its reason, and may only fall`, unseenPlaces === UNSEEN_PLACES && UNSEEN.every(row => row.why.trim().length > 0 && row.places > 0), `places ${unseenPlaces}`)
+  check('every listed place still stands, as often as its row says (a row above what stands is lowered, and the count below with it; a computed name in a function with no row is out of reach, as the label above says)', unseen.stale.length === 0, unseen.stale.map(line => `\n      ${line}`).join('') + '\n      the rows are UNSEEN in this file; lower or delete the listed row, or take the new place through the door, and fix UNSEEN_PLACES')
+  check(`the list of what the check cannot name holds ${UNSEEN_PLACES} places, each with its reason, and may only fall`, unseenPlaces === UNSEEN_PLACES && UNSEEN.every(row => row.why.trim().length > 0 && row.places > 0), `places ${unseenPlaces} · to fix: make UNSEEN_PLACES in this file the sum of the places in UNSEEN, each row with a reason`)
 }
 
 console.log(failures === 0 ? '\nprove-flag-registry-readers: green' : `\nprove-flag-registry-readers: ${failures} failed`)

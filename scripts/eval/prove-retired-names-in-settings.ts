@@ -1,5 +1,8 @@
 import { check, cleanup, finish, setup } from './lib.js'
 import { CODE_TOOL_SPELLINGS } from '../identity/forbidden-code-tool.js'
+function hinted(label: string, cond: boolean, detail: string, hint: string): void {
+  check(label, cond, cond ? detail : `${detail ? `${detail} | ` : ''}${hint}`)
+}
 
 setup()
 const { getAllBaseTools } = await import('../../src/tools.js')
@@ -13,15 +16,15 @@ const warnings: string[][] = []
 for (const name of [CODE_TOOL_SPELLINGS[0], 'NoSuchCellRuntime']) {
   const result = await initializeToolPermissionContext({ allowedToolsCli: [name], disallowedToolsCli: [name], permissionMode: 'default', allowDangerouslySkipPermissions: false })
   warnings.push(result.warnings.map(text => text.replaceAll(name, '<name>')))
-  check('absent-name allow and deny rules never migrate to Eval', getDenyRuleForTool(result.toolPermissionContext, EvalTool) === null && toolAlwaysAllowedRule(result.toolPermissionContext, EvalTool) === null)
-  check('the absent hook matcher does not claim Eval', !(await matchesPattern('Eval', name)))
+  hinted('absent-name allow and deny rules never migrate to Eval', getDenyRuleForTool(result.toolPermissionContext, EvalTool) === null && toolAlwaysAllowedRule(result.toolPermissionContext, EvalTool) === null, '', 'a retired or unknown tool name in allowed or disallowed tool settings must not resolve to Eval; see initializeToolPermissionContext in src/utils/permissions/permissionSetup.ts and getDenyRuleForTool in src/utils/permissions/decision/rules.ts')
+  hinted('the absent hook matcher does not claim Eval', !(await matchesPattern('Eval', name)), '', 'fix matchesPattern in src/utils/hooks/matching.ts so a retired or unknown name does not match the Eval tool')
   const resolved = resolveAgentTools({ tools: [name], source: 'userSettings' as never }, pool, true)
-  check('an agent tool list uses the generic invalidTools result', resolved.invalidTools.join() === name && resolved.resolvedTools.length === 0, JSON.stringify(resolved.invalidTools))
+  hinted('an agent tool list uses the generic invalidTools result', resolved.invalidTools.join() === name && resolved.resolvedTools.length === 0, JSON.stringify(resolved.invalidTools), 'fix resolveAgentTools in src/tools/AgentTool/agentToolUtils.ts so an unknown tool name lands in invalidTools and resolves to nothing')
 }
-check('warnings follow the identical generic road', JSON.stringify(warnings[0]) === JSON.stringify(warnings[1]), JSON.stringify(warnings))
+hinted('warnings follow the identical generic road', JSON.stringify(warnings[0]) === JSON.stringify(warnings[1]), JSON.stringify(warnings), 'initializeToolPermissionContext in src/utils/permissions/permissionSetup.ts must give a retired name the same warnings as any unknown name')
 for (const language of ['py', 'js'] as const) {
   const matcher = await EvalTool.preparePermissionMatcher({ language, code: '1' }, {} as never)
-  check('Eval language and wildcard rules keep their meaning', matcher(language) && matcher('*') && !matcher(language === 'py' ? 'js' : 'py'))
+  hinted('Eval language and wildcard rules keep their meaning', matcher(language) && matcher('*') && !matcher(language === 'py' ? 'js' : 'py'), '', 'fix preparePermissionMatcher in src/tools/EvalTool/EvalTool.ts so a rule matches its own language and the wildcard only')
 }
 cleanup()
 finish('EVAL GENERIC SETTINGS NAMES')

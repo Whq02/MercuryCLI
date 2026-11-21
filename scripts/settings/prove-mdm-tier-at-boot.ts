@@ -5,9 +5,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', fix = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && fix ? ` — ${fix}` : ''}`)
 }
 function skip(label: string, why: string): void {
   console.log(`  [SKIP] ${label} — ${why}`)
@@ -59,8 +59,8 @@ else {
   `)
   const tier = r.tier as { keys: string[]; origin: string | null }
   const merged = r.merged as { deny: string[] | null; sovereignLock: boolean | null; hooksLock: boolean | null }
-  check('the bare await leaves the mdm tier empty (the defect mechanism)', tier.keys.length === 0 && tier.origin === null, JSON.stringify(tier))
-  check('...and the merged settings carry no policy', merged.deny === null && merged.sovereignLock === null && merged.hooksLock === null, JSON.stringify(merged))
+  check('the bare await leaves the mdm tier empty (the defect mechanism)', tier.keys.length === 0 && tier.origin === null, JSON.stringify(tier), 'awaiting getMdmRawReadPromise in src/utils/settings/mdm/rawRead.ts alone must not fill the tier that getMdmSettings in src/utils/settings/mdm/settings.ts returns: only ensureMdmSettingsLoaded loads it')
+  check('...and the merged settings carry no policy', merged.deny === null && merged.sovereignLock === null && merged.hooksLock === null, JSON.stringify(merged), 'the merged settings read by getSettingsWithErrors in src/utils/settings/settings.ts must not include policy before ensureMdmSettingsLoaded has run')
 }
 
 console.log('L2 the barrier — ensureMdmSettingsLoaded plus a cache reset puts the policy in force')
@@ -80,10 +80,10 @@ else {
   `)
   const tier = r.tier as { keys: string[]; origin: string | null }
   const merged = r.merged as { deny: string[] | null; sovereignLock: boolean | null; hooksLock: boolean | null }
-  check('the mdm tier carries the policy keys', tier.keys.includes('guardrails') && tier.keys.includes('events'), JSON.stringify(tier))
-  check('the policy origin is the plist tier', tier.origin === 'plist', `origin=${tier.origin}`)
-  check('the merged settings carry the deny rule, the sovereign lock and the hooks lock', merged.deny?.[0] === 'Bash(rm *)' && merged.sovereignLock === true && merged.hooksLock === true, JSON.stringify(merged))
-  check('the load reused the one in-flight startup read', r.reads === 1, `reads=${r.reads}`)
+  check('the mdm tier carries the policy keys', tier.keys.includes('guardrails') && tier.keys.includes('events'), JSON.stringify(tier), 'ensureMdmSettingsLoaded in src/utils/settings/mdm/settings.ts must fill the tier from the raw read so getMdmSettings returns the policy keys')
+  check('the policy origin is the plist tier', tier.origin === 'plist', `origin=${tier.origin}`, 'getPolicySettingsOrigin in src/utils/settings/settings.ts must report plist when the policy came from the plist read')
+  check('the merged settings carry the deny rule, the sovereign lock and the hooks lock', merged.deny?.[0] === 'Bash(rm *)' && merged.sovereignLock === true && merged.hooksLock === true, JSON.stringify(merged), 'after ensureMdmSettingsLoaded and resetSettingsCache the merge in getSettingsWithErrors in src/utils/settings/settings.ts must include the mdm tier')
+  check('the load reused the one in-flight startup read', r.reads === 1, `reads=${r.reads}`, 'ensureMdmSettingsLoaded in src/utils/settings/mdm/settings.ts must reuse the in-flight read from getMdmRawReadPromise, not start a second one')
 }
 
 
@@ -99,8 +99,8 @@ else {
     out.tier = tier()
   `)
   const tier = r.tier as { keys: string[]; origin: string | null }
-  check('the guarded barrier absorbs the failure', typeof r.threw === 'string' && !(r.threw as string).startsWith('escaped'), String(r.threw))
-  check('the tier reads empty (no policy) rather than poisoned', tier.keys.length === 0 && tier.origin === null, JSON.stringify(tier))
+  check('the guarded barrier absorbs the failure', typeof r.threw === 'string' && !(r.threw as string).startsWith('escaped'), String(r.threw), 'ensureMdmSettingsLoaded in src/utils/settings/mdm/settings.ts must catch a rejected raw read instead of letting it escape')
+  check('the tier reads empty (no policy) rather than poisoned', tier.keys.length === 0 && tier.origin === null, JSON.stringify(tier), 'a failed raw read must leave the tier empty: check how src/utils/settings/mdm/settings.ts stores the result when the read rejects')
 }
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)

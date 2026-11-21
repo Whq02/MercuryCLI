@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
 
 
@@ -19,7 +19,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   }
   const uncovered = await drawnWhen(false)
   const covered = await drawnWhen(true)
-  check('G2 the permission overlay render requires !chatSurfaceCovered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered}`)
+  check('G2 the permission overlay render requires !chatSurfaceCovered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered}`, 'in src/screens/chat/useChatAsks.tsx, useChatAsksCard must build permissionOverlay only when focusedInputDialog is tool-permission, the queue has a head and chatSurfaceCovered is false')
 }
 
 {
@@ -29,7 +29,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   await selector.plant({ chatSurfaceCovered: true })
   const covered = selector.part.value().messageSelector !== null
   await selector.close()
-  check('G3 the message selector render requires !chatSurfaceCovered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered}`)
+  check('G3 the message selector render requires !chatSurfaceCovered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered}`, 'in src/screens/chat/useChatSelector.tsx, useChatSelectorView must build messageSelector only while chatSurfaceCovered is false')
 }
 
 {
@@ -40,7 +40,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   await dialogs.plant({ chatSurfaceCovered: true })
   const covered = dialogs.part.value().focusedBottomDialog !== null
   await dialogs.close()
-  check('G4 the bottom dialogs are null when covered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered}`)
+  check('G4 the bottom dialogs are null when covered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered}`, 'in src/screens/chat/useChatDialogs.tsx, useChatDialogsView must return null for focusedBottomDialog when chatSurfaceCovered is true and draw the cost-threshold dialog when it is false')
 }
 
 

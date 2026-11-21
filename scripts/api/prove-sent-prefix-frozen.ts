@@ -100,32 +100,32 @@ section('§1 the projection law — appended rows extend the view, never rewrite
 
   const h1 = [ctxRow(), user('first prompt')]
   const p1 = normalizeMessagesForAPI(h1 as never)
-  check('turn 1 projects to one user turn carrying the context row and the prompt', p1.length === 1 && wireOf(p1[0]).includes('be brief') && wireOf(p1[0]).includes('first prompt'), wireOf(p1[0]).slice(0, 200))
+  check('turn 1 projects to one user turn carrying the context row and the prompt', p1.length === 1 && wireOf(p1[0]).includes('be brief') && wireOf(p1[0]).includes('first prompt'), wireOf(p1[0]).slice(0, 200) + ' — fix normalizeMessagesForAPI in src/services/messages/apiView.ts so the context row and the prompt form one user turn')
 
   const h2 = [...h1, assistant([THINK('one'), TEXT('a')]), localCommand('ls output'), attachmentRow({ type: 'edited_text_file', filename: '/x/note.txt', snippet: '1: new bytes' }), user('second prompt')]
   const p2 = normalizeMessagesForAPI(h2 as never)
   const pre2 = isPrefix(p1, p2)
-  check('turn 2: the turn-1 view is a byte-identical prefix (the `!` row and the attachment ride the NEW user turn)', pre2.ok && p2.length === 3, `at=${pre2.at} rows=${p2.length}`)
-  check('…the `!` output and the file notice sit in the last user turn, after the reply', wireOf(p2[2]).includes('ls output') && wireOf(p2[2]).includes('new bytes') && wireOf(p2[2]).includes('second prompt'), wireOf(p2[2]).slice(0, 300))
+  check('turn 2: the turn-1 view is a byte-identical prefix (the `!` row and the attachment ride the NEW user turn)', pre2.ok && p2.length === 3, `at=${pre2.at} rows=${p2.length}` + ' — fix normalizeMessagesForAPI in src/services/messages/apiView.ts so earlier turns stay byte-identical and the new local-command row and attachment ride the new user turn')
+  check('…the `!` output and the file notice sit in the last user turn, after the reply', wireOf(p2[2]).includes('ls output') && wireOf(p2[2]).includes('new bytes') && wireOf(p2[2]).includes('second prompt'), wireOf(p2[2]).slice(0, 300) + ' — fix normalizeMessagesForAPI in src/services/messages/apiView.ts so the local-command output and file notice land in the last user turn')
 
   const h3 = [...h2, assistant([THINK('two'), { type: 'tool_use', id: 'toolu_1', name: 'Read', input: { file_path: '/x/note.txt' } }]), user([{ type: 'tool_result', tool_use_id: 'toolu_1', content: 'bytes' }]), assistant([THINK('three'), TEXT('b')]), attachmentRow({ type: 'user_context', body: REMINDER + '\n<!-- newer -->' }), user('third prompt')]
   const p3 = normalizeMessagesForAPI(h3 as never)
   const pre3 = isPrefix(p2, p3)
-  check('turn 3: the turn-2 view is a byte-identical prefix across a tool round', pre3.ok && p3.length === 7, `at=${pre3.at} rows=${p3.length}`)
-  check('…a fresh user-context copy rides the tail turn; messages[0] keeps the first copy', wireOf(p3[0]) === wireOf(p1[0]) && wireOf(p3[6]).includes('newer'), wireOf(p3[6]).slice(0, 200))
+  check('turn 3: the turn-2 view is a byte-identical prefix across a tool round', pre3.ok && p3.length === 7, `at=${pre3.at} rows=${p3.length}` + ' — fix normalizeMessagesForAPI in src/services/messages/apiView.ts so a tool round never rewrites the earlier view')
+  check('…a fresh user-context copy rides the tail turn; messages[0] keeps the first copy', wireOf(p3[0]) === wireOf(p1[0]) && wireOf(p3[6]).includes('newer'), wireOf(p3[6]).slice(0, 200) + ' — fix normalizeMessagesForAPI in src/services/messages/apiView.ts so a newer user-context copy rides the tail turn and messages[0] keeps the first copy')
 
   const b1 = [localCommand('early ls'), ctxRow(), user('first prompt')]
   const q1 = normalizeMessagesForAPI(b1 as never)
   const q2 = normalizeMessagesForAPI([...b1, assistant([THINK('one'), TEXT('a')]), user('second prompt')] as never)
-  check('a `!` line before the first prompt is part of messages[0] on every later request', q1.length === 1 && isPrefix(q1, q2).ok && wireOf(q2[0]).includes('early ls'), wireOf(q2[0]).slice(0, 200))
+  check('a `!` line before the first prompt is part of messages[0] on every later request', q1.length === 1 && isPrefix(q1, q2).ok && wireOf(q2[0]).includes('early ls'), wireOf(q2[0]).slice(0, 200) + ' — fix normalizeMessagesForAPI in src/services/messages/apiView.ts so a local-command line before the first prompt stays in messages[0]')
 
   const big = 'x'.repeat(400_000)
   const state = createContentReplacementState()
   const round = [user('read it'), assistant([{ type: 'tool_use', id: 'toolu_big', name: 'Bash', input: { command: 'cat big' } }]), user([{ type: 'tool_result', tool_use_id: 'toolu_big', content: big }])]
   const first = await enforceToolResultBudget(round as never, state)
-  check('an oversized result is decided on first sight (replaced in the turn it arrives)', first.replacements.length === 1 && !wireOf(first.messages[2]).includes(big), `replacements=${first.replacements.length}`)
+  check('an oversized result is decided on first sight (replaced in the turn it arrives)', first.replacements.length === 1 && !wireOf(first.messages[2]).includes(big), `replacements=${first.replacements.length}` + ' — fix enforceToolResultBudget in src/utils/toolResultStorage.ts so an oversized result is replaced in the turn it arrives')
   const later = await enforceToolResultBudget([...first.messages, assistant([THINK('x'), TEXT('ok')]), user('next')] as never, state)
-  check('the budget never rewrites a result it already decided (the sent turn is byte-identical, nothing new recorded)', wireOf(later.messages[2]) === wireOf(first.messages[2]) && later.replacements.length === 0, `replacements=${later.replacements.length}`)
+  check('the budget never rewrites a result it already decided (the sent turn is byte-identical, nothing new recorded)', wireOf(later.messages[2]) === wireOf(first.messages[2]) && later.replacements.length === 0, `replacements=${later.replacements.length}` + ' — fix enforceToolResultBudget in src/utils/toolResultStorage.ts so a result it already decided is never rewritten or recorded again')
 }
 
 section('§1b the tool roster freeze (pure) — a latched decision holds; a joiner rides deferred or is held')
@@ -165,51 +165,51 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
 
   const free1 = await plan([search, readTool], { pending: true })
   const free2 = await plan([search, readTool], { pending: false })
-  check('control (no latch): pending servers ⇒ search on; landed with nothing deferred ⇒ off — the roster moves', free1.enabled && !free2.enabled && names(free1) !== names(free2), `${names(free1)} → ${names(free2)}`)
+  check('control (no latch): pending servers ⇒ search on; landed with nothing deferred ⇒ off — the roster moves', free1.enabled && !free2.enabled && names(free1) !== names(free2), `${names(free1)} → ${names(free2)}` + ' — check planToolPayload in src/services/providers/toolEconomy.ts: with no latch key the roster must follow the pending-servers state')
 
   const deferrable = fakeTool('Browser', { shouldDefer: true })
   const p1 = await plan([search, readTool, deferrable], { pending: true, key: 'conv-a' })
   const p2 = await plan([search, readTool, deferrable], { pending: false, key: 'conv-a' })
-  check('latched: the first request decided search on; the servers landing leaves the roster byte-identical', p1.enabled && p2.enabled && names(p1) === names(p2), `${names(p1)} → ${names(p2)}`)
-  check('THE ROSTER LAW: a deferrable tool rides the roster from the FIRST request (deferred on the wire), never held back for an admission', names(p1) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'Browser']) && p1.deferredNames.has('Browser') && !p1.admittedNames.has('Browser'), names(p1))
-  check('…the latch records the decision and the names it saw, in order', toolRosterLatchFor('conv-a', [], 'claude-opus-4-8')?.enabled === true && j(toolRosterLatchFor('conv-a', [], 'claude-opus-4-8')?.names) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'Browser']))
+  check('latched: the first request decided search on; the servers landing leaves the roster byte-identical', p1.enabled && p2.enabled && names(p1) === names(p2), `${names(p1)} → ${names(p2)}` + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so the first latched decision holds when servers land')
+  check('THE ROSTER LAW: a deferrable tool rides the roster from the FIRST request (deferred on the wire), never held back for an admission', names(p1) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'Browser']) && p1.deferredNames.has('Browser') && !p1.admittedNames.has('Browser'), names(p1) + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so a deferrable tool rides the first request deferred')
+  check('…the latch records the decision and the names it saw, in order', toolRosterLatchFor('conv-a', [], 'claude-opus-4-8')?.enabled === true && j(toolRosterLatchFor('conv-a', [], 'claude-opus-4-8')?.names) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'Browser']), 'fix planToolPayload in src/services/providers/toolEconomy.ts so the latch records the decision and the tool names in first-seen order')
   const admitted = [user('one'), assistant([{ type: 'tool_use', id: 'toolu_ts', name: TOOL_SEARCH_TOOL_NAME, input: { query: 'browser' } }]), user([{ type: 'tool_result', tool_use_id: 'toolu_ts', content: [{ type: 'tool_reference', tool_name: 'Browser' }] }])]
   const pAdmit = await planToolPayload({ model: 'claude-opus-4-8', tools: [search, readTool, deferrable] as never, messages: admitted as never, getToolPermissionContext: async () => ({ ...getEmptyToolPermissionContext(), mode: 'default' as never }), agents: [], hasPendingMcpServers: false, source: 'prove', latchKey: 'conv-adm' })
   const pAdmit2 = await planToolPayload({ model: 'claude-opus-4-8', tools: [search, readTool, deferrable] as never, messages: admitted as never, getToolPermissionContext: async () => ({ ...getEmptyToolPermissionContext(), mode: 'default' as never }), agents: [], hasPendingMcpServers: false, source: 'prove', latchKey: 'conv-adm' })
-  check('an admission adds nothing to the roster (the admitted tool was there, deferred, from the first request) and it is admitted', names(pAdmit) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'Browser']) && pAdmit.admittedNames.has('Browser') && !pAdmit.isDeferredUnadmitted('Browser') && names(pAdmit2) === names(pAdmit), names(pAdmit))
+  check('an admission adds nothing to the roster (the admitted tool was there, deferred, from the first request) and it is admitted', names(pAdmit) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'Browser']) && pAdmit.admittedNames.has('Browser') && !pAdmit.isDeferredUnadmitted('Browser') && names(pAdmit2) === names(pAdmit), names(pAdmit) + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so an admission adds nothing to the roster')
   const localPlan = (messages: unknown[], key: string) => planToolPayload({ model: 'local/qwen3.5:9b', tools: [search, readTool, deferrable] as never, messages: messages as never, getToolPermissionContext: async () => ({ ...getEmptyToolPermissionContext(), mode: 'default' as never }), agents: [], hasPendingMcpServers: false, source: 'prove', latchKey: key })
   const lFresh = await localPlan([user('one')], 'conv-local')
   const lAdmit = await localPlan(admitted, 'conv-local')
-  check('THE LOCAL ROAD rides the text-append form: an admission leaves the tools term byte-identical (token 0 of the local prompt never moves) and declares the admitted schema beside the ToolSearch result instead', lFresh.wireForm === 'text-append' && lAdmit.wireForm === 'text-append' && names(lAdmit) === names(lFresh) && lAdmit.deferredNames.has('Browser') && lAdmit.admissionDeclarations.length === 1 && lAdmit.admissionDeclarations[0]!.toolUseId === 'toolu_ts' && lAdmit.admissionDeclarations[0]!.tools.map(t => t.name).join(',') === 'Browser', `${lFresh.wireForm}/${lAdmit.wireForm} ${names(lFresh)} → ${names(lAdmit)} declarations=${lAdmit.admissionDeclarations.length}`)
+  check('THE LOCAL ROAD rides the text-append form: an admission leaves the tools term byte-identical (token 0 of the local prompt never moves) and declares the admitted schema beside the ToolSearch result instead', lFresh.wireForm === 'text-append' && lAdmit.wireForm === 'text-append' && names(lAdmit) === names(lFresh) && lAdmit.deferredNames.has('Browser') && lAdmit.admissionDeclarations.length === 1 && lAdmit.admissionDeclarations[0]!.toolUseId === 'toolu_ts' && lAdmit.admissionDeclarations[0]!.tools.map(t => t.name).join(',') === 'Browser', `${lFresh.wireForm}/${lAdmit.wireForm} ${names(lFresh)} → ${names(lAdmit)} declarations=${lAdmit.admissionDeclarations.length}` + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so the local road keeps the tools term fixed and declares the admitted schema in admissionDeclarations')
   const mcpTool = fakeTool('mcp__srv__late', { isMcp: true, mcpInfo: { serverName: 'srv' } })
   const p3 = await plan([search, readTool, deferrable, mcpTool], { pending: false, key: 'conv-a' })
-  check('a deferrable tool that joins later under a deferring latch is appended at the END, deferred (an unreferenced deferred tool is not part of the prefix); the earlier order holds', names(p3) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'Browser', 'mcp__srv__late']) && p3.deferredNames.has('mcp__srv__late'), names(p3))
+  check('a deferrable tool that joins later under a deferring latch is appended at the END, deferred (an unreferenced deferred tool is not part of the prefix); the earlier order holds', names(p3) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'Browser', 'mcp__srv__late']) && p3.deferredNames.has('mcp__srv__late'), names(p3) + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so a late deferrable tool is appended at the end, deferred')
   const reordered = await plan([mcpTool, deferrable, readTool, search], { pending: false, key: 'conv-a' })
-  check('…and a pool that arrives in another order still sends the latched order (never a reorder)', names(reordered) === names(p3), names(reordered))
+  check('…and a pool that arrives in another order still sends the latched order (never a reorder)', names(reordered) === names(p3), names(reordered) + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so the latched order wins over the pool order')
   const lateFull = fakeTool('LateBuiltin')
   const p3b = await plan([search, readTool, deferrable, mcpTool, lateFull], { pending: false, key: 'conv-a' })
-  check('a NON-deferrable joiner is held even under a deferring latch (a regular tool added later is an edit)', names(p3b) === names(p3), names(p3b))
+  check('a NON-deferrable joiner is held even under a deferring latch (a regular tool added later is an edit)', names(p3b) === names(p3), names(p3b) + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so a non-deferrable joiner is held out of a latched roster')
   const other = [user('another chat')]
   const o1 = await planToolPayload({ model: 'claude-opus-4-8', tools: [search, readTool, mcpTool] as never, messages: other as never, getToolPermissionContext: async () => ({ ...getEmptyToolPermissionContext(), mode: 'default' as never }), agents: [], hasPendingMcpServers: false, source: 'prove', latchKey: 'conv-a' })
-  check('a different first row under the same owner keys its own latch (a new chat, or the post-compaction summary)', toolRosterLatchFor('conv-a', other as never, 'claude-opus-4-8') !== undefined && toolRosterLatchFor('conv-a', other as never, 'claude-opus-4-8') !== toolRosterLatchFor('conv-a', [], 'claude-opus-4-8') && o1.deferredNames.has('mcp__srv__late'), names(o1))
+  check('a different first row under the same owner keys its own latch (a new chat, or the post-compaction summary)', toolRosterLatchFor('conv-a', other as never, 'claude-opus-4-8') !== undefined && toolRosterLatchFor('conv-a', other as never, 'claude-opus-4-8') !== toolRosterLatchFor('conv-a', [], 'claude-opus-4-8') && o1.deferredNames.has('mcp__srv__late'), names(o1) + ' — fix toolRosterLatchFor and planToolPayload in src/services/providers/toolEconomy.ts so the latch is keyed by owner and first row')
   const p4 = await plan([search, readTool, mcpTool], { pending: false, key: 'conv-b' })
-  check('another conversation decides for itself (its first request sees the joiner)', p4.deferredNames.has('mcp__srv__late') && names(p4) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'mcp__srv__late']), names(p4))
+  check('another conversation decides for itself (its first request sees the joiner)', p4.deferredNames.has('mcp__srv__late') && names(p4) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'mcp__srv__late']), names(p4) + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so a new latch key decides from its own first request')
 
   const deferred = fakeTool('Deferred', { shouldDefer: true })
   const m1 = await plan([search, readTool, deferred], { pending: false, key: 'conv-marks' })
   const m2 = await plan([search, readTool], { pending: false, key: 'conv-marks' })
-  check('THE MARKS ARE FROZEN: a deferrable tool the pool drops (a toggle) still rides the array AND keeps its deferral mark', m1.enabled && names(m2) === names(m1) && m1.deferredNames.has('Deferred') && m2.deferredNames.has('Deferred'), `${names(m2)} deferred=${j([...m2.deferredNames])}`)
+  check('THE MARKS ARE FROZEN: a deferrable tool the pool drops (a toggle) still rides the array AND keeps its deferral mark', m1.enabled && names(m2) === names(m1) && m1.deferredNames.has('Deferred') && m2.deferredNames.has('Deferred'), `${names(m2)} deferred=${j([...m2.deferredNames])}` + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so a tool dropped from the pool keeps its roster slot and deferral mark')
   const lsp = fakeTool('LspTool')
   const lspPlan = (rule: (t: { name: string }) => boolean) =>
     planToolPayload({ model: 'claude-opus-4-8', tools: [search, readTool, deferred, lsp] as never, messages: [], getToolPermissionContext: async () => ({ ...getEmptyToolPermissionContext(), mode: 'default' as never }), agents: [], hasPendingMcpServers: false, source: 'prove', latchKey: 'conv-lsp', alsoDefer: rule as never })
   const l1 = await lspPlan(t => t.name === 'LspTool')
   const l2 = await lspPlan(() => false)
-  check("a lane's own deferral rule is judged once: the tool it deferred at the first request stays deferred when the rule later says no", l1.deferredNames.has('LspTool') && l2.deferredNames.has('LspTool') && names(l2) === names(l1), j([...l2.deferredNames]))
+  check("a lane's own deferral rule is judged once: the tool it deferred at the first request stays deferred when the rule later says no", l1.deferredNames.has('LspTool') && l2.deferredNames.has('LspTool') && names(l2) === names(l1), j([...l2.deferredNames]) + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so a deferral made by alsoDefer at the first request stays frozen')
   const j1 = await plan([search, readTool, deferred, mcpTool], { pending: false, key: 'conv-marks' })
   const j2 = await plan([search, readTool], { pending: false, key: 'conv-marks' })
-  check('a joiner appended once keeps its position and its mark for good — even after it leaves the pool again', names(j1) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'Deferred', 'mcp__srv__late']) && names(j2) === names(j1) && j2.deferredNames.has('mcp__srv__late'), `${names(j2)} deferred=${j([...j2.deferredNames])}`)
+  check('a joiner appended once keeps its position and its mark for good — even after it leaves the pool again', names(j1) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'Deferred', 'mcp__srv__late']) && names(j2) === names(j1) && j2.deferredNames.has('mcp__srv__late'), `${names(j2)} deferred=${j([...j2.deferredNames])}` + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so an appended joiner keeps its position and mark')
   const sumPlan = await plan([readTool, search], { pending: false, key: 'conv-marks' })
-  check("the summariser's plan under the conversation's key — from its own two-tool pool — yields the conversation's array and marks, byte for byte", names(sumPlan) === names(j1) && j([...sumPlan.deferredNames].sort()) === j([...j1.deferredNames].sort()), names(sumPlan))
+  check("the summariser's plan under the conversation's key — from its own two-tool pool — yields the conversation's array and marks, byte for byte", names(sumPlan) === names(j1) && j([...sumPlan.deferredNames].sort()) === j([...j1.deferredNames].sort()), names(sumPlan) + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so a plan under the conversation key returns the frozen array and marks')
   const t = await import('../core-runtime/turnScenarios.ts')
   const { mainOwnerOfSession } = await import('../../src/utils/run/resolveOwner.ts')
   const ownerKeySentBy = async (owners: Record<string, string>): Promise<{ sent: unknown; processOwner: string }> => {
@@ -227,29 +227,29 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
   check(
     'the turn machine keys the roster latch on the roster owner',
     forked.sent === 'the-parent-conversation' && unforked.sent === 'the-fork' && plain.sent === plain.processOwner,
-    `the ownerKey the model call was handed — by a context that carries a roster owner beside its own: ${j(forked.sent)} (the-parent-conversation is right); by one that carries only its own owner: ${j(unforked.sent)} (the-fork); by one that carries neither: ${j(plain.sent)} (its process owner ${j(plain.processOwner)}) — the model call of src/run-core/turn/streamModel.ts passes rosterOwnerFromToolUseContext of the context as ownerKey, the key the provider latches the roster under`,
+    `the ownerKey the model call was handed — by a context that carries a roster owner beside its own: ${j(forked.sent)} (the-parent-conversation is right); by one that carries only its own owner: ${j(unforked.sent)} (the-fork); by one that carries neither: ${j(plain.sent)} (its process owner ${j(plain.processOwner)}) — the model call of src/run-core/turn/streamModel.ts passes rosterOwnerFromToolUseContext of the context as ownerKey, the key the provider latches the roster under; fix the ownerKey it passes there so a roster owner wins over the context owner`,
   )
 
   process.env.MERCURY_TOOL_SEARCH = '0'
   const s1 = await plan([search, readTool, deferrable], { key: 'conv-c' })
   const late = fakeTool('LateBuiltin')
   const s2 = await plan([search, readTool, deferrable, late], { key: 'conv-c' })
-  check('search off by policy: the roster carries every tool in full (no ToolSearch), the deferrable one included', !s1.enabled && names(s1) === j(['Read', 'Browser']) && s1.deferredNames.size === 0, names(s1))
-  check('…a tool that joins later is held: the roster stays byte-identical', names(s2) === names(s1), names(s2))
+  check('search off by policy: the roster carries every tool in full (no ToolSearch), the deferrable one included', !s1.enabled && names(s1) === j(['Read', 'Browser']) && s1.deferredNames.size === 0, names(s1) + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so MERCURY_TOOL_SEARCH=0 sends every tool in full with no ToolSearch')
+  check('…a tool that joins later is held: the roster stays byte-identical', names(s2) === names(s1), names(s2) + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so a joiner is held under a search-off latch')
   const s3 = await plan([search, readTool, deferrable, late], { key: 'conv-c', mode: 'apollo' })
-  check('A MODE CHANGE NEVER REWRITES THE PREFIX: the same latch serves every mode, the roster byte-identical', names(s3) === names(s1), names(s3))
+  check('A MODE CHANGE NEVER REWRITES THE PREFIX: the same latch serves every mode, the roster byte-identical', names(s3) === names(s1), names(s3) + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so a permission mode change never alters the latched roster')
   clearToolRosterLatches()
   const s4 = await plan([search, readTool, deferrable, late], { key: 'conv-c' })
-  check('clearing every latch (the process-wide reset) re-decides: the joiner enters', names(s4) === j(['Read', 'Browser', 'LateBuiltin']), names(s4))
+  check('clearing every latch (the process-wide reset) re-decides: the joiner enters', names(s4) === j(['Read', 'Browser', 'LateBuiltin']), names(s4) + ' — fix clearToolRosterLatches in src/services/providers/toolEconomy.ts so clearing every latch lets the next plan decide fresh')
   const s5 = await plan([search, readTool, late], {})
-  check('no latch key ⇒ no latch (a one-off caller decides fresh)', names(s5) === j(['Read', 'LateBuiltin']) && toolRosterLatchFor('undefined', [], 'claude-opus-4-8') === undefined, names(s5))
+  check('no latch key ⇒ no latch (a one-off caller decides fresh)', names(s5) === j(['Read', 'LateBuiltin']) && toolRosterLatchFor('undefined', [], 'claude-opus-4-8') === undefined, names(s5) + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so a call with no latchKey records no latch')
 
   const { declareLawfulPrefixChange, pendingLawfulPrefixChange, resetLawfulPrefixChanges } = await import('../../src/services/providers/lawfulPrefixChange.ts')
   await plan([search, readTool], { key: 'conv-d' })
   declareLawfulPrefixChange('conv-d', 'the operator toggled sub-agents off')
-  check('declareLawfulPrefixChange records its reason and leaves the roster latch in place (the change rides a new row, not the wire)', toolRosterLatchFor('conv-d', [], 'claude-opus-4-8') !== undefined && pendingLawfulPrefixChange('conv-d') === 'the operator toggled sub-agents off')
+  check('declareLawfulPrefixChange records its reason and leaves the roster latch in place (the change rides a new row, not the wire)', toolRosterLatchFor('conv-d', [], 'claude-opus-4-8') !== undefined && pendingLawfulPrefixChange('conv-d') === 'the operator toggled sub-agents off', 'fix declareLawfulPrefixChange in src/services/providers/lawfulPrefixChange.ts so it records the reason and leaves the roster latch alone')
   const d2 = await plan([search, readTool, late], { key: 'conv-d' })
-  check('…so the declaring conversation keeps its frozen roster too', names(d2) === j(['Read']), names(d2))
+  check('…so the declaring conversation keeps its frozen roster too', names(d2) === j(['Read']), names(d2) + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so declaring a lawful prefix change does not unfreeze the roster')
   resetLawfulPrefixChanges()
   if (saved === undefined) delete process.env.MERCURY_TOOL_SEARCH
   else process.env.MERCURY_TOOL_SEARCH = saved
@@ -299,39 +299,39 @@ section('§1c the resume restore (pure) — the first exchange record, then a NE
   const boundKey = conversationRosterKey(owner, messages as never, MODEL)
 
   const record = await buildBoundPrefixRecordData(owner, messages as never, MODEL)
-  check('§1c the record captures the frozen roster (names in first-sent order + deferral marks)', record !== null && j(record.roster.map(t => t.name)) === j(p1.roster.map(t => t.name)) && record.roster.some(t => t.name === 'Browser' && t.deferred), record ? j(record.roster) : 'null')
-  check('§1c the record captures the cached sections (name, key, text — an absent section as null)', record !== null && record.sections.some(s => s.name === 'mode-vulcan' && s.value === null) && record.sections.some(s => s.name === 'memory' && s.value === 'the memory as first seen'), record ? j(record.sections) : 'null')
-  check('§1c the record captures the system context the request appended (the git-status snapshot)', record?.systemContext.gitStatus === 'the tree as first seen', j(record?.systemContext))
-  check('§1c the record key is the conversation key (owner | first row | model)', record?.boundKey === boundKey, `${record?.boundKey} vs ${boundKey}`)
+  check('§1c the record captures the frozen roster (names in first-sent order + deferral marks)', record !== null && j(record.roster.map(t => t.name)) === j(p1.roster.map(t => t.name)) && record.roster.some(t => t.name === 'Browser' && t.deferred), (record ? j(record.roster) : 'null') + ' — fix buildBoundPrefixRecordData in src/services/providers/anthropic/boundPrefixRecord.ts so the record carries the frozen roster in first-sent order with deferral marks')
+  check('§1c the record captures the cached sections (name, key, text — an absent section as null)', record !== null && record.sections.some(s => s.name === 'mode-vulcan' && s.value === null) && record.sections.some(s => s.name === 'memory' && s.value === 'the memory as first seen'), (record ? j(record.sections) : 'null') + ' — fix buildBoundPrefixRecordData in src/services/providers/anthropic/boundPrefixRecord.ts so the record carries each cached system-prompt section, an absent one as null')
+  check('§1c the record captures the system context the request appended (the git-status snapshot)', record?.systemContext.gitStatus === 'the tree as first seen', j(record?.systemContext) + ' — fix buildBoundPrefixRecordData in src/services/providers/anthropic/boundPrefixRecord.ts so the record carries the system context the request appended')
+  check('§1c the record key is the conversation key (owner | first row | model)', record?.boundKey === boundKey, `${record?.boundKey} vs ${boundKey}` + ' — fix buildBoundPrefixRecordData in src/services/providers/anthropic/boundPrefixRecord.ts so boundKey is conversationRosterKey (owner, first row, model)')
 
   const emitted = await boundPrefixRecordToEmit(owner, messages as never, MODEL)
-  check('§1c the record emits as an attachment (bound_prefix), null-rendering AND projecting NOTHING to the wire', emitted !== null && emitted.type === 'attachment' && emitted.attachment.type === 'bound_prefix' && normalizeAttachmentForAPI(emitted.attachment).length === 0 && isNullRenderingAttachment(emitted), emitted ? `render=${isNullRenderingAttachment(emitted)} wire=${normalizeAttachmentForAPI(emitted.attachment).length}` : 'null')
-  check('§1c a second emit is null (one record per conversation)', (await boundPrefixRecordToEmit(owner, messages as never, MODEL)) === null)
-  check('§1c the record is found in a history that carries it', emitted !== null && boundPrefixRecordExists([emitted as never], boundKey))
+  check('§1c the record emits as an attachment (bound_prefix), null-rendering AND projecting NOTHING to the wire', emitted !== null && emitted.type === 'attachment' && emitted.attachment.type === 'bound_prefix' && normalizeAttachmentForAPI(emitted.attachment).length === 0 && isNullRenderingAttachment(emitted), (emitted ? `render=${isNullRenderingAttachment(emitted)} wire=${normalizeAttachmentForAPI(emitted.attachment).length}` : 'null') + ' — fix boundPrefixRecordToEmit in src/services/providers/anthropic/boundPrefixRecord.ts, and keep bound_prefix null-rendering in src/components/messages/nullRenderingAttachments.ts and out of the wire in src/services/messages/attachmentText.ts')
+  check('§1c a second emit is null (one record per conversation)', (await boundPrefixRecordToEmit(owner, messages as never, MODEL)) === null, 'fix boundPrefixRecordToEmit in src/services/providers/anthropic/boundPrefixRecord.ts so it emits one record per conversation')
+  check('§1c the record is found in a history that carries it', emitted !== null && boundPrefixRecordExists([emitted as never], boundKey), 'fix boundPrefixRecordExists in src/services/providers/anthropic/boundPrefixRecord.ts so it finds the record by its boundKey')
   const recordMessage = emitted!
 
   freshProcess()
-  check('§1c a new process has no latch, no cached sections and no composed context (the freeze does not survive a process)', getSystemPromptSectionCache().size === 0 && pendingToolRosterRestore() === null && !contextCache.has(undefined))
+  check('§1c a new process has no latch, no cached sections and no composed context (the freeze does not survive a process)', getSystemPromptSectionCache().size === 0 && pendingToolRosterRestore() === null && !contextCache.has(undefined), 'the freshProcess helper of this file, or a module-level cache it does not clear (clearSystemPromptSectionState in src/bootstrap/state.ts, clearToolRosterRestore in src/services/providers/toolEconomy.ts), still holds state from the first process')
   const restoredKey = restoreBoundPrefixFromMessages([recordMessage as never])
-  check('§1c the resume loader restored the record: the sections seeded into the cache, the roster armed', restoredKey === boundKey && getSystemPromptSectionCache().get('mode-vulcan')?.value === null && getSystemPromptSectionCache().get('memory')?.value === 'the memory as first seen' && pendingToolRosterRestore()?.key === boundKey, `${restoredKey}; sections=${getSystemPromptSectionCache().size}`)
-  check('§1c …and the system-context memo serves the recorded snapshot (a tree that moved since never rewrites the last system block)', contextCache.has(undefined) && (await getSystemContext()).gitStatus === 'the tree as first seen', j(await getSystemContext()))
+  check('§1c the resume loader restored the record: the sections seeded into the cache, the roster armed', restoredKey === boundKey && getSystemPromptSectionCache().get('mode-vulcan')?.value === null && getSystemPromptSectionCache().get('memory')?.value === 'the memory as first seen' && pendingToolRosterRestore()?.key === boundKey, `${restoredKey}; sections=${getSystemPromptSectionCache().size}` + ' — fix restoreBoundPrefixFromMessages in src/services/providers/anthropic/boundPrefixRecord.ts so it seeds the section cache and arms the roster restore')
+  check('§1c …and the system-context memo serves the recorded snapshot (a tree that moved since never rewrites the last system block)', contextCache.has(undefined) && (await getSystemContext()).gitStatus === 'the tree as first seen', j(await getSystemContext()) + ' — fix restoreBoundPrefixFromMessages in src/services/providers/anthropic/boundPrefixRecord.ts so the recorded system context is served from the getSystemContext memo in src/context.ts')
 
   const p2 = await doPlan([search, read, browser])
-  check('§1c the resumed plan re-sends the frozen roster byte for byte (names + deferral marks)', rosterNames(p2) === names1 && marks(p2) === marks1 && p2.restoredMissingTools.length === 0, `${rosterNames(p2)} vs ${names1}`)
+  check('§1c the resumed plan re-sends the frozen roster byte for byte (names + deferral marks)', rosterNames(p2) === names1 && marks(p2) === marks1 && p2.restoredMissingTools.length === 0, `${rosterNames(p2)} vs ${names1}` + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so an armed restore re-sends the recorded roster and marks')
 
   const p3 = await doPlan([search, read, browser, godot])
-  check('§1c a tool that gated in after the record is a joiner (appended deferred, unreferenced) — the frozen prefix never gains it', p3.roster.slice(0, p1.roster.length).map(t => t.name).join(',') === p1.roster.map(t => t.name).join(',') && p3.deferredNames.has('Godot'), `${rosterNames(p3)}`)
+  check('§1c a tool that gated in after the record is a joiner (appended deferred, unreferenced) — the frozen prefix never gains it', p3.roster.slice(0, p1.roster.length).map(t => t.name).join(',') === p1.roster.map(t => t.name).join(',') && p3.deferredNames.has('Godot'), `${rosterNames(p3)}` + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so a tool that gated in after the record is appended deferred behind the frozen prefix')
 
   freshProcess()
   restoreBoundPrefixFromMessages([recordMessage as never])
   const p4 = await doPlan([search, browser])
-  check('§1c R3 — a bound tool the record carried that this build no longer offers is reported (the caller declares the lawful change)', p4.restoredMissingTools.includes('Read'), j(p4.restoredMissingTools))
+  check('§1c R3 — a bound tool the record carried that this build no longer offers is reported (the caller declares the lawful change)', p4.restoredMissingTools.includes('Read'), j(p4.restoredMissingTools) + ' — fix planToolPayload in src/services/providers/toolEconomy.ts so a recorded tool absent from the live pool is listed in restoredMissingTools')
 
   freshProcess()
   restoreBoundPrefixFromMessages([recordMessage as never])
   const forkOwner = 'conv-resume-FORKED'
   const pFork = await doPlan([search, read, browser], forkOwner)
-  check('§1c a fork (a fresh owner, the same first exchange) restores the frozen roster too', rosterNames(pFork) === names1 && marks(pFork) === marks1, `${rosterNames(pFork)} vs ${names1}`)
+  check('§1c a fork (a fresh owner, the same first exchange) restores the frozen roster too', rosterNames(pFork) === names1 && marks(pFork) === marks1, `${rosterNames(pFork)} vs ${names1}` + ' — fix the restore path in planToolPayload (src/services/providers/toolEconomy.ts) so a fork under a fresh owner restores the recorded roster')
 
   freshProcess()
   restoreBoundPrefixFromMessages([recordMessage as never])
@@ -340,10 +340,10 @@ section('§1c the resume restore (pure) — the first exchange record, then a NE
   const pa1 = await doPlan([search, read, browser], agentOwner, agentMessages)
   const agentRecord = await boundPrefixRecordToEmit(agentOwner, agentMessages as never, MODEL, { rosterOnly: true })
   const agentAttachment = agentRecord?.attachment as { boundKey?: string; sections?: unknown[]; systemContext?: Record<string, string> } | undefined
-  check('§1c an agent conversation writes its own record under its own key: the roster alone, no sections, no system context', agentRecord !== null && agentAttachment?.boundKey === conversationRosterKey(agentOwner, agentMessages as never, MODEL) && agentAttachment.sections?.length === 0 && Object.keys(agentAttachment.systemContext ?? {}).length === 0, j(agentAttachment))
+  check('§1c an agent conversation writes its own record under its own key: the roster alone, no sections, no system context', agentRecord !== null && agentAttachment?.boundKey === conversationRosterKey(agentOwner, agentMessages as never, MODEL) && agentAttachment.sections?.length === 0 && Object.keys(agentAttachment.systemContext ?? {}).length === 0, j(agentAttachment) + ' — fix boundPrefixRecordToEmit with rosterOnly in src/services/providers/anthropic/boundPrefixRecord.ts so an agent record holds the roster alone under its own key')
   freshProcess()
   restoreBoundPrefixFromMessages([JSON.parse(j(agentRecord)) as never], { rosterOnly: true })
-  check('§1c an agent restore arms its roster and seeds no section', pendingToolRosterRestore()?.key === agentAttachment?.boundKey && getSystemPromptSectionCache().size === 0)
+  check('§1c an agent restore arms its roster and seeds no section', pendingToolRosterRestore()?.key === agentAttachment?.boundKey && getSystemPromptSectionCache().size === 0, 'fix restoreBoundPrefixFromMessages with rosterOnly in src/services/providers/anthropic/boundPrefixRecord.ts so it arms the roster and seeds no section')
   restoreBoundPrefixFromMessages([recordMessage as never])
   const pa2 = await doPlan([search, read, browser, godot], agentOwner, agentMessages)
   const pm2 = await doPlan([search, read, browser, godot])
@@ -353,14 +353,14 @@ section('§1c the resume restore (pure) — the first exchange record, then a NE
     pa2Names.slice(0, pa1Names.length).join(',') === pa1Names.join(',') &&
     pa2Names.slice(pa1Names.length).every(name => pa2.deferredNames.has(name)) &&
     pa1Names.every(name => pa1.deferredNames.has(name) === pa2.deferredNames.has(name))
-  check('§1c the resumed agent and the resumed main each re-send their own frozen roster from their own record (a tool that gated in since rides appended, deferred, in both), the main\'s sections seeded', agentPrefixHolds && pm2.roster.slice(0, p1.roster.length).map(t => t.name).join(',') === p1.roster.map(t => t.name).join(',') && pm2.deferredNames.has('Godot') && getSystemPromptSectionCache().get('memory')?.value === 'the memory as first seen', `${rosterNames(pa2)} vs ${rosterNames(pa1)}; main ${rosterNames(pm2)}`)
+  check('§1c the resumed agent and the resumed main each re-send their own frozen roster from their own record (a tool that gated in since rides appended, deferred, in both), the main\'s sections seeded', agentPrefixHolds && pm2.roster.slice(0, p1.roster.length).map(t => t.name).join(',') === p1.roster.map(t => t.name).join(',') && pm2.deferredNames.has('Godot') && getSystemPromptSectionCache().get('memory')?.value === 'the memory as first seen', `${rosterNames(pa2)} vs ${rosterNames(pa1)}; main ${rosterNames(pm2)}` + ' — fix restoreBoundPrefixFromMessages in src/services/providers/anthropic/boundPrefixRecord.ts so the agent and the main restore from their own records')
 
   const savedKeepTail = process.env.MERCURY_COMPACT_KEEP_TAIL
   process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
   freshProcess()
   const restoredKT = restoreBoundPrefixFromMessages([recordMessage as never])
   const pKT = await doPlan([search, read, browser])
-  check('§1c a resume with keep-tail on restores the frozen prefix byte for byte (0 drops — the tail arm never touches the first exchange)', restoredKT === boundKey && rosterNames(pKT) === names1 && marks(pKT) === marks1 && pKT.restoredMissingTools.length === 0 && getSystemPromptSectionCache().get('memory')?.value === 'the memory as first seen', `${rosterNames(pKT)} vs ${names1}`)
+  check('§1c a resume with keep-tail on restores the frozen prefix byte for byte (0 drops — the tail arm never touches the first exchange)', restoredKT === boundKey && rosterNames(pKT) === names1 && marks(pKT) === marks1 && pKT.restoredMissingTools.length === 0 && getSystemPromptSectionCache().get('memory')?.value === 'the memory as first seen', `${rosterNames(pKT)} vs ${names1}` + ' — fix the restore under MERCURY_COMPACT_KEEP_TAIL so it still re-sends the frozen roster and sections (restoreBoundPrefixFromMessages in src/services/providers/anthropic/boundPrefixRecord.ts)')
   if (savedKeepTail === undefined) delete process.env.MERCURY_COMPACT_KEEP_TAIL
   else process.env.MERCURY_COMPACT_KEEP_TAIL = savedKeepTail
 
@@ -418,51 +418,51 @@ section('serialized tool definitions remain fixed across refresh and reconstruct
   freshProcess()
   const first = await schemas(await plan(pool))
   const record = await boundPrefixRecordToEmit(key, messages as never, model)
-  check('the persisted record contains each complete serialized definition', record?.attachment.type === 'bound_prefix' && record.attachment.roster.every(mark => typeof mark.definition === 'string'))
+  check('the persisted record contains each complete serialized definition', record?.attachment.type === 'bound_prefix' && record.attachment.roster.every(mark => typeof mark.definition === 'string'), 'fix boundPrefixRecordToEmit in src/services/providers/anthropic/boundPrefixRecord.ts so each roster mark stores its full serialized definition')
   const persisted = JSON.parse(j(record))
   clearToolSchemaCache()
   const livePool = [changedTool, ToolSearchTool, deferredTool]
   const second = await schemas(await plan(livePool))
-  check('refetched same-name tools and credential memo clearing leave request definitions unchanged', j(first) === j(second))
+  check('refetched same-name tools and credential memo clearing leave request definitions unchanged', j(first) === j(second), 'fix toolToAPISchema in src/services/messages/api.ts and src/utils/toolSchemaCache.ts so a bound tool keeps its first serialized definition after clearToolSchemaCache')
   const accepted = gateToolCall(livePool as never, { id: 'new-input', name: changedTool.name, argumentsRaw: '{"after":"value"}', malformed: false })
-  check('the execution registry still uses the current tool implementation', accepted.ok)
-  check('unchanged definitions do not append another saved-prefix record', await boundPrefixRecordToEmit(key, messages as never, model) === null)
+  check('the execution registry still uses the current tool implementation', accepted.ok, 'fix gateToolCall in src/services/providers/toolCallGate.ts so it checks the live pool, not the recorded definition')
+  check('unchanged definitions do not append another saved-prefix record', await boundPrefixRecordToEmit(key, messages as never, model) === null, 'fix boundPrefixRecordToEmit in src/services/providers/anthropic/boundPrefixRecord.ts so unchanged definitions append no new record')
   freshProcess()
   restoreBoundPrefixFromMessages([persisted])
   const restoredPlan = await plan([ToolSearchTool, deferredTool])
   const restored = await schemas(restoredPlan)
-  check('a new process with a missing live tool restores its full wire definition', j(restored) === j(first) && restoredPlan.restoredMissingTools.length === 0)
+  check('a new process with a missing live tool restores its full wire definition', j(restored) === j(first) && restoredPlan.restoredMissingTools.length === 0, 'fix the restore in planToolPayload and toolToAPISchema (src/services/providers/toolEconomy.ts, src/services/messages/api.ts) so a recorded definition is sent for a tool missing from the live pool')
   const unavailable = gateToolCall([ToolSearchTool, deferredTool] as never, { id: 'missing', name: firstTool.name, argumentsRaw: '{"before":"value"}', malformed: false })
-  check('a restored wire definition does not create an executable tool', !unavailable.ok && unavailable.refusal.code === 'unknown-tool')
-  check('the same durable record is not duplicated after reconstruction', await boundPrefixRecordToEmit(key, [...messages, persisted] as never, model) === null)
+  check('a restored wire definition does not create an executable tool', !unavailable.ok && unavailable.refusal.code === 'unknown-tool', 'fix gateToolCall in src/services/providers/toolCallGate.ts so a tool known only from a restored definition is refused as unknown-tool')
+  check('the same durable record is not duplicated after reconstruction', await boundPrefixRecordToEmit(key, [...messages, persisted] as never, model) === null, 'fix boundPrefixRecordToEmit in src/services/providers/anthropic/boundPrefixRecord.ts so a record already in history is not written again')
   freshProcess()
   restoreBoundPrefixFromMessages([persisted])
   const forked = await schemas(await plan(livePool, 'forked-conversation'))
-  check('a fork restores definitions under its new conversation identity; a bound tool whose live input schema moved still goes out as recorded (the change rides a new row, never the bound prefix)', j(forked) === j(first) && j(forked[0]).includes('"before"') && !j(forked[0]).includes('"after"'), j(forked[0]))
+  check('a fork restores definitions under its new conversation identity; a bound tool whose live input schema moved still goes out as recorded (the change rides a new row, never the bound prefix)', j(forked) === j(first) && j(forked[0]).includes('"before"') && !j(forked[0]).includes('"after"'), j(forked[0]) + ' — fix the restore in planToolPayload and toolToAPISchema (src/services/providers/toolEconomy.ts, src/services/messages/api.ts) so a fork sends the recorded definition, not the live one')
   const late = tool('LateFixture', 'lookup', 'Late description', true)
   await schemas(await plan([...livePool, late], 'forked-conversation'))
   const expanded = await boundPrefixRecordToEmit('forked-conversation', [...messages, persisted] as never, model)
-  check('a newly appended deferred definition updates the durable record', expanded?.attachment.type === 'bound_prefix' && expanded.attachment.roster.some(mark => mark.name === late.name && typeof mark.definition === 'string'))
+  check('a newly appended deferred definition updates the durable record', expanded?.attachment.type === 'bound_prefix' && expanded.attachment.roster.some(mark => mark.name === late.name && typeof mark.definition === 'string'), 'fix boundPrefixRecordToEmit in src/services/providers/anthropic/boundPrefixRecord.ts so a newly appended deferred tool writes an updated record with its definition')
   freshProcess()
   restoreBoundPrefixFromMessages([persisted, JSON.parse(j(expanded))])
   const expandedRestore = await schemas(await plan(livePool, 'forked-conversation'))
-  check('reconstruction uses the newest recorded definition set', expandedRestore.some(t => t.name === late.name) && j(expandedRestore.slice(0, first.length)) === j(forked))
+  check('reconstruction uses the newest recorded definition set', expandedRestore.some(t => t.name === late.name) && j(expandedRestore.slice(0, first.length)) === j(forked), 'fix restoreBoundPrefixFromMessages in src/services/providers/anthropic/boundPrefixRecord.ts so the newest recorded definition set wins')
   freshProcess()
   const corrupt = JSON.parse(j(persisted))
   corrupt.attachment.roster[0].definition = 'not-json'
   restoreBoundPrefixFromMessages([corrupt])
-  check('malformed saved definition data falls back to the live tool without throwing', j(await schemas(await plan(livePool))).includes('Changed description'))
+  check('malformed saved definition data falls back to the live tool without throwing', j(await schemas(await plan(livePool))).includes('Changed description'), 'fix the restore in src/services/providers/anthropic/boundPrefixRecord.ts so malformed saved definition data falls back to the live tool without throwing')
   freshProcess()
   if (saved === undefined) delete process.env.MERCURY_TOOL_SEARCH
   else process.env.MERCURY_TOOL_SEARCH = saved
 }
 
 if (!existsSync(DIST)) {
-  check('dist/mercury.mjs present (build first; the pooled gate prebuilds it)', false, DIST)
+  check('dist/mercury.mjs present (build first; the pooled gate prebuilds it)', false, DIST + ' — run bun run build.ts from the repository root to write dist/mercury.mjs')
 } else {
   const nodeBin = Bun.which('node')
   if (!nodeBin) {
-    check('a node binary on PATH', false)
+    check('a node binary on PATH', false, 'install Node (24.20.0 or newer, below 25) or put it on PATH so Bun.which(node) finds it')
   } else {
     interface RunResult { exit: number | null; stdout: string; stderr: string }
     interface Arena { home: string; cwd: string; env: Record<string, string> }
@@ -556,9 +556,9 @@ if (!existsSync(DIST)) {
           console.log(`      cur [${firstDiff}]: ${j(withoutCacheControl(cm[firstDiff])).slice(0, 700)}`)
         }
         if (expectPrefix) {
-          check(`${label} pair ${i}→${i + 1}: the top-level system is byte-identical`, systemSame)
-          check(`${label} pair ${i}→${i + 1}: the tools array is byte-identical`, toolsSame)
-          check(`${label} pair ${i}→${i + 1}: the shared messages prefix is byte-identical and the turn is appended`, firstDiff === -1 && appended, `firstDiff=${firstDiff} ${pm.length}→${cm.length}`)
+          check(`${label} pair ${i}→${i + 1}: the top-level system is byte-identical`, systemSame, 'the system block that differs is printed above this line; find what changed that section between the two requests and freeze it for the conversation')
+          check(`${label} pair ${i}→${i + 1}: the tools array is byte-identical`, toolsSame, 'the tool lists of the two requests are printed above this line; find why a tool joined, left or moved between them (planToolPayload in src/services/providers/toolEconomy.ts latches the roster)')
+          check(`${label} pair ${i}→${i + 1}: the shared messages prefix is byte-identical and the turn is appended`, firstDiff === -1 && appended, `firstDiff=${firstDiff} ${pm.length}→${cm.length}` + ' — the first differing message of the two requests is printed above this line; find what rewrote that sent row instead of appending a new one')
         }
       }
       return diffs
@@ -697,18 +697,18 @@ if (!existsSync(DIST)) {
         { prompt: 'the note changed — read @note.txt again', before: () => writeFileSync(notePath, 'REWRITTEN bytes of the note, longer than before\n') },
         { prompt: 'anything else?' },
       ])
-      check('the three-turn process exits 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
-      check('every turn answered', r.stdout.includes('S2-TURN-1-DONE') && r.stdout.includes('S2-TURN-2-DONE') && r.stdout.includes('S2-TURN-3-DONE'), r.stdout.slice(0, 300))
+      check('the three-turn process exits 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}` + ' — the bundle run exited non-zero; read the stderr shown and rerun that node dist/mercury.mjs command by hand')
+      check('every turn answered', r.stdout.includes('S2-TURN-1-DONE') && r.stdout.includes('S2-TURN-2-DONE') && r.stdout.includes('S2-TURN-3-DONE'), r.stdout.slice(0, 300) + ' — a scripted turn did not answer; compare this stdout with the fixture turns of section 2 in this file')
       const reqs = mainRequests(fixture)
       check('five message requests (two tool rounds, one plain turn)', reqs.length === 5, String(reqs.length))
       for (let i = 0; i < reqs.length; i++) {
         const body = reqs[i]!.body as Body
-        check(`request ${i + 1} carries thinking.block_binding.prefix_mismatch_behavior=drop_block`, body.thinking?.block_binding?.prefix_mismatch_behavior === 'drop_block', j(body.thinking))
+        check(`request ${i + 1} carries thinking.block_binding.prefix_mismatch_behavior=drop_block`, body.thinking?.block_binding?.prefix_mismatch_behavior === 'drop_block', j(body.thinking) + ' — the request body lacks the drop_block binding; this arena sets MERCURY_THINKING_BINDING=drop_block, so check how the Anthropic request builder reads it (thinkingBinding.ts under src/services/providers/anthropic)')
       }
       census('§2', reqs, true)
       const last = ((reqs[reqs.length - 1]?.body as Body)?.messages ?? []) as Array<{ role: string; content: unknown }>
       const thinkingCount = last.reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0)
-      check('the last request replays every earlier thinking block (four scripted)', thinkingCount === 4, String(thinkingCount))
+      check('the last request replays every earlier thinking block (four scripted)', thinkingCount === 4, String(thinkingCount) + ' — the last request must replay all four earlier thinking blocks; find what strips thinking from sent history')
       check('no drop receipt written anywhere (the scripted lists are empty)', !(r.stdout + r.stderr).includes('reserved thinking'))
       await fixture.close()
     }
@@ -726,17 +726,17 @@ if (!existsSync(DIST)) {
       writeFileSync(notePath, 'resume: first bytes\n')
       const SID = 'c0ffee00-0000-4000-8000-00000000c0f3'
       const r1 = await run(arena, ['run', 'summarize @note.txt', ...common, '--session-id', SID])
-      check('turn 1 exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
+      check('turn 1 exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}` + ' — the bundle run exited non-zero; read the stderr shown and rerun that node dist/mercury.mjs command by hand')
       writeFileSync(notePath, 'resume: REWRITTEN bytes, a different length\n')
       const r2 = await run(arena, ['run', 'and @note.txt now?', ...common, '--resume', SID])
-      check('turn 2 (resumed, file rewritten) exit 0', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 300)}`)
+      check('turn 2 (resumed, file rewritten) exit 0', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 300)}` + ' — the bundle run exited non-zero; read the stderr shown and rerun that node dist/mercury.mjs command by hand')
       const r3 = await run(arena, ['run', 'thanks', ...common, '--resume', SID])
-      check('turn 3 (resumed) exit 0', r3.exit === 0, `exit=${r3.exit} stderr=${r3.stderr.slice(0, 300)}`)
+      check('turn 3 (resumed) exit 0', r3.exit === 0, `exit=${r3.exit} stderr=${r3.stderr.slice(0, 300)}` + ' — the bundle run exited non-zero; read the stderr shown and rerun that node dist/mercury.mjs command by hand')
       const reqs = mainRequests(fixture)
       check('three message requests', reqs.length === 3, String(reqs.length))
       census('§3', reqs, true)
       const head = j(withoutCacheControl(((reqs[2]?.body as Body)?.messages ?? []).slice(0, 2)))
-      check('the first turn still carries the FIRST bytes of the note (and its anchor) on the third request', head.includes('resume: first bytes') && head.includes('(anchor: fa:') && !head.includes('REWRITTEN'), head.slice(0, 300))
+      check('the first turn still carries the FIRST bytes of the note (and its anchor) on the third request', head.includes('resume: first bytes') && head.includes('(anchor: fa:') && !head.includes('REWRITTEN'), head.slice(0, 300) + ' — a resumed turn re-read the @-mentioned file into sent history; the first turn must keep its original bytes and anchor')
       await fixture.close()
     }
 
@@ -756,19 +756,19 @@ if (!existsSync(DIST)) {
         { prompt: 'hi big' },
         { prompt: 'hi after' },
       ])
-      check('the two-turn process exits 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
+      check('the two-turn process exits 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}` + ' — the bundle run exited non-zero; read the stderr shown and rerun that node dist/mercury.mjs command by hand')
       check('both turns answered around the fold', r.stdout.includes('S4-FAT-DONE') && r.stdout.includes('S4-POST-COMPACT-DONE'), r.stdout.slice(0, 300))
       const reqs = mainRequests(fixture)
       check('three message requests: the fat turn, the summary, the post-compaction turn', reqs.length === 3, String(reqs.length))
       const diffs = census('§4', reqs, false)
-      check('the post-compaction request starts from a rewritten messages[0] (the lawful change)', diffs[1] === 0, j(diffs))
+      check('the post-compaction request starts from a rewritten messages[0] (the lawful change)', diffs[1] === 0, j(diffs) + ' — after compaction the request must start from a rewritten messages[0]; check the compaction fold of the session in this run')
       const notices = transcriptNotices(arena, SID)
-      check('the scripted drop writes exactly one receipt (kept in the transcript, never painted)', notices.length === 1, `${notices.length} ${notices[0]?.slice(0, 200) ?? ''}`)
+      check('the scripted drop writes exactly one receipt (kept in the transcript, never painted)', notices.length === 1, `${notices.length} ${notices[0]?.slice(0, 200) ?? ''}` + ' — the scripted drop must leave exactly one notice row in the session transcript; find where the Preserved thinking notice is written')
       const notice = notices[0] ?? ''
-      check('…the receipt names compaction as the lawful cause', notice.includes('compaction'), notice.slice(0, 300))
+      check('…the receipt names compaction as the lawful cause', notice.includes('compaction'), notice.slice(0, 300) + ' — the receipt text must name compaction as the cause of the dropped block')
       check('…and never the recurrence wording (nothing unlawful happened)', !notice.includes('rewriting') && !notice.includes('health'), notice.slice(0, 300))
       const ledger = join(arena.home, '.mercury', 'preserved-thinking.json')
-      check('the health ledger records the drop with its lawful cause', existsSync(ledger) && readFileSync(ledger, 'utf8').includes('"compaction"') && readFileSync(ledger, 'utf8').includes('messages.1.content.0'), existsSync(ledger) ? readFileSync(ledger, 'utf8').slice(0, 300) : 'absent')
+      check('the health ledger records the drop with its lawful cause', existsSync(ledger) && readFileSync(ledger, 'utf8').includes('"compaction"') && readFileSync(ledger, 'utf8').includes('messages.1.content.0'), (existsSync(ledger) ? readFileSync(ledger, 'utf8').slice(0, 300) : 'absent') + ' — preserved-thinking.json in the arena config home must record the drop with cause compaction and path messages.1.content.0')
       await fixture.close()
     }
 
@@ -797,18 +797,18 @@ if (!existsSync(DIST)) {
       const reqs = mainRequests(fixture)
       check('four message requests', reqs.length === 4, String(reqs.length))
       const [q1, q2, q3, q4] = reqs.map(r => r.body as Body)
-      check('the opus turns replay their thinking to opus (request 2 carries one block)', q2 !== undefined && thinkingBlocksOf(q2) === 1, String(q2 && thinkingBlocksOf(q2)))
-      check('the first fable request carries NONE of the opus thinking (stripped at the assembler)', q3 !== undefined && thinkingBlocksOf(q3) === 0 && q3.model === 'claude-fable-5-1', `${q3?.model} blocks=${q3 && thinkingBlocksOf(q3)}`)
+      check('the opus turns replay their thinking to opus (request 2 carries one block)', q2 !== undefined && thinkingBlocksOf(q2) === 1, String(q2 && thinkingBlocksOf(q2)) + ' — the second Opus request must replay the one thinking block the first Opus turn wrote')
+      check('the first fable request carries NONE of the opus thinking (stripped at the assembler)', q3 !== undefined && thinkingBlocksOf(q3) === 0 && q3.model === 'claude-fable-5-1', `${q3?.model} blocks=${q3 && thinkingBlocksOf(q3)}` + ' — the first request after the switch to Fable must carry none of the Opus thinking; find where the request assembler strips blocks written by another model')
       check('…and its text and tool turns are intact (the opus answers still ride)', q3 !== undefined && j(q3.messages).includes('S5-OPUS-1') && j(q3.messages).includes('S5-OPUS-2'))
       check('the second fable request carries only the fable thinking (one block), the opus blocks still out', q4 !== undefined && thinkingBlocksOf(q4) === 1 && j(q4.messages).includes('fable one'), String(q4 && thinkingBlocksOf(q4)))
       check('the fable requests keep the shared prefix byte-identical (the strip is stable across requests)', q3 !== undefined && q4 !== undefined && j(withoutCacheControl((q3.messages ?? []).slice(0, (q3.messages ?? []).length))) === j(withoutCacheControl((q4.messages ?? []).slice(0, (q3.messages ?? []).length))))
       const debugLines = (file: string): string[] => { try { return readFileSync(file, 'utf8').split('\n').filter(l => l.includes('preserved thinking: Preserved thinking')) } catch { return [] } }
       const receipts3 = debugLines(debug3)
       const receipts4 = debugLines(debug4)
-      check('the first fable turn paints exactly one quiet receipt naming the switch (the writer and the new model), never a drop', receipts3.length === 1 && receipts3[0]!.includes('written by') && receipts3[0]!.includes('stay out of the requests to') && receipts3[0]!.includes('switched models') && !receipts3[0]!.includes('dropped'), j(receipts3))
-      check('the second fable turn (a new process, the model that last answered) paints nothing: the switch was announced once, when it happened', receipts4.length === 0, j(receipts4))
+      check('the first fable turn paints exactly one quiet receipt naming the switch (the writer and the new model), never a drop', receipts3.length === 1 && receipts3[0]!.includes('written by') && receipts3[0]!.includes('stay out of the requests to') && receipts3[0]!.includes('switched models') && !receipts3[0]!.includes('dropped'), j(receipts3) + ' — the first turn after a model switch must paint exactly one quiet switch receipt in its debug log; find where the Preserved thinking receipt is built')
+      check('the second fable turn (a new process, the model that last answered) paints nothing: the switch was announced once, when it happened', receipts4.length === 0, j(receipts4) + ' — a repeat turn on the same model must paint no receipt; find what decides that a switch was already announced')
       const switchRows = transcriptNotices(arena, SID).filter(t => t.includes('stay out of the requests to'))
-      check('the receipt is in the session file once, written by the turn whose request it rode', switchRows.length === 1 && switchRows[0]!.includes('written by Opus 4.8 stay out of the requests to Fable 5.1'), j(switchRows))
+      check('the receipt is in the session file once, written by the turn whose request it rode', switchRows.length === 1 && switchRows[0]!.includes('written by Opus 4.8 stay out of the requests to Fable 5.1'), j(switchRows) + ' — the switch receipt must be written once to the session transcript, naming the writing model and the new model')
       check('no drop notice painted on any turn (the API never saw a foreign block)', !transcriptNotices(arena, SID).some(t => t.includes('dropped')) && !(readFileSync(debug3, 'utf8') + readFileSync(debug4, 'utf8')).includes('thinking_dropped'))
       check('the fixture\'s drop lists stayed empty end to end (nothing for the API to drop)', !(r3.stdout + r4.stdout).includes('thinking_dropped'))
       await fixture.close()
@@ -950,13 +950,13 @@ if (!existsSync(DIST)) {
         { prompt: 'the project exists now — probe the Godot surface', before: () => writeFileSync(join(arena.cwd, 'project.godot'), godotProject) },
         { prompt: 'carry on' },
       ])
-      check('§6a three turns exit 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
+      check('§6a three turns exit 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}` + ' — the bundle run exited non-zero; read the stderr shown and rerun that node dist/mercury.mjs command by hand')
       const reqs = mainRequests(fixture)
       check('§6a five message requests (turn 2 carries the lookup round and the Godot round)', reqs.length === 5, String(reqs.length))
       census('§6a', reqs, true)
-      check('§6a the section stays absent (no project at the first request)', reqs.every(q => !systemTextOf(q.body as Body).includes('Godot control surface')), reqs.map(q => systemTextOf(q.body as Body).includes('Godot control surface')).join(','))
+      check('§6a the section stays absent (no project at the first request)', reqs.every(q => !systemTextOf(q.body as Body).includes('Godot control surface')), reqs.map(q => systemTextOf(q.body as Body).includes('Godot control surface')).join(',') + ' — the Godot control section must stay out of the system prompt when no project.godot existed at the first request; find where that section is rendered and freeze it per conversation')
       const offersGodot = (q: { raw: string; body: unknown }): boolean => toolNamesOf(q.body as Body).includes('Godot') || /\\nGodot\\n/.test(q.raw)
-      check('§6a the Godot tool is offered from the FIRST request (the flag alone seats it) and on every request across the project\'s birth', reqs.every(offersGodot), reqs.map(offersGodot).join(','))
+      check('§6a the Godot tool is offered from the FIRST request (the flag alone seats it) and on every request across the project\'s birth', reqs.every(offersGodot), reqs.map(offersGodot).join(',') + ' — with MERCURY_GODOT_TOOLS=1 the Godot tool must be in the tools array of every request from the first; find where the tool pool gates it')
       const messagesTextOf = (q: { body: unknown }): string => j((q.body as Body).messages ?? [])
       const cwdTail = arena.cwd.slice(arena.cwd.lastIndexOf('/') + 1)
       check('§6a the Godot tool answered vulcan_status for the project born mid-session (callable at once, no compaction needed)', reqs.slice(3).some(q => messagesTextOf(q).includes('flag: armed') && messagesTextOf(q).includes(`project: `) && messagesTextOf(q).includes(cwdTail)), reqs.slice(3).map(q => messagesTextOf(q).includes('flag: armed')).join(','))
@@ -974,7 +974,7 @@ if (!existsSync(DIST)) {
         { prompt: 'the project file is gone', before: () => rmSync(join(arena.cwd, 'project.godot'), { force: true }) },
         { prompt: 'carry on' },
       ])
-      check('§6b three turns exit 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
+      check('§6b three turns exit 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}` + ' — the bundle run exited non-zero; read the stderr shown and rerun that node dist/mercury.mjs command by hand')
       const reqs = mainRequests(fixture)
       check('§6b three message requests', reqs.length === 3, String(reqs.length))
       census('§6b', reqs, true)
@@ -998,18 +998,18 @@ if (!existsSync(DIST)) {
       delete arena.env.MERCURY_GODOT_TOOLS
       const SID = 'c0ffee00-0000-4000-8000-00000000c06c'
       const r1 = await run(arena, ['run', 'start a game', ...common, '--session-id', SID])
-      check('§6c turn 1 (the flag off, no project) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
+      check('§6c turn 1 (the flag off, no project) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}` + ' — the bundle run exited non-zero; read the stderr shown and rerun that node dist/mercury.mjs command by hand')
       check('§6c the first exchange record persisted (a bound_prefix attachment)', transcriptText(arena, SID).includes('bound_prefix'), transcriptText(arena, SID).slice(0, 120))
       arena.env.MERCURY_GODOT_TOOLS = '1'
       writeFileSync(join(arena.cwd, 'project.godot'), godotProject)
       const r2 = await run(arena, ['run', 'inspect the scene', ...common, '--resume', SID])
-      check('§6c turn 2 (resumed, the flag armed, the project born) exit 0 — the binding check refused nothing', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 400)}`)
+      check('§6c turn 2 (resumed, the flag armed, the project born) exit 0 — the binding check refused nothing', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 400)}` + ' — the resumed bundle run exited non-zero; read the stderr shown and rerun that node dist/mercury.mjs command by hand')
       const reqs = mainRequests(fixture)
       check('§6c two message requests', reqs.length === 2, String(reqs.length))
       const sysA = systemTextOf(reqs[0]!.body as Body)
       const sysB = systemTextOf(reqs[1]!.body as Body)
       check('§6c the first request carried no Godot at all (the control: the flag was off)', !sysA.includes('Godot') && !toolNamesOf(reqs[0]!.body as Body).includes('Godot'), `godotInSystem=${sysA.includes('Godot')}`)
-      check('§6c the resumed request never gained the Godot section, doctrine or harness-map line (the system is byte-identical across the resume)', sysA === sysB && !sysB.includes('Godot'), `A=${sysA.length}B B=${sysB.length}B godot=${sysB.includes('Godot')}`)
+      check('§6c the resumed request never gained the Godot section, doctrine or harness-map line (the system is byte-identical across the resume)', sysA === sysB && !sysB.includes('Godot'), `A=${sysA.length}B B=${sysB.length}B godot=${sysB.includes('Godot')}` + ' — a resumed request must re-send the first system prompt; restore it from the bound_prefix record (restoreBoundPrefixFromMessages in src/services/providers/anthropic/boundPrefixRecord.ts)')
       check('§6c the resumed bound tools are byte-identical (the Godot tool the flag now seats is a joiner outside the bound prefix)', j(withoutCacheControl(reqs[0]!.body.tools)) === j(withoutCacheControl(reqs[1]!.body.tools)), `${toolNamesOf(reqs[0]!.body as Body).length} → ${toolNamesOf(reqs[1]!.body as Body).length}`)
       check('§6c the fixture refused nothing and the API dropped no thinking block on the resumed request', fixture.refusals.length === 0 && bindingDropsFor(reqs[1]!.body).length === 0, `refusals=${fixture.refusals.length} drops=${bindingDropsFor(reqs[1]!.body).length}`)
       await fixture.close()
@@ -1028,18 +1028,18 @@ if (!existsSync(DIST)) {
       git(['commit', '-q', '-m', 'seed'])
       const SID = 'c0ffee00-0000-4000-8000-00000000c06d'
       const r1 = await run(arena, ['run', 'look around', ...common, '--session-id', SID])
-      check('§6d turn 1 (a clean repository) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
+      check('§6d turn 1 (a clean repository) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}` + ' — the bundle run exited non-zero; read the stderr shown and rerun that node dist/mercury.mjs command by hand')
       const reqs1 = mainRequests(fixture)
       const sysA = systemTextOf(reqs1[0]!.body as Body)
       check('§6d the first request appended the git-status snapshot as its last system block', sysA.includes('gitStatus:'), sysA.slice(-200))
       check('§6d the record carries that snapshot', /"systemContext":\{"gitStatus":/.test(transcriptText(arena, SID)) || transcriptText(arena, SID).includes('"gitStatus"'), transcriptText(arena, SID).includes('bound_prefix') ? 'record present, snapshot absent' : 'no record')
       writeFileSync(join(arena.cwd, 'notes.txt'), 'saved between the turns\n')
       const r2 = await run(arena, ['run', 'and now?', ...common, '--resume', SID])
-      check('§6d turn 2 (resumed, the tree moved) exit 0 — the binding check refused nothing', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 400)}`)
+      check('§6d turn 2 (resumed, the tree moved) exit 0 — the binding check refused nothing', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 400)}` + ' — the resumed bundle run exited non-zero; read the stderr shown and rerun that node dist/mercury.mjs command by hand')
       const reqs = mainRequests(fixture)
       check('§6d two message requests', reqs.length === 2, String(reqs.length))
       const sysB = systemTextOf(reqs[1]!.body as Body)
-      check('§6d the resumed request re-sent the FIRST snapshot (the system is byte-identical; the saved file is not in the prefix)', sysA === sysB && !sysB.includes('notes.txt'), `A=${sysA.length}B B=${sysB.length}B notes=${sysB.includes('notes.txt')}`)
+      check('§6d the resumed request re-sent the FIRST snapshot (the system is byte-identical; the saved file is not in the prefix)', sysA === sysB && !sysB.includes('notes.txt'), `A=${sysA.length}B B=${sysB.length}B notes=${sysB.includes('notes.txt')}` + ' — a resumed request must re-send the first git-status snapshot from the record (restoreBoundPrefixFromMessages in src/services/providers/anthropic/boundPrefixRecord.ts and the getSystemContext memo in src/context.ts)')
       check('§6d the fixture refused nothing and the API dropped no thinking block on the resumed request', fixture.refusals.length === 0 && bindingDropsFor(reqs[1]!.body).length === 0, `refusals=${fixture.refusals.length} drops=${bindingDropsFor(reqs[1]!.body).length}`)
       await fixture.close()
     }
@@ -1059,17 +1059,17 @@ if (!existsSync(DIST)) {
       delete arena.env.MERCURY_TASKS
       const SID = 'c0ffee00-0000-4000-8000-00000000c06e'
       const r1 = await run(arena, ['run', 'start the work', ...common, '--session-id', SID])
-      check('§6e turn 1 (the task tools off in this process) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
+      check('§6e turn 1 (the task tools off in this process) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}` + ' — the bundle run exited non-zero; read the stderr shown and rerun that node dist/mercury.mjs command by hand')
       check('§6e the first exchange record persisted (a bound_prefix attachment)', transcriptText(arena, SID).includes('bound_prefix'), transcriptText(arena, SID).slice(0, 120))
       const sysA = systemTextOf(mainRequests(fixture)[0]!.body as Body)
       check('§6e the control: the first request named no task tool in its system prompt and carried none in its tools array', !sysA.includes('TaskCreate') && !toolNamesOf(mainRequests(fixture)[0]!.body as Body).includes('TaskCreate'), `taskCreateInSystem=${sysA.includes('TaskCreate')}`)
       arena.env.MERCURY_TASKS = '1'
       const r2 = await run(arena, ['run', 'carry on', ...common, '--resume', SID])
-      check('§6e turn 2 (resumed with the task tools in the pool) exit 0', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 400)}`)
+      check('§6e turn 2 (resumed with the task tools in the pool) exit 0', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 400)}` + ' — the resumed bundle run exited non-zero; read the stderr shown and rerun that node dist/mercury.mjs command by hand')
       const reqs = mainRequests(fixture)
       check('§6e two message requests', reqs.length === 2, String(reqs.length))
       const sysB = systemTextOf(reqs[1]!.body as Body)
-      check(`§6e RED WHERE THE TOOL-NAMING SECTIONS RENDER FROM THE LIVE POOL (bundle tree ${bundleTree}): the resumed request re-sent the system prompt byte for byte — the run protocol never gained the task-items bullet`, sysA === sysB && !sysB.includes('create and update task items'), `A=${sysA.length}B B=${sysB.length}B bullet=${sysB.includes('Break down and manage work')}`)
+      check(`§6e RED WHERE THE TOOL-NAMING SECTIONS RENDER FROM THE LIVE POOL (bundle tree ${bundleTree}): the resumed request re-sent the system prompt byte for byte — the run protocol never gained the task-items bullet`, sysA === sysB && !sysB.includes('create and update task items'), `A=${sysA.length}B B=${sysB.length}B bullet=${sysB.includes('Break down and manage work')}` + ' — a section of the system prompt that names tools renders from the live pool; render it from the first exchange record so a resumed process re-sends the same bytes')
       check('§6e the resumed bound tools are byte-identical (the task tools the switch now seats are joiners held outside the bound prefix)', j(withoutCacheControl(reqs[0]!.body.tools)) === j(withoutCacheControl(reqs[1]!.body.tools)), `${toolNamesOf(reqs[0]!.body as Body).length} → ${toolNamesOf(reqs[1]!.body as Body).length}`)
       check('§6e the API dropped no thinking block on the resumed request', bindingDropsFor(reqs[1]!.body).length === 0, `drops=${j(bindingDropsFor(reqs[1]!.body))}`)
       await fixture.close()
@@ -1118,7 +1118,7 @@ if (!existsSync(DIST)) {
           { prompt: 'after the fold' },
         ],
       )
-      check('§7 the seven-turn process exits 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
+      check('§7 the seven-turn process exits 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}` + ' — the bundle run exited non-zero; read the stderr shown and rerun that node dist/mercury.mjs command by hand')
       check('§7 every turn answered around the lookups and the fold', ['S7-T1', 'S7-T2', 'S7-T3', 'S7-T4', 'S7-T5', 'S7-T6', 'S7-T7'].every(t => r.stdout.includes(t)), r.stdout.slice(0, 300))
       const reqs = mainRequests(fixture)
       check('§7 ten message requests (seven turns, two lookup rounds, one summary)', reqs.length === 10, String(reqs.length))
@@ -1126,16 +1126,16 @@ if (!existsSync(DIST)) {
       census('§7 before the fold', beforeFold, true)
       const foldPair = reqs.slice(8, 10)
       const foldDiffs = census('§7 the fold', foldPair, false)
-      check('§7 the post-compaction request starts from a rewritten messages[0] (the one lawful change)', foldDiffs[0] === 0, j(foldDiffs))
+      check('§7 the post-compaction request starts from a rewritten messages[0] (the one lawful change)', foldDiffs[0] === 0, j(foldDiffs) + ' — the post-compaction request must start from a rewritten messages[0]; check the compaction fold of this run')
       const debug = (() => { try { return readFileSync(debugFile, 'utf8') } catch { return '' } })()
       const dropLines = debug.split('\n').filter(l => l.includes('preserved thinking: [{"type":"thinking_dropped"'))
-      check('§7 the API-faithful fixture dropped nothing on any request of the session (zero drop lists)', dropLines.length === 0 && !r.stdout.includes('thinking_dropped'), `${dropLines.length} drop line(s)`)
+      check('§7 the API-faithful fixture dropped nothing on any request of the session (zero drop lists)', dropLines.length === 0 && !r.stdout.includes('thinking_dropped'), `${dropLines.length} drop line(s)` + ' — the fixture reported a dropped thinking block, so some request rewrote sent history; compare the consecutive requests printed above')
       const notices = transcriptNotices(arena, SID)
-      check('§7 no receipt at all — no defect row, no mode row, nothing lawful to report either', notices.length === 0, j(notices))
+      check('§7 no receipt at all — no defect row, no mode row, nothing lawful to report either', notices.length === 0, j(notices) + ' — a notice row was written to the transcript although nothing lawful changed; find which turn dropped or moved a block')
       check('§7 the apollo-born first request lists ApolloReview (deferred, like every deferrable tool)', toolNamesOf(reqs[0]!.body as Body).includes('ApolloReview'), toolNamesOf(reqs[0]!.body as Body).join(','))
       const toolsOf = (q: { body: unknown }): Array<{ name?: string; defer_loading?: boolean }> => (Array.isArray((q.body as Body).tools) ? ((q.body as Body).tools as Array<{ name?: string; defer_loading?: boolean }>) : [])
       const first = toolsOf(reqs[0]!)
-      check('§7 WebFetch and Browser rode the FIRST request deferred (defer_loading) — nothing to add on admission', first.some(t => t.name === 'WebFetch' && t.defer_loading === true) && first.some(t => t.name === 'Browser' && t.defer_loading === true), j(first.filter(t => t.name === 'WebFetch' || t.name === 'Browser')))
+      check('§7 WebFetch and Browser rode the FIRST request deferred (defer_loading) — nothing to add on admission', first.some(t => t.name === 'WebFetch' && t.defer_loading === true) && first.some(t => t.name === 'Browser' && t.defer_loading === true), j(first.filter(t => t.name === 'WebFetch' || t.name === 'Browser')) + ' — deferrable tools must ride the first request with defer_loading; see planToolPayload in src/services/providers/toolEconomy.ts')
       check('§7 the Crewmate tool rode the first request (the focused seat admits launches) and stays in the tools array with sub-agents off — the toggled request and the summariser alike (the valve refuses; the array never moves)', toolsOf(reqs[0]!).some(t => t.name === 'Crewmate') && toolsOf(reqs[6]!).some(t => t.name === 'Crewmate') && toolsOf(reqs[8]!).some(t => t.name === 'Crewmate'), `first=${toolsOf(reqs[0]!).some(t => t.name === 'Crewmate')} toggled=${toolsOf(reqs[6]!).some(t => t.name === 'Crewmate')} summariser=${toolsOf(reqs[8]!).some(t => t.name === 'Crewmate')}`)
       const admissionRows = beforeFold.filter(q => q.raw.includes('"type":"tool_reference"')).length
       check('§7 the lookups admitted through tool_reference records inside their own result rows', admissionRows >= 2, String(admissionRows))
@@ -1148,11 +1148,11 @@ if (!existsSync(DIST)) {
         const b = marksOf(beforeFold[i]!).split(' ')
         const moved = a.filter((m, k) => m !== b[k]).map((m, k) => `${m}→${b[a.indexOf(m)] ?? '∅'}`)
         if (moved.length > 0 || a.length !== b.length) console.log(`      marks moved ${i}→${i + 1}: ${moved.slice(0, 6).join(' ')}${a.length !== b.length ? ` (${a.length} → ${b.length} tools)` : ''}`)
-        check(`§7 pair ${i}→${i + 1}: every defer_loading mark is byte-identical (${a.length} tools)`, a.join(' ') === b.join(' '), moved.slice(0, 4).join(' '))
+        check(`§7 pair ${i}→${i + 1}: every defer_loading mark is byte-identical (${a.length} tools)`, a.join(' ') === b.join(' '), moved.slice(0, 4).join(' ') + ' — a tool changed its defer_loading mark between these two requests; see planToolPayload in src/services/providers/toolEconomy.ts')
       }
       const crewMarks = (q: { body: unknown }): string => marksOf(q).split(' ').filter(m => /^Crewmate[+-]$/.test(m)).join(' ')
       check('§7 the toggle landed in the transcript (a roster_transition notice row) — the mark pins are not vacuous', rows.includes('"noticeKind":"roster_transition"'))
-      check('§7 after the toggle the crew tool (Agent) is still listed with its mark byte-identical to the first request (the mark travels with the definition)', crewMarks(reqs[6]!) !== '' && crewMarks(reqs[6]!) === crewMarks(reqs[0]!), `${crewMarks(reqs[0]!)} → ${crewMarks(reqs[6]!)}`)
+      check('§7 after the toggle the crew tool (Agent) is still listed with its mark byte-identical to the first request (the mark travels with the definition)', crewMarks(reqs[6]!) !== '' && crewMarks(reqs[6]!) === crewMarks(reqs[0]!), `${crewMarks(reqs[0]!)} → ${crewMarks(reqs[6]!)}` + ' — the Crewmate tool must keep its mark when sub-agents are toggled off; see planToolPayload in src/services/providers/toolEconomy.ts')
       const summariser = reqs[8]!
       check("§7 the fold took the cache-sharing fork road (the field's road on Fable 5.1)", debug.includes('forkedAgent(compact)'), debug.split('\n').filter(l => l.includes('compact')).slice(0, 3).join(' | ').slice(0, 300))
       check("§7 the summariser's tools array is the conversation's, byte for byte (the fork rides the parent's frozen roster)", j(withoutCacheControl((summariser.body as Body).tools)) === j(withoutCacheControl((reqs[7]!.body as Body).tools)) && marksOf(summariser) === marksOf(reqs[7]!), `${toolsOf(summariser).length} vs ${toolsOf(reqs[7]!).length} tools; summariser ${crewMarks(summariser)} vs conversation ${crewMarks(reqs[7]!)}`)
@@ -1194,10 +1194,10 @@ if (!existsSync(DIST)) {
           { prompt: 'still on fable' },
         ],
       )
-      check('§8 the six-turn process exits 0 (no stall: every turn answered within the run budget)', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
+      check('§8 the six-turn process exits 0 (no stall: every turn answered within the run budget)', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}` + ' — the bundle run exited non-zero; read the stderr shown and rerun that node dist/mercury.mjs command by hand')
       check('§8 every turn answered on both models', ['S8-F1', 'S8-F2', 'S8-O1', 'S8-O2', 'S8-F3', 'S8-F4'].every(t => r.stdout.includes(t)), r.stdout.slice(0, 300))
       const reqs = mainRequests(fixture)
-      check('§8 eight message requests (two tool rounds) and NOT ONE refused by the API\'s own checks', reqs.length === 8 && fixture.refusals.length === 0, `${reqs.length} requests; refusals=${j(fixture.refusals)}`)
+      check('§8 eight message requests (two tool rounds) and NOT ONE refused by the API\'s own checks', reqs.length === 8 && fixture.refusals.length === 0, `${reqs.length} requests; refusals=${j(fixture.refusals)}` + ' — the fixture refused a request or the count is off; read the refusal text and find what rewrote the sent prefix across the model switches')
       const bodies = reqs.map(q => q.body as Body)
       check('§8 the wire model follows the switch: fable · fable · fable · opus · opus · opus · fable · fable', j(bodies.map(b => b.model)) === j([FABLE, FABLE, FABLE, OPUS, OPUS, OPUS, FABLE, FABLE]), j(bodies.map(b => b.model)))
       const opusFirst = reqs[3]!
@@ -1215,7 +1215,7 @@ if (!existsSync(DIST)) {
       console.log(`    §8 across the switch: first messages diff at ${j(crossSwitch)} (the thinking strip; not prefix)`)
       const debug = (() => { try { return readFileSync(debugFile, 'utf8') } catch { return '' } })()
       const switchReceipts = debug.split('\n').filter(l => l.includes('preserved thinking: Preserved thinking') && l.includes('switched models'))
-      check('§8 exactly two quiet switch receipts (one per real switch)', switchReceipts.length === 2, `${switchReceipts.length} receipt(s)`)
+      check('§8 exactly two quiet switch receipts (one per real switch)', switchReceipts.length === 2, `${switchReceipts.length} receipt(s)` + ' — each real model switch must paint exactly one quiet switch receipt in the debug log')
       check('§8 the API-faithful fixture dropped nothing across both switches (the foreign blocks left before the wire; the returning blocks bind to their own prefix)', !debug.includes('thinking_dropped') && !r.stdout.includes('thinking_dropped'))
       const problemRows = transcriptNotices(arena, SID).filter(t => t.includes('dropped') || /error/i.test(t)).length
       check('§8 no drop notice, no API error row and no stall words in the transcript', problemRows === 0 && !r.stdout.includes('no stream events'), String(problemRows))
@@ -1249,7 +1249,7 @@ if (!existsSync(DIST)) {
         ['--model', FABLE, '--sovereign', '--session-id', SID, '--log-file', debugFile],
         [{ prompt: 'launch the seat and carry on' }],
       )
-      check('§9 the process exits 0 (the turn held for the seat, the fold ran, the notice turn landed)', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
+      check('§9 the process exits 0 (the turn held for the seat, the fold ran, the notice turn landed)', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}` + ' — the bundle run exited non-zero; read the stderr shown and rerun that node dist/mercury.mjs command by hand')
       check('§9 the main answered after the fold and after the notice', r.stdout.includes('S9-POST') && r.stdout.includes('S9-NOTED'), r.stdout.slice(0, 300))
       const debugText = (() => { try { return readFileSync(debugFile, 'utf8') } catch { return '' } })()
       const reqs = mainRequests(fixture)
@@ -1257,7 +1257,7 @@ if (!existsSync(DIST)) {
       const seatReqs = reqs.filter(q => modelOf(q).includes('opus'))
       const mainReqs = reqs.filter(q => modelOf(q).includes('fable'))
       console.log(`    §9 wire order: ${reqs.map((q, i) => `${i + 1}:${modelOf(q).includes('opus') ? 'seat' : 'main'}`).join(' ')}`)
-      check('§9 eight requests: four from the seat, four from the main (the launch, the summary, the post-fold turn, the notice turn)', reqs.length === 8 && seatReqs.length === 4 && mainReqs.length === 4, `${reqs.length} total; seat ${seatReqs.length}; main ${mainReqs.length}`)
+      check('§9 eight requests: four from the seat, four from the main (the launch, the summary, the post-fold turn, the notice turn)', reqs.length === 8 && seatReqs.length === 4 && mainReqs.length === 4, `${reqs.length} total; seat ${seatReqs.length}; main ${mainReqs.length}` + ' — the seat or the main made a different number of model requests than scripted; compare the wire order printed above with the section 9 turn list')
       check(`§9 the seat rode the resolved id on the wire (${SEAT})`, seatReqs.length > 0 && seatReqs.every(q => modelOf(q) === SEAT), seatReqs.map(modelOf).join(','))
       check('§9 the fold took the cache-sharing fork road', debugText.includes('forkedAgent(compact)'))
       const summaryIndex = reqs.findIndex(q => modelOf(q).includes('fable') && j((q.body as Body).messages).includes('Reply with prose only'))
@@ -1276,7 +1276,7 @@ if (!existsSync(DIST)) {
         const last = [...messages].reverse().find(m => m.role === 'user')
         return j(last?.content ?? '').includes('task-notification') && j(last?.content ?? '').includes(SEAT_DESCRIPTION)
       })
-      check("§9 exactly one request carried the seat's completion notice", noticeReqs.length === 1, String(noticeReqs.length))
+      check("§9 exactly one request carried the seat's completion notice", noticeReqs.length === 1, String(noticeReqs.length) + ' — the seat completion notice must reach the main exactly once, after the fold boundary')
       const noticeFirst = j(((noticeReqs[0]?.body as Body | undefined)?.messages ?? [])[0] ?? '')
       check('§9 …delivered after the boundary: the notice turn starts from the summary row', noticeFirst.includes('The context window turned over') && noticeFirst.includes('S9 SUMMARY needle'), noticeFirst.slice(0, 200))
       check('§9 …and the notice carries the seat\'s report', j((noticeReqs[0]?.body as Body | undefined)?.messages ?? []).includes('S9-SEAT-DONE'))
@@ -1319,7 +1319,7 @@ if (!existsSync(DIST)) {
         ['--model', FABLE, '--sovereign', '--session-id', SID, '--log-file', debugFile],
         [{ prompt: 'dispatch three agents and carry on' }, { prompt: 'and now say noted' }],
       )
-      check(`§10 ${tag}: the process exits 0`, r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
+      check(`§10 ${tag}: the process exits 0`, r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}` + ' — the bundle run exited non-zero; read the stderr shown and rerun that node dist/mercury.mjs command by hand')
       check(`§10 ${tag}: the main answered after the dispatch`, r.stdout.includes('S10-DISPATCHED'), r.stdout.slice(0, 300))
       const debugText = (() => { try { return readFileSync(debugFile, 'utf8') } catch { return '' } })()
       const reqs = mainRequests(fixture)
@@ -1348,7 +1348,7 @@ if (!existsSync(DIST)) {
         return `differs at ${at}: ${a.slice(at, at + 60)} | ${b.slice(at, at + 60)}`
       }
       const moved = dispatchRows.map((d, i) => (d === null ? `#${i + 2}: absent` : bytesOf(d.row) === first ? null : `#${i + 2}: ${firstDiff(first, bytesOf(d.row))}`)).filter((x): x is string => x !== null)
-      check(`§10 ${tag}: the dispatch row is byte-identical on every later request — the launches resolved nothing INTO the sent blocks`, moved.length === 0, moved.join(' | '))
+      check(`§10 ${tag}: the dispatch row is byte-identical on every later request — the launches resolved nothing INTO the sent blocks`, moved.length === 0, moved.join(' | ') + ' — a sent dispatch row changed on a later request; find what writes the launch result into the sent tool_use blocks of the main')
       const inputsOf = (row: unknown): string[] => ((row as { content?: Array<{ type?: string; input?: unknown }> }).content ?? []).filter(b => b.type === 'tool_use').map(b => j(b.input))
       check(`§10 ${tag}: each tool_use input keeps the exact keys the model sent (no resolved type, model or effort added; no key reordered)`, dispatchRows.every(d => d !== null && inputsOf(d.row).every(input => input === j(seatCall(1).input).replace('prefix-wave-1', input.includes('prefix-wave-2') ? 'prefix-wave-2' : input.includes('prefix-wave-3') ? 'prefix-wave-3' : 'prefix-wave-1').replace('(1)', input.includes('(2)') ? '(2)' : input.includes('(3)') ? '(3)' : '(1)'))), j(dispatchRows[0] !== null ? inputsOf(dispatchRows[0]!.row) : []))
       census(`§10 ${tag} the main`, mainReqs, true)

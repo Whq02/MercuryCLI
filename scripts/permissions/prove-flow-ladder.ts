@@ -4,9 +4,9 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' — ' + hint : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -25,12 +25,12 @@ section('dist ships the flow decision branches (the five, the floors, kill deny)
   } else {
     const present = (needle: string): boolean =>
       execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'
-    check('the ask sentence shape ships', present('Flow asks before '))
-    check('the five\'s reasons ship', present('it runs with elevated rights') && present('it publishes history') && present('it publishes a package') && present(', outside the project'))
-    check('the Flow allow log ships', present('none of the five'))
-    check('no denial ledger ships', !present('actions were blocked this session') && !present('consecutive actions were blocked') && !present('denial limit reached'))
-    check('capability kill-switch deny message ships', present('capability switched off by operator'))
-    check('the old shortcuts do not ship', !present('implement mode would allow this outright') && !present('PowerShell runs only with interactive approval'))
+    check('the ask sentence shape ships', present('Flow asks before '), '', 'rebuild with bun run build.ts if dist is stale, else restore the ask sentence in src/utils/permissions/flowLaw.ts')
+    check('the five\'s reasons ship', present('it runs with elevated rights') && present('it publishes history') && present('it publishes a package') && present(', outside the project'), '', 'rebuild with bun run build.ts if dist is stale, else restore the missing reason text in src/utils/permissions/flowLaw.ts')
+    check('the Flow allow log ships', present('none of the five'), '', 'rebuild with bun run build.ts if dist is stale, else restore the Flow allow log line in src/utils/permissions/decision/wrapper.ts')
+    check('no denial ledger ships', !present('actions were blocked this session') && !present('consecutive actions were blocked') && !present('denial limit reached'), '', 'a denial ledger string is back in the shipped bundle; find it in dist/mercury.mjs, remove its source under src/utils/permissions, and rebuild with bun run build.ts')
+    check('capability kill-switch deny message ships', present('capability switched off by operator'), '', 'rebuild with bun run build.ts if dist is stale, else restore the kill-switch deny message in src/utils/permissions/decision/engine.ts')
+    check('the old shortcuts do not ship', !present('implement mode would allow this outright') && !present('PowerShell runs only with interactive approval'), '', 'an old shortcut message is back in the shipped bundle; find it in dist/mercury.mjs, remove its source under src/utils/permissions, and rebuild with bun run build.ts')
   }
 }
 

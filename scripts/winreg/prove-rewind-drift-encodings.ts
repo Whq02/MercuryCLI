@@ -24,9 +24,9 @@ const fileRead = await import('../../src/utils/fileRead.ts')
 const { readFileInRange } = await import('../../src/utils/readFileInRange.ts')
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
+const check = (label: string, cond: boolean, detail = '', failHint = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && failHint ? ` — ${failHint}` : ''}`)
 }
 
 const ageBy = (path: string, seconds: number): void => {
@@ -72,12 +72,12 @@ console.log('============================================================')
 for (const [label, encode, eol] of encodings) {
   for (const toucher of ['edit', 'read'] as const) {
     const out = (await restoreAfter(label, encode, eol, toucher, false)) as { ok: boolean; kind?: string }
-    check(`${label}, last touched by ${toucher}: a timestamp-only touch leaves it restorable`, out.ok === true, out.ok ? '' : `refused ${out.kind}`)
+    check(`${label}, last touched by ${toucher}: a timestamp-only touch leaves it restorable`, out.ok === true, out.ok ? '' : `refused ${out.kind}`, 'change driftedSinceLastTouch in src/services/changeTransaction/fileHistory.ts so a touch that leaves the content unchanged is not drift for this encoding')
   }
 }
 for (const [label, encode, eol] of [encodings[0]!, encodings[1]!, encodings[4]!]) {
   const out = (await restoreAfter(label, encode, eol, 'edit', true)) as { ok: boolean; kind?: string }
-  check(`${label}: a real change made outside the session still refuses as drift`, out.ok === false && out.kind === 'drift', JSON.stringify(out).slice(0, 120))
+  check(`${label}: a real change made outside the session still refuses as drift`, out.ok === false && out.kind === 'drift', JSON.stringify(out).slice(0, 120), 'fileHistoryRestore in src/services/changeTransaction/fileHistory.ts must refuse with kind drift when the content changed after the last touch; check driftedSinceLastTouch')
 }
 
 process.chdir(launchDir)

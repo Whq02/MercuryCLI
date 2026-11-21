@@ -11,8 +11,8 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' | to fix: ' + hint : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -55,16 +55,16 @@ resetSettingsCache()
 
 section('§1 THE PREDICATE')
 {
-  check('the predicate is exported (untrustedWorkspaceHeadless)', predicateExported)
+  check('the predicate is exported (untrustedWorkspaceHeadless)', predicateExported, '', 'export untrustedWorkspaceHeadless from src/utils/config/trust.ts')
   setIsInteractive(true)
   resetTrustDialogAcceptedCacheForTesting()
-  check('interactive ⇒ false (the dialog road owns it)', untrustedWorkspaceHeadless() === false)
+  check('interactive ⇒ false (the dialog road owns it)', untrustedWorkspaceHeadless() === false, '', 'untrustedWorkspaceHeadless in src/utils/config/trust.ts must return false while the session is interactive')
   setIsInteractive(false)
   resetTrustDialogAcceptedCacheForTesting()
-  check('headless + no trust record ⇒ TRUE', untrustedWorkspaceHeadless() === true)
+  check('headless + no trust record ⇒ TRUE', untrustedWorkspaceHeadless() === true, '', 'untrustedWorkspaceHeadless in src/utils/config/trust.ts must return true for a headless session with no trust record')
   setSessionTrustAccepted(true)
   resetTrustDialogAcceptedCacheForTesting()
-  check('headless + trust ⇒ false', untrustedWorkspaceHeadless() === false)
+  check('headless + trust ⇒ false', untrustedWorkspaceHeadless() === false, '', 'untrustedWorkspaceHeadless in src/utils/config/trust.ts must return false once the session trust is accepted')
   setSessionTrustAccepted(false)
   resetTrustDialogAcceptedCacheForTesting()
   {
@@ -86,8 +86,8 @@ section('§1 THE PREDICATE')
       rmSync(configFile, { recursive: true, force: true })
       resetTrustDialogAcceptedCacheForTesting()
     }
-    check('the rig holds: with a folder standing where the config file should be, which no platform reads as a file, the trust read throws', read === 'threw', read)
-    check('headless + a trust record that cannot be read ⇒ false: the run goes on with the checkout as on 1.0.11, a check that could not finish holds nothing back', predicate === 'false', predicate)
+    check('the rig holds: with a folder standing where the config file should be, which no platform reads as a file, the trust read throws', read === 'threw', read, 'the rig no longer makes checkHasTrustDialogAccepted (src/utils/config/trust.ts) throw; change the rig so the config file path is unreadable')
+    check('headless + a trust record that cannot be read ⇒ false: the run goes on with the checkout as on 1.0.11, a check that could not finish holds nothing back', predicate === 'false', predicate, 'untrustedWorkspaceHeadless in src/utils/config/trust.ts must catch a throwing trust read and return false')
   }
 }
 
@@ -107,6 +107,7 @@ section('§2 THE HOOKS SNAPSHOT UNDER THE GATE')
     'gated: the config-home hook rides, the checkout hook does NOT',
     gated.some(c => c.includes('user-marker')) && !gated.some(c => c.includes('proj-marker')),
     JSON.stringify(gated),
+    'hooksSnapshot in src/utils/hooks/hooksConfigSnapshot.ts must drop checkout-source hooks while untrustedWorkspaceHeadless is true and keep the config-home hooks',
   )
   setSessionTrustAccepted(true)
   resetTrustDialogAcceptedCacheForTesting()
@@ -117,6 +118,7 @@ section('§2 THE HOOKS SNAPSHOT UNDER THE GATE')
     'trusted: BOTH hooks ride (the historical merge)',
     trusted.some(c => c.includes('user-marker')) && trusted.some(c => c.includes('proj-marker')),
     JSON.stringify(trusted),
+    'hooksSnapshot in src/utils/hooks/hooksConfigSnapshot.ts must merge config-home and checkout hooks once the session trust is accepted',
   )
   setSessionTrustAccepted(false)
   resetTrustDialogAcceptedCacheForTesting()
@@ -137,11 +139,14 @@ section('§3 OUTSIDE-CHECKOUT READERS + THE GATED SITES (call-shaped)')
     'the outside-checkout helper is the USER one (checkout helper invisible)',
     getApiKeyHelperFromOutsideCheckoutSources() === 'echo sk-user-fixture',
     String(getApiKeyHelperFromOutsideCheckoutSources()),
+    'getApiKeyHelperFromOutsideCheckoutSources in src/utils/settings/settings.ts must read only the non-checkout settings sources',
   )
   const outsideHooks = JSON.stringify(getHooksFromOutsideCheckoutSources())
   check(
     'the outside-checkout hooks map carries only the config-home hook',
     outsideHooks.includes('user-marker') && !outsideHooks.includes('proj-marker'),
+    '',
+    'getHooksFromOutsideCheckoutSources in src/utils/settings/settings.ts must return the config-home hooks and no checkout hooks',
   )
 }
 
@@ -158,27 +163,30 @@ section('§4 PROJECT MCP UNDER THE GATE')
     "gated: the checkout server is NOT auto-approved ('pending')",
     getProjectMcpServerStatus('fixsrv', fixsrv) === 'pending',
     getProjectMcpServerStatus('fixsrv', fixsrv),
+    'getProjectMcpServerStatus in src/services/mcp/utils.ts must answer pending for a checkout server while the workspace is untrusted',
   )
   const gatedServers = Object.keys((await getMercuryMcpConfigs()).servers)
-  check('gated: the assembly excludes the project MCP file server', !gatedServers.includes('fixsrv'), JSON.stringify(gatedServers))
+  check('gated: the assembly excludes the project MCP file server', !gatedServers.includes('fixsrv'), JSON.stringify(gatedServers), 'getMercuryMcpConfigs in src/services/mcp/config.ts must leave the project MCP file servers out while the workspace is untrusted')
   setSessionTrustAccepted(true)
   resetTrustDialogAcceptedCacheForTesting()
   check(
     "trusted but never approved: still 'pending' (trust alone approves nothing)",
     getProjectMcpServerStatus('fixsrv', fixsrv) === 'pending',
     getProjectMcpServerStatus('fixsrv', fixsrv),
+    'getProjectMcpServerStatus in src/services/mcp/utils.ts must not approve a project server from trust alone; only an approval entry approves it',
   )
   const trustedServers = Object.keys((await getMercuryMcpConfigs()).servers)
-  check('trusted but never approved: the assembly leaves the project MCP file server out', !trustedServers.includes('fixsrv'), JSON.stringify(trustedServers))
+  check('trusted but never approved: the assembly leaves the project MCP file server out', !trustedServers.includes('fixsrv'), JSON.stringify(trustedServers), 'getMercuryMcpConfigs in src/services/mcp/config.ts must leave a never-approved project MCP file server out even when trusted')
   writeFileSync(join(PROJ, '.mercury', 'settings.local.json'), JSON.stringify({ kit: { projectOn: [projectMcpApprovalEntry('fixsrv', fixsrv)] } }))
   resetSettingsCache()
   check(
     "trusted and approved for this definition: 'approved'",
     getProjectMcpServerStatus('fixsrv', fixsrv) === 'approved',
     getProjectMcpServerStatus('fixsrv', fixsrv),
+    'getProjectMcpServerStatus in src/services/mcp/utils.ts must answer approved when a trusted workspace holds the projectMcpApprovalEntry for this definition',
   )
   const approvedServers = Object.keys((await getMercuryMcpConfigs()).servers)
-  check('trusted and approved: the assembly carries the project MCP file server', approvedServers.includes('fixsrv'), JSON.stringify(approvedServers))
+  check('trusted and approved: the assembly carries the project MCP file server', approvedServers.includes('fixsrv'), JSON.stringify(approvedServers), 'getMercuryMcpConfigs in src/services/mcp/config.ts must carry the project MCP file server once it is trusted and approved')
   rmSync(join(PROJ, '.mercury', 'settings.local.json'), { force: true })
   resetSettingsCache()
   setSessionTrustAccepted(false)
@@ -189,7 +197,7 @@ section('§5 THE ARTIFACT LIVE (fresh checkout, headless)')
 {
   const DIST = join(ROOT, 'dist', 'mercury.mjs')
   if (!existsSync(DIST)) {
-    check('dist/mercury.mjs exists (build first — this leg drives the artifact)', false)
+    check('dist/mercury.mjs exists (build first — this leg drives the artifact)', false, '', 'run bun run build.ts to write dist/mercury.mjs, then rerun this proof')
   } else {
     const LIVE_HOME = realpathSync(mkdtempSync(join(tmpdir(), 'uhg-live-home-')))
     const LIVE_PROJ = realpathSync(mkdtempSync(join(tmpdir(), 'uhg-live-proj-')))
@@ -229,18 +237,20 @@ section('§5 THE ARTIFACT LIVE (fresh checkout, headless)')
     }
 
     const untrustedRun = run(['run', 'hi'])
-    check('untrusted run: the checkout session.start hook did NOT fire', !existsSync(marker('proj-marker')))
-    check('untrusted run: the checkout credentials.keyCommand did NOT execute', !existsSync(marker('helper-marker')))
+    check('untrusted run: the checkout session.start hook did NOT fire', !existsSync(marker('proj-marker')), '', 'the headless run must skip checkout hooks while untrustedWorkspaceHeadless is true: see hooksSnapshot in src/utils/hooks/hooksConfigSnapshot.ts')
+    check('untrusted run: the checkout credentials.keyCommand did NOT execute', !existsSync(marker('helper-marker')), '', 'the headless key lookup must use getApiKeyHelperFromOutsideCheckoutSources while untrusted: see src/utils/auth.ts and src/utils/settings/settings.ts')
     check(
       'untrusted run: the config-home session.start hook DID fire (source-scoped, not blanket)',
       existsSync(marker('user-marker')),
       `rc=${untrustedRun.status} err=${untrustedRun.stderr.slice(0, 120).replace(/\s+/g, ' ')}`,
+      'the gate must drop only checkout sources, not config-home hooks: see hooksSnapshot in src/utils/hooks/hooksConfigSnapshot.ts',
     )
     const untrustedList = run(['mcp', 'list'])
     check(
       'untrusted mcp list: the checkout server is not loaded',
       !untrustedList.stdout.includes('fixsrv'),
       untrustedList.stdout.slice(0, 120).replace(/\s+/g, ' '),
+      'mcp list must not load project MCP file servers in an untrusted folder: see getMercuryMcpConfigs in src/services/mcp/config.ts',
     )
 
     writeFileSync(
@@ -253,13 +263,15 @@ section('§5 THE ARTIFACT LIVE (fresh checkout, headless)')
       'trusted run: the checkout hook fires (the historical behavior)',
       existsSync(marker('proj-marker')),
       `rc=${trustedRun.status} err=${trustedRun.stderr.slice(0, 120).replace(/\s+/g, ' ')}`,
+      'a trusted folder must merge the checkout hooks again: see hooksSnapshot in src/utils/hooks/hooksConfigSnapshot.ts',
     )
-    check('trusted run: the config-home hook still fires', existsSync(marker('user-marker')))
+    check('trusted run: the config-home hook still fires', existsSync(marker('user-marker')), '', 'a trusted folder must keep the config-home hooks: see hooksSnapshot in src/utils/hooks/hooksConfigSnapshot.ts')
     const trustedList = run(['mcp', 'list'])
     check(
       'trusted mcp list: the never-approved checkout server is named as skipped, not probed',
       trustedList.stdout.includes('MCP server fixsrv (project) skipped: not approved · open Mercury in this folder to approve it') && !/fixsrv: node/.test(trustedList.stdout),
       trustedList.stdout.slice(0, 200).replace(/\s+/g, ' '),
+      'mcp list must print the skipped-not-approved line for a never-approved project server and not probe it: see src/services/mcp/config.ts',
     )
 
     rmSync(LIVE_HOME, { recursive: true, force: true })

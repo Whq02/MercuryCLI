@@ -5,9 +5,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', fix = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && fix ? ` — ${fix}` : ''}`)
 }
 const HERE = import.meta.dir
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
@@ -55,9 +55,9 @@ console.log('L1 · a home-root grant never lands on disk; the session latch rise
       sessionLatch: state.getSessionTrustAccepted(),
     }))
   `)
-  check('the child succeeded (no spawn error, signal or non-zero exit hides behind its output)', out.childFailed === undefined, JSON.stringify(out))
-  check('no hasTrustDialogAccepted record keyed on the home root', out.childFailed === undefined && (out.homeRecord === null || out.homeRecord === undefined), JSON.stringify(out))
-  check('the session latch carries the grant instead', out.sessionLatch === true, JSON.stringify(out))
+  check('the child succeeded (no spawn error, signal or non-zero exit hides behind its output)', out.childFailed === undefined, JSON.stringify(out), 'the bun child could not load or run the config and trust modules: read its stderr in the dump above and check the imports of src/utils/config/trust.ts')
+  check('no hasTrustDialogAccepted record keyed on the home root', out.childFailed === undefined && (out.homeRecord === null || out.homeRecord === undefined), JSON.stringify(out), 'setPathTrusted in src/utils/config/trust.ts must not save a record for the home folder: it should only call setSessionTrustAccepted(true)')
+  check('the session latch carries the grant instead', out.sessionLatch === true, JSON.stringify(out), 'setPathTrusted in src/utils/config/trust.ts must call setSessionTrustAccepted(true) for the home folder so getSessionTrustAccepted in src/bootstrap/state.ts reads true')
 }
 
 console.log('L2 · a folder UNDER home still persists (descendants unchanged)')
@@ -71,8 +71,8 @@ console.log('L2 · a folder UNDER home still persists (descendants unchanged)')
     const key = pathmod.normalizePathForConfigKey(sub)
     console.log(JSON.stringify({ subRecord: cfg.projects?.[key]?.hasTrustDialogAccepted ?? null }))
   `)
-  check('the child succeeded', out.childFailed === undefined, JSON.stringify(out))
-  check('the descendant grant is durable', out.subRecord === true, JSON.stringify(out))
+  check('the child succeeded', out.childFailed === undefined, JSON.stringify(out), 'the bun child could not load or run the config and trust modules: read its stderr in the dump above')
+  check('the descendant grant is durable', out.subRecord === true, JSON.stringify(out), 'setPathTrusted in src/utils/config/trust.ts must still save hasTrustDialogAccepted for a folder under home')
 }
 
 console.log('L3 · the boot flow reads the latch (the promise: session only, re-asks next boot)')
@@ -82,22 +82,22 @@ console.log('L3 · the boot flow reads the latch (the promise: session only, re-
     trust.setPathTrusted(os.homedir())
     console.log(JSON.stringify({ accepted: trust.checkHasTrustDialogAccepted() }))
   `)
-  check('the child succeeded', out.childFailed === undefined, JSON.stringify(out))
-  check('checkHasTrustDialogAccepted is satisfied in-process by the latch', out.accepted === true, JSON.stringify(out))
+  check('the child succeeded', out.childFailed === undefined, JSON.stringify(out), 'the bun child could not load or run the config and trust modules: read its stderr in the dump above')
+  check('checkHasTrustDialogAccepted is satisfied in-process by the latch', out.accepted === true, JSON.stringify(out), 'computeTrustDialogAccepted in src/utils/config/trust.ts must return true when getSessionTrustAccepted is true')
 }
 
 console.log('L0 · a child that prints the expected object and then FAILS is refused')
 {
   const lying = spawnSync(BUN, ['-e', 'console.log(JSON.stringify({ homeRecord: null, sessionLatch: true, accepted: true })); process.exit(1)'], { encoding: 'utf8', timeout: 60_000 })
   const out = childAnswer(lying)
-  check('a valid-looking answer followed by exit 1 is reported as a child failure, never as the answer', out.childFailed === 'exit 1' && out.sessionLatch === undefined, JSON.stringify(out))
+  check('a valid-looking answer followed by exit 1 is reported as a child failure, never as the answer', out.childFailed === 'exit 1' && out.sessionLatch === undefined, JSON.stringify(out), 'childAnswer in this file must return childFailed for a non-zero exit before it parses stdout')
   const killed = spawnSync(BUN, ['-e', 'console.log(JSON.stringify({ accepted: true })); process.kill(process.pid, "SIGTERM"); await new Promise(r => setTimeout(r, 5000))'], { encoding: 'utf8', timeout: 60_000 })
   const outKilled = childAnswer(killed)
-  check('an answer followed by a signal death is refused too', /^killed by SIG/.test(String(outKilled.childFailed)) && outKilled.accepted === undefined, JSON.stringify(outKilled))
+  check('an answer followed by a signal death is refused too', /^killed by SIG/.test(String(outKilled.childFailed)) && outKilled.accepted === undefined, JSON.stringify(outKilled), 'childAnswer in this file must return childFailed for a signal death before it parses stdout')
   const missing = spawnSync(join(tmpdir(), 'no-such-runtime-' + process.pid), ['-e', '1'], { encoding: 'utf8' })
-  check('a spawn error is refused by name', /^spawn error/.test(String(childAnswer(missing).childFailed)), JSON.stringify(childAnswer(missing)))
+  check('a spawn error is refused by name', /^spawn error/.test(String(childAnswer(missing).childFailed)), JSON.stringify(childAnswer(missing)), 'childAnswer in this file must return childFailed starting with spawn error when res.error is set')
   const honest = spawnSync(BUN, ['-e', 'console.log(JSON.stringify({ accepted: true }))'], { encoding: 'utf8', timeout: 60_000 })
-  check('a successful child still answers its object', childAnswer(honest).accepted === true)
+  check('a successful child still answers its object', childAnswer(honest).accepted === true, '', 'childAnswer in this file must parse the last stdout line of a child that exits 0')
 }
 
 process.exit(failures === 0 ? 0 : 1)

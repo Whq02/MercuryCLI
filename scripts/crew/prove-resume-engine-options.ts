@@ -5,7 +5,7 @@ import { makeWorld, bootLead, LEAD_MODEL, toolResultOf, userTextsOf } from './cr
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 let failures = 0
-const check = (label: string, ok: boolean, detail = ''): void => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`) }
+const check = (label: string, ok: boolean, detail = '', hint = ''): void => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!ok && hint ? ` — ${hint}` : ''}`) }
 const childPrompt = 'engine-resume-child-only'
 const switched = 'claude-opus-5-5'
 const world = await makeWorld('resume-engine-options', [
@@ -38,9 +38,9 @@ try {
   await lead.waitFor('resume tool settled', () => toolResultOf(world, 'switch-engine-child') !== null)
   await lead.waitFor('resumed child request', () => childRequests().length >= 2)
   const second = childRequests()[1]
-  check('resume sends the named model and max effort', second.model === switched && second.output_config?.effort === 'max', JSON.stringify({ model: second.model, effort: second.output_config?.effort }))
-  check('the complete prior transcript reaches the new model', JSON.stringify(second.messages).includes(childPrompt) && JSON.stringify(second.messages).includes('CHILD-FIRST-COMPLETE'))
-  check('model switch keeps the recorded system prefix', JSON.stringify(first.system) === JSON.stringify(second.system))
+  check('resume sends the named model and max effort', second.model === switched && second.output_config?.effort === 'max', JSON.stringify({ model: second.model, effort: second.output_config?.effort }), 'the resumed turn must send the model and effort named on ResumeCrewmate; check the call in src/tools/ResumeAgentTool/ResumeAgentTool.ts that passes input.model and input.effort on')
+  check('the complete prior transcript reaches the new model', JSON.stringify(second.messages).includes(childPrompt) && JSON.stringify(second.messages).includes('CHILD-FIRST-COMPLETE'), '', 'the resume in src/tools/ResumeAgentTool/ResumeAgentTool.ts must replay the whole recorded child transcript into the new request')
+  check('model switch keeps the recorded system prefix', JSON.stringify(first.system) === JSON.stringify(second.system), '', 'a resume with a new model must reuse the recorded system prefix of the child instead of rebuilding it; see the resume path in src/tools/ResumeAgentTool/ResumeAgentTool.ts')
   if (second.model !== switched) {
     console.log('[record] checkpoint ignored the optional override; refusal and unchanged-model checks require the adopted schema')
   } else {
@@ -50,17 +50,17 @@ try {
     lead.submit('parent-unknown')
     await lead.waitFor('unknown model refusal', () => toolResultOf(world, 'unknown-engine-child') !== null)
     const unknown = toolResultOf(world, 'unknown-engine-child')!
-    check('unknown model is refused with the model ladder', unknown.text.includes('could not be resumed') && unknown.text.includes('names no model: no provider family declares it') && unknown.text.includes('mercury://models'), unknown.text)
+    check('unknown model is refused with the model ladder', unknown.text.includes('could not be resumed') && unknown.text.includes('names no model: no provider family declares it') && unknown.text.includes('mercury://models'), unknown.text, 'the refusal of an unknown model in src/tools/ResumeAgentTool/ResumeAgentTool.ts must say could not be resumed, name the missing model and point to mercury://models')
     lead.submit('parent-effort')
     await lead.waitFor('unsupported effort refusal', () => toolResultOf(world, 'effort-engine-child') !== null)
     const effort = toolResultOf(world, 'effort-engine-child')!
-    check('unsupported effort is refused instead of clamped', effort.text.includes('could not be resumed') && effort.text.includes('effort') && effort.text.includes('mercury://models'), effort.text)
-    check('refusals create no child request', childRequests().length === before)
+    check('unsupported effort is refused instead of clamped', effort.text.includes('could not be resumed') && effort.text.includes('effort') && effort.text.includes('mercury://models'), effort.text, 'an effort the model does not support must be refused with could not be resumed, naming effort and mercury://models, never clamped; see src/tools/ResumeAgentTool/ResumeAgentTool.ts')
+    check('refusals create no child request', childRequests().length === before, '', 'a refused resume in src/tools/ResumeAgentTool/ResumeAgentTool.ts must return before any request goes to the model')
     lead.submit('parent-keep')
     await lead.waitFor('unchanged child completion', () => userTextsOf(world).some(text => text.includes('<result>CHILD-KEEP-COMPLETE</result>')))
     const third = childRequests()[2]
-    check('omitting both overrides keeps the last model and effort', third.model === switched && third.output_config?.effort === 'max')
-    check('the next resume carries both previous answers', JSON.stringify(third.messages).includes('CHILD-FIRST-COMPLETE') && JSON.stringify(third.messages).includes('CHILD-SWITCH-COMPLETE'))
+    check('omitting both overrides keeps the last model and effort', third.model === switched && third.output_config?.effort === 'max', '', 'a resume that names no model or effort must keep the last recorded ones; check how src/tools/ResumeAgentTool/ResumeAgentTool.ts reads the recorded model and effort')
+    check('the next resume carries both previous answers', JSON.stringify(third.messages).includes('CHILD-FIRST-COMPLETE') && JSON.stringify(third.messages).includes('CHILD-SWITCH-COMPLETE'), '', 'the third request must carry the transcript of both earlier answers; check the resume path in src/tools/ResumeAgentTool/ResumeAgentTool.ts')
     const { ResumeAgentTool: DirectResumeTool } = await import('../../src/tools/ResumeAgentTool/ResumeAgentTool.ts')
     const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
     const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
@@ -101,16 +101,16 @@ try {
       wtMeta = await readAgentMetadata(asAgentId(wtId))
     }
     killAsyncAgent(wtId, setState as never)
-    check('resumed crewmate on an unlisted valid model id keeps its recorded worktree and updates model and effort', wtResumed.data.success && wtMeta?.worktreePath === wtDir && wtMeta?.model === 'claude-opus-4-7' && wtMeta?.effortOverride === 'high', JSON.stringify({ res: wtResumed.data, meta: wtMeta }))
+    check('resumed crewmate on an unlisted valid model id keeps its recorded worktree and updates model and effort', wtResumed.data.success && wtMeta?.worktreePath === wtDir && wtMeta?.model === 'claude-opus-4-7' && wtMeta?.effortOverride === 'high', JSON.stringify({ res: wtResumed.data, meta: wtMeta }), 'a resume with a valid model id outside the listed ones must keep the recorded worktreePath and write the new model and effortOverride to the agent metadata; check src/tools/ResumeAgentTool/ResumeAgentTool.ts')
   }
-  check('the parent process closes cleanly', await lead.end() === 0)
+  check('the parent process closes cleanly', await lead.end() === 0, '', 'the lead process exited non-zero or hung on close; read its output in the crew-world helper scripts/crew/crew-world.ts (bootLead)')
   const { ResumeAgentTool } = await import('../../src/tools/ResumeAgentTool/ResumeAgentTool.ts')
   let changed = 0
   const runningContext = { getAppState: () => ({ tasks: { busy: { id: 'busy', agentId: 'busy', type: 'local_agent', status: 'running', description: 'busy fixture' } }, agentNameRegistry: new Map() }), setAppState: () => { changed++ }, messages: [], options: { engineModel: LEAD_MODEL } } as never
   const queued = await ResumeAgentTool.call({ to: 'busy', message: 'queue this', model: switched, effort: 'max' }, runningContext, (async () => ({ behavior: 'allow' })) as never, {} as never)
-  check('running-crewmate overrides join the queue, name the overrides as not applied, and never start a second run', queued.data.success && queued.data.message.includes('the message was queued') && queued.data.message.includes(`model ${switched} and effort max were not applied`) && queued.data.message.includes('once it has finished') && changed === 1, JSON.stringify(queued.data))
-  check('max is admitted by the optional schema', ResumeAgentTool.inputSchema.safeParse({ to: 'busy', message: 'next', effort: 'max' }).success)
-  check('an unknown effort word is refused by the shared ladder', !ResumeAgentTool.inputSchema.safeParse({ to: 'busy', message: 'next', effort: 'not-an-effort' }).success)
+  check('running-crewmate overrides join the queue, name the overrides as not applied, and never start a second run', queued.data.success && queued.data.message.includes('the message was queued') && queued.data.message.includes(`model ${switched} and effort max were not applied`) && queued.data.message.includes('once it has finished') && changed === 1, JSON.stringify(queued.data), 'a resume of a running crewmate must queue the message once, say the model and effort were not applied and start no second run; check the running-crewmate branch of src/tools/ResumeAgentTool/ResumeAgentTool.ts')
+  check('max is admitted by the optional schema', ResumeAgentTool.inputSchema.safeParse({ to: 'busy', message: 'next', effort: 'max' }).success, '', 'the effort field of the input schema in src/tools/ResumeAgentTool/ResumeAgentTool.ts must accept every word of EFFORT_LEVELS, max included')
+  check('an unknown effort word is refused by the shared ladder', !ResumeAgentTool.inputSchema.safeParse({ to: 'busy', message: 'next', effort: 'not-an-effort' }).success, '', 'the effort field of the input schema in src/tools/ResumeAgentTool/ResumeAgentTool.ts must stay an enum of EFFORT_LEVELS')
 } catch (error) {
   check('the resumed-engine journey completes', false, String(error))
 } finally {

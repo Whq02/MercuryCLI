@@ -14,9 +14,9 @@ const RELEASE = contract.NOUS_CLIENT_CONTRACT_RELEASE
 const TODAY = new Date().toISOString().slice(0, 10)
 let failures = 0
 
-function check(label: string, ok: boolean, detail = ''): void {
+function check(label: string, ok: boolean, detail = '', hint = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!ok && hint ? ` — ${hint}` : ''}`)
 }
 
 function isDate(value: unknown): value is string {
@@ -64,24 +64,24 @@ const fixtureToday = '2000-03-01'
 const laterRelease = releaseFixture(VERSION, afterDate)
 const sameDayRelease = releaseFixture(VERSION, fixtureDate)
 const stale = assess(laterRelease, VERSION, RELEASE, fixtureDate, fixtureToday)
-check('a release after the check date reports the exact remedy', stale.findings.length === 1 && stale.findings[0] === staleDate(afterDate, fixtureDate), stale.findings.join(' | '))
-check('a release on the check date passes', assess(sameDayRelease, VERSION, RELEASE, fixtureDate, fixtureToday).findings.length === 0)
-check('a check after the release date passes', assess(sameDayRelease, VERSION, RELEASE, afterDate, fixtureToday).findings.length === 0)
-check('a missing check date fails as it does on the undated constant', assess(sameDayRelease, VERSION, RELEASE, undefined, fixtureToday).findings.some(f => f.includes('NOUS_CLIENT_CONTRACT_AS_OF must be')))
+check('a release after the check date reports the exact remedy', stale.findings.length === 1 && stale.findings[0] === staleDate(afterDate, fixtureDate), stale.findings.join(' | '), 'change assess() and staleDate() in this file so a release dated after the check date yields exactly the one staleDate finding')
+check('a release on the check date passes', assess(sameDayRelease, VERSION, RELEASE, fixtureDate, fixtureToday).findings.length === 0, '', 'assess() in this file must not raise the stale-date finding when the check date equals the release date: compare asOf < releaseDate, not <=')
+check('a check after the release date passes', assess(sameDayRelease, VERSION, RELEASE, afterDate, fixtureToday).findings.length === 0, '', 'assess() in this file must accept a check date later than the release date and not later than today')
+check('a missing check date fails as it does on the undated constant', assess(sameDayRelease, VERSION, RELEASE, undefined, fixtureToday).findings.some(f => f.includes('NOUS_CLIENT_CONTRACT_AS_OF must be')), '', 'assess() in this file must report that NOUS_CLIENT_CONTRACT_AS_OF must be a real ISO date when the constant carries no date')
 for (const invalid of ['2001-02-29', '2000-02-30', '2000-2-28', '', 'latest']) {
-  check(`an invalid check date is refused (${JSON.stringify(invalid)})`, assess(sameDayRelease, VERSION, RELEASE, invalid, fixtureToday).findings.some(f => f.includes('must be a real ISO date')))
+  check(`an invalid check date is refused (${JSON.stringify(invalid)})`, assess(sameDayRelease, VERSION, RELEASE, invalid, fixtureToday).findings.some(f => f.includes('must be a real ISO date')), '', 'assess() in this file must refuse this value through isDate (parseIsoDate in scripts/release/notesFromChangelog.mjs) with the must-be-a-real-ISO-date finding')
 }
-check('a future check date is refused', assess(sameDayRelease, VERSION, RELEASE, '2000-03-02', fixtureToday).findings.some(f => f.includes('is after today')))
+check('a future check date is refused', assess(sameDayRelease, VERSION, RELEASE, '2000-03-02', fixtureToday).findings.some(f => f.includes('is after today')), '', 'assess() in this file must report a check date later than today with the is-after-today finding')
 for (const invalid of ['0.21', '0.21.6-beta.1', '', undefined]) {
-  check(`a non-three-part release is refused (${String(invalid)})`, assess(sameDayRelease, VERSION, invalid, fixtureDate, fixtureToday).findings.some(f => f.includes('must be a three-part release')))
+  check(`a non-three-part release is refused (${String(invalid)})`, assess(sameDayRelease, VERSION, invalid, fixtureDate, fixtureToday).findings.some(f => f.includes('must be a three-part release')), '', 'assess() in this file must refuse a release that is not three numeric parts, such as NOUS_CLIENT_CONTRACT_RELEASE in src/services/providers/nous/nousClientContract.ts')
 }
 const between = assess(releaseFixture('1.0.0-beta.9', afterDate), '1.0.0-beta.10', RELEASE, fixtureDate, fixtureToday)
-check('an older release note is informational between releases, using version order rather than string order', between.findings.length === 0 && between.info.includes('2 days since'), between.info)
-check('a missing release-note heading cannot bypass the clock', assess('', VERSION, RELEASE, fixtureDate, fixtureToday).findings.length === 2)
+check('an older release note is informational between releases, using version order rather than string order', between.findings.length === 0 && between.info.includes('2 days since'), between.info, 'assess() in this file must compare versions with semver lt() and set the between-releases info line without adding a finding')
+check('a missing release-note heading cannot bypass the clock', assess('', VERSION, RELEASE, fixtureDate, fixtureToday).findings.length === 2, '', 'assess() in this file must report both the missing publication date and the missing version when the release note has no heading')
 
-check('the describer carries the constant check date', isDate(AS_OF) && contract.presentedNousClient().asOf === AS_OF && contract.presentedNousClient().source === 'constant')
+check('the describer carries the constant check date', isDate(AS_OF) && contract.presentedNousClient().asOf === AS_OF && contract.presentedNousClient().source === 'constant', '', 'export NOUS_CLIENT_CONTRACT_AS_OF as an ISO date in src/services/providers/nous/nousClientContract.ts and have presentedNousClient() return it as asOf with source constant when nothing newer is learned')
 const tree = assess(NOTE, VERSION, RELEASE, AS_OF, TODAY)
-check('the tree has a checked Nous client contract for its release day', tree.findings.length === 0, tree.findings.join(' | '))
+check('the tree has a checked Nous client contract for its release day', tree.findings.length === 0, tree.findings.join(' | '), 'read the findings above and stamp NOUS_CLIENT_CONTRACT_AS_OF in src/services/providers/nous/nousClientContract.ts after checking the Portal agent release')
 if (tree.info) console.log(tree.info)
 
 console.log('Nous client-contract clock: a learned release presents with its own date; the constant stays the baseline the clock checks')
@@ -102,11 +102,11 @@ function describeWithLearned(release: string): ReturnType<typeof contract.presen
   }
 }
 const learned = describeWithLearned(patchOf(9))
-check('a learned release newer than the constant presents as learned, dated by its own learning', learned.release === patchOf(9) && learned.source === 'learned' && learned.clientId === 'learned-client' && learned.asOf === '2000-03-01', JSON.stringify(learned))
-check('the constant and its check date are untouched while a learned release presents', contract.NOUS_CLIENT_CONTRACT_RELEASE === RELEASE && (contract as Record<string, unknown>).NOUS_CLIENT_CONTRACT_AS_OF === AS_OF)
-check("the clock reads the constant's own check date, never the learned date the door presents", learned.asOf !== AS_OF && assess(NOTE, VERSION, RELEASE, (contract as Record<string, unknown>).NOUS_CLIENT_CONTRACT_AS_OF, TODAY).findings.join(' | ') === tree.findings.join(' | '))
+check('a learned release newer than the constant presents as learned, dated by its own learning', learned.release === patchOf(9) && learned.source === 'learned' && learned.clientId === 'learned-client' && learned.asOf === '2000-03-01', JSON.stringify(learned), 'presentedNousClient() in src/services/providers/nous/nousClientContract.ts must present a learned release newer than the constant with source learned and asOf from isoDay(learnedAtMs)')
+check('the constant and its check date are untouched while a learned release presents', contract.NOUS_CLIENT_CONTRACT_RELEASE === RELEASE && (contract as Record<string, unknown>).NOUS_CLIENT_CONTRACT_AS_OF === AS_OF, '', 'presenting a learned release must not change NOUS_CLIENT_CONTRACT_RELEASE or NOUS_CLIENT_CONTRACT_AS_OF in src/services/providers/nous/nousClientContract.ts')
+check("the clock reads the constant's own check date, never the learned date the door presents", learned.asOf !== AS_OF && assess(NOTE, VERSION, RELEASE, (contract as Record<string, unknown>).NOUS_CLIENT_CONTRACT_AS_OF, TODAY).findings.join(' | ') === tree.findings.join(' | '), '', 'the clock must read the constant NOUS_CLIENT_CONTRACT_AS_OF, not the asOf that presentedNousClient() returns for a learned release')
 const staleLearned = describeWithLearned(patchOf(-1))
-check('a learned release older than the constant never presents: the constant and its date do', staleLearned.release === RELEASE && staleLearned.source === 'constant' && staleLearned.clientId === contract.NOUS_PORTAL_CLIENT_ID && staleLearned.asOf === AS_OF, JSON.stringify(staleLearned))
+check('a learned release older than the constant never presents: the constant and its date do', staleLearned.release === RELEASE && staleLearned.source === 'constant' && staleLearned.clientId === contract.NOUS_PORTAL_CLIENT_ID && staleLearned.asOf === AS_OF, JSON.stringify(staleLearned), 'presentedNousClient() in src/services/providers/nous/nousClientContract.ts must ignore a learned release not newer than NOUS_CLIENT_CONTRACT_RELEASE and present the constant')
 for (const home of learnedHomes) rmSync(home, { recursive: true, force: true })
 console.log(failures === 0 ? 'Nous client-contract clock: green' : `Nous client-contract clock: ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

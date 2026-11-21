@@ -25,9 +25,9 @@ const { projectWorkRoster } = await import('../../src/services/engine-connector/
 const { resetCommandQueue } = await import('../../src/input-core/command-queue.js')
 
 let failures = 0
-const check = (label: string, ok: boolean, detail = ''): void => {
+const check = (label: string, ok: boolean, detail = '', hint = ''): void => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!ok && hint ? ` — ${hint}` : ''}`)
 }
 const flush = async (): Promise<void> => { for (let i = 0; i < 80; i++) await Promise.resolve() }
 const stamp = new Date(0)
@@ -96,20 +96,20 @@ const arrive = (id: string): void => {
 
 driver.kick()
 await flush()
-check('the base turn waits on a real running crew record', driver.phase() === 'waiting_for_agents' && driver.hasHeldResult())
+check('the base turn waits on a real running crew record', driver.phase() === 'waiting_for_agents' && driver.hasHeldResult(), '', 'createTurnDriver in src/cli/headless/turnDriver.ts must enter the waiting_for_agents phase and hold the result while hasWaitableBackgroundTasks reports the registered crew task')
 driver.releaseHold()
 await flush()
-check('esc releases the held result without waiting for the polling clock', !driver.hasHeldResult(), `phase=${driver.phase()}`)
+check('esc releases the held result without waiting for the polling clock', !driver.hasHeldResult(), `phase=${driver.phase()}`, 'releaseHold in createTurnDriver (src/cli/headless/turnDriver.ts) must clear the held result at once instead of waiting for the next clock sleep')
 await tick()
-check('the interrupted turn settles while the crew keeps running', driver.phase() === 'idle' && !task.abortController!.signal.aborted && JSON.stringify(projectWorkRoster(state.tasks)) === beforeCrew)
+check('the interrupted turn settles while the crew keeps running', driver.phase() === 'idle' && !task.abortController!.signal.aborted && JSON.stringify(projectWorkRoster(state.tasks)) === beforeCrew, '', 'after releaseHold the turn driver (src/cli/headless/turnDriver.ts) must settle to idle without aborting or changing the running crew task')
 
 arrive('first-worker')
 await flush()
 const row = createNoticeRow(notice('first-worker'), stamp.getTime())
 const painted = (await renderToString(createElement(MessageMetaProvider, { message: row }, createElement(Text, null, createElement(NameplateClock), 'Agent "first-worker" completed')), 178)).replace(/\s+/g, ' ').trim()
 console.log(`notice row: "${painted}"`)
-check('a notice after esc stays held without reopening the lead turn', !driver.isRunning() && queue.length === 1 && turns.length === 1, `phase=${driver.phase()}`)
-check('the held row quotes the arrival clock', painted.includes('held since 18:58:01'), painted)
+check('a notice after esc stays held without reopening the lead turn', !driver.isRunning() && queue.length === 1 && turns.length === 1, `phase=${driver.phase()}`, 'a task-notification that arrives after esc must stay in the queue and start no turn; check the notice handling in createTurnDriver (src/cli/headless/turnDriver.ts)')
+check('the held row quotes the arrival clock', painted.includes('held since 18:58:01'), painted, 'the held plate must read held since the notice arrival time; check NameplateClock and the held plate in src/components/messages/TranscriptNameplate.tsx and createNoticeRow in src/services/engine-connector/queuedNotices.ts')
 arrive('second-worker')
 await flush()
 
@@ -117,10 +117,10 @@ queue.push({ mode: 'prompt', value: '/compact', queueId: 'operator-compact' })
 driver.kick()
 await flush()
 await tick()
-check('the next line starts at once and receives held notices first, in arrival order', JSON.stringify(deliveries.slice(1)) === JSON.stringify([notice('first-worker'), notice('second-worker'), '/compact']), JSON.stringify(deliveries.slice(1)))
-check('the held notices never start autonomous model turns', JSON.stringify(turns) === JSON.stringify(['start work', '/compact']), JSON.stringify(turns))
-check('the command runs exactly once and the held notices leave no queue entries', turns.filter(turn => turn === '/compact').length === 1 && queue.length === 0)
-check('the crew row and its controller are unchanged after delivery', !task.abortController!.signal.aborted && JSON.stringify(projectWorkRoster(state.tasks)) === beforeCrew)
+check('the next line starts at once and receives held notices first, in arrival order', JSON.stringify(deliveries.slice(1)) === JSON.stringify([notice('first-worker'), notice('second-worker'), '/compact']), JSON.stringify(deliveries.slice(1)), 'the turn driver (src/cli/headless/turnDriver.ts) must pass the held notices to executeTurn ahead of the next line, in arrival order')
+check('the held notices never start autonomous model turns', JSON.stringify(turns) === JSON.stringify(['start work', '/compact']), JSON.stringify(turns), 'held notices must be delivered as attachments to the next command, never run as their own turns; check createTurnDriver in src/cli/headless/turnDriver.ts')
+check('the command runs exactly once and the held notices leave no queue entries', turns.filter(turn => turn === '/compact').length === 1 && queue.length === 0, '', 'the command must run once and delivery must remove every held notice from the queue; check createTurnDriver in src/cli/headless/turnDriver.ts')
+check('the crew row and its controller are unchanged after delivery', !task.abortController!.signal.aborted && JSON.stringify(projectWorkRoster(state.tasks)) === beforeCrew, '', 'delivering held notices must not abort or alter the crew task; check createTurnDriver in src/cli/headless/turnDriver.ts and projectWorkRoster in src/services/engine-connector/workRoster.ts')
 driver.releaseHold()
 await tick()
 resetCommandQueue()
@@ -165,12 +165,12 @@ const delivered = (rows: unknown[]): string[] => rows.flatMap(row => {
   const value = row as { type?: string; queued?: boolean; attachment?: { type?: string; commandMode?: string; prompt?: string } }
   return value.type === 'attachment' && value.attachment?.commandMode === 'task-notification' && !value.queued ? [value.attachment.prompt ?? ''] : []
 })
-check('the real engine supplies both notices before the session command executes', commandCalls === 1 && JSON.stringify(delivered(commandReads)) === JSON.stringify(initialNotices.map(command => command.value)), JSON.stringify(delivered(commandReads)))
-check('the same delivered rows survive the one-shot engine writeback once', JSON.stringify(delivered(messages)) === JSON.stringify(initialNotices.map(command => command.value)) && engineOutputs.some(message => (message as { type?: string }).type === 'outcome'))
+check('the real engine supplies both notices before the session command executes', commandCalls === 1 && JSON.stringify(delivered(commandReads)) === JSON.stringify(initialNotices.map(command => command.value)), JSON.stringify(delivered(commandReads)), 'ask in src/rows/turn.ts must hand initialNotices to the session command as attachments (getQueuedCommandAttachments in src/services/attachments/queuedCommands.ts) before it executes')
+check('the same delivered rows survive the one-shot engine writeback once', JSON.stringify(delivered(messages)) === JSON.stringify(initialNotices.map(command => command.value)) && engineOutputs.some(message => (message as { type?: string }).type === 'outcome'), '', 'ask in src/rows/turn.ts must write the delivered notice rows back to mutableMessages once and end with an outcome row')
 const deliveredRow = messages.find(message => message.type === 'attachment')
 if (deliveredRow) {
   const taken = (await renderToString(createElement(MessageMetaProvider, { message: deliveredRow }, createElement(Text, null, createElement(NameplateClock), 'Agent "first-worker" completed')), 178)).replace(/\s+/g, ' ').trim()
-  check('delivery replaces the held plate with the next turn delivery clock', !taken.includes('held') && /^\d\d:\d\d:\d\d /.test(taken), taken)
+  check('delivery replaces the held plate with the next turn delivery clock', !taken.includes('held') && /^\d\d:\d\d:\d\d /.test(taken), taken, 'a delivered notice row must show its delivery clock instead of the held plate; check deliveredNoticeRow in src/services/engine-connector/queuedNotices.ts and NameplateClock in src/components/messages/TranscriptNameplate.tsx')
 }
 console.log(`\nesc-turn-end: ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

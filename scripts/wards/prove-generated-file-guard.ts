@@ -2,11 +2,13 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+let sectionHint = ''
+function check(label: string, cond: boolean, detail = '', hint = sectionHint): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` | to fix: ${hint}` : ''}`)
 }
-function section(t: string): void {
+function section(t: string, hint = ''): void {
+  sectionHint = hint
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
@@ -96,7 +98,7 @@ async function main(): Promise<void> {
   console.log(' the generated-file guard — proof')
   console.log('============================================================')
 
-  section('A. the builtin rule exists with a name table and a leading-marker matcher')
+  section('A. the builtin rule exists with a name table and a leading-marker matcher', 'fix the no-hand-edit-generated-file rule in BUILTIN_WARDS (name, scope, generatedPaths rows, leadingMarker, teach) in src/utils/wards/wards.ts')
   {
     const rule = BUILTIN_WARDS.find(r => r.name === RULE)
     check(`BUILTIN_WARDS carries '${RULE}'`, rule !== undefined, BUILTIN_WARDS.map(r => r.name).join(','))
@@ -107,7 +109,7 @@ async function main(): Promise<void> {
     check('no row names an upgrading command as the way to regenerate', rule !== undefined && rule.generatedPaths!.every(r => !/\b(?:update|upgrade)\b/.test(r.generator ?? '')), rule?.generatedPaths?.filter(r => /\b(?:update|upgrade)\b/.test(r.generator ?? '')).map(r => r.generator).join(' | '))
   }
 
-  section('B. by name — a registered generated asset is refused and the generator is named')
+  section('B. by name — a registered generated asset is refused and the generator is named', 'fix the generatedPaths rows (pattern, generator, sources, check) of the no-hand-edit-generated-file rule in src/utils/wards/wards.ts, or the wording built by buildWardDenial in the same file')
   {
     const rel = edit('scripts/critters/fixtures/zzz-frames.json')
     check('Edit to the sleep frames (repository-relative) ⇒ denied', deniedBy(rel) === RULE, denialText(rel))
@@ -152,7 +154,7 @@ async function main(): Promise<void> {
     check('a row outside the generated-assets map names no commit gate', !baseline.includes(GATE), baseline)
   }
 
-  section("C. by leading marker — the target file's current head declares it generated")
+  section("C. by leading marker — the target file's current head declares it generated", 'fix GENERATED_MARKER or the head scan (GENERATED_HEAD_LINES) used by evaluateWards in src/utils/wards/wards.ts')
   {
     const cases: Array<[string, string, string | null]> = [
       [`${PROJECT}/lib/schema.ts`, '// @generated\nexport const a = 1\n', null],
@@ -192,7 +194,7 @@ async function main(): Promise<void> {
     check('the head is read at the RESOLVED path (a link spelling reads the real file) ⇒ denied', deniedBy(viaLink) === RULE, denialText(viaLink))
   }
 
-  section('D. precision — hand-written files whose heads merely mention the words pass')
+  section('D. precision — hand-written files whose heads merely mention the words pass', 'the marker matched a hand-written head: narrow GENERATED_MARKER in src/utils/wards/wards.ts, or the generatedPaths name rows of the rule')
   {
     const passes: Array<[string, string, string]> = [
       [`${PROJECT}/src/app.ts`, "import x from 'y'\nexport const app = x\n", 'an ordinary source file'],
@@ -213,7 +215,7 @@ async function main(): Promise<void> {
     check('running the generator through Bash is not an edit ⇒ allowed', deniedBy(bash) === null)
   }
 
-  section('E. a Write that creates a generated file — by name, by lockfile, by its own head')
+  section('E. a Write that creates a generated file — by name, by lockfile, by its own head', 'fix the Write handling in evaluateWards and the lockfile and generated-name rows of the no-hand-edit-generated-file rule in src/utils/wards/wards.ts')
   {
     const named = write(`${PROJECT}/src/api/client.generated.ts`, 'export const client = 1\n')
     const namedText = denialText(named)
@@ -247,7 +249,7 @@ async function main(): Promise<void> {
     check('a Write over an existing generated file (marker in its current head) ⇒ denied', deniedBy(overwrite) === RULE, denialText(overwrite))
   }
 
-  section('F. an empty edit is still an edit — a deletion in a generated file is refused')
+  section('F. an empty edit is still an edit — a deletion in a generated file is refused', 'fix how evaluateWards in src/utils/wards/wards.ts reads Edit input (empty new_string, hunks, append) when it collects the edit targets')
   {
     const deletion = edit(`${PROJECT}/scripts/settings/settings-schema.json`, '')
     check('an Edit whose new_string is empty (a deletion) ⇒ denied', deniedBy(deletion) === RULE, denialText(deletion))
@@ -260,7 +262,7 @@ async function main(): Promise<void> {
     check('an empty edit of an ordinary file stays allowed', deniedBy(emptyOrdinary) === null, denialText(emptyOrdinary))
   }
 
-  section('G. the other roads that land bytes — ChangeSet members, the patch dialect, AstEdit, Git resolve, LSP apply')
+  section('G. the other roads that land bytes — ChangeSet members, the patch dialect, AstEdit, Git resolve, LSP apply', 'fix how evaluateWards in src/utils/wards/wards.ts collects targets for ChangeSet (members, patch sections, move-to), AstEdit, Git resolve, the Lsp tools and Godot')
   {
     const member = (file_path: string) => ({ file_path, expected_anchor: 'fa:0123456789ab', hunks: [{ lines: '2', replace: 'const changed = 2' }] })
     const call = (toolName: string, input: Record<string, unknown>): Call => ({ toolName, input, readHead: fakeReader, resolvePath: projectResolver })
@@ -334,7 +336,7 @@ async function main(): Promise<void> {
     check("a Godot shader_create whose code opens with a generated marker ⇒ denied (the code's own head)", deniedBy(shaderMarked) === RULE, denialText(shaderMarked))
   }
 
-  section('H. the name rows bind the path relative to ITS repository root, never the cwd or the absolute ancestry')
+  section('H. the name rows bind the path relative to ITS repository root, never the cwd or the absolute ancestry', 'fix how evaluateWards in src/utils/wards/wards.ts normalises the path and binds it through the resolvePath callback to its root before matching generatedPaths')
   {
     const bare = (file_path: string, resolvePath?: Call['resolvePath']): Call => ({ toolName: 'Edit', input: { file_path, old_string: 'a', new_string: 'b' }, readHead: fakeReader, ...(resolvePath === undefined ? {} : { resolvePath }) })
     const nested = '/Users/x/generated/app/src/main.ts'
@@ -357,7 +359,7 @@ async function main(): Promise<void> {
     check('the root the resolver answers is what binds, not any cwd: a per-path root at the repository denies, a subdirectory root would not', deniedBy(bare(`${PROJECT}/scripts/critters/fixtures/zzz-frames.json`, moved)) === RULE && deniedBy(bare(`${PROJECT}/scripts/critters/fixtures/zzz-frames.json`, rootedAtSubdir)) === null)
   }
 
-  section('I. the registry ratchet — every asset in the generated-assets map is refused with its generator named')
+  section('I. the registry ratchet — every asset in the generated-assets map is refused with its generator named', 'the map scripts/gate/generated-assets.tsv (read by parseGeneratedAssetsMap in src/guards/generatedAssets.ts) and the generatedPaths rows in src/utils/wards/wards.ts disagree: add or fix the row on whichever side lacks it')
   {
     const mapText = readFileSync(join(ROOT, GENERATED_ASSETS_MAP), 'utf8')
     const { rows, errors } = parseGeneratedAssetsMap(mapText)
@@ -449,7 +451,7 @@ async function main(): Promise<void> {
     }
   }
 
-  section('J. the head reader reads regular files only and never blocks; the resolver finds the enclosing repository')
+  section('J. the head reader reads regular files only and never blocks; the resolver finds the enclosing repository', 'fix readTargetHead or makeTargetResolver in src/guards/wardsGuard.ts')
   {
     const reader = typeof hook.readTargetHead === 'function' ? hook.readTargetHead : null
     check('the hook exports the bounded head reader', reader !== null)
@@ -549,7 +551,7 @@ async function main(): Promise<void> {
     rmSync(scratch, { recursive: true, force: true })
   }
 
-  section('K. the armed hook road — the head reader and the per-path resolver are wired; a moved cwd, a link spelling and a .. member cannot re-open the table')
+  section('K. the armed hook road — the head reader and the per-path resolver are wired; a moved cwd, a link spelling and a .. member cannot re-open the table', 'fix registerWardsGuard in src/guards/wardsGuard.ts (the readHead and resolvePath it hands evaluateWards) or the generatedPaths rows in src/utils/wards/wards.ts')
   {
     type AnyState = { sessionHooks: Map<string, unknown> } & Record<string, unknown>
     let state: AnyState = { sessionHooks: new Map() }
@@ -651,7 +653,7 @@ async function main(): Promise<void> {
     await counted('a Git resolve whose absolute path has 40 000 segments', 'Git', n => ({ op: 'resolve', path: join(ROOT, 'a/'.repeat(n) + 'x.ts'), content: 'x\n' }), 40_000, 'w-g22')
     await counted('a ChangeSet member whose path has 40 000 segments', 'ChangeSet', n => ({ op: 'apply', changes: [member(join(ROOT, 'src', 'a/'.repeat(n) + 'x.ts'))] }), 40_000, 'w-g23')
 
-    section('L. the published tree — the publish filter keeps no comment line, so a checkout carries no marker: the generated modules are refused by NAME, the generator named from the table row')
+    section('L. the published tree — the publish filter keeps no comment line, so a checkout carries no marker: the generated modules are refused by NAME, the generator named from the table row', 'fix the generatedPaths rows of the no-hand-edit-generated-file rule in src/utils/wards/wards.ts (they must match by name with no head), or registerWardsGuard in src/guards/wardsGuard.ts')
     const published = join(scratch, 'published')
     mkdirSync(join(published, '.git'), { recursive: true })
     const markerRe = new RegExp(GENERATED_MARKER, 'i')
@@ -686,7 +688,7 @@ async function main(): Promise<void> {
     rmSync(scratch, { recursive: true, force: true })
   }
 
-  section('M. the rule set stays data')
+  section('M. the rule set stays data', 'keep BUILTIN_WARDS in src/utils/wards/wards.ts plain JSON data, and keep evaluateWards returning the same verdict with and without the work counter argument')
   {
     check('metrics preserve every fixture verdict, excerpt, path, and teaching field', metricParity)
     check('BUILTIN_WARDS survives a JSON round-trip unchanged', JSON.stringify(JSON.parse(JSON.stringify(BUILTIN_WARDS))) === JSON.stringify(BUILTIN_WARDS))

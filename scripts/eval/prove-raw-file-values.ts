@@ -1,6 +1,9 @@
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, cleanup, finish, loadEval, makeContext, setup } from './lib.js'
+function hinted(label: string, cond: boolean, detail: string | undefined, hint: string): void {
+  check(label, cond, cond ? detail : `${detail ? `${detail} | ` : ''}${hint}`)
+}
 
 const { work } = setup()
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
@@ -28,10 +31,10 @@ try {
   ] as const
   for (const [index, [language, code]] of cells.entries()) {
     const result = await EvalTool.call({ language, code, timeoutSeconds: 60 }, context, allow as never)
-    check(`${language} ${index}: unframed complete file`, result.data.status === 'ok' && result.data.resultRepr === (index === 1 || index === 3 ? '42' : '200000'), result.data.error?.value ?? result.data.resultRepr)
+    hinted(`${language} ${index}: unframed complete file`, result.data.status === 'ok' && result.data.resultRepr === (index === 1 || index === 3 ? '42' : '200000'), result.data.error?.value ?? result.data.resultRepr, 'a read_file or tool.Bash call from an Eval cell must return the complete 200000-character file unframed; see the read_file case in makeEvalBridgeServer in src/services/eval/evalBridge.ts')
   }
   const denied = await EvalTool.call({ language: 'js', code: `await read_file(${file})` }, context, (async () => ({ behavior: 'deny', message: 'fixture denial' })) as never)
-  check('raw read still obeys the Read permission denial', denied.data.status === 'error' && /denied|denial|permission/i.test(denied.data.error?.value ?? ''), denied.data.error?.value)
+  hinted('raw read still obeys the Read permission denial', denied.data.status === 'error' && /denied|denial|permission/i.test(denied.data.error?.value ?? ''), denied.data.error?.value, 'a denied read_file from an Eval cell must come back as an error naming the denial; see the read_file case in makeEvalBridgeServer in src/services/eval/evalBridge.ts')
 } finally {
   await evalKernelManager.disposeAll()
   cleanup()

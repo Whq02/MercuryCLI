@@ -16,9 +16,9 @@ for (const name of Object.keys(process.env)) {
 }
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -31,20 +31,20 @@ const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
 const { RetainTool, RecallTool, ReflectTool, CorrectTool } = await import('../../src/tools/MemoryTools/MemoryTools.js')
 
 section('memory is on with nothing set in the environment')
-check('the verbs are available', memoryVerbsEnabled() === true, memoryVerbsWhyNot() ?? '')
-check('every memory tool answers isEnabled', [RetainTool, RecallTool, ReflectTool, CorrectTool].every(t => t.isEnabled()))
+check('the verbs are available', memoryVerbsEnabled() === true, memoryVerbsWhyNot() ?? '', 'memoryVerbsEnabled in src/mneme/memoryVerbs.ts must be true with no MERCURY_MNEME or MERCURY_MEMORY_OBSERVE set')
+check('every memory tool answers isEnabled', [RetainTool, RecallTool, ReflectTool, CorrectTool].every(t => t.isEnabled()), '', 'isEnabled of each tool in src/tools/MemoryTools/MemoryTools.ts must not depend on an environment gate')
 const lib = join(scratch, 'library')
-check('a fact lands in the buffer', appendObservation({ text: 'the runtime deploys from mercury-working', source: 'proof', topicHint: 'deploy' }, lib) === true)
-check('the buffer reads the row back', readBuffer(lib).length === 1)
+check('a fact lands in the buffer', appendObservation({ text: 'the runtime deploys from mercury-working', source: 'proof', topicHint: 'deploy' }, lib) === true, '', 'appendObservation in src/mneme/mnemeBuffer.ts must accept a row and return true')
+check('the buffer reads the row back', readBuffer(lib).length === 1, '', 'readBuffer in src/mneme/mnemeBuffer.ts must return the row appendObservation wrote')
 const retained = retainItems([{ content: 'the owner signs as Whq02', topic: 'owner' }], { session: 'always-on' }, lib)
-check('Retain stores', retained[0]?.status === 'stored', JSON.stringify(retained))
+check('Retain stores', retained[0]?.status === 'stored', JSON.stringify(retained), 'retainItems in src/mneme/memoryVerbs.ts must store the item with no gate set')
 const result = maybeConsolidate({ force: true, dir: lib })
-check('consolidation runs', result.consolidated === true, result.reason)
-check('two topic pages exist', listTopicDocs(lib).length === 2, listTopicDocs(lib).map(d => d.id).join(','))
+check('consolidation runs', result.consolidated === true, result.reason, 'maybeConsolidate in src/mneme/mnemeConsolidate.ts must run when forced; the reason above says why it did not')
+check('two topic pages exist', listTopicDocs(lib).length === 2, listTopicDocs(lib).map(d => d.id).join(','), 'maybeConsolidate in src/mneme/mnemeConsolidate.ts must write one topic page for each retained topic')
 
 section('the gate words are gone')
 const envNames = new Set(FLAG_REGISTRY.map(f => f.env))
-check('the registry has no memory gate row', !envNames.has('MERCURY_MNEME') && !envNames.has('MERCURY_MEMORY_OBSERVE'))
+check('the registry has no memory gate row', !envNames.has('MERCURY_MNEME') && !envNames.has('MERCURY_MEMORY_OBSERVE'), '', 'remove the MERCURY_MNEME and MERCURY_MEMORY_OBSERVE rows from FLAG_REGISTRY')
 
 console.log('\n' + '═'.repeat(76))
 console.log(failures === 0 ? '✅ MEMORY IS ON FOR EVERYONE' : `❌ ${failures} ALWAYS-ON CHECK(S) FAILED`)

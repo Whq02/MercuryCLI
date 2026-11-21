@@ -4,9 +4,9 @@ import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', failHint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && failHint ? ` — ${failHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -70,7 +70,7 @@ for (const name of THEMES) {
     if (theme.themeColorToAnsi(c) === bulletEsc(c)) agree++
   }
 }
-check(`FIXED chart series === legend bullet for ALL ${total} (theme × field) cells`, agree === total, `${agree}/${total}`)
+check(`FIXED chart series === legend bullet for ALL ${total} (theme × field) cells`, agree === total, `${agree}/${total}`, 'make themeColorToAnsi in src/utils/theme.ts return the same escape prefix that applyColor in src/ink/colorize.ts puts before the text, for every theme field')
 
 const ansiCases = ['ansi:red', 'ansi:blueBright']
 let oldDesynced = 0
@@ -79,23 +79,23 @@ for (const c of ansiCases) {
   if (oldChartEsc(c) !== bulletEsc(c)) oldDesynced++
   if (theme.themeColorToAnsi(c) === bulletEsc(c)) newAgreed++
 }
-check('the OLD rgb/hex-only chart path DESYNCED on ansi: colors (magenta vs the real color)', oldDesynced === ansiCases.length)
-check('the NEW colorize path AGREES with the legend on those same ansi: colors', newAgreed === ansiCases.length)
-check('the OLD chart path actually returned the magenta fallback for an ansi: color', oldChartEsc('ansi:blueBright') === '\x1b[35m')
-check('the NEW chart path does NOT return magenta for that ansi: color', theme.themeColorToAnsi('ansi:blueBright') !== '\x1b[35m')
+check('the OLD rgb/hex-only chart path DESYNCED on ansi: colors (magenta vs the real color)', oldDesynced === ansiCases.length, '', 'the old-path reference oldChartEsc in this script now agrees with applyColor in src/ink/colorize.ts for an ansi: color, so applyColor no longer maps ansi: names to their own escape; fix applyColor/colorize there')
+check('the NEW colorize path AGREES with the legend on those same ansi: colors', newAgreed === ansiCases.length, '', 'themeColorToAnsi in src/utils/theme.ts must return the same prefix as applyColor in src/ink/colorize.ts for ansi:red and ansi:blueBright')
+check('the OLD chart path actually returned the magenta fallback for an ansi: color', oldChartEsc('ansi:blueBright') === '\x1b[35m', '', 'the oldChartEsc reference defined in this script no longer returns the magenta fallback; restore it, since it stands in for the removed chart path')
+check('the NEW chart path does NOT return magenta for that ansi: color', theme.themeColorToAnsi('ansi:blueBright') !== '\x1b[35m', '', 'themeColorToAnsi in src/utils/theme.ts must delegate to colorize in src/ink/colorize.ts instead of falling back to magenta for ansi: colors')
 
 for (const channel of ['foreground', 'background'] as const) {
   for (const name of ['not-a-color', ...Object.getOwnPropertyNames(Object.prototype)]) {
     const color = `ansi:${name}`
     try {
-      check(`${channel} ignores invalid ${color}`, colorizeMod.colorize('X', color, channel) === 'X')
+      check(`${channel} ignores invalid ${color}`, colorizeMod.colorize('X', color, channel) === 'X', '', 'colorize in src/ink/colorize.ts must return the text unchanged for an ansi: name that is not a real color, including names inherited from Object.prototype')
     } catch (error) {
-      check(`${channel} ignores invalid ${color}`, false, String(error))
+      check(`${channel} ignores invalid ${color}`, false, String(error), 'colorize in src/ink/colorize.ts must not throw for an unknown ansi: name; look the name up as an own key of its color table only')
     }
   }
 }
-check('named foreground keeps its escape bytes', colorizeMod.colorize('X', 'ansi:red', 'foreground') === '\x1b[31mX\x1b[39m')
-check('named background keeps its escape bytes', colorizeMod.colorize('X', 'ansi:red', 'background') === '\x1b[41mX\x1b[49m')
+check('named foreground keeps its escape bytes', colorizeMod.colorize('X', 'ansi:red', 'foreground') === '\x1b[31mX\x1b[39m', '', 'colorize in src/ink/colorize.ts must wrap a foreground ansi:red as ESC[31m text ESC[39m')
+check('named background keeps its escape bytes', colorizeMod.colorize('X', 'ansi:red', 'background') === '\x1b[41mX\x1b[49m', '', 'colorize in src/ink/colorize.ts must wrap a background ansi:red as ESC[41m text ESC[49m')
 
 section('behaviour: NO_COLOR (chalk level 0) — no magenta leak, chart === legend')
 const childScript =
@@ -115,7 +115,7 @@ try {
   const line = raw.split('\n').find(l => l.startsWith('RESULT'))
   if (line) parsed = JSON.parse(line.slice('RESULT'.length))
 } catch (e) {
-  check('NO_COLOR child process ran', false, String(e).slice(0, 80))
+  check('NO_COLOR child process ran', false, String(e).slice(0, 80), 'the node -e child could not import src/utils/theme.ts or src/ink/colorize.ts under NO_COLOR=1; run that import by hand to see the full error')
 }
 let noLeak = 0
 let agreeL0 = 0
@@ -125,9 +125,9 @@ for (const color of colorsL0) {
   if (!series.includes('\x1b[35m') && !series.includes('[35m')) noLeak++
   if (series === bullet) agreeL0++
 }
-check('at NO_COLOR, the chart series leaks NO magenta for any color', colorsL0.length > 0 && noLeak === colorsL0.length, `${noLeak}/${colorsL0.length}`)
-check('at NO_COLOR, the chart series === the legend bullet (both bare) for every color', colorsL0.length > 0 && agreeL0 === colorsL0.length, `${agreeL0}/${colorsL0.length}`)
-check('at NO_COLOR, a valid color yields an EMPTY escape (matches the old chalkForChart)', parsed['#DE4A35']?.series === '')
+check('at NO_COLOR, the chart series leaks NO magenta for any color', colorsL0.length > 0 && noLeak === colorsL0.length, `${noLeak}/${colorsL0.length}`, 'with chalk at level 0, themeColorToAnsi in src/utils/theme.ts must return no magenta escape; check the NO_COLOR handling in src/ink/colorize.ts')
+check('at NO_COLOR, the chart series === the legend bullet (both bare) for every color', colorsL0.length > 0 && agreeL0 === colorsL0.length, `${agreeL0}/${colorsL0.length}`, 'themeColorToAnsi in src/utils/theme.ts and applyColor in src/ink/colorize.ts must give the same bare prefix at chalk level 0')
+check('at NO_COLOR, a valid color yields an EMPTY escape (matches the old chalkForChart)', parsed['#DE4A35']?.series === '', '', 'at chalk level 0 themeColorToAnsi in src/utils/theme.ts must return an empty string for a valid color; colorize in src/ink/colorize.ts must emit no escape')
 
 console.log('\n' + '='.repeat(60))
 if (failures === 0) {

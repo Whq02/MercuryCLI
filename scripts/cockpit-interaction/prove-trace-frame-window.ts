@@ -9,8 +9,8 @@ process.env['FORCE_COLOR'] = '0'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' — ' + hint : ''}`)
   if (!cond) failures++
 }
 
@@ -26,6 +26,8 @@ console.log('§1 the cap is an exported fact')
   check(
     'FRAME_TRACE_RING_CAP is exported and matches the ring bound',
     (trace as { FRAME_TRACE_RING_CAP?: number }).FRAME_TRACE_RING_CAP === 256,
+    '',
+    'export FRAME_TRACE_RING_CAP = 256 from src/ink/root/frame-trace.ts, equal to its ring bound',
   )
 }
 
@@ -38,11 +40,12 @@ console.log('\n§2 the frames header states count/cap and the live span')
   const mountable = typeof FrameSection === 'function' ? FrameSection : (): null => null
   const frame = await renderToString(React.createElement(mountable, {} as never), 120)
   const header = frame.split('\n').find(l => l.includes('p50')) ?? ''
-  check('the header carries n=<rows>/<cap>', header.includes('n=5/256'), header.trim().slice(0, 100))
+  check('the header carries n=<rows>/<cap>', header.includes('n=5/256'), header.trim().slice(0, 100), 'FrameSection in src/components/TraceView.tsx must print n=<rows>/<FRAME_TRACE_RING_CAP> in the line with p50')
   check(
     'and the live span the ring covers (last <s>)',
     /last \d+(\.\d+)?[sm] /.test(header) || /last \d+(\.\d+)?[sm]\b/.test(header),
     header.trim().slice(0, 100),
+    'FrameSection in src/components/TraceView.tsx must print last <span> (frameSpanLabel) after n=<rows>/<cap>',
   )
 }
 

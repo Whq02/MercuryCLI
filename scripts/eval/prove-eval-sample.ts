@@ -1,4 +1,7 @@
-import { check, cleanup, finish, loadEval, makeContext, setup, within } from './lib.js'
+import { check as baseCheck, cleanup, finish, loadEval, makeContext, setup, within } from './lib.js'
+
+const check = (label: string, cond: boolean, detail = '', hint = ''): void =>
+  baseCheck(label, cond, cond || !hint ? detail : detail ? `${detail} — ${hint}` : hint)
 
 const { work } = setup()
 process.env.MERCURY_SAMPLES = '1'
@@ -19,22 +22,22 @@ const text = (out: Awaited<ReturnType<typeof run>>, language: 'py' | 'js') => St
 
 try {
   const py = await run('py', 'r1 = sample({"name": "p", "doc": {"parts": [{"kind": "section", "prose": "one"}]}}); r2 = sample(name="p", doc={"parts": [{"kind": "section", "prose": "two"}]}, ask="show me the table"); (r1["version"], r2["version"])')
-  check('Python positional and keyword sample calls keep versions', py.status === 'ok' && py.resultRepr === '(1, 2)', text(py, 'py'))
-  check('result lists both samples and the request', py.samples?.length === 2 && text(py, 'py').includes('[sample] p v2 → ') && text(py, 'py').includes(' · asked: show me the table'))
+  check('Python positional and keyword sample calls keep versions', py.status === 'ok' && py.resultRepr === '(1, 2)', text(py, 'py'), 'handleSampleCall in src/services/samples/bridge.ts must accept both the positional and the keyword form from the Python runner and number the versions per name')
+  check('result lists both samples and the request', py.samples?.length === 2 && text(py, 'py').includes('[sample] p v2 → ') && text(py, 'py').includes(' · asked: show me the table'), '', 'the [sample] result lines are written in src/tools/EvalTool/EvalTool.ts; each published sample must appear with its title, version and ask')
   if (py.samples?.[0]) {
     const page = new URL(py.samples[0].url)
     page.pathname += '/v/2.html'
     const response = await fetch(page)
     const served = await response.text()
-    check('sample listener serves the page Mercury rendered from the doc', response.ok && served.startsWith('<!doctype html>') && served.includes('<p class="prose-p" id="part-1-p-1">two</p>') && served.includes('<main class="tabula" id="tabula-root">'))
+    check('sample listener serves the page Mercury rendered from the doc', response.ok && served.startsWith('<!doctype html>') && served.includes('<p class="prose-p" id="part-1-p-1">two</p>') && served.includes('<main class="tabula" id="tabula-root">'), '', 'the page comes from the doc renderer in src/services/samples/renderDoc.ts and is served by src/services/samples/listener.ts')
   }
   const js = await run('js', "(await sample({name: 'q', doc: {parts: [{kind: 'section', prose: 'x'}]}})).version")
-  check('JavaScript sample returns the same contract', js.status === 'ok' && js.resultRepr === '1' && js.samples?.[0]?.title === 'q', text(js, 'js'))
+  check('JavaScript sample returns the same contract', js.status === 'ok' && js.resultRepr === '1' && js.samples?.[0]?.title === 'q', text(js, 'js'), 'handleSampleCall in src/services/samples/bridge.ts must give the JavaScript runner the same result and sample record as the Python one')
   const invalid = await run('py', 'sample({"name": "p"})')
-  check('sample errors raise into Python', invalid.status === 'error' && text(invalid, 'py').includes('RuntimeError: sample() needs doc: { parts: [...] } — the blocks Mercury draws'), text(invalid, 'py'))
-  check('nested ledger names a failed sample', invalid.annotations.some(note => note.includes('1 sample failed (sample() needs doc: { parts: [...] } — the blocks Mercury draws)')))
+  check('sample errors raise into Python', invalid.status === 'error' && text(invalid, 'py').includes('RuntimeError: sample() needs doc: { parts: [...] } — the blocks Mercury draws'), text(invalid, 'py'), 'handleSampleCall in src/services/samples/bridge.ts must throw this message for a missing doc, and the runner must raise it into the cell')
+  check('nested ledger names a failed sample', invalid.annotations.some(note => note.includes('1 sample failed (sample() needs doc: { parts: [...] } — the blocks Mercury draws)')), '', 'the cell ledger must carry a note naming the failed sample and its message')
   const raw = await run('py', 'sample({"name": "p", "html": "<p>raw</p>"})')
-  check('raw html from a cell is refused with the teaching line', raw.status === 'error' && text(raw, 'py').includes(`RuntimeError: ${SAMPLE_DOC_REFUSAL}`), text(raw, 'py'))
+  check('raw html from a cell is refused with the teaching line', raw.status === 'error' && text(raw, 'py').includes(`RuntimeError: ${SAMPLE_DOC_REFUSAL}`), text(raw, 'py'), 'handleSampleCall in src/services/samples/bridge.ts must refuse an html payload with SAMPLE_DOC_REFUSAL')
   const doc = { parts: [{ kind: 'section', prose: 'x' }] }
   const errors: Array<[unknown, string]> = [
     [null, 'sample() takes one object: { name, title?, doc, ask? }'],
@@ -49,14 +52,14 @@ try {
   for (const [payload, expected] of errors) {
     let actual = ''
     try { await handleSampleCall(owner, payload) } catch (error) { actual = error instanceof Error ? error.message : String(error) }
-    check(expected, actual === expected, actual)
+    check(expected, actual === expected, actual, 'handleSampleCall in src/services/samples/bridge.ts must throw exactly the expected message for this payload')
   }
   const noSamples = await run('py', '7')
-  check('samples belong only to their cell', noSamples.samples === undefined)
+  check('samples belong only to their cell', noSamples.samples === undefined, '', 'runCell in src/services/eval/kernelManager.ts must report samples only for the cell that published them')
   process.env.MERCURY_SAMPLES = '0'
   for (const language of ['py', 'js'] as const) {
     const off = await run(language, language === 'py' ? 'sample(name="off", doc={"parts": [{"kind": "section", "prose": "x"}]})' : 'await sample({name: "off", doc: {parts: [{kind: "section", prose: "x"}]}})')
-    check(`${language} sample honors the gate`, off.status === 'error' && text(off, language).includes('samples are off in this session (MERCURY_SAMPLES=0)'), text(off, language))
+    check(`${language} sample honors the gate`, off.status === 'error' && text(off, language).includes('samples are off in this session (MERCURY_SAMPLES=0)'), text(off, language), 'handleSampleCall in src/services/samples/bridge.ts must throw the samples are off message when samplesEnabled() is false')
   }
 } finally {
   cellAbort.abort()

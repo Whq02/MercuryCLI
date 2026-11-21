@@ -37,17 +37,17 @@ const { default: instances } = await import('../../src/ink/instances.ts')
 const h = React.createElement
 let failures = 0
 let checks = 0
-function check(label: string, good: boolean, detail = ''): void {
+function check(label: string, good: boolean, detail = '', hint = ''): void {
   checks++
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!good && hint ? ` | ${hint}` : ''}`)
 }
 async function until(label: string, predicate: () => boolean): Promise<void> {
   let expired = false
   const timer = setTimeout(() => { expired = true }, 5000)
   while (!predicate() && !expired) await new Promise<void>(resolve => setImmediate(resolve))
   clearTimeout(timer)
-  check(label, predicate())
+  check(label, predicate(), '', 'the condition did not hold within 5 seconds; read the behaviour it names in this script Harness and in the components it mounts (src/components/PromptInput/PromptInput.tsx, src/components/tasks/CompactWorkSummary.tsx, src/components/FullscreenLayout.tsx)')
 }
 class Output extends EventEmitter {
   isTTY = true
@@ -146,36 +146,36 @@ for (const editorMode of ['emacs', 'vim'] as const) {
     await until(`${editorMode}: the held draft is painted in the editor`, () => ink.lastFrameText().includes('❯ alpha beta'))
     for (const [columns, rows, expectedCompact] of [[80, 24, true], [120, 24, true], [60, 16, true], [40, 10, true], [1, 1, true], [1, 40, true], [200, 1, true], [2, 2, true], [99, 26, true], [100, 26, false], [97, 26, false], [96, 26, true], [99, 26, true], [100, 26, false], [100, 25, true], [120, 40, false], [80, 24, true]] as const) {
       await resize(columns, rows)
-      check(`${editorMode}: the renderer uses the settled latch at ${columns}x${rows}`, compact === expectedCompact)
-      check(`${editorMode}: resize preserves the actual transcript handle`, scrollRef.current === handle && transcriptMounts === 1)
-      check(`${editorMode}: draft and middle cursor survive ${columns}x${rows}`, pending.text() === 'alpha beta' && insertRef.current?.cursorOffset === 5)
-      check(`${editorMode}: local allocation is bounded by the physical terminal`, local.columns > 0 && local.columns <= columns && local.rows >= 0 && local.rows <= rows)
+      check(`${editorMode}: the renderer uses the settled latch at ${columns}x${rows}`, compact === expectedCompact, '', 'the compact or full chrome choice at this size comes from layoutChromeLive in src/hooks/useLayoutTier.ts; check its column and row thresholds and its latch')
+      check(`${editorMode}: resize preserves the actual transcript handle`, scrollRef.current === handle && transcriptMounts === 1, '', 'a resize must not remount the transcript; check how src/components/FullscreenLayout.tsx keeps the scrollable subtree across compact and full layouts')
+      check(`${editorMode}: draft and middle cursor survive ${columns}x${rows}`, pending.text() === 'alpha beta' && insertRef.current?.cursorOffset === 5, '', 'a resize must keep the draft in src/input-core/pending-input.ts and the cursor in src/components/PromptInput/PromptInput.tsx')
+      check(`${editorMode}: local allocation is bounded by the physical terminal`, local.columns > 0 && local.columns <= columns && local.rows >= 0 && local.rows <= rows, '', 'useTerminalSize in src/hooks/useTerminalSize.ts must never report more columns or rows than useRealTerminalSize')
     }
     const beforeStorm = frames
     for (let i = 0; i < 100; i++) { stdout.columns = i % 2 === 0 ? 99 : 120; stdout.rows = 24; stdout.emit('resize') }
     await resize(83, 24)
-    check(`${editorMode}: a hundred resize events coalesce instead of repainting every event`, frames - beforeStorm <= 6, `${frames - beforeStorm} composed frames`)
-    check(`${editorMode}: the storm preserves mounted state and draft`, transcriptMounts === 1 && scrollRef.current === handle && pending.text() === 'alpha beta')
+    check(`${editorMode}: a hundred resize events coalesce instead of repainting every event`, frames - beforeStorm <= 6, `${frames - beforeStorm} composed frames`, 'resize events must be coalesced before painting; look at the resize handling in src/ink/ink.tsx and useRealTerminalSize in src/hooks/useTerminalSize.ts')
+    check(`${editorMode}: the storm preserves mounted state and draft`, transcriptMounts === 1 && scrollRef.current === handle && pending.text() === 'alpha beta', '', 'a burst of resize events must not remount the transcript or lose the draft; check src/components/FullscreenLayout.tsx and src/input-core/pending-input.ts')
     await resize(120, 40)
     const beforeBoundaryStorm = frames
     for (const columns of [101, 99, 97, 96, 97, 100]) { stdout.columns = columns; stdout.rows = 26; stdout.emit('resize') }
     await resize(120, 40)
-    check(`${editorMode}: a boundary-crossing resize burst preserves full composition and state`, frames - beforeBoundaryStorm <= 6 && !compact && transcriptMounts === 1 && scrollRef.current === handle && pending.text() === 'alpha beta')
+    check(`${editorMode}: a boundary-crossing resize burst preserves full composition and state`, frames - beforeBoundaryStorm <= 6 && !compact && transcriptMounts === 1 && scrollRef.current === handle && pending.text() === 'alpha beta', '', 'a resize burst across the compact boundary must settle on full composition without remounting the transcript; check layoutChromeLive in src/hooks/useLayoutTier.ts and src/components/FullscreenLayout.tsx')
     await resize(80, 24)
     stdin.push('\u0014')
     await until(`${editorMode}: visible summary can own focus`, () => control?.read() === 'summary')
     await resize(1, 1)
-    check(`${editorMode}: removing the summary row returns focus to the editor`, control?.read() === 'composer')
+    check(`${editorMode}: removing the summary row returns focus to the editor`, control?.read() === 'composer', '', 'useCompactWorkControls in src/components/tasks/CompactWorkSummary.tsx must return focus to the composer when the summary row is no longer visible')
     stdin.push('\u0014')
-    check(`${editorMode}: an invisible summary cannot take keys`, control?.read() === 'composer' && pending.text() === 'alpha beta')
+    check(`${editorMode}: an invisible summary cannot take keys`, control?.read() === 'composer' && pending.text() === 'alpha beta', '', 'useCompactWorkControls in src/components/tasks/CompactWorkSummary.tsx must refuse focus while the summary row is not visible')
     await resize(80, 24)
     handle.scrollTo(40)
     await until(`${editorMode}: transcript scrolls away before opening detail`, () => handle.getScrollTop() === 40 && !handle.isSticky())
     stdin.push('\u0014\r')
     await until(`${editorMode}: same-chunk focus and Enter open detail without submitting`, () => control?.read() === 'detail' && ink.lastFrameText().includes('Session statistics'))
-    check(`${editorMode}: detail did not submit or repin`, sent.length === 0 && pending.text() === 'alpha beta' && !handle.isSticky())
+    check(`${editorMode}: detail did not submit or repin`, sent.length === 0 && pending.text() === 'alpha beta' && !handle.isSticky(), '', 'opening the detail with the summary key then Enter in one chunk must not submit the draft or repin the transcript; check src/components/PromptInput/PromptInput.tsx and src/components/tasks/CompactWorkSummary.tsx')
     await resize(1, 1)
-    check(`${editorMode}: detail retains semantic ownership without a body row`, control?.read() === 'detail')
+    check(`${editorMode}: detail retains semantic ownership without a body row`, control?.read() === 'detail', '', 'useCompactWorkControls in src/components/tasks/CompactWorkSummary.tsx must keep focus on the detail dialog when the terminal shrinks')
     stdin.push('\u001b[27uZ')
     await until(`${editorMode}: first text after tiny detail closes lands once at the retained cursor`, () => pending.text() === 'alphaZ beta')
     await resize(80, 24)
@@ -183,7 +183,7 @@ for (const editorMode of ['emacs', 'vim'] as const) {
     await until(`${editorMode}: summary type-to-edit handles all atoms in the same chunk`, () => pending.text() === 'alphaZxy beta')
     stdin.push('\u0014\u001b[200~\r\nA\tB\u001b[201~')
     await until(`${editorMode}: the real paste path finishes and paints`, () => (pending.text().includes('Pasted text') || pending.text().includes('A    B')) && (ink.lastFrameText().includes('Pasted text') || ink.lastFrameText().includes('A    B')) && !ink.lastFrameText().includes('pasting text'))
-    check(`${editorMode}: paste never submitted`, sent.length === 0)
+    check(`${editorMode}: paste never submitted`, sent.length === 0, '', 'a bracketed paste must be inserted by src/components/PromptInput/PromptInput.tsx without calling onSubmit')
     const pasted = pending.text()
     stdin.push('\u001f')
     await until(`${editorMode}: undo restores the pre-paste document`, () => pending.text() === 'alphaZxy beta' && ink.lastFrameText().includes('❯ alphaZxy beta'))
@@ -237,7 +237,7 @@ for (const editorMode of ['emacs', 'vim'] as const) {
     await until(`${editorMode}: final draft is current`, () => ink.lastFrameText().includes('send once'))
     stdin.push('\r\r')
     await until(`${editorMode}: ordinary composer Enter submits`, () => sent.length > 0)
-    check(`${editorMode}: repeated Enter in one dispatch sends once`, sent.length === 1 && sent[0] === 'send once', JSON.stringify(sent))
+    check(`${editorMode}: repeated Enter in one dispatch sends once`, sent.length === 1 && sent[0] === 'send once', JSON.stringify(sent), 'two Enter keys in one dispatch must call onSubmit once; check the submit path in src/components/PromptInput/PromptInput.tsx and pending.clearForSubmit in src/input-core/pending-input.ts')
   } finally {
     console.log(`${editorMode} final frame\n${ink.lastFrameText()}`)
     ink.unmount()
@@ -247,6 +247,6 @@ for (const editorMode of ['emacs', 'vim'] as const) {
 }
 console.error = originalError
 clearTimeout(hardLimit)
-check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error/.test(line)), faults.join('\n'))
+check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error/.test(line)), faults.join('\n'), 'a render fault or hook-order error was logged to console.error during the run; read the logged line above and fix the component it names')
 console.log(`compact-resize-rig: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

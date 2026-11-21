@@ -9,8 +9,8 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' — ' + hint : ''}`)
   if (!cond) failures++
 }
 
@@ -40,8 +40,14 @@ check(
   'a forged verdict in a gate-less project reads INFO naming the provenance, never a green gate',
   String(row?.status) === 'info' && String(row?.evidence).includes('NO gate') && String(row?.evidence).includes('project-authored'),
   `${row?.status}: ${String(row?.evidence).slice(0, 140)}`,
+  'change the gate check in src/services/health/sections/proofs.ts (proofsChecks) so a project without scripts/run-all-suites.sh returns status info with evidence naming NO gate and project-authored data',
 )
-check('the forged suite count never rides the evidence', !String(row?.evidence).includes('12'))
+check(
+  'the forged suite count never rides the evidence',
+  !String(row?.evidence).includes('12'),
+  '',
+  'change the gate check in src/services/health/sections/proofs.ts (proofsChecks) so the info evidence for a gate-less project never carries the verdict suite count',
+)
 
 rmSync(HOME, { recursive: true, force: true })
 rmSync(SCRATCH, { recursive: true, force: true })

@@ -9,8 +9,8 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' — ' + hint : ''}`)
   if (!cond) failures++
 }
 
@@ -28,11 +28,12 @@ check(
   'history.jsonl-as-a-DIRECTORY warns on a one-shot run (never appends healthy)',
   broken.status === 'warn' && broken.evidence.includes('DIRECTORY'),
   `${broken.status}: ${broken.evidence.slice(0, 120)}`,
+  'change historyCheck in src/services/health/sections/crew/appends.ts so a history.jsonl that is a directory returns status warn with evidence naming DIRECTORY',
 )
 
 rmSync(join(HOME, 'history.jsonl'), { recursive: true, force: true })
 const clean = await historyRow()
-check('an absent store reads ok (control — nothing has appended yet)', clean.status === 'ok', `${clean.status}: ${clean.evidence.slice(0, 80)}`)
+check('an absent store reads ok (control — nothing has appended yet)', clean.status === 'ok', `${clean.status}: ${clean.evidence.slice(0, 80)}`, 'change historyCheck in src/services/health/sections/crew/appends.ts so an absent history.jsonl with no flush failures returns status ok')
 
 rmSync(HOME, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-history-row-probes: all green' : `\nprove-history-row-probes: ${failures} FAILURE(S)`)

@@ -10,10 +10,11 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' — ' + hint : ''}`)
   if (!cond) failures++
 }
+const STORE_ROW_HINT = 'change transcriptStoreCheck in src/services/health/sections/crew/home.ts so the transcript-store row reports '
 
 if (process.argv.includes('--live')) {
   const HOME4 = process.argv[process.argv.indexOf('--live') + 1] as string
@@ -26,37 +27,37 @@ if (process.argv.includes('--live')) {
   }
   const { getTranscriptPath } = await import('../../src/utils/sessionStorage/paths.js')
   const live = getTranscriptPath()
-  check('the probe follows the config home of the run', live.startsWith(HOME4) && live.endsWith('.jsonl'), live)
+  check('the probe follows the config home of the run', live.startsWith(HOME4) && live.endsWith('.jsonl'), live, 'change getTranscriptPath in src/utils/sessionStorage/paths.ts so the path lies under the MERCURY_CONFIG_DIR of the run and ends in .jsonl')
   mkdirSync(join(HOME4, 'projects'), { recursive: true })
   const before = await storeRow()
-  check('no session file yet: the folder is probed and the words say so', before?.status === 'ok' && before.evidence.includes('no transcript file yet') && before.evidence.includes('the folder'), `${before?.status}: ${before?.evidence}`)
+  check('no session file yet: the folder is probed and the words say so', before?.status === 'ok' && before.evidence.includes('no transcript file yet') && before.evidence.includes('the folder'), `${before?.status}: ${before?.evidence}`, STORE_ROW_HINT + 'ok with no transcript file yet and the words the folder when the session file is absent')
   mkdirSync(dirname(live), { recursive: true })
   writeFileSync(live, '{"type":"fixture"}\n')
   const past = new Date(Date.now() - 60_000)
   utimesSync(live, past, past)
   const beforeMtime = statSync(live).mtimeMs
   const row = await storeRow()
-  check('a readable, writable session file reads ok naming the file', row?.status === 'ok' && row.evidence.includes(live) && row.evidence.includes('readable, writable'), `${row?.status}: ${row?.evidence}`)
-  check('the probe writes nothing to the transcript and leaves its mtime unchanged', statSync(live).size === 19 && statSync(live).mtimeMs === beforeMtime && readFileSync(live, 'utf8') === '{"type":"fixture"}\n', `size=${statSync(live).size} mtime=${statSync(live).mtimeMs} vs ${beforeMtime}`)
+  check('a readable, writable session file reads ok naming the file', row?.status === 'ok' && row.evidence.includes(live) && row.evidence.includes('readable, writable'), `${row?.status}: ${row?.evidence}`, STORE_ROW_HINT + 'ok, naming the session file and readable, writable, for a file the process can open')
+  check('the probe writes nothing to the transcript and leaves its mtime unchanged', statSync(live).size === 19 && statSync(live).mtimeMs === beforeMtime && readFileSync(live, 'utf8') === '{"type":"fixture"}\n', `size=${statSync(live).size} mtime=${statSync(live).mtimeMs} vs ${beforeMtime}`, STORE_ROW_HINT + 'without writing to the transcript: the open for the writable test must not append or touch the file')
   if (process.getuid?.() === 0) {
     console.log('  [SKIP] a denied session file (root ignores file modes)')
   } else {
     chmodSync(live, 0o444)
     const denied = await storeRow()
     chmodSync(live, 0o644)
-    check('a session file that refuses writes FAILS naming the file', denied?.status === 'fail' && denied.evidence.includes(live) && denied.evidence.includes('not writable') && denied.evidence.includes('recorded'), `${denied?.status}: ${denied?.evidence}`)
+    check('a session file that refuses writes FAILS naming the file', denied?.status === 'fail' && denied.evidence.includes(live) && denied.evidence.includes('not writable') && denied.evidence.includes('recorded'), `${denied?.status}: ${denied?.evidence}`, STORE_ROW_HINT + 'fail naming the file, not writable and recorded when the session file refuses writes')
     const principal = process.env.USERDOMAIN ? `${process.env.USERDOMAIN}\\${userInfo().username}` : userInfo().username
     if (process.platform === 'win32') execFileSync('icacls', [live, '/deny', `${principal}:(RD)`], { stdio: 'pipe' })
     else chmodSync(live, 0o200)
     const unreadable = await storeRow()
     if (process.platform === 'win32') execFileSync('icacls', [live, '/remove:d', principal], { stdio: 'pipe' })
     else chmodSync(live, 0o644)
-    check('…and one that refuses reads says so', unreadable?.status === 'fail' && unreadable.evidence.includes('not readable'), `${unreadable?.status}: ${unreadable?.evidence}`)
+    check('…and one that refuses reads says so', unreadable?.status === 'fail' && unreadable.evidence.includes('not readable'), `${unreadable?.status}: ${unreadable?.evidence}`, STORE_ROW_HINT + 'fail with not readable when the session file refuses reads')
   }
   rmSync(live)
   mkdirSync(live)
   const wrongKind = await storeRow()
-  check('a directory at the session file path FAILS naming the kind', wrongKind?.status === 'fail' && wrongKind.evidence.includes('not a regular file'), `${wrongKind?.status}: ${wrongKind?.evidence}`)
+  check('a directory at the session file path FAILS naming the kind', wrongKind?.status === 'fail' && wrongKind.evidence.includes('not a regular file'), `${wrongKind?.status}: ${wrongKind?.evidence}`, STORE_ROW_HINT + 'fail with not a regular file when a directory sits at the session file path')
   rmSync(HOME4, { recursive: true, force: true })
   process.exit(failures === 0 ? 0 : 1)
 }
@@ -72,11 +73,12 @@ console.log('§1 the damage the card names')
 {
   writeFileSync(join(HOME, 'projects'), 'not a directory\n')
   const row = await storeRow()
-  check('the row exists (transcript-store)', row !== null)
+  check('the row exists (transcript-store)', row !== null, '', 'register transcriptStoreCheck (src/services/health/sections/crew/home.ts) in the fast health report so a row with id transcript-store is produced')
   check(
     'a regular file at projects/ FAILS naming the unusable store',
     row?.status === 'fail' && row.evidence.includes('not a directory') && row.evidence.includes('transcripts'),
     `${row?.status}: ${row?.evidence}`,
+    STORE_ROW_HINT + 'fail with not a directory and transcripts in its evidence when projects/ is a regular file',
   )
 }
 
@@ -89,6 +91,7 @@ console.log('\n§2 absence is normal, and said')
     'a fresh home reads ok with the first-session sentence',
     row?.status === 'ok' && row.evidence.includes('first session creates it'),
     `${row?.status}: ${row?.evidence}`,
+    STORE_ROW_HINT + 'ok with the first session creates it when projects/ does not exist yet',
   )
 }
 
@@ -103,6 +106,7 @@ console.log('\n§3 a healthy store reads ok, counted')
     'a healthy directory reads ok, counted and writable',
     row?.status === 'ok' && row.evidence.includes('2 project dir(s)') && row.evidence.includes('writable'),
     `${row?.status}: ${row?.evidence}`,
+    STORE_ROW_HINT + 'ok with the count of project dirs (2 project dir(s)) and writable for a healthy projects/ folder',
   )
 }
 

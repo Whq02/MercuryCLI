@@ -13,10 +13,14 @@ const fileMod = await import('../../src/utils/file.ts')
 const { writeTextContent } = fileMod
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
-  if (!cond) failures++
+  if (!cond) {
+    failures++
+    if (hint) console.log(`    what to change: ${hint}`)
+  }
 }
+const WRITE_HINT = 'fix preserveUntouchedLineEndings in src/utils/file.ts (and writeTextContent there), or the rawContent and lineEndings read by readFileSyncWithMetadata in src/utils/fileRead.ts'
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
 type Preserve = (raw: string, updated: string, majority: 'LF' | 'CRLF') => string
@@ -37,32 +41,34 @@ section('§1 THE WRITE FLOW (the card repro)')
     writeTextContent(path, updated, meta.encoding, meta.lineEndings)
   }
   const after = readFileSync(path, 'utf8')
-  check('the edited line carries the edit', after.includes('a2-edited'))
+  check('the edited line carries the edit', after.includes('a2-edited'), '', WRITE_HINT)
   check(
     'the CRLF lines the edit never touched KEEP their carriage returns (FC-017)',
     after.includes('b1\r\n') && after.includes('b2\r\n') && after.includes('b3\r\n'),
     JSON.stringify(after.slice(-14)),
+    WRITE_HINT,
   )
   check(
     'the LF lines stay LF (no endings invented)',
     after.includes('a1\na2-edited\na3\n'),
     JSON.stringify(after.slice(0, 20)),
+    WRITE_HINT,
   )
 }
 
 section('§2 THE RECONCILIATION UNIT')
 {
-  check('preserveUntouchedLineEndings exists on the write module', typeof preserve === 'function')
+  check('preserveUntouchedLineEndings exists on the write module', typeof preserve === 'function', '', 'export preserveUntouchedLineEndings from src/utils/file.ts')
   if (preserve) {
     const raw = 'top\r\nkeep-lf\nmid\r\nbottom\r\n'
     const updated = 'top\nkeep-lf\nmid-CHANGED\nbottom\n'
     const out = preserve(raw, updated, 'CRLF')
-    check('untouched top keeps CRLF', out.startsWith('top\r\n'), JSON.stringify(out))
-    check('untouched LF line keeps LF', out.includes('keep-lf\n') && !out.includes('keep-lf\r\n'))
-    check('the changed middle takes the majority style', out.includes('mid-CHANGED\r\n'))
-    check('untouched bottom keeps CRLF', out.endsWith('bottom\r\n'))
+    check('untouched top keeps CRLF', out.startsWith('top\r\n'), JSON.stringify(out), WRITE_HINT)
+    check('untouched LF line keeps LF', out.includes('keep-lf\n') && !out.includes('keep-lf\r\n'), '', WRITE_HINT)
+    check('the changed middle takes the majority style', out.includes('mid-CHANGED\r\n'), '', WRITE_HINT)
+    check('untouched bottom keeps CRLF', out.endsWith('bottom\r\n'), '', WRITE_HINT)
 
-    check('a no-op reconciliation returns the raw spelling byte-exact', preserve(raw, raw.replaceAll('\r\n', '\n'), 'CRLF') === raw)
+    check('a no-op reconciliation returns the raw spelling byte-exact', preserve(raw, raw.replaceAll('\r\n', '\n'), 'CRLF') === raw, '', WRITE_HINT)
   }
 }
 
@@ -74,7 +80,7 @@ section('§3 UNIFORM CONTROLS')
   const lfUpdated = lfMeta.content.replace('x2', 'x2-e')
   if (preserve) writeTextContent(lfPath, preserve(lfMeta.rawContent, lfUpdated, lfMeta.lineEndings), lfMeta.encoding, 'LF')
   else writeTextContent(lfPath, lfUpdated, lfMeta.encoding, lfMeta.lineEndings)
-  check('a uniform-LF file stays uniform LF', readFileSync(lfPath, 'utf8') === 'x1\nx2-e\nx3\n')
+  check('a uniform-LF file stays uniform LF', readFileSync(lfPath, 'utf8') === 'x1\nx2-e\nx3\n', '', WRITE_HINT)
 
   const crlfPath = join(SCRATCH, 'uniform-crlf.txt')
   writeFileSync(crlfPath, 'y1\r\ny2\r\ny3\r\n')
@@ -82,7 +88,7 @@ section('§3 UNIFORM CONTROLS')
   const crlfUpdated = crlfMeta.content.replace('y2', 'y2-e')
   if (preserve) writeTextContent(crlfPath, preserve(crlfMeta.rawContent, crlfUpdated, crlfMeta.lineEndings), crlfMeta.encoding, 'LF')
   else writeTextContent(crlfPath, crlfUpdated, crlfMeta.encoding, crlfMeta.lineEndings)
-  check('a uniform-CRLF file stays uniform CRLF', readFileSync(crlfPath, 'utf8') === 'y1\r\ny2-e\r\ny3\r\n')
+  check('a uniform-CRLF file stays uniform CRLF', readFileSync(crlfPath, 'utf8') === 'y1\r\ny2-e\r\ny3\r\n', '', WRITE_HINT)
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

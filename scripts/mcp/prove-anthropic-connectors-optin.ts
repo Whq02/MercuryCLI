@@ -15,8 +15,8 @@ const { anthropicConnectorsArmed, fetchAnthropicConnectorsIfEligible, clearAnthr
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' — ' + hint : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -31,7 +31,7 @@ section('§1 THE POLARITY TABLE')
     ['true', true, 'truthy spellings honored'],
   ]
   for (const [canonical, want, label] of rows) {
-    check(label, anthropicConnectorsArmed(canonical) === want)
+    check(label, anthropicConnectorsArmed(canonical) === want, '', 'fix anthropicConnectorsArmed in src/services/mcp/anthropicConnectors.ts so this MERCURY_ANTHROPIC_CONNECTORS value arms or disarms as the row says')
   }
 }
 
@@ -39,7 +39,7 @@ section('§2 THE LIVE GATE')
 {
   clearAnthropicConnectorsCache()
   const unarmed = await fetchAnthropicConnectorsIfEligible()
-  check('unarmed ⇒ the fetch settles {} (no catalog, no wire)', Object.keys(unarmed).length === 0)
+  check('unarmed ⇒ the fetch settles {} (no catalog, no wire)', Object.keys(unarmed).length === 0, '', 'fetchAnthropicConnectorsIfEligible in src/services/mcp/anthropicConnectors.ts must return {} before any fetch when anthropicConnectorsArmed is false')
 
   clearAnthropicConnectorsCache()
   process.env.MERCURY_ANTHROPIC_CONNECTORS = '1'
@@ -47,13 +47,15 @@ section('§2 THE LIVE GATE')
   check(
     'armed without a stored token ⇒ {} for the TOKEN reason (arming honored, nothing invented)',
     Object.keys(armedNoToken).length === 0,
+    '',
+    'fetchAnthropicConnectorsIfEligible in src/services/mcp/anthropicConnectors.ts must return {} when armed but no access token is stored',
   )
   delete process.env.MERCURY_ANTHROPIC_CONNECTORS
 }
 
 section('§3 WIRING')
 {
-  check('MERCURY_ANTHROPIC_CONNECTORS is REGISTERED (opt-in)', getFlagSpec('MERCURY_ANTHROPIC_CONNECTORS') !== undefined)
+  check('MERCURY_ANTHROPIC_CONNECTORS is REGISTERED (opt-in)', getFlagSpec('MERCURY_ANTHROPIC_CONNECTORS') !== undefined, '', 'add a MERCURY_ANTHROPIC_CONNECTORS row to FLAG_REGISTRY (the mcp group of flag rows)')
 }
 
 rmSync(HOME, { recursive: true, force: true })

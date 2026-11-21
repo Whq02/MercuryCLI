@@ -7,9 +7,9 @@ import {
 } from '../../src/utils/cockpit/helmFocus.js'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -21,7 +21,7 @@ console.log('============================================================')
 
 section('helmFocus — no console row kind (pure)')
 const commandRow: HelmRow = { kind: 'command', command: '/health', label: 'open' }
-check('a command row is a plain command action', helmRowAction(commandRow)?.type === 'command' && helmRowSig(commandRow) === 'c:/health:open')
+check('a command row is a plain command action', helmRowAction(commandRow)?.type === 'command' && helmRowSig(commandRow) === 'c:/health:open', '', 'change helmRowAction (type command) or helmRowSig (c:<command>:<label>) in src/utils/cockpit/helmFocus.ts')
 
 
 console.log('')

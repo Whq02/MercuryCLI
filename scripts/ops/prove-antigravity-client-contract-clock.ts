@@ -14,9 +14,9 @@ const CLIENT_VERSION = contract.ANTIGRAVITY_CLIENT_CONTRACT_VERSION
 const TODAY = new Date().toISOString().slice(0, 10)
 let failures = 0
 
-function check(label: string, ok: boolean, detail = ''): void {
+function check(label: string, ok: boolean, detail = '', hint = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!ok && hint ? ` — ${hint}` : ''}`)
 }
 
 function isDate(value: unknown): value is string {
@@ -64,25 +64,25 @@ const fixtureToday = '2000-03-01'
 const laterRelease = releaseFixture(VERSION, afterDate)
 const sameDayRelease = releaseFixture(VERSION, fixtureDate)
 const stale = assess(laterRelease, VERSION, CLIENT_VERSION, fixtureDate, fixtureToday)
-check('a release after the check date reports the exact remedy', stale.findings.length === 1 && stale.findings[0] === staleDate(afterDate, fixtureDate), stale.findings.join(' | '))
-check('a release on the check date passes', assess(sameDayRelease, VERSION, CLIENT_VERSION, fixtureDate, fixtureToday).findings.length === 0)
-check('a check after the release date passes', assess(sameDayRelease, VERSION, CLIENT_VERSION, afterDate, fixtureToday).findings.length === 0)
-check('a missing check date fails as it does on the undated constant', assess(sameDayRelease, VERSION, CLIENT_VERSION, undefined, fixtureToday).findings.some(f => f.includes('ANTIGRAVITY_CLIENT_CONTRACT_AS_OF must be')))
+check('a release after the check date reports the exact remedy', stale.findings.length === 1 && stale.findings[0] === staleDate(afterDate, fixtureDate), stale.findings.join(' | '), 'assess in this script must report exactly one finding, the staleDate sentence, when the release day is after the check date')
+check('a release on the check date passes', assess(sameDayRelease, VERSION, CLIENT_VERSION, fixtureDate, fixtureToday).findings.length === 0, '', 'assess in this script must not flag a release whose day equals the check date')
+check('a check after the release date passes', assess(sameDayRelease, VERSION, CLIENT_VERSION, afterDate, fixtureToday).findings.length === 0, '', 'assess in this script must not flag a check date later than the release day')
+check('a missing check date fails as it does on the undated constant', assess(sameDayRelease, VERSION, CLIENT_VERSION, undefined, fixtureToday).findings.some(f => f.includes('ANTIGRAVITY_CLIENT_CONTRACT_AS_OF must be')), '', 'assess in this script must report a finding saying ANTIGRAVITY_CLIENT_CONTRACT_AS_OF must be a real date when the date is undefined')
 for (const invalid of ['2001-02-29', '2000-02-30', '2000-2-28', '', 'latest']) {
-  check(`an invalid check date is refused (${JSON.stringify(invalid)})`, assess(sameDayRelease, VERSION, CLIENT_VERSION, invalid, fixtureToday).findings.some(f => f.includes('must be a real ISO date')))
+  check(`an invalid check date is refused (${JSON.stringify(invalid)})`, assess(sameDayRelease, VERSION, CLIENT_VERSION, invalid, fixtureToday).findings.some(f => f.includes('must be a real ISO date')), '', 'assess in this script must report must be a real ISO date for this check date, using parseIsoDate from scripts/release/notesFromChangelog.mjs')
 }
-check('a future check date is refused', assess(sameDayRelease, VERSION, CLIENT_VERSION, '2000-03-02', fixtureToday).findings.some(f => f.includes('is after today')))
+check('a future check date is refused', assess(sameDayRelease, VERSION, CLIENT_VERSION, '2000-03-02', fixtureToday).findings.some(f => f.includes('is after today')), '', 'assess in this script must report is after today for a check date later than today')
 for (const invalid of ['2.23', '2.23.0-beta.1', '', undefined]) {
-  check(`a non-three-part version is refused (${String(invalid)})`, assess(sameDayRelease, VERSION, invalid, fixtureDate, fixtureToday).findings.some(f => f.includes('must be a three-part version')))
+  check(`a non-three-part version is refused (${String(invalid)})`, assess(sameDayRelease, VERSION, invalid, fixtureDate, fixtureToday).findings.some(f => f.includes('must be a three-part version')), '', 'assess in this script must report must be a three-part version for a client version that is not digits.digits.digits')
 }
 const between = assess(releaseFixture('1.0.0-beta.9', afterDate), '1.0.0-beta.10', CLIENT_VERSION, fixtureDate, fixtureToday)
-check('an older release note is informational between releases, using version order rather than string order', between.findings.length === 0 && between.info.includes('2 days since'), between.info)
-check('a missing release-note heading cannot bypass the clock', assess('', VERSION, CLIENT_VERSION, fixtureDate, fixtureToday).findings.length === 2)
+check('an older release note is informational between releases, using version order rather than string order', between.findings.length === 0 && between.info.includes('2 days since'), between.info, 'assess in this script must compare versions with semver lt and leave findings empty when the release note is older than package.json')
+check('a missing release-note heading cannot bypass the clock', assess('', VERSION, CLIENT_VERSION, fixtureDate, fixtureToday).findings.length === 2, '', 'assess in this script must report both the missing publication date and the missing note version when the release note has no heading')
 
-check('the describer carries the constant check date', isDate(AS_OF) && contract.presentedAntigravityClient().asOf === AS_OF && contract.presentedAntigravityClient().source === 'constant')
-check('the User-Agent is the Antigravity client\'s own, built from the presented version and the changelist', contract.antigravityUserAgent() === `antigravity/hub/${CLIENT_VERSION} (aidev_client; os_type=darwin; arch=arm64; cl=${contract.ANTIGRAVITY_CLIENT_CONTRACT_CHANGELIST})`, contract.antigravityUserAgent())
+check('the describer carries the constant check date', isDate(AS_OF) && contract.presentedAntigravityClient().asOf === AS_OF && contract.presentedAntigravityClient().source === 'constant', '', 'ANTIGRAVITY_CLIENT_CONTRACT_AS_OF in src/services/providers/gemini/antigravityClientContract.ts must be a real YYYY-MM-DD date, and presentedAntigravityClient there must return it as asOf with source constant when nothing newer was learned')
+check('the User-Agent is the Antigravity client\'s own, built from the presented version and the changelist', contract.antigravityUserAgent() === `antigravity/hub/${CLIENT_VERSION} (aidev_client; os_type=darwin; arch=arm64; cl=${contract.ANTIGRAVITY_CLIENT_CONTRACT_CHANGELIST})`, contract.antigravityUserAgent(), 'antigravityUserAgent in src/services/providers/gemini/antigravityClientContract.ts must build the string from the presented version and ANTIGRAVITY_CLIENT_CONTRACT_CHANGELIST')
 const tree = assess(NOTE, VERSION, CLIENT_VERSION, AS_OF, TODAY)
-check('the tree has a checked Antigravity client contract for its release day', tree.findings.length === 0, tree.findings.join(' | '))
+check('the tree has a checked Antigravity client contract for its release day', tree.findings.length === 0, tree.findings.join(' | '), 'check Antigravity update manifest for the current client version, then stamp ANTIGRAVITY_CLIENT_CONTRACT_AS_OF (and the version if it moved) in src/services/providers/gemini/antigravityClientContract.ts, or fix the release note or package.json version the finding names')
 if (tree.info) console.log(tree.info)
 
 console.log('Antigravity client-contract clock: a learned version presents with its own date; the constant stays the baseline the clock checks')
@@ -103,12 +103,12 @@ function describeWithLearned(version: string): ReturnType<typeof contract.presen
   }
 }
 const learned = describeWithLearned(patchOf(9))
-check('a learned version newer than the constant presents as learned, dated by its own learning', learned.version === patchOf(9) && learned.source === 'learned' && learned.asOf === '2000-03-01', JSON.stringify(learned))
-check('the learned version rides the User-Agent; the changelist stays the constant', contract.antigravityUserAgent(learned) === `antigravity/hub/${patchOf(9)} (aidev_client; os_type=darwin; arch=arm64; cl=${contract.ANTIGRAVITY_CLIENT_CONTRACT_CHANGELIST})`)
-check('the constant and its check date are untouched while a learned version presents', contract.ANTIGRAVITY_CLIENT_CONTRACT_VERSION === CLIENT_VERSION && (contract as Record<string, unknown>).ANTIGRAVITY_CLIENT_CONTRACT_AS_OF === AS_OF)
-check("the clock reads the constant's own check date, never the learned date the door presents", learned.asOf !== AS_OF && assess(NOTE, VERSION, CLIENT_VERSION, (contract as Record<string, unknown>).ANTIGRAVITY_CLIENT_CONTRACT_AS_OF, TODAY).findings.join(' | ') === tree.findings.join(' | '))
+check('a learned version newer than the constant presents as learned, dated by its own learning', learned.version === patchOf(9) && learned.source === 'learned' && learned.asOf === '2000-03-01', JSON.stringify(learned), 'presentedAntigravityClient in src/services/providers/gemini/antigravityClientContract.ts must present a learned version newer than the constant, with asOf taken from the day it was learned')
+check('the learned version rides the User-Agent; the changelist stays the constant', contract.antigravityUserAgent(learned) === `antigravity/hub/${patchOf(9)} (aidev_client; os_type=darwin; arch=arm64; cl=${contract.ANTIGRAVITY_CLIENT_CONTRACT_CHANGELIST})`, '', 'antigravityUserAgent in src/services/providers/gemini/antigravityClientContract.ts must use the version of the presented client it is given and keep the constant changelist')
+check('the constant and its check date are untouched while a learned version presents', contract.ANTIGRAVITY_CLIENT_CONTRACT_VERSION === CLIENT_VERSION && (contract as Record<string, unknown>).ANTIGRAVITY_CLIENT_CONTRACT_AS_OF === AS_OF, '', 'presenting a learned version in src/services/providers/gemini/antigravityClientContract.ts must not change ANTIGRAVITY_CLIENT_CONTRACT_VERSION or ANTIGRAVITY_CLIENT_CONTRACT_AS_OF')
+check("the clock reads the constant's own check date, never the learned date the door presents", learned.asOf !== AS_OF && assess(NOTE, VERSION, CLIENT_VERSION, (contract as Record<string, unknown>).ANTIGRAVITY_CLIENT_CONTRACT_AS_OF, TODAY).findings.join(' | ') === tree.findings.join(' | '), '', 'the clock must read ANTIGRAVITY_CLIENT_CONTRACT_AS_OF from the constant, not the asOf that presentedAntigravityClient returns for a learned version (src/services/providers/gemini/antigravityClientContract.ts)')
 const staleLearned = describeWithLearned(patchOf(-1))
-check('a learned version older than the constant never presents: the constant and its date do', staleLearned.version === CLIENT_VERSION && staleLearned.source === 'constant' && staleLearned.asOf === AS_OF, JSON.stringify(staleLearned))
+check('a learned version older than the constant never presents: the constant and its date do', staleLearned.version === CLIENT_VERSION && staleLearned.source === 'constant' && staleLearned.asOf === AS_OF, JSON.stringify(staleLearned), 'presentedAntigravityClient in src/services/providers/gemini/antigravityClientContract.ts must fall back to the constant version and its check date when the learned version is older')
 for (const home of learnedHomes) rmSync(home, { recursive: true, force: true })
 console.log(failures === 0 ? 'Antigravity client-contract clock: green' : `Antigravity client-contract clock: ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

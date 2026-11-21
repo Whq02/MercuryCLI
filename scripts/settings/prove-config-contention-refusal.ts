@@ -5,9 +5,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
 const HERE = import.meta.dir
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
@@ -31,7 +31,7 @@ function runIn(home: string, body: string): Record<string, unknown> {
     process.stdout.write('\\n' + JSON.stringify(out))
   `
   const res = spawnSync(BUN, ['-e', src], { encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_HOME: '' } })
-  if (res.status !== 0) throw new Error(`scenario failed: ${res.stderr.slice(-1500)}`)
+  if (res.status !== 0) throw new Error(`scenario failed (the bun -e child of runIn in this file exited non-zero; the last 1500 characters of its stderr follow): ${res.stderr.slice(-1500)}`)
   return JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as Record<string, unknown>
 }
 
@@ -61,8 +61,8 @@ console.log('L1 the held lock — the save refuses, the file stands')
     out.themeAfter = JSON.parse(raw()).theme
     holder.kill()
   `)
-  check('the file is byte-identical after the save under a held lock', r.same === true, `theme after: ${r.themeAfter}`)
-  check('the refusal is counted', r.refusals === 1 && r.refusalsBefore === 0, `refusals=${JSON.stringify(r.refusals)} (before=${JSON.stringify(r.refusalsBefore)})`)
+  check('the file is byte-identical after the save under a held lock', r.same === true, `theme after: ${r.themeAfter}`, 'saveGlobalConfig in src/utils/config/globalConfig.ts must refuse the write when the lock is held past its backoff ladder (the ELOCKED branch of saveGlobalConfigOutcome) and leave the file untouched')
+  check('the refusal is counted', r.refusals === 1 && r.refusalsBefore === 0, `refusals=${JSON.stringify(r.refusals)} (before=${JSON.stringify(r.refusalsBefore)})`, 'the ELOCKED branch of saveGlobalConfigOutcome in src/utils/config/globalConfig.ts must call noteConfigContentionRefusal once, and getConfigContentionRefusalCount must be exported')
 }
 
 console.log('L2 control — an uncontended save lands')
@@ -77,8 +77,8 @@ console.log('L2 control — an uncontended save lands')
     out.keeper = parsed.mcpServers?.keeper !== undefined
     out.refusals = g.getConfigContentionRefusalCount?.() ?? 'absent'
   `)
-  check('the save lands and keeps the rest of the monolith', r.theme === 'not-a-theme' && r.keeper === true, JSON.stringify(r))
-  check('no refusal is counted', r.refusals === 0 || r.refusals === 'absent', `refusals=${JSON.stringify(r.refusals)}`)
+  check('the save lands and keeps the rest of the monolith', r.theme === 'not-a-theme' && r.keeper === true, JSON.stringify(r), 'an uncontended saveGlobalConfig in src/utils/config/globalConfig.ts must write the updater result and keep the other keys of the file')
+  check('no refusal is counted', r.refusals === 0 || r.refusals === 'absent', `refusals=${JSON.stringify(r.refusals)}`, 'noteConfigContentionRefusal in src/utils/config/globalConfig.ts must be called only when the lock was refused, not on an uncontended save')
 }
 
 console.log('L3 the backup runs outside the locked section')
@@ -92,7 +92,7 @@ console.log('L3 the backup runs outside the locked section')
     const backups = (() => { try { return fs.readdirSync(g.getConfigBackupDir()).filter(n => n.includes('.backup.')) } catch { return [] } })()
     out.backups = backups.length
   `)
-  check('a save still mints the timestamped backup', (r.backups as number) >= 1, `backups=${r.backups}`)
+  check('a save still mints the timestamped backup', (r.backups as number) >= 1, `backups=${r.backups}`, 'a save through src/utils/config/globalConfig.ts must still run backupOutgoingConfig so a stamped .backup. copy lands in getConfigBackupDir()')
 }
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)

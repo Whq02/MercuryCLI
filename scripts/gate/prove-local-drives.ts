@@ -7,8 +7,8 @@ import { join, resolve } from 'node:path'
 const root = resolve(import.meta.dir, '../..')
 const work = mkdtempSync(join(tmpdir(), 'local-drives-'))
 let failures = 0
-function check(label: string, ok: boolean, detail = ''): void {
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? `: ${detail}` : ''}`)
+function check(label: string, ok: boolean, detail = '', hint = ''): void {
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? `: ${detail}` : ''}${!ok && hint ? `${detail ? '; ' : ': '}${hint}` : ''}`)
   if (!ok) failures++
 }
 try {
@@ -32,16 +32,16 @@ try {
   const first = run([], release)
   const original = existsSync(release) ? readFileSync(release, 'utf8') : '{}'
   const v = JSON.parse(original)
-  check('the local release excludes a planted x-drives but retains its other pty suite', first.status === 0 && v.pass?.sort().join(',') === 'capture,quiet' && !existsSync(count), `rc ${first.status}, pass ${v.pass}`)
+  check('the local release excludes a planted x-drives but retains its other pty suite', first.status === 0 && v.pass?.sort().join(',') === 'capture,quiet' && !existsSync(count), `rc ${first.status}, pass ${v.pass}`, 'fix the pool class and drive-suite filter in scripts/run-all-suites.sh (is_drive_suite, the CLASS release branch) so the release pool skips a suite named *-drives and keeps the other pty suites')
   const drives = run(['--class', 'drives'], join(work, 'drives-verdict.json'))
   const dv = existsSync(join(work, 'drives-verdict.json')) ? JSON.parse(readFileSync(join(work, 'drives-verdict.json'), 'utf8')) : {}
-  check('the drives guide runs a red drive exactly once with a separate advisory verdict', drives.status === 1 && dv.scope === 'drives' && dv.fail?.join(',') === 'x-drives' && readFileSync(count, 'utf8') === 'run\n', `rc ${drives.status}, scope ${dv.scope}`)
-  check('the guide preserves the release verdict and writes its own ledger', readFileSync(release, 'utf8') === original && existsSync(join(work, 'drives-ledger.jsonl')))
+  check('the drives guide runs a red drive exactly once with a separate advisory verdict', drives.status === 1 && dv.scope === 'drives' && dv.fail?.join(',') === 'x-drives' && readFileSync(count, 'utf8') === 'run\n', `rc ${drives.status}, scope ${dv.scope}`, 'fix the CLASS drives branch of scripts/run-all-suites.sh so it runs each *-drives suite once and writes drives-verdict.json with scope drives')
+  check('the guide preserves the release verdict and writes its own ledger', readFileSync(release, 'utf8') === original && existsSync(join(work, 'drives-ledger.jsonl')), '', 'fix the CLASS drives branch of scripts/run-all-suites.sh so it leaves the release verdict file untouched and appends to drives-ledger.jsonl next to drives-verdict.json')
   rmSync(count, { force: true })
   const subset = run(['x-drives'], join(work, 'subset.json'))
-  check('an explicit drives suite is still runnable without writing a full verdict', subset.status === 1 && existsSync(count) && !existsSync(join(work, 'subset.json')))
+  check('an explicit drives suite is still runnable without writing a full verdict', subset.status === 1 && existsSync(count) && !existsSync(join(work, 'subset.json')), '', 'fix the explicit-suite path of scripts/run-all-suites.sh so a named *-drives suite runs and no verdict file is written for a subset')
   const hosted = (scope: string) => spawnSync('bash', ['scripts/gate/ci-shard.sh', '0', '1', '--class', scope, '--plan-only'], { cwd: root, env: { ...env, MERCURY_CI_SHARD_SUITES_DIR: suites }, encoding: 'utf8' }).stdout.trim().split('\n').sort()
-  check('the hosted release still excludes all pty, and hosted drives includes the planted drive', hosted('release').join(',') === 'quiet' && hosted('drives').join(',') === 'capture,x-drives')
+  check('the hosted release still excludes all pty, and hosted drives includes the planted drive', hosted('release').join(',') === 'quiet' && hosted('drives').join(',') === 'capture,x-drives', '', 'fix the plan classes for release and drives in scripts/gate/ci-shard.sh so release plans exclude pty suites and the drives plan includes them')
 } finally {
   rmSync(work, { recursive: true, force: true })
 }

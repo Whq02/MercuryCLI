@@ -22,10 +22,10 @@ await import(`${root}/src/services/resources/registry.ts`)
 const { liveModelsReferenceText } = await import(`${root}/src/services/resources/adapters/models.ts`)
 let checks = 0
 let failures = 0
-const check = (label: string, pass: boolean, detail: string): void => {
+const check = (label: string, pass: boolean, detail: string, hint?: string): void => {
   checks++
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}: ${detail}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}: ${detail}${!pass && hint ? ` | ${hint}` : ''}`)
 }
 for (const [model, window, gauge, reference] of [
   ['local/fixture', 32768, '32k', '32k'],
@@ -39,10 +39,10 @@ for (const [model, window, gauge, reference] of [
   publishContextUsage(25, window, 80)
   const report = await runHealthReport({ depth: 'fast' })
   const context = report.sections.flatMap((section: { checks: { id: string; evidence: string }[] }) => section.checks).find((row: { id: string }) => row.id === 'context')
-  check(`${model}, ${window}: health's Context & resume`, context?.evidence.startsWith(`context 25% of ${gauge} ·`), context?.evidence ?? '(absent)')
+  check(`${model}, ${window}: health's Context & resume`, context?.evidence.startsWith(`context 25% of ${gauge} ·`), context?.evidence ?? '(absent)', 'fix the context gauge window label in the Context & resume row of src/services/health/sections/memory.ts so it names the published window for this model')
   const text = liveModelsReferenceText({ readAt: 'fixture', providers: [{ provider: model.startsWith('local/') ? 'local' : 'anthropic', providerName: 'Fixture', account: 'fixture', list: { kind: 'static', words: 'fixture' }, models: [{ id: model, displayName: model, contextWindow: window }] }], notSignedIn: [] })
   const row = text.split('\n').find((line: string) => line.startsWith(`  ${model}  `)) ?? '(absent)'
-  check(`${model}, ${window}: mercury://models`, row === `  ${model}  ${reference} window`, row)
+  check(`${model}, ${window}: mercury://models`, row === `  ${model}  ${reference} window`, row, 'fix windowWords in src/services/resources/adapters/models.ts so the mercury://models row names the same window label')
 }
 const { DaemonSessionConnector } = await import(`${root}/src/services/engine-connector/daemonConnector.ts`)
 const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import(`${root}/src/services/engine-connector/focusedConnector.ts`)
@@ -57,7 +57,7 @@ for (const [focused, engine, window, gauge] of [
   publishContextUsage(25, window, 80)
   const report = await runHealthReport({ depth: 'fast' })
   const context = report.sections.flatMap((section: { checks: { id: string; evidence: string }[] }) => section.checks).find((row: { id: string }) => row.id === 'context')
-  check(`a focused session on ${focused} while the default is ${engine}, ${window}: health's Context & resume`, context?.evidence.startsWith(`context 25% of ${gauge} ·`), context?.evidence ?? '(absent)')
+  check(`a focused session on ${focused} while the default is ${engine}, ${window}: health's Context & resume`, context?.evidence.startsWith(`context 25% of ${gauge} ·`), context?.evidence ?? '(absent)', 'the Context & resume row in src/services/health/sections/memory.ts must read the focused session model window, not the default engine model')
   releaseFocusedSessionConnector()
 }
 setEngineModelOverride(null)

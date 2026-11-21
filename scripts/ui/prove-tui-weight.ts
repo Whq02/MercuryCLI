@@ -2,8 +2,8 @@
 import { join } from 'node:path'
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', failHint = ''): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && failHint ? ' — ' + failHint : ''}`)
   if (!cond) failures++
 }
 
@@ -23,14 +23,14 @@ console.log('============================================================')
   })
   tail.subscribe(() => sinks++)
   tail.update(() => '')
-  check('the live tail opening publishes immediately', sinks === 1)
+  check('the live tail opening publishes immediately', sinks === 1, '', 'the first update of createStreamingTailStore in src/utils/messages/streamingTailStore.ts must notify subscribers at once')
   for (let i = 0; i < 100; i++) tail.update(cur => (cur ?? '') + 'x')
-  check('the storm coalesces behind one trailing publish', sinks === 1 && pending !== null)
-  check('the live tail stays ref-fresh during the storm', tail.read() === 'x'.repeat(100))
+  check('the storm coalesces behind one trailing publish', sinks === 1 && pending !== null, '', 'update in createStreamingTailStore (src/utils/messages/streamingTailStore.ts) must hold later updates behind one scheduled trailing publish instead of notifying per update')
+  check('the live tail stays ref-fresh during the storm', tail.read() === 'x'.repeat(100), '', 'read in createStreamingTailStore (src/utils/messages/streamingTailStore.ts) must return the latest value even while the publish is held back')
   ;(pending as (() => void) | null)?.()
-  check('the trailing publish carries the complete value', sinks === 2 && tail.getSnapshot() === tail.read())
+  check('the trailing publish carries the complete value', sinks === 2 && tail.getSnapshot() === tail.read(), '', 'the trailing publish in createStreamingTailStore (src/utils/messages/streamingTailStore.ts) must notify once more and make getSnapshot equal read')
   tail.update(() => null)
-  check('settlement clears immediately and retains the final text', sinks === 3 && tail.getSnapshot() === null && tail.readSettled() === 'x'.repeat(100))
+  check('settlement clears immediately and retains the final text', sinks === 3 && tail.getSnapshot() === null && tail.readSettled() === 'x'.repeat(100), '', 'updating the tail to null in createStreamingTailStore (src/utils/messages/streamingTailStore.ts) must notify at once, clear the snapshot and keep the final text in readSettled')
   tail.dispose()
 }
 {
@@ -47,12 +47,12 @@ console.log('============================================================')
         ((updater: Update['updater'], opts?: Update['opts']) => { updates.push({ updater, opts }) }) as never,
       )
     drive({ type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: '{"a":' } })
-    check('input_json_delta routes through the silent path', updates.length === 1 && updates[0]!.opts?.silent === true, JSON.stringify(updates[0]?.opts))
+    check('input_json_delta routes through the silent path', updates.length === 1 && updates[0]!.opts?.silent === true, JSON.stringify(updates[0]?.opts), 'the input_json_delta branch of handleMessageFromStream in src/utils/messages/streaming.ts must pass { silent: true } to the tool-use updater')
     drive({ type: 'message_stop' })
     const empty: never[] = []
     const cleared = updates[updates.length - 1]!.updater(empty)
-    check('message_stop clear is identity when already empty', updates.length === 2 && cleared === empty)
-    check('message_stop clear empties a populated list', updates[1]!.updater([{ index: 0 }] as never) !== empty && (updates[1]!.updater([{ index: 0 }] as never) as unknown[]).length === 0)
+    check('message_stop clear is identity when already empty', updates.length === 2 && cleared === empty, '', 'the message_stop case of handleMessageFromStream in src/utils/messages/streaming.ts must queue one update whose updater returns an already empty list unchanged')
+    check('message_stop clear empties a populated list', updates[1]!.updater([{ index: 0 }] as never) !== empty && (updates[1]!.updater([{ index: 0 }] as never) as unknown[]).length === 0, '', 'the clearTools updater used by the message_stop case in src/utils/messages/streaming.ts must return an empty list for a populated one')
   }
 }
 
@@ -80,8 +80,9 @@ console.log('============================================================')
     'live tail receipt keeps ONE identity as messages append',
     tail1 !== undefined && tail2 !== undefined && tail1.uuid === tail2.uuid,
     `${tail1?.uuid} vs ${tail2?.uuid}`,
+    'injectTurnReceipts in src/utils/cockpit/turnReceipt.ts must build the live receipt uuid from the turn boundary uuid only, not from how many messages follow it',
   )
-  check('the identity derives from the turn boundary', tail1?.uuid === 'u1-turn-receipt')
+  check('the identity derives from the turn boundary', tail1?.uuid === 'u1-turn-receipt', '', 'injectTurnReceipts in src/utils/cockpit/turnReceipt.ts must name the receipt as the boundary uuid followed by -turn-receipt')
   const twoTurns = [
     boundary('u1', 'first'),
     toolUse('a1'),
@@ -94,6 +95,7 @@ console.log('============================================================')
     'each turn owns its receipt identity',
     receipts.length === 2 && receipts[0] === 'u1-turn-receipt' && receipts[1] === 'u2-turn-receipt',
     receipts.join(', '),
+    'injectTurnReceipts in src/utils/cockpit/turnReceipt.ts must emit one receipt per turn boundary, each named from its own boundary uuid',
   )
   delete process.env.MERCURY_TURN_RECEIPT
 }

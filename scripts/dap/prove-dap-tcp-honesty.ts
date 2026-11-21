@@ -8,8 +8,8 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(path.join(tmpdir(), 'dap-tcp-honest
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' — ' + hint : ''}`)
   if (!cond) failures++
 }
 
@@ -57,13 +57,15 @@ check(
   "the failure names the TRANSPORT: 'adapter never opened 127.0.0.1:<port>'",
   /adapter never opened 127\.0\.0\.1:\d+/.test(outcome),
   outcome.slice(0, 160),
+  'the tcp dial in src/services/dap/client/wire.ts must throw adapter never opened <host>:<port> when the adapter never listens',
 )
 check(
   'the generic protocol timeout never wins the race',
   !/initialize timed out/.test(outcome),
   outcome.slice(0, 120),
+  'the tcp dial deadline in src/services/dap/client/wire.ts must fire before the generic request timeout',
 )
-check(`the transport verdict lands inside the request window (${elapsed}ms < 8000ms)`, elapsed < 8000, String(elapsed))
+check(`the transport verdict lands inside the request window (${elapsed}ms < 8000ms)`, elapsed < 8000, String(elapsed), 'shorten the tcp dial deadline in src/services/dap/client/wire.ts or the start path in src/services/dap/client/start.ts so the transport verdict lands inside 8000ms')
 
 console.log(failures === 0 ? '\nprove-dap-tcp-honesty: all green' : `\nprove-dap-tcp-honesty: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -6,9 +6,9 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` -- ${hint}` : ''}`)
 }
 const ping = (path: string): Promise<string> =>
   new Promise(resolve => {
@@ -61,8 +61,8 @@ if (process.platform === 'win32') {
   }
   await new Promise(resolve => setTimeout(resolve, 200))
 
-  check('the start does not take over the name another process holds', outcome !== 'listening', outcome)
-  check('the start makes no connection to the process that holds the name', connections === 0, `${connections} connection(s)`)
+  check('the start does not take over the name another process holds', outcome !== 'listening', outcome, 'startControlServer in src/daemon/controlServer.ts listened on a pipe name another process holds; on Windows it must fail and not take the name over')
+  check('the start makes no connection to the process that holds the name', connections === 0, `${connections} connection(s)`, 'startControlServer in src/daemon/controlServer.ts connected to the process holding the pipe name; it must not probe or connect to it on Windows')
 
   await new Promise<void>(resolve => holder.close(() => resolve()))
 } else {
@@ -79,7 +79,7 @@ if (process.platform === 'win32') {
       return false
     }
   }
-  check('a listener killed without cleanup left its socket file on the control path', stale(sock), sock)
+  check('a listener killed without cleanup left its socket file on the control path', stale(sock), sock, 'the setup here did not leave a stale socket file at controlSockPath() (src/daemon/controlSocket.ts); the fixture killing a listener with SIGKILL is not working')
 
   const bareStale = stale(bare)
   const bareProbe = spawnSync('node', ['-e', [
@@ -88,7 +88,7 @@ if (process.platform === 'win32') {
     "server.listen(process.argv[1], () => server.close(() => { console.log('listening'); process.exit(1) }))",
   ].join('\n'), bare], { encoding: 'utf8', timeout: 30_000 })
   const bareOutcome = bareProbe.stdout?.trim() || bareProbe.error?.message || bareProbe.stderr?.trim() || `exit ${bareProbe.status}`
-  check('Node refuses a bare listen over a stale socket file, so the path frees only by an unlink first', bareStale && bareProbe.status === 0 && bareOutcome === 'EADDRINUSE', bareOutcome)
+  check('Node refuses a bare listen over a stale socket file, so the path frees only by an unlink first', bareStale && bareProbe.status === 0 && bareOutcome === 'EADDRINUSE', bareOutcome, 'the fixture premise failed: Node should refuse a bare listen over a stale socket file with EADDRINUSE; check the stale socket setup above this check')
 
   let outcome = 'listening'
   let reply = ''
@@ -99,8 +99,8 @@ if (process.platform === 'win32') {
   } catch (error) {
     outcome = (error as NodeJS.ErrnoException).code ?? String(error)
   }
-  check('the start unlinks the stale socket file and listens on its path', outcome === 'listening', outcome)
-  check('the control path answers the new server', reply.includes('"op":"ping"'), reply.trim() || 'no reply')
+  check('the start unlinks the stale socket file and listens on its path', outcome === 'listening', outcome, 'startControlServer in src/daemon/controlServer.ts must remove a stale socket file before listening; check removeStaleSocket there')
+  check('the control path answers the new server', reply.includes('"op":"ping"'), reply.trim() || 'no reply', 'a ping sent to the path controlSockPath() names got no reply with op ping; check the ping handling and listen path in startControlServer (src/daemon/controlServer.ts)')
 
   try {
     rmSync(sock, { force: true })

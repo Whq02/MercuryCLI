@@ -11,8 +11,8 @@ await import('../../src/Tool.ts')
 const { resolveAgentTools } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' — ' + hint : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -33,6 +33,7 @@ section('§1 THE NARROWING LAW')
     declared.resolvedTools.length === 2 &&
       declared.resolvedTools.every(t => ['Read', 'Grep'].includes((t as { name: string }).name)),
     JSON.stringify(declared.resolvedTools.map(t => (t as { name: string }).name)),
+    'fix resolveAgentTools in src/tools/AgentTool/agentToolUtils.ts so a declared tools list keeps only the named tools from the pool',
   )
   const denied = resolveAgentTools({ disallowedTools: ['Write'], source: 'user' } as never, pool as never)
   check(
@@ -40,6 +41,7 @@ section('§1 THE NARROWING LAW')
     !denied.resolvedTools.some(t => (t as { name: string }).name === 'Write') &&
       denied.resolvedTools.some(t => (t as { name: string }).name === 'Read'),
     JSON.stringify(denied.resolvedTools.map(t => (t as { name: string }).name)),
+    'fix resolveAgentTools in src/tools/AgentTool/agentToolUtils.ts so each disallowedTools entry is removed and the rest of the pool stays',
   )
 }
 
@@ -51,13 +53,14 @@ section('§3 THE SCOUT CONTROL')
     check('scout definition readable (export shape known)', true)
   } else {
     const scout = (getBuiltInAgents() as Array<{ agentType: string; tools?: string[] }>).find(a => a.agentType === 'mercury-scout')
-    check('mercury-scout exists', scout !== undefined)
+    check('mercury-scout exists', scout !== undefined, '', 'getBuiltInAgents in src/tools/AgentTool/builtInAgents.ts must return MERCURY_SCOUT_AGENT (src/tools/AgentTool/built-in/mercuryScoutAgent.ts) with agentType mercury-scout')
     if (scout) {
       const narrowed = resolveAgentTools(scout as never, pool as never)
       check(
         "the scout's dispatched pool carries NO editing tool",
         !narrowed.resolvedTools.some(t => ['Write', 'Edit'].includes((t as { name: string }).name)),
         JSON.stringify(narrowed.resolvedTools.map(t => (t as { name: string }).name)),
+        'keep Write and Edit in the disallowedTools of src/tools/AgentTool/built-in/mercuryScoutAgent.ts and make resolveAgentTools in src/tools/AgentTool/agentToolUtils.ts apply it',
       )
     }
   }

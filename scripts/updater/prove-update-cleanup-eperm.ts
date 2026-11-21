@@ -19,10 +19,10 @@ const DEAD = 4242421
 
 let passed = 0
 let failed = 0
-const check = (label: string, ok: boolean, detail = ''): void => {
+const check = (label: string, ok: boolean, detail = '', hint = ''): void => {
   if (ok) passed++
   else failed++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail === '' ? '' : ` — ${detail}`}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail === '' ? '' : ` — ${detail}`}${!ok && hint !== '' ? ` — ${hint}` : ''}`)
 }
 const read = (path: string): string => (existsSync(path) ? readFileSync(path, 'utf8') : '')
 const describe = (value: unknown): string => (value instanceof Error ? value.message.slice(0, 160) : String(JSON.stringify(value)).slice(0, 240))
@@ -113,6 +113,7 @@ console.log('§1 with nothing in use, the cleanup removes what it always removed
     'a same-version reinstall with new bytes reports installed, promotes them and removes the displaced copy',
     out.state === 'installed' && out.changed === true && !existsSync(parked) && read(join(roots.versionsDir, version, 'mercury.mjs')).includes('second'),
     describe(out),
+    'fix installPayload in src/services/privateChannel/installLayout.ts so a same-version reinstall promotes the new bytes and deletes the displaced .replaced- copy',
   )
   const residue = `.download-${DEAD}`
   mkdirSync(join(roots.versionsDir, residue), { recursive: true })
@@ -122,6 +123,7 @@ console.log('§1 with nothing in use, the cleanup removes what it always removed
     'the sweep removes a dead updater\'s residue and reports it',
     thrown === null && report !== null && report.removed.includes(residue) && !existsSync(join(roots.versionsDir, residue)),
     describe(thrown ?? report),
+    'fix sweepUpdaterResidue in src/services/privateChannel/installLayout.ts so it deletes and lists the residue of a dead updater without throwing',
   )
 }
 
@@ -139,12 +141,12 @@ console.log(
   const parked = join(roots.versionsDir, `.replaced-${version}-${process.pid}`)
   const promoted = read(join(roots.versionsDir, version, 'mercury.mjs')).includes('second')
   if (IS_WINDOWS) {
-    check('a program runs from the installed version', holder.running)
-    check('the promoted install reports installed, not failed, while its displaced copy cannot be deleted yet', out.state === 'installed' && out.changed === true, describe(out))
-    check('the new bytes are the ones in the version directory', promoted)
-    check('the displaced copy is left parked, the running program in it, for a later sweep', existsSync(join(parked, 'vendor', 'node', 'node.exe')))
+    check('a program runs from the installed version', holder.running, '', 'the holder program in holdInUse of this script did not start or exited early; the scenario cannot be exercised')
+    check('the promoted install reports installed, not failed, while its displaced copy cannot be deleted yet', out.state === 'installed' && out.changed === true, describe(out), 'installPayload in src/services/privateChannel/installLayout.ts must keep the installed verdict when the displaced copy cannot be deleted')
+    check('the new bytes are the ones in the version directory', promoted, '', 'installPayload in src/services/privateChannel/installLayout.ts must promote the new payload into the version directory')
+    check('the displaced copy is left parked, the running program in it, for a later sweep', existsSync(join(parked, 'vendor', 'node', 'node.exe')), '', 'installPayload in src/services/privateChannel/installLayout.ts must leave the displaced .replaced- copy parked when its delete fails')
   } else {
-    check('the install reports installed, promotes the new bytes and removes the displaced copy', out.state === 'installed' && out.changed === true && promoted && !existsSync(parked), describe(out))
+    check('the install reports installed, promotes the new bytes and removes the displaced copy', out.state === 'installed' && out.changed === true && promoted && !existsSync(parked), describe(out), 'fix installPayload in src/services/privateChannel/installLayout.ts so it promotes the new bytes and removes the displaced copy')
   }
   await holder.release()
 }
@@ -163,12 +165,12 @@ console.log(
   const { report, thrown } = sweep(roots)
   const gone = (entry: string): boolean => report !== null && report.removed.includes(entry) && !existsSync(join(roots.versionsDir, entry))
   if (IS_WINDOWS) {
-    check('a program runs from a dead updater\'s parked copy', holder.running)
-    check('the sweep returns instead of throwing out of the update', thrown === null, describe(thrown))
-    check('the parked copy still in use is left in place and not reported removed', report !== null && !report.removed.includes(stuck) && existsSync(join(roots.versionsDir, stuck)), describe(report))
-    check('the sweep goes on past it: the residue before and after it is removed and reported', gone(before) && gone(after), describe(report))
+    check('a program runs from a dead updater\'s parked copy', holder.running, '', 'the holder program in holdInUse of this script did not start or exited early; the scenario cannot be exercised')
+    check('the sweep returns instead of throwing out of the update', thrown === null, describe(thrown), 'sweepUpdaterResidue in src/services/privateChannel/installLayout.ts must catch a failed delete instead of throwing')
+    check('the parked copy still in use is left in place and not reported removed', report !== null && !report.removed.includes(stuck) && existsSync(join(roots.versionsDir, stuck)), describe(report), 'sweepUpdaterResidue in src/services/privateChannel/installLayout.ts must leave a residue it cannot delete and not list it as removed')
+    check('the sweep goes on past it: the residue before and after it is removed and reported', gone(before) && gone(after), describe(report), 'sweepUpdaterResidue in src/services/privateChannel/installLayout.ts must continue to the next residue after one delete fails')
   } else {
-    check('every dead residue is removed and reported, the one with an open file inside as well', thrown === null && gone(before) && gone(stuck) && gone(after), describe(thrown ?? report))
+    check('every dead residue is removed and reported, the one with an open file inside as well', thrown === null && gone(before) && gone(stuck) && gone(after), describe(thrown ?? report), 'fix sweepUpdaterResidue in src/services/privateChannel/installLayout.ts so it removes and lists every dead residue')
   }
   await holder.release()
   if (IS_WINDOWS) {
@@ -177,6 +179,7 @@ console.log(
       'once the program has gone, the next sweep removes the parked copy',
       next.report !== null && next.report.removed.includes(stuck) && !existsSync(join(roots.versionsDir, stuck)),
       describe(next.thrown ?? next.report),
+      'sweepUpdaterResidue in src/services/privateChannel/installLayout.ts must remove the parked copy once no program runs from it',
     )
   }
 }
@@ -194,6 +197,7 @@ if (IS_WINDOWS) {
       'an EPERM that never clears on the displaced copy keeps the installed verdict and parks the copy',
       out.state === 'installed' && existsSync(join(roots.versionsDir, `.replaced-${version}-${process.pid}`)),
       describe(out),
+      'installPayload in src/services/privateChannel/installLayout.ts must keep the installed verdict and park the copy when removeWithRetry gives up at displaced-rm',
     )
   }
   {
@@ -207,6 +211,7 @@ if (IS_WINDOWS) {
       'EPERM twice, then clear: the bounded retry removes the displaced copy',
       out.state === 'installed' && !existsSync(join(roots.versionsDir, `.replaced-${version}-${process.pid}`)),
       describe(out),
+      'removeWithRetry in src/services/privateChannel/installLayout.ts must retry the displaced-rm delete until the EPERM clears',
     )
   }
   {
@@ -220,6 +225,7 @@ if (IS_WINDOWS) {
       'an EPERM that never clears on a residue leaves it for the next sweep, unreported, without throwing',
       thrown === null && report !== null && !report.removed.includes(residue) && existsSync(join(roots.versionsDir, residue)),
       describe(thrown ?? report),
+      'sweepUpdaterResidue in src/services/privateChannel/installLayout.ts must leave a residue whose delete keeps failing at sweep-rm, unreported and without throwing',
     )
   }
 }

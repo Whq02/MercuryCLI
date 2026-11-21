@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' — ' + hint : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -64,7 +64,7 @@ section('§1 COMPILE CACHE (synthetic 20MB ESM, the STATE.md §4 recipe)')
 
   const t1 = runOnce()
   const after1 = cacheFiles()
-  check(`run 1 populated the cache dir (${sizeMb}MB module)`, after1.length >= 1 && after1.some(f => f.size > 0), `${after1.length} file(s)`)
+  check(`run 1 populated the cache dir (${sizeMb}MB module)`, after1.length >= 1 && after1.some(f => f.size > 0), `${after1.length} file(s)`, 'node did not write a compile cache for the synthetic module: check that this node is 22.1 or later and that NODE_COMPILE_CACHE points at a writable directory')
 
   const t2 = runOnce()
   const after2 = cacheFiles()
@@ -73,6 +73,7 @@ section('§1 COMPILE CACHE (synthetic 20MB ESM, the STATE.md §4 recipe)')
     after2.length === after1.length &&
       after2.every((f, i) => f.name === after1[i]!.name && f.mtimeMs === after1[i]!.mtimeMs),
     `files ${after1.length}→${after2.length}`,
+    'the second run rewrote or added cache files: check that NODE_COMPILE_CACHE is stable between runs and that nothing else touches the cache directory',
   )
   console.log(
     `  [info] cold ${Math.round(t1)}ms → cached ${Math.round(t2)}ms (informational — the field delta was ≈689ms parse/boot on the HDD host)`,
@@ -106,20 +107,21 @@ section('§2 PERSISTED-RULE CAP (mega-command approvals stay session-scoped)')
     'a ~1KB allow rule reports success but persists NOTHING (session-scoped)',
     megaOk === true && !settingsRaw().includes('xxxxxxxxxx'),
     `settings ${settingsRaw().length} bytes`,
+    'change addPermissionRulesToSettings in src/utils/permissions/permissionsLoader.ts so an allow rule longer than MAX_PERSISTED_ALLOW_RULE_LENGTH is skipped on disk and the call still returns true',
   )
-  check('the cap is declared and generous for real patterns', MAX_PERSISTED_ALLOW_RULE_LENGTH >= small.length * 2)
+  check('the cap is declared and generous for real patterns', MAX_PERSISTED_ALLOW_RULE_LENGTH >= small.length * 2, '', 'raise MAX_PERSISTED_ALLOW_RULE_LENGTH in src/utils/permissions/permissionsLoader.ts to at least twice the length of an ordinary rule')
 
   addPermissionRulesToSettings(
     { ruleValues: [{ toolName: 'Bash', ruleContent: 'npm run build *' }], ruleBehavior: 'allow' },
     'userSettings',
   )
-  check('a genuine reusable pattern persists', settingsRaw().includes('npm run build *'))
+  check('a genuine reusable pattern persists', settingsRaw().includes('npm run build *'), '', 'addPermissionRulesToSettings in src/utils/permissions/permissionsLoader.ts must write an allow rule within the cap to the settings file')
 
   addPermissionRulesToSettings(
     { ruleValues: [{ toolName: 'Bash', ruleContent: 'y'.repeat(1024) }], ruleBehavior: 'deny' },
     'userSettings',
   )
-  check('an oversized DENY still persists (safety-positive, exempt from the cap)', settingsRaw().includes('yyyyyyyyyy'))
+  check('an oversized DENY still persists (safety-positive, exempt from the cap)', settingsRaw().includes('yyyyyyyyyy'), '', 'the length cap in addPermissionRulesToSettings (src/utils/permissions/permissionsLoader.ts) must apply to the allow behavior only')
 
   const mixed = addPermissionRulesToSettings(
     {
@@ -134,6 +136,8 @@ section('§2 PERSISTED-RULE CAP (mega-command approvals stay session-scoped)')
   check(
     'a mixed batch persists the small rule and skips the mega one',
     mixed === true && settingsRaw().includes('git status') && !settingsRaw().includes('zzzzzzzzzz'),
+    '',
+    'addPermissionRulesToSettings in src/utils/permissions/permissionsLoader.ts must drop only the oversized allow rules of a batch and persist the rest',
   )
   rmSync(HOME, { recursive: true, force: true })
 }
@@ -143,11 +147,11 @@ section('§3 THE LONG-HOME GUARD — a 224-char Windows home never starts withou
   const { compileCacheDirUsable, WIN32_COMPILE_CACHE_DIR_MAX } = await import('../../src/utils/runtime/compileCachePath.ts')
   const home = 'C:\\Users\\op\\' + 'x'.repeat(224 - 'C:\\Users\\op\\'.length)
   const cacheDir = home + '\\compile-cache'
-  check('the field shape (a 224-char home) is refused on win32', compileCacheDirUsable(cacheDir, 'win32') === false, String(cacheDir.length))
-  check('a short win32 home is usable', compileCacheDirUsable('C:\\Users\\op\\.mercury\\compile-cache', 'win32') === true)
-  check('the bound is inclusive at the constant', compileCacheDirUsable('C'.repeat(WIN32_COMPILE_CACHE_DIR_MAX), 'win32') === true && compileCacheDirUsable('C'.repeat(WIN32_COMPILE_CACHE_DIR_MAX + 1), 'win32') === false)
-  check('an extended-length spelling opts out of the bound', compileCacheDirUsable('\\\\?\\' + 'C:\\' + 'y'.repeat(300), 'win32') === true)
-  check('off win32 the guard never refuses', compileCacheDirUsable('/' + 'z'.repeat(400), 'darwin') === true && compileCacheDirUsable('/' + 'z'.repeat(400), 'linux') === true)
+  check('the field shape (a 224-char home) is refused on win32', compileCacheDirUsable(cacheDir, 'win32') === false, String(cacheDir.length), 'compileCacheDirUsable in src/utils/runtime/compileCachePath.ts must return false on win32 for a directory longer than WIN32_COMPILE_CACHE_DIR_MAX')
+  check('a short win32 home is usable', compileCacheDirUsable('C:\\Users\\op\\.mercury\\compile-cache', 'win32') === true, '', 'compileCacheDirUsable in src/utils/runtime/compileCachePath.ts must accept a win32 directory of at most WIN32_COMPILE_CACHE_DIR_MAX characters')
+  check('the bound is inclusive at the constant', compileCacheDirUsable('C'.repeat(WIN32_COMPILE_CACHE_DIR_MAX), 'win32') === true && compileCacheDirUsable('C'.repeat(WIN32_COMPILE_CACHE_DIR_MAX + 1), 'win32') === false, '', 'compileCacheDirUsable in src/utils/runtime/compileCachePath.ts must compare the length with <= WIN32_COMPILE_CACHE_DIR_MAX')
+  check('an extended-length spelling opts out of the bound', compileCacheDirUsable('\\\\?\\' + 'C:\\' + 'y'.repeat(300), 'win32') === true, '', 'compileCacheDirUsable in src/utils/runtime/compileCachePath.ts must return true for a path that starts with the extended-length prefix')
+  check('off win32 the guard never refuses', compileCacheDirUsable('/' + 'z'.repeat(400), 'darwin') === true && compileCacheDirUsable('/' + 'z'.repeat(400), 'linux') === true, '', 'compileCacheDirUsable in src/utils/runtime/compileCachePath.ts must return true whenever the platform is not win32')
 }
 
 section('§4 THE EXPORT TO CHILDREN — the API never sets the env; the boot seam does')
@@ -169,8 +173,8 @@ section('§4 THE EXPORT TO CHILDREN — the API never sets the env; the boot sea
     const child = ${childProbe};
     console.log(JSON.stringify({ enabled: r.status === m.constants.compileCacheStatus.ENABLED, envAfterEnable: process.env.NODE_COMPILE_CACHE ?? null, childSees: child }))
   `)
-  check('the runtime enables the cache in-process', before.enabled === true, JSON.stringify(before))
-  check('BEFORE: enableCompileCache never exports NODE_COMPILE_CACHE — the child of an env-less boot sees nothing', before.envAfterEnable === null && before.childSees === '', JSON.stringify(before))
+  check('the runtime enables the cache in-process', before.enabled === true, JSON.stringify(before), 'module.enableCompileCache did not report ENABLED in this node: use a node that supports the compile cache')
+  check('BEFORE: enableCompileCache never exports NODE_COMPILE_CACHE — the child of an env-less boot sees nothing', before.envAfterEnable === null && before.childSees === '', JSON.stringify(before), 'this node now exports NODE_COMPILE_CACHE itself on enable: the boot seam that exports it to children may no longer be needed')
   const after = probe(`
     const m = require('node:module'); const cp = require('node:child_process');
     const r = m.enableCompileCache(process.argv[1]);
@@ -178,7 +182,7 @@ section('§4 THE EXPORT TO CHILDREN — the API never sets the env; the boot sea
     const child = ${childProbe};
     console.log(JSON.stringify({ exported: process.env.NODE_COMPILE_CACHE ?? null, childSees: child }))
   `)
-  check('AFTER: the export hands the child the directory the enable took', typeof after.childSees === 'string' && after.childSees !== '' && after.childSees === after.exported, JSON.stringify(after))
+  check('AFTER: the export hands the child the directory the enable took', typeof after.childSees === 'string' && after.childSees !== '' && after.childSees === after.exported, JSON.stringify(after), 'a child process did not inherit the directory that enableCompileCache took: the boot code must set process.env.NODE_COMPILE_CACHE to that directory after a successful enable')
   console.log(`  BEFORE: children of an env-less boot inherit no compile cache (every self-spawn re-parses the bundle) · AFTER: they inherit ${String(after.childSees)}`)
   rmSync(SCRATCH, { recursive: true, force: true })
 }
