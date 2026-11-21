@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpath
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { type AvailableCaptureDriver, captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
 const DIST = path.join(REPO, 'dist/mercury.mjs')
@@ -284,7 +285,7 @@ async function driveScene(route: 'openai' | 'anthropic', driver: AvailableCaptur
   const model = route === 'openai' ? 'gpt-5.6-sol' : 'claude-opus-4-8'
   const out = path.join(RUN_HOME, 'grid.json')
   const sends: Array<Record<string, unknown>> = [
-    { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${ASK}\r` },
     { requireAwait: true, minTick: 5, awaitText: FIRST_WORDS, awaitSettleTicks: 1, data: '\x1b', mark: 'first-delta' },
     { requireAwait: true, minTick: 3, awaitText: INTERRUPT_ROW, awaitSettleTicks: 3, data: `${SECOND_ASK}\r`, mark: 'interrupted' },
