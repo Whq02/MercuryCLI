@@ -1,7 +1,7 @@
 
 import { basename, join } from 'node:path'
 import { homedir } from 'node:os'
-import { closeSync, existsSync, openSync, readSync, readdirSync, statSync } from 'node:fs'
+import { readdirSync, statSync } from 'node:fs'
 import { defineStore } from '../../substrate/fileStore.js'
 import { workerTranscriptPath } from './workerTranscript.js'
 import { recordToEntry } from '../../fabric/entryCodec.js'
@@ -27,6 +27,7 @@ import {
   type ProjectIdentity,
 } from '../../utils/bootCardFacts.js'
 import { extractFirstPromptFromHead, getProjectDir, isTranscriptFileName, LITE_READ_BUF_SIZE } from '../../utils/sessionStoragePortable.js'
+import { historyHead, historyRange } from '../../utils/sessionStorage/historyParts.js'
 import type { ConcourseElsewhereV1, ConcourseRowV1, ConcourseSnapshotV1 } from '../../components/concourse/contracts.js'
 import { ELSEWHERE_CAP, elsewhereLine, projectActivity } from './projectActivity.js'
 import { sessionTitleOf } from './sessionNaming.js'
@@ -91,17 +92,11 @@ function entryShapeOf(entry: unknown): { type?: unknown; message?: { content?: u
 
 function transcriptWindowLines(rec: { sessionId: string; workspaceId: string }, span: number, from: 'head' | 'tail'): string[] | null {
   const path = workerTranscriptPath(rec)
-  if (!existsSync(path)) return null
-  const size = statSync(path).size
+  const extent = historyHead(path)
+  const size = extent.before + extent.end - extent.start
   if (size === 0) return null
   const take = Math.min(size, span)
-  const buf = Buffer.alloc(take)
-  const fd = openSync(path, 'r')
-  try {
-    readSync(fd, buf, 0, take, from === 'head' ? 0 : size - take)
-  } finally {
-    closeSync(fd)
-  }
+  const buf = from === 'head' ? historyRange(extent, 0, take) : historyRange(extent, size - take, size)
   return buf.toString('utf8').split('\n')
 }
 
