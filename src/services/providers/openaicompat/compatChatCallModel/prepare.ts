@@ -28,7 +28,7 @@ import {
   healWalkableForWire,
 } from '../../../../utils/messages.js'
 import { resolveEffortTruth, resolveWireRequestedEffort, type EffortValue } from '../../../../utils/effort.js'
-import { floorEffort } from '../../../../utils/model/utilityModel.js'
+import { floorEffort } from '../../../model/utilityModel.js'
 import { effortStampOf, type EffortStampV1 } from '../../../../utils/effortStamp.js'
 import { compatEffortWireFact } from '../compatWire.js'
 import { operatorModelFacts } from '../../../../utils/model/modelOverrides.js'

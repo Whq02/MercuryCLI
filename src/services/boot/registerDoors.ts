@@ -1,5 +1,6 @@
 import { registerDefaultProviderCapabilities } from '../providers/registerCapabilities.js'
 import { registerOtherBuildAliveDoor } from '../../daemon/otherBuilds.js'
+import { registerDefaultModelHookRunners } from '../hooks/registerRunners.js'
 import { registerDefaultTranscriptProjector } from '../sessionStorage/registerTranscriptProjector.js'
 
 let booted = false
@@ -9,5 +10,6 @@ export function registerBootDoors(): void {
   booted = true
   registerDefaultProviderCapabilities()
   registerOtherBuildAliveDoor()
+  registerDefaultModelHookRunners()
   registerDefaultTranscriptProjector()
 }

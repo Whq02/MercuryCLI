@@ -26,7 +26,7 @@ import {
   getDefaultSonnetModel,
   normalizeModelStringForAPI,
 } from '../../../utils/model/model.js'
-import { utilityCallFor } from '../../../utils/model/utilityModel.js'
+import { utilityCallFor } from '../../model/utilityModel.js'
 import { declaredRouteOf } from '../routeLaw.js'
 import { jsonStringify } from '../../../utils/slowOperations.js'
 import { currentLimits } from '../../anthropicLimits.js'

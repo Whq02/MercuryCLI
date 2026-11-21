@@ -562,7 +562,7 @@ section("§9 the judge's answer is read strictly: one JSON object, a known verdi
   }
   const { judgeWithModel, modelRoadOpen, JUDGE_UNREACHABLE } = judgeModule!
   const { setEngineModelOverride } = await import('../../src/bootstrap/state.ts')
-  const { utilityCallFor } = await import('../../src/utils/model/utilityModel.ts')
+  const { utilityCallFor } = await import('../../src/services/model/utilityModel.ts')
   setEngineModelOverride('claude-opus-5-5')
   process.env.ANTHROPIC_API_KEY = 'proof-key-not-a-real-key-0106'
   process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'

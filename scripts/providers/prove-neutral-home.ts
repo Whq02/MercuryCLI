@@ -135,7 +135,7 @@ process.env.OPENROUTER_API_KEY = 'sk-or-fixture-sovereign-home'
 seedHome(HOME_MODEL)
 const { getEngineModel } = await import('../../src/utils/model/model.js')
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.js')
-const { utilityCallFor } = await import('../../src/utils/model/utilityModel.js')
+const { utilityCallFor } = await import('../../src/services/model/utilityModel.js')
 {
   const main = getEngineModel()
   check('the main-loop model is the operator\'s OpenRouter free tier', main === HOME_MODEL, main)
