@@ -45,7 +45,7 @@ const cold = gauge.bindRequestGauge(history, requestKey, 0, fixed)
 assert.equal(cold.tokens, fixed.tokens + roughTokenCountEstimationForMessages(history))
 assert.equal(cold.transition, 'cold')
 const first = answer('first', 30000)
-assert.ok(gauge.settleRequestGauge(cold, first))
+assert.ok(gauge.settleRequestGauge(cold, first), 'settleRequestGauge in src/services/run/requestGauge.js must settle cold gauge against first assistant response')
 const result = user('result', [{ type: 'tool_result', tool_use_id: 'next', content: 'data'.repeat(2000) }])
 const next = [...history, first, result]
 const view = gauge.bindRequestGauge(next, requestKey, 0, fixed)
@@ -54,7 +54,7 @@ assert.equal(contextFill(next, 'fixture').tokens, tokenCountWithEstimation(next,
 assert.equal(contextFill(next, 'fixture').tokens, view.tokens)
 const second = answer('second', 34100)
 gauge.settleRequestGauge(view, second)
-assert.ok(Math.abs(second.contextGauge!.density.ratio - 1.2) < 1e-10)
+assert.ok(Math.abs(second.contextGauge!.density.ratio - 1.2) < 1e-10, `settleRequestGauge in src/services/run/requestGauge.js expected density ratio 1.2, got ${second.contextGauge?.density.ratio}`)
 assert.equal(second.contextGauge?.sample.denominator, 2000)
 assert.equal(second.contextGauge?.sample.measured, 4000)
 const restarted = JSON.parse(JSON.stringify([...next, second])) as Message[]
