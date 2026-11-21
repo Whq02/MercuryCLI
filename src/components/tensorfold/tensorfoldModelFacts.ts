@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { useClaim, useLoad, usePublish, useTimer } from '../../hooks/effects.js'
+import { useClaim, useLoad, usePublish } from '../../hooks/effects.js'
 import { pickerFactsOf } from '../../commands/tensorfold/pickerFacts.js'
-import { subscribeTensorFoldRoad, tensorFoldRoadState, tensorFoldRoadVersion } from '../../commands/tensorfold/road.js'
+import { subscribeTensorFoldPods, subscribeTensorFoldRoad, tensorFoldRoadState, tensorFoldRoadVersion } from '../../commands/tensorfold/road.js'
 import { readTensorFoldPanelFacts, type FactsIo, type TensorFoldPanelFacts } from '../../commands/tensorfold/scene.js'
 import { localServerProbingOff } from '../../services/localServer/localServerTruth.js'
 import { getCachedLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
@@ -9,10 +9,6 @@ import type { TensorFoldEngineFound } from '../../services/tensorfold/engine.js'
 import { refreshTensorFoldAnnouncements, subscribeTensorFoldFacts, tensorFoldAnnouncementsNow, tensorFoldFactsStamp, tensorFoldHostsNow } from './tensorfoldFacts.js'
 import type { TensorFoldPickerFacts } from './tensorfoldRows.js'
 import { passedOverAs } from '../../utils/passedOver.js'
-import { startInterval, stopInterval } from '../../utils/timers.js'
-
-const REFRESH_MS = 1_000
-
 type ModelTensorFoldFacts = { panel: TensorFoldPanelFacts; picker: TensorFoldPickerFacts }
 
 export type ModelTensorFold = {
@@ -65,12 +61,12 @@ export function useModelTensorFoldFacts(current: string | undefined, onNotice: (
   useLoad(() => {
     if (!off) void refreshTensorFoldAnnouncements()
   }, [off])
-  const inFlight = facts !== undefined && Object.values(facts.panel.acts).some(act => act.kind === 'pulling' || act.kind === 'starting' || act.kind === 'installing')
-  useTimer(() => {
-    if (!inFlight) return
-    const timer = startInterval(() => void read().catch(passedOverAs(undefined)), REFRESH_MS)
-    return () => stopInterval(timer)
-  }, [inFlight, read])
+  const podStarting = facts !== undefined && facts.panel.pods.some(pod => pod.state === 'starting')
+  const podStopping = facts !== undefined && facts.panel.pods.some(pod => pod.state === 'stopping')
+  useClaim(() => {
+    if (off || (!podStarting && !podStopping)) return
+    return subscribeTensorFoldPods(podStopping, () => { void read().catch(passedOverAs(undefined)) })
+  }, [off, podStarting, podStopping, read])
   const notice = useRef(tensorFoldRoadState().notice)
   usePublish(() => {
     const next = tensorFoldRoadState().notice
