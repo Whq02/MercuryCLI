@@ -237,7 +237,7 @@ try {
     const fixture = await testing.startFixtureServer({ rows: [sessionRow, outcome] })
     let returned = false
     const input: AsyncIterable<string> = { [Symbol.asyncIterator]: () => ({ next: () => new Promise(() => {}), return: async () => { returned = true; return { done: true, value: undefined } } }) }
-    try { await sdk.run({ mercury: fixture.mercury, prompt: input }).outcome; await new Promise(resolve => setImmediate(resolve)); assert(returned) }
+    try { await sdk.run({ mercury: fixture.mercury, prompt: input }).outcome; await new Promise(resolve => setImmediate(resolve)); assert(returned, 'finished MercuryRun did not call return() on pending async input iterator in sdk/src/client.ts') }
     finally { await fixture.close() }
   })
   await check('row 7 steer and follow up preserve priorities', async () => {
@@ -416,7 +416,7 @@ try {
     const source = readFileSync(join(root, 'sdk/src/client.ts'), 'utf8')
     for (const option of sdk.RUN_OPTIONS.filter(option => !option.hidden && !['-d', '--version', '--format'].includes(option.flag))) assert(mappings[option.flag] && source.includes(mappings[option.flag]! + '?:'), option.flag)
     for (const flag of ['--worktree', '--debug', '--reasoning-mode', '--brief-file', '--brief-add-file', '--replay-to', '--restore-files']) assert(args.includes(flag), flag)
-    assert(sdk.argvOf({ mercury: 'fixture', worktree: true, debug: true }).args.includes('--worktree'))
+    assert(sdk.argvOf({ mercury: 'fixture', worktree: true, debug: true }).args.includes('--worktree'), 'argvOf({ worktree: true }) omitted --worktree flag in sdk/src/client.ts')
   })
   await check('row 9 executable discovery and safe command shim', async () => {
     const script = join(scratch, 'entry.cjs')
@@ -588,7 +588,8 @@ await check('item 9 propertyNames validation and reasoning_output_tokens fold on
     try { await session.facts() } finally { await session.close() }
     assert.equal((fixture.received.find(m => m.id === 70)?.error as any)?.message, 'unknown host method not/a_method')
     assert.equal((fixture.received.find(m => m.id === 71)?.error as any)?.message, 'no handler for fs/read_text_file')
-    assert(String((fixture.received.find(m => m.id === 72)?.error as any)?.message).startsWith('invalid host answer: '))
+    const invalidAnswerMsg = String((fixture.received.find(m => m.id === 72)?.error as any)?.message)
+    assert(invalidAnswerMsg.startsWith('invalid host answer: '), `invalid onPermissionRequest answer error did not start with 'invalid host answer: ' in sdk/src/runner.ts: ${invalidAnswerMsg}`)
   } finally { await fixture.close() }
 })
 if (failures) process.exitCode = 1
