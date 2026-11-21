@@ -170,7 +170,7 @@ export function vulcanCheck(): CheckSpec {
     id: 'vulcan',
     label: 'Godot control (VULCAN)',
     run: async () => {
-      const { vulcanEnabled, vulcanLiteMode } = await import('../../../../utils/vulcan/vulcanGates.js')
+      const { vulcanEnabled, vulcanLiteMode } = await import('../../../vulcan/vulcanGates.js')
       if (!vulcanEnabled()) {
         return {
           status: 'off' as const,

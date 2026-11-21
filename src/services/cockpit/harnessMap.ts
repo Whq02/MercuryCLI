@@ -1,15 +1,15 @@
 
-import { dapAdapterProbePending, mercuryDapEnabled, reachableDapAdapterKeys } from '../../services/dap/dapClient.js'
-import { mercuryGodotEnabled } from '../../services/lsp/godotLane.js'
-import { mercuryUnityEnabled } from '../unity/unityProject.js'
-import { locateBlender, mercuryBlenderEnabled } from '../blender/blenderProject.js'
-import { mercuryAsepriteEnabled } from '../aseprite/asepriteApp.js'
+import { dapAdapterProbePending, mercuryDapEnabled, reachableDapAdapterKeys } from '../dap/dapClient.js'
+import { mercuryGodotEnabled } from '../lsp/godotLane.js'
+import { mercuryUnityEnabled } from '../../utils/unity/unityProject.js'
+import { locateBlender, mercuryBlenderEnabled } from '../../utils/blender/blenderProject.js'
+import { mercuryAsepriteEnabled } from '../../utils/aseprite/asepriteApp.js'
 import { getVulcanHarnessMapLine } from '../vulcan/vulcanGates.js'
-import { isSessionMarkedNonInteractive } from './runtimePosture.js'
+import { isSessionMarkedNonInteractive } from '../../utils/cockpit/runtimePosture.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { canAnswerAsks, getSessionKind } from '../../bootstrap/state.js'
-import { passedOver } from '../passedOver.js'
-import { logForDebugging } from '../debug.js'
+import { passedOver } from '../../utils/passedOver.js'
+import { logForDebugging } from '../../utils/debug.js'
 
 export function harnessMapEnabled(): boolean {
   if (!flagEnabled('MERCURY_HARNESS_MAP')) return false

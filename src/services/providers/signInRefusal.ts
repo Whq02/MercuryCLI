@@ -1,13 +1,11 @@
 import { readFileSync } from 'node:fs'
-import { randomUUID } from 'node:crypto'
-import { join } from 'node:path'
-import { credentialFingerprint } from './credentialIdentity.js'
-import { logForDebugging } from '../debug.js'
-import { errorMessage } from '../errors.js'
-import { getAuthConfigHomeDir } from '../envUtils.js'
-import { noteCredentialChange, publishSignInRecord } from './signInLedger.js'
-import { passedOver } from '../passedOver.js'
-import { hostEnv } from '../hostEnv.js'
+import { credentialFingerprint } from '../../utils/accounts/credentialIdentity.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { errorMessage } from '../../utils/errors.js'
+import { getAuthConfigHomeDir } from '../../utils/envUtils.js'
+import { noteCredentialChange, publishSignInRecord, signInRefusalPath } from '../../utils/accounts/signInLedger.js'
+import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export type SignInRefusal = { status: 401 | 403; at: number; message?: string; credential?: 'key' | 'sign-in'; remedy?: string }
 type StoredRefusal = SignInRefusal & { identity: string }
@@ -30,53 +28,53 @@ function serviceMessage(raw: string | undefined): string | undefined {
 function currentCredential(family: string): Credential | undefined {
   try {
     if (/^compat-[a-z0-9-]{1,32}$/.test(family)) {
-      const owner = require('../../services/providers/openaicompat/compatAccounts.js') as typeof import('../../services/providers/openaicompat/compatAccounts.js')
+      const owner = require('./openaicompat/compatAccounts.js') as typeof import('./openaicompat/compatAccounts.js')
       return owner.configuredCompatEndpoints().some(endpoint => endpoint.name === family.slice(7)) ? keyCredential(owner.resolveCompatApiKey(hostEnv(), family.slice(7))) : undefined
     }
     switch (family) {
-      case 'deepseek': return keyCredential(require('../../services/providers/deepseek/deepseekAccounts.js').resolveDeepseekApiKey())
-      case 'openrouter': return keyCredential(require('../../services/providers/openrouter/openrouterAccounts.js').resolveOpenrouterApiKey())
-      case 'huggingface': return keyCredential(require('../../services/providers/huggingface/huggingfaceAccounts.js').resolveHuggingfaceApiKey())
-      case 'xai': return keyCredential(require('../../services/providers/xai/xaiAccounts.js').resolveXaiCredentialSnapshot())
-      case 'meta': return keyCredential(require('../../services/providers/meta/metaAccounts.js').resolveMetaApiKey())
-      case 'mistral': return keyCredential(require('../../services/providers/mistral/mistralAccounts.js').resolveMistralApiKey())
-      case 'nous': return keyCredential(require('../../services/providers/nous/nousAccounts.js').resolveNousCredentialSnapshot())
-      case 'zen': return keyCredential(require('../../services/providers/zen/zenAccounts.js').resolveZenApiKey())
-      case 'minimax': return keyCredential(require('../../services/providers/minimax/minimaxAccounts.js').resolveMinimaxApiKey())
-      case 'together': return keyCredential(require('../../services/providers/together/togetherAccounts.js').resolveTogetherApiKey())
-      case 'cohere': return keyCredential(require('../../services/providers/cohere/cohereAccounts.js').resolveCohereApiKey())
-      case 'groq': return keyCredential(require('../../services/providers/groq/groqAccounts.js').resolveGroqApiKey())
-      case 'melious': return keyCredential(require('../../services/providers/melious/meliousAccounts.js').resolveMeliousApiKey())
-      case 'orcarouter': return keyCredential(require('../../services/providers/orcarouter/orcarouterAccounts.js').resolveOrcarouterApiKey())
-      case 'cerebras': return keyCredential(require('../../services/providers/cerebras/cerebrasAccounts.js').resolveCerebrasApiKey())
-      case 'fireworks': return keyCredential(require('../../services/providers/fireworks/fireworksAccounts.js').resolveFireworksApiKey())
-      case 'qwen': return keyCredential(require('../../services/providers/qwen/qwenAccounts.js').resolveQwenCredentialSnapshot())
-      case 'zai': return keyCredential(require('../../services/providers/zai/zaiAccounts.js').resolveZaiDispatch())
-      case 'local': return keyCredential(require('../../services/providers/local/localAccounts.js').resolveLocalApiKey())
+      case 'deepseek': return keyCredential(require('./deepseek/deepseekAccounts.js').resolveDeepseekApiKey())
+      case 'openrouter': return keyCredential(require('./openrouter/openrouterAccounts.js').resolveOpenrouterApiKey())
+      case 'huggingface': return keyCredential(require('./huggingface/huggingfaceAccounts.js').resolveHuggingfaceApiKey())
+      case 'xai': return keyCredential(require('./xai/xaiAccounts.js').resolveXaiCredentialSnapshot())
+      case 'meta': return keyCredential(require('./meta/metaAccounts.js').resolveMetaApiKey())
+      case 'mistral': return keyCredential(require('./mistral/mistralAccounts.js').resolveMistralApiKey())
+      case 'nous': return keyCredential(require('./nous/nousAccounts.js').resolveNousCredentialSnapshot())
+      case 'zen': return keyCredential(require('./zen/zenAccounts.js').resolveZenApiKey())
+      case 'minimax': return keyCredential(require('./minimax/minimaxAccounts.js').resolveMinimaxApiKey())
+      case 'together': return keyCredential(require('./together/togetherAccounts.js').resolveTogetherApiKey())
+      case 'cohere': return keyCredential(require('./cohere/cohereAccounts.js').resolveCohereApiKey())
+      case 'groq': return keyCredential(require('./groq/groqAccounts.js').resolveGroqApiKey())
+      case 'melious': return keyCredential(require('./melious/meliousAccounts.js').resolveMeliousApiKey())
+      case 'orcarouter': return keyCredential(require('./orcarouter/orcarouterAccounts.js').resolveOrcarouterApiKey())
+      case 'cerebras': return keyCredential(require('./cerebras/cerebrasAccounts.js').resolveCerebrasApiKey())
+      case 'fireworks': return keyCredential(require('./fireworks/fireworksAccounts.js').resolveFireworksApiKey())
+      case 'qwen': return keyCredential(require('./qwen/qwenAccounts.js').resolveQwenCredentialSnapshot())
+      case 'zai': return keyCredential(require('./zai/zaiAccounts.js').resolveZaiDispatch())
+      case 'local': return keyCredential(require('./local/localAccounts.js').resolveLocalApiKey())
       case 'openai-compat': {
-        const owner = require('../../services/providers/openaicompat/compatAccounts.js') as typeof import('../../services/providers/openaicompat/compatAccounts.js')
+        const owner = require('./openaicompat/compatAccounts.js') as typeof import('./openaicompat/compatAccounts.js')
         return owner.configuredCompatEndpoints().some(endpoint => endpoint.named) ? undefined : keyCredential(owner.resolveCompatApiKey())
       }
       case 'moonshot': {
-        const owner = require('../../services/providers/moonshot/moonshotAccounts.js') as typeof import('../../services/providers/moonshot/moonshotAccounts.js')
+        const owner = require('./moonshot/moonshotAccounts.js') as typeof import('./moonshot/moonshotAccounts.js')
         if (owner.resolveMoonshotAccount()?.kind !== 'kimi-oauth') return keyCredential(owner.resolveMoonshotApiKey())
         const tokens = owner.moonshotStoredTokens()
         return tokens ? { identity: credentialFingerprint(tokens.accessToken), key: tokens.accessToken, noun: 'sign-in' } : undefined
       }
       case 'openai': {
-        const owner = require('../../services/providers/openai/openaiAccounts.js') as typeof import('../../services/providers/openai/openaiAccounts.js')
+        const owner = require('./openai/openaiAccounts.js') as typeof import('./openai/openaiAccounts.js')
         const account = owner.resolveOpenaiAccount()
         if (!account) return undefined
         return account.kind === 'api-key' ? keyCredential(owner.resolveOpenaiApiKey()) : { identity: owner.openaiSourceIdentity(account.kind), matches: credential => owner.openaiSourceMatchesCredential(account.kind, credential), noun: 'sign-in' }
       }
       case 'gemini': {
-        const owner = require('../../services/providers/gemini/geminiAccounts.js') as typeof import('../../services/providers/gemini/geminiAccounts.js')
+        const owner = require('./gemini/geminiAccounts.js') as typeof import('./gemini/geminiAccounts.js')
         const account = owner.resolveGeminiAccount()
         if (!account) return undefined
         return account.kind === 'api-key' ? keyCredential(owner.resolveGeminiApiKey()) : { identity: owner.geminiSourceIdentity(account.kind), matches: credential => owner.geminiSourceMatchesCredential(account.kind, credential), noun: 'sign-in' }
       }
       case 'anthropic': {
-        const owner = require('../auth.js') as typeof import('../auth.js')
+        const owner = require('../../utils/auth.js') as typeof import('../../utils/auth.js')
         if (owner.getAuthTokenSource().source === 'claude.ai') {
           const tokens = owner.getClaudeAIOAuthTokens()
           return tokens ? { identity: credentialFingerprint(tokens.accessToken), key: tokens.accessToken, noun: 'sign-in' } : undefined
@@ -89,13 +87,9 @@ function currentCredential(family: string): Credential | undefined {
   } catch (error) { passedOver(error); return undefined }
 }
 
-function pathOf(family: string, home: string): string | undefined {
-  return /^(?:[a-z][a-z0-9-]{0,31}|compat-[a-z0-9-]{1,32})$/.test(family) ? join(home, '.sign-in-refusals', `${family}.json`) : undefined
-}
-
 function readFile(family: string, home: string): RefusalFile | undefined {
   try {
-    const path = pathOf(family, home)
+    const path = signInRefusalPath(family, home)
     if (!path) return undefined
     const value = JSON.parse(readFileSync(path, 'utf8')) as RefusalFile
     return value?.version === 1 && typeof value.generation === 'string' ? value : undefined
@@ -112,22 +106,12 @@ function readStored(family: string, home: string): StoredRefusal | undefined {
 
 function openrouterKeyProbeRefusal(): SignInRefusal | undefined {
   try {
-    const owner = require('../../services/providers/openrouter/openrouterAccounts.js') as typeof import('../../services/providers/openrouter/openrouterAccounts.js')
+    const owner = require('./openrouter/openrouterAccounts.js') as typeof import('./openrouter/openrouterAccounts.js')
     const refused = owner.openrouterKeyRefusal()
     if (!refused || !(refused.status === 401 || refused.status === 403)) return undefined
     const message = serviceMessage(refused.message)
     return { status: refused.status, at: refused.observedAtMs > 0 ? refused.observedAtMs : Date.now(), ...(message !== undefined ? { message } : {}), credential: 'key', ...(refused.source === 'env' ? { remedy: 'update OPENROUTER_API_KEY' } : {}) }
   } catch (error) { passedOver(error); return undefined }
-}
-
-export function clearSignInRefusal(family: string, home = getAuthConfigHomeDir()): void {
-  try {
-    const path = pathOf(family, home)
-    if (!path) return
-    publishSignInRecord(path, JSON.stringify({ version: 1, generation: randomUUID() }) + '\n')
-  } catch (error) {
-    logForDebugging(`[accounts] the refusal record of ${family} could not be cleared after its sign-in, so it still reads refused until a later answer succeeds: ${errorMessage(error)}`, { level: 'warn' })
-  }
 }
 
 export function readSignInRefusal(family: string): SignInRefusal | undefined {
@@ -139,7 +123,7 @@ export function readSignInRefusal(family: string): SignInRefusal | undefined {
 
 function reconnectWords(family: string): string {
   try {
-    const { reconnectDoorFor } = require('../../services/providers/credentialWall.js') as typeof import('../../services/providers/credentialWall.js')
+    const { reconnectDoorFor } = require('./credentialWall.js') as typeof import('./credentialWall.js')
     const door = reconnectDoorFor(family.startsWith('compat-') ? 'openai-compat' : family)
     return door.startsWith('/') ? `${door} reconnects` : `update ${door}`
   } catch (error) { passedOver(error); return '/logins reconnects' }
@@ -162,7 +146,7 @@ export function observeSignInResponse(request: Observation | undefined, status: 
     const { family, home, credential, generation } = request
     if (getAuthConfigHomeDir() !== home || currentCredential(family)?.identity !== credential.identity || (readFile(family, home)?.generation ?? '') !== generation) return
     const previous = readStored(family, home)
-    const path = pathOf(family, home)
+    const path = signInRefusalPath(family, home)
     if (!path) return
     if (status >= 200 && status < 300) {
       if (previous?.identity === credential.identity) {

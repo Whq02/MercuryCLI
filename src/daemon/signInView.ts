@@ -1,4 +1,4 @@
-import { readSignInRefusal, signInRefusalWords } from '../utils/accounts/signInRefusal.js'
+import { readSignInRefusal, signInRefusalWords } from '../services/providers/signInRefusal.js'
 import { providerFamilyPresences } from '../services/providers/providerUsage.js'
 import { readModelListFacts } from '../services/providers/typedModelIds.js'
 import { dropCredentialMemos } from '../utils/auth.js'

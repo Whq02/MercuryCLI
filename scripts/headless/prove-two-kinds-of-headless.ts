@@ -360,7 +360,7 @@ await guarded(async () => {
     let promptsEqual = true
     let postureDiffers = false
     let firstLineDiff = ''
-    const { computeHarnessMapLines } = await import('../../src/utils/cockpit/harnessMap.ts')
+    const { computeHarnessMapLines } = await import('../../src/services/cockpit/harnessMap.ts')
     const DEBUG_WITHHELD = '- The Debug tool is withheld'
     const steadyMap = computeHarnessMapLines().filter(line => !line.startsWith(DEBUG_WITHHELD))
     let mapOnTheScreenAlone = a.requests.length > 0

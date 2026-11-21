@@ -12,7 +12,7 @@ if (!('LSP_TOOLS' in available)) {
 process.env.MERCURY_LSP_SERVERS = JSON.stringify(fixtureServer('fixture', FAKE_SERVER, {}, '.fk', 'fake'))
 const door = await openToolDoor(project)
 try {
-  const { computeHarnessMapLines } = await import('../../src/utils/cockpit/harnessMap.ts')
+  const { computeHarnessMapLines } = await import('../../src/services/cockpit/harnessMap.ts')
   const { evaluateWards, BUILTIN_WARDS } = await import('../../src/utils/wards/wards.ts')
   const { remedyForLanguageServer } = await import('../../src/services/lsp/failureWords.ts')
   const readTool = available.LSP_TOOLS.find(tool => tool.name === 'LspRead')
