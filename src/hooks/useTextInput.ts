@@ -1,6 +1,5 @@
 
 import { useRef } from 'react'
-import 'strip-ansi'
 import { useNotifications } from '../context/notifications.js'
 import type { Key } from '../ink.js'
 import { addToHistory } from '../history.js'

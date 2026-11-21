@@ -1,5 +1,4 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import 'node:path';
 import { useInput } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { readSessionWorkers } from '../daemon/concourseWorkers.js';
