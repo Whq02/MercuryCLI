@@ -11,6 +11,7 @@ import {
   fetchResourcesForClient,
   fetchToolsForClient,
   mcpLaunchBudgetMs,
+  pruneStaleMcpResourceTools,
   supplementaryToolsForMcpClient,
   withMcpLaunchBudget,
 } from '../services/mcp/client.js'
@@ -385,22 +386,28 @@ async function connectAnthropicConnectors(store: {
     }
     if (suppressed.length > 0) {
       const suppressedPrefixes = suppressed.map(name => getMcpPrefix(name))
-      store.setState(previous => ({
-        ...previous,
-        mcp: {
-          ...previous.mcp,
-          clients: previous.mcp.clients.filter(client => !suppressed.includes(client.name)),
-          tools: previous.mcp.tools.filter(
-            tool => !suppressed.includes(tool.mcpInfo?.serverName ?? ''),
-          ),
-          commands: previous.mcp.commands.filter(
-            command => !suppressedPrefixes.some(prefix => command.name.startsWith(prefix)),
-          ),
-          resources: Object.fromEntries(
-            Object.entries(previous.mcp.resources ?? {}).filter(([serverName]) => !suppressed.includes(serverName)),
-          ),
-        },
-      }))
+      store.setState(previous => {
+        const nextClients = previous.mcp.clients.filter(client => !suppressed.includes(client.name))
+        return {
+          ...previous,
+          mcp: {
+            ...previous.mcp,
+            clients: nextClients,
+            tools: pruneStaleMcpResourceTools(
+              nextClients,
+              previous.mcp.tools.filter(
+                tool => !suppressed.includes(tool.mcpInfo?.serverName ?? ''),
+              ),
+            ),
+            commands: previous.mcp.commands.filter(
+              command => !suppressedPrefixes.some(prefix => command.name.startsWith(prefix)),
+            ),
+            resources: Object.fromEntries(
+              Object.entries(previous.mcp.resources ?? {}).filter(([serverName]) => !suppressed.includes(serverName)),
+            ),
+          },
+        }
+      })
     }
     await connectMcpBatch(surviving, store.setState)
   })()

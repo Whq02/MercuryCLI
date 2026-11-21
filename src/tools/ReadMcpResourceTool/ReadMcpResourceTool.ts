@@ -8,6 +8,7 @@ import { isOutputLineTruncated } from '../../utils/terminal.js'
 import { DESCRIPTION, PROMPT, READ_MCP_RESOURCE_TOOL_NAME } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage, userFacingName } from './UI.js'
 import { mcpClientForTools } from '../../services/mcp/client/forTools.js'
+import { mcpServerDenyDecision } from '../../utils/permissions/ruleReason.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 
@@ -105,6 +106,15 @@ export const ReadMcpResourceTool = buildTool({
   },
   async prompt() {
     return PROMPT
+  },
+  async checkPermissions(input: Input, context: ToolUseContext) {
+    const denied = mcpServerDenyDecision(
+      context.getAppState().toolPermissionContext,
+      READ_MCP_RESOURCE_TOOL_NAME,
+      input.server,
+    )
+    if (denied) return denied
+    return { behavior: 'allow' as const, updatedInput: input }
   },
   async call({ server, uri }: Input, context: ToolUseContext) {
     const clients = context.options.mcpClients
