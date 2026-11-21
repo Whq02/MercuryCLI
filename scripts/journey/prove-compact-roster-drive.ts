@@ -14,6 +14,7 @@ if (!existsSync(BIN)) {
 }
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { vshotBudgetMs, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
+const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
   console.error(`prove-compact-roster-drive: capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
@@ -356,7 +357,7 @@ try {
       cols: COLS,
       rows: ROWS,
       sends: [
-        { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+        { data: '\r', awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
         { data: `${WARM}\r`, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
         { data: `${ASK}\r`, awaitText: WARMED, requireAwait: true, minTick: 2, awaitSettleTicks: 8, mark: 'warmed' },
         { data: '\x1b', awaitText: 'waiting on', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'waiting' },

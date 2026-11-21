@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs, resolveCaptureDriver } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { childEnv, startFixture } from '../daemon/dupline-world.ts'
 import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 
@@ -59,7 +60,7 @@ async function capture(cols: number, rows: number): Promise<Record<string, Grid>
   writeFileSync(cfgPath, JSON.stringify({
     argv: [NODE, BIN, '--chat'], cwd, cols, rows, total: 400,
     sends: [
-      { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 20, awaitSettleTicks: 5 },
+      { data: '\r', awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 20, awaitSettleTicks: 5 },
       { data: '/rename roomie\r', awaitText: 'ready ·', targetText: keyHintLabel('⇧← back'), requireAwait: true, awaitSettleTicks: 8, mark: 'idle' },
       { data: 'hello fixture\r', awaitText: 'Renamed this session to roomie', requireAwait: true, awaitSettleTicks: 8, mark: 'renamed' },
       { data: '', awaitText: 'heard: hello fixture', requireAwait: true, awaitSettleTicks: 6 },

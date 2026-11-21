@@ -7,6 +7,7 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const { reapDaemonFoldersSync } = createRequire(import.meta.url)('../lib/proofScratch.cjs') as {
   reapDaemonFoldersSync: (folders: string[], graceMs?: number) => void
@@ -226,7 +227,7 @@ console.log('============================================================')
 
 const ARM_TURN = 'mission arm turn one'
 const ARM_SENDS = [
-  { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+  { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
   { atTick: 90, minTick: 20, awaitText: '? for shortcuts', data: `${ARM_TURN}\r` },
   { atTick: 150, minTick: 30, awaitText: 'esc interrupts', awaitSettleTicks: 2, data: `/mission ${GOAL}\r` },
 ]
@@ -349,7 +350,7 @@ function stageB(world: World, label: string, argvTail: string[]): void {
       'turns',
       [],
       [
-        { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+        { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
         { atTick: 90, minTick: 20, awaitText: '? for shortcuts', data: `${TURNS[0]}\r` },
         { atTick: 180, minTick: 30, awaitText: 'reply to [[continuity turn one', data: `${TURNS[1]}\r` },
         { atTick: 270, minTick: 40, awaitText: 'reply to [[continuity turn two', data: `${TURNS[2]}\r` },
@@ -431,7 +432,7 @@ function stageB(world: World, label: string, argvTail: string[]): void {
       'seat-hook',
       [],
       [
-        { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+        { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
         { atTick: 90, minTick: 20, awaitText: '? for shortcuts', data: `${ARM4}\r` },
         { atTick: 180, minTick: 30, awaitText: `reply to [[${ARM4}`, data: `/mission ${GOAL}\r` },
         { atTick: 240, minTick: 40, awaitText: 'Mission set', data: `${AFTER4}\r` },

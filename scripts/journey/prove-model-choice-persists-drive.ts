@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
 const argAfter = (flag: string): string | undefined => {
@@ -205,7 +206,7 @@ const a = drive(
   'choose',
   [],
   [
-    { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 20, awaitText: '← back', awaitSettleTicks: 6, data: `/model ${CHOSEN}\r` },
     { requireAwait: true, minTick: 30, awaitText: 'Model set to', awaitSettleTicks: 6, data: '', mark: 'chosen' },
     { afterPrevTicks: 2, data: '/exit\r' },
@@ -224,7 +225,7 @@ const b = drive(
   'saved-boot',
   [],
   [
-    { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 20, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${TURN_B}\r` },
     { requireAwait: true, minTick: 30, awaitText: 'reply to [[persisted choice turn', awaitSettleTicks: 3, data: '', mark: 'answered' },
     { afterPrevTicks: 2, data: '/exit\r' },
@@ -244,7 +245,7 @@ const c = drive(
   'flag-boot',
   ['--model', FLAG],
   [
-    { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 20, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${TURN_C}\r` },
     { requireAwait: true, minTick: 30, awaitText: 'reply to [[flag wins turn', awaitSettleTicks: 3, data: '', mark: 'answered' },
     { afterPrevTicks: 2, data: '/exit\r' },

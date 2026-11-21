@@ -14,6 +14,7 @@ if (!existsSync(BIN)) {
 }
 const { seedFirstRun, FIXTURE_API_KEY } = await import('../lib/firstRunSeed.ts')
 const { vshotBudgetMs, vshotBudgetScale, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
+const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const BACK_HINT = keyHintLabel('⇧← back')
 const driver = resolveCaptureDriver()
@@ -455,7 +456,7 @@ try {
       cols: COLS,
       rows: ROWS,
       sends: [
-        { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitSettleTicks: 8 },
+        { data: '\r', awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 10, awaitSettleTicks: 8 },
         ask('hdr: launch', 'idle'),
         after(80, 'thinking'),
         after(12, 'thinking+'),

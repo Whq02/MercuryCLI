@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
 const DIST = path.join(REPO, 'dist/mercury.mjs')
@@ -108,7 +109,7 @@ async function driveBranch(branch: Branch, cols: number): Promise<void> {
       'stray-write': '\r',
     }
     const sends: Array<Record<string, unknown>> = [
-      { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', data: 'build me a tiny hello demo\r', mark: 'directive' },
       { requireAwait: true, minTick: 6, awaitText: POLL_ONE_FRAGMENT, awaitSettleTicks: 3, data: '\r', mark: 'poll1-answer' },
       { requireAwait: true, minTick: 6, awaitText: '❯ 1. Yes — begin the build', awaitSettleTicks: 4, data: cardSelect[branch], mark: 'card-answer' },

@@ -25,6 +25,7 @@ const vendoredNode = join(dirname(BIN), 'vendor', 'node', 'bin', 'node')
 const NODE = existsSync(vendoredNode) ? vendoredNode : 'node'
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { vshotBudgetMs, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
+const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
   console.error(`prove-overload-lane-resume-drive: capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
@@ -449,7 +450,7 @@ if (laneCwd !== undefined) mkdirSync(laneCwd)
 const fixture = await startFixture(Number(process.env.OVERLOAD_DRIVE_PORT ?? 0), laneCwd)
 const FRAMES = 30
 const sends: Array<Record<string, unknown>> = [
-  { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+  { data: '\r', awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
   { data: 'overload-drive: launch\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
 ]
 const ESC_TICKS = BUDGET_CUT ? 3 : 5
