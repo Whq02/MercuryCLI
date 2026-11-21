@@ -12,7 +12,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 const j = (value: unknown): string => JSON.stringify(value)
 
-const sweep = await import('../../src/daemon/processSweep.ts')
+const sweep = await import('../../src/utils/processSweep.ts')
 const verbs = await import('../../src/daemon/verbs.ts')
 const { parseProcessStartToken, tokenBinding, composeProcessSweepFacts, classifyMercuryProcess } = sweep
 

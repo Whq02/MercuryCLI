@@ -1,7 +1,7 @@
-import { inspectSessionArgs as inspectRunArgs } from '../utils/sessionArgs.js'
-import { isProcessStartInstant } from '../utils/ownerWatch.js'
-import { foldPathCase } from '../utils/platform/paths.js'
-import { posixProcessTableSupported } from '../utils/platform/processes.js'
+import { inspectSessionArgs as inspectRunArgs } from './sessionArgs.js'
+import { isProcessStartInstant } from './ownerWatch.js'
+import { foldPathCase } from './platform/paths.js'
+import { posixProcessTableSupported } from './platform/processes.js'
 
 export type ProcessSweepClass = 'running' | 'stale' | 'cannot-end' | 'not-ours'
 export type ProcessSweepRead = boolean | null
