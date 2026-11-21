@@ -1,3 +1,4 @@
+import { historyTail } from '../../utils/sessionStorage/historyParts.js'
 import { appendFileSync, existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { recordToEntry } from '../../fabric/entryCodec.js'
@@ -10,7 +11,7 @@ import { NOTEBOOK_EDIT_TOOL_NAME } from '../../tools/NotebookEditTool/constants.
 import { AST_EDIT_TOOL_NAME } from '../../tools/AstEditTool/prompt.js'
 import type { SystemSeatReceiptMessage } from '../../types/message.js'
 import { createSeatReceiptMessage } from '../../utils/messages/systemMessages.js'
-import { readTranscriptBytesAfter, transcriptLineBytes } from '../../utils/sessionStorage/transcriptBytes.js'
+import { transcriptLineBytes } from '../../utils/sessionStorage/transcriptBytes.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 export interface SessionReceiptEntry {
@@ -141,11 +142,8 @@ interface WalkedTranscript {
 }
 
 function readTranscriptWindow(path: string): { text: string; tailBytesSkipped: number } {
-  const size = statSync(path).size
-  const from = size <= MAX_TRANSCRIPT_READ_BYTES ? 0 : size - MAX_TRANSCRIPT_READ_BYTES
-  const read = readTranscriptBytesAfter(path, { offset: from, carry: '' })
-  const raw =
-    read.cursor.carry === '' ? read.text : read.text === '' ? read.cursor.carry : `${read.text}\n${read.cursor.carry}`
+  const { bytes, skipped: from } = historyTail(path, MAX_TRANSCRIPT_READ_BYTES)
+  const raw = bytes.toString('utf8').replace(/\n$/, '')
   if (from === 0) return { text: raw, tailBytesSkipped: 0 }
   const nl = raw.indexOf('\n')
   const dropped = nl === -1 ? raw.length : nl + 1

@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
 import { statSync } from 'node:fs'
 import { useCallback, useRef, useState } from 'react'
-import { recordToEntry } from '../../fabric/entryCodec.js'
-import type { MercuryRecord } from '../../fabric/record.js'
+import { foldWorkerRecord } from '../../utils/sessionStorage/mirrorRecord.js'
+import { basename, dirname } from 'node:path'
 import { useLoad, useTimer } from '../../hooks/effects.js'
 import type { Tools } from '../../Tool.js'
 import type { Message as MessageType } from '../../types/message.js'
@@ -30,50 +30,7 @@ import { subscribeUiClock } from '../../utils/cockpit/uiClock.js'
 
 const RECORD_CAP = 500
 
-export function foldWorkerRecord(rec: unknown, fallbackUuid: string): MessageType | null {
-  if (!rec || typeof rec !== 'object') return null
-  const env = rec as { schemaVersion?: unknown; payload?: unknown }
-  let entry: Record<string, unknown>
-  if (typeof env.schemaVersion === 'number' && env.payload && typeof env.payload === 'object') {
-    try {
-      entry = recordToEntry(rec as MercuryRecord)
-    } catch (error) {
-      passedOver(error)
-      return null
-    }
-  } else {
-    return null
-  }
-  const r = entry as {
-    type?: unknown
-    uuid?: unknown
-    timestamp?: unknown
-    message?: { role?: unknown; content?: unknown }
-  }
-  if (r.type !== 'user' && r.type !== 'assistant' && r.type !== 'system') return null
-  if (r.type !== 'system' && (!r.message || typeof r.message !== 'object')) return null
-  const uuid = typeof r.uuid === 'string' && r.uuid.length > 0 ? r.uuid : fallbackUuid
-  const out: {
-    type: 'user' | 'assistant' | 'system'
-    uuid: string
-    timestamp?: unknown
-    message?: unknown
-  } = { ...entry, type: r.type, uuid }
-  if (typeof r.timestamp !== 'string') out.timestamp = new Date(0).toISOString()
-  if (r.type === 'assistant') {
-    const msg = r.message as { content?: unknown }
-    if (typeof msg.content === 'string') {
-      out.message = { ...(r.message as Record<string, unknown>), content: [{ type: 'text', text: msg.content }] }
-    } else if (!Array.isArray(msg.content)) {
-      return null
-    }
-  }
-  if (r.type === 'user') {
-    const msg = r.message as { content?: unknown }
-    if (typeof msg.content !== 'string' && !Array.isArray(msg.content)) return null
-  }
-  return out as MessageType
-}
+export { foldWorkerRecord } from '../../utils/sessionStorage/mirrorRecord.js'
 
 interface TranscriptFold {
   messages: MessageType[]
@@ -143,9 +100,9 @@ export function useWorkerTranscriptFold(
           if (controller.signal.aborted) return
           let pending: TranscriptFold | null = null
           let seq = liftSeq
-          const receive = (records: Iterable<unknown>, rewound: boolean): void => {
+          const receive = (records: Iterable<unknown>, rewound: boolean, alreadyShed = 0): void => {
             let changed = rewound || cursorRef === null
-            let shed = rewound ? 0 : current?.shed ?? 0
+            let shed = alreadyShed + (rewound ? 0 : current?.shed ?? 0)
             function* messages(): Generator<MessageType> {
               for (const record of records) {
                 const message = foldWorkerRecord(record, `attach-e${seq++}`)
@@ -159,8 +116,8 @@ export function useWorkerTranscriptFold(
             if (changed) pending = { messages: kept, shed }
           }
           const opened = openInitialWorkerTranscript(path, p => cursorRef === null
-            ? wt.openWorkerTranscript(p, receive)
-            : wt.readAfterCursor(cursorRef, receive))
+            ? wt.openWorkerTranscript(p, receive, RECORD_CAP)
+            : wt.readAfterCursor(cursorRef, receive, RECORD_CAP))
           if (!opened.ok) {
             setReadError(opened.error)
             if (cursorRef === null) setFold(prev => prev ?? { messages: [], shed: 0 })
@@ -178,7 +135,7 @@ export function useWorkerTranscriptFold(
         }
         const arm = (): boolean => {
           try {
-            watcher = fs.watch(path, () => drain())
+            watcher = fs.watch(dirname(path), (_event, filename) => { if (!filename || String(filename) === basename(path)) drain() })
             watcher.on('error', () => {
               try {
                 watcher?.close()

@@ -1,5 +1,6 @@
+import { historyLines } from '../../../utils/sessionStorage/historyParts.js'
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { boundedTextView, type ResourceAdapter, type ResourceChild, type ResourceContext } from '../contracts.js'
 import { parseOwnerKey } from '../../../utils/primitives/owner.js'
@@ -47,17 +48,10 @@ function entryOfLine(parsed: Record<string, unknown>): Record<string, unknown> |
 
 export function jsonlConciseRows(file: string): string[] {
   const rows: string[] = []
-  let raw: string
-  try {
-    raw = readFileSync(file, 'utf8')
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') {
-      passedOver(error)
-      return rows
-    }
-    throw error
-  }
-  for (const line of raw.split('\n')) {
+  let endedWithNewline = false
+  for (const bytes of historyLines(file)) {
+    endedWithNewline = bytes.at(-1) === 10
+    const line = bytes.toString('utf8')
     if (rows.length >= MAX_ROWS) {
       rows.push(`… capped at ${MAX_ROWS} rows`)
       break
@@ -117,6 +111,7 @@ export function jsonlConciseRows(file: string): string[] {
       }
     }
   }
+  if (endedWithNewline && rows.length >= MAX_ROWS && rows.at(-1) !== `… capped at ${MAX_ROWS} rows`) rows.push(`… capped at ${MAX_ROWS} rows`)
   return rows
 }
 

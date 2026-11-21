@@ -3,7 +3,7 @@
 
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, dirname, join, relative } from 'node:path'
 import { handoffTurn, isHandoffRequest, startFixtureApi, type FixtureApi } from '../lib/fixtureApi.ts'
@@ -33,6 +33,7 @@ bootstrap.setProjectRoot(loaderCwd)
 const { loadConversationForResume, getResumePrompt } = await import('../../src/services/resume/conversationRecovery.ts')
 const { loadTranscriptFile } = await import('../../src/utils/sessionStorage.ts')
 const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
+const { historyLines } = await import('../../src/utils/sessionStorage/historyParts.ts')
 import type { Message } from '../../src/types/message.ts'
 
 let failures = 0
@@ -315,16 +316,17 @@ try {
       writeFileSync(file, readFileSync(file, 'utf8') + padding.join('\n') + '\n')
       gateTheAnswerThatSays(arena, BLOCKED)
       await runUntilAskedAgainThenKill(arena, fixture, ['run', 'LONG second prompt: read note.txt.', '--model', MODEL, '--resume', SID, '--format', 'rows', '--allowed-tools', 'Read'], () => file)
-      const kinds = metaKindsOf(file)
-      const boundaryAt = kinds.indexOf('boundary')
-      const boundary = JSON.parse(readFileSync(file, 'utf8').split('\n').find(line => line.includes('"kind":"boundary"')) ?? '{}') as { payload?: { fields?: { compactMetadata?: { preservedSegment?: unknown } } } }
-      const startIds = readFileSync(file, 'utf8').split('\n').filter(line => line.includes('"metaKind":"turn-start"')).map(line => (JSON.parse(line) as { payload: { fields: { turnId: string } } }).payload.fields.turnId)
-      check('E1 the scene: the record is past five mebibytes (a long session, here padded with queue rows of the kind every prompt leaves), its second turn folded the conversation and kept no tail, and it ends on the row the run asked the model again with', first.exit === 0 && statSync(file).size > 5 * 1024 * 1024 && kinds.filter(kind => kind === 'boundary').length === 1 && !boundary.payload?.fields?.compactMetadata?.preservedSegment && isTheAskAgain(lastSpoken(await recordOf(file))) && turnEndLines(file) === 1, j({ exit: first.exit, size: statSync(file).size, boundaries: kinds.filter(kind => kind === 'boundary').length, tail: kinds.slice(boundaryAt), ends: turnEndLines(file) }))
-      check("E2 the folding turn said that it began ahead of its rows and says it again behind the boundary, under the one turn's id", startIds.length === 3 && startIds[1] === startIds[2] && startIds[0] !== startIds[1] && kinds.indexOf('meta:turn-start', boundaryAt) === boundaryAt + 1, j({ startIds, behind: kinds.slice(boundaryAt, boundaryAt + 3) }))
       const elsewhere: Arena = { home: join(scratch, 'long-elsewhere', 'home'), cwd: arena.cwd, env: { ...arena.env, HOME: join(scratch, 'long-elsewhere', 'home'), MERCURY_CONFIG_DIR: join(scratch, 'long-elsewhere', 'home', '.mercury'), MERCURY_DAEMON_DIR: join(scratch, 'long-elsewhere', 'home', 'daemon'), MERCURY_TMPDIR: join(scratch, 'long-elsewhere', 'tmp') } }
       const copy = join(elsewhere.env.MERCURY_CONFIG_DIR!, relative(arena.env.MERCURY_CONFIG_DIR!, file))
       mkdirSync(dirname(copy), { recursive: true })
-      copyFileSync(file, copy)
+      writeFileSync(copy, '', { flag: 'wx' })
+      for (const line of historyLines(file)) appendFileSync(copy, line)
+      const kinds = metaKindsOf(copy)
+      const boundaryAt = kinds.indexOf('boundary')
+      const boundary = JSON.parse(readFileSync(copy, 'utf8').split('\n').find(line => line.includes('"kind":"boundary"')) ?? '{}') as { payload?: { fields?: { compactMetadata?: { preservedSegment?: unknown } } } }
+      const startIds = readFileSync(copy, 'utf8').split('\n').filter(line => line.includes('"metaKind":"turn-start"')).map(line => (JSON.parse(line) as { payload: { fields: { turnId: string } } }).payload.fields.turnId)
+      check('E1 the scene: the record is past five mebibytes (a long session, here padded with queue rows of the kind every prompt leaves), its second turn folded the conversation and kept no tail, and it ends on the row the run asked the model again with', first.exit === 0 && statSync(copy).size > 5 * 1024 * 1024 && kinds.filter(kind => kind === 'boundary').length === 1 && !boundary.payload?.fields?.compactMetadata?.preservedSegment && isTheAskAgain(lastSpoken(await recordOf(file))) && turnEndLines(copy) === 1, j({ exit: first.exit, size: statSync(copy).size, boundaries: kinds.filter(kind => kind === 'boundary').length, tail: kinds.slice(boundaryAt), ends: turnEndLines(copy) }))
+      check("E2 the folding turn said that it began ahead of its rows and says it again behind the boundary, under the one turn's id", startIds.length === 3 && startIds[1] === startIds[2] && startIds[0] !== startIds[1] && kinds.indexOf('meta:turn-start', boundaryAt) === boundaryAt + 1, j({ startIds, behind: kinds.slice(boundaryAt, boundaryAt + 3) }))
       const beside = readdirSync(dirname(copy)).filter(name => name !== `${SID}.jsonl`)
       const alone = await loaderOn(copy, SID)
       check('E3 a copy of the record with nothing beside it (no snapshot of an earlier read) reads as cut, and says so once', beside.length === 0 && alone.state === 'interrupted_prompt' && alone.sentence === 1, j({ beside, alone }))
