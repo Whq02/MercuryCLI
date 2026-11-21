@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { REREAD_ASK, REREAD_END, startRereadFixture } from '../stop-policy/prove-no-stagnation-governor.ts'
@@ -89,9 +90,8 @@ for (const [cols, rows] of geometries) {
       rows,
       out: join(output, `${name}.json`),
       sends: scene === 'reads' ? [] : [
-        { data: '\u001b[B', awaitText: 'MCPs & Skills', requireAwait: true, awaitSettleTicks: 4 },
-        { data: '\u001b[B', afterPrevTicks: 2 },
-        { data: '\r', afterPrevTicks: 2 },
+        { data: 's', awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, awaitSettleTicks: 4 },
+        { data: '\r', awaitText: 'MCPs & Skills', requireAwait: true, awaitSettleTicks: 4 },
       ],
       readyText: scene === 'reads' ? REREAD_END : '.mercury/skills/',
       readySettleTicks: 5,
