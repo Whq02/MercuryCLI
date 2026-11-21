@@ -396,6 +396,7 @@ export async function autoCompactIfNeeded(
     const refold = isRefold(messages)
     if (projection !== null && (refold ? manualFoldHasNothingToFold(projection) : projection.after >= projection.before)) {
       const line = nothingToCompactLine(projection.context, refold)
+      if (!askedByOperator) queued?.complete()
       return { ...notCompacted, refusal: askedByOperator ? crewmateCompactNothingWords(askingCrewmateName(toolUseContext), line) : line, declined: true }
     }
   }
