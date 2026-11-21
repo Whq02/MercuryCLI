@@ -170,7 +170,10 @@ console.log('\n── rewind list and card after shell commands ──')
         24,
       )
       if (preselect !== undefined) {
-        await waitFor(() => !m.screen().includes('Asking the session what a restore would touch'), 2000)
+        await waitFor(() => {
+          const screen = m.screen()
+          return screen.includes('Restore ') && !screen.includes('Asking the session what a restore would touch')
+        }, 2000)
         await new Promise(r => setTimeout(r, 120))
       } else {
         await waitFor(() => m.screen().includes('Rewind'), 2000)
