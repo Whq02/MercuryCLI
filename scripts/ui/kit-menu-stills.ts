@@ -32,13 +32,10 @@ export function faceFacts(world: 'full' | 'chat'): Record<string, unknown> {
 
 export function composeFace(world: 'full' | 'chat', cols: number, rows: number, armedPreset?: string): string[] {
   const res = core.composeLockup(cols, rows, {
-    cardRows: assembleCardRows({ ...faceFacts(world), ...(armedPreset !== undefined ? { kitArmedPreset: armedPreset } : {}) }),
+    cardRows: assembleCardRows({ ...faceFacts(world), ...(armedPreset !== undefined ? { kitArmedPreset: armedPreset } : {}) }).map(row => ({ ...row, ctx: '' })),
     cardSel: 0,
-    hintSegments: [
-      { key: '↵ ', label: 'start', tone: 'ivory' },
-      { key: 'm', label: ' menu', tone: 'faint' },
-    ],
-    tinyHint: '↵ start',
+    hintSegments: [{ key: '↵', label: '', tone: 'ivory' }],
+    tinyHint: '↵',
     stripLines: (w: number) => core.composeStrip(chips, w),
   } as never) as { lines: string[] }
   const { placed } = core.placeBlock(res.lines, rows) as { placed: string[] }
