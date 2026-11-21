@@ -55,6 +55,26 @@ class FakeRoster {
   present = new Map<string, { alive: boolean; ready: boolean }>()
   answer: 'success' | 'error' | 'never' = 'success'
   dieOnClaim = false
+  exitListeners = new Map<string, Set<() => void>>()
+  onExit(short: string, listener: () => void): () => void {
+    let listeners = this.exitListeners.get(short)
+    if (!listeners) {
+      listeners = new Set()
+      this.exitListeners.set(short, listeners)
+    }
+    listeners.add(listener)
+    return () => {
+      const current = this.exitListeners.get(short)
+      if (!current) return
+      current.delete(listener)
+      if (current.size === 0) this.exitListeners.delete(short)
+    }
+  }
+  private notifyExit(short: string): void {
+    const listeners = this.exitListeners.get(short)
+    if (!listeners) return
+    for (const listener of [...listeners]) listener()
+  }
   has(short: string): { alive: boolean; present: boolean; ready: boolean } {
     const p = this.present.get(short)
     return p ? { present: true, alive: p.alive, ready: p.ready } : { present: false, alive: false, ready: false }
@@ -71,7 +91,12 @@ class FakeRoster {
         'session/claim': (params: unknown) => {
           const claim = params as Record<string, unknown>
           this.claims.push({ short, params: claim })
-          if (this.dieOnClaim) setTimeout(() => this.present.set(short, { alive: false, ready: false }), 20)
+          if (this.dieOnClaim) {
+            setTimeout(() => {
+              this.present.set(short, { alive: false, ready: false })
+              this.notifyExit(short)
+            }, 20)
+          }
           if (this.answer === 'never') return LEAVE_PENDING
           if (this.answer === 'error') throw new RpcError(RPC_REFUSED, 'scripted refusal', { kind: 'claim' })
           return { session_id: String(claim.session_id) }
@@ -90,6 +115,7 @@ class FakeRoster {
     this.present.delete(short)
     this.stands.get(short)?.close('killed')
     this.stands.delete(short)
+    this.notifyExit(short)
     return true
   }
   patchSeatClaim(

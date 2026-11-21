@@ -25,7 +25,6 @@ import { PeerClosed, PeerDeadline } from '../runner/wire/peer.js'
 import { SESSION_VERBS } from '../runner/wire/sessionVerbs.js'
 import type { RunnerDoor } from './runnerConnection.js'
 import { passedOver } from '../utils/passedOver.js'
-import { startInterval, stopInterval } from '../utils/timers.js'
 
 export const DEFAULT_WARM_RUNNER_IDLE_RETIRE_MINUTES = 5
 
@@ -39,7 +38,6 @@ export function warmRunnerPoolEnabled(): boolean {
 
 const CLAIM_ANSWER_DEADLINE_MS = 10_000
 export const WARM_BOOT_ALLOWANCE_MS = 45_000
-const CLAIM_LIVENESS_POLL_MS = 1_000
 
 export function claimAnswerDeadlineMs(spawnedAt: number, now: number): number {
   return Math.max(CLAIM_ANSWER_DEADLINE_MS, WARM_BOOT_ALLOWANCE_MS - (now - spawnedAt))
@@ -86,6 +84,7 @@ export interface WarmRosterPort {
   registerLongLived(short: string, spec: RunnerChildSpec): { ok: boolean; pid?: number; error?: string }
   door(short: string): RunnerDoor | undefined
   kill(short: string): boolean
+  onExit?(short: string, listener: () => void): () => void
   patchSeatClaim(
     short: string,
     patch: { model: string; effort: string; respawnExtraArgv: readonly string[]; permissionMode: SeatPermissionMode },
@@ -385,31 +384,33 @@ export async function claimWarmRunner(
   }
   const deadlineMs = args.answerDeadlineMs ?? claimAnswerDeadlineMs(entry.spawnedAt, Date.now())
   const pulse = new AbortController()
-  const liveness = startInterval(() => {
-    const live = roster.has(entry.short)
-    if (!live.present || !live.alive || (entry.pid !== undefined && !isProcessAlive(entry.pid))) pulse.abort()
-  }, CLAIM_LIVENESS_POLL_MS)
-  liveness.unref?.()
-  const outcome = await door
-    .request(
-      SESSION_VERBS.claim.runner.name,
-      {
-        session_id: args.sessionId,
-        model: args.modelKey,
-        mode: args.permissionMode,
-        effort: args.effort,
-        ...(args.resume === true ? { resume: true } : {}),
-        ...(args.restartReason !== undefined ? { restart_reason: args.restartReason } : {}),
-        ...(args.title !== undefined ? { title: args.title } : {}),
-        ...(openaiCatalogue !== null ? { openai_catalogue: openaiCatalogueToWire(openaiCatalogue) } : {}),
-      },
-      { deadlineMs, signal: pulse.signal },
-    )
-    .then(
-      () => ({ ok: true as const }),
-      (error: unknown) => ({ ok: false as const, error: claimFailureWords(error, deadlineMs, pulse.signal.aborted) }),
-    )
-  stopInterval(liveness)
+  const stopExit = roster.onExit?.(entry.short, () => pulse.abort())
+  const live = roster.has(entry.short)
+  if (!live.present || !live.alive || (entry.pid !== undefined && !isProcessAlive(entry.pid))) pulse.abort()
+  let outcome: { ok: true } | { ok: false; error: string }
+  try {
+    outcome = await door
+      .request(
+        SESSION_VERBS.claim.runner.name,
+        {
+          session_id: args.sessionId,
+          model: args.modelKey,
+          mode: args.permissionMode,
+          effort: args.effort,
+          ...(args.resume === true ? { resume: true } : {}),
+          ...(args.restartReason !== undefined ? { restart_reason: args.restartReason } : {}),
+          ...(args.title !== undefined ? { title: args.title } : {}),
+          ...(openaiCatalogue !== null ? { openai_catalogue: openaiCatalogueToWire(openaiCatalogue) } : {}),
+        },
+        { deadlineMs, signal: pulse.signal },
+      )
+      .then(
+        () => ({ ok: true as const }),
+        (error: unknown) => ({ ok: false as const, error: claimFailureWords(error, deadlineMs, pulse.signal.aborted) }),
+      )
+  } finally {
+    stopExit?.()
+  }
   if (!outcome.ok) {
     retireWarmRunner(args.workspaceId, `claim failed (${outcome.error})`, deps)
     return { claimed: false, reason: outcome.error }
