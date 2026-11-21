@@ -9,7 +9,8 @@ const ownerWatch = await import(join(SRC, 'utils/ownerWatch.ts'))
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  const hint = 'change: how a worker record\'s pid and procStart token are stamped (markConcourseWorkerRespawn, src/daemon/concourseWorkers/marks.ts) or judged live (pendingParkRequests, src/daemon/concourseWorkers/park.ts; token reading in src/utils/ownerWatch.ts)'
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${[detail, hint].filter(Boolean).join(' | ')}` : ''}`)
   if (!ok) failures = 1
 }
 

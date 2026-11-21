@@ -36,11 +36,11 @@ console.log('§3 the exit ends what the unref let go')
   block(100)
   const alive = listed(`${marker}-in-process`)
   const ended = owner.endLiveRipgrepChildren()
-  check('the held count child is alive and the owner ends it on request (one ended)', alive !== '' && ended === 1, `ended ${ended}; listed before: ${alive || '(none)'}`)
+  check('the held count child is alive and the owner ends it on request (one ended)', alive !== '' && ended === 1, `ended ${ended}; listed before: ${alive || '(none)'}; countFilesRoundedRg must keep its rg child registered so endLiveRipgrepChildren ends it: see src/utils/ripgrep.ts`)
   const answer = await counting
-  check('…the count settles without an answer, never a hang', answer === undefined, String(answer))
-  check('…and nothing is left to end', owner.endLiveRipgrepChildren() === 0)
-  check('…the process listing agrees: the child is gone', listed(`${marker}-in-process`) === '', listed(`${marker}-in-process`))
+  check('…the count settles without an answer, never a hang', answer === undefined, `answer was ${String(answer)}; a count whose rg child was ended must resolve undefined: see countFilesRoundedRg in src/utils/ripgrep.ts`)
+  check('…and nothing is left to end', owner.endLiveRipgrepChildren() === 0, 'endLiveRipgrepChildren found a child still live after it had ended them all: see src/utils/ripgrep.ts')
+  check('…the process listing agrees: the child is gone', listed(`${marker}-in-process`) === '', `${listed(`${marker}-in-process`)}; an rg child survived endLiveRipgrepChildren: see src/utils/ripgrep.ts`)
 
   const script = [
     `const owner = await import(${JSON.stringify(join(REPO, 'src', 'utils', 'ripgrep.ts'))})`,
@@ -52,7 +52,7 @@ console.log('§3 the exit ends what the unref let go')
   ].join('\n')
   const run = spawnSync(process.execPath, ['-e', script], { cwd: REPO, encoding: 'utf8', env: process.env, timeout: 30_000 })
   const leftover = listed(`${marker}-at-exit`)
-  check('a process that exits while the count is still walking leaves no rg child behind', run.status === 0 && leftover === '', `exit ${String(run.status)} ${run.signal ?? ''}; leftover: ${leftover || '(none)'}; stderr: ${(run.stderr ?? '').trim().slice(0, 200)}`)
+  check('a process that exits while the count is still walking leaves no rg child behind', run.status === 0 && leftover === '', `exit ${String(run.status)} ${run.signal ?? ''}; leftover: ${leftover || '(none)'}; stderr: ${(run.stderr ?? '').trim().slice(0, 200)}; the process.once('exit') handler in src/utils/ripgrep.ts must call endLiveRipgrepChildren`)
   for (const row of leftover.split('\n')) {
     const pid = Number.parseInt(row, 10)
     if (Number.isFinite(pid) && pid > 0) {

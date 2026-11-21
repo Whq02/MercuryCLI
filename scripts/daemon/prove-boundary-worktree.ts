@@ -22,7 +22,7 @@ if (childAt !== -1) {
   const git = (...args: string[]) => { const out = spawnSync('git', ['-C', repo, ...args], { env, encoding: 'utf8' }); assert.equal(out.status, 0, out.stderr); return out.stdout }
   let checks = 0
   let failures = 0
-  const check = (name: string, truth: unknown) => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name) }
+  const check = (name: string, truth: unknown, detail?: string) => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name + (!truth && detail ? ' — ' + detail : '')) }
   try {
     mkdirSync(repo)
     mkdirSync(join(home, 'daemon'))
@@ -54,19 +54,19 @@ if (childAt !== -1) {
       return JSON.parse(child.stdout.trim())
     }
     const facts = inspect()
-    check('a new daemon worktree is created on the requested branch', created.created && created.branchName === 'fixture-boundary')
-    check('the fresh worker can read the ignored dependency tree', facts.dependency === '{"present":true}\n')
-    check('the fresh worker can read the ignored vendor pack', facts.vendor === '{"present":true}\n')
-    check('the fresh worker inherits project-local permission and hook settings', facts.settings === readFileSync(join(repo, '.mercury', 'settings.local.json'), 'utf8'))
-    check('the declared worktree include survives the boundary', facts.included === 'included locally\n')
+    check('a new daemon worktree is created on the requested branch', created.created && created.branchName === 'fixture-boundary', 'ensureWorkerWorktree in src/daemon/concourseWorktrees.ts must create the worktree with git worktree add -b on opts.branchName; got ' + JSON.stringify(created))
+    check('the fresh worker can read the ignored dependency tree', facts.dependency === '{"present":true}\n', 'prepareWorktreeFiles in src/services/worktree.ts (called by ensureWorkerWorktree) must link node_modules into the new worktree; read ' + JSON.stringify(facts.dependency))
+    check('the fresh worker can read the ignored vendor pack', facts.vendor === '{"present":true}\n', 'prepareWorktreeFiles in src/services/worktree.ts must link the vendor directory into the new worktree; read ' + JSON.stringify(facts.vendor))
+    check('the fresh worker inherits project-local permission and hook settings', facts.settings === readFileSync(join(repo, '.mercury', 'settings.local.json'), 'utf8'), 'prepareWorktreeFiles in src/services/worktree.ts must carry .mercury/settings.local.json into the new worktree; read ' + JSON.stringify(facts.settings))
+    check('the declared worktree include survives the boundary', facts.included === 'included locally\n', 'prepareWorktreeFiles in src/services/worktree.ts must copy the files .worktreeinclude lists; read ' + JSON.stringify(facts.included))
     mkdirSync(join(created.path, '.mercury'), { recursive: true })
     writeFileSync(join(created.path, '.mercury', 'settings.local.json'), '{"permissions":{"deny":["Bash(worker-owned)"]}}\n')
     writeFileSync(join(created.path, 'private-fixture.txt'), 'worker-owned include\n')
     const reused = create()
     const again = inspect()
-    check('reusing the same worktree does not replace worker-owned local files', !reused.created && again.settings.includes('worker-owned') && again.included === 'worker-owned include\n')
-    check('preparation does not change repository git configuration', readFileSync(join(repo, '.git', 'config'), 'utf8') === configBefore)
-    check('the prepared worktree remains free of staged or unstaged tracked changes', git('-C', created.path, 'status', '--porcelain') === '')
+    check('reusing the same worktree does not replace worker-owned local files', !reused.created && again.settings.includes('worker-owned') && again.included === 'worker-owned include\n', 'ensureWorkerWorktree (src/daemon/concourseWorktrees.ts) must reuse the standing worktree, and prepareWorktreeFiles (src/services/worktree.ts) must not overwrite existing files when preserveExisting is set; got ' + JSON.stringify({ created: reused.created, settings: again.settings, included: again.included }))
+    check('preparation does not change repository git configuration', readFileSync(join(repo, '.git', 'config'), 'utf8') === configBefore, 'prepareWorktreeFiles (src/services/worktree.ts) or ensureWorkerWorktree (src/daemon/concourseWorktrees.ts) wrote to the repository .git/config; remove that write')
+    check('the prepared worktree remains free of staged or unstaged tracked changes', git('-C', created.path, 'status', '--porcelain') === '', 'the files prepareWorktreeFiles (src/services/worktree.ts) links or copies must be git-ignored or untracked-clean; run git status in the worktree to see which row is dirty')
     console.log('BOUNDARY WORKTREE ' + (failures ? 'RED' : 'GREEN') + ' — ' + (checks - failures) + '/' + checks + '; real git worktree and separate creator/reader processes')
   } finally { rmSync(home, { recursive: true, force: true }) }
   process.exitCode = failures ? 1 : 0

@@ -28,9 +28,19 @@ const receipts = await import('../../src/services/switchboard/sessionReceipts.ts
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
 
 let failures = 0
+function whereOf(label: string): string {
+  if (/^M6b/.test(label)) return 'makeSaturnBirthPort in src/daemon/saturnBirth.ts'
+  if (/^M2x|^M5|^S1|\bbox\b/.test(label)) return 'src/daemon/saturnBoxSchedules.ts (readBoxSchedules, addBoxSchedule, removeBoxSchedule, the box lock) or tickSaturnOnce in src/daemon/saturnTicker.ts'
+  if (/^M1\b/.test(label)) return 'PENDING_SCHEDULE_EDIT_CAP in src/services/saturn/sessionScheduleBridge.ts and SATURN_EDIT_BURST_CAP in src/daemon/saturn.ts'
+  if (/^L1[bc]/.test(label)) return 'saturnNextFireMs in src/daemon/saturn.ts'
+  if (/^L2s/.test(label)) return 'saturnFactsOf in src/daemon/saturn.ts or tickSaturnOnce in src/daemon/saturnTicker.ts'
+  if (/^L4/.test(label)) return 'the schedule tools under src/tools/ScheduleCronTool and src/tools/ScheduleWakeupTool, or src/services/saturn/sessionScheduleBridge.ts'
+  if (/^M12/.test(label)) return 'compileWhenSpelling in src/services/saturn/whenSpelling.ts'
+  return 'tickSaturnOnce in src/daemon/saturnTicker.ts or applyConcourseScheduleOp in src/daemon/saturn.ts'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : `${detail ? '; ' : ' — '}fix ${whereOf(label)}`}`)
 }
 
 const SESSION = 'sess-fixture-1'

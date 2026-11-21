@@ -46,20 +46,20 @@ try {
   const dirtyBefore = readFileSync(join(repo, 'app.ts'), 'utf8')
 
   const baseline = await createBaselineWorktree(v1, repo)
-  check('baseline created OK', baseline.ok === true, JSON.stringify(baseline).slice(0, 100))
+  check('baseline created OK', baseline.ok === true, JSON.stringify(baseline).slice(0, 100) + ' — createBaselineWorktree in src/services/worktree.ts refused a valid revision; read its reason above')
   if (baseline.ok) {
-    check('baseline is DETACHED at the requested revision', execFileSync('git', ['-C', baseline.path, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim() === v1)
-    check('baseline carries the v1 content (the A side)', readFileSync(join(baseline.path, 'app.ts'), 'utf8') === 'export const v = 1\n')
-    check('the LIVE tree is untouched — dirty WIP survives byte-identical (no stash)', readFileSync(join(repo, 'app.ts'), 'utf8') === dirtyBefore)
-    check('the baseline is LEASED (inventoried leftover)', listScratchLeftovers().some(l => l.root === baseline.path && /baseline worktree/.test(l.recovery)))
+    check('baseline is DETACHED at the requested revision', execFileSync('git', ['-C', baseline.path, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim() === v1, 'createBaselineWorktree in src/services/worktree.ts must run git worktree add --detach at the verified sha')
+    check('baseline carries the v1 content (the A side)', readFileSync(join(baseline.path, 'app.ts'), 'utf8') === 'export const v = 1\n', 'createBaselineWorktree in src/services/worktree.ts must check out the requested revision, not the live tree')
+    check('the LIVE tree is untouched — dirty WIP survives byte-identical (no stash)', readFileSync(join(repo, 'app.ts'), 'utf8') === dirtyBefore, 'createBaselineWorktree in src/services/worktree.ts must never stash, reset or write the live tree')
+    check('the baseline is LEASED (inventoried leftover)', listScratchLeftovers().some(l => l.root === baseline.path && /baseline worktree/.test(l.recovery)), 'createBaselineWorktree in src/services/worktree.ts must call registerScratchLease with a recovery text starting "baseline worktree"')
     await baseline.dispose()
-    check('dispose removes exactly this worktree', !existsSync(baseline.path))
-    check('dispose releases the lease', !listScratchLeftovers().some(l => l.root === baseline.path))
-    check('the live tree STILL untouched after dispose', readFileSync(join(repo, 'app.ts'), 'utf8') === dirtyBefore)
+    check('dispose removes exactly this worktree', !existsSync(baseline.path), 'the dispose function returned by createBaselineWorktree in src/services/worktree.ts must run git worktree remove --force on the path')
+    check('dispose releases the lease', !listScratchLeftovers().some(l => l.root === baseline.path), 'the dispose function returned by createBaselineWorktree in src/services/worktree.ts must call releaseScratchLease')
+    check('the live tree STILL untouched after dispose', readFileSync(join(repo, 'app.ts'), 'utf8') === dirtyBefore, 'dispose in createBaselineWorktree (src/services/worktree.ts) must remove only the baseline worktree')
   }
 
   const bogus = await createBaselineWorktree('not-a-revision-anywhere', repo)
-  check('a bogus revision refuses typed', bogus.ok === false && /not a commit/.test((bogus as { reason: string }).reason))
+  check('a bogus revision refuses typed', bogus.ok === false && /not a commit/.test((bogus as { reason: string }).reason), 'createBaselineWorktree in src/services/worktree.ts must return { ok: false, reason } containing "not a commit" when git rev-parse --verify fails')
 } finally {
   rmSync(repo, { recursive: true, force: true })
   rmSync(TMP_SCRATCH, { recursive: true, force: true })

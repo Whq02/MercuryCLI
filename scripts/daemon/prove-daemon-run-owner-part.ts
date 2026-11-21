@@ -16,7 +16,7 @@ process.env.MERCURY_DAEMON_OWNER_PID = '4242'
 let failures = 0
 const check = (label: string, cond: boolean, detail: unknown = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)} — the value above is what the part did; change src/daemon/run/owner.ts (armOwnerWatch, makeSessionlessBeat and the owner handover around them) until it does what the label says` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const settle = async (): Promise<void> => {

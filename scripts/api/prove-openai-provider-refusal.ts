@@ -43,7 +43,7 @@ async function call(messages: Message[]): Promise<AssistantMessage[]> {
   return rows
 }
 let failures = 0
-const check = (label: string, ok: boolean): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`); if (!ok) failures++ }
+const check = (label: string, ok: boolean): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ' — outcome settling is in src/services/providers/openai/openaiCallModel/attemptSettle.ts; what the next request carries is decided by requestConversationPlan in src/services/messages/apiPlan.ts'}`); if (!ok) failures++ }
 try {
   for (const scenario of ['refusal', 'done-only', 'filter']) {
     mode = scenario

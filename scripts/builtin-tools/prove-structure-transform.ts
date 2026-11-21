@@ -7,7 +7,7 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix: buildPreview and applyPreview in src/services/structure/transform.ts; receipt checks read isMutationOperation in src/services/changeTransaction/contracts.ts, evidence checks read src/services/primitives/evidencePlane.ts' : ''}`)
 }
 
 const { runStructureQuery } = await import('../../src/services/structure/query.ts')

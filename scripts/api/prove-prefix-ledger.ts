@@ -25,7 +25,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — the prefix ledger is src/services/providers/anthropic/prefixLedger.ts (judgeAndRecordPrefix, describePrefixMismatch) and the thinking binding is src/services/providers/anthropic/thinkingBinding.ts; the §3 legs run the built dist/mercury.mjs, so rebuild with bun run build.ts first' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -33,7 +33,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — prefix ledger proofs exceeded 240s')
+  console.log('\n❌ TIMEOUT — prefix ledger proofs exceeded 240s; the last section header printed above names the stuck part, and the §3 legs wait on the built dist/mercury.mjs (rebuild with bun run build.ts) and the fixture API in scripts/lib/fixtureApi.ts')
   process.exit(1)
 }, 240_000)
 guard.unref?.()

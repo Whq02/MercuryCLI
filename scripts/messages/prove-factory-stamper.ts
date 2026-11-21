@@ -3,6 +3,11 @@ import { createRowStamper, MESSAGE_STAMPER, heartbeatRow } from '../../src/rows/
 import * as factories from '../../src/utils/messages/factories.ts'
 import * as system from '../../src/utils/messages/systemMessages.ts'
 
+process.on('uncaughtException', error => {
+  console.error('FAIL: the row stamper or a message factory broke its contract; check createRowStamper and MESSAGE_STAMPER in src/rows/project.ts, and that each factory in src/utils/messages/factories.ts and systemMessages.ts mints its uuid and timestamp through MESSAGE_STAMPER.mint exactly once')
+  console.error(error)
+  process.exit(1)
+})
 let clocks = 0
 let ids = 0
 const stamper = createRowStamper(() => `clock-${++clocks}`)

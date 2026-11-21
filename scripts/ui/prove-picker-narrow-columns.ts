@@ -46,7 +46,7 @@ const models = [
   { id: 'vendor/long-family-of-models/second-series/model-delta', name: 'Model D', ctx: '200k ctx', tag: '', group },
 ]
 const columnsFor = (width: number): number => Object.values(pickerColumns(width)).reduce((sum, column) => sum + column, 0)
-for (const width of [49, 50, 55, 56, 64, 80, 92]) check(`the column plan fits ${width} cells`, columnsFor(width) <= width, String(columnsFor(width)))
+for (const width of [49, 50, 55, 56, 64, 80, 92]) check(`the column plan fits ${width} cells`, columnsFor(width) <= width, `${columnsFor(width)}; shrink the column widths pickerColumns returns in src/utils/model/modelPickerGroups.ts so their sum stays within the row width`)
 for (const [columns, rows] of [[60, 20], [63, 20], [66, 20], [70, 20], [80, 24], [120, 40], [177, 49], [213, 60]]) {
   resetChromeModeLatchForTests()
   resetOverlayStackForTests()
@@ -62,13 +62,13 @@ for (const [columns, rows] of [[60, 20], [63, 20], [66, 20], [70, 20], [80, 24],
     if (frameDir) writeFileSync(join(frameDir, `${columns}x${rows}.txt`), lines.join('\n') + '\n')
     const first = lines.find(line => line.includes('Model A')) ?? ''
     const second = lines.find(line => line.includes('Model B')) ?? ''
-    check(`${columns}x${rows}: the alias and current state stay whole`, first.includes('Model A') && first.includes('current') && second.includes('Model B'), first)
-    check(`${columns}x${rows}: the context cells stay whole`, first.includes('1.31M ctx') && second.includes('200k ctx'), `${first}\n${second}`)
+    check(`${columns}x${rows}: the alias and current state stay whole`, first.includes('Model A') && first.includes('current') && second.includes('Model B'), `${first}; the alias cell or state cell is clipped: check pickerColumns in src/utils/model/modelPickerGroups.ts and the cells in src/components/modelPicker/renderLine.tsx`)
+    check(`${columns}x${rows}: the context cells stay whole`, first.includes('1.31M ctx') && second.includes('200k ctx'), `${first}\n${second}; the ctx cell is clipped: check pickerColumns in src/utils/model/modelPickerGroups.ts`)
     const third = lines.find(line => line.includes('gamma')) ?? lines.find(line => line.includes('vendor/long-family-of')) ?? ''
     const fourth = lines.find(line => line.includes('delta')) ?? lines.findLast(line => line.includes('vendor/long-family-of')) ?? ''
-    check(`${columns}x${rows}: an id its cell cannot hold keeps its end behind a leading ellipsis, so two ids of one family read apart`, /…\S*gamma\s/.test(third) && /…\S*delta\s/.test(fourth) && !third.includes('vendor/') && !fourth.includes('vendor/'), `${third.trim()}\n${fourth.trim()}`)
-    if (columns === 60) check('60x20: clipped ids keep distinct model tails', first.includes('…') && first.includes('alpha') && second.includes('…') && second.includes('beta'), `${first}\n${second}`)
-    if (columns === 63) check('63x20: TensorFold keeps the original alias budget at its rounding boundary', first.includes('Model Alpha') && second.includes('Model Beta'), `${first}\n${second}`)
+    check(`${columns}x${rows}: an id its cell cannot hold keeps its end behind a leading ellipsis, so two ids of one family read apart`, /…\S*gamma\s/.test(third) && /…\S*delta\s/.test(fourth) && !third.includes('vendor/') && !fourth.includes('vendor/'), `${third.trim()}\n${fourth.trim()}; the id cell must keep the id's end behind a leading ellipsis: check idCell in src/components/modelPicker/renderLine.tsx`)
+    if (columns === 60) check('60x20: clipped ids keep distinct model tails', first.includes('…') && first.includes('alpha') && second.includes('…') && second.includes('beta'), `${first}\n${second}; clipped ids must keep their tails: check idCell in src/components/modelPicker/renderLine.tsx and the id width in pickerColumns`)
+    if (columns === 63) check('63x20: TensorFold keeps the original alias budget at its rounding boundary', first.includes('Model Alpha') && second.includes('Model Beta'), `${first}\n${second}; the alias width at this width lost its budget: check pickerColumns in src/utils/model/modelPickerGroups.ts and the alias cell in src/components/modelPicker/renderLine.tsx`)
   } finally { scene.unmount() }
 }
 console.log(`picker-narrow-columns: ${checks} checks, ${failures} failed`)

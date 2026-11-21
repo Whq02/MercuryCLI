@@ -131,10 +131,11 @@ export function zaiCasesEnv(base: string, home: string, config: string): NodeJS.
 
 let failures = 0
 let checks = 0
+const FAIL_HINT = 'what to change: the note words in src/services/providers/emptyReply.ts (emptyReplyNote), or the one-time retry with the nudge in src/run-core/turn/noToolReply.ts; a failed "turn settled" check means read the stderr tail in the detail and rebuild dist/mercury.mjs (bun run build.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${FAIL_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -112,24 +112,24 @@ function debugLog(home: string): string {
 
 function judge(label: string, run: Awaited<ReturnType<typeof loseTerminal>>): void {
   const v = run.verdict
-  check(`${label}: the harness produced a verdict`, v !== null, run.log.slice(-600))
+  check(`${label}: the harness produced a verdict`, v !== null, run.log.slice(-600) + ' — scripts/terminal-boundary/lost-terminal.py wrote no verdict JSON; read the harness log above for why it failed to start the session')
   if (v === null) return
-  check(`${label}: the reader was armed before the loss (input-live)`, v.milestones.includes('input-live'), v.milestones.join(','))
-  check(`${label}: the terminal was taken from the session`, v.notes.includes('terminal-taken'))
+  check(`${label}: the reader was armed before the loss (input-live)`, v.milestones.includes('input-live'), v.milestones.join(',') + ' — the session never reached input-live before the loss; run the harness (scripts/terminal-boundary/lost-terminal.py) by hand and check that the resumed session boots')
+  check(`${label}: the terminal was taken from the session`, v.notes.includes('terminal-taken'), `notes: ${v.notes.join(',')} — the harness (scripts/terminal-boundary/lost-terminal.py) could not take the terminal away; fix the harness, not the session`)
   const eioReports = v.crashes.filter(c => c.origin === 'uncaught-exception' && /read EIO/.test(c.message ?? ''))
-  check(`${label}: no crash report of origin uncaught-exception names read EIO`, eioReports.length === 0, eioReports.map(c => `${c.file}: ${c.message}`).join(' | '))
-  check(`${label}: no crash report of any origin was written`, v.crashes.length === 0, v.crashes.map(c => `${c.file}: ${c.origin} ${c.message}`).join(' | '))
-  check(`${label}: the session closed on its own`, v.exit !== null, `state when given up: ${v.stateWhenGivenUp ?? 'unknown'}`)
+  check(`${label}: no crash report of origin uncaught-exception names read EIO`, eioReports.length === 0, eioReports.map(c => `${c.file}: ${c.message}`).join(' | ') + ' — a stdin read EIO must not reach uncaughtException; handle it in handleStreamGoneErrors (src/utils/process.ts)')
+  check(`${label}: no crash report of any origin was written`, v.crashes.length === 0, v.crashes.map(c => `${c.file}: ${c.origin} ${c.message}`).join(' | ') + ' — a lost terminal must close the session without writing a crash report; see the origin named in each report')
+  check(`${label}: the session closed on its own`, v.exit !== null, `state when given up: ${v.stateWhenGivenUp ?? 'unknown'} — the stdin EIO handler in src/utils/gracefulShutdown.ts must call gracefulShutdownSync(TERMINAL_GONE_EXIT_CODE)`)
   if (v.exit !== null) {
-    check(`${label}: the exit code is the gone-terminal law's (129)`, v.exit.code === 129, JSON.stringify(v.exit))
-    check(`${label}: the close was prompt (under 10 s), not the orphan probe's next tick`, v.exit.afterS < 10, `${v.exit.afterS}s`)
+    check(`${label}: the exit code is the gone-terminal law's (129)`, v.exit.code === 129, JSON.stringify(v.exit) + ' — TERMINAL_GONE_EXIT_CODE in src/utils/gracefulShutdown.ts is 129; the close must exit with it')
+    check(`${label}: the close was prompt (under 10 s), not the orphan probe's next tick`, v.exit.afterS < 10, `${v.exit.afterS}s — the stdin error handler in src/utils/gracefulShutdown.ts must close at once, not wait for the 30 s orphan check`)
   }
   const log = debugLog(run.home)
-  check(`${label}: the session log records the reason in the hangup's words`, /terminal gone: stdin read EIO/.test(log), log.split('\n').filter(l => /EIO|uncaught/.test(l)).join(' | ').slice(0, 300))
-  check(`${label}: the session log holds no uncaught read EIO`, !/uncaughtException: Error: read EIO/.test(log))
+  check(`${label}: the session log records the reason in the hangup's words`, /terminal gone: stdin read EIO/.test(log), log.split('\n').filter(l => /EIO|uncaught/.test(l)).join(' | ').slice(0, 300) + ' — the stdin EIO handler in src/utils/gracefulShutdown.ts must log terminalGoneReadLine(code) through logForDebugging')
+  check(`${label}: the session log holds no uncaught read EIO`, !/uncaughtException: Error: read EIO/.test(log), 'the debug log shows an uncaught read EIO; handleStreamGoneErrors in src/utils/process.ts must swallow it for process.stdin')
   const after = existsSync(run.transcript) ? readFileSync(run.transcript, 'utf8') : ''
   const lastSeeded = run.seeded.trim().split('\n').at(-1) ?? ''
-  check(`${label}: the transcript's last seeded row is intact`, after.includes(lastSeeded), `${after.length} bytes after`)
+  check(`${label}: the transcript's last seeded row is intact`, after.includes(lastSeeded), `${after.length} bytes after — the shutdown on a lost terminal must not truncate or rewrite the session transcript; look at what gracefulShutdownSync in src/utils/gracefulShutdown.ts flushes`)
 }
 
 section('§0 the artifact')
@@ -157,7 +157,7 @@ section('§2 the terminal is lost while a turn is in flight')
     LT_PROMPT_SETTLE_S: '2',
   })
   await Promise.race([started, new Promise(r => setTimeout(r, 1000))])
-  check('inflight: the turn reached the provider before the loss', run.verdict?.inflight === true, `message requests: ${fixture.messageRequests().length}`)
+  check('inflight: the turn reached the provider before the loss', run.verdict?.inflight === true, `message requests: ${fixture.messageRequests().length} — the prompt never reached the fixture provider; check the LT_SEND_PROMPT leg in scripts/terminal-boundary/lost-terminal.py`)
   judge('inflight', run)
   await fixture.close()
 }

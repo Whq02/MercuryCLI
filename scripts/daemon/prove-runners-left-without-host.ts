@@ -15,9 +15,11 @@ mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
 
 let failures = 0
+let where = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const said = [detail, where].filter(Boolean).join('; ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && said ? ` — ${said}` : ''}`)
 }
 const j = (value: unknown): string => JSON.stringify(value)
 
@@ -87,6 +89,7 @@ const endIfStill = async (pid: number, birth: string | null): Promise<void> => {
 
 console.log('R1 a runner whose daemon died has no host: the daemon that comes after ends it, and the session waits for its next message')
 {
+  where = 'fix endRunnersLeftWithoutHost in src/daemon/concourseWorkers/park.ts (which records it may end), or reviveConcourseWorker in src/daemon/concourseWorkers/revive.ts for the revive answer'
   const left = standIn()
   const mine = standIn()
   const held = standIn()
@@ -119,6 +122,7 @@ console.log('R1 a runner whose daemon died has no host: the daemon that comes af
 
 console.log("R3 a process under the runner that outlives the ask is ended with it, and nothing outside the runner's tree is touched")
 {
+  where = 'fix endRunnersLeftWithoutHost in src/daemon/concourseWorkers/park.ts and readProcessTreeUnder in src/daemon/processTree.ts'
   const { runner, pidFile } = leftRunner('left-runner')
   const bystander = standIn()
   const staged = await until(() => existsSync(pidFile) && readFileSync(pidFile, 'utf8').trim() !== '', 3_000)
@@ -140,6 +144,7 @@ console.log("R3 a process under the runner that outlives the ask is ended with i
 
 console.log("R6 a process under the runner born in the second its tree is listed in is left by this pass: to the second, its birth could be a later process's")
 {
+  where = 'fix endRunnersLeftWithoutHost in src/daemon/concourseWorkers/park.ts and processTreeMembers in src/daemon/processTree.ts (a process born in the listing second must be kept); the scene is timing-dependent, so rerun before reading it as a regression'
   let scene: { staged: boolean; under: number; underBirth: string | null; runnerPid: number; ended: string[]; runnerId: string } | null = null
   for (let attempt = 0; attempt < 4 && (scene === null || !scene.staged); attempt++) {
     await until(() => intoListingSecond() < 120, 2_000)
@@ -163,6 +168,7 @@ console.log("R6 a process under the runner born in the second its tree is listed
 
 console.log('R4 what stands under a runner: its descendants at any depth, and its group only when it leads one')
 {
+  where = 'fix parseProcessTreeRows, processTreeUnder, processTreeMembers or readLinuxProcessTree in src/daemon/processTree.ts'
   const table = ['   10     1    10', '   11    10    10', '   12    11    12', '   13     1    10', '   14     1    14', '   20     1     7', '   21    20     7', '   22     1     7', '    1     0     1', 'not a row of the table'].join('\n')
   const rows = tree === null ? [] : tree.parseProcessTreeRows(table)
   const under = (pid: number, more: typeof rows = []): number[] => (tree === null ? [-1] : tree.processTreeUnder([...rows, ...more], pid).sort((a, b) => a - b))
@@ -194,6 +200,7 @@ console.log('R4 what stands under a runner: its descendants at any depth, and it
 
 console.log('R5 a record that names this process is no runner left without a host: nothing it started is touched')
 {
+  where = 'fix endRunnersLeftWithoutHost in src/daemon/concourseWorkers/park.ts (it must skip a record naming the sweeping process)'
   const child = standIn()
   await new Promise(resolve => setTimeout(resolve, 150))
   const selfId = await seed('9', process.pid)

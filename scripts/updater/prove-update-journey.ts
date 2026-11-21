@@ -18,7 +18,7 @@ if (!existsSync(DIST)) {
 
 let failures = 0
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail} — ` : ''}change checkForUpdate, performUpdate, performRollback or performInstall in src/services/privateChannel/updateService.ts so the mercury update or install command behaves as this label says`}`)
   if (!cond) failures++
 }
 

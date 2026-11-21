@@ -38,15 +38,17 @@ type Store = {
 
 let total = 0
 let failures = 0
+let where = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   total++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok && where ? ` — to fix, change ${where}` : ''}`)
 }
 const skip = (label: string, why: string): void => {
   console.log(`  [SKIP] ${label} — ${why}`)
 }
-const section = (title: string): void => {
+const section = (title: string, changeWhere = ''): void => {
+  where = changeWhere
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 }
 const why = (answer: Answer | undefined): string => (answer === undefined ? 'no protector on this tree' : answer.ok ? `ok, ${answer.bytes.length} bytes` : answer.why)
@@ -127,7 +129,7 @@ if (process.platform === 'win32') {
   chmodSync(join(STAND_IN_DIR, 'powershell.exe'), 0o755)
   process.env.SystemRoot = ROOT
 
-  section('§1 the request: the system\'s PowerShell by its own path, the key on stdin and nowhere else')
+  section('§1 the request: the system\'s PowerShell by its own path, the key on stdin and nowhere else', 'createDpapiProtector in src/utils/secureStorage/windowsDpapiProtector.ts (how it starts PowerShell and what it sends), or STAND_IN in this file if the stand-in is what misbehaves')
   {
     setMode('answers')
     const protector = protectorOf()
@@ -152,7 +154,7 @@ if (process.platform === 'win32') {
     check('the PowerShell it starts is not handed the session\'s token or a provider key', seen.length === 4 && seen.every(call => call.secretsInEnv.length === 0), JSON.stringify(seen[0]?.secretsInEnv))
   }
 
-  section('§2 the answers: it says why whenever the system does not give the bytes')
+  section('§2 the answers: it says why whenever the system does not give the bytes', 'how createDpapiProtector in src/utils/secureStorage/windowsDpapiProtector.ts reads the PowerShell answer, its exit, its timeout and its missing executable, and the why and final it returns')
   {
     const quick = protectorOf(1500)
     const key = randomBytes(32)
@@ -204,7 +206,7 @@ if (process.platform === 'win32') {
     process.env.SystemRoot = ROOT
   }
 
-  section('§3 the store over it: two starts for the first sealing, one for a process that reads, none after')
+  section('§3 the store over it: two starts for the first sealing, one for a process that reads, none after', 'fileStorageFor in src/utils/secureStorage/fileStorage.ts (sealing, caching the unwrapped key, plaintext fallback and its warning)')
   {
     setMode('answers')
     rmSync(CALLS, { force: true })
@@ -238,7 +240,7 @@ if (process.platform === 'win32') {
   }
 }
 
-section('§4 the choice, by platform and by the flag')
+section('§4 the choice, by platform and by the flag', 'systemProtectorFor in src/utils/secureStorage/systemProtector.ts, fileStorageFor in src/utils/secureStorage/fileStorage.ts, or getSecureStorage in src/utils/secureStorage/index.ts')
 {
   const forWindows = system?.systemProtectorFor('win32', undefined) as Protector | null | undefined
   check('Windows has a protector: dpapi-user', forWindows?.scheme === 'dpapi-user', String(forWindows?.scheme))
@@ -253,7 +255,7 @@ section('§4 the choice, by platform and by the flag')
 }
 
 if (REAL) {
-  section('--real: the system\'s own PowerShell and DPAPI')
+  section('--real: the system\'s own PowerShell and DPAPI', 'createDpapiProtector in src/utils/secureStorage/windowsDpapiProtector.ts (read the answer printed above) or fileStorageFor in src/utils/secureStorage/fileStorage.ts')
   if (process.platform !== 'win32') {
     check('--real is run on Windows', false, process.platform)
   } else {

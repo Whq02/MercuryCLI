@@ -483,7 +483,7 @@ async function drive(leg: Leg, view: 'fresh' | 'admitted', pool: Tools, admitted
       deltaRowNames: 0, deltaRowBytes: 0, declaredTools: 0, declaredBytes: 0, deferLoadingMarked: 0, betaHeader: '', bodyBytes: 0, toolsDigest: '', bodyDigest: '', probes, error: errors.join(' | ') || 'no capture',
     }
   }
-  check(`${leg.route}/${view}: the captured wire has no retired tool head`, FORBIDDEN_HEAD_WORDS.every(word => !JSON.stringify(hit.body).includes(word)))
+  check(`${leg.route}/${view}: the captured wire has no retired tool head`, FORBIDDEN_HEAD_WORDS.every(word => !JSON.stringify(hit.body).includes(word)), `a retired tool-head marker (${FORBIDDEN_HEAD_WORDS.join(' / ')}) is on this route's wire; remove the code that still writes it into the request`)
   const tools = toolsOfBody(leg.route, hit.body)
   const toolsJson = JSON.stringify(hit.body.tools ?? [])
   const toolBytes = Buffer.byteLength(toolsJson, 'utf8')
@@ -556,7 +556,7 @@ for (const leg of LEGS) {
   if (leg.route === 'anthropic-gateway') await settleGatewayProbe()
   const admitted = await drive(leg, 'admitted', pool, admittedNames)
   rows.push(fresh, admitted)
-  check(`${leg.route} (${leg.model}): both views captured on the wire`, fresh.captured && admitted.captured, `${fresh.error ?? ''} ${admitted.error ?? ''}`.trim())
+  check(`${leg.route} (${leg.model}): both views captured on the wire`, fresh.captured && admitted.captured, `${fresh.error ?? ''} ${admitted.error ?? ''}`.trim() + ' — no non-probe request from this route reached the loopback fixture (or api.anthropic.com capture for the first-party leg); read the error text and check that the leg\'s base-URL env in LEGS and routeOfPath cover it')
   for (const k of Object.keys(leg.env)) delete process.env[k]
 }
 delete process.env.MERCURY_MODEL
@@ -564,9 +564,9 @@ delete process.env.MERCURY_MODEL
 const fp = rows.find(r => r.route === 'anthropic' && r.view === 'fresh')
 const gw = rows.find(r => r.route === 'anthropic-gateway' && r.view === 'fresh')
 const gwOff = rows.find(r => r.route === 'anthropic-gateway-unprobed' && r.view === 'fresh')
-check('first-party leg captured at api.anthropic.com', fp?.url.includes('api.anthropic.com') === true, fp?.url ?? '')
-check('gateway legs captured at the loopback', gw?.url.startsWith('/v1/messages') === true && gwOff?.url.startsWith('/v1/messages') === true, `${gw?.url ?? ''} ${gwOff?.url ?? ''}`)
-check('no probe request rode the first-party or the probe-off gateway leg', (fp?.probes ?? 0) === 0 && (gwOff?.probes ?? 0) === 0 && rows.filter(r => r.route === 'anthropic-gateway-unprobed').every(r => r.probes === 0))
+check('first-party leg captured at api.anthropic.com', fp?.url.includes('api.anthropic.com') === true, `${fp?.url ?? ''} — the first-party leg must be captured by firstPartyCaptureFetch at api.anthropic.com; check the fetchOverride in drive() and the anthropic leg in LEGS`)
+check('gateway legs captured at the loopback', gw?.url.startsWith('/v1/messages') === true && gwOff?.url.startsWith('/v1/messages') === true, `${gw?.url ?? ''} ${gwOff?.url ?? ''} — the gateway legs must post to /v1/messages on the loopback server; check ANTHROPIC_BASE_URL in those two LEGS entries`)
+check('no probe request rode the first-party or the probe-off gateway leg', (fp?.probes ?? 0) === 0 && (gwOff?.probes ?? 0) === 0 && rows.filter(r => r.route === 'anthropic-gateway-unprobed').every(r => r.probes === 0), `probes: first-party ${fp?.probes ?? 0}, probe-off gateway ${gwOff?.probes ?? 0} — a deferral_probe request was sent where probing is off; the gateway probe must run only with MERCURY_TOOL_DEFER_PROBE set`)
 
 section('§B the table')
 const fmt = (n: number): string => n.toLocaleString('en-US')
@@ -652,9 +652,9 @@ const taskRows: TaskRow[] = []
   const totalWhole = taskRows.reduce((a, r) => a + r.whole.bytes, 0)
   taskLines.push(`| total | ${taskRows.length} requests | ${fmt(totalDeferring)} | | | ${fmt(totalWhole)} | | | ${fmt(totalWhole - totalDeferring)} |`)
   console.log(taskLines.join('\n'))
-  check('the task was captured on the compat road in both arms', taskRows.every(r => r.deferring.bytes > 0 && r.whole.bytes > 0))
-  check('the deferring arm carries under half the whole roster\'s tool bytes on every request of the task', taskRows.every(r => r.deferring.toolBytes * 2 < r.whole.toolBytes), taskRows.map(r => `${r.deferring.toolBytes}/${r.whole.toolBytes}`).join(' '))
-  check('the tools term never moves across the task in either arm', new Set(taskRows.map(r => r.deferring.toolBytes)).size === 1 && new Set(taskRows.map(r => r.whole.toolBytes)).size === 1)
+  check('the task was captured on the compat road in both arms', taskRows.every(r => r.deferring.bytes > 0 && r.whole.bytes > 0), 'a request of the compat-road task was not captured; check the compat/qwen-max leg (MERCURY_COMPAT_BASE_URL and the /compatslot/ route) answered')
+  check('the deferring arm carries under half the whole roster\'s tool bytes on every request of the task', taskRows.every(r => r.deferring.toolBytes * 2 < r.whole.toolBytes), taskRows.map(r => `${r.deferring.toolBytes}/${r.whole.toolBytes}`).join(' ') + ' (deferring/whole tool bytes per request) — the deferring arm is sending too many tool schemas on the compat road; fewer deferrable tools must ride the request')
+  check('the tools term never moves across the task in either arm', new Set(taskRows.map(r => r.deferring.toolBytes)).size === 1 && new Set(taskRows.map(r => r.whole.toolBytes)).size === 1, taskRows.map(r => `${r.deferring.toolBytes}/${r.whole.toolBytes}`).join(' ') + ' (deferring/whole tool bytes per request) — the tools term changed between requests of one task; the tool roster must stay fixed once a task starts')
   writeFileSync(join(outDir, 'compat-task-bytes.json'), JSON.stringify({ stamp, model: TASK_MODEL, rows: taskRows, totalDeferring, totalWhole }, null, 2))
   writeFileSync(join(outDir, 'compat-task-bytes.md'), `# the three-step task on the compat road\n\n${stamp}\n\n${taskLines.join('\n')}\n`)
   console.log(`\nwritten: ${join(outDir, 'compat-task-bytes.md')}`)

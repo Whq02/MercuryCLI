@@ -15,7 +15,8 @@ for (const d of [process.env.MERCURY_CONFIG_DIR, DAEMON_DIR]) mkdirSync(d!, { re
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const hint = 'change: the answer or request reader for this op in src/daemon/controlServer.ts (a result field is dropped, or a malformed request reaches the handler)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail || !cond ? ` — ${[detail, ...(cond ? [] : [hint])].filter(Boolean).join(' | ')}` : ''}`)
 }
 
 const sock = await import('../../src/daemon/controlSocket.ts')

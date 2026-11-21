@@ -307,10 +307,41 @@ type AccountSlot = import('../../src/services/providers/accountSlots.ts').Accoun
 
 let failures = 0
 let checks = 0
+const WHERE_TO_LOOK: Record<string, string> = {
+  W1: 'fix the Kimi / Hugging Face sign-in in src/services/providers/moonshot/moonshotLogin.ts (runKimiDeviceLogin) or src/services/providers/huggingface/huggingfaceLogin.ts (runHuggingfaceDeviceLogin), or the entry in walletEntries in src/services/wallet/wallet.ts',
+  W2: 'keep the ChatGPT entry and its email through a preference change: walletEntries in src/services/wallet/wallet.ts and writePreferredOpenaiSource in src/services/providers/openai/openaiAccounts.ts',
+  W3: 'a recorded account must not outrank the credential receipt: anthropicCredentialAccount / anthropicScopeEntry in src/services/wallet/wallet.ts',
+  A1: 'the Claude sign-in or its profile account: createAnthropicLoginMachine in src/components/mercury-ui/screens/anthropicLoginModel.ts, fetchProfileInfo in src/services/oauth/client.ts, anthropicScopeEntry in src/services/wallet/wallet.ts',
+  A2: 'the receipt stored with the Claude credential: anthropicCredentialAccount / anthropicScopeEntry in src/services/wallet/wallet.ts',
+  A4: 'an address the operator typed must never become provider identity: anthropicScopeEntry in src/services/wallet/wallet.ts',
+  A4b: 'a persisted typed address must never become provider identity: anthropicScopeEntry in src/services/wallet/wallet.ts',
+  A5: 'the provenance rule: anthropicCredentialAccount / anthropicScopeEntry in src/services/wallet/wallet.ts',
+  A6: 'an env refresh-token sign-in must carry no earlier receipt: refreshSignInGrant in src/services/oauth/client.ts, then anthropicScopeEntry in src/services/wallet/wallet.ts',
+  O1: 'the ChatGPT id_token email claim: beginOpenaiDeviceConnect in src/services/providers/openai/openaiAccounts.ts and walletEntries in src/services/wallet/wallet.ts',
+  O4: 'a token without the email claim must clear the earlier email: beginOpenaiDeviceConnect in src/services/providers/openai/openaiAccounts.ts',
+  G1: 'the Google sign-in must ask for and store no identity: beginGeminiBrowserConnect in src/services/providers/gemini/geminiAccounts.ts',
+  H2: 'a new Hub grant must not wear the previous name: runHuggingfaceDeviceLogin in src/services/providers/huggingface/huggingfaceLogin.ts and huggingfaceOauthIdentity in src/services/providers/huggingface/huggingfaceAccounts.ts',
+  H3: 'a verified Hub sign-in must record the whoami name: runHuggingfaceDeviceLogin in src/services/providers/huggingface/huggingfaceLogin.ts',
+  H4: 'an approval after cancel must be stored without the earlier name: runHuggingfaceDeviceLogin in src/services/providers/huggingface/huggingfaceLogin.ts',
+  K1: 'the Kimi grant must store and claim no identity: runKimiDeviceLogin in src/services/providers/moonshot/moonshotLogin.ts and walletEntries in src/services/wallet/wallet.ts',
+  K2: 'the mainland-China Kimi sign-in: runKimiDeviceLogin in src/services/providers/moonshot/moonshotLogin.ts',
+  L1: 'the slot words read by /accounts and the Logins chip: deriveFamilySlotGroups in src/services/providers/accountSlots.ts',
+  L2: 'the slot words read by /accounts and the Logins chip: deriveFamilySlotGroups in src/services/providers/accountSlots.ts',
+  L3: 'the slot words read by /accounts and the Logins chip: deriveFamilySlotGroups in src/services/providers/accountSlots.ts',
+  R1: 'the OpenRouter minted key entry: beginOpenrouterConnect in src/services/providers/openrouter/openrouterAccounts.ts and walletEntries in src/services/wallet/wallet.ts',
+  S1: 'an entry in walletEntries (src/services/wallet/wallet.ts) carries secret material; drop the named value from the entry',
+}
+const hintFor = (label: string): string => {
+  const key = label.split(' ')[0] ?? ''
+  const where = WHERE_TO_LOOK[key] ?? WHERE_TO_LOOK[key.replace(/[a-z]$/, '')]
+  return where === undefined ? '' : `to fix: ${where}`
+}
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const hint = hintFor(label)
+  const text = [detail, hint].filter(part => part !== '').join(' | ')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && text ? ` — ${text}` : ''}`)
 }
 const section = (title: string): void => {
   console.log(`\n${'─'.repeat(76)}\n${title}`)

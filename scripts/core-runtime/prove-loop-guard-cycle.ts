@@ -60,7 +60,8 @@ let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = 'change the detector in src/services/tools/loopGuard.ts (recordToolCall, closeRound), the turn end in src/run-core/turn/afterTools.ts, or the turns.loopGuard setting in src/utils/settings/types.ts, whichever this check exercises'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${hint}` : ''}`)
   if (!cond) failures++
 }
 function section(t: string): void {

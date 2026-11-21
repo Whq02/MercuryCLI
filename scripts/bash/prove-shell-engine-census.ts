@@ -210,9 +210,9 @@ interface CensusRow {
 const { samples, files, templated } = collectCorpus()
 section('§1 the corpus')
 console.log(`  ${samples.length} distinct commands from ${files} files (${templated} templated commands skipped); engines: ${engines.map(e => `${e.name}=${e.bin}`).join(', ')}`)
-check('the corpus is a real census (at least 40 distinct model-written commands)', samples.length >= 40, `${samples.length}`)
+check('the corpus is a real census (at least 40 distinct model-written commands)', samples.length >= 40, `${samples.length}; collectCorpus in this file reads Bash tool_use commands from the files under scripts/, so restore those fixtures or its TS_TOOL_USE / JSON_* patterns until 40 distinct commands are found`)
 const present = new Set(samples.flatMap(s => constructsOf(s.command)))
-check('the corpus carries the pipe / and-list / or-list / sequence / redirect / quoting / variable family', ['pipe', 'and-list', 'or-list', 'sequence', 'redirect', 'single-quotes', 'double-quotes', 'variable'].every(name => present.has(name)), [...present].join(', '))
+check('the corpus carries the pipe / and-list / or-list / sequence / redirect / quoting / variable family', ['pipe', 'and-list', 'or-list', 'sequence', 'redirect', 'single-quotes', 'double-quotes', 'variable'].every(name => present.has(name)), `${[...present].join(', ')}; the corpus lost a construct family, so restore the fixture commands under scripts/ that use it, or check its entry in CONSTRUCTS in this file`)
 const absent = CONSTRUCTS.map(([name]) => name).filter(name => !present.has(name))
 if (absent.length > 0) console.log(`  constructs no fixture command uses (the execution-seam corpus covers them): ${absent.join(', ')}`)
 const brush = engines.find(e => e.name === 'brush')
@@ -254,7 +254,7 @@ for (const sample of samples) {
     row.detail = problems.join('; ') + (gap && problems.length > 0 ? ` [${gap}]` : '')
     const label = `${executable ? 'execution' : 'parse'} parity: ${JSON.stringify(sample.command.length > 70 ? sample.command.slice(0, 67) + '…' : sample.command)}`
     if (row.verdict === 'known-gap') console.log(`  [SKIP] ${label} — known gap: ${row.detail}`)
-    else check(label, row.verdict === 'same', row.detail)
+    else check(label, row.verdict === 'same', `${row.detail}; run this command under bash and the vendored brush engine and make the engine answer as bash does (engine wiring is in src/utils/shell/engineSession.ts), or if the gap is upstream add its pattern to KNOWN_GAPS in this file`)
   }
   rows.push(row)
 }

@@ -24,12 +24,14 @@ const seatWire = await import('../../src/services/engine-connector/seatWire.ts')
 
 let failures = 0
 let checks = 0
+let where = 'the transcriptStoreFailing key of FACTS_SPEC in src/services/engine-connector/seatWire.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 500)}` : ''}${ok ? '' : ` — to change: ${where}`}`)
 }
 const section = (t: string): void => {
+  if (t.startsWith('§2')) where = 'transcriptStoreFailing() and wake() of the facts part in src/services/engine-connector/daemon/facts.ts, reached through DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts'
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? 'undefined'

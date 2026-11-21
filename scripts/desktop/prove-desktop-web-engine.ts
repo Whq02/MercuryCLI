@@ -9,7 +9,7 @@ let checks = 0
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 400) : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? (detail ? ' — ' + detail.slice(0, 400) : '') + ' — fix bundleWebEngine in src/services/desktop/webEngine.ts (what it reads of the bundle or image folder, and when it answers undefined or caches)' : ''}`)
   if (!cond) failures++
 }
 

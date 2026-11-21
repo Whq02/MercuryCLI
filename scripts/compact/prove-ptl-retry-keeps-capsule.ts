@@ -21,10 +21,11 @@ const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import(join(SRC, 'services/api/e
 
 let failures = 0
 let checks = 0
+const FIX_HINT = 'fix truncateHeadForPTLRetry in src/services/compact/compact/input.ts (it must shed the head working round, keep the compact boundary and summary rows in front, and seat one fold marker)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${FIX_HINT}` : ''}`)
 }
 
 type Msg = { type: string; uuid: string; isCompactSummary?: boolean; isMeta?: boolean; message?: { content?: unknown } }

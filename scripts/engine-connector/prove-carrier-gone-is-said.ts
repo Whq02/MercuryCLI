@@ -18,7 +18,9 @@ const SRC = join(REPO, 'src')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const hint = 'change the carrier verdict in src/services/engine-connector/daemon/carrier.ts (CarrierPart.factsFromCarrier) and its use in src/services/engine-connector/daemonConnector.ts (CARRIER_GONE_WORDS) until this holds'
+  const shown = !ok ? [detail, hint].filter(Boolean).join(' — ') : ''
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 const section = (t: string): void => console.log(`\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)

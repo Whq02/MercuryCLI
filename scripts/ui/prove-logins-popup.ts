@@ -120,7 +120,7 @@ const familyRows = loginFamilyRows({ engineLegs: true })
 let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${pass ? '' : ` — ${detail ? `${detail}; ` : ''}fix the logins popup in src/components/SettingsPopupSlot.tsx (frame, geometry, key handling) or the /login command in src/commands/login/login.tsx; rerun with --frames <dir> to save each screen`}`)
 }
 type Scene = { columns: number; rows: number; bottom?: number }
 const allSizes: Scene[] = [{ columns: 64, rows: 12 }, { columns: 80, rows: 24 }, { columns: 120, rows: 40 }, { columns: 178, rows: 51 }]

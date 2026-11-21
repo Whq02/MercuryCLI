@@ -9,7 +9,8 @@ const { SEAT_RECON_ALLOW, isValidReconAllowRule, resolveWorkerReconAllow } = awa
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = 'change: SEAT_RECON_ALLOW, isValidReconAllowRule or resolveWorkerReconAllow in src/daemon/workerRecon.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${[detail, hint].filter(Boolean).join(' | ')}` : ''}`)
 }
 
 console.log('============================================================')

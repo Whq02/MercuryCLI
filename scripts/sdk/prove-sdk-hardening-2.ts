@@ -51,14 +51,14 @@ const windows = process.platform === 'win32'
 const failures: string[] = []
 const check = async (name: string, body: () => Promise<void>): Promise<void> => {
   try { await body(); console.log(`PASS ${name}`) }
-  catch (error) { failures.push(name); console.error(`FAIL ${name}\n${error instanceof Error ? error.stack : String(error)}`) }
+  catch (error) { failures.push(name); console.error(`FAIL ${name}\n${error instanceof Error ? error.stack : String(error)}\nChange: the run() path in sdk/src/client.ts or the connect() path in sdk/src/runner.ts so this case ends with the error the check names; the cut-line text is CUT_LINE in sdk/src/framing.ts and the error classes are in sdk/src/errors.ts`) }
 }
 const cutExit = (door: 'run' | 'runner') => (error: unknown): boolean => error instanceof MercuryExitError && error.door === door && error.message.endsWith('the last stdout line was cut off') && (windows || error.exit?.signal === 'SIGKILL')
 const within = <T>(ms: number, promise: Promise<T>): Promise<T> => {
   let timer: ReturnType<typeof setTimeout> | undefined
   return Promise.race([promise, new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(`still waiting after ${ms} ms`)), ms) })]).finally(() => clearTimeout(timer))
 }
-const guard = setTimeout(() => { console.error('FAIL the second hardening proof timed out'); process.exit(1) }, 150000)
+const guard = setTimeout(() => { console.error('FAIL the second hardening proof timed out after 150 s: a run() or connect() call (sdk/src/client.ts, sdk/src/runner.ts) or scripts/sdk/python-hardening-2.py did not finish; the last PASS line above names the check before the stuck one'); process.exit(1) }, 150000)
 try {
   await check('a run whose process is killed mid-row rejects with its exit, not a wire error, and a whole last row without a newline is still read', async () => {
     const cut = run({ mercury: mercury('cut-run'), prompt: 'x' })
@@ -91,7 +91,7 @@ try {
   const py = spawnSync(PYTHON, [join(root, 'scripts/sdk/python-hardening-2.py'), fixture], { cwd: root, env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, encoding: 'utf8', timeout: 120000 })
   process.stdout.write(py.stdout)
   process.stderr.write(py.stderr)
-  if (py.status !== 0) failures.push(`python-hardening-2.py exited ${py.status ?? py.signal}${py.error ? `: ${py.error.message}` : ''}`)
-  if (/never retrieved|Task was destroyed|was never awaited/.test(py.stderr)) failures.push('python-hardening-2.py left an unretrieved exception or an unawaited task')
+  if (py.status !== 0) failures.push(`python-hardening-2.py exited ${py.status ?? py.signal}${py.error ? `: ${py.error.message}` : ''}; its own FAIL lines are printed above, and the Python SDK it exercises is in sdk-py/src/mercury_cli_sdk`)
+  if (/never retrieved|Task was destroyed|was never awaited/.test(py.stderr)) failures.push('python-hardening-2.py left an unretrieved exception or an unawaited task; await or consume every task the Python SDK in sdk-py/src/mercury_cli_sdk starts when a run or session ends')
 } finally { clearTimeout(guard); rmSync(scratch, { recursive: true, force: true }) }
-assert.deepEqual(failures, [])
+assert.deepEqual(failures, [], `these hardening checks failed: ${JSON.stringify(failures)}; each FAIL line above says what to change`)

@@ -25,7 +25,7 @@ let checks = 0
 const check = (name: string, ok: boolean, details: unknown = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${JSON.stringify(details)}`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${JSON.stringify(details)} — fix: the summary prompts in src/services/compact/prompt.ts (getCompactPrompt, getPartialCompactPrompt, getCompactUserSummaryMessage) and compactConversation in src/services/compact/compact.ts`}`)
 }
 const context = (): any => ({ abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: [], readFileState: new Map(), options: { tools: [], commands: [], mcpClients: [], engineModel: 'claude-sonnet-5-5', maxThinkingTokens: 0, thinkingConfig: { type: 'adaptive' }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } })
 const forbidden = ['wrap your thinking', '<analysis>', 'Produce the analysis']

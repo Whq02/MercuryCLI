@@ -14,7 +14,7 @@ for (const key of ['MERCURY_HOME', 'MERCURY_VERSIONS_DIR', 'MERCURY_DAEMON_PERSI
 let failures = 0
 const check = (label: string, cond: boolean, detail: unknown = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)} — change the plane heal beat armPlaneHeal in src/daemon/run/heal.ts: it must leave the record, key and socket as they stand while a live owner names the plane or the record is there but unreadable, say so once in daemon.log, and write its own record only when it is missing or names a dead daemon` : ''}`)
 }
 const skip = (label: string, why: string): void => console.log(`  [SKIP] ${label} — ${why}`)
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)

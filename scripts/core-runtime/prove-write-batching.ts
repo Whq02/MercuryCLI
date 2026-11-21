@@ -36,14 +36,22 @@ let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${[detail, hint].filter(Boolean).join('; ')}` : ''}`)
   if (!cond) failures++
 }
+let hint = ''
+const HINTS: Record<string, string> = {
+  '1': "batchClaimOf in src/services/tools/toolBatching.ts builds a claim from the tool's inputSchema, isConcurrencySafe, isReadOnly and getPath; change the one that is wrong for this tool under src/tools/ (or batchClaimOf itself)",
+  '2': 'canonicalPath in src/services/tools/toolBatching.ts resolves a symlink with realpathSync.native, a missing file under its real parent, and folds case with foldHostCaseInsensitivePath (src/utils/platform/paths.ts); change it there',
+  '3': 'pathsOverlap and claimsCompatible in src/services/tools/toolBatching.ts decide this; change them there',
+  refusals: 'canonicalPath and batchClaimOf in src/services/tools/toolBatching.ts decide the claims; for the read-before-edit refusal, check how runTools in src/services/tools/toolOrchestration.ts runs the edits and that the edit tool still refuses an unread file',
+}
 function section(t: string): void {
+  hint = HINTS[t.split(' ')[0]!] ?? 'runTools in src/services/tools/toolOrchestration.ts starts a batch of calls only while claimsCompatible (src/services/tools/toolBatching.ts) holds for each; a call that starts too early or too late means the claim from batchClaimOf or the batch grouping in runTools is wrong'
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — write-batching prover exceeded 120s')
+  console.log('\nTIMEOUT — write-batching prover exceeded 120s; a fixture tool call never finished, so look at runTools in src/services/tools/toolOrchestration.ts for a batch that waits on a call it never starts, and at the last check printed above')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
@@ -225,7 +233,8 @@ const TOOLS = [
   fixtureTool({ name: 'Free', readOnly: true, safe: true, pathOf: () => undefined }),
   fixtureTool({ name: 'Shell', readOnly: false, safe: false, pathOf: () => undefined }),
 ]
-check('the fixture tools carry the members the batching law reads, as the real tools do', ['getPath', 'isReadOnly', 'isConcurrencySafe'].every(member => typeof (FileEditTool as unknown as Record<string, unknown>)[member] === 'function' && typeof (FileReadTool as unknown as Record<string, unknown>)[member] === 'function'))
+hint = ''
+check('the fixture tools carry the members the batching law reads, as the real tools do', ['getPath', 'isReadOnly', 'isConcurrencySafe'].every(member => typeof (FileEditTool as unknown as Record<string, unknown>)[member] === 'function' && typeof (FileReadTool as unknown as Record<string, unknown>)[member] === 'function'), 'FileEditTool or FileReadTool (src/tools/FileEditTool, src/tools/FileReadTool) lost getPath, isReadOnly or isConcurrencySafe, which batchClaimOf in src/services/tools/toolBatching.ts reads; restore it, or update the fixture tools in this file')
 
 const allowAll = async (_tool: unknown, input: Record<string, unknown>) =>
   ({ behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'rig' } }) as never

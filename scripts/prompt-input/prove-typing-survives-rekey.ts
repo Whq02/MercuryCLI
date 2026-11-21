@@ -10,6 +10,9 @@ delete process.env.MERCURY_HOME
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 
 let failures = 0
+const P = 'src/input-core/pending-input.ts'
+const Q = 'src/input-core/command-queue.ts'
+const U = 'src/screens/chat/useChatSession.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail && !ok ? ` — ${detail}` : ''}`)
@@ -24,18 +27,18 @@ console.log('§1 the draft: typing during a re-key wins; a quiet hop restores th
   pending.initSession('session-a', '')
   pending.edit('words for a')
   await pending.flushDrafts()
-  check('the first session holds its words', pending.text() === 'words for a')
+  check('the first session holds its words', pending.text() === 'words for a', `edit() or flushDrafts() in ${P} did not keep the session's draft`)
 
   await pending.rekeyToSession('session-b')
-  check('a quiet hop to a page-less session seeds an empty composer', pending.text() === '')
+  check('a quiet hop to a page-less session seeds an empty composer', pending.text() === '', `rekeyToSession in ${P} must seed an empty draft when the target session has none; got ${JSON.stringify(pending.text())}`)
 
   await pending.rekeyToSession('session-a')
-  check("a hop back restores the session's own page", pending.text() === 'words for a')
+  check("a hop back restores the session's own page", pending.text() === 'words for a', `rekeyToSession in ${P} must reload the saved draft of the session it returns to; got ${JSON.stringify(pending.text())}`)
 
   const inflight = pending.rekeyToSession('session-b')
   pending.edit('typed into the new view')
   await inflight
-  check('typing during the re-key beats the target page (the edit fence)', pending.text() === 'typed into the new view', pending.text())
+  check('typing during the re-key beats the target page (the edit fence)', pending.text() === 'typed into the new view', `${pending.text()} — rekeyToSession in ${P} must drop its page load when edit() ran during the re-key (the editSeq fence)`)
   await pending.flushDrafts()
 }
 
@@ -45,32 +48,32 @@ console.log('§2 the command queue: a hop parks and restores; a landing keeps wh
   queue.rekeyCommandQueueToSession('session-a')
   queue.enqueue({ value: 'queued for a', mode: 'prompt' })
   queue.rekeyCommandQueueToSession('session-b')
-  check("a hop parks the outgoing session's entries (the live queue empties)", queue.getCommandQueueSnapshot().length === 0)
+  check("a hop parks the outgoing session's entries (the live queue empties)", queue.getCommandQueueSnapshot().length === 0, `rekeyCommandQueueToSession in ${Q} must park the outgoing session's entries; live queue holds ${queue.getCommandQueueSnapshot().length}`)
   queue.enqueue({ value: 'queued for b', mode: 'prompt' })
   queue.rekeyCommandQueueToSession('session-a')
   const backOnA = queue.getCommandQueueSnapshot().map(c => c.value)
-  check("a hop back restores the session's own entries, identities intact", JSON.stringify(backOnA) === JSON.stringify(['queued for a']), JSON.stringify(backOnA))
+  check("a hop back restores the session's own entries, identities intact", JSON.stringify(backOnA) === JSON.stringify(['queued for a']), `${JSON.stringify(backOnA)} — rekeyCommandQueueToSession in ${Q} must restore the parked entries of the session it returns to`)
 
   queue.resetCommandQueue()
   queue.rekeyCommandQueueToSession(null)
   queue.enqueue({ value: 'sent while landing', mode: 'prompt' })
   queue.rekeyCommandQueueToSession('session-born', { landing: true })
   const landed = queue.getCommandQueueSnapshot().map(c => c.value)
-  check('a landing keeps the entries queued while it landed', JSON.stringify(landed) === JSON.stringify(['sent while landing']), JSON.stringify(landed))
+  check('a landing keeps the entries queued while it landed', JSON.stringify(landed) === JSON.stringify(['sent while landing']), `${JSON.stringify(landed)} — rekeyCommandQueueToSession in ${Q} must keep the live entries when opts.landing is true`)
 
   queue.resetCommandQueue()
   queue.rekeyCommandQueueToSession(null)
   queue.enqueue({ value: 'sent while landing (control)', mode: 'prompt' })
   queue.rekeyCommandQueueToSession('session-born-2')
-  check('control: the same re-point without the landing word parks them away', queue.getCommandQueueSnapshot().length === 0)
+  check('control: the same re-point without the landing word parks them away', queue.getCommandQueueSnapshot().length === 0, `rekeyCommandQueueToSession in ${Q} must park the live entries when opts.landing is not set; live queue holds ${queue.getCommandQueueSnapshot().length}`)
 }
 
 console.log('§3 the Chat names the landing to both owners')
 {
   const { sessionRekeys } = await import('../ui/chatScenarios.ts')
   const rekeys = await sessionRekeys('typing-rekey-session')
-  check('the draft store hears the landing word', rekeys.landing.split(' · ')[0] === 'draft typing-rekey-session-c landing=true', rekeys.landing)
-  check('the command queue hears the same landing word', rekeys.landing.split(' · ')[1] === 'queue typing-rekey-session-c landing=true', rekeys.landing)
+  check('the draft store hears the landing word', rekeys.landing.split(' · ')[0] === 'draft typing-rekey-session-c landing=true', `${rekeys.landing} — the rekey effect in ${U} must pass { landing } to pendingInput.rekeyToSession`)
+  check('the command queue hears the same landing word', rekeys.landing.split(' · ')[1] === 'queue typing-rekey-session-c landing=true', `${rekeys.landing} — the rekey effect in ${U} must pass { landing } to rekeyCommandQueueToSession`)
 }
 
 rmSync(scratch, { recursive: true, force: true })

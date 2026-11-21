@@ -8,11 +8,19 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+let where = 'writeXaiTokens and xaiStoredTokens in src/services/providers/xai/xaiOauth.ts'
+const WHERES: Record<string, string> = {
+  '§1': 'the writer and reader named in the label: src/utils/accounts/providerSecrets.ts for stored keys, the family\'s *Accounts.ts under src/services/providers/ for sign-ins',
+  '§2': 'performLogout in src/commands/logout/logout.tsx must empty the store named in the label',
+  '§3': 'performLogout in src/commands/logout/logout.tsx, authLogout in src/cli/handlers/auth.ts and call in src/commands/logout/logout.tsx must name the refused store and end 1',
+  '§4': 'providerAuthLogout in src/cli/handlers/providerAuth.ts and executeSlotRemoval in src/services/providers/accountSlots/removal.ts must name the store they could not read or write',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${where}` : ''}`)
 }
 function section(title: string): void {
+  where = WHERES[title.slice(0, 2)] ?? where
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
 

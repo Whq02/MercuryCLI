@@ -12,15 +12,19 @@ const { parseTopicDoc, serializeTopicDoc } = await import('../../src/mneme/mneme
 import type { MnemeRewriter } from '../../src/mneme/mnemeConsolidate.ts'
 
 let failures = 0
+let hint = ''
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' — to fix: ' + hint : ''}`)
   if (!cond) failures++
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
+const section = (t: string, h = ''): void => {
+  hint = h
+  console.log('\n' + '─'.repeat(76) + '\n' + t)
+}
 
 const dir = mkdtempSync(join(tmpdir(), 'mneme-life-'))
 
-section('§1 multi-topic stream → consolidation (deterministic rewriter)')
+section('§1 multi-topic stream → consolidation (deterministic rewriter)', 'in src/mneme/mnemeConsolidate.ts maybeConsolidate must create one topic doc per topicHint with signed entries, the update_log line, an emptied buffer and the persisted seq counter (readLibraryMeta)')
 {
   appendObservation({ text: 'the build uses bun, not npm', source: 'BUILD-NOTES.md', topicHint: 'build system' }, dir)
   appendObservation({ text: 'dist bundles to a single mjs file', source: 'build output', topicHint: 'build system' }, dir)
@@ -47,7 +51,7 @@ section('§1 multi-topic stream → consolidation (deterministic rewriter)')
   check('seq monotonic ACROSS consolidations', build2.sections[0]!.entries.some(e => e.seq === 4))
 }
 
-section('§2 serialize → parse round-trip (the signature invariant)')
+section('§2 serialize → parse round-trip (the signature invariant)', 'in src/mneme/mnemeTopicDocs.ts serializeTopicDoc and parseTopicDoc must round-trip id, summary, sections and update_log unchanged')
 {
   const doc = listTopicDocs(dir).find(d => d.slug === 'build-system')!
   const reparsed = parseTopicDoc(serializeTopicDoc(doc))!
@@ -56,7 +60,7 @@ section('§2 serialize → parse round-trip (the signature invariant)')
   check('round-trip preserves update_log', JSON.stringify(reparsed.updateLog) === JSON.stringify(doc.updateLog))
 }
 
-section('§3 fact revision: supersede retains evidence under history')
+section('§3 fact revision: supersede retains evidence under history', 'in src/mneme/mnemeConsolidate.ts maybeConsolidate must move a superseded entry into the doc history with its original signature and supersededBy')
 {
   appendObservation({ text: 'the build uses bun 1.2 specifically', source: 'BUILD-NOTES.md', topicHint: 'build system' }, dir)
   const revising: MnemeRewriter = ({ rows }) => ({
@@ -79,7 +83,7 @@ section('§3 fact revision: supersede retains evidence under history')
   check('revision live with supersedes marker', revised?.supersedes === '1')
 }
 
-section('§4 retrieval: catalog → grep → heading-expanded read (+ recent fold)')
+section('§4 retrieval: catalog → grep → heading-expanded read (+ recent fold)', 'in src/mneme/mnemeRetrieval.ts catalogDocs, grepLibrary, grepDoc and readDocLines')
 {
   const cat = catalogDocs(dir)
   check('catalog lists both docs with summaries', cat.length === 2 && cat.every(c => c.summary.length > 0))
@@ -94,7 +98,7 @@ section('§4 retrieval: catalog → grep → heading-expanded read (+ recent fol
   check('just-observed fact visible via recent (no retrievability gap)', read2.recent.some(x => x.text === 'fresh unconsolidated fact'))
 }
 
-section('§5 memory off ⇒ zero writes (runtime probe)')
+section('§5 memory off ⇒ zero writes (runtime probe)', 'in src/mneme/mnemeBuffer.ts appendObservation and src/mneme/mnemeConsolidate.ts maybeConsolidate must write nothing and return "memory off" while MERCURY_BARE is set')
 {
   process.env.MERCURY_BARE = '1'
   const offDir = join(mkdtempSync(join(tmpdir(), 'mneme-off-')), 'library')
@@ -107,7 +111,7 @@ section('§5 memory off ⇒ zero writes (runtime probe)')
   check('ON dir still intact (the switch is live)', readFileSync(join(dir, 'library.json'), 'utf8').includes('seqCounter'))
 }
 
-section('§6 hostile content cannot make entries unparsable (signature hygiene)')
+section('§6 hostile content cannot make entries unparsable (signature hygiene)', 'in src/mneme/mnemeConsolidate.ts maybeConsolidate must flatten newlines in entry text (oneLine) and replace , < > in the source (sigSafe); readDocLines in src/mneme/mnemeRetrieval.ts must clamp an out-of-range from')
 {
   const d6 = mkdtempSync(join(tmpdir(), 'mneme-hygiene-'))
   appendObservation({ text: 'line one\nline two, with commas', source: 'agent<x>, weird', topicHint: 'hygiene' }, d6)
@@ -121,7 +125,7 @@ section('§6 hostile content cannot make entries unparsable (signature hygiene)'
   check('readDocLines clamps a hostile from (no hang, sane range)', rd !== null && rd.from >= 1 && rd.to >= rd.from, JSON.stringify(rd ? { from: rd.from, to: rd.to } : null))
 }
 
-section('§7 reserved heading renamed · cross-doc supersede completed')
+section('§7 reserved heading renamed · cross-doc supersede completed', 'in src/mneme/mnemeConsolidate.ts maybeConsolidate must rename a block headed History to notes and retire a superseded entry of another doc into the history of its own doc')
 {
   const d7 = mkdtempSync(join(tmpdir(), 'mneme-xdoc-'))
   appendObservation({ text: 'fact alpha v1', source: 'src-a', topicHint: 'alpha' }, d7)

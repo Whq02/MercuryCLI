@@ -29,7 +29,7 @@ type Verdict = { behavior: string; message?: string; decisionReason?: Record<str
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok || !detail ? '' : ` — ${detail}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? `${detail} | ` : ''}to fix: change the wildcard-doubt answer in bashToolHasPermission (src/tools/BashTool/bashPermissions.ts), the read-only screen in checkReadOnlyConstraints (src/tools/BashTool/readOnlyValidation.ts), or decideToolPermissionWithModes (src/utils/permissions/decision/wrapper.ts) for the whole-decision checks, not this proof`}`)
 }
 function section(title: string): void {
   console.log(`\n── ${title}`)

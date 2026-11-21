@@ -52,7 +52,7 @@ if (mode !== undefined) {
 }
 const scratch = fs.realpathSync(fs.mkdtempSync(join(tmpdir(), 'worktree-dependency-home-')))
 let failures = 0
-const check = (label: string, ok: boolean, detail = ''): void => { console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + detail : ''}`); if (!ok) failures++ }
+const check = (label: string, ok: boolean, detail = ''): void => { console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + detail + ' · change heldBackUnder and the dependency-folder placement in src/services/worktree.ts, so a Mercury home inside the checkout is kept out of the clone (credentials never copied), and mercurySecretPath in src/utils/permissions/protectedPaths.ts' : ''}`); if (!ok) failures++ }
 try {
   if (!cloneRoadExpected(scratch)) console.log('  [SKIP] this volume or platform cannot clone: dependency links already keep the secret at its own path')
   else for (const scenario of ['inside', 'inside-files', 'alias', 'alias-files', 'beside', 'outside']) {

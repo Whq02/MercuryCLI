@@ -11,8 +11,9 @@ process.env.NODE_ENV = 'test'
 const { parseSettingsFile } = await import('../../src/utils/settings/settings.ts')
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const WHERE = 'parseSettingsFile in src/utils/settings/settings.ts'
+const check = (label: string, cond: boolean, detail = '', hint = `change ${WHERE} so that this case reads as the label says`): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ` — to fix: ${hint}`}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -27,7 +28,7 @@ const parseBlob = (blob: unknown): ReturnType<typeof parseSettingsFile> => {
 section('§1 THE CARD REPRO — a quoted number beside a deny list')
 {
   const { settings, errors } = parseBlob({ guardrails: { deny: ['Bash'] }, records: { retentionDays: '30' } })
-  check('the file is NOT discarded (FC-004)', settings !== null)
+  check('the file is NOT discarded (FC-004)', settings !== null, '', `a file with one invalid leaf must still load: keep the valid settings in ${WHERE} instead of returning null`)
   check(
     'the deny rules the operator wrote still apply',
     JSON.stringify(settings?.guardrails?.deny) === JSON.stringify(['Bash']),
@@ -36,6 +37,8 @@ section('§1 THE CARD REPRO — a quoted number beside a deny list')
   check(
     'exactly the invalid leaf is dropped',
     settings !== null && settings.records?.retentionDays === undefined,
+    '',
+    `${WHERE} must drop the invalid records.retentionDays leaf and keep the rest`,
   )
   check(
     'the validation error still surfaces (names the bad key)',
@@ -47,7 +50,7 @@ section('§1 THE CARD REPRO — a quoted number beside a deny list')
 section('§2 A MISTYPED guardrails.mode')
 {
   const { settings } = parseBlob({ guardrails: { mode: 'bogus-mode', deny: ['Bash'] } })
-  check('the file survives a bad mode', settings !== null)
+  check('the file survives a bad mode', settings !== null, '', `a bad guardrails.mode must not void the file: salvage in ${WHERE}`)
   check(
     'the sibling deny rules survive beside the dropped mode',
     JSON.stringify(settings?.guardrails?.deny) === JSON.stringify(['Bash']),
@@ -71,7 +74,7 @@ section('§3 ONE MALFORMED HOOK ENTRY')
       ],
     } },
   })
-  check('the file survives one malformed hook entry', settings !== null)
+  check('the file survives one malformed hook entry', settings !== null, '', `one malformed events.hooks entry must not void the file: salvage in ${WHERE}`)
   check('the unrelated model pin survives', settings?.engine?.model === 'claude-sonnet-5', JSON.stringify(settings?.engine?.model))
   const sessionStart = (settings?.events?.hooks as Record<string, unknown[]> | undefined)?.['session.start']
   check(
@@ -86,15 +89,15 @@ section('§3 ONE MALFORMED HOOK ENTRY')
 section('§4 CONTROL — a fully valid file')
 {
   const { settings, errors } = parseBlob({ guardrails: { deny: ['Bash'] }, records: { retentionDays: 30 } })
-  check('a valid file parses exactly as before', settings !== null && settings.records?.retentionDays === 30)
+  check('a valid file parses exactly as before', settings !== null && settings.records?.retentionDays === 30, '', `a valid file must parse unchanged: ${WHERE} altered a valid value or returned null`)
   check('zero errors on a valid file', errors.length === 0, JSON.stringify(errors))
 }
 
 section('§5 ROOT-MALFORMED JSON')
 {
   const { settings, errors } = parseBlob('{nope')
-  check('malformed JSON still fails whole (nothing to salvage)', settings === null)
-  check('and still reports', errors.length > 0)
+  check('malformed JSON still fails whole (nothing to salvage)', settings === null, '', `unparseable JSON must give settings null in ${WHERE}; salvage applies only to parsed files`)
+  check('and still reports', errors.length > 0, '', `${WHERE} must return an error for unparseable JSON`)
 }
 
 section('§6 THE SEVERITY CHANNEL (B9) — the loader grades what it knows')

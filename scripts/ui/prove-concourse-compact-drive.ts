@@ -12,15 +12,17 @@ const SHIFT_RIGHT = `${ESC}[1;2C`
 const DOWN = `${ESC}[B`
 
 let failures = 0
+let where = ''
 const check = (name: string, ok: boolean, detail = ''): void => {
   if (ok) console.log(`  ok  ${name}`)
   else {
     failures++
-    console.error(`  RED ${name}${detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+    console.error(`  RED ${name}${detail ? ` — ${detail.slice(0, 400)}` : ''}${where ? ` — to fix: ${where}` : ''}`)
   }
 }
 
 console.log('§1 the pure geometry and legends of the compact concourse')
+where = 'change the function or constant this check names in src/components/concourse/compactBoard.ts (compactConcourseGeometry, compactFrameTop, the COMPACT_* legends, compactSteerable) or, for the s split check, splitActiveOf in src/components/concourse/splitView.ts, or update the expectation if the design changed'
 {
   const board = await import('../../src/components/concourse/compactBoard.ts')
   check('60 columns and 16 rows and up stack two frames; under 60 columns or 16 rows the board stands alone', board.compactConcourseProfileOf(60, 16) === 'split' && board.compactConcourseProfileOf(59, 40) === 'single' && board.compactConcourseProfileOf(80, 15) === 'single' && board.compactConcourseProfileOf(80) === 'split' && board.compactConcourseProfileOf(50) === 'single')
@@ -65,6 +67,7 @@ console.log('§1 the pure geometry and legends of the compact concourse')
 }
 
 console.log('§2 the screen: the compact decision is the size latch; two focus targets; the letter verbs')
+where = 'declare the missing compact:* control in CONCOURSE_CONTROLS in src/components/concourse/controlManifest.ts'
 {
   const manifest = await import('../../src/components/concourse/controlManifest.ts')
   check('the compact controls are declared', ['compact:row', 'compact:steer', 'compact:list-title', 'compact:live-title', 'compact:new-session', 'compact:stop'].every(id => manifest.CONCOURSE_CONTROLS.some(c => c.id === id)))
@@ -82,6 +85,7 @@ if (!existsSync(BIN)) {
   process.exit(1)
 }
 console.log(`§3 the drive — ${BIN}`)
+where = 'compare the printed frame above with what src/components/concourse/CompactConcourse.tsx paints (frame titles, composer, foot legends) and its geometry in src/components/concourse/compactBoard.ts; rebuild with `bun run build.ts` if dist is stale'
 const OUT_DIR = process.env.CONCOURSE_COMPACT_CAPTURE_DIR ?? join(tmpdir(), `concourse-compact-${process.pid}`)
 mkdirSync(OUT_DIR, { recursive: true })
 const scratch = join(OUT_DIR, 'home')

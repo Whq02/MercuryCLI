@@ -21,9 +21,10 @@ const auth = { ...(await import('../../src/utils/auth.js')), ...(await import('.
 const { SUBSCRIPTION_OAUTH_SCOPES } = await import('../../src/constants/oauth.js')
 
 let failures = 0
+const FIX_HINT = 'W1-W2: providerWaitIsWindow, providerAskedWaitMs and isSpentUsageWindowAnswer in src/services/api/recoveryBudget.ts; W3-W4: isRetryableError in src/services/api/withRetry.ts; W5-W6: getAssistantMessageFromError in src/services/api/errors.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}to fix: ${FIX_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

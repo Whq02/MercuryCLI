@@ -7,7 +7,7 @@ import { join } from 'node:path'
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}to fix: the anchor-patch path from the provider wire to ChangeSetTool: parseAnchorPatch in src/services/changeTransaction/anchorPatch.ts, src/tools/ChangeSetTool/ChangeSetTool.ts, or the call route in src/services/providers/callModelRouter.ts` : ''}`)
 }
 
 delete process.env.NODE_ENV

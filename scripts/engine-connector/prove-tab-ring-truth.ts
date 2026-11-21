@@ -19,7 +19,8 @@ delete process.env['STY']
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = label.startsWith('R4') ? 'isProgressReportingAvailable in src/ink/session/capabilities.ts' : label.startsWith('R5') ? 'streamRenderedMessages in src/components/exportRenderer.tsx' : 'createTabRing in src/ink/terminalWrite.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail}${detail ? ' · ' : ''}change ${where}` : ''}`)
 }
 
 const { createTabRing } = await import('../../src/ink/terminalWrite.ts')

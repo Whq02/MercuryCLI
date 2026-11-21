@@ -15,7 +15,7 @@ type ComposeContext = import('../ink-runtime/frameHarness.ts').ComposeContext
 
 let failures = 0
 function check(name: string, ok: boolean, detail = ''): void {
-  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}`)
+  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok ? '' : ` — ${detail ? `${detail}; ` : ''}fix how the compose pass paints background grounds and opaque boxes: src/ink/compose-walk.ts, reached through createRenderer in src/ink/renderer.ts`}`)
   if (!ok) failures++
 }
 

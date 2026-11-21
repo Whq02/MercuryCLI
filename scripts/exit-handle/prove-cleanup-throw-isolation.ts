@@ -69,7 +69,7 @@ if (process.argv[2] === '--child') {
     if (!existsSync(join(dir, 'ready.json'))) {
       child.kill('SIGKILL')
       await exited
-      console.error(`FAIL ${road}: fixture never ready: ${output}`)
+      console.error(`FAIL ${road}: fixture never ready: ${output}; the --child branch of this script did not write ready.json within 15s, read its output above`)
       failures++
       rmSync(dir, { recursive: true, force: true })
       continue
@@ -81,11 +81,11 @@ if (process.argv[2] === '--child') {
     const left = ready.pids.filter(alive)
     const scratchLeft = existsSync(ready.scratch)
     const ok = code === (road === 'exit' ? 0 : road === 'crash' ? 1 : road === 'interrupt' ? 130 : 129) && left.length === 0 && !scratchLeft
-    console.log(`${ok ? 'PASS' : 'FAIL'} ${road}: exit=${code}, children=${left.length}, scratch=${scratchLeft}`)
+    console.log(`${ok ? 'PASS' : 'FAIL'} ${road}: exit=${code}, children=${left.length}, scratch=${scratchLeft}${ok ? '' : `; a throwing cleanup must not stop the later cleanups, the exit code (exit 0, interrupt 130, hangup 129, crash 1) or the scratchpad sweep: see ${road === 'crash' ? 'crashShutdown' : 'gracefulShutdown'} in src/utils/gracefulShutdown.ts and runCleanupFunctions in src/utils/cleanupRegistry.ts`}`)
     if (!ok) failures++
     const watches = existsSync(join(dir, 'watches.json')) ? (JSON.parse(readFileSync(join(dir, 'watches.json'), 'utf8')) as { handedOver: number }) : null
     const watchesLeft = watches !== null && watches.handedOver === 1
-    console.log(`${watchesLeft ? 'PASS' : 'FAIL'} ${road}: the way out hands its file watches over to the process end, once: handedOver=${watches?.handedOver ?? 'unread'}`)
+    console.log(`${watchesLeft ? 'PASS' : 'FAIL'} ${road}: the way out hands its file watches over to the process end, once: handedOver=${watches?.handedOver ?? 'unread'}${watchesLeft ? '' : '; the shutdown road must call leaveFileWatchesToProcessEnd exactly once: see src/utils/gracefulShutdown.ts and src/utils/watchRoot.ts'}`)
     if (!watchesLeft) failures++
     if (code === 'timeout') { child.kill('SIGKILL'); await exited }
     for (const pid of left) { try { process.kill(pid, 'SIGKILL') } catch {} }
@@ -113,7 +113,7 @@ if (process.argv[2] === '--child') {
   const realCloses = underNode.status === 0 ? (JSON.parse(underNode.stdout.trim().split('\n').at(-1) ?? '{}') as { closed?: number }).closed : undefined
   const wanted = process.platform === 'darwin' ? 0 : 3
   const left = realCloses === wanted
-  console.log(`${left ? 'PASS' : 'FAIL'} node: three directory watches closed after the hand-over reach the system ${wanted} time(s) on ${process.platform}: real closes=${realCloses ?? `unread (exit ${underNode.status}: ${(underNode.stderr ?? '').trim().split('\n').at(-1) ?? ''})`}`)
+  console.log(`${left ? 'PASS' : 'FAIL'} node: three directory watches closed after the hand-over reach the system ${wanted} time(s) on ${process.platform}: real closes=${realCloses ?? `unread (exit ${underNode.status}: ${(underNode.stderr ?? '').trim().split('\n').at(-1) ?? ''})`}${left ? '' : '; leaveFileWatchesToProcessEnd must stop the watchers closing on darwin and leave them closing elsewhere: see src/utils/watchRoot.ts'}`)
   if (!left) failures++
   process.exitCode = failures === 0 ? 0 : 1
 }

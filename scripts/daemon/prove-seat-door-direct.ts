@@ -15,12 +15,14 @@ process.env.MERCURY_DAEMON_DIR = daemonDir
 
 let failures = 0
 let checks = 0
+let where = ''
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && where ? ` — look in ${where}` : ''}`)
 }
-function section(t: string): void {
+function section(t: string, look = ''): void {
+  where = look
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v)
@@ -40,7 +42,7 @@ writeFileSync(
   JSON.stringify({ version: 1, workers: { [RUNNER]: { schema: 1, runnerId: RUNNER, sessionId: SESSION, workspaceId: '/ws', isolation: 'exclusive', modelKey: 'm', spawnedAt: 1, lastLiveAt: 1, title: 'the seat' } } }),
 )
 
-section('§2 deadlines reach the runner; the refusal kinds are the peer’s')
+section('§2 deadlines reach the runner; the refusal kinds are the peer’s', 'rewindSession, controlSessionAgent, withdrawSessionSend and setSessionPermissionMode in src/daemon/sessionSeat/verbs.ts (the session/rewind, queue/withdraw, session/set_mode and agent/stop requests they send, and how they type the runner\'s refusal)')
 {
   const stand = standInRunner()
   const roster = stand.roster()
@@ -97,7 +99,7 @@ section('§2 deadlines reach the runner; the refusal kinds are the peer’s')
   check('a seat with no door refuses no-channel at once', none.outcome === 'refused' && none.refusal === 'no-channel', j(none))
 }
 
-section('§3 the asks ride permission/request, typed both ways')
+section('§3 the asks ride permission/request, typed both ways', 'holdWorkerAsk and answerPermissionAsk in src/daemon/permissionAsks.ts (the table of parked asks and how an answer is typed back to the runner)')
 {
   const answers: unknown[] = []
   const stand = standInRunner({
@@ -152,7 +154,7 @@ section('§3 the asks ride permission/request, typed both ways')
   stand.close()
 }
 
-section('§4 rows once, verbs landed through session/applied, deliveries as rows')
+section('§4 rows once, verbs landed through session/applied, deliveries as rows', 'src/daemon/sessionSeat/edges.ts (onSeatApplied), src/daemon/sessionSeat/model.ts (setSessionModel), src/daemon/runnerConnection.ts (deliver), src/daemon/concourseDispatch.ts (makeConcourseDispatchHandler, buildConcoursePromptRow) and DaemonSessionConnector.sendWords in src/services/engine-connector/daemonConnector.ts, whichever the failing check\'s label names')
 {
   const rows: unknown[] = []
   const applied: unknown[] = []
@@ -272,7 +274,7 @@ section('§4 rows once, verbs landed through session/applied, deliveries as rows
   check('closing the runner after the write settles the dispatch instead of keeping the session pending for good', !final.ok && final.state === 'failed' && final.error === 'instruction delivery failed (stdin unavailable)' && dispatch.readConcourseDispatches(daemonDir)[stoppedId]?.state === 'failed', j(final))
 }
 
-section('§5 the warm claim rides session/claim')
+section('§5 the warm claim rides session/claim', 'claimWarmRunner in src/daemon/warmRunner.ts')
 {
   const warm = await import('../../src/daemon/warmRunner.ts')
   const stand = standInRunner({ sessionId: null })
@@ -281,7 +283,7 @@ section('§5 the warm claim rides session/claim')
   stand.close()
 }
 
-section('§6 the roster: a turn that settles inside the delivery\'s answer leaves the seat idle')
+section('§6 the roster: a turn that settles inside the delivery\'s answer leaves the seat idle', 'TaskRoster.reply in src/daemon/roster.ts (when it opens the turn and stamps the delivery relative to the queue/add answer) and the stamps in src/daemon/concourseWorkers/marks.ts')
 {
   const { PassThrough } = await import('node:stream')
   const { EventEmitter } = await import('node:events')

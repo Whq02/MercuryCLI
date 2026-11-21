@@ -8,13 +8,13 @@ import { join } from 'node:path'
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}fix requestSizeWarningApplies and requestSizeWarning in src/services/compact/overflowRecovery.ts (which error classes the size line follows), and the caller in src/run-core/turn/noToolReply.ts` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — size-warning error-class prover exceeded 180s')
+  console.log('\nTIMEOUT — size-warning error-class prover exceeded 180s; a drive of query (src/query.ts) against the overflow fixture (scripts/compact/overflowFixture.ts) did not finish, read the last section header printed above')
   process.exit(1)
 }, 180_000)
 watchdog.unref?.()

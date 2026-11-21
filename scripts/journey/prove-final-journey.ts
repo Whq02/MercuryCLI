@@ -21,7 +21,7 @@ const SID_B = 'facef00d-bbbb-4bbb-8bbb-000000000002'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? detail + '; ' : ''}the label names the screen leg that failed; rerun with JOURNEY_KEEP_FIXTURE=1 JOURNEY_DEBUG=1 and read that leg's frame in /tmp/journey-<leg>-<pid>.json (grid) to see what painted instead`}`)
 }
 
 function git(...args: string[]): void {

@@ -8,7 +8,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'rule-anchors-home-'
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}processConditionedRules in src/services/instructions/discovery.ts decides which conditional rules govern a target path` : ''}`)
 }
 
 const { processConditionedRules } = await import('../../src/services/instructions/discovery.ts')

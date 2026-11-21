@@ -135,9 +135,9 @@ try {
   const suggestionTail = suggestionMsgs[suggestionMsgs.length - 1]
   const priorUser = [...suggestionMsgs.slice(0, -1)].reverse().find(m => m.role === 'user')
 
-  check('prompt suggestion sent one /v1/messages request and captured the suggestion', suggestionReq !== undefined && capturedSuggestion === 'run the tests', { count: api.requests.length, capturedSuggestion })
-  check('suggestion request tail (the suggestion prompt) carries no cache_control marker', suggestionTail !== undefined && !hasCacheControl(suggestionTail), { tail: suggestionTail })
-  check('suggestion request preserves the parent user cache_control breakpoint', priorUser !== undefined && hasCacheControl(priorUser), { priorUser })
+  check('prompt suggestion sent one /v1/messages request and captured the suggestion', suggestionReq !== undefined && capturedSuggestion === 'run the tests', { count: api.requests.length, capturedSuggestion, hint: 'executePromptSuggestion in src/services/PromptSuggestion/promptSuggestion.ts should send one request and store its text in appState.promptSuggestion' })
+  check('suggestion request tail (the suggestion prompt) carries no cache_control marker', suggestionTail !== undefined && !hasCacheControl(suggestionTail), { tail: suggestionTail, hint: 'promptSuggestion.ts passes skipCacheWrite: true to the fork; the marker placement is in src/services/providers/anthropic/cacheAndUsage.ts (skipCacheWrite param)' })
+  check('suggestion request preserves the parent user cache_control breakpoint', priorUser !== undefined && hasCacheControl(priorUser), { priorUser, hint: 'with skipCacheWrite the cache_control marker should sit on the last user message before the tail (src/services/providers/anthropic/cacheAndUsage.ts)' })
 
   const beforeOther = api.requests.length
   await runForkedAgent({
@@ -157,7 +157,7 @@ try {
   const otherReq = api.requests.slice(beforeOther).find(r => r.path.startsWith('/v1/messages'))
   const otherMsgs = ((otherReq?.body as { messages?: WireMessage[] } | undefined)?.messages ?? [])
   const otherTail = otherMsgs[otherMsgs.length - 1]
-  check('another fork without skipCacheWrite keeps cache_control on its tail message unchanged', otherTail !== undefined && hasCacheControl(otherTail), { otherTail })
+  check('another fork without skipCacheWrite keeps cache_control on its tail message unchanged', otherTail !== undefined && hasCacheControl(otherTail), { otherTail, hint: 'a fork that does not pass skipCacheWrite must keep the marker on its tail; see runForkedAgent in src/services/agents/forkedAgent.ts and cacheAndUsage.ts' })
 } finally {
   await api.close()
   rmSync(home, { recursive: true, force: true })

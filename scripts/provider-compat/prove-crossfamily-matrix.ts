@@ -16,7 +16,7 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — crossfamily matrix prover exceeded 240s')
+  console.log('\nTIMEOUT — crossfamily matrix prover exceeded 240s; a worker turn through runAgent (src/tools/AgentTool/runAgent.ts) never settled, so read the last section header and check line printed above to see which family leg hung')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -537,13 +537,13 @@ function assertWorkerLeg(tag: string, workerFamily: Family, o: DriveOutcome, exp
   }
   check(`${tag}: the resolved identity names '${expectedResolved}'`, o.resolvedModel === expectedResolved, String(o.resolvedModel))
   const serialized = text(first)
-  check(`${tag}: the brief rode the wire`, serialized.includes('matrix-brief'), serialized.slice(0, 200))
-  check(`${tag}: the identity floor rode the wire`, serialized.includes(IDENTITY_ANCHOR))
-  check(`${tag}: the worker's tools were declared on the wire`, serialized.includes('EchoTool'))
+  check(`${tag}: the brief rode the wire`, serialized.includes('matrix-brief'), `${serialized.slice(0, 200)} — runAgent in src/tools/AgentTool/runAgent.ts must send the prompt message in the first request to the worker's endpoint`)
+  check(`${tag}: the identity floor rode the wire`, serialized.includes(IDENTITY_ANCHOR), 'the first request to this worker family must carry the Mercury identity line in its system prompt; check how runAgent in src/tools/AgentTool/runAgent.ts builds the system prompt for this family')
+  check(`${tag}: the worker's tools were declared on the wire`, serialized.includes('EchoTool'), 'the first request to this worker family must declare EchoTool; check the tools runAgent in src/tools/AgentTool/runAgent.ts hands the family\'s request builder')
   const second = workerHits[1]!.body
   check(`${tag}: the tool round-trip returned on the same wire (echo result delivered)`,
-    text(second).includes(`echo:ping-${workerFamily}`), text(second).slice(0, 300))
-  check(`${tag}: the worker settled with the final text`, o.finalText.includes(`matrix-final-${workerFamily}`), o.finalText.slice(0, 120))
+    text(second).includes(`echo:ping-${workerFamily}`), `${text(second).slice(0, 300)} — the second request to this family must carry the tool result back in the family's own wire shape (see sawToolResult in this file for the shape expected)`)
+  check(`${tag}: the worker settled with the final text`, o.finalText.includes(`matrix-final-${workerFamily}`), `${o.finalText.slice(0, 120)} — the family's stream reader must turn this fixture's final reply into assistant text for runAgent in src/tools/AgentTool/runAgent.ts`)
 }
 
 section('§B the orchestrator→worker ring — every family in both chairs')
@@ -584,10 +584,10 @@ section('§D the receipt law — only the OpenAI family mints qualification rece
   const receipts = q.readQualificationReceipts()
   check("the matrix's GPT worker turns minted {gpt-5.6-sol · specialist}",
     receipts.some(r => r.receipt.modelId === 'gpt-5.6-sol' && r.receipt.role === 'specialist'),
-    text(receipts.map(r => [r.receipt.modelId, r.receipt.role])))
+    `${text(receipts.map(r => [r.receipt.modelId, r.receipt.role]))} — a GPT worker turn must write a receipt through src/services/providers/openai/qualificationStore.ts`)
   check('no non-GPT family minted a qualification receipt (the receipt law is the OpenAI contract\'s own)',
     receipts.every(r => declaredRouteOf(r.receipt.modelId) === 'openai'),
-    text(receipts.map(r => r.receipt.modelId)))
+    `${text(receipts.map(r => r.receipt.modelId))} — only models whose declaredRouteOf (src/services/providers/routeLaw.ts) is openai may be written to src/services/providers/openai/qualificationStore.ts`)
 }
 
 section('§A the dispatch boundary — the engine grammar is TOTAL over the routing law')
@@ -606,9 +606,9 @@ section('§A the dispatch boundary — the engine grammar is TOTAL over the rout
   const grammarRoutes = [...new Set(engine.ENGINE_DISPATCH_MODELS.map(c => CLASS_TO_ROUTE[c]).filter(Boolean))].sort()
   check('every routed family has an engine class alias (the totality law)',
     declaredRoutes.length > 0 && declaredRoutes.every(r => grammarRoutes.includes(r)),
-    `declared=${declaredRoutes.join(',')} grammar=${grammarRoutes.join(',')}`)
+    `declared=${declaredRoutes.join(',')} grammar=${grammarRoutes.join(',')} — add a class for each missing route to ENGINE_DISPATCH_MODELS in src/services/crew/engineDispatch.ts (and to CLASS_TO_ROUTE in this file)`)
   check('the engine grammar carries the gemini and openrouter classes',
-    engine.ENGINE_DISPATCH_MODELS.includes('gemini') && engine.ENGINE_DISPATCH_MODELS.includes('openrouter'))
+    engine.ENGINE_DISPATCH_MODELS.includes('gemini') && engine.ENGINE_DISPATCH_MODELS.includes('openrouter'), 'ENGINE_DISPATCH_MODELS in src/services/crew/engineDispatch.ts must list gemini and openrouter')
 
   const CLASS_EXPECT: Array<{ cls: string; backend: string; model?: string }> = [
     { cls: 'gpt', backend: 'openai', model: 'gpt-5.6-sol' },
@@ -640,28 +640,28 @@ section('§A the dispatch boundary — the engine grammar is TOTAL over the rout
       threw === undefined && resolved !== null && resolved.backend === backend &&
         (model === undefined || resolved.model === model) &&
         declaredRouteOf(resolved.model) === backend,
-      `threw=${threw ?? ''} resolved=${text(resolved)}`)
+      `threw=${threw ?? ''} resolved=${text(resolved)} — resolveEngineDispatch in src/services/crew/engineDispatch.ts must map this class to its own backend and model`)
   }
   bootState.setEngineModelOverride(priorOverride)
 
   const geminiOk = await engine.resolveEngineDispatch('gemini-3-flash')
-  check("exact 'gemini-3-flash' validates against the live catalogue", geminiOk?.backend === 'gemini' && geminiOk.model === 'gemini-3-flash', text(geminiOk))
+  check("exact 'gemini-3-flash' validates against the live catalogue", geminiOk?.backend === 'gemini' && geminiOk.model === 'gemini-3-flash', `${text(geminiOk)} — resolveEngineDispatch in src/services/crew/engineDispatch.ts must accept an id the live gemini catalogue lists`)
   const geminiBad = await engine.resolveEngineDispatch('gemini-9999-nope').then(() => undefined, (e: unknown) => String((e as Error).message))
-  check('an unlisted gemini id refuses, naming the live catalogue', typeof geminiBad === 'string' && geminiBad.includes('not listed by the live catalogue'), String(geminiBad))
+  check('an unlisted gemini id refuses, naming the live catalogue', typeof geminiBad === 'string' && geminiBad.includes('not listed by the live catalogue'), `${String(geminiBad)} — resolveEngineDispatch in src/services/crew/engineDispatch.ts must refuse an unlisted gemini id with a message containing 'not listed by the live catalogue'`)
   const orOk = await engine.resolveEngineDispatch('openrouter/qwen/qwen3-coder')
-  check("exact 'openrouter/qwen/qwen3-coder' validates against the live catalogue", orOk?.backend === 'openrouter' && orOk.model === 'openrouter/qwen/qwen3-coder', text(orOk))
+  check("exact 'openrouter/qwen/qwen3-coder' validates against the live catalogue", orOk?.backend === 'openrouter' && orOk.model === 'openrouter/qwen/qwen3-coder', `${text(orOk)} — resolveEngineDispatch in src/services/crew/engineDispatch.ts must accept a slug the live openrouter catalogue lists`)
   const orBad = await engine.resolveEngineDispatch('openrouter/nope/never').then(() => undefined, (e: unknown) => String((e as Error).message))
-  check('an unlisted openrouter slug refuses, naming the live catalogue', typeof orBad === 'string' && orBad.includes('not listed by the live catalogue'), String(orBad))
+  check('an unlisted openrouter slug refuses, naming the live catalogue', typeof orBad === 'string' && orBad.includes('not listed by the live catalogue'), `${String(orBad)} — resolveEngineDispatch in src/services/crew/engineDispatch.ts must refuse an unlisted openrouter slug with a message containing 'not listed by the live catalogue'`)
   const anthropicPass = await engine.resolveEngineDispatch('claude-sonnet-5')
-  check('an anthropic id stays outside the engine grammar (null — the home lane untouched)', anthropicPass === null)
+  check('an anthropic id stays outside the engine grammar (null — the home lane untouched)', anthropicPass === null, `got ${text(anthropicPass)}; resolveEngineDispatch in src/services/crew/engineDispatch.ts must return null for an anthropic id`)
 
-  check('an anthropic haiku spelling resolves to the haiku row', /haiku/.test(getAgentModel('haiku', 'claude-opus-5')))
+  check('an anthropic haiku spelling resolves to the haiku row', /haiku/.test(getAgentModel('haiku', 'claude-opus-5')), `got ${getAgentModel('haiku', 'claude-opus-5')}; getAgentModel in src/services/model/agent.ts must resolve the haiku alias to a haiku model`)
   for (const foreign of ['huggingface/TheDrummer/Haiku-RP-12B', 'local/haiku-13b', 'openrouter/thedrummer/haiku-writer']) {
-    check(`a foreign '${foreign.split('/')[0]}' id named haiku rides untouched`, getAgentModel(foreign, 'claude-opus-5') === foreign)
+    check(`a foreign '${foreign.split('/')[0]}' id named haiku rides untouched`, getAgentModel(foreign, 'claude-opus-5') === foreign, `got ${getAgentModel(foreign, 'claude-opus-5')}; getAgentModel in src/services/model/agent.ts must not rewrite a provider-prefixed id that merely contains haiku`)
   }
 }
 
-check('no request ever hit an unpinned path (base-pin drift guard)', unknownHits.length === 0, unknownHits.slice(0, 8).join(' | '))
+check('no request ever hit an unpinned path (base-pin drift guard)', unknownHits.length === 0, `${unknownHits.slice(0, 8).join(' | ')} — a request left the pinned bases set in this file's process.env; find the provider base-url setting that was not overridden`)
 
 server.close()
 console.log('\n' + '='.repeat(60))

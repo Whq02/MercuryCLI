@@ -10,7 +10,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix how createScanner holds and releases a split reply head across flush() in src/ink/input/scanner.ts, or parseMultipleKeypresses in src/ink/input/input-decoder.ts; for the "owed" checks fix TerminalQuerier.stringReplyOwed in src/ink/session/querier.ts` : ''}`)
 }
 const vis = (s: string): string => JSON.stringify(s)
 

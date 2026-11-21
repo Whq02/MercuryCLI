@@ -6,7 +6,8 @@ import type { BoardPost, BoardStore } from '../../src/services/crewBoard/contrac
 const home = process.env.MERCURY_CONFIG_DIR
 assert(home, 'run with a scratch MERCURY_CONFIG_DIR')
 let checks = 0
-const check = (label: string, value: unknown) => { assert(value, label); console.log(`PASS ${label}`); checks++ }
+const where = 'change read, boundary and presented in src/services/crewBoard/store/reading.ts (what counts as seen, skippedSeen, the packet a read hands over), or open in src/services/crewBoard/store.ts for the seen state that must survive reopening'
+const check = (label: string, value: unknown) => { assert(value, `${label} \u2014 ${where}`); console.log(`PASS ${label}`); checks++ }
 const boards: BoardStore[] = []
 let request = 0
 const handed = (board: BoardStore, seat: Parameters<BoardStore['read']>[0], input: Parameters<BoardStore['read']>[1]) => {

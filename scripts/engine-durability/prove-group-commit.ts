@@ -15,7 +15,8 @@ const guard = (p: string): string => {
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const where = label.startsWith('6') ? 'createTask in src/utils/tasks.ts' : 'the mutate method of defineStore in src/substrate/fileStore.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` · change ${where}`}`)
 }
 
 interface Doc {

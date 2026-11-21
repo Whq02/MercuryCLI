@@ -15,11 +15,20 @@ delete process.env.MERCURY_PROVIDER_HEADERS
 delete process.env.ANTHROPIC_API_KEY
 
 let failures = 0
+let sectionHint = ''
+const HINTS: Record<string, string> = {
+  '§1': 'what to change: ANTHROPIC_CLIENT_CONTRACT_VERSION, ANTHROPIC_CLIENT_CONTRACT_AS_OF or describeAnthropicClientContract in src/constants/oauth.ts, or getAttributionHeader in src/constants/system.ts (the line must start with cc_version=<contract>.<fingerprint>)',
+  '§2': 'what to change: the user-agent function named in the label (src/utils/http.ts, src/utils/userAgent.ts, searchUserAgent in src/services/search/searchContract.js) or the client headers built in getAnthropicClient (src/services/api/client.ts); none may carry the contract version',
+  '§3': 'what to change: getAnthropicClientContractVersion and describeAnthropicClientContract in src/constants/oauth.ts (override parsing), or the MERCURY_ANTHROPIC_CLIENT_CONTRACT row in src/substrate/flagRegistry.ts',
+  '§4': 'what to change: isClientContractGateText, clientContractGateLine or getAssistantMessageFromError in src/services/api/errors.ts (the sign-in wall row also reads src/utils/auth.ts)',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const hint = HINTS[sectionHint] ?? HINTS['§4']
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? (detail ? ` — ${detail}` : '') : ` — ${detail ? `${detail} | ` : ''}${hint}`}`)
 }
 function section(t: string): void {
+  sectionHint = t.slice(0, 2)
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

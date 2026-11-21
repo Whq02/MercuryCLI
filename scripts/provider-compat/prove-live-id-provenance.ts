@@ -139,11 +139,11 @@ section('§0 signed out everywhere: no list, every off-grammar id is unrecognise
 {
   for (const family of Object.keys(OFF_GRAMMAR) as Family[]) {
     const id = OFF_GRAMMAR[family]
-    check(`[${family}] '${id}' is unrecognised with no list to check, and no live id is cached`, classifyModelRoute(id).kind === 'unrecognised' && declaredRouteOf(id) === null && liveIds(family).size === 0 && !engine.isExactEngineModelId(id), `${classifyModelRoute(id).kind} · ${liveIds(family).size} cached`)
+    check(`[${family}] '${id}' is unrecognised with no list to check, and no live id is cached`, classifyModelRoute(id).kind === 'unrecognised' && declaredRouteOf(id) === null && liveIds(family).size === 0 && !engine.isExactEngineModelId(id), `${classifyModelRoute(id).kind} · ${liveIds(family).size} cached · a signed-out id must stay unrecognised: fix classifyModelRoute in src/services/providers/idSpaces.ts or the catalogue's cachedLiveIds`)
   }
-  check('the grammar still answers a typed id with no list: kimi-k3 · deepseek-v4-pro · gpt-5.6-sol · gemini-3-pro', declaredRouteOf('kimi-k3') === 'moonshot' && declaredRouteOf('deepseek-v4-pro') === 'deepseek' && declaredRouteOf('gpt-5.6-sol') === 'openai' && declaredRouteOf('gemini-3-pro') === 'gemini')
+  check('the grammar still answers a typed id with no list: kimi-k3 · deepseek-v4-pro · gpt-5.6-sol · gemini-3-pro', declaredRouteOf('kimi-k3') === 'moonshot' && declaredRouteOf('deepseek-v4-pro') === 'deepseek' && declaredRouteOf('gpt-5.6-sol') === 'openai' && declaredRouteOf('gemini-3-pro') === 'gemini', 'prefix grammar lost an id: fix declaredRouteOf in src/services/providers/routeLaw.ts')
   const order = (idSpaces as { LIVE_LIST_FAMILIES?: readonly string[] }).LIVE_LIST_FAMILIES
-  check('the seam walks the ten bare-id families in the fixed order moonshot · deepseek · xai · meta · openai · gemini · mistral · minimax · cohere · qwen', order?.join(',') === 'moonshot,deepseek,xai,meta,openai,gemini,mistral,minimax,cohere,qwen', String(order?.join(',')))
+  check('the seam walks the ten bare-id families in the fixed order moonshot · deepseek · xai · meta · openai · gemini · mistral · minimax · cohere · qwen', order?.join(',') === 'moonshot,deepseek,xai,meta,openai,gemini,mistral,minimax,cohere,qwen', `${String(order?.join(','))} · change LIVE_LIST_FAMILIES in src/services/providers/idSpaces.ts back to the fixed order`)
 }
 
 for (const family of Object.keys(OFF_GRAMMAR) as Family[]) {
@@ -151,18 +151,18 @@ for (const family of Object.keys(OFF_GRAMMAR) as Family[]) {
   section(`§${family}: an off-grammar id that arrived in the signed-in account's list belongs to ${family}`)
   resetAll()
   await signIn(family, [id])
-  check(`[${family}] the catalogue answers cachedLiveIds holding '${id}'`, typeof readers[family].cachedLiveIds === 'function' && liveIds(family).has(id), typeof readers[family].cachedLiveIds === 'function' ? [...liveIds(family)].join(',') : 'no cachedLiveIds export')
-  check(`[${family}] '${id}' routes to ${family} by provenance (classify · recognise · declaredRouteOf)`, classifyModelRoute(id).kind === 'route' && (classifyModelRoute(id) as { route?: string }).route === family && recognizeModelId(id).kind === 'declared' && declaredRouteOf(id) === family, `${JSON.stringify(classifyModelRoute(id))}`)
-  check(`[${family}] the spelling is irrelevant: upper case and a Mercury annotation route the same`, declaredRouteOf(id.toUpperCase()) === family && declaredRouteOf(`${id}[1m]`) === family)
-  check(`[${family}] '${id}' is an exact engine id on this account`, engine.isExactEngineModelId(id) && engine.unrecognisedModelWordRefusal(id) === null)
-  check(`[${family}] '${id}' paints in the ${family} section of the picker`, rowsOf(family).includes(id), rowsOf(family).join(','))
+  check(`[${family}] the catalogue answers cachedLiveIds holding '${id}'`, typeof readers[family].cachedLiveIds === 'function' && liveIds(family).has(id), typeof readers[family].cachedLiveIds === 'function' ? [...liveIds(family)].join(',') + ` · the ${family} catalogue under src/services/providers/${family}/ must cache the fetched list in cachedLiveIds` : `no cachedLiveIds export: add it to the ${family} catalogue under src/services/providers/${family}/`)
+  check(`[${family}] '${id}' routes to ${family} by provenance (classify · recognise · declaredRouteOf)`, classifyModelRoute(id).kind === 'route' && (classifyModelRoute(id) as { route?: string }).route === family && recognizeModelId(id).kind === 'declared' && declaredRouteOf(id) === family, `${JSON.stringify(classifyModelRoute(id))} · an id in a signed-in list must route to that family: fix classifyModelRoute in src/services/providers/idSpaces.ts and declaredRouteOf in src/services/providers/routeLaw.ts`)
+  check(`[${family}] the spelling is irrelevant: upper case and a Mercury annotation route the same`, declaredRouteOf(id.toUpperCase()) === family && declaredRouteOf(`${id}[1m]`) === family, 'live-list lookup must ignore case and the [1m] annotation: fix declaredRouteOf in src/services/providers/routeLaw.ts or classifyModelRoute in src/services/providers/idSpaces.ts')
+  check(`[${family}] '${id}' is an exact engine id on this account`, engine.isExactEngineModelId(id) && engine.unrecognisedModelWordRefusal(id) === null, 'a live-listed id must count as an exact engine id: fix isExactEngineModelId and unrecognisedModelWordRefusal in src/services/crew/engineDispatch.ts')
+  check(`[${family}] '${id}' paints in the ${family} section of the picker`, rowsOf(family).includes(id), `${rowsOf(family).join(',')} · the live id must appear in its family group: fix getModelOptions in src/services/model/modelOptions.ts`)
   const typed = await validateModel(id)
-  check(`[${family}] the typed /model road validates '${id}' on its own family's road`, typed.valid, typed.error)
+  check(`[${family}] the typed /model road validates '${id}' on its own family's road`, typed.valid, `${typed.error} · fix validateModel in src/services/providers/validateModel.ts to admit live-listed ids`)
   const dispatched = await dispatchOf(id)
-  check(`[${family}] the exact-id dispatch road resolves '${id}' on the ${family} backend`, dispatched.startsWith(`${family}:`), dispatched)
+  check(`[${family}] the exact-id dispatch road resolves '${id}' on the ${family} backend`, dispatched.startsWith(`${family}:`), `${dispatched} · fix resolveEngineDispatch in src/services/crew/engineDispatch.ts`)
   signOut(family)
   resetAll()
-  check(`[${family}] signed out again, '${id}' is unrecognised — the list is the only provenance`, classifyModelRoute(id).kind === 'unrecognised' && liveIds(family).size === 0)
+  check(`[${family}] signed out again, '${id}' is unrecognised — the list is the only provenance`, classifyModelRoute(id).kind === 'unrecognised' && liveIds(family).size === 0, 'signing out must clear the family live list: fix the catalogue reset and cachedLiveIds under src/services/providers/' + family + '/')
 }
 
 section('§order: when two signed-in accounts list one id, the first family in the fixed order wins')
@@ -170,29 +170,29 @@ section('§order: when two signed-in accounts list one id, the first family in t
   resetAll()
   await signIn('deepseek', [SHARED])
   await signIn('gemini', [SHARED])
-  check(`both lists hold '${SHARED}' and the earlier family (deepseek) wins over gemini`, liveIds('deepseek').has(SHARED) && liveIds('gemini').has(SHARED) && declaredRouteOf(SHARED) === 'deepseek', String(declaredRouteOf(SHARED)))
+  check(`both lists hold '${SHARED}' and the earlier family (deepseek) wins over gemini`, liveIds('deepseek').has(SHARED) && liveIds('gemini').has(SHARED) && declaredRouteOf(SHARED) === 'deepseek', `${String(declaredRouteOf(SHARED))} · ties follow LIVE_LIST_FAMILIES order: fix src/services/providers/idSpaces.ts`)
   await signIn('moonshot', [SHARED])
-  check('a Moonshot list holding the same id outranks both (moonshot leads the order)', liveIds('moonshot').has(SHARED) && declaredRouteOf(SHARED) === 'moonshot', String(declaredRouteOf(SHARED)))
+  check('a Moonshot list holding the same id outranks both (moonshot leads the order)', liveIds('moonshot').has(SHARED) && declaredRouteOf(SHARED) === 'moonshot', `${String(declaredRouteOf(SHARED))} · ties follow LIVE_LIST_FAMILIES order: fix src/services/providers/idSpaces.ts`)
   signOut('moonshot')
   moonshot.__resetMoonshotCatalogueForTest()
-  check('with Moonshot signed out the id falls back to the next holder in order', declaredRouteOf(SHARED) === 'deepseek', String(declaredRouteOf(SHARED)))
+  check('with Moonshot signed out the id falls back to the next holder in order', declaredRouteOf(SHARED) === 'deepseek', `${String(declaredRouteOf(SHARED))} · a signed-out family must drop out of the lookup: fix src/services/providers/idSpaces.ts`)
   signOut('deepseek')
   deepseek.__resetDeepseekCatalogueForTest()
-  check('…then to gemini, the last holder', declaredRouteOf(SHARED) === 'gemini', String(declaredRouteOf(SHARED)))
+  check('…then to gemini, the last holder', declaredRouteOf(SHARED) === 'gemini', `${String(declaredRouteOf(SHARED))} · a signed-out family must drop out of the lookup: fix src/services/providers/idSpaces.ts`)
   signOut('gemini')
   resetAll()
-  check('…and to nobody once every list is gone', classifyModelRoute(SHARED).kind === 'unrecognised')
+  check('…and to nobody once every list is gone', classifyModelRoute(SHARED).kind === 'unrecognised', 'with every list gone the id must be unrecognised: fix classifyModelRoute in src/services/providers/idSpaces.ts')
 }
 
 section('§grammar: provenance outranks the prefix, and a qualified namespace outranks provenance')
 {
   resetAll()
   await signIn('moonshot', ['gpt-listed-by-moonshot', 'k3'])
-  check("a gpt- spelled id that arrived in Moonshot's list routes to moonshot — where it came from, not its prefix", declaredRouteOf('gpt-listed-by-moonshot') === 'moonshot', String(declaredRouteOf('gpt-listed-by-moonshot')))
-  check('a gpt- id no list holds still routes to openai by grammar', declaredRouteOf('gpt-5.6-sol') === 'openai')
-  check('a qualified namespace is a reserved word: compat/k3 routes to the compat slot even while Moonshot lists k3', declaredRouteOf('compat/k3') === 'openai-compat' && declaredRouteOf('openrouter/moonshot/k3') === 'openrouter')
-  check('a carrier-shaped bare slug is never looked up in a list', classifyModelRoute('moonshot/k3').kind === 'unrecognised' && (classifyModelRoute('moonshot/k3') as { carrierShaped?: boolean }).carrierShaped === true)
-  check('an absent id stays absence; a first-party id stays first-party', classifyModelRoute('').kind === 'absence' && declaredRouteOf('claude-sonnet-5') === 'anthropic')
+  check("a gpt- spelled id that arrived in Moonshot's list routes to moonshot — where it came from, not its prefix", declaredRouteOf('gpt-listed-by-moonshot') === 'moonshot', `${String(declaredRouteOf('gpt-listed-by-moonshot'))} · list provenance must outrank the prefix: fix declaredRouteOf in src/services/providers/routeLaw.ts`)
+  check('a gpt- id no list holds still routes to openai by grammar', declaredRouteOf('gpt-5.6-sol') === 'openai', 'prefix grammar must still route gpt- ids: fix declaredRouteOf in src/services/providers/routeLaw.ts')
+  check('a qualified namespace is a reserved word: compat/k3 routes to the compat slot even while Moonshot lists k3', declaredRouteOf('compat/k3') === 'openai-compat' && declaredRouteOf('openrouter/moonshot/k3') === 'openrouter', 'a qualified namespace must outrank list provenance: fix declaredRouteOf in src/services/providers/routeLaw.ts')
+  check('a carrier-shaped bare slug is never looked up in a list', classifyModelRoute('moonshot/k3').kind === 'unrecognised' && (classifyModelRoute('moonshot/k3') as { carrierShaped?: boolean }).carrierShaped === true, 'a carrier-shaped slug must skip the list lookup: fix classifyModelRoute in src/services/providers/idSpaces.ts')
+  check('an absent id stays absence; a first-party id stays first-party', classifyModelRoute('').kind === 'absence' && declaredRouteOf('claude-sonnet-5') === 'anthropic', 'fix classifyModelRoute in src/services/providers/idSpaces.ts and declaredRouteOf in src/services/providers/routeLaw.ts')
   signOut('moonshot')
   resetAll()
 }
@@ -211,14 +211,14 @@ for (const lane of [
   process.env[lane.key] = `${lane.family}-fixture-key`
   owner.reset()
   await owner.refresh({ force: true, fetchImpl: (async () => Response.json(openaiList([lane.id]))) as typeof fetch })
-  check(`${lane.family}: the credential-scoped live set holds the unknown supported model`, owner.ids().has(lane.id) && declaredRouteOf(lane.id) === lane.family)
-  check(`${lane.family}: the fetched row paints only in its own group`, getModelOptions().some(row => row.group === lane.group && row.value === lane.id && !row.unavailable))
+  check(`${lane.family}: the credential-scoped live set holds the unknown supported model`, owner.ids().has(lane.id) && declaredRouteOf(lane.id) === lane.family, `fix ${lane.family}'s catalogue under src/services/providers/${lane.family}/ so cachedLiveIds holds the fetched id, and declaredRouteOf in src/services/providers/routeLaw.ts`)
+  check(`${lane.family}: the fetched row paints only in its own group`, getModelOptions().some(row => row.group === lane.group && row.value === lane.id && !row.unavailable), 'fix getModelOptions in src/services/model/modelOptions.ts')
   const validation = await validateModel(lane.id)
-  check(`${lane.family}: its typed model road admits the fetched id`, validation.valid, validation.error)
+  check(`${lane.family}: its typed model road admits the fetched id`, validation.valid, `${validation.error} · fix validateModel in src/services/providers/validateModel.ts`)
   const dispatch = await dispatchOf(lane.id)
-  check(`${lane.family}: the exact-id road uses its own backend`, dispatch === `${lane.family}:${lane.id}`, dispatch)
+  check(`${lane.family}: the exact-id road uses its own backend`, dispatch === `${lane.family}:${lane.id}`, `${dispatch} · fix resolveEngineDispatch in src/services/crew/engineDispatch.ts`)
   process.env[lane.key] = `${lane.family}-other-fixture-key`
-  check(`${lane.family}: another key cannot borrow the first key's live provenance`, owner.ids().size === 0)
+  check(`${lane.family}: another key cannot borrow the first key's live provenance`, owner.ids().size === 0, `cachedLiveIds in src/services/providers/${lane.family}/ must key the live set to the credential`)
   delete process.env[lane.key]
   owner.reset()
 }

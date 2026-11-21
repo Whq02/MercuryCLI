@@ -15,7 +15,7 @@ const { toolAlwaysAllowedRule, getDenyRuleForTool, getAskRuleForTool } = await i
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — change toolAlwaysAllowedRule, getDenyRuleForTool or getAskRuleForTool in src/utils/permissions/decision/rules.ts, wholeToolDenyRulesCovering in src/utils/permissions/ruleReason.ts, or RULE_INHERITS in src/constants/tools.ts'}`)
 }
 
 const base = getEmptyToolPermissionContext()

@@ -3,13 +3,14 @@
 
 let pass = 0
 let fail = 0
+let kernelFixHint = ''
 function check(name: string, ok: boolean, detail?: string): void {
   if (ok) {
     pass++
     console.log(`  PASS ${name}`)
   } else {
     fail++
-    console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}${kernelFixHint ? ` — change: ${kernelFixHint}` : ''}`)
   }
 }
 
@@ -22,6 +23,7 @@ const { mintFileAnchor, mintRangeAnchor } = await import(
 
 const kernel = runtimeKernel()
 
+kernelFixHint = 'sha256Hex of runtimeKernel().hash or referenceHashKernel in src/services/primitives/runtimeKernel.ts no longer returns the FIPS 180-2 digest'
 console.log('known-answer vectors (FIPS 180-2)')
 {
   const vectors: [string, string][] = [
@@ -38,6 +40,7 @@ console.log('known-answer vectors (FIPS 180-2)')
   }
 }
 
+kernelFixHint = 'make referenceHashKernel and the selected kernel in src/services/primitives/runtimeKernel.ts agree on every corpus item'
 console.log('parity across a hostile corpus')
 {
   const corpus: (string | Uint8Array)[] = [
@@ -59,6 +62,7 @@ console.log('parity across a hostile corpus')
   check('reference === selected across the corpus', mismatches === 0, `${mismatches} mismatch(es)`)
 }
 
+kernelFixHint = 'runtimeKernel().capabilities() in src/services/primitives/runtimeKernel.ts: flags, hash.id and the four notes'
 console.log('capability negotiation')
 {
   const caps = kernel.capabilities()
@@ -69,6 +73,7 @@ console.log('capability negotiation')
       caps.notes.text!.includes('cellLayout') && caps.notes.search!.includes('ripgrep'))
 }
 
+kernelFixHint = 'mintFileAnchor or mintRangeAnchor in src/services/changeTransaction/snapshotAnchor.ts changed its anchor output (or its hash input)'
 console.log('the anchor consumer is byte-identical through the boundary')
 {
   check('full-file anchor golden', mintFileAnchor('hello\nworld\n') === 'fa:4a1e67f2fe1d', mintFileAnchor('hello\nworld\n'))

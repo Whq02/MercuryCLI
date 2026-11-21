@@ -10,12 +10,18 @@ process.env.MERCURY_OPERATOR = 'sam'
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
 let checks = 0
+const classifierSource = 'src/utils/messages/noticeRows.ts (noticeOfText, wrappedNoticeBlocks, noticePlate, advisorBlockOf, isAdvisorOrigin)'
+const paintedSource = 'the row painters src/components/messages/UserTextMessage.tsx and src/components/messages/AttachmentMessage.tsx, with the classification and plate text in src/utils/messages/noticeRows.ts'
+let where = classifierSource
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}change ${where} until this holds` : ''}`)
 }
-const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
+const section = (t: string): void => {
+  where = t.startsWith('§1') ? classifierSource : paintedSource
+  console.log(`\n${'─'.repeat(76)}\n${t}`)
+}
 
 const { noticeOfText, wrappedNoticeBlocks, noticePlate, isNotificationLaneRow, noticeLines } = await import(join(ROOT, 'src/utils/messages/noticeRows.ts'))
 

@@ -37,13 +37,13 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 300 ? `${detail.slice(0, 300)}…` : detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.length > 300 ? `${detail.slice(0, 300)}…` : detail} · ` : ''}to fix: planReadThrough in src/tools/FileEditTool/readThrough.ts, validateInput in src/tools/FileEditTool/FileEditTool.ts, or the seen-lines record in src/services/changeTransaction/seenLines.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — read-through ledger proof exceeded 120s')
+  console.log('\nTIMEOUT — read-through ledger proof exceeded 120s; an Edit or Read call (src/tools/FileEditTool/FileEditTool.ts, src/tools/FileReadTool/FileReadTool.ts) did not return, and the last section printed above is where it stopped')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

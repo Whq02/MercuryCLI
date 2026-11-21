@@ -63,58 +63,58 @@ async function run(model: string, messages = prompt, signal = new AbortControlle
 const settled = (rows: any[]) => rows.some(row => !row.isApiErrorMessage && row.message.content.some((block: any) => block.text === 'MODEL-FACTS-SETTLED'))
 let checks = 0
 let failures = 0
-function check(name: string, pass: unknown) { checks++; if (!pass) failures++; console.log(`[${pass ? 'PASS' : 'FAIL'}] ${name}`) }
+function check(name: string, pass: unknown, detail?: string) { checks++; if (!pass) failures++; console.log(`[${pass ? 'PASS' : 'FAIL'}] ${name}${!pass && detail ? ` -- ${detail}` : ''}`) }
 try {
   set({})
-  check('the ordinary endpoint serves without metadata', settled(await run('compat/Fixture')))
+  check('the ordinary endpoint serves without metadata', settled(await run('compat/Fixture')), 'the compat route in src/services/providers/callModelRouter.ts (routedCallModel) returned no MODEL-FACTS-SETTLED text for compat/Fixture with empty settings')
   const ordinary = JSON.stringify(captures.at(-1)?.body)
-  check('the native-family control serves without metadata', settled(await run('deepseek-v4-pro')))
+  check('the native-family control serves without metadata', settled(await run('deepseek-v4-pro')), 'the deepseek route in src/services/providers/callModelRouter.ts (routedCallModel) returned no MODEL-FACTS-SETTLED text')
   const nativeControl = JSON.stringify(captures.at(-1)?.body)
   set({ 'compat/Fixture': { contextWindow: 1_500_000, maxOutputTokens: 240_000, efforts: ['low', 'max'], reasoning: true, images: true, prices: { input: 2, output: 8, cacheRead: 0.5, cacheWrite: 3 } } })
   const costBefore = getUsageForModel('compat/Fixture')?.costUSD ?? 0
-  check('the metadata-bearing endpoint still serves normally', settled(await run('compat/Fixture')))
+  check('the metadata-bearing endpoint still serves normally', settled(await run('compat/Fixture')), 'a models entry in settings.json made compat/Fixture stop serving; see operatorModelFacts in src/services/model/modelOverrides.ts and src/utils/settings/modelFacts.ts')
   const stated = captures.at(-1)?.body
-  check('the full stated output ceiling reaches the request', stated?.max_tokens === 240_000)
-  check('the stated max effort reaches the request unchanged', stated?.reasoning_effort === 'max')
-  check('all tool declarations remain available with metadata', stated?.tools?.some((entry: any) => entry.function.name === 'FixtureEcho'))
+  check('the full stated output ceiling reaches the request', stated?.max_tokens === 240_000, `request max_tokens was ${stated?.max_tokens}; the stated maxOutputTokens must reach the request, see statedMaxOut in src/services/providers/openaicompat/compatChatCallModel/prepare.ts`)
+  check('the stated max effort reaches the request unchanged', stated?.reasoning_effort === 'max', `request reasoning_effort was ${stated?.reasoning_effort}; a stated efforts list containing max must pass max through unchanged`)
+  check('all tool declarations remain available with metadata', stated?.tools?.some((entry: any) => entry.function.name === 'FixtureEcho'), 'the request lost the FixtureEcho tool declaration when the models entry was set')
   const ledger = getUsageForModel('compat/Fixture')
-  check('settled usage is priced at the operator rates', Math.abs((ledger?.costUSD ?? 0) - costBefore - 0.0000315) < 1e-12)
-  check('the usage ledger records the stated window and output ceiling', ledger?.contextWindow === 1_500_000 && ledger?.maxOutputTokens === 240_000)
+  check('settled usage is priced at the operator rates', Math.abs((ledger?.costUSD ?? 0) - costBefore - 0.0000315) < 1e-12, `ledger cost delta was ${(ledger?.costUSD ?? 0) - costBefore}, wanted 0.0000315 from the stated prices; see getUsageForModel in src/bootstrap/state.ts and the cost recording in src/cost-tracker.ts`)
+  check('the usage ledger records the stated window and output ceiling', ledger?.contextWindow === 1_500_000 && ledger?.maxOutputTokens === 240_000, `ledger recorded ${ledger?.contextWindow} / ${ledger?.maxOutputTokens}; see src/cost-tracker.ts`)
   const picker = getModelOptions().find((row: any) => row.value === 'compat/Fixture')
-  check('the picker reads the stated context window', picker?.statedContextWindow === 1_500_000)
+  check('the picker reads the stated context window', picker?.statedContextWindow === 1_500_000, `picker row statedContextWindow was ${picker?.statedContextWindow}; see getModelOptions in src/services/model/modelOptions.ts`)
   const page = await liveModelsReference({})
   const pageRow = page.providers.flatMap((provider: any) => provider.models).find((row: any) => row.id === 'compat/Fixture')
-  check('the models page reads the same stated window and efforts', pageRow?.contextWindow === 1_500_000 && pageRow?.efforts?.includes('max'))
+  check('the models page reads the same stated window and efforts', pageRow?.contextWindow === 1_500_000 && pageRow?.efforts?.includes('max'), `models page row was ${JSON.stringify(pageRow)}; see liveModelsReference in src/services/resources/adapters/models.ts`)
   const image = createUserMessage({ content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aT1sAAAAASUVORK5CYII=' } }, { type: 'text', text: 'fixture image' }] })
   await run('compat/Fixture', [image])
-  check('stated image support delivers the actual image part', captures.at(-1)?.body.messages.some((message: any) => Array.isArray(message.content) && message.content.some((part: any) => part.type === 'image_url')))
+  check('stated image support delivers the actual image part', captures.at(-1)?.body.messages.some((message: any) => Array.isArray(message.content) && message.content.some((part: any) => part.type === 'image_url')), 'the request carried no image_url part although images: true is stated; see src/services/providers/openaicompat/compatChatCallModel/prepare.ts')
   await run('deepseek-v4-pro')
-  check('an unrelated family keeps byte-identical request JSON', JSON.stringify(captures.at(-1)?.body) === nativeControl)
+  check('an unrelated family keeps byte-identical request JSON', JSON.stringify(captures.at(-1)?.body) === nativeControl, 'a models entry for compat/Fixture changed the deepseek-v4-pro request; metadata must stay scoped to its own model id')
   mode = 'tools'
   const calls = await run('compat/Fixture')
-  check('metadata leaves validated tool calls executable', calls.some(row => row.message.content.some((block: any) => block.type === 'tool_use' && block.id === 'facts-call')))
+  check('metadata leaves validated tool calls executable', calls.some(row => row.message.content.some((block: any) => block.type === 'tool_use' && block.id === 'facts-call')), 'the tool_calls stream did not become a tool_use block with id facts-call when a models entry is set')
   mode = 'text'
   await run('compat/Fixture', [...calls, createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'facts-call', content: 'facts' }] })])
-  check('tool continuation preserves its identity and metadata settings', captures.at(-1)?.body.messages.some((message: any) => message.tool_call_id === 'facts-call') && captures.at(-1)?.body.max_tokens === 240_000 && captures.at(-1)?.body.reasoning_effort === 'max')
+  check('tool continuation preserves its identity and metadata settings', captures.at(-1)?.body.messages.some((message: any) => message.tool_call_id === 'facts-call') && captures.at(-1)?.body.max_tokens === 240_000 && captures.at(-1)?.body.reasoning_effort === 'max', 'the continuation request must keep the tool_call_id message, max_tokens 240000 and reasoning_effort max')
 
   console.log('refusals')
   const pinnedOutput = getModelMaxOutputTokens('deepseek-v4-pro').upperLimit
   set({ 'deepseek-v4-pro': { contextWindow: 1, maxOutputTokens: 1, efforts: ['low'], reasoning: false, images: false } })
   await run('deepseek-v4-pro')
-  check('a smaller metadata ceiling never lowers the native model request', captures.at(-1)?.body.max_tokens >= pinnedOutput)
-  check('a reduced effort entry never remaps native max on the request', captures.at(-1)?.body.reasoning_effort === 'max')
+  check('a smaller metadata ceiling never lowers the native model request', captures.at(-1)?.body.max_tokens >= pinnedOutput, `max_tokens was ${captures.at(-1)?.body.max_tokens}, native ceiling ${pinnedOutput}; a stated maxOutputTokens must not lower a native model, see src/utils/model/capabilities.ts getModelMaxOutputTokens`)
+  check('a reduced effort entry never remaps native max on the request', captures.at(-1)?.body.reasoning_effort === 'max', `reasoning_effort was ${captures.at(-1)?.body.reasoning_effort}; a stated efforts entry must not remap native max`)
   mode = 'refused'
   const beforeRefusal = captures.length
   const refusal = await run('deepseek-v4-pro')
-  check('metadata never hides a real credential refusal or changes provider', captures.length === beforeRefusal + 1 && captures.at(-1)?.path === '/deepseek/chat/completions' && refusal.some(row => row.isApiErrorMessage && row.error === 'authentication_failed'))
+  check('metadata never hides a real credential refusal or changes provider', captures.length === beforeRefusal + 1 && captures.at(-1)?.path === '/deepseek/chat/completions' && refusal.some(row => row.isApiErrorMessage && row.error === 'authentication_failed'), 'a 401 from the deepseek endpoint must surface as authentication_failed on one request to /deepseek/chat/completions')
   mode = 'text'
   const controller = new AbortController(); controller.abort()
   const beforeCancel = captures.length
   await run('compat/Fixture', prompt, controller.signal)
-  check('a cancelled metadata turn sends no request', captures.length === beforeCancel)
+  check('a cancelled metadata turn sends no request', captures.length === beforeCancel, 'an aborted signal must stop routedCallModel before any request is sent')
   set({})
   await run('compat/Fixture')
-  check('removing metadata restores the ordinary request bytes', JSON.stringify(captures.at(-1)?.body) === ordinary)
+  check('removing metadata restores the ordinary request bytes', JSON.stringify(captures.at(-1)?.body) === ordinary, 'after clearing models in settings.json the compat/Fixture request must match the original bytes')
   console.log(`${failures ? 'MODEL FACTS WIRE RED' : 'MODEL FACTS WIRE GREEN'} (${checks} checks, ${failures} failures; loopback only)`)
 } finally {
   globalThis.fetch = nativeFetch

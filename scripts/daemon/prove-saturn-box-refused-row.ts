@@ -34,7 +34,8 @@ let failures = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}`)
+  const said = [detail === '' ? '' : typeof detail === 'string' ? detail : JSON.stringify(detail), 'fix tickSaturnOnce in src/daemon/saturnTicker.ts (stamp, hold and replay), the box file in src/daemon/saturnBoxSchedules.ts, saturnStandingWords in src/daemon/saturn.ts, or src/components/BootSaturnScreen.tsx for the frame checks'].filter(Boolean).join('; ')
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${said}` : ''}`)
 }
 const repo = join(proofHome, 'repo')
 mkdirSync(repo)

@@ -15,10 +15,11 @@ delete process.env.MERCURY_CHANGE_RECEIPTS
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = 'fix ChangeSetTool.call / mapToolResultToToolResultBlockParam in src/tools/ChangeSetTool/ChangeSetTool.ts and recordNoChangeOutcome in src/services/changeTransaction/repetitionPolicy.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${hint}` : ''}`)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — changeset-repetition proof exceeded 120s')
+  console.log('\nTIMEOUT — changeset-repetition proof exceeded 120s; a ChangeSetTool apply in this proof never returned, look at ChangeSetTool.call in src/tools/ChangeSetTool/ChangeSetTool.ts')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

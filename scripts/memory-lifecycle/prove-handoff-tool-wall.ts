@@ -43,7 +43,7 @@ try {
       } catch (error) { console.error(error); throw error }
     },
   })
-  assert.equal(decision, 'deny', 'a tool.before allow must not bypass the closing ask allowlist')
+  assert.equal(decision, 'deny', 'a tool.before allow must not bypass the closing ask allowlist: the canUseTool that askForHandoff (src/mneme/handoffAsk.ts) passes to the closing ask must deny a tool outside handoffAskText(...).tools, and an allow from resolveHookPermissionDecision (src/services/tools/toolHooks.ts) must not skip it')
   console.log('HANDOFF TOOL WALL GREEN')
 } finally {
   rmSync(home, { recursive: true, force: true })

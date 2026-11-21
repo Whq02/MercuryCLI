@@ -26,7 +26,7 @@ const section = (title: string): void => console.log('\n' + '─'.repeat(76) + '
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the stops of the turn machine exceeded 280s')
+  console.log(`\nTIMEOUT — the stops of the turn machine exceeded 280s; rerun one scenario alone with --only <name> to find the one that does not end, and look at where it waits in ${STREAM_FILE}`)
   process.exit(1)
 }, 280_000)
 guard.unref?.()

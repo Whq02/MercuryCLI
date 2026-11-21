@@ -25,11 +25,19 @@ const KEY = 'sk-ant-api03-picker-signin-proof'
 const TOKEN = 'at_picker_signin_proof'
 
 let failures = 0
+let where = ''
+const WHERES: Record<string, string> = {
+  '§1': 'anthropicCredentialPresence in src/services/providers/providerUsage.ts, getModelOptions in src/services/model/modelOptions.ts and the anthropic slots of deriveFamilySlotGroups in src/services/providers/accountSlots.ts',
+  '§2': 'anthropicCredentialPresence in src/services/providers/providerUsage.ts must re-read the stored sign-in instead of keeping the memo from boot; the writer is saveOAuthTokensIfNeeded in src/services/auth/oauthLifecycle.ts',
+  '§3': 'anthropicCredentialPresence in src/services/providers/providerUsage.ts must follow a removed .credentials.json; picker rows come from getModelOptions in src/services/model/modelOptions.ts',
+  '§4': 'anthropicCredentialPresence in src/services/providers/providerUsage.ts must pick up a primaryApiKey saved by another process without a refresh turn',
+}
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${where}` : ''}`)
 }
 const section = (t: string): void => {
+  where = WHERES[t.slice(0, 2)] ?? where
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))

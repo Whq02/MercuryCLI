@@ -6,16 +6,18 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
+let fixHint = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && (detail || fixHint) ? ` — ${detail.slice(0, 500)}${fixHint ? `${detail ? ' | ' : ''}${fixHint}` : ''}` : ''}`)
 }
-const section = (t: string): void => {
+const section = (t: string, hint = ''): void => {
+  fixHint = hint
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the image-refusal retry prover exceeded 180s')
+  console.log('\nTIMEOUT — the image-refusal retry prover exceeded 180s: a run in §2-§4 never settled; check the retry loop around refusalRetryRowOf in runAgent (src/tools/AgentTool/runAgent.ts) and the resume road (src/tools/AgentTool/resumeAgent.ts)')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
@@ -219,7 +221,7 @@ const textOf = (row: Message | undefined): string => {
 }
 const isApiError = (row: Message | undefined): boolean => (row as { isApiErrorMessage?: boolean } | undefined)?.isApiErrorMessage === true
 
-section('§1 the retry row: a pure leaf, once per class')
+section('§1 the retry row: a pure leaf, once per class', 'to fix: refusalRetryRowOf and imageRefusalRetryLine in src/tools/AgentTool/refusalRetry.ts (the stamp is read by mediaRefusalOf in src/utils/api/mediaRefusal.ts)')
 {
   check('the retry row has one owner beside the run loop', leaf !== null)
   const stamped = { type: 'assistant', isApiErrorMessage: true, mediaRefusal: { blockTypes: ['image'], detail: 'images are not supported' }, message: { role: 'assistant', content: [{ type: 'text', text: 'API Error: refused' }] } } as unknown as Message
@@ -239,7 +241,7 @@ section('§1 the retry row: a pure leaf, once per class')
   check('an unrecognised model id says "on its route"', imageRefusalRetryLine('no-such-model', undefined).startsWith('The model no-such-model on its route refused an image in the last request: '))
 }
 
-section('§2 the run: the refusal stands as a row, the run retries once from its transcript, the second request carries no image')
+section('§2 the run: the refusal stands as a row, the run retries once from its transcript, the second request carries no image', 'to fix: the retry step of runAgent in src/tools/AgentTool/runAgent.ts (the call to refusalRetryRowOf) and the line in src/tools/AgentTool/refusalRetry.ts')
 const storeA = makeStore()
 const idA = generateTaskId('local_agent')
 seen.length = 0
@@ -268,7 +270,7 @@ const a = await drive(storeA, idA, 1)
   check('the error row on disk keeps its stamp', record.includes('"mediaRefusal"'))
 }
 
-section('§3 once per class: a refusal of the retried request ends the run on its error row — no third request')
+section('§3 once per class: a refusal of the retried request ends the run on its error row — no third request', 'to fix: the retriedRefusals bookkeeping around refusalRetryRowOf in runAgent (src/tools/AgentTool/runAgent.ts) and deriveAgentTerminalOutcome in src/tools/AgentTool/agentToolUtils.ts')
 const storeB = makeStore()
 const idB = generateTaskId('local_agent')
 seen.length = 0
@@ -287,7 +289,7 @@ const b = await drive(storeB, idB, 2)
   check('the run ends failed, provider-declined, with the second refusal\'s words', outcome.status === 'failed' && outcome.reason === 'provider-declined' && outcome.error.includes('refused the retried request too'), JSON.stringify(outcome))
 }
 
-section('§4 the run that ended on the error stays resumable by message: the next line continues it from its transcript')
+section('§4 the run that ended on the error stays resumable by message: the next line continues it from its transcript', 'to fix: ResumeAgentTool (src/tools/ResumeAgentTool/ResumeAgentTool.ts) and resumeAgentBackground (src/tools/AgentTool/resumeAgent.ts) must resume the failed agent from its transcript with the message')
 {
   seen.length = 0
   refusals = 0

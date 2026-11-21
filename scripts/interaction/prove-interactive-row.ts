@@ -129,12 +129,14 @@ if (process.env.IROW_CHILD) {
   const HOVER_BG = resolveMercuryTokens(DEFAULT_THEME_SETTING, '#DD4444').surface2.replace(/^#/, '').toLowerCase()
 
   let failures = 0
-  const check = (label: string, cond: boolean, detail = ''): void => {
+  const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
     if (!cond) failures++
-    console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
   }
+  const PANES_HINT = 'see src/components/mercury-ui/NavigablePanes.tsx (the PanesFixture in scripts/interaction/prove-interactive-row.ts renders it)'
+  const ROWS_HINT = 'see src/components/mercury-ui/InteractiveRow.tsx (the RowsFixture in scripts/interaction/prove-interactive-row.ts renders it)'
   if (!existsSync(VSHOT)) {
-    console.error('vshot.py missing — render-verify required')
+    console.error('vshot.py missing — render-verify required; restore scripts/ui/vshot.py, which this proof drives through a PTY')
     process.exit(1)
   }
 
@@ -190,7 +192,7 @@ if (process.env.IROW_CHILD) {
       },
     })
     if (res.status !== 0) {
-      check(`${tag}: PTY capture ran`, false, res.stderr?.slice(0, 300) ?? '')
+      check(`${tag}: PTY capture ran`, false, res.stderr?.slice(0, 300) ?? '', 'scripts/ui/vshot.py exited non-zero: read its stderr above, and rerun with IROW_CHILD=1 IROW_MODE=<panes|rows> to see the fixture crash')
       return null
     }
     const grid = (JSON.parse(readFileSync(outPath, 'utf8')) as { grid: Cell[][] }).grid
@@ -210,8 +212,8 @@ if (process.env.IROW_CHILD) {
   {
     const a1 = capture('a1', 'panes', [{ atTick: 20, data: '\x1b[B' }], 32, 150, 40, {}, 'side-beta')
     if (a1) {
-      check('↓ selects row-beta', cursorOn(a1.lines, 'row-beta'))
-      check('sideInfo follows the selection (side-beta)', a1.lines.some(l => l.includes('side-beta')))
+      check('↓ selects row-beta', cursorOn(a1.lines, 'row-beta'), '', PANES_HINT + ': the down key must move the cursor (▸) to the next row')
+      check('sideInfo follows the selection (side-beta)', a1.lines.some(l => l.includes('side-beta')), '', PANES_HINT + ': sideInfo must render for the selected row')
     }
     const a2 = capture(
       'a2',
@@ -230,8 +232,10 @@ if (process.env.IROW_CHILD) {
       check(
         'after the reorder the cursor still sits on row-beta (key, not index)',
         cursorOn(a2.lines, 'row-beta'),
+        '',
+        PANES_HINT + ': selection must be held by rowKey, not by row index',
       )
-      check('sideInfo still shows side-beta', a2.lines.some(l => l.includes('side-beta')))
+      check('sideInfo still shows side-beta', a2.lines.some(l => l.includes('side-beta')), '', PANES_HINT + ': the selection must be kept by rowKey across a reorder')
     }
   }
 
@@ -247,14 +251,14 @@ if (process.env.IROW_CHILD) {
       gCol = gRow >= 0 ? base.lines[gRow]!.indexOf('row-gamma') + 3 : -1
       secRow = base.lines.findIndex(l => l.includes('other (1)'))
       secCol = secRow >= 0 ? base.lines[secRow]!.indexOf('other (1)') + 2 : -1
-      check('baseline anchors present', gRow >= 0 && secRow >= 0, `g=${gRow} sec=${secRow}`)
+      check('baseline anchors present', gRow >= 0 && secRow >= 0, `g=${gRow} sec=${secRow}`, PANES_HINT + ': the fixture did not render row-gamma and the "other (1)" section header')
     }
     if (gRow >= 0) {
       const b1 = capture('b1', 'panes', [{ atTick: 20, data: click(gCol + 1, gRow + 1) }], 32, 150, 40, {}, 'side-gamma')
       if (b1) {
-        check('click selects row-gamma', cursorOn(b1.lines, 'row-gamma'))
-        check('single click does NOT drill (no dt-gamma)', !b1.lines.some(l => l.includes('dt-gamma')))
-        check('sideInfo follows the click (side-gamma)', b1.lines.some(l => l.includes('side-gamma')))
+        check('click selects row-gamma', cursorOn(b1.lines, 'row-gamma'), '', PANES_HINT + ': a pointer click on a row must select it')
+        check('single click does NOT drill (no dt-gamma)', !b1.lines.some(l => l.includes('dt-gamma')), '', PANES_HINT + ': the first click only selects; drill on the second click of the selected row')
+        check('sideInfo follows the click (side-gamma)', b1.lines.some(l => l.includes('side-gamma')), '', PANES_HINT + ': sideInfo must follow a click selection')
       }
       const b2 = capture(
         'b2',
@@ -270,13 +274,13 @@ if (process.env.IROW_CHILD) {
         'dt-gamma',
       )
       if (b2) {
-        check('second click on the selected row DRILLS (dt-gamma)', b2.lines.some(l => l.includes('dt-gamma')))
+        check('second click on the selected row DRILLS (dt-gamma)', b2.lines.some(l => l.includes('dt-gamma')), '', PANES_HINT + ': a click on the already selected row must drill into detail')
       }
     }
     if (secRow >= 0) {
       const c1 = capture('c1', 'panes', [{ atTick: 20, data: click(secCol + 1, secRow + 1) }], 32, 150, 40, {}, 'row-omega')
       if (c1) {
-        check('clicking the section entry switches sections (row-omega visible)', c1.lines.some(l => l.includes('row-omega')))
+        check('clicking the section entry switches sections (row-omega visible)', c1.lines.some(l => l.includes('row-omega')), '', PANES_HINT + ': a click on a section entry must switch to that section')
       }
     }
   }
@@ -289,7 +293,7 @@ if (process.env.IROW_CHILD) {
     if (base) {
       aRow = base.lines.findIndex(l => l.includes('ROW-alpha'))
       oRow = base.lines.findIndex(l => l.includes('ROW-omega'))
-      check('rows fixture anchors present', aRow >= 0 && oRow >= 0, `a=${aRow} o=${oRow}`)
+      check('rows fixture anchors present', aRow >= 0 && oRow >= 0, `a=${aRow} o=${oRow}`, ROWS_HINT + ': the fixture did not render ROW-alpha and ROW-omega')
     }
     const hoverRows = (grid: Cell[][]): number[] => {
       const out: number[] = []
@@ -302,11 +306,11 @@ if (process.env.IROW_CHILD) {
       const d1 = capture('d1', 'rows', [{ atTick: 16, data: motion(4, aRow + 1) }], 26, 80, 22)
       if (d1) {
         const lit = hoverRows(d1.grid)
-        check('hover paints exactly the live row', lit.length === 1 && lit[0] === aRow, `lit=${lit.join(',')}`)
+        check('hover paints exactly the live row', lit.length === 1 && lit[0] === aRow, `lit=${lit.join(',')}`, ROWS_HINT + ': pointer motion over a live row must paint surface2 on that row only')
       }
       const d2 = capture('d2', 'rows', [{ atTick: 16, data: motion(4, oRow + 1) }], 26, 80, 22)
       if (d2) {
-        check('an unavailable row takes NO hover paint', hoverRows(d2.grid).length === 0)
+        check('an unavailable row takes NO hover paint', hoverRows(d2.grid).length === 0, '', ROWS_HINT + ': a row with unavailable set must not paint hover')
       }
       const d3 = capture(
         'd3',
@@ -325,6 +329,7 @@ if (process.env.IROW_CHILD) {
           'dead row never fires; live row select-then-activate (sel=alpha acts=1)',
           d3.lines.some(l => l.includes('sel=alpha acts=1')),
           d3.lines.find(l => l.includes('sel=')) ?? '',
+          ROWS_HINT + ': an unavailable row ignores clicks; a live row selects on the first click and activates on the second',
         )
       }
     }
@@ -352,7 +357,7 @@ if (process.env.IROW_CHILD) {
       const base = capture(`e-${family}-0`, 'rows', [], 24, 80, 22, { IROW_THEME: family })
       const aRow = base ? base.lines.findIndex(l => l.includes('ROW-alpha')) : -1
       if (aRow < 0) {
-        check(`${family}: fixture renders`, false)
+        check(`${family}: fixture renders`, false, '', ROWS_HINT + ': ROW-alpha was not found under IROW_THEME=' + family)
         continue
       }
       const e1 = capture(
@@ -372,6 +377,7 @@ if (process.env.IROW_CHILD) {
           `${family}: hover paints THAT family's surface2 (${expected})`,
           litBgs.has(expected),
           `bgs=${[...litBgs].join(',') || 'none'}`,
+          ROWS_HINT + ": hover paint must use resolveMercuryTokens(<family>).surface2 from src/utils/mercuryTokens.ts",
         )
       }
     }

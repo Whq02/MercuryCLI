@@ -30,16 +30,16 @@ const child = { connected: true, on() {}, off() {}, process: () => null, pages: 
 browser.setBrowserLaunchDriverForProof(async () => child as never)
 const context = { agentId: 'error-fixture', abortController: new AbortController() } as never
 let failures = 0
-const check = (name: string, ok: boolean, detail: string) => { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${detail}`); if (!ok) failures++ }
+const check = (name: string, ok: boolean, detail: string, hint = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${detail}${ok ? '' : ` | to fix: ${hint}`}`); if (!ok) failures++ }
 try {
   await browser.ensureBrowserSession(owner)
   const click = await BrowserTool.call({ op: 'click', selector: '#route-target' }, context)
-  check('unclickable element names scroll and route waiting', click.data.outcome === 'failed' && /scroll/.test(click.data.result) && /waitFor/.test(click.data.result) && !click.data.result.includes('Node is either'), click.data.result)
+  check('unclickable element names scroll and route waiting', click.data.outcome === 'failed' && /scroll/.test(click.data.result) && /waitFor/.test(click.data.result) && !click.data.result.includes('Node is either'), click.data.result, 'make driverFailureWords in src/tools/BrowserTool/browser/failures.ts translate the unclickable-element error into words naming scroll and waitFor, without the raw driver text')
   fail = 'network'
   const opened = await BrowserTool.call({ op: 'open', url: page.url() }, context)
-  check('blocked request names the reported policy and next step', opened.data.outcome === 'failed' && /mixed-content/.test(opened.data.result) && /console|operator/.test(opened.data.result), opened.data.result)
+  check('blocked request names the reported policy and next step', opened.data.outcome === 'failed' && /mixed-content/.test(opened.data.result) && /console|operator/.test(opened.data.result), opened.data.result, 'make driverFailureWords in src/tools/BrowserTool/browser/failures.ts name the blocked reason the page reported (mixed-content) and say to read the console or ask the operator')
   const unknown = driverFailureWords('open', 'net::ERR_BLOCKED_BY_CLIENT at https://example.test/')
-  check('unreported policy is not invented', unknown !== null && /not report/.test(unknown), unknown ?? '(no translation)')
+  check('unreported policy is not invented', unknown !== null && /not report/.test(unknown), unknown ?? '(no translation)', 'driverFailureWords in src/tools/BrowserTool/browser/failures.ts must return words saying the browser did not report a policy when no blocked reason is passed')
   assert.equal(failures, 0)
 } finally {
   await browser.closeBrowserSessionDetailed(owner)

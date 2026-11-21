@@ -20,10 +20,11 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the stream.<step> function this check's section calls in src/run-core/turn/streamModel.ts so the condition holds`)
 }
 const section = (title: string): void => console.log('\n' + '─'.repeat(76) + '\n' + title)
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the model call steps exceeded 180s')
+  console.log('\nTIMEOUT — the model call steps exceeded 180s; a step in src/run-core/turn/streamModel.ts never settled, find the last section printed above')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
@@ -35,7 +36,7 @@ async function before(plan: Plan, state: Row = {}) {
   const planted = await t.plantRun(plan)
   Object.assign(planted.state, state)
   const made = await t.drain(makeRequest(planted.run as never, planted.state as never, 1))
-  if (made.decision.kind !== 'go_on') throw new Error(`the planted request did not go on: ${t.reasonOf(made.decision)}`)
+  if (made.decision.kind !== 'go_on') throw new Error(`the planted request did not go on: ${t.reasonOf(made.decision)}; makeRequest in src/run-core/turn/makeRequest.ts refused the plan, or the plan in this file is wrong`)
   const iter = made.decision.iter as unknown as Row
   const emit = planted.run.emit as never
   return { planted, iter, emit, run: planted.run as never, it: iter as never }

@@ -13,7 +13,7 @@ const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
 const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
 let failures = 0
 let checks = 0
-const check = (label: string, yes: boolean) => { checks++; if (!yes) failures++; console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}`) }
+const check = (label: string, yes: boolean, detail = '') => { checks++; if (!yes) failures++; console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${!yes && detail ? ` \u2014 ${detail}` : ''}`) }
 const sessionId = String(getSessionId())
 const agentId = asAgentId('a12345678')
 const first = crypto.randomUUID()
@@ -43,10 +43,10 @@ writeFileSync(path, rows.map(row => JSON.stringify(entryToRecord(row as never, {
 const before = readFileSync(path, 'utf8')
 const resumed = await getAgentTranscript(agentId)
 const records = resumed?.messages.filter(row => row.type === 'attachment' && row.attachment.type === 'bound_prefix') ?? []
-check('the agent resume read carries the newest matching sibling prefix record', records.length === 1 && records[0]?.uuid === newest)
-check('the original conversational chain stays in its original order', resumed?.messages.filter(row => row.type !== 'attachment').map(row => row.uuid).join(',') === [first, assistant, middle, final].join(','))
-check('the recorded definition stays byte-identical', records.length === 1 && JSON.stringify(records[0]).includes(JSON.stringify(definition)))
-check('reading the matching sibling never rewrites the transcript', readFileSync(path, 'utf8') === before)
+check('the agent resume read carries the newest matching sibling prefix record', records.length === 1 && records[0]?.uuid === newest, `${records.length} bound_prefix record(s), uuids ${records.map(row => row.uuid).join(',')}, expected only ${newest} — getAgentTranscript in src/utils/sessionStorage/logs.ts must append the latest bound_prefix of the same session and the first chain row's uuid`)
+check('the original conversational chain stays in its original order', resumed?.messages.filter(row => row.type !== 'attachment').map(row => row.uuid).join(',') === [first, assistant, middle, final].join(','), 'getAgentTranscript in src/utils/sessionStorage/logs.ts must return the conversation chain unchanged, with the prefix record only appended')
+check('the recorded definition stays byte-identical', records.length === 1 && JSON.stringify(records[0]).includes(JSON.stringify(definition)), 'getAgentTranscript in src/utils/sessionStorage/logs.ts must return the recorded bound_prefix record as written, without rebuilding its roster')
+check('reading the matching sibling never rewrites the transcript', readFileSync(path, 'utf8') === before, 'getAgentTranscript in src/utils/sessionStorage/logs.ts must only read the agent transcript file')
 console.log(`resume-prefix-sibling: ${checks} checks, ${failures} failed`)
 rmSync(home, { recursive: true, force: true })
 process.exit(failures ? 1 : 0)

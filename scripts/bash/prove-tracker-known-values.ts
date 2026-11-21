@@ -21,6 +21,8 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
 
 let failures = 0
 let checks = 0
+const A = '; fix the static value tracking in parseForSecurity, src/utils/bash/ast.ts'
+const B = '; fix the permission ladder in bashToolHasPermission, src/tools/BashTool/bashPermissions.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
@@ -57,7 +59,7 @@ try {
     ['n=0; for i in $(seq 1 3); do n=$((n+i)); done; echo "n=$n"', [['seq', '1', '3'], ['echo', 'n=__MERCURY_UNKNOWN_INTEGER__']]],
   ] as const) {
     const got = await argvOf(command)
-    check(`known: ${command.slice(0, 90)}`, same(got, argv), JSON.stringify(got).slice(0, 300))
+    check(`known: ${command.slice(0, 90)}`, same(got, argv), JSON.stringify(got).slice(0, 300) + A)
   }
 
   console.log('values the shell would supply at runtime still refuse, with the reason that names them')
@@ -83,31 +85,31 @@ try {
     ['b=1; for i in a b; do read $i; done; echo $a', 'Bash needs approval for $a because its value is unknown. Use its literal path or value.'],
   ] as const) {
     const got = await argvOf(command)
-    check(`refused: ${command}`, got === `too-complex: ${reason}`, String(got).slice(0, 300))
+    check(`refused: ${command}`, got === `too-complex: ${reason}`, String(got).slice(0, 300) + A + '; the refusal reason text must match exactly')
   }
   const many = `for i in ${Array.from({ length: 65 }, (_, n) => n + 1).join(' ')}; do echo $i; done`
-  check('a literal list past the cap (64 items) is walked once with the variable unknown, as before', (await argvOf(many)) === 'too-complex: Bash needs approval for $i because its value is unknown. Use its literal path or value.')
+  check('a literal list past the cap (64 items) is walked once with the variable unknown, as before', (await argvOf(many)) === 'too-complex: Bash needs approval for $i because its value is unknown. Use its literal path or value.', 'the for-list cap of 64 items is kept in parseForSecurity, src/utils/bash/ast.ts')
   const sixtyFour = `for i in ${Array.from({ length: 64 }, (_, n) => n + 1).join(' ')}; do echo $i; done`
   const walked = await argvOf(sixtyFour)
-  check('a literal list at the cap is walked item by item', Array.isArray(walked) && walked.length === 64 && same(walked[63], ['echo', '64']), String(walked).slice(0, 100))
+  check('a literal list at the cap is walked item by item', Array.isArray(walked) && walked.length === 64 && same(walked[63], ['echo', '64']), String(walked).slice(0, 100) + A)
 
   console.log('the decision ladder reads the known values: a saved rule answers the concrete commands')
   const chain = await decision(`S=${S} && echo a && python3 $S/x.py`, ['Bash(echo *)', 'Bash(python3 *)'])
-  check('an assignment carried through && lets the rules answer (red on the base: the ask named $S)', chain.behavior === 'allow', `${chain.behavior}: ${JSON.stringify(chain).slice(0, 200)}`)
+  check('an assignment carried through && lets the rules answer (red on the base: the ask named $S)', chain.behavior === 'allow', `${chain.behavior}: ${JSON.stringify(chain).slice(0, 200)}` + B)
   const loop = await decision('for m in state turn; do python3 run_$m.py; done', ['Bash(python3 *)'])
-  check('a literal for list lets the rules answer every iteration', loop.behavior === 'allow', `${loop.behavior}: ${JSON.stringify(loop).slice(0, 200)}`)
+  check('a literal for list lets the rules answer every iteration', loop.behavior === 'allow', `${loop.behavior}: ${JSON.stringify(loop).slice(0, 200)}` + B)
   const partial = await decision('for m in state turn; do python3 run_$m.py; done', ['Bash(python3 run_state.py)'])
-  check('a rule that answers one iteration only leaves the rest to approval, named', partial.behavior !== 'allow' && JSON.stringify(partial).includes('python3 run_turn.py') && !JSON.stringify(partial).includes('run_state.py'), `${partial.behavior}: ${JSON.stringify(partial).slice(0, 300)}`)
+  check('a rule that answers one iteration only leaves the rest to approval, named', partial.behavior !== 'allow' && JSON.stringify(partial).includes('python3 run_turn.py') && !JSON.stringify(partial).includes('run_state.py'), `${partial.behavior}: ${JSON.stringify(partial).slice(0, 300)}` + B)
   const bare = await decision('for m in state turn; do python3 run_$m.py; done')
-  check('with no rule every concrete iteration is named for approval', bare.behavior !== 'allow' && JSON.stringify(bare).includes('python3 run_state.py, python3 run_turn.py'), `${bare.behavior}: ${JSON.stringify(bare).slice(0, 300)}`)
+  check('with no rule every concrete iteration is named for approval', bare.behavior !== 'allow' && JSON.stringify(bare).includes('python3 run_state.py, python3 run_turn.py'), `${bare.behavior}: ${JSON.stringify(bare).slice(0, 300)}` + B)
   const unknown = await decision('echo $UNKNOWN_X', ['Bash(echo *)'])
-  check('an unknown variable still asks', unknown.behavior === 'ask' && JSON.stringify(unknown).includes('$UNKNOWN_X'), `${unknown.behavior}: ${JSON.stringify(unknown).slice(0, 200)}`)
+  check('an unknown variable still asks', unknown.behavior === 'ask' && JSON.stringify(unknown).includes('$UNKNOWN_X'), `${unknown.behavior}: ${JSON.stringify(unknown).slice(0, 200)}` + B)
   const substitution = await decision('ls $(cat names)', ['Bash(ls *)'])
-  check('a command substitution still asks', substitution.behavior === 'ask', `${substitution.behavior}`)
+  check('a command substitution still asks', substitution.behavior === 'ask', `${substitution.behavior}` + B)
   const glob = await decision('for f in ../outside/*.md; do cat $f; done', ['Bash(cat *)'])
-  check('a glob reaching outside the tree still asks', glob.behavior === 'ask', `${glob.behavior}`)
+  check('a glob reaching outside the tree still asks', glob.behavior === 'ask', `${glob.behavior}` + B)
   const settings = await decision('echo x > .mercury/settings.local.json', ['Bash(echo *)'])
-  check('a redirect into .mercury/settings.local.json still asks', settings.behavior === 'ask', `${settings.behavior}: ${JSON.stringify(settings).slice(0, 200)}`)
+  check('a redirect into .mercury/settings.local.json still asks', settings.behavior === 'ask', `${settings.behavior}: ${JSON.stringify(settings).slice(0, 200)}` + B)
 } finally {
   process.chdir(previous)
   rmSync(scratch, { recursive: true, force: true })

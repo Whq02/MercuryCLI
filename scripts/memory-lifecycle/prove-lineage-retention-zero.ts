@@ -38,17 +38,17 @@ try {
   session.noteCorrected('seq:2')
   session.noteFileTouched('file.ts')
   await session.closeLineageSession('closed')
-  assert.equal(readFileSync(paths.lineagePath(key), 'utf8'), before, 'retention zero stops engine, ruling, fact, file and close writes')
-  assert.ok(ledger.ledgerEntryOf(key, String(state.getSessionId())), 'existing entries remain readable')
+  assert.equal(readFileSync(paths.lineagePath(key), 'utf8'), before, 'retention zero stops engine, ruling, fact, file and close writes: the note* functions in src/mneme/lineageSession.ts must return without writing the ledger when lineageKept() is false (records.retentionDays is 0), and closeLineageSession there must write no close either')
+  assert.ok(ledger.ledgerEntryOf(key, String(state.getSessionId())), 'existing entries remain readable: retention zero must stop writes only; readLedgerFile and ledgerEntryOf in src/mneme/ledger.ts must still read the entry already stored')
   session._resetLineageSessionForTesting()
   session.noteSessionEngine('resumed')
-  assert.equal(ask.handoffAskDue({ querySource: 'sdk' }), false, 'a resumed open entry at retention zero cannot ask')
-  assert.equal(exit.exitNoteDue(), false)
+  assert.equal(ask.handoffAskDue({ querySource: 'sdk' }), false, 'a resumed open entry at retention zero cannot ask: handoffAskDue in src/mneme/handoffAsk.ts must return false while records.retentionDays is 0')
+  assert.equal(exit.exitNoteDue(), false, 'exitNoteDue in src/mneme/exitHandoff.ts must return false at retention zero (it should stop on lineageJoined() from src/mneme/lineageSession.ts)')
   let calls = 0
   const run = async () => { calls++; return { messages: [createAssistantMessage({ content: 'note' })] } }
   await ask.askForHandoff({ cacheSafeParams, run })
   await exit.leaveNoteBeforeExit({ run })
-  assert.equal(calls, 0, 'neither closing entry point invokes the provider at retention zero')
+  assert.equal(calls, 0, 'neither closing entry point invokes the provider at retention zero: askForHandoff (src/mneme/handoffAsk.ts) and leaveNoteBeforeExit (src/mneme/exitHandoff.ts) must return before calling run while records.retentionDays is 0')
   setRetention(30)
   ask._resetHandoffAskForTesting()
   const beforeAwait = readFileSync(paths.lineagePath(key), 'utf8')
@@ -57,7 +57,7 @@ try {
     setRetention(0)
     return { messages: [createAssistantMessage({ content: 'must not persist' })], terminal: { reason: 'completed' } }
   } })
-  assert.equal(readFileSync(paths.lineagePath(key), 'utf8'), beforeAwait, 'retention is rechecked after the awaited note')
+  assert.equal(readFileSync(paths.lineagePath(key), 'utf8'), beforeAwait, 'retention is rechecked after the awaited note: askForHandoff in src/mneme/handoffAsk.ts must check retention again after run returns and store nothing when records.retentionDays became 0 during the ask')
   console.log('LINEAGE RETENTION ZERO GREEN')
 } finally {
   rmSync(home, { recursive: true, force: true })

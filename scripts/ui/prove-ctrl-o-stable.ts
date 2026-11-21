@@ -104,13 +104,13 @@ if (process.env.CTRLO_DEBUG) console.log(`  · best shift ${bestShift} score ${(
 check(
   'B: reading position survives ctrl+o out→in (center rows match within ±3-row shift)',
   ref.grid.length > 0 && bestScore >= 0.9,
-  `best shift ${bestShift}, ${(bestScore * 100).toFixed(1)}% rows matched`,
+  `best shift ${bestShift}, ${(bestScore * 100).toFixed(1)}% rows matched; ctrl+o out and back must restore the scrolled reading position, rerun with CTRLO_DEBUG=1 to print the shift and score`,
 )
 const lastTurnMarker = 'turn 18'
 check(
   'B: round-trip did NOT reset to the bottom',
   !rtC.join('\n').includes(lastTurnMarker),
-  'bottom content visible after round-trip',
+  'bottom content visible after round-trip; ctrl+o out and back must keep the PageUp scroll position instead of jumping to the newest turn',
 )
 
 let fullDamage = 0
@@ -122,7 +122,7 @@ for (const line of rt.composed.trim().split('\n')) {
   } catch {
   }
 }
-check('C: ≤ 14 structural full-damage frames across the whole scrolled round-trip (2 flips + 2 PageUps + chrome swaps; a per-frame damage storm would be 3-5× this)', fullDamage <= 14, `${fullDamage}`)
+check('C: ≤ 14 structural full-damage frames across the whole scrolled round-trip (2 flips + 2 PageUps + chrome swaps; a per-frame damage storm would be 3-5× this)', fullDamage <= 14, `${fullDamage}; ctrl+o and PageUp must not trigger a full-damage repaint on every frame, read the removed-child, moved and scroll reasons in the INK_COMPOSED_TEE log`)
 
 cleanupScenario('ctrl-o-stable')
 console.log(failures === 0 ? '\n✓ prove-ctrl-o-stable: all green' : `\n✗ prove-ctrl-o-stable: ${failures} failure(s)`)

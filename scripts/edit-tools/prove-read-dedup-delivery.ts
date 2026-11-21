@@ -37,7 +37,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — dedup delivery prover exceeded 90s')
+  console.log('\nTIMEOUT — dedup delivery prover exceeded 90s; a Read or buildRequestContextPlan call did not return, see src/tools/FileReadTool/read/call.ts and src/services/run/requestContextPlan.ts')
   process.exit(1)
 }, 90_000)
 guard.unref?.()
@@ -96,8 +96,8 @@ for (let i = 0; i < files.length; i++) {
 section('D1 — the honest dedup: repeat of an unmodified window answers the stub')
 {
   const repeat = await readViaTool(files[0]!)
-  check('the first repeat answers the file-unchanged stub', repeat.startsWith(FILE_UNCHANGED_STUB), repeat.slice(0, 80))
-  check('the original read served real content', contents[0]!.includes('file 1') && contents[0]!.includes('delivery truth line'))
+  check('the first repeat answers the file-unchanged stub', repeat.startsWith(FILE_UNCHANGED_STUB), repeat.slice(0, 80) + ' — a repeat read of an unmodified window must answer the stub; see the file_unchanged branch in src/tools/FileReadTool/read/call.ts')
+  check('the original read served real content', contents[0]!.includes('file 1') && contents[0]!.includes('delivery truth line'), 'the first Read must return the file content; see src/tools/FileReadTool/read/call.ts')
 }
 
 section('D2 — the apply-mode plan clears the oldest Read result and says so')
@@ -114,10 +114,10 @@ const owner = processMainOwner()
     },
     'apply',
   )
-  check('exactly one result cleared (eleven reads, keep-recent ten)', plan.reductions.timeBasedCleared === 1, String(plan.reductions.timeBasedCleared))
+  check('exactly one result cleared (eleven reads, keep-recent ten)', plan.reductions.timeBasedCleared === 1, String(plan.reductions.timeBasedCleared) + ' — eleven old Read results with keep-recent ten must clear exactly one; see projectTimeBasedMicrocompact as used in buildRequestContextPlan (src/services/run/requestContextPlan.ts)')
   const view = JSON.stringify(plan.messages)
-  check('the cleared result no longer carries the content', !view.includes('file 1 — delivery truth'), 'content still rides the view')
-  check('the surviving results keep theirs', view.includes('file 11') && view.includes('file 2'))
+  check('the cleared result no longer carries the content', !view.includes('file 1 — delivery truth'), 'content still rides the view — the apply-mode plan must clear the oldest Read result; see buildRequestContextPlan in src/services/run/requestContextPlan.ts')
+  check('the surviving results keep theirs', view.includes('file 11') && view.includes('file 2'), 'the clear must leave the recent Read results intact; see buildRequestContextPlan in src/services/run/requestContextPlan.ts')
 }
 
 section('D3 — after the clear, the same window serves FULL CONTENT again (the lie pinned shut)')
@@ -126,14 +126,14 @@ section('D3 — after the clear, the same window serves FULL CONTENT again (the 
   check(
     'the re-read after the clear serves content, NEVER the stub',
     !reread.startsWith(FILE_UNCHANGED_STUB) && reread.includes('delivery truth line'),
-    reread.slice(0, 100),
+    reread.slice(0, 100) + ' — once a Read result is cleared from the view, the dedup must stop answering the stub for it; see buildRequestContextPlan in src/services/run/requestContextPlan.ts and the file_unchanged branch in src/tools/FileReadTool/read/call.ts',
   )
 }
 
 section('D4 — no over-invalidation: a surviving result still dedups')
 {
   const repeat6 = await readViaTool(files[5]!)
-  check('the kept file still answers the stub (its result rides the view)', repeat6.startsWith(FILE_UNCHANGED_STUB), repeat6.slice(0, 80))
+  check('the kept file still answers the stub (its result rides the view)', repeat6.startsWith(FILE_UNCHANGED_STUB), repeat6.slice(0, 80) + ' — a Read result still in the view must keep deduping; the clear must not invalidate it (buildRequestContextPlan in src/services/run/requestContextPlan.ts)')
 }
 
 section('D5 — inspect mode never touches the ledger')
@@ -151,7 +151,7 @@ section('D5 — inspect mode never touches the ledger')
     },
     'inspect',
   )
-  check('the entry survives an inspect build', before && readFileState.has(files[0]!))
+  check('the entry survives an inspect build', before && readFileState.has(files[0]!), 'an inspect-mode plan must not delete from readFileState; only apply may (buildRequestContextPlan in src/services/run/requestContextPlan.ts)')
 }
 
 process.env.MERCURY_TIME_BASED_MC = '0'
@@ -187,23 +187,23 @@ for (const mode of ['rewind', 'budget']) {
   const state = mode === 'budget' ? { ...createContentReplacementState(), budgetChars: 5000 } : undefined
   const input = { messages: history, owner, querySource: 'main_thread' as never, contentReplacementState: state, skipToolNames: new Set<string>(), readFileState }
   await buildRequestContextPlan(input, 'inspect')
-  check(`${mode}: inspect keeps the read cache and full line coverage`, readFileState.has(file) && wholeFileSeen(owner, file, body))
+  check(`${mode}: inspect keeps the read cache and full line coverage`, readFileState.has(file) && wholeFileSeen(owner, file, body), 'inspect mode must not touch the read cache or seen lines; see buildRequestContextPlan in src/services/run/requestContextPlan.ts')
   await buildRequestContextPlan(input, 'apply')
-  check(`${mode}: apply invalidates the full-read cache`, !readFileState.has(file))
-  check(`${mode}: the surviving partial Read cannot preserve the removed full Read`, !wholeFileSeen(owner, file, body))
+  check(`${mode}: apply invalidates the full-read cache`, !readFileState.has(file), 'apply must drop readFileState entries whose Read body was removed; see invalidateRemovedReads in src/services/run/requestContextPlan.ts')
+  check(`${mode}: the surviving partial Read cannot preserve the removed full Read`, !wholeFileSeen(owner, file, body), 'seen-line evidence must go with the removed full Read; see invalidateRemovedReads in src/services/run/requestContextPlan.ts and src/services/changeTransaction/seenLines.ts')
   const seen = (line: number) => checkSeenLines(owner, file, fileGeneration(file)!, [{ index: 0, start: line, end: line, replace: '' }]).ok
-  check(`${mode}: rebuild keeps the displayed line, not the hidden middle`, seen(1) && !seen(250))
-  check(`${mode}: an unrelated surviving Read still dedups`, (await readViaTool(survivor)).startsWith(FILE_UNCHANGED_STUB))
+  check(`${mode}: rebuild keeps the displayed line, not the hidden middle`, seen(1) && !seen(250), 'only the lines still displayed may stay seen; see invalidateRemovedReads in src/services/run/requestContextPlan.ts and checkSeenLines in src/services/changeTransaction/seenLines.ts')
+  check(`${mode}: an unrelated surviving Read still dedups`, (await readViaTool(survivor)).startsWith(FILE_UNCHANGED_STUB), 'invalidation must be limited to Reads whose body was removed; see invalidateRemovedReads in src/services/run/requestContextPlan.ts')
   const edit = await FileEditTool.validateInput({ file_path: abandoned, old_string: body.split('\n')[249]!, new_string: 'changed' }, context)
-  check(`${mode}: Edit cannot use a wholly discarded read`, edit.result === false, JSON.stringify(edit))
+  check(`${mode}: Edit cannot use a wholly discarded read`, edit.result === false, JSON.stringify(edit) + ' — Edit must refuse when the read was discarded from the view; see invalidateRemovedReads in src/services/run/requestContextPlan.ts and FileEditTool validateInput (src/tools/FileEditTool/FileEditTool.ts)')
   let refused = false
   try { await FileWriteTool.call({ file_path: file, content: 'changed\n' }, context, null as never, { uuid: '00000000-0000-0000-0000-000000000002' } as never) } catch { refused = true }
-  check(`${mode}: Write cannot use the discarded read`, refused)
+  check(`${mode}: Write cannot use the discarded read`, refused, 'Write must throw when the read was discarded from the view; see invalidateRemovedReads in src/services/run/requestContextPlan.ts and src/tools/FileWriteTool/FileWriteTool.ts')
   const reread = await readViaTool(file)
-  check(`${mode}: the next Read returns its content, never the unchanged stub`, !reread.startsWith(FILE_UNCHANGED_STUB) && reread.includes('250: body'))
+  check(`${mode}: the next Read returns its content, never the unchanged stub`, !reread.startsWith(FILE_UNCHANGED_STUB) && reread.includes('250: body'), 'after the removal a Read must return content, not the stub; see invalidateRemovedReads in src/services/run/requestContextPlan.ts')
   const freshState = mode === 'budget' ? { ...createContentReplacementState(), budgetChars: Infinity, replacements: new Map(state!.replacements), seenIds: new Set(state!.seenIds) } : undefined
   await buildRequestContextPlan({ ...input, contentReplacementState: freshState, messages: [...history, ...rounds(`${mode}-fresh`, file, reread)] }, 'apply')
-  check(`${mode}: a later surviving full Read is not invalidated by the old removal`, readFileState.has(file) && wholeFileSeen(owner, file, body) && (await readViaTool(file)).startsWith(FILE_UNCHANGED_STUB))
+  check(`${mode}: a later surviving full Read is not invalidated by the old removal`, readFileState.has(file) && wholeFileSeen(owner, file, body) && (await readViaTool(file)).startsWith(FILE_UNCHANGED_STUB), 'invalidation must apply only to the removed Read, not a later full Read; see invalidateRemovedReads in src/services/run/requestContextPlan.ts')
 }
 
 await api.close()

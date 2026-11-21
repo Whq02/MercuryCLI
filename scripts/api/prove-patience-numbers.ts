@@ -22,7 +22,8 @@ const { SettingsSchema } = await import('../../src/utils/settings/types.js')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = 'change the number or rule the label names in src/services/providers/patience.ts (patienceOf, PATIENCE_NORMAL, PATIENCE_PATIENT, patienceWords, patienceEnvPins), src/services/providers/streamIdleBudget.ts (streamIdleTimeoutMsForRoute) or src/services/api/recoveryBudget.ts (recoveryBudgetMs)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${hint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

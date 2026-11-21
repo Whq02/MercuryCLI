@@ -8,7 +8,9 @@ const { AdmissionPart } = await import('../../src/services/engine-connector/daem
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const hint = 'change the AdmissionPart method this check calls (awaiting, factsArrive, runnerShown, awaitAdmission, sendDelivered, runnerLive, parksAgain, parked) in src/services/engine-connector/daemon/admission.ts until this holds'
+  const shown = !ok ? [detail, hint].filter(Boolean).join(' — ') : ''
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const j = (v: unknown): string => JSON.stringify(v)

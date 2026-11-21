@@ -9,10 +9,13 @@ import Ink from '../../src/ink/ink.tsx'
 
 let failures = 0
 let checks = 0
+let decoderSection = true
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = decoderSection ? 'parseMultipleKeypresses in src/ink/input/input-decoder.ts must hold a solicited string reply (the stringReplyOwed state) to its terminator and never emit it as keys or text' : ''
+  const shown = [detail, hint].filter(Boolean).join('; ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 const vis = (s: string): string => JSON.stringify(s)
 
@@ -183,6 +186,7 @@ const typingDuringWindowAndLateReply = (() => {
 check('a user typing during the window (including an alt+] chord) and while a late reply dribbles in: every typed byte lands in order and the reply resolves', typingDuringWindowAndLateReply.typed === 'hello' && typingDuringWindowAndLateReply.responses.length === 1, `typed ${vis(typingDuringWindowAndLateReply.typed)} responses ${typingDuringWindowAndLateReply.responses.length}`)
 check('INITIAL_STATE stays unmutated', INITIAL_STATE.stringReplyOwed === undefined && INITIAL_STATE.incomplete === '')
 
+decoderSection = false
 console.log('\n the sender: the identity probe (version, colour, sync, kitty) leaves once per session, at the first raw-mode arm — a later arm of the input owner never sends it again')
 {
   class Output extends EventEmitter {

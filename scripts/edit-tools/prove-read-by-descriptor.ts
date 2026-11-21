@@ -128,10 +128,10 @@ const ROOT = join(import.meta.dir, '..', '..')
 const KEEP = process.argv.includes('--keep')
 let failures = 0
 let count = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   count++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -261,8 +261,8 @@ function judge(label: string, played: Played, shows?: string): void {
   const skipped = swappedRounds.filter(round => round.outcome === 'ok' && round.words === 'nothing attached').length
   console.log(`  ${label}: ${swappedRounds.length} swap position(s): ${swappedRounds.filter(round => round.outcome === 'refused').length} refused, ${skipped} skipped with nothing attached, ${swappedRounds.filter(round => round.outcome === 'ok').length - skipped} answered`)
   const asItself = (round: Round): boolean => round.outcome === 'ok' && (shows === undefined || round.words.includes(shows))
-  check(`${label}: every swap between a stat of the path and the next open is answered, by a refusal or by the file's own content, and none stands on the pipe`, played.done && !played.cut && swappedRounds.length >= 1 && swappedRounds.every(round => round.outcome === 'refused' || asItself(round)), how(played))
-  check(`${label}: with no swap the file is read as itself`, played.done && last !== undefined && last.swapped === false && asItself(last), how(played))
+  check(`${label}: every swap between a stat of the path and the next open is answered, by a refusal or by the file's own content, and none stands on the pipe`, played.done && !played.cut && swappedRounds.length >= 1 && swappedRounds.every(round => round.outcome === 'refused' || asItself(round)), how(played), 'a reader must open by descriptor and refuse a non-file after fstat, never read the path a second time; see openRegularFileSync in src/utils/regularFile.ts and the reader for this road named in the label (src/tools/FileReadTool/read/call.ts, src/services/resources/adapters/file.ts, src/services/attachments/fileAttachments.ts)')
+  check(`${label}: with no swap the file is read as itself`, played.done && last !== undefined && last.swapped === false && asItself(last), how(played), 'with no swap the read must return the file\'s own content; see the reader for this road named in the label (src/tools/FileReadTool/read/call.ts, src/services/resources/adapters/file.ts, src/services/attachments/fileAttachments.ts)')
 }
 
 section('§1 a file that becomes a pipe after the path was looked at: Read, for each kind of file it opens in this process')
@@ -287,11 +287,11 @@ section('§3 a pipe from the start, named for each kind: Read refuses it in the 
   for (const path of pipes) spawnSync('mkfifo', [path])
   const sentence = (path: string): string => `Reading ${path} is not allowed: it is a named pipe, not a file or a folder, and reading it could hang or never end; use a shell command with a timeout or a byte limit instead.`
   const viaRead = await play({ road: 'read', project, world, pipes }, bound(60_000))
-  check('Read: each of the ten is refused in the sentence that names it', viaRead.done && viaRead.rounds.length === pipes.length && viaRead.rounds.every((round, index) => round.outcome === 'refused' && round.words === sentence(pipes[index]!)), how(viaRead))
+  check('Read: each of the ten is refused in the sentence that names it', viaRead.done && viaRead.rounds.length === pipes.length && viaRead.rounds.every((round, index) => round.outcome === 'refused' && round.words === sentence(pipes[index]!)), how(viaRead), 'Read must refuse a named pipe with notAFileRefusal in src/utils/regularFile.ts, for every file kind it opens (src/tools/FileReadTool/read/call.ts)')
   const viaMention = await play({ road: 'mention', project, world, pipes }, bound(60_000))
   const slowest = Math.max(0, ...viaMention.rounds.map(round => round.ms))
   console.log(`  the slowest mention of the ten: ${slowest} ms (${viaMention.rounds.find(round => round.ms === slowest)?.path?.split('.').pop() ?? 'none'})`)
-  check('a mention: each of the ten is skipped, nothing attached, none waited on', viaMention.done && viaMention.rounds.length === pipes.length && viaMention.rounds.every(round => round.outcome === 'ok' && round.words === 'nothing attached' && round.ms < bound(5_000)), how(viaMention))
+  check('a mention: each of the ten is skipped, nothing attached, none waited on', viaMention.done && viaMention.rounds.length === pipes.length && viaMention.rounds.every(round => round.outcome === 'ok' && round.words === 'nothing attached' && round.ms < bound(5_000)), how(viaMention), 'a mention of a named pipe must be skipped at once with nothing attached; see generateFileAttachment in src/services/attachments/fileAttachments.ts and openRegularFileSync in src/utils/regularFile.ts')
 }
 
 if (failures === 0 && !KEEP) rmSync(world, { recursive: true, force: true })

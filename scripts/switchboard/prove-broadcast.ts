@@ -10,9 +10,10 @@ mkdirSync(HOME, { recursive: true })
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = HOME
 
 let failures = 0
+let where = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && where ? ` — ${where}` : ''}`)
 }
 
 const { enableConfigs } = await import('../../src/utils/config.js')
@@ -37,6 +38,7 @@ const row = (over: Partial<Row>): Row =>
   }) as Row
 
 
+where = 'change CONCOURSE_CONTROLS, CONCOURSE_REGION_KEYS or regionKeysFor in src/components/concourse/controlManifest.ts'
 console.log('§1 — marking (item 1): space toggles in the list region; screen state; esc + project switch clear')
 {
   const ctl = CONCOURSE_CONTROLS.find(c => c.id === 'board:mark')
@@ -50,6 +52,7 @@ console.log('§1 — marking (item 1): space toggles in the list region; screen 
   )
 }
 
+where = 'change broadcastFaceOf, broadcastSummaryOf or liveComposerGateOf in src/components/concourse/screen/composerGate.ts'
 console.log('§2 — the fan (item 2): the counted placeholder; ↵ arms naming the count, ↵↵ sends; ONE door, N deliveries')
 {
   check('below the threshold the face is null — the landed single-target gate stands (0 and 1 marks)', broadcastFaceOf(0) === null && broadcastFaceOf(1) === null)
@@ -61,6 +64,7 @@ console.log('§2 — the fan (item 2): the counted placeholder; ↵ arms naming 
   check('the placeholder counts the marks (7 names 7)', broadcastFaceOf(7)?.placeholder === 'message 7 sessions · ↵↵ sends to all marked')
 }
 
+where = 'change broadcastFaceOf, broadcastSummaryOf or liveComposerGateOf in src/components/concourse/screen/composerGate.ts'
 console.log('§3 — honest partial delivery (item 3): the ONE gate types every skip; a paused row DELIVERS (the valve holds)')
 {
   const gate = (r: Row | undefined, ask = false): { ok: boolean; line?: string } =>
@@ -81,6 +85,7 @@ console.log('§3 — honest partial delivery (item 3): the ONE gate types every 
   check('ready-to-review and starting DELIVER (live targets of the landed gate)', gate(row({ state: 'ready-to-review' })).ok === true && gate(row({ state: 'starting' })).ok === true)
 }
 
+where = 'change broadcastFaceOf, broadcastSummaryOf or liveComposerGateOf in src/components/concourse/screen/composerGate.ts'
 console.log('§4 — the lock (item 4): an open ask skips, both truths; the answer path never fans')
 {
   const locked = liveComposerGateOf(row({}), true)
@@ -89,6 +94,7 @@ console.log('§4 — the lock (item 4): an open ask skips, both truths; the answ
   check('the needs-you state skips too (both truths — the row and the obligation)', byState.ok === false)
 }
 
+where = 'change broadcastFaceOf, broadcastSummaryOf or liveComposerGateOf in src/components/concourse/screen/composerGate.ts'
 console.log('§5 — the summary (item 3): "sent to K of N · M skipped", M = N − K always')
 {
   check('the exact spelling', broadcastSummaryOf(3, 5) === 'sent to 3 of 5 · 2 skipped', broadcastSummaryOf(3, 5))
@@ -96,6 +102,7 @@ console.log('§5 — the summary (item 3): "sent to K of N · M skipped", M = N 
   check('zero skipped stays spelled (the arithmetic never hides)', broadcastSummaryOf(4, 4) === 'sent to 4 of 4 · 0 skipped')
 }
 
+where = 'change CONCOURSE_CONTROLS, CONCOURSE_REGION_KEYS or regionKeysFor in src/components/concourse/controlManifest.ts'
 console.log('§6 — the plain world (item 5): the reduced stage keeps space dead and untaught')
 {
   const classes = ['live', 'paused', 'attached', 'queued', 'parked', 'stopped', 'door', 'none'] as const

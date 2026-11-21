@@ -19,7 +19,7 @@ delete process.env.MERCURY_SESSION_NEWBORN_GRACE_MINUTES
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix by section above: L1 concourseRecordState in src/daemon/concourseWorkers/recordState.ts, L2 and L2b-L2c3 parkConcourseSession, retireConcourseSession, completeFencedRetirement and parkAllConcourseSessions in src/daemon/concourseWorkers/park.ts (stopConcourseSession in stop.ts, attachYieldConcourseSession in revive.ts), L3 reconcileConcourseWorkers in settle.ts, L4 decideIdleRetirement and sweepIdleEmptyConcourseSessions in src/daemon/idleRetirement.ts, L5 makeConcourseAdmitHandler in admit.ts, L6 buildConcourseSnapshot in src/services/concourse/concourseSnapshot.ts` : ''}`)
 }
 
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')

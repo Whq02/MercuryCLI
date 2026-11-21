@@ -20,6 +20,8 @@ function section(t: string): void {
 
 const app = await import('../../src/services/providers/local/tensorfoldApp.ts')
 const hosts = await import('../../src/services/providers/local/tensorfoldHosts.ts')
+const A = 'src/services/providers/local/tensorfoldApp.ts'
+const H = 'src/services/providers/local/tensorfoldHosts.ts'
 
 const APP = '/Applications/TensorFold.app/Contents/MacOS/TensorFold'
 const ENGINE = '/Applications/TensorFold.app/Contents/Resources/engine/tensorfold-native'
@@ -36,34 +38,34 @@ const PS_HAND_STARTED = ['    1     0 /sbin/launchd       /sbin/launchd', '  960
 section('§1 the app\'s engine is told from a hand-started server by process, never by owned_by')
 {
   const serving = app.tensorFoldAppStateOf(app.parseProcessRows(PS_APP_SERVING))
-  check('the app is running and its engine is the tensorfold-native under the app bundle', serving.running && serving.engine?.pid === 950 && serving.engine.model === 'qwen3.8-27b' && serving.engine.port === 53121, JSON.stringify(serving))
-  check('the hand-started server beside it is not taken for the app\'s', serving.engine?.pid !== 960)
+  check('the app is running and its engine is the tensorfold-native under the app bundle', serving.running && serving.engine?.pid === 950 && serving.engine.model === 'qwen3.8-27b' && serving.engine.port === 53121, JSON.stringify(serving) + ` — change tensorFoldAppStateOf in ${A} so the engine is the tensorfold-native process whose path sits under the app bundle`)
+  check('the hand-started server beside it is not taken for the app\'s', serving.engine?.pid !== 960, `change tensorFoldAppStateOf in ${A} to pick the engine by its process path under the app bundle, not by any tensorfold-native serve row`)
   const idle = app.tensorFoldAppStateOf(app.parseProcessRows(PS_APP_IDLE))
-  check('the app without an engine: running, serving nothing', idle.running && idle.engine === undefined, JSON.stringify(idle))
+  check('the app without an engine: running, serving nothing', idle.running && idle.engine === undefined, JSON.stringify(idle) + ` — change tensorFoldAppStateOf in ${A}`)
   const hand = app.tensorFoldAppStateOf(app.parseProcessRows(PS_HAND_STARTED))
-  check('a server started by hand from a shell is not the app', !hand.running && hand.engine === undefined, JSON.stringify(hand))
-  check('an empty process list: nothing', !app.tensorFoldAppStateOf([]).running)
-  check('the served name reads --name, else the repo\'s last path element', app.engineServedName('serve TensorFold/Qwen3.8-27B-MLX-4bit --name qwen3.8-27b') === 'qwen3.8-27b' && app.engineServedName('serve TensorFold/Qwen3.8-27B-MLX-4bit --port 1') === 'Qwen3.8-27B-MLX-4bit')
+  check('a server started by hand from a shell is not the app', !hand.running && hand.engine === undefined, JSON.stringify(hand) + ` — change tensorFoldAppStateOf in ${A} so a process not under the app bundle is not the app`)
+  check('an empty process list: nothing', !app.tensorFoldAppStateOf([]).running, `change tensorFoldAppStateOf in ${A} to report running false for no rows`)
+  check('the served name reads --name, else the repo\'s last path element', app.engineServedName('serve TensorFold/Qwen3.8-27B-MLX-4bit --name qwen3.8-27b') === 'qwen3.8-27b' && app.engineServedName('serve TensorFold/Qwen3.8-27B-MLX-4bit --port 1') === 'Qwen3.8-27B-MLX-4bit', `change engineServedName in ${A}`)
 }
 
 section('§2 the words: the app is serving X · paste or quit; a second copy refused; never a pairable row')
 {
   const serving = app.tensorFoldAppStateOf(app.parseProcessRows(PS_APP_SERVING))
-  check('the app-is-serving words', app.appServingWords(serving) === 'the app is serving qwen3.8-27b · paste from its API tab · s serve with Mercury instead (quit the app first — two copies won\'t fit)', app.appServingWords(serving))
-  check('a second copy is refused while the app serves', app.refuseSecondCopy(serving) === app.TENSORFOLD_SECOND_COPY_REFUSAL)
-  check('nothing refused when the app is idle', app.refuseSecondCopy({ running: true }) === undefined)
+  check('the app-is-serving words', app.appServingWords(serving) === 'the app is serving qwen3.8-27b · paste from its API tab · s serve with Mercury instead (quit the app first — two copies won\'t fit)', app.appServingWords(serving) + ` — change appServingWords in ${A}`)
+  check('a second copy is refused while the app serves', app.refuseSecondCopy(serving) === app.TENSORFOLD_SECOND_COPY_REFUSAL, `change refuseSecondCopy in ${A} to return TENSORFOLD_SECOND_COPY_REFUSAL while the app serves`)
+  check('nothing refused when the app is idle', app.refuseSecondCopy({ running: true }) === undefined, `change refuseSecondCopy in ${A} to refuse only when the app has an engine`)
   await hosts.rememberTensorFoldHost({ name: 'the app', baseUrl: 'http://127.0.0.1:53121', origin: 'app', key: 'app-session-key', serving: 'qwen3.8-27b' })
   await hosts.rememberTensorFoldHost({ name: 'studio', baseUrl: 'http://studio.local:8080', origin: 'lan-paired', key: 'k', serving: 'qwen3.8-27b' })
-  check('the app host is remembered for its pasted base URL and key', hosts.tensorFoldHosts().some(host => host.origin === 'app') && hosts.tensorFoldHostKey('http://127.0.0.1:53121/v1') === 'app-session-key')
-  check('the app host is never pairable; the paired Mac is', hosts.pairableTensorFoldHosts().map(host => host.name).join(',') === 'studio')
+  check('the app host is remembered for its pasted base URL and key', hosts.tensorFoldHosts().some(host => host.origin === 'app') && hosts.tensorFoldHostKey('http://127.0.0.1:53121/v1') === 'app-session-key', `change rememberTensorFoldHost / tensorFoldHostKey in ${H}`)
+  check('the app host is never pairable; the paired Mac is', hosts.pairableTensorFoldHosts().map(host => host.name).join(',') === 'studio', `change pairableTensorFoldHosts in ${H} to leave out hosts whose origin is app`)
   const detected = await app.detectTensorFoldApp({ processes: async () => app.parseProcessRows(PS_APP_SERVING) })
-  check('detectTensorFoldApp reads the injected process list', detected.engine?.port === 53121)
+  check('detectTensorFoldApp reads the injected process list', detected.engine?.port === 53121, `change detectTensorFoldApp in ${A} to use the injected processes reader`)
 }
 
 section('§3 the live process list on this machine answers without throwing')
 {
   const live = await app.detectTensorFoldApp({ processes: app.listProcesses })
-  check('a state comes back', typeof live.running === 'boolean')
+  check('a state comes back', typeof live.running === 'boolean', `change detectTensorFoldApp / listProcesses in ${A} to resolve a state even when ps fails`)
 }
 
 console.log(`\nprove-tensorfold-app-engine: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)

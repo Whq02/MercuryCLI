@@ -17,7 +17,7 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 400) : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? (detail ? ' — ' + detail.slice(0, 400) : '') + ' — fix the element query bridge (readElement and the other child queries, their stdin payload and answer reading) in src/services/desktop/nativeDriver.ts, or the fake driver in src/services/desktop/fakeDesktopDriver.ts for the scene checks' : ''}`)
   if (!cond) failures++
 }
 const warn = (line: string): void => console.log(`  [WARN] ${line}`)

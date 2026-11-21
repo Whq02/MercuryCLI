@@ -7,7 +7,7 @@ const J = (...parts: string[]): string => parts.join('')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}fix getMercuryContractSections and MERCURY_CONSTITUTION in src/prompt/mercuryContract.ts, composeSystemPrompt in src/prompt/composer.ts, or buildBehaviourContract in src/prompt/behaviourContract.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

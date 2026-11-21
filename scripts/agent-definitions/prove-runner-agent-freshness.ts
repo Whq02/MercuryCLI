@@ -18,7 +18,7 @@ function check(name: string, cond: boolean, detail?: string): void {
   if (cond) console.log(`  ✓ ${name}`)
   else {
     failures++
-    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''} — to fix, change armRunnerAgentFreshness in src/cli/agentFreshness.ts (the roster refresh on agent file changes and its disarm); the detail above is the roster it left`)
   }
 }
 

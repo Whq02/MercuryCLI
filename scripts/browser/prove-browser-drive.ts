@@ -15,7 +15,7 @@ let failures = 0
 const leftovers: string[] = []
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}fix the Browser tool: checkPermissions and call in src/tools/BrowserTool/BrowserTool.ts, its operations in src/tools/BrowserTool/browser/, or the session and origin grants in src/services/browser/browserSession.ts (the § heading above this line names the area)` : ''}`)
 }
 
 const { resolveBrowser } = await import('../../src/services/browser/browserResolver.ts')
@@ -35,7 +35,7 @@ type ToolInput = Parameters<typeof BrowserTool.call>[0]
       const provisioned = await provisionManagedBrowserForTheGate(line => console.log(line))
       const again = provisioned.ok ? resolveBrowser() : first
       if (again.state === 'ok') return again
-      console.error(`  [FAIL] hosted gate has no drivable browser — ${again.note}${provisioned.ok ? '' : `; provisioning failed: ${provisioned.note}`}`)
+      console.error(`  [FAIL] hosted gate has no drivable browser — ${again.note}${provisioned.ok ? '' : `; provisioning failed: ${provisioned.note}`}; make a browser resolvable for the Browser tool (resolveBrowser in src/services/browser/browserResolver.ts) or provision one in the gate`)
       process.exit(1)
     }
     console.log(`__SUITE_SKIPPED browser: ${first.note}`)
@@ -1006,7 +1006,7 @@ for (const folder of leftovers) {
 }
 
 if (failures > 0) {
-  console.error(`\nbrowser drive: ${failures} FAILURES`)
+  console.error(`\nbrowser drive: ${failures} FAILURES; read the [FAIL] lines above, each names its check and what to fix`)
   process.exit(1)
 }
 console.log('\nbrowser drive: green')

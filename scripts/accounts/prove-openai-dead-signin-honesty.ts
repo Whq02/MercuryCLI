@@ -16,11 +16,20 @@ delete process.env.NODE_ENV
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+let where = ''
+const WHERES: Record<string, string> = {
+  '§1': 'openaiSubscriptionPresence in src/services/providers/openai/openaiAccounts.ts must read a grant with no refresh token as expired',
+  '§2': 'the openai:subscription slot built in src/services/providers/accountSlots/openai.ts (deriveFamilySlotGroups) and executeSlotRemoval in src/services/providers/accountSlots/removal.ts',
+  '§3': 'getGptSeatAvailability in src/services/providers/openai/openaiCatalogue.ts must answer auth-expired for an expired sign-in',
+  '§4': 'resolveProviderUsability in src/services/providers/providerUsability.ts must carry the expired-sign-in sentence as the openai blocker',
+  '§5': 'the openai:subscription slot built in src/services/providers/accountSlots/openai.ts must not mark a live sign-in expired nor invent a slot for an empty store',
+}
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${where}` : ''}`)
 }
 const section = (t: string): void => {
+  where = WHERES[t.slice(0, 2)] ?? where
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

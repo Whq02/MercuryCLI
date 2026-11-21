@@ -48,7 +48,7 @@ const sendsDue = (run: { sendLog: unknown[]; driverOut: string }, authored: numb
   t.check(
     `every send became due (${authored} sends, each witness painted)`,
     run.sendLog.length === authored && !run.driverOut.includes('UNFIRED-SENDS'),
-    `${run.sendLog.length}/${authored} · ${run.driverOut.split('\n').filter(l => l.includes('UNFIRED')).join(' ').slice(0, 300)}`,
+    `${run.sendLog.length}/${authored} · ${run.driverOut.split('\n').filter(l => l.includes('UNFIRED')).join(' ').slice(0, 300)} · a scripted send never fired: its awaited text never painted, so read the drive recording at run.paths.drive or rerun with --frames <dir> to see the screens`,
   )
 
 t.section('§1 the projection is exhaustive and honest')
@@ -77,17 +77,18 @@ t.section('§1 the projection is exhaustive and honest')
   t.check(
     'local agent projects with the REGISTRY name (labels are not identity)',
     pl?.kind === 'local_agent' && pl.name === 'probe-name' && pl.statusLabel === 'running',
-    JSON.stringify(pl && { kind: pl.kind, name: pl.name }),
+    JSON.stringify(pl && { kind: pl.kind, name: pl.name }) + ' · projectViewedAgent in src/state/selectors.ts must name a local agent from the registry map, not from its description',
   )
   const plFallback = projectViewedAgent(localAgent, empty as never)
   t.check(
     'unregistered local agent falls back to its description honestly',
     plFallback?.name === 'poise probe',
-    plFallback?.name,
+    `${plFallback?.name} · projectViewedAgent in src/state/selectors.ts must fall back to the task description when the registry has no name`,
   )
   t.check(
     'the main-session task NEVER projects as a viewed agent',
     projectViewedAgent(mainSession, registry as never) === undefined,
+    'projectViewedAgent in src/state/selectors.ts must return undefined for the main-session task',
   )
 
   const doneAgent = { ...(localAgent as object), status: 'completed' } as never
@@ -95,6 +96,7 @@ t.section('§1 the projection is exhaustive and honest')
   t.check(
     'completed local agent projects completed + not working',
     pd?.statusLabel === 'completed' && pd.isWorking === false,
+    `${JSON.stringify(pd && { statusLabel: pd.statusLabel, isWorking: pd.isWorking })} · projectViewedAgent in src/state/selectors.ts must carry a completed status through as not working`,
   )
 
   t.check(
@@ -102,7 +104,7 @@ t.section('§1 the projection is exhaustive and honest')
     VIEWABLE_TASK_TYPES.length === 1 &&
       NON_VIEWABLE_TASK_TYPES.length === 3 &&
       !VIEWABLE_TASK_TYPES.some(v => (NON_VIEWABLE_TASK_TYPES as readonly string[]).includes(v)),
-    `${VIEWABLE_TASK_TYPES.join(',')} | ${NON_VIEWABLE_TASK_TYPES.join(',')}`,
+    `${VIEWABLE_TASK_TYPES.join(',')} | ${NON_VIEWABLE_TASK_TYPES.join(',')} · VIEWABLE_TASK_TYPES and NON_VIEWABLE_TASK_TYPES in src/state/selectors.ts must stay disjoint, one viewable type and three non-viewable`,
   )
 
   const stateOf = (task: { id: string } | undefined): never =>
@@ -120,7 +122,7 @@ t.section('§1 the projection is exhaustive and honest')
     t.check(
       `${label}: projection and input router agree (${viewable ? 'viewable' : 'never a destination'})`,
       projected === viewable && routed === viewable,
-      `projected=${projected} routed=${routed}`,
+      `projected=${projected} routed=${routed} · getViewedAgent and getActiveAgentForInput in src/state/selectors.ts must agree on which task types can be viewed`,
     )
   }
 }
@@ -180,7 +182,7 @@ t.section('§2 journey: header + CREW lead row + mouse return')
     { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   )
   if (grab.status !== 0) {
-    t.check('screengrab ran', false, grab.stderr)
+    t.check('screengrab ran', false, `${grab.stderr} · scripts/streaming/screengrab.py failed on the drive recording at run.paths.drive`)
   } else {
     const { screens } = JSON.parse(grab.stdout) as { screens: Frame[] }
     keepFrames('drill-120x40', screens)
@@ -197,14 +199,14 @@ t.section('§2 journey: header + CREW lead row + mouse return')
     const inView = (f: { rows: string[] }): boolean => has(f, /❯ message poise probe/)
 
     const iMain = idxOf(0, f => leadMarked(f) && childRunning(f) && !has(f, '❯ message poise'))
-    t.check(`at main, the lead row reads Mercury Lead and wears the › mark (its chat is the view); the child's row reads "${CHILD_RAIL_ROW}" — the .34 rail keeps the name whole and cuts the verb (137a2c1214)`, iMain >= 0)
+    t.check(`at main, the lead row reads Mercury Lead and wears the › mark (its chat is the view); the child's row reads "${CHILD_RAIL_ROW}" — the .34 rail keeps the name whole and cuts the verb (137a2c1214)`, iMain >= 0, iMain >= 0 ? '' : 'no frame with the marked Mercury Lead row and the child row; rerun with --frames <dir> and read drill-120x40.txt to see what the CREW rail painted')
     const mf = frames[iMain] ?? { rows: [] as string[] }
     const rootIdx = mf.rows.findIndex(r => /✶ Mercury Lead/.test(r))
     const childIdx = mf.rows.findIndex(r => r.includes(CHILD_RAIL_ROW))
     t.check(
       `CREW lists Mercury Lead first at row ${ROOT_ROW} and the child under it`,
       iMain >= 0 && rootIdx + 1 === ROOT_ROW && childIdx + 1 === CHILD_ROW,
-      `lead@${rootIdx + 1} child@${childIdx + 1}`,
+      `lead@${rootIdx + 1} child@${childIdx + 1} · the CREW rail must list Mercury Lead first and the child directly under it; rerun with --frames <dir> and read drill-120x40.txt`,
     )
 
     const iView = idxOf(
@@ -216,7 +218,7 @@ t.section('§2 journey: header + CREW lead row + mouse return')
       iMain >= 0 && iView > iMain,
       iView >= 0
         ? frames[iView]!.rows.find(r => r.includes('❯ message poise probe'))?.trim().slice(0, 70)
-        : 'no such frame after the main frame',
+        : 'no such frame after the main frame; the click on the child row did not open it in the view, rerun with --frames <dir> and read drill-120x40.txt',
     )
 
     const iBack = idxOf(
@@ -228,7 +230,7 @@ t.section('§2 journey: header + CREW lead row + mouse return')
       iView >= 0 && iBack > iView,
       iBack >= 0
         ? frames[iBack]!.rows.find(r => r.includes(CHILD_RAIL_ROW))?.trim().slice(0, 50)
-        : 'no main frame with the child running after the view frame',
+        : 'no main frame with the child running after the view frame; the click on the Mercury Lead row did not return to main or it stopped the child, rerun with --frames <dir> and read drill-120x40.txt',
     )
   }
   run.cleanup()
@@ -255,7 +257,7 @@ t.section('§3 manage-visibility predicate + the one esc grammar')
     ['main-session task never manageable once terminal', la({ status: 'completed', agentType: 'main-session', evictAfter: Date.now() + 30_000 }), false],
   ]
   for (const [label, task, want] of table) {
-    t.check(`manageable: ${label} → ${want}`, isManageableTask(task) === want)
+    t.check(`manageable: ${label} → ${want}`, isManageableTask(task) === want, `isManageableTask in src/components/tasks/taskStatusUtils.tsx returned ${!want}, wanted ${want}`)
   }
 
   type Road = 'local' | 'hosted' | 'idle'
@@ -288,7 +290,7 @@ t.section('§3 manage-visibility predicate + the one esc grammar')
     t.check(
       `esc grammar: ${label}`,
       got.road === want && got.aborted === reason && hostedStops,
-      `road=${got.road} aborted=${String(got.aborted)} stops=${JSON.stringify(got.stops)}`,
+      `road=${got.road} aborted=${String(got.aborted)} stops=${JSON.stringify(got.stops)} · interruptCrewmate in src/components/tasks/crewmateInterrupt.ts must pick the road, abort reason and stop calls this row names`,
     )
   }
 
@@ -339,7 +341,7 @@ t.section('§4 journey: completed agent stays reachable through the tasks board'
     { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   )
   if (grab.status !== 0) {
-    t.check('screengrab ran (§4)', false, grab.stderr)
+    t.check('screengrab ran (§4)', false, `${grab.stderr} · scripts/streaming/screengrab.py failed on the drive recording at run.paths.drive`)
   } else {
     const { screens } = JSON.parse(grab.stdout) as { screens: Frame[] }
     keepFrames('tasks-board-120x40', screens)
@@ -356,19 +358,19 @@ t.section('§4 journey: completed agent stays reachable through the tasks board'
     t.check(
       'after completion the transcript carries the landing and nothing is open over it (the screen the /tasks press acted on)',
       has(tasksPress, LANDING) && has(tasksPress, 'run the quick probe') && !has(tasksPress, /agent › quick probe/) && !has(tasksPress, /Mercury — runs/),
-      tasksPress === undefined ? 'the /tasks press has no receipt screen' : `pressed @${tasksPress.atMs}`,
+      tasksPress === undefined ? 'the /tasks press has no receipt screen' : `pressed @${tasksPress.atMs} · the screen at the /tasks press must show the landing and no open card; rerun with --frames <dir> and read tasks-board-120x40.txt`,
     )
 
     t.check(
       "the tasks board still reaches the COMPLETED agent: its card opens with the settled state ('landed') and its esc back hint (the screen the esc acted on)",
       has(escPress, /agent › quick probe/) && has(escPress, /state\s+landed/) && has(escPress, /esc back/),
-      escPress === undefined ? 'the esc press has no receipt screen' : `${escPress.rows.find(r => /state\s+landed/.test(r))?.trim().slice(0, 70) ?? 'no state row'} · pressed @${escPress.atMs}`,
+      escPress === undefined ? 'the esc press has no receipt screen' : `${escPress.rows.find(r => /state\s+landed/.test(r))?.trim().slice(0, 70) ?? 'no state row'} · pressed @${escPress.atMs} · /tasks must open the completed agent's card with state landed and an esc back hint; rerun with --frames <dir> and read tasks-board-120x40.txt`,
     )
 
     t.check(
       'esc returned to main (the card gone, the transcript back with the landing on it) — the settled frame',
       escPress !== undefined && !has(settled, /agent › quick probe/) && !has(settled, /Mercury — runs/) && has(settled, 'run the quick probe') && has(settled, LANDING),
-      settled === undefined ? 'no settled frame' : `settled frame @${settled.atMs}`,
+      settled === undefined ? 'no settled frame' : `settled frame @${settled.atMs} · esc on the card must close it and show the transcript with the landing; rerun with --frames <dir> and read tasks-board-120x40.txt`,
     )
   }
   run.cleanup()

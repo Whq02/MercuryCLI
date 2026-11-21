@@ -54,16 +54,16 @@ async function runnerExchange(method: MethodName, params: unknown, result: unkno
     const source = from === 'host' ? host : runner
     const target = from === 'host' ? runner : host
     const input = checkParams(method, params)
-    assert(input.ok, `${method}: invalid parameter sample ${JSON.stringify(input)}`)
+    assert(input.ok, `${method}: invalid parameter sample ${JSON.stringify(input)} — make the params schema of ${method} in src/runner/wire/methods.ts accept what sdk/src/wire.ts publishes for it`)
     if (METHODS[method].kind === 'request') {
       const output = checkResult(method, result)
-      assert(output.ok, `${method}: invalid result sample ${JSON.stringify(output)}`)
-      target.onRequest(method, applied => { assert.deepEqual(applied, input.value); return output.value })
+      assert(output.ok, `${method}: invalid result sample ${JSON.stringify(output)} — make the result schema of ${method} in src/runner/wire/methods.ts accept what sdk/src/wire.ts publishes for it`)
+      target.onRequest(method, applied => { assert.deepEqual(applied, input.value, `${method}: the receiving peer saw other parameters than were sent; check the Peer in src/runner/wire/peer.ts`); return output.value })
       assert.deepEqual(await source.request(method, params as never), output.value, `${method}: peer read another answer`)
       assert.equal(frames.length, 2, `${method}: request and answer must both reach the wire`)
     } else {
       let delivered = false
-      target.onNotification(method, applied => { assert.deepEqual(applied, input.value); delivered = true })
+      target.onNotification(method, applied => { assert.deepEqual(applied, input.value, `${method}: the receiving peer saw other parameters than were sent; check the Peer in src/runner/wire/peer.ts`); delivered = true })
       source.notify(method, params as never)
       await source.writer.flush()
       assert(delivered || method === '$/cancel_request', `${method}: notification did not reach the other peer`)
@@ -77,7 +77,7 @@ async function runnerExchange(method: MethodName, params: unknown, result: unkno
 }
 
 async function runnerWireRecording(): Promise<Record<string, unknown>> {
-  assert.deepEqual(Object.keys(METHODS), Object.keys(published), 'runner/SDK method membership or order differs')
+  assert.deepEqual(Object.keys(METHODS), Object.keys(published), 'runner/SDK method membership or order differs — make METHODS in src/runner/wire/methods.ts list the same methods in the same order as METHODS in sdk/src/wire.ts')
   const rows: Record<string, unknown> = {}
   for (const name of Object.keys(published) as MethodName[]) {
     const spec = published[name]
@@ -526,7 +526,7 @@ function createWireServer(
     waitForExchanges: async (count, label) => {
       if (activeExchanges.length >= count) return
       await new Promise<void>((resolveWait, rejectWait) => {
-        const timer = realSetTimeout(() => rejectWait(new Error(`${label}: timed out waiting for ${count} wire exchange(s) (got ${activeExchanges.length})`)), WAIT_LIMIT_MS)
+        const timer = realSetTimeout(() => rejectWait(new Error(`${label}: timed out waiting for ${count} wire exchange(s) (got ${activeExchanges.length}); the connector in src/services/engine-connector/daemonConnector.ts did not send the expected frames`)), WAIT_LIMIT_MS)
         const check = (): void => {
           if (activeExchanges.length >= count) {
             realClearTimeout(timer)
@@ -690,7 +690,7 @@ async function connectorWireRecording(): Promise<ConnectorWireRecordingResult> {
       await connector!.sendWords(text)
       wire.setHandler(null)
       const recallable = connector!.recallableSend()
-      if (recallable === null) throw new Error(`expected recallable send for ${text}`)
+      if (recallable === null) throw new Error(`expected recallable send for ${text}; sendWords on the connector in src/services/engine-connector/daemonConnector.ts must leave a queued send that recallableSend returns`)
       return recallable.clientMessageId
     }
     for (const [id, variant, text, reply] of [
@@ -747,14 +747,14 @@ if (import.meta.main) {
   const input = JSON.parse(inflateRawSync(Buffer.from(stored.input, 'base64')).toString('utf8')) as DaemonWireFixtures
   const actual = await verbWiresRecording(input)
   const { expected } = stored
-  assert.deepEqual(Object.keys(actual), Object.keys(expected), 'the recorded faces and verbs must not change')
+  assert.deepEqual(Object.keys(actual), Object.keys(expected), 'the recorded faces and verbs must not change — a wire face or verb was added, removed or renamed; undo it in src/runner/wire/methods.ts, src/daemon/protocol.ts or src/services/engine-connector/daemonConnector.ts, or update scripts/engine-connector/verb-wires-recording.json on purpose')
   for (const [name, row] of Object.entries(actual)) {
     const now = Buffer.from(JSON.stringify(row))
     const then = inflateRawSync(Buffer.from(expected[name]!, 'base64'))
     if (!then.equals(now)) {
       let i = 0
       while (i < Math.min(then.length, now.length) && then[i] === now[i]) i++
-      throw Error(`${name}: wire recording differs at byte ${i}; keep the base frame. Before: ${then.toString('utf8', Math.max(0, i - 30), i + 100)} After: ${now.toString('utf8', Math.max(0, i - 30), i + 100)}`)
+      throw Error(`${name}: wire recording differs at byte ${i}; keep the base frame: undo the change to the frame in src/runner/wire/methods.ts, src/daemon/protocol.ts, src/daemon/controlSocket.ts or src/services/engine-connector/daemonConnector.ts that moved it (recording: scripts/engine-connector/verb-wires-recording.json). Before: ${then.toString('utf8', Math.max(0, i - 30), i + 100)} After: ${now.toString('utf8', Math.max(0, i - 30), i + 100)}`)
     }
   }
   console.log(`${Object.keys(actual).length} wire recordings match`)

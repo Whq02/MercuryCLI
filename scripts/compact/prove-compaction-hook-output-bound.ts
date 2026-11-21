@@ -46,16 +46,16 @@ try {
   const rows = await compact.compactionAfterHooks({ abortController: new AbortController(), agentId: undefined } as never, { method: 'summary', trigger: 'auto', tokensBefore: 180_000, tokensAfter: 20_000 })
   const texts = rows.map(row => { const content = (row as { message: { content: unknown } }).message.content; return typeof content === 'string' ? content : JSON.stringify(content) })
   const bounded = texts[0] ?? ''
-  check('the after hook fired once and its two contexts became two meta rows', fired.filter(e => e === 'compaction.after').length === 1 && texts.length === 2, `${fired.join(',')} rows=${texts.length}`)
-  check(`a 9 MiB context lands bounded (at most ${cap} characters plus the omission line), not whole`, keepsBound(bounded), `${bounded.length} characters`)
-  check('the bounded row says how much was omitted and where the whole output is saved', /characters omitted/.test(bounded) && /is saved at .+ — read it in chunks if it matters|could not be saved/.test(bounded), bounded.slice(cap * 0.7 - 20, cap * 0.7 + 260))
-  check('a short context is kept whole', texts[1] === 'a short note', JSON.stringify(texts[1]))
+  check('the after hook fired once and its two contexts became two meta rows', fired.filter(e => e === 'compaction.after').length === 1 && texts.length === 2, `${fired.join(',')} rows=${texts.length}; compactionAfterHooks in src/services/compact/compact/hooks.ts must fire compaction.after once and return one meta row per answer context`)
+  check(`a 9 MiB context lands bounded (at most ${cap} characters plus the omission line), not whole`, keepsBound(bounded), `${bounded.length} characters; compactionAfterHooks in src/services/compact/compact/hooks.ts must bound each context to HOOK_CONTEXT_CAP_CHARS (src/utils/hooks/contextBound.ts) and save the whole output`)
+  check('the bounded row says how much was omitted and where the whole output is saved', /characters omitted/.test(bounded) && /is saved at .+ — read it in chunks if it matters|could not be saved/.test(bounded), `${bounded.slice(cap * 0.7 - 20, cap * 0.7 + 260)}; fix the omission line written by the bound in src/utils/hooks/contextBound.ts`)
+  check('a short context is kept whole', texts[1] === 'a short note', `${JSON.stringify(texts[1])}; compactionAfterHooks in src/services/compact/compact/hooks.ts must pass a context under the cap through unchanged`)
 
   console.log('§2 compaction.before: hook instructions merged into the summariser guidance are bounded the same way')
   const merged: string = compact.mergeHookInstructions('keep the names', big) ?? ''
-  check(`9 MiB of hook instructions merge to at most ${cap} characters plus the omission line, the operator words first`, merged.startsWith('keep the names\n\n') && keepsBound(merged.slice('keep the names\n\n'.length)), `${merged.length} characters`)
-  check('short hook instructions merge whole', compact.mergeHookInstructions('keep the names', 'and the dates') === 'keep the names\n\nand the dates' && compact.mergeHookInstructions(undefined, 'only hook') === 'only hook' && compact.mergeHookInstructions('only user', undefined) === 'only user')
-  check('the manual /compact road reads the before answer through the same bound', typeof compact.boundedHookInstructions === 'function' && keepsBound(compact.boundedHookInstructions(big) ?? '') && compact.boundedHookInstructions('   ') === undefined)
+  check(`9 MiB of hook instructions merge to at most ${cap} characters plus the omission line, the operator words first`, merged.startsWith('keep the names\n\n') && keepsBound(merged.slice('keep the names\n\n'.length)), `${merged.length} characters; mergeHookInstructions in src/services/compact/compact/input.ts must bound the hook text and keep the operator words first`)
+  check('short hook instructions merge whole', compact.mergeHookInstructions('keep the names', 'and the dates') === 'keep the names\n\nand the dates' && compact.mergeHookInstructions(undefined, 'only hook') === 'only hook' && compact.mergeHookInstructions('only user', undefined) === 'only user', 'mergeHookInstructions in src/services/compact/compact/input.ts must join short texts with a blank line and return a lone side as is')
+  check('the manual /compact road reads the before answer through the same bound', typeof compact.boundedHookInstructions === 'function' && keepsBound(compact.boundedHookInstructions(big) ?? '') && compact.boundedHookInstructions('   ') === undefined, 'boundedHookInstructions in src/services/compact/compact/input.ts must be exported through src/services/compact/compact.ts, bound long text and return undefined for blank text')
 } finally {
   removeScratch(home)
 }

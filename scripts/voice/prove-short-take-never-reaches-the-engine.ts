@@ -41,11 +41,11 @@ if (!existsSync(model) || load.state !== 'ok') {
   const options = { choice: { kind: 'local', label: 'on-device transcriber', model: 'base.en-q5_1' } } as never
   try {
     const short = await transcribeWav(encodeWav(new Int16Array(200)), options)
-    check('a take of 200 samples is answered with no words and no segments, under the model the session resolved', short.text === '' && Array.isArray(short.segments) && short.segments.length === 0 && short.kind === 'local' && short.model.length > 0, JSON.stringify(short))
-    check('…and the engine was never handed it', reached === 0, `the engine was called ${reached} time(s)`)
+    check('a take of 200 samples is answered with no words and no segments, under the model the session resolved', short.text === '' && Array.isArray(short.segments) && short.segments.length === 0 && short.kind === 'local' && short.model.length > 0, `${JSON.stringify(short)}; transcribeWav in src/services/voice/transcribe.ts must return the empty transcript before it hands the take to the engine`)
+    check('…and the engine was never handed it', reached === 0, `the engine was called ${reached} time(s); the short-take return in transcribeWav (src/services/voice/transcribe.ts) must come before the engine call`)
     const before = reached
     const shortest = await transcribeWav(encodeWav(new Int16Array(201)), options)
-    check('a take of 201 samples, the shortest the engine reads, reaches it', reached === before + 1 && typeof shortest.text === 'string', `the engine was called ${reached - before} time(s)`)
+    check('a take of 201 samples, the shortest the engine reads, reaches it', reached === before + 1 && typeof shortest.text === 'string', `the engine was called ${reached - before} time(s); transcribeWav (src/services/voice/transcribe.ts) must pass a take of SHORTEST_TAKE_THE_ENGINE_READS_SAMPLES to the engine`)
   } finally {
     engine.transcribe = real
     unloadLocalModels()

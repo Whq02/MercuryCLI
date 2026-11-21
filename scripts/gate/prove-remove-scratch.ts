@@ -38,18 +38,18 @@ try {
   removeScratch(tree)
   check('a real scratch tree is removed', !existsSync(tree))
   check('a path that is already gone is a quiet success', thrown(() => removeScratch(join(world, 'never-made'))) === '')
-  check('the retried class is the handle-lock class: EBUSY, EPERM, ENOTEMPTY and the descriptor limits', ['EBUSY', 'EPERM', 'ENOTEMPTY', 'EMFILE', 'ENFILE'].every(code => REMOVE_RETRY_CODES.has(code)) && !REMOVE_RETRY_CODES.has('EACCES'))
+  check('the retried class is the handle-lock class: EBUSY, EPERM, ENOTEMPTY and the descriptor limits', ['EBUSY', 'EPERM', 'ENOTEMPTY', 'EMFILE', 'ENFILE'].every(code => REMOVE_RETRY_CODES.has(code)) && !REMOVE_RETRY_CODES.has('EACCES'), `REMOVE_RETRY_CODES in scripts/lib/removeScratch.ts must hold exactly the lock and descriptor-limit codes (EBUSY, EPERM, ENOTEMPTY, EMFILE, ENFILE) and not EACCES`)
 
   const busyTwice = failing(['EBUSY', 'EPERM'])
   const started = Date.now()
-  check('two locked attempts are retried and the third removal lands', thrown(() => removeScratch(join(world, 'busy'), { remove: busyTwice.remove, retryDelayMs: 5 })) === '' && busyTwice.attempts() === 3, `attempts=${busyTwice.attempts()}`)
-  check('the retries waited with a growing delay (5 ms then 10 ms)', Date.now() - started >= 14, `${Date.now() - started} ms`)
+  check('two locked attempts are retried and the third removal lands', thrown(() => removeScratch(join(world, 'busy'), { remove: busyTwice.remove, retryDelayMs: 5 })) === '' && busyTwice.attempts() === 3, `attempts=${busyTwice.attempts()}; removeScratch in scripts/lib/removeScratch.ts must retry a code in REMOVE_RETRY_CODES and return once a removal succeeds`)
+  check('the retries waited with a growing delay (5 ms then 10 ms)', Date.now() - started >= 14, `${Date.now() - started} ms; removeScratch in scripts/lib/removeScratch.ts must wait retryDelayMs times the attempt number between retries`)
 
   const stuck = failing(Array.from({ length: 20 }, () => 'EBUSY'))
-  check('a lock that never clears throws its last EBUSY after maxRetries more attempts', thrown(() => removeScratch(join(world, 'stuck'), { remove: stuck.remove, maxRetries: 3, retryDelayMs: 1 })) === 'EBUSY' && stuck.attempts() === 4, `attempts=${stuck.attempts()}`)
+  check('a lock that never clears throws its last EBUSY after maxRetries more attempts', thrown(() => removeScratch(join(world, 'stuck'), { remove: stuck.remove, maxRetries: 3, retryDelayMs: 1 })) === 'EBUSY' && stuck.attempts() === 4, `attempts=${stuck.attempts()}; removeScratch in scripts/lib/removeScratch.ts must stop after maxRetries retries and throw the last error`)
 
   const refused = failing(['EACCES'])
-  check('a code outside the class is thrown at once', thrown(() => removeScratch(join(world, 'refused'), { remove: refused.remove, retryDelayMs: 1 })) === 'EACCES' && refused.attempts() === 1, `attempts=${refused.attempts()}`)
+  check('a code outside the class is thrown at once', thrown(() => removeScratch(join(world, 'refused'), { remove: refused.remove, retryDelayMs: 1 })) === 'EACCES' && refused.attempts() === 1, `attempts=${refused.attempts()}; removeScratch in scripts/lib/removeScratch.ts must throw a code outside REMOVE_RETRY_CODES on the first attempt`)
 
   const racing = join(world, 'racing')
   mkdirSync(racing)

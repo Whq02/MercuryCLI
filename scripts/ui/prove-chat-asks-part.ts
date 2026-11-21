@@ -3,11 +3,22 @@ import { settle, waitFor } from '../lib/settingsPopupHarness.ts'
 import { mountPart, openAsksPart } from './chatScenarios.ts'
 
 let failures = 0
+let where = ''
+const WHERE: Record<string, string> = {
+  '§1': 'fix useChatAsks (queue, resolveHeadPermission) in src/screens/chat/useChatAsks.tsx',
+  '§2': 'fix the mode mirror in useChatAsks (setToolPermissionContext) in src/screens/chat/useChatAsks.tsx, or recordModeTransition in src/utils/permissions/modeTransitions.ts',
+  '§3': 'fix refuseGestureWhileModal in src/utils/permissions/permissionFocus.ts',
+  '§4': 'fix respondToElicitation and dismissElicitationWaiting in src/screens/chat/useChatAsks.tsx',
+  '§5': 'fix useChatAsksCard in src/screens/chat/useChatAsks.tsx',
+  '§6': 'fix the mode-change recording in src/utils/permissions/modeTransitions.ts and the AppState relay it is read through',
+}
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const hint = !ok && where ? `${detail ? ' · ' : ''}${where}` : ''
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && (detail || hint) ? ` — ${detail}${hint}` : ''}`)
 }
 function section(title: string): void {
+  where = WHERE[title.slice(0, 2)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
 

@@ -26,7 +26,7 @@ let failures = 0
 let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok || detail === '' ? '' : ` — ${detail}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail === '' ? '' : `${detail}; `}fix the row windowing and scroll anchoring in src/hooks/useVirtualScroll.ts and src/components/VirtualMessageList.tsx; rerun with --only "<scene name>" --frames to see the painted frames`}`)
   if (!ok) failures++
 }
 

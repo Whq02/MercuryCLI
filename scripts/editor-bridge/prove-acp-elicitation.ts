@@ -17,7 +17,7 @@ const acpArgv = process.argv.includes('--base-stdio') ? ['acp', '--stdio'] : ['a
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — look at the elicitation/request handler in src/services/acp/acpServer/attach.ts (it answers elicitation/create, or cancel when the editor declared no elicitation)` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -41,13 +41,13 @@ const until = async (cond: () => boolean, ms: number): Promise<boolean> => {
 }
 
 if (!existsSync(DIST)) {
-  console.log(`❌ ${DIST} absent — build first`)
+  console.log(`❌ ${DIST} absent — build first with bun run build.ts, or pass --dist <path to mercury.mjs>`)
   process.exit(1)
 }
 const node = process.execPath.includes('bun') ? 'node' : process.execPath
 console.log(`elicitation over ACP — ${DIST}`)
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the proof exceeded 240s')
+  console.log('\n❌ TIMEOUT — the proof exceeded 240s; a section is waiting on the ACP server child (node dist/mercury.mjs acp): see the elicitation/request handler in src/services/acp/acpServer/attach.ts and the last section header above')
   process.exit(1)
 }, 240_000)
 guard.unref?.()

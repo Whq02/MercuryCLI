@@ -48,12 +48,21 @@ const contextFill = await import('../../src/services/context/contextFill.ts')
 
 let failures = 0
 let checks = 0
+const WHERE_TO_LOOK: Record<string, string> = {
+  '§1': 'anthropicWindowFact in src/services/anthropicLimits.ts',
+  '§2': 'adoptAnthropicWindowFact and anthropicLimitVerdict in src/services/anthropicLimits.ts, or observedFamilyWindow in src/services/capFailover.ts',
+  '§3': 'the facts encoder and decoder in src/services/engine-connector/seatWire.ts, or publishSessionFacts and readSessionFacts in src/services/engine-connector/seatProjections.ts',
+  '§5': 'adoptOpenaiCatalogueFact in src/services/providers/openai/openaiCatalogue.ts, or resolveContextWindow in src/utils/model/capabilities.ts',
+}
+let whereToLook = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = !ok ? [detail, whereToLook ? `change ${whereToLook} until this holds` : ''].filter(Boolean).join(' — ') : ''
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 const section = (t: string): void => {
+  whereToLook = WHERE_TO_LOOK[t.slice(0, 2)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))

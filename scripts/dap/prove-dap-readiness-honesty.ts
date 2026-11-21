@@ -6,7 +6,8 @@ const { defaultInterpreterCandidates } = await import('../../src/services/dap/de
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const shown = cond ? detail : `${detail ? detail + ' — ' : ''}change defaultInterpreterCandidates in src/services/dap/debugpyResolver.ts: add 'py' on win32 only`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
   if (!cond) failures++
 }
 

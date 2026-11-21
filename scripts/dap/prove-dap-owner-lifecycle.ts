@@ -5,11 +5,18 @@
 import { join } from 'node:path'
 
 let failures = 0
+let sectionHint = ''
+const SECTION_HINTS: Record<string, string> = {
+  '1': 'look at the owner-keyed registry in src/services/dap/dapClient.ts (createDapSession, getDapSession, listDapSessions, removeDapSession: a session is keyed by owner and alias) and disposeOwner in src/utils/run/ownerLifecycle.ts',
+  '2': 'look at DebugTool.call in src/tools/DebugTool/DebugTool.ts: a missing session must yield outcome failed, and status with no sessions a no-change effect',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : [detail, sectionHint].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
+  sectionHint = SECTION_HINTS[t.split('.')[0] ?? ''] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

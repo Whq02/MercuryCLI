@@ -11,11 +11,13 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 
 let failures = 0
+let where = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && where ? ` — change ${where}` : ''}`)
 }
-function section(t: string): void {
+function section(t: string, hint = ''): void {
+  where = hint
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
@@ -32,7 +34,7 @@ console.log('============================================================')
 console.log(' cap offer — settles or says why; disarms once answered')
 console.log('============================================================')
 
-section('§A the armed-state owner — an answered offer survives the state/reset jitter')
+section('§A the armed-state owner — an answered offer survives the state/reset jitter', 'noteCapOfferAnswered, capOfferAnswered or noteCapWindowObserved in src/services/capFailover.ts')
 {
   cap._resetOfferMemoriesForTesting()
 
@@ -89,7 +91,7 @@ section('§A the armed-state owner — an answered offer survives the state/rese
   check('answering the handoff leaves the same family RETURN armed', cap.capOfferAnswered('return', 'openai') === false)
 }
 
-section('§B the target is the exact newest frontier MEMBER, never the collapsed base id')
+section('§B the target is the exact newest frontier MEMBER, never the collapsed base id', 'deriveCapFailoverCandidates in src/services/capFailover.ts, or previewForSelection in src/services/providers/transitionPreview.ts, or the fable entries in src/utils/model/configs.ts')
 {
   cap._resetOfferMemoriesForTesting()
   check('the config table names the three fable members distinctly', FABLE_52 === 'claude-fable-5-2' && FABLE_51 === 'claude-fable-5-1' && FABLE_5 === 'claude-fable-5' && new Set([FABLE_52, FABLE_51, FABLE_5]).size === 3)
@@ -118,7 +120,7 @@ section('§B the target is the exact newest frontier MEMBER, never the collapsed
   check('the plan is a real cross-provider move to the anthropic wire', plan.crossProvider === true && plan.targetRoute === 'anthropic')
 }
 
-section('§C confirm settles through the ONE owner; a no-op is a receipt, never a loop')
+section('§C confirm settles through the ONE owner; a no-op is a receipt, never a loop', 'settleModelSelection in src/services/model/modelTransition.ts')
 {
   const applied = settleModelSelection(
     { engineModel: 'gpt-5.6-sol', engineModelForSession: null, pendingModelSwitch: null },
@@ -145,7 +147,7 @@ section('§C confirm settles through the ONE owner; a no-op is a receipt, never 
   check('a mid-turn confirm queues at the boundary (a typed verdict)', queued.kind === 'queued')
 }
 
-section('§D the neutral candidate law and the decision core are unchanged')
+section('§D the neutral candidate law and the decision core are unchanged', 'deriveCapFailoverCandidates, decideCapAction or decideCapReturn in src/services/capFailover.ts')
 {
   cap._resetOfferMemoriesForTesting()
   const map = {
@@ -168,7 +170,7 @@ section('§D the neutral candidate law and the decision core are unchanged')
 }
 
 
-section('§F the offer lists every other signed-in family; at-cap lanes last and marked; the switch lands on the CHOSEN row')
+section('§F the offer lists every other signed-in family; at-cap lanes last and marked; the switch lands on the CHOSEN row', 'deriveCapFailoverCandidates or capUsageWords in src/services/capFailover.ts, or settleModelSelection in src/services/model/modelTransition.ts')
 {
   cap._resetOfferMemoriesForTesting()
   const now = Date.now()
@@ -227,7 +229,7 @@ section('§F the offer lists every other signed-in family; at-cap lanes last and
   check('without a window read no lane is at-cap and the list mirrors the candidates', blind.listed.every(r => !r.atCap) && JSON.stringify(blind.listed.map(r => r.route)) === JSON.stringify(blind.candidates.map(c => c.route)))
 }
 
-section('§G the offer fires on the BINDING window: the seat model\'s weekly pool, named — a family without pools reads as before')
+section('§G the offer fires on the BINDING window: the seat model\'s weekly pool, named — a family without pools reads as before', 'observedFamilyWindow in src/services/capFailover.ts, or bindingWindowOf in src/services/providers/providerUsage.ts')
 {
   const now = Date.now()
   const poolReset = now + (22 * 3600 + 51 * 60) * 1000
@@ -278,7 +280,7 @@ section('§G the offer fires on the BINDING window: the seat model\'s weekly poo
 }
 
 
-section('§I the within-family slot rung: a stable wall key, re-armed only by an observed clear')
+section('§I the within-family slot rung: a stable wall key, re-armed only by an observed clear', 'slotWallKey or noteSlotWallObserved in src/services/capFailover.ts')
 {
   cap._resetOfferMemoriesForTesting()
   check('the slot wall key is the family and the walled seat — no reset moment', cap.slotWallKey('openai', 'subscription') === 'slot|openai|subscription')
@@ -294,7 +296,7 @@ section('§I the within-family slot rung: a stable wall key, re-armed only by an
   check('a clear on the OTHER seat leaves this seat\'s answered wall alone', cap.offerDismissed(key))
 }
 
-section("§J a band that lands re-runs the offer at once: the OpenAI record's change signal, and the composer following both families' signals")
+section("§J a band that lands re-runs the offer at once: the OpenAI record's change signal, and the composer following both families' signals", 'the OpenAI limit record in src/services/providers/openai/openaiLimitState.ts (adoptOpenaiObservedUsage, recordOpenaiRateHeaders, recordOpenaiUsageLimit, forgetOpenaiLimitSource and the version they bump)')
 {
   const openai = await import('../../src/services/providers/openai/openaiLimitState.ts')
   openai.__resetOpenaiLimitStateForTest()

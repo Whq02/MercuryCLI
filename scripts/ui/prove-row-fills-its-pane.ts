@@ -220,16 +220,16 @@ section('§1 the law: a diff row under a 60-column pane on a 120-column render s
   const frame = await paint(true)
   const text = plain(frame)
   const lines = text.split('\n')
-  check('the row painted the edit (the diff body is on screen)', text.includes('return a + b') && text.includes('sums.ts'), text.slice(0, 400))
+  check('the row painted the edit (the diff body is on screen)', text.includes('return a + b') && text.includes('sums.ts'), `${text.slice(0, 400)} — the edit row did not render its diff; check the MessageRow props in PaneRows and the FileEditTool fixture messages in this script`)
   const diffRows = diffRowsOf(lines)
   const numbered = lines.filter(l => /^│\s+\d+\s[-+ ]/.test(l)).length
-  check('the diff painted every hunk line', numbered >= hunk.lines.length, `${numbered} numbered row(s) in:\n${lines.map((l, i) => `      ${String(i).padStart(2)}${diffRows.has(i) ? '*' : ' '} ${l}`).join('\n')}`)
+  check('the diff painted every hunk line', numbered >= hunk.lines.length, `${numbered} numbered row(s) in:\n${lines.map((l, i) => `      ${String(i).padStart(2)}${diffRows.has(i) ? '*' : ' '} ${l}`).join('\n')}\n      — the diff must paint every hunk line as a numbered row; see how MessageRow (src/components/MessageRow.tsx) renders the FileEditTool result`)
   const out = escapes(frame, PANE_COLUMNS)
   const onDiff = out.filter(o => diffRows.has(o.row))
   const rowText = (r: number): string => JSON.stringify(lines[r] ?? '')
-  check('no styled byte and no glyph past column 60 on any diff row (the band and the rules fill the pane, never the terminal)', onDiff.length === 0, `${onDiff.length} escaped cell(s): ${JSON.stringify(onDiff.slice(0, 6))} — ${[...new Set(onDiff.map(o => o.row))].map(r => `row ${r}: ${rowText(r)}`).join(' | ')}`)
+  check('no styled byte and no glyph past column 60 on any diff row (the band and the rules fill the pane, never the terminal)', onDiff.length === 0, `${onDiff.length} escaped cell(s): ${JSON.stringify(onDiff.slice(0, 6))} — ${[...new Set(onDiff.map(o => o.row))].map(r => `row ${r}: ${rowText(r)}`).join(' | ')} — size the diff band and rules from the pane width (the columns the pane provides through TerminalSizeContext), not the terminal width`)
   const widest = [...diffRows].reduce((w, r) => Math.max(w, stringWidth((lines[r] ?? '').replace(/\s+$/, ''))), 0)
-  check('the widest diff row fits the pane', widest <= PANE_COLUMNS, `widest diff row ${widest} > ${PANE_COLUMNS}`)
+  check('the widest diff row fits the pane', widest <= PANE_COLUMNS, `widest diff row ${widest} > ${PANE_COLUMNS} — the diff row must be sized from the pane width, not the terminal width`)
   const elsewhere = [...new Set(out.filter(o => !diffRows.has(o.row)).map(o => o.row))]
   for (const r of elsewhere) console.log(`  [NOTE] a non-diff row leaves the pane — row ${r}: ${rowText(r)}`)
 }
@@ -246,11 +246,11 @@ section('§1b the rules: the consent card\'s diff under the same pane frames its
   const frame = await renderToAnsiString(tree, TERMINAL_COLUMNS)
   const lines = plain(frame).split('\n')
   const rules = lines.filter(l => l.includes('╌'))
-  check('the card painted its rules', rules.length >= 2, `${rules.length} rule row(s): ${JSON.stringify(lines.slice(0, 6))}`)
+  check('the card painted its rules', rules.length >= 2, `${rules.length} rule row(s): ${JSON.stringify(lines.slice(0, 6))} — FileEditToolDiff (src/components/FileEditToolDiff.tsx) must paint its two ╌ rules`)
   const widest = rules.reduce((w, l) => Math.max(w, stringWidth(l.replace(/\s+$/, ''))), 0)
-  check('the rules span the pane, never the terminal', widest <= PANE_COLUMNS && widest >= PANE_COLUMNS - 4, `widest rule ${widest} (pane ${PANE_COLUMNS})`)
+  check('the rules span the pane, never the terminal', widest <= PANE_COLUMNS && widest >= PANE_COLUMNS - 4, `widest rule ${widest} (pane ${PANE_COLUMNS}) — the rules in FileEditToolDiff (src/components/FileEditToolDiff.tsx) take outerWidth from availableWidth or useTerminalSize columns; they must span the pane`)
   const out = escapes(frame, PANE_COLUMNS)
-  check('no styled byte and no glyph past column 60 on the card', out.length === 0, `${out.length} escaped cell(s): ${JSON.stringify(out.slice(0, 6))}`)
+  check('no styled byte and no glyph past column 60 on the card', out.length === 0, `${out.length} escaped cell(s): ${JSON.stringify(out.slice(0, 6))} — FileEditToolDiff (src/components/FileEditToolDiff.tsx) must size its frame from the pane width, not the terminal width`)
 }
 
 section('§2 the control — the trap, documented: a narrowed columns prop under a wide context escapes')

@@ -69,8 +69,8 @@ console.log('L1 a window larger than the file is a full read')
   const ctx = makeCtx()
   await FileReadTool.call({ file_path: file, limit: 5000 } as never, ctx as never)
   const entry = entryOf(ctx)
-  check('the read registered', entry !== undefined && entry.content.includes('three'))
-  check('offset 0, no limit — a full-read entry', entry?.offset === 0 && entry?.limit === undefined, JSON.stringify({ offset: entry?.offset, limit: entry?.limit }))
+  check('the read registered', entry !== undefined && entry.content.includes('three'), 'FileReadTool.call in src/tools/FileReadTool/FileReadTool.ts must record the file in context.readFileState')
+  check('offset 0, no limit — a full-read entry', entry?.offset === 0 && entry?.limit === undefined, JSON.stringify({ offset: entry?.offset, limit: entry?.limit }) + '; FileReadTool.call in src/tools/FileReadTool/FileReadTool.ts must record a window that covers the whole file as offset 0 with no limit')
 }
 
 console.log('L2 a window that does not cover the file stays partial')
@@ -78,16 +78,16 @@ console.log('L2 a window that does not cover the file stays partial')
   const ctx = makeCtx()
   await FileReadTool.call({ file_path: file, offset: 2, limit: 2 } as never, ctx as never)
   const entry = entryOf(ctx)
-  check('the window is recorded', entry?.limit === 2 && entry?.offset === 2, JSON.stringify({ offset: entry?.offset, limit: entry?.limit }))
+  check('the window is recorded', entry?.limit === 2 && entry?.offset === 2, JSON.stringify({ offset: entry?.offset, limit: entry?.limit }) + '; FileReadTool.call in src/tools/FileReadTool/FileReadTool.ts must keep the offset and limit of a window that does not cover the file')
 }
 
 console.log('L3 the compact restore road registers a full read')
 {
   const ctx = makeCtx()
   const attachment = await generateFileAttachment(file, ctx as never, 'compact', { limit: compact.POST_COMPACT_MAX_TOKENS_PER_FILE })
-  check('the restore produced a file attachment', (attachment as { type?: string } | null)?.type === 'file', JSON.stringify(attachment)?.slice(0, 120))
+  check('the restore produced a file attachment', (attachment as { type?: string } | null)?.type === 'file', JSON.stringify(attachment)?.slice(0, 120) + '; generateFileAttachment in src/services/attachments/fileAttachments.ts must return a file row in compact mode')
   const entry = entryOf(ctx)
-  check('the restored entry is a full read (the edit fallback applies)', entry !== undefined && entry.offset === 0 && entry.limit === undefined, JSON.stringify({ offset: entry?.offset, limit: entry?.limit }))
+  check('the restored entry is a full read (the edit fallback applies)', entry !== undefined && entry.offset === 0 && entry.limit === undefined, JSON.stringify({ offset: entry?.offset, limit: entry?.limit }) + '; generateFileAttachment in src/services/attachments/fileAttachments.ts must leave a full-read entry (offset 0, no limit) in readFileState for the compact restore')
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

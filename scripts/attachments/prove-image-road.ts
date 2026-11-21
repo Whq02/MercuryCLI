@@ -20,11 +20,30 @@ const sharp = (await import('sharp')).default
 
 let failures = 0
 const tag = JS_ROAD ? '[js-road] ' : ''
+let where = ''
+const WHERE_BY_SECTION: Array<[string, string]> = [
+  ['§1', 'change the figures in src/constants/apiLimits.ts (ANTHROPIC_IMAGE_LIMITS, OPENAI_IMAGE_LIMITS, GEMINI_IMAGE_LIMITS, GENERIC_IMAGE_LIMITS)'],
+  ['§2', 'look at imageLimitsForModel and anthropicResolutionTier in src/utils/imageResizer.ts'],
+  ['§3', 'look at maybeResizeAndDownsampleImageBuffer, maybeResizeAndDownsampleImageBlock and ImageResizeError in src/utils/imageResizer.ts, and describeImageProcessor in src/utils/imageProcessor/imageProcessor.ts for the /health checks'],
+  ['§4b', 'look at readImageWithTokenBudget in src/tools/FileReadTool/read/image.ts'],
+  ['§4', 'look at decodePng, decodeBmp, downscaleRgba, encodePng, imageDimensionsFromHeader and javascriptImageProcessor in src/utils/imageProcessor/imageProcessorJs.ts'],
+  ['§5', 'look at storeImage, storedImageRefBlock, readStoredImageRef and cleanupOldImageCaches in src/utils/imageStore.ts'],
+  ['§6', 'look at hasImageInClipboard, getImageFromClipboard, nextPasteArtifactPath and tryReadImageFromPath in src/utils/imagePaste.ts, and describeAttachedImage in src/utils/imageResizer.ts'],
+  ['§7', 'look at validateImagesForAPI in src/services/imageValidation.ts'],
+  ['§8', 'look at the chat:imagePaste binding in src/keybindings/defaultBindings.ts'],
+  ['§9', 'look at describeImageProcessor, imageProcessorState and imagePackPlatform in src/utils/imageProcessor/imageProcessor.ts'],
+  ['the JavaScript road', 'read the [js-road] FAIL lines printed above; the road is src/utils/imageProcessor/imageProcessorJs.ts'],
+]
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${tag}${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = where ? `to fix, ${where}` : ''
+  const shown = [detail, hint].filter(Boolean).join('. ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${tag}${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + tag + t)
+const section = (t: string): void => {
+  where = WHERE_BY_SECTION.find(([prefix]) => t.startsWith(prefix))?.[1] ?? ''
+  console.log('\n' + '─'.repeat(76) + '\n' + tag + t)
+}
 const MiB = 1024 * 1024
 const base64Len = (raw: number): number => Math.ceil(raw / 3) * 4
 

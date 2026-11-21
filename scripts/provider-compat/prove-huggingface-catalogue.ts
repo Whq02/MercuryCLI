@@ -57,11 +57,21 @@ const { recordHuggingfaceRateHeaders, huggingfaceLimitWindow, huggingfaceObserve
 const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
 
 let failures = 0
+const SECTION_HINTS: Record<string, string> = {
+  '1': 'change decodeHuggingfaceModel in src/services/providers/huggingface/huggingfaceCatalogue.ts',
+  '2': 'change refreshHuggingfaceCatalogue or the huggingfaceLive* readers in src/services/providers/huggingface/huggingfaceCatalogue.ts',
+  '3': 'change resolveContextWindow in src/utils/model/capabilities.ts or the pins in src/utils/model/pins/huggingfacePins.ts',
+  '4': 'change getHuggingfaceAvailability, getHuggingfaceModelOptions or getHuggingfaceFullModelOptions in src/services/providers/huggingface/huggingfaceCatalogue.ts',
+  '5': 'change huggingfaceLaneProfile in src/services/providers/huggingface/huggingfaceCallModel.ts, buildHuggingfaceExtras in src/services/providers/openaicompat/compatWire.ts, streamCompatChat or mapCompatHttpFailure in src/services/providers/openaicompat/compatChatClient.ts, or src/services/providers/huggingface/huggingfaceUsageState.ts',
+}
+let sectionHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = !cond && sectionHint ? `${detail ? ' | ' : ''}to fix, ${sectionHint}` : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && (detail || hint) ? ` — ${detail}${hint}` : ''}`)
 }
 function section(t: string): void {
+  sectionHint = SECTION_HINTS[t.charAt(0)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}): Response {

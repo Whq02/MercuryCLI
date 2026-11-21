@@ -26,7 +26,7 @@ let checks = 0
 const check = (name: string, ok: boolean, details: unknown = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${JSON.stringify(details)}`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${JSON.stringify(details)}; fix summaryAnswerFault / validateSummary in src/services/compact/compact/summaryCheck.ts (what counts as a refusal, an empty or an acceptable summary), the retry in compactConversation / partialCompactConversation (src/services/compact/compact.ts, src/services/compact/compact/partial.ts), or SUMMARY_SECTION_TITLES in src/services/compact/prompt.ts for the section-title checks`}`)
 }
 const messages = [createUserMessage({ content: 'Keep the parser fact: quoted commas are supported, and 14 checks passed.' })]
 const original = JSON.stringify(messages)

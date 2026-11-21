@@ -12,10 +12,10 @@ process.env.MERCURY_CHANGESET_DIR = mkdtempSync(join(tmpdir(), 'anchor-patch-app
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}to fix: the anchor-patch apply path of ChangeSetTool (call and validateInput in src/tools/ChangeSetTool/ChangeSetTool.ts) or its helpers in src/services/changeTransaction/ (anchorPatch.ts, patchRegisters.ts, seenLines.ts)` : ''}`)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — apply proof exceeded 120s')
+  console.log('\nTIMEOUT — apply proof exceeded 120s; a ChangeSetTool call (src/tools/ChangeSetTool/ChangeSetTool.ts) did not return, and the last check printed above is the step before it')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

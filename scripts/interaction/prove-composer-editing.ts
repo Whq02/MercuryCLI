@@ -19,24 +19,24 @@ console.log('\n── §1 the ONE chip-safe splice ─────────�
 {
   const { spliceInputRange, expandRangeToChips } = await import('../../src/utils/inputRange.ts')
   const plain = spliceInputRange('hello world', { start: 6, end: 11 }, 'there')
-  check('replaces the range and lands the cursor after the insert', plain.text === 'hello there' && plain.cursorOffset === 11)
+  check('replaces the range and lands the cursor after the insert', plain.text === 'hello there' && plain.cursorOffset === 11, `got ${JSON.stringify(plain)}; fix spliceInputRange in src/utils/inputRange.ts`)
   const del = spliceInputRange('hello world', { start: 5, end: 11 }, '')
-  check('empty insert = range delete', del.text === 'hello' && del.cursorOffset === 5)
+  check('empty insert = range delete', del.text === 'hello' && del.cursorOffset === 5, `got ${JSON.stringify(del)}; fix spliceInputRange in src/utils/inputRange.ts`)
   const clamped = spliceInputRange('abc', { start: 1, end: 99 }, 'Z')
-  check('out-of-range clamps, never throws', clamped.text === 'aZ' && clamped.cursorOffset === 2)
+  check('out-of-range clamps, never throws', clamped.text === 'aZ' && clamped.cursorOffset === 2, `got ${JSON.stringify(clamped)}; clamp the range in spliceInputRange (src/utils/inputRange.ts)`)
   const chipText = 'see [Pasted text #3 +12 lines] here'
   const expanded = expandRangeToChips(chipText, { start: 10, end: 14 })
   check(
     'a partial chip overlap expands to the WHOLE reference token',
     expanded.start === 4 && expanded.end === 30,
-    JSON.stringify(expanded),
+    `${JSON.stringify(expanded)}; fix expandRangeToChips in src/utils/inputRange.ts so a partial overlap widens to the whole chip`,
   )
   const chipSplice = spliceInputRange(chipText, { start: 10, end: 14 }, 'X')
-  check('the splice can never split a chip', chipSplice.text === 'see X here', chipSplice.text)
+  check('the splice can never split a chip', chipSplice.text === 'see X here', `${chipSplice.text}; spliceInputRange must widen the range with expandRangeToChips (src/utils/inputRange.ts)`)
   const imageChip = spliceInputRange('a [Image #2] b', { start: 3, end: 5 }, '')
-  check('image chips are atomic too', imageChip.text === 'a  b', JSON.stringify(imageChip.text))
+  check('image chips are atomic too', imageChip.text === 'a  b', `${JSON.stringify(imageChip.text)}; make expandRangeToChips (src/utils/inputRange.ts) treat [Image #N] as a chip`)
   const outside = expandRangeToChips(chipText, { start: 0, end: 3 })
-  check('a range clear of chips is untouched', outside.start === 0 && outside.end === 3)
+  check('a range clear of chips is untouched', outside.start === 0 && outside.end === 3, `got ${JSON.stringify(outside)}; expandRangeToChips (src/utils/inputRange.ts) must leave a range clear of chips as is`)
 }
 
 
@@ -72,7 +72,7 @@ function composerCapture(
   })
   cleanupScenario('cockpit-short')
   if (res.status !== 0) {
-    check(`${tag}: PTY capture ran`, false, res.stderr?.slice(0, 200) ?? '')
+    check(`${tag}: PTY capture ran`, false, `${res.stderr?.slice(0, 200) ?? ''} scripts/ui/vshot.py exited ${res.status}; rerun it with ${cfgPath} to see why`)
     try {
       const g = (JSON.parse(readFileSync(gridPath, 'utf8')) as { grid: { c: string }[][] }).grid
       console.log(g.slice(-6).map(r => `      | ${r.map(c => c.c).join('').trimEnd()}`).join('\n'))
@@ -98,9 +98,9 @@ function composerCapture(
     check(
       'one undo unwinds exactly the last burst (draft = alpha burst)',
       a.some(l => l.includes('alpha burst') && !l.includes('alpha burst two')),
-      a.find(l => l.includes('alpha')) ?? '(draft missing)',
+      `${a.find(l => l.includes('alpha')) ?? '(draft missing)'}; one undo must drop only the last typing burst, see the chat:undo handler in src/components/PromptInput/useComposerKeybindings.ts`,
     )
-    check('the ↶ receipt showed', a.some(l => l.includes('undid')))
+    check('the ↶ receipt showed', a.some(l => l.includes('undid')), `no 'undid' row; the undo handler in src/components/PromptInput/useComposerKeybindings.ts posts the 'undid the last edit' notification`)
   }
   const b = composerCapture(
     'redo',
@@ -118,9 +118,9 @@ function composerCapture(
     check(
       'redo restored the undone burst exactly (alpha burst two)',
       b.some(l => l.includes('alpha burst two')),
-      b.find(l => l.includes('alpha')) ?? '(draft missing)',
+      `${b.find(l => l.includes('alpha')) ?? '(draft missing)'}; redo must restore the undone burst, see the chat:redo handler in src/components/PromptInput/useComposerKeybindings.ts`,
     )
-    check('the ↷ receipt showed', b.some(l => l.includes('redid')))
+    check('the ↷ receipt showed', b.some(l => l.includes('redid')), `no 'redid' row; the redo handler in src/components/PromptInput/useComposerKeybindings.ts posts the 'redid the last edit' notification`)
   }
   const c = composerCapture(
     'undo2',
@@ -138,7 +138,7 @@ function composerCapture(
     check(
       'the SECOND undo unwinds too (draft = alpha burst, not …three)',
       c.some(l => l.includes('alpha burst') && !l.includes('three') && !l.includes('two')),
-      c.find(l => l.includes('alpha')) ?? '(draft missing)',
+      `${c.find(l => l.includes('alpha')) ?? '(draft missing)'}; a second undo must unwind the next burst too, see the chat:undo handler in src/components/PromptInput/useComposerKeybindings.ts`,
     )
   }
   const d = composerCapture(
@@ -156,9 +156,9 @@ function composerCapture(
     check(
       'undo after a FIRST-edit paste restores the empty draft',
       !d.some(l => l.includes('pasted alpha content')),
-      d.find(l => l.includes('pasted')) ?? '',
+      `${d.find(l => l.includes('pasted')) ?? ''}; undo must restore the empty draft after a first-edit paste, see the chat:undo handler in src/components/PromptInput/useComposerKeybindings.ts`,
     )
-    check('the paste-undo ↶ receipt showed', d.some(l => l.includes('undid')))
+    check('the paste-undo ↶ receipt showed', d.some(l => l.includes('undid')), `no 'undid' row; the undo handler in src/components/PromptInput/useComposerKeybindings.ts posts the 'undid the last edit' notification`)
   }
 }
 

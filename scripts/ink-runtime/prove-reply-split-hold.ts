@@ -5,7 +5,7 @@ import { InputEvent } from '../../src/ink/events/input-event.ts'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix how createScanner holds and releases a split reply head across flush() in src/ink/input/scanner.ts, or how parseMultipleKeypresses turns tokens into atoms in src/ink/input/input-decoder.ts` : ''}`)
 }
 
 function typedText(atoms: ParsedInput[]): string[] {

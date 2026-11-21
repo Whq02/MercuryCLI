@@ -21,6 +21,8 @@ const script: ScriptedTurn[] = [
   peer({ kind: 'text', text: ANSWER }),
   peer({ kind: 'text', text: 'RESUMED-RECORD-ONCE' }),
 ]
+const WRITER = 'the sub-agent transcript is written by recordSidechainTranscript in src/utils/sessionStorage.ts; a turn must land as one settled row there'
+const RESUME = 'resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts rebuilds the resumed agent\'s messages from its transcript; read what it replays there'
 const tally = makeTally('prove-agent-record-rows')
 const world = await makeWorld('agent-record-rows', script)
 const session = bootLead(world, ['--mode', 'sovereign'], ['Crewmate', 'Bash', 'SendMessage', 'ResumeCrewmate'])
@@ -37,33 +39,33 @@ try {
   session.submit('Start the scribe and wait for its answer.')
   await session.waitFor('the foreground agent never returned', () => session.stdout().includes('LAUNCH-FINISHED'), TURN_MS)
   const files = transcripts()
-  tally.check('the real sub-agent wrote one transcript file', files.length === 1, JSON.stringify(files))
+  tally.check('the real sub-agent wrote one transcript file', files.length === 1, `${JSON.stringify(files)}; a foreground Crewmate launch should write exactly one subagents/agent-*.jsonl under the config home; ${WRITER}`)
   if (files.length !== 1) throw new Error('no unique agent transcript')
   const file = join(world.config, 'projects', files[0]!)
   const raw = readFileSync(file, 'utf8')
   record('agent-record.jsonl', raw)
   const decoded = decodeTranscriptBuffer<Entry>(raw)
-  tally.check('the written record decodes without malformed or invalid rows', !decoded.refusal && decoded.malformed.length === 0 && decoded.invalid.length === 0, JSON.stringify(decoded.invalid))
+  tally.check('the written record decodes without malformed or invalid rows', !decoded.refusal && decoded.malformed.length === 0 && decoded.invalid.length === 0, `${JSON.stringify(decoded.invalid)}; malformed ${decoded.malformed.length}; ${WRITER}`)
   const assistant = decoded.entries.filter(entry => entry.type === 'assistant')
   const groups = new Map<string, Entry[]>()
   for (const entry of assistant) groups.set(entry.uuid!, [...(groups.get(entry.uuid!) ?? []), entry])
   const counts = [...groups].map(([uuid, entries]) => ({ uuid, rows: entries.length, output: entries.map(entry => entry.message?.usage?.output_tokens ?? 0) }))
   console.log('  assistant rows per uuid: ' + JSON.stringify(counts))
-  tally.check('each assistant turn has one physical row, not a placeholder plus a settlement', groups.size === 2 && counts.every(group => group.rows === 1), JSON.stringify(counts))
+  tally.check('each assistant turn has one physical row, not a placeholder plus a settlement', groups.size === 2 && counts.every(group => group.rows === 1), `${JSON.stringify(counts)}; ${WRITER}`)
   const calls = assistant.flatMap(entry => blocks(entry.message?.content)).filter(block => block.type === 'tool_use' && block.id === TOOL_ID)
-  tally.check('the tool-call row is recorded once', calls.length === 1, `tool-call rows=${calls.length}`)
-  tally.check('both settled rows retain nonzero usage', [...groups.values()].every(entries => (entries.at(-1)?.message?.usage?.output_tokens ?? 0) > 0))
+  tally.check('the tool-call row is recorded once', calls.length === 1, `tool-call rows=${calls.length}; ${WRITER}`)
+  tally.check('both settled rows retain nonzero usage', [...groups.values()].every(entries => (entries.at(-1)?.message?.usage?.output_tokens ?? 0) > 0), `${JSON.stringify(counts)}; ${WRITER} (the settled row must carry the turn's usage)`)
   const handback = toolResultOf(world, 'toolu_record_launch')
-  tally.check('the hand-back retains the final answer and one tool use', handback !== null && !handback.isError && handback.text.startsWith(ANSWER + '\n') && handback.text.includes('tool_uses: 1'), handback?.text ?? 'no result')
+  tally.check('the hand-back retains the final answer and one tool use', handback !== null && !handback.isError && handback.text.startsWith(ANSWER + '\n') && handback.text.includes('tool_uses: 1'), `${handback?.text ?? 'no result'}; the Crewmate tool result of a foreground launch must begin with the agent's final answer and report tool_uses: 1`)
 
   session.submit('Send the scribe the continuation now.')
   await session.waitFor('the resumed agent never read the continuation', () => resumed() !== undefined, TURN_MS)
   const history = resumed()!.messages ?? []
   record('resume-request.json', JSON.stringify(resumed(), null, 2))
   const replayed = history.filter(item => item.role === 'assistant').flatMap(item => blocks(item.content))
-  tally.check('resume from the record replays the assistant answer exactly once', replayed.filter(block => block.type === 'text' && block.text?.includes(ANSWER)).length === 1, JSON.stringify(replayed))
-  tally.check('resume from the record replays the tool call exactly once', replayed.filter(block => block.type === 'tool_use' && block.id === TOOL_ID).length === 1, JSON.stringify(replayed))
-  tally.check('resume retains the matching tool result exactly once', history.filter(item => item.role === 'user').flatMap(item => blocks(item.content)).filter(block => block.type === 'tool_result' && block.tool_use_id === TOOL_ID).length === 1)
+  tally.check('resume from the record replays the assistant answer exactly once', replayed.filter(block => block.type === 'text' && block.text?.includes(ANSWER)).length === 1, `${JSON.stringify(replayed)}; ${RESUME}`)
+  tally.check('resume from the record replays the tool call exactly once', replayed.filter(block => block.type === 'tool_use' && block.id === TOOL_ID).length === 1, `${JSON.stringify(replayed)}; ${RESUME}`)
+  tally.check('resume retains the matching tool result exactly once', history.filter(item => item.role === 'user').flatMap(item => blocks(item.content)).filter(block => block.type === 'tool_result' && block.tool_use_id === TOOL_ID).length === 1, RESUME)
 } catch (error) {
   tally.check('the fixture reached every checkpoint', false, error instanceof Error ? error.message : String(error))
 } finally {

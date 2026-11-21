@@ -34,7 +34,7 @@ const label = option('--label')
 const compactLabel = process.argv.includes('--compact-label') ? option('--compact-label') : label
 let failed = 0
 const check = (name: string, condition: boolean) => {
-  console.log(`${condition ? 'ok' : 'FAIL'} ${name}`)
+  console.log(`${condition ? 'ok' : 'FAIL'} ${name}${condition ? '' : ' — the captured frames are the files <out>/<label>-boot-<cols>x<rows>.json written by scripts/ui/capture-viewport.ts; compare the before, concourse and after marks there and fix the Boot face or the Concourse round trip that differs'}`)
   if (!condition) failed++
 }
 for (const [cols, rows, prefix] of [[120, 40, label], [80, 24, compactLabel]] as const) {

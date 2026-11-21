@@ -37,7 +37,7 @@ const api = await startFixtureApi([{ kind: 'text', text: 'pong — the identity 
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — identity journey exceeded 240s')
+  console.log(`\n❌ TIMEOUT — identity journey exceeded 240s; read ${join(SCRATCH, 'daemon.log')} for where the daemon or the fixture worker turn stalled`)
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -82,7 +82,7 @@ try {
       return false
     }
   }, 60_000)
-  check('the daemon is up', up)
+  check('the daemon is up', up, `the daemon started by \`node dist/mercury.mjs daemon run\` never answered concourseList; read ${join(SCRATCH, 'daemon.log')}`)
 
   const dispatch = (await daemonControlRpc(
     {
@@ -96,7 +96,7 @@ try {
     } as never,
     { timeoutMs: 30_000 },
   )) as { ok?: boolean; sessionId?: string; error?: string }
-  check('dispatch admits + delivers', dispatch.ok === true, dispatch.error ?? '')
+  check('dispatch admits + delivers', dispatch.ok === true, `${dispatch.error ?? ''} — the daemon's concourseDispatch refused; see makeConcourseDispatchHandler in src/daemon/concourseDispatch.ts and ${join(SCRATCH, 'daemon.log')}`)
   const sessionId = String(dispatch.sessionId ?? '')
 
   const { buildConcourseSnapshot } = await import('../../src/services/concourse/concourseSnapshot.ts')
@@ -104,9 +104,9 @@ try {
   const snapOpts = { recordsDir: daemonDir, crewDir, draftDir, peekSessionId: sessionId, project: projectIdentity(ws) }
   const snapA = await buildConcourseSnapshot(snapOpts)
   const boardRow = snapA.groups.flatMap(g => g.rows).find(r => r.sessionId === sessionId)
-  check('the board carries the session row', boardRow !== undefined)
-  check('board row and peek name the SAME session', snapA.peek?.sessionId === sessionId, String(snapA.peek?.sessionId))
-  check('board row and peek carry the SAME title', boardRow?.title === 'Identity worker' && snapA.peek?.title === 'Identity worker', `${boardRow?.title} / ${snapA.peek?.title}`)
+  check('the board carries the session row', boardRow !== undefined, 'buildConcourseSnapshot in src/services/concourse/concourseSnapshot.ts returned no row for the dispatched session in snapA.groups')
+  check('board row and peek name the SAME session', snapA.peek?.sessionId === sessionId, `${String(snapA.peek?.sessionId)} — buildConcourseSnapshot in src/services/concourse/concourseSnapshot.ts must build the peek for peekSessionId`)
+  check('board row and peek carry the SAME title', boardRow?.title === 'Identity worker' && snapA.peek?.title === 'Identity worker', `${boardRow?.title} / ${snapA.peek?.title} — board row and peek in src/services/concourse/concourseSnapshot.ts must read the same title`)
   const route = await import('../../src/context/surfaceRoute.ts')
   await import('../../src/components/concourse/ConcourseRoute.tsx')
   const entered = route.enterSessionChat(sessionId)
@@ -114,37 +114,37 @@ try {
   check(
     "the retired 'session:<id>' route refuses honestly (surface-unregistered) — the swap is the enter path",
     entered.ok === false && (entered as { code?: string }).code === 'surface-unregistered' && now.kind === 'repl',
-    JSON.stringify({ entered, now }),
+    `${JSON.stringify({ entered, now })} — enterSessionChat in src/context/surfaceRoute.ts must return ok false with code surface-unregistered and leave the route on repl`,
   )
 
   const workers = await import('../../src/daemon/concourseWorkers.ts')
   const recBefore = Object.values(workers.readSessionWorkers(daemonDir)).find(r => r.sessionId === sessionId)
   const capBefore = recBefore?.settingsSnapshot?.profileRevision
-  check('the admitted record carries the §5.8 capture', typeof capBefore === 'number', JSON.stringify(recBefore?.settingsSnapshot ?? null))
-  check('the peek says the capture is CURRENT before any Boot edit', snapA.peek?.settings?.current === true && snapA.peek?.settings?.revisionLabel === `r${capBefore}`, JSON.stringify(snapA.peek?.settings ?? null))
+  check('the admitted record carries the §5.8 capture', typeof capBefore === 'number', `${JSON.stringify(recBefore?.settingsSnapshot ?? null)} — the admitted worker record must carry settingsSnapshot.profileRevision; see resolveEffectiveSettingsSnapshot in src/substrate/startupMenu.ts and the admit path in src/daemon/concourseDispatch.ts`)
+  check('the peek says the capture is CURRENT before any Boot edit', snapA.peek?.settings?.current === true && snapA.peek?.settings?.revisionLabel === `r${capBefore}`, `${JSON.stringify(snapA.peek?.settings ?? null)} — the peek settings in src/services/concourse/concourseSnapshot.ts must report current true with label r<captured revision>`)
 
   const menu = await import('../../src/substrate/startupMenu.ts')
   const row0 = menu.STARTUP_MENU[0]!
   const choice0 = menu.menuRowChoices(row0)[0]!
   const saved = menu.saveBootDefaultsProfile({ [row0.env]: choice0.value }, undefined, { existingSessionsUnchanged: 1 })
-  check('saveBootDefaultsProfile applies (a declared row + declared choice)', saved.ok === true, saved.ok ? '' : saved.reason)
+  check('saveBootDefaultsProfile applies (a declared row + declared choice)', saved.ok === true, saved.ok ? '' : `${saved.reason} — saveBootDefaultsProfile in src/substrate/startupMenu.ts refused the first STARTUP_MENU row and its first choice`)
   const newRev = saved.ok ? saved.revision : -1
-  check('the profile revision advanced', saved.ok && newRev === (capBefore ?? 0) + 1, `r${capBefore} → r${newRev}`)
+  check('the profile revision advanced', saved.ok && newRev === (capBefore ?? 0) + 1, `r${capBefore} → r${newRev} — saveBootDefaultsProfile in src/substrate/startupMenu.ts must advance the profile revision by one`)
 
   const recAfter = Object.values(workers.readSessionWorkers(daemonDir)).find(r => r.sessionId === sessionId)
   check(
     'the EXISTING record’s capture is byte-unchanged after the Boot edit',
     JSON.stringify(recAfter?.settingsSnapshot) === JSON.stringify(recBefore?.settingsSnapshot),
-    `before r${capBefore} after r${recAfter?.settingsSnapshot?.profileRevision}`,
+    `before r${capBefore} after r${recAfter?.settingsSnapshot?.profileRevision} — saving boot defaults must not rewrite an existing worker record's settingsSnapshot (src/substrate/startupMenu.ts)`,
   )
   const snapB = await buildConcourseSnapshot(snapOpts)
   check(
     'the peek DISTINGUISHES: the session keeps its capture while the profile moved on',
     snapB.peek?.settings?.current === false && snapB.peek?.settings?.revisionLabel === `r${capBefore}`,
-    JSON.stringify(snapB.peek?.settings ?? null),
+    `${JSON.stringify(snapB.peek?.settings ?? null)} — after a Boot edit the peek settings in src/services/concourse/concourseSnapshot.ts must report current false and keep the captured label`,
   )
   const probe = menu.resolveEffectiveSettingsSnapshot({ sessionId: 'probe-next' })
-  check('the NEXT session’s resolve captures the NEW revision', probe.profileRevision === newRev, `r${probe.profileRevision}`)
+  check('the NEXT session’s resolve captures the NEW revision', probe.profileRevision === newRev, `r${probe.profileRevision} — resolveEffectiveSettingsSnapshot in src/substrate/startupMenu.ts must read the newly saved profile revision`)
 } finally {
   try {
     await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never, { timeoutMs: 8000 })

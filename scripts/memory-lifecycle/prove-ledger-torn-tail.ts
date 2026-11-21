@@ -16,9 +16,9 @@ try {
   const damaged = readFileSync(lineagePath(key), 'utf8')
   openEntry(key, { sessionId: 'next', model: 'fixture' })
   const read = readLedgerFile(key)
-  assert.equal(read.skipped, 1)
-  assert.equal(read.entries.find(entry => entry.sessionId === 'next')?.ordinal, 2, 'an unterminated tail cannot swallow the next entry')
-  assert.ok(readFileSync(lineagePath(key), 'utf8').startsWith(damaged + '\n'), 'damaged bytes stay in place')
+  assert.equal(read.skipped, 1, 'readLedgerFile (src/mneme/ledger.ts) must count exactly the one torn line as skipped and keep every whole line; a different count means it dropped or kept a damaged line wrongly')
+  assert.equal(read.entries.find(entry => entry.sessionId === 'next')?.ordinal, 2, 'an unterminated tail cannot swallow the next entry: appendLine in src/mneme/ledger.ts must start a new line when the file does not end in a newline')
+  assert.ok(readFileSync(lineagePath(key), 'utf8').startsWith(damaged + '\n'), 'damaged bytes stay in place: appendLine in src/mneme/ledger.ts must only add a newline and the new entry after the torn bytes, never rewrite or truncate them')
   console.log('LEDGER TORN TAIL GREEN')
 } finally {
   rmSync(home, { recursive: true, force: true })

@@ -48,7 +48,7 @@ try {
       } finally { clearTimeout(timer) }
       const expected = mode === 'tool' || mode === 'cancel' ? 1 : 2
       if (bodies.length !== expected) failures.push(`${model}/${mode}: ${bodies.length} requests instead of ${expected}`)
-      if (bodies.length > 1) assert.deepEqual(bodies[1], bodies[0], 'retry retains the original request, effort, thinking and tools, with no continuation nudge')
+      if (bodies.length > 1) assert.deepEqual(bodies[1], bodies[0], 'retry retains the original request, effort, thinking and tools, with no continuation nudge; the retry after a thinking-only stream must resend the same body: see the invisibleOnly fault return in src/services/providers/openaicompat/compatChatCallModel/attempt.ts (compat) and src/services/providers/zai/zaiCallModel.ts (Z.AI)')
       if (mode === 'thinking' || mode === 'white') {
         if (!rows.some(row => row.type === 'assistant' && row.message.content.some((block: any) => block.text === 'Recovered answer.'))) failures.push(`${model}/${mode}: no recovered answer`)
         if (rows.some(row => row.isApiErrorMessage)) failures.push(`${model}/${mode}: unnecessary terminal fault`)
@@ -57,7 +57,7 @@ try {
       if (mode === 'thinking' && !((getUsageForModel(model)?.outputTokens ?? 0) > 0)) failures.push(`${model}: interrupted thinking usage lost`)
     }
   }
-  assert.deepEqual(failures, [])
+  assert.deepEqual(failures, [], `${failures.join('; ')}. Fix the thinking-only (invisibleOnly) retry path in src/services/providers/openaicompat/compatChatCallModel/attempt.ts and src/services/providers/zai/zaiCallModel.ts so a stream with only thinking or whitespace retries once with the same request, and a tool call or cancel does not retry.`)
   console.log('thinking-only stream drops retry clean once on compat and Z.AI: PASS')
 } finally {
   server.stop(true)

@@ -3,12 +3,15 @@
 
 let failures = 0
 let checks = 0
+let where = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const failText = [detail, where].filter(Boolean).join(' — ')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && failText ? ` — ${failText}` : ''}`)
 }
-const section = (t: string): void => {
+const section = (t: string, fix = ''): void => {
+  where = fix
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
@@ -40,7 +43,7 @@ function liveCheckpointHistory(): Message[] {
   ]
 }
 
-section('§A the scan — stateless reconstruction, one-active-max')
+section('§A the scan — stateless reconstruction, one-active-max', 'fix findActiveCheckpoint in src/services/compact/checkpointRewind.ts')
 {
   const history = liveCheckpointHistory()
   const active = cr.findActiveCheckpoint(history)
@@ -65,7 +68,7 @@ section('§A the scan — stateless reconstruction, one-active-max')
   check('a FRESH checkpoint after a rewind is active again', cr.findActiveCheckpoint(newAfter)?.id === 'cp_2')
 }
 
-section('§B the tools — typed refusals, context-only contract')
+section('§B the tools — typed refusals, context-only contract', 'fix the call of CheckpointTool in src/tools/CheckpointTool/CheckpointTool.tsx or of RewindTool in src/tools/RewindTool/RewindTool.tsx (their refusal and accepted texts)')
 {
   const context = (messages: Message[]): never => ({ messages }) as never
   const nested = await CheckpointTool.call({ goal: 'again' } as never, context(liveCheckpointHistory())).then(
@@ -92,7 +95,7 @@ section('§B the tools — typed refusals, context-only contract')
   check('Rewind on a live checkpoint reports the abandoned count + turn-end application', okData?.abandonedMessages === 3 && (okData.message ?? '').includes('end of this turn'), text(okData))
 }
 
-section('§C the record + the projection')
+section('§C the record + the projection', 'fix buildRewindRecordIfSettled, createRewindRecordMessage or projectRewoundWindows in src/services/compact/checkpointRewind.ts')
 {
   const history = liveCheckpointHistory()
   const record = cr.buildRewindRecordIfSettled(
@@ -138,7 +141,7 @@ section('§C the record + the projection')
   check('a non-root record with no boundary excludes NOTHING (stands alone)', cr.projectRewoundWindows(stray).length === 3)
 }
 
-section('§D the machine, called + registry pins (structural)')
+section('§D the machine, called + registry pins (structural)', '')
 {
   const t = await import('../core-runtime/turnScenarios.ts')
   const { noToolReply } = await import('../../src/run-core/turn/noToolReply.ts')
@@ -191,7 +194,7 @@ section('§D the machine, called + registry pins (structural)')
     t.reasonOf(closed.decision) === 'hand_over next_turn' && recordAt !== -1 && steerAt !== -1 && recordAt < steerAt && keptForTheModel,
     `after a settled Rewind with a line queued: ${t.reasonOf(closed.decision)}, the record at row ${recordAt}, the operator's line at row ${steerAt} of ${round.length}, the line in the model's view: ${keptForTheModel} — afterTools of src/run-core/turn/afterTools.ts adds the rewind record to the round before it drains the queue, so the line stands after the record and outside the rewound window`,
   )
-  check('MERCURY_CHECKPOINT_REWIND carries its registry row', getFlagSpec('MERCURY_CHECKPOINT_REWIND') !== undefined)
+  check('MERCURY_CHECKPOINT_REWIND carries its registry row', getFlagSpec('MERCURY_CHECKPOINT_REWIND') !== undefined, 'add the MERCURY_CHECKPOINT_REWIND row to the flag list in src/substrate/flags/tools.ts')
 }
 
 console.log('\n' + '='.repeat(60))

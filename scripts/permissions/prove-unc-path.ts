@@ -25,7 +25,7 @@ setFsImplementation(new Proxy(fs, { get(target, key) {
 } }))
 const context = { getAppState: () => ({ toolPermissionContext: { mode: 'default', alwaysAllowRules: {}, alwaysDenyRules: {}, alwaysAskRules: {} } }), options: {}, abortController: new AbortController() } as never
 let failed = 0
-function check(name: string, ok: boolean) { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`); if (!ok) failed++ }
+function check(name: string, ok: boolean) { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ' — the share and device-path risk check is uncPathRisk in src/utils/permissions/uncPath.ts and windowsPathNeedsPermission in src/utils/permissions/windowsPath.ts; the tools reach it through their checkPermissions, src/utils/permissions/filesystem.ts, bashPermissions.ts and powershellPermissions.ts'}`); if (!ok) failed++ }
 const remote = String.raw`/\127.0.0.1/share/file.txt`
 getPlatform.cache.set(undefined, 'windows')
 const roads = [

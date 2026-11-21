@@ -44,8 +44,8 @@ const leaving = at('[daemon] control:shutdown — shutting down')
 const left = lines.find(line => line.startsWith('= d1 left: ')) ?? ''
 const unreached = lines.filter(line => line.startsWith('! '))
 
-check('the scenario ran: a daemon was started and its boot was held where the control server listens and the way out is not yet bound', text !== '' && held >= 0 && up > held, text === '' ? `the harness wrote no recording (exit ${ran.status})` : `the boot was not held: ${lines.slice(0, 6).join(' | ')}`)
-check('the stop sent while the boot is held is acknowledged', asked >= 0 && answered.includes('"ok":true') && answered.includes('"op":"shutdown"'), answered || 'no answer was recorded')
+check('the scenario ran: a daemon was started and its boot was held where the control server listens and the way out is not yet bound', text !== '' && held >= 0 && up > held, text === '' ? `the harness wrote no recording (exit ${ran.status})` : `the boot was not held: ${lines.slice(0, 6).join(' | ')} — see the 'stop-during-boot' scenario in scripts/daemon/daemonRunScenarios.ts, which holds the boot at the rename of control.sock; run \`bun run build.ts\` if the build at ${dist} is stale`)
+check('the stop sent while the boot is held is acknowledged', asked >= 0 && answered.includes('"ok":true') && answered.includes('"op":"shutdown"'), `${answered || 'no answer was recorded'} — the daemon must answer a shutdown sent while its boot is held with ok true and op shutdown; the 'stop-during-boot' scenario in scripts/daemon/daemonRunScenarios.ts sends it`)
 check('the boot goes on to its end after the stop: the daemon says its control socket is up', wentOn > asked && up > wentOn, `held ${held}, asked ${asked}, went on ${wentOn}, up ${up}`)
 check(
   'the stop is taken once the way out is bound: the daemon leaves by control:shutdown, exit 0',

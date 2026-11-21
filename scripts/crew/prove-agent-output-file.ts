@@ -15,9 +15,22 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${[detail, hint].filter(Boolean).join('; ')}` : ''}`)
+}
+let hint = ''
+const LINK_HINT = 'initTaskOutputAsSymlink in src/utils/task/diskOutput.ts decides what the named output file is (a symlink, a link to the transcript, or the plain empty file when linking is refused); change it there'
+const HINTS: Record<string, string> = {
+  A0: 'registerAsyncAgent in src/tasks/LocalAgentTask/LocalAgentTask.tsx and initTaskOutputAsSymlink in src/utils/task/diskOutput.ts must leave only the one empty named file and no transcript until a row lands; the unknown-id answers come from stopTask (src/tasks/stopTask.ts) and SendMessageTool (src/tools/SendMessageTool/SendMessageTool.ts)',
+  A1: 'the named file comes from initTaskOutputAsSymlink in src/utils/task/diskOutput.ts, the delta from getTaskOutputDelta there, the tail window from readTailWindow in src/services/resources/adapters/agent.ts, and the completion notice from enqueueAgentNotification in src/tasks/LocalAgentTask/LocalAgentTask.tsx; change the one this check names',
+  A2: LINK_HINT,
+  A3: LINK_HINT,
+  A4: LINK_HINT,
+  A5: LINK_HINT,
+  A6: LINK_HINT,
+  A7: 'readTailWindow in src/services/resources/adapters/agent.ts must read sealed parts and the live head as historyLines (src/utils/sessionStorage/historyParts.ts) does, and report cut and total over the whole logical transcript; the sealing itself is in recordSidechainTranscript (src/utils/sessionStorage.ts)',
 }
 function section(t: string): void {
+  hint = HINTS[t.split(' ')[0]!] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const WINDOWS = process.platform === 'win32'

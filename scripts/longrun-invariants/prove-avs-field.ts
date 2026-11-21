@@ -45,8 +45,8 @@ const scratch = mkdtempSync(join(tmpdir(), 'vigil-avs-'))
 
 const SESSION = 'vigil-avs'
 process.env.MERCURY_COMMIT_GATE = '1'
-check('setup: the standalone commit gate engages', engageCommitGate(SESSION) === true)
-check('setup: the commit gate registered', guardsEngaged(SESSION).tool.includes(COMMIT_GATE_ID))
+check('setup: the standalone commit gate engages', engageCommitGate(SESSION) === true, 'engageCommitGate in src/guards/commitGate.ts returned false with MERCURY_COMMIT_GATE=1; check its engage conditions there')
+check('setup: the commit gate registered', guardsEngaged(SESSION).tool.includes(COMMIT_GATE_ID), 'engageCommitGate (src/guards/commitGate.ts) should register COMMIT_GATE_ID with the tool guards read by guardsEngaged in src/guards/guards.ts')
 const commitGateAllows = async (command: string): Promise<true | string> => {
   const verdict = await judgeToolCall(SESSION, { tool: 'Bash', input: { command }, callId: 'avs-call', messages: [] })
   return verdict.refused ? verdict.reason : true
@@ -65,7 +65,7 @@ console.log('\n=== A. the read-back demand is satisfiable through the ONE contra
   const changed = join(docs, 'URBAN-P1-handoff.md')
 
   vs.observeCompletedToolCall('Write', { file_path: changed }, true, docs)
-  check('workspace probes non-verifiable (docs folder)', vs.workspaceVerifiable(docs) === false)
+  check('workspace probes non-verifiable (docs folder)', vs.workspaceVerifiable(docs) === false, 'a docs-only folder must probe as not verifiable; see workspaceVerifiable in src/utils/verification/verificationState.ts')
 
   const verification = () => ({
     state: vs.verificationSummary(docs, { skipDigest: true }).state,
@@ -85,15 +85,16 @@ console.log('\n=== A. the read-back demand is satisfiable through the ONE contra
   check(
     'the demanded paths surface through the ONE contract store',
     vs.demandedReadBackPaths(docs).has(resolve(changed)),
+    'a Write in a non-verifiable workspace should add its path to demandedReadBackPaths in src/utils/verification/verificationState.ts (see observeCompletedToolCall)',
   )
 
   vs.observeCompletedToolCall('Read', { file_path: changed }, true, docs)
   const settled = vs.verificationSummary(docs, { skipDigest: true })
   check('the read-back minted the evidence row', settled.state === 'verified' && settled.lastEvidence?.scope === 'read-back', settled.detail)
-  check('the contract store is paid (no demanded paths left)', vs.demandedReadBackPaths(docs).size === 0)
+  check('the contract store is paid (no demanded paths left)', vs.demandedReadBackPaths(docs).size === 0, 'a successful Read of the written path should clear it from demandedReadBackPaths in src/utils/verification/verificationState.ts (observeCompletedToolCall)')
 
   const done = evaluateStop({ ...lightweightDefaults, verification: { ...verification() } })
-  check('stop evaluation over the settled state completes', done.kind === 'complete')
+  check('stop evaluation over the settled state completes', done.kind === 'complete', `got ${done.kind}; evaluateStop in src/services/run/completionEvaluator.ts should complete once the verification state is verified with no demands`)
 }
 
 console.log('\n=== B. commit-gate fresh receipts (field L357) ===')
@@ -113,7 +114,7 @@ console.log('\n=== B. commit-gate fresh receipts (field L357) ===')
 
   vs.observeCompletedToolCall('Bash', { command: 'npm --prefix tools/azgaar-avs run validate' }, true, repo)
   vs.observeCompletedToolCall('Bash', { command: 'npm test' }, true, repo)
-  check('the green runs minted receipts (verified, digest-bound)', vs.verificationSummary(repo).state === 'verified')
+  check('the green runs minted receipts (verified, digest-bound)', vs.verificationSummary(repo).state === 'verified', 'observeCompletedToolCall in src/utils/verification/verificationState.ts should mint a receipt for each passing verify command (npm test, npm run validate)')
 
   const commitCmd = 'git add -A _meta && git commit -m "docs(meta): reconcile the ledgers"'
   const fresh = await runWithCwdOverride(repo, () =>
@@ -125,7 +126,7 @@ console.log('\n=== B. commit-gate fresh receipts (field L357) ===')
   const stale = await runWithCwdOverride(repo, () =>
     commitGateAllows(commitCmd),
   )
-  check('a post-receipt mutation re-denies (stale receipts refuse)', stale !== true)
+  check('a post-receipt mutation re-denies (stale receipts refuse)', stale !== true, 'an Edit after the receipts must make them stale so the commit gate in src/guards/commitGate.ts refuses the commit')
 
   const piped = await runWithCwdOverride(repo, () =>
     commitGateAllows('set -o pipefail && npm test 2>&1 | tail -40 && git commit -m "x"'),
@@ -135,7 +136,7 @@ console.log('\n=== B. commit-gate fresh receipts (field L357) ===')
   const noVerify = await runWithCwdOverride(repo, () =>
     commitGateAllows('git commit --no-verify -m "x"'),
   )
-  check('--no-verify stays denied even with receipts', noVerify !== true)
+  check('--no-verify stays denied even with receipts', noVerify !== true, 'the commit gate in src/guards/commitGate.ts must refuse git commit --no-verify whatever receipts exist')
 }
 
 console.log('\n=== C. preview truth: the 181.5 KB chain + the base64 line ===')
@@ -144,9 +145,9 @@ console.log('\n=== C. preview truth: the 181.5 KB chain + the base64 line ===')
   const tailTruth = '[main 6cdd57a] docs(meta): reconcile the ledgers with the 07-08..11 arc\n 11 files changed, 214 insertions(+)'
   const chain = `${warnings}\n> avs validate: 1615 warnings, 0 errors\n68 passing\n${tailTruth}`
   const p1 = generatePreview(chain, 2000)
-  check('the preview now CARRIES the commit result (tail visible)', p1.preview.includes('[main 6cdd57a]'))
-  check('the skip marker names persisted fullness', p1.preview.includes('skipped — full output persisted'))
-  check('head still present (first warnings visible)', p1.preview.includes('settlement-0'))
+  check('the preview now CARRIES the commit result (tail visible)', p1.preview.includes('[main 6cdd57a]'), 'generatePreview in src/utils/toolResultStorage.ts must keep the output tail in the preview')
+  check('the skip marker names persisted fullness', p1.preview.includes('skipped — full output persisted'), 'generatePreview in src/utils/toolResultStorage.ts must write the skipped-middle marker')
+  check('head still present (first warnings visible)', p1.preview.includes('settlement-0'), 'generatePreview in src/utils/toolResultStorage.ts must keep the output head in the preview')
 
   const monster = 'src/fonts.css:@font-face{src:url(data:font/woff2;base64,' + 'A'.repeat(76_000) + ')}'
   const grep = `docs/canon/a.md:economy: barley\n${monster}\ndocs/canon/b.md:economy: fish`
@@ -155,9 +156,9 @@ console.log('\n=== C. preview truth: the 181.5 KB chain + the base64 line ===')
   check(
     'every preview line is clamped (no line eats the budget)',
     lines.every(l => l.length <= PREVIEW_MAX_LINE_CHARS + 40),
-    `max=${Math.max(...lines.map(l => l.length))}`,
+    `max=${Math.max(...lines.map(l => l.length))}; generatePreview in src/utils/toolResultStorage.ts must clamp each line to PREVIEW_MAX_LINE_CHARS`,
   )
-  check('the clamp marker names the original length', p2.preview.includes('…[line clamped:'))
+  check('the clamp marker names the original length', p2.preview.includes('…[line clamped:'), 'generatePreview in src/utils/toolResultStorage.ts must append the line-clamped marker with the original length')
 }
 
 disengageCommitGate(SESSION)

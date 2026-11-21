@@ -49,15 +49,24 @@ const { FileEditTool, APPLIED_NO_REREAD_NOTE } = await import('../../src/tools/F
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 let failures = 0
+let sectionHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failText = [detail, sectionHint].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && failText ? ` — ${failText}` : ''}`)
 }
 function section(t: string): void {
+  const hints: Record<string, string> = {
+    L: 'change the line-anchor helpers in src/services/changeTransaction/lineAnchors.ts (mintLineHash, parseLineRef, verifyLineRef, neighborhoodRows, findRelocationCandidates, parseHashedLinesSpelling)',
+    R: 'change the line_anchors read mode of src/tools/FileReadTool/FileReadTool.ts and addAnchoredLineNumbers in src/services/changeTransaction/lineAnchors.ts',
+    E: 'change the hash-qualified hunk path of src/tools/FileEditTool/FileEditTool.ts and the anchor checks in src/services/changeTransaction/lineAnchors.ts',
+    N: 'change the success answer built by src/tools/FileEditTool/FileEditTool.ts (APPLIED_NO_REREAD_NOTE and the read-back text)',
+  }
+  sectionHint = hints[t.charAt(0)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — hashline proof exceeded 90s')
+  console.log('\nTIMEOUT — hashline proof exceeded 90s; the last section printed above names the area that hung (src/tools/FileReadTool/FileReadTool.ts or src/tools/FileEditTool/FileEditTool.ts)')
   process.exit(1)
 }, 90_000)
 guard.unref?.()

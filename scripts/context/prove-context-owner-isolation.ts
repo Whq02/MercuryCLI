@@ -21,12 +21,13 @@ async function main(): Promise<void> {
     const live = await import('../../src/services/cockpit/contextUsageLive.js')
     live.publishContextUsage(40, 200_000, 90, A)
     live.publishContextUsage(42, 200_000, 90, B)
-    check('owner A reads its own 40%', live.getLiveContextUsage(A).usedPct === 40)
-    check('owner B reads its own 42%', live.getLiveContextUsage(B).usedPct === 42)
+    check('owner A reads its own 40%', live.getLiveContextUsage(A).usedPct === 40, 'publish and read must key on the owner passed in: check publishContextUsage() and getLiveContextUsage() in src/services/cockpit/contextUsageLive.ts')
+    check('owner B reads its own 42%', live.getLiveContextUsage(B).usedPct === 42, 'publish and read must key on the owner passed in: check publishContextUsage() and getLiveContextUsage() in src/services/cockpit/contextUsageLive.ts')
     live.publishContextUsage(55, 200_000, 90)
     check(
       'the default main slot is its own owner',
       live.getLiveContextUsage().usedPct === 55 && live.getLiveContextUsage(A).usedPct === 40,
+      'a publish with no owner must land in the default main slot and leave owner A alone: check publishContextUsage() in src/services/cockpit/contextUsageLive.ts',
     )
   }
 
@@ -44,17 +45,18 @@ async function main(): Promise<void> {
     fc.noteCtxTurnBoundary(B)
     const estA = fc.estimateTurnsToCompact(44, 90, A)
     const estB = fc.estimateTurnsToCompact(43, 90, B)
-    check('owner A has a real estimate from its own turns', estA !== null, `A=${estA}`)
+    check('owner A has a real estimate from its own turns', estA !== null, `A=${estA} — owner A completed three turns and must get an estimate: check estimateTurnsToCompact() and the per-owner history in src/services/cockpit/ctxForecast.ts`)
     check(
       'owner B honestly reads null (zero completed turns of its own)',
       estB === null,
-      `B=${estB}`,
+      `B=${estB} — owner B has no completed turn of its own, so its history must not borrow A's: check estimateTurnsToCompact() and the per-owner history in src/services/cockpit/ctxForecast.ts`,
     )
     fc.recordCtxSample(80, B)
     fc.noteCtxTurnBoundary(B)
     check(
       "B's growth does not change A's estimate",
       fc.estimateTurnsToCompact(44, 90, A) === estA,
+      "a sample recorded for owner B changed owner A's estimate: check that recordCtxSample() and noteCtxTurnBoundary() in src/services/cockpit/ctxForecast.ts write only the owner's own history",
     )
     fc.resetCtxForecastForTest()
   }
@@ -69,8 +71,8 @@ async function main(): Promise<void> {
       tokensAfter: null,
       preservedTailCount: null,
     })
-    check('A advanced to epoch 1', eA === 1)
-    check("B's epoch stays 0 (owner isolation)", epochs.getContextEpoch(B).epoch === 0)
+    check('A advanced to epoch 1', eA === 1, 'advanceContextEpoch() must take a fresh owner from epoch 0 to 1: check src/services/run/contextEpochs.ts')
+    check("B's epoch stays 0 (owner isolation)", epochs.getContextEpoch(B).epoch === 0, "advancing owner A's epoch moved owner B's: check the per-owner state in advanceContextEpoch() and getContextEpoch() in src/services/run/contextEpochs.ts")
   }
 
   console.log(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)

@@ -14,10 +14,16 @@ delete process.env.MERCURY_VERIFY_EVIDENCE
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where: Record<string, string> = {
+    P: 'recordNoChangeOutcome / noteSuccessfulMutation in src/services/changeTransaction/repetitionPolicy.ts',
+    V: 'observeToolTerminal in src/utils/run/effectObserver.ts and verificationSummary in src/utils/verification/verificationState.ts',
+    T: 'the no-change path of src/tools/FileEditTool/edit/callParts.ts and mapToolResultToToolResultBlockParam in src/tools/FileEditTool/FileEditTool.ts',
+  }
+  const hint = `fix ${where[label[0]!] ?? 'src/services/changeTransaction/repetitionPolicy.ts'}`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${hint}` : ''}`)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — repetition-policy proof exceeded 90s')
+  console.log('\nTIMEOUT — repetition-policy proof exceeded 90s; an edit through FileEditTool.call in src/tools/FileEditTool/FileEditTool.ts never returned')
   process.exit(1)
 }, 90_000)
 guard.unref?.()

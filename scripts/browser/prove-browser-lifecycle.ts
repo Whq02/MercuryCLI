@@ -11,7 +11,8 @@ delete process.env.MERCURY_BROWSER_MAX_SESSIONS
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const hint = 'change the launch flight and teardown in src/services/browser/session/launch.ts (ensureBrowserSession, closeBrowserSession) or src/services/browser/session/owners.ts (disposeBrowserOwner, liveBrowserSessionCensus); the shutdown sweep is disposeAllOwnersForShutdown in src/utils/run/ownerLifecycle.ts'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${hint}` : ''}`)
 }
 const tick = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 

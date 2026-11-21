@@ -106,25 +106,26 @@ console.log('\nB — the bounded journey (card fits the pane)')
   check(
     'the RUNNING form stands nowhere in history (it never ceded)',
     count(logical, 'tool-row RUNNING Edit deck.tsx') === 0,
-    `running×${count(logical, 'tool-row RUNNING Edit deck.tsx')}`,
+    `running×${count(logical, 'tool-row RUNNING Edit deck.tsx')}; an unsettled row must not be flushed to scrollback, see FrameWriter.renderInline in src/ink/frame-writer.ts`,
   )
   check(
     'the SETTLED row stands exactly once — one row, one entry, its final state',
     count(logical, 'tool-row SETTLED Edit deck.tsx +5/-2') === 1,
-    `settled×${count(logical, 'tool-row SETTLED Edit deck.tsx +5/-2')}`,
+    `settled×${count(logical, 'tool-row SETTLED Edit deck.tsx +5/-2')}; the settled row must reach history exactly once, see FrameWriter.renderInline in src/ink/frame-writer.ts`,
   )
   check(
     '…and it froze into scrollback in its SETTLED form',
     emu.scrollback.some(row => row.trimEnd() === 'tool-row SETTLED Edit deck.tsx +5/-2'),
+    'the settled row never reached scrollback; check how FrameWriter.renderInline in src/ink/frame-writer.ts cedes rows',
   )
   const cardResidue = logical.filter(line => line.startsWith('card row ')).length
-  check('the bounded card leaves ZERO residue', cardResidue === 0, `residue×${cardResidue}`)
+  check('the bounded card leaves ZERO residue', cardResidue === 0, `residue×${cardResidue}; a transient card that fits the pane must be erased, not left in history, see FrameWriter.renderInline in src/ink/frame-writer.ts`)
   let dupes = 0
   for (let i = 0; i < 14; i++) {
     if (count(logical, `transcript line ${i}`) > 1) dupes++
   }
-  check('no transcript line stands twice — the epoch never fired', dupes === 0, `${dupes} duplicated`)
-  check('the journey genuinely ceded rows (the census is not vacuous)', emu.scrollback.length > 0)
+  check('no transcript line stands twice — the epoch never fired', dupes === 0, `${dupes} duplicated; a bounded transient must not trigger inlineEpochRepaint in FrameWriter.renderInline (src/ink/frame-writer.ts)`)
+  check('the journey genuinely ceded rows (the census is not vacuous)', emu.scrollback.length > 0, 'no rows scrolled off; the journey in journeySteps() no longer exceeds VIEWPORT, so raise its line counts')
 }
 
 console.log('\nC — the unbounded control (card taller than the pane; the disease documented)')
@@ -138,7 +139,7 @@ console.log('\nC — the unbounded control (card taller than the pane; the disea
   check(
     'an over-viewport card close forces the epoch: transcript lines stand TWICE (the census has teeth)',
     dupes > 0 || runningCount > 1,
-    `dupes=${dupes} running×${runningCount}`,
+    `dupes=${dupes} running×${runningCount}; the over-viewport shrink fallback in FrameWriter.renderInline (src/ink/frame-writer.ts) no longer repaints, or journeySteps(25) no longer exceeds VIEWPORT`,
   )
 }
 

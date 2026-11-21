@@ -19,14 +19,14 @@ process.env.MERCURY_SILENT_AFTER_HEADERS_MS = '400'
 process.env.GEMINI_API_KEY = 'fixture-key-not-real'
 delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
-const guard = setTimeout(() => { console.error('liveness proof exceeded 90 s'); process.exit(1) }, 90_000)
+const guard = setTimeout(() => { console.error('liveness proof exceeded 90 s — a scenario never settled: the last [PASS] or FRAME line printed above is the last one that ran; look at the reconnect and idle-wait law in src/services/providers/streamIdleBudget.ts and the compat and gemini call models under src/services/providers/'); process.exit(1) }, 90_000)
 guard.unref()
 let checks = 0
 let failures = 0
 const check = (label: string, pass: boolean, detail: unknown = '') => {
   checks++
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${pass ? '' : ` — ${String(detail)}`}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${pass ? '' : ` — ${String(detail)} — fix: the wait, idle and reconnect law is src/services/providers/streamIdleBudget.ts; the spinner words are src/components/Spinner/liveCounterWords.ts and src/components/Spinner.tsx; the roads are compatChatCallModel.ts and geminiCallModel.ts under src/services/providers/`}`)
 }
 const pause = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
 const sse = (obj: unknown) => `data: ${JSON.stringify(obj)}\n\n`

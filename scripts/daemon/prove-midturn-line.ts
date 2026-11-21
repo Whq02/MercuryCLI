@@ -17,7 +17,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix by section above: W wrapCommandText in src/utils/messages/text.ts, D buildConcoursePromptRow in src/daemon/concourseDispatch.ts, R2-R4 the runner's boundary delivery of queued lines (getQueuedCommandAttachments in src/services/attachments/queuedCommands.ts) and its transcript rows; the runner's stderr tail and the kept world are printed at the end` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -190,7 +190,7 @@ if (!existsSync(DIST)) {
       if (hit !== undefined) return hit
       await sleep(60)
     }
-    console.log(`  [wait] ${label}: nothing on the wire within ${timeoutMs} ms`)
+    console.log(`  [wait] ${label}: nothing on the wire within ${timeoutMs} ms (the fixture is scripts/daemon/midturn-line-fixture-server.ts; read the runner's stderr tail printed at the end)`)
     return null
   }
   const send = (text: string, id: string, sentAt?: string): Promise<boolean> => host.prompt(text, { id, ...(sentAt !== undefined ? { sent_at: sentAt } : {}) }).then(() => true, () => false)

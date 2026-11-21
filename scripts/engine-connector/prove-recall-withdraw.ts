@@ -73,9 +73,9 @@ const painted = (): string => JSON.stringify(connector.records())
 section('C9 the resting slot')
 {
   const rest = new NoSessionConnector()
-  check('nothing to recall', rest.recallableSend() === null)
+  check('nothing to recall', rest.recallableSend() === null, 'NoSessionConnector.recallableSend in src/services/engine-connector/noSessionConnector.ts must return null')
   const r = await rest.withdrawSend()
-  check('a withdraw refuses with the no-chat sentence', r.withdrawn === false && r.reason === 'refused' && r.detail === NO_CHAT_OPEN, j(r))
+  check('a withdraw refuses with the no-chat sentence', r.withdrawn === false && r.reason === 'refused' && r.detail === NO_CHAT_OPEN, `${j(r)} — NoSessionConnector.withdrawSend in src/services/engine-connector/noSessionConnector.ts must return withdrawn:false, reason:'refused', detail:NO_CHAT_OPEN`)
 }
 
 

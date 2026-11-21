@@ -17,11 +17,25 @@ const POISON_DIST = process.env.MERCURY_CLOSE_CHORD_POISON_DIST
 const DIST = POISON_DIST ?? join(REPO, 'dist', 'mercury.mjs')
 
 let failures = 0
+const WHERE: Record<string, string> = {
+  '§1': 'change the ctrl+x ctrl+x row in src/keybindings/defaultBindings.ts or its ACTION_GRAPH row in src/keybindings/actionGraph.ts, or the chord handling in src/keybindings/resolver.ts',
+  '§2 ': 'change claimConcourseCloseChord / invokeConcourseCloseChord in src/services/concourse/closeChordSlot.ts, or publishPendingChord in src/keybindings/pendingChordMirror.ts',
+  '§2b': 'change createCloseChordStage or CLOSE_CHORD_STAGE_WINDOW_MS in src/services/concourse/closeChordStage.ts',
+  '§2c': 'change closeChordRungOf / closeChordHintOf / closeChordLegendOf / closeChordReceiptOf / regionKeysFor in src/components/concourse/controlManifest.ts',
+  '§2d': 'change parkAllConcourseSessions (exported by src/daemon/concourseWorkers.ts) so it skips a record with stoppedAt',
+  '§4': 'rebuild first (bun run build.ts) so dist/mercury.mjs is current, then compare the printed screen words with the rung words in src/components/concourse/controlManifest.ts and the concourse:closeSession handler in src/hooks/useGlobalKeybindings.tsx; rerun with MERCURY_CLOSE_CHORD_KEEP=1 to keep the frames',
+}
+let where = ''
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const fix = !cond && where ? `to fix: ${where}` : ''
+  const shown = [detail, fix].filter(Boolean).join(' · ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
-const section = (t: string): void => console.log(`\n── ${t} ──`)
+const section = (t: string): void => {
+  where = Object.entries(WHERE).find(([k]) => t.startsWith(k))?.[1] ?? ''
+  console.log(`\n── ${t} ──`)
+}
 
 if (POISON_DIST === undefined) {
   section('§1 the registry road (the real bindings through the real resolver)')

@@ -8,12 +8,21 @@ const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 
 let failures = 0
 let checks = 0
+let sectionHint = ''
+const SECTION_HINTS: Record<string, string> = {
+  L1: 'look at treeTerminated in src/services/dap/client/tree.ts (a root that hosts its debuggee is not terminated by its children) and the process/thread/stopped events that mark it in src/services/dap/client/messages.ts',
+  L2: 'look at treeTerminated in src/services/dap/client/tree.ts: a root that never hosted a debuggee is terminated once every child is',
+  L3: 'look at treeTerminated in src/services/dap/client/tree.ts and waitForStopOutcome in src/services/dap/client/stops.ts: a child exiting must not end a tree whose root hosts the program',
+  L4: 'look at src/tools/DebugTool/DebugTool.ts (launch, status, evaluate, continue and disconnect report the root\'s own state) and treeTerminated in src/services/dap/client/tree.ts',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? '' : [detail, sectionHint].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
+  sectionHint = SECTION_HINTS[t.split(' ')[0] ?? ''] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 async function waitFor(cond: () => boolean, ms = 5_000): Promise<boolean> {

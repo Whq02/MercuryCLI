@@ -6,10 +6,11 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
+const FIX_HINT = 'the typed end is decided by typedStreamEndOf, streamEndReceiptLine and createStreamIdleWatchdog in src/services/providers/streamIdleBudget.ts and applied in src/services/providers/openai/openaiCallModel/attempt.ts (T1-T4, T10), the Anthropic road behind routedCallModel in src/services/providers/callModelRouter.ts (T5-T7), and the first-byte budgets of streamOpenaiResponses, streamZaiChat and streamCompatChat under src/services/providers (T9, T11)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}to fix: ${FIX_HINT}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -26,7 +27,7 @@ const BUDGET_MS = 1500
 const KEEPALIVE_SPAN_MS = BUDGET_MS * 2
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the typed-end prover exceeded 180s')
+  console.log('\nTIMEOUT — the typed-end prover exceeded 180s; the last section header printed above is the one that hung, a stream that never ended typed (see streamIdleBudget.ts in src/services/providers)')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

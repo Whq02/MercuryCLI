@@ -45,9 +45,9 @@ const core = {
 }
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
 
 const SRC = join(SCRATCH, 'src-crew-tools')
@@ -271,11 +271,11 @@ async function runAll(all: Drive[], concurrency: number): Promise<void> {
       const seconds = ((Date.now() - started) / 1000).toFixed(0)
       console.log(`\n── ${drive.id} (${drive.cols}x${drive.rows}${drive.theme ? ' · dark' : ''}) ${seconds}s`)
       if (result.status !== 0 || result.text === '') {
-        check(`${drive.id}: capture ran`, false, result.tail.slice(-260).replace(/\n/g, ' '))
+        check(`${drive.id}: capture ran`, false, result.tail.slice(-260).replace(/\n/g, ' ') + ' (the drive runs dist/mercury.mjs through scripts/ui/vshot.py: rebuild with bun run build.ts, then read the tail above)')
         continue
       }
       const ready = result.text.includes(drive.ready)
-      check(`${drive.id}: reached its end state`, ready, ready ? '' : `missing needle: ${drive.ready}`)
+      check(`${drive.id}: reached its end state`, ready, ready ? '' : `missing needle: ${drive.ready} (the drive's sends never reached this screen; check the sends and the board in src/components/extensions/ExtensionsBoard.tsx)`)
       if (ready) drive.assert(result.text, result.lines)
     }
   })
@@ -284,10 +284,12 @@ async function runAll(all: Drive[], concurrency: number): Promise<void> {
 
 function has(id: string, text: string, needle: string): void {
   const flat = text.replace(/[│╭╮╰╯─]/g, ' ').replace(/\s+/g, ' ')
-  check(`${id}: paints '${needle.length > 64 ? needle.slice(0, 64) + '…' : needle}'`, text.includes(needle) || flat.includes(needle))
+  const found = text.includes(needle) || flat.includes(needle)
+  check(`${id}: paints '${needle.length > 64 ? needle.slice(0, 64) + '…' : needle}'`, found, found ? '' : 'the grid does not carry this text; change the word the /extensions screen paints in src/components/extensions/ (ExtensionsBoard.tsx, ExtensionView.tsx, SourceView.tsx, ApprovalCardView.tsx, board/), or the needle here')
 }
 function hasNot(id: string, text: string, needle: string, why: string): void {
-  check(`${id}: never paints '${needle}' (${why})`, !text.includes(needle))
+  const absent = !text.includes(needle)
+  check(`${id}: never paints '${needle}' (${why})`, absent, absent ? '' : `the grid carries '${needle}' (${why}); stop painting it in src/components/extensions/`)
 }
 
 const P_WORD = ['plug', 'in'].join('')
@@ -295,22 +297,24 @@ const M_WORD = ['market', 'place'].join('')
 
 function noRetiredWords(id: string, text: string): void {
   const low = text.toLowerCase()
-  check(`${id}: no retired vocabulary on the grid`, !low.includes(P_WORD) && !low.includes(M_WORD))
+  const clean = !low.includes(P_WORD) && !low.includes(M_WORD)
+  check(`${id}: no retired vocabulary on the grid`, clean, clean ? '' : 'a retired word is on the grid; rename it in the text under src/components/extensions/ or src/extensions/')
 }
 
 function installedColumnsAligned(id: string, lines: string[]): void {
   const header = lines.find(l => l.includes('state') && l.includes('name') && l.includes('ver') && l.includes('from'))
-  check(`${id}: the installed column header row paints`, header !== undefined)
+  check(`${id}: the installed column header row paints`, header !== undefined, header !== undefined ? '' : 'no row carries state, name, ver and from; the installed columns are in src/components/extensions/board/columns.tsx')
   if (!header) return
   const x = (word: string): number => header.indexOf(word)
   check(
     `${id}: columns sit at the spec widths (state→name 12 · name→ver 18 · ver→from 9)`,
     x('name') - x('state') === 12 && x('ver') - x('name') === 18 && x('from') - x('ver') === 9,
     `state@${x('state')} name@${x('name')} ver@${x('ver')} from@${x('from')}`,
+    'change the column widths in src/components/extensions/board/columns.tsx',
   )
   const stateX = x('state')
   const aligned = lines.filter(l => l.search(/[●◑✕◐○◇◉]/) === stateX)
-  check(`${id}: eight state glyphs open the state column`, aligned.length >= 8, `${aligned.length} aligned rows`)
+  check(`${id}: eight state glyphs open the state column`, aligned.length >= 8, `${aligned.length} aligned rows`, 'every state glyph must open the state column (src/components/extensions/board/columns.tsx, rowWords.ts)')
 }
 
 const drives: Drive[] = []
@@ -412,7 +416,7 @@ for (const [cols, rows] of [
       const id = `reload-settles-${sz}`
       hasNot(id, text, 'turned off · r reloads', 'the pending row settled')
       has(id, text, '○ off')
-      check(`${id}: the reload counts line paints`, /extensions: \d+ on · \d+ partial · \d+ broken/.test(text))
+      check(`${id}: the reload counts line paints`, /extensions: \d+ on · \d+ partial · \d+ broken/.test(text), '', "the reload line must read 'extensions: N on · N partial · N broken'; it is built in src/extensions/reload.ts")
       noRetiredWords(id, text)
     },
   })
@@ -432,7 +436,7 @@ for (const [cols, rows] of [
       has(id, text, 'host unreachable')
       has(id, text, 'crew-tools')
       const header = lines.find(l => l.includes('source') && l.includes('kind') && l.includes('where'))
-      check(`${id}: the sources column header paints`, header !== undefined)
+      check(`${id}: the sources column header paints`, header !== undefined, header !== undefined ? '' : 'no row carries source, kind and where; the sources columns are in src/components/extensions/board/columns.tsx')
       has(id, text, 'a add')
       has(id, text, 'u refresh')
       noRetiredWords(id, text)
@@ -457,7 +461,7 @@ for (const [cols, rows] of [
       has(id, text, 'review-tools')
       has(id, text, '1.3.0')
       has(id, text, 'a spare tool nobody installed yet')
-      check(`${id}: the not-installed entry paints '—'`, lines.some(l => /—\s+spare-tool/.test(l)))
+      check(`${id}: the not-installed entry paints '—'`, lines.some(l => /—\s+spare-tool/.test(l)), '', 'a source entry that is not installed must show — in the version column; see src/components/extensions/SourceView.tsx')
       has(id, text, 'esc back to sources')
       has(id, text, 'i install')
       hasNot(id, text, 'U update', 'the not-installed row has no update')
@@ -512,7 +516,7 @@ for (const [cols, rows] of [
     assert: text => {
       const id = `card-plain-${sz}`
       const parsed = core.manifest.parseManifestValue(SPARE)
-      check(`${id}: the fixture manifest parses`, parsed.ok)
+      check(`${id}: the fixture manifest parses`, parsed.ok, '', 'parseManifestValue in src/extensions/manifest.ts refused the SPARE manifest at the top of this file')
       if (parsed.ok) {
         const expected = core.card.approvalCardLines({
           manifest: parsed.manifest,
@@ -526,7 +530,7 @@ for (const [cols, rows] of [
           if (line === '') continue
           if (line.startsWith('from ')) continue
           const flat = line.replace(/\s+/g, ' ').trim()
-          check(`${id}: card line verbatim · '${flat.slice(0, 52)}'`, gridFlat.includes(flat))
+          check(`${id}: card line verbatim · '${flat.slice(0, 52)}'`, gridFlat.includes(flat), '', 'the approval card on the grid must carry every line approvalCardLines returns (src/extensions/card.ts); see src/components/extensions/ApprovalCardView.tsx')
         }
       }
       has(id, text, 'approve spare-tool 0.3.0')
@@ -588,6 +592,8 @@ for (const [cols, rows] of [
       check(
         `${id}: offers ↵ (no data folder) or the y/k data pair`,
         text.includes('↵ uninstall') || (text.includes('y delete data') && text.includes('k keep data')),
+        '',
+        'the uninstall confirm painted neither pair; see src/components/extensions/ExtensionsBoard.tsx',
       )
       noRetiredWords(id, text)
     },
@@ -644,7 +650,7 @@ for (const [cols, rows] of [
     assert: text => {
       const id = `esc-cascade-${sz}`
       hasNot(id, text, INSTALLED, 'the board closed back to the Chat')
-      check(`${id}: the composer is home`, text.includes('❯'))
+      check(`${id}: the composer is home`, text.includes('❯'), '', 'two esc presses on the extension view must close the /extensions board back to the chat composer; see src/components/extensions/ExtensionsBoard.tsx')
     },
   })
 }
@@ -713,8 +719,9 @@ await seedTemplate()
     'seed: the template roster carries on · off · found · blocked',
     states.has('on') && states.has('off') && states.has('found') && states.has('blocked'),
     [...states].join(','),
+    'computeRoster and trustStateOf in src/extensions/roster.ts must yield these four states for the seeded fixtures',
   )
-  check('seed: seven fixture entries plus shipped bundles (the proposal joins in the drives)', entries.length === 7 + BUNDLED_NAMES.length, String(entries.length))
+  check('seed: seven fixture entries plus shipped bundles (the proposal joins in the drives)', entries.length === 7 + BUNDLED_NAMES.length, String(entries.length), 'computeRoster in src/extensions/roster.ts must list the seven fixture entries plus the bundled ones')
 }
 
 const only = process.env.MERCURY_EXTUI_ONLY ?? ''
@@ -726,9 +733,9 @@ console.log('\n── the keybinding context (05 §2.3)')
 {
   const { KEYBINDING_CONTEXTS } = await import('../../src/keybindings/schema.ts')
   const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
-  check('the Extensions context is declared', (KEYBINDING_CONTEXTS as readonly string[]).includes('Extensions'))
+  check('the Extensions context is declared', (KEYBINDING_CONTEXTS as readonly string[]).includes('Extensions'), '', "add 'Extensions' to KEYBINDING_CONTEXTS in src/keybindings/schema.ts")
   const block = (DEFAULT_BINDINGS as Array<{ context: string; bindings: Record<string, string> }>).find(b => b.context === 'Extensions')
-  check('the Extensions default block exists', block !== undefined)
+  check('the Extensions default block exists', block !== undefined, '', "add a context 'Extensions' block to DEFAULT_BINDINGS in src/keybindings/defaultBindings.ts")
   if (block) {
     const wanted: Record<string, string> = {
       space: 'extensions:toggle',
@@ -744,13 +751,13 @@ console.log('\n── the keybinding context (05 §2.3)')
       P: 'extensions:previous',
     }
     for (const [chord, action] of Object.entries(wanted)) {
-      check(`default '${chord}' → ${action}`, block.bindings[chord] === action)
+      check(`default '${chord}' → ${action}`, block.bindings[chord] === action, '', `bind '${chord}' to ${action} in the Extensions block of src/keybindings/defaultBindings.ts`)
     }
     const { resolveExtensionsBindings } = await import('../../src/components/extensions/bindings.ts')
     const resolved = resolveExtensionsBindings()
     for (const [chord, action] of Object.entries(wanted)) {
       const expected = chord === 'space' ? ' ' : chord
-      check(`the resolver's default for ${action} is '${chord}'`, resolved.chars.get(action) === expected)
+      check(`the resolver's default for ${action} is '${chord}'`, resolved.chars.get(action) === expected, '', `resolveExtensionsBindings in src/components/extensions/bindings.ts resolved ${action} to '${String(resolved.chars.get(action))}'`)
     }
 
     const { resolveExtensionsBindings: resolveKb } = await import('../../src/components/extensions/bindings.ts')
@@ -764,14 +771,14 @@ console.log('\n── the keybinding context (05 §2.3)')
       }
     }
     const upper = withBindings({ U: 'extensions:update' })
-    check("a stored bare 'U' arms update on 'U' (case kept)", upper.chars.get('extensions:update') === 'U')
+    check("a stored bare 'U' arms update on 'U' (case kept)", upper.chars.get('extensions:update') === 'U', '', 'resolveExtensionsBindings in src/components/extensions/bindings.ts must keep the case of a stored bare U')
     check(
       "a stored bare 'U' leaves refresh on 'u' — no collision, nothing declined",
       upper.chars.get('extensions:refresh') === 'u' && upper.declined.length === 0,
       upper.declined.join(' | '),
     )
     const shifted = withBindings({ 'shift+u': 'extensions:update' })
-    check("'shift+u' spells the same 'U'", shifted.chars.get('extensions:update') === 'U' && shifted.declined.length === 0)
+    check("'shift+u' spells the same 'U'", shifted.chars.get('extensions:update') === 'U' && shifted.declined.length === 0, '', 'resolveExtensionsBindings in src/components/extensions/bindings.ts must read shift+u as U; declined: ' + shifted.declined.join(' | '))
     const lower = withBindings({ u: 'extensions:update' })
     check(
       "a stored bare 'u' displaces refresh loudly",

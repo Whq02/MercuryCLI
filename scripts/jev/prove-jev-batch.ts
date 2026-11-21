@@ -15,6 +15,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('    fix: change the input schema or jevEvalCall in src/tools/JevEvalTool/JevEvalTool.ts, the wording in src/tools/JevEvalTool/prompt.ts, or the ledger in src/services/jev/jevLedger.ts, whichever the failed label names; the printed value above is what the code returned')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -44,7 +44,8 @@ enableConfigs()
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = 'change src/services/providers/anthropic/anthropicCatalogue.ts (the traffic gate is src/services/providers/catalogueGate.ts, the picker rows src/services/model/modelOptions.ts getModelOptions)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${where}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

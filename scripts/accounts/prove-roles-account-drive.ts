@@ -55,7 +55,7 @@ function login(account: string): Promise<{ rc: number | null; stdout: string; st
   return new Promise(resolve => child.on('exit', rc => resolve({ rc, stdout, stderr })))
 }
 const readAccount = (): unknown => JSON.parse(readFileSync(join(home, '.mercury.json'), 'utf8')).oauthAccount
-const guard = setTimeout(() => { for (const child of children) child.kill('SIGTERM'); held?.end('{}') }, vshotBudgetMs(90_000))
+const guard = setTimeout(() => { console.error(`roles-account: the watchdog fired while waiting for the built bundle ${BIN} (auth login) to finish both logins; read the JSON record above and rebuild dist/mercury.mjs if it is stale`); for (const child of children) child.kill('SIGTERM'); held?.end('{}') }, vshotBudgetMs(90_000))
 try {
   console.log(`bundle ${BIN}; scratch ${root}`)
   const first = login('a')
@@ -73,6 +73,7 @@ try {
   if (OUT) writeFileSync(OUT, JSON.stringify(record, null, 2) + '\n')
   const ok = second.rc === 0 && firstResult.rc === 0 && (beforeSwitch as { accountUuid?: string }).accountUuid === 'account-a' && (beforeReply as { accountUuid?: string }).accountUuid === 'account-b' && (beforeReply as { organizationName?: string }).organizationName === 'B' && JSON.stringify(afterReply) === JSON.stringify(beforeReply)
   console.log(`[${ok ? 'PASS' : 'FAIL'}] the late roles response leaves the account that signed in next unchanged`)
+  if (!ok) console.log('hint: fetchAndStoreUserRoles in src/services/oauth/client.ts must drop a roles reply once another account has signed in (both `auth login` runs must exit 0, and afterReply must equal beforeReply); compare beforeSwitch, beforeReply and afterReply in the record above')
   process.exitCode = ok ? 0 : 1
 } finally {
   clearTimeout(guard)

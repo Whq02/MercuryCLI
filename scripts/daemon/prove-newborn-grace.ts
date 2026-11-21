@@ -19,7 +19,7 @@ writeFileSync(
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — fix by label prefix: N1-N2 sweepIdleEmptyConcourseSessions and concourseNewbornGraceMs in src/daemon/idleRetirement.ts, N3 reconcileConcourseWorkers in src/daemon/concourseWorkers/settle.ts'}`)
 }
 
 const sup = await import('../../src/daemon/concourseWorkers.ts')

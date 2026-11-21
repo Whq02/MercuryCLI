@@ -18,7 +18,7 @@ try {
     await Bun.sleep(20)
     token = getProcessStartTokenCachedOrRefresh(process.pid)
   }
-  assert.ok(token, 'the live process identity probe settled')
+  assert.ok(token, 'the live process identity probe settled: getProcessStartTokenCachedOrRefresh (src/utils/ownerWatch.ts) still returned null for this process after 5 seconds, so the start-token read for process.pid is not completing')
   const base = { pid: process.pid, workspaceId: home, spawnedAt: Date.now() }
   const file = sessionWorkersFile()
   mkdirSync(dirname(file), { recursive: true })
@@ -28,7 +28,7 @@ try {
     foreign: { ...base, sessionId: 'older-build-vocabulary', procStart: 'Do. 1 Jan. 00:00:00 1970' },
     old: { ...base, sessionId: 'without-token' },
   } }))
-  assert.deepEqual(liveSessions(mnemeProjectKeyFor(home)).map(row => row.sessionId).sort(), ['live', 'older-build-vocabulary', 'without-token'], 'a stale record whose PID belongs to a process of another start is not live; a token in a vocabulary this build cannot parse is uncertain and keeps the live pid live')
+  assert.deepEqual(liveSessions(mnemeProjectKeyFor(home)).map(row => row.sessionId).sort(), ['live', 'older-build-vocabulary', 'without-token'], 'a stale record whose PID belongs to a process of another start is not live; a token in a vocabulary this build cannot parse is uncertain and keeps the live pid live (check how liveSessions in src/mneme/ledger.ts judges each record procStart against the process start token from src/utils/ownerWatch.ts)')
   console.log('LIVE SESSION IDENTITY GREEN')
 } finally {
   rmSync(home, { recursive: true, force: true })

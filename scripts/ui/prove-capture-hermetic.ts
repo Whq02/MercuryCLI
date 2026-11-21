@@ -15,7 +15,7 @@ const BUN = process.env.BUN ?? process.execPath
 
 let fail = 0
 function report(ok: boolean, words: string): void {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${words}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${words}${ok ? '' : ` — a capture must not read the operator's settings or a local server: look at the logs in ${scratch} (rerun with --keep) and at how scripts/ui/generate-visual-baseline.ts builds the environment of the product it spawns`}`)
   if (!ok) fail = 1
 }
 
@@ -154,7 +154,7 @@ for (const file of [
   'scripts/streaming/artifactArena.ts',
 ]) {
   const source = readFileSync(join(REPO, file), 'utf8')
-  report(PINNED.test(source), `${file} names MERCURY_LOCAL_PROBE_TARGETS 'none' for the product it spawns`)
+  report(PINNED.test(source), `${file} names MERCURY_LOCAL_PROBE_TARGETS 'none' for the product it spawns — add MERCURY_LOCAL_PROBE_TARGETS: 'none' to the environment ${file} gives the product it spawns`)
 }
 
 fixture.stop(true)

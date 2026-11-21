@@ -15,7 +15,7 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
 }
 
 // gate-watch: src/utils/sessionStoragePortable* src/utils/wards/wards*
@@ -44,8 +44,8 @@ console.log(' the transcript counts what ran — "Ran" only for commands that ra
 console.log('============================================================')
 
 console.log('\n(A) a ward denial is a DENIAL — the ✕ lead and the refusal line, not an ordinary failure')
-check('the ward text classifies as a denial', isDenialResultText(WARD_ON_DISK), WARD_TEXT.slice(0, 80))
-check('its one line names the ward', denialLineOf(WARD_ON_DISK).startsWith(WARD_LINE), denialLineOf(WARD_ON_DISK))
+check('the ward text classifies as a denial', isDenialResultText(WARD_ON_DISK), `${WARD_TEXT.slice(0, 80)} — isDenialResultText in src/utils/messages/rejectionText.ts must accept the ward's denial text (the /^Ward '...' blocked this / form) that buildWardDenial in src/utils/wards/wards.ts produces`)
+check('its one line names the ward', denialLineOf(WARD_ON_DISK).startsWith(WARD_LINE), `${denialLineOf(WARD_ON_DISK)} — denialLineOf in src/utils/messages/rejectionText.ts must return the ward's first sentence, which buildWardDenial in src/utils/wards/wards.ts opens with the ward name`)
 
 type Cell = { c: string }
 type Grid = { grid: Cell[][] }
@@ -151,12 +151,12 @@ const wardRows = capture('ward', 'bash command')
 if (wardRows) {
   const foldRow = wardRows.find(row => /bash command/i.test(row))
   const all = flat(wardRows)
-  check('the folded row stands', foldRow !== undefined, wardRows.filter(r => r.trim() !== '').slice(-6).join(' | '))
-  check('the row does NOT say "Ran … bash command"', !/Ran \d+ bash command/.test(all), foldRow ?? '')
-  check('the row says "blocked … bash command"', /[Bb]locked \d+ bash command/.test(all), foldRow ?? '')
-  check('the row carries the ✕ denial lead', (foldRow ?? '').includes('✕'), foldRow ?? '')
-  check('the ward\'s one line rides under the folded row', all.includes(WARD_LINE), foldRow ?? '')
-  check('the model-facing teach text stays off the screen', !all.includes('rewrite the call to comply') && !all.includes('surface the refusal to the operator'))
+  check('the folded row stands', foldRow !== undefined, wardRows.filter(r => r.trim() !== '').slice(-6).join(' | ') + ' — the folded bash-command row was not on screen: read the PTY capture from vshot.py and the row built in src/components/messages/CollapsedReadSearchContent.tsx')
+  check('the row does NOT say "Ran … bash command"', !/Ran \d+ bash command/.test(all), `${foldRow ?? ''} — a denied bash call is counted as ran: bashDenied/bashRan in src/components/messages/CollapsedReadSearchContent.tsx must come from lookups.deniedToolUseIDs`)
+  check('the row says "blocked … bash command"', /[Bb]locked \d+ bash command/.test(all), `${foldRow ?? ''} — the 'blocked' fragment (bashBlocked) in src/components/messages/CollapsedReadSearchContent.tsx did not render for the ward-denied call`)
+  check('the row carries the ✕ denial lead', (foldRow ?? '').includes('✕'), `${foldRow ?? ''} — the folded row lost its ✕ denial lead: check how src/components/messages/CollapsedReadSearchContent.tsx marks denied members`)
+  check('the ward\'s one line rides under the folded row', all.includes(WARD_LINE), `${foldRow ?? ''} — the ward's one-line refusal (denialLineOf in src/utils/messages/rejectionText.ts) is not shown under the folded row`)
+  check('the model-facing teach text stays off the screen', !all.includes('rewrite the call to comply') && !all.includes('surface the refusal to the operator'), 'the ward\'s model-facing teach text leaked onto the screen: show only denialLineOf(...) from src/utils/messages/rejectionText.ts, not the full ward denial')
 }
 
 console.log('\n(C) one ran, one ward-blocked, one declined — the count splits and both refusals show')
@@ -165,14 +165,14 @@ if (mixRows) {
   const all = flat(mixRows)
   const foldRow = mixRows.find(row => /bash command/i.test(row)) ?? ''
   if (process.env.RAN_COUNT_DEBUG) console.log(mixRows.filter(r => r.trim() !== '').join('\n'))
-  check('the row counts the ONE command that ran', /[Rr]an 1 bash command/.test(all), foldRow)
-  check('the blocked calls are named, not counted as ran', /[Bb]locked 2 bash commands/.test(all), foldRow)
-  check('the ward\'s line shows', all.includes(WARD_LINE))
-  check('the decline\'s line shows', all.includes(DECLINED_NEEDLE), foldRow)
-  check('no command is counted as ran that did not run', !/[Rr]an [23] bash commands?/.test(all), foldRow)
+  check('the row counts the ONE command that ran', /[Rr]an 1 bash command/.test(all), `${foldRow} — the ran count (bashRan) in src/components/messages/CollapsedReadSearchContent.tsx must be total bash calls minus denied ones; set RAN_COUNT_DEBUG=1 to print the screen`)
+  check('the blocked calls are named, not counted as ran', /[Bb]locked 2 bash commands/.test(all), `${foldRow} — the blocked count (bashBlocked) in src/components/messages/CollapsedReadSearchContent.tsx must count both the ward-blocked and the declined call`)
+  check('the ward\'s line shows', all.includes(WARD_LINE), 'the ward refusal line is missing from the screen: see denialLineOf in src/utils/messages/rejectionText.ts and the folded row in src/components/messages/CollapsedReadSearchContent.tsx')
+  check('the decline\'s line shows', all.includes(DECLINED_NEEDLE), `${foldRow} — the declined call's line (REJECT_MESSAGE in src/utils/messages/rejectionText.ts) is missing from the screen`)
+  check('no command is counted as ran that did not run', !/[Rr]an [23] bash commands?/.test(all), `${foldRow} — denied calls are still counted as ran: fix bashDenied/bashRan in src/components/messages/CollapsedReadSearchContent.tsx`)
 }
 
-check('the canary survived — no fixture command was ever executed', readFileSync(CANARY, 'utf8') === 'alive' && existsSync(join(PROJECT, 'scratch-dir', 'zzz-test')))
+check('the canary survived — no fixture command was ever executed', readFileSync(CANARY, 'utf8') === 'alive' && existsSync(join(PROJECT, 'scratch-dir', 'zzz-test')), 'the fixture command ran or the canary file changed: the proof must only render a recorded transcript, so look at what this script or vshot.py launched, not at src/')
 cleanupScenario('two-bash-click')
 rmSync(CANARY_ROOT, { recursive: true, force: true })
 

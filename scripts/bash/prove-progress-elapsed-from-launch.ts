@@ -28,7 +28,8 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const where = /elapsed|row/.test(label) ? 'the bash_progress row in src/tools/BashTool/BashTool.tsx must compute elapsedTimeSeconds from launchedAt (the launch of the command), not from the end of the quiet window' : 'BashTool.call in src/tools/BashTool/BashTool.tsx did not run the five-second loop as expected; run the command by hand and read its result'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}to fix: ${where}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
 

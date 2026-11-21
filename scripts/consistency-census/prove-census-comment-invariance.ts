@@ -152,11 +152,11 @@ function writeTree(to: string, files: Map<string, string>): void {
   ]
   for (const [label, src] of separating) {
     const out = codeOnlyText('planted.ts', src)
-    check(`token-separating comment, ${label}: the tokens keep their shape`, syntaxShape('planted.ts', src) === syntaxShape('planted.ts', out), JSON.stringify(out))
-    check(`token-separating comment, ${label}: the line count is unchanged`, out.split('\n').length === src.split('\n').length)
+    check(`token-separating comment, ${label}: the tokens keep their shape`, syntaxShape('planted.ts', src) === syntaxShape('planted.ts', out), `${JSON.stringify(out)} — removing the comment fused or split tokens; fix codeOnlyText() in scripts/lib/codeText.ts so it leaves a separator where a comment separated two tokens`)
+    check(`token-separating comment, ${label}: the line count is unchanged`, out.split('\n').length === src.split('\n').length, 'codeOnlyText() in scripts/lib/codeText.ts must keep every newline of a multi-line comment, or the census rows shift')
   }
-  check('a comment beside a bracket adds no separator', codeOnlyText('planted.ts', 'call/*n*/(1)\n') === 'call(1)\n')
-  check('a comment at a line end adds no separator', codeOnlyText('planted.ts', 'const a = 1 // note\n') === 'const a = 1 \n')
+  check('a comment beside a bracket adds no separator', codeOnlyText('planted.ts', 'call/*n*/(1)\n') === 'call(1)\n', `got ${JSON.stringify(codeOnlyText('planted.ts', 'call/*n*/(1)\n'))}; codeOnlyText() in scripts/lib/codeText.ts must not insert a space where a comment sits beside a bracket`)
+  check('a comment at a line end adds no separator', codeOnlyText('planted.ts', 'const a = 1 // note\n') === 'const a = 1 \n', `got ${JSON.stringify(codeOnlyText('planted.ts', 'const a = 1 // note\n'))}; codeOnlyText() in scripts/lib/codeText.ts must blank a line-end comment without adding a separator`)
 }
 
 const scratch = mkdtempSync(join(tmpdir(), 'census-comment-invariance-'))
@@ -183,9 +183,9 @@ try {
       if (!shapeBefore.startsWith('0\n')) anyDiagnostics = true
     }
     check(`${c.name}: the stripped copies lost comment bytes (the perturbation is real)`, commentBytes > 0, String(commentBytes))
-    check(`${c.name}: every copied source parses without diagnostics`, !anyDiagnostics)
-    check(`${c.name}: stripping changed no token of any copied source (comments only)`, sameShape)
-    check(`${c.name}: the stripped planted source keeps no comment marker`, !stripped.get(c.planted)!.includes(COMMENT))
+    check(`${c.name}: every copied source parses without diagnostics`, !anyDiagnostics, 'a copied source or the planted text does not parse; fix the planted text in this file, or syntaxShape() in scripts/lib/codeText.ts if a real source is what failed')
+    check(`${c.name}: stripping changed no token of any copied source (comments only)`, sameShape, 'removing comments changed a token of a copied source; fix codeOnlyText() in scripts/lib/codeText.ts so it blanks comment ranges only')
+    check(`${c.name}: the stripped planted source keeps no comment marker`, !stripped.get(c.planted)!.includes(COMMENT), 'a planted comment survived stripComments(); fix codeOnlyText() and commentRanges() in scripts/lib/codeText.ts so every comment form in the planted source is found')
 
     const originalRoot = join(scratch, c.name, 'original')
     const strippedRoot = join(scratch, c.name, 'stripped')
@@ -196,10 +196,10 @@ try {
     const rowsA = (JSON.parse(a) as Census).sites
     const rowsB = (JSON.parse(b) as Census).sites
     check(`${c.name}: comment-free copies regenerate byte-identical output`, a === b, `${rowsA.length} vs ${rowsB.length} rows`)
-    check(`${c.name}: no row carries a line field`, rowsA.every(r => !('line' in r)))
+    check(`${c.name}: no row carries a line field`, rowsA.every(r => !('line' in r)), `a census row carries a line number, so a comment edit would change it; drop the line field from the rows built by gen-${c.name}-census.ts in scripts/consistency-census`)
 
     const fromSources = rowsA.filter(r => r.file !== c.planted)
-    check(`${c.name}: the representative sources yield rows (${fromSources.length})`, fromSources.length > 0)
+    check(`${c.name}: the representative sources yield rows (${fromSources.length})`, fromSources.length > 0, `the generator found no rows in the copied sources; check gen-${c.name}-census.ts in scripts/consistency-census, which walks the root it is given`)
     check(
       `${c.name}: every row of the representative sources is a census row`,
       fromSources.every(r => baseline.sites.some(s => JSON.stringify(s) === JSON.stringify(r))),
@@ -213,11 +213,11 @@ try {
       plantedRows.length === c.codeRows && plantedRows.every(r => r.excerpt.includes(CODE)),
       plantedRows.map(r => r.excerpt).join(' | ').slice(0, 400),
     )
-    check(`${c.name}: no planted comment adds a row or reaches an excerpt`, plantedRows.every(r => !r.excerpt.includes(COMMENT)))
+    check(`${c.name}: no planted comment adds a row or reaches an excerpt`, plantedRows.every(r => !r.excerpt.includes(COMMENT)), `a planted comment reached a census row; gen-${c.name}-census.ts in scripts/consistency-census must read codeOnlyLines() from scripts/lib/codeText.ts, not the raw text`)
     const order = rowsA.map(r => r.file)
     const firstSeen = order.filter((file, at) => order.indexOf(file) === at)
-    check(`${c.name}: the rows of one file stay together in the generator's walk order`, order.join('\n') === firstSeen.flatMap(file => order.filter(f => f === file)).join('\n'))
-    check(`${c.name}: the rows of one file follow the source's order (the planted continuation line last but one)`, plantedRows[plantedRows.length - 2]?.excerpt.startsWith('*') === true)
+    check(`${c.name}: the rows of one file stay together in the generator's walk order`, order.join('\n') === firstSeen.flatMap(file => order.filter(f => f === file)).join('\n'), `rows of one file are split apart; gen-${c.name}-census.ts in scripts/consistency-census must emit a file's rows together in its walk order`)
+    check(`${c.name}: the rows of one file follow the source's order (the planted continuation line last but one)`, plantedRows[plantedRows.length - 2]?.excerpt.startsWith('*') === true, `the rows of the planted file are out of source order; gen-${c.name}-census.ts in scripts/consistency-census must emit rows in line order`)
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })

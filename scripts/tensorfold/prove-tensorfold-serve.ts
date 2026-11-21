@@ -27,11 +27,24 @@ const receipts = await import('../../src/utils/model/seatReceipts.ts')
 const { cachedLocalModels } = await import('../../src/services/providers/local/localDiscovery.ts')
 
 let failures = 0
+const SECTION_WHERE: Array<[string, string]> = [
+  ['serve:', 'startTensorFold, stopTensorFold and servedTensorFold in src/services/tensorfold/serve.ts'],
+  ['the port:', 'pickTensorFoldPort and startTensorFold in src/services/tensorfold/serve.ts'],
+  ['refusals:', 'startTensorFold in src/services/tensorfold/serve.ts and readTensorFoldRefusal in src/services/tensorfold/refusal.ts'],
+  ['the roles:', 'the role option of startTensorFold and stopTensorFold in src/services/tensorfold/serve.ts'],
+  ['a second copy', 'detectTensorFoldApp in src/services/providers/local/tensorfoldApp.ts and startTensorFold in src/services/tensorfold/serve.ts'],
+  ['sharing on the network', 'the share option of startTensorFold in src/services/tensorfold/serve.ts, src/services/providers/local/tensorfoldKeyFile.ts and src/services/providers/local/tensorfoldHosts.ts'],
+  ['pull:', 'pullTensorFold in src/services/tensorfold/pull.ts and pullActOf in src/commands/tensorfold/scene.ts'],
+  ['the road:', 'serveTensorFoldRow and stopTensorFoldRow in src/commands/tensorfold/road.ts and the feed lines in src/commands/tensorfold/scene.ts'],
+]
+let whereNow = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  if (!cond && whereNow) console.log(`         fix: change the code this section reads (${whereNow}) so the labelled behaviour holds again; the expected value is in this check's condition`)
 }
 function section(title: string): void {
+  whereNow = SECTION_WHERE.find(([start]) => title.startsWith(start))?.[1] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + title)
 }
 function freePort(): Promise<number> {

@@ -23,8 +23,9 @@ try {
     result: Promise.resolve({ kind: 'exited' as const, code, stdout, stderr, durationMs: 5 }),
     kill: () => {},
   })
+  const H = 'Check hookRowsOf in src/utils/hooks/rows.ts and takeBackgroundHookOutcomes in src/utils/hooks/background.ts, which getBackgroundHookAttachments in src/utils/attachments/taskStatus.ts calls.'
   background.resetBackgroundHooksForTesting()
-  check('an empty background delivers nothing', (await getBackgroundHookAttachments()).length === 0)
+  check('an empty background delivers nothing', (await getBackgroundHookAttachments()).length === 0, `after resetBackgroundHooksForTesting in src/utils/hooks/background.ts, getBackgroundHookAttachments in src/utils/attachments/taskStatus.ts should return no rows; check takeBackgroundHookOutcomes`)
   const scope = { sessionId: 'delivery-session' }
   background.startBackgroundHook({ id: 'hook-one', name: 'after-edit', event: 'tool.after', process: finished('{"notice":"edit noted"}\n', 0), wake: false, scope })
   background.startBackgroundHook({ id: 'hook-two', name: 'warm-up', event: 'session.start', process: finished('ready\n', 0), wake: false, scope })
@@ -35,11 +36,11 @@ try {
   const one = byName.get('after-edit')
   const two = byName.get('warm-up')
   const three = byName.get('broken')
-  check('every finished background hook with something to say becomes one hook row, marked background', delivered.length === 3 && delivered.every(a => a.type === 'hook' && a.background === true), JSON.stringify(delivered))
-  check('a notice answer rides as a notice row naming the hook and the event', one?.outcome === 'notice' && one.event === 'tool.after' && one.words === 'edit noted', JSON.stringify(one))
-  check('plain words on session.start ride as a context row', two?.outcome === 'context' && two.event === 'session.start' && two.words === 'ready', JSON.stringify(two))
-  check('a failed background hook rides as a failed row with the one sentence', three?.outcome === 'failed' && String(three.words).includes('broken') && String(three.words).includes('it broke'), JSON.stringify(three))
-  check('a delivered outcome is delivered once', (await getBackgroundHookAttachments()).length === 0)
+  check('every finished background hook with something to say becomes one hook row, marked background', delivered.length === 3 && delivered.every(a => a.type === 'hook' && a.background === true), `${JSON.stringify(delivered)}. ${H}`)
+  check('a notice answer rides as a notice row naming the hook and the event', one?.outcome === 'notice' && one.event === 'tool.after' && one.words === 'edit noted', `${JSON.stringify(one)}. ${H}`)
+  check('plain words on session.start ride as a context row', two?.outcome === 'context' && two.event === 'session.start' && two.words === 'ready', `${JSON.stringify(two)}. ${H}`)
+  check('a failed background hook rides as a failed row with the one sentence', three?.outcome === 'failed' && String(three.words).includes('broken') && String(three.words).includes('it broke'), `${JSON.stringify(three)}. ${H}`)
+  check('a delivered outcome is delivered once', (await getBackgroundHookAttachments()).length === 0, 'takeBackgroundHookOutcomes in src/utils/hooks/background.ts should empty the banked outcomes when it returns them')
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

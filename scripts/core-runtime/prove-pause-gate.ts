@@ -36,10 +36,16 @@ const gateModule: GateModule | null = await import('../../src/run-core/pauseGate
 const gate = gateModule?.operatorPauseGate ?? null
 let failures = 0
 let checks = 0
+function whereToLook(label: string): string {
+  if (/model call|model seam/.test(label)) return 'the model seam in src/run-core/turn/streamModel.ts (operatorPauseGate.park) and the gate in src/run-core/pauseGate.ts'
+  if (/tool (starts|seam)|tools? started|running tool/.test(label)) return 'parkBeforeTool in src/run-core/pauseGate.ts'
+  if (/park|frame|facts|row|wait words|daemon/.test(label)) return 'parkBeforeTool and requestParkFrame in src/run-core/pauseGate.ts, and the seat facts path in src/daemon/sessionSeat.ts'
+  return 'createPauseGate in src/run-core/pauseGate.ts (and where the loops park: parkBeforeTool there, the model seam in src/run-core/turn/streamModel.ts)'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — change the pause gate, not this check: look at ${whereToLook(label)}`}`)
 }
 function section(t: string): void {
   console.log('─'.repeat(76) + '\n' + t)
@@ -48,7 +54,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the pause-gate proof exceeded 180s')
+  console.log('\nTIMEOUT — the pause-gate proof exceeded 180s; a loop never parked or never resumed, look at src/run-core/pauseGate.ts and the "[WAIT TIMEOUT]" line printed last')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
@@ -73,7 +79,7 @@ async function until(cond: () => boolean, what: string, ms = 8_000): Promise<boo
   const t0 = Date.now()
   while (!cond()) {
     if (Date.now() - t0 > ms) {
-      console.log(`  [WAIT TIMEOUT] ${what}`)
+      console.log(`  [WAIT TIMEOUT] ${what} — the rig never reached this state in ${ms} ms; see src/run-core/pauseGate.ts`)
       return false
     }
     await settle(5)

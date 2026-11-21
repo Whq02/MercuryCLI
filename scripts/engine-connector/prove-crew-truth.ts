@@ -15,9 +15,21 @@ for (const k of ['MERCURY_CRITTER_IDLE', 'MERCURY_CRITTER_GAZE', 'MERCURY_CRITTE
 }
 
 let failures = 0
+const WHERE: Array<[string, string]> = [
+  ['T1', 'the ledger fold is createProgressTracker, updateProgressFromMessage and getProgressUpdate in src/tasks/LocalAgentTask/LocalAgentTask.tsx'],
+  ['T2', 'the roster projection is projectWorkRoster in src/services/engine-connector/workRoster.ts'],
+  ['T3', 'the crew record and its labels are in src/services/engine-connector/crewFacts.ts (crewAgentsOf, crewRowLine and the crew*Label functions); the /tasks board derives from rosterRowsOf in src/components/tasks/BackgroundTasksDialog.tsx'],
+  ['T4', 'the view is src/components/mercury-ui/screens/CrewView.tsx and the card is RosterWorkDetail in src/components/tasks/backgroundTasks/rows.tsx; their words come from src/services/engine-connector/crewFacts.ts'],
+  ['T5', 'the usage line is crewUsageLine in src/services/engine-connector/crewFacts.ts; the session ledger is addToTotalSessionCost in src/cost-tracker.ts'],
+  ['T7', 'the status vocabulary is crewStateOf in src/services/engine-connector/crewFacts.ts; the transcript cards are renderGroupedAgentToolUse and renderToolUseProgressMessage in src/tools/AgentTool/UI.tsx'],
+  ['T8', 'the ask wait words are crewStatusWords and CREW_ASK_WAIT_WORDS in src/services/engine-connector/crewFacts.ts, and pendingAsks rides projectWorkRoster in src/services/engine-connector/workRoster.ts'],
+]
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = WHERE.find(([tag]) => label.startsWith(tag + ' '))?.[1]
+  const hint = where === undefined ? '' : `change the owner, or this check if the law moved: ${where}`
+  const said = [detail, hint].filter(part => part.length > 0).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && said ? ` — ${said}` : ''}`)
 }
 
 await import('../../src/tools/AgentTool/AgentTool.tsx')

@@ -11,7 +11,7 @@ function check(name: string, cond: boolean, detail?: string): void {
     console.log(`  ✓ ${name}`)
   } else {
     failures++
-    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''} — to fix, change decodeAgentDocument, patchAgentDocument or serializeAgentMarkdown in src/services/agents/codec.ts (revisionDigest is in src/services/agents/contracts.ts)`)
   }
 }
 

@@ -24,8 +24,8 @@ const key = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_API_KEY = key
 mkdirSync(output, { recursive: true })
 let failures = 0
-const check = (label: string, pass: boolean): void => {
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}`)
+const check = (label: string, pass: boolean, detail?: string): void => {
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}`)
   if (!pass) failures++
 }
 type Cell = { c: string }
@@ -114,15 +114,15 @@ for (const [cols, rows] of geometries) {
     const grid: Grid | null = existsSync(cfg.out) ? JSON.parse(readFileSync(cfg.out, 'utf8')) : null
     const text = grid?.grid.map(line => line.map(cell => cell.c).join('')).join('\n') ?? ''
     writeFileSync(join(output, `${name}.txt`), text + '\n')
-    check(`${name}: the built product reached the requested screen`, exit === 0 && grid !== null)
+    check(`${name}: the built product reached the requested screen`, exit === 0 && grid !== null, `exit ${exit}, grid ${grid === null ? 'missing' : 'present'}; read ${name}.stderr.txt and ${name}.stdout.txt in ${output} for the capture driver's own error`)
     if (scene === 'reads') {
-      check(`${name}: twenty Read calls on one unchanged path settled successfully`, fixture.hits.filter(hit => hit.arm === 'read').length === 20 && fixture.hits.some(hit => hit.arm === 'end') && fixture.hits.every(hit => !hit.refused) && existsSync(notes) && readFileSync(notes, 'utf8') === 'line 0\n')
-      check(`${name}: the receipt names reads, not distinct files`, /\b20 reads\b/.test(text) && !/\b20 files read\b/.test(text))
+      check(`${name}: twenty Read calls on one unchanged path settled successfully`, fixture.hits.filter(hit => hit.arm === 'read').length === 20 && fixture.hits.some(hit => hit.arm === 'end') && fixture.hits.every(hit => !hit.refused) && existsSync(notes) && readFileSync(notes, 'utf8') === 'line 0\n', `read hits ${fixture.hits.filter(hit => hit.arm === 'read').length} of 20, refused ${fixture.hits.filter(hit => hit.refused).length}; see ${name}.wire.json in ${output} for the provider hits`)
+      check(`${name}: the receipt names reads, not distinct files`, /\b20 reads\b/.test(text) && !/\b20 files read\b/.test(text), `change the receipt row in src/utils/cockpit/turnReceipt.ts (the reads counter) so repeated reads of one path print as N reads, not N files read; see ${name}.txt in ${output}`)
     } else {
-      check(`${name}: empty sections name added entries rather than session capabilities`, text.includes('no added MCPs') && text.includes('no added skills'))
-      check(`${name}: built-in servers and bundled skills are explicitly outside this list`, text.includes('mercury / ide not listed') && text.includes('bundled skills load in sessions; MCP skills on connection'))
-      check(`${name}: the menu did not request a provider response`, fixture.hits.length === 0)
-      if (scene === 'kit-refused') check(`${name}: the malformed skill remains visible without scrolling inert rows`, text.includes('refused: .mercury/skills/broken/SKILL.md'))
+      check(`${name}: empty sections name added entries rather than session capabilities`, text.includes('no added MCPs') && text.includes('no added skills'), `change emptySectionText in src/services/kitMenu/kitTypes.ts; see ${name}.txt in ${output}`)
+      check(`${name}: built-in servers and bundled skills are explicitly outside this list`, text.includes('mercury / ide not listed') && text.includes('bundled skills load in sessions; MCP skills on connection'), `change the 'mercury / ide not listed' wording in emptySectionText (src/services/kitMenu/kitTypes.ts) or the bundled-skills note in src/services/kitMenu/kitCatalogue.ts; see ${name}.txt in ${output}`)
+      check(`${name}: the menu did not request a provider response`, fixture.hits.length === 0, `${fixture.hits.length} provider request(s) reached the fixture; opening the MCPs & Skills menu must not send one, see ${name}.wire.json in ${output}`)
+      if (scene === 'kit-refused') check(`${name}: the malformed skill remains visible without scrolling inert rows`, text.includes('refused: .mercury/skills/broken/SKILL.md'), `change refusedSkillNote in src/services/kitMenu/kitCatalogue.ts or how the menu orders its note rows; see ${name}.txt in ${output}`)
     }
     console.log(JSON.stringify({ name, exit, home, dist, output, stderr }))
   }

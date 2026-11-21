@@ -16,7 +16,7 @@ const { normalizeToolSchemaFor, restoreRenamedArgumentKeys, rememberRenamedArgum
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 500 ? `${detail.slice(0, 500)}…` : detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 500 ? `${detail.slice(0, 500)}…` : detail}` : ''}${!cond ? ' — the rule this label names lives in src/utils/normalizeToolSchema.ts (normalizeToolSchemaFor, restoreRenamedArgumentKeys, legalPropertyKey); section D exercises toolToAPISchema in src/services/messages/api.ts' : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)

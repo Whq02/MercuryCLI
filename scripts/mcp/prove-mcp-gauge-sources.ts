@@ -10,7 +10,7 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — change mcpGauge in src/services/cockpit/mcpGauge.ts (its project-file census and the untrustedWorkspaceHeadless check), not the check'}`)
   if (!cond) failures++
 }
 

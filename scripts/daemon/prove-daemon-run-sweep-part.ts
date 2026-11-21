@@ -82,20 +82,20 @@ try {
     }) as never,
   })
   await settle()
-  check('the boot reconciles the records against the runners the daemon rosters or an older daemon hosts, takes the census and the stamp of the records file, and arms the reconcile tick', did.join(' · ') === ['reconcile the records against concourse-w1 concourse-w9', 'take the boot census', 'stamp of concourse-workers.json', 'arm "the reconcile tick"'].join(' · '), did)
+  check('the boot reconciles the records against the runners the daemon rosters or an older daemon hosts, takes the census and the stamp of the records file, and arms the reconcile tick', did.join(' · ') === ['reconcile the records against concourse-w1 concourse-w9', 'take the boot census', 'stamp of concourse-workers.json', 'arm "the reconcile tick"'].join(' · '), `${JSON.stringify(did)} — compare with the order of steps in armReconcile in src/daemon/run/sweep.ts (reconcile, boot census, stamp, armPeriodic)`)
 
   did.length = 0
   rows.push({ short: 'concourse-w4', pid: 14 })
   ;(tick as (() => void) | null)?.()
-  check('a tick after the roster moved reconciles against the new set, retires the idle empty sessions, takes the stamp again and sweeps the idle warm runners through the daemon\'s warm doors', did.join(' · ') === ['stamp of concourse-workers.json', 'reconcile the records against concourse-w1 concourse-w4 concourse-w9', 'retire the idle empty sessions', 'stamp of concourse-workers.json', 'sweep the idle warm runners'].join(' · '), did)
+  check('a tick after the roster moved reconciles against the new set, retires the idle empty sessions, takes the stamp again and sweeps the idle warm runners through the daemon\'s warm doors', did.join(' · ') === ['stamp of concourse-workers.json', 'reconcile the records against concourse-w1 concourse-w4 concourse-w9', 'retire the idle empty sessions', 'stamp of concourse-workers.json', 'sweep the idle warm runners'].join(' · '), `${JSON.stringify(did)} — compare with reconcileTick inside armReconcile in src/daemon/run/sweep.ts (stamp, reconcile, idle retirement, stamp, sweepIdleWarmRunners with the warmDeps it was given)`)
 
   const needs = { liveWorkers: () => ({ live: 0, liveSessions: 0 }), requestShutdown: (signal: string) => note(`ask the way out: ${signal}`), bootStartInstant: INSTANT }
   const facts = (await part.processSweep(state, needs, { action: 'facts' })) as { action: string; facts: { pid: number; ownerPid: number | null; runners: unknown[] } }
-  check('the door answers the facts: this daemon\'s pid, its owner, a row a session record', facts.action === 'facts' && facts.facts.pid === process.pid && facts.facts.ownerPid === 4242 && facts.facts.runners.length === 1, facts)
+  check('the door answers the facts: this daemon\'s pid, its owner, a row a session record', facts.action === 'facts' && facts.facts.pid === process.pid && facts.facts.ownerPid === 4242 && facts.facts.runners.length === 1, `${JSON.stringify(facts)} — see the facts answer built by processSweep in src/daemon/run/sweep.ts (pid, state.currentOwnerPid, one runner per record)`)
   did.length = 0
   const ended = (await part.processSweep(state, needs, { action: 'end', expected: { kind: 'daemon', process: { pid: process.pid }, startToken: INSTANT } as never })) as { ended?: boolean; road?: string }
   immediates.shift()?.()
-  check('asked to end, a daemon nothing uses answers that it ended and then asks the way out as control:processSweep', ended.ended === true && ended.road === 'daemon' && did.join() === 'ask the way out: control:processSweep', [ended, did])
+  check('asked to end, a daemon nothing uses answers that it ended and then asks the way out as control:processSweep', ended.ended === true && ended.road === 'daemon' && did.join() === 'ask the way out: control:processSweep', `${JSON.stringify([ended, did])} — see the daemon branch of the end action in processSweep in src/daemon/run/sweep.ts: a refusal there (owner alive, live workers, open session record, identity unbound) answers ended false`)
 } finally {
   globalThis.setImmediate = realSetImmediate
   rmSync(home, { recursive: true, force: true })

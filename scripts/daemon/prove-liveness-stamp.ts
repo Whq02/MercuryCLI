@@ -11,7 +11,7 @@ const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorke
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix by section above: L1-L5 onSeatRow, onFactsAnswer and onSeatSpawned in src/daemon/sessionSeat.ts (what stamps lastEventAtMs and the stream block), L6 LivePart in src/services/engine-connector/daemon/live.ts and the status frame relay in the turn machine` : ''}`)
   if (!ok) failures++
 }
 

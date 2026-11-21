@@ -8,8 +8,10 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'teardown-tree-home-'))
 
 let failures = 0
+let hint = ''
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  const text = [detail, hint].filter(part => part !== '').join('; ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && text ? ' — ' + text : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -56,6 +58,7 @@ if (process.platform === 'win32') {
 
 section('§1 the cmake build timeout ends the driver AND its descendants')
 if (process.platform !== 'win32') {
+  hint = 'buildTarget in src/services/ide/cppBuild.ts must end the whole process tree of cmake on a timeout, not only the leader (see endProcessTree in src/utils/processGroup.ts)'
   const root = mkdtempSync(join(tmpdir(), 'teardown-tree-cmake-'))
   const shimDir = join(root, 'shim')
   mkdirSync(shimDir)
@@ -89,6 +92,7 @@ if (process.platform !== 'win32') {
 
 section('§2 the language-server stop ends the server AND its descendants')
 if (process.platform !== 'win32') {
+  hint = 'stop() of the client from createLSPClient in src/services/lsp/LSPClient.ts must end the server and its descendants'
   const root = mkdtempSync(join(tmpdir(), 'teardown-tree-lsp-'))
   const pidFile = join(root, 'grandchild.pid')
   const server = join(root, 'fixture-server.mjs')
@@ -144,6 +148,7 @@ if (process.platform !== 'win32') {
 
 section('§4 the win32 survivor half — the reap covers the acted set')
 {
+  hint = 'fix taskkillActedPids in src/utils/processGroup.ts'
   const { taskkillActedPids } = await import('../../src/utils/processGroup.ts')
   const transcript = [
     'SUCCESS: The process with PID 100 (child of PID 7) has been terminated.',
@@ -157,6 +162,7 @@ section('§4 the win32 survivor half — the reap covers the acted set')
 
 section("§5 the shell engine's end ends the brush AND its descendants")
 if (process.platform !== 'win32') {
+  hint = 'endEngineSession in src/utils/shell/engineSession.ts must end the brush process and its descendants'
   const { resolveShellEngine, runEngineCommand, endEngineSession, resetEngineSessionForTest } = await import('../../src/utils/shell/engineSession.ts')
   const resolution = resolveShellEngine('brush')
   if (resolution.engine !== 'brush') {
@@ -187,6 +193,7 @@ if (process.platform !== 'win32') {
 
 section('§6 from the built bundle, under Node: a session interrupted while a search runs ends the search program, though it ignores SIGTERM')
 if (process.platform !== 'win32') {
+  hint = 'an interrupted session must kill the search program it spawned (SIGKILL after SIGTERM is ignored); rebuild dist with bun run build.ts first if the bundle is stale'
   const { spawn } = await import('node:child_process')
   const { realpathSync } = await import('node:fs')
   const { resolve } = await import('node:path')

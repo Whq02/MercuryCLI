@@ -20,28 +20,30 @@ type Message = import('../../src/types/message.ts').Message
 
 section('§A the predicate')
 {
-  check('Skill results are protected', law.isProtectedFromPruning('Skill'))
-  check('a skill-file Read is protected by its path', law.isProtectedFromPruning('Read', { file_path: '/repo/mercury-skills/deploy/SKILL.md' }) && law.isProtectedFromPruning('Read', { file_path: '/Users/x/.mercury/skills/review/SKILL.md' }))
+  check('Skill results are protected', law.isProtectedFromPruning('Skill'), 'fix isProtectedFromPruning in src/services/compact/pruneProtections.ts (PROTECTED_TOOL_NAMES must include Skill)')
+  check('a skill-file Read is protected by its path', law.isProtectedFromPruning('Read', { file_path: '/repo/mercury-skills/deploy/SKILL.md' }) && law.isProtectedFromPruning('Read', { file_path: '/Users/x/.mercury/skills/review/SKILL.md' }), 'fix isProtectedFromPruning in src/services/compact/pruneProtections.ts so a Read of a SKILL.md under mercury-skills or .mercury/skills is protected')
   check(
     'a skill-file Read spelled with Windows separators is protected',
     law.isProtectedFromPruning('Read', { file_path: 'C:\\Users\\x\\.mercury\\skills\\review\\SKILL.md' }) &&
       law.isProtectedFromPruning('FileRead', { file_path: 'C:\\repo\\mercury-skills\\deploy\\SKILL.md' }),
+    'fix isProtectedFromPruning in src/services/compact/pruneProtections.ts so the path match normalises backslashes',
   )
   check(
     'a skill-file Read spelled in another case is protected (win32 folds case)',
     law.isProtectedFromPruning('Read', { file_path: 'C:\\Repo\\Mercury-Skills\\deploy\\SKILL.md' }) &&
       law.isProtectedFromPruning('Read', { file_path: 'C:\\Users\\x\\.mercury\\Skills\\review\\SKILL.md' }),
+    'fix isProtectedFromPruning in src/services/compact/pruneProtections.ts so the path match ignores case',
   )
-  check('an ordinary Windows-spelled Read is NOT protected', !law.isProtectedFromPruning('Read', { file_path: 'C:\\repo\\src\\index.ts' }))
-  check('an ordinary Read is NOT protected', !law.isProtectedFromPruning('Read', { file_path: '/repo/src/index.ts' }))
-  check('Bash/Grep results are NOT protected', !law.isProtectedFromPruning('Bash') && !law.isProtectedFromPruning('Grep'))
-  check('an unnamed tool is not protected (no invented protection)', !law.isProtectedFromPruning(undefined))
+  check('an ordinary Windows-spelled Read is NOT protected', !law.isProtectedFromPruning('Read', { file_path: 'C:\\repo\\src\\index.ts' }), 'fix isProtectedFromPruning in src/services/compact/pruneProtections.ts so it protects only skill files, not every Read')
+  check('an ordinary Read is NOT protected', !law.isProtectedFromPruning('Read', { file_path: '/repo/src/index.ts' }), 'fix isProtectedFromPruning in src/services/compact/pruneProtections.ts so it protects only skill files, not every Read')
+  check('Bash/Grep results are NOT protected', !law.isProtectedFromPruning('Bash') && !law.isProtectedFromPruning('Grep'), 'PROTECTED_TOOL_NAMES in src/services/compact/pruneProtections.ts must not list Bash or Grep')
+  check('an unnamed tool is not protected (no invented protection)', !law.isProtectedFromPruning(undefined), 'isProtectedFromPruning in src/services/compact/pruneProtections.ts must return false when no tool name is given')
 }
 
 section('§B the floor')
 {
-  check('at/below the floor: never blank', law.isBelowPlaceholderFloor(law.PLACEHOLDER_COST_FLOOR_TOKENS) && law.isBelowPlaceholderFloor(1))
-  check('above the floor: blanking may pay', !law.isBelowPlaceholderFloor(law.PLACEHOLDER_COST_FLOOR_TOKENS + 1))
+  check('at/below the floor: never blank', law.isBelowPlaceholderFloor(law.PLACEHOLDER_COST_FLOOR_TOKENS) && law.isBelowPlaceholderFloor(1), 'fix isBelowPlaceholderFloor / PLACEHOLDER_COST_FLOOR_TOKENS in src/services/compact/pruneProtections.ts')
+  check('above the floor: blanking may pay', !law.isBelowPlaceholderFloor(law.PLACEHOLDER_COST_FLOOR_TOKENS + 1), 'isBelowPlaceholderFloor in src/services/compact/pruneProtections.ts must be false above PLACEHOLDER_COST_FLOOR_TOKENS')
 }
 
 section('§C the clearing path honours both laws')
@@ -78,7 +80,7 @@ section('§C the clearing path honours both laws')
     check('the clearing pass armed for the fixture', false, 'projection returned null with MERCURY_TIME_BASED_MC=1')
   } else {
     const text = JSON.stringify(projected.messages)
-    check('the protected Skill result survives verbatim', text.includes(big.slice(0, 100)) && text.includes('skill_1'))
+    check('the protected Skill result survives verbatim', text.includes(big.slice(0, 100)) && text.includes('skill_1'), 'projectTimeBasedMicrocompact in src/services/compact/microCompact.ts must skip results for which isProtectedFromPruning is true')
     const resultOf = (id: string): string => {
       for (const m of projected.messages) {
         const content = (m as { message?: { content?: unknown } }).message?.content
@@ -88,10 +90,10 @@ section('§C the clearing path honours both laws')
       }
       return ''
     }
-    check('Skill + skill-file reads keep their bytes', resultOf('skill_1').includes('xxxx') && resultOf('read_skill').includes('xxxx'))
-    check('the BIG ordinary Bash result cleared to a digest', !resultOf('bash_big').includes('xxxx') && resultOf('bash_big').length > 2)
-    check('the SMALL result stays (placeholder floor)', resultOf('bash_small').includes('tiny'))
-    check('the most recent compactable result stays (keep-recent)', resultOf('bash_recent').includes('xxxx'))
+    check('Skill + skill-file reads keep their bytes', resultOf('skill_1').includes('xxxx') && resultOf('read_skill').includes('xxxx'), 'projectTimeBasedMicrocompact in src/services/compact/microCompact.ts must pass the tool input to isProtectedFromPruning so skill-file Reads keep their bytes')
+    check('the BIG ordinary Bash result cleared to a digest', !resultOf('bash_big').includes('xxxx') && resultOf('bash_big').length > 2, 'projectTimeBasedMicrocompact in src/services/compact/microCompact.ts must still clear large unprotected results')
+    check('the SMALL result stays (placeholder floor)', resultOf('bash_small').includes('tiny'), 'projectTimeBasedMicrocompact in src/services/compact/microCompact.ts must consult isBelowPlaceholderFloor before clearing')
+    check('the most recent compactable result stays (keep-recent)', resultOf('bash_recent').includes('xxxx'), 'projectTimeBasedMicrocompact in src/services/compact/microCompact.ts must keep the newest results (keepRecent)')
   }
 }
 

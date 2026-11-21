@@ -17,8 +17,8 @@ console.log(' glob env toggles — ignore files apply by default; the hidden tog
 console.log('============================================================')
 
 const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
-check('the flag registry carries no row for it', !FLAG_REGISTRY.some(f => f.env === RETIRED))
-check('the hidden toggle keeps its row', FLAG_REGISTRY.some(f => f.env === 'MERCURY_GLOB_HIDDEN' && f.kind === 'default-on'))
+check('the flag registry carries no row for it', !FLAG_REGISTRY.some(f => f.env === RETIRED), `remove the retired glob toggle's row from the flag rows in src/substrate/flags/tools.ts`)
+check('the hidden toggle keeps its row', FLAG_REGISTRY.some(f => f.env === 'MERCURY_GLOB_HIDDEN' && f.kind === 'default-on'), `restore the MERCURY_GLOB_HIDDEN row with kind 'default-on' in src/substrate/flags/tools.ts`)
 
 section('behavioural mirror: the pure default-on decode (unset/empty ⇒ ON, falsy ⇒ OFF)')
 const truthy = (v: string): boolean => ['1', 'true', 'yes', 'on'].includes(v.toLowerCase().trim())

@@ -18,12 +18,20 @@ const errors = await import('../../src/services/api/errors.ts')
 
 let failures = 0
 let checks = 0
+let sectionHint = ''
+const HINTS: Record<string, string> = {
+  '§1': 'what to change: wireCredentialSource in src/utils/auth.ts (which credential source it names for the env set in the label)',
+  '§2': 'what to change: invalidCredentialWords and getAssistantMessageFromError in src/services/api/errors.ts (the words a 401 shows for that source)',
+  '§3': 'what to change: isInvalidCredentialWords and invalidCredentialWords in src/services/api/errors.ts',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = HINTS[label.slice(0, 2)] ?? HINTS[sectionHint] ?? 'what to change: wireCredentialSource in src/utils/auth.ts or invalidCredentialWords in src/services/api/errors.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${hint}` : ''}`)
 }
 function section(t: string): void {
+  sectionHint = t.slice(0, 2)
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v)

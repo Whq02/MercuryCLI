@@ -56,7 +56,7 @@ let checks = 0
 const check = (label: string, good: boolean, detail = '') => {
   checks++
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good ? ` — ${detail ? detail + ' — ' : ''}the files menu this drive mounts is FilesMenuSlot in src/components/FilesMenuSlot.tsx; compare the printed screen with what this check expects and change the slot's reader or key handling` : ''}`)
 }
 const snapshot = async (scene: Mounted, label: string, cols: number) => {
   if (!frames) return

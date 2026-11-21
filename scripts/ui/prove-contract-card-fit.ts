@@ -2,7 +2,7 @@
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 300)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 300)}` : ''}${!cond ? ' — to fix: change contractCardFit, contractCardTextColumns or the blurb constants in src/components/concourse/ContractOfferCard.tsx, or compactConcourseGeometry in src/components/concourse/compactBoard.ts for the §4 sizes' : ''}`)
 }
 const card = await import('../../src/components/concourse/ContractOfferCard.tsx')
 const board = await import('../../src/components/concourse/compactBoard.ts')

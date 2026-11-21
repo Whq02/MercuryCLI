@@ -17,7 +17,7 @@ delete process.env.MERCURY_SESSION_KIT
 process.chdir(project)
 let failures = 0
 const check = (name: string, ok: boolean) => {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ' — to fix, look at getSkillListingAttachments, getDynamicSkillAttachments, suppressNextSkillListing and resetSentSkillNames in src/utils/attachments/skillListing.ts'}`)
   if (!ok) failures++
 }
 try {

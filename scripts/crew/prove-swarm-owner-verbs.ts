@@ -12,9 +12,11 @@ process.env.MERCURY_CONFIG_DIR = home
 const { open } = await import('../../src/services/crewBoard/store.ts')
 const { CHANNEL_USAGE, parseChannelArgs } = await import('../../src/services/crew/channelCommand.ts')
 let checks = 0
-const check = (label: string, value: unknown) => { assert(value, label); console.log(`PASS ${label}`); checks++ }
+let where = ''
+const check = (label: string, value: unknown) => { assert(value, `${label} — ${where}`); console.log(`PASS ${label}`); checks++ }
 
 console.log('§1 the command grammar')
+where = 'change parseChannelArgs or CHANNEL_USAGE in src/services/crew/channelCommand.ts'
 check('general carries its whole body and refuses blank text', parseChannelArgs('general', 'ship it  now\nplease')?.text === 'ship it  now\nplease' && parseChannelArgs('general', '   ') === null)
 check('team and whisper take the first token as the target, with an optional @ and quotes for a name with spaces', JSON.stringify(parseChannelArgs('team', '@engine the row is wrong')) === JSON.stringify({ target: 'engine', text: 'the row is wrong' }) && JSON.stringify(parseChannelArgs('whisper', '"lists judge" check row 4')) === JSON.stringify({ target: 'lists judge', text: 'check row 4' }))
 check('the body keeps its internal whitespace and newlines', parseChannelArgs('whisper', 'alpha  two  spaces\nand a line')?.text === 'two  spaces\nand a line')
@@ -24,6 +26,7 @@ const painted = (text: string): string => applyMarkdown(text, 'dark', null, 100)
 check('a target without words, or words without a target, answers the usage line, and the placeholders survive the screen\'s markdown', parseChannelArgs('whisper', 'alpha') === null && parseChannelArgs('team', '') === null && painted(CHANNEL_USAGE.whisper) === 'usage: /whisper <name> <text>' && painted(CHANNEL_USAGE.team) === 'usage: /team <name> <text>' && painted(CHANNEL_USAGE.general) === 'usage: /general <text>')
 
 console.log('§2 the target matrix in the store')
+where = 'change postOwner in src/services/crewBoard/store/posting.ts (recipients, target resolution, refusals, retry key), enroll in src/services/crewBoard/store/enrollment.ts (reserved owner name), or boundary in src/services/crewBoard/store/reading.ts'
 {
   let now = 0
   const board = open(join(home, 'verbs.sqlite'), 'verbs', () => now)
@@ -94,6 +97,7 @@ console.log('§2 the target matrix in the store')
 }
 
 console.log('§3 the seam and the command body without a focused session')
+where = 'change runChannelCommand in src/services/crew/channelCommand.ts (the verb body), swarmOwnerPost in src/services/crewBoard/seam.ts, builtinCommands in src/commands.ts (the three verbs), or promptBehindAuthWall in src/utils/messages/authWallHold.ts, whichever this check names'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setOriginalCwd(home); bootstrap.setCwdState(home); bootstrap.setProjectRoot(home)
@@ -141,6 +145,7 @@ await seam.latchSwarmAgent('beta', 'Beta', false, 'engine')
 }
 
 console.log('§4 the typed verb reaches the board from the real screen')
+where = 'the typed verb runs through runChannelCommand in src/services/crew/channelCommand.ts; the screen run is scripts/ui/vshot.py with the scenario from scripts/ui/renderScenarios.ts, so read the owner-verbs-<cols>.txt capture and the .tee.bin in the --captures directory'
 const { resolveCaptureDriver, vshotBudgetMs } = await import('../lib/captureDriver.ts')
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') console.log(`[SKIP] §4 needs the POSIX PTY capture driver; this host has ${driver.kind}`)
@@ -182,8 +187,8 @@ else {
       child.on('error', reject)
       child.on('exit', resolve)
     }).finally(() => clearInterval(observer))
-    assert(enrolled, 'the fixture never observed the board switch')
-    assert.equal(code, 0, stderr)
+    assert(enrolled, 'the fixture never observed the board switch: the screen never painted "Swarm on for new crewmates" after /swarm on; read the .tee.bin in the --captures directory and the /swarm on command in src/commands/swarm/swarm.ts')
+    assert.equal(code, 0, `${stderr} — scripts/ui/vshot.py exited non-zero; read its stderr above and the captures in the --captures directory`)
     const board = open(boardPath, SID, Date.now, true)
     try {
       const owners = board.view().events.filter(e => e.authorRole === 'owner')

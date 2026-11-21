@@ -21,11 +21,20 @@ delete process.env.MERCURY_ANTHROPIC_OAUTH_BASE
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 
 let failures = 0
+let where = 'getSecureStorage in src/utils/secureStorage/index.ts must accept the seed write in the scratch home'
+const WHERES: Record<string, string> = {
+  '§1': 'checkAndRefreshOAuthTokenIfNeeded in src/services/auth/oauthLifecycle.ts must hold the fresh pair in memory when the save is refused, and getOAuthRefreshSaveFailure in src/utils/auth.ts must report it',
+  '§2': 'handleOAuth401Error in src/services/auth/oauthLifecycle.ts must answer true from the held pair without presenting the spent refresh token again',
+  '§3': 'checkAndRefreshOAuthTokenIfNeeded in src/services/auth/oauthLifecycle.ts must present the held refresh token and release the pair once the save lands',
+  '§4': 'the readers in src/utils/auth.ts (getClaudeAIOAuthTokens) must drop a held pair when the store changes under it',
+  '§5': 'checkAndRefreshOAuthTokenIfNeeded in src/services/auth/oauthLifecycle.ts must save the refreshed pair and hold nothing when the store is writable',
+}
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${where}` : ''}`)
 }
 const section = (t: string): void => {
+  where = WHERES[t.slice(0, 2)] ?? where
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

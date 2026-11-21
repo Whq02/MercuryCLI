@@ -15,7 +15,7 @@ let state = getDefaultAppState()
 const setState: SetAppState = update => { state = update(state) as AppState }
 let failures = 0
 const check = (label: string, ok: boolean): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ' — change enqueueAgentNotification (its sentAt and notified handling) and the completion end time kept per registration in src/tasks/LocalAgentTask/LocalAgentTask.tsx'}`)
   if (!ok) failures++
 }
 const realNow = Date.now

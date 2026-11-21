@@ -6,7 +6,7 @@ import { existsSync } from 'node:fs'
 let fail = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) fail = 1
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix: searchToolsWithKeywords and the description cache in src/tools/ToolSearchTool/ToolSearchTool.ts; the card checks read compileToolCapabilityCard in src/utils/capability/manifest.ts' : ''}`)
 }
 
 const { getAllBaseTools } = await import('../../src/tools.ts')

@@ -12,11 +12,16 @@ const csHome = mkdtempSync(path.join(tmpdir(), 'repeated-target-cs-'))
 process.env.MERCURY_CHANGESET_DIR = csHome
 
 let failures = 0
+let where = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const text = [detail, where].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && text ? ` — ${text}` : ''}`)
 }
 function section(t: string): void {
+  where = t.startsWith('§1') ? 'fix runTextChangeSetCommit in src/services/changeTransaction/changeSetCommit.ts (the repeated-target refusal and the path locks it takes)'
+    : t.startsWith('§2') ? 'fix runMercuryLspOp in src/tools/LSPTool/mercuryOps.ts so an LSP rename that spells one document two ways applies one merged edit set to one target'
+    : ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

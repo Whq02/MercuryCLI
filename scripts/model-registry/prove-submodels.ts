@@ -25,12 +25,20 @@ const { providerDisplayName } = await import('../../src/services/providers/route
 const { getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.ts')
 const { noteCredentialChange } = await import('../../src/utils/accounts/signInLedger.ts')
 
+const SLOTS_HINT = 'change composeSubModelRegistry, subModelConnectHome, resolveSubModel or setSubModel in src/services/model/subModelSlots.ts'
+const SECTION_HINTS: Record<string, string> = {
+  '6': 'change the Fable rows in getModelOptions (src/services/model/modelOptions.ts) or how composeSubModelRegistry (src/services/model/subModelSlots.ts) lists them',
+  '7': 'change providerFamilyPresences (src/services/providers/providerUsage.ts), resolveOpenaiAccount (src/services/providers/openai/openaiAccounts.ts) or buildProviderSnapshot (src/services/providers/modelRegistry.ts) so the presence, the registry rows and the dispatch gate read one credential truth',
+  '8': 'change composeSubModelRegistry (src/services/model/subModelSlots.ts) so it lists the rows getModelOptions (src/services/model/modelOptions.ts) offers, carriers included',
+}
+let sectionHint = SLOTS_HINT
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${sectionHint}` : ''}`)
 }
 function section(t: string): void {
+  sectionHint = SECTION_HINTS[t.split(' ')[0]] ?? SLOTS_HINT
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 

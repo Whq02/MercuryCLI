@@ -16,7 +16,7 @@ const { compatChatCallModel } = await load('src/services/providers/openaicompat/
 const { asSystemPrompt } = await load('src/utils/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await load('src/Tool.ts')
 let failures = 0
-const check = (label: string, yes: boolean): void => { if (!yes) failures++; console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}`) }
+const check = (label: string, yes: boolean, detail = ''): void => { if (!yes) failures++; console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${!yes && detail ? ` — ${detail}` : ''}`) }
 const captured: Array<{ path: string; body: any }> = []
 const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   const path = new URL(req.url).pathname
@@ -37,27 +37,27 @@ try {
     await run(lane, '/accept-'+lane)
     await run(lane, '/accept-'+lane)
     const bodies = captured.filter(r=>r.path === '/accept-'+lane).map(r=>r.body)
-    check(lane+' sends the minted stable key even without tool deferral', bodies.length === 2 && typeof bodies[0].prompt_cache_key === 'string' && bodies[0].prompt_cache_key === bodies[1].prompt_cache_key)
+    check(lane+' sends the minted stable key even without tool deferral', bodies.length === 2 && typeof bodies[0].prompt_cache_key === 'string' && bodies[0].prompt_cache_key === bodies[1].prompt_cache_key, `${bodies.length} requests captured; makeRequestExtra in src/services/providers/openaicompat/compatChatCallModel/prepare.ts must send the same string prompt_cache_key on every turn for the openai-compat and openrouter lanes`)
     const out = await run(lane, '/reject-'+lane)
     await run(lane, '/reject-'+lane)
     const rejected = captured.filter(r=>r.path === '/reject-'+lane).map(r=>r.body)
-    check(lane+' retries only the field refusal and remembers it', rejected.length === 3 && typeof rejected[0].prompt_cache_key === 'string' && rejected.slice(1).every(b=>b.prompt_cache_key === undefined))
-    check(lane+' loses no turn or usage at the refusal', out.some(e=>e.type === 'assistant' && !e.isApiErrorMessage && e.message.usage.output_tokens === 3))
-    if(rejected.length >= 2) { const {prompt_cache_key, ...first}=rejected[0]; check(lane+' retry otherwise preserves exact request bytes', JSON.stringify(first) === JSON.stringify(rejected[1])) }
+    check(lane+' retries only the field refusal and remembers it', rejected.length === 3 && typeof rejected[0].prompt_cache_key === 'string' && rejected.slice(1).every(b=>b.prompt_cache_key === undefined), `${rejected.length} requests (3 expected: refused, retried without the field, then sent without it); sendWithCacheField in src/services/providers/cacheFieldRetry.ts must retry once without prompt_cache_key on a refusal naming it and remember that for the endpoint`)
+    check(lane+' loses no turn or usage at the refusal', out.some(e=>e.type === 'assistant' && !e.isApiErrorMessage && e.message.usage.output_tokens === 3), 'the retried request must still yield an assistant message with the usage of the successful reply; see sendWithCacheField in src/services/providers/cacheFieldRetry.ts and its caller in src/services/providers/openaicompat/compatChatClient.ts')
+    if(rejected.length >= 2) { const {prompt_cache_key, ...first}=rejected[0]; check(lane+' retry otherwise preserves exact request bytes', JSON.stringify(first) === JSON.stringify(rejected[1]), 'the retry must differ from the first request only by the removed prompt_cache_key; see sendWithCacheField in src/services/providers/cacheFieldRetry.ts') }
   }
   console.log('\nrefusals')
   await run('deepseek', '/control')
-  check('other native chat roads receive no added field', captured.filter(r=>r.path==='/control').every(r=>r.body.prompt_cache_key===undefined))
+  check('other native chat roads receive no added field', captured.filter(r=>r.path==='/control').every(r=>r.body.prompt_cache_key===undefined), 'prompt_cache_key is added only for the openai-compat and openrouter lanes in makeRequestExtra in src/services/providers/openaicompat/compatChatCallModel/prepare.ts; other lanes must not receive it')
   await run('openai-compat', '/unrelated')
-  check('an unrelated 400 is not retried as a cache refusal', captured.filter(r=>r.path==='/unrelated').length===1)
+  check('an unrelated 400 is not retried as a cache refusal', captured.filter(r=>r.path==='/unrelated').length===1, 'sendWithCacheField in src/services/providers/cacheFieldRetry.ts must retry only a 400 that names the cache field, not any 400')
   await run('openai-compat', '/new-endpoint')
-  check('one endpoint refusal never disables another endpoint', typeof captured.at(-1)?.body.prompt_cache_key==='string')
+  check('one endpoint refusal never disables another endpoint', typeof captured.at(-1)?.body.prompt_cache_key==='string', 'the remembered refusal must be keyed per endpoint URL, so a new endpoint still gets prompt_cache_key; see sendWithCacheField in src/services/providers/cacheFieldRetry.ts')
   const { switchSession } = await load('src/bootstrap/state.ts')
   switchSession(randomUUID())
   const beforeSession = captured.length
   await run('openai-compat', '/reject-openai-compat')
   const fresh = captured.slice(beforeSession)
-  check('a later session asks the gateway again', fresh.length === 2 && typeof fresh[0].body.prompt_cache_key === 'string' && fresh[1].body.prompt_cache_key === undefined)
+  check('a later session asks the gateway again', fresh.length === 2 && typeof fresh[0].body.prompt_cache_key === 'string' && fresh[1].body.prompt_cache_key === undefined, `${fresh.length} requests after switchSession (2 expected: the field sent again, then the retry without it); the remembered refusal must be scoped to the session id, see sendWithCacheField in src/services/providers/cacheFieldRetry.ts`)
 } finally { server.stop(true); rmSync(home,{recursive:true,force:true}) }
 console.log(`${failures?'FAIL':'PASS'} prompt-cache-delivery: ${failures} failed`)
 process.exit(failures?1:0)

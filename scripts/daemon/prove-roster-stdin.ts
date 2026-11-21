@@ -22,8 +22,8 @@ const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 3 } }))
 let failures = 0
-function check(name: string, pass: boolean): void {
-  console.log(`${pass ? 'PASS' : 'FAIL'} ${name}`)
+function check(name: string, pass: boolean, hint = 'see TaskRoster in src/daemon/roster.ts (registerLongLived, door, reply) and src/daemon/roster/spawn.ts'): void {
+  console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${pass ? '' : `: ${hint}`}`)
   if (!pass) failures++
 }
 try {

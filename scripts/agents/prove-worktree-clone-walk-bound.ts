@@ -89,7 +89,7 @@ if (scenario !== undefined) {
 process.chdir(ROOT)
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + 'change the file-by-file walk in cloneIntoWorktree (answerBoundMs, WALK_QUIET_BOUND_MS) in src/utils/worktreeClone.ts, or the launch that falls back to links in createAgentWorktree in src/services/worktree.ts' : ''}`)
   if (!cond) failures++
 }
 const skip = (label: string): void => console.log(`  [SKIP] ${label}`)

@@ -28,7 +28,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix: §1 compares the live wire against the resumed one (src/services/resume/conversationRecovery.ts loadConversationForResume, src/services/messages/apiView.ts, src/services/messages/pairing.ts); §2 is the prefix ledger (src/services/providers/anthropic/prefixLedger.ts); §3 runs dist/mercury.mjs, so rebuild with bun run build.ts after a src change' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -39,7 +39,7 @@ function note(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — resume history proofs exceeded 240s')
+  console.log('\n❌ TIMEOUT — resume history proofs exceeded 240s — the last section header printed above is the one that hung; §3 spawns dist/mercury.mjs against the fixture API (scripts/lib/fixtureApi.ts)')
   process.exit(1)
 }, 240_000)
 guard.unref?.()

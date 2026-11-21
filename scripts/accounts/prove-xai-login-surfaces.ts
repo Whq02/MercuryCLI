@@ -32,11 +32,11 @@ const framesArg = process.argv.indexOf('--frames')
 const frames = framesArg >= 0 ? process.argv[framesArg + 1] : undefined
 let checks = 0
 let observedScreen = (): string => 'not mounted'
-const check = (label: string, ok: unknown): void => { assert.ok(ok, label); checks++; console.log(`[PASS] ${label}`) }
+const check = (label: string, ok: unknown): void => { assert.ok(ok, `${label}; last screen:\n${observedScreen()}\nchange the component this check paints (src/components/XaiConnect.tsx or src/components/BootLoginsScreen.tsx), the stored xAI keys in src/utils/accounts/providerSecrets.ts, or the sign-in in src/services/providers/xai/xaiOauth.ts`); checks++; console.log(`[PASS] ${label}`) }
 async function until(pred: () => boolean): Promise<void> {
   const deadline = performance.now() + 10000
   while (!pred() && performance.now() < deadline) await settle(10)
-  assert.ok(pred(), `the expected source-rendered frame arrives; observed:\n${observedScreen()}`)
+  assert.ok(pred(), `the expected source-rendered frame arrives within 10 s; observed:\n${observedScreen()}\nlook at the text the calling until() waits for and at src/components/XaiConnect.tsx or src/components/BootLoginsScreen.tsx, which paint it`)
 }
 try {
   let result: { ok: boolean; receipt: string } | undefined

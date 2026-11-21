@@ -24,8 +24,8 @@ for await (const item of settledSidechainMessages(source(), item => {
   observed.push(item)
   if (item.type === 'assistant') publishedUsage = item.message.usage.output_tokens
 })) handedOn.push(item)
-tally.check('recovery progress reaches its raw observer before the response settles', noticeWasImmediate)
-tally.check('the observer sees the raw assistant once, without publishing its unsettled row', publishedUsage === 0 && observed.filter(item => item.type === 'assistant').length === 1 && pendingWasPrivate)
-tally.check('the hand-back still receives one settled assistant followed by its notice', handedOn.filter(item => item.type !== 'stream_event').map(item => 'uuid' in item ? item.uuid : '').join(',') === 'response,retry' && assistant.message.usage.output_tokens === 19)
-tally.check('the progress observer sees every raw event exactly once', observed.length === 4)
+tally.check('recovery progress reaches its raw observer before the response settles', noticeWasImmediate, 'settledSidechainMessages in src/utils/sessionStorage/settledSidechainMessages.ts must call onProgress for each item as it arrives, before holding any row back')
+tally.check('the observer sees the raw assistant once, without publishing its unsettled row', publishedUsage === 0 && observed.filter(item => item.type === 'assistant').length === 1 && pendingWasPrivate, `usage seen by the observer ${publishedUsage}, assistant rows observed ${observed.filter(item => item.type === 'assistant').length}, hand-back stayed private ${pendingWasPrivate} \u2014 settledSidechainMessages in src/utils/sessionStorage/settledSidechainMessages.ts must show the observer each raw item once and hand an assistant row back only at message_stop`)
+tally.check('the hand-back still receives one settled assistant followed by its notice', handedOn.filter(item => item.type !== 'stream_event').map(item => 'uuid' in item ? item.uuid : '').join(',') === 'response,retry' && assistant.message.usage.output_tokens === 19, `${handedOn.filter(item => item.type !== 'stream_event').map(item => 'uuid' in item ? item.uuid : '').join(',')} \u2014 settledSidechainMessages in src/utils/sessionStorage/settledSidechainMessages.ts must hand back the held assistant row, then the notice, at message_stop`)
+tally.check('the progress observer sees every raw event exactly once', observed.length === 4, `${observed.length} items observed, expected 4 \u2014 settledSidechainMessages in src/utils/sessionStorage/settledSidechainMessages.ts must call onProgress once per source item`)
 tally.finish()

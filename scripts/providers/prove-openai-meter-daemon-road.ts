@@ -13,7 +13,7 @@ import { openaiObservedWindowViews } from '../../src/services/providers/provider
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — change adoptOpenaiObservedUsage, recordOpenaiRateHeaders or forgetOpenaiLimitSource in src/services/providers/openai/openaiLimitState.ts (the window views are openaiObservedWindowViews in src/services/providers/providerUsage.ts)' : ''}`)
   if (!ok) failures = 1
 }
 

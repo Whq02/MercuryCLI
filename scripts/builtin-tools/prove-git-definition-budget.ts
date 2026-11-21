@@ -17,7 +17,16 @@ if (!process.argv.includes('--child')) {
   const schema = zodToJsonSchema(GitTool.inputSchema) as { properties: { op: { enum: string[] } } }
   let checks = 0
   let failures = 0
-  const check = (label: string, ok: boolean) => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`) }
+  const check = (label: string, ok: boolean) => {
+    checks++
+    if (!ok) failures++
+    const hint = label.startsWith('all new typed capabilities')
+      ? 'shorten the prompt or the input schema in src/tools/GitTool/GitTool.ts until prompt plus schema fits 4404 characters'
+      : label.startsWith('examples cover')
+        ? 'the op enum in the Git input schema (src/tools/GitTool/GitTool.ts) and the examples list in this file must name the same operations in the same order'
+        : 'the Git input schema and validateInput in src/tools/GitTool/GitTool.ts must accept (or, for the fractional dependency, refuse) this input'
+    console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` | to fix: ${hint}`}`)
+  }
   check(`all new typed capabilities fit the original definition budget: ${prompt.length} + ${JSON.stringify(schema).length} <= 237 + 4167`, prompt.length + JSON.stringify(schema).length <= 4404)
   const examples = [
     { op: 'status' },

@@ -33,10 +33,10 @@ const refresh = (connector: InstanceType<typeof DaemonSessionConnector>): void =
 const words = (connector: InstanceType<typeof DaemonSessionConnector>): string => statusLine(connector.live(), connector.status())
 let checks = 0
 let failures = 0
-function check(label: string, ok: boolean): void {
+function check(label: string, ok: boolean, detail = 'a resumed seat takes its status and model from AdmissionPart.factsArrive (src/services/engine-connector/daemon/admission.ts) and the facts reader in src/services/engine-connector/daemon/facts.ts; read the check label for the law it breaks'): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 const cold = hosted({ ...record, sessionId: 'without-seed' })
 check('a cold resume with no projection waits for a runner answer', words(cold).startsWith('the runner is starting'))

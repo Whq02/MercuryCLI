@@ -31,13 +31,13 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}to fix: planHunks and applyHunks in src/services/changeTransaction/hunks.ts, or the hunks input of validateInput and call in src/tools/FileEditTool/FileEditTool.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — hunks proof exceeded 90s')
+  console.log('\nTIMEOUT — hunks proof exceeded 90s; an Edit call (src/tools/FileEditTool/FileEditTool.ts) or a child process did not return, and the last section printed above is where it stopped')
   process.exit(1)
 }, 90_000)
 guard.unref?.()

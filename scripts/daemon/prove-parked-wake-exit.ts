@@ -35,7 +35,7 @@ let now = NOW
 let failures = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)} — fix by what the label names: the tool's schedule edit and applyConcourseScheduleOp in src/daemon/saturn.ts, the wake firing in tickSaturnOnce in src/daemon/saturnTicker.ts, the park in parkConcourseSession in src/daemon/concourseWorkers/park.ts, the daemon's hold or exit in makeSessionlessBeat in src/daemon/run/owner.ts` : ''}`)
 }
 const record = () => workers.readSessionWorkers()[SHORT]!
 const verdict = (superseded = false): { exit: boolean; hold: string } => {

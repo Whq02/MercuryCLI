@@ -32,15 +32,15 @@ try {
   history.addToHistory('retract me')
   await history.flushHistoryNow()
   const onDisk = readFileSync(join(home, 'history.jsonl'), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l) as { display: string; timestamp: number })
-  check('the fixture: two prompts flushed with one and the same millisecond stamp', onDisk.length === 2 && onDisk[0]!.timestamp === onDisk[1]!.timestamp, JSON.stringify(onDisk))
+  check('the fixture: two prompts flushed with one and the same millisecond stamp', onDisk.length === 2 && onDisk[0]!.timestamp === onDisk[1]!.timestamp, `${JSON.stringify(onDisk)} — the fixture needs both prompts written to history.jsonl with the pinned Date.now; look at addToHistory and flushHistoryNow in src/history.ts`)
   history.removeLastFromHistory()
   const afterOne = await read()
-  check('withdrawing the last prompt hides that prompt alone; the earlier same-millisecond prompt stays', JSON.stringify(afterOne) === JSON.stringify(['keep me']), JSON.stringify(afterOne))
+  check('withdrawing the last prompt hides that prompt alone; the earlier same-millisecond prompt stays', JSON.stringify(afterOne) === JSON.stringify(['keep me']), `${JSON.stringify(afterOne)} — removeLastFromHistory in src/history.ts must retract only the record it withdrew; its retracted-record key (recordKey) must tell two same-millisecond prompts apart`)
   history.addToHistory('pending one')
   history.removeLastFromHistory()
   await history.flushHistoryNow()
   const afterPending = await read()
-  check('withdrawing a prompt still pending drops it before any flush', JSON.stringify(afterPending) === JSON.stringify(['keep me']), JSON.stringify(afterPending))
+  check('withdrawing a prompt still pending drops it before any flush', JSON.stringify(afterPending) === JSON.stringify(['keep me']), `${JSON.stringify(afterPending)} — removeLastFromHistory in src/history.ts must drop a prompt still in the pending queue before it is flushed`)
 } finally {
   Date.now = realNow
 }

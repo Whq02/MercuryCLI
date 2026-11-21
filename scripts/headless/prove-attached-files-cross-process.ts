@@ -14,7 +14,7 @@ const driver = join(scratch, 'window.ts')
 const node = Bun.which('node') ?? 'node'
 let passed = 0
 let failed = 0
-const check = (label: string, ok: boolean): void => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`) }
+const check = (label: string, ok: boolean, detail?: string): void => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` | ${detail}` : ''}`) }
 writeFileSync(driver, `
 import { readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -87,17 +87,17 @@ try {
       await host.prompt('Read the three files.')
       await host.waitFor('read turn ended', row => row.type === 'outcome' && row.turn === 1)
       const loaded = view()
-      check(`${kind}: the detail does not repeat the path that labels its row`, loaded.concise.includes('Cursor · loaded with src/**'))
-      check(`${kind}: seven rows fit instead of stopping at five, and overflow uses the actual space`, loaded.layout.roomy?.visibleOptionCount === 7 && loaded.layout.crowded?.visibleOptionCount === 3)
-      check(`${kind}: a long path wraps above its when-words at narrow widths`, loaded.layout.narrow?.layout === 'compact-vertical' && loaded.layout.narrow.visibleOptionCount === 8)
-      check(`${kind}: all three attachment records reach the other process`, sources.every(file => loaded.messages.includes(join(project, file))))
-      check(`${kind}: the scoped row says loaded without that process owning the runner cache`, loaded.rows.some(row => row.includes('.cursor/rules/x.mdc') && row.endsWith('loaded with src/**')))
-      check(`${kind}: the other tool and native nested guides have loaded rows`, ['sub/GEMINI.md', 'own/MERCURY.md'].every(file => loaded.rows.some(row => row.includes(file) && row.endsWith('loaded with its folder'))))
+      check(`${kind}: the detail does not repeat the path that labels its row`, loaded.concise.includes('Cursor · loaded with src/**'), 'change listingRowWords in src/services/instructions/listing.ts so the concise row (shownPath empty) carries only the when-words')
+      check(`${kind}: seven rows fit instead of stopping at five, and overflow uses the actual space`, loaded.layout.roomy?.visibleOptionCount === 7 && loaded.layout.crowded?.visibleOptionCount === 3, 'change memoryFileListLayout in src/components/memory/memoryCentreLayout.ts so seven rows fit a roomy list and a crowded one shows the rows its budget allows')
+      check(`${kind}: a long path wraps above its when-words at narrow widths`, loaded.layout.narrow?.layout === 'compact-vertical' && loaded.layout.narrow.visibleOptionCount === 8, 'change memoryFileListLayout in src/components/memory/memoryCentreLayout.ts so a long label at width 74 picks compact-vertical')
+      check(`${kind}: all three attachment records reach the other process`, sources.every(file => loaded.messages.includes(join(project, file))), 'the transcript read by the other process lacks a nested_memory attachment; check that src/services/attachments/nestedMemory.ts records it and that conversationRecovery restores it')
+      check(`${kind}: the scoped row says loaded without that process owning the runner cache`, loaded.rows.some(row => row.includes('.cursor/rules/x.mdc') && row.endsWith('loaded with src/**')), 'change listingRowWords in src/services/instructions/listing.ts so a scoped rule read in the session says loaded with its globs')
+      check(`${kind}: the other tool and native nested guides have loaded rows`, ['sub/GEMINI.md', 'own/MERCURY.md'].every(file => loaded.rows.some(row => row.includes(file) && row.endsWith('loaded with its folder'))), 'change attachedRows in src/services/instructions/listing.ts so nested guides read in the session list as loaded with its folder')
       await host.prompt('/compact')
       await host.waitFor('fold turn ended', row => row.type === 'outcome' && row.turn === 2)
       const folded = view()
-      check(`${kind}: the real fold drops every attachment from the visible segment`, loaded.boundaries === 0 && folded.boundaries > 0 && folded.visible.length === 0)
-      check(`${kind}: after the fold the scoped row says loads and neither nested guide is listed`, folded.rows.some(row => row.includes('.cursor/rules/x.mdc') && row.endsWith('loads with src/**')) && ['sub/GEMINI.md', 'own/MERCURY.md'].every(file => !folded.rows.some(row => row.includes(file))))
+      check(`${kind}: the real fold drops every attachment from the visible segment`, loaded.boundaries === 0 && folded.boundaries > 0 && folded.visible.length === 0, 'a compact must leave no nested instruction in the visible segment; check instructionsInMessages in src/services/instructions/attachedText.ts and the fold in src/services/resume/conversationRecovery.ts')
+      check(`${kind}: after the fold the scoped row says loads and neither nested guide is listed`, folded.rows.some(row => row.includes('.cursor/rules/x.mdc') && row.endsWith('loads with src/**')) && ['sub/GEMINI.md', 'own/MERCURY.md'].every(file => !folded.rows.some(row => row.includes(file))), 'change listingRowWords and attachedRows in src/services/instructions/listing.ts so after a fold the scoped row says loads and nested guides drop out')
     } finally {
       await host.stop()
       await api.close()

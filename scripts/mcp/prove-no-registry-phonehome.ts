@@ -252,16 +252,16 @@ if (process.platform === 'win32') {
     execFileSync('sleep', ['0.05'])
   }
   const ownedRow = existsSync(ownedPids) ? readFileSync(ownedPids, 'utf8').split('\n').find(row => row.startsWith(`${owned.pid}\t`)) ?? '' : ''
-  check('an owned child registers itself with its pid AND its start token', ownedRow !== '' && ownedRow.split('\t')[1] === getProcessStartToken(owned.pid ?? -1), ownedRow)
+  check('an owned child registers itself with its pid AND its start token', ownedRow !== '' && ownedRow.split('\t')[1] === getProcessStartToken(owned.pid ?? -1), `${ownedRow} | the preload's ps lstart row must equal getProcessStartToken (src/utils/ownerWatch.ts); fix the tripwire preload written in this file or that function`)
   writeFileSync(ownedPids, `${bystander.pid}\tThu Jan  1 00:00:00 1970\n${bystander.pid}\n${ownedRow}\n`, { flag: 'w' })
   const ownedExit = new Promise<string | null>(resolve => owned.once('exit', (_code, signal) => resolve(signal)))
   const { swept, refused } = sweepOwned()
   const signal = await Promise.race([ownedExit, new Promise<string | null>(resolve => setTimeout(() => resolve('still running'), 5_000))])
-  check('the sweep reports and ends the owned child whose identity matches', swept.includes(String(owned.pid)) && signal === 'SIGTERM', `${swept} · ${String(signal)}`)
-  check('a stale record naming a LIVE pid with a different start token is refused, not signalled (pid reuse)', refused.includes(`${bystander.pid} recorded=Thu Jan  1 00:00:00 1970 live=`) && !swept.includes(String(bystander.pid)), refused)
-  check('a record with no start token is refused as uncertain identity', refused.includes(`${bystander.pid} recorded=(none)`), refused)
+  check('the sweep reports and ends the owned child whose identity matches', swept.includes(String(owned.pid)) && signal === 'SIGTERM', `${swept} · ${String(signal)} | sweepOwned in this file must SIGTERM a roster row whose pid and start token match`)
+  check('a stale record naming a LIVE pid with a different start token is refused, not signalled (pid reuse)', refused.includes(`${bystander.pid} recorded=Thu Jan  1 00:00:00 1970 live=`) && !swept.includes(String(bystander.pid)), `${refused} | sweepOwned in this file must refuse a row whose recorded start token differs from the live one`)
+  check('a record with no start token is refused as uncertain identity', refused.includes(`${bystander.pid} recorded=(none)`), `${refused} | sweepOwned in this file must refuse a row that carries no start token`)
   await new Promise(resolve => setTimeout(resolve, 300))
-  check('the unrelated process named by the stale records is still running untouched', bystanderEnded === null && alive(bystander.pid ?? -1), String(bystanderEnded))
+  check('the unrelated process named by the stale records is still running untouched', bystanderEnded === null && alive(bystander.pid ?? -1), `${String(bystanderEnded)} | the bystander died or was signalled; sweepOwned in this file must signal only roster rows whose recorded start token matches the live one`)
   try {
     if (bystander.pid === undefined || bystander.pid <= 0) throw new Error('the bystander has no pid of its own')
     process.kill(-bystander.pid, 'SIGTERM')
@@ -276,7 +276,7 @@ if (process.platform === 'win32') {
       return ''
     }
   })()
-  check('the bystander and its whole process group are observed exited after the control', bystanderEnded !== null && treeLeft === '', `${String(bystanderEnded)} · group=${treeLeft}`)
+  check('the bystander and its whole process group are observed exited after the control', bystanderEnded !== null && treeLeft === '', `${String(bystanderEnded)} · group=${treeLeft} | the control's own cleanup (process.kill of the bystander's group) did not end it; look for a stray sleep and kill it`)
   rmSync(ownedPids, { force: true })
 }
 
@@ -292,20 +292,20 @@ console.log('[1] controls: the tripwire is SEEN firing on every layer it guards'
   }
   rmSync(netlog, { force: true })
   run("require('node:http').get('http://203.0.113.1:80/')")
-  check('control: http.get lands in the log', netLines().some(l => l.startsWith('http.get http://203.0.113.1')), netLines().join(' · '))
+  check('control: http.get lands in the log', netLines().some(l => l.startsWith('http.get http://203.0.113.1')), netLines().join(' · ') + ' | the tripwire preload written by this file (tripwire.cjs) must log this call by patching node:http')
   rmSync(netlog, { force: true })
   run(`require('node:https').get(${JSON.stringify(REGISTRY_URL)})`)
   check(
     'control: https.get spelling the registry path lands in the log',
     netLines().some(l => l.startsWith('https.get ') && l.includes(REGISTRY_HOSTPATH)),
-    netLines().join(' · '),
+    netLines().join(' · ') + ' | the tripwire preload written by this file (tripwire.cjs) must log https.get with the full host and path',
   )
   rmSync(netlog, { force: true })
   run("require('node:tls').connect({ host: '203.0.113.1', port: 443 })")
-  check('control: a raw TLS connect lands in the log as tcp', netLines().some(l => l === 'tcp 203.0.113.1:443'), netLines().join(' · '))
+  check('control: a raw TLS connect lands in the log as tcp', netLines().some(l => l === 'tcp 203.0.113.1:443'), netLines().join(' · ') + ' | the tripwire preload written by this file (tripwire.cjs) must log the net.Socket connect as tcp host:port')
   rmSync(netlog, { force: true })
   run("fetch('http://203.0.113.1/x').catch(() => {})")
-  check('control: fetch lands in the log', netLines().some(l => l.startsWith('fetch http://203.0.113.1/x')), netLines().join(' · '))
+  check('control: fetch lands in the log', netLines().some(l => l.startsWith('fetch http://203.0.113.1/x')), netLines().join(' · ') + ' | the tripwire preload written by this file (tripwire.cjs) must log globalThis.fetch')
   rmSync(netlog, { force: true })
   if (process.platform === 'win32') {
     console.log('  [SKIP] not read on Windows: execFileSync(git) without shell does not run .cmd shims')
@@ -314,7 +314,7 @@ console.log('[1] controls: the tripwire is SEEN firing on every layer it guards'
       execFileSync('git', ['--version'], { env: childEnv(controlHome), cwd, timeout: 20_000, stdio: ['ignore', 'pipe', 'pipe'] })
     } catch {
     }
-    check('control: the git shim logs a spawn', shimHits().includes('git --version'), shimHits())
+    check('control: the git shim logs a spawn', shimHits().includes('git --version'), shimHits() + ' | the git shim written at the top of this file must append each call to SHIM_LOG, and childEnv must put shimDir first on PATH')
     rmSync(shimLog, { force: true })
   }
 }
@@ -327,11 +327,11 @@ console.log('[2] an EMPTY config home, booted headless: no registry request')
   console.log(`     exit ${result.code}${result.signal ? ' signal ' + result.signal : ''}; stderr: ${result.stderr.trim().slice(0, 200).replace(/\n/g, ' ↵ ')}`)
   census('empty home', result.lines)
   spawnCensus('empty home')
-  check('empty home: zero requests to the MCP registry', registryHits(result.lines).length === 0, registryHits(result.lines).join(' · '))
-  check('empty home: zero requests to the vendor API host', vendorHostHits(result.lines).length === 0, vendorHostHits(result.lines).join(' · '))
-  check('empty home: no ssh and no git network verb spawned', networkSpawns() === '', networkSpawns())
-  check('empty home: nothing left running', result.leftovers === '', result.leftovers)
-  check('empty home: no owned record was refused for uncertain identity', result.refused === '', result.refused)
+  check('empty home: zero requests to the MCP registry', registryHits(result.lines).length === 0, registryHits(result.lines).join(' · ') + ' | a plain boot contacted the MCP registry; remove the request from the boot path (the dist spells the request that the log line names)')
+  check('empty home: zero requests to the vendor API host', vendorHostHits(result.lines).length === 0, vendorHostHits(result.lines).join(' · ') + ' | a plain boot contacted the vendor API host; find the caller from the logged request and stop it running at boot')
+  check('empty home: no ssh and no git network verb spawned', networkSpawns() === '', networkSpawns() + ' | a boot spawned ssh or a git network verb; the shim log rows name which, find who spawns it')
+  check('empty home: nothing left running', result.leftovers === '', result.leftovers + ' | a child process of the boot outlived the run; the listed pid and args name it, make its owner stop it at exit')
+  check('empty home: no owned record was refused for uncertain identity', result.refused === '', result.refused + ' | a pid in the owned-pids roster has a start token that differs from the live process; see the tripwire preload row format and getProcessStartToken in src/utils/ownerWatch.ts')
 }
 
 console.log('[3] a SEEDED home (onboarded, trusted cwd, approved env key): the boot passes the prefetch stage, no registry request')
@@ -345,13 +345,13 @@ console.log('[3] a SEEDED home (onboarded, trusted cwd, approved env key): the b
   check(
     'seeded home: the boot reached the operator\'s own model call (the prefetch stage is behind it)',
     reachedModelCall(result),
-    (result.lines.join(' · ') || '(request log empty)') + ' | stderr: ' + result.stderr.trim().slice(0, 120),
+    (result.lines.join(' · ') || '(request log empty)') + ' | stderr: ' + result.stderr.trim().slice(0, 120) + ' | the headless run never reached the model call at ANTHROPIC_BASE_URL (127.0.0.1:9); read stderr for the stage that stopped it',
   )
-  check('seeded home: zero requests to the MCP registry', registryHits(result.lines).length === 0, registryHits(result.lines).join(' · '))
-  check('seeded home: zero requests to the vendor API host', vendorHostHits(result.lines).length === 0, vendorHostHits(result.lines).join(' · '))
-  check('seeded home: no ssh and no git network verb spawned', networkSpawns() === '', networkSpawns())
-  check('seeded home: nothing left running', result.leftovers === '', result.leftovers)
-  check('seeded home: no owned record was refused for uncertain identity', result.refused === '', result.refused)
+  check('seeded home: zero requests to the MCP registry', registryHits(result.lines).length === 0, registryHits(result.lines).join(' · ') + ' | a plain boot contacted the MCP registry; remove the request from the boot path (the dist spells the request that the log line names)')
+  check('seeded home: zero requests to the vendor API host', vendorHostHits(result.lines).length === 0, vendorHostHits(result.lines).join(' · ') + ' | a plain boot contacted the vendor API host; find the caller from the logged request and stop it running at boot')
+  check('seeded home: no ssh and no git network verb spawned', networkSpawns() === '', networkSpawns() + ' | a boot spawned ssh or a git network verb; the shim log rows name which, find who spawns it')
+  check('seeded home: nothing left running', result.leftovers === '', result.leftovers + ' | a child process of the boot outlived the run; the listed pid and args name it, make its owner stop it at exit')
+  check('seeded home: no owned record was refused for uncertain identity', result.refused === '', result.refused + ' | a pid in the owned-pids roster has a start token that differs from the live process; see the tripwire preload row format and getProcessStartToken in src/utils/ownerWatch.ts')
 }
 
 console.log('[4] a home with MCP servers CONFIGURED (http · sse · stdio at user scope · a stdio server that dies on the revision probe): the configured servers are the only MCP connects')
@@ -372,33 +372,33 @@ console.log('[4] a home with MCP servers CONFIGURED (http · sse · stdio at use
   writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n')
   const result = boot(DIST, home)
   const probeExitSpawned = existsSync(probeExitSpawns) ? readFileSync(probeExitSpawns, 'utf8').split('\n').filter(line => line !== '').length : 0
-  check('MCP home: the probe-exit server was spawned exactly twice — the probed process and its respawn under the kill owner', probeExitSpawned === 2, `${probeExitSpawned} spawns`)
-  check('MCP home: the probe-exit server connected on its respawn (no startup warning on stderr names it)', !result.stderr.includes('fixture-probe-exit'), result.stderr.trim().slice(0, 300))
+  check('MCP home: the probe-exit server was spawned exactly twice — the probed process and its respawn under the kill owner', probeExitSpawned === 2, `${probeExitSpawned} spawns | the MCP stdio connect path must probe once and respawn once for a server that exits before initialize`)
+  check('MCP home: the probe-exit server connected on its respawn (no startup warning on stderr names it)', !result.stderr.includes('fixture-probe-exit'), result.stderr.trim().slice(0, 300) + ' | the respawned stdio server failed to connect; see scripts/mcp/_fixture-stdio-server.mjs for how its mode file drives it')
   console.log(`     exit ${result.code}${result.signal ? ' signal ' + result.signal : ''}; stderr: ${result.stderr.trim().slice(0, 200).replace(/\n/g, ' ↵ ')}`)
   census('MCP-configured home', result.lines)
   spawnCensus('MCP-configured home')
   check(
     'MCP home: the boot reached the operator\'s own model call (MCP connect and the prefetch stage are behind it)',
     reachedModelCall(result),
-    (result.lines.join(' · ') || '(request log empty)') + ' | stderr: ' + result.stderr.trim().slice(0, 120),
+    (result.lines.join(' · ') || '(request log empty)') + ' | stderr: ' + result.stderr.trim().slice(0, 120) + ' | the headless run never reached the model call at ANTHROPIC_BASE_URL (127.0.0.1:9); read stderr for the stage that stopped it',
   )
   check(
     'MCP home: the configured http server is connected (the operator\'s own server, not a registry)',
     result.lines.some(l => l.includes('127.0.0.1:34017')),
-    result.lines.join(' · '),
+    result.lines.join(' · ') + ' | the configured http server in the seeded .mercury.json was never connected at boot',
   )
-  check('MCP home: zero requests to the MCP registry', registryHits(result.lines).length === 0, registryHits(result.lines).join(' · '))
-  check('MCP home: zero requests to the vendor API host', vendorHostHits(result.lines).length === 0, vendorHostHits(result.lines).join(' · '))
-  check('MCP home: no ssh and no git network verb spawned', networkSpawns() === '', networkSpawns())
-  check('MCP home: nothing left running', result.leftovers === '', result.leftovers)
-  check('MCP home: no owned record was refused for uncertain identity', result.refused === '', result.refused)
+  check('MCP home: zero requests to the MCP registry', registryHits(result.lines).length === 0, registryHits(result.lines).join(' · ') + ' | a plain boot contacted the MCP registry; remove the request from the boot path (the dist spells the request that the log line names)')
+  check('MCP home: zero requests to the vendor API host', vendorHostHits(result.lines).length === 0, vendorHostHits(result.lines).join(' · ') + ' | a plain boot contacted the vendor API host; find the caller from the logged request and stop it running at boot')
+  check('MCP home: no ssh and no git network verb spawned', networkSpawns() === '', networkSpawns() + ' | a boot spawned ssh or a git network verb; the shim log rows name which, find who spawns it')
+  check('MCP home: nothing left running', result.leftovers === '', result.leftovers + ' | a child process of the boot outlived the run; the listed pid and args name it, make its owner stop it at exit')
+  check('MCP home: no owned record was refused for uncertain identity', result.refused === '', result.refused + ' | a pid in the owned-pids roster has a start token that differs from the live process; see the tripwire preload row format and getProcessStartToken in src/utils/ownerWatch.ts')
 }
 
 console.log('[5] the built binary spells neither the registry host+path nor its versioned path')
 {
   const dist = readFileSync(DIST, 'utf8')
-  check(`dist: zero "${REGISTRY_HOSTPATH}"`, !dist.includes(REGISTRY_HOSTPATH))
-  check(`dist: zero "${REGISTRY_VERSIONED}"`, !dist.includes(REGISTRY_VERSIONED))
+  check(`dist: zero "${REGISTRY_HOSTPATH}"`, !dist.includes(REGISTRY_HOSTPATH), 'the built dist spells the registry host and path; remove that spelling from src and rebuild with bun run build.ts')
+  check(`dist: zero "${REGISTRY_VERSIONED}"`, !dist.includes(REGISTRY_VERSIONED), 'the built dist spells the registry versioned path; remove that spelling from src and rebuild with bun run build.ts')
 }
 
 console.log('[6] A/B control: a build that still carries the prefetch shows the registry request under the same drive')

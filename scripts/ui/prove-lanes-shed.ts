@@ -1,10 +1,12 @@
 #!/usr/bin/env bun
 import { densityPlan, HELM_DENSITY_FLOOR } from '../../src/utils/helmDensity.ts'
 
+const D = 'src/utils/helmDensity.ts'
+
 
 let fail = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail && !ok ? ` — ${detail}` : ''}`)
   if (!ok) fail = 1
 }
 
@@ -13,6 +15,7 @@ t(
   (['calm', 'active', 'waiting', 'review'] as const).every(
     activity => densityPlan(activity, 40).shedOrder[0] === 'workbench',
   ),
+  `densityPlan must list 'workbench' first in shedOrder for every activity (${D})`,
 )
 t(
   'and no mode can shed a floor section (the product plan, all four activities)',
@@ -24,6 +27,7 @@ t(
       )
     }),
   ),
+  `densityPlan must never put a HELM_DENSITY_FLOOR section in shedOrder at 40 or 24 rows (${D})`,
 )
 
 if (fail) {

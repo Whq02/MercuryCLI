@@ -23,7 +23,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   check(
     'j17 runner: green or NAMED skip (never silent)',
     code === 0 || (code === 3 && out.includes('SKIP')),
-    `exit ${code}`,
+    `exit ${code} — scripts/vscode/host-test/run.sh must exit 0, or exit 3 with SKIP on stderr when no VS Code is installed; read its output for the failing extension-host test in scripts/vscode/host-test/suite.cjs`,
   )
 }
 

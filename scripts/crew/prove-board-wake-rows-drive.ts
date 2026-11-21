@@ -24,6 +24,9 @@ const JOB_NOTED = 'JOB-NOTED.'
 const AFTER = 'AFTER-FOLD-REPLY.'
 const BOUNDARY = 'Conversation compacted'
 const PLAIN_NOTICE = /● notice · \d+ lines? [›⌄]/
+const SCENE = 'read the frames this drive printed above; the capture is a hosted --chat window with the swarm on, driven through the capture engine, so an exit other than 0 means the window or the engine failed before the checks below (the tail of its log is in this line)'
+const WAKES = 'a crew-board wake must paint the seat\'s own row and its answer in order, and no plain notice row (the parent paints one per wake); a finished background job keeps its own notice row'
+const FOLD = 'after /compact the transcript rows stay in order below the compact boundary and no plain notice row remains; read the frames printed above to see which row is wrong'
 const textRows = (grid: Grid): string[] => grid.map(row => row.map(cell => cell.c || ' ').join('').replace(/\s+$/, ''))
 const lineOf = (lines: string[], needle: string): number => lines.findIndex(line => line.includes(needle))
 const then = (data: string, awaitText: string, mark?: string): Record<string, unknown> => ({ data, atTick: 999, awaitText, requireAwait: true, minTick: 2, awaitSettleTicks: 3, ...(mark ? { mark } : {}) })
@@ -196,7 +199,7 @@ const live = await capture('live', leg, ['--chat'], [
 stopDaemon(leg)
 
 section('§1 the scene: a hosted window, the swarm on, three posts addressed to the lead at three times, a finished job, then /compact')
-check('the capture ran every send (engine exit 0) and the three posts were written to the board', live.status === 0 && posted === 3, `exit ${live.status} · ${posted} posted · ${live.log.slice(-500)}`)
+check('the capture ran every send (engine exit 0) and the three posts were written to the board', live.status === 0 && posted === 3, `exit ${live.status} · ${posted} posted · ${live.log.slice(-500)}; ${SCENE}; a post that did not land means boardOf found no board.sqlite for the session or open/post in src/services/crewBoard/store.ts refused it`)
 const woken = live.marks.get('woken') ?? []
 const job = live.marks.get('job') ?? []
 const folded = live.marks.get('folded') ?? []
@@ -213,24 +216,24 @@ const inOrder = (lines: string[], needles: string[]): boolean => {
   }
   return true
 }
-check('each post paints as the seat\'s own row and each wake is answered, in order', inOrder(woken, [POSTS[0]!, REPLIES[0]!, POSTS[1]!, REPLIES[1]!, POSTS[2]!, REPLIES[2]!]), woken.filter(line => line.includes('poster') || line.includes('REPLY')).join(' | '))
-check('a background shell runs through all three wakes, as a crew would: the daemon asks the runner for its queue each second only while a crewmate, shell or monitor runs, and in a quiet session no wake ever reached the window', lineOf(job, `[Background] ${JOB}`) > lineOf(job, REPLIES[2]!), job.filter(line => line.includes('Background') || line.includes('REPLY')).join(' | '))
-check('live, a wake paints no notice row: woken three times, the frame holds none (the parent paints one a wake)', lineOf(woken, REPLIES[2]!) >= 0 && !woken.some(line => PLAIN_NOTICE.test(line)), woken.filter(line => PLAIN_NOTICE.test(line)).map(line => line.trim()).join(' | '))
-check('…nor does one stand once the job has finished', lineOf(job, JOB_NOTED) >= 0 && !job.some(line => PLAIN_NOTICE.test(line)), job.filter(line => PLAIN_NOTICE.test(line)).map(line => line.trim()).join(' | '))
+check('each post paints as the seat\'s own row and each wake is answered, in order', inOrder(woken, [POSTS[0]!, REPLIES[0]!, POSTS[1]!, REPLIES[1]!, POSTS[2]!, REPLIES[2]!]), woken.filter(line => line.includes('poster') || line.includes('REPLY')).join(' | ') + `; ${WAKES}`)
+check('a background shell runs through all three wakes, as a crew would: the daemon asks the runner for its queue each second only while a crewmate, shell or monitor runs, and in a quiet session no wake ever reached the window', lineOf(job, `[Background] ${JOB}`) > lineOf(job, REPLIES[2]!), job.filter(line => line.includes('Background') || line.includes('REPLY')).join(' | ') + `; the background shell must still be running while the wakes are answered, and its notice must come after the last reply; ${WAKES}`)
+check('live, a wake paints no notice row: woken three times, the frame holds none (the parent paints one a wake)', lineOf(woken, REPLIES[2]!) >= 0 && !woken.some(line => PLAIN_NOTICE.test(line)), woken.filter(line => PLAIN_NOTICE.test(line)).map(line => line.trim()).join(' | ') + `; ${WAKES}`)
+check('…nor does one stand once the job has finished', lineOf(job, JOB_NOTED) >= 0 && !job.some(line => PLAIN_NOTICE.test(line)), job.filter(line => PLAIN_NOTICE.test(line)).map(line => line.trim()).join(' | ') + `; ${WAKES}`)
 
 section('§2 a notice that is not a wake keeps its row: the finished job')
 const jobRow = job.find(line => line.includes(`[Background] ${JOB}`)) ?? ''
-check('the finished job paints its own notice row, the clock, the dot, the plate and the fold mark', /\d{2}:\d{2}:\d{2} ● \[Background\] Hold a seat busy · done · \d+ lines? ›/.test(jobRow), jobRow || job.filter(line => line.includes('Background') || line.includes('notice')).join(' | '))
-check('…and it is answered', lineOf(job, JOB_NOTED) > lineOf(job, `[Background] ${JOB}`), job.filter(line => line.includes('Background') || line.includes(JOB_NOTED)).join(' | '))
+check('the finished job paints its own notice row, the clock, the dot, the plate and the fold mark', /\d{2}:\d{2}:\d{2} ● \[Background\] Hold a seat busy · done · \d+ lines? ›/.test(jobRow), jobRow || job.filter(line => line.includes('Background') || line.includes('notice')).join(' | ') + `; the finished job must paint one notice row: clock, dot, [Background] description, done, line count and the fold mark`)
+check('…and it is answered', lineOf(job, JOB_NOTED) > lineOf(job, `[Background] ${JOB}`), job.filter(line => line.includes('Background') || line.includes(JOB_NOTED)).join(' | ') + '; the lead must answer the finished job with its next turn, below the notice row')
 
 section('§3 after the fold: no notice row is left standing above the boundary')
 const boundaryAt = lineOf(folded, BOUNDARY)
 const above = boundaryAt < 0 ? [] : folded.slice(0, boundaryAt).filter(line => PLAIN_NOTICE.test(line))
-check('the boundary row stands in the frame', boundaryAt >= 0, folded.slice(0, 12).join(' | '))
-check('no notice row stands above the boundary (the base leaves three, one a wake)', boundaryAt >= 0 && above.length === 0, `${above.length} above the boundary: ${above.map(line => line.trim()).join(' | ')}`)
-check('the frame after the fold holds no plain notice row at all', boundaryAt >= 0 && !folded.some(line => PLAIN_NOTICE.test(line)), folded.filter(line => PLAIN_NOTICE.test(line)).map(line => line.trim()).join(' | '))
-check('the rows the fold kept stand below the boundary as they landed: the posts and the replies, in order', boundaryAt >= 0 && inOrder(folded.slice(boundaryAt), [POSTS[0]!, REPLIES[0]!, POSTS[1]!, REPLIES[1]!, POSTS[2]!, REPLIES[2]!]), folded.slice(Math.max(0, boundaryAt)).filter(line => line.includes('poster') || line.includes('REPLY')).join(' | '))
-check('the next turn paints below them', lineOf(after, AFTER) > lineOf(after, REPLIES[2]!) && !after.some(line => PLAIN_NOTICE.test(line)), after.filter(line => line.includes('REPLY') || PLAIN_NOTICE.test(line)).join(' | '))
+check('the boundary row stands in the frame', boundaryAt >= 0, `${folded.slice(0, 12).join(' | ')}; ${FOLD}`)
+check('no notice row stands above the boundary (the base leaves three, one a wake)', boundaryAt >= 0 && above.length === 0, `${above.length} above the boundary: ${above.map(line => line.trim()).join(' | ')}; ${FOLD}`)
+check('the frame after the fold holds no plain notice row at all', boundaryAt >= 0 && !folded.some(line => PLAIN_NOTICE.test(line)), folded.filter(line => PLAIN_NOTICE.test(line)).map(line => line.trim()).join(' | ') + `; ${FOLD}`)
+check('the rows the fold kept stand below the boundary as they landed: the posts and the replies, in order', boundaryAt >= 0 && inOrder(folded.slice(boundaryAt), [POSTS[0]!, REPLIES[0]!, POSTS[1]!, REPLIES[1]!, POSTS[2]!, REPLIES[2]!]), folded.slice(Math.max(0, boundaryAt)).filter(line => line.includes('poster') || line.includes('REPLY')).join(' | ') + `; ${FOLD}`)
+check('the next turn paints below them', lineOf(after, AFTER) > lineOf(after, REPLIES[2]!) && !after.some(line => PLAIN_NOTICE.test(line)), after.filter(line => line.includes('REPLY') || PLAIN_NOTICE.test(line)).join(' | ') + `; the turn after the fold must paint below the kept replies with no notice row; ${FOLD}`)
 
 section('§4 the session resumed in a new window')
 const file = transcriptOf(leg)
@@ -240,9 +243,9 @@ const resumed = await capture('resumed', leg, ['--resume', sid], [then('', AFTER
 stopDaemon(leg)
 const again = resumed.marks.get('resumed') ?? resumed.final
 printFrame('resumed', again)
-check('the resumed window painted the session (engine exit 0)', sid !== '' && resumed.status === 0 && lineOf(again, AFTER) >= 0, `exit ${resumed.status} · ${resumed.log.slice(-400)}`)
-check('it holds no plain notice row', lineOf(again, AFTER) >= 0 && !again.some(line => PLAIN_NOTICE.test(line)), again.filter(line => PLAIN_NOTICE.test(line)).map(line => line.trim()).join(' | '))
-check('…and the rows of the record stand as before: the boundary, the kept posts and replies, the turn after', inOrder(again, [BOUNDARY, POSTS[0]!, REPLIES[0]!, POSTS[2]!, REPLIES[2]!, AFTER]), again.filter(line => line.includes(BOUNDARY) || line.includes('poster') || line.includes('REPLY')).join(' | '))
+check('the resumed window painted the session (engine exit 0)', sid !== '' && resumed.status === 0 && lineOf(again, AFTER) >= 0, `exit ${resumed.status} · ${resumed.log.slice(-400)}; the session id came from the transcript file under the leg's projects folder, and --resume of it must paint the last turn`)
+check('it holds no plain notice row', lineOf(again, AFTER) >= 0 && !again.some(line => PLAIN_NOTICE.test(line)), again.filter(line => PLAIN_NOTICE.test(line)).map(line => line.trim()).join(' | ') + '; a resumed session must paint no plain notice row, as the live one did')
+check('…and the rows of the record stand as before: the boundary, the kept posts and replies, the turn after', inOrder(again, [BOUNDARY, POSTS[0]!, REPLIES[0]!, POSTS[2]!, REPLIES[2]!, AFTER]), again.filter(line => line.includes(BOUNDARY) || line.includes('poster') || line.includes('REPLY')).join(' | ') + '; the resumed window must paint the same rows the record holds, in the order the live window showed them')
 
 await endLeg(leg)
 rmSync(scratch, { recursive: true, force: true })

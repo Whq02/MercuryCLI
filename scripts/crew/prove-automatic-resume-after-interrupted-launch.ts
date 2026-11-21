@@ -35,7 +35,9 @@ let failures = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}`)
+  const arm = /provider answers/.test(label) ? 'armOverloadProbe' : 'armBudgetCutResume'
+  const hint = `${arm} in src/tools/AgentTool/agentToolUtils.ts arms the automatic resume of a paused crewmate; its timer must resume the crewmate from its transcript even when the launching turn was aborted, and lift the row's pause when it cannot`
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${[typeof detail === 'string' ? detail : JSON.stringify(detail), hint].filter(Boolean).join('; ')}` : ''}`)
 }
 const settle = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 async function until(holds: () => boolean, ms: number): Promise<boolean> {

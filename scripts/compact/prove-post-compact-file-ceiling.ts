@@ -13,7 +13,7 @@ let passed = 0
 let failed = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — fix: createPostCompactFileAttachments and linesWithinTokenCeiling in src/services/compact/compact/attachments.ts, or the limits POST_COMPACT_MAX_TOKENS_PER_FILE and POST_COMPACT_TOKEN_BUDGET in src/services/compact/compact/limits.ts'}`)
 }
 
 const bootstrap = await import('../../src/bootstrap/state.ts')

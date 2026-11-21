@@ -45,7 +45,7 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   total++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — change createSealedFileStorage in src/utils/secureStorage/sealedFileStorage.ts or createKeyCustody in src/utils/secureStorage/sealedRecord.ts so this holds (if either module failed to import, the run fell back to the plain store)' : ''}`)
 }
 const section = (title: string): void => {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)

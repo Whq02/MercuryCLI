@@ -18,11 +18,13 @@ type Tool = Parameters<typeof buildSchemaNotSentHint>[0]
 type Message = Parameters<typeof buildSchemaNotSentHint>[1][number]
 
 let failures = 0
+let where = 'change buildSchemaNotSentHint in src/services/tools/toolExecution.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${!cond ? ' — ' + where : ''}`)
 }
-function section(t: string): void {
+function section(t: string, hint = 'change buildSchemaNotSentHint in src/services/tools/toolExecution.ts'): void {
+  where = hint
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
@@ -77,7 +79,7 @@ section('§3 no tool-search tool in the list: silence (never point at a tool tha
   check('null without a tool-search tool', buildSchemaNotSentHint(deferredTool, fresh, withoutSearch, BLOCK_WIRE) === null)
 }
 
-section('§4 a tool whose schema always ships: silence')
+section('§4 a tool whose schema always ships: silence', 'change isDeferredTool in src/tools/ToolSearchTool/prompt.ts or buildSchemaNotSentHint in src/services/tools/toolExecution.ts')
 {
   check('control: the plain tool is not deferred', isDeferredTool(plainTool) === false)
   check('null for a tool that is not deferred', buildSchemaNotSentHint(plainTool, fresh, withSearch, BLOCK_WIRE) === null)
@@ -104,7 +106,7 @@ section('§7 the model read when no model is passed is the engine model')
   delete process.env.MERCURY_MODEL
 }
 
-section('§8 one owner of the load road: the executor spells the select query once, and the build carries the words')
+section('§8 one owner of the load road: the executor spells the select query once, and the build carries the words', 'run `bun run build.ts` to rebuild dist/mercury.mjs, and keep the words and the select query in schemaNotSentWords / loadRoadSentence in src/services/tools/toolExecution.ts')
 {
   const dist = join(ROOT, 'dist', 'mercury.mjs')
   if (!existsSync(dist)) {

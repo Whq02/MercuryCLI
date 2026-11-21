@@ -16,7 +16,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix: the roster freeze and restore are planToolPayload and armToolRosterRestore in src/services/providers/toolEconomy.ts, the record write and restore are boundPrefixRecordToEmit and restoreBoundPrefixFromMessages in src/services/providers/anthropic/boundPrefixRecord.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

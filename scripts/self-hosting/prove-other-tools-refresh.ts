@@ -63,9 +63,9 @@ type Reading = { paths: string[]; first: string; composed: boolean; attached: st
 
 let passed = 0
 let failed = 0
-function check(label: string, ok: boolean, detail = ''): void {
+function check(label: string, ok: boolean, detail = '', hint = ''): void {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${!ok && hint ? ` — ${hint}` : ''}`)
 }
 
 try {
@@ -103,14 +103,14 @@ try {
   const loads = (reading: Reading): boolean => same(reading.paths, OTHERS) && reading.composed && same(reading.attached, scoped) && ['agents-needle', 'guide-needle', 'always-needle'].every(needle => reading.first.includes(needle))
 
   console.log('one session, the instruction caches reset between each step')
-  check("at the start the other tools' files load and a matching file attaches the scoped rule", loads(steps.start), JSON.stringify(steps.start).slice(0, 600))
-  check('a MERCURY.md written into the project changes nothing until the caches are reset', same(steps.unrefreshed.paths, OTHERS), steps.unrefreshed.paths.join(' '))
-  check('after the reset MERCURY.md decides: it alone loads, a matching file attaches nothing, and each other file says which import brings it back', same(steps.decided.paths, [at('MERCURY.md')]) && !steps.decided.composed && steps.decided.attached.length === 0 && steps.decided.first.includes('native-needle') && !steps.decided.first.includes('guide-needle') && steps.decided.listed.length === 3 && steps.decided.listed.every(row => row.includes('not loaded: MERCURY.md decides; import it with @')), JSON.stringify(steps.decided).slice(0, 700))
-  check('with MERCURY.md removed and the caches cleared the others load again and the scoped rule attaches again', loads(steps.undecided), JSON.stringify(steps.undecided).slice(0, 600))
-  check('switched to the native profile in the session, nothing of another tool loads, attaches or is listed', steps.native.paths.length === 0 && steps.native.first === '' && steps.native.attached.length === 0 && steps.native.listed.length === 0, JSON.stringify(steps.native).slice(0, 600))
-  check('switched back, they load again', loads(steps.auto), JSON.stringify(steps.auto).slice(0, 600))
-  check('a guide edited is read as edited at the reset a fold makes', steps.edited.first.includes('edited-guide-needle') && steps.edited.composed && same(steps.edited.attached, scoped), JSON.stringify(steps.edited).slice(0, 700))
-  check("a rule added to a rules folder is read once the folder's five-second listing has aged, as in Mercury's own rules folder", same(steps.aged.paths, [...OTHERS, at('.cursor/rules/c-new.mdc')]) && steps.aged.first.includes('new-always-needle'), steps.aged.paths.join(' '))
+  check("at the start the other tools' files load and a matching file attaches the scoped rule", loads(steps.start), JSON.stringify(steps.start).slice(0, 600), "change what getInstructionFiles in src/services/instructions/engine.ts loads from AGENTS.md, GEMINI.md and .cursor/rules, or what getNestedMemoryAttachmentsForFile in src/services/attachments/nestedMemory.ts attaches")
+  check('a MERCURY.md written into the project changes nothing until the caches are reset', same(steps.unrefreshed.paths, OTHERS), steps.unrefreshed.paths.join(' '), 'getInstructionFiles in src/services/instructions/engine.ts is memoized and must only re-read after resetInstructionFilesCache or clearInstructionFileCaches')
+  check('after the reset MERCURY.md decides: it alone loads, a matching file attaches nothing, and each other file says which import brings it back', same(steps.decided.paths, [at('MERCURY.md')]) && !steps.decided.composed && steps.decided.attached.length === 0 && steps.decided.first.includes('native-needle') && !steps.decided.first.includes('guide-needle') && steps.decided.listed.length === 3 && steps.decided.listed.every(row => row.includes('not loaded: MERCURY.md decides; import it with @')), JSON.stringify(steps.decided).slice(0, 700), 'fix the MERCURY.md-decides rule in getInstructionFiles (src/services/instructions/engine.ts) or the not-loaded wording in listingRowWords (src/services/instructions/listing.ts)')
+  check('with MERCURY.md removed and the caches cleared the others load again and the scoped rule attaches again', loads(steps.undecided), JSON.stringify(steps.undecided).slice(0, 600), 'clearInstructionFileCaches in src/services/instructions/engine.ts must drop the decided state so getInstructionFiles reads the other tools again')
+  check('switched to the native profile in the session, nothing of another tool loads, attaches or is listed', steps.native.paths.length === 0 && steps.native.first === '' && steps.native.attached.length === 0 && steps.native.listed.length === 0, JSON.stringify(steps.native).slice(0, 600), 'setSessionInstructionProfile in src/services/instructions/profile.ts and the profile resolution in src/services/instructions/engine.ts must stop every other tool from loading, attaching or being listed')
+  check('switched back, they load again', loads(steps.auto), JSON.stringify(steps.auto).slice(0, 600), 'setSessionInstructionProfile(null) in src/services/instructions/profile.ts must return to automatic loading after clearInstructionFileCaches')
+  check('a guide edited is read as edited at the reset a fold makes', steps.edited.first.includes('edited-guide-needle') && steps.edited.composed && same(steps.edited.attached, scoped), JSON.stringify(steps.edited).slice(0, 700), "resetInstructionFilesCache('compact') in src/services/instructions/engine.ts must make getInstructionFiles re-read an edited guide")
+  check("a rule added to a rules folder is read once the folder's five-second listing has aged, as in Mercury's own rules folder", same(steps.aged.paths, [...OTHERS, at('.cursor/rules/c-new.mdc')]) && steps.aged.first.includes('new-always-needle'), steps.aged.paths.join(' '), "the rules-folder listing cache (RULES_DIR_LISTING_TTL_MS) in src/services/instructions/discovery.ts must expire after five seconds so clearInstructionFileCaches picks up a new rule")
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

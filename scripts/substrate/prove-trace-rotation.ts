@@ -11,9 +11,11 @@ import {
 import { aggregateByTool } from '../../src/utils/cockpit/traceSnapshot.js'
 
 let failures = 0
+let fixIn = 'src/utils/observability/invocationTrace.ts, maybeTrimTrace (and TRACE_MAX_BYTES / TRACE_KEEP_BYTES)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const shown = [detail, cond ? '' : `change ${fixIn}`].filter(Boolean).join(' · ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
 }
 
 console.log('============================================================')
@@ -67,6 +69,7 @@ check('trimming an under-cap file is a no-op', statSync(path).size === sizeBefor
 
 console.log('\n' + '─'.repeat(76) + '\n aggregateByTool — /trace per-tool rollup')
 {
+  fixIn = 'src/utils/cockpit/traceSnapshot.ts, aggregateByTool'
   const recs = [
     { ts: 't', tool: 'Bash', surface: 'builtin', risk: 'high', ok: true, durationMs: 100 },
     { ts: 't', tool: 'Bash', surface: 'builtin', risk: 'high', ok: true, durationMs: 300 },

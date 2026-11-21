@@ -5,7 +5,8 @@ import { DaemonBreaker } from '../../src/utils/daemonBreaker.js'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const shown = cond || detail ? detail : 'fix the state machine in DaemonBreaker (recordResult, shouldSuppressFire, getState, isFailureExit) in src/utils/daemonBreaker.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

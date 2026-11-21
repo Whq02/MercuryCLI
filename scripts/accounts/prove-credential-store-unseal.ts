@@ -51,10 +51,11 @@ type Fake = {
 
 let total = 0
 let failures = 0
+const WHERE = 'the unseal road lives in src/utils/secureStorage: systemProtector.ts (sealsUnder), sealedStoreStart.ts (startSealedStore), sealedFileStorage.ts (createSealedFileStorage), fileStorage.ts (fileStorageFor), keychainPrefetch.ts (sealedStoreStartFor)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   total++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${WHERE}` : ''}`)
 }
 const section = (title: string): void => {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
@@ -160,12 +161,12 @@ section('§1 the flag\'s second value, read in one place')
   const sealsUnder = system.sealsUnder as ((flag: string | undefined) => boolean) | undefined
   check('with no value the store seals', sealsUnder?.(undefined) === true, String(sealsUnder?.(undefined)))
   check('under unseal it does not', sealsUnder?.('unseal') === false, String(sealsUnder?.('unseal')))
-  check('no other spelling turns sealing off', sealsUnder?.('UNSEAL') === true && sealsUnder?.('plain') === true && sealsUnder?.('') === true)
+  check('no other spelling turns sealing off', sealsUnder?.('UNSEAL') === true && sealsUnder?.('plain') === true && sealsUnder?.('') === true, 'sealsUnder in src/utils/secureStorage/systemProtector.ts must return false only for the exact value unseal')
   check('under unseal Windows still has its protector, to open what is sealed', sealsUnder !== undefined && (system.systemProtectorFor('win32', 'unseal') as { scheme?: string } | null)?.scheme === 'dpapi-user')
-  check('under file it has none, as before', system.systemProtectorFor('win32', 'file') === null)
+  check('under file it has none, as before', system.systemProtectorFor('win32', 'file') === null, 'systemProtectorFor in src/utils/secureStorage/systemProtector.ts must return null for the file value')
   check('on macOS and Linux unseal changes nothing: no protector, so no sealed store to open', sealsUnder !== undefined && system.systemProtectorFor('darwin', 'unseal') === null && system.systemProtectorFor('linux', 'unseal') === null)
   const row = (FLAG_REGISTRY as Array<{ env: string; summary: string; off: string }>).find(flag => flag.env === 'MERCURY_CREDENTIAL_STORE')
-  check('the flag\'s row names the value and what it does', row !== undefined && row.summary.includes("'unseal'") && row.summary.includes('written back in the clear') && row.off.includes('win32: the sealed file'), row?.off)
+  check('the flag\'s row names the value and what it does', row !== undefined && row.summary.includes("'unseal'") && row.summary.includes('written back in the clear') && row.off.includes('win32: the sealed file'), `${row?.off}; edit the MERCURY_CREDENTIAL_STORE row in src/substrate/flags/accounts.ts`)
 }
 
 section('§2 a sealed home reads plain again at the next start, and stays plain')
@@ -268,8 +269,8 @@ section('§4 the choice at start and of the store, by the flag\'s value')
   check('on Windows under unseal the start finds a plain file in the clear already, and asks no census', underUnseal === CLEAR_ALREADY, underUnseal)
   const underNothing = await (startFor('win32', undefined)?.settled ?? Promise.resolve('no start'))
   check('with no value the same start takes the sealing road and asks the census', /^left plain until the next start: this process does not run from a mercury\.mjs/.test(underNothing), underNothing)
-  check('under file there is no start at all', startFor('win32', 'file') === null)
-  check('the file is untouched by all three', same(onDisk(file), { claudeAiOauth: TOKENS }))
+  check('under file there is no start at all', startFor('win32', 'file') === null, 'sealedStoreStartFor in src/utils/secureStorage/keychainPrefetch.ts must return null under the file value')
+  check('the file is untouched by all three', same(onDisk(file), { claudeAiOauth: TOKENS }), raw(file).slice(0, 120))
   const protector = fakeProtector('alice')
   const fileStorageFor = files.fileStorageFor as (protector: Fake | null, seals?: boolean) => Store
   check('the store for a protector seals unless told not to', fileStorageFor(protector).name === 'encrypted-with-plaintext-fallback' && fileStorageFor(protector, true) === fileStorageFor(protector) && fileStorageFor(protector, false).name === 'plaintext' && fileStorageFor(protector, false) !== fileStorageFor(protector), fileStorageFor(protector, false).name)

@@ -5,11 +5,19 @@
 import { join } from 'node:path'
 
 let failures = 0
+let sectionHint = ''
+const SECTION_HINTS: Record<string, string> = {
+  '§2': 'look at DebugTool.checkPermissions in src/tools/DebugTool/DebugTool.ts: its verdict must not read MERCURY_MODEL or any model family',
+  '§3': 'look at the approval message built in DebugTool.checkPermissions in src/tools/DebugTool/DebugTool.ts: it must name the operation and no model family',
+  '§4': 'look at isDapToolCatalogEnabled in src/services/dap/client/adapters.ts and mercuryLspCppEnabled in src/services/lsp/clangdLane.ts: they must depend on MERCURY_DAP, MERCURY_LSP_CPP and adapters only, never on MERCURY_MODEL',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : [detail, sectionHint].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
+  sectionHint = SECTION_HINTS[t.split(' ')[0] ?? ''] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

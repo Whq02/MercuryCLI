@@ -49,7 +49,12 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    const where = /scroll-xlate|overlay|glass/.test(label)
+      ? 'the selection and overlay path: src/ink/geometry/selection.ts, src/ink/geometry/overlay.ts, applyOverlayPass in src/ink/root/overlay-pass.ts, and the terminal replay writeDiffToTerminal in src/ink/session/delivery.ts'
+      : /scroll|sticky|clamp-hold/.test(label)
+        ? 'scroll composition: src/ink/compose-walk.ts (scroll translation) and src/ink/renderer.ts (scrollDrainPending)'
+        : 'frame composition: createRenderer in src/ink/renderer.ts, src/ink/compose-walk.ts and src/ink/compose-buffer.ts (write, blit and incremental paths)'
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}\n    fix: ${where}`)
   }
 }
 

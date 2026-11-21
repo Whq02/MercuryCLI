@@ -16,12 +16,14 @@ delete process.env.MERCURY_NOTICE_DEADLINE_MS
 
 let failures = 0
 let checks = 0
+let where = ''
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${where}` : ''}`)
 }
-function section(t: string): void {
+function section(t: string, hint = ''): void {
+  where = hint
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
@@ -69,7 +71,7 @@ const fresh = (): void => {
   ledger?.setNoticeLedgerClock(() => clockMs)
 }
 
-section('N1 — the ledger at the queue: a completion is unread until a turn takes it')
+section('N1 — the ledger at the queue: a completion is unread until a turn takes it', 'change the ledger in src/services/notices/unreadLedger.ts, or where the queue records into it (enqueue, dequeue, remove, dequeueAllMatching, popById) in src/utils/messageQueueManager.ts')
 if (ledger === null) {
   check('N1 the unread-notice ledger module exists', false, 'src/services/notices/unreadLedger.ts is absent')
 } else {
@@ -115,7 +117,7 @@ if (ledger === null) {
   check('N1 the facts rows list the open rows first, oldest first, then the settled', L.noticeRows()[0]?.kind === 'wake' && L.noticeRows()[1]?.words === 'monitor "build watch" reported' && L.noticeRows().slice(2).every(r => r.state === 'consumed' || r.state === 'retired'), JSON.stringify(L.noticeRows().map(r => [r.kind, r.state])))
 }
 
-section('N2 — a message queued for a sub-agent is unread until its next tool round')
+section('N2 — a message queued for a sub-agent is unread until its next tool round', 'change queuePendingMessage and drainPendingMessages in src/tasks/LocalAgentTask/LocalAgentTask.tsx, or the ledger in src/services/notices/unreadLedger.ts')
 if (ledger === null) {
   check('N2 the ledger module exists', false)
 } else {
@@ -134,7 +136,7 @@ if (ledger === null) {
   check('N2 the agent\'s tool round drains it: read', drained.length === 1 && L.unreadNoticeCount('ag-3') === 0 && L.noticeRows()[0]?.state === 'consumed' && L.noticeRows()[0]?.consumedAtMs === 2_500, JSON.stringify(L.noticeRows()))
 }
 
-section('N3 — the idle nudge: the deadline reads the flag; an idle agent is woken once per notice; a read notice is never nudged')
+section('N3 — the idle nudge: the deadline reads the flag; an idle agent is woken once per notice; a read notice is never nudged', 'change noticeDeadlineMs, startIdleNudge (its sweep) and nudgeWords in src/services/notices/idleNudge.ts; the flag MERCURY_NOTICE_DEADLINE_MS is declared in src/substrate/flags/project.ts')
 if (ledger === null || nudge === null) {
   check('N3 the idle nudge module exists', false, 'src/services/notices/idleNudge.ts is absent')
 } else {
@@ -223,7 +225,7 @@ if (ledger === null || nudge === null) {
   process.env.MERCURY_NOTICE_DEADLINE_MS = '1500'
 }
 
-section('N4 — an agent gone before the nudge: the notice retires with a facts row saying so')
+section('N4 — an agent gone before the nudge: the notice retires with a facts row saying so', 'change agentRecipientState and the retire path of startIdleNudge in src/services/notices/idleNudge.ts')
 if (ledger === null || nudge === null) {
   check('N4 the modules exist', false)
 } else {
@@ -273,7 +275,7 @@ if (ledger === null || nudge === null) {
   void store
 }
 
-section('N5 — the lead\'s view: the count on the roster row, the crew facts, the wire, the crew row')
+section('N5 — the lead\'s view: the count on the roster row, the crew facts, the wire, the crew row', 'change projectWorkRoster in src/services/engine-connector/workRoster.ts, crewAgentFactsOf and crewUnreadLabel in src/services/engine-connector/crewFacts.ts, sessionFactsToWire and sessionFactsFromWire in src/services/engine-connector/seatWire.ts, or the row painting in src/components/mercury-ui/screens/CrewView.tsx')
 if (ledger === null) {
   check('N5 the ledger module exists', false)
 } else {

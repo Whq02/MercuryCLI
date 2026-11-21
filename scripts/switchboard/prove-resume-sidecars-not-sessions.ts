@@ -11,9 +11,21 @@ const SCRATCH = mkdtempSync(join(tmpdir(), 'resume-sidecars-'))
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  const hint = hints[currentSection] ?? ''
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail.slice(0, 600)}${detail && hint ? ' · ' : ''}${hint}` : ''}`)
 }
-const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
+const hints: Record<string, string> = {
+  '§1': 'fix loadTranscriptFile in src/utils/sessionStorage/loading.ts (the snapshot sidecar write) or the scenario setup above',
+  '§2': 'fix the session scan so it skips .receipts sidecars: scanBootCardFacts, projectIdentity, parkedSessionsOf, projectChatCount in src/utils/bootCardFacts.ts',
+  '§3': 'fix readUsageHistory in src/services/usage/usageHistory.ts so it reads transcripts only',
+  '§4': 'fix loadTranscriptFile in src/utils/sessionStorage/loading.ts and transcriptLoadDegradation in src/utils/sessionStorage/transcriptReader.ts',
+  '§5': 'fix readTranscript in src/utils/sessionStorage/transcriptReader.ts and tryLoadResumeSnapshot in src/utils/sessionStorage/resumeSnapshot.ts',
+}
+let currentSection = ''
+const section = (title: string): void => {
+  currentSection = title.slice(0, 2)
+  console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
+}
 
 const loading = await import('../../src/utils/sessionStorage/loading.ts')
 const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')

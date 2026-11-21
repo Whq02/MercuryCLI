@@ -65,26 +65,26 @@ for (const [cols, rows] of SIZES) {
     child.once('close', code => { clearTimeout(wall); resolve(code) })
   })
   try {
-    check(`${tag}: the drive ran to its end`, status === 0 && existsSync(out), `exit=${status}; ${output.slice(-600)}`)
+    check(`${tag}: the drive ran to its end`, status === 0 && existsSync(out), `capture driver failed or wrote no grid; read its output below, and the drive's keystrokes in the sends list above · exit=${status}; ${output.slice(-600)}`)
     if (!existsSync(out)) continue
     const payload = JSON.parse(readFileSync(out, 'utf8')) as { marks?: Mark[] }
     const marks = new Map((payload.marks ?? []).map(mark => [mark.label, rowsOf(mark.grid)]))
     const at = (label: string): string[] => marks.get(label) ?? []
     for (const label of ['open', 'down-3', 'end', 'up-2', 'wheel', 'closed']) printFrame(`${tag} ${label}`, at(label))
     const open = at('open')
-    check(`${tag}: the activity screen opened with the six monitors counted`, open.some(row => row.includes('activity · 6 active')) && open.some(row => row.includes('6 monitors here')), open.slice(0, 4).join(' | '))
-    check(`${tag}: the selected monitor row is painted on open`, cursorRow(open) >= 0 && monitorRows(open).includes(cursorRow(open)), `cursor row ${cursorRow(open)} · monitor rows ${monitorRows(open).join(',')}`)
+    check(`${tag}: the activity screen opened with the six monitors counted`, open.some(row => row.includes('activity · 6 active')) && open.some(row => row.includes('6 monitors here')), `the activity screen header or its monitor count did not paint: check boardListView in src/components/tasks/backgroundTasks/views.tsx (the '${MONITORS} active' subtitle) and monitorsHere in src/components/tasks/useFocusedWork.ts · ` + open.slice(0, 4).join(' | '))
+    check(`${tag}: the selected monitor row is painted on open`, cursorRow(open) >= 0 && monitorRows(open).includes(cursorRow(open)), `the selected row must wear the ❯ cursor on a monitor row; check the row painting in src/components/tasks/BackgroundTasksDialog.tsx and src/components/tasks/backgroundTasks/views.tsx · cursor row ${cursorRow(open)} · monitor rows ${monitorRows(open).join(',')}`)
     const down = at('down-3')
     const downMonitors = monitorRows(down)
-    check(`${tag}: ↓ ×3 moves the cursor to the fourth monitor and keeps it painted`, cursorRow(down) >= 0 && downMonitors.includes(cursorRow(down)) && (down[cursorRow(down)] ?? '').includes(rowText(4)), `cursor row ${cursorRow(down)} · monitor rows ${downMonitors.join(',')} · header ${monitorsHeader(down)}`)
+    check(`${tag}: ↓ ×3 moves the cursor to the fourth monitor and keeps it painted`, cursorRow(down) >= 0 && downMonitors.includes(cursorRow(down)) && (down[cursorRow(down)] ?? '').includes(rowText(4)), `↓ must move the selection one monitor per press (moveSelection in src/components/tasks/BackgroundTasksDialog.tsx) and keep the ❯ cursor painted · cursor row ${cursorRow(down)} · monitor rows ${downMonitors.join(',')} · header ${monitorsHeader(down)}`)
     const end = at('end')
-    check(`${tag}: ↓ past the last monitor keeps the cursor on it and reaches the list's own hint row`, cursorRow(end) >= 0 && hintRow(end) > cursorRow(end), `cursor row ${cursorRow(end)} · hint row ${hintRow(end)}`)
+    check(`${tag}: ↓ past the last monitor keeps the cursor on it and reaches the list's own hint row`, cursorRow(end) >= 0 && hintRow(end) > cursorRow(end), `↓ at the last monitor must clamp (moveSelection in src/components/tasks/BackgroundTasksDialog.tsx) and the list's '↑/↓ select' hint row (boardListView in src/components/tasks/backgroundTasks/views.tsx) must sit below the cursor · cursor row ${cursorRow(end)} · hint row ${hintRow(end)}`)
     const up = at('up-2')
-    check(`${tag}: ↑ ×2 walks back two rows and the cursor stays painted`, cursorRow(up) >= 0 && (up[cursorRow(up)] ?? '').includes(rowText(4)), `cursor row ${cursorRow(up)} · monitor rows ${monitorRows(up).join(',')}`)
+    check(`${tag}: ↑ ×2 walks back two rows and the cursor stays painted`, cursorRow(up) >= 0 && (up[cursorRow(up)] ?? '').includes(rowText(4)), `↑ must move the selection one monitor up per press (moveSelection in src/components/tasks/BackgroundTasksDialog.tsx) and keep the ❯ cursor painted · cursor row ${cursorRow(up)} · monitor rows ${monitorRows(up).join(',')}`)
     const wheel = at('wheel')
-    check(`${tag}: one wheel notch up moves the selection one monitor up, as one ↑ press does`, cursorRow(wheel) >= 0 && (wheel[cursorRow(wheel)] ?? '').includes(rowText(3)), `cursor row ${cursorRow(wheel)} (before the wheel ${cursorRow(up)})`)
+    check(`${tag}: one wheel notch up moves the selection one monitor up, as one ↑ press does`, cursorRow(wheel) >= 0 && (wheel[cursorRow(wheel)] ?? '').includes(rowText(3)), `a wheel notch must step the selection one row like ↑ (usePopupListPaging call in src/components/tasks/BackgroundTasksDialog.tsx) · cursor row ${cursorRow(wheel)} (before the wheel ${cursorRow(up)})`)
     const closed = at('closed')
-    check(`${tag}: esc closes the screen and the composer is back`, closed.some(row => row.includes('Type a prompt')) && !closed.some(row => row.includes('Session statistics')), closed.slice(-4).join(' | '))
+    check(`${tag}: esc closes the screen and the composer is back`, closed.some(row => row.includes('Type a prompt')) && !closed.some(row => row.includes('Session statistics')), `esc must close the activity screen (the confirm:no binding in src/components/tasks/BackgroundTasksDialog.tsx) and the composer placeholder must return · ` + closed.slice(-4).join(' | '))
   } finally {
     await endLeg(leg)
   }

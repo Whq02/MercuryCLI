@@ -45,11 +45,19 @@ const frameDir = arg('--frames')
 if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 
 let failures = 0
+const pickerSource = 'src/components/MercuryModelPicker.tsx (the picker\'s layout, key and pointer handling)'
+const sectionWhere: Record<string, string> = {
+  '§3': `${pickerSource} and matchesPickerFilter / pickerReachTotal in src/utils/model/modelPickerGroups.ts`,
+  '§6': 'headingWords and pickerReachTotal in src/utils/model/modelPickerGroups.ts, then the heading paint in src/components/MercuryModelPicker.tsx',
+  '§7': 'recordModelUse, readModelUseLedger and modelUseLedgerPath in src/utils/model/modelUseLedger.ts, orderPickerGroups in src/utils/model/modelPickerGroups.ts',
+}
+let where = pickerSource
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 600)} · ` : ''}change ${where} until this holds` : ''}`)
 }
 function section(title: string): void {
+  where = sectionWhere[title.split(' ')[0] ?? ''] ?? pickerSource
   console.log(`\n${title}`)
 }
 

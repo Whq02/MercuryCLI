@@ -32,7 +32,7 @@ if (!process.argv.includes('--child')) {
   process.chdir(world.root)
   let checks = 0
   let failures = 0
-  const check = (label: string, ok: boolean, detail = ''): void => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`) }
+  const check = (label: string, ok: boolean, detail = ''): void => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}to fix: change decideToolPermission in src/utils/permissions/decision/engine.ts (its toolVerdict stage degrades a rejected input to passthrough) or the named tool's checkPermissions, not this proof` : ''}`) }
   type Verdict = { behavior: 'allow' | 'ask' | 'deny'; message?: string; note: string }
   type AnyTool = { name: string; inputSchema: { safeParse(input: unknown): { success: boolean }; parse(input: unknown): unknown }; inputJSONSchema?: unknown; checkPermissions(input: unknown, context: unknown): Promise<unknown>; requiresUserInteraction?(): boolean; backfillObservableInput?(input: unknown): void; call(input: unknown, context: unknown): Promise<{ data: { result: string } }> }
   const DEGRADED = 'resolution failed — degraded to passthrough'

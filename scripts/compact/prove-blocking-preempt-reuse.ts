@@ -65,11 +65,11 @@ section('R1 · the surfaced count IS the canonical count (level parity incl. blo
       surfaced = raw
     })
     const direct = tokens.tokenCountWithEstimation(messages as never)
-    check(`${label}: surfaced === tokenCountWithEstimation (${direct})`, surfaced === direct, `surfaced=${surfaced} direct=${direct}`)
+    check(`${label}: surfaced === tokenCountWithEstimation (${direct})`, surfaced === direct, `surfaced=${surfaced} direct=${direct} — shouldAutoCompact in src/services/compact/autoCompact.ts must pass onMeasured the same count tokenCountWithEstimation gives (plus snipTokensFreed)`)
     if (surfaced !== null) {
       const fromSurfaced = compact.calculateTokenWarningState(surfaced, MODEL).level
       const fromRecount = compact.calculateTokenWarningState(direct, MODEL).level
-      check(`${label}: decision level identical from surfaced vs recount (${fromSurfaced})`, fromSurfaced === fromRecount, `${fromSurfaced} vs ${fromRecount}`)
+      check(`${label}: decision level identical from surfaced vs recount (${fromSurfaced})`, fromSurfaced === fromRecount, `${fromSurfaced} vs ${fromRecount} — the count shouldAutoCompact in src/services/compact/autoCompact.ts hands to onMeasured must be the raw count, so calculateTokenWarningState reads the same level from it as from a recount`)
     }
   }
 }
@@ -83,13 +83,13 @@ section('R2 · the early returns surface nothing')
   await compact.shouldAutoCompact(transcriptAt(1000) as never, MODEL, 'session_memory', 0, () => {
     called++
   })
-  check('forked sources (compact / session_memory) never call onMeasured', called === 0, `called=${called}`)
+  check('forked sources (compact / session_memory) never call onMeasured', called === 0, `called=${called} — shouldAutoCompact in src/services/compact/autoCompact.ts must return before onMeasured for the compact and session_memory sources`)
   process.env.MERCURY_AUTO_COMPACT = '0'
   await compact.shouldAutoCompact(transcriptAt(1000) as never, MODEL, undefined, 0, () => {
     called++
   })
   delete process.env.MERCURY_AUTO_COMPACT
-  check('auto-compact off never calls onMeasured', called === 0, `called=${called}`)
+  check('auto-compact off never calls onMeasured', called === 0, `called=${called} — shouldAutoCompact in src/services/compact/autoCompact.ts must return before onMeasured when isAutoCompactEnabled is false (MERCURY_AUTO_COMPACT=0)`)
 }
 
 section('R3 · the wiring reads the carried count first (source pins on the fold gate; the preempt, called)')

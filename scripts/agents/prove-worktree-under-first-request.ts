@@ -14,7 +14,7 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + 'change the foldersBehindLaunch road (placeFoldersBehindLaunch, createAgentWorktree) in src/services/worktree.ts, the tool hold in src/utils/worktreeReadiness.ts (holdToolsUntil, worktreeHoldOf, hookMayMeetCopy), or parkBeforeTool in src/run-core/pauseGate.ts' : ''}`)
   if (!cond) failures++
 }
 const skip = (label: string): void => console.log(`  [SKIP] ${label}`)

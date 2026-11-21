@@ -10,7 +10,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 let failures = 0
 const check = (label: string, good: boolean) => {
-  console.log(`${good ? 'PASS' : 'FAIL'} ${label}`)
+  console.log(`${good ? 'PASS' : 'FAIL'} ${label}${good ? '' : ' — to fix, look at normalizeAttachmentForAPI in src/services/messages/attachmentText.ts, recordTranscript in src/utils/sessionStorage/writer.ts, and loadTranscriptFile in src/utils/sessionStorage/loading.ts'}`)
   if (!good) failures++
 }
 try {

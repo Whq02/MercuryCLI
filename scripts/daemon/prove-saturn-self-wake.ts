@@ -42,9 +42,10 @@ type Schedule = import('../../src/daemon/saturn.ts').SaturnScheduleV1
 type Held = import('../../src/daemon/saturn.ts').HeldFireV1
 
 let failures = 0
+let where = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && where ? ` — look in ${where}` : ''}`)
 }
 
 const SESSION = 'sess-self-wake-1'
@@ -109,6 +110,7 @@ function boardRowValue(schedule: Schedule, held: Held[], parked: boolean): strin
 }
 
 console.log('§A what stands — one derivation, the rail and the board agree')
+where = 'src/daemon/saturn.ts (the schedule facts it derives) and the board in src/components/BootSaturnScreen.tsx'
 {
   const wake = selfWake('aaaa1111', NOW - 26 * 60 * MIN)
   const held = [heldFor(wake, 'parked-queued')]
@@ -147,6 +149,7 @@ console.log('§A what stands — one derivation, the rail and the board agree')
 }
 
 console.log('§B the self-wake rule: the model, a one-shot, a fire, a wake spelling')
+where = 'src/daemon/saturn.ts (the self-wake rule over createdBy, when and action) and wakeDelaySpelling in src/utils/messages/noticeRows.ts'
 {
   check('B1 the tool-shaped row is a self-wake', isSaturnSelfWake(selfWake('aaaa1111', NOW + MIN)))
   check("B2 an operator's one-shot is not (createdBy 'operator:…')", !isSaturnSelfWake(operatorOneShot('bbbb2222', NOW + MIN)))
@@ -200,6 +203,7 @@ console.log('§B the self-wake rule: the model, a one-shot, a fire, a wake spell
 }
 
 console.log('§C the drop: the self-wake and its held fire leave, everything else stands')
+where = 'dropSaturnSelfWakes in src/daemon/saturn.ts'
 {
   const wake = selfWake('aaaa1111', NOW - 26 * 60 * MIN)
   const op = operatorOneShot('bbbb2222', NOW + 20 * MIN)
@@ -235,6 +239,7 @@ console.log('§C the drop: the self-wake and its held fire leave, everything els
 }
 
 console.log("§D the ticker: parking preserves pending and held self-wakes; stopping cancels them")
+where = 'tickSaturnOnce in src/daemon/saturnTicker.ts (its handling of parked and stopped records)'
 {
   type Delivered = { clientMessageId: string; prompt: string; parked: boolean; sessionId: string }
   const delivered: Delivered[] = []

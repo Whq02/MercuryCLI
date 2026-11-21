@@ -22,9 +22,9 @@ console.log('§1 every scratch-home scenario in the harness owns its daemon dir'
     const window = lines.slice(i + 1, i + 7).join('\n')
     if (!/process\.env\.MERCURY_DAEMON_DIR = /.test(window)) bare.push(i + 1)
   })
-  check('the harness has scratch-home scenarios to pin', sites > 0)
-  check('no scratch-home scenario inherits the shared pid-keyed daemon dir', bare.length === 0, `bare at lines ${bare.join(', ')}`)
-  check('the shared default stays keyed to the prover for captures on the shared home', lines.some(l => l.includes("process.env.MERCURY_DAEMON_DIR = join(tmpdir(), `mercury-render-daemon-${process.pid}`)")))
+  check('the harness has scratch-home scenarios to pin', sites > 0, 'no line in scripts/ui/renderScenarios.ts reads `process.env.MERCURY_CONFIG_DIR = scratch` any more; update the matcher in this prover to the harness\'s new spelling')
+  check('no scratch-home scenario inherits the shared pid-keyed daemon dir', bare.length === 0, `bare at lines ${bare.join(', ')} of scripts/ui/renderScenarios.ts — set process.env.MERCURY_DAEMON_DIR within the next 6 lines after each process.env.MERCURY_CONFIG_DIR = scratch`)
+  check('the shared default stays keyed to the prover for captures on the shared home', lines.some(l => l.includes("process.env.MERCURY_DAEMON_DIR = join(tmpdir(), `mercury-render-daemon-${process.pid}`)"), 'scripts/ui/renderScenarios.ts must keep setting the shared default process.env.MERCURY_DAEMON_DIR to a pid-keyed folder under tmpdir()'))
 }
 
 console.log('§2 a prover on two or more homes carries a daemon dir in each spawn env')
@@ -46,14 +46,14 @@ console.log('§2 a prover on two or more homes carries a daemon dir in each spaw
       if (!m[0].includes('MERCURY_DAEMON_DIR')) offenders.push(`${file}: ${m[0].replace(/\s+/g, ' ').slice(0, 80)}`)
     }
   }
-  check('every multi-home prover gives each home its daemon dir', offenders.length === 0, offenders.join(' | '))
+  check('every multi-home prover gives each home its daemon dir', offenders.length === 0, `${offenders.join(' | ')} — add MERCURY_DAEMON_DIR beside MERCURY_CONFIG_DIR in each spawn env named here`)
   console.log(`      (${multiHome} multi-home prover(s) under the law)`)
 }
 
 console.log('§3 the canonical spelling where the class was found')
 {
   const src = read('scripts/interaction/prove-exit-copy-journeys.ts')
-  check("the busy world's home carries its daemon dir beside it", src.includes("MERCURY_CONFIG_DIR: home,") && src.includes("MERCURY_DAEMON_DIR: join(home, 'daemon'),"))
+  check("the busy world's home carries its daemon dir beside it", src.includes("MERCURY_CONFIG_DIR: home,") && src.includes("MERCURY_DAEMON_DIR: join(home, 'daemon'),"), "scripts/interaction/prove-exit-copy-journeys.ts must give the busy world both MERCURY_CONFIG_DIR: home, and MERCURY_DAEMON_DIR: join(home, 'daemon'),")
 }
 
 if (failures > 0) {

@@ -18,18 +18,26 @@ const MODEL = 'claude-fable-5-1'
 
 let failures = 0
 let checks = 0
+let sectionHint = ''
+const HINT_PREFIX = 'what to change: a request that moved the prefix is fixed where the moved part (system, tools or message) is built in src/services/providers/anthropic/ (cacheAndUsage.ts builds the system blocks and cache breakpoints); the first differing part is in the detail; a non-zero exit or a missing answer is read from the stderr tail in the detail, and dist/mercury.mjs must be freshly built (bun run build.ts)'
+const HINTS: Record<string, string> = {
+  '§1': 'what to change: the function named in the label, in src/services/providers/anthropic/cacheDiagnostics.ts (cacheDiagnosticsParam, previousProviderMessageId, describeCacheDiagnostics, cacheMissReasonOf, isCacheDiagnosticsRefusal, refuseCacheDiagnostics)',
+  '§6': 'what to change: the posture section or its change reminder in src/utils/cockpit/runtimePosture.ts (getRuntimePostureSection, markSessionPermissionMode)',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = HINTS[sectionHint] ?? HINT_PREFIX
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${hint}` : ''}`)
 }
 function section(t: string): void {
+  sectionHint = t.slice(0, 2)
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the cache prefix proof exceeded 280s')
+  console.log(`\n❌ TIMEOUT — the cache prefix proof exceeded 280s; it was waiting on a headless run of dist/mercury.mjs against the fixture API in the last section printed above (runTurns in scripts/lib/rows.ts, fixture in scripts/lib/fixtureApi.ts); a stuck turn means the fixture ran out of scripted turns or the product never answered`)
   process.exit(1)
 }, 280_000)
 guard.unref?.()

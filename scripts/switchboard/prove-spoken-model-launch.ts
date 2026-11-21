@@ -13,7 +13,8 @@ const { validateWorkerModelChoice } = await import('../../src/services/concourse
 let failures = 0
 const check = (n: string, c: boolean, detail = ''): void => {
   if (!c) failures++
-  console.log(`  [${c ? 'PASS' : 'FAIL'}] ${n}${detail ? ` — ${detail}` : ''}`)
+  const hint = c ? '' : 'change validateWorkerModelChoice in src/services/concourse/workerModels.ts'
+  console.log(`  [${c ? 'PASS' : 'FAIL'}] ${n}${detail || hint ? ` — ${[detail, hint].filter(Boolean).join(' | to fix: ')}` : ''}`)
 }
 
 {

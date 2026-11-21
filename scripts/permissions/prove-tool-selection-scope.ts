@@ -17,7 +17,7 @@ function InputHost({ children }: { children: React.ReactNode }): React.ReactNode
 const tools = [{ name: 'Read' }, { name: 'Write' }] as never
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${detail}`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${detail}${detail ? ' — ' : ''}ToolSelector in src/components/agents/ToolSelector.tsx, TrustDialog in src/components/TrustDialog/TrustDialog.tsx and resolveAgentTools in src/tools/AgentTool/agentToolUtils.ts are what this check exercises`}`)
   if (!ok) failures++
 }
 try {

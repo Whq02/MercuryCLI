@@ -18,7 +18,7 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 500) : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? (detail ? ' — ' + detail.slice(0, 500) : '') + ' — fix the capture road of the native driver in src/services/desktop/nativeDriver.ts (child capture, its 2.5 s deadline, retry, busy and display refusals, abort)' : ''}`)
   if (!cond) failures++
 }
 

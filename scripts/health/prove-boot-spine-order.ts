@@ -27,14 +27,14 @@ milestones.recordLaunchMilestone('runtime-entry', { boot: 'interactive' })
 milestones.recordLaunchMilestone('route-ready')
 {
   const before = milestones.readLaunchMilestones().filter(r => r.pid === process.pid).map(r => r.milestone)
-  check('input-live signalled before the first frame is held, not written', !before.includes('input-live') && before.join('→') === 'runtime-entry→route-ready', before.join('→'))
+  check('input-live signalled before the first frame is held, not written', !before.includes('input-live') && before.join('→') === 'runtime-entry→route-ready', before.join('→') + ' — fix recordLaunchMilestone (RECORDS_AFTER / heldUntil) in src/substrate/launchMilestones.ts so input-live is held until first-frame is recorded')
 }
 milestones.recordLaunchMilestone('first-frame')
 {
   const mine = milestones.readLaunchMilestones().filter(r => r.pid === process.pid).map(r => r.milestone)
-  check('…and records right after first-frame, in the spine\'s order', mine.join('→') === 'runtime-entry→route-ready→first-frame→input-live', mine.join('→'))
+  check('…and records right after first-frame, in the spine\'s order', mine.join('→') === 'runtime-entry→route-ready→first-frame→input-live', mine.join('→') + ' — fix recordLaunchMilestone in src/substrate/launchMilestones.ts so a held input-live is written right after first-frame')
   const row = await spineRow()
-  check('the spine this process wrote reads ok', row.status === 'ok', `${row.status}: ${row.evidence}`)
+  check('the spine this process wrote reads ok', row.status === 'ok', `${row.status}: ${row.evidence}` + ' — the launch-spine check (launchSpineCheck in src/services/health/sections/crew/boot.ts) should read ok for the spine this process wrote; the order of rows is set by recordLaunchMilestone in src/substrate/launchMilestones.ts')
 }
 
 console.log('— the REVERSED spine in the store (an older build\'s shape): input-live before first-frame —')
@@ -51,7 +51,7 @@ console.log('— the REVERSED spine in the store (an older build\'s shape): inpu
   check(
     'an out-of-order spine WARNS and names the order fault',
     row.status === 'warn' && row.evidence.includes('OUT OF ORDER'),
-    `${row.status}: ${row.evidence}`,
+    `${row.status}: ${row.evidence}` + ' — see launchSpineCheck in src/services/health/sections/crew/boot.ts (the launch-spine row) and lastInteractiveBootSpine in src/substrate/launchMilestones.ts',
   )
 }
 
@@ -70,13 +70,13 @@ console.log('— the canonical order (a later boot, distinct pid, appended to th
   check(
     'the canonical spine reads ok with all four rungs in order',
     row.status === 'ok' && row.evidence.includes('runtime-entry → route-ready → first-frame → input-live'),
-    `${row.status}: ${row.evidence}`,
+    `${row.status}: ${row.evidence}` + ' — see launchSpineCheck in src/services/health/sections/crew/boot.ts (the launch-spine row) and lastInteractiveBootSpine in src/substrate/launchMilestones.ts',
   )
   const again = JSON.parse(readFileSync(storePath, 'utf8')) as { version: 1; rows: Array<Record<string, unknown>> }
   again.rows.push({ schema: 1, pid: canonPid, atMs: base + 10, milestone: 'chat-flipped' }, { schema: 1, pid: canonPid, atMs: base + 11, milestone: 'birth-landed' })
   writeFileSync(storePath, JSON.stringify(again))
   const withTelemetry = await spineRow()
-  check('the chat flip and the birth riding the spine\'s pid leave it ok', withTelemetry.status === 'ok' && withTelemetry.evidence.includes('runtime-entry → route-ready → first-frame → input-live'), `${withTelemetry.status}: ${withTelemetry.evidence}`)
+  check('the chat flip and the birth riding the spine\'s pid leave it ok', withTelemetry.status === 'ok' && withTelemetry.evidence.includes('runtime-entry → route-ready → first-frame → input-live'), `${withTelemetry.status}: ${withTelemetry.evidence}` + ' — see launchSpineCheck in src/services/health/sections/crew/boot.ts (the launch-spine row) and lastInteractiveBootSpine in src/substrate/launchMilestones.ts')
 }
 
 
@@ -91,10 +91,10 @@ console.log('— a headless run after the interactive boot (/health\'s own run r
   check(
     'a trailing headless run leaves the verdict on the last interactive boot (ok, all four rungs)',
     row.status === 'ok' && row.evidence.includes('runtime-entry → route-ready → first-frame → input-live'),
-    `${row.status}: ${row.evidence}`,
+    `${row.status}: ${row.evidence}` + ' — see launchSpineCheck in src/services/health/sections/crew/boot.ts (the launch-spine row) and lastInteractiveBootSpine in src/substrate/launchMilestones.ts',
   )
   const spine = milestones.lastInteractiveBootSpine()
-  check('the interactive spine reader skips the headless pid and hands the interactive boot\'s rows (its four rungs among them)', spine.length > 0 && spine.every(r => r.pid === 999999) && ['runtime-entry', 'route-ready', 'first-frame', 'input-live'].every(m => spine.some(r => r.milestone === m)), JSON.stringify(spine.map(r => `${r.pid}:${r.milestone}`)))
+  check('the interactive spine reader skips the headless pid and hands the interactive boot\'s rows (its four rungs among them)', spine.length > 0 && spine.every(r => r.pid === 999999) && ['runtime-entry', 'route-ready', 'first-frame', 'input-live'].every(m => spine.some(r => r.milestone === m)), JSON.stringify(spine.map(r => `${r.pid}:${r.milestone}`)) + ' — lastInteractiveBootSpine in src/substrate/launchMilestones.ts must skip pids whose rows carry boot: headless and return the last interactive pid\'s rows')
 }
 
 rmSync(HOME, { recursive: true, force: true })

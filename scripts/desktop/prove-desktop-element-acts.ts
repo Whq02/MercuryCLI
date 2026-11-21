@@ -16,7 +16,7 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 400) : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? (detail ? ' — ' + detail.slice(0, 400) : '') + ' — fix scrollToVisible / setValue in src/services/desktop/fakeDesktopDriver.ts (checks on the fake driver and its scene file) or in the native bridge in src/services/desktop/nativeDriver.ts (checks on the stub pack); their sentences must match native/desktop/src/lib.rs' : ''}`)
   if (!cond) failures++
 }
 

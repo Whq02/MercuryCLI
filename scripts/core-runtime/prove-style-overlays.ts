@@ -7,7 +7,8 @@ const { StylePool, HyperlinkPool } = await import(join(SRC, 'ink/cell-grid.ts'))
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const hint = 'change the StylePool or HyperlinkPool method this label names in src/ink/cell-grid.ts (withCurrentMatch, withSelectionBg, setSelectionBg, transition, HyperlinkPool.intern)'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${hint}` : ''}`)
 }
 type Code = { type: 'ansi'; code: string; endCode: string }
 const sgr = (open: number, close: number): Code => ({ type: 'ansi', code: `\x1b[${open}m`, endCode: `\x1b[${close}m` })

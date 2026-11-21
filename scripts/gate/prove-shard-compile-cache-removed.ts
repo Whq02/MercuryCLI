@@ -60,8 +60,8 @@ section('§1 a green shard: one cache while its suite runs, none after the runne
   const shard = runShard('green', 0, {})
   check('the shard ran to a green verdict', shard.status === 0, `rc ${shard.status} ${shard.log}`)
   check("the suite read the runner's own cache under the runner's temp, and it stood while the suite ran", shard.seen.startsWith(join(shard.temp, PREFIX)) && shard.stood, `seen ${JSON.stringify(shard.seen)} stood ${shard.stood}`)
-  check('no compile cache is left in the temp root after the runner exits', cachesIn(shard.temp).length === 0, cachesIn(shard.temp).join(' '))
-  check('the cache the suite read is gone', shard.seen !== '' && !existsSync(shard.seen), shard.seen)
+  check('no compile cache is left in the temp root after the runner exits', cachesIn(shard.temp).length === 0, `${cachesIn(shard.temp).join(' ')} · scripts/gate/ci-shard.sh makes mercury-node-compile-cache.* under its temp folder when NODE_COMPILE_CACHE is unset; it must remove that folder when the runner exits`)
+  check('the cache the suite read is gone', shard.seen !== '' && !existsSync(shard.seen), `${shard.seen} · scripts/gate/ci-shard.sh must remove the cache it made when the runner exits`)
 }
 
 section('§2 a red shard: the cache goes with a failing suite too')
@@ -69,7 +69,7 @@ section('§2 a red shard: the cache goes with a failing suite too')
   const shard = runShard('red', 1, {})
   check('the shard ended red', shard.status !== 0 && shard.status !== null, `rc ${shard.status} ${shard.log}`)
   check("the suite read the runner's own cache", shard.seen.startsWith(join(shard.temp, PREFIX)) && shard.stood, `seen ${JSON.stringify(shard.seen)}`)
-  check('no compile cache is left in the temp root after the red runner exits', cachesIn(shard.temp).length === 0, cachesIn(shard.temp).join(' '))
+  check('no compile cache is left in the temp root after the red runner exits', cachesIn(shard.temp).length === 0, `${cachesIn(shard.temp).join(' ')} · scripts/gate/ci-shard.sh must remove the compile cache it made when a suite fails too`)
 }
 
 section("§3 the hosted runner's temp: made under RUNNER_TEMP, removed from it")
@@ -79,7 +79,7 @@ section("§3 the hosted runner's temp: made under RUNNER_TEMP, removed from it")
   const shard = runShard('hosted', 0, { RUNNER_TEMP: hosted })
   check('the shard ran to a green verdict', shard.status === 0, `rc ${shard.status} ${shard.log}`)
   check('the cache was made under RUNNER_TEMP, not under TMPDIR', shard.seen.startsWith(join(hosted, PREFIX)) && shard.stood, `seen ${JSON.stringify(shard.seen)}`)
-  check('neither temp root keeps a compile cache', cachesIn(hosted).length === 0 && cachesIn(shard.temp).length === 0, [...cachesIn(hosted), ...cachesIn(shard.temp)].join(' '))
+  check('neither temp root keeps a compile cache', cachesIn(hosted).length === 0 && cachesIn(shard.temp).length === 0, `${[...cachesIn(hosted), ...cachesIn(shard.temp)].join(' ')} · scripts/gate/ci-shard.sh must make its compile cache under RUNNER_TEMP when set and remove it on exit`)
 }
 
 section("§4 a cache the caller named is the caller's: read by the suite, never removed, none made beside it")
@@ -90,7 +90,7 @@ section("§4 a cache the caller named is the caller's: read by the suite, never 
   const shard = runShard('named', 0, { NODE_COMPILE_CACHE: named })
   check('the shard ran to a green verdict', shard.status === 0, `rc ${shard.status} ${shard.log}`)
   check("the suite read the caller's cache", shard.seen === named && shard.stood, `seen ${JSON.stringify(shard.seen)}`)
-  check("the caller's cache and its file stand after the runner exits", existsSync(join(named, 'kept.txt')) && readFileSync(join(named, 'kept.txt'), 'utf8') === 'the caller wrote this\n')
+  check("the caller's cache and its file stand after the runner exits", existsSync(join(named, 'kept.txt')) && readFileSync(join(named, 'kept.txt'), 'utf8') === 'the caller wrote this\n', 'scripts/gate/ci-shard.sh must never remove a NODE_COMPILE_CACHE the caller named; only the one it made itself')
   check('the runner made no cache of its own', cachesIn(shard.temp).length === 0, cachesIn(shard.temp).join(' '))
 }
 

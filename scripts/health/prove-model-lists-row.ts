@@ -24,7 +24,7 @@ writeFileSync(join(HOME, 'settings.json'), '{}')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? (detail ? ' — ' + detail : '') + ' — change composeModelListsRow, modelListFamilyLines, judgeTypedIds or readModelListFacts in src/services/providers/typedModelIds.ts (the row is wired in src/services/health/sections/auth.ts)' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

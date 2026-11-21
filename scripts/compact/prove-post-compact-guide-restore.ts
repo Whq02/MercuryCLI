@@ -55,7 +55,7 @@ let passed = 0
 let failed = 0
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — fix: which files a fold restores, in createPostCompactFileAttachments (src/services/compact/compact/attachments.ts), and what counts as an instruction file, in getInstructionFiles and isInstructionFilePath (src/services/instructions/engine.ts)'}`)
 }
 
 let projects = 0

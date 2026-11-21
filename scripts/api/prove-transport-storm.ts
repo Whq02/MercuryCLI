@@ -34,13 +34,13 @@ const build = await Bun.build({
   ],
 })
 if (!build.success) {
-  console.error('❌ TRANSPORT STORM — bundle failed')
+  console.error('❌ TRANSPORT STORM — bundle failed; fix the import or syntax error below in src/utils/proxy.ts or src/utils/api/transportEvidence.ts')
   for (const log of build.logs) console.error(String(log))
   process.exit(1)
 }
 const bundle = build.outputs[0]?.path
 if (!bundle) {
-  console.error('❌ TRANSPORT STORM — no bundle output')
+  console.error('❌ TRANSPORT STORM — no bundle output; Bun.build produced no file, look in node_modules/.cache/mercury-transport-storm')
   process.exit(1)
 }
 

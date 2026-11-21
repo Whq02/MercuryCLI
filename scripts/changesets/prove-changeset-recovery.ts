@@ -11,10 +11,11 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'fulcrum-rec-home-')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = 'fix runTextChangeSetCommit (compensation) or recoverChangeSetJournal (boot recovery) in src/services/changeTransaction/changeSetCommit.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${[detail, where].filter(Boolean).join(' | ')}` : ''}`)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — recovery proof exceeded 180s')
+  console.log('\nTIMEOUT — recovery proof exceeded 180s; a commit or recovery run never returned, look at runTextChangeSetCommit and recoverChangeSetJournal in src/services/changeTransaction/changeSetCommit.ts, or the child driver scripts/changesets/fixtures/commit-driver.ts')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

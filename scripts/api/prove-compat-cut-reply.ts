@@ -12,7 +12,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — prove-compat-cut-reply exceeded 120s')
+  console.log('\nTIMEOUT — prove-compat-cut-reply exceeded 120s; it was waiting for the compat road to answer the fixture server\'s cut stream and its reissue, so read the compat road in src/services/providers/openaicompat/compatChatCallModel.ts and the turn in src/run-core/turn/streamModel.ts')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()

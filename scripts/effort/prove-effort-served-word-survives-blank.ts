@@ -8,10 +8,13 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
+const WHERE_TO_LOOK =
+  'change resolveEffortTruth in src/utils/effort.ts, gptEffortVocabularyView and modelSupportsMaxEffort in src/utils/model/capabilities.ts, or the served-list cache in src/services/providers/openai/openaiCatalogue.ts, until this holds'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = !cond ? [detail, WHERE_TO_LOOK].filter(Boolean).join(' — ') : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

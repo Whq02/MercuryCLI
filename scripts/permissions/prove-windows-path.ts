@@ -25,10 +25,19 @@ for (const platform of ['windows', 'wsl', 'macos', 'linux'] as const) {
     const label = expected === 'NTFS alternate data stream' && platform !== 'windows' && platform !== 'wsl' ? null : expected
     const ok = suspiciousWindowsPattern(path) === label
     console.log(`${ok ? 'PASS' : 'FAIL'} ${platform} ${path}: ${label}`)
-    if (!ok) failed++
+    if (!ok) {
+      console.log(`  suspiciousWindowsPattern(${JSON.stringify(path)}) on ${platform} returned ${JSON.stringify(suspiciousWindowsPattern(path))}, expected ${JSON.stringify(label)}; change suspiciousWindowsPattern in src/utils/permissions/windowsPath.ts`)
+      failed++
+    }
   }
-  for (const path of ['C:/project/file.txt', '/usr/local/file', 'a..b', 'normal', '.', '..', './x', '../x', 'a/.', 'a/..']) if (suspiciousWindowsPattern(path) !== null) failed++
-  for (const path of [String.raw`cat '\\?\C:\project\file'`, String.raw`Get-Content '\\.\C:\project\file'`, String.raw`dir \\.`, String.raw`\\??\share`]) if (containsWindowsDevicePath(path) !== (platform === 'windows')) failed++
+  for (const path of ['C:/project/file.txt', '/usr/local/file', 'a..b', 'normal', '.', '..', './x', '../x', 'a/.', 'a/..']) if (suspiciousWindowsPattern(path) !== null) {
+    console.log(`FAIL ${platform} ordinary path ${JSON.stringify(path)} was flagged as ${JSON.stringify(suspiciousWindowsPattern(path))}; suspiciousWindowsPattern in src/utils/permissions/windowsPath.ts must return null for it`)
+    failed++
+  }
+  for (const path of [String.raw`cat '\\?\C:\project\file'`, String.raw`Get-Content '\\.\C:\project\file'`, String.raw`dir \\.`, String.raw`\\??\share`]) if (containsWindowsDevicePath(path) !== (platform === 'windows')) {
+    console.log(`FAIL ${platform} containsWindowsDevicePath(${JSON.stringify(path)}) must be ${platform === 'windows'}; change containsWindowsDevicePath in src/utils/permissions/windowsPath.ts`)
+    failed++
+  }
 }
 getPlatform.cache.delete(undefined)
 console.log(`windows-path: ${failed ? 'FAIL' : 'PASS'} (${failed} failures)`)

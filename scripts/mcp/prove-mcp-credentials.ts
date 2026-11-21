@@ -21,9 +21,18 @@ const { expandEnvVarsInString } = await import(
 )
 
 let failures = 0
+const whereToLook = (label: string): string => {
+  if (/oauth\.clientId/.test(label)) return 'src/services/mcp/config.ts (parseMcpConfig with expandVars) and src/services/mcp/envExpansion.ts (expandEnvVarsInString)'
+  if (/client id/.test(label)) return 'src/services/mcp/auth.ts (MercuryMcpAuthProvider.clientInformation)'
+  if (/env expansion|\$\{|workspaceFolder/.test(label)) return 'src/services/mcp/envExpansion.ts (expandEnvVarsInString)'
+  if (/policy filter/.test(label)) return 'src/services/mcp/config.ts (filterMcpServersByPolicy)'
+  if (/connector|dedup/.test(label)) return 'src/services/mcp/config.ts (dedupAnthropicConnectors)'
+  if (/key|header|url change|name participates|stable/.test(label)) return 'src/services/mcp/auth.ts (getServerKey)'
+  return 'src/services/mcp/auth.ts (normalizeOAuthErrorBody)'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}change the code, not the check: ${whereToLook(label)}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

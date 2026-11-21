@@ -48,11 +48,13 @@ process.env.MERCURY_MISTRAL_API_BASE = `${base}/mistral/v1`
 process.env.MERCURY_MOONSHOT_API_BASE = `${base}/moonshot/v1`
 
 let failures = 0
+let fixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && (detail || fixHint) ? ` — ${detail.slice(0, 500)}${fixHint ? `${detail ? ' | ' : ''}${fixHint}` : ''}` : ''}`)
 }
-function section(t: string): void {
+function section(t: string, hint = ''): void {
+  fixHint = hint
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const show = (v: unknown): string => JSON.stringify(v) ?? String(v)
@@ -90,7 +92,7 @@ const resetAll = (): void => {
   moonshot.__resetMoonshotCatalogueForTest()
 }
 
-section('§1 the table: every family word names its pinned default and reads its list state')
+section('§1 the table: every family word names its pinned default and reads its list state', 'to fix: give the family word a row in BARE_FAMILY_WORDS (src/services/model/bareFamilyWords.ts) with a pinnedDefault and listState that match the pins in src/utils/model/pins/')
 {
   const table = words.BARE_FAMILY_WORDS as ReadonlyArray<Partial<import('../../src/services/model/bareFamilyWords.ts').BareFamilyWord> & { word: string }>
   const pinOf = (word: string): { id: string; displayName: string } | undefined => {
@@ -109,7 +111,7 @@ section('§1 the table: every family word names its pinned default and reads its
   check("'kimi' pins the first Kimi pin", pinOf('kimi')?.id === KIMI_DISPLAY_PINS[0]!.id)
 }
 
-section('§2 no credential: the refusal names the sign-in door, never the catalogue')
+section('§2 no credential: the refusal names the sign-in door, never the catalogue', 'to fix: the family-word branch of resolveEngineDispatch (src/services/crew/engineDispatch.ts) must refuse through requireProviderAvailable with the sign-in door and no catalogue read')
 {
   resetAll()
   const grok = await road('grok')
@@ -119,7 +121,7 @@ section('§2 no credential: the refusal names the sign-in door, never the catalo
   check('no list was asked for without a credential', hits.xai === 0, show(hits))
 }
 
-section('§3 a cold cache with a live sign-in: the road reads the list first and runs the newest live row')
+section('§3 a cold cache with a live sign-in: the road reads the list first and runs the newest live row', 'to fix: resolveEngineDispatch (src/services/crew/engineDispatch.ts) must call readCatalogueIfPending for the family route before taking familyWord.headRow()')
 {
   process.env.XAI_API_KEY = 'xai-fixture-key-one'
   modes.xai = 'ok'
@@ -132,7 +134,7 @@ section('§3 a cold cache with a live sign-in: the road reads the list first and
   check('a warm cache is not re-read', again.model === 'grok-fixture-new' && hits.xai === 1, show({ again, hits }))
 }
 
-section('§4 a re-keyed credential: the cache is keyed under the old identity; the road reads again under the new one')
+section('§4 a re-keyed credential: the cache is keyed under the old identity; the road reads again under the new one', 'to fix: the catalogue cache (src/services/providers/xai/xaiCatalogue.ts) must be keyed by the credential identity so a new key reads the list again')
 {
   process.env.XAI_API_KEY = 'xai-fixture-key-two'
   discovery.__resetProviderDiscoveryForTest()
@@ -142,7 +144,7 @@ section('§4 a re-keyed credential: the cache is keyed under the old identity; t
   check('…by a second read of the list', hits.xai === 2, show(hits))
 }
 
-section('§5 the list cannot be read while the sign-in is live: the known default runs, with the receipt line')
+section('§5 the list cannot be read while the sign-in is live: the known default runs, with the receipt line', 'to fix: the pinnedDefault fallback and its note in the family-word branch of resolveEngineDispatch (src/services/crew/engineDispatch.ts), and the modelNote in buildAgentLaunchPlan (src/services/crew/agentLaunchPlan.ts)')
 {
   modes.xai = 'fail'
   resetAll()
@@ -173,7 +175,7 @@ section('§5 the list cannot be read while the sign-in is live: the known defaul
   check("a list that is not JSON: 'grok' runs grok-4.7 with the note", garbled.model === 'grok-4.7' && garbled.note?.includes('could not be read') === true, show(garbled))
 }
 
-section('§6 a list read live but empty: the sign-in is the stronger fact — the default runs and the note says the list serves no chat model')
+section('§6 a list read live but empty: the sign-in is the stronger fact — the default runs and the note says the list serves no chat model', 'to fix: the pinnedDefault fallback in the family-word branch of resolveEngineDispatch (src/services/crew/engineDispatch.ts) and the list wording from bareFamilyListWords')
 {
   modes.xai = 'empty'
   resetAll()
@@ -181,7 +183,7 @@ section('§6 a list read live but empty: the sign-in is the stronger fact — th
   check("'grok' runs grok-4.7 when the live list serves no chat model (RED on the base)", grok.model === 'grok-4.7' && grok.note?.includes('serves no chat model') === true && !grok.note.includes('could not be read'), show(grok))
 }
 
-section('§7 the other family words follow the same law with their own pins')
+section('§7 the other family words follow the same law with their own pins', 'to fix: the row of that word in BARE_FAMILY_WORDS (src/services/model/bareFamilyWords.ts) and the family-word branch of resolveEngineDispatch (src/services/crew/engineDispatch.ts)')
 {
   modes.xai = 'ok'
   process.env.MODEL_API_KEY = 'meta-fixture-key'

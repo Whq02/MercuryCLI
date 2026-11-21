@@ -25,7 +25,7 @@ pinSourceRef()
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 600) : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 1000) : ''}`)
   if (!cond) failures++
 }
 
@@ -114,13 +114,13 @@ console.log('[1] two local servers list the same id; the slot follows the server
 for (const model of [`local/llamacpp/${MODEL}`, `local/${MODEL}`]) {
   const record = localRecordFor(model)
   const local = await panel(model)
-  check(`${model}: the session's lane resolves to llama.cpp, so tensorFoldServing stays silent`, record?.server === 'llamacpp' && tensorFoldServing(model) === undefined, `record ${record?.server} · serving ${JSON.stringify(tensorFoldServing(model))}`)
-  check(`${model}: the Local block renders without a TensorFold slot or serving row`, local.length > 0 && !local.includes('TensorFold') && !local.some(run => /^(serving|loading|draining) /.test(run) || run.includes('is not served')), local.join(' | ').slice(0, 600))
+  check(`${model}: the session's lane resolves to llama.cpp, so tensorFoldServing stays silent`, record?.server === 'llamacpp' && tensorFoldServing(model) === undefined, `record ${record?.server} · serving ${JSON.stringify(tensorFoldServing(model))} — change the model-to-server lookup in src/services/providers/local/localCatalogue.ts localRecordFor or the silence rule in tensorFoldServing (src/services/providers/local/tensorfoldUsage.ts)`)
+  check(`${model}: the Local block renders without a TensorFold slot or serving row`, local.length > 0 && !local.includes('TensorFold') && !local.some(run => /^(serving|loading|draining) /.test(run) || run.includes('is not served')), local.join(' | ').slice(0, 600) + ' — change the Local block of src/components/Settings/Usage.tsx so the TensorFold slot and serving row show only when localRecordFor says the session uses TensorFold (tensorFoldServing in src/services/providers/local/tensorfoldUsage.ts)')
 }
 {
   const model = `local/tensorfold/${MODEL}`
   const local = await panel(model)
-  check(`${model}: the TensorFold session keeps its slot and serving row`, localRecordFor(model)?.server === 'tensorfold' && local.includes('TensorFold') && local.some(run => run.startsWith(`serving ${MODEL} on 127.0.0.1:${tf.port}`)), local.join(' | ').slice(0, 600))
+  check(`${model}: the TensorFold session keeps its slot and serving row`, localRecordFor(model)?.server === 'tensorfold' && local.includes('TensorFold') && local.some(run => run.startsWith(`serving ${MODEL} on 127.0.0.1:${tf.port}`)), local.join(' | ').slice(0, 600) + ' — change the Local block of src/components/Settings/Usage.tsx or tensorFoldServing in src/services/providers/local/tensorfoldUsage.ts so a TensorFold session keeps its slot and its serving row')
 }
 
 tf.stop(true)

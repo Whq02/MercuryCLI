@@ -27,9 +27,10 @@ const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts'
 const { ScheduleWakeupTool } = await import('../../src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts')
 
 let failures = 0
+let where = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && where ? ` — look in ${where}` : ''}`)
 }
 
 const SESSION = 'sess-window-1'
@@ -114,6 +115,7 @@ const lastHeldReceipt = (): { summary: string; details: Record<string, unknown> 
 const selfWake = (prompt: string): unknown => ({ when: { kind: 'at', atMs: Date.now() - 1000 }, action: { kind: 'fire', prompt, onParked: 'queue' } })
 
 console.log('§W the window fact read')
+where = 'anthropicWindowClosedUntil in src/services/anthropicLimits.ts and liveFactsForSessionFire in src/daemon/saturnAccount.ts'
 {
   const NOW = 1_000_000_000_000
   check('a rejected window with a stated reset reads closed until the reset', anthropicWindowClosedUntil({ status: 'rejected', observedAtMs: NOW - 1000, owner: OWNER, resetsAtMs: NOW + 60_000 }, NOW) === NOW + 60_000)
@@ -158,6 +160,7 @@ console.log('§W the window fact read')
 }
 
 console.log('§H a due self-wake dispatches despite the window note, exactly once')
+where = 'tickSaturnOnce in src/daemon/saturnTicker.ts (the window and self-wake handling before delivery)'
 {
   seedRecord()
   publishFacts(rejectedFor(120_000))
@@ -177,6 +180,7 @@ console.log('§H a due self-wake dispatches despite the window note, exactly onc
 }
 
 console.log('§P an explicitly queued fire waits for the parked session to resume')
+where = 'tickSaturnOnce in src/daemon/saturnTicker.ts (onParked queue handling) and applyConcourseScheduleOp in src/daemon/saturn.ts'
 {
   delivered.length = 0
   clearSchedules()
@@ -199,6 +203,7 @@ console.log('§P an explicitly queued fire waits for the parked session to resum
 }
 
 console.log("§O an operator's own schedule keeps its documented default: parked, it wakes the session at the window's end")
+where = 'tickSaturnOnce in src/daemon/saturnTicker.ts (the default onParked behaviour of an operator schedule)'
 {
   delivered.length = 0
   clearSchedules()
@@ -214,6 +219,7 @@ console.log("§O an operator's own schedule keeps its documented default: parked
 }
 
 console.log('§N nothing armed, nothing woken')
+where = 'tickSaturnOnce in src/daemon/saturnTicker.ts'
 {
   delivered.length = 0
   clearSchedules()
@@ -224,6 +230,7 @@ console.log('§N nothing armed, nothing woken')
 }
 
 console.log('§T the self-paced wake tool arms the wake arm')
+where = 'ScheduleWakeupTool in src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts and the schedule bridge in src/services/saturn/sessionScheduleBridge.ts'
 {
   bridge._resetScheduleBridgeForTesting()
   bridge.markScheduleSeatObserved()

@@ -25,7 +25,7 @@ axios.get = ((url: string, options: { headers?: object }) => {
   return get(`http://127.0.0.1:${server.port}/`, { ...options, proxy: false, headers: { ...options.headers, 'x-fixture-url': url } })
 }) as typeof axios.get
 let failures = 0
-const check = (name: string, ok: boolean) => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}`) }
+const check = (name: string, ok: boolean, detail?: unknown) => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${!ok && detail !== undefined ? ` :: ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}`) }
 const context = { abortController: new AbortController(), options: { isNonInteractiveSession: true } } as never
 const readerCount = () => seen.filter(x => x.url.startsWith('https://r.jina.ai/')).length
 const priorFlag = process.env.MERCURY_FETCH_READER
@@ -33,41 +33,41 @@ try {
   delete process.env.MERCURY_FETCH_READER
   clearWebFetchCache()
   const result = await WebFetchTool.call({ url: 'https://fixture.example.org/spa' }, context)
-  check('sparse page is rendered and names the hosted reader', 'data' in result && result.data.result.includes('read through r.jina.ai (the page needed a browser to render)') && result.data.result.includes('The original browser-rendered words.'))
+  check('sparse page is rendered and names the hosted reader', 'data' in result && result.data.result.includes('read through r.jina.ai (the page needed a browser to render)') && result.data.result.includes('The original browser-rendered words.'), `the sparse-page path did not return the reader's words with the notice; check readHostedPage in src/tools/WebFetchTool/reader.ts and how WebFetchTool.ts / utils.ts (getURLMarkdownContent) call it (got: ${'data' in result ? String(result.data.result).slice(0, 300) : 'no data'})`)
   const request = seen.find(x => x.url.startsWith('https://r.jina.ai/'))
-  check('the reader uses the browser engine and robots rule with no credentials', request?.headers.get('x-engine') === 'browser' && request.headers.get('x-robots-txt') === 'Mercury' && !request.headers.has('authorization') && !request.headers.has('cookie'))
+  check('the reader uses the browser engine and robots rule with no credentials', request?.headers.get('x-engine') === 'browser' && request.headers.get('x-robots-txt') === 'Mercury' && !request.headers.has('authorization') && !request.headers.has('cookie'), `change the headers readHostedPage sends in src/tools/WebFetchTool/reader.ts (want X-Engine browser, X-Robots-Txt Mercury, no authorization or cookie)`)
   const before = readerCount()
   process.env.MERCURY_FETCH_READER = '0'
   const off = await WebFetchTool.call({ url: 'https://fixture.example.org/spa' }, context)
-  check('turning the flag off returns sparse words even after a reader cache hit', 'data' in off && off.data.result.includes('hosted reader is off') && off.data.result.includes('Loading page') && !off.data.result.includes('Rendered article') && readerCount() === before)
+  check('turning the flag off returns sparse words even after a reader cache hit', 'data' in off && off.data.result.includes('hosted reader is off') && off.data.result.includes('Loading page') && !off.data.result.includes('Rendered article') && readerCount() === before, `with MERCURY_FETCH_READER=0 readHostedPage in src/tools/WebFetchTool/reader.ts must return the hosted-reader-off notice before any request, and the sparse words must not come from the reader cache (reader requests ${readerCount()}, was ${before})`)
   delete process.env.MERCURY_FETCH_READER
   const approved = await WebFetchTool.call({ url: 'https://docs.python.org/spa' }, context)
-  check('preapproved documentation never reaches the reader', 'data' in approved && approved.data.result.includes('preapproved documentation is never sent') && readerCount() === before)
+  check('preapproved documentation never reaches the reader', 'data' in approved && approved.data.result.includes('preapproved documentation is never sent') && readerCount() === before, `readHostedPage in src/tools/WebFetchTool/reader.ts must refuse a host that isPreapprovedHost (src/tools/WebFetchTool/preapproved.ts) accepts, before any request`)
   let blocked = false
   try { await getURLMarkdownContent('https://fixture.example.org/blocked', new AbortController()) } catch (e) { blocked = e instanceof EgressBlockedError }
-  check('an egress refusal is never bypassed by the hosted reader', blocked && readerCount() === before)
+  check('an egress refusal is never bypassed by the hosted reader', blocked && readerCount() === before, `a 403 with x-proxy-error blocked-by-allowlist must throw EgressBlockedError out of getURLMarkdownContent (src/tools/WebFetchTool/utils.ts) without a reader request (blocked=${blocked}, reader requests ${readerCount()}, was ${before})`)
   const { FetchPacing } = await import('../../src/tools/WebFetchTool/fetchPacing.js')
   const { readHostedPage, READER_KEYLESS_RPM } = await import('../../src/tools/WebFetchTool/reader.js')
   let now = 0
   const pace = new FetchPacing({ now: () => now, random: () => 0.5, sleep: async ms => { now += ms } })
   const starts: number[] = []
   await Promise.all(Array.from({ length: 41 }, () => pace.run(60_000 / READER_KEYLESS_RPM, undefined, async wait => { assert.equal(wait, 0); starts.push(now) })))
-  check('concurrent reader calls never exceed the official twenty-per-minute limit', starts.every((at, index) => index < 20 || at - starts[index - 20]! >= 60_000))
+  check('concurrent reader calls never exceed the official twenty-per-minute limit', starts.every((at, index) => index < 20 || at - starts[index - 20]! >= 60_000), `FetchPacing.run in src/tools/WebFetchTool/fetchPacing.ts must space reader calls so no 20 start within 60s of the one 20 earlier (READER_KEYLESS_RPM in reader.ts); starts: ${JSON.stringify(starts)}`)
   const limited = await readHostedPage('https://fixture.example.org/reader429', new AbortController().signal, pace)
   const limitedCount = readerCount()
   const cooling = await readHostedPage('https://fixture.example.org/reader429', new AbortController().signal, pace)
-  check('reader Retry-After is honored without another request', limited.notice.includes('120s') && cooling.notice.includes('cooling down for 120s') && readerCount() === limitedCount)
+  check('reader Retry-After is honored without another request', limited.notice.includes('120s') && cooling.notice.includes('cooling down for 120s') && readerCount() === limitedCount, `after a 429 with Retry-After 120, readHostedPage in src/tools/WebFetchTool/reader.ts must back off via pace.refuse (fetchPacing.ts) and send no request while cooling (notices: ${limited.notice} | ${cooling.notice}; reader requests ${readerCount()}, was ${limitedCount})`)
   now += 120_000
-  check('the cooldown expires only after the server wait', pace.remaining() === 0)
+  check('the cooldown expires only after the server wait', pace.remaining() === 0, `FetchPacing.remaining in src/tools/WebFetchTool/fetchPacing.ts still reports ${pace.remaining()}ms after the 120s Retry-After elapsed`)
   const ac = new AbortController(); ac.abort()
   await assert.rejects(() => pace.run(3000, ac.signal, async () => { throw new Error('request must not run') }), /aborted|abort/i)
   check('an aborted queued request is not sent', true)
   const description = await WebFetchTool.prompt({} as never)
   const disclosure = 'Sparse HTML on public hosts may send the full URL to r.jina.ai; private addresses are excluded and no cookies or credentials go to that reader.'
-  check('the reader privacy disclosure is present exactly once without the operator switch', description.split(disclosure).length === 2 && !description.includes('MERCURY_FETCH_READER'))
+  check('the reader privacy disclosure is present exactly once without the operator switch', description.split(disclosure).length === 2 && !description.includes('MERCURY_FETCH_READER'), `the disclosure sentence in DESCRIPTION (src/tools/WebFetchTool/prompt.ts) must appear exactly once in WebFetchTool.prompt() with no mention of MERCURY_FETCH_READER (found ${description.split(disclosure).length - 1} times)`)
   const fields = (await import('../../src/utils/zodToJsonSchema.ts')).zodToJsonSchema(WebFetchTool.inputSchema) as any
-  check('model readings and continuation are owned by their fields', fields.properties.prompt.description.includes('Ask a model') && fields.properties.from.description.includes('character offset') && !/Omit prompt|from offset/.test(description))
-  check('the wire description stays under 340 bytes with no sibling tool or refusal catalogue', Buffer.byteLength(description) <= 340 && !/\bRead\b|MCP|GitHub|robots\.txt/.test(description))
+  check('model readings and continuation are owned by their fields', fields.properties.prompt.description.includes('Ask a model') && fields.properties.from.description.includes('character offset') && !/Omit prompt|from offset/.test(description), `the prompt and from field descriptions in the input schema (src/tools/WebFetchTool/WebFetchTool.ts) must carry the reading and continuation guidance, and DESCRIPTION in prompt.ts must not repeat it`)
+  check('the wire description stays under 340 bytes with no sibling tool or refusal catalogue', Buffer.byteLength(description) <= 340 && !/\bRead\b|MCP|GitHub|robots\.txt/.test(description), `shorten DESCRIPTION in src/tools/WebFetchTool/prompt.ts to 340 bytes or fewer without naming sibling tools or refusals (now ${Buffer.byteLength(description)} bytes)`)
 } finally {
   if (priorFlag === undefined) delete process.env.MERCURY_FETCH_READER
   else process.env.MERCURY_FETCH_READER = priorFlag

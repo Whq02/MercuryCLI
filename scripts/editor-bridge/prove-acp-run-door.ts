@@ -9,7 +9,7 @@ import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const at = process.argv.indexOf('--dist')
 const dist = resolve(at < 0 ? join(import.meta.dir, '../../dist/mercury.mjs') : process.argv[at + 1]!)
-if (!existsSync(dist)) { console.error(`FAIL ACP bundle exists: ${dist}`); process.exit(1) }
+if (!existsSync(dist)) { console.error(`FAIL ACP bundle exists: ${dist} — run bun run build.ts, or pass --dist <path to mercury.mjs>`); process.exit(1) }
 const home = realpathSync(mkdtempSync(join(tmpdir(), 'acp-run-door-')))
 seedFirstRun(home, [home])
 process.env.MERCURY_CONFIG_DIR = home
@@ -35,8 +35,8 @@ const child = new MercuryChildSession({ cwd: home, permissionMode: 'flow', entry
   onTurnEnd: outcome => { finish(outcome) },
   onExit: code => { finish(`exit ${code}`) },
 })
-const check = (label: string, ok: boolean, detail = ''): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail}`}`); if (!ok) failures++ }
-const timer = setTimeout(() => finish('deadline'), 60_000)
+const check = (label: string, ok: boolean, detail = ''): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail} — look at the MercuryChildSession constructor (runner argv) and writeUserPrompt in src/services/acp/childSession.ts`}`); if (!ok) failures++ }
+const timer = setTimeout(() => { console.log('FAIL no turn outcome from the ACP run child within 60s: check the child spawned by MercuryChildSession in src/services/acp/childSession.ts and the fixture api'); finish('deadline') }, 60_000)
 try {
   const argv = child.child.spawnargs.slice(1)
   check('the ACP child starts through the runner door with its mode and no output words', argv[0] === dist && argv[1] === 'runner' && !argv.some(a => a.startsWith('--input') || a.startsWith('--format') || a.startsWith('--permission')) && argv[argv.indexOf('--mode') + 1] === 'flow', JSON.stringify(argv))

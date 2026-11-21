@@ -15,7 +15,7 @@ const fixture = xaiUsageFixture()
 Object.assign(process.env, fixture.env)
 const io = { env: process.env, now: () => XAI_FIXTURE_NOW }
 let checks = 0
-const check = (label: string, value: unknown): void => { assert.ok(value, label); checks++; console.log(`[PASS] ${label}`) }
+const check = (label: string, value: unknown): void => { assert.ok(value, `${label}; fix the xAI usage read in src/services/providers/xai/xaiUsageState.ts or its owner src/services/providers/providerUsage.ts (refreshProviderUsage, usageForProvider); the subscription pool checks also read src/services/providers/xai/xaiOauth.ts`); checks++; console.log(`[PASS] ${label}`) }
 try {
   delete process.env.XAI_MANAGEMENT_API_KEY
   await owner.refreshProviderUsage('xai', io)

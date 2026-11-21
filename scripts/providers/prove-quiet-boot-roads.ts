@@ -93,8 +93,8 @@ section('§2 the wire is quiet — the features the roads fed still answer, and 
 
   const { getModelOptions } = await import('../../src/services/model/modelOptions.js')
   const rows = getModelOptions()
-  check('the model list answers from the catalogue (rows present)', rows.length > 0, String(rows.length))
-  check('…with first-party rows for the signed-in account', rows.some(r => /claude|opus|sonnet|fable|haiku/i.test(r.value)), rows.map(r => r.value).slice(0, 8).join(', '))
+  check('the model list answers from the catalogue (rows present)', rows.length > 0, `${rows.length} rows — getModelOptions() in src/services/model/modelOptions.ts must return the catalogue rows without a network read`)
+  check('…with first-party rows for the signed-in account', rows.some(r => /claude|opus|sonnet|fable|haiku/i.test(r.value)), `${rows.map(r => r.value).slice(0, 8).join(', ')} — getModelOptions() in src/services/model/modelOptions.ts must list first-party rows for the fixture's signed-in account`)
 
   const mdm = await import('../../src/utils/settings/mdm/settings.js')
   const settings = await import('../../src/utils/settings/settings.js')
@@ -102,39 +102,39 @@ section('§2 the wire is quiet — the features the roads fed still answer, and 
   mdm.setMdmSettingsCache({ settings: { engine: { model: 'policy-model' } }, errors: [] }, { settings: {}, errors: [] })
   resetSettingsCache()
   const origin = settings.getPolicySettingsOrigin()
-  check('the policy origin is the device profile on this machine', origin === 'plist' || origin === 'hklm', String(origin))
-  check('the per-source policy read answers the device profile', settings.getSettingsForSource('policySettings')?.engine?.model === 'policy-model')
-  check('no policy origin is ever remote', String(origin) !== 'remote')
+  check('the policy origin is the device profile on this machine', origin === 'plist' || origin === 'hklm', `${String(origin)} — getPolicySettingsOrigin() in src/utils/settings/settings.ts must report the device profile (plist or hklm) when the MDM cache holds settings`)
+  check('the per-source policy read answers the device profile', settings.getSettingsForSource('policySettings')?.engine?.model === 'policy-model', 'getSettingsForSource(policySettings) in src/utils/settings/settings.ts must return the settings set through setMdmSettingsCache')
+  check('no policy origin is ever remote', String(origin) !== 'remote', `${String(origin)} — getPolicySettingsOrigin() in src/utils/settings/settings.ts must not return a remote origin`)
   mdm.clearMdmSettingsCache()
   resetSettingsCache()
 
   const feedback = (await import('../../src/commands/feedback/index.js')).default
-  check('the bug-report command is on by default (no policy service consulted)', feedback.isEnabled() === true)
+  check('the bug-report command is on by default (no policy service consulted)', feedback.isEnabled() === true, 'feedbackEnabled() in src/commands/feedback/index.ts returned false with the default environment')
   process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
-  check('…and off under the essential-traffic posture (the local rule)', feedback.isEnabled() === false)
+  check('…and off under the essential-traffic posture (the local rule)', feedback.isEnabled() === false, 'feedbackEnabled() in src/commands/feedback/index.ts must return false when MERCURY_DISABLE_NONESSENTIAL_TRAFFIC=1')
   delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
 
   await sleep(300)
-  check('the fixture served NOTHING across every ask (no first-party side road fired)', served.length === 0, JSON.stringify(served))
+  check('the fixture served NOTHING across every ask (no first-party side road fired)', served.length === 0, `${JSON.stringify(served)} — a boot-time road called the fixture; find the caller of that url and make it silent until a meter is shown or the operator asks`)
 
   const usage = await import('../../src/services/providers/providerUsage.js')
   const reader = await import('../../src/services/providers/anthropic/anthropicUsageState.js')
   reader._resetAnthropicUsageReaderForTesting()
-  check('hidden: no meter is shown and nothing was read', !usage.providerUsageMeterShown() && served.length === 0)
+  check('hidden: no meter is shown and nothing was read', !usage.providerUsageMeterShown() && served.length === 0, `shown=${usage.providerUsageMeterShown()} served=${JSON.stringify(served)} — providerUsageMeterShown() in src/services/providers/providerUsage.ts must be false with no watcher`)
   const release = usage.watchProviderUsageWhileShown({ family: () => 'anthropic' })
   await sleep(400)
   const usageReads = (): number => served.filter(s => s.url.includes('/api/oauth/usage')).length
-  check('a shown meter reads the usage endpoint once', usageReads() === 1, JSON.stringify(served))
+  check('a shown meter reads the usage endpoint once', usageReads() === 1, `${JSON.stringify(served)} — watchProviderUsageWhileShown() in src/services/providers/providerUsage.ts must read /api/oauth/usage exactly once on show`)
   const releaseSecond = usage.watchProviderUsageWhileShown({ family: () => 'anthropic' })
   await sleep(300)
-  check('a meter re-shown inside the floor makes no request', usageReads() === 1, JSON.stringify(served))
+  check('a meter re-shown inside the floor makes no request', usageReads() === 1, `${JSON.stringify(served)} — watchProviderUsageWhileShown() in src/services/providers/providerUsage.ts must honour its refresh floor`)
   await usage.refreshProviderUsage('anthropic', { reason: 'operator' })
-  check("the operator's retry reads again", usageReads() === 2, JSON.stringify(served))
+  check("the operator's retry reads again", usageReads() === 2, `${JSON.stringify(served)} — refreshProviderUsage(..., { reason: 'operator' }) in src/services/providers/providerUsage.ts must bypass the floor`)
   releaseSecond()
   release()
   await sleep(300)
-  check('hidden again, nothing reads', !usage.providerUsageMeterShown() && usageReads() === 2, JSON.stringify(served))
-  check('every request the fixture saw was the usage read', served.every(s => s.url.includes('/api/oauth/usage')), JSON.stringify(served))
+  check('hidden again, nothing reads', !usage.providerUsageMeterShown() && usageReads() === 2, `${JSON.stringify(served)} — releasing every watcher in src/services/providers/providerUsage.ts must stop the meter and its reads`)
+  check('every request the fixture saw was the usage read', served.every(s => s.url.includes('/api/oauth/usage')), `${JSON.stringify(served)} — a road other than the usage read called the fixture; find its caller by url`)
   served.length = 0
 }
 

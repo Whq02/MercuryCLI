@@ -112,8 +112,8 @@ section('§1 a card that climbs one row onto the pane above it paints one way')
       if (diff !== null) wrong.push(`${step}: ${diff}`)
       if (rowOf(reused, 5).startsWith(rule.slice(0, 12))) ruleRows++
     }
-    check(`${name}: every frame of ${steps.length} equals the frame painted from scratch`, wrong.length === 0, `${wrong.length} differ; ${wrong[0]}`)
-    check(`${name}: the scene holds the card's rule on the pane's border row while the card is up and climbs (${ruleRows} frames)`, ruleRows === 8, `${ruleRows} frames`)
+    check(`${name}: every frame of ${steps.length} equals the frame painted from scratch`, wrong.length === 0, `${wrong.length} differ; ${wrong[0]} — a reused frame painted different cells than a from-scratch paint; the first step named is where the reuse path (the blit from the previous frame when prevFrameContaminated is false) in src/ink/renderer.ts goes wrong`)
+    check(`${name}: the scene holds the card's rule on the pane's border row while the card is up and climbs (${ruleRows} frames)`, ruleRows === 8, `${ruleRows} frames — expected 8: the climbing card's rule must stay on the pane's border row in every frame the card is up; check how src/ink/renderer.ts paints a negative marginTop box over the pane`)
   }
 }
 
@@ -244,7 +244,7 @@ section('§2 seeded walks of a cockpit-shaped tree: what reuse composes equals w
           break
         }
       }
-      check(`${walk.name} · ${shape.name}: ${SEEDS} walks of ${STEPS} steps, every frame equals the frame painted from scratch (${frames} frames)`, wrong.length === 0, `${wrong.length} walks differ; ${wrong[0]}`)
+      check(`${walk.name} · ${shape.name}: ${SEEDS} walks of ${STEPS} steps, every frame equals the frame painted from scratch (${frames} frames)`, wrong.length === 0, `${wrong.length} walks differ; ${wrong[0]} — a reused frame painted different cells than a from-scratch paint; rerun with --first=<seed> --seeds=1 to replay that walk, then check the reuse path in src/ink/renderer.ts`)
     }
   }
 }

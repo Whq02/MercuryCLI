@@ -46,13 +46,13 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 600 ? `${detail.slice(0, 600)}…` : detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.length > 600 ? `${detail.slice(0, 600)}…` : detail} · ` : ''}to fix: validateInput and call in src/tools/FileEditTool/FileEditTool.ts or src/tools/FileWriteTool/FileWriteTool.ts, or the seen-lines record in src/services/changeTransaction/seenLines.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the edit-after-own-write proof exceeded 120s')
+  console.log('\nTIMEOUT — the edit-after-own-write proof exceeded 120s; an Edit or Write call (src/tools/FileEditTool/FileEditTool.ts, src/tools/FileWriteTool/FileWriteTool.ts) did not return, and the last section printed above is where it stopped')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

@@ -58,11 +58,11 @@ try {
   const cap = getMaxTimeoutMs()
   console.log(`the cap on this host: ${cap} ms`)
   const over = await drive('echo clamp-probe', cap + 300_000)
-  check('a timeout above the cap is named in the result with the cap that applied and the background road (the field rows 1B-15, 1C-08)', over.includes('clamp-probe') && over.includes('is above the cap') && over.includes('run_in_background'), over.slice(0, 400))
+  check('a timeout above the cap is named in the result with the cap that applied and the background road (the field rows 1B-15, 1C-08)', over.includes('clamp-probe') && over.includes('is above the cap') && over.includes('run_in_background'), `${over.slice(0, 400)}; the result text built in src/tools/BashTool/BashTool.tsx must say the timeout is above the cap, name the cap that applied and point to run_in_background`)
   const within = await drive('echo within-probe', Math.min(cap, 60_000))
-  check('a timeout within the cap says nothing about it', within.includes('within-probe') && !within.includes('is above the cap'), within.slice(0, 300))
+  check('a timeout within the cap says nothing about it', within.includes('within-probe') && !within.includes('is above the cap'), `${within.slice(0, 300)}; BashTool.tsx must add the above-the-cap note only when the requested timeout exceeds getMaxTimeoutMs()`)
   const none = await drive('echo default-probe', undefined as never)
-  check('no timeout given says nothing about it', none.includes('default-probe') && !none.includes('is above the cap'), none.slice(0, 300))
+  check('no timeout given says nothing about it', none.includes('default-probe') && !none.includes('is above the cap'), `${none.slice(0, 300)}; BashTool.tsx must add the above-the-cap note only when a timeout was requested and exceeds getMaxTimeoutMs()`)
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }

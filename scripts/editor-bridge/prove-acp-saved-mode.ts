@@ -58,14 +58,14 @@ let failures = 0
 function check(label: string, actual: unknown, expected: unknown): void {
   const ok = JSON.stringify(actual) === JSON.stringify(expected)
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}: expected=${JSON.stringify(expected)} actual=${JSON.stringify(actual)}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}: expected=${JSON.stringify(expected)} actual=${JSON.stringify(actual)}${ok ? '' : ' — look at the session/load, session/set_mode and session/set_config_option handlers in src/services/acp/acpServer/sessionRequests.ts and at readSavedMode and setSessionMode in src/services/acp/acpServer/modes.ts'}`)
 }
 async function deadline<T>(label: string, work: Promise<T>): Promise<T> {
   let alarm: ReturnType<typeof setTimeout> | undefined
   try {
     return await Promise.race([
       work,
-      new Promise<never>((_, reject) => { alarm = setTimeout(() => reject(new Error(`${label} did not settle`)), 60_000) }),
+      new Promise<never>((_, reject) => { alarm = setTimeout(() => reject(new Error(`${label} did not settle within 60s — the ACP request handler in src/services/acp/acpServer/sessionRequests.ts (or the stand-in child above) never answered`)), 60_000) }),
     ])
   } finally {
     clearTimeout(alarm)
@@ -75,7 +75,7 @@ async function bootMode(sessionId: string): Promise<string> {
   const path = join(project, `${sessionId}.boot.json`)
   const until = Date.now() + 60_000
   while (!existsSync(path)) {
-    if (Date.now() >= until) throw new Error('child boot receipt did not arrive')
+    if (Date.now() >= until) throw new Error('child boot receipt did not arrive within 60s — session/new or session/load in src/services/acp/acpServer/sessionRequests.ts did not start the stand-in child with --session-id or --resume')
     await new Promise(resolve => setTimeout(resolve, 10))
   }
   return (JSON.parse(readFileSync(path, 'utf8')) as { mode: string }).mode

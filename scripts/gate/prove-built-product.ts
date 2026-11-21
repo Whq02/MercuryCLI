@@ -180,7 +180,7 @@ try {
   build(stale)
   const stillRefused = thrown(() => builtCli(['dump'], { tree: stale }))
   const rebuilt = again(['--dump', stale])
-  check('the tree is asked once per process: after a build this process keeps its verdict and a new process runs the bundle', stillRefused === refusal && rebuilt.status === 0 && rebuilt.stdout.includes('"status":0'), `here: ${stillRefused.slice(0, 80)} · new process: rc ${rebuilt.status} ${rebuilt.stdout.slice(0, 120)} ${rebuilt.stderr.slice(0, 200)}`)
+  check('the tree is asked once per process: after a build this process keeps its verdict and a new process runs the bundle', stillRefused === refusal && rebuilt.status === 0 && rebuilt.stdout.includes('"status":0'), `here: ${stillRefused.slice(0, 80)} · new process: rc ${rebuilt.status} ${rebuilt.stdout.slice(0, 120)} ${rebuilt.stderr.slice(0, 200)} · bundle() and judged() in scripts/lib/builtProduct.ts must keep one verdict per tree per process and judge a fresh process against the rebuilt bundle`)
 
   section('§2 a child gets the scratch home and nothing else of the proof')
   const planted = { ANTHROPIC_API_KEY: 'the-proof-holds-this-key', MERCURY_PLANTED_FLAG: '1', PLANTED_WORD: 'ambient', MERCURY_OPENAI_API_BASE: 'http://ambient.invalid', ANTHROPIC_BASE_URL: 'http://ambient.invalid' }
@@ -202,27 +202,27 @@ try {
   const bases = FLAG_REGISTRY.map(row => row.env).filter(name => /^(?:MERCURY_UPDATE_API_BASE_URL|MERCURY_[A-Z0-9_]+_BASE)$/.test(name))
   const allowed = new Set(['PATH', 'TMPDIR', 'NODE_COMPILE_CACHE', 'HOME', 'TERM', 'MERCURY_CONFIG_DIR', 'MERCURY_DAEMON_DIR', 'MERCURY_LOCAL_PROBE_TARGETS', 'MERCURY_CREDENTIAL_STORE', 'ANTHROPIC_BASE_URL', ...bases, ...bare])
   const strangers = (env: Record<string, string>, passed: string[] = []): string[] => Object.keys(env).filter(name => !allowed.has(name) && !passed.includes(name))
-  check('the CLI child carries the scratch names, the declared bases, PATH and what the proof passed: no other name', strangers(cli.env, ['PASSED_BY_THE_PROOF']).length === 0, strangers(cli.env, ['PASSED_BY_THE_PROOF']).join(' '))
-  check('the runner child carries the same names and no other', runnerBoot !== null && strangers(runnerBoot.env).length === 0, runnerBoot === null ? 'the planted runner never spoke' : strangers(runnerBoot.env).join(' '))
-  check("the proof's key, its flags and its words stay with the proof", [cli.env, runnerBoot?.env ?? {}].every(env => env.ANTHROPIC_API_KEY === undefined && env.MERCURY_PLANTED_FLAG === undefined && env.PLANTED_WORD === undefined))
-  check('what the proof passes arrives', cli.env.PASSED_BY_THE_PROOF === 'yes' && cli.env.MERCURY_NPM_REGISTRY_BASE === 'http://127.0.0.1:2')
-  check('the credential store is the file store, for the CLI and for the runner', cli.env.MERCURY_CREDENTIAL_STORE === 'file' && runnerBoot?.env.MERCURY_CREDENTIAL_STORE === 'file')
+  check('the CLI child carries the scratch names, the declared bases, PATH and what the proof passed: no other name', strangers(cli.env, ['PASSED_BY_THE_PROOF']).length === 0, `${strangers(cli.env, ['PASSED_BY_THE_PROOF']).join(' ')} · cliEnv and scratchEnv in scripts/lib/builtProduct.ts must pass only PATH, the scratch names, the dead bases and what the drive passes; remove these names there, or add one that is meant to pass to this check's allowed list`)
+  check('the runner child carries the same names and no other', runnerBoot !== null && strangers(runnerBoot.env).length === 0, `${runnerBoot === null ? 'the planted runner never spoke' : strangers(runnerBoot.env).join(' ')} · withLiveRunner in scripts/lib/builtProduct.ts and hostRunner in scripts/lib/runnerHost.ts must give the runner only the scratch environment`)
+  check("the proof's key, its flags and its words stay with the proof", [cli.env, runnerBoot?.env ?? {}].every(env => env.ANTHROPIC_API_KEY === undefined && env.MERCURY_PLANTED_FLAG === undefined && env.PLANTED_WORD === undefined), `${JSON.stringify({ cli: cli.env.ANTHROPIC_API_KEY, runner: runnerBoot?.env.ANTHROPIC_API_KEY })} · cliEnv in scripts/lib/builtProduct.ts must not copy the proof's own environment into a child; only PATH, TMPDIR and NODE_COMPILE_CACHE pass`)
+  check('what the proof passes arrives', cli.env.PASSED_BY_THE_PROOF === 'yes' && cli.env.MERCURY_NPM_REGISTRY_BASE === 'http://127.0.0.1:2', 'the env passed to builtCli did not reach the child; scratchEnv in scripts/lib/builtProduct.ts must apply the drive\'s env last')
+  check('the credential store is the file store, for the CLI and for the runner', cli.env.MERCURY_CREDENTIAL_STORE === 'file' && runnerBoot?.env.MERCURY_CREDENTIAL_STORE === 'file', `${cli.env.MERCURY_CREDENTIAL_STORE} ${runnerBoot?.env.MERCURY_CREDENTIAL_STORE} · scratchEnv in scripts/lib/builtProduct.ts must set MERCURY_CREDENTIAL_STORE to file`)
   check(
     "the home, the config home and the daemon folder are the child's scratch, never the proof's",
     [cli.env, runnerBoot?.env ?? {}].every(env => env.HOME !== undefined && env.HOME !== process.env.HOME && env.MERCURY_CONFIG_DIR === join(env.HOME, '.mercury') && env.MERCURY_CONFIG_DIR !== process.env.MERCURY_CONFIG_DIR && env.MERCURY_DAEMON_DIR === join(env.HOME, 'daemon')),
-    JSON.stringify({ cli: cli.env.MERCURY_CONFIG_DIR, runner: runnerBoot?.env.MERCURY_CONFIG_DIR }),
+    `${JSON.stringify({ cli: cli.env.MERCURY_CONFIG_DIR, runner: runnerBoot?.env.MERCURY_CONFIG_DIR })} · scratchHome in scripts/lib/runnerHost.ts, used by scratch() in scripts/lib/builtProduct.ts, must give each child its own HOME with the config home and daemon folder inside it`,
   )
-  check('the CLI child keeps the PATH of the proof; on a POSIX host the runner gets the system folders and the folder of its node', cli.env.PATH === process.env.PATH && (!POSIX || runnerBoot?.env.PATH === `/usr/bin:/bin:${dirname(nodeBinPath())}`), `${runnerBoot?.env.PATH}`)
+  check('the CLI child keeps the PATH of the proof; on a POSIX host the runner gets the system folders and the folder of its node', cli.env.PATH === process.env.PATH && (!POSIX || runnerBoot?.env.PATH === `/usr/bin:/bin:${dirname(nodeBinPath())}`), `${runnerBoot?.env.PATH} · cliEnv in scripts/lib/builtProduct.ts must pass the proof's PATH to the CLI child; the runner's PATH comes from hostRunner in scripts/lib/runnerHost.ts`)
 
   section('§3 every base the product declares is a dead address unless the proof sets it')
   const declared = ['ANTHROPIC_BASE_URL', ...bases]
   const dead = new Set(declared.filter(name => name !== 'MERCURY_NPM_REGISTRY_BASE').map(name => cli.env[name]))
   const address = [...dead][0] ?? ''
-  check(`the registry declares the bases: ${bases.length} rows the suite guard admits, the registry base among them`, bases.length >= 30 && bases.includes('MERCURY_NPM_REGISTRY_BASE') && bases.includes('MERCURY_UPDATE_API_BASE_URL'))
+  check(`the registry declares the bases: ${bases.length} rows the suite guard admits, the registry base among them`, bases.length >= 30 && bases.includes('MERCURY_NPM_REGISTRY_BASE') && bases.includes('MERCURY_UPDATE_API_BASE_URL'), `${bases.length} bases · FLAG_REGISTRY in src/substrate/flagRegistry.ts must declare the *_BASE env rows (MERCURY_NPM_REGISTRY_BASE and MERCURY_UPDATE_API_BASE_URL among them) that deadBases() in scripts/lib/builtProduct.ts points at a dead address`)
   check('each of them, and the Anthropic base, reaches the CLI child as one loopback address', dead.size === 1 && /^http:\/\/127\.0\.0\.1:\d+$/.test(address), [...dead].join(' '))
   check('…and the runner child as the same address, the registry base included', runnerBoot !== null && declared.every(name => runnerBoot.env[name] === address), declared.filter(name => runnerBoot?.env[name] !== address).join(' '))
-  check('a base the environment of the proof names is not handed on: the child gets the dead address', cli.env.MERCURY_OPENAI_API_BASE === address && cli.env.ANTHROPIC_BASE_URL === address)
-  check('the two operator slots stay unset: a base there would configure an endpoint', cli.env.MERCURY_COMPAT_BASE_URL === undefined && cli.env.MERCURY_LOCAL_BASE_URL === undefined)
+  check('a base the environment of the proof names is not handed on: the child gets the dead address', cli.env.MERCURY_OPENAI_API_BASE === address && cli.env.ANTHROPIC_BASE_URL === address, `${cli.env.MERCURY_OPENAI_API_BASE} ${cli.env.ANTHROPIC_BASE_URL} · scratchEnv in scripts/lib/builtProduct.ts must start from deadBases() and never copy a base from the proof's own environment`)
+  check('the two operator slots stay unset: a base there would configure an endpoint', cli.env.MERCURY_COMPAT_BASE_URL === undefined && cli.env.MERCURY_LOCAL_BASE_URL === undefined, `${cli.env.MERCURY_COMPAT_BASE_URL} ${cli.env.MERCURY_LOCAL_BASE_URL} · the BASE pattern in scripts/lib/builtProduct.ts must not match MERCURY_COMPAT_BASE_URL or MERCURY_LOCAL_BASE_URL`)
   const refusedBy = await new Promise<string>(done => {
     const url = new URL(address || 'http://127.0.0.1:1')
     const socket = connect({ host: url.hostname, port: Number(url.port) })
@@ -244,8 +244,8 @@ try {
 
   section('§4 the scratch goes: one parent folder for the process, removed with it')
   const second = JSON.parse(builtCli(['dump'], { tree: fresh }).stdout) as Dump
-  check('the folder a CLI child ran in and its home are gone when the call returns', !existsSync(cli.cwd) && !existsSync(cli.env.HOME!) && !existsSync(second.cwd) && !existsSync(second.env.HOME!))
-  check('the folder and the home of the runner are gone when its callback returns', runnerBoot !== null && !existsSync(runnerBoot.cwd) && !existsSync(runnerBoot.env.HOME!))
+  check('the folder a CLI child ran in and its home are gone when the call returns', !existsSync(cli.cwd) && !existsSync(cli.env.HOME!) && !existsSync(second.cwd) && !existsSync(second.env.HOME!), `${cli.cwd} ${second.cwd} · builtCli in scripts/lib/builtProduct.ts must call dropScratch when the call returns`)
+  check('the folder and the home of the runner are gone when its callback returns', runnerBoot !== null && !existsSync(runnerBoot.cwd) && !existsSync(runnerBoot.env.HOME!), `${runnerBoot?.cwd} · withLiveRunner in scripts/lib/builtProduct.ts must call dropScratch when its callback returns`)
   check('every scratch of this process sat under one parent folder', new Set([cli.cwd, cli.env.HOME!, second.cwd, second.env.HOME!, runnerBoot?.cwd ?? '', runnerBoot?.env.HOME ?? ''].map(path => real(dirname(path)))).size === 1 && basename(dirname(cli.cwd)).startsWith('built-product-') && existsSync(dirname(cli.cwd)), dirname(cli.cwd))
   const other = again(['--dump', fresh])
   const otherParent = (JSON.parse(other.stdout || '{}') as { parent?: string }).parent ?? ''

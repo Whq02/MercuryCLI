@@ -57,17 +57,17 @@ for (const [eolLabel, eol] of endings) {
     const { dir, file } = guideFixture(`read ${encLabel} ${eolLabel}`, encode(GUIDE.join(eol)))
     const read = await discovery.safelyReadInstructionFileAsync(file, 'Project', file)
     const content = read.info?.content ?? ''
-    check(`${label}: the composed text is the guide body`, content === expected, JSON.stringify(content.slice(0, 48)))
+    check(`${label}: the composed text is the guide body`, content === expected, JSON.stringify(content.slice(0, 48)) + ' — fix the byte-order-mark decode in safelyReadInstructionFileAsync (src/services/instructions/discovery.ts)')
     check(
       `${label}: no NUL and no U+FFFD reach the prompt`,
       read.info !== null && !content.includes('\u0000') && !content.includes('\uFFFD'),
-      JSON.stringify(content.slice(0, 24)),
+      JSON.stringify(content.slice(0, 24)) + ' — fix the byte-order-mark decode in safelyReadInstructionFileAsync (src/services/instructions/discovery.ts)',
     )
-    check(`${label}: the frontmatter paths are read`, JSON.stringify(read.info?.globs) === JSON.stringify(['src/app.ts']), JSON.stringify(read.info?.globs))
+    check(`${label}: the frontmatter paths are read`, JSON.stringify(read.info?.globs) === JSON.stringify(['src/app.ts']), JSON.stringify(read.info?.globs) + ' — frontmatter must be parsed from the decoded text in safelyReadInstructionFileAsync (src/services/instructions/discovery.ts)')
     check(
       `${label}: the @include is seen`,
       JSON.stringify(read.includePaths.map(p => relative(dir, p))) === JSON.stringify(['extra.md']),
-      JSON.stringify(read.includePaths),
+      JSON.stringify(read.includePaths) + ' — @include paths must be extracted from the decoded text in safelyReadInstructionFileAsync (src/services/instructions/discovery.ts)',
     )
   }
 }
@@ -86,7 +86,7 @@ for (const [encLabel, encode] of encodings) {
   check(
     `${label}: the guide and its @include both compose`,
     entries.length === 2 && entries[0]?.content === BODY.join('\r\n') && entries[1]?.content === EXTRA,
-    JSON.stringify(entries.map(e => e.content.slice(0, 32))),
+    JSON.stringify(entries.map(e => e.content.slice(0, 32))) + ' — check processInstructionFile (src/services/instructions/discovery.ts) composes the decoded guide and follows its @include',
   )
 }
 
@@ -105,12 +105,12 @@ section('§3 seedFileKnowledgeFromInjectedInstructions compares the same decoded
     await engine.seedFileKnowledgeFromInjectedInstructions(cache)
     const seeded = cache.get(guide)
     if (encLabel === 'UTF-8') {
-      check('UTF-8 (control): the injected guide is seeded with its exact disk text', seeded?.content === PLAIN, JSON.stringify(seeded?.content ?? 'not seeded'))
+      check('UTF-8 (control): the injected guide is seeded with its exact disk text', seeded?.content === PLAIN, JSON.stringify(seeded?.content ?? 'not seeded') + ' — check seedFileKnowledgeFromInjectedInstructions (src/services/instructions/engine.ts)')
     } else {
       check(
         `${encLabel}: the injected guide is seeded with its decoded text`,
         seeded !== undefined && withoutBom(seeded.content) === PLAIN,
-        JSON.stringify(seeded?.content?.slice(0, 32) ?? 'not seeded'),
+        JSON.stringify(seeded?.content?.slice(0, 32) ?? 'not seeded') + ' — check seedFileKnowledgeFromInjectedInstructions (src/services/instructions/engine.ts) decodes by the byte order mark',
       )
     }
   }

@@ -41,7 +41,8 @@ const { setMcpServerEnabledForWorkspace } = await import('../../src/services/mcp
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const where = 'by the label prefix, G1-G3 ensureWarmRunner and G4-G5 claimWarmRunner in src/daemon/warmRunner.ts (the kit the warm spec wears and the kit-equality gate), G6-G7 and R and A makeConcourseAdmitHandler in src/daemon/concourseWorkers/admit.ts with admitWarm.ts, admitCold.ts and reactivate.ts beside it'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` — change the code the check exercises, ${where}`}`)
 }
 function note(line: string): void {
   console.log(`  [NOTE] ${line}`)

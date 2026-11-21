@@ -22,11 +22,19 @@ mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 
 let failures = 0
 let checks = 0
+const WHERE: Array<[string, string]> = [
+  ['profiler:', 'src/utils/startupProfiler.ts (profileCheckpoint, profileReport, getStartupPerfLogPath)'],
+  ['launch-graph:', 'src/boot/launchGraph.ts (registerBackgroundNode, armBackgroundDiscovery, signalInputLive)'],
+  ['boot-env:', 'src/substrate/startupMenu.ts (applyBootMenuEnv, writeBootEnvChoice, readBootEnvChoices, bootEnvPath)'],
+  ['early-input:', 'src/utils/earlyInput.ts'],
+  ['launch:', 'launchChat in src/chatLauncher.ts'],
+]
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    const where = WHERE.find(([prefix]) => label.startsWith(prefix))?.[1]
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}${where ? `\n    fix: ${where}` : ''}`)
   }
 }
 

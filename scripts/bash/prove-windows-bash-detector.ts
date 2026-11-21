@@ -12,11 +12,21 @@ type World = Parameters<typeof settleWindowsShell>[0]
 type Candidate = ReturnType<typeof describeBashCandidate>
 
 let failures = 0
+let where = 'settleWindowsShell, composeWindowsBashRoad, describeBashCandidate and roadOfRecord in src/utils/shell/windowsShellRoad.ts, and shellEngineRequest in src/utils/shell/shellEngineArm.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}fix ${where}` : ''}`)
 }
-const section = (title: string): void => console.log(`\n${title}`)
+const section = (title: string): void => {
+  where = title.startsWith('(4)')
+    ? 'gitBashCandidatePaths in src/utils/windowsPaths.ts'
+    : title.startsWith('(5)')
+      ? 'BASH_COMPANION_PROGRAMS and describeBashCandidate in src/utils/shell/windowsShellRoad.ts, or the programs list in vendor/bash.lock.json'
+      : title.startsWith('(2)')
+        ? 'settleWindowsShell in src/utils/shell/windowsShellRoad.ts, or windowsShellQuestion and windowsShellAnswer in src/utils/shell/shellRecord.ts'
+        : 'settleWindowsShell, composeWindowsBashRoad, describeBashCandidate and roadOfRecord in src/utils/shell/windowsShellRoad.ts, and shellEngineRequest in src/utils/shell/shellEngineArm.ts'
+  console.log(`\n${title}`)
+}
 
 console.log('============================================================')
 console.log(' Which shell serves on Windows: the detector over described machines')

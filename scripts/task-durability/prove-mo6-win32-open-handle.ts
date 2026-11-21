@@ -20,7 +20,10 @@ if (process.platform !== 'win32') {
 let failures = 0
 const ok = (cond: boolean, label: string, detail = ''): void => {
   console.log(`  ${cond ? '✅' : '❌'} ${label}${detail ? ` — ${detail}` : ''}`)
-  if (!cond) failures++
+  if (!cond) {
+    console.log('     fix: this section exercises the rename retry loop and typed DurablePublishError of durableAtomicPublish in src/substrate/durablePublish.ts (retry delays come from HELD_FILE_RETRY_DELAYS_MS, imported there); change that file so the labelled behaviour holds again')
+    failures++
+  }
 }
 const tmp = mkdtempSync(join(tmpdir(), 'mooring-mo6-'))
 const tempsIn = (dir: string): string[] => readdirSync(dir).filter(isDurableTempName)

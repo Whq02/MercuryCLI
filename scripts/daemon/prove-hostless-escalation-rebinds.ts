@@ -17,7 +17,7 @@ mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}change endRunnersLeftWithoutHost in src/daemon/concourseWorkers/park.ts so it signals a runner or a process under it only while its pid still carries the birth the record or listing read` : ''}`)
 }
 const j = (value: unknown): string => JSON.stringify(value)
 

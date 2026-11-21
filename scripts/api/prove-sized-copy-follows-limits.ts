@@ -17,7 +17,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail.slice(0, 600)}; ` : ''}change fitImagesToRequestCap, imageLimitsForModel or requestImageSidePx in src/utils/imageResizer.ts so the copy follows the model family's limits` : ''}`)
 }
 const note = (label: string): void => console.log(`  [NOTE] ${label}`)
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

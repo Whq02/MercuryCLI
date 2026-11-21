@@ -13,7 +13,7 @@ import { createPeer } from '../../src/runner/wire/peer.ts'
 
 const at = process.argv.indexOf('--dist')
 const dist = resolve(at < 0 ? join(import.meta.dir, '../../dist/mercury.mjs') : process.argv[at + 1]!)
-if (!existsSync(dist)) { console.error(`FAIL worker bundle exists: ${dist}`); process.exit(1) }
+if (!existsSync(dist)) { console.error(`FAIL worker bundle exists: ${dist} (build it with bun run build.ts, or pass --dist <path to mercury.mjs>)`); process.exit(1) }
 const home = realpathSync(mkdtempSync(join(tmpdir(), 'run-workers-')))
 seedFirstRun(home, [home])
 const api = await startFixtureApi([{ kind: 'text', text: 'The worker answered.' }, { kind: 'text', text: 'The scheduled run answered.' }, handoffTurn(), handoffTurn()])
@@ -28,7 +28,7 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail}`}`); if (!ok) failures++ }
 try {
   const { child, argv } = spawnRunnerChild({ model: 'claude-sonnet-5', effort: 'high', appendSystemPrompt: 'Answer the fixture prompt.', role: 'MERCURY_CONCOURSE_WORKER', agentName: 'worker', agentId: 'worker', plainIdentity: true, permissionMode: 'flow', allowBypass: true, cwd: home, extraArgv: ['--session-id', randomUUID()] })
-  check('the daemon worker starts through the runner door with its mode and availability', argv[1] === 'runner' && !argv.some(word => word.startsWith('--input') || word.startsWith('--format') || word.startsWith('--permission')) && argv[argv.indexOf('--mode') + 1] === 'flow' && argv.includes('--allow-sovereign'), JSON.stringify(argv))
+  check('the daemon worker starts through the runner door with its mode and availability', argv[1] === 'runner' && !argv.some(word => word.startsWith('--input') || word.startsWith('--format') || word.startsWith('--permission')) && argv[argv.indexOf('--mode') + 1] === 'flow' && argv.includes('--allow-sovereign'), `${JSON.stringify(argv)}; fix the argv spawnRunnerChild builds in src/daemon/headlessRun.ts`)
   let out = '', err = ''
   child.stdout!.on('data', data => { out += data })
   child.stderr!.on('data', data => { err += data })
@@ -43,13 +43,13 @@ try {
   child.stdin!.end()
   const code = await closed
   peer.close('done')
-  check('the spawned daemon worker completes a loopback turn', code === 0 && rows.some(row => row.type === 'outcome' && row.answer === 'The worker answered.' && row.status === 'completed'), JSON.stringify({ code, out, err }))
+  check('the spawned daemon worker completes a loopback turn', code === 0 && rows.some(row => row.type === 'outcome' && row.answer === 'The worker answered.' && row.status === 'completed'), `${JSON.stringify({ code, out, err })}; the runner child spawned by spawnRunnerChild (src/daemon/headlessRun.ts) did not exit 0 with a completed outcome row, read err and out for why`)
   let oneShotArgv: string[] = []
   const oneShot = await runTaskHeadless({ id: 'scheduled', prompt: 'answer the scheduled run', permissionMode: 'flow', allowedTools: ['Read', 'Bash'] }, home, child => { oneShotArgv = child.spawnargs }, 60_000)
-  check('the scheduled run protects its prompt from tool-list parsing', oneShotArgv.includes('run') && oneShotArgv[oneShotArgv.length - 2] === '--' && oneShot.code === 0 && oneShot.stdout.trim() === 'The scheduled run answered.', JSON.stringify({ oneShotArgv, oneShot }))
+  check('the scheduled run protects its prompt from tool-list parsing', oneShotArgv.includes('run') && oneShotArgv[oneShotArgv.length - 2] === '--' && oneShot.code === 0 && oneShot.stdout.trim() === 'The scheduled run answered.', `${JSON.stringify({ oneShotArgv, oneShot })}; fix the argv and result of runTaskHeadless in src/daemon/headlessRun.ts`)
   for (const [args, kind] of [[['run', '--format', 'rows'], 'runner'], [['--format', 'rows'], 'window'], [['--model', 'run', 'daemon'], 'daemon'], [['daemon', 'run'], 'daemon'], [['--', 'run'], 'window']] as const) {
     const facts = composeProcessSweepFacts({ complete: true, observations: [{ process: { pid: 2222, ppid: 1, exe: 'node', args: ['node', '/fixture/mercury.mjs', ...args], startedAtMs: 1, user: 'fixture', terminal: null }, startToken: 'fixture', state: 'S', terminalAlive: false }] }, { nowMs: 1000, platform: 'linux', selfPid: 3333, user: 'fixture', configHome: home, drainMs: 1, heartbeatAllowanceMs: 1, planes: [], registrations: [], memory: {} })
-    check(`the process sweep classifies ${args.join(' ')} as ${kind}`, facts[0]?.kind === kind, JSON.stringify(facts[0]))
+    check(`the process sweep classifies ${args.join(' ')} as ${kind}`, facts[0]?.kind === kind, `${JSON.stringify(facts[0])}; fix how composeProcessSweepFacts in src/utils/processSweep.ts classifies this command line`)
   }
 } finally {
   process.argv[1] = savedArgv!

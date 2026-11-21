@@ -27,7 +27,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (cond) console.log(`  [PASS] ${label}`)
   else {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — fix where the scroll hint is minted only when walk.regionScrollUsable is true (the scroll branch in src/ink/compose-walk.ts) or how FrameWriter.render in src/ink/frame-writer.ts replays it`)
   }
 }
 function section(title: string): void {

@@ -3,9 +3,9 @@ import { join } from 'node:path'
 
 
 let failures = 0
-const check = (label: string, cond: boolean): void => {
+const check = (label: string, cond: boolean, hint?: string): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && hint ? ` — ${hint}` : ''}`)
 }
 
 console.log('============================================================')
@@ -23,7 +23,7 @@ console.log('\n  -- work-in-flight gauge --')
     counts.push(status.handed.spinner?.activeToolCount)
   }
   await status.close()
-  check('Chat threads activeToolCount={viewInProgressToolUseIDs.size} to the spinner', counts.join() === '1,3,0')
+  check('Chat threads activeToolCount={viewInProgressToolUseIDs.size} to the spinner', counts.join() === '1,3,0', `read ${counts.join()}; make src/screens/chat/useChatStatus.tsx pass activeToolCount={viewInProgressToolUseIDs.size} to the Spinner`)
 }
 
 console.log('\n  -- the strip height latch: within a turn the working card only grows --')

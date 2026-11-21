@@ -8,10 +8,12 @@ const ROOT = join(import.meta.dir, '..', '..')
 
 let failures = 0
 let checks = 0
+let hint = ''
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const said = [detail, hint === '' ? '' : `to fix: ${hint}`].filter(part => part !== '').join(' | ')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && said ? ` — ${said}` : ''}`)
 }
 
 const { resolveBrowser } = await import('../../src/services/browser/browserResolver.ts')
@@ -80,6 +82,7 @@ const PORT = a.port
 const A = `http://127.0.0.1:${PORT}`
 
 console.log('§1 a reload after the server died is a failure in words, not a page')
+hint = 'reloadOp in src/tools/BrowserTool/browser/navigateOps.ts must fail with failedNavigationWords (src/tools/BrowserTool/browser/page.ts), and info, extract, screenshot and click must name the error page through errorPageWords and pageWhere in the same file'
 {
   const opened = await run({ op: 'open', url: `${A}/` })
   check('the page opens while the server is up', opened.outcome === 'succeeded' && opened.result.includes('truth-one'), opened.result)
@@ -103,6 +106,7 @@ console.log('§1 a reload after the server died is a failure in words, not a pag
 }
 
 console.log('§2 the server comes back: reload is the ordinary success again')
+hint = 'reloadOp in src/tools/BrowserTool/browser/navigateOps.ts must return the ordinary success line once the server answers, and pageWhere in src/tools/BrowserTool/browser/page.ts must stop naming the error page'
 {
   a = await serve(PORT, routes)
   const reload = await run({ op: 'reload' })
@@ -113,6 +117,7 @@ console.log('§2 the server comes back: reload is the ordinary success again')
 }
 
 console.log('§3 a 5xx stays a page with its status in words')
+hint = 'openOp and reloadOp in src/tools/BrowserTool/browser/navigateOps.ts must name the status as "HTTP <code>" for a 4xx or 5xx response'
 {
   const five = await run({ op: 'open', url: `${A}/five` })
   check('open names HTTP 500 in words', five.result.includes('HTTP 500'), five.result)
@@ -121,6 +126,7 @@ console.log('§3 a 5xx stays a page with its status in words')
 }
 
 console.log('§4 back onto a dead server is the same failure')
+hint = 'backOp and openOp in src/tools/BrowserTool/browser/navigateOps.ts must fail with failedNavigationWords (src/tools/BrowserTool/browser/page.ts) when the page cannot load'
 {
   await run({ op: 'open', url: `${A}/` })
   await run({ op: 'open', url: `${A}/two` })
@@ -134,6 +140,7 @@ console.log('§4 back onto a dead server is the same failure')
 }
 
 console.log("§4b a back onto a page the browser kept (no no-store header) is a success that says where the page came from")
+hint = 'backOp in src/tools/BrowserTool/browser/navigateOps.ts must succeed with the cache words ("the server was not asked") when the page came from the browser cache, and reloadOp must still fail against the dead server'
 {
   const plain = (res: http.ServerResponse, body: string): void => {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
@@ -155,6 +162,7 @@ console.log("§4b a back onto a page the browser kept (no no-store header) is a 
 }
 
 console.log('§5 a link that is a download is named and saved: type, size, filename, and where it lies')
+hint = 'the download words in src/tools/BrowserTool/browser/downloads.ts (transferWords, downloadSought) must name type, size, suggested name and saved path once, in the click answer or the next answer of the tab; the console line comes from src/services/browser/session/wiring.ts'
 const d = await serve(0, (url, res) => {
   if (url === '/dl.bin') {
     res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': '13' })
@@ -253,6 +261,7 @@ async function clicked(selector: string, brings: 'a download' | 'nothing'): Prom
 }
 
 console.log('§6 a click that opens a tab or a dialog says so in its own result')
+hint = 'popupWords in src/tools/BrowserTool/browser/settle.ts must append the new-tab and dialog notes to the click result'
 {
   await run({ op: 'open', url: `${D}/` })
   const pop = await run({ op: 'click', selector: '#pop' })
@@ -268,6 +277,7 @@ await kill(d)
 await run({ op: 'close' })
 
 console.log("§7 a process that leaves with the browser open takes the browser's temp profile with it")
+hint = 'the exit-time temp profile removal in src/services/browser/session/owners.ts (clearTempProfilesAtExit and TEMP_PROFILE_EXIT_BOUND_MS) must remove the profile folder and retry for two seconds at most'
 {
   const { execFileSync } = await import('node:child_process')
   const { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } = await import('node:fs')

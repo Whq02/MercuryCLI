@@ -20,7 +20,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}\n    fix: the Parser in src/ink/termio/display.ts (with csi.ts, osc.ts and dec.ts beside it) breaks this contract`)
   }
 }
 
@@ -840,7 +840,7 @@ for (const g of GOLDENS) {
   check(
     `golden ${g.name}`,
     equal,
-    `\n    got:  ${JSON.stringify(got, null, 2).split('\n').join('\n    ')}\n    want: ${JSON.stringify(want, null, 2).split('\n').join('\n    ')}`,
+    `\n    got:  ${JSON.stringify(got, null, 2).split('\n').join('\n    ')}\n    want: ${JSON.stringify(want, null, 2).split('\n').join('\n    ')}\n    if the new output is the intended behaviour, regenerate the GOLDENS in this script with --dump`,
   )
 }
 

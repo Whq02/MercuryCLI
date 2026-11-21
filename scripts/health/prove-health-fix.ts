@@ -21,11 +21,20 @@ import { getCwd } from '../../src/utils/cwd.js'
 import { getFlagSpec } from '../../src/substrate/flagRegistry.js'
 
 let failures = 0
+let fixAt = ''
+const fixAtBySection: Record<string, string> = {
+  '(1)': 'isFixable and remedyPermitted in src/utils/healthCertCore.ts, healthFixEnabled in src/utils/healthFix.ts',
+  '(2)': 'applyRemedy in src/utils/healthFix.ts',
+  '(3)': 'runHeadlessFix in src/utils/healthFix.ts',
+  '(4)': 'the gate row in src/services/health/sections/proofs.ts, the build-fresh row in src/services/health/sections/identity.ts, the health command flags (--fix, --only, --yes) and MERCURY_HEALTH_FIX in src/substrate/flags/health.ts',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = !cond && fixAt ? ` | to fix, change ${fixAt}` : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${hint}`)
 }
 function section(t: string): void {
+  fixAt = fixAtBySection[t.slice(0, 3)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

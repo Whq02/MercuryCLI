@@ -4,7 +4,7 @@
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + [detail, 'to fix, look at FileStateCache, cacheKeys and cloneFileStateCache in src/utils/fileStateCache.ts'].filter(Boolean).join('. ') : ''}`)
   if (!ok) failures++
 }
 const j = (v: unknown): string => JSON.stringify(v)

@@ -26,7 +26,7 @@ function check(name: string, cond: boolean, detail?: string): void {
   if (cond) console.log(`  ✓ ${name}`)
   else {
     failures++
-    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''} — a time over its ceiling (COLD_CEILING, WARM_CEILING, FILTER_CEILING in this file) means the step got slower: look at getAgentDefinitionsWithOverrides in src/tools/AgentTool/loadAgentsDir.ts (discovery and memo), buildStudioRows in src/components/agents/studio/studioData.ts (filter), resolveAgentEstate and resolveEffectiveAgentRuntime in src/services/agents/resolver.ts; a count short of n means discovery dropped files`)
   }
 }
 

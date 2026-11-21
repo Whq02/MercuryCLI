@@ -23,11 +23,11 @@ const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}to fix: the edit-outcome counters in src/services/changeTransaction/editOutcomeLedger.ts, or the refusal-code readers in src/services/changeTransaction/changeSetPlan.ts` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — ledger proof exceeded 90s')
+  console.log('\nTIMEOUT — ledger proof exceeded 90s; a ChangeSetTool call (src/tools/ChangeSetTool/ChangeSetTool.ts) did not return, and the last section printed above is where it stopped')
   process.exit(1)
 }, 90_000)
 guard.unref?.()

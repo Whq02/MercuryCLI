@@ -5,12 +5,14 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
+let fixHint = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && (detail || fixHint) ? ` — ${detail}${fixHint ? `${detail ? ' | ' : ''}${fixHint}` : ''}` : ''}`)
 }
-const section = (t: string): void => {
+const section = (t: string, hint = ''): void => {
+  fixHint = hint
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
@@ -20,7 +22,7 @@ const { deriveAgentLifecycle, IDLE_TTL_MS } = await import(
 
 const NOW = 1_000_000_000
 
-section('§A the derivation truth-table')
+section('§A the derivation truth-table', 'to fix: deriveAgentLifecycle or IDLE_TTL_MS in src/services/agentResults/lifecycle.ts')
 {
   const running = deriveAgentLifecycle({ taskStatus: 'running', transcriptExists: true, now: NOW })
   check('running: not revivable, messages queue', running.state === 'running' && !running.revivable && running.basis.includes('queue'))
@@ -36,7 +38,7 @@ section('§A the derivation truth-table')
   check('no transcript anywhere: aborted, NOT revivable, honest basis', nothing.state === 'aborted' && !nothing.revivable && nothing.basis.includes('nothing to revive'))
 }
 
-section('§B the reconciliation — Mercury keeps aborted revivable')
+section('§B the reconciliation — Mercury keeps aborted revivable', 'to fix: the killed and failed branches of deriveAgentLifecycle in src/services/agentResults/lifecycle.ts')
 {
   const killed = deriveAgentLifecycle({ taskStatus: 'killed', transcriptExists: true, now: NOW })
   check('killed + transcript: aborted AND revivable (the documented divergence)', killed.state === 'aborted' && killed.revivable && killed.basis.includes('revives'))
@@ -45,7 +47,7 @@ section('§B the reconciliation — Mercury keeps aborted revivable')
 }
 
 
-section('§E the transcript\'s own end — one fact for every verb once the registry row is gone')
+section('§E the transcript\'s own end — one fact for every verb once the registry row is gone', 'to fix: the end derivation in readAgentTranscript and transcriptEndWords in src/services/crew/agentTranscriptReader.ts')
 {
   const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')

@@ -51,7 +51,12 @@ class Roster {
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const hint = label.startsWith('C')
+    ? 'change: ensureWarmRunner or claimWarmRunner in src/daemon/warmRunner.ts must key the pool on canonicalWorkspaceId (src/daemon/concourseWorkers/admission.ts)'
+    : label.startsWith('B')
+      ? 'change: the workspace id projection of stored worker records (readSessionWorkers and listConcourseWorkers, src/daemon/concourseWorkers/settle.ts) or projectActivity in src/services/concourse/projectActivity.ts'
+      : 'change: canonicalWorkspaceId in src/daemon/concourseWorkers/admission.ts'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${[detail, hint].filter(Boolean).join(' | ')}` : ''}`)
 }
 const roster = new Roster()
 const deps = { roster: () => roster, dir: recordsDir }

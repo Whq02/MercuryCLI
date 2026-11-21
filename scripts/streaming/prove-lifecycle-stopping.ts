@@ -24,7 +24,7 @@ const run = await runArtifactArena({
 })
 
 const escSend = run.sendLog.find(s => Buffer.from(s.b64, 'base64').toString('utf8') === '\x1b')
-check('Esc delivered', escSend !== undefined)
+check('Esc delivered', escSend !== undefined, 'the arena never sent the Esc byte; check the \'after:thinking about it:800:\\x1b\' send in this file: the scripted turn must paint "thinking about it" for it to fire (see run.sendLog and run.outcome.unfired)')
 const escTs = escSend?.sent ?? 0
 
 let interruptedPaintTs: number | undefined
@@ -45,13 +45,13 @@ let interruptedPaintTs: number | undefined
 check(
   'L1 the interrupt drain settles fast (Interrupted paints ≤2s after Esc)',
   interruptedPaintTs !== undefined && interruptedPaintTs - escTs < 2000,
-  interruptedPaintTs !== undefined ? `${Math.round(interruptedPaintTs - escTs)}ms after Esc` : 'never painted',
+  (interruptedPaintTs !== undefined ? `${Math.round(interruptedPaintTs - escTs)}ms after Esc` : 'never painted') + ' · the interrupt path after Esc must settle and paint the Interrupted row within 2s; look at the interrupt handling the Chat screen uses (interruptingKey in src/screens/chat/useChatFocusedSeat.ts) and what the tee capture at run.paths.tee shows after Esc',
 )
 
 const stoppingPaints = run.teeLines.filter(
   t => t.ts >= escTs && (t.content ?? '').includes('stopping'),
 )
-check('L3 fast drain: no stopping flash painted', stoppingPaints.length === 0, `${stoppingPaints.length} writes`)
+check('L3 fast drain: no stopping flash painted', stoppingPaints.length === 0, `${stoppingPaints.length} writes · a drain that settles within the fast window must not paint the word stopping; isStopping (src/screens/chat/useChatFocusedSeat.ts) feeds spinnerSlotReserved in src/screens/chat/useChatStatus.tsx, so check what delays the status strip from leaving the stopping state`)
 
 const res = spawnSync(
   '/usr/bin/python3',
@@ -60,10 +60,10 @@ const res = spawnSync(
 )
 const fin = (JSON.parse(res.stdout) as { screens: { rows: string[] }[] }).screens[0]!
 const flat = fin.rows.join('\n')
-check('L4a partial text preserved', flat.includes('thinking about it'))
-check('L4b Interrupted marker painted', /[Ii]nterrupted/.test(flat))
-check('L4c no stopping on the settled screen', !flat.includes('stopping'))
-check('L4d composer idle hints returned', /[Tt]ype a prompt|↵ sends/.test(flat))
+check('L4a partial text preserved', flat.includes('thinking about it'), 'the streamed partial text must stay on screen after the interrupt; the settled screen was grabbed from run.paths.drive with screengrab.py')
+check('L4b Interrupted marker painted', /[Ii]nterrupted/.test(flat), 'the settled screen has no Interrupted marker; the interrupted turn must leave an Interrupted row behind')
+check('L4c no stopping on the settled screen', !flat.includes('stopping'), 'the word stopping is still on the settled screen; the status strip must return to idle once the interrupt drains (isStopping in src/screens/chat/useChatFocusedSeat.ts)')
+check('L4d composer idle hints returned', /[Tt]ype a prompt|↵ sends/.test(flat), 'the composer did not return to its idle hints ("type a prompt" or "↵ sends") after the interrupt settled')
 run.cleanup()
 
 console.log(failures === 0 ? '✅ FLUX lifecycle-stopping GREEN' : `❌ FLUX lifecycle-stopping RED (${failures})`)

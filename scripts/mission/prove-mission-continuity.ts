@@ -6,15 +6,29 @@ import { join } from 'node:path'
 
 let failures = 0
 const watchdog = setTimeout(() => {
-  console.log('FATAL: prover watchdog (120s) — treat as failure')
+  console.log('FATAL: prover watchdog (120s) — treat as failure; the last section printed above is where it hung, so look at the matching function in src/guards/mission.ts or src/guards/guards.ts')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
+const failureHints: Array<[string, string]> = [
+  ['§1', 'change setActiveMission in src/guards/mission.ts so arming writes the mission card (src/utils/mission/missionCard.ts)'],
+  ['§2', 'change the mission stop guard (judgeTurnEnd in src/guards/guards.ts, mission state in src/guards/mission.ts) so a refused stop advances the card'],
+  ['§3', 'change the mission stop guard (judgeTurnEnd in src/guards/guards.ts, mission state in src/guards/mission.ts) so the itemised close settles the card'],
+  ['§4', 'change the mission stop guard (judgeTurnEnd in src/guards/guards.ts, mission state in src/guards/mission.ts) so it holds after compaction and restates the goal'],
+  ['§5', 'change rearmMissionFromCard in src/guards/mission.ts'],
+  ['§6', 'change composeMissionView in src/services/mission/projection.ts'],
+  ['§7', 'change clearActiveMission in src/guards/mission.ts so clearing writes the terminal card'],
+  ['§8', 'change the subscriber and version handling in setActiveMission, clearActiveMission and syncMissionFromCard in src/guards/mission.ts'],
+  ['§9', 'change the re-key at admission: withLanding and setFocusedSessionConnector in src/services/engine-connector/focusedConnector.ts, and the mission store in src/guards/mission.ts'],
+]
+let currentSection = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const hint = cond ? '' : failureHints.find(([key]) => currentSection.startsWith(key))?.[1] ?? ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${hint ? ` — to fix: ${hint}` : ''}`)
 }
 function section(t: string): void {
+  currentSection = t
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

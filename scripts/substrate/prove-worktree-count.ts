@@ -9,7 +9,7 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — change getWorktreeCountFromFs in src/utils/git/gitFilesystem.ts: it must return 1 plus the linked worktrees found under the common git dir, and 0 outside a repository' : ''}`)
 }
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-count-')))

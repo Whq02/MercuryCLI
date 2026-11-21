@@ -3,12 +3,14 @@
 
 let failures = 0
 let checks = 0
+let yieldFixHint = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && (detail || yieldFixHint) ? ` — ${detail}${yieldFixHint ? `${detail ? ' | ' : ''}${yieldFixHint}` : ''}` : ''}`)
 }
-const section = (t: string): void => {
+const section = (t: string, hint = ''): void => {
+  yieldFixHint = hint
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
@@ -71,7 +73,7 @@ function transcript(finalRound: 'valid' | 'invalid-errored' | 'none'): Message[]
   ]
 }
 
-section('§A the ONE validation owner — the bound tool')
+section('§A the ONE validation owner — the bound tool', 'to fix: getSchemaBoundStructuredOutputTool and SchemaMismatchError in src/tools/SyntheticOutputTool/structuredOutputTool.ts')
 {
   const bound = getSchemaBoundStructuredOutputTool(SCHEMA)
   check('a valid schema binds to a live tool', bound.tool !== undefined && bound.error === undefined)
@@ -87,7 +89,7 @@ section('§A the ONE validation owner — the bound tool')
   check('binding is identity-cached (same schema object ⇒ same result)', getSchemaBoundStructuredOutputTool(SCHEMA) === bound)
 }
 
-section('§B the capture')
+section('§B the capture', 'to fix: finalizeAgentTool in src/tools/AgentTool/agentToolUtils.ts (the structured capture, FAILED_STRUCTURED_YIELD)')
 {
   const spec = { structuredSpec: { mode: 'permissive' as const, source: 'dispatch' as const } }
   const valid = finalizeAgentTool(transcript('valid'), 'a1', { ...META, ...spec })
@@ -97,7 +99,7 @@ section('§B the capture')
   check('an errored round records the typed miss (no data)', errored.structured?.data === undefined && (errored.structured?.error ?? '').includes('schema validation'), JSON.stringify(errored.structured))
 }
 
-section('§C the modes')
+section('§C the modes', 'to fix: finalizeAgentTool in src/tools/AgentTool/agentToolUtils.ts (the strict and permissive handling of structuredSpec, NO_STRUCTURED_YIELD)')
 {
   const strict = { structuredSpec: { mode: 'strict' as const, source: 'agent-definition' as const } }
   const missing = finalizeAgentTool(transcript('none'), 'a3', { ...META, ...strict })

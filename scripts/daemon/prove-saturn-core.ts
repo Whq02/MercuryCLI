@@ -32,9 +32,10 @@ const { updateConcourseWorkers, concourseWorkersPath } = await import(
 const { parseCronExpression, computeNextCronRun } = await import('../../src/utils/cron.ts')
 
 let failures = 0
+let where = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && where ? ` — look in ${where}` : ''}`)
 }
 
 const SESSION = 'sess-saturn-1'
@@ -95,6 +96,7 @@ const goodFire = { kind: 'fire', prompt: 'run the nightly audit' }
 const goodAt = { kind: 'at', atMs: Date.now() + 3_600_000 }
 
 console.log('§A0 validator poisons')
+where = 'validateSaturnSubmission in src/daemon/saturn.ts (it must refuse the listed malformed submission)'
 {
   const cases: Array<[string, unknown]> = [
     ['non-object submission', 42],
@@ -141,6 +143,7 @@ console.log('§A0 validator poisons')
 }
 
 console.log('§A1 the writer')
+where = 'applyConcourseScheduleOp in src/daemon/saturn.ts (the add, remove, pause and resume writer for the worker record)'
 {
   updateConcourseWorkers(workers => {
     for (const key of Object.keys(workers)) delete workers[key]
@@ -241,6 +244,7 @@ console.log('§A1 the writer')
 }
 
 console.log('§A2 next-fire math')
+where = 'saturnNextFireMs and describeWhen in src/daemon/saturn.ts, and the cron engine in src/utils/cron.ts'
 {
   const future = Date.now() + 1000
   check("'at' in the future answers atMs", saturnNextFireMs({ kind: 'at', atMs: future }, Date.now()) === future)
@@ -282,6 +286,7 @@ console.log('§A2 next-fire math')
 }
 
 console.log('§P the preflight owner')
+where = 'deriveScheduleAccountForModel, scheduleAccountVerdict, readLiveAccountFacts and noCredentialRefusal in src/daemon/saturnAccount.ts'
 {
   const acct = await import('../../src/daemon/saturnAccount.ts')
   const { deriveScheduleAccountForModel, scheduleAccountVerdict, readLiveAccountFacts, noCredentialRefusal } = acct
@@ -398,6 +403,7 @@ console.log('§P the preflight owner')
 }
 
 console.log('§W the wire')
+where = 'applyConcourseScheduleOp and saturnFactsOf in src/daemon/saturn.ts, and the receipts in src/services/switchboard/sessionReceipts.ts'
 {
   seedRecord()
   const receipts = await import('../../src/services/switchboard/sessionReceipts.ts')
@@ -442,6 +448,7 @@ console.log('§W the wire')
 }
 
 console.log('§F the ticker')
+where = 'tickSaturnOnce, saturnDueAtOf and saturnCatchupWindowMs in src/daemon/saturnTicker.ts'
 {
   const ticker = await import('../../src/daemon/saturnTicker.ts')
   const { tickSaturnOnce, saturnDueAtOf, saturnCatchupWindowMs, DEFAULT_SATURN_CATCHUP_WINDOW_MS } = ticker
@@ -701,6 +708,7 @@ console.log('§F the ticker')
 }
 
 console.log('§B the birth tier')
+where = 'makeSaturnBirthPort in src/daemon/saturnBirth.ts and the birth step of tickSaturnOnce in src/daemon/saturnTicker.ts'
 {
   const { makeSaturnBirthPort } = await import('../../src/daemon/saturnBirth.ts')
   const receipts = await import('../../src/services/switchboard/sessionReceipts.ts')
@@ -771,6 +779,7 @@ console.log('§B the birth tier')
 }
 
 console.log('§T the facts-borne road')
+where = 'src/services/saturn/sessionScheduleBridge.ts (submitSessionScheduleEdit, takePendingScheduleEdits, latchSessionScheduleRoster, the local wake sink) and onFactsAnswer in src/daemon/sessionSeat/facts.ts'
 {
   const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts')
   const {
@@ -876,6 +885,7 @@ console.log('§T the facts-borne road')
 }
 
 console.log('§X the box tier')
+where = 'readBoxSchedules and boxScheduleProblem in src/daemon/saturnBoxSchedules.ts and tickSaturnOnce in src/daemon/saturnTicker.ts'
 {
   const boxMod = await import('../../src/daemon/saturnBoxSchedules.ts')
   const { readBoxSchedules, saturnBoxSchedulesPath, boxScheduleProblem } = boxMod

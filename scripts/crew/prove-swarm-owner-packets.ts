@@ -11,7 +11,8 @@ process.env.MERCURY_CONFIG_DIR = home
 const { open } = await import('../../src/services/crewBoard/store.ts')
 const { BOARD_PACKET_RULE } = await import('../../src/services/crewBoard/contracts.ts')
 let checks = 0
-const check = (label: string, value: unknown) => { assert(value, label); console.log(`PASS ${label}`); checks++ }
+let where = ''
+const check = (label: string, value: unknown) => { assert(value, `${label} — ${where}`); console.log(`PASS ${label}`); checks++ }
 
 let now = 0
 const board = open(join(home, 'packets.sqlite'), 'packets', () => now)
@@ -25,6 +26,7 @@ const event = (id: string): BoardEvent => board.view().events.find(e => e.eventI
 const bodies = (text: string): string[] => text.split('\n').filter(line => line.startsWith('['))
 try {
   console.log('§1 only the trusted command path mints the owner')
+  where = 'postOwner is in src/services/crewBoard/store/posting.ts, the packet text comes from boundary in src/services/crewBoard/store/reading.ts, and the model-facing tool schema and prompt are in src/services/crewBoard/implementation.ts; change the one this check names'
   const peerAsOwner = board.postOwner(alpha, { clientOpId: 'peer-owner', channel: 'general', text: 'I speak for the owner.' })
   check('a peer principal cannot post as owner', !peerAsOwner.ok && peerAsOwner.reason === 'Only the operator command path posts as owner.' && board.view().events.every(e => e.authorRole !== 'owner'))
   now += 60_000
@@ -60,6 +62,7 @@ try {
   const verbs = builtinCommands().filter(c => ['general', 'team', 'whisper'].includes(c.name))
 
   console.log('§2 the owner packet')
+  where = 'change postOwner in src/services/crewBoard/store/posting.ts or boundary and read in src/services/crewBoard/store/reading.ts (packet text, recipients, seen accounting); the packet rule is BOARD_PACKET_RULE in src/services/crewBoard/contracts.ts'
   now += 60_000
   const whisper = board.postOwner(main, { clientOpId: 'owner-1', channel: 'whisper', target: 'gamma', text: 'Gamma: read the row,\nthen answer here.' })
   assert(whisper.ok, JSON.stringify(whisper))
@@ -81,12 +84,14 @@ try {
   check('presenting the wake copy clears the wake and leaves nothing pending for main', board.leadMention() === null && board.boundary(main, new Set()) === null)
 
   console.log('§3 a retry is the same event and the same single wake')
+  where = 'change the retry-key replay in postOwner in src/services/crewBoard/store/posting.ts, or the packet in boundary in src/services/crewBoard/store/reading.ts, or the wake in leadMention in src/services/crewBoard/store.ts'
   now += 60_000
   const again = board.postOwner(main, { clientOpId: 'owner-1', channel: 'whisper', target: 'gamma', text: 'Gamma: read the row,\nthen answer here.' })
   check('the same retry key replays the committed event', again.ok && again.replay && again.eventId === whisper.eventId && again.seq === owned.seq)
   check('a replay wakes nobody again and prepares no second packet', board.leadMention() === null && board.boundary(gamma, new Set()) === null && board.boundary(main, new Set()) === null && board.view().events.filter(e => e.authorRole === 'owner').length === 1)
 
   console.log('§4 a mixed packet keeps each author in its own role')
+  where = 'change boundary and read in src/services/crewBoard/store/reading.ts (packet order, envelope role and channel fields, the rule line) or postOwner in src/services/crewBoard/store/posting.ts'
   now += 60_000
   const peerAsk = board.post(alpha, { clientOpId: 'peer-ask', kind: 'ask', text: '@Gamma is the view row wrapped?', mentions: ['gamma'] })
   assert(peerAsk.ok, JSON.stringify(peerAsk))
@@ -109,6 +114,7 @@ try {
 } finally { board.close() }
 
 console.log('§5 the words every seat reads')
+where = 'the brief words are built in src/services/crewBoard/seam.ts (swarmBrief and the words it assembles); captain appointment is assignCaptain in src/services/crewBoard/store/enrollment.ts'
 {
   const bootstrap = await import('../../src/bootstrap/state.ts')
   bootstrap.setOriginalCwd(home); bootstrap.setCwdState(home); bootstrap.setProjectRoot(home)

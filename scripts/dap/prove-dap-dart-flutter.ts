@@ -13,7 +13,8 @@ process.env.MERCURY_JS_DEBUG_DAP = join(scratch, 'absent.js')
 
 let failures = 0
 function check(label: string, passed: boolean, detail = ''): void {
-  console.log(`${passed ? 'PASS' : 'FAIL'} ${label}${detail ? ` — ${detail}` : ''}`)
+  const hint = 'change: the Dart and Flutter adapter rows, pubspec detection and override order in src/services/dap/client/adapters.ts (and builtins.ts), or the adapter inference in DebugTool.checkPermissions, src/tools/DebugTool/DebugTool.ts'
+  console.log(`${passed ? 'PASS' : 'FAIL'} ${label}${detail || !passed ? ` — ${[detail, ...(passed ? [] : [hint])].filter(Boolean).join(' | ')}` : ''}`)
   if (!passed) failures++
 }
 

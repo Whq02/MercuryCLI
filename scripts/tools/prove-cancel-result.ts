@@ -23,17 +23,27 @@ const { createAssistantMessage } = await import('../../src/services/messages.ts'
 
 let checks = 0
 let failures = 0
+const FIX_IN: Record<string, string> = {
+  A: 'change the abandon road of runToolUse in src/services/tools/toolExecution.ts (the catch that settles a started call as the interrupt result) or runTools in src/services/tools/toolOrchestration.ts (the sibling queued behind it); the words come from src/utils/messages/turnCut.ts',
+  B: 'change the catch of runToolUse in src/services/tools/toolExecution.ts that builds the cut text with turnCutResultText(turnCutOf(signal.reason), tool.name); the words live in src/utils/messages/turnCut.ts',
+  C: 'change the never-started doors of runToolUse in src/services/tools/toolExecution.ts (interruptResultUpdate) or CANCEL_MESSAGE in src/utils/messages/rejectionText.ts',
+  E: 'change the catch of runToolUse in src/services/tools/toolExecution.ts that tells a turn-signal AbortError (settles as the cut) from a tool-own AbortError (stays an error)',
+  F: 'change where runToolUse in src/services/tools/toolExecution.ts fires the tool.after hook for a cut call (ok false, cut true, the cut words as the error)',
+}
+let fixIn = ''
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail !== '' ? ` — ${detail}` : ''}`)
+  const hint = !ok && fixIn !== '' ? `to fix: ${fixIn}` : ''
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && (detail !== '' || hint !== '') ? ` — ${[detail, hint].filter(part => part !== '').join(' — ')}` : ''}`)
 }
 function section(title: string): void {
+  fixIn = FIX_IN[title.charAt(0)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + title)
 }
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the cancel-result proof exceeded 60s')
+  console.log('\nTIMEOUT — the cancel-result proof exceeded 60s; a run that never ended is stuck in runToolUse (src/services/tools/toolExecution.ts) or runTools (src/services/tools/toolOrchestration.ts): look at the last section printed above')
   process.exit(1)
 }, 60_000)
 guard.unref?.()

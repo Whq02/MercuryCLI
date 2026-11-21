@@ -76,7 +76,7 @@ if (mode !== undefined) {
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-source-links-')))
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + ' · ' : '') + 'change cloneIntoWorktree in src/utils/worktreeClone.ts: it must re-check the source before and after the copy, never follow or rewrite a link it finds there, and publish nothing when the source changed' : ''}`)
   if (!ok) failures++
 }
 try {

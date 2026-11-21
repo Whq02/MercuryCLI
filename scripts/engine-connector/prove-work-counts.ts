@@ -8,7 +8,14 @@ import type { WorkRowV1 } from '../../src/services/engine-connector/types.ts'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = label.startsWith('C8')
+    ? 'compactWorkCounts and compactWorkSummaryText in src/components/tasks/useFocusedWork.ts'
+    : label.startsWith('C7 the connector')
+      ? 'LivePart in src/services/engine-connector/daemon/live.ts and workCounts in src/services/engine-connector/workCounts.ts'
+      : label.startsWith('C2') || label.startsWith('C3')
+        ? 'projectWorkRoster in src/services/engine-connector/workRoster.ts, workCounts in src/services/engine-connector/workCounts.ts and rosterRowsOf in src/components/tasks/BackgroundTasksDialog.tsx'
+        : 'workRowRuns, workCounts, workChipLine, workWaitingWords and runnerRecordAlive in src/services/engine-connector/workCounts.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail}${detail ? ' · ' : ''}change ${where}` : ''}`)
 }
 
 const t0 = 1_000_000_000_000

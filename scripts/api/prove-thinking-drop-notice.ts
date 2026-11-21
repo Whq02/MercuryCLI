@@ -20,10 +20,11 @@ const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
 let checks = 0
+const FIX_HINT = 'change classifyThinkingDrops, describeThinkingDrops, turnOrdinalOfWirePath or the drop ledger in src/services/providers/anthropic/thinkingBinding.ts (the section heading above names other modules; the section 4 health row is preservedThinkingHealth there, run from src/services/health/sections/memory.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}to fix: ${FIX_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -441,11 +442,11 @@ section('§3 the ledger and the health row')
 
 section('§4 the real health — the built artifact carries the row')
 if (!existsSync(DIST)) {
-  check('dist/mercury.mjs present (build first; the pooled gate prebuilds it)', false, DIST)
+  check('dist/mercury.mjs present (build first; the pooled gate prebuilds it)', false, `${DIST} is missing; run bun run build.ts`)
 } else {
   const nodeBin = Bun.which('node')
   if (!nodeBin) {
-    check('a node binary on PATH', false)
+    check('a node binary on PATH', false, 'install Node 24 and put it on PATH')
   } else {
     const findRow = (value: unknown): Record<string, unknown> | null => {
       if (Array.isArray(value)) {

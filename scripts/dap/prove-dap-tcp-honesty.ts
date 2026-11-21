@@ -56,14 +56,14 @@ const elapsed = Date.now() - startedAt
 check(
   "the failure names the TRANSPORT: 'adapter never opened 127.0.0.1:<port>'",
   /adapter never opened 127\.0\.0\.1:\d+/.test(outcome),
-  outcome.slice(0, 160),
+  `${outcome.slice(0, 160)} — connectTcp in src/services/dap/client/wire.ts must throw 'adapter never opened <host>:<port>' when the adapter's port never opens`,
 )
 check(
   'the generic protocol timeout never wins the race',
   !/initialize timed out/.test(outcome),
-  outcome.slice(0, 120),
+  `${outcome.slice(0, 120)} — connectTcp in src/services/dap/client/wire.ts must give up before the initialize request's own timeout fires`,
 )
-check(`the transport verdict lands inside the request window (${elapsed}ms < 8000ms)`, elapsed < 8000, String(elapsed))
+check(`the transport verdict lands inside the request window (${elapsed}ms < 8000ms)`, elapsed < 8000, `${elapsed}ms; the deadlineMs default of connectTcp in src/services/dap/client/wire.ts must stay below the initialize request window`)
 
 console.log(failures === 0 ? '\nprove-dap-tcp-honesty: all green' : `\nprove-dap-tcp-honesty: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

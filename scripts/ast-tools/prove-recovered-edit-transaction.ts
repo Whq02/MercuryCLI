@@ -19,7 +19,7 @@ if (!process.argv.includes('--child')) {
   const launch = process.cwd()
   let checks = 0
   let failures = 0
-  const check = (label: string, ok: boolean, detail = '') => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail}` : ''}`) }
+  const check = (label: string, ok: boolean, detail = '') => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail} · to fix: the apply and rollback path of AstEditTool in src/tools/AstEditTool/AstEditTool.ts and the commit in src/services/changeTransaction/changeSetCommit.ts` : ''}`) }
   const source = 'const broken = ;\nneedle(1);\n'
   try {
     world.put('a.ts', source); world.put('b.ts', source)

@@ -20,32 +20,32 @@ state.setOriginalCwd(work)
 state.setCwdState(work)
 let failed = 0
 let passed = 0
-function check(label: string, ok: boolean, detail = ''): void {
+function check(label: string, ok: boolean, detail = '', hint = ''): void {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!ok && hint ? ` | ${hint}` : ''}`)
 }
 const context = getEmptyToolPermissionContext()
 try {
   const question = agentCwdQuestion(outside, context)
-  check('an outside launch raises ordinary permission with its path', question?.behavior === 'ask' && question.message.includes(outside) && question.message.includes('starting folder'))
-  check('the ask does not suggest adding a second root', !JSON.stringify(question).includes('addDirectories'))
-  check('an inside launch needs no folder permission', agentCwdQuestion(inside, context) === null)
-  check('path resolution never repeats a folder refusal after approval', resolveAgentCwd(outside, context) === outside)
-  check('resolving a launch does not grant a second root', agentCwdQuestion(outside, context)?.behavior === 'ask')
-  check('a missing folder reaches the typed validation, not a permission ask', agentCwdQuestion(join(work, 'missing'), context) === null)
-  check('a relative path reaches typed validation, not a permission ask', agentCwdQuestion('inside', context) === null)
+  check('an outside launch raises ordinary permission with its path', question?.behavior === 'ask' && question.message.includes(outside) && question.message.includes('starting folder'), '', `to fix: agentCwdQuestion (src/tools/AgentTool/agent/cwd.ts) must return an ask decision whose message names the directory and the starting folder (got ${JSON.stringify(question ?? null)})`)
+  check('the ask does not suggest adding a second root', !JSON.stringify(question).includes('addDirectories'), '', 'to fix: agentCwdQuestion (src/tools/AgentTool/agent/cwd.ts) must not attach a suggestion that adds a second root')
+  check('an inside launch needs no folder permission', agentCwdQuestion(inside, context) === null, '', 'to fix: agentCwdQuestion (src/tools/AgentTool/agent/cwd.ts) must return null for a directory inside an allowed working path')
+  check('path resolution never repeats a folder refusal after approval', resolveAgentCwd(outside, context) === outside, '', 'to fix: resolveAgentCwd (src/tools/AgentTool/agent/cwd.ts) must return the resolved directory without a second permission refusal')
+  check('resolving a launch does not grant a second root', agentCwdQuestion(outside, context)?.behavior === 'ask', '', 'to fix: resolveAgentCwd and agentCwdQuestion (src/tools/AgentTool/agent/cwd.ts) must not add the folder to the permission context')
+  check('a missing folder reaches the typed validation, not a permission ask', agentCwdQuestion(join(work, 'missing'), context) === null, '', 'to fix: agentCwdQuestion (src/tools/AgentTool/agent/cwd.ts) must return null when the folder does not exist, so the typed validation error is raised instead')
+  check('a relative path reaches typed validation, not a permission ask', agentCwdQuestion('inside', context) === null, '', 'to fix: agentCwdQuestion (src/tools/AgentTool/agent/cwd.ts) must return null for a relative path, so the typed validation error is raised instead')
   for (const mode of ['default', 'implement', 'sovereign']) {
     const permission = { ...context, mode }
     const seat = { getAppState: () => ({ toolPermissionContext: permission }), abortController: new AbortController(), options: {} }
     const input = { description: 'probe', prompt: 'report directory', cwd: outside }
     const decision = await decideToolPermission(AgentTool, input, seat as never)
     const bypass = mode === 'sovereign'
-    check(`${mode}: outside launch ${bypass ? 'proceeds' : 'asks'}`, decision.decision.behavior === (bypass ? 'allow' : 'ask'), decision.decision.behavior)
+    check(`${mode}: outside launch ${bypass ? 'proceeds' : 'asks'}`, decision.decision.behavior === (bypass ? 'allow' : 'ask'), decision.decision.behavior, 'to fix: AgentTool.checkPermissions (src/tools/AgentTool/AgentTool.tsx) must ask through agentCwdQuestion (src/tools/AgentTool/agent/cwd.ts) outside sovereign mode and decideToolPermission (src/utils/permissions/decision/engine.ts) must keep that answer')
     const crewmate = await AgentTool.checkPermissions({ ...input, name: 'mate' }, seat as never)
-    check(`${mode}: named crewmate follows the same law`, crewmate.behavior === (bypass ? 'allow' : 'ask'))
+    check(`${mode}: named crewmate follows the same law`, crewmate.behavior === (bypass ? 'allow' : 'ask'), crewmate.behavior, 'to fix: AgentTool.checkPermissions (src/tools/AgentTool/AgentTool.tsx) must give a named crewmate the same cwd permission answer as an unnamed launch')
   }
   const words = inputSchema().shape.cwd.description ?? ''
-  check('the parameter names the child starting folder, the permission bound and the worktree', words.includes('Absolute starting directory') && words.includes("Starting outside the session's folder asks for permission") && words.includes('with isolation, its repository supplies the worktree'))
+  check('the parameter names the child starting folder, the permission bound and the worktree', words.includes('Absolute starting directory') && words.includes("Starting outside the session's folder asks for permission") && words.includes('with isolation, its repository supplies the worktree'), '', 'to fix: CWD_PARAM_DESCRIPTION, the description of the cwd field in inputSchema (src/tools/AgentTool/agent/schema.ts), must carry those three phrases')
 } finally {
   state.setOriginalCwd(ROOT)
   state.setCwdState(ROOT)

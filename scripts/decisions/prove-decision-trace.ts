@@ -146,7 +146,7 @@ function checkPrefixLaw(label: string, trace: Trace): void {
       : last?.stage === trace.decidedBy &&
         last?.outcome === 'decided' &&
         trace.stages.slice(0, -1).every(s => s.outcome === 'pass')
-  check(`${label} — prefix law + terminal marking`, isPrefix && terminalOk, j(trace))
+  check(`${label} — prefix law + terminal marking`, isPrefix && terminalOk, `${j(trace)} — stages must follow DECISION_STAGE_ORDER above, pass until the one that decides, and decidedBy must name that last stage; fix the stage recording in decideToolPermission / decideRuleBasedPermissions in src/utils/permissions/decision/engine.ts`)
 }
 
 console.log('============================================================')
@@ -196,7 +196,7 @@ section('full entry — decidedBy lands on the expected stage per terminal outco
     check(
       `${label} → decidedBy ${wantStage} (${wantBehavior})`,
       trace.decidedBy === wantStage && decision.behavior === wantBehavior,
-      j({ decidedBy: trace.decidedBy, behavior: decision.behavior }),
+      `${j({ decidedBy: trace.decidedBy, behavior: decision.behavior })} — the stage that decides this row is wrong; fix its place in decideToolPermission in src/utils/permissions/decision/engine.ts`,
     )
     checkPrefixLaw(label, trace)
   }
@@ -205,22 +205,22 @@ section('full entry — decidedBy lands on the expected stage per terminal outco
   check(
     'the road that stood down is noted with the posture\'s word',
     roadRecord?.outcome === 'decided' && (roadRecord.note ?? '').includes('sovereign') && (roadRecord.note ?? '').includes('stands down'),
-    j(stoodDown.trace),
+    `${j(stoodDown.trace)} — in sovereign mode the safetyCheckAsk stage must be decided with a note naming the posture and 'stands down'; fix the note in decideToolPermission in src/utils/permissions/decision/engine.ts`,
   )
 }
 
 section('ruleSubset entry — null on no-objection, subset order, no abort gate')
 {
   let r = await subset(makeTool(), makeContext({}))
-  check('no objection → null decision', r.decision === null, j(r.decision))
-  check("no objection → decidedBy 'none'", r.trace.decidedBy === 'none', j(r.trace))
+  check('no objection → null decision', r.decision === null, `${j(r.decision)} — decideRuleBasedPermissions in src/utils/permissions/decision/engine.ts must return a null decision when no rule objects`)
+  check("no objection → decidedBy 'none'", r.trace.decidedBy === 'none', `${j(r.trace)} — decideRuleBasedPermissions in src/utils/permissions/decision/engine.ts must leave decidedBy 'none' when no stage decides`)
   checkPrefixLaw('subset no-objection', r.trace)
 
   r = await subset(makeTool({ verdict: { behavior: 'ask', reason: 'plain' } }), makeContext({}))
-  check('plain tool ask → null (mode layer decides later)', r.decision === null)
+  check('plain tool ask → null (mode layer decides later)', r.decision === null, `got ${j(r.decision)} — decideRuleBasedPermissions in src/utils/permissions/decision/engine.ts must not decide a plain tool ask`)
 
   r = await subset(makeTool({ orgAskCeiling: true }), makeContext({}))
-  check('org ask-ceiling → decidedBy orgAskCeiling', r.trace.decidedBy === 'orgAskCeiling', j(r.trace))
+  check('org ask-ceiling → decidedBy orgAskCeiling', r.trace.decidedBy === 'orgAskCeiling', `${j(r.trace)} — the orgAskCeiling stage of decideRuleBasedPermissions in src/utils/permissions/decision/engine.ts must decide an MCP tool capped at ask`)
   checkPrefixLaw('subset org-ceiling', r.trace)
 
   for (const [label, tool, road] of [
@@ -233,7 +233,7 @@ section('ruleSubset entry — null on no-objection, subset order, no abort gate'
     check(
       `sovereign × ${label} → null, decidedBy 'none', the road passed and noted`,
       r.decision === null && r.trace.decidedBy === 'none' && record?.outcome === 'pass' && (record.note ?? '').includes('stands down'),
-      j(r.trace),
+      `${j(r.trace)} — in sovereign mode the ${road} stage of decideRuleBasedPermissions in src/utils/permissions/decision/engine.ts must pass with a note containing 'stands down' and decide nothing`,
     )
     checkPrefixLaw(`subset sovereign ${label}`, r.trace)
   }
@@ -246,7 +246,7 @@ section('ruleSubset entry — null on no-objection, subset order, no abort gate'
   } catch {
     threw = true
   }
-  check('pre-aborted signal does NOT throw on the subset (as-is)', !threw && r.decision === null)
+  check('pre-aborted signal does NOT throw on the subset (as-is)', !threw && r.decision === null, `threw=${threw} decision=${j(r.decision)} — decideRuleBasedPermissions in src/utils/permissions/decision/engine.ts must not run the abort gate`)
 }
 
 section('full entry — abort gate')
@@ -259,7 +259,7 @@ section('full entry — abort gate')
   } catch {
     threw = true
   }
-  check('pre-aborted signal throws on the full entry', threw)
+  check('pre-aborted signal throws on the full entry', threw, `decideToolPermission in src/utils/permissions/decision/engine.ts must throw an AbortError when the context's abortController is already aborted`)
 }
 
 section('DecisionPorts are honored')
@@ -269,7 +269,7 @@ section('DecisionPorts are honored')
   check(
     'injected kill-switch decides at killSwitch, even in bypass',
     r.trace.decidedBy === 'killSwitch' && r.decision.behavior === 'deny',
-    j({ decidedBy: r.trace.decidedBy, behavior: r.decision.behavior }),
+    `${j({ decidedBy: r.trace.decidedBy, behavior: r.decision.behavior })} — decideToolPermission in src/utils/permissions/decision/engine.ts must ask ports.isToolKilled first and deny at the killSwitch stage, before any bypass`,
   )
   checkPrefixLaw('kill-switch', r.trace)
 
@@ -284,7 +284,7 @@ section('DecisionPorts are honored')
   check(
     'verdict-resolution failure degrades to passthrough → ask (never allow)',
     r.decision.behavior === 'ask' && (verdictRecord?.note ?? '').includes('failed'),
-    j({ behavior: r.decision.behavior, note: verdictRecord?.note }),
+    `${j({ behavior: r.decision.behavior, note: verdictRecord?.note })} — when ports.resolveToolVerdict throws, decideToolPermission in src/utils/permissions/decision/engine.ts must record a 'failed' note on the toolVerdict stage and fall back to passthrough, which resolves to ask`,
   )
 
   const abortPorts = {
@@ -299,7 +299,7 @@ section('DecisionPorts are honored')
   } catch (e) {
     threw = e instanceof AbortError
   }
-  check('an AbortError from verdict resolution rethrows (abort totality)', threw)
+  check('an AbortError from verdict resolution rethrows (abort totality)', threw, `decideToolPermission in src/utils/permissions/decision/engine.ts must rethrow an AbortError from ports.resolveToolVerdict instead of degrading it to passthrough`)
 }
 
 section('wrapper parity — the public entry returns the engine decision')
@@ -313,7 +313,7 @@ section('wrapper parity — the public entry returns the engine decision')
     const wrapper = await (hasPermissionsToUseTool as never as (
       ...a: unknown[]
     ) => Promise<unknown>)(tool, {}, ctx, { message: { id: 'msg_trace' } }, 'toolu_trace')
-    check(`${label}: wrapper === engine decision`, j(wrapper) === j(engine.decision), j({ wrapper, engine: engine.decision }))
+    check(`${label}: wrapper === engine decision`, j(wrapper) === j(engine.decision), `${j({ wrapper, engine: engine.decision })} — hasPermissionsToUseTool in src/utils/permissions/permissions.ts must return the decision of decideToolPermission unchanged`)
   }
 }
 

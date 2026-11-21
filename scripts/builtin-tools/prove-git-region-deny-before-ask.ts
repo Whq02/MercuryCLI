@@ -27,7 +27,7 @@ if (!process.argv.includes('--child')) {
   const names = ['open.txt', 'locked/one.txt', 'locked/two.txt', 'secret/read.txt']
   let checks = 0
   let failures = 0
-  const check = (label: string, ok: boolean, detail = '') => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail}` : ''}`) }
+  const check = (label: string, ok: boolean, detail = '') => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail} — fix: the permission verdict for Git conflict ops, in src/tools/GitTool/GitTool.ts and decideToolPermission in src/utils/permissions/decision/engine.ts` : ''}`) }
   try {
     mkdirSync(join(world.root, 'locked'))
     mkdirSync(join(world.root, 'secret'))

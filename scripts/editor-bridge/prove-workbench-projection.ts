@@ -8,11 +8,23 @@ process.env.MERCURY_REVIEW_ARTIFACTS_DIR = _mkdtemp(_join(_tmpdir(), 'mosaic-pro
 process.env.MERCURY_CONFIG_DIR = _mkdtemp(_join(_tmpdir(), 'mosaic-proj-home-'))
 
 let failures = 0
+const WHERE_TO_LOOK: Record<string, string> = {
+  '(1)': 'composeWorkbenchSnapshot and deriveLaneRows in src/services/workbench/selectors.ts',
+  '(2)': 'deriveNextAction and composeWorkbenchSnapshot in src/services/workbench/selectors.ts',
+  '(3)': 'composeWorkbenchSnapshot in src/services/workbench/selectors.ts (thread order and version)',
+  '(4)': 'resolveWorkbenchSnapshot, subscribeWorkbench and getWorkbenchSnapshot in src/services/workbench/projection.ts',
+  '(5)': 'the mercury://workbench adapter in src/services/resources/adapters/workbench.ts and resolveResource in src/services/resources/registry.ts',
+  '(6)': 'gatherWorkbenchInputs and subscribeWorkbench in src/services/workbench/projection.ts, and regroundGitWatch in src/utils/git/gitFilesystem.ts',
+}
+let whereToLook = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = !cond && whereToLook ? `change ${whereToLook} until this holds` : ''
+  const shown = !cond ? [detail, hint].filter(Boolean).join(' — ') : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
+  whereToLook = WHERE_TO_LOOK[t.slice(0, 3)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

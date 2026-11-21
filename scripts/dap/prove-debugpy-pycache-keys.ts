@@ -15,7 +15,8 @@ const { PYCACHE_KEYS_KEPT } = await import('../../src/services/dap/debugpyResolv
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = 'pycachePrefix and pythonSpawnEnv in src/services/dap/debugpyResolver.ts own the key directory under <cache>/pycache (own key kept, the PYCACHE_KEYS_KEPT most recently used keys survive, the key in use is touched on every resolution)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + '; ' : ''}${hint}` : ''}`)
   if (!cond) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)

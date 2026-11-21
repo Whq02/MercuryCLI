@@ -12,9 +12,11 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_DAEMON_DIR = join(HOME, 'daemon')
 
 let failures = 0
+let where = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const said = [detail, where].filter(Boolean).join('; ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && said ? ` — ${said}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -35,6 +37,7 @@ console.log('============================================================')
 
 section('§1 the graceful ask is the first road on win32')
 {
+  where = 'fix shutdownOwnedDaemonGracefully in src/daemon/ownedDaemon.ts (and daemonControlRpc in src/daemon/controlSocket.ts for the own-call check)'
   check('the graceful ask exists', typeof shutdownOwnedDaemonGracefully === 'function')
   if (shutdownOwnedDaemonGracefully) {
     let asked: Record<string, unknown> | null = null
@@ -97,6 +100,7 @@ section('§1 the graceful ask is the first road on win32')
 
 section('§2 the hard kill is a BACKSTOP, not the first road')
 {
+  where = 'fix decideDaemonReap in src/daemon/ownedDaemon.ts'
   check('the reap decision is pure and exported', typeof decideDaemonReap === 'function')
   if (decideDaemonReap) {
     const d = decideDaemonReap
@@ -115,7 +119,7 @@ section('§2 the hard kill is a BACKSTOP, not the first road')
 
 section('§4 LIVE — a reaped seat takes its own children with it')
 {
-
+  where = 'fix killProcessGroup in src/utils/processGroup.ts (it must end the leader and its children)'
   const { killProcessGroup } = await import('../../src/utils/processGroup.ts')
   const leader = spawn(process.execPath, ['-e', "const {spawn}=require('node:child_process'); const kid=spawn(process.execPath,['-e','setTimeout(()=>{},60000)'],{stdio:'ignore'}); console.log(kid.pid); setInterval(()=>{},1000)"], {
     stdio: ['ignore', 'pipe', 'ignore'],
@@ -152,6 +156,7 @@ section('§4 LIVE — a reaped seat takes its own children with it')
 
 section('§5 a worker whose daemon died exits through the cleanup registry')
 {
+  where = 'fix __workerOrphanExitForTest and the orphan exit in src/daemon/workerParentWatch.ts'
   const { __workerOrphanExitForTest } = (await import('../../src/daemon/workerParentWatch.ts')) as Record<string, unknown> as {
     __workerOrphanExitForTest?: (opts: { exit: (c: number) => void; cleanup: () => Promise<void>; capMs?: number }) => Promise<void>
   }
@@ -186,6 +191,7 @@ section('§5 a worker whose daemon died exits through the cleanup registry')
 
 section('§7 DRIVEN — the front’s own reaper in a process of its own, with a daemon that answers the ask, one that is not there, one that takes the call and never answers, and one that refuses')
 {
+  where = 'fix the cleanup registered in src/daemon/ownedDaemon.ts (askToShutDown, shutdownOwnedDaemonGracefully, decideDaemonReap), which the front runs through runCleanupFunctions in src/utils/cleanupRegistry.ts'
   const { controlSockPath } = (await import('../../src/daemon/controlSocket.ts')) as { controlSockPath: () => string }
   const cap = 2000
   const worlds = mkdtempSync(join(tmpdir(), 'prove-quit-front-'))

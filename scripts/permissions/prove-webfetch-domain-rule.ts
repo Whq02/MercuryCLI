@@ -12,7 +12,7 @@ delete process.env.MERCURY_HOME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — change webFetchRuleMatches in src/utils/permissions/webFetchRuleMatches.ts, WebFetchTool.checkPermissions in src/tools/WebFetchTool/WebFetchTool.ts, or the WebFetch rule validation in src/utils/settings/toolValidationConfig.ts'}`)
 }
 const section = (t: string): void => console.log(`\n${t}`)
 

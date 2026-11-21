@@ -7,7 +7,7 @@ const other = '00000000-0000-4000-8000-000000000002'
 const ask = (action: 'prepare' | 'commit' | 'cancel', id = token) => ({ subtype: 'quiesce' as const, action, token: id })
 let checks = 0
 function check(name: string, condition: boolean): void {
-  assert.ok(condition, name)
+  assert.ok(condition, `${name}: fix RunnerQuiescence (prepare/commit/cancel, invalidate) or RetirementFence (retire, demand, reconcileExit) in src/daemon/runnerQuiescence.ts`)
   checks++
   console.log(`PASS ${name}`)
 }

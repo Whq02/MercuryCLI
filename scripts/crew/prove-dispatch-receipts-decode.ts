@@ -73,7 +73,7 @@ try {
     check(
       'the good receipt is found by its id, without a throw',
       typeof found === 'object' && found !== null && (found as { clientMessageId?: string }).clientMessageId === 'good',
-      String(found),
+      String(found) + ' — the receipt-ring reader in src/services/crew/dispatch.ts (readDeliveryReceipt) must drop undecodable rows and keep the good ones, never throw',
     )
     let listed: unknown
     try {
@@ -84,13 +84,13 @@ try {
     check(
       'the listing carries the good receipt alone',
       Array.isArray(listed) && listed.length === 1 && listed[0].clientMessageId === 'good',
-      JSON.stringify(listed),
+      JSON.stringify(listed) + ' — listDeliveryReceipts in src/services/crew/dispatch.ts must return only rows that decode as receipts',
     )
     await flushDebugLogs()
     const named = (existsSync(DEBUG_LOG) ? readFileSync(DEBUG_LOG, 'utf8') : '')
       .split('\n')
       .filter(l => l.includes('crew-dispatch-receipts') && l.includes('not decodable'))
-    check('the dropped rows are named once across the reads', named.length === 1, `${named.length} line(s)`)
+    check('the dropped rows are named once across the reads', named.length === 1, `${named.length} line(s) — the ring reader in src/services/crew/dispatch.ts must log 'not decodable' for the dropped rows once, not on every read (debug log: ${DEBUG_LOG})`)
     const refusedRows = async () => (await readStoreRecoveryEvents()).filter(e => e.kind === 'refused' && e.store === 'crew-dispatch-receipts')
     let refused = await refusedRows()
     for (let i = 0; i < 40 && refused.length < 1; i++) {
@@ -100,7 +100,7 @@ try {
     check(
       'the dropped rows are named once on the recovery ledger under the ring\'s own path, bytes left in place',
       refused.length === 1 && refused[0]!.path === path && refused[0]!.quarantinePath === null && refused[0]!.reason.startsWith('6 row(s) not decodable as receipts or settled ids'),
-      `${refused.length} row(s): ${JSON.stringify(refused)}`,
+      `${refused.length} row(s): ${JSON.stringify(refused)} — the ring reader in src/services/crew/dispatch.ts must record one 'refused' event for crew-dispatch-receipts (path = the ring file, no quarantine) through src/substrate/storeRecovery.ts`,
     )
   }
 
@@ -117,24 +117,24 @@ try {
     check(
       'the replayed settled id is refused on the replay guard, never re-delivered',
       replay.state === 'not-delivered' && replay.route === 'replay-guard',
-      JSON.stringify(replay),
+      JSON.stringify(replay) + ' — dispatchToAgent in src/services/crew/dispatch.ts must refuse a clientMessageId already in settledIds with route replay-guard',
     )
     const onDisk = JSON.parse(readFileSync(path, 'utf8')) as { receipts: unknown[] }
-    check('the refusal is not persisted and the ring still holds the null and the bad rows untouched', onDisk.receipts.length === 5)
+    check('the refusal is not persisted and the ring still holds the null and the bad rows untouched', onDisk.receipts.length === 5, `${onDisk.receipts.length} row(s) on disk — dispatchToAgent in src/services/crew/dispatch.ts must not rewrite the ring when the replay guard refuses`)
   }
 
   section('(3) an envelope whose receipts is not an array takes the store\'s own damaged road')
   {
     writeFileSync(path, JSON.stringify({ _v: 1, receipts: 42, settledIds: [] }))
     const listed = await listDeliveryReceipts({ dir })
-    check('the read degrades to empty', Array.isArray(listed) && listed.length === 0)
+    check('the read degrades to empty', Array.isArray(listed) && listed.length === 0, JSON.stringify(listed) + ' — listDeliveryReceipts in src/services/crew/dispatch.ts must return an empty list when the envelope\'s receipts is not an array')
     let ev: { path: string } | undefined
     for (let i = 0; i < 40 && ev === undefined; i++) {
       const events = await readStoreRecoveryEvents()
       ev = events.find(e => e.store === 'crew-dispatch-receipts' && e.kind === 'read-degrade')
       if (ev === undefined) await sleep(50)
     }
-    check('the degrade is on the recovery ledger under the store\'s name and path', ev !== undefined && ev.path === path, JSON.stringify(ev))
+    check('the degrade is on the recovery ledger under the store\'s name and path', ev !== undefined && ev.path === path, JSON.stringify(ev) + ' — the ring reader in src/services/crew/dispatch.ts must record a read-degrade event for crew-dispatch-receipts at the ring path through src/substrate/storeRecovery.ts')
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })

@@ -18,7 +18,7 @@ const { getDapSession, removeDapSession, _dapSessionCountForTesting } = await im
 const { processMainOwner } = await import(join(SRC, 'utils/run/resolveOwner.ts'))
 const owner = processMainOwner()
 let failures = 0
-const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' ' + detail : ''}`) }
+const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' ' + (detail ? detail + ' — ' : '') + 'the abort signal must reach the session wait or request: see DebugTool.call in src/tools/DebugTool/DebugTool.ts (context.abortController), withOperation in src/services/dap/dapClient.ts and waitForDap in src/services/dap/dapCancellation.ts; the timeoutMs schema checks are on DebugTool.inputSchema in src/tools/DebugTool/DebugTool.ts' : ''}`) }
 const call = (input: any, abortController = new AbortController()) => DebugTool.call(input, { owner, abortController } as never)
 const until = async (test: () => boolean) => { const end = Date.now() + 2000; while (!test() && Date.now() < end) await Bun.sleep(10); return test() }
 const settledWithin = async (promise: Promise<any>, ms: number) => { let timer: ReturnType<typeof setTimeout>; try { return await Promise.race([promise, new Promise<undefined>(resolve => { timer = setTimeout(() => resolve(undefined), ms) })]) } finally { clearTimeout(timer!) } }

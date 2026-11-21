@@ -60,7 +60,7 @@ for (const [cols, rows] of [[80, 11], [80, 14], [82, 17], [80, 19], [80, 21]] as
   const tag = `${cols}x${rows}`
   const run = await capture(cols, rows)
   try {
-    check(`${tag}: the board opened, the offer stood and Yes opened the field (engine exit 0)`, run.status === 0 && run.marks.has('offer') && run.marks.has('field'), `exit=${run.status}; ${run.log}`)
+    check(`${tag}: the board opened, the offer stood and Yes opened the field (engine exit 0)`, run.status === 0 && run.marks.has('offer') && run.marks.has('field'), `exit=${run.status}; ${run.log}; the board never reached the contract offer or the field: read the engine log above, rebuild with \`bun run build.ts\` if dist is stale, and see the offer wiring in src/components/concourse/screen/useConcourseFaces.tsx`)
     const offer = run.marks.get('offer')
     const field = run.marks.get('field')
     if (offer !== undefined) {
@@ -72,12 +72,12 @@ for (const [cols, rows] of [[80, 11], [80, 14], [82, 17], [80, 19], [80, 21]] as
       const no = rowOf(text, NO)
       const keys = rowOf(text, KEYS_HEAD)
       const composer = text.findIndex((r, i) => i > title && /^│.*╭/.test(r) && r.includes('╮ │'))
-      check(`${tag} offer: the title, the question and the Yes/No rows are on the pane, in order`, title >= 0 && question > title && yes === question + 1 && no === yes + 1, JSON.stringify({ title, question, yes, no }))
-      check(`${tag} offer: the keys row stands under the Yes/No rows`, keys > no, JSON.stringify({ no, keys }))
+      check(`${tag} offer: the title, the question and the Yes/No rows are on the pane, in order`, title >= 0 && question > title && yes === question + 1 && no === yes + 1, `${JSON.stringify({ title, question, yes, no })}; fix contractCardFit in src/components/concourse/ContractOfferCard.tsx so the offer face fits the rows the board hands it`)
+      check(`${tag} offer: the keys row stands under the Yes/No rows`, keys > no, `${JSON.stringify({ no, keys })}; fix the ask face in src/components/concourse/ContractOfferCard.tsx`)
       const bottom = text.findIndex((r, i) => i > keys && r.includes('╰') && r.includes('╯') && !r.includes('╭'))
-      check(`${tag} offer: the card closes with its own frame above the composer`, keys > 0 && bottom > keys && bottom <= keys + 2 && (composer < 0 || bottom < composer), JSON.stringify({ keys, bottom, composer }))
-      if (SEVEN_ROW_SIZES.has(tag)) check(`${tag} offer: the keys row stands right under the Yes/No rows — at seven rows the gap yields`, keys === no + 1, JSON.stringify({ no, keys }))
-      else check(`${tag} offer: the gap above the keys stands`, keys === no + 2, JSON.stringify({ no, keys }))
+      check(`${tag} offer: the card closes with its own frame above the composer`, keys > 0 && bottom > keys && bottom <= keys + 2 && (composer < 0 || bottom < composer), `${JSON.stringify({ keys, bottom, composer })}; fix contractCardFit in src/components/concourse/ContractOfferCard.tsx or the rows the compact board grants in compactConcourseGeometry (src/components/concourse/compactBoard.ts)`)
+      if (SEVEN_ROW_SIZES.has(tag)) check(`${tag} offer: the keys row stands right under the Yes/No rows — at seven rows the gap yields`, keys === no + 1, `${JSON.stringify({ no, keys })}; the askGap flag of contractCardFit in src/components/concourse/ContractOfferCard.tsx should be false at seven rows`)
+      else check(`${tag} offer: the gap above the keys stands`, keys === no + 2, `${JSON.stringify({ no, keys })}; the askGap flag of contractCardFit in src/components/concourse/ContractOfferCard.tsx should be true at this size`)
     }
     if (field !== undefined) {
       const text = textRows(field.grid)
@@ -85,9 +85,9 @@ for (const [cols, rows] of [[80, 11], [80, 14], [82, 17], [80, 19], [80, 21]] as
       const question = rowOf(text, FIELD_QUESTION)
       const placeholder = rowOf(text, PLACEHOLDER)
       const keys = rowOf(text, FIELD_KEYS)
-      check(`${tag} field: the question, the field and its keys are on the pane, in order`, question > 0 && placeholder > question && keys > placeholder, JSON.stringify({ question, placeholder, keys }))
+      check(`${tag} field: the question, the field and its keys are on the pane, in order`, question > 0 && placeholder > question && keys > placeholder, `${JSON.stringify({ question, placeholder, keys })}; fix the field face (fieldLines, fieldGaps) of contractCardFit in src/components/concourse/ContractOfferCard.tsx`)
       const bottom = text.findIndex((r, i) => i > keys && r.includes('╰') && r.includes('╯') && !r.includes('╭'))
-      check(`${tag} field: the card closes with its own frame`, keys > 0 && bottom > keys && bottom <= keys + 2, JSON.stringify({ keys, bottom }))
+      check(`${tag} field: the card closes with its own frame`, keys > 0 && bottom > keys && bottom <= keys + 2, `${JSON.stringify({ keys, bottom })}; fix the field face of contractCardFit in src/components/concourse/ContractOfferCard.tsx`)
     }
     check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(run.leg.netlog)).length === 0)
   } finally {

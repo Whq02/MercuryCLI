@@ -41,9 +41,9 @@ const until = async (predicate: () => boolean | Promise<boolean>, ms = 30_000): 
   return predicate()
 }
 let failures = 0
-const check = (label: string, ok: boolean, detail: unknown = ''): void => {
+const check = (label: string, ok: boolean, detail: unknown = '', hint = 'the helper logs are written to the world folder printed at the end; the restart verb is in src/daemon/handshake.ts and its arm-and-wait decision in restartWhenIdle in src/daemon/run/restart.ts'): void => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${JSON.stringify(detail)}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${JSON.stringify(detail)} — ${hint}`}`)
 }
 const rpc = (request: object) => daemonControlRpc(request as never, { timeoutMs: 10_000 })
 const hello = () => rpc({ op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: '1.0.0', clientBuildTree: null })
@@ -62,7 +62,7 @@ const boot = async (label: string, from: string = dist, predecessor?: number): P
   logs.set(pid, '')
   for (const stream of [child.stdout, child.stderr]) stream?.on('data', data => logs.set(pid, logs.get(pid)! + data))
   const ready = await until(async () => { const h = await hello(); return h.ok && h.op === 'hello' && h.ready && h.pid === pid })
-  check(`${label} serves`, ready, logs.get(pid))
+  check(`${label} serves`, ready, logs.get(pid), 'the helper did not answer hello; read its log above for the start-up error and check that the dist build is current (bun run build.ts)')
   if (!ready) throw new Error(`helper ${pid} did not start`)
   return pid
 }
@@ -174,7 +174,7 @@ try {
   check("the plane helper's log names the armed restart behind the older helper, then its idle moment", /restart armed by mercury daemon restart — the daemon this one took over from \(pid \d+\) still hosts 2 live sessions/.test(logs.get(newer) ?? '') && /armed restart — idle now, re-executing as the deployed build/.test(logs.get(newer) ?? ''), logs.get(newer))
   await stopPlane('the replacement behind the older helper')
 } catch (error) {
-  check('the drive completes', false, String(error))
+  check('the drive completes', false, String(error), 'a step threw before its check; the error above names it, and the helper logs are in the world folder printed at the end')
 } finally {
   writeFileSync(release, 'finish now')
   await cli('stop')

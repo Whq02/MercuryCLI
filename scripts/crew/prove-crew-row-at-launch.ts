@@ -55,9 +55,9 @@ try {
   tally.check(
     'RED ON THE BASE: the `task started` row for the launched agent is on the wire while its first reply is held',
     startedWhileHeld !== undefined,
-    `after ${Math.round((Date.now() - askedAt) / 1000)}s of the ${HOLD_MS / 1000}s hold the wire carried ${session.frames.length} rows and no task started row for "count the harbour"`,
+    `after ${Math.round((Date.now() - askedAt) / 1000)}s of the ${HOLD_MS / 1000}s hold the wire carried ${session.frames.length} rows and no task started row for "count the harbour"; the wire must carry the task started row when the crewmate is launched, not when its first reply lands (see the rows tail of this run)`,
   )
-  tally.check('…and the held reply has not landed yet (the hold is real)', agentReplyAt(rowsOf(session.frames)) === -1, `reply index ${agentReplyAt(rowsOf(session.frames))}`)
+  tally.check('…and the held reply has not landed yet (the hold is real)', agentReplyAt(rowsOf(session.frames)) === -1, `reply index ${agentReplyAt(rowsOf(session.frames))}; the fixture's HOLD_MS delay on the agent's first reply did not hold, so the order below proves nothing`)
 
   await session.waitFor('the lead never finished the turn', () => session.stdout().includes('LEAD-DONE'), TURN_MS)
   const rows = rowsOf(session.frames)
@@ -66,16 +66,16 @@ try {
   const started = rows.findIndex(r => r.type === 'task' && r.state === 'started' && r.description === 'count the harbour')
   const launch = rows.findIndex(r => JSON.stringify(r).includes(LAUNCH_ID) && r.type !== 'task')
   const reply = agentReplyAt(rows)
-  tally.check('the task started row lands once', rows.filter(r => r.type === 'task' && r.state === 'started' && r.description === 'count the harbour').length === 1)
-  tally.check('…after the lead\'s launching tool_use row', launch >= 0 && started > launch, `launch ${launch} started ${started}`)
-  tally.check('…and before the agent\'s first assistant row', reply >= 0 && started < reply, `started ${started} reply ${reply}`)
-  tally.check('…inside the rows that were on the wire during the hold', started >= 0 && started < rowsAtLaunch, `started ${started} rows at launch ${rowsAtLaunch}`)
+  tally.check('the task started row lands once', rows.filter(r => r.type === 'task' && r.state === 'started' && r.description === 'count the harbour').length === 1, 'the wire must carry exactly one task started row for the launched crewmate; read the rows tail of this run')
+  tally.check('…after the lead\'s launching tool_use row', launch >= 0 && started > launch, `launch ${launch} started ${started}; the task started row must come after the lead's Crewmate tool_use row on the wire`)
+  tally.check('…and before the agent\'s first assistant row', reply >= 0 && started < reply, `started ${started} reply ${reply}; the task started row must come before the agent's first assistant row on the wire`)
+  tally.check('…inside the rows that were on the wire during the hold', started >= 0 && started < rowsAtLaunch, `started ${started} rows at launch ${rowsAtLaunch}; the task started row must be on the wire while the first reply is still held`)
 
   tally.section('L3 — the ended row still lands once, after the reply')
   const ended = rows.filter(r => r.type === 'task' && r.state === 'ended' && r.task_id === (startedWhileHeld?.task_id ?? rows[started]?.task_id))
-  tally.check('one ended row for the agent', ended.length === 1, `${ended.length} ended rows`)
-  tally.check('…after the reply', ended.length === 1 && rows.indexOf(ended[0]!) > reply, `ended ${rows.indexOf(ended[0]!)} reply ${reply}`)
-  tally.check('…with the completed status', ended[0]?.status === 'completed', String(ended[0]?.status))
+  tally.check('one ended row for the agent', ended.length === 1, `${ended.length} ended rows; the wire must carry exactly one task ended row for the launched crewmate`)
+  tally.check('…after the reply', ended.length === 1 && rows.indexOf(ended[0]!) > reply, `ended ${rows.indexOf(ended[0]!)} reply ${reply}; the task ended row must come after the agent's reply row`)
+  tally.check('…with the completed status', ended[0]?.status === 'completed', String(ended[0]?.status) + '; the task ended row of a crewmate that answered must carry status completed')
 } finally {
   await session.end()
   await closeWorld(world)
@@ -85,8 +85,8 @@ tally.section('L4 — the rail\'s row for the launched-but-unanswered phase need
 {
   const row = { id: 'agent-1', kind: 'agent', name: 'count the harbour', status: 'running', startTime: Date.now() } as WorkRow
   const facts = crewAgentFactsOf(row, 'lead')
-  tally.check('a running record with no settled response has no tokens label (no fabricated zero)', facts !== null && crewTokensLabel(facts) === null)
-  tally.check('…and its one status word is running — the verb the rail paints for that phase', facts !== null && crewStateLabel(facts) === 'running', String(facts === null ? null : crewStateLabel(facts)))
+  tally.check('a running record with no settled response has no tokens label (no fabricated zero)', facts !== null && crewTokensLabel(facts) === null, 'crewTokensLabel in src/services/engine-connector/crewFacts.ts must return null for a running record with no settled response')
+  tally.check('…and its one status word is running — the verb the rail paints for that phase', facts !== null && crewStateLabel(facts) === 'running', String(facts === null ? null : crewStateLabel(facts)) + ' — crewStateLabel in src/services/engine-connector/crewFacts.ts must read running for a running agent record')
 }
 
 tally.finish()

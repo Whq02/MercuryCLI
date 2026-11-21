@@ -9,9 +9,9 @@ delete process.env.NODE_ENV
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 
 let failures = 0
-const check = (label: string, ok: boolean): void => {
+const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}wouldLoseAuthState and its authStateLosses rules in src/utils/config/globalConfig.ts decide what counts as a loss against the cached config` : ''}`)
 }
 
 const config = await import(join(SRC, 'utils/config/globalConfig.ts'))

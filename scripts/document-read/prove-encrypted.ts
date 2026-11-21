@@ -49,6 +49,6 @@ try {
       await healthy()
     }
   }
-  assert.deepEqual(failures, [])
+  assert.deepEqual(failures, [], 'these roads did not refuse an encrypted PDF with a message naming the file, "PDF is encrypted" and "unencrypted copy" (or leaked text or a stack): Read goes through src/tools/FileReadTool/FileReadTool.ts, inspect and convert through the DocumentTool in src/tools/DocumentTool/DocumentTool.ts (its encrypted message), the text worker is src/utils/pdfTextWorker.mjs')
   console.log('PASS owner-only and user-password PDFs refuse without partial text; Read, inspect, convert and same-session health')
 } finally { cleanup(root) }

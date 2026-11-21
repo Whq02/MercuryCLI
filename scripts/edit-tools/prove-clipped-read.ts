@@ -22,7 +22,7 @@ const { toolErrorReason } = await import('../../src/utils/toolErrorReason.ts')
 const parent = { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'fixture' } } as any
 function context(): any { return { readFileState: new Map(), abortController: new AbortController(), options: { tools: [], commands: [], engineModel: 'fixture-model' }, getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }), dynamicSkillDirTriggers: new Set(), nestedMemoryAttachmentTriggers: new Set(), updateFileHistoryState() {} } }
 let failures = 0
-function check(label: string, ok: boolean, detail?: unknown) { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${!ok ? ` ${JSON.stringify(detail)}` : ''}`); if (!ok) failures++ }
+function check(label: string, ok: boolean, detail?: unknown) { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${!ok ? ` ${JSON.stringify(detail)} · to fix: a clipped line must stay unreadable to Edit, Write and ChangeSet until a lossless Read; check validateInput in src/tools/FileEditTool/FileEditTool.ts, src/tools/FileWriteTool/FileWriteTool.ts and src/tools/ChangeSetTool/ChangeSetTool.ts, and the Read result in src/tools/FileReadTool/FileReadTool.ts` : ''}`); if (!ok) failures++ }
 const line = 'prefix_' + 'x'.repeat(2986) + '_suffix'
 async function read(input: any, ctx: any) { const result = await Read.call(input, ctx, null as any, parent); return { data: result.data, text: String(Read.mapToolResultToToolResultBlockParam(result.data, 'r').content) } }
 try {

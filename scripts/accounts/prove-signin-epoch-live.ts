@@ -15,10 +15,17 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ` — change ${WHERE[current.slice(0, 2)] ?? 'the code this section exercises'} so this holds` : ''}`)
   if (!ok) failures++
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
+let current = ''
+const WHERE: Record<string, string> = {
+  E1: 'noteCredentialChange, recordSignIn and subscribeSignInEpoch in src/utils/accounts/signInLedger.ts',
+  E2: 'executeSlotRemoval and signOutEveryEngineCredential in src/services/providers/accountSlots/removal.ts (and the limit-state files under src/services/providers/*/)',
+  E3: 'forgetOpenaiLimitSource in src/services/providers/openai/openaiLimitState.ts or disconnectOpenaiSubscription in src/services/providers/openai/openaiAccounts.ts',
+  E4: 'dropCredentialMemos in src/services/auth/oauthLifecycle.ts or getApiKeyFromConfigOrMacOSKeychain in src/utils/auth.ts',
+}
+const section = (t: string): void => { current = t; console.log('\n' + '─'.repeat(72) + '\n' + t) }
 
 const ledger = await import('../../src/utils/accounts/signInLedger.ts')
 const slots = await import('../../src/services/providers/accountSlots.ts')

@@ -43,14 +43,14 @@ try {
       const save = (part: string) => { if (frames) writeFileSync(join(frames, `${estate.family}-${cols}x${rows}-${part}.txt`), scene.screen()) }
       try {
         await call(() => {}, { onChangeAPIKey() {}, setMessages() {}, getAppState: () => ({}), setAppState() {} } as never, estate.family)
-        check(`${estate.family} ${cols}x${rows}: menu shows full timed refusal and remedy`, await waitFor(truth, 10000), scene.screen())
-        check(`${estate.family} ${cols}x${rows}: the refused family stays selected`, scene.lines().some(line => line.includes(`❯ ${estate.label}`)))
+        check(`${estate.family} ${cols}x${rows}: menu shows full timed refusal and remedy`, await waitFor(truth, 10000), `${scene.screen()}\nthe /logins popup must show the line signInRefusalWords builds from src/services/providers/signInRefusal.ts for ${estate.family}; the screen above is what it drew`)
+        check(`${estate.family} ${cols}x${rows}: the refused family stays selected`, scene.lines().some(line => line.includes(`❯ ${estate.label}`)), `${estate.label} row has no cursor; the /logins popup opened by src/commands/login/login.tsx must start with the refused family selected`)
         save('menu')
         scene.push(KEY.enter)
-        check(`${estate.family} ${cols}x${rows}: account keeps full refusal beside the sign-in action`, await waitFor(() => truth() && scene.screen().includes('Sign in / re-login'), 10000), scene.screen())
+        check(`${estate.family} ${cols}x${rows}: account keeps full refusal beside the sign-in action`, await waitFor(() => truth() && scene.screen().includes('Sign in / re-login'), 10000), `${scene.screen()}\nthe account page in src/components/LoginAccountCard.tsx must keep the refusal line beside the Sign in / re-login action`)
         save('account')
         scene.push(KEY.esc)
-        check(`${estate.family} ${cols}x${rows}: back returns to the refused family`, await waitFor(() => truth() && scene.lines().some(line => line.includes(`❯ ${estate.label}`)), 10000), scene.screen())
+        check(`${estate.family} ${cols}x${rows}: back returns to the refused family`, await waitFor(() => truth() && scene.lines().some(line => line.includes(`❯ ${estate.label}`)), 10000), `${scene.screen()}\nEsc on the account page (src/components/LoginAccountCard.tsx) must return to the family list with the refusal still shown`)
       } finally { closeSettingsPopup(); scene.unmount() }
     }
     estate.store(null)

@@ -120,20 +120,20 @@ function frameOf(lines: string[], title: string): Rect | null {
 }
 function judge(label: string, lines: string[], title: string, host: Rect, columns: number, rows: number): void {
   const frame = frameOf(lines, title)
-  check(`${label}: four frame corners are on screen`, frame !== null && frame.left >= 0 && frame.right < columns && frame.top >= 0 && frame.bottom < rows, JSON.stringify(frame))
+  check(`${label}: four frame corners are on screen`, frame !== null && frame.left >= 0 && frame.right < columns && frame.top >= 0 && frame.bottom < rows, `${JSON.stringify(frame)}; the popup's frame is clipped or missing at this size, so its width and height must fit inside the terminal`)
   if (frame === null) return
   const { left, right, top, bottom } = frame
   const width = right - left + 1
   const topRun = Array.from(lines[top]!).slice(left, right + 1).join('')
   const bottomRun = Array.from(lines[bottom]!).slice(left, right + 1).join('')
-  check(`${label}: rounded frame rows close without interruption`, topRun === `╭${'─'.repeat(width - 2)}╮` && bottomRun === `╰${'─'.repeat(width - 2)}╯` && lines.slice(top + 1, bottom).every((_, i) => cell(lines, left, top + 1 + i) === '│' && cell(lines, right, top + 1 + i) === '│'), `${topRun} / ${bottomRun}`)
-  check(`${label}: the host contains the frame and its one-cell gutter`, left > host.left && right < host.right && top > host.top && bottom < host.bottom, `${JSON.stringify(frame)} in ${JSON.stringify(host)}`)
+  check(`${label}: rounded frame rows close without interruption`, topRun === `╭${'─'.repeat(width - 2)}╮` && bottomRun === `╰${'─'.repeat(width - 2)}╯` && lines.slice(top + 1, bottom).every((_, i) => cell(lines, left, top + 1 + i) === '│' && cell(lines, right, top + 1 + i) === '│'), `${topRun} / ${bottomRun}; something painted over the frame's border, so the popup's frame must be the last paint on those cells`)
+  check(`${label}: the host contains the frame and its one-cell gutter`, left > host.left && right < host.right && top > host.top && bottom < host.bottom, `${JSON.stringify(frame)} in ${JSON.stringify(host)}; the popup must leave one blank cell between its frame and the host view edge, so reduce its width or height at this size`)
   const dirty: string[] = []
   for (let y = top - 1; y <= bottom + 1; y++) for (let x = left - 1; x <= right + 1; x++) {
     if (y >= top && y <= bottom && x >= left && x <= right) continue
     if (cell(lines, x, y) !== ' ') dirty.push(`${x},${y}=${JSON.stringify(cell(lines, x, y))}`)
   }
-  check(`${label}: every cell in the surrounding gutter is blank`, dirty.length === 0, dirty.slice(0, 8).join(' · '))
+  check(`${label}: every cell in the surrounding gutter is blank`, dirty.length === 0, `${dirty.slice(0, 8).join(' · ')}; text from the surface behind shows around the popup, so the popup must blank its one-cell margin`)
 }
 const save = (name: string, lines: string[]): void => { if (frameDir) writeFileSync(join(frameDir, `${name}.txt`), `${lines.join('\n')}\n`) }
 const surfaces = [
@@ -174,9 +174,9 @@ for (const size of process.argv.includes('--concourse-only') ? [] : selectedSize
     const opened = await settledFrame(scene, frame => frame.includes(surface.title))
     const lines = scene.lines()
     save(`${surface.name}-${size}`, lines)
-    check(`${surface.name} ${size}: the source surface opened`, opened, lines.filter(line => /Mercury|fault/i.test(line)).join(' | '))
+    check(`${surface.name} ${size}: the source surface opened`, opened, `${lines.filter(line => /Mercury|fault/i.test(line)).join(' | ')}; the surface's title never appeared, so its open call in the surfaces list of this file did not mount it`)
     if (surfaces.includes(surface as typeof surfaces[number])) judge(`${surface.name} ${size}`, lines, surface.title, host, columns, rows)
-    else check(`${surface.name} ${size}: the claims-modal sheet is not mistaken for a floating frame`, opened && lines.every(line => Array.from(line).length <= columns))
+    else check(`${surface.name} ${size}: the claims-modal sheet is not mistaken for a floating frame`, opened && lines.every(line => Array.from(line).length <= columns), 'the sheet did not open, or a line is wider than the terminal; the sheet must fit the screen width')
     if (surface.name === 'jev') {
       const beforeFlip = scene.screen()
       scene.push('\x1b[D')
@@ -185,7 +185,7 @@ for (const size of process.argv.includes('--concourse-only') ? [] : selectedSize
       save(`jev-flipped-${size}`, changed)
       judge(`jev-flipped ${size}`, changed, surface.title, host, columns, rows)
       const outside = (frame: string[]): string => frame.map((line, y) => Array.from(line.padEnd(columns)).map((c, x) => x >= host.left && x <= host.right && y >= host.top && y <= host.bottom ? ' ' : c).join('')).join('\n')
-      check(`jev-flipped ${size}: dynamic height never paints outside the view`, flipped && outside(lines) === outside(changed))
+      check(`jev-flipped ${size}: dynamic height never paints outside the view`, flipped && outside(lines) === outside(changed), 'cells outside the host view changed when the JEV popup grew; its height change must stay inside the view')
     }
     await close(scene)
   }

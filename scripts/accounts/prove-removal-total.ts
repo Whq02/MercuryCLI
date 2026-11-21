@@ -53,7 +53,7 @@ for (const base of [
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — a removal must leave every surface consistent; start at executeSlotRemoval in src/services/providers/accountSlots/removal.ts and the sign-in ledger in src/utils/accounts/signInLedger.ts, and read the section heading above for the surface' : ''}`)
 }
 function section(t: string): void {
   console.log(`\n── ${t} ${'─'.repeat(Math.max(2, 68 - t.length))}`)

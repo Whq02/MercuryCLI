@@ -13,11 +13,13 @@ const FRAMES = framesArg >= 0 ? process.argv[framesArg + 1] : undefined
 if (FRAMES) mkdirSync(FRAMES, { recursive: true })
 
 let failures = 0
+let where = ''
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!ok && where ? ` — to fix, look at: ${where}` : ''}`)
 }
-function section(title: string): void {
+function section(title: string, w = ''): void {
+  where = w
   console.log(`\n${title}`)
 }
 function save(name: string, lines: string[]): void {
@@ -34,7 +36,7 @@ const { readPinnedStatus } = await import('../../src/mneme/mnemeFrontPage.js')
 const { getActiveNotices, pinnedOverLimitLine } = await import('../../src/components/statusNotices/statusNoticeDefinitions.js')
 const { getGlobalConfig } = await import('../../src/utils/config.js')
 
-section('§1 a library whose pinned shelf is over its text limit')
+section('§1 a library whose pinned shelf is over its text limit', 'maybeConsolidate in src/mneme/mnemeConsolidate.ts, pinFact in src/mneme/mnemeUsage.ts, readPinnedStatus in src/mneme/mnemeFrontPage.ts')
 const dir = mnemeLibraryDir()
 const RULES = ['deploys', 'commits', 'reviews', 'suites', 'worktrees', 'releases', 'docs', 'frames', 'keys', 'lanes', 'folds', 'censuses', 'drives', 'briefs', 'pages', 'notes', 'rows', 'seals', 'gates', 'pools', 'homes', 'walls', 'relogs']
 for (const word of RULES) {
@@ -46,7 +48,7 @@ maybeConsolidate({ force: true, dir })
 const status = readPinnedStatus(dir)
 check('the shelf is over its limit with every rule loaded', status !== null && status.over && status.loaded.length === RULES.length, JSON.stringify(status && { pinned: status.pinned, used: status.used, limit: status.limit }))
 
-section('§2 the calm start-of-session line, as the notice strip paints it')
+section('§2 the calm start-of-session line, as the notice strip paints it', 'the pinned-over-limit notice (getActiveNotices) and pinnedOverLimitLine in src/components/statusNotices/statusNoticeDefinitions.tsx, formatTextSize in src/mneme/mnemeUsage.ts')
 const notices = getActiveNotices({ config: getGlobalConfig(), memoryFiles: [] })
 const notice = notices.find(n => n.id === 'pinned-over-limit')
 check('the pinned-over-limit notice is active', notice !== undefined, notices.map(n => n.id).join(','))
@@ -72,7 +74,7 @@ if (notice) {
   }
 }
 
-section('§3 the /config popup: the Pinned memory limit row, where it sits and how it reads')
+section('§3 the /config popup: the Pinned memory limit row, where it sits and how it reads', 'the Pinned memory limit row in src/components/Settings/Config.tsx, configPopupRequest in src/commands/config/config.tsx, src/components/SettingsPopupSlot.tsx')
 {
   const React = await import('react')
   const { Box } = await import('../../src/ink.js')
@@ -114,7 +116,7 @@ section('§3 the /config popup: the Pinned memory limit row, where it sits and h
   }
 }
 
-section("§4 the line paints in the person's chat and never in a crewmate's chat view")
+section("§4 the line paints in the person's chat and never in a crewmate's chat view", 'the suppressNotices prop of Messages in src/components/Messages.tsx, and the crewmate mount in src/components/CrewmateTranscript.tsx that passes it')
 {
   const React = await import('react')
   const { Box } = await import('../../src/ink.js')
@@ -179,7 +181,7 @@ async function mountMemoryPopup(): Promise<{ m: Mounted; close: () => void }> {
   return { m, close: () => store.closeSettingsPopup() }
 }
 
-section('§5 /memory lists the pinned rules — size, the asked mark, ↵ opens a rule and u unpins it there — so "trim in /memory" is a real instruction')
+section('§5 /memory lists the pinned rules — size, the asked mark, ↵ opens a rule and u unpins it there — so "trim in /memory" is a real instruction', 'src/components/memory/MemoryCentreView.tsx (pinned rules row, list and rule view), memoryPopupRequest in src/commands/memory/memory.tsx, pinFact and readPins in src/mneme/mnemeUsage.ts')
 {
   const { readPins } = await import('../../src/mneme/mnemeUsage.js')
   const pinsBefore = readPins(dir).length
@@ -240,7 +242,7 @@ section('§5 /memory lists the pinned rules — size, the asked mark, ↵ opens 
   maybeConsolidate({ force: true, dir })
 }
 
-section('§5b /memory lists the topics — one row per index line, as the model reads it; ↵ opens the page')
+section('§5b /memory lists the topics — one row per index line, as the model reads it; ↵ opens the page', 'src/components/memory/MemoryCentreView.tsx (topics row, list and page view), memoryPopupRequest in src/commands/memory/memory.tsx, the index in src/mneme/mnemeFrontPage.ts')
 {
   const { readFrontPage } = await import('../../src/mneme/mnemeFrontPage.js')
   const page = readFrontPage(dir) ?? ''
@@ -283,7 +285,7 @@ section('§5b /memory lists the topics — one row per index line, as the model 
   m.unmount()
 }
 
-section('§6 the line is a start-of-session reading: what changes mid-session paints nothing new')
+section('§6 the line is a start-of-session reading: what changes mid-session paints nothing new', 'the pinned-over-limit notice in getActiveNotices in src/components/statusNotices/statusNoticeDefinitions.tsx, readPinnedStatus and pinnedStatusPath in src/mneme/mnemeFrontPage.ts')
 {
   const { pinnedStatusPath } = await import('../../src/mneme/mnemeFrontPage.js')
   const under = { ...status!, over: false, used: 100, pinned: 1 }

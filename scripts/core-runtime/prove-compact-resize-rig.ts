@@ -47,7 +47,7 @@ async function until(label: string, predicate: () => boolean): Promise<void> {
   const timer = setTimeout(() => { expired = true }, 5000)
   while (!predicate() && !expired) await new Promise<void>(resolve => setImmediate(resolve))
   clearTimeout(timer)
-  check(label, predicate())
+  check(label, predicate(), 'waited 5s and the state never arrived; read the frame printed above and the component it exercises: src/components/FullscreenLayout.tsx, src/components/PromptInput/PromptInput.tsx, src/components/tasks/CompactWorkSummary.tsx or src/ink/ink.tsx')
 }
 class Output extends EventEmitter {
   isTTY = true
@@ -68,7 +68,7 @@ class Input extends EventEmitter {
   get readableLength(): number { return this.chunks.reduce((n, value) => n + value.length, 0) }
   push(value: string): void { this.chunks.push(value); this.emit('readable') }
 }
-const hardLimit = setTimeout(() => { console.error('compact rig exceeded its deadline'); process.exit(1) }, 90_000)
+const hardLimit = setTimeout(() => { console.error('compact rig exceeded its 90s deadline; the last awaited step is the last line printed above, find it in this script'); process.exit(1) }, 90_000)
 hardLimit.unref()
 const faults: string[] = []
 const originalError = console.error
@@ -146,15 +146,15 @@ for (const editorMode of ['emacs', 'vim'] as const) {
     await until(`${editorMode}: the held draft is painted in the editor`, () => ink.lastFrameText().includes('❯ alpha beta'))
     for (const [columns, rows, expectedCompact] of [[80, 24, true], [120, 24, true], [60, 16, true], [40, 10, true], [1, 1, true], [1, 40, true], [200, 1, true], [2, 2, true], [99, 26, true], [100, 26, false], [97, 26, false], [96, 26, true], [99, 26, true], [100, 26, false], [100, 25, true], [120, 40, false], [80, 24, true]] as const) {
       await resize(columns, rows)
-      check(`${editorMode}: the renderer uses the settled latch at ${columns}x${rows}`, compact === expectedCompact)
-      check(`${editorMode}: resize preserves the actual transcript handle`, scrollRef.current === handle && transcriptMounts === 1)
-      check(`${editorMode}: draft and middle cursor survive ${columns}x${rows}`, pending.text() === 'alpha beta' && insertRef.current?.cursorOffset === 5)
-      check(`${editorMode}: local allocation is bounded by the physical terminal`, local.columns > 0 && local.columns <= columns && local.rows >= 0 && local.rows <= rows)
+      check(`${editorMode}: the renderer uses the settled latch at ${columns}x${rows}`, compact === expectedCompact, `compact=${compact}, expected ${expectedCompact}; fix layoutChromeLive and computeChromeMode in src/hooks/useLayoutTier.ts`)
+      check(`${editorMode}: resize preserves the actual transcript handle`, scrollRef.current === handle && transcriptMounts === 1, `mounts=${transcriptMounts}; a resize must not remount the transcript in src/components/FullscreenLayout.tsx`)
+      check(`${editorMode}: draft and middle cursor survive ${columns}x${rows}`, pending.text() === 'alpha beta' && insertRef.current?.cursorOffset === 5, `text=${JSON.stringify(pending.text())} cursor=${insertRef.current?.cursorOffset}; a resize must not remount or reset the editor in src/components/PromptInput/PromptInput.tsx`)
+      check(`${editorMode}: local allocation is bounded by the physical terminal`, local.columns > 0 && local.columns <= columns && local.rows >= 0 && local.rows <= rows, `local ${local.columns}x${local.rows} in a physical ${columns}x${rows}; fix useTerminalSize in src/hooks/useTerminalSize.ts`)
     }
     const beforeStorm = frames
     for (let i = 0; i < 100; i++) { stdout.columns = i % 2 === 0 ? 99 : 120; stdout.rows = 24; stdout.emit('resize') }
     await resize(83, 24)
-    check(`${editorMode}: a hundred resize events coalesce instead of repainting every event`, frames - beforeStorm <= 6, `${frames - beforeStorm} composed frames`)
+    check(`${editorMode}: a hundred resize events coalesce instead of repainting every event`, frames - beforeStorm <= 6, `${frames - beforeStorm} composed frames; resize events must settle once in src/ink/ink/resize.ts (handleResize, applySettledResize)`)
     check(`${editorMode}: the storm preserves mounted state and draft`, transcriptMounts === 1 && scrollRef.current === handle && pending.text() === 'alpha beta')
     await resize(120, 40)
     const beforeBoundaryStorm = frames

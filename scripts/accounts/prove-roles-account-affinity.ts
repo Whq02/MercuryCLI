@@ -39,9 +39,9 @@ const release = (): void => { reply!.writeHead(200, { 'content-type': 'applicati
 const waitRequest = (): Promise<void> => new Promise(resolve => { received = resolve })
 const settle = (): Promise<void> => new Promise(resolve => setImmediate(resolve))
 let failures = 0
-function check(label: string, ok: boolean): void {
+function check(label: string, ok: boolean, hint = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}: ${JSON.stringify(account())}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}: ${JSON.stringify(account())}${!ok && hint ? ` -- ${hint}` : ''}`)
 }
 try {
   for (const kind of ['same', 'account', 'organization', 'scope']) {
@@ -57,7 +57,7 @@ try {
     console.log(`[record] ${kind} before reply: ${before}`)
     release()
     await pending
-    check(`${kind}: roles only enrich the originating account and scope`, kind === 'same' ? account()?.organizationName === 'A' : JSON.stringify(account()) === before)
+    check(`${kind}: roles only enrich the originating account and scope`, kind === 'same' ? account()?.organizationName === 'A' : JSON.stringify(account()) === before, 'fetchAndStoreUserRoles in src/services/oauth/client.ts must write roles only when the stored account and auth scope are still the ones the request started with (its isCurrent check)')
   }
   clearAuthScope()
   for (const action of ['keep', 'reset', 'dispose', 'switch-before-start']) {
@@ -80,20 +80,20 @@ try {
     machine.start(true)
     await ready
     await settle()
-    check(`${action}: login completed without awaiting roles`, machine.snapshot().flow.name === 'success')
+    check(`${action}: login completed without awaiting roles`, machine.snapshot().flow.name === 'success', 'the roles fetch in createAnthropicLoginMachine (src/components/mercury-ui/screens/anthropicLoginModel.ts) must run detached after the success state, not be awaited before it')
     await Promise.race([request, pending ?? Promise.resolve()])
     if (action === 'reset') machine.reset()
     if (action === 'dispose') machine.dispose()
     const before = JSON.stringify(account())
     if (reply) release()
     await pending
-    check(`${action}: the detached tail obeys account and generation`, action === 'keep' ? account()?.organizationName === 'A' : JSON.stringify(account()) === before)
+    check(`${action}: the detached tail obeys account and generation`, action === 'keep' ? account()?.organizationName === 'A' : JSON.stringify(account()) === before, 'the detached roles fetch started by createAnthropicLoginMachine (src/components/mercury-ui/screens/anthropicLoginModel.ts) must be dropped after reset, dispose or an account switch, and fetchAndStoreUserRoles (src/services/oauth/client.ts) must honor its origin.isCurrent and signal')
     machine.dispose()
   }
   await flushDebugLogs()
   const debug = existsSync(join(home, 'debug.txt')) ? readFileSync(join(home, 'debug.txt'), 'utf8') : ''
-  check('stale replies are recorded only in the debug channel', debug.includes('OAuth roles response ignored'))
-  check('the scope bracket is restored', getAuthScope() === undefined)
+  check('stale replies are recorded only in the debug channel', debug.includes('OAuth roles response ignored'), 'fetchAndStoreUserRoles in src/services/oauth/client.ts must log "OAuth roles response ignored" through logForDebugging when it drops a stale reply')
+  check('the scope bracket is restored', getAuthScope() === undefined, 'a test step left an auth scope set; check setAuthScope/clearAuthScope use in src/utils/envUtils.ts and in fetchAndStoreUserRoles')
 } finally {
   reply?.end('{}')
   await new Promise<void>(resolve => server.close(() => resolve()))

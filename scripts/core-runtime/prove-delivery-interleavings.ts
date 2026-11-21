@@ -35,14 +35,17 @@ let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = /notice|silence/.test(label)
+    ? ''
+    : '\n    fix: queued-command delivery: selectDrainableCommands and consumeDrainedCommands in src/run-core/attachment-drain.ts, the queue in src/input-core/command-queue.ts, and the turn in src/run-core/turn-machine.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? where : ''}`)
   if (!cond) failures++
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — delivery-interleavings prover exceeded 120s')
+  console.log('\nTIMEOUT — delivery-interleavings prover exceeded 120s; a generator in the section printed last never finished, so look at query() in src/query.ts and the turn in src/run-core/turn-machine.ts')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
@@ -372,7 +375,7 @@ section('A7 — silence stays detail-only; every other turn-machine notice is re
   check(
     'the turn machine emits system notices',
     spoken.length > 0 && spoken.some(notice => notice.where === NEAR_THE_WINDOW) && spoken.some(notice => notice.where === IMAGE_LEFT_OUT),
-    `${spoken.length} system notice(s) over ${t.SCENARIOS.length} recorded scenarios and two planted requests; ${NEAR_THE_WINDOW}: ${spoken.filter(notice => notice.where === NEAR_THE_WINDOW).length}; ${IMAGE_LEFT_OUT}: ${spoken.filter(notice => notice.where === IMAGE_LEFT_OUT).length}`,
+    `the turn machine under src/run-core/turn/ must raise a system notice for a request that failed near the window and for one that left an image out; the counts show which is missing: ${spoken.length} system notice(s) over ${t.SCENARIOS.length} recorded scenarios and two planted requests; ${NEAR_THE_WINDOW}: ${spoken.filter(notice => notice.where === NEAR_THE_WINDOW).length}; ${IMAGE_LEFT_OUT}: ${spoken.filter(notice => notice.where === IMAGE_LEFT_OUT).length}`,
   )
 
   const silenceRule = NO_TOOL_RULES.find(entry => entry.name === 'empty_reply_retry')!

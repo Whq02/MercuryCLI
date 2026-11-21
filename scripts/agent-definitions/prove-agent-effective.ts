@@ -28,7 +28,7 @@ function check(name: string, cond: boolean, detail?: string): void {
   if (cond) console.log(`  ✓ ${name}`)
   else {
     failures++
-    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''} — to fix, change resolveEffectiveAgentRuntime or resolveAgentEstate in src/services/agents/resolver.ts, setAgentOverride or setAgentDisabled in src/services/agents/overrides.ts, getAgentDefinitionsWithOverrides in src/tools/AgentTool/loadAgentsDir.ts, resolveEffortTruth in src/utils/effort.ts, or resolveAgentEffort in src/tools/AgentTool/runAgent.ts, whichever this check's section names`)
   }
 }
 

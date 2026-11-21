@@ -33,9 +33,11 @@ const FAKE_GH = join(REPO, 'scripts', 'command-catalogue', 'fake-gh.mjs')
 const fakeGhCmd = JSON.stringify(['node', FAKE_GH])
 
 let failures = 0
+let hint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = !cond && hint ? `${detail ? ' · ' : ''}${hint}` : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && (detail || where) ? ` — ${detail}${where}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)
@@ -49,6 +51,7 @@ const { lastCertPath } = await import('../../src/services/health/healthReport.ts
 const { repoSlugFromUrl } = await import('../../src/services/privateChannel/channelCore.ts')
 
 section('B2 the body follows the form: the table equals the yml files')
+hint = 'change ISSUE_FORMS or composeIssueBody in src/commands/feedback/issueForms.ts, or the matching .github/ISSUE_TEMPLATE/*.yml, so the two agree'
 
 type YmlForm = { name: string; description: string; title: string; fields: Array<{ id: string; label: string }> }
 function parseTemplate(file: string): YmlForm {
@@ -110,6 +113,7 @@ for (const kind of forms.ISSUE_KINDS) {
 }
 
 section('B1 the signed-in road files through the one gh transport')
+hint = 'fix issueRepoSlug, fileIssueArgv or fileIssue in src/services/repoHost/ghIssue.ts'
 {
   const packaged = repoSlugFromUrl(pkg.repository?.url ?? '')
   check(`the default slug is the packaged repository (${packaged})`, ghIssue.issueRepoSlug() === packaged && packaged === PUBLIC_HOME, ghIssue.issueRepoSlug())
@@ -144,6 +148,7 @@ section('B1 the signed-in road files through the one gh transport')
 }
 
 section('B5 no gh = the honest fallback (three exact arms)')
+hint = 'fix checkIssueAccess in src/services/repoHost/ghIssue.ts, or noGhParagraph, issueFormUrl or healthPointer in src/commands/feedback/issueForms.ts'
 {
   const log = join(SCRATCH, 'gh-access.log')
   process.env.GH_SHIM_LOG = log
@@ -189,6 +194,7 @@ section('B5 no gh = the honest fallback (three exact arms)')
 }
 
 section('B6 privacy: the `~` spelling, the bounded health, the gates')
+hint = 'fix redactSensitiveInfo in src/components/Feedback.tsx, runHealthBounded or gatherHealthSection in src/commands/feedback/healthSection.ts, or the /feedback command registration in src/commands/feedback/index.ts'
 {
   const home = homedir()
   const spelled = feedback.redactSensitiveInfo(`at ${home}/.mercury/feedback/bug-1.json and ${home}`)
@@ -263,6 +269,7 @@ section('B6 privacy: the `~` spelling, the bounded health, the gates')
 }
 
 section('B3/B4 the real bundle: the chooser, the review frame, the filing')
+hint = 'fix the /feedback dialog in src/components/feedback/feedbackView.tsx or the filing road in src/commands/feedback/ and src/services/repoHost/ghIssue.ts, then rebuild dist with bun run build.ts'
 const distArg = process.argv.indexOf('--dist')
 if (distArg >= 0 && !process.argv[distArg + 1]) throw new Error('--dist needs a built mercury.mjs path')
 const BIN = distArg < 0 ? join(REPO, 'dist', 'mercury.mjs') : resolve(process.argv[distArg + 1]!)

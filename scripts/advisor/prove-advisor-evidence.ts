@@ -17,7 +17,7 @@ const { ADVISOR_INCOMPLETE_EVIDENCE_RULE, advisorTranscriptTail, clipAdvisorText
 const { DIGEST_INPUT_STRING_CLIP } = await import('../../src/services/advisor/advisorNote.js')
 let checks = 0
 function check(label: string, condition: unknown): void {
-  assert.ok(condition, label)
+  assert.ok(condition, `${label}; the advisor's input projection and prompt are in src/services/advisor/ (advisorProjection.ts clipping and ADVISOR_INCOMPLETE_EVIDENCE_RULE, advisorNote.ts renderAgentDigest and composeAdvisorNote, advisorContext.ts renderAdvisorFoldTranscript); change the one this check names`)
   checks++
   console.log(`PASS ${label}`)
 }

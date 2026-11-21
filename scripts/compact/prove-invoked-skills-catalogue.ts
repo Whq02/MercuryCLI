@@ -12,7 +12,7 @@ const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — fix: the catalogue filter in createSkillAttachmentIfNeeded (src/services/compact/compact/attachments.ts)'}`)
 }
 
 const bootstrap = await import(join(SRC, 'bootstrap/state.ts'))

@@ -8,9 +8,10 @@ const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
 
 let failures = 0
+const FIX_HINT = 'the transition record and its roads: recordModeTransition, holdModeTransition and describeModeRoad in src/utils/permissions/modeTransitions.ts, with the guarded setter setPermissionModeWithGuards in src/utils/permissions/permissionSetup.ts; the one door: checkWritePermissionForTool and apolloWriteRefusal in src/utils/permissions/filesystem.ts; the review words: apolloReviewRefusal in src/tools/ApolloReviewTool/ApolloReviewTool.tsx'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail || !cond ? ` — ${detail}${!cond ? `${detail ? ' · ' : ''}to fix: ${FIX_HINT}` : ''}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

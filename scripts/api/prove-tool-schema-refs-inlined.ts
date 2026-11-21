@@ -5,10 +5,11 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 let checks = 0
+const FIX_HINT = 'change inlineLocalSchemaRefs in src/utils/inlineSchemaRefs.ts (called from toolToAPISchema in src/services/messages/api.ts); for the Gemini or OpenAI checks see codeAssistSchema in src/services/providers/gemini/geminiCodec.ts and mapToolsToOpenai in src/services/providers/openai/responsesBridge.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail.slice(0, 600)} · ` : ''}to fix: ${FIX_HINT}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

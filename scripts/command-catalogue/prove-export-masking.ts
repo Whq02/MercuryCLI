@@ -4,8 +4,8 @@ import { exportFixture } from './exportFixture.js'
 
 const textOnly = process.argv.includes('--text-only')
 let failures = 0
-function check(label: string, ok: boolean): void {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`)
+function check(label: string, ok: boolean, detail = 'change the masking in createSecretRedactor / redactSecretValues in src/utils/redactSecrets.ts, or how /export applies it in src/commands/export/export.tsx'): void {
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${detail}`}`)
   if (!ok) failures++
 }
 
@@ -87,9 +87,9 @@ try {
     const { detectSecrets } = await import('../../src/utils/detectSecrets.js')
     const { redactSecrets } = await import('../../src/utils/secrets/secretScanner.js')
     const contextKey = 'ctx7sk-' + 'aB_9-'.repeat(6)
-    check('Context7 keys are refused by memory detection', detectSecrets(contextKey).some(row => row.kind === 'context7-key'))
-    check('Context7 keys redact in the shared scanner including adjacent keys', redactSecrets(`${contextKey},${contextKey}`) === '[REDACTED],[REDACTED]')
-    check('short Context7 examples are not secrets', detectSecrets('ctx7sk-short').length === 0 && redactSecrets('ctx7sk-short') === 'ctx7sk-short')
+    check('Context7 keys are refused by memory detection', detectSecrets(contextKey).some(row => row.kind === 'context7-key'), 'the context7-key pattern in src/utils/detectSecrets.ts must match ctx7sk- keys')
+    check('Context7 keys redact in the shared scanner including adjacent keys', redactSecrets(`${contextKey},${contextKey}`) === '[REDACTED],[REDACTED]', 'the context7-api-key pattern in src/utils/secrets/secretScanner.ts must redact each ctx7sk- key, adjacent ones included')
+    check('short Context7 examples are not secrets', detectSecrets('ctx7sk-short').length === 0 && redactSecrets('ctx7sk-short') === 'ctx7sk-short', 'the Context7 patterns in src/utils/detectSecrets.ts and src/utils/secrets/secretScanner.ts must keep their minimum key length (10 characters after ctx7sk-)')
     const redact = createSecretRedactor([stored, 'opaque\\"Credential\\\\Value'])
     check('surrounding prose, quotes and adjacent values survive naturally', redact('Use Authorization: Bearer simple-token then retry. api_key="one"&token=two; done') === 'Use Authorization: Bearer [redacted] then retry. api_key="[redacted]"&token=[redacted]; done')
     check('quoted Authorization preserves its surrounding command', redact('curl -H "Authorization: Bearer fixtureToken" https://example.test') === 'curl -H "Authorization: Bearer [redacted]" https://example.test')

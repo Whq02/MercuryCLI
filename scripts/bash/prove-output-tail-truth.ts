@@ -11,12 +11,24 @@ mkdirSync(process.env.MERCURY_TMPDIR, { recursive: true })
 
 let failures = 0
 let checks = 0
+const WHERE_BY_SECTION: Record<string, string> = {
+  '1': 'change formatOutput in src/utils/shell/utils.ts (head, tail and one middle notice)',
+  '2': 'change generatePreview in src/utils/toolResultStorage.ts (head and tail preview)',
+  '3': 'change formatOutput in src/utils/shell/utils.ts so its result stays a bounded string',
+  '4': 'change how TaskOutput.getStdout in src/utils/task/TaskOutput.ts reads a spilled file',
+  '5': 'change the preExcerpted handling of formatOutput in src/utils/shell/utils.ts',
+  '7': 'change resizeShellImageOutput in src/utils/shell/utils.ts (async size gate, no sync read)',
+}
+let sectionKey = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}to fix: ${WHERE_BY_SECTION[sectionKey] ?? ''}` : ''}`)
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
+const section = (t: string): void => {
+  sectionKey = /^§(\d+)/.exec(t)?.[1] ?? sectionKey
+  console.log('\n' + '─'.repeat(72) + '\n' + t)
+}
 
 delete process.env.MERCURY_SHELL_MAX_OUTPUT
 const { formatOutput } = await import('../../src/utils/shell/utils.ts')

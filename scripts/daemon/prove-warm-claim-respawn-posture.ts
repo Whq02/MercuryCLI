@@ -28,7 +28,7 @@ writeFileSync(
 )
 
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — prove-warm-claim-respawn-posture exceeded 240s')
+  console.log('\nTIMEOUT — prove-warm-claim-respawn-posture exceeded 240s — a warm runner, a claim or a respawn never appeared; read the last section header above and claimWarmRunner in src/daemon/warmRunner.ts')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()
@@ -112,12 +112,19 @@ const admit: typeof admitDoor = req => admitDoor({ by: 'operator', ...req })
 
 let failures = 0
 let checks = 0
+let sectionHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const note = [detail, sectionHint].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && note ? ` — ${note}` : ''}`)
 }
 function section(t: string): void {
+  sectionHint = t.startsWith('§5')
+    ? 'change: runnerHeapArgv in src/daemon/headlessRun.ts'
+    : t.startsWith('§3')
+      ? 'change: reconfigureLongLived in src/daemon/roster/retarget.ts must respawn under the claim posture (spawnPostureOf, src/daemon/concourseWorkers/spec.ts)'
+      : 'change: the posture the claim records (claimWarmRunner, src/daemon/warmRunner.ts; admit road src/daemon/concourseWorkers/admit.ts) and the respawn spec read back through spawnPostureOf in src/daemon/concourseWorkers/spec.ts'
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v)

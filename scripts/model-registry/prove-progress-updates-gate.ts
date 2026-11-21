@@ -36,20 +36,20 @@ section('§1 MERCURY_THINKING_DISPLAY=updates, a thinking request per model on t
 {
   const on = wire([...SEVEN, ...OTHERS], { MERCURY_THINKING_DISPLAY: 'updates' })
   console.log(`  [record] ${shown(on.rows)}`)
-  check('every request was served', on.failed === '' && on.rows.length === SEVEN.length + OTHERS.length && on.rows.every(row => row.error === ''), on.failed || shown(on.rows))
+  check('every request was served', on.failed === '' && on.rows.length === SEVEN.length + OTHERS.length && on.rows.every(row => row.error === ''), on.failed || `${shown(on.rows)} — check the loopback capture in scripts/model-registry/context1mHeaderCapture.ts (its stderr tail is in the detail) and that every id answers`)
   for (const id of SEVEN) {
     const row = on.rows.find(r => r.asked === id)
-    check(`${id}: thinking carries display "updates" and the request its beta header`, row !== undefined && asksUpdates(row), row === undefined ? 'no request' : shown([row]))
+    check(`${id}: thinking carries display "updates" and the request its beta header`, row !== undefined && asksUpdates(row), `${row === undefined ? 'no request' : shown([row])} — with MERCURY_THINKING_DISPLAY=updates this model must get display "updates" and the beta header: change src/services/providers/anthropic/thinkingDisplay.ts applyThinkingDisplay and modelNarratesInThinkingBlocks in src/utils/model/capabilities.ts`)
   }
-  check('every other id carries neither: Mythos 5, Opus 5, Sonnet 5, Haiku 5.5, Opus 4.8, Opus 4.6, Sonnet 4.6, Haiku 4.5', OTHERS.every(id => on.rows.some(r => r.asked === id && asksNothing(r))), shown(on.rows.filter(row => OTHERS.includes(row.asked) && !asksNothing(row))))
+  check('every other id carries neither: Mythos 5, Opus 5, Sonnet 5, Haiku 5.5, Opus 4.8, Opus 4.6, Sonnet 4.6, Haiku 4.5', OTHERS.every(id => on.rows.some(r => r.asked === id && asksNothing(r))), `${shown(on.rows.filter(row => OTHERS.includes(row.asked) && !asksNothing(row)))} — these ids must not be asked for updates: change modelNarratesInThinkingBlocks in src/utils/model/capabilities.ts`)
 }
 
 section('§2 the switch off: nothing set, and MERCURY_THINKING_DISPLAY=off')
 {
   const unset = wire(SEVEN, {})
-  check('nothing set: none of the seven carries the display value or the header', unset.failed === '' && unset.rows.length === SEVEN.length && unset.rows.every(row => row.error === '' && asksNothing(row)), unset.failed || shown(unset.rows))
+  check('nothing set: none of the seven carries the display value or the header', unset.failed === '' && unset.rows.length === SEVEN.length && unset.rows.every(row => row.error === '' && asksNothing(row)), unset.failed || `${shown(unset.rows)} — an unset MERCURY_THINKING_DISPLAY must add no display field or header: change resolveThinkingDisplaySetting in src/services/providers/anthropic/thinkingDisplay.ts`)
   const off = wire(SEVEN, { MERCURY_THINKING_DISPLAY: 'off' })
-  check('off: none of the seven carries the display value or the header', off.failed === '' && off.rows.length === SEVEN.length && off.rows.every(row => row.error === '' && asksNothing(row)), off.failed || shown(off.rows))
+  check('off: none of the seven carries the display value or the header', off.failed === '' && off.rows.length === SEVEN.length && off.rows.every(row => row.error === '' && asksNothing(row)), off.failed || `${shown(off.rows)} — MERCURY_THINKING_DISPLAY=off must add no display field or header: change resolveThinkingDisplaySetting in src/services/providers/anthropic/thinkingDisplay.ts`)
 }
 
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`} — ${checks} checks`)

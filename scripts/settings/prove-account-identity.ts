@@ -129,9 +129,10 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
 }) as typeof fetch
 
 let failures = 0
+const WHERE = 'the setting view.accountIdentity is declared in src/utils/settings/types.ts and read by accountIdentityShown in src/services/wallet/identityWords.ts; the words are chosen by shownIdentityWords and providerIdentityLine in src/services/providers/providerIdentityLine.ts and presenceIdentityWords in src/services/providers/providerUsage.ts; the screens paint what those return'
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass ? ` — ${detail ? `${detail}; ` : ''}${WHERE}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n── ${title}`)

@@ -18,7 +18,9 @@ const { getEngineModel } = await import('../../src/services/model/model.ts')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const hint = 'change the AsksPart method this check calls (readAsks, asks, answerAsk, settleAsk, dropAll, subscribeAsks) in src/services/engine-connector/daemon/asks.ts until this holds'
+  const shown = !ok ? [detail, hint].filter(Boolean).join(' — ') : ''
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const j = (v: unknown): string => JSON.stringify(v)

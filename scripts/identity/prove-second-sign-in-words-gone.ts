@@ -31,7 +31,7 @@ const docs = sources.filter(([rel]) => rel.startsWith('docs/') || rel === 'READM
 let failures = 0
 const report = (label: string, hits: string[]) => {
   if (hits.length > 0) failures++
-  console.log(`[${hits.length === 0 ? 'PASS' : 'FAIL'}] ${label}${hits.length ? ` — ${hits.join(', ')}` : ''}`)
+  console.log(`[${hits.length === 0 ? 'PASS' : 'FAIL'}] ${label}${hits.length ? ` — ${hits.join(', ')}; remove the retired second-sign-in spelling from these files` : ''}`)
 }
 for (const words of everywhere) report(`second-sign-in spelling absent from src, docs, scripts: ${JSON.stringify(words)}`, sources.filter(([, text]) => text.includes(words)).map(([rel]) => rel))
 for (const re of docsOnly) report(`second-sign-in word absent from the docs: ${re.source}`, docs.filter(([, text]) => re.test(text)).map(([rel]) => rel))

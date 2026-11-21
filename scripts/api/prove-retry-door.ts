@@ -16,7 +16,7 @@ let failures = 0
 function check(label: string, condition: boolean, detail = ''): void {
   checks++
   if (!condition) failures++
-  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail ? ` — ${detail}` : ''}${!condition ? ' — fix: the wait, attempt count and verdict come from openTurnRetries (afterFault) in src/services/api/withRetry.ts' : ''}`)
 }
 
 type Fault = { kind: string; code: string; message: string; retryable: boolean; status?: number; retryAfterMs?: number; outage?: { code: string; words: string }; silentMs?: number }

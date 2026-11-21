@@ -19,7 +19,7 @@ const { getBundledDir } = await import('../../src/extensions/paths.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${!cond ? ' — change the class this section exercises in src/substrate/stateLifecycle.ts (runLifecyclePass runs compile-cache-retired-nodes, bundled-extension-folders and bash-audit-ledger; installedBuildFacts lists the installed builds; bundled folders live under getBundledDir in src/extensions/paths.ts)' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

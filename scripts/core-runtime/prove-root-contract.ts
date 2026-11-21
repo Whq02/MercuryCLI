@@ -35,7 +35,7 @@ import type { Patch } from '../../src/ink/frame.js'
 import { __fluxProbeResetForTest, fluxSummary } from '../../src/utils/flux/fluxProbe.js'
 
 if (process.env.NODE_ENV === 'test') {
-  console.error('prove-root-contract must not run with NODE_ENV=test (lattice bypass)')
+  console.error('prove-root-contract must not run with NODE_ENV=test (lattice bypass); run it with NODE_ENV unset: bun scripts/core-runtime/prove-root-contract.ts')
   process.exit(1)
 }
 
@@ -46,6 +46,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) {
     failures++
     console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the code this section exercises (src/ink/ink.ts, src/ink/root/: render-scheduler, frame-ledger, cursor-park, teardown, overlay-pass; src/ink/session/delivery.ts) so the condition holds`)
   }
 }
 

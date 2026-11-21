@@ -8,7 +8,7 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix: the repo readers gitStatus, gitDiff, gitCommitMeta, gitMergeBase, gitWorktrees, gitConflicts in src/services/gitGraph/observe.ts; the SM- checks exercise preparePlan and applyPlan in src/services/gitGraph/plan.ts' : ''}`)
 }
 
 const {

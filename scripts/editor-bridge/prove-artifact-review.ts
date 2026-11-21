@@ -6,11 +6,17 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+let where = 'src/services/artifacts/reviewStore.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — look at ${where}` : ''}`)
 }
 function section(t: string): void {
+  where = t.startsWith('(3)') ? 'addReviewComment in src/services/artifacts/reviewStore.ts and validateAnchor in src/utils/artifacts/anchors.ts'
+    : t.startsWith('(6)') ? 'the mercury://artifact adapter in src/services/resources/adapters/artifact.ts'
+    : t.startsWith('(7)') ? 'composeWorkbenchSnapshot in src/services/workbench/selectors.ts'
+    : t.startsWith('(8)') ? 'reviseReviewArtifact and addReviewComment in src/services/artifacts/reviewStore.ts, src/utils/artifacts/anchors.ts, and src/services/resources/adapters/artifact.ts'
+    : 'the review functions in src/services/artifacts/reviewStore.ts (createReviewArtifact, reviseReviewArtifact, setReviewArtifactStatus, addReviewComment, readReviewArtifactState)'
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
@@ -457,7 +463,7 @@ console.log(JSON.stringify({ ok: r.ok, version: r.ok ? r.value.version : null })
 
 console.log('')
 if (failures > 0) {
-  console.error(`✗ ${failures} failure(s)`)
+  console.error(`✗ ${failures} failure(s) — the FAIL lines above name where to look`)
   process.exit(1)
 }
 console.log('✓ artifact review proofs green')

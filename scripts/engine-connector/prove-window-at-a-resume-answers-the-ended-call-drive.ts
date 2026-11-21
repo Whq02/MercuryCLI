@@ -27,7 +27,8 @@ const FAILED = 'resumed — 1 tool call failed'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  const hint = 'rebuild with `bun run build.ts` if dist is stale; the ended call is settled by endedRunResults in src/services/engine-connector/endedRunCalls.ts and the card is ResumeRecapCard in src/components/messages/ResumeRecapCard.tsx'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail.slice(0, 900)}${detail ? ' · ' : ''}${hint}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 

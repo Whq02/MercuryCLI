@@ -8,7 +8,8 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'connector-contract-
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const where = 'the doors and the focused slot are NoSessionConnector in src/services/engine-connector/noSessionConnector.ts, DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts and src/services/engine-connector/focusedConnector.ts: add or change the door there, or update DOORS in this file if the connector contract moved'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${where}`}`)
 }
 
 const DOORS = [

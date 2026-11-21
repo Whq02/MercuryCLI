@@ -13,10 +13,11 @@ process.env.MERCURY_CHANGESET_DIR = csHome
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = 'fix the apply path in src/tools/ChangeSetTool/ChangeSetTool.ts or the commit and plan code it calls under src/services/changeTransaction/ (changeSetCommit.ts runTextChangeSetCommit, changeSetPlan.ts, receipts.ts)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${[detail, where].filter(Boolean).join(' | ')}` : ''}`)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — apply proof exceeded 120s')
+  console.log('\nTIMEOUT — apply proof exceeded 120s; a ChangeSet apply or commit never returned, look in src/tools/ChangeSetTool/ChangeSetTool.ts and src/services/changeTransaction/changeSetCommit.ts (runTextChangeSetCommit)')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

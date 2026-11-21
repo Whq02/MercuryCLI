@@ -11,14 +11,33 @@ process.env.MERCURY_BROWSER ??= '1'
 delete process.env.MERCURY_BROWSER_MAX_SESSIONS
 
 let failures = 0
+const GONE_HINT = 'make the op run under openOpLife and fail with browserGoneMidOpWords, both in src/tools/BrowserTool/browser/failures.ts'
+const GONE_AFTER_HINT = 'BROWSER_GONE in src/tools/BrowserTool/browser/failures.ts and the close words in src/tools/BrowserTool/browser/sessionOps.ts must answer a dead browser at once'
+const ENDED_HINT = 'closeBrowserSessionDetailed in src/services/browser/session/launch.ts must return within BROWSER_CLOSE_BOUND_MS (src/services/browser/session/shapes.ts) and endChild in src/services/browser/session/owners.ts must really end the process'
+const HINTS: Record<string, string> = {
+  G1: GONE_HINT,
+  G2: GONE_HINT,
+  G3: `${GONE_HINT}; the act's locator wait (resolveActTarget in src/tools/BrowserTool/browser/targets.ts) must stop on that op's abort signal`,
+  G4: GONE_HINT,
+  G5: GONE_AFTER_HINT,
+  G6: ENDED_HINT,
+  G7: 'the operator-interrupt words come from the catch in src/tools/BrowserTool/BrowserTool.ts and must not be replaced by the gone words',
+  R1: GONE_HINT,
+  R2: `${GONE_HINT}; the act's locator wait (resolveActTarget in src/tools/BrowserTool/browser/targets.ts) must stop on that op's abort signal`,
+  R3: GONE_AFTER_HINT,
+  R4: ENDED_HINT,
+  R5: GONE_HINT,
+}
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const hint = HINTS[label.split(' ')[0]!]
+  const said = [detail, hint === undefined ? '' : `to fix: ${hint}`].filter(part => part !== '').join(' | ')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && said ? ` — ${said}` : ''}`)
 }
 const tick = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const SETTLE_BOX_MS = 5_000
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — prove-browser-gone exceeded 180s (an op that never settled after its browser died)')
+  console.log('\nTIMEOUT — prove-browser-gone exceeded 180s (an op that never settled after its browser died; look at openOpLife in src/tools/BrowserTool/browser/failures.ts and closeBrowserSessionDetailed in src/services/browser/session/launch.ts)')
   process.exit(1)
 }, 180_000)
 watchdog.unref?.()

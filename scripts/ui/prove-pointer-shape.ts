@@ -18,9 +18,9 @@ const prev = process.env.MERCURY_POINTER_SHAPE
 delete process.env.MERCURY_POINTER_SHAPE
 
 try {
-  check('text shape bytes', ps.pointerShapeSeq('text') === '\x1b]22;text\x07')
-  check('default (arrow) shape bytes', ps.pointerShapeSeq('default') === '\x1b]22;default\x07')
-  check('reset = empty-param OSC 22', ps.POINTER_SHAPE_RESET === '\x1b]22;\x07')
+  check('text shape bytes', ps.pointerShapeSeq('text') === '\x1b]22;text\x07', `pointerShapeSeq in src/utils/cockpit/pointerShape.ts must return ESC ] 22 ; text BEL`)
+  check('default (arrow) shape bytes', ps.pointerShapeSeq('default') === '\x1b]22;default\x07', `pointerShapeSeq in src/utils/cockpit/pointerShape.ts must return ESC ] 22 ; default BEL`)
+  check('reset = empty-param OSC 22', ps.POINTER_SHAPE_RESET === '\x1b]22;\x07', `POINTER_SHAPE_RESET in src/utils/cockpit/pointerShape.ts must be ESC ] 22 ; BEL`)
 
   ps.resetPointerShapeForTest()
   const writes: string[] = []
@@ -30,24 +30,24 @@ try {
   ps.applyPointerShape(false, w)
   ps.applyPointerShape(false, w)
   ps.applyPointerShape(false, w)
-  check('a chatty same-shape stream emits ONE write', writes.length === 1 && writes[0] === '\x1b]22;default\x07')
+  check('a chatty same-shape stream emits ONE write', writes.length === 1 && writes[0] === '\x1b]22;default\x07', `${writes.length} writes; applyPointerShape in src/utils/cockpit/pointerShape.ts must skip a shape equal to lastShape`)
   ps.applyPointerShape(true, w)
   ps.applyPointerShape(true, w)
-  check('a flip emits exactly one more', writes.length === 2 && writes[1] === '\x1b]22;text\x07')
+  check('a flip emits exactly one more', writes.length === 2 && writes[1] === '\x1b]22;text\x07', `${writes.length} writes; applyPointerShape in src/utils/cockpit/pointerShape.ts must write once when the shape flips`)
 
   ps.resetPointerShape(w)
-  check('reset emits the restore bytes', writes.length === 3 && writes[2] === '\x1b]22;\x07')
+  check('reset emits the restore bytes', writes.length === 3 && writes[2] === '\x1b]22;\x07', `${writes.length} writes; resetPointerShape in src/utils/cockpit/pointerShape.ts must write POINTER_SHAPE_RESET after a latched shape`)
   ps.resetPointerShape(w)
-  check('a second reset is a no-op (nothing latched)', writes.length === 3)
+  check('a second reset is a no-op (nothing latched)', writes.length === 3, `${writes.length} writes; resetPointerShape in src/utils/cockpit/pointerShape.ts must return early when lastShape is null`)
   ps.applyPointerShape(true, w)
-  check('after reset the first shape re-emits unconditionally', writes.length === 4)
+  check('after reset the first shape re-emits unconditionally', writes.length === 4, `${writes.length} writes; resetPointerShape in src/utils/cockpit/pointerShape.ts must clear lastShape so the next applyPointerShape writes`)
 
   ps.resetPointerShapeForTest()
   process.env.MERCURY_POINTER_SHAPE = '0'
   const killed: string[] = []
   ps.applyPointerShape(true, s => killed.push(s))
   ps.applyPointerShape(false, s => killed.push(s))
-  check('=0 emits nothing ever', killed.length === 0)
+  check('=0 emits nothing ever', killed.length === 0, `${killed.length} writes; applyPointerShape in src/utils/cockpit/pointerShape.ts must not write when MERCURY_POINTER_SHAPE is 0 (pointerShapeEnabled)`)
   delete process.env.MERCURY_POINTER_SHAPE
 
 } finally {

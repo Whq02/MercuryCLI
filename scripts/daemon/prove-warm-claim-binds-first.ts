@@ -33,19 +33,26 @@ for (const name of ['MERCURY_HOME', 'MERCURY_MODEL', 'MERCURY_SESSION_HOME', 'ME
 const HOOK_SECONDS = 12
 const REPLY = 'THE WORD AFTER THE LOAD.'
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — prove-warm-claim-binds-first exceeded 240s')
+  console.log('\nTIMEOUT — prove-warm-claim-binds-first exceeded 240s — a warm runner or the claim never settled; read the last section header above and claimWarmRunner in src/daemon/warmRunner.ts')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()
 
 let failures = 0
 let checks = 0
+let sectionHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const note = [detail, sectionHint].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && note ? ` — ${note}` : ''}`)
 }
 function section(t: string): void {
+  sectionHint = t.startsWith('§3')
+    ? 'change: the transcript check before a resume claim binds, src/cli/headless/claimSession.ts'
+    : t.startsWith('§2')
+      ? 'change: claimWarmRunner in src/daemon/warmRunner.ts and the refusal in src/cli/headless/claimSession.ts (a missing transcript must be refused at once)'
+      : 'change: claimWarmRunner in src/daemon/warmRunner.ts must answer the claim before the session loads; the admit road is src/daemon/concourseWorkers/admit.ts and reactivate.ts'
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v)

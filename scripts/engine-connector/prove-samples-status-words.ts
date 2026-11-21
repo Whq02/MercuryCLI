@@ -22,10 +22,11 @@ process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
 
 let failures = 0
 let checks = 0
+const FIX_HINT = 'the words come from statusLine, waitingStatusWords, escBackHint, fitStatusLine and statusRowPlan in src/components/SwitchboardTagBar.tsx and withSampleWords in src/services/engine-connector/workCounts.ts; the sample roster is WorkPart in src/services/engine-connector/daemon/work.ts, and the row repaint is useFocusedSamples in src/components/tasks/useFocusedWork.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail}${detail ? ' · ' : ''}${FIX_HINT}` : ''}`)
 }
 const section = (title: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

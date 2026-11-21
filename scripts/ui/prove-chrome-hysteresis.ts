@@ -5,7 +5,7 @@ const { chromeModeLive, layoutChromeLive, computeChromeMode, resetChromeModeLatc
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — change chromeModeLive / layoutChromeLive / computeChromeMode (cockpitLatched, COCKPIT_EXIT_HYST_COLS, LAYOUT_BREAKPOINTS) in src/hooks/useLayoutTier.ts'}`)
 }
 
 console.log('prove-chrome-hysteresis')

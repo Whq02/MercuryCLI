@@ -11,9 +11,9 @@ import { seedFirstRun } from '../lib/firstRunSeed.ts'
 const at = process.argv.indexOf('--dist')
 const dist = at < 0 ? join(import.meta.dir, '../../dist/mercury.mjs') : process.argv[at + 1]!
 let failures = 0
-function check(label: string, pass: boolean, detail: unknown = ''): void {
+function check(label: string, pass: boolean, detail: unknown = '', hint = ''): void {
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${pass ? '' : ` — ${JSON.stringify(detail)}`}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${pass ? '' : ` — ${JSON.stringify(detail)}${hint === '' ? '' : ` — ${hint}`}`}`)
 }
 type Row = Record<string, any>
 const home = realpathSync(mkdtempSync(join(tmpdir(), 'child-rows-')))
@@ -30,9 +30,9 @@ try {
   emitBackgroundAgentRows('agent-parent', assistant([{ type: 'text', text: 'more' }]))
   const rows = drainRows() as Row[]
   const items = rows.filter(row => ['reasoning', 'text', 'tool_call'].includes(row.type))
-  check('background normalized blocks have distinct consecutive addresses', JSON.stringify(items.map(row => row.block)) === JSON.stringify([0, 1, 2, 3]), items)
-  check('background pieces keep one provider message identity and Agent scope', items.length === 4 && items.every(row => row.message_id === 'background-message' && row.parent_call_id === 'agent-parent'), items)
-  check('background model call emits one scoped step', rows.filter(row => row.type === 'step').length === 1 && rows.find(row => row.type === 'step')?.usage.output_tokens === 8, rows)
+  check('background normalized blocks have distinct consecutive addresses', JSON.stringify(items.map(row => row.block)) === JSON.stringify([0, 1, 2, 3]), items, 'Change childRowsOf in src/rows/child.ts or emitBackgroundAgentRows in src/utils/task/sdkAgentFrames.ts so consecutive background pieces get block addresses 0,1,2,3.')
+  check('background pieces keep one provider message identity and Agent scope', items.length === 4 && items.every(row => row.message_id === 'background-message' && row.parent_call_id === 'agent-parent'), items, 'Change childRowsOf in src/rows/child.ts so every piece carries the provider message id and the Agent call as parent_call_id.')
+  check('background model call emits one scoped step', rows.filter(row => row.type === 'step').length === 1 && rows.find(row => row.type === 'step')?.usage.output_tokens === 8, rows, 'Change childRowsOf in src/rows/child.ts to emit exactly one step row per model call with the call usage.')
   const { childRowsOf } = await import('../../src/rows/child.ts')
   const early = assistant([{ type: 'thinking', thinking: 'foreground' }], 'handover-message')
   early.message.stop_reason = null
@@ -41,8 +41,8 @@ try {
   emitBackgroundAgentRows('handover-parent', settled)
   emitBackgroundAgentRows('handover-parent', settled)
   const handed = [...foreground, ...drainRows()] as Row[]
-  check('foreground to background handover keeps one block cursor and no duplicate pieces', JSON.stringify(handed.filter(row => row.block !== undefined).map(row => row.block)) === '[0,1,2]', handed)
-  check('handover emits one step after the settled final piece', handed.filter(row => row.type === 'step').length === 1 && handed.at(-1)?.type === 'step', handed)
+  check('foreground to background handover keeps one block cursor and no duplicate pieces', JSON.stringify(handed.filter(row => row.block !== undefined).map(row => row.block)) === '[0,1,2]', handed, 'Change childRowsOf in src/rows/child.ts and emitBackgroundAgentRows in src/utils/task/sdkAgentFrames.ts so a settled message continues the foreground block cursor and repeats emit no duplicate pieces.')
+  check('handover emits one step after the settled final piece', handed.filter(row => row.type === 'step').length === 1 && handed.at(-1)?.type === 'step', handed, 'Change childRowsOf in src/rows/child.ts to emit the step only once the settled final piece is out.')
 
   for (const childModel of [null, 'same', 'haiku']) {
     const runHome = realpathSync(mkdtempSync(join(tmpdir(), 'child-run-')))

@@ -20,10 +20,11 @@ let readThrows = false
 let afterRead: (() => void) | undefined
 let checks = 0
 let failures = 0
+let hint = ''
 function check(label: string, ok: boolean): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && hint !== '' ? ` — to fix: ${hint}` : ''}`)
 }
 function skip(label: string, why: string): void {
   console.log(`[SKIP] ${label} — ${why}`)
@@ -68,6 +69,7 @@ try {
     | { state: 'missing' | 'refused'; note: string }
   const opts = { fileDir: scratch }
   if (posixHost) {
+    hint = 'resolveBrowserSecret and migrateBrowserSecret in src/services/browser/browserSecrets.ts decide this: the file copy is removed only after a verified keychain read-back, other entries and the owner-only file mode stay, and the password goes only on stdin'
     const password = '  fixture-keychain-password\n'
     save({ LOGIN: password, KEEP: 'other-login' })
     process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -123,6 +125,7 @@ try {
     skip('the 16 checks of a secret’s move to the OS keychain and of the file’s owner-only mode', 'they play darwin with a stand-in security over this host’s files, and a win32 file carries no owner-only mode for the product to read under that name')
   }
 
+  hint = 'resolveBrowserSecret, totpCode and scrubSecretFromText in src/services/browser/browserSecrets.ts decide this: a TOTP seed is bound to its exact origin, never shown in the resolution, and the minted code is scrubbed from text'
   const seed = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ'
   const origin = 'https://login.example'
   save({ OTP: { origin, totp: seed }, KEEP: 'other-login' })
@@ -166,6 +169,7 @@ try {
   } finally {
     Date.now = originalNow
   }
+  hint = 'resolveBrowserSecret in src/services/browser/browserSecrets.ts must keep the file store and spawn no OS keychain command on linux and win32'
   for (const platform of ['linux', 'win32']) {
     if (!posixHost && platform === 'linux') {
       skip('linux keeps the existing file floor without spawning an OS keychain', 'the product reads the file’s mode under linux, and a win32 file carries none')
@@ -251,6 +255,7 @@ try {
     off: () => undefined,
     close: async () => undefined,
   }) as unknown as DriverBrowser)
+  hint = 'the type op with secretRef in src/tools/BrowserTool/browser/typeOp.ts (with checkBrowserPermissions in src/tools/BrowserTool/browser/permissions.ts) must resolve the secret for the live focused origin, refuse on origin drift or lost focus, and never put the seed or code in its result'
   try {
     save({ BOUND_OTP: { origin, totp: 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ' } })
     const opened = await session.ensureBrowserSession(owner)

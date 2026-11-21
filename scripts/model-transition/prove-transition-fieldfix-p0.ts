@@ -24,7 +24,7 @@ section('§A the retry wall: structured detail, no silent sleep, every retry vis
 {
   const apiErr = Object.assign(new Error('overloaded'), { status: 529, name: 'APIError' })
   const msg = createSystemAPIErrorMessage(apiErr, 5000, 1, 3)
-  check('errorDetail is always populated', msg.errorDetail?.name === 'APIError' && msg.errorDetail?.status === 529 && msg.errorDetail?.message === 'overloaded')
+  check('errorDetail is always populated', msg.errorDetail?.name === 'APIError' && msg.errorDetail?.status === 529 && msg.errorDetail?.message === 'overloaded', `errorDetail ${JSON.stringify(msg.errorDetail)}; createSystemAPIErrorMessage in src/utils/messages/systemMessages.ts must fill errorDetail from the error's name, status and message`)
   const roundTrip = JSON.parse(JSON.stringify(msg)) as typeof msg
   check('a bare Error still serializes empty (the old class)', JSON.stringify(JSON.parse(JSON.stringify(createSystemAPIErrorMessage(new Error('overloaded'), 1, 1, 1))).error) === '{}')
   check('…but errorDetail survives the JSONL round-trip', roundTrip.errorDetail?.status === 529 && roundTrip.errorDetail?.message === 'overloaded')

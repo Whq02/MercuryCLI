@@ -56,6 +56,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) {
     failures++
     console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the code this section exercises (query in src/query.ts, the turn machine in src/run-core/turn-machine.ts) so the condition holds`)
   }
 }
 function section(t: string): void {

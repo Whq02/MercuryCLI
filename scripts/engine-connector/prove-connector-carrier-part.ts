@@ -17,9 +17,10 @@ const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
 await import('../../src/utils/ownerWatch.ts')
 
 let failures = 0
+const WHERE = 'the part under test is CarrierPart in src/services/engine-connector/daemon/carrier.ts: change its behaviour there to match the check, or update this check if the law moved'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${WHERE}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const j = (v: unknown): string => JSON.stringify(v)

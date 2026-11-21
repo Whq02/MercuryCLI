@@ -51,8 +51,8 @@ console.log('L1/L2 a live same-process sibling is alive to every sweep')
   await reachedStep
   const opsWhileLive = (await journal.listJournalOperations(dir)) as Array<Record<string, unknown>>
   const liveOp = opsWhileLive.find(o => o.kind === 'proof-live-sibling')
-  ok(liveOp !== undefined && liveOp.state === 'applying', 'L1 the sibling is mid-operation on disk', `state=${String(liveOp?.state)}`)
-  ok(liveOp !== undefined && journal.isJournalWriterAlive(liveOp) === true, 'L1 its record answers ALIVE while it runs', `isJournalWriterAlive=${String(liveOp && journal.isJournalWriterAlive(liveOp))}`)
+  ok(liveOp !== undefined && liveOp.state === 'applying', 'L1 the sibling is mid-operation on disk', `state=${String(liveOp?.state)}; runJournaledOperation in src/substrate/operationJournal.ts must publish the record as applying before its first step runs`)
+  ok(liveOp !== undefined && journal.isJournalWriterAlive(liveOp) === true, 'L1 its record answers ALIVE while it runs', `isJournalWriterAlive=${String(liveOp && journal.isJournalWriterAlive(liveOp))}; isJournalWriterAlive in src/substrate/operationJournal.ts must return true for an operation id still held in liveInProcessOperations`)
 
   let walkerCompensations = 0
   const summary = (await journal.recoverJournalDir(dir, {
@@ -62,15 +62,15 @@ console.log('L1/L2 a live same-process sibling is alive to every sweep')
       },
     },
   })) as { waiting: string[]; compensated: string[] }
-  ok(summary.waiting.length === 1 && summary.compensated.length === 0 && walkerCompensations === 0, 'L2 the sweep reports the live sibling WAITING and compensates nothing', JSON.stringify(summary))
+  ok(summary.waiting.length === 1 && summary.compensated.length === 0 && walkerCompensations === 0, 'L2 the sweep reports the live sibling WAITING and compensates nothing', `${JSON.stringify(summary)}; recoverJournalDir in src/substrate/operationJournal.ts must push a record whose isJournalWriterAlive is true to waiting and never call its handler`)
 
   releaseStep()
   const outcome = await sibling
-  ok(outcome.outcome === 'committed', 'L2 the sibling commits untouched', `outcome=${outcome.outcome}`)
+  ok(outcome.outcome === 'committed', 'L2 the sibling commits untouched', `outcome=${outcome.outcome}; runJournaledOperation in src/substrate/operationJournal.ts must commit when its steps succeed, whatever a concurrent recoverJournalDir did`)
   const opsAfter = (await journal.listJournalOperations(dir)) as Array<Record<string, unknown>>
   const settled = opsAfter.find(o => o.kind === 'proof-live-sibling')
-  ok(settled !== undefined && settled.state === 'committed' && compensated === 0, 'L2 the record is committed on disk and its compensator never ran', `state=${String(settled?.state)} compensated=${compensated}`)
-  ok(settled !== undefined && journal.isJournalWriterAlive(settled) === false, 'L1 a settled record answers dead again (the registry is a bracket, not a leak)')
+  ok(settled !== undefined && settled.state === 'committed' && compensated === 0, 'L2 the record is committed on disk and its compensator never ran', `state=${String(settled?.state)} compensated=${compensated}; runJournaledOperation in src/substrate/operationJournal.ts must publish committed and not run compensate after a clean run`)
+  ok(settled !== undefined && journal.isJournalWriterAlive(settled) === false, 'L1 a settled record answers dead again (the registry is a bracket, not a leak)', 'runJournaledOperation in src/substrate/operationJournal.ts must call clearOperationLiveInProcess when the operation settles')
 }
 
 console.log('L3 an unregistered same-pid record (prior generation) still recovers')
@@ -96,7 +96,7 @@ console.log('L3 an unregistered same-pid record (prior generation) still recover
   const forged = ((await journal.listJournalOperations(dir2)) as Array<Record<string, unknown>>).find(
     o => o.operationId === seed.operationId,
   )!
-  ok(journal.isJournalWriterAlive(forged) === false, 'L3 the unregistered same-pid record classifies DEAD', `alive=${String(journal.isJournalWriterAlive(forged))}`)
+  ok(journal.isJournalWriterAlive(forged) === false, 'L3 the unregistered same-pid record classifies DEAD', `alive=${String(journal.isJournalWriterAlive(forged))}; isJournalWriterAlive in src/substrate/operationJournal.ts must be false for a record that is not registered live and carries this process's own pid`)
   let recovered = 0
   const summary = (await journal.recoverJournalDir(dir2, {
     'proof-reuse': {
@@ -105,7 +105,7 @@ console.log('L3 an unregistered same-pid record (prior generation) still recover
       },
     },
   })) as { compensated: string[]; waiting: string[] }
-  ok(summary.compensated.length === 1 && recovered === 1, 'L3 the sweep recovers it (the dead-writer road still works)', JSON.stringify(summary))
+  ok(summary.compensated.length === 1 && recovered === 1, 'L3 the sweep recovers it (the dead-writer road still works)', `${JSON.stringify(summary)}; recoverJournalDir in src/substrate/operationJournal.ts must run the handler's compensate for a non-terminal record whose writer is dead`)
 }
 
 
@@ -141,7 +141,7 @@ console.log('L5 a live writer this process may not signal (EPERM) is alive to th
       steps: (committed.steps as Array<Record<string, unknown>>).map(s => ({ ...s, state: 'pending' })),
     })
     const foreign = ((await journal.listJournalOperations(dir3)) as Array<Record<string, unknown>>).find(o => o.operationId === seed.operationId)!
-    ok(journal.isJournalWriterAlive(foreign) === true, `L5 a record whose writer (pid ${unsignalable}) answers the probe with EPERM classifies ALIVE`, `alive=${String(journal.isJournalWriterAlive(foreign))}`)
+    ok(journal.isJournalWriterAlive(foreign) === true, `L5 a record whose writer (pid ${unsignalable}) answers the probe with EPERM classifies ALIVE`, `alive=${String(journal.isJournalWriterAlive(foreign))}; pidAlive in src/substrate/operationJournal.ts must treat an EPERM from process.kill(pid, 0) as alive`)
     let compensatedForeign = 0
     const summary = (await journal.recoverJournalDir(dir3, {
       'proof-eperm': {
@@ -150,7 +150,7 @@ console.log('L5 a live writer this process may not signal (EPERM) is alive to th
         },
       },
     })) as { compensated: string[]; waiting: string[] }
-    ok(summary.waiting.includes(seed.operationId) && compensatedForeign === 0, 'L5 the sweep waits on it and never runs its compensator', JSON.stringify(summary))
+    ok(summary.waiting.includes(seed.operationId) && compensatedForeign === 0, 'L5 the sweep waits on it and never runs its compensator', `${JSON.stringify(summary)}; recoverJournalDir in src/substrate/operationJournal.ts must put a live-writer record in waiting and not call compensate`)
   }
 }
 

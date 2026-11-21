@@ -33,10 +33,11 @@ const rows = await import('../../src/utils/messages/noticeRows.ts')
 
 let failures = 0
 let checks = 0
+let where = ''
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && where ? ` — look in ${where}` : ''}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
 type Raw = Record<string, unknown>
@@ -130,6 +131,7 @@ const clearSchedules = (): void => {
 }
 
 console.log('§1 THE CARRIER (red on the base: the delivery has no origin): a due fire delivers the schedule\'s own facts beside the prompt')
+where = 'the fire delivery in tickSaturnOnce (src/daemon/saturnTicker.ts), liveFactsForSessionFire (src/daemon/saturnAccount.ts) and buildConcoursePromptRow (src/daemon/concourseDispatch.ts)'
 {
   seedRecord()
   publishFacts(openWindow())
@@ -154,6 +156,7 @@ console.log('§1 THE CARRIER (red on the base: the delivery has no origin): a du
 }
 
 console.log("§1b THE TITLE (red on the base: the writer drops it): a cron schedule made with a title keeps it on the record, and its fire's origin carries it beside the id and the spelling")
+where = 'the schedule writer in src/daemon/saturn.ts (the title field) and the fire delivery in tickSaturnOnce in src/daemon/saturnTicker.ts'
 {
   delivered.length = 0
   clearSchedules()
@@ -183,6 +186,7 @@ console.log("§1b THE TITLE (red on the base: the writer drops it): a cron sched
 }
 
 console.log('§2 a wake held for a parked session replays once with the hold named in its origin')
+where = 'the held-fire hold and replay in tickSaturnOnce in src/daemon/saturnTicker.ts'
 {
   delivered.length = 0
   updateConcourseWorkers(workers => {
@@ -211,6 +215,7 @@ console.log('§2 a wake held for a parked session replays once with the hold nam
 }
 
 console.log('§3 a wake held by a closed usage window replays at the reopen with the window named')
+where = 'the window hold in tickSaturnOnce in src/daemon/saturnTicker.ts and liveFactsForSessionFire in src/daemon/saturnAccount.ts'
 {
   delivered.length = 0
   updateConcourseWorkers(workers => {
@@ -231,6 +236,7 @@ console.log('§3 a wake held by a closed usage window replays at the reopen with
 }
 
 console.log('§4 the prompt row and the turn road carry the origin whole; the words never change')
+where = 'buildConcoursePromptRow in src/daemon/concourseDispatch.ts, InputRowSchema in src/rows/vocabulary.ts and processTextPrompt in src/services/processUserInput/processTextPrompt.ts'
 {
   const origin = { kind: 'saturn', fire: 'wake', firedAt: FIRED_AT, scheduleId: 'ab12cd34', spelling: 'in ~900s', reason: REASON }
   const plain = (await buildConcoursePromptRow(WAKE_PROMPT, { priority: 'later', identity: 'saturn-s-ab12cd34-1' })) as Raw
@@ -250,6 +256,7 @@ console.log('§4 the prompt row and the turn road carry the origin whole; the wo
 }
 
 console.log('§5 the tool mints the spelling the row reads back')
+where = 'ScheduleWakeupTool in src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts and the notice rows in src/utils/messages/noticeRows.ts'
 {
   bridge._resetScheduleBridgeForTesting()
   bridge.markScheduleSeatObserved()
@@ -261,6 +268,7 @@ console.log('§5 the tool mints the spelling the row reads back')
 }
 
 console.log('§6 the seatless sink: a wake that fires into a closed usage window waits with the wall\'s own delay and says so once, in the row it finally lands as (red on the base: no step planner exists)')
+where = 'localWakeStep in src/tools/ScheduleWakeupTool/localWake.ts and WALL_RECHECK_MS, REOPEN_GRACE_MS in src/tools/MonitorTool/watchMailbox.ts'
 try {
   const { localWakeStep } = await import('../../src/tools/ScheduleWakeupTool/localWake.ts')
   const { WALL_RECHECK_MS, REOPEN_GRACE_MS } = await import('../../src/tools/MonitorTool/watchMailbox.ts')
@@ -286,6 +294,7 @@ try {
 }
 
 console.log("§7 the seatless arm hands the wake's facts to the sink (red on the base: the sink receives the prompt alone)")
+where = 'armLocalWake and registerLocalWakeSink in src/services/saturn/sessionScheduleBridge.ts, and the wake arm of ScheduleWakeupTool in src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts'
 {
   bridge._resetScheduleBridgeForTesting()
   const seen: Array<{ prompt: string; facts: unknown }> = []
@@ -300,6 +309,7 @@ console.log("§7 the seatless arm hands the wake's facts to the sink (red on the
 }
 
 console.log("§8 one fire instant: the row's fire time is the tick's own stamp — the instant the record and the receipt name — never the delivery's clock (red on the base: the origin reads the clock at the delivery)")
+where = 'the fire delivery in tickSaturnOnce in src/daemon/saturnTicker.ts (the origin must take the tick stamp, not Date.now at delivery)'
 {
   delivered.length = 0
   updateConcourseWorkers(workers => {

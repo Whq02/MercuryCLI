@@ -19,8 +19,13 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  [FAIL] ${label} — ${[detail, hintFor(label)].filter(Boolean).join('; ')}`)
   }
+}
+function hintFor(label: string): string {
+  if (/optimizer replay-equivalent|optimize idempotent/.test(label)) return 'optimizePatches in src/ink/patch-stream.ts must not change what the terminal ends up showing, and must give the same patches when run on its own output'
+  if (/zero-dirty|no ED bytes|cursor law|row below park/.test(label)) return 'FrameWriter.render in src/ink/frame-writer.ts decides which bytes a frame diff writes (none when nothing is dirty, no erase-display on the main screen, the cursor parked where the frame says)'
+  return 'FrameWriter.render in src/ink/frame-writer.ts diffs the previous frame to the next; a cell the terminal shows differently from the model means its text, style or link patch is wrong there (or optimizePatches in src/ink/patch-stream.ts / writeDiffToTerminal in src/ink/session/delivery.ts altered it)'
 }
 
 function serialize(diff: ReturnType<typeof optimize>, skipSync = true): string {

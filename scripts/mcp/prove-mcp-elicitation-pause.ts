@@ -28,7 +28,14 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail && !ok ? ` — ${detail}` : ''}`)
+  const where = /^the idle knob/.test(label)
+    ? 'the MERCURY_MCP_CALL_IDLE_MINUTES reader in src/services/mcp/client.ts'
+    : label.startsWith('the elicitation ledger')
+      ? 'src/services/mcp/elicitationHandler.ts must export enterElicitation, watchElicitations and elicitationPausedClock'
+      : /clock|question|deadline|limit|pause|released/.test(label) && !/^row/.test(label)
+        ? 'src/services/mcp/elicitationHandler.ts (enterElicitation, elicitationPausedClock) and src/utils/deadline.ts (armInactivityDeadline)'
+        : 'src/services/mcp/client.ts (callMCPToolWithUrlElicitationRetry) and src/services/mcp/elicitationHandler.ts (registerElicitationHandler, elicitationPausedClock)'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}change the code, not the check: ${where}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
@@ -36,7 +43,7 @@ const stalledLine = /unknown outcome/
 const recovery = /inspect the effect before retrying/
 
 const proofWatchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the elicitation-pause prover exceeded 90s')
+  console.log('\nTIMEOUT — the elicitation-pause prover exceeded 90s: a call never settled; look at src/services/mcp/client.ts (callMCPToolWithUrlElicitationRetry) and src/services/mcp/elicitationHandler.ts, and at the last section printed above')
   process.exit(1)
 }, 90_000)
 proofWatchdog.unref?.()

@@ -32,16 +32,16 @@ try {
   const first = run([], release)
   const original = existsSync(release) ? readFileSync(release, 'utf8') : '{}'
   const v = JSON.parse(original)
-  check('the local release excludes a planted x-drives but retains its other pty suite', first.status === 0 && v.pass?.sort().join(',') === 'capture,quiet' && !existsSync(count), `rc ${first.status}, pass ${v.pass}`)
+  check('the local release excludes a planted x-drives but retains its other pty suite', first.status === 0 && v.pass?.sort().join(',') === 'capture,quiet' && !existsSync(count), `rc ${first.status}, pass ${v.pass}; the default --class release in scripts/run-all-suites.sh must skip a suite whose '# gate-class:' is pty and named *-drives, and still run other pty suites`)
   const drives = run(['--class', 'drives'], join(work, 'drives-verdict.json'))
   const dv = existsSync(join(work, 'drives-verdict.json')) ? JSON.parse(readFileSync(join(work, 'drives-verdict.json'), 'utf8')) : {}
-  check('the drives guide runs a red drive exactly once with a separate advisory verdict', drives.status === 1 && dv.scope === 'drives' && dv.fail?.join(',') === 'x-drives' && readFileSync(count, 'utf8') === 'run\n', `rc ${drives.status}, scope ${dv.scope}`)
-  check('the guide preserves the release verdict and writes its own ledger', readFileSync(release, 'utf8') === original && existsSync(join(work, 'drives-ledger.jsonl')))
+  check('the drives guide runs a red drive exactly once with a separate advisory verdict', drives.status === 1 && dv.scope === 'drives' && dv.fail?.join(',') === 'x-drives' && readFileSync(count, 'utf8') === 'run\n', `rc ${drives.status}, scope ${dv.scope}; run-all-suites.sh --class drives in scripts/run-all-suites.sh must run the *-drives suites once and write a verdict with scope drives to MERCURY_GATE_VERDICT_FILE`)
+  check('the guide preserves the release verdict and writes its own ledger', readFileSync(release, 'utf8') === original && existsSync(join(work, 'drives-ledger.jsonl')), 'scripts/run-all-suites.sh with --class drives must leave the release verdict file as it was and write drives-ledger.jsonl beside the drives verdict')
   rmSync(count, { force: true })
   const subset = run(['x-drives'], join(work, 'subset.json'))
-  check('an explicit drives suite is still runnable without writing a full verdict', subset.status === 1 && existsSync(count) && !existsSync(join(work, 'subset.json')))
+  check('an explicit drives suite is still runnable without writing a full verdict', subset.status === 1 && existsSync(count) && !existsSync(join(work, 'subset.json')), `rc ${subset.status}; scripts/run-all-suites.sh given a suite name must run it even when it is a drive, and must not write a verdict file for a subset`)
   const hosted = (scope: string) => spawnSync('bash', ['scripts/gate/ci-shard.sh', '0', '1', '--class', scope, '--plan-only'], { cwd: root, env: { ...env, MERCURY_CI_SHARD_SUITES_DIR: suites }, encoding: 'utf8' }).stdout.trim().split('\n').sort()
-  check('the hosted release still excludes all pty, and hosted drives includes the planted drive', hosted('release').join(',') === 'quiet' && hosted('drives').join(',') === 'capture,x-drives')
+  check('the hosted release still excludes all pty, and hosted drives includes the planted drive', hosted('release').join(',') === 'quiet' && hosted('drives').join(',') === 'capture,x-drives', `release ${hosted('release').join(',')} · drives ${hosted('drives').join(',')}; the --class plan in scripts/gate/ci-shard.sh must keep every pty suite out of release and plan the *-drives suites under drives`)
 } finally {
   rmSync(work, { recursive: true, force: true })
 }

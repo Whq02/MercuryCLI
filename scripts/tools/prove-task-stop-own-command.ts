@@ -17,7 +17,7 @@ const { endProcessTree } = await import('../../src/utils/processGroup.ts')
 let state: any = { tasks: {} }
 const context: any = { agentId: 'child-a', abortController: new AbortController(), getAppState: () => state, setAppState: (f: any) => { state = f(state) } }
 let failures = 0
-function check(name: string, ok: boolean, detail?: unknown) { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${!ok ? ` ${JSON.stringify(detail)}` : ''}`); if (!ok) failures++ }
+function check(name: string, ok: boolean, detail?: unknown) { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${!ok ? ` ${JSON.stringify(detail)} — see TaskStopTool (validateInput, call, childStopRefusal) in src/tools/TaskStopTool/TaskStopTool.ts and filterToolsForAgent in src/tools/AgentTool/agentToolUtils.ts` : ''}`); if (!ok) failures++ }
 const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { detached: true, stdio: ['ignore', 'pipe', 'pipe'] })
 try {
   const shell = wrapSpawn(child, new AbortController().signal, 60_000, new TaskOutput(generateTaskId('local_bash'), null))

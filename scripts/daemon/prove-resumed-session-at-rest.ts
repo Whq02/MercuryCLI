@@ -24,9 +24,11 @@ mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+let where = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const said = [detail, where].filter(Boolean).join('; ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && said ? ` — ${said}` : ''}`)
 }
 const j = (value: unknown): string => JSON.stringify(value)
 
@@ -46,6 +48,7 @@ const now = Date.now()
 
 console.log('A1 the board reads working only of a turn in flight: a session admitted at rest stands under READY TO REVIEW until it is given words')
 {
+  where = 'fix concourseRecordState in src/daemon/concourseWorkers/recordState.ts (and turnInFlightOf in src/daemon/concourseWorkers/record.ts)'
   check('a session brought back by a resume with no message, alive, nothing delivered: ready to review (red before: working, with the busy glyph)', state({ resumedAtRestAt: now }) === 'ready-to-review', state({ resumedAtRestAt: now }))
   check('a wordless newborn reads as it did: ready to review', state({ bornBlankAt: now }) === 'ready-to-review')
   check('given words, either one works until that turn settles, then is ready again', state({ resumedAtRestAt: now, lastDeliveryAt: now + 10 }) === 'working' && state({ resumedAtRestAt: now, lastDeliveryAt: now + 10, lastTurnSettledAt: now + 20 }) === 'ready-to-review' && state({ bornBlankAt: now, lastDeliveryAt: now + 10 }) === 'working')
@@ -56,6 +59,7 @@ console.log('A1 the board reads working only of a turn in flight: a session admi
 
 console.log("A2 the control door marks the one admission that brings a session back with no message: sessionAdmit with a resume id and no blank birth")
 {
+  where = 'fix readSessionAdmit in src/daemon/controlServer.ts (the resumedAtRest flag it forwards to concourseAdmit)'
   const socketPath = process.platform === 'win32' ? controlSockPath() : join(SCRATCH, 'fixture.sock')
   const forwarded: Array<Record<string, unknown>> = []
   const server = await startControlServer({
@@ -113,6 +117,7 @@ class FakeRoster {
 
 console.log('A3 the admission writes it on the record, and the record reads at rest from its first beat')
 {
+  where = 'fix makeConcourseAdmitHandler in src/daemon/concourseWorkers/admit.ts (the resumedAtRest stamp), concourseRecordState in src/daemon/concourseWorkers/recordState.ts, or markConcourseWorkerDelivery and markConcourseWorkerTurnSettled in src/daemon/concourseWorkers/marks.ts'
   const roster = new FakeRoster()
   const dir = mkdtempSync(join(SCRATCH, 'daemon-'))
   const ws = realpathSync(mkdtempSync(join(SCRATCH, 'ws-')))
@@ -136,6 +141,7 @@ console.log('A3 the admission writes it on the record, and the record reads at r
 
 console.log('A4 a session that already has a record is taken back with no message: at rest too, by a warm runner or a new one, and a turn its dead runner left open is not called running')
 {
+  where = 'fix makeConcourseAdmitHandler in src/daemon/concourseWorkers/admit.ts, concourseRecordState in src/daemon/concourseWorkers/recordState.ts, stopConcourseSession and completeRequestedStop in src/daemon/concourseWorkers/stop.ts, or reviveConcourseWorker in src/daemon/concourseWorkers/revive.ts'
   const DEAD_PID = 2_147_000_000
   let n = 0
   const world = (warm: boolean): { roster: FakeRoster; dir: string; ws: string; admit: ReturnType<typeof sup.makeConcourseAdmitHandler>; warmed: () => number } => {

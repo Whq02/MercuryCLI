@@ -39,9 +39,16 @@ const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.ts')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
 let failures = 0
+function failureHint(label: string): string {
+  if (label.startsWith('WR')) return 'change: the restart reason carried by the warm claim (claimWarmRunner, src/daemon/warmRunner.ts) and runnerRestartReasonOf (src/daemon/concourseWorkers/revive.ts); the knob row is in src/substrate/flagRegistry.ts'
+  if (label.startsWith('W13')) return 'change: the runner-side claim gate in src/cli/headless/claimSession.ts, or the knob row in src/substrate/flagRegistry.ts'
+  if (label.startsWith('W14') && label.includes('tail')) return 'change: the settle-text projection of the session tail (readSessionTail, the module this proof imports)'
+  if (label.startsWith('W-off') || label.startsWith('W-bound') || /^W(15|14|10|10b|12|16|7|6|8)\b/.test(label)) return 'change: ensureWarmRunner or claimWarmRunner in src/daemon/warmRunner.ts'
+  return 'change: ensureWarmRunner or claimWarmRunner in src/daemon/warmRunner.ts, or the admit road in src/daemon/concourseWorkers/admit.ts'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail || !cond ? ` — ${[detail, ...(cond ? [] : [failureHint(label)])].filter(Boolean).join(' | ')}` : ''}`)
 }
 
 type Spec = ReturnType<typeof buildConcourseWorkerSpec>

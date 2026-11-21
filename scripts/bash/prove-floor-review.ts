@@ -30,9 +30,17 @@ async function decide(command: string, rules: Rules = {}) {
   return (await decideToolPermissionWithModes(bash as never, { command }, context as never, { message: { id: 'floor-review' } } as never, 'toolu_floor_review')).decision
 }
 let failures = 0
+function whereToLook(label: string): string {
+  if (/^(scoped pipeline deny|heredoc data|subshell deny|wrapped denies|literal or lookup)/.test(label)) return 'change which executed words a deny rule reaches in denyRuleReach (src/tools/BashTool/denyRuleReach.ts)'
+  if (/read-only/.test(label) || /^subshell foreground/.test(label)) return 'change checkReadOnlyConstraints in src/tools/BashTool/readOnlyValidation.ts'
+  if (/^(writers|unrelated variables|unknown environment append|explicit initial value|a declaration|plain declaration|subshell assignments)/.test(label)) return 'change how a variable assignment is tracked, in src/utils/permissions/decision/commandAnalysis/exactCommands.ts (VARIABLE_WRITERS) and the Bash permission check in src/tools/BashTool/bashPermissions.ts'
+  if (/^(both roads|adjacent opening|subshell background)/.test(label)) return 'change the Bash permission check in src/tools/BashTool/bashPermissions.ts, and for the scout road scoutRefusal in src/tools/AgentTool/scoutPolicy.ts'
+  if (/^(sovereign|Flow|default keeps|unwrap never grants|ordinary developer read)/.test(label)) return 'change decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts or the Bash permission check in src/tools/BashTool/bashPermissions.ts'
+  return 'start from decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts'
+}
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${JSON.stringify(detail)}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${JSON.stringify(detail)} — to fix: ${whereToLook(label)}`}`)
 }
 const group = process.argv[2]
 if (!group || group === 'writers') {

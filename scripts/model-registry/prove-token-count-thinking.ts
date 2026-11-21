@@ -83,7 +83,7 @@ try {
     setEngineModelOverride(setting)
     const raw = getEngineModel()
     const wire = normalizeModelStringForAPI(raw)
-    check(`${setting}: raw and wire ids agree at the thinking gate`, modelSupportsAdaptiveThinking(raw) === modelSupportsAdaptiveThinking(wire))
+    check(`${setting}: raw and wire ids agree at the thinking gate`, modelSupportsAdaptiveThinking(raw) === modelSupportsAdaptiveThinking(wire), { raw, wire, hint: 'modelSupportsAdaptiveThinking (src/utils/model/capabilities.ts) must give the same answer for the setting and its normalizeModelStringForAPI form (src/utils/model/modelNames.ts)' })
     for (const block of [
       { type: 'thinking', thinking: 'A short plan.', signature: 'fixture-signature' },
       { type: 'redacted_thinking', data: 'fixture-redacted-thinking' },
@@ -93,10 +93,10 @@ try {
       const before = seen.length
       const count = await countMessagesTokensWithAPI(history(block), tools)
       const hit = seen.at(-1)
-      check(`${label}: one count request returns the exact count`, seen.length === before + 1 && hit?.method === 'POST' && hit.path === '/v1/messages/count_tokens' && count === 37, { hits: seen.length - before, path: hit?.path, count })
-      check(`${label}: the wire carries the normalized model`, hit?.body.model === wire && !wire.includes('['), hit?.body.model)
-      check(`${label}: thinking is ${show(block ? expected : 'absent')}`, block ? show(hit?.body.thinking) === show(expected) : hit !== undefined && !Object.hasOwn(hit.body, 'thinking'), hit?.body)
-      check(`${label}: history and tools survive the counter`, show(hit?.body.messages) === show(history(block)) && show(hit?.body.tools) === show(tools), hit?.body)
+      check(`${label}: one count request returns the exact count`, seen.length === before + 1 && hit?.method === 'POST' && hit.path === '/v1/messages/count_tokens' && count === 37, { hits: seen.length - before, path: hit?.path, count, hint: 'countMessagesTokensWithAPI in src/services/tokenEstimation.ts must send exactly one POST to /v1/messages/count_tokens and return its input_tokens' })
+      check(`${label}: the wire carries the normalized model`, hit?.body.model === wire && !wire.includes('['), { model: hit?.body.model, wire, hint: 'countMessagesTokensWithAPI in src/services/tokenEstimation.ts must send normalizeModelStringForAPI(getEngineModel()), with no [1m] suffix' })
+      check(`${label}: thinking is ${show(block ? expected : 'absent')}`, block ? show(hit?.body.thinking) === show(expected) : hit !== undefined && !Object.hasOwn(hit.body, 'thinking'), { body: hit?.body, hint: 'countMessagesTokensWithAPI in src/services/tokenEstimation.ts must send thinking only when the history has thinking blocks: adaptive when modelSupportsAdaptiveThinking, else enabled with a budget' })
+      check(`${label}: history and tools survive the counter`, show(hit?.body.messages) === show(history(block)) && show(hit?.body.tools) === show(tools), { body: hit?.body, hint: 'countMessagesTokensWithAPI in src/services/tokenEstimation.ts must pass the messages and tools through unchanged' })
     }
   }
 
@@ -104,7 +104,7 @@ try {
   const before = seen.length
   const fallback = await countTokensViaHaikuFallback(history({ type: 'thinking', thinking: 'A short plan.', signature: 'fixture-signature' }), [])
   const hit = seen.at(-1)
-  check('the create-probe fallback stays on the create endpoint, naming the main seat\'s own adaptive model (base: the haiku tier)', seen.length === before + 1 && hit?.path === '/v1/messages' && hit.body.model === 'claude-sonnet-5-5' && show(hit.body.thinking) === show({ type: 'adaptive' }) && fallback === 37, hit)
+  check('the create-probe fallback stays on the create endpoint, naming the main seat\'s own adaptive model (base: the haiku tier)', seen.length === before + 1 && hit?.path === '/v1/messages' && hit.body.model === 'claude-sonnet-5-5' && show(hit.body.thinking) === show({ type: 'adaptive' }) && fallback === 37, { hit, hint: 'countTokensViaHaikuFallback in src/services/tokenEstimation.ts must call sideQuery with the model from countProbeCall and adaptive thinking when the history has thinking blocks' })
 
   const { assembleTurnSystemPrompt, buildSystemPromptBlocks, buildTurnSystemBlocks } = await import('../../src/services/providers/anthropic/cacheAndUsage.js')
   const { getAttributionHeader } = await import('../../src/constants/system.js')
@@ -115,21 +115,21 @@ try {
   const attribution = getAttributionHeader(computeFingerprintFromMessages([createUserMessage({ content: 'Say OK.' })]))
   const session = asSystemPrompt(['# Session\nA session prompt for the count proof.', 'A second part.'])
   const turnBlocks = buildTurnSystemBlocks(attribution, session, true)
-  check('the shared builder assembles the attribution line, then the session prompt — no prefix between them — and marks the cached block as the stream always did', show(turnBlocks) === show(buildSystemPromptBlocks(asSystemPrompt([attribution, ...session]), true)) && turnBlocks.length === 2 && turnBlocks[0]!.text === attribution && !('cache_control' in turnBlocks[0]!) && turnBlocks[1]!.text === session.join('\n\n') && 'cache_control' in turnBlocks[1]!, turnBlocks.map(block => Object.keys(block)))
-  check('an empty attribution line drops out of the join, as the stream\'s own filter did', show(assembleTurnSystemPrompt('', session)) === show([...session]))
+  check('the shared builder assembles the attribution line, then the session prompt — no prefix between them — and marks the cached block as the stream always did', show(turnBlocks) === show(buildSystemPromptBlocks(asSystemPrompt([attribution, ...session]), true)) && turnBlocks.length === 2 && turnBlocks[0]!.text === attribution && !('cache_control' in turnBlocks[0]!) && turnBlocks[1]!.text === session.join('\n\n') && 'cache_control' in turnBlocks[1]!, { keys: turnBlocks.map(block => Object.keys(block)), hint: 'buildTurnSystemBlocks and buildSystemPromptBlocks in src/services/providers/anthropic/cacheAndUsage.ts must give the attribution block first, uncached, then the session prompt joined and cached' })
+  check('an empty attribution line drops out of the join, as the stream\'s own filter did', show(assembleTurnSystemPrompt('', session)) === show([...session]), { hint: 'assembleTurnSystemPrompt in src/services/providers/anthropic/cacheAndUsage.ts must drop an empty attribution line' })
   const withSystemBefore = seen.length
   const counted = await countMessagesTokensWithAPI(history({ type: 'thinking', thinking: 'A short plan.', signature: 'fixture-signature' }), tools, turnBlocks)
   const carried = seen.at(-1)
-  check('the count body carries the shared builder\'s system blocks byte-for-byte, beside the history and tools (base: no system field at all)', seen.length === withSystemBefore + 1 && carried?.path === '/v1/messages/count_tokens' && show((carried.body as { system?: unknown }).system) === show(turnBlocks) && show(carried.body.tools) === show(tools) && counted === 37, carried?.body)
+  check('the count body carries the shared builder\'s system blocks byte-for-byte, beside the history and tools (base: no system field at all)', seen.length === withSystemBefore + 1 && carried?.path === '/v1/messages/count_tokens' && show((carried.body as { system?: unknown }).system) === show(turnBlocks) && show(carried.body.tools) === show(tools) && counted === 37, { body: carried?.body, hint: 'countMessagesTokensWithAPI in src/services/tokenEstimation.ts must send its system argument as the body system field, unchanged' })
   const bareBefore = seen.length
   await countMessagesTokensWithAPI(history(), tools)
-  check('a count given no system blocks sends no system field', seen.length === bareBefore + 1 && !Object.hasOwn(seen.at(-1)!.body, 'system'), seen.at(-1)?.body)
+  check('a count given no system blocks sends no system field', seen.length === bareBefore + 1 && !Object.hasOwn(seen.at(-1)!.body, 'system'), { body: seen.at(-1)?.body, hint: 'countMessagesTokensWithAPI in src/services/tokenEstimation.ts must omit system when none is given' })
   const emptyBefore = seen.length
   await countMessagesTokensWithAPI(history(), tools, [])
-  check('an empty block list sends no system field either', seen.length === emptyBefore + 1 && !Object.hasOwn(seen.at(-1)!.body, 'system'), seen.at(-1)?.body)
+  check('an empty block list sends no system field either', seen.length === emptyBefore + 1 && !Object.hasOwn(seen.at(-1)!.body, 'system'), { body: seen.at(-1)?.body, hint: 'countMessagesTokensWithAPI in src/services/tokenEstimation.ts must omit system when the block list is empty' })
   const stringBefore = seen.length
   const stringCount = await countTokensWithAPI('a file body '.repeat(50))
-  check('the no-session string counter (the file-read cap\'s road) counts one user message with no system field and no tools', seen.length === stringBefore + 1 && stringCount === 37 && !Object.hasOwn(seen.at(-1)!.body, 'system') && seen.at(-1)!.body.messages.length === 1 && show(seen.at(-1)!.body.tools) === show([]), seen.at(-1)?.body)
+  check('the no-session string counter (the file-read cap\'s road) counts one user message with no system field and no tools', seen.length === stringBefore + 1 && stringCount === 37 && !Object.hasOwn(seen.at(-1)!.body, 'system') && seen.at(-1)!.body.messages.length === 1 && show(seen.at(-1)!.body.tools) === show([]), { body: seen.at(-1)?.body, hint: 'countTokensWithAPI in src/services/tokenEstimation.ts must count one user message with no system and empty tools' })
 } finally {
   if (origin.listening) await new Promise<void>(resolve => origin.close(() => resolve()))
   rmSync(home, { recursive: true, force: true })

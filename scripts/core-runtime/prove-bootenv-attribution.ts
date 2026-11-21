@@ -16,7 +16,12 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    const where = label.startsWith('reader ')
+      ? "the 'flags' row of settingsChecks in src/services/health/sections/settings.ts"
+      : label.startsWith('registry:')
+        ? 'the MERCURY_BOOT_ENV_APPLIED row of FLAG_REGISTRY in src/substrate/flagRegistry.ts'
+        : 'applyBootMenuEnv, bootEnvSelfApplied, realEnvPin, resolveEffectiveSettingsSnapshot and the boot admission snapshot in src/substrate/startupMenu.ts'
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}\n    fix: ${where}`)
   }
 }
 

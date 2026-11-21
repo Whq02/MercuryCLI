@@ -12,7 +12,8 @@ const { scenario, cleanupScenario } = await import('../ui/renderScenarios.ts')
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  const hint = 'fix how the no-change result paints in src/tools/FileEditTool/UI.tsx and src/tools/FileWriteTool/UI.tsx; the scene is the nochange-cards scenario in scripts/ui/renderScenarios.ts'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}${!ok ? ` — ${detail ? `${detail} — ` : ''}${hint}` : ''}`)
   if (!ok) failures = 1
 }
 
@@ -29,7 +30,7 @@ function capture(name: string, cols: number): string {
     timeout: vshotBudgetMs(200_000),
     env: { ...process.env, MERCURY_AWAY_SUMMARY: '0', MERCURY_CONFIG_DIR: home },
   })
-  if (res.status !== 0) throw new Error(`vshot ${name} failed: ${res.stderr?.slice(-500)}`)
+  if (res.status !== 0) throw new Error(`vshot ${name} failed: ${res.stderr?.slice(-500)} — the capture of the ${name} scenario did not finish; run scripts/ui/vshot.py on ${cfgPath} to see the screen`)
   return textOf(JSON.parse(readFileSync(out, 'utf8')) as Grid)
 }
 

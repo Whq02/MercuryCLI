@@ -63,7 +63,7 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   total++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — change startSealedStore in src/utils/secureStorage/sealedStoreStart.ts (its use of the refresh lock from src/utils/lockfile.ts) or the sealed store in src/utils/secureStorage/sealedFileStorage.ts / sealedRecord.ts so this holds' : ''}`)
 }
 const skip = (label: string, why: string): void => {
   console.log(`  [SKIP] ${label} — ${why}`)

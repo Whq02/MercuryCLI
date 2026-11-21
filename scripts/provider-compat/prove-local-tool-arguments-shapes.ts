@@ -11,11 +11,20 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 let failures = 0
+const SECTION_HINTS: Record<string, string> = {
+  '1': 'change the tool_calls settling in streamOllamaChat in src/services/providers/local/ollamaChatTransport.ts',
+  '2': 'change the tool-call argument assembly in streamCompatChat in src/services/providers/openaicompat/compatChatClient.ts',
+  '3': 'change the malformed-call settling in streamOllamaChat (src/services/providers/local/ollamaChatTransport.ts) or streamCompatChat (src/services/providers/openaicompat/compatChatClient.ts)',
+  '4': 'change the empty-arguments settling in streamOllamaChat (src/services/providers/local/ollamaChatTransport.ts) or streamCompatChat (src/services/providers/openaicompat/compatChatClient.ts)',
+}
+let sectionHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = !cond && sectionHint ? `${detail ? ' | ' : ''}to fix, ${sectionHint}` : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && (detail || hint) ? ` — ${detail}${hint}` : ''}`)
 }
 function section(t: string): void {
+  sectionHint = SECTION_HINTS[t.charAt(0)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 

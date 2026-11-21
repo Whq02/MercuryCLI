@@ -30,27 +30,27 @@ for (const name of UNKNOWN) delete process.env[name]
 
 console.log('§1 the registry knows registered flags and nothing else')
 {
-  check('a name that left the registry is unknown to it', UNKNOWN.every(name => getFlagSpec(name) === undefined))
+  check('a name that left the registry is unknown to it', UNKNOWN.every(name => getFlagSpec(name) === undefined), 'remove the name from FLAG_REGISTRY in src/substrate/flagRegistry.ts')
   const { settingsChecks } = await import('../../src/services/health/sections/settings.ts')
   const flagsCheck = settingsChecks().find(row => row.id === 'flags')
   const unset = JSON.stringify(await flagsCheck?.run())
   for (const name of UNKNOWN) process.env[name] = 'set-by-the-proof'
   const set = JSON.stringify(await flagsCheck?.run())
   for (const name of UNKNOWN) delete process.env[name]
-  check('the health report reads no such table', flagsCheck !== undefined && set === unset && !/retired/.test(set), set.slice(0, 200))
+  check('the health report reads no such table', flagsCheck !== undefined && set === unset && !/retired/.test(set), `${set.slice(0, 200)} — flagsCheck in src/services/health/sections/settings/sources.ts must read only FLAG_REGISTRY, not an env name table`)
 }
 
 console.log('\n§2 the Env overrides row names the registered overrides only')
 {
   const row = await flagsRow()
-  check('the row names the registered overrides only — ok at the defaults, info over an override, never a fix line', (row.status === 'ok' || row.status === 'info') && (row.evidence.includes(`all ${FLAG_REGISTRY.length} registered flags at their defaults`) || /flag\(s\) overridden in env/.test(row.evidence)) && row.fix === undefined && !/retired/.test(row.evidence), row.evidence.slice(0, 160))
+  check('the row names the registered overrides only — ok at the defaults, info over an override, never a fix line', (row.status === 'ok' || row.status === 'info') && (row.evidence.includes(`all ${FLAG_REGISTRY.length} registered flags at their defaults`) || /flag\(s\) overridden in env/.test(row.evidence)) && row.fix === undefined && !/retired/.test(row.evidence), `${row.evidence.slice(0, 160)} — fix the evidence and fix text of flagsCheck in src/services/health/sections/settings/sources.ts`)
 }
 
 console.log('\n§3 an unknown name in the environment is nobody\'s business')
 {
   for (const name of UNKNOWN) process.env[name] = 'set-by-the-proof'
   const row = await flagsRow()
-  check('the row does not warn, name the setting or offer a fix for an unregistered name', (row.status === 'ok' || row.status === 'info') && UNKNOWN.every(name => !row.evidence.includes(name) && !(row.detail ?? '').includes(name)) && row.fix === undefined, `${row.status} ${row.evidence.slice(-160)}`)
+  check('the row does not warn, name the setting or offer a fix for an unregistered name', (row.status === 'ok' || row.status === 'info') && UNKNOWN.every(name => !row.evidence.includes(name) && !(row.detail ?? '').includes(name)) && row.fix === undefined, `${row.status} ${row.evidence.slice(-160)} — flagsCheck in src/services/health/sections/settings/sources.ts must list only names in FLAG_REGISTRY`)
   for (const name of UNKNOWN) delete process.env[name]
 }
 
@@ -74,12 +74,12 @@ console.log('\n§4 the built bundle')
     }
   }
   if (!existsSync(BIN)) {
-    check('the built bundle is present (bun run build.ts)', false, BIN)
+    check('the built bundle is present (bun run build.ts)', false, `${BIN} — run bun run build.ts first`)
   } else {
     const set = healthJson(BIN, Object.fromEntries(UNKNOWN.map(name => [name, 'set-by-the-proof'])))
     const row = rowOf(set.text)
-    check('health --json produces the certificate and its Env overrides row', (set.status === 0 || set.status === 3) && row !== undefined, `status=${String(set.status)}`)
-    check('the built row says nothing of an unregistered name set in the environment', row !== undefined && UNKNOWN.every(name => !row.evidence.includes(name) && !(row.detail ?? '').includes(name)) && row.fix === undefined, row?.evidence.slice(-160) ?? '')
+    check('health --json produces the certificate and its Env overrides row', (set.status === 0 || set.status === 3) && row !== undefined, `status=${String(set.status)} — run node dist/mercury.mjs health --json and read its stderr; the flags row comes from flagsCheck in src/services/health/sections/settings/sources.ts`)
+    check('the built row says nothing of an unregistered name set in the environment', row !== undefined && UNKNOWN.every(name => !row.evidence.includes(name) && !(row.detail ?? '').includes(name)) && row.fix === undefined, `${row?.evidence.slice(-160) ?? ''} — rebuild with bun run build.ts, then fix flagsCheck in src/services/health/sections/settings/sources.ts`)
   }
 }
 

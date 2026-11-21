@@ -7,7 +7,7 @@ const accent = await import('../../src/components/mercury-ui/sessionAccent.js')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — change setSessionCritter, setSessionAccentOverride, getAccentEpoch, getSessionAccent and subscribeSessionCritter in src/components/mercury-ui/sessionAccent.ts'}`)
 }
 
 console.log('============================================================')

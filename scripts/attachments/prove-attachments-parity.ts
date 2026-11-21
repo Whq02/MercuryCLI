@@ -100,5 +100,6 @@ const failures = recordOrVerify({
   existsSync: existsSync as never,
 })
 
+if (failures !== 0) console.log('To fix, compare the changed export in src/services/attachments.ts with scripts/attachments/goldens.json: re-run this file with --record only if the new output is intended, and add a case or a SKIPPED entry in this file for any export it lists as unaccounted')
 console.log(failures === 0 ? '✅ ATTACHMENTS PARITY GREEN' : `❌ ${failures} ATTACHMENTS PARITY FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

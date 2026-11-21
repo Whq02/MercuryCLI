@@ -20,7 +20,8 @@ const frames: string[] = []
 let failures = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok || !detail ? '' : ` — ${detail}`}`)
+  const where = 'change the one this check names: the dialog reducer and rows in src/components/LocalSetupDialog.tsx, the command in src/commands/localsetup/localsetup.tsx, words in src/commands/localsetup/words.ts, the picker offer row in src/components/MercuryModelPicker.tsx, configProviderRows in src/components/Settings/config/configRowFacts.ts, saturnVerdictSentence in src/components/BootSaturnScreen.tsx, the usage popup in src/commands/usage/usage.tsx'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` — ${detail ? detail + ' · ' : ''}${where}`}`)
 }
 
 const KEYS = '↵ run · s skip · esc stop'

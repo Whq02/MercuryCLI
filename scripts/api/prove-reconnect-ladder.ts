@@ -34,13 +34,13 @@ const { AnthropicClient: Anthropic } = await import('../../src/services/provider
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix: the outage ladder and its wait rows live in src/services/api/reconnectLadder.ts, src/services/api/recoveryBudget.ts (honourRecoveryWait, retryWaitWords) and src/services/api/withRetry.ts; the section header above says which behaviour broke' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nprove-reconnect-ladder: TIMEOUT after 240 s (an unbounded wait somewhere)')
+  console.log('\nprove-reconnect-ladder: TIMEOUT after 240 s (an unbounded wait somewhere: the last section header printed above is the one that hung; look at its wait in src/services/api/withRetry.ts or reconnectLadder.ts)')
   process.exit(1)
 }, 240_000)
 guard.unref?.()

@@ -9,11 +9,14 @@ import type { Key } from '../../src/ink/events/input-event.ts'
 import type { KeybindingContextName } from '../../src/keybindings/types.ts'
 
 let failures = 0
+let where = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failText = [detail, where].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && failText ? ` — ${failText}` : ''}`)
 }
-function section(t: string): void {
+function section(t: string, fix = ''): void {
+  where = fix
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
@@ -40,14 +43,14 @@ console.log('============================================================')
 console.log(' selection lists and the settings list: Home, End and the mouse wheel')
 console.log('============================================================')
 
-section('controls: the rows that stood before this pin still stand')
+section('controls: the rows that stood before this pin still stand', 'restore the binding in the Select or Scroll block of src/keybindings/defaultBindings.ts')
 check('down in a Select list moves to the next row', action('downArrow', '', ['Select']) === 'select:next', action('downArrow', '', ['Select']))
 check('the wheel in the Scroll context scrolls the transcript', action('wheelUp', '', ['Scroll']) === 'scroll:lineUp', action('wheelUp', '', ['Scroll']))
 check('bare home in the Scroll context stays unbound', action('home', '', ['Scroll']) === 'none', action('home', '', ['Scroll']))
 check('ctrl+home in the Scroll context jumps the transcript to the top', action('home', '', ['Scroll'], true) === 'scroll:top', action('home', '', ['Scroll'], true))
 
 for (const context of ['Select', 'Settings'] as const) {
-  section(`the ${context} context`)
+  section(`the ${context} context`, `bind the key in the ${context} block of src/keybindings/defaultBindings.ts (SELECT_LIST_KEYS holds the shared wheel, ctrl+p/ctrl+n and home/end rows)`)
   const home = action('home', '', [context])
   const end = action('end', '', [context])
   const up = action('wheelUp', '', [context])
@@ -64,7 +67,7 @@ for (const context of ['Select', 'Settings'] as const) {
     bindings.some(b => b.context === context && b.action === 'select:first') && bindings.some(b => b.context === context && b.action === 'select:last'))
 }
 
-section('the action graph names the two edge moves for both list contexts')
+section('the action graph names the two edge moves for both list contexts', 'add or correct the select:first and select:last rows of ACTION_GRAPH in src/keybindings/actionGraph.ts')
 for (const id of ['select:first', 'select:last']) {
   const meta = graph[id]
   check(`${id} exists in the graph`, meta !== undefined)
@@ -72,7 +75,7 @@ for (const id of ['select:first', 'select:last']) {
   check(`${id} carries a description`, (meta?.description ?? '').trim().length >= 8, meta?.description)
 }
 
-section('the navigation reducer: first and last land on the enabled edges and move the window')
+section('the navigation reducer: first and last land on the enabled edges and move the window', 'fix createNavigationState or the focus-first-option and focus-last-option cases of reduceNavigation in src/components/CustomSelect/use-select-navigation.ts')
 {
   const nav = await import('../../src/components/CustomSelect/use-select-navigation.ts')
   const reduce = (nav as Record<string, unknown>).reduceNavigation as
@@ -109,7 +112,7 @@ section('the navigation reducer: first and last land on the enabled edges and mo
   }
 }
 
-section('the select hook consumes the edge moves; the transcript scroller yields the wheel to a list on top')
+section('the select hook consumes the edge moves; the transcript scroller yields the wheel to a list on top', 'fix wheelYieldsToTopOverlay (its WHEEL_OWNING_OVERLAYS set) or shouldClearSelectionOnKey in src/components/ScrollKeybindingHandler.tsx, or decodeNavKey in src/components/mercury-ui/navSemantics.ts')
 {
   const scroller = await import('../../src/components/ScrollKeybindingHandler.tsx')
   const yields = (scroller as Record<string, unknown>).wheelYieldsToTopOverlay as (() => boolean) | undefined

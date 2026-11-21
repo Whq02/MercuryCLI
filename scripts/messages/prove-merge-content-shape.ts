@@ -15,6 +15,6 @@ try {
   assert.equal(left.message.content, 'left text')
   console.log('PASS: merging a resumed string-shaped assistant turn keeps whole text blocks, never character strings')
 } catch (error) {
-  console.log('FAIL: merging a resumed string-shaped assistant turn emits character strings instead of content blocks')
+  console.log('FAIL: merging a resumed string-shaped assistant turn emits character strings instead of content blocks; fix mergeAssistantMessages in src/services/messages/merge.ts so string content becomes whole text blocks and the left uuid, message id and content stay untouched')
   throw error
 }

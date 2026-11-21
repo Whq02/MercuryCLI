@@ -8,11 +8,13 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-chat-forward-first-paint-'))
 
 let failures = 0
+let where = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && where ? ` — ${where}` : ''}`)
 }
-function section(title: string): void {
+function section(title: string, hint = ''): void {
+  where = hint
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
 
@@ -21,7 +23,7 @@ console.log(' the chat-forward boot paints first, and a refusal speaks')
 console.log('============================================================')
 
 
-section('§1 withLanding — the gate is armed BEFORE the first await')
+section('§1 withLanding — the gate is armed BEFORE the first await', 'change withLanding or landingInFlight in src/services/engine-connector/focusedConnector.ts')
 {
   const { withLanding, landingInFlight } = await import('../../src/services/engine-connector/focusedConnector.ts')
   check('no landing at rest', landingInFlight() === false)
@@ -41,7 +43,7 @@ section('§1 withLanding — the gate is armed BEFORE the first await')
 }
 
 
-section('§4 a refused birth reaches the screen (the seat-receipt seam)')
+section('§4 a refused birth reaches the screen (the seat-receipt seam)', 'change mintImmediateReceipt or subscribeSeatReceipts in src/utils/model/seatReceipts.ts')
 {
   const receipts = await import('../../src/utils/model/seatReceipts.ts')
   receipts.mintImmediateReceipt('▲ the first receipt', 'warning')

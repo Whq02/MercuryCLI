@@ -4,11 +4,19 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+let where = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const text = [detail, where].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && text ? ` — ${text}` : ''}`)
 }
 function section(t: string): void {
+  where = t.startsWith('§1 CORE') ? 'fix the pure rule in src/utils/cache/cacheClockCore.ts (decideInitialTtl, shouldEscalate, classifyGap, stepCache, priorFromRollups)'
+    : t.startsWith('§2') ? 'fix decideInitialTtl or shouldEscalate in src/utils/cache/cacheClockCore.ts so a TTL flip happens only when the gap proves the cache cold'
+    : t.startsWith('§3b') ? 'fix the rollup directory in src/utils/cache/cacheClock.ts so a worktree session meters under its original project'
+    : t.startsWith('§3') ? 'fix cacheClockTtlDecision / cacheClockObserve / cacheClockSnapshot in src/utils/cache/cacheClock.ts'
+    : t.startsWith('§5') ? 'fix the tier lease in src/utils/cache/cacheClock.ts (cacheClockTtlDecision, cacheClockObserve) or tierLeaseOf / tierLeaseWarm in src/utils/cache/cacheClockCore.ts'
+    : ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

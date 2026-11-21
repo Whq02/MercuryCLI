@@ -22,9 +22,10 @@ const { getEngineModel } = await import('../../src/services/model/model.ts')
 
 const PART = 'src/services/engine-connector/daemon/facts.ts'
 let failures = 0
+const WHERE = 'the part under test is FactsPart in src/services/engine-connector/daemon/facts.ts: change its behaviour there to match the check, or update this check if the law moved'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${WHERE}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const j = (v: unknown): string => JSON.stringify(v)

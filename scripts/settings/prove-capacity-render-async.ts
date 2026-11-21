@@ -13,8 +13,8 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_SEATS
 let failures = 0
-const check = (name: string, ok: boolean): void => {
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}`)
+const check = (name: string, ok: boolean, detail = ''): void => {
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${!ok ? ` — ${detail ? `${detail}; ` : ''}seatCeilingFactsAsync, refreshHeldReadingAsync, refreshMemorySample and seatCeilingDetailLines in src/utils/switchboard/capacityCheck.ts decide when a sample is taken, how the held reading is kept and what the ceiling reads` : ''}`)
   if (!ok) failures++
 }
 let syncCalls = 0

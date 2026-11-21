@@ -83,16 +83,16 @@ section('§1 the time-based clearing projection strips from the first cleared me
     assistant([THINK('all seven ran'), TEXT('done')], OLD),
   ]
   const projected = projectTimeBasedMicrocompact(history as never, 'main_thread_prompt')
-  check('the clearing pass armed for the fixture', projected !== null, 'projection returned null with MERCURY_TIME_BASED_MC=1')
+  check('the clearing pass armed for the fixture', projected !== null, 'projection returned null with MERCURY_TIME_BASED_MC=1; projectTimeBasedMicrocompact in src/services/compact/microCompact.ts must arm for six-hour-old tool results')
   if (projected !== null) {
-    check('two results cleared (seven compactable, keep the recent five)', projected.cleared === 2, String(projected.cleared))
-    check('the cleared message (index 2) is a fresh object; the edit lands there', projected.messages[2] !== history[2])
-    check('the assistant BEFORE the edit keeps its thinking, by reference', projected.messages[1] === history[1] && hasThinking(projected.messages[1]))
-    check('the assistant AFTER the edit loses its thinking', !hasThinking(projected.messages[3]))
+    check('two results cleared (seven compactable, keep the recent five)', projected.cleared === 2, `${String(projected.cleared)}; projectTimeBasedMicrocompact in src/services/compact/microCompact.ts must clear all but the recent five compactable results`)
+    check('the cleared message (index 2) is a fresh object; the edit lands there', projected.messages[2] !== history[2], 'projectTimeBasedMicrocompact in src/services/compact/microCompact.ts must return a copy of the cleared message, not the input row')
+    check('the assistant BEFORE the edit keeps its thinking, by reference', projected.messages[1] === history[1] && hasThinking(projected.messages[1]), 'projectTimeBasedMicrocompact in src/services/compact/microCompact.ts must leave messages before the first cleared one untouched')
+    check('the assistant AFTER the edit loses its thinking', !hasThinking(projected.messages[3]), 'projectTimeBasedMicrocompact in src/services/compact/microCompact.ts must strip thinking blocks from assistant messages after the first cleared one')
     const afterId = (history[3] as { message: { id: string } }).message.id
-    check("the projection names the stripped block as a dead mark (the assistant after the edit, block 0) and nothing before the edit", projected.deadMarks.length === 1 && projected.deadMarks[0]!.messageId === afterId && projected.deadMarks[0]!.blockIndex === 0, JSON.stringify(projected.deadMarks))
-    check('…and keeps its text', j(textsOf(projected.messages[3])) === j(['done']))
-    check('the input history is never mutated', hasThinking(history[3]))
+    check("the projection names the stripped block as a dead mark (the assistant after the edit, block 0) and nothing before the edit", projected.deadMarks.length === 1 && projected.deadMarks[0]!.messageId === afterId && projected.deadMarks[0]!.blockIndex === 0, `${JSON.stringify(projected.deadMarks)}; projectTimeBasedMicrocompact in src/services/compact/microCompact.ts must report one deadMarks entry per stripped block, only after the edit`)
+    check('…and keeps its text', j(textsOf(projected.messages[3])) === j(['done']), 'the thinking strip in projectTimeBasedMicrocompact (src/services/compact/microCompact.ts) must remove thinking blocks only and keep text blocks')
+    check('the input history is never mutated', hasThinking(history[3]), 'projectTimeBasedMicrocompact in src/services/compact/microCompact.ts stripped thinking from the input message in place; copy the message before editing')
   }
 }
 
@@ -155,15 +155,15 @@ section('§2 full compaction — the verbatim tail carries no thinking behind th
   } finally {
     await api.close()
   }
-  check('compactConversation resolves', !!result && !error, (error?.stack ?? '').slice(0, 400))
+  check('compactConversation resolves', !!result && !error, `${(error?.stack ?? '').slice(0, 400)}; compactConversation in src/services/compact/compact.ts threw against the fixture API, read the stack`)
   if (result) {
     const keep = (result.messagesToKeep ?? []) as Msg[]
     const keptAssistants = keep.filter(m => m.type === 'assistant').length
-    check('the available eight complete rounds are kept behind the two head groups', keep.length === 15 && keptAssistants === 8, `${keep.length} messages, ${keptAssistants} assistant`)
-    check('no kept message carries a thinking block', keep.length > 0 && !keep.some(hasThinking), j(keep.map(m => blocksOf(m).map(b => b.type))))
-    check('the kept assistant turns keep their text', keep.filter(m => m.type === 'assistant').every(m => textsOf(m).length === 1) && textsOf(keep[keep.length - 1]).includes('did step 9'))
-    check('the summary message carries the scripted text', j(result.summaryMessages ?? []).includes('nine numbered steps'))
-    check('the input history is never mutated (its tail still thinks)', hasThinking(history[17]))
+    check('the available eight complete rounds are kept behind the two head groups', keep.length === 15 && keptAssistants === 8, `${keep.length} messages, ${keptAssistants} assistant; the verbatim tail kept by compactConversation (src/services/compact/compact.ts, MERCURY_COMPACT_KEEP_TAIL=1) changed size`)
+    check('no kept message carries a thinking block', keep.length > 0 && !keep.some(hasThinking), `${j(keep.map(m => blocksOf(m).map(b => b.type)))}; thinking blocks must be stripped from messagesToKeep before compactConversation (src/services/compact/compact.ts) returns them`)
+    check('the kept assistant turns keep their text', keep.filter(m => m.type === 'assistant').every(m => textsOf(m).length === 1) && textsOf(keep[keep.length - 1]).includes('did step 9'), 'the thinking strip on the kept tail removed or altered a text block; it must drop thinking blocks only')
+    check('the summary message carries the scripted text', j(result.summaryMessages ?? []).includes('nine numbered steps'), 'summaryMessages from compactConversation (src/services/compact/compact.ts) must carry the text the fixture API returned')
+    check('the input history is never mutated (its tail still thinks)', hasThinking(history[17]), 'compactConversation (src/services/compact/compact.ts) stripped thinking from the caller\'s message in place; strip on copies')
   }
 }
 
@@ -186,19 +186,19 @@ section("§3 partial compaction — 'to' strips its re-homed rounds, 'from' keep
   } finally {
     await api.close()
   }
-  check('both partial compactions resolve', !!to && !!from && !error, (error?.stack ?? '').slice(0, 400))
+  check('both partial compactions resolve', !!to && !!from && !error, `${(error?.stack ?? '').slice(0, 400)}; partialCompactConversation in src/services/compact/compact/partial.ts threw against the fixture API, read the stack`)
   if (to) {
     const kept = (to.messagesToKeep ?? []) as Msg[]
-    check("'to' keeps the rounds after the pivot (twelve messages)", kept.length === 12, String(kept.length))
-    check("'to' kept rounds carry no thinking (they land behind the summary)", kept.length > 0 && !kept.some(hasThinking))
-    check("'to' kept assistant turns keep their text", kept.filter(m => m.type === 'assistant').every(m => textsOf(m).length === 1))
+    check("'to' keeps the rounds after the pivot (twelve messages)", kept.length === 12, `${String(kept.length)}; partialCompactConversation direction 'to' in src/services/compact/compact/partial.ts must keep the rounds after the pivot`)
+    check("'to' kept rounds carry no thinking (they land behind the summary)", kept.length > 0 && !kept.some(hasThinking), "partialCompactConversation direction 'to' in src/services/compact/compact/partial.ts must strip thinking blocks from the rounds it re-homes behind the summary")
+    check("'to' kept assistant turns keep their text", kept.filter(m => m.type === 'assistant').every(m => textsOf(m).length === 1), "the strip in partialCompactConversation (src/services/compact/compact/partial.ts) removed a text block; it must drop thinking blocks only")
   }
   if (from) {
     const kept = (from.messagesToKeep ?? []) as Msg[]
-    check("'from' keeps the prefix before the pivot (twelve messages)", kept.length === 12, String(kept.length))
-    check("'from' kept rounds KEEP their thinking (the prefix stays in place)", kept.filter(m => m.type === 'assistant').every(hasThinking))
+    check("'from' keeps the prefix before the pivot (twelve messages)", kept.length === 12, `${String(kept.length)}; partialCompactConversation direction 'from' in src/services/compact/compact/partial.ts must keep the prefix before the pivot`)
+    check("'from' kept rounds KEEP their thinking (the prefix stays in place)", kept.filter(m => m.type === 'assistant').every(hasThinking), "partialCompactConversation direction 'from' in src/services/compact/compact/partial.ts must not strip thinking from the prefix it leaves in place")
   }
-  check('the input history is never mutated', hasThinking(history[1]) && hasThinking(history[17]))
+  check('the input history is never mutated', hasThinking(history[1]) && hasThinking(history[17]), 'partialCompactConversation (src/services/compact/compact/partial.ts) stripped thinking from the caller\'s messages in place; strip on copies')
 }
 
 

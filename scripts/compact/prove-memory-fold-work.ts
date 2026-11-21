@@ -37,7 +37,7 @@ for (let index = 0; index < 12; index++) {
   messages.push(user([{ type: 'tool_result', tool_use_id: id, content: 'x'.repeat(16_000) }]))
 }
 let failures = 0
-const check = (label: string, ok: boolean) => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`) }
+const check = (label: string, ok: boolean) => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — fix: trySessionMemoryCompaction in src/services/compact/sessionMemoryCompact.ts (the work stamp, the trigger and the compaction.after hook), or the readers injectTurnReceipts (src/utils/cockpit/turnReceipt.ts) and buildAwayRecap (src/utils/cockpit/awaySummary.ts)'}`) }
 const counts = (rows: Message[]) => injectTurnReceipts(rows as RenderableMessage[], getMercuryTempDir()).filter(row => row.type === 'turn_receipt').map(row => row.counts)
 const recap = (rows: Message[]) => { const r = buildAwayRecap(rows, Date.now()); return { turns: r?.turns, topTools: r?.topTools, filesTouched: r?.filesTouched, toolFailures: r?.toolFailures } }
 try {

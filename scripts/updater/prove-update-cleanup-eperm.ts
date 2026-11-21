@@ -22,7 +22,7 @@ let failed = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (ok) passed++
   else failed++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail === '' ? '' : ` — ${detail}`}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail === '' ? '' : `${detail} — `}change installPayload or sweepUpdaterResidue in src/services/privateChannel/installLayout.ts so its cleanup of a copy still in use behaves as this label says`}`)
 }
 const read = (path: string): string => (existsSync(path) ? readFileSync(path, 'utf8') : '')
 const describe = (value: unknown): string => (value instanceof Error ? value.message.slice(0, 160) : String(JSON.stringify(value)).slice(0, 240))

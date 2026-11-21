@@ -29,7 +29,7 @@ for (const variant of variants) {
   const sid = String(first.result?.session_id ?? '')
   const path = findTranscripts(runHome)[0]
   if (first.result?.status !== 'completed' || !path) {
-    tally.check('turn 1 settled and wrote a transcript', false, JSON.stringify(first.result).slice(0, 120))
+    tally.check('turn 1 settled and wrote a transcript', false, `${JSON.stringify(first.result).slice(0, 120)}; the scripted first turn failed before any record was injected, so check the scratch seat's stderr and that dist is built (bun run build.ts)`)
     await fixture.close()
     continue
   }
@@ -64,7 +64,7 @@ for (const variant of variants) {
       ? 'the record validator refuses the malformed record and the session resumes'
       : 'the malformed persisted body is thinned or ignored and the session resumes',
     ok,
-    ok ? 'resumed' : `no success result (exit ${second.exitCode})`,
+    ok ? 'resumed' : `no success result (exit ${second.exitCode})${errorLine ? ` stderr: ${errorLine.slice(0, 200)}` : ''}; the injected record broke the resume: a record the shape table in src/fabric/validate.ts (ATTACHMENT_BODY_SHAPES, NOTICE_BODY_SHAPES, bodyShapeIssue, validateRecord) should refuse or thin, or a reader of that body that must tolerate the missing field, must not abort it`,
   )
   await fixture.close()
 }

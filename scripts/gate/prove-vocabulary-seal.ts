@@ -411,14 +411,14 @@ function main(): void {
 
   {
     const enterBad = scan([{ path: 'fixture/enter.ts', content: ["const legend = '" + OTHER_ENTER_GLYPH + " confirm'", "controls: 'one call per \\" + 'u' + '23' + "ce'"].join('\n') }])
-    check('§1 self-test: the other Enter glyph trips (literal + escape spelling)', enterBad.filter(v => v.rule === 'enter-glyph').length === 2, enterBad.map(v => v.rule).join(','))
+    check('§1 self-test: the other Enter glyph trips (literal + escape spelling)', enterBad.filter(v => v.rule === 'enter-glyph').length === 2, enterBad.map(v => v.rule).join(',') + ' — fix the enter-glyph rule in scan() in scripts/gate/prove-vocabulary-seal.ts (OTHER_ENTER_GLYPH, otherEnterEscapeRe)')
     const enterGood = scan([{ path: 'fixture/enter-kit.ts', content: "const legend = '↵ confirm · esc cancel'" }])
-    check('§1 self-test: the kit glyph stays silent', enterGood.length === 0, enterGood.map(v => v.rule).join(','))
+    check('§1 self-test: the kit glyph stays silent', enterGood.length === 0, enterGood.map(v => v.rule).join(',') + ' — the enter-glyph rule in scan() in scripts/gate/prove-vocabulary-seal.ts must not match the kit glyph')
     const frozen = scan([{ path: 'scripts/interview/baselines/x.txt', content: OTHER_ENTER_GLYPH }])
-    check('§1 self-test: a frozen capture record is exempt', frozen.length === 0, frozen.map(v => v.rule).join(','))
+    check('§1 self-test: a frozen capture record is exempt', frozen.length === 0, frozen.map(v => v.rule).join(',') + ' — restore the scripts/interview/baselines/ enter-glyph row in the ALLOW table of scripts/gate/prove-vocabulary-seal.ts')
 
     const wordsBad = scan([{ path: 'fixture/words.md', content: 'Install the ' + J('plug', 'in') + ' from the ' + J('market', 'place') + '.' }])
-    check('§2 self-test: the two outside words trip', wordsBad.length === 1 && wordsBad[0]!.rule.startsWith('words:'), wordsBad.map(v => v.rule).join(','))
+    check('§2 self-test: the two outside words trip', wordsBad.length === 1 && wordsBad[0]!.rule.startsWith('words:'), wordsBad.map(v => v.rule).join(',') + ' — fix the WORDS regexes in scan() in scripts/gate/prove-vocabulary-seal.ts')
     const carved = scan([{ path: 'fixture/carved.ts', content: [
       "import { " + J('plug', 'in') + " } from 'bun'",
       '// biome-ignore lint/' + J('plug', 'in') + ': x',
@@ -426,51 +426,53 @@ function main(): void {
       'the JetBrains ' + J('plug', 'in') + ' directory',
       'plugins: [mercury' + J('Plug', 'in') + ']',
     ].join('\n') }])
-    check('§2 self-test: the third-party senses stay silent', carved.length === 0, carved.map(v => v.text).join(' | '))
+    check('§2 self-test: the third-party senses stay silent', carved.length === 0, carved.map(v => v.text).join(' | ') + ' — fix the lookbehind/lookahead carve-outs of the first WORDS row in scripts/gate/prove-vocabulary-seal.ts')
     const foreignReferences = 'packages/opencode/src/plugin/xai.ts packages/core/src/plugin/provider/xai.ts OpenCode auth plugin'
     check('external-client references keep their own paths and vocabulary only in the recorded sources',
       [...XAI_CLIENT_REFERENCES].every(path => scan([{ path, content: foreignReferences }]).length === 0) &&
-        scan([{ path: 'docs/other.md', content: foreignReferences }]).length === 1)
+        scan([{ path: 'docs/other.md', content: foreignReferences }]).length === 1,
+      'ownWords() and XAI_CLIENT_REFERENCES in scripts/gate/prove-vocabulary-seal.ts must excuse the foreign names only in the listed files')
     check('the external reference carveout never excuses Mercury words beside it',
-      [...XAI_CLIENT_REFERENCES].every(path => scan([{ path, content: `${foreignReferences}; Mercury plugin` }]).length === 1))
+      [...XAI_CLIENT_REFERENCES].every(path => scan([{ path, content: `${foreignReferences}; Mercury plugin` }]).length === 1),
+      'ownWords() in scripts/gate/prove-vocabulary-seal.ts may strip only the three foreign names, never a Mercury word beside them')
     const product = scan([{ path: 'fixture/product.md', content: 'An extension comes from a source; add one with /extensions.' }])
-    check('§2 self-test: the product words pass', product.length === 0, product.map(v => v.rule).join(','))
+    check('§2 self-test: the product words pass', product.length === 0, product.map(v => v.rule).join(',') + ' — a product word is tripping a WORDS regex in scripts/gate/prove-vocabulary-seal.ts; narrow that row')
 
     const runInputs = ['mercury -p "hello"', '--print', '--output-format', '--input-format', '--include-partial-messages', '--dangerously-bypass-permissions', '--allow-dangerously-bypass-permissions', '--permission-mode']
     const runHomes = ['src/run-fixture.ts', 'docs/run-fixture.md', 'README.md', 'bench/run-fixture.py', '.github/run-fixture.yml']
-    check('the run words are enforced on every owned surface', runHomes.every(path => runInputs.every(content => scan([{ path, content }]).some(hit => hit.rule.startsWith('words:run-')))))
-    check('the script estate is outside the run-word scope', runInputs.every(content => scan([{ path: 'scripts/run-fixture.ts', content }]).length === 0))
-    check('run words and other programs remain distinct', scan([{ path: 'src/run-fixture.ts', content: 'mercury run --format rows --input rows --partial --sovereign --allow-sovereign --mode flow' }, { path: 'bench/run-fixture.ts', content: "spawnSync('ps', ['-p', pid])" }, { path: '.github/run-fixture.yml', content: 'mkdir -p output' }]).length === 0)
-    check('the argv reader has no run-word exemption', scan([{ path: 'src/cli/runArgs.ts', content: '--print' }]).length === 1)
-    check('the two published release lines keep their recorded bytes', Object.entries(RELEASE_RUN_LINES).every(([path, content]) => scan([{ path, content }]).length === 0))
-    check('release records and foreign commands do not exempt new run spellings', scan([{ path: 'docs/releases/fixture.md', content: 'mercury -p' }, { path: 'src/constants/changelog.ts', content: 'mercury -p' }, { path: '.github/fixture.yml', content: 'mkdir -p out && mercury -p hello' }]).length === 3)
+    check('the run words are enforced on every owned surface', runHomes.every(path => runInputs.every(content => scan([{ path, content }]).some(hit => hit.rule.startsWith('words:run-')))), 'every path in runHomes must trip a run-* WORDS row; check RUN_SCOPE and the ALLOW table in scripts/gate/prove-vocabulary-seal.ts')
+    check('the script estate is outside the run-word scope', runInputs.every(content => scan([{ path: 'scripts/run-fixture.ts', content }]).length === 0), 'RUN_SCOPE in scripts/gate/prove-vocabulary-seal.ts must not cover scripts/')
+    check('run words and other programs remain distinct', scan([{ path: 'src/run-fixture.ts', content: 'mercury run --format rows --input rows --partial --sovereign --allow-sovereign --mode flow' }, { path: 'bench/run-fixture.ts', content: "spawnSync('ps', ['-p', pid])" }, { path: '.github/run-fixture.yml', content: 'mkdir -p output' }]).length === 0, 'the run-short carve-outs in scan() of scripts/gate/prove-vocabulary-seal.ts must keep ps -p and mkdir -p quiet and the run-* rows must not match mercury run flags')
+    check('the argv reader has no run-word exemption', scan([{ path: 'src/cli/runArgs.ts', content: '--print' }]).length === 1, 'remove any src/cli/runArgs.ts row for the run rules from the ALLOW table in scripts/gate/prove-vocabulary-seal.ts')
+    check('the two published release lines keep their recorded bytes', Object.entries(RELEASE_RUN_LINES).every(([path, content]) => scan([{ path, content }]).length === 0), 'RELEASE_RUN_LINES in scripts/gate/prove-vocabulary-seal.ts must match the published line exactly; restore it')
+    check('release records and foreign commands do not exempt new run spellings', scan([{ path: 'docs/releases/fixture.md', content: 'mercury -p' }, { path: 'src/constants/changelog.ts', content: 'mercury -p' }, { path: '.github/fixture.yml', content: 'mkdir -p out && mercury -p hello' }]).length === 3, 'only the exact RELEASE_RUN_LINES lines may be exempt in scan() of scripts/gate/prove-vocabulary-seal.ts')
 
     const crumb = 'esc ' + J('main', ' ', 'RE', 'PL')
     const crumbRule = (hits: Violation[]): Violation[] => hits.filter(v => v.rule === 'focused-chat')
     const crumbHits = scan([{ path: 'src/components/x.tsx', content: "const label = '" + crumb + "'" }])
-    check('§3 self-test: the crumb phrase trips as screen text', crumbRule(crumbHits).length === 1, JSON.stringify(crumbHits))
+    check('§3 self-test: the crumb phrase trips as screen text', crumbRule(crumbHits).length === 1, JSON.stringify(crumbHits) + ' — fix crumbUpperRe/crumbSpacedRe or the focused-chat rule in scan() of scripts/gate/prove-vocabulary-seal.ts')
     const crumbComment = scan([{ path: 'src/components/x.tsx', content: '// the ' + crumb + ' route' }])
-    check('§3 self-test: a comment outside the concourse stays silent under the crumb rule', crumbRule(crumbComment).length === 0, JSON.stringify(crumbComment))
+    check('§3 self-test: a comment outside the concourse stays silent under the crumb rule', crumbRule(crumbComment).length === 0, JSON.stringify(crumbComment) + ' — the focused-chat rule in scan() must skip comment lines outside CONCOURSE_HOME (scripts/gate/prove-vocabulary-seal.ts)')
     const crumbConcourse = scan([{ path: 'src/components/concourse/x.tsx', content: '// the ' + crumb + ' route' }])
-    check('§3 self-test: the concourse holds the rule on every line', crumbRule(crumbConcourse).length === 1, JSON.stringify(crumbConcourse))
-    check('§3 self-test: the screen word itself trips on every line, comments included', [crumbHits, crumbComment, crumbConcourse].every(hits => hits.some(v => v.rule === 'retired:screen-chat-word')))
+    check('§3 self-test: the concourse holds the rule on every line', crumbRule(crumbConcourse).length === 1, JSON.stringify(crumbConcourse) + ' — the focused-chat rule in scan() must hold on every line under CONCOURSE_HOME (scripts/gate/prove-vocabulary-seal.ts)')
+    check('§3 self-test: the screen word itself trips on every line, comments included', [crumbHits, crumbComment, crumbConcourse].every(hits => hits.some(v => v.rule === 'retired:screen-chat-word')), 'the screen-chat-word row of RETIRED in scripts/gate/prove-vocabulary-seal.ts must trip on every line')
     const routeId = scan([{ path: 'src/components/x.tsx', content: "const id = '" + J('main-re', 'pl') + "'" }])
-    check('§3 self-test: the route id stays legal', routeId.length === 0, JSON.stringify(routeId))
+    check('§3 self-test: the route id stays legal', routeId.length === 0, JSON.stringify(routeId) + ' — the route id must not match crumbUpperRe/crumbSpacedRe in scripts/gate/prove-vocabulary-seal.ts')
   }
 
   {
     const settingsHits = (path: string, content: string): string[] => scan([{ path, content }]).filter(v => v.rule.startsWith('settings:')).map(v => v.rule)
     const everyRoot = [...RETIRED_SETTINGS_ROOTS, ...RETIRED_SETTINGS_GENERIC_ROOTS]
-    check('§4 self-test: every former root trips as a settings write in a proof', everyRoot.every(key => settingsHits('scripts/settings/prove-x.ts', `writeFileSync(join(home, 'settings.json'), JSON.stringify({ ${key}: value }))`).length === 1))
-    check('§4 self-test: every former root trips as an updateSettingsForSource write', everyRoot.every(key => settingsHits('src/x.ts', `updateSettingsForSource('userSettings', { ${key}: value })`).length === 1))
-    check('§4 self-test: every former root trips as a read off the settings', everyRoot.every(key => settingsHits('src/x.ts', `const v = getInitialSettings().${key} ?? settings.${key}`).length === 1))
-    check('§4 self-test: every former root trips as a SettingsJson index', everyRoot.every(key => settingsHits('scripts/settings/prove-x.ts', `type T = SettingsJson['${key}']`).length === 1))
-    check('§4 self-test: every former root trips as a dotted path in the docs', everyRoot.every(key => settingsHits('docs/x.md', 'set `' + key + '.leaf` in settings.json').length === 1))
-    check('§4 self-test: a distinct former root trips as a backticked name and as a settings word in the docs', RETIRED_SETTINGS_ROOTS.every(key => settingsHits('README.md', 'toggle `' + key + '` in /config').length === 1 && settingsHits('docs/x.md', `the ${key} setting (toggled in /config)`).length === 1))
-    check('§4 self-test: a distinct former root trips as a JSON key unless it lives on as a leaf name under a group', RETIRED_SETTINGS_ROOTS.every(key => settingsHits('scripts/settings/fixture.json', `  "${key}": true,`).length === (SETTINGS_LEAF_NAMES.has(key) ? 0 : 1)))
-    check('§4 self-test: every former adoption field trips in a settings file', RETIRED_SETTINGS_FIELDS.every(key => settingsHits('scripts/settings/fixture.json', `  "${key}": true,`).length === 1))
-    check('§4 self-test: every retired module name trips in src', RETIRED_SETTINGS_MODULES.every(name => settingsHits('src/x.ts', `import { x } from './migrations/${name}.js'`).length === 1))
-    check('§4 self-test: the two former policy places trip in src', RETIRED_POLICY_PLACES.every(place => settingsHits('src/utils/settings/mdm/x.ts', `const DOMAIN = '${place}'`).length === 1))
+    check('§4 self-test: every former root trips as a settings write in a proof', everyRoot.every(key => settingsHits('scripts/settings/prove-x.ts', `writeFileSync(join(home, 'settings.json'), JSON.stringify({ ${key}: value }))`).length === 1), 'fix settingsViolation() in scripts/gate/prove-vocabulary-seal.ts and RETIRED_SETTINGS_ROOTS')
+    check('§4 self-test: every former root trips as an updateSettingsForSource write', everyRoot.every(key => settingsHits('src/x.ts', `updateSettingsForSource('userSettings', { ${key}: value })`).length === 1), 'fix settingsViolation() in scripts/gate/prove-vocabulary-seal.ts and RETIRED_SETTINGS_ROOTS')
+    check('§4 self-test: every former root trips as a read off the settings', everyRoot.every(key => settingsHits('src/x.ts', `const v = getInitialSettings().${key} ?? settings.${key}`).length === 1), 'fix settingsViolation() in scripts/gate/prove-vocabulary-seal.ts and RETIRED_SETTINGS_ROOTS')
+    check('§4 self-test: every former root trips as a SettingsJson index', everyRoot.every(key => settingsHits('scripts/settings/prove-x.ts', `type T = SettingsJson['${key}']`).length === 1), 'fix settingsViolation() in scripts/gate/prove-vocabulary-seal.ts and RETIRED_SETTINGS_ROOTS')
+    check('§4 self-test: every former root trips as a dotted path in the docs', everyRoot.every(key => settingsHits('docs/x.md', 'set `' + key + '.leaf` in settings.json').length === 1), 'fix settingsViolation() in scripts/gate/prove-vocabulary-seal.ts and RETIRED_SETTINGS_ROOTS')
+    check('§4 self-test: a distinct former root trips as a backticked name and as a settings word in the docs', RETIRED_SETTINGS_ROOTS.every(key => settingsHits('README.md', 'toggle `' + key + '` in /config').length === 1 && settingsHits('docs/x.md', `the ${key} setting (toggled in /config)`).length === 1), 'fix settingsViolation() in scripts/gate/prove-vocabulary-seal.ts and RETIRED_SETTINGS_ROOTS')
+    check('§4 self-test: a distinct former root trips as a JSON key unless it lives on as a leaf name under a group', RETIRED_SETTINGS_ROOTS.every(key => settingsHits('scripts/settings/fixture.json', `  "${key}": true,`).length === (SETTINGS_LEAF_NAMES.has(key) ? 0 : 1)), 'fix settingsViolation() and SETTINGS_LEAF_NAMES in scripts/gate/prove-vocabulary-seal.ts')
+    check('§4 self-test: every former adoption field trips in a settings file', RETIRED_SETTINGS_FIELDS.every(key => settingsHits('scripts/settings/fixture.json', `  "${key}": true,`).length === 1), 'fix settingsViolation() and RETIRED_SETTINGS_FIELDS in scripts/gate/prove-vocabulary-seal.ts')
+    check('§4 self-test: every retired module name trips in src', RETIRED_SETTINGS_MODULES.every(name => settingsHits('src/x.ts', `import { x } from './migrations/${name}.js'`).length === 1), 'fix settingsViolation() and RETIRED_SETTINGS_MODULES in scripts/gate/prove-vocabulary-seal.ts')
+    check('§4 self-test: the two former policy places trip in src', RETIRED_POLICY_PLACES.every(place => settingsHits('src/utils/settings/mdm/x.ts', `const DOMAIN = '${place}'`).length === 1), 'fix settingsViolation() and RETIRED_POLICY_PLACES in scripts/gate/prove-vocabulary-seal.ts')
     const quiet: Array<[string, string]> = [
       ['src/x.ts', "const prefersReducedMotion = useAppState(state => state.settings.view?.reducedMotion === true)"],
       ['src/x.ts', "const effortLevel = (opts.effort as EffortLevel | undefined) ?? getInitialSettings().engine?.effort"],
@@ -487,9 +489,9 @@ function main(): void {
       ['docs/x.md', 'The `/model` picker and the `agent` definitions, with `permissions` in the plain sense.'],
       ['src/x.ts', "process.env.MERCURY_SHELL_ENGINE ?? process.env.MERCURY_REDUCED_MOTION"],
     ]
-    check('§4 self-test: the current nested forms, the ordinary identifiers and the API bodies stay quiet', quiet.every(([path, content]) => settingsHits(path, content).length === 0), quiet.filter(([path, content]) => settingsHits(path, content).length > 0).map(([, content]) => content).join(' | '))
-    check('§4 self-test: the settings rows reach the whole script estate', settingsHits('scripts/ui/prove-x.ts', "writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true }))").length === 1 && settingsHits('scripts/settings/prove-x.ts', "writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true }))").length === 1 && settingsHits('scripts/ui/prove-x.ts', "writeFileSync(join(home, 'settings.json'), JSON.stringify({ view: { reducedMotion: true } }))").length === 0)
-    check('§4 self-test: the two published release lines keep their recorded bytes, and a changed line trips', Object.entries(RELEASE_SETTINGS_LINES).every(([path, content]) => settingsHits(path, content).length === 0 && settingsHits(path, content + ' more').length === 1))
+    check('§4 self-test: the current nested forms, the ordinary identifiers and the API bodies stay quiet', quiet.every(([path, content]) => settingsHits(path, content).length === 0), quiet.filter(([path, content]) => settingsHits(path, content).length > 0).map(([, content]) => content).join(' | ') + ' — settingsViolation() in scripts/gate/prove-vocabulary-seal.ts is matching a current form; narrow it')
+    check('§4 self-test: the settings rows reach the whole script estate', settingsHits('scripts/ui/prove-x.ts', "writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true }))").length === 1 && settingsHits('scripts/settings/prove-x.ts', "writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true }))").length === 1 && settingsHits('scripts/ui/prove-x.ts', "writeFileSync(join(home, 'settings.json'), JSON.stringify({ view: { reducedMotion: true } }))").length === 0, 'settingsViolation() in scripts/gate/prove-vocabulary-seal.ts must cover every scripts/ path')
+    check('§4 self-test: the two published release lines keep their recorded bytes, and a changed line trips', Object.entries(RELEASE_SETTINGS_LINES).every(([path, content]) => settingsHits(path, content).length === 0 && settingsHits(path, content + ' more').length === 1), 'RELEASE_SETTINGS_LINES in scripts/gate/prove-vocabulary-seal.ts must equal the published lines exactly')
   }
 
   {
@@ -626,9 +628,9 @@ function main(): void {
       ['crew-spawn-tool', 'call ' + J('Tea', 'mCreate') + ' first'],
       ['crew-shared-estate', 'a ' + J('multi', 'player') + ' session'],
     ]
-    check('§5 self-test: every retired-word row has a spelling here and trips on it in src', RETIRED.every(([label]) => trips.some(([l]) => l === label)) && trips.every(([label, content]) => retiredHits('src/x.ts', content).includes(label)), trips.filter(([label, content]) => !retiredHits('src/x.ts', content).includes(label)).map(([label]) => label).join(','))
-    check('§5 self-test: the rows reach docs, the README and the script estate', retiredHits('docs/x.md', trips[0]![1]).length === 1 && retiredHits('README.md', trips[0]![1]).length === 1 && retiredHits('scripts/x/prove-x.ts', trips[0]![1]).length === 1)
-    check('§5 self-test: the rows stop at the owned surfaces', retiredHits('bench/x.py', trips[0]![1]).length === 0 && retiredHits('assets/x.gd', trips[0]![1]).length === 0 && retiredHits('.github/x.yml', trips[0]![1]).length === 0)
+    check('§5 self-test: every retired-word row has a spelling here and trips on it in src', RETIRED.every(([label]) => trips.some(([l]) => l === label)) && trips.every(([label, content]) => retiredHits('src/x.ts', content).includes(label)), trips.filter(([label, content]) => !retiredHits('src/x.ts', content).includes(label)).map(([label]) => label).join(',') + ' — add a trips spelling for each RETIRED row, or fix the regex or stems of that row, in scripts/gate/prove-vocabulary-seal.ts')
+    check('§5 self-test: the rows reach docs, the README and the script estate', retiredHits('docs/x.md', trips[0]![1]).length === 1 && retiredHits('README.md', trips[0]![1]).length === 1 && retiredHits('scripts/x/prove-x.ts', trips[0]![1]).length === 1, 'RETIRED_SCOPE in scripts/gate/prove-vocabulary-seal.ts must cover docs/, README.md and scripts/')
+    check('§5 self-test: the rows stop at the owned surfaces', retiredHits('bench/x.py', trips[0]![1]).length === 0 && retiredHits('assets/x.gd', trips[0]![1]).length === 0 && retiredHits('.github/x.yml', trips[0]![1]).length === 0, 'RETIRED_SCOPE in scripts/gate/prove-vocabulary-seal.ts must not cover bench/, assets/ or .github/')
     const quiet: string[] = [
       "allow: ['Bash(npm run *)', 'Skill(deploy*)']; const ids = ['node:*', 'command:*', 'scroll:*', 'lane:lsp:*', 'ansi:*', 'surface:*', '**']",
       'Permission to use X has been denied: the mode denies it; Permission to read from /x has not been granted.; A subcommand was denied.; the hook requires approval for this command; denied by a rule',
@@ -649,10 +651,10 @@ function main(): void {
       "https://platform.claude.com/oauth/authorize; 'anthropic.claude-opus-4-8-v1:0'; getSecureStorage().read()?.claudeAiOauth; cfg.claudeAiMcpEverConnected; type: 'claudeai-proxy'; signInRoute: 'claudeai'; key: 'mcp-claudeai-failed'; https://claude.ai/settings/connectors",
       "projectLocalPath(root, 'settings.json'); daemon.json; readDaemonState(); the supervision policy; a supervised child; MERCURY_ANTHROPIC_OAUTH_BASE; isLoopbackOauthOrigin(url); MERCURY_ANTHROPIC_CONNECTORS; anthropicLimits.ts; mcp/anthropicConnectors.js; /^(ANTHROPIC_|CLAUDE_|OPENAI_)/.test(name); CLAUDE_ID; CLAUDE_EMAIL; UNKNOWN_CLAUDE_ID",
     ]
-    check('§5 self-test: kept identifiers, ordinary English and other programs stay quiet', quiet.every(content => retiredHits('src/x.ts', content).length === 0), quiet.filter(content => retiredHits('src/x.ts', content).length > 0).join(' | '))
-    check('§5 self-test: a published record and a forbidden-words list keep their lines', retiredHits('src/constants/changelogArchive.ts', trips[1]![1]).length === 0 && retiredHits('docs/releases/1.0.0-beta.9.md', trips[1]![1]).length === 0 && retiredHits('scripts/identity/prove-retired-keys-unknown.ts', trips[1]![1]).length === 0)
-    check('§5 self-test: a label-scoped exemption excuses its own word and no other', retiredHits('scripts/effort/prove-effort-persistence.ts', trips[1]![1]).length === 0 && retiredHits('scripts/effort/prove-effort-persistence.ts', trips[0]![1]).length === 1)
-    check('§5 self-test: the one stored sidecar fixture keeps its type word and nothing beside it', retiredHits('scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', trips[33]![1]).length === 0 && retiredHits('scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', trips[32]![1]).length === 1)
+    check('§5 self-test: kept identifiers, ordinary English and other programs stay quiet', quiet.every(content => retiredHits('src/x.ts', content).length === 0), quiet.filter(content => retiredHits('src/x.ts', content).length > 0).join(' | ') + ' — a RETIRED row in scripts/gate/prove-vocabulary-seal.ts matches a kept identifier; narrow it')
+    check('§5 self-test: a published record and a forbidden-words list keep their lines', retiredHits('src/constants/changelogArchive.ts', trips[1]![1]).length === 0 && retiredHits('docs/releases/1.0.0-beta.9.md', trips[1]![1]).length === 0 && retiredHits('scripts/identity/prove-retired-keys-unknown.ts', trips[1]![1]).length === 0, 'restore the ALLOW rows for the changelog archive, docs/releases and the identity proof in scripts/gate/prove-vocabulary-seal.ts')
+    check('§5 self-test: a label-scoped exemption excuses its own word and no other', retiredHits('scripts/effort/prove-effort-persistence.ts', trips[1]![1]).length === 0 && retiredHits('scripts/effort/prove-effort-persistence.ts', trips[0]![1]).length === 1, 'the ALLOW row for scripts/effort/prove-effort-persistence.ts must name only its own retired label (scripts/gate/prove-vocabulary-seal.ts)')
+    check('§5 self-test: the one stored sidecar fixture keeps its type word and nothing beside it', retiredHits('scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', trips[33]![1]).length === 0 && retiredHits('scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', trips[32]![1]).length === 1, 'the ALLOW row for scripts/sessionStorage/prove-old-transcript-kinds-parse.ts must name only its own label (scripts/gate/prove-vocabulary-seal.ts)')
   }
 
   const tracked = trackedFiles(ROOT)
@@ -670,18 +672,18 @@ function main(): void {
     process.exit(0)
   }
   check(`tracked tree speaks the product vocabulary (${tracked.length} files)`, violations.length === 0,
-    violations.slice(0, 12).map(v => `${v.path}:${v.line} [${v.rule}]`).join(' · '))
+    violations.slice(0, 12).map(v => `${v.path}:${v.line} [${v.rule}]`).join(' · ') + ' — reword each listed line to the product word, or add a reasoned ALLOW row in scripts/gate/prove-vocabulary-seal.ts; run with --report for every hit')
 
   {
     const moot = mootRows(ALLOW, tracked)
-    check('every exemption names a path the tracked tree still holds', moot.length === 0, moot.join(' · '))
-    check('every external-client reference scope names a tracked file', [...XAI_CLIENT_REFERENCES].every(path => tracked.includes(path)))
+    check('every exemption names a path the tracked tree still holds', moot.length === 0, moot.join(' · ') + ' — delete or fix the ALLOW row for that path in scripts/gate/prove-vocabulary-seal.ts')
+    check('every external-client reference scope names a tracked file', [...XAI_CLIENT_REFERENCES].every(path => tracked.includes(path)), 'update XAI_CLIENT_REFERENCES in scripts/gate/prove-vocabulary-seal.ts to a path git still tracks')
     const planted = mootRows([...ALLOW, ['src/no-such-home/', 'words', 'poison: a row for a path that is gone']], tracked)
-    check('exemption self-test: a planted row for an absent path is reported', planted.length === 1 && planted[0] === 'src/no-such-home/', planted.join(' · '))
+    check('exemption self-test: a planted row for an absent path is reported', planted.length === 1 && planted[0] === 'src/no-such-home/', planted.join(' · ') + ' — fix mootRows() in scripts/gate/prove-vocabulary-seal.ts')
     const unreasoned = unreasonedRows(ALLOW)
-    check('every exemption carries its reason', unreasoned.length === 0, unreasoned.join(' · '))
+    check('every exemption carries its reason', unreasoned.length === 0, unreasoned.join(' · ') + ' — give that ALLOW row in scripts/gate/prove-vocabulary-seal.ts a reason of 12 or more characters')
     const bare = unreasonedRows([...ALLOW, ['src/x.ts', 'retired', '']])
-    check('exemption self-test: a planted row with no reason is reported', bare.length === 1 && bare[0] === 'src/x.ts (retired)', bare.join(' · '))
+    check('exemption self-test: a planted row with no reason is reported', bare.length === 1 && bare[0] === 'src/x.ts (retired)', bare.join(' · ') + ' — fix unreasonedRows() in scripts/gate/prove-vocabulary-seal.ts')
   }
 
   const distPath = join(ROOT, 'dist', 'mercury.mjs')
@@ -689,8 +691,8 @@ function main(): void {
     console.log('  [SKIP] dist/mercury.mjs not built — run `bun run build.ts` for the dist rule')
   } else {
     const dist = readFileSync(distPath, 'utf8')
-    check('dist: zero occurrences of the other Enter glyph (the bundle speaks the kit vocabulary)', !dist.includes(OTHER_ENTER_GLYPH))
-    check('dist needle control: a planted glyph trips', ('legend ' + OTHER_ENTER_GLYPH).includes(OTHER_ENTER_GLYPH))
+    check('dist: zero occurrences of the other Enter glyph (the bundle speaks the kit vocabulary)', !dist.includes(OTHER_ENTER_GLYPH), 'remove the other Enter glyph from the source under src/ and rebuild with bun run build.ts')
+    check('dist needle control: a planted glyph trips', ('legend ' + OTHER_ENTER_GLYPH).includes(OTHER_ENTER_GLYPH), 'the glyph test in scripts/gate/prove-vocabulary-seal.ts is broken')
   }
 
   console.log('\n' + '='.repeat(60))

@@ -13,8 +13,10 @@ import type {
 } from '../../src/types/message.ts'
 
 let failures = 0
+const hint = 'change healWalkableForWire in src/services/messages/pairing.ts (results ordering lives in orderToolResultsByUse, src/utils/messages/resultPairing.ts) so the wire rows match the label'
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  const shown = ok ? detail : [detail, hint].filter(Boolean).join('; ')
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${shown ? ` — ${shown}` : ''}`)
   if (!ok) failures = 1
 }
 

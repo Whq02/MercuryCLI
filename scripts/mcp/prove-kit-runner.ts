@@ -16,14 +16,30 @@ delete process.env.MERCURY_SESSION_KIT
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+const whereToLook = (name: string): string => {
+  if (name.startsWith('KR')) return 'src/services/mcp/sessionKitPin.ts (noteRefusedKitOnSessionReceipt)'
+  if (/^K(8|9|10)$/.test(name)) return 'src/daemon/concourseWorkers.ts (buildConcourseWorkerSpec)'
+  if (name === 'K11') return 'src/daemon/sessionKit.ts (validateSessionKit)'
+  if (name === 'K17') return 'src/substrate/flagRegistry.ts (the MERCURY_SESSION_KIT row)'
+  if (name.startsWith('K')) return 'src/services/mcp/sessionKitPin.ts (consumeSessionKitPin, sessionKitOf)'
+  if (/^S/.test(name)) return 'src/services/mcp/membership.ts (isMcpCatalogueMember, isMcpOrgan, partitionMcpConfigsByMembership)'
+  if (/^C(9|10|11)$/.test(name)) return 'src/daemon/sessionKit.ts (resolveSessionKitOnRecord)'
+  if (/^C1[23]$/.test(name)) return 'src/daemon/sessionSeat.ts (onFactsAnswer)'
+  if (/^C[5-8]$/.test(name)) return 'src/services/mcp/sessionKitPin.ts (completeProcessSessionKit) and src/services/mcp/membership.ts'
+  if (name.startsWith('C')) return 'src/services/mcp/kitCompletion.ts (completeSessionKitFromRoster)'
+  if (name.startsWith('E')) return 'src/extensions/active.ts (activeFor) and src/services/mcp/sessionKitPin.ts'
+  if (name.startsWith('I')) return 'src/tools/AgentTool/runAgent.ts (connectAgentMcpServers)'
+  if (name.startsWith('N')) return 'src/daemon/headlessRun.ts (buildRunnerInvocation) and src/daemon/concourseWorkers.ts (buildConcourseWorkerSpec)'
+  return 'src/services/mcp/sessionKitPin.ts'
+}
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? `${detail} — ` : ''}change the code, not the check: ${whereToLook(name)}` : ''}`)
   if (!ok) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 const deepEq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — kit-runner prover exceeded 120s')
+  console.log('\nTIMEOUT — kit-runner prover exceeded 120s: an awaited call never returned; run the file alone and see which section printed last, then look in the module that section names (src/tools/AgentTool/runAgent.ts connectAgentMcpServers for §I, src/daemon/sessionSeat.ts onFactsAnswer for §C)')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()

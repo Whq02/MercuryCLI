@@ -46,12 +46,27 @@ if (process.platform !== 'win32') process.env.PATH = `${SHIM_DIR}:${process.env.
 
 let failures = 0
 let checks = 0
+const WHERE_BY_SECTION: Record<string, string> = {
+  '0': 'the fixture assumes getMaxOutputLength in src/utils/shell/outputLimits.ts allows 30 000 characters; unset MERCURY_SHELL_MAX_OUTPUT or fix that function',
+  '1': 'change maxOutputCharsField, readMaxOutputChars and refuseMaxOutputChars in src/tools/BashTool/maxOutputChars.ts, their use in src/tools/BashTool/BashTool.tsx, or the input normaliser in src/services/messages/api.ts',
+  '2': 'change formatOutput in src/utils/shell/utils.ts',
+  '3': 'change resolveOutputBudget and the floor and default constants in src/utils/shell/outputLimits.ts',
+  '4': 'change how the Bash tool applies the budget in src/tools/BashTool/BashTool.tsx, formatOutput in src/utils/shell/utils.ts, or formatError in src/utils/toolErrors.ts',
+  '5': 'change the spill road: src/utils/task/TaskOutput.ts and how src/tools/BashTool/BashTool.tsx reads it',
+  '7': 'change formatError in src/utils/toolErrors.ts',
+  '8': 'change the PowerShell tool in src/tools/PowerShellTool/PowerShellTool.tsx so it matches the Bash tool',
+  '9': 'change outputBudgetClause in src/utils/shell/utils.ts or clampWait and clampClause in src/utils/waitCeiling.ts',
+}
+let sectionKey = '0'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}to fix: ${WHERE_BY_SECTION[sectionKey] ?? ''}` : ''}`)
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
+const section = (t: string): void => {
+  sectionKey = /^§(\d+)/.exec(t)?.[1] ?? sectionKey
+  console.log('\n' + '─'.repeat(72) + '\n' + t)
+}
 
 const limits = (await import('../../src/utils/shell/outputLimits.ts')) as Record<string, unknown>
 const getMaxOutputLength = limits.getMaxOutputLength as () => number

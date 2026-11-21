@@ -19,7 +19,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(request) {
   return Response.json({ pods: [pod(cursor ? 'second-pod' : 'first-pod')], pagination: { hasNextPage: !cursor, nextCursor: cursor ? null : 'page two' } })
 } })
 let checks = 0
-const check = (name: string, truth: unknown) => { assert.ok(truth, name); checks++; console.log('PASS ' + name) }
+const check = (name: string, truth: unknown, detail?: string) => { assert.ok(truth, detail ? name + ' — ' + detail : name); checks++; console.log('PASS ' + name) }
 try {
   const { RunpodClient } = await import('../../src/services/host/runpod.ts')
   const { terminateVerified } = await import('../../src/services/host/keptWeights.ts')
@@ -29,18 +29,18 @@ try {
     mode = invalid
     const before = requests.length
     await assert.rejects(api.pods(), /incomplete/)
-    check(invalid + ' pagination refuses an incomplete paid-pods list', requests.length > before)
+    check(invalid + ' pagination refuses an incomplete paid-pods list', requests.length > before, 'RunpodClient.pods in src/services/host/runpod.ts must throw the "incomplete" error on a null, empty or repeated nextCursor while hasNextPage is true')
   }
   mode = 'complete'
   const listed = await api.pods()
-  check('valid pagination returns every pod and encodes the next cursor', listed.map(row => row.id).join() === 'first-pod,second-pod' && requests.some(row => row.endsWith('?cursor=page%20two')))
+  check('valid pagination returns every pod and encodes the next cursor', listed.map(row => row.id).join() === 'first-pod,second-pod' && requests.some(row => row.endsWith('?cursor=page%20two')), 'RunpodClient.pods in src/services/host/runpod.ts must follow nextCursor across pages and URL-encode it; requests seen: ' + requests.join(' | '))
   mode = 'null'
   const signal = new AbortController().signal
   let uncertain: unknown
   try { await terminateVerified(api, 'unseen-paid-pod', (_operation, read) => read(signal)) } catch (error) { uncertain = error }
-  check('termination cannot declare a pod absent from an incomplete list', uncertain instanceof HostTerminationUnconfirmed && deletes === 1 && String(uncertain).includes('did not confirm'))
+  check('termination cannot declare a pod absent from an incomplete list', uncertain instanceof HostTerminationUnconfirmed && deletes === 1 && String(uncertain).includes('did not confirm'), 'terminateVerified in src/services/host/keptWeights.ts must throw HostTerminationUnconfirmed (src/services/host/retry.ts) when the pod list is incomplete; got ' + String(uncertain) + ', deletes=' + deletes)
   mode = 'gone'
   await terminateVerified(api, 'gone-pod', (_operation, read) => read(signal))
-  check('a complete empty list still verifies a terminated pod', deletes === 2)
+  check('a complete empty list still verifies a terminated pod', deletes === 2, 'terminateVerified in src/services/host/keptWeights.ts must send one DELETE and accept a complete empty pods list as proof; deletes=' + deletes)
   console.log('POD LIST COMPLETENESS GREEN — ' + checks + ' checks; only loopback responses, no real pods')
 } finally { server.stop(true); f.close() }

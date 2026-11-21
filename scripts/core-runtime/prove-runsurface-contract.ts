@@ -193,6 +193,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) {
     failures++
     console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the code this section exercises (src/cli/run.ts and src/cli/headless/: resume.ts, controlHandlers.ts, runnerAsks.ts) so the condition holds`)
   }
 }
 function section(t: string): void {

@@ -23,7 +23,7 @@ const context = { owner: makeOwnerKey({ workspace: process.cwd(), sessionId: 'ba
 const urls = ['/one', '/missing', '/two'].map(path => `https://batch.example.org${path}`)
 const permitted: string[] = []
 let failures = 0
-const check = (label: string, ok: boolean, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${detail ? `: ${detail}` : ''}`); if (!ok) failures++ }
+const check = (label: string, ok: boolean, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${detail ? `: ${detail}` : ''}${ok ? '' : ' — fix: the urls schema and batch call in src/tools/WebFetchTool/WebFetchTool.ts'}`); if (!ok) failures++ }
 try {
   check('three-URL schema is offered', WebFetchTool.inputSchema.safeParse({ urls }).success)
   const result = await WebFetchTool.call({ urls } as never, context, (async (_tool, input) => { permitted.push(input.url as string); return { behavior: 'allow', updatedInput: input } }) as never, {} as never)

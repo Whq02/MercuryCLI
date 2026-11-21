@@ -19,11 +19,18 @@ const ollama = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(req: Request) {
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=http://127.0.0.1:${ollama.port}`
 
 let failures = 0
+let where = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const text = [detail, where].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && text ? ` — ${text}` : ''}`)
 }
 function section(t: string): void {
+  where = t.startsWith('§1') ? 'fix the deepseek and moonshot entries of PRICING_OWNERS in src/services/usage/modelCost.ts, or the pins in src/utils/model/pins/deepseekPins.ts and kimiPins.ts'
+    : t.startsWith('§2') ? 'fix the local entry of PRICING_OWNERS and resolveModelPricing in src/services/usage/modelCost.ts, or how src/services/providers/local/localCatalogue.ts records a model as local or remote'
+    : t.startsWith('§3') ? 'fix resolveModelPricing / getModelCosts in src/services/usage/modelCost.ts (an unpriced lane takes COST_UNPRICED and raises the unknown-cost flag), or the GLM pin in src/utils/model/pins/glmPins.ts'
+    : t.startsWith('§4') ? 'fix getModelCosts in src/services/usage/modelCost.ts, the first-party table MODEL_COSTS or the GPT entry of PRICING_OWNERS'
+    : ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const near = (a: number, b: number): boolean => Math.abs(a - b) < 1e-9

@@ -16,11 +16,24 @@ const { BRUSH_PACK_PATH, brushBinaryFor, brushPackPlatform } = await import('../
 const { lockedPackage, platformPackagesFor, registryTarballUrl, resolvePlatformPackage } = await import('../vendor/platformPackages.ts')
 
 let failures = 0
+const WHERE: Record<string, string> = {
+  '§1': 'change RELEASE_TARGETS, releaseTargetFor, archiveNameFor, releaseTargetForUname or readBuildTargetRecord in src/services/privateChannel/releaseTarget.ts, or the pack owner that disagrees (nodePackPlatform in src/services/privateChannel/vendoredRuntime.ts, imagePackPlatform in src/utils/imageProcessor/imagePackArm.ts, voicePackPlatform in src/utils/voice/voicePack.ts, brushPackPlatform in src/utils/shell/brushPack.ts)',
+  '§2': 'change assetNameFor or platformNote in src/services/privateChannel/channelCore.ts so the asset it asks for equals archiveNameFor in src/services/privateChannel/releaseTarget.ts',
+  '§5': 'rebuild with bun run build.ts; if it still fails, the manifest record written in build.ts (target, search, runtime and pack records) disagrees with the owners in src/services/privateChannel/releaseTarget.ts',
+  '§6': 'bun.lock must pin every package platformPackagesFor names in scripts/vendor/platformPackages.ts (run bun install, or fix platformPackagesFor, lockedPackage or registryTarballUrl there)',
+  '§7': 'change the package and bridge-gate matrices or the named steps in .github/workflows/private-release.yml to match what this check expects',
+  '§9': 'change bundledVendorPacks or checkBundledVendorPacks in scripts/release/payloadContract.mjs, vendor/brush.lock.json, or the Windows shell engine step in .github/workflows/private-release.yml',
+}
+let where = ''
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
+  const hint = cond ? '' : [detail, where].filter(Boolean).join(' · to fix: ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${hint ? ` — ${hint}` : ''}`)
   if (!cond) failures++
 }
-const section = (title: string): void => console.log(`\n── ${title} ──`)
+const section = (title: string): void => {
+  where = WHERE[title.slice(0, 2)] ?? ''
+  console.log(`\n── ${title} ──`)
+}
 const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n')
 
 section('§1 the owner — six targets, the pair each ships for, the archive name, the uname map')

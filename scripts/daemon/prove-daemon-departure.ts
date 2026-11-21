@@ -20,7 +20,7 @@ delete process.env.MERCURY_DAEMON_OWNER_FD
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — where to look: ensureOwnedDaemon (src/services/switchboard/ensureDaemon.ts) for the wait, spawn and single-flight rules, hello/verdict in src/daemon/handshake.ts, the stopping mark and plane record in src/daemon/controlSocket.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -212,7 +212,7 @@ async function startOldDaemon(mode: OldMode, opts: { record?: boolean; lock?: bo
 }
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — prove-daemon-departure exceeded 300s')
+  console.log('\nTIMEOUT — prove-daemon-departure exceeded 300s; the last section printed above is the one that hung, look in ensureOwnedDaemon (src/services/switchboard/ensureDaemon.ts) and its handshake ladder')
   process.exit(1)
 }, 300_000)
 guard.unref?.()

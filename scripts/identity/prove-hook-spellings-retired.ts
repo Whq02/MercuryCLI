@@ -53,7 +53,7 @@ const sorted = [...hits].sort((a, b) => b[1] - a[1])
 for (const [rel, count] of sorted) console.log(`  ${String(count).padStart(4)}  ${rel}`)
 console.log(`\nretired hook spellings: ${sorted.length} file(s), ${sorted.reduce((n, [, c]) => n + c, 0)} line(s)`)
 if (sorted.length > 0) {
-  console.error('prove-hook-spellings-retired: a retired hook spelling is still written somewhere Mercury reads')
+  console.error('prove-hook-spellings-retired: a retired hook spelling is still written somewhere Mercury reads; rewrite the spelling on the lines of the files listed above to the current one, or remove the line (the words are RETIRED_EVENTS and RETIRED_FIELDS in this file)')
   process.exit(1)
 }
 console.log('prove-hook-spellings-retired: all green')

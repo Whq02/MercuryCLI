@@ -10,7 +10,12 @@ const name = FILE_TOOL_SPELLINGS[0]
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const hint = label.startsWith('C1')
+    ? 'the tool list a fresh session sends to the model must not include the retired file courier and, with --compare-tools, must equal the base recording byte for byte'
+    : label.startsWith('C2')
+      ? 'resuming a saved session must send its saved tool call and error result unchanged, must not offer the absent file courier again, and must still answer'
+      : 'the fresh or the resumed lead session did not complete; read the error above and the session output'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? ` — ${detail}` : ''} | to fix: ${hint}` : ''}`)
 }
 const world = await makeWorld('file-courier-replay', [
   { kind: 'text', text: 'FRESH-DONE', model: LEAD_MODEL, whenModel: LEAD_GATE, whenBody: 'FRESH' },

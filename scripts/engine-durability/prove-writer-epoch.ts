@@ -14,7 +14,7 @@ process.env.MERCURY_CONFIG_DIR = guard(join(SCRATCH, 'home'))
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' · change writerEpoch and currentWriterEpoch in src/services/run/writerEpoch.ts'}`)
 }
 
 const epoch = await import('../../src/services/run/writerEpoch.ts')

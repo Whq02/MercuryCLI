@@ -5,7 +5,12 @@ import { join } from 'node:path'
 
 const { checker } = await import('../engine-durability/harness.ts')
 const pill = (await import('../../src/tasks/pillLabel.ts')) as Record<string, unknown> & { getPillLabel: (tasks: unknown[]) => string }
-const t = checker()
+const base = checker()
+const t = {
+  ...base,
+  check: (name: string, cond: boolean, detail?: string): void =>
+    base.check(name, cond, cond ? detail : `${detail ? `${detail} — ` : ''}change getPillLabel in src/tasks/pillLabel.ts (or this expectation if the label wording was meant to change)`),
+}
 const label = (tasks: unknown[]): string => pill.getPillLabel(tasks)
 
 t.section('§1 one label per board — a count and a noun for each kind')

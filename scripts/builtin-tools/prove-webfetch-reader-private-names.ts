@@ -21,7 +21,7 @@ axios.get = ((url: string, options: { headers?: object }) => {
 }) as typeof axios.get
 const priorFlag = process.env.MERCURY_FETCH_READER
 let failures = 0
-const check = (name: string, ok: boolean) => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}`) }
+const check = (name: string, ok: boolean, detail?: unknown) => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${!ok && detail !== undefined ? ` :: ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}`) }
 try {
   delete process.env.MERCURY_FETCH_READER
   const pace = new FetchPacing({ now: () => 0, random: () => 0.5, sleep: async () => {} })
@@ -29,11 +29,11 @@ try {
   for (const host of privateNames) {
     const before = seen.length
     const result = await readHostedPage(`https://${host}/dashboard?token=secret`, new AbortController().signal, pace)
-    check(`a page on ${host} is never sent to the hosted reader (its words are the sparse page's own)`, seen.length === before && result.content === undefined && result.notice.includes('not sent to a hosted reader'))
+    check(`a page on ${host} is never sent to the hosted reader (its words are the sparse page's own)`, seen.length === before && result.content === undefined && result.notice.includes('not sent to a hosted reader'), `${host} reached the hosted reader or got another notice (${result.notice}); make isPrivateReaderHost in src/tools/WebFetchTool/privateHost.ts match this name, which readHostedPage in src/tools/WebFetchTool/reader.ts checks`)
   }
   const before = seen.length
   const open = await readHostedPage('https://news.example.org/story?id=1', new AbortController().signal, pace)
-  check('a public host still reaches the reader', seen.length === before + 1 && open.content !== undefined)
+  check('a public host still reaches the reader', seen.length === before + 1 && open.content !== undefined, `a public host got no reader content (${open.notice}); readHostedPage in src/tools/WebFetchTool/reader.ts or isPrivateReaderHost in privateHost.ts refuses too much`)
 
   const { fetchPage } = await import('../../src/tools/WebFetchTool/fetchTransport.js')
   Object.assign(liveSearchClock, { now: () => 0, random: () => 0.5, sleep: async () => {} })
@@ -43,9 +43,9 @@ try {
     return 'fetched'
   }
   const lan = await refusal('http://wiki.lan/page')
-  check('a private DNS failure names its cause, hosted-reader boundary, backoff and robots refusal', lan === 'The robots rules could not be fetched: DNS failure (ENOTFOUND). Hosted reader not attempted: a private address is never sent to the hosted reader. Backed off this host for 30s across agents in this session; do not retry before the wait ends. Mercury cannot verify robots.txt, so the page was not fetched.' && seen.length === before + 1, lan)
+  check('a private DNS failure names its cause, hosted-reader boundary, backoff and robots refusal', lan === 'The robots rules could not be fetched: DNS failure (ENOTFOUND). Hosted reader not attempted: a private address is never sent to the hosted reader. Backed off this host for 30s across agents in this session; do not retry before the wait ends. Mercury cannot verify robots.txt, so the page was not fetched.' && seen.length === before + 1, `${lan} | change readerDecision or the FetchRefusedError text in fetchPage/checkRobots in src/tools/WebFetchTool/fetchTransport.ts, or the reader call count (seen ${seen.length}, want ${before + 1})`)
   const pub = await refusal('https://news.example.org/story?id=2')
-  check('a public DNS failure names its cause, hosted-reader decision, backoff and robots refusal', pub === 'The robots rules could not be fetched: DNS failure (ENOTFOUND). Hosted reader not attempted: it renders sparse successful HTML, not network failures or site refusals. Backed off this host for 30s across agents in this session; do not retry before the wait ends. Mercury cannot verify robots.txt, so the page was not fetched.' && seen.length === before + 1, pub)
+  check('a public DNS failure names its cause, hosted-reader decision, backoff and robots refusal', pub === 'The robots rules could not be fetched: DNS failure (ENOTFOUND). Hosted reader not attempted: it renders sparse successful HTML, not network failures or site refusals. Backed off this host for 30s across agents in this session; do not retry before the wait ends. Mercury cannot verify robots.txt, so the page was not fetched.' && seen.length === before + 1, `${pub} | change readerDecision or the FetchRefusedError text in fetchPage/checkRobots in src/tools/WebFetchTool/fetchTransport.ts, or the reader call count (seen ${seen.length}, want ${before + 1})`)
 } finally {
   Object.assign(liveSearchClock, priorClock)
   axios.get = get

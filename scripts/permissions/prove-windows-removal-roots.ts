@@ -11,7 +11,7 @@ let checks = 0
 function check(label: string, ok: boolean): void {
   checks++
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ' — change the no-root-recursive-delete ward in src/utils/wards/wards.ts, isDangerousRemovalPath in src/utils/permissions/pathValidation.ts, or createPathChecker in src/tools/BashTool/pathValidation.ts'}`)
 }
 const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')!
 const home = process.env.HOME

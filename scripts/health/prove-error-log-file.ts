@@ -38,8 +38,10 @@ const CONFIG = join(SCRATCH, 'config')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+let fixAt = 'src/utils/errorLogSink.ts (getErrorsPath, initializeErrorLogSink) and logError in src/utils/log.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const hint = cond ? '' : ` | to fix, change ${fixAt}`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${hint}`)
   if (!cond) failures++
 }
 
@@ -53,7 +55,7 @@ const { getFsImplementation, setFsImplementation, setOriginalFsImplementation } 
 
 const errorsPath = getErrorsPath()
 if (!errorsPath.startsWith(SCRATCH) || !getDebugLogPath().startsWith(CONFIG)) {
-  console.log(`  [FAIL] the errors file and the debug log must live under the scratch — ${errorsPath} · ${getDebugLogPath()}`)
+  console.log(`  [FAIL] the errors file and the debug log must live under the scratch — ${errorsPath} · ${getDebugLogPath()} | to fix, check getErrorsPath in src/utils/errorLogSink.ts and getDebugLogPath in src/utils/debug.ts honour HOME and MERCURY_CONFIG_DIR`)
   process.exit(1)
 }
 check('the errors file lives under the scratch cache home', true, errorsPath)
@@ -70,6 +72,7 @@ const flush = async (): Promise<void> => {
 
 console.log('§1 a logged error lands as one JSONL record')
 {
+  fixAt = 'src/utils/errorLogSink.ts (initializeErrorLogSink and its record writer) and logError in src/utils/log.ts'
   initializeErrorLogSink()
   logError(new Error('the first logged error'))
   check('nothing on disk before the writer flushes', !existsSync(errorsPath))
@@ -87,6 +90,7 @@ console.log('§1 a logged error lands as one JSONL record')
 
 console.log('\n§2 bounded')
 {
+  fixAt = 'the size limits in src/utils/errorLogSink.ts (LOG_FILE_BYTE_CEILING, LOG_RECORD_MESSAGE_CEILING and the once-only closePath note) and getErrorsPath for the day file'
   let stats = 0
   const realFs = getFsImplementation()
   setFsImplementation({
@@ -183,6 +187,7 @@ console.log('\n§2 bounded')
 
 console.log('\n§3 refusals: an unwritable errors path never throws, is named once')
 {
+  fixAt = 'the write-failure branch of src/utils/errorLogSink.ts (closePath "cannot be written"); the MCP log is logMCPError in src/utils/log.ts'
   const serverDir = CACHE_PATHS.mcpLogs('fixture')
   const mcpBefore = existsSync(serverDir) ? readdirSync(serverDir).length : 0
   const errorsDir = CACHE_PATHS.errors()
@@ -212,6 +217,7 @@ console.log('\n§3 refusals: an unwritable errors path never throws, is named on
 
 console.log('\n§4 the control: the ring and the debug line are as before')
 {
+  fixAt = 'logError in src/utils/log.ts (getInMemoryErrors ring and the [ERROR] debug line)'
   const ring = getInMemoryErrors()
   check('the in-memory ring holds every logged error', ['the first logged error', 'the second logged error', 'past the ceiling', 'refused one', 'refused three'].every(words => ring.some(entry => entry.error.includes(words))), String(ring.length))
   check('the debug log carries each error line', debugLines().filter(line => line.includes('[ERROR] Error: Error: refused three')).length === 1)
@@ -219,6 +225,7 @@ console.log('\n§4 the control: the ring and the debug line are as before')
 
 console.log('\n§5 a failure the code passes over is written to the debug log, once a distinct message')
 {
+  fixAt = 'src/utils/passedOver.ts (passedOver) and src/utils/passedOverSink.ts (sendPassedOverToDebugLog)'
   const { passedOver } = await import('../../src/utils/passedOver.js')
   const { sendPassedOverToDebugLog } = await import('../../src/utils/passedOverSink.js')
   sendPassedOverToDebugLog()

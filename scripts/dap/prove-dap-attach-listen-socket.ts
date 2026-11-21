@@ -13,12 +13,21 @@ process.env.MERCURY_CONFIG_DIR = home
 
 let failures = 0
 let checks = 0
+let sectionHint = ''
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const note = cond ? detail : [detail, sectionHint].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${note ? ' — ' + note : ''}`)
   if (!cond) failures++
 }
-const section = (title: string): void => console.log(`\n${title}`)
+const section = (title: string): void => {
+  sectionHint = title.startsWith('§0')
+    ? 'change: listenerAttachTarget in src/services/dap/client/listener.ts'
+    : title.startsWith('§4')
+      ? 'change: the python attach road through the vendored debugpy (src/services/dap/debugpyResolver.ts, src/services/dap/client/listener.ts, start.ts)'
+      : 'change: the listener dial in src/services/dap/client/start.ts and the refusal line in listenerRefusedLine, src/services/dap/client/listener.ts'
+  console.log(`\n${title}`)
+}
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'dap-listen-'))
 const marker = path.join(scratch, 'stub-started')

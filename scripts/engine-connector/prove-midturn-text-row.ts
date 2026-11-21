@@ -22,12 +22,23 @@ type Message = import('../../src/types/message.ts').Message
 
 let failures = 0
 let checks = 0
+const TAIL = 'src/services/engine-connector/daemon/tail.ts'
+const wheres: Record<string, string> = {
+  T1: `takeTail in ${TAIL} must put the runner's streaming words in the tail store and mint no committed text row until the block ends`,
+  T2: `clearTail and commitHeldText in ${TAIL} must turn the held words into a virtual text row with the message's id, and src/services/engine-connector/daemon/transcript.ts must splice textRows into the records after the anchor`,
+  T4: `retireTextRows and landedAt in ${TAIL} must drop the committed row once the transcript record with that message id is in the records`,
+  T5: `commitHeldText in ${TAIL} must return 'standing' and mint no row when the record with that message id already shows the words`,
+  T6: `commitHeldText in ${TAIL} must return 'unidentified' for a tail with no messageId, leaving the words in the tail store's settled slot`,
+  T7: `retireTextRows and landedAt in ${TAIL} must retire a committed prefix row when the record holding the whole block lands`,
+}
+let where = wheres.T1!
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — to change: ${where}`}`)
 }
 const section = (t: string): void => {
+  where = wheres[t.split(' ')[0]!] ?? where
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {

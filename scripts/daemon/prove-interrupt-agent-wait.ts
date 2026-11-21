@@ -20,7 +20,7 @@ const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix by section above: A1 createTurnDriver in src/cli/headless/turnDriver.ts, A2 onSeatRow in src/daemon/sessionSeat.ts, A3 statusLine in src/components/SwitchboardTagBar.tsx, A4 stopRunningAgentTasks in src/tasks/LocalAgentTask/LocalAgentTask.tsx, A5 DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts` : ''}`)
   if (!ok) failures++
 }
 const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0))
@@ -28,7 +28,7 @@ async function settleTicks(n: number): Promise<void> {
   for (let i = 0; i < n; i++) await tick()
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the agent-wait prover exceeded 60s')
+  console.log('\nTIMEOUT — the agent-wait prover exceeded 60s; a turn-driver wait (createTurnDriver in src/cli/headless/turnDriver.ts) or a settleTicks loop never finished')
   process.exit(1)
 }, 60_000)
 watchdog.unref?.()

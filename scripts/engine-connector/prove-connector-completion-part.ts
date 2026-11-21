@@ -15,9 +15,10 @@ const { CompletionPart } = await import('../../src/services/engine-connector/dae
 const { concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
 
 let failures = 0
+const WHERE = 'the part under test is CompletionPart in src/services/engine-connector/daemon/completion.ts: change its behaviour there to match the check, or update this check if the law moved'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${WHERE}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 

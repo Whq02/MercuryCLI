@@ -17,11 +17,24 @@ const pull = await import('../../src/services/tensorfold/pull.ts')
 const scene = await import('../../src/commands/tensorfold/scene.ts')
 
 let failures = 0
+const SECTION_WHERE: Array<[string, string]> = [
+  ['the engine:', 'findTensorFoldEngine and the parsers in src/services/tensorfold/engine.ts'],
+  ['the machine truth', 'readTensorFoldMachineTruth in src/services/tensorfold/fit.ts'],
+  ['install plans', 'tensorFoldInstallPlan and installRuns in src/services/tensorfold/install.ts'],
+  ['fit:', 'tensorFoldLadder and its helpers in src/services/tensorfold/fit.ts'],
+  ['short names', 'src/services/tensorfold/starting.ts and pullCommandLines in src/services/tensorfold/pull.ts'],
+  ['will run', 'tensorFoldWillRun and tensorFoldServiceSpec in src/services/tensorfold/serve.ts'],
+  ['the refusal reader', 'readTensorFoldRefusal in src/services/tensorfold/refusal.ts and refusedActOf in src/commands/tensorfold/scene.ts'],
+  ['the feed lines', 'FEED and pullActOf in src/commands/tensorfold/scene.ts and readHubRepo in src/services/tensorfold/pull.ts'],
+]
+let whereNow = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  if (!cond && whereNow) console.log(`         fix: change the code this section reads (${whereNow}) so the labelled behaviour holds again; the expected value is in this check's condition`)
 }
 function section(title: string): void {
+  whereNow = SECTION_WHERE.find(([start]) => title.startsWith(start))?.[1] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + title)
 }
 const gib1 = (bytes: number): string => (bytes / GIB).toFixed(1)

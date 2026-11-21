@@ -34,7 +34,7 @@ setCwdState(project)
 
 const PORT = 27063
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 420 seconds')
+  console.log('  [FAIL] the proof did not finish within 420 seconds — look at the last section printed above, and at FileReadTool.call in src/tools/FileReadTool/FileReadTool.ts and src/services/remoteFiles/connection.ts for a read that never returns')
   process.exit(1)
 }, 420_000)
 watchdog.unref()
@@ -43,7 +43,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${ok ? '' : ' | to change: the remote branch of FileReadTool (call, validateInput, checkPermissions) in src/tools/FileReadTool/FileReadTool.ts, or src/services/remoteFiles/ and src/utils/remoteFiles/target.ts; the section title above names the behaviour'}`)
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 

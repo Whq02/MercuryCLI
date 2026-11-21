@@ -9,16 +9,16 @@ const lib = readFileSync(join(ROOT, 'native/desktop/src/lib.rs'), 'utf8')
 const windows = readFileSync(join(ROOT, 'native/desktop/src/win.rs'), 'utf8')
 const compiler = Bun.which('rustc')
 let failures = 0
-const check = (label: string, ok: boolean): void => {
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`)
+const check = (label: string, ok: boolean, detail = ''): void => {
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
   if (!ok) failures++
 }
 const capture = windows.slice(windows.indexOf('pub fn capture('), windows.indexOf('fn process_image('))
 const blit = capture.indexOf('let blit = BitBlt(')
 const restored = capture.indexOf('SelectObject(memory, previous);')
 const read = capture.indexOf('let lines = GetDIBits(')
-check('the Windows capture deselects its bitmap after blitting and before reading', blit >= 0 && restored >= 0 && read >= 0 && restored > blit && read > restored)
-check('the Windows capture refuses an incomplete row count', /if lines != height\s*\{/.test(capture))
+check('the Windows capture deselects its bitmap after blitting and before reading', blit >= 0 && restored >= 0 && read >= 0 && restored > blit && read > restored, 'in pub fn capture in native/desktop/src/win.rs, SelectObject(memory, previous) must come after BitBlt and before GetDIBits')
+check('the Windows capture refuses an incomplete row count', /if lines != height\s*\{/.test(capture), 'pub fn capture in native/desktop/src/win.rs must test the GetDIBits row count with `if lines != height {` and refuse')
 
 if (compiler === null) {
   console.log('Native input recording tests not run: rustc is absent; the desktop pack build requires the same toolchain.')
@@ -46,11 +46,11 @@ try {
   writeFileSync(join(scratch, 'keys.rs'), readFileSync(join(ROOT, 'native/desktop/src/keys.rs')))
   const build = spawnSync(compiler, ['--edition=2021', '--test', source, '-o', binary], { encoding: 'utf8', timeout: 90_000, env: process.env })
   process.stdout.write(`${build.stdout ?? ''}${build.stderr ?? ''}`)
-  check('the real native input control flow compiles against the recording backend', build.status === 0)
+  check('the real native input control flow compiles against the recording backend', build.status === 0, 'the rustc errors are printed above; the compiled spans come from native/desktop/src/lib.rs, joined with scripts/desktop/nativeInputFixture.rs and native/desktop/src/keys.rs')
   if (build.status === 0) {
     const result = spawnSync(binary, ['--test-threads=1', '--nocapture'], { encoding: 'utf8', timeout: 30_000, env: process.env })
     process.stdout.write(`${result.stdout ?? ''}${result.stderr ?? ''}`)
-    check('native input lifecycle and cancellation tests pass without OS input', result.status === 0)
+    check('native input lifecycle and cancellation tests pass without OS input', result.status === 0, 'a Rust test failed, its output is printed above; the drag, click, chord and held-answer code it runs is in native/desktop/src/lib.rs')
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })

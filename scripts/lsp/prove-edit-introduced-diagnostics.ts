@@ -20,7 +20,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   if (ok) console.log(`  ok  ${name}`)
   else {
     failures++
-    console.error(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error(`  FAIL ${name}${detail ? ` — ${detail}` : ''} — change snapshotDiagnosticsBeforeWrite, introducedSinceWrite, staleAgainstWriteBaseline or the MAX_WRITE_BASELINES / MAX_BASELINE_TEXT_CHARS limits in src/services/lsp/LSPDiagnosticRegistry.ts, whichever the check's section names`)
   }
 }
 function section(title: string): void {

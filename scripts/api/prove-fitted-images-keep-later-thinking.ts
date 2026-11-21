@@ -24,15 +24,22 @@ process.env.BROWSER = '/usr/bin/true'
 
 let failures = 0
 let checks = 0
+let sectionHint = ''
+const HINTS: Record<string, string> = {
+  '§1': 'what to change: settleWireEdits in src/utils/messages/wireEdits.ts (which thinking blocks an already-applied edit strips)',
+  '§2': 'what to change: fitImagesToRequestCap in src/utils/imageResizer.ts (the first-edited row, the once-fitted bytes) or settleWireEdits in src/utils/messages/wireEdits.ts',
+  '§3': 'what to change: fitImagesToRequestCap in src/utils/imageResizer.ts and the request composition behind routedCallModel in src/services/providers/callModelRouter.ts (the sent images and thinking blocks), with the limits in src/constants/apiLimits.ts',
+  '§4': 'what to change: retireOlderScreenshots in src/services/desktop/screenshotRetention.ts (when a retirement counts as a new edit)',
+}
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail.slice(0, 600)} | ` : ''}${HINTS[sectionHint] ?? ''}` : ''}`)
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
+const section = (t: string): void => (sectionHint = t.slice(0, 2), console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76)))
 const j = (v: unknown): string => JSON.stringify(v)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the fitted-images prover exceeded 240s')
+  console.log('\nTIMEOUT — the fitted-images prover exceeded 240s; it was waiting on a request to the overflow fixture (scripts/compact/overflowFixture.ts) answered through routedCallModel in src/services/providers/callModelRouter.ts, in the last section printed above')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()

@@ -30,7 +30,7 @@ const fx = await writeForkedFixture({
 })
 
 const loaded = await loadConversationForResume('forked-fixture', fx.path)
-check('the forked session resumes (never a refusal, never a crash)', loaded !== null)
+check('the forked session resumes (never a refusal, never a crash)', loaded !== null, 'loadConversationForResume in src/services/resume/conversationRecovery.ts returned null for the forked fixture; it must resume it instead of refusing')
 const messages = (loaded?.messages ?? []) as Array<{ uuid?: string }>
 const uuidCount = new Map<string, number>()
 for (const m of messages) {
@@ -39,19 +39,19 @@ for (const m of messages) {
 check(
   `every LIVE row lands exactly once (${fx.liveUuids.length})`,
   fx.liveUuids.every(u => uuidCount.get(u) === 1),
-  fx.liveUuids.filter(u => uuidCount.get(u) !== 1).slice(0, 3).join(','),
+  `${fx.liveUuids.filter(u => uuidCount.get(u) !== 1).slice(0, 3).join(',')} · these live rows are missing or duplicated; loadConversationForResume in src/services/resume/conversationRecovery.ts must keep every row of the live chain exactly once`,
 )
 const forkFirst = fx.deadUuids.filter((_, i) => i % 4 === 0)
 const forkRest = fx.deadUuids.filter((_, i) => i % 4 !== 0)
-check('no dead row beyond the first of its fork reaches the conversation', !forkRest.some(u => uuidCount.has(u)))
-check("the first row of each fork — a tool_result under a live assistant — lands once, exactly as the full load's chain builder recovers it (its rule keys by parent alone; the wire strips such an orphan)", forkFirst.every(u => uuidCount.get(u) === 1), String(forkFirst.filter(u => uuidCount.get(u) !== 1).length))
+check('no dead row beyond the first of its fork reaches the conversation', !forkRest.some(u => uuidCount.has(u)), `${forkRest.filter(u => uuidCount.has(u)).length} dead rows loaded; the pruning in loadConversationForResume (src/services/resume/conversationRecovery.ts) must drop dead-branch rows past the first of each fork`)
+check("the first row of each fork — a tool_result under a live assistant — lands once, exactly as the full load's chain builder recovers it (its rule keys by parent alone; the wire strips such an orphan)", forkFirst.every(u => uuidCount.get(u) === 1), `${forkFirst.filter(u => uuidCount.get(u) !== 1).length} fork-first rows not landed exactly once; loadConversationForResume (src/services/resume/conversationRecovery.ts) must recover them the way buildConversationChain in src/utils/sessionStorage/chain.ts does`)
 const flat = JSON.stringify(messages)
-check('the live tail text is intact', flat.includes(fx.liveTailText))
-check('no dead-branch content beyond the recovered rows survives', !/dead branch \d+\/[123]:/.test(flat))
+check('the live tail text is intact', flat.includes(fx.liveTailText), 'the resumed conversation lost the last live message; loadConversationForResume in src/services/resume/conversationRecovery.ts must keep the live tail')
+check('no dead-branch content beyond the recovered rows survives', !/dead branch \d+\/[123]:/.test(flat), 'dead-branch text reached the resumed conversation; loadConversationForResume in src/services/resume/conversationRecovery.ts must prune it')
 check(
   'the conversation is O(live chain) plus one recovered row per fork, never the dead majority',
   messages.length >= fx.liveUuids.length && messages.length <= fx.liveUuids.length + forkFirst.length + 4,
-  String(messages.length),
+  `${messages.length} messages against ${fx.liveUuids.length} live rows and ${forkFirst.length} forks; loadConversationForResume in src/services/resume/conversationRecovery.ts must load the live chain plus one row per fork, not the dead branches`,
 )
 {
   const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
@@ -59,7 +59,7 @@ check(
   const full = await loadTranscriptFile(fx.path, { keepAllLeaves: true })
   const tail = fx.liveUuids[fx.liveUuids.length - 1]!
   const fullChain = buildConversationChain(full.messages, full.messages.get(tail as never)!).map(m => m.uuid)
-  check('THE LAW: the resume over the big-file road equals the full-load chain, uuid for uuid', JSON.stringify(fullChain) === JSON.stringify(messages.map(m => m.uuid)), `full=${fullChain.length} resumed=${messages.length}`)
+  check('THE LAW: the resume over the big-file road equals the full-load chain, uuid for uuid', JSON.stringify(fullChain) === JSON.stringify(messages.map(m => m.uuid)), `full=${fullChain.length} resumed=${messages.length} · the big-file resume in loadConversationForResume (src/services/resume/conversationRecovery.ts) must build the same chain as buildConversationChain in src/utils/sessionStorage/chain.ts`)
 }
 
 console.log(failures === 0 ? '\n ✅ FORKED RESUME PRUNING PROVEN' : `\n ❌ ${failures} FAILED`)

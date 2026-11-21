@@ -7,13 +7,13 @@ const message = JSON.stringify({ error: { type: 'overloaded_error', message: 'Ov
 for (const status of [400, 408, 500, 529]) {
   for (const headers of [new Headers({ 'x-should-retry': 'false' }), { 'X-Should-Retry': 'false' }]) {
     const error = Object.assign(new Error(message), { status, headers })
-    assert.equal(isRetryableError(error), false, String(status))
+    assert.equal(isRetryableError(error), false, `status ${status} with x-should-retry: false must not be retryable — isRetryableError in src/services/api/withRetry.ts must honour the header before the overload and status rules`)
     let calls = 0
     try {
       for await (const _ of withRetry(async () => ({} as never), async () => { calls++; throw error }, { model: 'claude-opus-4-8', thinkingConfig: { type: 'disabled' }, maxRetries: 1 })) {}
       assert.fail('must preserve refusal')
-    } catch { assert.equal(calls, 1) }
+    } catch { assert.equal(calls, 1, `status ${status} with x-should-retry: false was attempted ${calls} times, want 1 — withRetry in src/services/api/withRetry.ts must not enter the overload busy ladder for it`) }
   }
 }
-assert.equal(isRetryableError(Object.assign(new Error(message), { status: 529 })), true)
+assert.equal(isRetryableError(Object.assign(new Error(message), { status: 529 })), true, 'a 529 overload without x-should-retry must stay retryable — isRetryableError in src/services/api/withRetry.ts')
 console.log('P12 explicit no-retry prevents the overload busy ladder')

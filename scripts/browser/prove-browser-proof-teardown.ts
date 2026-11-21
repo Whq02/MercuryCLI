@@ -29,7 +29,10 @@ const world = mkdtempSync(join(tmpdir(), 'browser-teardown-pin-'))
 let failures = 0
 function check(name: string, ok: boolean, detail = '') {
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? `: ${detail}` : ''}`)
+  const where = name.endsWith('launched the product browser')
+    ? 'the fixture needs a resolvable browser and ensureBrowserSession in src/services/browser/browserSession.ts to launch it; read the runner output above'
+    : 'the teardown run by scripts/gate/run-suite.sh (its cleaner is scripts/lib/proofBrowser.cjs --quiesce) must end the proof browser, its helpers and its profile in every mode and keep the runner result'
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? `: ${detail}` : ''}${ok ? '' : ` | to fix: ${where}`}`)
 }
 function alive(pid: number) {
   const state = spawnSync('ps', ['-o', 'stat=', '-p', String(pid)], { encoding: 'utf8' }).stdout.trim()

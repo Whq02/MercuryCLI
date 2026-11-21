@@ -5,11 +5,27 @@
 import { join } from 'node:path'
 
 let failures = 0
+let sectionHint = ''
+const SECTION_HINTS: Record<string, string> = {
+  '1': 'look in src/services/dap/client/reverse.ts (startDebugging and runInTerminal replies), src/services/dap/client/tree.ts (treeTerminated, treeVerifiedBreakpoints) and src/services/dap/client/stops.ts (waitForStopOutcome); the execution-plane child lines come from src/services/resources/adapters/execution.ts',
+  '2': 'look at createDapSession and removeDapSession in src/services/dap/dapClient.ts: re-launch on an alias must dispose the old tree, and a clean run must reach treeTerminated (src/services/dap/client/tree.ts)',
+  '2b': 'look at startBodyOf in src/services/dap/client/launch.ts: runtimeArgs go on the launch body only when the option is given',
+  '3': 'look at the bound checks and the refusal reply for startDebugging in src/services/dap/client/reverse.ts',
+  '4': 'look at the child-session handling in src/services/dap/client/reverse.ts and tree.ts (treeSize, stop routing in stops.ts)',
+  '5': 'look at debugTarget in src/services/dap/client/tree.ts: with several live children and none stopped it must return ambiguousDetail naming every member and refusing to guess',
+  '6': 'look at startDebugging handling in src/services/dap/client/reverse.ts and tree aggregation in src/services/dap/client/tree.ts (treeTerminated)',
+  '7': 'look at src/tools/DebugTool/DebugTool.ts (op routing, launch, stack, breakpoints, status, continue, disconnect) and the tree helpers in src/services/dap/client/tree.ts',
+  '7b': 'look at how src/tools/DebugTool/DebugTool.ts reports a continue that ends the tree (exit code from the DAP exited event or adapter output)',
+  '8': 'look at treeVerifiedBreakpoints in src/services/dap/client/tree.ts and the breakpoint-changed handling in src/services/dap/client/messages.ts',
+  '9': 'look at resolveJsDebugServer and jsDebugSourceLabel in src/services/dap/jsDebugResolver.ts and the MERCURY_JS_DEBUG_DAP row in src/substrate/flags/ide.ts',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : [detail, sectionHint].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
+  sectionHint = SECTION_HINTS[t.split('.')[0] ?? ''] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 async function waitFor(cond: () => boolean, ms = 5_000): Promise<boolean> {

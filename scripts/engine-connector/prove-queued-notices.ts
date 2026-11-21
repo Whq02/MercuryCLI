@@ -3,12 +3,22 @@
 
 let failures = 0
 let checks = 0
+const queuedNoticesFile = 'src/services/engine-connector/queuedNotices.ts'
+const queuedNoticesWheres: Record<string, string> = {
+  N1: `noticeKeyOf, isNoticeKey and isNoticeFact in ${queuedNoticesFile}`,
+  N2: `createNoticeRow and deliveredNoticeRow in ${queuedNoticesFile}`,
+  N3: `noticeRowLanded and noticeTaskId in ${queuedNoticesFile}`,
+  N4: `queueOrderedSends in ${queuedNoticesFile}`,
+  N5: `placeDeliveredNotices in ${queuedNoticesFile}`,
+}
+let queuedNoticesWhere = queuedNoticesWheres.N1!
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — to change: ${queuedNoticesWhere}`}`)
 }
 const section = (t: string): void => {
+  queuedNoticesWhere = queuedNoticesWheres[t.split(' ')[0]!] ?? queuedNoticesWhere
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

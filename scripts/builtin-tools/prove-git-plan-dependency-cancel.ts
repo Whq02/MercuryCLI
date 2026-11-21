@@ -17,7 +17,7 @@ if (!process.argv.includes('--child')) {
   const world = gitFixture('git-dependency-cancel-')
   let checks = 0
   let failures = 0
-  const check = (label: string, ok: boolean, detail = '') => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail}` : ''}`) }
+  const check = (label: string, ok: boolean, detail = '') => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail} — fix: preparePlan, applyPlan (cancellation and recovery) or getPlan in src/services/gitGraph/plan.ts` : ''}`) }
   const owner = makeOwnerKey({ workspace: world.root, sessionId: 'dependency-proof', lane: 'main' })
   try {
     for (const file of ['a', 'b', 'c']) world.put(file, 'old\n')

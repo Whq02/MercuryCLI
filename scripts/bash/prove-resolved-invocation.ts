@@ -8,7 +8,8 @@ const { parseLegacyCommandString } = await import(join(ROOT, 'src/utils/resolved
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const shown = cond ? detail : `${detail ? detail + ' — ' : ''}change parseLegacyCommandString in src/utils/resolvedInvocation.ts so this input tokenizes as the label says`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
 }
 const eq = (raw: string, exe: string, args: string[]): boolean => {
   const p = parseLegacyCommandString(raw)

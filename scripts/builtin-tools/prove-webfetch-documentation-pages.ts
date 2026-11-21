@@ -27,7 +27,7 @@ axios.get = ((url: string, options: { headers?: object }) => {
 let failures = 0
 const check = (name: string, ok: boolean, detail = '') => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : `\n${detail}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : `\n${detail}\nfix: page extraction in src/tools/WebFetchTool/extractHtml.ts (content landmark), table rows in src/tools/WebFetchTool/tableRule.ts, the character window notice in src/tools/WebFetchTool/pageBudget.ts`}`)
 }
 const fetched = async (path: string): Promise<{ text: string; lines: string[]; window: number; shown: number; total: number; ended: boolean }> => {
   const result = await WebFetchTool.call({ url: `https://fixture.example${path}` }, { abortController: new AbortController(), options: { isNonInteractiveSession: true } } as never)

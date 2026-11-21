@@ -23,7 +23,7 @@ const { withFoldStatus, ERROR_MESSAGE_USER_ABORT } = await import('../../src/ser
 let failures = 0
 const { APIUserAbortError } = await import('../../src/utils/api/sdkErrors.ts')
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — fix: src/services/compact/foldStatus.ts (beginFoldStatus, foldStatusOnEvent, foldBarCells, foldRowWords, foldRowVisible, decodeFoldStatus) or withFoldStatus in src/services/compact/compact/status.ts; the last three checks scan src/services/compact and src/commands/compact'}`)
   if (!ok) failures++
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))

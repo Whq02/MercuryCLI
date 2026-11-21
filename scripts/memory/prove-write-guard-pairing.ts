@@ -14,10 +14,11 @@ for (const key of ['MERCURY_HOME', 'MERCURY_BARE', 'TYPESAFE_API_KEY', 'NODE_ENV
 
 let failures = 0
 let checks = 0
+const FIX_HINT = 'change src/mneme/mnemeContradiction.ts (comparableLength, restates, contradictionBetween, conflictReason, conflictNotice, recordEntries) for guard checks, or retainItems in src/mneme/memoryVerbs.ts for the re-retain census'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 600)} | ` : ''}${FIX_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

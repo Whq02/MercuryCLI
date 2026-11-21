@@ -33,7 +33,7 @@ for (const [cols, rows] of SIZES) {
     )
   } catch (e) {
     bootOk = false
-    check(`boots + passes the render oracle`, false, String(e).slice(0, 160))
+    check(`boots + passes the render oracle`, false, String(e).slice(0, 160) + ` — run bun run scripts/ui/render-tui.ts --scenario resume-2turn --cols ${cols} --rows ${rows} by hand and fix what its render oracle reports`)
   }
   if (!bootOk) continue
   check('boots + passes the render oracle', true)
@@ -46,17 +46,17 @@ for (const [cols, rows] of SIZES) {
   )
 
   const dangling = rowsText.filter(l => /·\s*$/.test(l))
-  check('no line ends with a dangling separator', dangling.length === 0, dangling[0]?.trim().slice(-40))
+  check('no line ends with a dangling separator', dangling.length === 0, dangling[0]?.trim().slice(-40) + ' — a line at this size ends in a "·" separator; look at the line in the grid dump /tmp/grid-' + cols + '.json and drop the separator when the item after it is cut')
 
   const orphan = rowsText.filter(l => {
     const t = l.trim()
     return t.length > 0 && t.length <= 2 && /^[╭╮╰╯│─]+$/.test(t)
   })
-  check('no wrapped-border fragments', orphan.length === 0, orphan[0]?.trim())
+  check('no wrapped-border fragments', orphan.length === 0, orphan[0]?.trim() + ' — a border row wrapped to 1-2 characters at this size; look at it in /tmp/grid-' + cols + '.json and fix the width the border is drawn to')
 
   const hasPrompt = rowsText.some(l => l.includes('❯') || l.includes('for shortcuts'))
-  check('the composer chrome is present at every tested size', hasPrompt)
-  check('no size-refusal replaces the live frame', !rowsText.some(l => /resize to continue|terminal too small|too small for|needs \d+(?: columns|[×x]\d+)/.test(l)))
+  check('the composer chrome is present at every tested size', hasPrompt, hasPrompt ? '' : 'no ❯ prompt or "for shortcuts" line in /tmp/grid-' + cols + '.json; the composer is missing or cut at this size')
+  check('no size-refusal replaces the live frame', !rowsText.some(l => /resize to continue|terminal too small|too small for|needs \d+(?: columns|[×x]\d+)/.test(l)), 'a size-refusal text replaced the live frame in /tmp/grid-' + cols + '.json; the screen must render at this size instead of refusing')
 }
 
 console.log('\n== transient resize: 120×40 → 50×15 → 120×40 (one journey) ==')
@@ -88,7 +88,7 @@ console.log('\n== transient resize: 120×40 → 50×15 → 120×40 (one journey)
     })
   } catch (e) {
     ok = false
-    check('the transient-resize journey runs', false, String(e).slice(0, 160))
+    check('the transient-resize journey runs', false, String(e).slice(0, 160) + ' — run python3 scripts/ui/vshot.py /tmp/compass-transient-resize-cfg.json by hand and read its error')
   }
   if (ok) {
     const payload = JSON.parse(readFileSync(gridPath, 'utf8')) as {
@@ -98,21 +98,23 @@ console.log('\n== transient resize: 120×40 → 50×15 → 120×40 (one journey)
     const toRows = (g: Array<Array<{ c: string }>>): string[] =>
       g.map(row => row.map(cell => cell.c).join('').replace(/\s+$/, ''))
     const stages = payload.stages ?? []
-    check('both resize stages snapshotted', stages.length === 2, String(stages.length))
+    check('both resize stages snapshotted', stages.length === 2, String(stages.length) + ' — vshot.py (scripts/ui/vshot.py) wrote fewer than 2 stage snapshots; check that the resizes in /tmp/compass-transient-resize-cfg.json were applied')
     for (const st of stages) {
       const rowsText = toRows(st.grid)
-      check(`stage ${st.cols}×${st.rows}: no dangling separator`, !rowsText.some(l => /·\s*$/.test(l)))
+      check(`stage ${st.cols}×${st.rows}: no dangling separator`, !rowsText.some(l => /·\s*$/.test(l)), 'a line ends in a "·" separator after the resize; see the stage grid in /tmp/compass-transient-resize.json')
       check(
         `stage ${st.cols}×${st.rows}: no wrapped-border fragments`,
         !rowsText.some(l => {
           const t = l.trim()
           return t.length > 0 && t.length <= 2 && /^[╭╮╰╯│─]+$/.test(t)
         }),
+        'a border row wrapped to 1-2 characters after the resize; see the stage grid in /tmp/compass-transient-resize.json',
       )
     }
     const finalRows = toRows(payload.grid)
     check('the surface SURVIVES the round-trip (composer chrome at the settled 120×40)',
-      finalRows.some(l => l.includes('❯') || l.includes('for shortcuts')))
+      finalRows.some(l => l.includes('❯') || l.includes('for shortcuts')),
+      'no composer chrome in the final grid of /tmp/compass-transient-resize.json; the screen did not redraw after returning to 120×40')
   }
 }
 

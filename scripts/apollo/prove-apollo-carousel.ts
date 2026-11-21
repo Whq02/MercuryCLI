@@ -21,9 +21,10 @@ const { GLYPH, displayWidth } = await import('../../src/utils/glyphs.ts')
 const { permissionModeSymbol, permissionModeTitle, permissionModeFromString, externalPermissionModeSchema, getModeColor } = await import('../../src/utils/permissions/PermissionMode.ts')
 
 let failures = 0
+const FIX_HINT = 'the Shift+Tab order is getNextPermissionMode and cyclePermissionMode in src/utils/permissions/getNextPermissionMode.ts, the flow gate is isFlowGateEnabled in src/utils/permissions/permissionSetup.ts, the apollo title, symbol and colour are in src/utils/permissions/PermissionMode.ts and src/utils/glyphs.ts'
 function check(label: string, passed: boolean, detail = ''): void {
   if (!passed) failures++
-  console.log(`[${passed ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`[${passed ? 'PASS' : 'FAIL'}] ${label}${detail || !passed ? ` — ${detail}${!passed ? `${detail ? ' · ' : ''}to fix: ${FIX_HINT}` : ''}` : ''}`)
 }
 const context = (mode: PermissionMode, bypass = false): ToolPermissionContext => ({
   mode,

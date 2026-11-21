@@ -5,8 +5,8 @@ import path from 'node:path'
 const ROOT = path.resolve(import.meta.dir, '../..')
 
 let fail = 0
-const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+const t = (name: string, ok: boolean, detail = '', hint = ''): void => {
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${!ok && hint ? ` — ${hint}` : ''}`)
   if (!ok) fail = 1
 }
 
@@ -306,10 +306,20 @@ reg(
 )
 
 const unclassified = [...found.keys()].filter(f => !REGISTRY.has(f)).sort()
-t('every interaction site is classified', unclassified.length === 0, unclassified.join(', '))
+t(
+  'every interaction site is classified',
+  unclassified.length === 0,
+  unclassified.join(', '),
+  'add each listed file to a reg([...], klass) call in scripts/interaction/prove-interaction-coverage.ts, choosing the class that matches how it handles pointer and keys',
+)
 
 const ghosts = [...REGISTRY.keys()].filter(f => !found.has(f)).sort()
-t('no registered site has gone silent (delete leavers)', ghosts.length === 0, ghosts.join(', '))
+t(
+  'no registered site has gone silent (delete leavers)',
+  ghosts.length === 0,
+  ghosts.join(', '),
+  'remove each listed path from its reg([...]) call in scripts/interaction/prove-interaction-coverage.ts (the file no longer exists or no longer matches a SIGNALS pattern)',
+)
 
 const legacyViolations = [...found.entries()]
   .filter(([f, sigs]) => (sigs.includes('specimen') || sigs.includes('selectrow')))
@@ -318,7 +328,12 @@ const legacyViolations = [...found.entries()]
     return k !== 'legacy-list' && k !== 'kernel'
   })
   .map(([f]) => f)
-t('the old list grammar gains no new consumers', legacyViolations.length === 0, legacyViolations.join(', '))
+t(
+  'the old list grammar gains no new consumers',
+  legacyViolations.length === 0,
+  legacyViolations.join(', '),
+  'move each listed file off useSpecimenNav/<SelectRow onto the shared list kernel (InteractiveRow, NavigablePanes or useFlatList under src/components/mercury-ui)',
+)
 
 const pointerViolations = [...found.entries()]
   .filter(([, sigs]) => sigs.includes('click') || sigs.includes('hover'))
@@ -327,12 +342,22 @@ const pointerViolations = [...found.entries()]
     return !k || k === 'modal-form' || k === 'board'
   })
   .map(([f]) => f)
-t('every raw pointer site is a kernel/primitive/registered control', pointerViolations.length === 0, pointerViolations.join(', '))
+t(
+  'every raw pointer site is a kernel/primitive/registered control',
+  pointerViolations.length === 0,
+  pointerViolations.join(', '),
+  'each listed file uses onClick/onMouseEnter outside the kernel: render its rows with InteractiveRow (src/components/mercury-ui/InteractiveRow.tsx), or register it as a direct-control with a reason in scripts/interaction/prove-interaction-coverage.ts',
+)
 
 const unreasoned = [...REGISTRY.entries()]
   .filter(([, v]) => v.klass === 'direct-control' && !v.reason)
   .map(([f]) => f)
-t('every direct control carries its justification', unreasoned.length === 0, unreasoned.join(', '))
+t(
+  'every direct control carries its justification',
+  unreasoned.length === 0,
+  unreasoned.join(', '),
+  "pass a reason string as the third argument of each listed file's reg(..., 'direct-control', reason) call in scripts/interaction/prove-interaction-coverage.ts",
+)
 
 const POSITIONAL_ID = /(?:\bid|label)=\{`[^`]*\$\{(?:i|idx|index|wi|ci|rowIndex)\}`\}/
 const positionalIdViolations: string[] = []
@@ -347,6 +372,7 @@ t(
   'no kernel row mints a position-derived hover/hit id (identity law)',
   positionalIdViolations.length === 0,
   positionalIdViolations.join(', '),
+  'at each listed file:line, derive the id/label from the row key (a stable id) instead of the loop index',
 )
 
 const counts = new Map<Klass, number>()

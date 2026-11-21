@@ -20,7 +20,8 @@ for (const key of ['MERCURY_HOME', 'MERCURY_BARE', 'NODE_ENV', 'MERCURY_PROJECT_
 const previousCwd = process.cwd()
 process.chdir(cwd)
 let failures = 0
-const check = (label: string, ok: boolean, detail = ''): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail}`}`); if (!ok) failures++ }
+const WHERE = 'To fix, look at getAttachments in src/services/attachments/orchestrator.ts (the per-turn producers), getUserContextAttachment in src/utils/attachments/userContext.ts, and planToolPayload in src/services/providers/toolEconomy.ts'
+const check = (label: string, ok: boolean, detail = ''): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${[detail, WHERE].filter(Boolean).join('. ')}`}`); if (!ok) failures++ }
 try {
   const bootstrap = await import(`${root}/src/bootstrap/state.ts`)
   bootstrap.setOriginalCwd(cwd)

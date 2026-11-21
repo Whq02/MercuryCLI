@@ -35,11 +35,29 @@ const PACK_NODE = join(dirname(DIST), 'vendor', 'node', 'bin', process.platform 
 const STANDALONE = existsSync(PACK_NODE)
 const KEEP = process.env.UPDATE_RESTART_KEEP === '1'
 let failures = 0
+const SECTION_HINTS: Record<string, string> = {
+  '§1': 'change: the daemon start or the Monitor/background-shell arming; look in the daemon log printed above and src/daemon/handshake.ts',
+  '§2': 'change: the installed-build move the daemon detects in src/daemon/run/heal.ts, or the notice line composed in src/tools/MonitorTool/watchReceipts.ts',
+  '§2b': 'change: the refusal and the runner facts in restartSessionOnInstalledBuild, src/commands/restart/restart.ts',
+  '§2c': 'change: the once-only installed-build notice in src/daemon/run/heal.ts and src/tools/MonitorTool/watchReceipts.ts',
+  '§2d': 'change: the installed-build notice row and its words in src/tools/MonitorTool/watchReceipts.ts',
+  '§3': 'change: restartSessionOnInstalledBuild in src/commands/restart/restart.ts, moveDaemonToDeployedBuild in src/daemon/handshake.ts, or the watch line in composeRestartLine, src/tools/MonitorTool/watchReceipts.ts',
+  '§3e': 'change: moveDaemonToDeployedBuild in src/daemon/handshake.ts and decideHandover in src/daemon/handover.ts (a mid-flight turn must finish on the old runner)',
+  '§4': 'change: decideHandover in src/daemon/handover.ts, runnerRestartReasonOf in src/daemon/concourseWorkers/revive.ts, or the restart line in src/tools/MonitorTool/watchReceipts.ts',
+  '§4b': 'change: the handover bound and refusal text in moveDaemonToDeployedBuild, src/daemon/handshake.ts',
+  '§5': 'change: the headless path must never emit the installed-build notice (src/tools/MonitorTool/watchReceipts.ts and src/daemon/run/heal.ts)',
+  '§6': 'change: the older-build wording in composeRestartLine (src/tools/MonitorTool/watchReceipts.ts) or the restart in src/commands/restart/restart.ts',
+}
+let sectionHint = ''
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const note = [detail, sectionHint].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && note ? ` — ${note}` : ''}`)
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
+const section = (t: string): void => {
+  sectionHint = SECTION_HINTS[t.split(' ')[0] ?? ''] ?? ''
+  console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
+}
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number, everyMs = 100): Promise<boolean> => {
   const t0 = Date.now()
@@ -52,7 +70,7 @@ const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number, ev
   return false
 }
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — prove-update-restart-told exceeded 540s')
+  console.log('\n❌ TIMEOUT — prove-update-restart-told exceeded 540s — a daemon, a turn or a hand-over never settled; read the last section header and the daemon log printed above it (set UPDATE_RESTART_KEEP=1 to keep the scratch world)')
   process.exit(1)
 }, 540_000)
 guard.unref?.()

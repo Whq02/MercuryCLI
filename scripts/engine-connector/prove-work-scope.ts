@@ -76,7 +76,14 @@ guard.unref?.()
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = label.startsWith('P1') || label.startsWith('P6')
+    ? 'projectWorkRoster in src/services/engine-connector/workRoster.ts and focusedWorkRows in src/components/tasks/useFocusedWork.ts'
+    : label.startsWith('P2')
+      ? 'publishSessionFacts and readSessionFacts in src/services/engine-connector/seatProjections.ts'
+      : label.startsWith('P3') || label.startsWith('P4')
+        ? 'workRoster in src/services/engine-connector/daemonConnector.ts and the focus hop in src/services/engine-connector/focusedConnector.ts'
+        : `rebuild with \`bun run build.ts\` if dist is stale, then read the daemon log ${daemonLog}; the roster the runner publishes is projectWorkRoster in src/services/engine-connector/workRoster.ts and the seat reads it in src/services/engine-connector/daemonConnector.ts`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail}${detail ? ' · ' : ''}${where}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

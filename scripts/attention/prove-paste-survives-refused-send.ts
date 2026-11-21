@@ -7,9 +7,10 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'paste-crash-home-')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.BROWSER = '/usr/bin/true'
 let failures = 0
+const WHERE = 'To fix, look at expandPastedTextRefs and resolvePastedContents in src/history.ts, storePastedText and cleanupOldPastes in src/utils/pasteStore.ts, and saveDraftDebounced, readDraftSync and draftPasteHashes in src/utils/promptDraft.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${[detail, WHERE].filter(Boolean).join('. ')}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 

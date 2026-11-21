@@ -12,7 +12,7 @@ const { persistEffortChoice, persistModelChoice } = await import('../../src/comm
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + 'fix persistModelChoice / persistEffortChoice in src/commands/model/persistModelChoice.ts (outcome, receipt sentence, or the write to settings.json)' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

@@ -14,7 +14,7 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + 'change cloneIntoWorktree (the .cloning- staging folder and its publish) in src/utils/worktreeClone.ts, the dependency-folder placement in src/services/worktree.ts, or the janitor cleanupStaleAgentWorktrees there; worker copies: ensureWorkerWorktree and reapWorkerWorktree in src/daemon/concourseWorktrees.ts' : ''}`)
   if (!cond) failures++
 }
 const skip = (label: string): void => console.log(`  [SKIP] ${label}`)

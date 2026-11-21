@@ -61,7 +61,7 @@ let failed = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (ok) passed++
   else failed++
-  console.log(`${ok ? '[PASS]' : '[FAIL]'} ${label}${detail === '' ? '' : ` — ${detail}`}`)
+  console.log(`${ok ? '[PASS]' : '[FAIL]'} ${label}${detail === '' ? '' : ` — ${detail}`}${ok ? '' : ' — fix by what the label names: the census, classification and ending ladder in src/daemon/processSweepRun.ts (readMercuryProcesses, recordProcessCensusAtBoot, endStaleProcesses) and the words and identity rules in src/utils/processSweep.ts; daemon and runner output is in orphan-sweep-world.log in the world folder (rerun with --keep)'}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const spawned: ChildProcess[] = []
@@ -173,7 +173,7 @@ async function waitFor(label: string, predicate: () => boolean | Promise<boolean
     if (await predicate()) return true
     await sleep(150)
   }
-  console.log(`  … timed out waiting for ${label}`)
+  console.log(`  … timed out waiting for ${label}; read orphan-sweep-world.log in the world folder for the daemon or runner start-up error, and check dist/mercury.mjs is current (bun run build.ts)`)
   return false
 }
 
@@ -570,7 +570,7 @@ try {
   check('the census record carries the endings of the last sweep', Array.isArray(recorded.endings))
 } catch (error) {
   failed++
-  console.log(`[FAIL] the world proof threw: ${error instanceof Error ? error.stack ?? error.message : String(error)}`)
+  console.log(`[FAIL] the world proof threw: ${error instanceof Error ? error.stack ?? error.message : String(error)} — a step before the failing check threw; the stack names it, and orphan-sweep-world.log in the world folder holds the daemon output`)
 } finally {
   await cleanup()
 }

@@ -35,11 +35,20 @@ spawnSync('git', ['-C', work, '-c', 'user.name=p', '-c', 'user.email=p@x.invalid
 process.chdir(work)
 
 let failures = 0
+const WHERE_TO_LOOK: Record<string, string> = {
+  '§0': 'foregroundShellInRoster in src/services/engine-connector/shellRunning.ts, projectWorkRoster in src/services/engine-connector/workRoster.ts, or bashExitWords in src/components/messages/UserBashOutputMessage.tsx',
+  '§1': 'focusedShellRunning and foregroundShellInRoster in src/services/engine-connector/shellRunning.ts, or projectWorkRoster in src/services/engine-connector/workRoster.ts (the daemon log under forensics shows the runner side)',
+  '§2': 'focusedShellRunning in src/services/engine-connector/shellRunning.ts and bashExitWords in src/components/messages/UserBashOutputMessage.tsx (the daemon log under forensics shows the runner side)',
+  '§3': 'endingWorkWords in src/tools/MonitorTool/watchReceipts.ts (the daemon log under forensics shows the runner and resume side)',
+}
+let whereToLook = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  const shown = !cond ? [detail.slice(0, 700), whereToLook ? `change ${whereToLook} until this holds` : ''].filter(Boolean).join(' — ') : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(title: string): void {
+  whereToLook = WHERE_TO_LOOK[title.slice(0, 2)] ?? ''
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))

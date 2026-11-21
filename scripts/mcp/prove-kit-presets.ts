@@ -16,14 +16,24 @@ delete process.env.MERCURY_SESSION_KIT
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+const whereToLook = (name: string): string => {
+  if (/^P1-1[89]/.test(name)) return 'src/services/mcp/presetStore.ts (saveKitPreset, deleteKitPreset) must not touch the menu record or arm the next-session facts in src/services/switchboard/bootBirthFacts.ts'
+  if (name.startsWith('P1')) return 'src/services/mcp/presetStore.ts (saveKitPreset, kitPresetDeltas, deleteKitPreset)'
+  if (name.startsWith('P2')) return 'src/services/kitMenu/presetHook.ts (kitPresetHook, bindKitPresetHook) and the store it calls in src/services/mcp/presetStore.ts'
+  if (name.startsWith('P3')) return 'src/services/kitMenu/presetWear.ts (resolvePresetWear, wearPresetForNextSession, disarmWornPreset) and src/services/switchboard/bootBirthFacts.ts (takeWornPresetKit)'
+  if (name.startsWith('P4')) return 'src/daemon/sessionKit.ts (deriveSessionKitForPreset, restampSessionKit)'
+  if (name.startsWith('P6')) return 'src/services/kitMenu/presetWear.ts (resolvePresetWear) and src/daemon/sessionKit.ts must give the same verdict'
+  return 'src/services/kitMenu/presetWear.ts and src/daemon/sessionKit.ts must refuse through the preset store in src/services/mcp/presetStore.ts, and no door may rewrite the other store'
+}
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = `${detail ? `${detail} — ` : ''}change the code, not the check: ${whereToLook(name)}`
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${shown}` : ''}`)
   if (!ok) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 const deepEq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — kit-presets prover exceeded 120s')
+  console.log('\nTIMEOUT — kit-presets prover exceeded 120s: an awaited call never returned; run the file alone and see which section printed last, then look in src/services/mcp/presetStore.ts, src/services/kitMenu/presetWear.ts or src/daemon/concourseWorkers.ts (reactivateConcourseSession)')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()

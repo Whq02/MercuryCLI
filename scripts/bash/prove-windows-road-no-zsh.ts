@@ -8,7 +8,7 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}fix the Windows shell road in src/utils/shell/windowsShellRoad.ts and the records in src/utils/shell/shellRecord.ts (systemShellRecord, shellRecord, shellLineWords, shellRow)` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const source = (rel: string): string => join(ROOT, rel).replace(/\\/g, '\\\\')

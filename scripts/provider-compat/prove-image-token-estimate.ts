@@ -38,10 +38,10 @@ try {
     const precompose = localPreComposeEstimate({ messages, systemPrompt: asSystemPrompt([]), tools: [], model } as never)
     const screen = contextFill(messages, model)
     console.log(JSON.stringify({ vision, meter, guard, precompose, screen: screen.tokens }))
-    assert.equal(meter, guard, 'meter and composed guard count the same content')
-    assert.equal(precompose, guard, 'precompose does not count stored image bytes or transcript metadata')
-    assert.equal(screen.tokens, guard, 'screen estimate follows the selected model')
-    assert.ok(guard < (vision ? 19000 : 1000), 'base64 is never text tokens')
+    assert.equal(meter, guard, 'meter and composed guard count the same content: make estimateContextTokens (src/services/compact/microCompact.ts) and estimateRequestTokens (src/services/providers/streamIdleBudget.ts) count image blocks and the codec placeholder the same way')
+    assert.equal(precompose, guard, 'precompose does not count stored image bytes or transcript metadata: change localPreComposeEstimate in src/services/providers/local/localCallModel.ts so it skips base64 image data and the screenshot path line')
+    assert.equal(screen.tokens, guard, 'screen estimate follows the selected model: change contextFill in src/services/context/tokens.ts so it estimates with the selected model, as estimateRequestTokens does')
+    assert.ok(guard < (vision ? 19000 : 1000), 'base64 is never text tokens: change estimateRequestTokens in src/services/providers/streamIdleBudget.ts so image data is not counted as text')
     const profile = localLaneProfileFor(localRecordFor(model)!)
     assert.equal(profile.requestFitRefusal?.({ estTokens: guard, requestBytes: JSON.stringify(wire).length, toolCount: 0, wireModel: model }), undefined)
     const schemas = Array.from({ length: 13 }, (_, i) => ({ type: 'function', function: { name: `tool_${i}`, description: 'fixture tool '.repeat(30), parameters: { type: 'object', properties: { path: { type: 'string' } } } } }))
@@ -49,14 +49,14 @@ try {
     const fixed = requestGaugeFixed(schemas)
     const fullMeter = estimateRequestGauge(messages, fixed, { ratio: 1, samples: 0, residuals: [] }, model)
     const fullGuard = (estimateRequestTokens as (body: unknown, model: string) => number)({ ...wire, tools: schemas }, model)
-    assert.ok(Math.abs(fullMeter - fullGuard) <= fullGuard * 0.03, '13 tool schemas use the existing rough-rate tolerance')
-    assert.ok(fullGuard > guard, 'tool schemas are counted')
+    assert.ok(Math.abs(fullMeter - fullGuard) <= fullGuard * 0.03, '13 tool schemas use the existing rough-rate tolerance: estimateRequestGauge and requestGaugeFixed in src/services/run/requestGauge.ts must stay within 3% of estimateRequestTokens in src/services/providers/streamIdleBudget.ts')
+    assert.ok(fullGuard > guard, 'tool schemas are counted: estimateRequestTokens in src/services/providers/streamIdleBudget.ts must count the tools field')
     if (vision) {
       const stripped = wire.messages.map(row => 'content' in row && Array.isArray(row.content) ? { ...row, content: row.content.filter(part => part.type !== 'image_url') } : row)
       const noImages = (estimateRequestTokens as (body: unknown, model: string) => number)({ ...wire, messages: stripped }, model)
-      assert.equal(guard - noImages, 9 * 2000, 'delivered images use the existing media-token estimate; removed blocks cost zero')
+      assert.equal(guard - noImages, 9 * 2000, 'delivered images use the existing media-token estimate; removed blocks cost zero: change the image-block cost in estimateRequestTokens in src/services/providers/streamIdleBudget.ts')
     } else {
-      assert.equal(JSON.stringify(wire).includes('[image]'), true, 'the codec placeholder is present and counted')
+      assert.equal(JSON.stringify(wire).includes('[image]'), true, 'the codec placeholder is present and counted: mapMessagesToZai in src/services/providers/zai/zaiCodec.ts must write the [image] placeholder when imagesSupported is false')
     }
   }
   console.log('Image-aware meter, precompose, composed guard and stripped-block checks passed')

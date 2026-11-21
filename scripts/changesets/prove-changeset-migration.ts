@@ -12,10 +12,11 @@ process.env.MERCURY_CHANGESET_DIR = csHome
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = 'fix applyPreview in src/services/structure/transform.ts or runVerbatimTextCommit in src/services/changeTransaction/changeSetCommit.ts, which commits a Structure apply'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${[detail, where].filter(Boolean).join(' | ')}` : ''}`)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — migration proof exceeded 120s')
+  console.log('\nTIMEOUT — migration proof exceeded 120s; a Structure apply never returned, look at applyPreview in src/services/structure/transform.ts and runVerbatimTextCommit in src/services/changeTransaction/changeSetCommit.ts')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

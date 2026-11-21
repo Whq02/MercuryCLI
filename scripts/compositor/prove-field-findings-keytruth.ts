@@ -3,11 +3,16 @@ import { join } from 'node:path'
 import { formsMissing, rowsBinding, shippedKeyForms } from '../lib/shippedKeyForms.ts'
 
 let failures = 0
+const hint = (name: string): string => {
+  if (name.startsWith('cmd+c') || name.startsWith('the running platform') || name.startsWith('ctrl+shift+c')) return '; fix the Scroll rows of DEFAULT_BINDINGS in src/keybindings/defaultBindings.ts'
+  if (name.startsWith('the display walk') || name.startsWith('both chords')) return '; fix getBindingDisplayText in src/keybindings/resolver.ts (or parseBindings in src/keybindings/parser.ts)'
+  return '; fix WINDOWS_RESERVED / reservedShortcutsFor in src/keybindings/reservedShortcuts.ts'
+}
 const check = (name: string, ok: boolean, detail = ''): void => {
   if (ok) console.log(`  ok  ${name}`)
   else {
     failures++
-    console.error(`  RED ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error(`  RED ${name}${detail ? ` — ${detail}` : ''}${hint(name)}`)
   }
 }
 

@@ -30,6 +30,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) {
     failures++
     console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the state function this check calls in src/bootstrap/state.ts so the condition holds`)
   }
 }
 function section(name: string): void {

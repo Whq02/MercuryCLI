@@ -20,10 +20,11 @@ const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
 let checks = 0
+const FIX_HINT = 'sections 1-3: resolveThinkingBindingSetting and applyThinkingBinding in src/services/providers/anthropic/thinkingBinding.ts; section 4: stripThinkingFromIndex and stripSignatureBlocks in src/services/messages/apiFilters.ts, stripExcessMediaItems in src/services/providers/anthropic/media.ts; section 4b: computeFingerprintFromMessages in src/utils/fingerprint.ts, isTranscribable in src/utils/sessionStorage/chain.ts, userMessageToMessageParam in src/services/providers/anthropic/messageParams.ts; section 5 (the wire): the same files, run through dist/mercury.mjs (rebuild with bun run build.ts first)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}to fix: ${FIX_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -31,7 +32,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — transcript-binding proofs exceeded 240s')
+  console.log('\n❌ TIMEOUT — transcript-binding proofs exceeded 240s; the last section header printed above is the one that hung (section 5 runs dist/mercury.mjs against the fixture API in scripts/lib/fixtureApi.ts)')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -277,11 +278,11 @@ section("§4b the prefix's own movers — the fingerprint source, the persisted 
 
 section('§5 the wire — the real product, consecutive requests, byte-identical prefixes')
 if (!existsSync(DIST)) {
-  check('dist/mercury.mjs present (build first; the pooled gate prebuilds it)', false, DIST)
+  check('dist/mercury.mjs present (build first; the pooled gate prebuilds it)', false, `${DIST} is missing; run bun run build.ts`)
 } else {
   const nodeBin = Bun.which('node')
   if (!nodeBin) {
-    check('a node binary on PATH', false)
+    check('a node binary on PATH', false, 'install Node 24 and put it on PATH')
   } else {
     interface RunResult { exit: number | null; stdout: string; stderr: string }
     interface Arena { home: string; cwd: string; env: Record<string, string> }

@@ -55,7 +55,7 @@ const contentOf = (messages: Message[], id: string): string => {
   return ''
 }
 let failures = 0
-const check = (label: string, passed: boolean): void => { if (!passed) failures++; console.log(`[${passed ? 'PASS' : 'FAIL'}] ${label}`) }
+const check = (label: string, passed: boolean): void => { if (!passed) failures++; console.log(`[${passed ? 'PASS' : 'FAIL'}] ${label}${passed ? '' : ' \u2014 fix projectTimeBasedMicrocompact in src/services/compact/microCompact.ts (selection of superseded results, protections from src/services/compact/pruneProtections.ts); the notice checks read overflowRecoveryNotice in src/services/compact/overflowRecovery.ts; the plan checks read buildRequestContextPlan in src/services/run/requestContextPlan.ts'}`) }
 check('a later successful Edit supersedes the old same-path Read', size !== null && isClearedOrDigested(contentOf(size.messages, 'read_old')))
 check('a later successful Read supersedes the old same-path Write', size !== null && isClearedOrDigested(contentOf(size.messages, 'write_old')))
 for (const id of ['edit_later', 'read_later', 'read_unique', 'bash_old', 'grep_old', 'failed_later_old', 'unpaired_old', 'dedup_original']) {

@@ -14,7 +14,7 @@ const WIN = process.platform === 'win32'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — the ACP handler behind the request in the section header above is in src/services/acp/acpServer/ (sessionRequests.ts for session/* requests, attach.ts for what the child sends the editor, toolWire.ts for tool_call updates); the server entry is src/services/acp/acpServer.ts` : ''}`)
 }
 function section(t: string): void {
   currentPhase = t
@@ -25,7 +25,7 @@ const REQUEST_DEADLINE_MS = 60_000
 const SUITE_DEADLINE_MS = 420_000
 let currentPhase = '(startup)'
 function failHard(why: string): never {
-  console.error(`\n✗ DEADLINE: ${why}`)
+  console.error(`\n✗ DEADLINE: ${why} — the ACP server (node dist/mercury.mjs acp) stopped answering: see the handler for that request in src/services/acp/acpServer/sessionRequests.ts, or the section's phase below`)
   console.error(`  phase: ${currentPhase}`)
   try {
     console.error(`  fixture /v1/messages requests so far: ${api.messageRequests().length}`)

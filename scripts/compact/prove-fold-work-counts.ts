@@ -30,7 +30,7 @@ let checks = 0
 const check = (label: string, condition: boolean, detail = '') => {
   checks++
   if (!condition) failures++
-  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${condition || !detail ? '' : `: ${detail}`}`)
+  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${condition ? '' : `${detail ? `: ${detail}` : ''} — fix: the work stamp on the compact boundary (annotateBoundaryWithWork, foldedWorkOf in src/services/compact/compact/result.ts, buildPostCompactMessages), or its readers injectTurnReceipts (src/utils/cockpit/turnReceipt.ts) and buildAwayRecap (src/utils/cockpit/awaySummary.ts)`}`)
 }
 const equal = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 let clock = Date.UTC(2026, 9, 7)

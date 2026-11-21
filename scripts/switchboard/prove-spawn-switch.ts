@@ -20,18 +20,33 @@ const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
 let checks = 0
+let where = ''
+const WHERE: Array<[string, string]> = [
+  ['§1 ', 'change the Agents row in STARTUP_MENU (src/substrate/startupMenu.ts) or the switch owner src/services/switchboard/spawnSwitches.ts'],
+  ['§2 ', 'change evaluateLaunchAuthority (src/services/switchboard/launchAuthority.ts) or the latch in src/services/switchboard/spawnSwitches.ts'],
+  ['§3 ', 'the Crewmate tool must follow the spawn switch: look at the roster built by getTools in src/tools.ts and at src/services/switchboard/spawnSwitches.ts'],
+  ['§4 ', 'the Crewmate tool call must answer spawnSwitchOffReceipt (src/services/switchboard/spawnSwitches.ts) while the switch is off'],
+  ['§5 ', 'change spawnSwitchOfRecord, spawnSwitchFactsOfRecord or spawnSwitchLine in src/services/switchboard/spawnSwitches.ts'],
+  ['§6 ', 'change setSessionSpawnSwitch (src/daemon/sessionSeat/spawnSwitch.ts), the seat edges (src/daemon/sessionSeat/edges.ts) or the runner landing (src/cli/headless/spawnSwitchLanding.ts)'],
+  ['§7 ', 'change the roster transition in src/services/providers/anthropic/thinkingBinding.ts (prefixMarkOf, classifyThinkingDrops, describeThinkingDrops, preservedThinkingHealth) or its wording in src/services/switchboard/spawnSwitches.ts'],
+  ['§8', 'rebuild with bun run build.ts first, then look at the switch owner src/services/switchboard/spawnSwitches.ts and the runner landing src/cli/headless/spawnSwitchLanding.ts'],
+  ['§9 ', 'change the spawn-switches health row in src/services/health/sections/crew/crewmates.ts, then rebuild with bun run build.ts'],
+  ['§10 ', 'change the /crewmates command in src/commands/crewmates/spawnSwitch.ts and src/commands/crewmates/index.ts, or the wording in src/services/switchboard/spawnSwitches.ts'],
+]
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const text = !cond && where !== '' ? `${detail}${detail ? ' | ' : ''}to fix: ${where}` : detail
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && text ? ` — ${text}` : ''}`)
 }
 function section(t: string): void {
+  where = WHERE.find(([prefix]) => t.startsWith(prefix))?.[1] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — spawn-switch proofs exceeded 240s')
+  console.log('\n❌ TIMEOUT — spawn-switch proofs exceeded 240s; a step is waiting on the seat stand-in, the fixture runner or a built-artifact process, so look at the last section header printed above')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -323,7 +338,7 @@ section('§7 the preserved-thinking seam — a roster transition is a lawful pre
 
 const nodeBin = Bun.which('node')
 if (!existsSync(DIST)) {
-  check('dist/mercury.mjs present (build first; the pooled gate prebuilds it)', false, DIST)
+  check('dist/mercury.mjs present (build first; the pooled gate prebuilds it)', false, `${DIST} — run bun run build.ts`)
 } else if (!nodeBin) {
   check('a node binary on PATH', false)
 } else {

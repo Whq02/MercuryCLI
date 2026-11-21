@@ -50,10 +50,10 @@ mkdirSync(dirname(file), { recursive: true })
 writeFileSync(file, encodeSeedTranscript(rows, hosted.sessionId))
 let checks = 0
 let failures = 0
-function check(label: string, ok: boolean): void {
+function check(label: string, ok: boolean, detail?: string): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` -- ${detail}` : ''}`)
 }
 let loaded: Message[] = []
 function Results({ messages }: { messages: Message[] }): React.ReactNode {
@@ -72,12 +72,12 @@ function Crew(): React.ReactNode {
 const wrap = (node: React.ReactNode): React.ReactNode => h(AppStateProvider, { initialState: getDefaultAppState(), children: h(ThemeProvider, null, h(Box, { width: 100, height: 24, flexDirection: 'column' }, node)) })
 const view = await mountOffscreen(wrap(h(Crew)), 100, 24)
 try {
-  check('the real crew hook loads both recorded rows', await waitFor(() => loaded.length === 2, 3000))
+  check('the real crew hook loads both recorded rows', await waitFor(() => loaded.length === 2, 3000), 'useCrewmateTranscript in src/components/tasks/useCrewmateTranscript.ts did not return both rows within 3s; check readCrewmateTranscriptFile and the transcript file path from crewmateTranscriptFile')
   const result = loaded.find(message => message.type === 'user') as NormalizedUserMessage
-  check('the result content survives disk without structured result metadata', result?.toolUseResult === undefined && JSON.stringify(result?.message.content).includes(output.split('\n')[0]!))
+  check('the result content survives disk without structured result metadata', result?.toolUseResult === undefined && JSON.stringify(result?.message.content).includes(output.split('\n')[0]!), 'the recorded tool_result row must load with its text content and no toolUseResult; check readCrewmateTranscriptFile in src/components/tasks/useCrewmateTranscript.ts')
   await settle(100)
   const crewFrame = view.screen()
-  check('the crew transcript paints both recorded shell lines', crewFrame.includes('CREW-SHELL-OUTPUT') && crewFrame.includes('second recorded line'))
+  check('the crew transcript paints both recorded shell lines', crewFrame.includes('CREW-SHELL-OUTPUT') && crewFrame.includes('second recorded line'), 'a Bash result with no toolUseResult must paint its stored text; check the Bash fallback branch in UserToolSuccessMessage in src/components/messages/UserToolResultMessage/UserToolSuccessMessage.tsx')
   const framesAt = process.argv.indexOf('--frames')
   if (framesAt >= 0) {
     const frames = process.argv[framesAt + 1]!
@@ -87,21 +87,21 @@ try {
   const direct = loaded.map(message => message.type === 'user' ? { ...message, toolUseResult: { stdout: output, stderr: '', interrupted: false } } : message)
   view.resize(wrap(h(Box, { flexDirection: 'column' }, h(Text, null, 'ready'), h(Results, { messages: direct }))), 100, 24)
   await settle(100)
-  check('the ordinary structured shell result paints its output', view.screen().includes('CREW-SHELL-OUTPUT') && view.screen().includes('second recorded line'))
-  check('the recorded crew output has the same frame as the ordinary result', crewFrame === view.screen())
+  check('the ordinary structured shell result paints its output', view.screen().includes('CREW-SHELL-OUTPUT') && view.screen().includes('second recorded line'), 'a Bash result with toolUseResult must paint stdout through BashToolResultMessage in src/tools/BashTool/BashToolResultMessage.tsx')
+  check('the recorded crew output has the same frame as the ordinary result', crewFrame === view.screen(), 'the no-metadata fallback in UserToolSuccessMessage.tsx must wrap OutputLine the way BashToolResultMessage.tsx does, so both frames match')
   const blocks = loaded.map(message => message.type === 'user' ? { ...message, toolUseResult: null, message: { ...message.message, content: [{ type: 'tool_result', tool_use_id: 'shell-call', content: [{ type: 'text', text: 'FIRST-TEXT-BLOCK' }, { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'IMAGE-PAYLOAD-MUST-NOT-PAINT' } }, { type: 'text', text: 'LAST-TEXT-BLOCK' }] }] } } as Message : message)
   view.resize(wrap(h(Results, { messages: blocks })), 100, 24)
   await settle(100)
-  check('text blocks paint in order when the stored result metadata is null', view.screen().includes('FIRST-TEXT-BLOCK') && view.screen().indexOf('LAST-TEXT-BLOCK') > view.screen().indexOf('FIRST-TEXT-BLOCK'))
-  check('image payloads are not printed as text', !view.screen().includes('IMAGE-PAYLOAD'))
+  check('text blocks paint in order when the stored result metadata is null', view.screen().includes('FIRST-TEXT-BLOCK') && view.screen().indexOf('LAST-TEXT-BLOCK') > view.screen().indexOf('FIRST-TEXT-BLOCK'), 'the Bash fallback in UserToolSuccessMessage.tsx must join the text blocks of the stored result in order when toolUseResult is null')
+  check('image payloads are not printed as text', !view.screen().includes('IMAGE-PAYLOAD'), 'the Bash fallback in UserToolSuccessMessage.tsx must keep only text parts of the stored result and drop image blocks')
   const failed = loaded.map(message => message.type === 'user' ? { ...message, message: { ...message.message, content: [{ type: 'tool_result', tool_use_id: 'shell-call', content: 'fixture failed', is_error: true }] } } as Message : message)
   view.resize(wrap(h(Results, { messages: failed })), 100, 24)
   await settle(100)
-  check('an error still takes the error renderer', view.screen().includes('fixture failed'))
+  check('an error still takes the error renderer', view.screen().includes('fixture failed'), 'a tool_result with is_error must go to UserToolErrorMessage in UserToolResultMessage.tsx and show its text')
   const blank = loaded.map(message => message.type === 'user' ? { ...message, message: { ...message.message, content: [{ type: 'tool_result', tool_use_id: 'shell-call', content: '' }] } } as Message : message)
   view.resize(wrap(h(Results, { messages: blank })), 100, 24)
   await settle(100)
-  check('an empty stored result invents no output', view.screen().trim() === '')
+  check('an empty stored result invents no output', view.screen().trim() === '', 'the Bash fallback in UserToolSuccessMessage.tsx must return null when the stored result text is blank')
   const otherTool = loaded.map(message => message.type === 'assistant' ? { ...message, message: { ...message.message, content: [{ type: 'tool_use', id: 'shell-call', name: 'Sleep', input: { seconds: 4 } }] } } as Message : message)
   const { SleepTool } = await import('../../src/tools/SleepTool/SleepTool.js')
   const normalized = normalizeMessages(otherTool)
@@ -111,7 +111,7 @@ try {
   if (param.type !== 'tool_result') throw new Error('the fixture result is absent')
   view.resize(wrap(h(UserToolResultMessage, { message: otherResult, param, lookups, tools: [SleepTool], progressMessagesForMessage: [], verbose: true, width: 98, isTranscriptMode: true })), 100, 24)
   await settle(100)
-  check('a non-shell result without metadata keeps its existing empty row', view.screen().trim() === '')
+  check('a non-shell result without metadata keeps its existing empty row', view.screen().trim() === '', 'UserToolSuccessMessage.tsx must return null for a non-Bash tool whose toolUseResult is missing')
 } finally {
   view.unmount()
   releaseFocusedSessionConnector()

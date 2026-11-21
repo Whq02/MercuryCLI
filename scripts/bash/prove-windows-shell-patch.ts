@@ -14,9 +14,10 @@ const SHELL_SHA = '9f0f5029188d3e14cbcd1c43d1ece3d65e74543b079622338b873e1e59317
 const CORE_SHA = '967a82f3b1bf090db686d5fb86424b19725073828532a42f960d5a13bff14ecb'
 const hash = (bytes: Buffer | string) => createHash('sha256').update(bytes).digest('hex')
 let failures = 0
+let where = `${PATCH} (the patch itself), or scripts/vendor/build-brush.ts (where it is applied)`
 const check = (label: string, ok: boolean, detail = '') => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? `${detail} · ` : ''}fix ${where}`}`)
 }
 function tarBinary(): string {
   if (process.platform === 'win32') {
@@ -168,6 +169,7 @@ await import(join(root, 'scripts/vendor/build-brush.ts'))
 `)
     const buildFixture = (args: string[]) => run(process.execPath, [runner, ...args], fixture, { CARGO_HOME: cargoHome, ...autocrlfEnv })
     console.log('build integration — cargo compilation is a fixture here, git/tar/manifest are real')
+    where = `scripts/vendor/build-brush.ts (build and --check), or readBrushPackManifest in src/utils/shell/brushPack.ts`
     for (const [target, platform] of [['macos-arm64', 'darwin-arm64'], ['macos-x64', 'darwin-x64'], ['linux-x64', 'linux-x64']] as const) {
       const dir = join(fixture, 'vendor/brush', platform)
       mkdirSync(dir, { recursive: true })
@@ -205,6 +207,7 @@ await import(join(root, 'scripts/vendor/build-brush.ts'))
     check('a win-arm64 pack built before the patch reads STALE and names its remedy', armStale.rc === 2 && armStale.text.includes('STALE — win-arm64: cache Windows patch sha256 does not match the build source') && armStale.text.includes('remedy: bun run scripts/vendor/build-brush.ts --target windows-arm64'), armStale.text.trim())
 
     console.log("the product build's shell-engine guard — the text of build.ts run over the fixture's packs")
+    where = `the shell-engine guard in build.ts (the brushPrepare block), or checkBrushPackDir in src/utils/shell/brushPack.ts`
     const buildScript = readFileSync(join(ROOT, 'build.ts'), 'utf8')
     const guardStart = buildScript.indexOf('  const brushPrepare = packPlatform ? brushPrepareCommand(')
     const guardEnd = buildScript.indexOf("\n  } else if (forceNo) {\n    console.warn('MERCURY_BUILD_NO_VENDOR_BRUSH=1", guardStart)
@@ -265,6 +268,7 @@ console.log(brushVendored && brushMeta !== null ? 'GUARD VENDORED' : 'GUARD LEFT
     }
 
     console.log('refusals of the pack build, continued')
+    where = `scripts/vendor/build-brush.ts (patch check and crate sha256 check before the pack is replaced)`
     const savedPatch = readFileSync(join(fixture, PATCH), 'utf8')
     writeFileSync(join(fixture, PATCH), savedPatch.replace('    let mut cmd = std::process::Command::new(command_name);', '    nonexistent pinned preimage'))
     const badPatch = buildFixture(['--target', 'windows-x64', '--force'])
@@ -277,6 +281,7 @@ console.log(brushVendored && brushMeta !== null ? 'GUARD VENDORED' : 'GUARD LEFT
     const rustc = [join(homedir(), '.cargo/bin', process.platform === 'win32' ? 'rustc.exe' : 'rustc'), 'rustc'].find(bin => run(bin, ['--version'], scratch).rc === 0)
     if (!rustc) console.log('[SKIP] Rust path-logic mirror needs rustc; no Windows execution is inferred')
     else {
+      where = `${PATCH} (the patched command composition, argument writer and PATH lookup it adds to brush-core)`
       const start = changed.indexOf('    #[cfg(windows)]\n    let command_path')
       const end = changed.indexOf('    let mut cmd = std::process::Command::new(command_name);', start)
       check('patched command composition block is sliced non-empty', start !== -1 && end > start)

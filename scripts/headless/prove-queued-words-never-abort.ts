@@ -56,11 +56,11 @@ try {
     await runner.prompt(QUEUED_ASK, randomUUID())
     const firstOutcome = await runner.waitFor('the first outcome', isOutcome, bound(60_000), from)
     const firstText = framesSince(from).filter(f => f.type === 'text').map(textOf)
-    check('the first request finished with its own answer — nothing aborted it', firstOutcome !== null && firstOutcome.status === 'completed' && firstText.some(t => t.includes('FIRST-DONE')), j({ outcome: firstOutcome?.status, texts: firstText }))
-    check('no interrupted outcome was written for a queued prompt', !framesSince(from).some(f => isOutcome(f) && f.status === 'interrupted'), j(framesSince(from).filter(isOutcome).map(f => f.status)))
+    check('the first request finished with its own answer — nothing aborted it', firstOutcome !== null && firstOutcome.status === 'completed' && firstText.some(t => t.includes('FIRST-DONE')), j({ outcome: firstOutcome?.status, texts: firstText }) + '; a prompt sent without a priority while a turn is in flight must wait for the turn boundary, not abort the request')
+    check('no interrupted outcome was written for a queued prompt', !framesSince(from).some(f => isOutcome(f) && f.status === 'interrupted'), j(framesSince(from).filter(isOutcome).map(f => f.status)) + '; only a prompt with priority "now" may write an interrupted outcome, so find what aborts the in-flight request on a queued prompt')
     const secondOutcome = await runner.waitFor('the second outcome', f => isOutcome(f) && framesSince(from).filter(isOutcome).length >= 2, bound(60_000), from)
     const texts = framesSince(from).filter(f => f.type === 'text').map(textOf)
-    check('the queued prompt ran after the first turn ended, in its own turn', secondOutcome !== null && texts.some(t => t.includes('SECOND-DONE')), j(texts))
+    check('the queued prompt ran after the first turn ended, in its own turn', secondOutcome !== null && texts.some(t => t.includes('SECOND-DONE')), j(texts) + '; the queued prompt must start its own turn once the first outcome is written')
   }
 
   section('§3 a state command queued while a request is in flight runs at the next boundary; the request is never aborted (the field row 2D-21)')
@@ -71,13 +71,13 @@ try {
     check('the slow turn is running', opened !== null)
     await new Promise(r => setTimeout(r, 600))
     const accepted = await runner.host.prompt('/advise on', { id: randomUUID() })
-    check('the command is queued without a priority word, as a typed slash command reaches the worker', (accepted as { accepted?: boolean }).accepted === true, j(accepted))
+    check('the command is queued without a priority word, as a typed slash command reaches the worker', (accepted as { accepted?: boolean }).accepted === true, j(accepted) + '; the runner must accept a slash command sent with no priority while a turn is in flight')
     const firstOutcome = await runner.waitFor('the slow outcome', isOutcome, bound(60_000), from)
     const texts = framesSince(from).filter(f => f.type === 'text').map(textOf)
-    check('the request in flight finished with its own answer — the queued command aborted nothing', firstOutcome !== null && firstOutcome.status === 'completed' && texts.some(t => t.includes('FIRST-DONE')), j({ outcome: firstOutcome?.status, texts }))
-    check('no interrupted outcome was written', !framesSince(from).some(f => isOutcome(f) && f.status === 'interrupted'), j(framesSince(from).filter(isOutcome).map(f => f.status)))
+    check('the request in flight finished with its own answer — the queued command aborted nothing', firstOutcome !== null && firstOutcome.status === 'completed' && texts.some(t => t.includes('FIRST-DONE')), j({ outcome: firstOutcome?.status, texts }) + '; a state command queued mid-turn must wait for the turn boundary, not abort the request')
+    check('no interrupted outcome was written', !framesSince(from).some(f => isOutcome(f) && f.status === 'interrupted'), j(framesSince(from).filter(isOutcome).map(f => f.status)) + '; a queued state command must not write an interrupted outcome')
     const output = await runner.waitFor('the command ran at the boundary', f => f.type === 'command_output' && String((f as { text?: unknown }).text ?? '').toLowerCase().includes('advis'), bound(30_000), from)
-    check('the command ran after the turn ended and answered in its own row', output !== null, j(framesSince(from).map(f => f.type)))
+    check('the command ran after the turn ended and answered in its own row', output !== null, j(framesSince(from).map(f => f.type)) + '; the queued /advise on must run at the turn boundary and answer with a command_output row')
     await runner.waitFor("the command's own turn settled", f => isOutcome(f) && framesSince(from).filter(isOutcome).length >= 2, bound(30_000), from)
   }
 
@@ -92,7 +92,7 @@ try {
     const outcome = await runner.waitFor('an outcome after the now prompt', f => isOutcome(f) && framesSince(from).filter(f2 => f2.type === 'text').some(f2 => textOf(f2).includes('NOW-DONE')), bound(60_000), from)
     const outcomes = framesSince(from).filter(isOutcome)
     const texts = framesSince(from).filter(f => f.type === 'text').map(textOf)
-    check('the now prompt interrupted the slow request: its outcome reads interrupted, its answer never came, and the now prompt was answered', outcome !== null && outcomes[0]?.status === 'interrupted' && !texts.some(t => t.includes('FIRST-DONE')) && texts.some(t => t.includes('NOW-DONE')), j({ outcomes: outcomes.map(o => o.status), texts }))
+    check('the now prompt interrupted the slow request: its outcome reads interrupted, its answer never came, and the now prompt was answered', outcome !== null && outcomes[0]?.status === 'interrupted' && !texts.some(t => t.includes('FIRST-DONE')) && texts.some(t => t.includes('NOW-DONE')), j({ outcomes: outcomes.map(o => o.status), texts }) + '; a prompt sent with priority "now" must abort the in-flight request (outcome interrupted) and then be answered')
   }
 } finally {
   await fixture.close()

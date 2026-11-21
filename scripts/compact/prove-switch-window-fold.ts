@@ -10,13 +10,13 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}fix by section: W0 resolveAutoCompactWindow / getBlockingLimit (src/utils/compact/autoCompactWindow.ts), W1 to W3 the fold and its notice in query (src/query.ts) and overflowRecoveryNotice (src/services/compact/overflowRecovery.ts), W3 to W4 foldModelFor (src/services/compact/autoCompact.ts), W3b call in src/commands/compact/compact.ts, W5 measureOverflow and overflowRefusalText (src/services/compact/overflowRecovery.ts), W6 buildTransitionPlan and transitionPlanSummary (src/services/providers/transitionPreview.ts) and windowRowWords (src/components/TransitionPreviewCard.tsx)` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — switch-window fold prover exceeded 240s')
+  console.log('\nTIMEOUT — switch-window fold prover exceeded 240s; a drive of query (src/query.ts) or the manual compact call (src/commands/compact/compact.ts) against the overflow fixture (scripts/compact/overflowFixture.ts) did not finish, read the last section header printed above')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()

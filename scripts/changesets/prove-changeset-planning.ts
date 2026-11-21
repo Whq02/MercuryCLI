@@ -9,7 +9,8 @@ process.env.MERCURY_CHANGESET_DIR = mkdtempSync(join(tmpdir(), 'fulcrum-plan-cs-
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const where = 'fix planChangeSet in src/services/changeTransaction/changeSetPlan.ts (limits in changeSetContracts.ts, plan store checks in changeSetStore.ts)'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${[detail, where].filter(Boolean).join(' | ')}` : ''}`)
 }
 
 const { planChangeSet } = await import(

@@ -52,6 +52,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) {
     failures++
     console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the code this check exercises (src/ink/session/: capabilities, delivery, querier, focus-store; src/ink/input/input-decoder.ts) so the condition holds`)
   }
 }
 

@@ -27,7 +27,7 @@ const facts = {
 }
 let checks = 0
 function check(label: string, value: unknown): void {
-  assert(value, label)
+  assert(value, `${label} — the refusal rules live in src/services/providers/anthropic/modelRefusal.ts (classifyModelRefusal, noteModelRefusal, modelRefusalWords) and the chat sentence in getAssistantMessageFromError, src/services/api/errors.ts; the clear after a successful request is in src/services/providers/anthropic/streamCore/settleCall.ts`)
   checks++
   console.log(`PASS ${label}`)
 }

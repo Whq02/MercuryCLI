@@ -28,7 +28,16 @@ if (!process.argv.includes('--child')) {
   const marker = '<<<<<<< ours\nleft\n||||||| base\nold\n=======\nright\n>>>>>>> theirs\n'
   let checks = 0
   let failures = 0
-  const check = (label: string, ok: boolean, detail = '') => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail}` : ''}`) }
+  const check = (label: string, ok: boolean, detail = '') => {
+    checks++
+    if (!ok) failures++
+    const hint = label.includes('card')
+      ? 'renderToolUseMessage in src/tools/GitTool/UI.tsx must show the exact escaped replacement bytes and file:line ranges of the resolution preview'
+      : /schema|whole-file|permission mode/.test(label)
+        ? 'the Git tool input schema and validateInput in src/tools/GitTool/GitTool.ts decide this'
+        : 'prepareResolution and applyResolution in src/services/gitGraph/conflictRegions.ts (the write goes through src/services/changeTransaction/changeSetCommit.ts) must keep every file and the index unchanged unless the whole plan lands'
+    console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}to fix: ${hint}` : ''}`)
+  }
   try {
     for (const file of ['a.txt', 'b.txt']) world.put(file, 'base\n')
     world.git(['add', '--', 'a.txt', 'b.txt']); world.git(['commit', '--quiet', '-m', 'base'])

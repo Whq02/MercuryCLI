@@ -34,13 +34,13 @@ const build = await Bun.build({
   ],
 })
 if (!build.success) {
-  console.error('❌ NODE TRANSPORT LANE — bundle failed')
+  console.error('❌ NODE TRANSPORT LANE — bundle failed — the bundle is built from src/utils/proxy.ts and src/utils/mtls.ts; fix the import or syntax error in the log below, or the plugin list in this script if a new dependency needs marking external')
   for (const log of build.logs) console.error(String(log))
   process.exit(1)
 }
 const bundle = build.outputs[0]?.path
 if (!bundle) {
-  console.error('❌ NODE TRANSPORT LANE — no bundle output')
+  console.error('❌ NODE TRANSPORT LANE — no bundle output — Bun.build in this script returned no file; check outdir and naming in its options')
   process.exit(1)
 }
 
@@ -54,4 +54,5 @@ const result = spawnSync(nodeBin, [join(repo, 'scripts/api/node-transport-lane.m
   stdio: 'inherit',
   env: { ...process.env },
 })
+if (result.status !== 0) console.error(`❌ NODE TRANSPORT LANE — scripts/api/node-transport-lane.mjs exited ${result.status ?? 'without a status'} on ${nodeBin}; read its failed checks above, they exercise src/utils/proxy.ts and src/utils/mtls.ts under real Node`)
 process.exit(result.status ?? 1)

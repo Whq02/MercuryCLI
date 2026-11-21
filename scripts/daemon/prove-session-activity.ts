@@ -16,7 +16,9 @@ import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.
 
 let checks = 0
 function check(label: string, value: unknown): void {
-  assert(value, label)
+  let seen = ''
+  if (!value) { try { seen = ` — activity on disk: ${JSON.stringify(disk().activity)}; it is built by sessionActivityOf in src/daemon/concourseWorkers/record.ts and written by markConcourseWorkerActivity in src/daemon/concourseWorkers/marks.ts, fed from publishActivity in src/daemon/sessionSeat/state.ts (called from sessionSeat/rows.ts and sessionSeat/edges.ts)` } catch { seen = ' — the worker record could not be read; see src/daemon/concourseWorkers/store.ts' } }
+  assert(value, `${label}${seen}`)
   checks++
   console.log(`PASS ${label}`)
 }

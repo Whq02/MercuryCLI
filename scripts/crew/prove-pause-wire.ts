@@ -26,12 +26,16 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const j = (v: unknown): string => JSON.stringify(v)
+const doorAt = 'pressCrewPause in src/components/mercury-ui/screens/crewPauseDoor.ts'
+const relayAt = 'pauseSessionGate in src/daemon/sessionSeat/verbs.ts'
+const gateAt = 'operatorPauseGate in src/run-core/pauseGate.ts'
+const chipAt = 'crewPauseChipWords / crewStatusWords in src/services/engine-connector/crewFacts.ts'
 const settle = (ms = 30): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 async function until(cond: () => boolean, what: string, ms = 6_000): Promise<boolean> {
   const t0 = Date.now()
@@ -46,7 +50,7 @@ async function until(cond: () => boolean, what: string, ms = 6_000): Promise<boo
 }
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the pause-wire proof exceeded 120s')
+  console.log('\nTIMEOUT — the pause-wire proof exceeded 120s; a step is waiting on a runner answer, a latch or a facts re-ask: read the last [PASS] or [WAIT TIMEOUT] line above and the check after it in scripts/crew/prove-pause-wire.ts')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -307,21 +311,21 @@ section('D1 THE DOOR — a blank chat refuses; a hosted chat sends the verb thro
     return { outcome: 'applied', detail: j({ paused, parked: 0, changed: true }) }
   }
   const blank = await doorMod.pressCrewPause({ kind: 'blank' }, gate) as { outcome: string; detail?: string }
-  check('a blank chat refuses with the one sentence and sends nothing', blank.outcome === 'refused' && blank.detail === door.CREW_PAUSE_BLANK_REFUSAL && sent.length === 0, j(blank))
+  check('a blank chat refuses with the one sentence and sends nothing', blank.outcome === 'refused' && blank.detail === door.CREW_PAUSE_BLANK_REFUSAL && sent.length === 0, `${doorAt} must refuse a blank chat with CREW_PAUSE_BLANK_REFUSAL and call no send · ${j(blank)}`)
   const hosted = await doorMod.pressCrewPause({ kind: 'carrier', carrier: 'daemon', hostedPaused: false, send }, gate) as { outcome: string; detail?: string; paused?: boolean }
-  check('a hosted chat: the press sends pauseGate(true) through the connector and answers applied, paused', hosted.outcome === 'applied' && hosted.paused === true && j(sent) === '[true]', `${j(hosted)} · sent=${j(sent)}${doorMod.CREW_PAUSE_HOSTED_REFUSAL !== undefined && hosted.detail === doorMod.CREW_PAUSE_HOSTED_REFUSAL ? ' (the refusal note: no verb carries a pause)' : ''}`)
-  check('the local gate stays open: a hosted press never toggles the face\'s own gate', !gate.paused())
+  check('a hosted chat: the press sends pauseGate(true) through the connector and answers applied, paused', hosted.outcome === 'applied' && hosted.paused === true && j(sent) === '[true]', `${doorAt} must send pauseGate(true) for a hosted carrier and answer applied, paused · ${j(hosted)} · sent=${j(sent)}${doorMod.CREW_PAUSE_HOSTED_REFUSAL !== undefined && hosted.detail === doorMod.CREW_PAUSE_HOSTED_REFUSAL ? ' (the refusal note: no verb carries a pause)' : ''}`)
+  check('the local gate stays open: a hosted press never toggles the face\'s own gate', !gate.paused(), `${doorAt} must not call the local gate's pause for a daemon carrier`)
   const again = await doorMod.pressCrewPause({ kind: 'carrier', carrier: 'daemon', hostedPaused: true, send }, gate) as { outcome: string; paused?: boolean }
-  check('a second press on a paused hosted chat sends pauseGate(false) and answers resumed', again.outcome === 'applied' && again.paused === false && j(sent) === '[true,false]', `${j(again)} · sent=${j(sent)}`)
+  check('a second press on a paused hosted chat sends pauseGate(false) and answers resumed', again.outcome === 'applied' && again.paused === false && j(sent) === '[true,false]', `${doorAt} must send pauseGate(false) when hostedPaused is true and answer resumed · ${j(again)} · sent=${j(sent)}`)
   const refusing = async (): Promise<{ outcome: 'applied' | 'refused'; detail?: string }> => ({ outcome: 'refused', detail: "the session's runner predates the pause gate · /daemon restart, then reopen the session" })
   const refused = await doorMod.pressCrewPause({ kind: 'carrier', carrier: 'daemon', hostedPaused: false, send: refusing }, gate) as { outcome: string; detail?: string }
-  check("the runner's refusal reaches the note verbatim", refused.outcome === 'refused' && (refused.detail ?? '').includes('predates the pause gate'), j(refused))
+  check("the runner's refusal reaches the note verbatim", refused.outcome === 'refused' && (refused.detail ?? '').includes('predates the pause gate'), `${doorAt} must pass the runner's refusal detail through unchanged · ${j(refused)}`)
   const sentBefore = sent.length
   const local = await doorMod.pressCrewPause({ kind: 'carrier', carrier: 'in-process', hostedPaused: false, send }, gate) as { outcome: string; paused?: boolean }
-  check('an in-process carrier toggles the local gate directly and sends nothing', local.outcome === 'applied' && local.paused === true && gate.paused() && sent.length === sentBefore, j(local))
+  check('an in-process carrier toggles the local gate directly and sends nothing', local.outcome === 'applied' && local.paused === true && gate.paused() && sent.length === sentBefore, `${doorAt} must toggle the local gate and send nothing for an in-process carrier · ${j(local)}`)
   gate.resume()
   const note = door.crewPauseDoorNote({ outcome: 'applied', paused: true })
-  check('the notes are the ones the in-process carrier already paints', note.text === door.CREW_PAUSED_NOTE && door.crewPauseDoorNote({ outcome: 'applied', paused: false }).text === door.CREW_RESUMED_NOTE)
+  check('the notes are the ones the in-process carrier already paints', note.text === door.CREW_PAUSED_NOTE && door.crewPauseDoorNote({ outcome: 'applied', paused: false }).text === door.CREW_RESUMED_NOTE, 'crewPauseDoorNote in src/components/mercury-ui/screens/crewPauseDoor.ts must return CREW_PAUSED_NOTE for paused and CREW_RESUMED_NOTE for resumed')
 }
 
 section('D2 THE DAEMON SEAT — pauseSessionGate asks session/pause_gate { paused } of the session\'s runner and answers its word')
@@ -333,33 +337,33 @@ if (typeof seatMod.pauseSessionGate !== 'function') {
   const pending = relay(SESSION, true, roster, daemonDir)
   await settle(10)
   const sentFrames = pauseFrames()
-  check('the seat sent ONE session/pause_gate request carrying paused: true', sentFrames.length === before + 1 && sentFrames.at(-1)?.paused === true, j(sentFrames.at(-1)))
+  check('the seat sent ONE session/pause_gate request carrying paused: true', sentFrames.length === before + 1 && sentFrames.at(-1)?.paused === true, `${relayAt} must write exactly one session/pause_gate request with the paused flag · ${j(sentFrames.at(-1))}`)
   const out = await pending
-  check("the runner's success answer settles applied with its word (paused, parked, changed) as the detail", out.outcome === 'applied' && typeof out.detail === 'string' && JSON.parse(out.detail).paused === true && JSON.parse(out.detail).changed === true, j(out))
-  check("the runner's gate closed through the wire", gate.paused())
+  check("the runner's success answer settles applied with its word (paused, parked, changed) as the detail", out.outcome === 'applied' && typeof out.detail === 'string' && JSON.parse(out.detail).paused === true && JSON.parse(out.detail).changed === true, `${relayAt} must settle applied with the runner's answer as a JSON detail · ${j(out)}`)
+  check("the runner's gate closed through the wire", gate.paused(), `the stand-in runner in this proof pauses ${gateAt} when it receives session/pause_gate; ${relayAt} must have sent it`)
   await settle(20)
-  check('the verb\'s answer re-asks the facts at once (the seat\'s own law for a settled verb)', factsFrames().length >= 1, `${factsFrames().length} facts request(s)`)
+  check('the verb\'s answer re-asks the facts at once (the seat\'s own law for a settled verb)', factsFrames().length >= 1, `${factsFrames().length} facts request(s) — a settled pause verb must re-ask session/facts (see requestSessionFacts in src/daemon/sessionSeat/facts.ts and the verb in ${relayAt})`)
   const resumed = await relay(SESSION, false, roster, daemonDir)
-  check('paused: false relays the same way and reopens the gate', resumed.outcome === 'applied' && !gate.paused() && pauseFrames().at(-1)?.paused === false, j(resumed))
+  check('paused: false relays the same way and reopens the gate', resumed.outcome === 'applied' && !gate.paused() && pauseFrames().at(-1)?.paused === false, `${relayAt} must relay paused: false the same way and the gate must reopen · ${j(resumed)}`)
   const twice = await relay(SESSION, false, roster, daemonDir)
-  check('a resume of an open gate is applied, unchanged (the runner says so)', twice.outcome === 'applied' && typeof twice.detail === 'string' && JSON.parse(twice.detail).changed === false, j(twice))
+  check('a resume of an open gate is applied, unchanged (the runner says so)', twice.outcome === 'applied' && typeof twice.detail === 'string' && JSON.parse(twice.detail).changed === false, `${relayAt} must return the runner's answer (changed: false) when the gate was already open · ${j(twice)}`)
   const stranger = await relay('no-such-session', true, roster, daemonDir)
-  check('an unknown session refuses typed, no frame written', stranger.outcome === 'refused' && (stranger.detail ?? '').includes('unknown-session'), j(stranger))
+  check('an unknown session refuses typed, no frame written', stranger.outcome === 'refused' && (stranger.detail ?? '').includes('unknown-session'), `${relayAt} must refuse an unknown session with 'unknown-session' and write no frame · ${j(stranger)}`)
   channelOpen = false
   const closed = await relay(SESSION, true, roster, daemonDir)
-  check('a seat with no live runner door refuses typed', closed.outcome === 'refused' && (closed.detail ?? '').includes('no live runner door'), j(closed))
+  check('a seat with no live runner door refuses typed', closed.outcome === 'refused' && (closed.detail ?? '').includes('no live runner door'), `${relayAt} must refuse with 'no live runner door' when the session has no open runner channel · ${j(closed)}`)
   channelOpen = true
   runnerAnswers = false
   const late = await relay(SESSION, true, roster, daemonDir, { deadlineMs: 60 })
-  check('a runner silent past the deadline refuses typed, naming the wait', late.outcome === 'refused' && (late.detail ?? '').includes('did not answer the pause-gate'), j(late))
+  check('a runner silent past the deadline refuses typed, naming the wait', late.outcome === 'refused' && (late.detail ?? '').includes('did not answer the pause-gate'), `${relayAt} must refuse with 'did not answer the pause-gate' when the runner stays silent past deadlineMs · ${j(late)}`)
   runnerAnswers = true
   runnerAnswersUnsupported = true
   const older = await relay(SESSION, true, roster, daemonDir)
-  check("an older runner's unknown method names the gap and the restart", older.outcome === 'refused' && (older.detail ?? '').includes('predates the pause gate') && (older.detail ?? '').includes('/daemon restart'), j(older))
+  check("an older runner's unknown method names the gap and the restart", older.outcome === 'refused' && (older.detail ?? '').includes('predates the pause gate') && (older.detail ?? '').includes('/daemon restart'), `${relayAt} must turn an unknown-method refusal into words naming 'predates the pause gate' and '/daemon restart' · ${j(older)}`)
   runnerAnswersUnsupported = false
   await settle(30)
-  check('nothing is left pending on the door once the facts re-ask is answered', stand.connection.peer.pendingCount === 0, String(stand.connection.peer.pendingCount))
-  check('the gate is open before the three layers run', !gate.paused() && gate.parked().length === 0)
+  check('nothing is left pending on the door once the facts re-ask is answered', stand.connection.peer.pendingCount === 0, `${String(stand.connection.peer.pendingCount)} request(s) still pending — every request the seat sends in ${relayAt} and requestSessionFacts (src/daemon/sessionSeat/facts.ts) must be answered or settled`)
+  check('the gate is open before the three layers run', !gate.paused() && gate.parked().length === 0, `${gateAt} is still closed or holds parked seats — an earlier check left it paused; the last relay(SESSION, false) must reopen it`)
 }
 
 section('P1 THE THREE LAYERS — p on a hosted chat parks a real loop in the runner; the rows carry the parked words; the chip reads the runner\'s fact; p again reopens')
@@ -406,51 +410,51 @@ section('P1 THE THREE LAYERS — p on a hosted chat parks a real loop in the run
   const loop = startLoop()
   rowsNow = () => [rowOf(loop)]
   await until(() => loop.calls === 1, 'the first model call in flight')
-  check('a real loop runs in the scripted runner: its first model call is in flight, its row reads running with no wait', loop.calls === 1 && loop.wait() === null)
+  check('a real loop runs in the scripted runner: its first model call is in flight, its row reads running with no wait', loop.calls === 1 && loop.wait() === null, 'the rig loop (startLoop in this file, query in src/query.ts) did not make its first model call, or already carries a wait')
   seat.requestSessionFacts(RUNNER, roster as never, { immediate: true })
   await settle(20)
   const idle = rosterOf()
-  check("before the press: the runner's facts reach the face — one running row, the gate fact open (never a face-side latch)", idle.rows.length === 1 && idle.rows[0]?.status === 'running' && idle.pauseGate?.paused === false, j(idle))
-  check('before the press: no chip', chipOf() === null, chipOf() ?? '')
+  check("before the press: the runner's facts reach the face — one running row, the gate fact open (never a face-side latch)", idle.rows.length === 1 && idle.rows[0]?.status === 'running' && idle.pauseGate?.paused === false, `the seat facts (sessionFactsToWire in src/services/engine-connector/seatWire.ts) and the connector's workRoster (src/services/engine-connector/daemonConnector.ts) must carry the runner's rows and gate fact · ${j(idle)}`)
+  check('before the press: no chip', chipOf() === null, `${chipAt} must return null while the gate is open and nothing is parked · ${chipOf() ?? ''}`)
 
   const pauseCount = pauseFrames().length
   const receipt = await press()
-  check('p: the door answers applied, paused (the runner\'s word relayed by the daemon)', receipt.outcome === 'applied' && receipt.paused === true, j(receipt))
-  check('p: the RPC carried sessionControl/pause-gate with paused: true', rpcLog.some(r => r.action === 'pause-gate' && r.paused === true), j(rpcLog))
-  check('p: ONE session/pause_gate request crossed the wire to the runner', pauseFrames().length === pauseCount + 1 && pauseFrames().at(-1)?.paused === true, `${pauseFrames().length - pauseCount} request(s)`)
-  check("p: the runner's gate is closed", gate.paused())
+  check('p: the door answers applied, paused (the runner\'s word relayed by the daemon)', receipt.outcome === 'applied' && receipt.paused === true, `${doorAt} and the connector's pauseGate (src/services/engine-connector/daemonConnector.ts) must answer applied, paused · ${j(receipt)}`)
+  check('p: the RPC carried sessionControl/pause-gate with paused: true', rpcLog.some(r => r.action === 'pause-gate' && r.paused === true), `the connector's pauseGate in src/services/engine-connector/daemonConnector.ts must send an rpc with op sessionControl, action pause-gate and paused: true · ${j(rpcLog)}`)
+  check('p: ONE session/pause_gate request crossed the wire to the runner', pauseFrames().length === pauseCount + 1 && pauseFrames().at(-1)?.paused === true, `${pauseFrames().length - pauseCount} request(s) — ${relayAt} must send exactly one session/pause_gate frame per press`)
+  check("p: the runner's gate is closed", gate.paused(), `the runner side of session/pause_gate must pause ${gateAt}`)
   await settle(30)
   const closedRoster = rosterOf()
-  check("p: the face reads the gate's state from the runner's facts — pauseGate.paused true on the roster", closedRoster.pauseGate?.paused === true, j(closedRoster.pauseGate))
-  check('p: the chip reads paused by the operator before any loop parked', chipOf() === 'paused by the operator', chipOf() ?? 'null')
+  check("p: the face reads the gate's state from the runner's facts — pauseGate.paused true on the roster", closedRoster.pauseGate?.paused === true, `the roster's pauseGate must come from the runner's session/facts (sessionFactsToWire in src/services/engine-connector/seatWire.ts, workRoster in daemonConnector.ts) · ${j(closedRoster.pauseGate)}`)
+  check('p: the chip reads paused by the operator before any loop parked', chipOf() === 'paused by the operator', `${chipAt} must read 'paused by the operator' when the gate is closed with nothing parked · ${chipOf() ?? 'null'}`)
 
   loop.modelLatch(1).open()
   await until(() => loop.wait() !== null, 'the loop parks at the tool seam after its stream finishes')
-  check('the stream in flight finished and the loop parked at its next safe point (the tool seam), no tool started', loop.wait() === gateModule.pauseGateToolWords('SerialTool') && loop.toolStarts === 0 && j(gate.parked()) === '["scout"]', `wait=${loop.wait()} tools=${loop.toolStarts} parked=${j(gate.parked())}`)
+  check('the stream in flight finished and the loop parked at its next safe point (the tool seam), no tool started', loop.wait() === gateModule.pauseGateToolWords('SerialTool') && loop.toolStarts === 0 && j(gate.parked()) === '["scout"]', `${gateAt} must park the loop at the tool seam (pauseGateToolWords) with no tool started · wait=${loop.wait()} tools=${loop.toolStarts} parked=${j(gate.parked())}`)
   seat.requestSessionFacts(RUNNER, roster as never, { immediate: true })
   await settle(30)
   const parkedRoster = rosterOf()
   const parkedRow = crew.crewAgentsOf(parkedRoster.rows, SESSION)[0]
-  check("the roster row carries the parked words from the seam: the status cell reads paused by the operator, the tail names the tool", parkedRow !== undefined && crew.crewStatusWords(parkedRow, Date.now()) === 'paused by the operator' && crew.crewOperatorPauseParts(parkedRow)?.detail === 'at a tool (SerialTool)', j(parkedRow?.wait))
-  check("the runner's fact counts the parked loop: pauseGate { paused: true, parked: 1 }", parkedRoster.pauseGate?.paused === true && parkedRoster.pauseGate?.parked === 1, j(parkedRoster.pauseGate))
-  check('the chip reads paused by the operator · 1 parked', chipOf() === 'paused by the operator · 1 parked', chipOf() ?? 'null')
+  check("the roster row carries the parked words from the seam: the status cell reads paused by the operator, the tail names the tool", parkedRow !== undefined && crew.crewStatusWords(parkedRow, Date.now()) === 'paused by the operator' && crew.crewOperatorPauseParts(parkedRow)?.detail === 'at a tool (SerialTool)', `${chipAt} (crewStatusWords, crewOperatorPauseParts) must read the parked wait words as 'paused by the operator' with the tool in the detail · ${j(parkedRow?.wait)}`)
+  check("the runner's fact counts the parked loop: pauseGate { paused: true, parked: 1 }", parkedRoster.pauseGate?.paused === true && parkedRoster.pauseGate?.parked === 1, `the runner's facts (sessionFactsToWire in src/services/engine-connector/seatWire.ts) must carry pauseGate { paused, parked } from ${gateAt} · ${j(parkedRoster.pauseGate)}`)
+  check('the chip reads paused by the operator · 1 parked', chipOf() === 'paused by the operator · 1 parked', `${chipAt} must append '· N parked' when loops are parked · ${chipOf() ?? 'null'}`)
 
   const again = await press()
-  check('p again: the door answers applied, resumed', again.outcome === 'applied' && again.paused === false, j(again))
-  check('p again: the request crossed with paused: false and the runner\'s gate is open', pauseFrames().at(-1)?.paused === false && !gate.paused(), j(pauseFrames().at(-1)))
+  check('p again: the door answers applied, resumed', again.outcome === 'applied' && again.paused === false, `${doorAt} must send pauseGate(false) from a paused hosted chat and answer resumed · ${j(again)}`)
+  check('p again: the request crossed with paused: false and the runner\'s gate is open', pauseFrames().at(-1)?.paused === false && !gate.paused(), `${relayAt} must send paused: false and the runner must reopen ${gateAt} · ${j(pauseFrames().at(-1))}`)
   await until(() => loop.toolStarts === 1, 'the parked tool starts after the resume')
-  check('the parked loop continues from where it stopped: its tool starts with the input the model asked for, the wait clears', loop.toolStarts === 1 && loop.wait() === null, `tools=${loop.toolStarts} wait=${loop.wait()}`)
+  check('the parked loop continues from where it stopped: its tool starts with the input the model asked for, the wait clears', loop.toolStarts === 1 && loop.wait() === null, `resuming ${gateAt} must release the parked loop so its tool starts and onSeatWait clears · tools=${loop.toolStarts} wait=${loop.wait()}`)
   seat.requestSessionFacts(RUNNER, roster as never, { immediate: true })
   await settle(30)
   const openRoster = rosterOf()
-  check('the face reads the gate open again from the facts: no chip, the row runs', openRoster.pauseGate?.paused === false && openRoster.pauseGate?.parked === 0 && chipOf() === null && openRoster.rows[0]?.wait === undefined, j(openRoster.pauseGate))
+  check('the face reads the gate open again from the facts: no chip, the row runs', openRoster.pauseGate?.paused === false && openRoster.pauseGate?.parked === 0 && chipOf() === null && openRoster.rows[0]?.wait === undefined, `the facts re-ask after resume must show the gate open, nothing parked, no chip (${chipAt}) · ${j(openRoster.pauseGate)}`)
 
   loop.toolLatch(1).open()
   loop.modelLatch(2).open()
   loop.toolLatch(2).open()
   loop.modelLatch(3).open()
   const terminal = await Promise.race([loop.done, settle(8_000).then(() => ({ reason: 'timeout' }))])
-  check('the loop completes (three calls, two tools) once every latch opens', terminal.reason === 'completed' && loop.calls === 3 && loop.toolStarts === 2, j(terminal))
+  check('the loop completes (three calls, two tools) once every latch opens', terminal.reason === 'completed' && loop.calls === 3 && loop.toolStarts === 2, `the resumed loop (query in src/query.ts, gate in ${gateAt}) must run to completion after the pause · ${j(terminal)}`)
   rowsNow = () => [{ ...rowOf(loop), status: 'completed', endTime: Date.now() }]
   seat.requestSessionFacts(RUNNER, roster as never, { immediate: true })
   await settle(20)
@@ -458,9 +462,9 @@ section('P1 THE THREE LAYERS — p on a hosted chat parks a real loop in the run
 
 section('W1 THE WIRE — the verb\'s ceremony at each layer, pinned in source')
 {
-  check('the daemon verb sessionControl/pause-gate is born at proto 12 and the wire is at least there', protocol.DAEMON_VERB_BORN_AT['sessionControl/pause-gate'] === 12 && protocol.verbBornAt('sessionControl', 'pause-gate') === 12 && protocol.MERCURY_DAEMON_PROTO >= 12, `born ${String(protocol.DAEMON_VERB_BORN_AT['sessionControl/pause-gate'])} · proto ${protocol.MERCURY_DAEMON_PROTO}`)
+  check('the daemon verb sessionControl/pause-gate is born at proto 12 and the wire is at least there', protocol.DAEMON_VERB_BORN_AT['sessionControl/pause-gate'] === 12 && protocol.verbBornAt('sessionControl', 'pause-gate') === 12 && protocol.MERCURY_DAEMON_PROTO >= 12, `DAEMON_VERB_BORN_AT and MERCURY_DAEMON_PROTO in src/daemon/protocol.ts must register sessionControl/pause-gate at proto 12 · born ${String(protocol.DAEMON_VERB_BORN_AT['sessionControl/pause-gate'])} · proto ${protocol.MERCURY_DAEMON_PROTO}`)
   const parse = METHODS['session/pause_gate'].params()
-  check('the runner door accepts { paused: boolean } for session/pause_gate and refuses a missing boolean', parse.safeParse({ paused: true }).success && parse.safeParse({ paused: false }).success && !parse.safeParse({}).success)
+  check('the runner door accepts { paused: boolean } for session/pause_gate and refuses a missing boolean', parse.safeParse({ paused: true }).success && parse.safeParse({ paused: false }).success && !parse.safeParse({}).success, "the params schema of 'session/pause_gate' in src/runner/wire/sessionVerbs.ts must be { paused: boolean } with paused required")
   const { liveFactsOf, withLiveRunner } = await import('../lib/builtProduct.ts')
   const gate = await withLiveRunner(async runner => {
     const rest = (await liveFactsOf(runner)).pauseGate
@@ -470,8 +474,8 @@ section('W1 THE WIRE — the verb\'s ceremony at each layer, pinned in source')
     const opened = await runner.request('session/pause_gate', { paused: false })
     return { rest, closed, again, held, opened, open: (await liveFactsOf(runner)).pauseGate }
   })
-  check("the runner's arm owns the method: paused closes the one gate, false opens it, the answer is the gate's word", j(gate.closed) === j({ paused: true, parked: 0, changed: true }) && j(gate.again) === j({ paused: true, parked: 0, changed: false }) && j(gate.opened) === j({ paused: false, parked: 0, changed: true }), j(gate))
-  check("the runner's facts answer publishes the gate's state (pauseGate: paused, parked)", j(gate.rest) === j({ paused: false, parked: 0 }) && j(gate.held) === j({ paused: gate.closed.paused, parked: gate.closed.parked }) && j(gate.open) === j({ paused: gate.opened.paused, parked: gate.opened.parked }), j(gate))
+  check("the runner's arm owns the method: paused closes the one gate, false opens it, the answer is the gate's word", j(gate.closed) === j({ paused: true, parked: 0, changed: true }) && j(gate.again) === j({ paused: true, parked: 0, changed: false }) && j(gate.opened) === j({ paused: false, parked: 0, changed: true }), `the runner's session/pause_gate arm must close and open ${gateAt} and answer { paused, parked, changed } · ${j(gate)}`)
+  check("the runner's facts answer publishes the gate's state (pauseGate: paused, parked)", j(gate.rest) === j({ paused: false, parked: 0 }) && j(gate.held) === j({ paused: gate.closed.paused, parked: gate.closed.parked }) && j(gate.open) === j({ paused: gate.opened.paused, parked: gate.opened.parked }), `the runner's session/facts answer must publish pauseGate { paused, parked } from ${gateAt} (sessionFactsToWire in src/services/engine-connector/seatWire.ts) · ${j(gate)}`)
   {
     const { WorkPart } = await import('../../src/services/engine-connector/daemon/work.ts')
     let seatFacts: Record<string, unknown> = { work: [], pauseGate: { paused: false, parked: 0 }, swarm: { on: true, snapshot: { seq: 1 } } }
@@ -490,7 +494,7 @@ section('W1 THE WIRE — the verb\'s ceremony at each layer, pinned in source')
     const carried = j((roster.workRoster() as { pauseGate?: unknown }).pauseGate)
     const swarmMoved = reread({ ...seatFacts, swarm: { on: true, snapshot: { seq: 2 } } })
     const swarmOff = reread({ ...seatFacts, swarm: { on: false, snapshot: { seq: 2 } } })
-    check('the roster snapshot carries the gate fact and the live swarm snapshot, content-keyed with the rows', first === 1 && same === 0 && gateMoved === 1 && carried === j({ paused: true, parked: 2 }) && swarmMoved === 1 && swarmOff === 1, j({ first, same, gateMoved, carried, swarmMoved, swarmOff }))
+    check('the roster snapshot carries the gate fact and the live swarm snapshot, content-keyed with the rows', first === 1 && same === 0 && gateMoved === 1 && carried === j({ paused: true, parked: 2 }) && swarmMoved === 1 && swarmOff === 1, `WorkPart in src/services/engine-connector/daemon/work.ts (refreshWork, workRoster) must wake subscribers only when the rows, the gate fact or the swarm snapshot change, and carry the gate fact on the roster · ${j({ first, same, gateMoved, carried, swarmMoved, swarmOff })}`)
   }
 }
 

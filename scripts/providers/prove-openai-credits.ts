@@ -46,7 +46,13 @@ const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
 }) as typeof fetch
 const io = { fetchImpl, now: () => now }
 const view = () => owner.usageForProvider('openai')
-const check = (name: string, test: () => void) => { test(); console.log(`PASS ${name}`) }
+const check = (name: string, test: () => void) => {
+  try { test() } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error)
+    throw new Error(`${reason}\nFAIL ${name}: change the credits reading in src/services/providers/providerUsage.ts (usageForProvider, refreshProviderUsage, usageCreditsLine) or the observed balance in src/services/providers/openai/openaiLimitState.ts (recordOpenaiRateHeaders, forgetOpenaiLimitSource), or the sign-out in src/services/providers/openai/openaiAccounts.ts (disconnectOpenaiSubscription)`, { cause: error })
+  }
+  console.log(`PASS ${name}`)
+}
 try {
   seed('fixture-A')
   state.__resetOpenaiLimitStateForTest()

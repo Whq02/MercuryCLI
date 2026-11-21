@@ -59,7 +59,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — to change: the resume path is focusResumedSession in src/services/switchboard/hopIntoSession.ts and the admission wait of DaemonSessionConnector (AdmissionPart in src/services/engine-connector/daemon/admission.ts); the row words come from statusLine in src/components/SwitchboardTagBar.tsx; the fixture records (concourse-workers.json, the session facts file, the scripted daemonControlRpc) are at the top of this file'}`)
 }
 const focused = () => getFocusedSessionConnector() as ReturnType<typeof getFocusedSessionConnector> & { live: () => import('../../src/services/engine-connector/seatLive.js').SessionLiveV1; status: () => import('../../src/services/engine-connector/seatLive.js').SeatStatusV1; readFacts: () => void }
 const words = (): string => statusLine(focused().live(), focused().status())

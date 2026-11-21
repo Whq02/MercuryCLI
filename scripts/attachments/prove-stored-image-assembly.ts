@@ -14,11 +14,20 @@ const messages = await import('../../src/services/messages.ts')
 const sharp = (await import('sharp')).default
 
 let failures = 0
+let where = 'to fix, look at storeImage and storedImageRefBlock in src/utils/imageStore.ts'
+const WHERE_BY_SECTION: Array<[string, string]> = [
+  ['§1', 'to fix, look at readStoredImageRefsForRequest and readStoredImageRef in src/utils/imageStore.ts'],
+  ['§2', 'to fix, look at normalizeMessagesForAPI in src/services/messages/apiView.ts and healWalkableForWire in src/services/messages/pairing.ts, and run readStoredImageRefsForRequest in src/utils/imageStore.ts before them'],
+]
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, where].filter(Boolean).join('. ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
+const section = (t: string): void => {
+  where = WHERE_BY_SECTION.find(([prefix]) => t.startsWith(prefix))?.[1] ?? ''
+  console.log('\n' + '─'.repeat(76) + '\n' + t)
+}
 const REF = store.STORED_IMAGE_SOURCE_TYPE
 const carriesReference = (value: unknown): boolean => JSON.stringify(value).includes(REF)
 

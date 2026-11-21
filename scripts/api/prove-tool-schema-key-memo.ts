@@ -4,10 +4,11 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 let checks = 0
+const FIX_HINT = 'change the schema memo in toolToAPISchema (src/services/messages/api.ts) or the conversation snapshots in src/utils/toolSchemaCache.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}to fix: ${FIX_HINT}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

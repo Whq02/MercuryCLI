@@ -17,7 +17,8 @@ let checks = 0
 function check(name: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  const where = name.endsWith('original command prints exact bytes') ? 'this control runs the command in plain bash without Mercury code, so check the bash on PATH (or Git Bash on Windows)' : 'rearrangePipeCommand in src/utils/bash/bashPipeCommand.ts must keep quoted whitespace byte for byte'
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${!ok ? ` — ${detail ? `${detail} — ` : ''}to fix: ${where}` : ''}`)
 }
 const quote = (value: string): string => `'${value.split("'").join("'\\''")}'`
 const run = (program: string) => spawnSync(shell, ['--noprofile', '--norc', '-c', program], {

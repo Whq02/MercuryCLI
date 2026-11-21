@@ -1,11 +1,20 @@
 #!/usr/bin/env bun
 
 let failures = 0
+let where = ''
+const wheres: Record<string, string> = {
+  A: 'deserializeLiveMessages in src/services/resume/conversationRecovery.ts must return one message per input, in order',
+  B: 'normalizeMessages in src/utils/messages/normalize.ts must return the same row objects for the same parent objects',
+  C: 'normalizeMessages in src/utils/messages/normalize.ts must keep its unchained and chained row variants separate and replay each by identity',
+  D: 'mergeRecordsContentKeyed in src/services/engine-connector/recordIdentity.ts must reuse unchanged record objects and mint fresh ones for changed bytes',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const shown = cond ? detail : [detail, where].filter(Boolean).join('; ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
 }
 function section(t: string): void {
+  where = wheres[t[0]] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

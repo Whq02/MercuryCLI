@@ -11,8 +11,9 @@ process.env.NODE_ENV = 'test'
 const { withoutNullOptionals, connectToServer, fetchToolsForClient, callMCPToolWithUrlElicitationRetry, clearServerCache } = await import('../../src/services/mcp/client.ts')
 
 let failures = 0
+const FAIL_HINT = 'change withoutNullOptionals in src/services/mcp/client/nullOptionals.ts (applied where callMCPToolWithUrlElicitationRetry builds the call in src/services/mcp/client.ts); the connect and listing checks read scripts/mcp/_fixture-strict-args-server.mjs'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' | ' : '') + FAIL_HINT : ''}`)
   if (!cond) failures++
 }
 

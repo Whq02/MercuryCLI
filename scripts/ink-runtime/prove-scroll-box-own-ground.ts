@@ -25,7 +25,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix how composeBox in src/ink/compose-walk.ts fills and refreshes a scroll box's own backgroundColor (ownGround, fillRemoved) when it repaints without scrolling` : ''}`)
 }
 
 type World = {

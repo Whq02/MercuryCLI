@@ -19,13 +19,13 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}to fix: Edit must behave the same for a local model and a hosted one; check validateInput, call and prompt in src/tools/FileEditTool/FileEditTool.ts and what they read from the local record in src/services/providers/local/localCatalogue.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the local span guard proof exceeded 60s')
+  console.log('\nTIMEOUT — the local span guard proof exceeded 60s; the local discovery refresh (src/services/providers/local/localDiscovery.ts) or an Edit call (src/tools/FileEditTool/FileEditTool.ts) did not return')
   process.exit(1)
 }, 60_000)
 guard.unref?.()

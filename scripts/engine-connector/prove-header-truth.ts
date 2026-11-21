@@ -7,12 +7,14 @@ process.chdir(ROOT)
 
 let failures = 0
 let checks = 0
+let where = 'crewClockOf, crewActiveIn, statusLine and fitStatusLine in src/components/SwitchboardTagBar.tsx'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — to change: ${where}`}`)
 }
 const section = (t: string): void => {
+  if (t.startsWith('§3')) where = 'UNNAMED_SESSION_WORD and newSessionTitle in src/services/concourse/sessionNaming.ts'
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

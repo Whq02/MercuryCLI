@@ -9,7 +9,16 @@ delete process.env.MERCURY_HOME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const where = label.startsWith('T2 ')
+    ? 'fix getFocusedSessionConnector/emitFocusedSessionConnectorChanged in src/services/engine-connector/focusedConnector.ts or bootBirthFacts in src/services/switchboard/bootBirthFacts.ts'
+    : label.startsWith('T4 ')
+      ? 'fix projectDisplayName in src/utils/bootCardFacts.ts'
+      : label.startsWith('T7 ')
+        ? 'fix the workspace focusResumedSession resolves from a folded transcript in src/services/switchboard/hopIntoSession.ts'
+        : label.startsWith('T6 T') || label.startsWith('T6 an invalid')
+          ? 'fix the session scan (scanBootCardFacts, projectIdentity, parkedSessionsOf, projectChatCount) in src/utils/bootCardFacts.ts, or the id check in focusResumedSession in src/services/switchboard/hopIntoSession.ts'
+          : 'fix the session scan (workedInProjects, scanBootCardFacts, isAuthFailureHusk) in src/utils/bootCardFacts.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${where}` : ''}`)
 }
 
 {

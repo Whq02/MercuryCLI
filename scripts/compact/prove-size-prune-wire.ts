@@ -160,7 +160,7 @@ let stdout = ''
 let stderr = ''
 proc.stdout.on('data', chunk => { stdout += String(chunk) })
 proc.stderr.on('data', chunk => { stderr += String(chunk) })
-watchdog = setTimeout(() => { stderr += '\nfixture made no request progress for 210s\n'; proc.kill('SIGTERM') }, 210_000)
+watchdog = setTimeout(() => { stderr += '\nfixture made no request progress for 210s\n'; console.error(`no request reached the fixture for 210s; the built product at ${dist} is stuck, read ${join(output, 'stderr.txt')} and ${join(output, 'requests.json')}`); proc.kill('SIGTERM') }, 210_000)
 const exit = await new Promise<number | null>((resolveExit, reject) => { proc.once('exit', resolveExit); proc.once('error', reject) })
 clearTimeout(watchdog)
 await fixture.close()
@@ -212,7 +212,7 @@ const summary = {
 }
 writeFileSync(join(output, 'summary.json'), JSON.stringify(summary, null, 2) + '\n')
 let failures = 0
-const check = (label: string, passed: boolean): void => { if (!passed) failures++; console.log(`[${passed ? 'PASS' : 'FAIL'}] ${label}`) }
+const check = (label: string, passed: boolean): void => { if (!passed) failures++; console.log(`[${passed ? 'PASS' : 'FAIL'}] ${label}${passed ? '' : ` — read ${join(output, 'requests.json')} and ${join(output, 'stderr.txt')}; the pruning under test is projectTimeBasedMicrocompact in src/services/compact/microCompact.ts and its protections in src/services/compact/pruneProtections.ts; rebuild dist/mercury.mjs with bun run build.ts after changing them`}`) }
 check('the built product completes the scripted file work', exit === 0 && answerOf(lastOutcome(frames)) === 'The file revisions are complete.')
 check('the replay makes every scripted Read and Edit', nextCall === calls.length + 1)
 check('every edit landed in the scratch files', paths.every((path, index) => readFileSync(path, 'utf8').startsWith(`revision ${Math.ceil((rounds - index) / paths.length)}\n`)))

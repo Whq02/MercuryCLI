@@ -70,7 +70,7 @@ section('EndPart.askedSettled settles on child exit without the 25 ms poll')
   check(
     'askedSettled settles on the microtask after child exit (red under a 25 ms sleep poll)',
     settledOnMicrotask && afterEmitMs < 20,
-    `settledOnMicrotask=${settledOnMicrotask} afterEmitMs=${afterEmitMs} totalMs=${totalMs}`,
+    `settledOnMicrotask=${settledOnMicrotask} afterEmitMs=${afterEmitMs} totalMs=${totalMs}; EndPart.askedSettled and dropAsked in src/daemon/roster/end.ts must resolve the waiters when the child exit empties the asked set, not on a timer`,
   )
 
   const a = makeFakeChild()
@@ -93,7 +93,7 @@ section('EndPart.askedSettled settles on child exit without the 25 ms poll')
   check(
     'askedSettled stays pending until the last pending child exits, then settles immediately',
     stillWaitingAfterOne && doneAfterSecond,
-    `stillWaitingAfterOne=${stillWaitingAfterOne} doneAfterSecond=${doneAfterSecond}`,
+    `stillWaitingAfterOne=${stillWaitingAfterOne} doneAfterSecond=${doneAfterSecond}; dropAsked in src/daemon/roster/end.ts must resolve the settled waiters only when the asked set is empty`,
   )
 }
 

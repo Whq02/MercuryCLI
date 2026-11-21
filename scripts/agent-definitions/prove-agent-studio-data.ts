@@ -23,7 +23,7 @@ function check(name: string, cond: boolean, detail?: string): void {
   if (cond) console.log(`  ✓ ${name}`)
   else {
     failures++
-    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''} — to fix, change buildStudioRows in src/components/agents/studio/studioData.ts (rows, shadowing, filters, search), or getAgentDefinitionsWithOverrides in src/tools/AgentTool/loadAgentsDir.ts if the loaded agents are wrong`)
   }
 }
 

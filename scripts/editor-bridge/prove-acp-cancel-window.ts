@@ -58,7 +58,7 @@ createInterface({ input: process.stdin }).on('line', line => {
 let failures = 0
 const check = (label: string, yes: boolean, detail: unknown = '') => {
   if (!yes) failures++
-  console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${yes ? '' : ` — ${JSON.stringify(detail)}`}`)
+  console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${yes ? '' : ` — ${JSON.stringify(detail)} — change interrupt() or writeUserPrompt() in MercuryChildSession, src/services/acp/childSession.ts`}`)
 }
 const bounded = async <T,>(promise: Promise<T>, ms: number): Promise<T | null> => {
   let timer: ReturnType<typeof setTimeout>

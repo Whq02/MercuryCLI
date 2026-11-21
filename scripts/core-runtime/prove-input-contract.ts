@@ -10,11 +10,19 @@ import { InputEvent } from '../../src/ink/events/input-event.js'
 
 let failures = 0
 let checks = 0
+function whereToLook(label: string): string {
+  if (label.startsWith('dom-key')) return 'KeyboardEvent in src/ink/events/keyboard-event.ts'
+  if (label.startsWith('request:')) return 'ENABLE_KITTY_KEYBOARD in src/ink/termio/csi.ts'
+  if (label.startsWith('flush-kind') || label.startsWith('a bodied') || label.startsWith('a chord') || label.startsWith('…and the second sealed') || /^alt\+[\]P_]: /.test(label)) return 'createScanner in src/ink/input/scanner.ts'
+  if (label.startsWith('the gate') || label.startsWith('conhost law') || label.startsWith('typed law')) return 'burstCrIsLineBreak and parseMultipleKeypresses in src/ink/input/input-decoder.ts'
+  if (label.startsWith('projection') && label.endsWith('(key,input) shape')) return 'InputEvent in src/ink/events/input-event.ts, then parseMultipleKeypresses in src/ink/input/input-decoder.ts'
+  return 'parseMultipleKeypresses in src/ink/input/input-decoder.ts (and createScanner in src/ink/input/scanner.ts)'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — fix the input decoding, not this check: look at ${whereToLook(label)}`)
   }
 }
 

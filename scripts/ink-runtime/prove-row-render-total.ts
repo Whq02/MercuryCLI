@@ -24,7 +24,7 @@ const { normalizeMessages } = await import('../../src/services/messages.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — fix the row that threw: Byline in src/components/design-system/Byline.tsx, RowErrorBoundary in src/components/RowErrorBoundary.tsx, or the tool UI named in the label (src/tools/SkillTool/UI.tsx, src/tools/AgentTool/UI.tsx, src/tools/EvalTool/UI.tsx)'}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
