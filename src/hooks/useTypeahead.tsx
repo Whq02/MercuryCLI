@@ -22,7 +22,7 @@ import type {
 import {
   findChannelTargetQuery,
 } from '../utils/suggestions/commandSuggestions.js'
-import { getFocusedSessionConnector, subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
+import { getFocusedSessionConnector, hasFocusedSession, subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
 import {
   onIndexBuildComplete,
   startBackgroundCacheRefresh,
@@ -108,7 +108,10 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
   )
   const channelTargetActive = findChannelTargetQuery(input, cursorOffset) !== null
   const readFocusedSwarmBoard = useCallback(
-    () => (channelTargetActive ? (getFocusedSessionConnector().swarmBoard?.() ?? null) : null),
+    () =>
+      channelTargetActive && hasFocusedSession()
+        ? (getFocusedSessionConnector().swarmBoard?.() ?? null)
+        : undefined,
     [channelTargetActive],
   )
   const focusedSwarmBoard = useSyncExternalStore(
