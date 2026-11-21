@@ -12,7 +12,6 @@
 # gate-watch: src/components/messages/AttachmentMessage.tsx src/components/messages/TranscriptNameplate.tsx
 # gate-watch: src/utils/hooks/contract.ts
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/cli/run.ts
 # gate-watch: src/services/tools/earlyStarts.ts
 # gate-watch: src/services/remoteFiles/** src/services/privateChannel/vendoredRuntime.ts
 # gate-watch: src/run-core/turn/**

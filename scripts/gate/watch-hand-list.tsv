@@ -27,8 +27,8 @@ changesets	8	deep,lazy,unseen
 changesets-drives	7	bundle,lazy,unseen
 cockpit-interaction	35	bundle,deep,lazy,unseen
 cockpit-interaction-drives	27	bundle,deep,lazy,unseen
-command-catalogue	12	bundle,deep,lazy,unseen
-command-catalogue-drives	19	bundle,deep,lazy,unseen
+command-catalogue	12	bundle,deep,future,lazy,unseen
+command-catalogue-drives	18	bundle,deep,future,lazy,unseen
 commit-gate	3	deep,unseen
 compact	23	bundle,deep,lazy,unseen
 compositor	6	deep,lazy,unseen
@@ -72,7 +72,7 @@ engine-pass-drives	11	bundle,unseen
 eval	7	bundle,deep,lazy
 exit-handle	2	bundle
 extensions	9	deep,lazy,unseen
-formal-models	4	unseen
+formal-models	4	deep,unseen
 gate	19	bundle,deep,lazy,unseen
 golden-journeys	11	lazy,unseen
 golden-journeys-drives	9	bundle,lazy,unseen
@@ -114,7 +114,7 @@ longrun-invariants	21	deep,lazy,unseen
 lsp	5	bundle,deep,unseen
 mcp	14	bundle,deep,lazy,unseen
 mcp-drives	9	bundle,deep,lazy,unseen
-media	9	deep,lazy,unseen
+media	8	deep,lazy,unseen
 memory	17	bundle,deep,unseen
 memory-drives	34	bundle,deep,lazy,unseen
 memory-lifecycle	13	bundle,deep,lazy
@@ -155,7 +155,7 @@ prompts-panel	23	deep,lazy,unseen
 prompts-panel-drives	20	bundle,deep,lazy,unseen
 provauth	18	deep,lazy,unseen
 provider-compat	31	bundle,deep,lazy
-providers	22	bundle,deep,lazy,unseen
+providers	22	bundle,deep,future,lazy,unseen
 release	5	unseen
 reliability	7	bundle,lazy,unseen
 remote-files	13	deep,lazy,unseen
@@ -210,7 +210,7 @@ tensorfold-drives	9	bundle,unseen
 terminal-boundary	16	bundle,deep,unseen
 terminal-boundary-drives	14	bundle,deep,lazy,unseen
 tool-economy	8	deep
-tools	22	bundle,deep,lazy,unseen
+tools	21	bundle,deep,lazy,unseen
 topic-memory	1	unseen
 transcript-rows	17	bundle,deep,lazy,unseen
 transcript-rows-drives	9	bundle,lazy,unseen
