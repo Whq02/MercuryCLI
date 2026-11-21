@@ -1,5 +1,5 @@
 import type { UUID } from 'crypto'
-import { scheduler } from 'node:timers/promises'
+import { sleep } from '../sleep.js'
 import { historyHead, sealedExtents, historyIndex } from './historyParts.js'
 import { transcriptLineBytes } from './transcriptBytes.js'
 import { dirname } from 'path'
@@ -91,7 +91,7 @@ const getAgentFileMessages = memoize(
       let added = 0
       for (const row of transcriptLineBytes(filePath, { end: head.end })) {
         added += row.length
-        if (added >= 1024 * 1024) { await scheduler.yield(); added = 0 }
+        if (added >= 1024 * 1024) { await sleep(0); added = 0 }
         try {
           const id = JSON.parse(row.toString('utf8'))?.annotations?.uuid
           if (typeof id === 'string') set.add(id)

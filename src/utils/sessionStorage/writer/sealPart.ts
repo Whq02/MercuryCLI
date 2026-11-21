@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { closeSync, constants, copyFileSync, fsyncSync, linkSync, mkdirSync, openSync, readSync, renameSync, rmSync, statSync, writeSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { dirFsyncErrorIsFatal } from '../../platform/files.js'
-import { scheduler } from 'node:timers/promises'
+import { sleep } from '../../sleep.js'
 import { asRecordId } from '../../../fabric/ids.js'
 import { entryToRecord, recordToEntry } from '../../../fabric/entryCodec.js'
 import type { MercuryRecord } from '../../../fabric/record.js'
@@ -79,7 +79,7 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
       for (const bytes of transcriptLineBytes(file, { end: head.end })) {
         const range = { at, len: bytes.length, torn: bytes.at(-1) !== 10 }
         at += bytes.length
-        if (at - lastYield >= 1024 * 1024) { await scheduler.yield(); lastYield = at }
+        if (at - lastYield >= 1024 * 1024) { await sleep(0); lastYield = at }
         if (batch.length >= 64 * 1024) { writeAll(index, Buffer.from(batch)); batch = '' }
         let record: MercuryRecord
         try { record = JSON.parse(bytes.toString('utf8')) as MercuryRecord } catch (error) {

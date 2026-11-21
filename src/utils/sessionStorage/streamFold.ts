@@ -1,5 +1,5 @@
 import { closeSync, fstatSync, openSync } from 'node:fs'
-import { scheduler } from 'node:timers/promises'
+import { sleep } from '../sleep.js'
 import { decodeTranscriptBuffer } from '../../fabric/transcriptDecode.js'
 import type { Entry } from '../../types/logs.js'
 import { classifyLoadLine, SKIP_PRECOMPACT_THRESHOLD } from '../sessionStoragePortable.js'
@@ -63,7 +63,7 @@ export async function streamFold(path: string, fold: TranscriptFoldState, start:
       const at = physical
       physical += bytes.length
       budget += bytes.length
-      if (budget >= 1024 * 1024) { await scheduler.yield(); budget = 0 }
+      if (budget >= 1024 * 1024) { await sleep(0); budget = 0 }
       let torn = false
       if (bytes.at(-1) !== 10) {
         if (committedOnly) { offset = at; break }
@@ -93,7 +93,7 @@ export async function streamFold(path: string, fold: TranscriptFoldState, start:
         const bytes = read(row)
         decode(bytes, row.from === offset && offset !== end)
         budget += bytes.length
-        if (budget >= 1024 * 1024) { await scheduler.yield(); budget = 0 }
+        if (budget >= 1024 * 1024) { await sleep(0); budget = 0 }
       }
     }
     if (refusal) { accounting.invalid = 0; accounting.malformed = 0 }
