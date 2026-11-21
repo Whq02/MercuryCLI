@@ -245,7 +245,7 @@ export function BootSplashScreen(): React.ReactNode {
   );
 
   const runRow = (row: BootRow | null): AsyncListNote | null => {
-    return runRowOf({ flipFirstBirth, facts, permissionModeRef, setSettingsOpen, setKitOpen, setHealthOpen, setSaturnOpen, setAgentsOpen, setLoginsOpen, setResumeOpen }, row);
+    return runRowOf({ flipFirstBirth, facts, permissionModeRef, setSettingsOpen, setLoginsOpen }, row);
   };
 
   const [selCleared, setSelCleared] = useState(false);
