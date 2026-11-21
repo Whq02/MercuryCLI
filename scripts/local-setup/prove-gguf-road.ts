@@ -67,9 +67,9 @@ const bankRunner: GgufSetupIo['bankRunner'] = {
   async run(_command, args) {
     downloads++
     const script = args.join(' ')
-    assert.ok(script.includes('--revision') && script.includes(revision))
-    assert.ok(script.includes('Any-Q6_K.gguf') && script.includes('mmproj-BF16.gguf'))
-    assert.ok(!script.includes('Any-BF16.gguf'))
+    assert.ok(script.includes('--revision') && script.includes(revision), `src/services/localSetup/ggufRoad.ts download command missing --revision ${revision}: ${script.slice(0, 140)}`)
+    assert.ok(script.includes('Any-Q6_K.gguf') && script.includes('mmproj-BF16.gguf'), `src/services/localSetup/ggufRoad.ts download command missing selected gguf/mmproj: ${script.slice(0, 140)}`)
+    assert.ok(!script.includes('Any-BF16.gguf'), `src/services/localSetup/ggufRoad.ts download command unexpectedly requested unselected Any-BF16.gguf: ${script.slice(0, 140)}`)
     mkdirSync(destination, { recursive: true })
     const partial = join(destination, '.partial')
     if (interrupt) { writeFileSync(partial, bytes.subarray(0, 32)); interrupt = false; throw new Error('fixture connection closed') }
@@ -84,7 +84,7 @@ const choose = (row: SetupStepPlan): SetupConsent => row.rows ? { pick: row.rows
 async function run(consent = choose, overrides: Partial<GgufSetupIo> = {}): Promise<SetupSummary> {
   let summary: SetupSummary | undefined
   for await (const event of runLocalSetupRoad(consent, { ...io, ...overrides })) if (event.type === 'done') summary = event.summary
-  assert.ok(summary)
+  assert.ok(summary, 'src/services/localSetup/ggufRoad.ts runLocalSetupRoad ended without emitting a done summary')
   return summary
 }
 try {
@@ -93,9 +93,9 @@ try {
   const selected = listing.models.find(model => model.recipe.weightFile === 'Any-Q6_K.gguf')!
   assert.equal(selected.recipe.mmproj, 'mmproj-BF16.gguf')
   assert.equal(selected.recipe.weightManifest!.files.length, 2)
-  assert.ok(selected.fit?.fits)
+  assert.ok(selected.fit?.fits, `src/services/localSetup/ggufModels.ts expected Any-Q6_K.gguf to fit 48GB, got ${JSON.stringify(selected.fit)}`)
   assert.equal(listing.models[0]!.fit?.fits, false)
-  assert.ok(hits.every(hit => !hit.includes('/resolve/main/')))
+  assert.ok(hits.every(hit => !hit.includes('/resolve/main/')), `src/services/localSetup/ggufModels.ts hit unpinned /resolve/main/: ${hits.join(', ')}`)
   console.log('PASS pinned repository tree, all GGUF sizes, fit and projector')
   const emptyBank = await run(row => row.label === '1' ? { pick: 'Bank' } : 'run', { repo: undefined })
   assert.equal(emptyBank.reason, 'ended')
@@ -104,8 +104,8 @@ try {
   assert.deepEqual(emptyView.notDone, [])
   const emptyRows = localSetupSummaryRows(emptyView, { '1': 'Local models' })
   assert.equal(emptyRows.filter(row => row.includes('1 Local models')).length, 1)
-  assert.ok(emptyRows.includes('done: 1 Local models'))
-  assert.ok(emptyRows.includes('not done: nothing'))
+  assert.ok(emptyRows.includes('done: 1 Local models'), `src/components/LocalSetupDialog.tsx localSetupSummaryRows missing 'done: 1 Local models': ${emptyRows.join(' | ')}`)
+  assert.ok(emptyRows.includes('not done: nothing'), `src/components/LocalSetupDialog.tsx localSetupSummaryRows missing 'not done: nothing': ${emptyRows.join(' | ')}`)
   console.log('PASS empty Bank lists Local models in exactly one summary section')
   const skippedEvents: string[] = []
   let skippedSummary: SetupSummary | undefined
@@ -130,7 +130,7 @@ try {
   console.log('PASS consent and memory fit precede download and launch')
   const broken = await run()
   assert.equal(broken.reason, 'ended')
-  assert.ok(existsSync(join(destination, '.partial')))
+  assert.ok(existsSync(join(destination, '.partial')), `src/services/localSetup/ggufRoad.ts interrupted pull did not retain ${join(destination, '.partial')}`)
   assert.equal(bankState(selected.recipe, folder).banked, false)
   assert.equal(switched, '')
   const ready = await run()
@@ -139,28 +139,31 @@ try {
   assert.equal(switched, ready.model)
   assert.equal(downloads, 2)
   assert.equal(bankState(selected.recipe, folder).check, 'manifest')
-  assert.ok(bankedHostRecipes(folder).some(recipe => recipe.weightFile === 'Any-Q6_K.gguf'))
+  const bankedRecipes = bankedHostRecipes(folder)
+  assert.ok(bankedRecipes.some(recipe => recipe.weightFile === 'Any-Q6_K.gguf'), `src/services/host/bank.ts bankedHostRecipes missing Any-Q6_K.gguf: ${bankedRecipes.map(r => r.weightFile).join(', ')}`)
   const captured = readFileSync(capture, 'utf8').trim().split('\n').map(line => JSON.parse(line))
-  assert.ok(captured[0].args.includes('--mmproj'))
-  assert.ok(captured[0].args.includes('draft-mtp'))
+  assert.ok(captured[0].args.includes('--mmproj'), `src/services/localSetup/ggufRoad.ts server args missing --mmproj: ${JSON.stringify(captured[0].args).slice(0, 140)}`)
+  assert.ok(captured[0].args.includes('draft-mtp'), `src/services/localSetup/ggufRoad.ts server args missing draft-mtp: ${JSON.stringify(captured[0].args).slice(0, 140)}`)
   assert.equal(selected.fit!.geometry.attentionLayers, 11)
   assert.equal(selected.fit!.geometry.kvHeads, 22)
-  assert.ok(captured[0].args.includes('131072'))
+  assert.ok(captured[0].args.includes('131072'), `src/services/localSetup/ggufRoad.ts server args missing context 131072: ${JSON.stringify(captured[0].args).slice(0, 140)}`)
   assert.equal(captured[1].request.model, 'Any-Q6_K')
   assert.equal(captured[1].request.messages[0].content, 'reply with the single word ready')
-  assert.ok(ggufServerRoots().includes('http://127.0.0.1:' + port))
+  const serverRoots = ggufServerRoots()
+  assert.ok(serverRoots.includes('http://127.0.0.1:' + port), `src/services/localSetup/ggufServers.ts ggufServerRoots missing http://127.0.0.1:${port}: ${serverRoots.join(', ')}`)
   const found = await discoverLocalServers({ env: { MERCURY_LOCAL_PROBE_TARGETS: 'llamacpp=http://127.0.0.1:' + port } })
   assert.equal(found.servers[0]!.models[0]!.id, 'Any-Q6_K')
   console.log('PASS interrupted pull retained, retry sealed, real fixture server served selected context and local model')
   const occupied = await run()
   assert.equal(occupied.reason, 'ended')
-  assert.ok(occupied.words.includes('in use'))
-  assert.ok(['ready', 'running'].includes(reconcileRecord(proofHome, 'local-gguf')!.state))
+  assert.ok(occupied.words.includes('in use'), `src/services/localSetup/ggufRoad.ts occupied port message missing 'in use': ${occupied.words.slice(0, 140)}`)
+  const occupiedState = reconcileRecord(proofHome, 'local-gguf')!.state
+  assert.ok(['ready', 'running'].includes(occupiedState), `src/services/projectServices/serviceManager.ts expected local-gguf ready/running while occupied, got ${occupiedState}`)
   console.log('PASS existing server untouched')
   await stopService(proofHome, 'local-gguf')
   const lowMemory = await run(choose, { availableMemory: async () => 1 })
   assert.equal(lowMemory.reason, 'ended')
-  assert.ok(lowMemory.words.includes('available'))
+  assert.ok(lowMemory.words.includes('available'), `src/services/localSetup/ggufRoad.ts low-memory message missing 'available': ${lowMemory.words.slice(0, 140)}`)
   const cancelled = await run(row => row.label === '6' ? 'stop' : choose(row))
   assert.equal(cancelled.reason, 'stopped')
   assert.equal(reconcileRecord(proofHome, 'local-gguf')!.state, 'stopped')
@@ -177,13 +180,14 @@ try {
   writeFileSync(join(destination, 'Any-Q6_K.gguf'), corrupt)
   const mismatched = await run()
   assert.equal(mismatched.reason, 'ended')
-  assert.ok(mismatched.words.includes('hash differs'))
+  assert.ok(mismatched.words.includes('hash differs'), `src/services/localSetup/ggufRoad.ts corrupt weight message missing 'hash differs': ${mismatched.words.slice(0, 140)}`)
   assert.equal(reconcileRecord(proofHome, 'local-gguf')!.state, 'stopped')
   writeFileSync(join(destination, 'Any-Q6_K.gguf'), original)
   console.log('PASS Bank selection needs no download; changed bytes never reach server')
   const failed = await run(choose, { serverArgs: [...io.serverArgs!, '--fail'] })
   assert.equal(failed.reason, 'ended')
-  assert.ok(['failed', 'stopped'].includes(reconcileRecord(proofHome, 'local-gguf')!.state))
+  const failedState = reconcileRecord(proofHome, 'local-gguf')!.state
+  assert.ok(['failed', 'stopped'].includes(failedState), `src/services/projectServices/serviceManager.ts expected local-gguf failed/stopped after --fail server, got ${failedState}`)
   gated = true
   await assert.rejects(listGgufModels(repo, { base: hubBase, machineBytes: io.totalMemoryBytes!, platform: 'darwin' }), /no access/)
   gated = false; hostilePage = true
