@@ -449,6 +449,30 @@ console.log('§8 — SESSION-AWARE NAMING: three stages, one owner; the mint onc
   seedWorkers([liveRecord('concourse-w2', S_T3, P_A, { title: 'Boot face polish' })])
   const stage3 = (await build()).groups.flatMap(g => g.rows).find(r => r.sessionId === S_T3)
   check('a stored title wins everywhere the snapshot paints (stage 3)', stage3?.title === 'Boot face polish')
+  {
+    const { QueuePart } = await import('../../src/utils/sessionStorage/writer/queue.ts')
+    const { historyHead } = await import('../../src/utils/sessionStorage/historyParts.ts')
+    const S_FOLD = sid('f1')
+    const file = workerTranscriptPath({ sessionId: S_FOLD, workspaceId: P_A })
+    mkdirSync(dirname(file), { recursive: true })
+    const queue = new QueuePart()
+    const land = async (entry: Record<string, unknown>): Promise<void> => {
+      const done = queue.enqueueWrite(file, entry as never)
+      await queue.flush()
+      await done
+    }
+    const ts = new Date().toISOString()
+    await land({ type: 'user', uuid: 'u-fold-1', parentUuid: null, sessionId: S_FOLD, cwd: P_A, timestamp: ts, isSidechain: false, message: { role: 'user', content: 'initial architecture brief for mint' } })
+    await land({ type: 'assistant', uuid: 'a-fold-1', parentUuid: 'u-fold-1', sessionId: S_FOLD, cwd: P_A, timestamp: ts, isSidechain: false, message: { role: 'assistant', content: [{ type: 'text', text: 'first opening reply for mint' }] } })
+    await land({ type: 'user', uuid: 'u-fold-2', parentUuid: 'a-fold-1', sessionId: S_FOLD, cwd: P_A, timestamp: ts, isSidechain: false, message: { role: 'user', content: 'second opening exchange for mint' } })
+    await land({ type: 'assistant', uuid: 'a-fold-2', parentUuid: 'u-fold-2', sessionId: S_FOLD, cwd: P_A, timestamp: ts, isSidechain: false, message: { role: 'assistant', content: [{ type: 'text', text: 'second opening reply for mint' }] } })
+    await land({ type: 'system', subtype: 'compact_boundary', uuid: 'cb-fold-1', parentUuid: null, sessionId: S_FOLD, timestamp: ts, content: 'Conversation compacted', compactMetadata: { trigger: 'manual', preTokens: 10000 } })
+    await land({ type: 'user', uuid: 'u-fold-3', parentUuid: 'cb-fold-1', sessionId: S_FOLD, cwd: P_A, timestamp: ts, isSidechain: false, message: { role: 'user', content: 'later follow-up after compaction' } })
+    await land({ type: 'assistant', uuid: 'a-fold-3', parentUuid: 'u-fold-3', sessionId: S_FOLD, cwd: P_A, timestamp: ts, isSidechain: false, message: { role: 'assistant', content: [{ type: 'text', text: 'later reply after compaction' }] } })
+    const sealed = historyHead(file)
+    const folded = transcriptHeadFacts({ sessionId: S_FOLD, workspaceId: P_A })
+    check('a folded session seals its opening turns and transcriptHeadFacts still reads the opening words from the first part', sealed.before > 0 && folded.assistantTurns >= 2 && folded.description.includes('initial architecture brief for mint') && !folded.description.includes('later follow-up after compaction'), JSON.stringify({ before: sealed.before, folded }))
+  }
 }
 
 await applyHarnessGround(null)

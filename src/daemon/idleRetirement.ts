@@ -1,4 +1,4 @@
-import { closeSync, existsSync, openSync, readSync, statSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { formatLimit, minutesKnobToMs } from '../utils/deadline.js'
@@ -15,6 +15,7 @@ import {
 } from './concourseWorkers.js'
 import { isProcessAlive } from '../utils/ownerWatch.js'
 import { passedOver } from '../utils/passedOver.js'
+import { historyHead, historyRange } from '../utils/sessionStorage/historyParts.js'
 
 export const DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES = 10
 
@@ -128,17 +129,12 @@ export function transcriptHasConversation(rec: { sessionId: string; workspaceId:
   const path = workerTranscriptPath(rec)
   if (!existsSync(path)) return false
   try {
-    const size = statSync(path).size
+    const extent = historyHead(path)
+    if (extent.before > 0) return true
+    const size = extent.end
     if (size === 0) return false
     if (size > CONVERSATION_PROBE_BYTES) return true
-    const buf = Buffer.alloc(size)
-    const fd = openSync(path, 'r')
-    try {
-      readSync(fd, buf, 0, size, 0)
-    } finally {
-      closeSync(fd)
-    }
-    return transcriptTextHasConversation(buf.toString('utf8'))
+    return transcriptTextHasConversation(historyRange(extent, 0, size).toString('utf8'))
   } catch (error) {
     passedOver(error)
     return true

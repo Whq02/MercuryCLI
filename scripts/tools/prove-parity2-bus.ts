@@ -247,6 +247,27 @@ await gracefulShutdown(0)
     'a >probe-window transcript is never provably empty (torn tail is not a content verdict)',
     transcriptHasConversation({ sessionId: 'sess-huge-first', workspaceId: hugeWs }),
   )
+  {
+    const { QueuePart } = await import('../../src/utils/sessionStorage/writer/queue.ts')
+    const { historyHead } = await import('../../src/utils/sessionStorage/historyParts.ts')
+    const foldedSid = '99999999-2222-4333-8444-555555555555'
+    const foldedPath = workerTranscriptPath({ sessionId: foldedSid, workspaceId: hugeWs })
+    const queue = new QueuePart()
+    const land = async (entry: Record<string, unknown>): Promise<void> => {
+      const done = queue.enqueueWrite(foldedPath, entry as never)
+      await queue.flush()
+      await done
+    }
+    const ts = new Date().toISOString()
+    await land({ type: 'user', uuid: 'ir-u1', parentUuid: null, sessionId: foldedSid, cwd: hugeWs, timestamp: ts, isSidechain: false, message: { role: 'user', content: 'real work before seal' } })
+    await land({ type: 'assistant', uuid: 'ir-a1', parentUuid: 'ir-u1', sessionId: foldedSid, cwd: hugeWs, timestamp: ts, isSidechain: false, message: { role: 'assistant', content: [{ type: 'text', text: 'real reply before seal' }] } })
+    await land({ type: 'system', subtype: 'compact_boundary', uuid: 'ir-cb1', parentUuid: null, sessionId: foldedSid, timestamp: ts, content: 'Conversation compacted', compactMetadata: { trigger: 'manual', preTokens: 10000 } })
+    const sealed = historyHead(foldedPath)
+    t(
+      'a sealed session between boundary seal and summary write still has conversation',
+      sealed.before > 0 && transcriptHasConversation({ sessionId: foldedSid, workspaceId: hugeWs }),
+    )
+  }
 
   const ws = join(SCRATCH, 'ws')
   mkdirSync(ws, { recursive: true })
