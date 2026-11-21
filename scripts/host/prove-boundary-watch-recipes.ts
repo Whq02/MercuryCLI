@@ -36,7 +36,7 @@ if (process.argv.includes('--child')) {
   let failures = 0
   const check = (name: string, truth: unknown) => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name) }
   const child = async (kind: string, id: string, fixture: { key: string; baseUrl: string }) => {
-    const worker = spawn(process.execPath, [fileURLToPath(import.meta.url), '--child'], { cwd: home, env: { PATH: process.env.PATH, HOME: home, TMPDIR: home, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true' }, stdio: ['pipe', 'pipe', 'pipe'] })
+    const worker = spawn(process.execPath, [fileURLToPath(import.meta.url), '--child'], { cwd: home, env: { PATH: process.env.PATH, HOME: home, TMPDIR: home, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true', ...(process.env.BUN_OPTIONS ? { BUN_OPTIONS: process.env.BUN_OPTIONS } : {}) }, stdio: ['pipe', 'pipe', 'pipe'] })
     worker.stdin.end(JSON.stringify({ kind, id, key: fixture.key, url: fixture.baseUrl }))
     let out = ''; let err = ''
     worker.stdout.on('data', c => { out += c }); worker.stderr.on('data', c => { err += c })
