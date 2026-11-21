@@ -3,9 +3,28 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
-import { accessSync, chmodSync, constants, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { accessSync, chmodSync, constants, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, parse } from 'node:path'
+
+const spelledHome = (path: string): boolean => path.startsWith('/Users/') || path.startsWith('/home/') || /^[a-zA-Z]:[\\/]+Users(?:[\\/]|$)/i.test(path)
+const isWindowsSystem = (path: string): boolean => /^[a-zA-Z]:[\\/]+(?:Windows|Program Files(?: \(x86\))?|ProgramData)(?:[\\/]|$)/i.test(path)
+
+function mkdtempOutsideProfiles(prefix: string): string {
+  if (process.platform !== 'win32') return mkdtempSync(join(tmpdir(), prefix))
+  const driveRoot = parse(tmpdir()).root
+  const repoParent = dirname(join(import.meta.dir, '..', '..'))
+  const candidates = [tmpdir(), process.env.MERCURY_TMPDIR ?? '', join(driveRoot, 'Temp'), repoParent, driveRoot].filter(dir => dir !== '' && !spelledHome(dir) && !isWindowsSystem(dir))
+  for (const dir of candidates) {
+    try {
+      if (!existsSync(dir)) continue
+      return mkdtempSync(join(dir, prefix))
+    } catch {
+      continue
+    }
+  }
+  return mkdtempSync(join(tmpdir(), prefix))
+}
 
 let failures = 0
 let checks = 0
@@ -24,19 +43,27 @@ function note(text: string): void {
 
 const ROOT = join(import.meta.dir, '..', '..')
 const SRC = join(ROOT, 'src')
-const RUN_ROOT = process.env.FLOORS_SPELLINGS_ROOT ?? realpathSync(mkdtempSync(join(tmpdir(), 'floors-spellings-')))
+const RUN_ROOT = process.env.FLOORS_SPELLINGS_ROOT ?? realpathSync(mkdtempOutsideProfiles('floors-spellings-'))
 const FAKE_USER = 'operator'
 const CONFIG_HOME = join(RUN_ROOT, 'config')
 const OWN_HOME = join(RUN_ROOT, 'work', 'fake-home', 'Users', FAKE_USER)
 const PROJECT = join(RUN_ROOT, 'work', 'floors-project')
 if (process.env.FLOORS_SPELLINGS_ROOT === undefined) {
-  mkdirSync(join(CONFIG_HOME, 'tmp'), { recursive: true })
-  mkdirSync(OWN_HOME, { recursive: true })
-  const child = Bun.spawnSync([process.execPath, ...process.argv.slice(1)], {
-    env: { ...process.env, HOME: OWN_HOME, USERPROFILE: OWN_HOME, USER: FAKE_USER, LOGNAME: FAKE_USER, FLOORS_SPELLINGS_ROOT: RUN_ROOT, MERCURY_CONFIG_DIR: CONFIG_HOME, MERCURY_TMPDIR: join(CONFIG_HOME, 'tmp') },
-    stdio: ['inherit', 'inherit', 'inherit'],
-  })
-  process.exit(child.exitCode ?? 99)
+  let code = 99
+  try {
+    mkdirSync(join(CONFIG_HOME, 'tmp'), { recursive: true })
+    mkdirSync(OWN_HOME, { recursive: true })
+    const child = Bun.spawnSync([process.execPath, ...process.argv.slice(1)], {
+      env: { ...process.env, HOME: OWN_HOME, USERPROFILE: OWN_HOME, USER: FAKE_USER, LOGNAME: FAKE_USER, FLOORS_SPELLINGS_ROOT: RUN_ROOT, MERCURY_CONFIG_DIR: CONFIG_HOME, MERCURY_TMPDIR: join(CONFIG_HOME, 'tmp') },
+      stdio: ['inherit', 'inherit', 'inherit'],
+    })
+    code = child.exitCode ?? 99
+  } finally {
+    try {
+      rmSync(RUN_ROOT, { recursive: true, force: true })
+    } catch {}
+  }
+  process.exit(code)
 }
 if (homedir() !== OWN_HOME) {
   process.stderr.write(`prove-floors-spellings: the scratch home did not take (os.homedir() is ${homedir()}, wanted ${OWN_HOME})\n`)
