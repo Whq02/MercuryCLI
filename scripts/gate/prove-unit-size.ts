@@ -23,7 +23,6 @@ type Data = ReadonlyMap<string, Listed>
 const LISTED: ReadonlyArray<readonly [file: string, name: string, kind: Listed['kind'], what: string]> = [
   ['src/extensions/bundled/content.generated.ts', 'bundledMetadata', 'grows', 'the bundled extensions as scripts/extensions/gen-bundled.ts writes them'],
   ['src/utils/vulcan/optable.generated.ts', 'VULCAN_OPS', 'grows', "the Godot bridge's operations as scripts/vulcan/regen-optable.mjs writes them"],
-  ['src/runner/wire/methods.ts', 'METHODS', 'table', "the wire's methods, one entry a method"],
   ['src/services/tips/tipRegistry.ts', 'GENERAL_TIPS', 'table', 'the tips, one entry a tip'],
   ['src/substrate/stateLifecycle.ts', 'LIFECYCLE_MANIFEST', 'table', 'the classes of state on disk, one entry a class'],
   ['src/utils/capability/declarations.ts', 'TOOL_CAPABILITY_DECLARATIONS', 'table', 'what each tool declares it can do, one entry a tool'],
