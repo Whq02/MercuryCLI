@@ -1,6 +1,6 @@
 
-import { useCallback, useContext, useMemo, useRef, useState } from 'react'
-import { useClaim, useLoad, useSubscription } from './effects.js'
+import { useCallback, useContext, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useClaim, useLoad } from './effects.js'
 import type { Command } from '../commands.js'
 import type {
   SuggestionItem as Suggestion,
@@ -22,7 +22,7 @@ import type {
 import {
   findChannelTargetQuery,
 } from '../utils/suggestions/commandSuggestions.js'
-import { subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
+import { getFocusedSessionConnector, subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
 import {
   onIndexBuildComplete,
   startBackgroundCacheRefresh,
@@ -34,6 +34,8 @@ import type { SuggestionsState } from './typeahead/state.js'
 import { acceptAgent, acceptChannelTarget, acceptCommand, acceptGhost, acceptCustomTitle, acceptDirectory, acceptFile, acceptShell, acceptSlackChannel, acceptWithoutList, type AcceptContext } from './typeahead/accept.js'
 import { acceptPromptSuggestionOf, handleTypeaheadKey, routeTypeaheadInput, typeaheadKeybindings } from './typeahead/keys.js'
 import { promptGhostOf, publishSuggestionsOf, rerunLadderOf, runUnifiedFetchOf } from './typeahead/fetch.js'
+const NOOP_SUBSCRIBE = (): (() => void) => () => {}
+const subscribeFocusedWork = subscribeThroughFocused((connector, listener) => connector.subscribeWork(listener))
 
 
 export { armTypeaheadTimer, disarmTypeaheadTimer, typeaheadTimerCensus } from './typeahead/timers.js'
@@ -104,7 +106,16 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
   const [asyncGhostText, setAsyncGhostText] = useState<InlineGhostText | null>(
     null,
   )
-  const [rosterStamp, setRosterStamp] = useState(0)
+  const channelTargetActive = findChannelTargetQuery(input, cursorOffset) !== null
+  const readFocusedSwarmBoard = useCallback(
+    () => (channelTargetActive ? (getFocusedSessionConnector().swarmBoard?.() ?? null) : null),
+    [channelTargetActive],
+  )
+  const focusedSwarmBoard = useSyncExternalStore(
+    channelTargetActive ? subscribeFocusedWork : NOOP_SUBSCRIBE,
+    readFocusedSwarmBoard,
+    readFocusedSwarmBoard,
+  )
 
   const cursorOffsetRef = useRef(cursorOffset)
   cursorOffsetRef.current = cursorOffset
@@ -181,7 +192,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
     [cancelFileFetch, publish, resetOnEmptyFetch],
   )
 
-  useSubscription(() => {
+  useClaim(() => {
     startBackgroundCacheRefresh()
     return onIndexBuildComplete(() => {
       const token = lastSearchTokenRef.current
@@ -190,14 +201,6 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
       runUnifiedFetch(token)
     })
   }, [])
-
-  useSubscription(
-    () =>
-      subscribeThroughFocused((connector, listener) => connector.subscribeWork(listener))(() => {
-        if (findChannelTargetQuery(inputRef.current, cursorOffsetRef.current)) setRosterStamp(stamp => stamp + 1)
-      }),
-    [],
-  )
 
   useLoad(() => {
     const cursor = cursorOffsetRef.current
@@ -220,7 +223,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
     if (ladderCommands(ladder)) return
     ladderClearStale(ladder)
     ladderPaths(ladder)
-  }, [input, mode, suppressSuggestions, commands, rosterStamp])
+  }, [input, mode, suppressSuggestions, commands, focusedSwarmBoard])
 
   const promptGhost = useMemo((): InlineGhostText | undefined => {
     return promptGhostOf({ mode, input, cursorOffset, commands })
