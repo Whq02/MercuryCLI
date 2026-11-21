@@ -1,6 +1,6 @@
 
 import { isMcpServerDisabled } from '../mcp/config.js'
-import { describeMcpPolicy, getMaxExposedRisk, isMcpPolicyActive } from '../mcp/toolPolicy.js'
+import { describeMcpPolicy, getMaxExposedRisk, isMcpPolicyActive } from '../../utils/mcp/toolPolicy.js'
 import { getProjectMcpConfigsFromCwd, mcpServersSkippedForTrustLine, PROJECT_MCP_FILE_SPELLING } from '../mcp/config.js'
 import { untrustedWorkspaceHeadless } from '../../utils/config.js'
 import type { MCPServerConnection } from '../../utils/mcp/types.js'
