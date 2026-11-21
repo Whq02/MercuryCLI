@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { join, shellTargets } from '../lib/runnerLaunches.ts'
 import { census } from '../gate/prove-suite-class-census.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -8,6 +8,12 @@ const SCRIPTS = join(ROOT, 'scripts')
 
 const EXCLUDED: Record<string, string> = {
   'scripts/gate/prove-dist-cache.sh': 'shell prover invoked explicitly by the gate suite runner (not a bun prove-*.ts)',
+}
+const RUNNER_MEMBERS: Record<string, string> = {
+  'scripts/gate/prove-source-text-reads.ts': 'source-read fence runs after even a single-member or second-look gate',
+  'scripts/gate/prove-source-patterns.ts': 'source-pattern fence runs after even a single-member or second-look gate',
+  'scripts/gate/prove-unit-size.ts': 'unit-size fence runs after even a single-member or second-look gate',
+  'scripts/updater/prove-release-bridge.ts': 'release bridge runs only when the network lane is selected',
 }
 
 let failures = 0
@@ -23,11 +29,7 @@ console.log('============================================================')
 const orphans: string[] = []
 const staleExclusions: string[] = []
 let total = 0
-const everyRunnerText = readdirSync(SCRIPTS)
-  .map(dir => join(SCRIPTS, dir, 'run-all.sh'))
-  .filter(p => existsSync(p))
-  .map(p => readFileSync(p, 'utf8'))
-  .join('\n')
+const runnerMembers = new Set<string>()
 const memberEnrolled = new Set<string>()
 const rowFile = (parent: string, raw: string): string | null => {
   const name = raw.trim().split(/\s+/)[0]!
@@ -68,16 +70,20 @@ for (const dir of readdirSync(SCRIPTS)) {
     }
     continue
   }
-  const text = readFileSync(runAll, 'utf8')
-  const globDriven = text.includes('prove-*.ts')
+  let direct: Set<string> | undefined
   for (const p of provers) {
     total++
     const rel = `scripts/${dir}/${p}`
     if (EXCLUDED[rel]) continue
     if (memberEnrolled.has(rel)) continue
-    if (globDriven || text.includes(p) || text.includes(basename(p, '.ts'))) continue
-    if (everyRunnerText.includes(`scripts/${dir}/${p}`)) continue
-    orphans.push(rel)
+    if (Object.hasOwn(RUNNER_MEMBERS, rel)) {
+      direct ??= shellTargets(ROOT, runAll)
+      if (direct.has(join(suiteDir, p))) {
+        runnerMembers.add(rel)
+        continue
+      }
+    }
+    orphans.push(`${rel} — add ${p} to the owning suite's members.txt`)
   }
 }
 for (const rel of Object.keys(EXCLUDED)) {
@@ -87,6 +93,14 @@ for (const rel of Object.keys(EXCLUDED)) {
 console.log(`  swept ${total} provers across the suite dirs`)
 check('zero orphan provers (run in a suite or registered excluded)', orphans.length === 0, orphans.slice(0, 8).join(', '))
 check('exclusion registry rows all point at existing files', staleExclusions.length === 0, staleExclusions.join(', '))
+const staleRunnerMembers = Object.keys(RUNNER_MEMBERS).filter(rel => !runnerMembers.has(rel))
+check(
+  `at most four named proofs join by a runner's own line (${runnerMembers.size} found)`,
+  runnerMembers.size <= 4 && staleRunnerMembers.length === 0,
+  staleRunnerMembers.length > 0
+    ? `${staleRunnerMembers.map(rel => `${rel} (${RUNNER_MEMBERS[rel]})`).join(' · ')} — restore its runner invocation or remove the exception once the proof is enrolled or gone`
+    : `move the extra proof to its owning suite's members.txt`,
+)
 
 const RELEASE_COUNTED: Record<string, string> = {
   'scripts/ui/prove-declared-keys-unshadowed.ts': 'the closed roster of key hosts over src/components, src/screens and src/commands: a fold that lands an unrostered host turns it red',
