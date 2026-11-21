@@ -127,7 +127,6 @@ const UNREAD: Array<[string, number]> = [
 ]
 
 const GRAMMAR_READERS: Array<[string, number]> = [
-  ['src/utils/permissions/flowLaw.ts', 27],
 ]
 
 let failures = 0
