@@ -109,6 +109,7 @@ export function shellCCommands(commands: SimpleCommand[], depth = 0): SimpleComm
 export { stateStatements } from './commandAnalysis/stateStatements.js'
 export { retainPreparedCommand } from './commandAnalysis/sequence.js'
 export { absolutePath, layersOf, moveOf, programOf, wordKnown } from './commandAnalysis/layers.js'
+export { oldFolderReturn, type OldFolderReturn } from './commandAnalysis/oldFolder.js'
 export { printedBy, scriptSentToProgram, stdinProgram } from './commandAnalysis/scripts.js'
 export { failShellReadingForTesting, readShellCommands, readShellCommandsFromText } from './commandAnalysis/total.js'
 export { wordsAsWritten } from './commandAnalysis/written.js'
