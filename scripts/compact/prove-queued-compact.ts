@@ -41,7 +41,7 @@ async function drive(fails: boolean, commands: string[]): Promise<void> {
       await runner.prompt('read both fixture notes', { id: stepId })
       const first = await runner.waitForAsk('the first read holds the turn open')
       for (const [i, text] of commands.entries()) await runner.prompt(text, { id: ids[i] })
-      await runner.prompt('/cost', { id: other })
+      await runner.prompt('/context', { id: other })
       const sends = new SendsPart({ sessionId: () => session, rows: () => [], paint: () => {}, compacting: () => false, wakeLive: () => {}, arrivalSeqFor: () => 0, noticeSeqAt: () => 0, retireTextRowsWithRunner: () => {}, noteSendDemoted: () => {}, noteSendTaken: () => {}, lostWithRunnerLine: lines => lines.join('\n') })
       const before = await liveFactsOf(runner)
       for (const [i, id] of ids.entries()) sends.enlist({ clientMessageId: id, text: commands[i]!, sentAtMs: Date.now(), state: 'delivered', mode: 'prompt' })
