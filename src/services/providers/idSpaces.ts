@@ -1,34 +1,11 @@
+import type { CallModelRoute } from '../../types/providerRoute.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { MODEL_ALIASES } from '../../utils/model/aliases.js'
 import { MISTRAL_HOSTED_DEEPSEEK_IDS } from '../../utils/model/pins/mistralPins.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 
-export type CallModelRoute =
-  | 'anthropic'
-  | 'zai'
-  | 'openai'
-  | 'moonshot'
-  | 'deepseek'
-  | 'xai'
-  | 'meta'
-  | 'openai-compat'
-  | 'openrouter'
-  | 'gemini'
-  | 'huggingface'
-  | 'local'
-  | 'mistral'
-  | 'nous'
-  | 'zen'
-  | 'minimax'
-  | 'together'
-  | 'cohere'
-  | 'groq'
-  | 'melious'
-  | 'orcarouter'
-  | 'cerebras'
-  | 'fireworks'
-  | 'qwen'
+export type { CallModelRoute }
 
 export interface ProviderIdSpace {
   route: Exclude<CallModelRoute, 'anthropic'>

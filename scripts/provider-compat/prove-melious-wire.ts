@@ -8,7 +8,7 @@ import fixture from '../providers/fixtures/melious-documented-2026-10-24.json'
 import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
 for (const name of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'ANTHROPIC_BASE_URL']) delete process.env[name]
 process.env.MELIOUS_API_KEY = 'proof-key-melious-wire-not-a-real-key'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'

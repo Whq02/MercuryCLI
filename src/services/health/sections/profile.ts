@@ -1,4 +1,4 @@
-import { getMercuryAppearanceSnapshot } from '../../../utils/profile/appearanceSnapshot.js'
+import { getMercuryAppearanceSnapshot } from '../../../components/mercury-ui/appearanceSnapshot.js'
 import { isDarkThemeFamily, listUnresolvedTokenRoles, resolveMercuryTokens } from '../../../utils/mercuryTokens.js'
 import { oasisBgEnabled } from '../../../utils/cockpit/oasisBg.js'
 import { getBuiltInAgents } from '../../../tools/AgentTool/builtInAgents.js'

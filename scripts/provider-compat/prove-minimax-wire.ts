@@ -8,7 +8,7 @@ import type { CompatCallModelParams } from '../../src/services/providers/openaic
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
 import { MINIMAX_FIXTURE_MODELS, MINIMAX_FIXTURE_PLAN } from '../providers/lib/openweights-fixture.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_BUSY_RETRY_SCALE = '0.2'

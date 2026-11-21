@@ -8,7 +8,7 @@ process.env.MERCURY_CONFIG_DIR = scratchHome
 delete process.env.MERCURY_HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.on('exit', () => rmSync(scratchHome, { recursive: true, force: true }))
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
 for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[name]
 const { LLM_HOST_SEARCH_MIN_CHARS, LLM_HOST_SEARCH_SETTLE_MS } = await import('../../src/commands/llmhost/words.ts')
 const { BANK_DOOR } = await import('../../src/services/host/bank.ts')

@@ -14,7 +14,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/services/providers/credentialEnvSpellings.ts`)
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/constants/credentialEnvSpellings.ts`)
 for (const key of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[key]
 const captures: any[] = []
 const sse = (data: unknown): string => `data: ${JSON.stringify(data)}\n\n`

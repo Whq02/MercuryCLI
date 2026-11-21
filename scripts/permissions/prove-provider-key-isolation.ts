@@ -14,7 +14,7 @@ console.log('============================================================')
 console.log(' provider-key isolation — derived, unconditional for LSP')
 console.log('============================================================')
 
-const spellings = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const spellings = await import('../../src/constants/credentialEnvSpellings.ts')
 const idSpaces = await import('../../src/services/providers/idSpaces.ts')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 

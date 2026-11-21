@@ -9,7 +9,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'mcp-hard-home-'))
 import { z } from 'zod/v4'
 import { Client } from '@modelcontextprotocol/client'
 import { McpServer } from '@modelcontextprotocol/server'
-import { urlElicitationVerdict } from '../../src/services/mcp/toolPolicy.js'
+import { urlElicitationVerdict } from '../../src/utils/mcp/toolPolicy.js'
 import { registerElicitationHandler, type ElicitationRequestEvent } from '../../src/services/mcp/elicitationHandler.js'
 import { createLinkedTransportPair } from '../../src/services/mcp/InProcessTransport.js'
 import { createMercuryServer } from '../../src/services/mcp/mercuryServer.js'

@@ -28,7 +28,7 @@ import { getWorkload } from './utils/workloadContext.js'
 import type { NonNullableUsage } from './services/api/logging.js'
 import type { ApiUsage } from './types/wire.js'
 import { usageCount } from './utils/api/emptyUsage.js'
-import { formatCost, formatSessionCost, formatLaneSpend } from './utils/spendSpelling.js'
+import { formatCost, formatSessionCost, formatLaneSpend } from './services/providers/spendSpelling.js'
 export { formatCost, formatSessionCost, formatLaneSpend }
 import { getCurrentProjectConfig, saveCurrentProjectConfig } from './utils/config.js'
 import { logForDebugging } from './utils/debug.js'

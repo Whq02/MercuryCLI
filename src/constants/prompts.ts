@@ -42,7 +42,7 @@ import { RECORD_CONVENTION_TOOL_NAME } from '../tools/RecordConventionTool/promp
 import { RETAIN_TOOL_NAME } from './tools/memory.js'
 import { getRuntimePostureSection, isUnattendedRun } from '../utils/cockpit/runtimePosture.js'
 import { listCapabilityKills } from '../utils/permissions/capabilityGate.js'
-import { isMcpPolicyActive } from '../services/mcp/toolPolicy.js'
+import { isMcpPolicyActive } from '../utils/mcp/toolPolicy.js'
 import { isAutoCompactEnabled } from '../services/compact/autoCompact.js'
 import {
   LOCAL_CREWMATE_NOTES,

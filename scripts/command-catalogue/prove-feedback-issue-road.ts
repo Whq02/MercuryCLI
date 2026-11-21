@@ -194,7 +194,7 @@ section('B6 privacy: the `~` spelling, the bounded health, the gates')
   check('the home directory reads `~` (a path and the bare home)', spelled === 'at ~/.mercury/feedback/bug-1.json and ~', spelled)
   check('a longer name sharing the prefix is untouched', feedback.redactSensitiveInfo(`${home}xyz/file`) === `${home}xyz/file`)
   check('the secret classes still redact', feedback.redactSensitiveInfo('key sk-ant-abcdefghijklmnop end').includes('[REDACTED_API_KEY]'))
-  const spellings = await import('../../src/services/providers/credentialEnvSpellings.ts')
+  const spellings = await import('../../src/constants/credentialEnvSpellings.ts')
   check('the value-shape table covers every family the env-spelling table covers (one key set)', JSON.stringify(Object.keys(spellings.PROVIDER_CREDENTIAL_VALUE_SHAPES).sort()) === JSON.stringify(Object.keys(spellings.PROVIDER_CREDENTIAL_ENV_VARS).sort()))
   const bare: Array<[string, string, string]> = [
     ['openai', 'sk-proj-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789', '[REDACTED_OPENAI_KEY]'],

@@ -1,6 +1,6 @@
 
 import { listCapabilityKills } from '../permissions/capabilityGate.js'
-import { isMcpPolicyActive, describeMcpPolicy } from '../../services/mcp/toolPolicy.js'
+import { isMcpPolicyActive, describeMcpPolicy } from '../mcp/toolPolicy.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { canAnswerAsks, getSessionKind } from '../../bootstrap/state.js'
 import type { ToolPermissionContext } from '../../Tool.js'

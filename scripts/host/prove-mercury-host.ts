@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.js')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.js')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_HOME', 'MERCURY_MODEL', 'MERCURY_COMPAT_BASE_URL', 'MERCURY_COMPAT_MODELS', 'MERCURY_COMPAT_LABEL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
 for (const key of Object.keys(process.env)) if (/^MERCURY_COMPAT_.*_API_KEY$/.test(key)) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'

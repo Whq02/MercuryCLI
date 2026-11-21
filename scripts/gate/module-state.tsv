@@ -185,8 +185,8 @@ src/commands/localsetup/localsetup.tsx	LABEL_ORDER	process	module	Load-time list
 src/commands/localsetup/localsetup.tsx	SETUP_SETTLED_WORDS	process	module	Load-time table with no local writer
 src/commands/lsp/index.ts	lsp	process	module	Load-time table with no local writer
 src/commands/mcp/McpPopup.tsx	MCP_TOOL_LOADING_WORDS	process	module	Load-time table with no local writer
-src/commands/mcp/McpPopup.tsx	subscribe	process	module	Load-time definition shared by all callers
 src/commands/mcp/index.ts	mcp	process	module	Load-time table with no local writer
+src/commands/mcp/route.ts	EMPTY_MCP_CLIENTS	process	module	load-time data; no local writer
 src/commands/memory/index.ts	memory	process	module	Load-time table with no local writer
 src/commands/mission/index.ts	mission	process	module	Load-time table with no local writer
 src/commands/mission/index.ts	missionNonInteractive	process	module	Load-time table with no local writer
@@ -386,6 +386,7 @@ src/components/agents/studio/studioData.ts	STATUS_FILTERS	process	module	Load-ti
 src/components/agents/studio/studioEditorModel.ts	FIELD_ROWS	process	module	Load-time list with no local writer
 src/components/bootAgents/actions.ts	clearFormRowOf	reset-export
 src/components/bootSaturn/actions.ts	clearFormRowOf	reset-export
+src/components/bootSettings/menuModel.ts	settingsEditors	process	module	load-time data; no local writer
 src/components/bootSplash/settingsLayerDeepLink.ts	settingsLayerDeepLink	process	module	single-TUI one-shot deep-link flag into boot settings layer (consumed on read)
 src/components/concourse/ConcourseScreen.tsx	presentationCapsule	process	module	single-TUI saved switchboard view state across ConcourseScreen remounts
 src/components/concourse/LiveNowCell.tsx	LiveNowCell	process	module	Load-time definition shared by all callers
@@ -589,6 +590,11 @@ src/constants/apiLimits.ts	STRICTEST_IMAGE_MAX_BASE64_BYTES	process	module	Load-
 src/constants/changelog.ts	HISTORICAL_RELEASES	process	module	Load-time table with no local writer
 src/constants/changelog.ts	changelogMemo	process	module	lazy one-time decompression/build of static bundled changelog markdown
 src/constants/changelogArchive.ts	DOC_RELEASE_DELTAS	process	module	Load-time table with no local writer
+src/constants/credentialEnvSpellings.ts	ALL_PROVIDER_CREDENTIAL_ENV_VARS	process	module	load-time data; no local writer
+src/constants/credentialEnvSpellings.ts	CREDENTIAL_VALUE_PASSES	process	module	load-time data; no local writer
+src/constants/credentialEnvSpellings.ts	PROVIDER_CREDENTIAL_ENV_VARS	process	module	load-time data; no local writer
+src/constants/credentialEnvSpellings.ts	PROVIDER_CREDENTIAL_VALUE_SHAPES	process	module	load-time data; no local writer
+src/constants/credentialEnvSpellings.ts	REPOSITORY_HOST_TOKEN_SHAPE	process	module	load-time data; no local writer
 src/constants/figures.ts	BRIDGE_SPINNER_FRAMES	process	module	Load-time list with no local writer
 src/constants/files.ts	BINARY_EXTENSIONS	process	module	Load-time lookup with no local writer
 src/constants/legalNotice.ts	CURRENT_NOTICE_SLOTS	process	module	Load-time table with no local writer
@@ -689,6 +695,7 @@ src/daemon/clientPresence.ts	resetClientPresenceForProofs	reset-export
 src/daemon/clientPresence.ts	rows	process	module	daemon-wide live client presence table keyed by client pid, pruned on stale/dead read
 src/daemon/clientPresence.ts	tableSince	process	module	daemon-wide presence table startup epoch timestamp
 src/daemon/concourseDispatch.ts	CONTROL_OP_OUTCOMES	process	module	Load-time lookup with no local writer
+src/daemon/concourseDispatch.ts	UNCONFIRMED	process	module	load-time data; no local writer
 src/daemon/concourseDispatch.ts	deferredPublish	process	module	daemon-wide in-flight deferred disk publish queue keyed by ledger path, deleted on flush
 src/daemon/concourseDispatch.ts	ledgerMemo	process	module	file stat-stamped memo of concourse-dispatches.json keyed by full file path
 src/daemon/concourseDispatch.ts	namedControlOpLedgers	process	module	daemon-wide warn-once set keyed by corrupt control-ops ledger file path
@@ -2358,6 +2365,7 @@ src/services/mcp/automationAccess.ts	secret	process	module	Load-time definition 
 src/services/mcp/automationGateway.ts	grantSchema	process	module	Load-time definition shared by all callers
 src/services/mcp/automationServer.ts	automationSchemas	process	module	Load-time table with no local writer
 src/services/mcp/automationServer.ts	id	process	module	Load-time definition shared by all callers
+src/services/mcp/client.ts	MCP_RESOURCE_TOOL_NAMES	process	module	load-time lookup; no local writer
 src/services/mcp/client.ts	clearMcpAuthCache	reset-export
 src/services/mcp/client.ts	clearServerCache	reset-export
 src/services/mcp/client.ts	connectToServer	process	module	memoized shared MCP server connection pool keyed by getServerCacheKey
@@ -2396,7 +2404,6 @@ src/services/mcp/sessionKitPin.ts	refusalNoted	owner	module	session level (modul
 src/services/mcp/stdioCommandSafety.ts	EVALUATORS	process	module	Load-time lookup with no local writer
 src/services/mcp/stdioCommandSafety.ts	FETCHERS	process	module	Load-time lookup with no local writer
 src/services/mcp/stdioCommandSafety.ts	SHELLS	process	module	Load-time lookup with no local writer
-src/services/mcp/toolPolicy.ts	RISK_RANK	process	module	Load-time table with no local writer
 src/services/mcp/toolsAnswer.ts	LOADINGS	process	module	Load-time list with no local writer
 src/services/mcp/toolsAnswer.ts	STATES	process	module	Load-time list with no local writer
 src/services/mcp/utils.ts	CODE_PATH_VARIABLES	process	module	Load-time lookup with no local writer
@@ -2557,11 +2564,6 @@ src/services/providers/cohere/cohereCatalogue.ts	EMPTY_IDS	process	module	Load-t
 src/services/providers/cohere/cohereCatalogue.ts	cache	process	module	process-wide TTL cache of provider live model catalogue keyed by credential/endpoint identity
 src/services/providers/cohere/cohereCatalogue.ts	inFlight	process	module	in-flight provider catalogue fetch deduplication keyed by credential/endpoint identity
 src/services/providers/cohere/cohereCatalogue.ts	liveIdSets	process	module	WeakMap<CatalogueSnapshot, ReadonlySet<string>> memoizing live model ID lookup per snapshot
-src/services/providers/credentialEnvSpellings.ts	ALL_PROVIDER_CREDENTIAL_ENV_VARS	process	module	Load-time list with no local writer
-src/services/providers/credentialEnvSpellings.ts	CREDENTIAL_VALUE_PASSES	process	module	Load-time list with no local writer
-src/services/providers/credentialEnvSpellings.ts	PROVIDER_CREDENTIAL_ENV_VARS	process	module	Load-time table with no local writer
-src/services/providers/credentialEnvSpellings.ts	PROVIDER_CREDENTIAL_VALUE_SHAPES	process	module	Load-time table with no local writer
-src/services/providers/credentialEnvSpellings.ts	REPOSITORY_HOST_TOKEN_SHAPE	process	module	Load-time table with no local writer
 src/services/providers/credentialWall.ts	LOGINS_FAMILY_WORDS	process	module	Load-time lookup with no local writer
 src/services/providers/credentialWall.ts	WALL_STATUSES	process	module	Load-time lookup with no local writer
 src/services/providers/deepseek/deepseekAdapter.ts	DEEPSEEK_STATIC_CATALOGUE	process	module	Derived collection initialized at load
@@ -4644,6 +4646,7 @@ src/utils/markdown.ts	ROMAN	process	module	Load-time list with no local writer
 src/utils/markdown.ts	markedConfigured	process	module	one-time marked.use global tokenizer configuration latch
 src/utils/markdownConfigLoader.ts	clearMarkdownFileCache	reset-export
 src/utils/markdownConfigLoader.ts	loadMarkdownFilesForSubdir	owner	module	Session state retained in this module
+src/utils/mcp/toolPolicy.ts	RISK_RANK	process	module	load-time data; no local writer
 src/utils/mcp/types.ts	ConfigScopeSchema	process	module	once() pure lazy Zod schema singleton
 src/utils/mcp/types.ts	McpAnthropicProxyServerConfigSchema	process	module	once() pure lazy Zod schema singleton
 src/utils/mcp/types.ts	McpHTTPServerConfigSchema	process	module	once() pure lazy Zod schema singleton

@@ -19,7 +19,7 @@ process.chdir(project)
 delete process.env.MERCURY_HOME
 Object.assign(process.env, { HOME: home, USERPROFILE: home, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', BROWSER: '/usr/bin/true' })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
 for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[name]
 for (const name of Object.keys(process.env)) if (name.startsWith('MERCURY_COMPAT_')) delete process.env[name]
 

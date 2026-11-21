@@ -3,7 +3,7 @@ import type { Client, ElicitResult } from '../../utils/mcp/sdk.js'
 import type { AppState } from '../../state/AppState.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logMCPDebug, logMCPError } from '../../utils/log.js'
-import { urlElicitationVerdict } from './toolPolicy.js'
+import { urlElicitationVerdict } from '../../utils/mcp/toolPolicy.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 
