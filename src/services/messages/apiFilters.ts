@@ -1,4 +1,4 @@
-import type { ContentBlock, RedactedThinkingBlock, ThinkingBlock, ContentBlockParam, RedactedThinkingBlockParam, TextBlockParam, ThinkingBlockParam, ToolResultBlockParam } from '../../types/wire.js'
+import type { ContentBlockParam, TextBlockParam, ToolResultBlockParam } from '../../types/wire.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
 import { NO_CONTENT_MESSAGE } from '../../constants/messages.js'
 import { DEAD_THINKING_PLACEHOLDER } from '../../utils/model/deadThinkingPlaceholder.js'
