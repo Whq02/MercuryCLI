@@ -4,7 +4,7 @@ import { AbortError } from '../../errors.js'
 import { logForDebugging } from '../../debug.js'
 import { logError } from '../../log.js'
 import { jsonStringify } from '../../slowOperations.js'
-import { getInstructionFiles } from '../../../services/instructions/engine.js'
+import { peekLoadedInstructions, type LoadedInstructionEntry } from './loadedInstructionsPeek.js'
 import { isToolKilled } from '../capabilityGate.js'
 import { noteComposedInstructionImports } from '../filesystem.js'
 import { modeBypassesPermissions } from '../PermissionMode.js'
@@ -50,13 +50,13 @@ interface DecisionOutcome<D> {
   trace: DecisionTrace
 }
 
-type ComposedInstructions = Awaited<ReturnType<typeof getInstructionFiles>>
+type ComposedInstructions = readonly LoadedInstructionEntry[]
 
 let composedFrom: Promise<ComposedInstructions> | undefined
 let composing: Promise<void> | undefined
 
 function composedInstructionImportsRead(): Promise<void> | undefined {
-  const loaded = getInstructionFiles.cache.get(undefined) as Promise<ComposedInstructions> | undefined
+  const loaded = peekLoadedInstructions()
   if (loaded === undefined || loaded === composedFrom) return composing
   composedFrom = loaded
   const reading: Promise<void> = loaded
