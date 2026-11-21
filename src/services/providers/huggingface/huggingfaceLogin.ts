@@ -1,7 +1,7 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { sleep } from '../../../utils/sleep.js'
-import { credentialFileRestorer, writeStoredHuggingfaceApiKey } from '../providerSecrets.js'
+import { credentialFileRestorer, writeStoredHuggingfaceApiKey } from '../../../utils/accounts/providerSecrets.js'
 import {
   fetchHuggingfaceIdentity,
   huggingfaceAuthPathForDisplay,

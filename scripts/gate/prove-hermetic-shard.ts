@@ -260,7 +260,7 @@ section('§4 — the sign-in refresh road under the pin: a home seeded expired-w
   process.env.MERCURY_CREDENTIAL_STORE = 'file'
   const { enableConfigs } = await import('../../src/utils/config.ts')
   enableConfigs()
-  const auth = await import('../../src/utils/auth.ts')
+  const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
   const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.ts')
   storeOAuthAccountInfo({ accountUuid: '00000000-0000-4000-8000-00000000c0de', emailAddress: 'sam@example.com' })
   auth.saveOAuthTokensIfNeeded({

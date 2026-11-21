@@ -5,13 +5,13 @@ import { AnthropicClient as Anthropic } from '../providers/anthropic/anthropicCl
 
 import { getSessionId } from '../../bootstrap/state.js'
 import {
-  checkAndRefreshOAuthTokenIfNeeded,
   getAnthropicApiKey,
   getAnthropicApiKeyWorkspaceId,
   getApiKeyFromApiKeyHelper,
   getClaudeAIOAuthTokens,
   isClaudeAISubscriber,
 } from '../../utils/auth.js'
+import { checkAndRefreshOAuthTokenIfNeeded } from '../auth/oauthLifecycle.js'
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { isDebugToStdErr, logForDebugging } from '../../utils/debug.js'
 import { apiTimeoutMsOverride } from '../../utils/envValidation.js'

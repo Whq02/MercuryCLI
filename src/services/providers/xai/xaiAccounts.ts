@@ -1,5 +1,5 @@
 import { flagEnv } from '../../../substrate/flagRegistry.js'
-import { readStoredXaiApiKey, readStoredXaiManagementApiKey } from '../providerSecrets.js'
+import { readStoredXaiApiKey, readStoredXaiManagementApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { readPreferredXaiSource, refreshXaiTokens, xaiStoredTokens, type XaiOauthIo } from './xaiOauth.js'
 import { hostEnv } from '../../../utils/hostEnv.js'

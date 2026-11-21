@@ -1,5 +1,5 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
-import { writeStoredZenApiKey } from '../providerSecrets.js'
+import { writeStoredZenApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { ZEN_ENV_KEY } from './zenAccounts.js'
 import { fetchZenGoUsage, zenGoWindowLine } from './zenUsageState.js'
 import { hostEnv } from '../../../utils/hostEnv.js'

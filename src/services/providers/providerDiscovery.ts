@@ -1,4 +1,4 @@
-import { readStoredZaiApiKey, readStoredZaiKeyPlan } from './providerSecrets.js'
+import { readStoredZaiApiKey, readStoredZaiKeyPlan } from '../../utils/accounts/providerSecrets.js'
 import { planlessZaiKeyPlan } from './zai/zaiKeyPlan.js'
 import type { ZaiDispatch } from './zai/zaiAccounts.js'
 import type { MoonshotAccountRef } from './moonshot/moonshotAccounts.js'

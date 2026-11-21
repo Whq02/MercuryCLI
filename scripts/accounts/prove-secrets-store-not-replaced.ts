@@ -39,7 +39,7 @@ function runIn(body: string): Record<string, unknown> {
     process.chdir(${JSON.stringify(project)})
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const ps = await import(${JSON.stringify(join(SRC, 'services/providers/providerSecrets.ts'))})
+    const ps = await import(${JSON.stringify(join(SRC, 'utils/accounts/providerSecrets.ts'))})
     const meta = await import(${JSON.stringify(join(SRC, 'services/providers/meta/metaAccounts.ts'))})
     const recovery = await import(${JSON.stringify(join(SRC, 'substrate/storeRecovery.ts'))})
     const secretsFile = ps.providerSecretsPathForDisplay()

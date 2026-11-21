@@ -20,7 +20,7 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log((ok ? 'PASS ' : 'FAIL ') + label + (!ok ? '\n' + detail : '')) }
 try {
   const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const secrets = await import('../../src/services/providers/providerSecrets.ts')
+  const secrets = await import('../../src/utils/accounts/providerSecrets.ts')
   secrets.writeStoredRunpodApiKey(rp.key)
   secrets.writeStoredHuggingfaceApiKey('fixture-rejected-screen')
   const questions: LlmHostQuestion[] = []

@@ -8,7 +8,7 @@ const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/c
 for (const key of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[key]
 const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
 const { storeOrcarouterApiKeyLogin, runOrcarouterDeviceLogin, ORCAROUTER_CONNECT_ROWS } = await import('../../src/services/providers/orcarouter/orcarouterLogin.ts')
-const { readStoredOrcarouterApiKey, writeStoredOrcarouterApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+const { readStoredOrcarouterApiKey, writeStoredOrcarouterApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
 const { resolveOrcarouterApiKey } = await import('../../src/services/providers/orcarouter/orcarouterAccounts.ts')
 const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/services/providers/accountSlots.ts')
 const { loginFamilyRows, keyPageLine } = await import('../../src/components/loginFamilyRows.ts')

@@ -58,7 +58,7 @@ const { buildProviderSnapshot, resetProviderSnapshotMemo } = await import(`${roo
 const { routedCallModel } = await import(`${root}/src/services/providers/callModelRouter.ts`)
 const { createUserMessage } = await import(`${root}/src/utils/messages.ts`)
 const { asSystemPrompt } = await import(`${root}/src/utils/systemPromptType.ts`)
-const secrets = await import(`${root}/src/services/providers/providerSecrets.ts`)
+const secrets = await import(`${root}/src/utils/accounts/providerSecrets.ts`)
 const disabledOwner = existsSync(`${root}/src/services/providers/disabledProviders.ts`)
   ? await import(`${root}/src/services/providers/disabledProviders.ts`)
   : undefined

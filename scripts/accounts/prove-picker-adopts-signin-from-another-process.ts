@@ -48,7 +48,7 @@ if (process.argv[2] === 'key') {
   saveGlobalConfig(c => ({ ...c, primaryApiKey: ${JSON.stringify(KEY)} }))
   console.log('WROTE ' + (getGlobalConfig().primaryApiKey === ${JSON.stringify(KEY)}))
 } else {
-  const auth = await import(${JSON.stringify(join(ROOT, 'src/utils/auth.ts'))})
+  const auth = { ...(await import(${JSON.stringify(join(ROOT, 'src/utils/auth.ts'))})), ...(await import(${JSON.stringify(join(ROOT, 'src/services/auth/oauthLifecycle.ts'))})) }
   const r = auth.saveOAuthTokensIfNeeded({
     accessToken: ${JSON.stringify(TOKEN)},
     refreshToken: 'rt_picker_signin_proof',
@@ -70,7 +70,7 @@ const runWriter = (mode: 'key' | 'oauth'): boolean => {
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const auth = await import('../../src/utils/auth.ts')
+const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
 const usage = await import('../../src/services/providers/providerUsage.ts')
 const { getModelOptions, ANTHROPIC_CONNECT_OPTION_VALUE } = await import('../../src/services/model/modelOptions.ts')
 const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')

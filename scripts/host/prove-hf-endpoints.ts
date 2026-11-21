@@ -36,7 +36,7 @@ const check = (name: string, truth: unknown, detail = '') => { assert.ok(truth, 
 try {
   const { HOST_VENDORS, vendorKey, vendorClient } = await import('../../src/services/host/vendors/client.ts')
   check('Hugging Face is the fourth rental provider', HOST_VENDORS.includes('huggingface'))
-  const { writeStoredHuggingfaceApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredHuggingfaceApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   writeStoredHuggingfaceApiKey(hf.key)
   check('the existing Hugging Face sign-in supplies the rental key', vendorKey('huggingface') === hf.key)
   const { HuggingfaceClient } = await import('../../src/services/host/vendors/huggingface.ts')

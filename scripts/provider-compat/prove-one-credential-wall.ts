@@ -27,7 +27,8 @@ const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config
 enableConfigs()
 const { classifyCredentialWall, credentialWallLine, reconnectDoorFor } = await import('../../src/services/providers/credentialWall.ts')
 const { providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
-const { clearOAuthTokenCache, __resetKnownDeadRefreshTokensForTest } = await import('../../src/utils/auth.ts')
+const { __resetKnownDeadRefreshTokensForTest } = await import('../../src/utils/auth.ts')
+const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.ts')
 
 const FAMILIES = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'openai-compat', 'openrouter', 'gemini', 'huggingface', 'local', 'mistral', 'nous', 'zen']
 const OWNER_WIRE = 'OAuth authentication is currently not allowed for this organization'

@@ -60,7 +60,7 @@ const fixture = await startCrossfamilyFixture({ port: FIXTURE_PORT })
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const auth = await import('../../src/utils/auth.ts')
+const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
 const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.ts')
 const { screenBirthModel } = await import('../../src/services/switchboard/bootBirthFacts.ts')

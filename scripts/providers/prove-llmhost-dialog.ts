@@ -10,7 +10,7 @@ try {
   assert.ok(existsSync(join(f.root, 'src/components/LlmHostDialog.tsx')), '/llmhost has its own dialog')
   const { runLlmHost } = await import(`${f.root}/src/services/llmHost/index.ts`)
   const { configuredCompatEndpoints } = await import(`${f.root}/src/services/providers/openaicompat/compatAccounts.ts`)
-  const { readStoredCompatApiKey } = await import(`${f.root}/src/services/providers/providerSecrets.ts`)
+  const { readStoredCompatApiKey } = await import(`${f.root}/src/utils/accounts/providerSecrets.ts`)
   const { resetSettingsCache } = await import(`${f.root}/src/utils/settings/settingsCache.ts`)
   const settingsPath = join(f.home, 'settings.json')
   writeFileSync(settingsPath, JSON.stringify({ theme: 'dark', compatProvider: { neighbor: { baseUrl: f.baseUrl, models: [f.model] } } }))

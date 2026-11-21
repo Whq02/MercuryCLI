@@ -147,7 +147,7 @@ try {
   await choose('Sign in'); await until('Sign in with Hugging Face')
   check('HF Connect embeds the existing login choices', mounted!.screen().includes('device code') && mounted!.screen().includes('Paste a token'))
   mounted!.push(KEY.esc); await until('WEIGHTS'); await choose('Connect Hugging Face'); await until('Use saved sign-in')
-  const { writeStoredHuggingfaceApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredHuggingfaceApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   writeStoredHuggingfaceApiKey(hf.key)
   await choose('Use saved sign-in'); await until('WEIGHTS'); await select('Rent · Hugging Face')
   await capture('80-hf-offer')

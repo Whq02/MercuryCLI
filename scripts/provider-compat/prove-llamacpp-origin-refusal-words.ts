@@ -109,7 +109,7 @@ const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { compatFaultToTypedError, compatTerminalFaultText } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
 const { mapCompatHttpFailure } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
 const { readSignInRefusal } = await import('../../src/services/providers/signInRefusal.ts')
-const { writeStoredCompatApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+const { writeStoredCompatApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
 type Message = import('../../src/types/message.ts').Message
 
 const permissionContext = getEmptyToolPermissionContext()

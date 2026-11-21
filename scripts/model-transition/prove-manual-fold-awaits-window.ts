@@ -186,7 +186,7 @@ section('2 the outgoing model cannot write the summary: the seated local model w
 {
   const kept = process.env.ANTHROPIC_AUTH_TOKEN
   delete process.env.ANTHROPIC_AUTH_TOKEN
-  const { clearOAuthTokenCache } = await import('../../src/utils/auth.ts')
+  const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.ts')
   clearOAuthTokenCache()
   const { usabilityForRoute } = await import('../../src/services/providers/providerUsability.ts')
   const signedOut = usabilityForRoute('anthropic').usable === false

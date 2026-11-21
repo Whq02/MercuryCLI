@@ -287,7 +287,7 @@ const now = Date.now()
 section('§4 · readiness derivations tell the truth the dispatch would tell')
 {
   const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-  const { writeStoredZaiApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredZaiApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
   const { __resetLaneBillingStateForTest } = await import('../../src/services/providers/laneBillingState.ts')
   __resetLaneBillingStateForTest()
@@ -328,11 +328,8 @@ section('§5 · the ANTHROPIC lane: an OBSERVED-expired claude.ai sign-in fails 
   const home = process.env.MERCURY_CONFIG_DIR!
   mkdirSync(home, { recursive: true })
   const credsPath = join(home, '.credentials.json')
-  const {
-    clearOAuthTokenCache,
-    isAnthropicOAuthSignInExpired,
-    __resetKnownDeadRefreshTokensForTest,
-  } = await import('../../src/utils/auth.js')
+  const { isAnthropicOAuthSignInExpired, __resetKnownDeadRefreshTokensForTest } = await import('../../src/utils/auth.js')
+const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.js')
   const { isRetryableError } = await import('../../src/services/api/withRetry.js')
   const { getAssistantMessageFromError } = await import('../../src/services/api/errors.js')
   const { anthropicCredentialPresence } = await import('../../src/services/providers/providerUsage.js')

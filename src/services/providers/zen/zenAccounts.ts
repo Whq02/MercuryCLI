@@ -1,5 +1,5 @@
 import { flagEnv } from '../../../substrate/flagRegistry.js'
-import { readStoredZenApiKey } from '../providerSecrets.js'
+import { readStoredZenApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

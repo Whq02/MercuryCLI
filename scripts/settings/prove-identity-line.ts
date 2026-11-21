@@ -211,7 +211,7 @@ function writeStores(leg: Leg): void {
 writeStores('accounts')
 const config = await import(join(ROOT, 'src/utils/config.ts'))
 config.enableConfigs()
-const auth = await import(join(ROOT, 'src/utils/auth.ts'))
+const auth = { ...(await import(join(ROOT, 'src/utils/auth.ts'))), ...(await import(join(ROOT, 'src/services/auth/oauthLifecycle.ts'))) }
 const ledger = await import(join(ROOT, 'src/utils/accounts/signInLedger.ts'))
 const wallet = await import(join(ROOT, 'src/services/wallet/wallet.ts'))
 const limits = await import(join(ROOT, 'src/services/anthropicLimits.ts'))

@@ -1,4 +1,5 @@
-import { checkAndRefreshOAuthTokenIfNeeded, getClaudeAIOAuthTokens, handleOAuth401Error } from '../../../utils/auth.js'
+import { getClaudeAIOAuthTokens } from '../../../utils/auth.js'
+import { checkAndRefreshOAuthTokenIfNeeded, handleOAuth401Error } from '../../auth/oauthLifecycle.js'
 import { getMCPUserAgent } from '../../../utils/http.js'
 import { toolTimeoutMs } from './limits.js'
 import { passedOver } from '../../../utils/passedOver.js'

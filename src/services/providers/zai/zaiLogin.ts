@@ -1,5 +1,5 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
-import { writeStoredZaiApiKey } from '../providerSecrets.js'
+import { writeStoredZaiApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { probeZaiKey, type ZaiKeyProbe } from './zaiCatalogue.js'
 import { ZAI_CODING_API_BASE_URL, zaiApiBase, type ZaiApiPlan } from './zaiClient.js'
 import { hostEnv } from '../../../utils/hostEnv.js'

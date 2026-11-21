@@ -15,7 +15,7 @@ import { latchSessionScheduleRoster } from '../../services/saturn/sessionSchedul
 import { rewindOutcomeToWire } from '../../services/engine-connector/seatWire.js'
 import { readGlobalConfigAgain } from '../../utils/config.js'
 import { resetLimitsForCredentialSwitch } from '../../services/anthropicLimits.js'
-import { dropCredentialMemos } from '../../utils/auth.js'
+import { dropCredentialMemos } from '../../services/auth/oauthLifecycle.js'
 import { readOpenaiAccountAgain } from '../../services/providers/openai/openaiCatalogue.js'
 import { noteCrewAccountChange } from '../../services/crew/crewAccountChange.js'
 import { operatorPauseGate } from '../../run-core/pauseGate.js'

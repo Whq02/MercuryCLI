@@ -246,7 +246,7 @@ section('§3 the error composer with a stored account record: the sign-in wall r
     check('an override bypasses even a populated catalogue', await anthropicCatalogueRefusal(BAD_MODEL) === null && requests === 0)
     delete process.env.ANTHROPIC_BASE_URL
     writeFileSync(join(home, '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken: 'fixture-other-account', refreshToken: 'fixture-refresh', expiresAt: Date.now() + 3_600_000, scopes: ['user:inference'], subscriptionType: 'max', rateLimitTier: null } }))
-    const { clearOAuthTokenCache } = await import('../../src/utils/auth.ts')
+    const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.ts')
     clearOAuthTokenCache()
     check('another credential cannot borrow the previous catalogue', await anthropicCatalogueRefusal(BAD_MODEL) === null && requests === 0)
   } finally {

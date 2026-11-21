@@ -44,7 +44,7 @@ try {
   const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
   const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { writeStoredRunpodApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   const { currentHostRecipes } = await import('../../src/services/host/recipesFile.ts')
   const { HF_SEARCH_PLACEHOLDER, HF_OFFLINE_WORDS, HF_GATED_WORDS, HF_NOT_CHAT_WORDS } = await import('../../src/services/host/hfRecipes.ts')
   writeStoredRunpodApiKey(rp.key)

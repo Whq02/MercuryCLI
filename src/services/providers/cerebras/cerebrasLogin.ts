@@ -1,6 +1,6 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
-import { writeStoredCerebrasApiKey } from '../providerSecrets.js'
+import { writeStoredCerebrasApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { cerebrasApiBase, cerebrasEnvKey } from './cerebrasAccounts.js'
 import { fetchCerebrasLiveModels, CerebrasCatalogueHttpError } from './cerebrasCatalogue.js'
 import { hostEnv } from '../../../utils/hostEnv.js'

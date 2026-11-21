@@ -1,4 +1,4 @@
-import { writeStoredCompatApiKey } from '../providerSecrets.js'
+import { writeStoredCompatApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { compatKeyEnvName, configuredCompatEndpoints } from './compatAccounts.js'
 import { refreshCompatCatalogues } from './compatCatalogue.js'
 

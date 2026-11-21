@@ -14,7 +14,7 @@ const { hostDirectory, hostRecords, readHostRecord, removeHostRecord, writeHostR
 const { listBoxes, readBox } = await import('../../src/services/host/boxes.ts')
 const { tensorFoldHosts, tensorFoldHostKey } = await import('../../src/services/providers/local/tensorfoldHosts.ts')
 const { vendorClient } = await import('../../src/services/host/vendors/client.ts')
-const { writeStoredRunpodApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
 
 let checks = 0
 const check = (name: string, truth: unknown): void => { assert.ok(truth, name); checks++; console.log('PASS ' + name) }

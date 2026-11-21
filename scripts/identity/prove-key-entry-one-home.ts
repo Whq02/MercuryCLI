@@ -71,7 +71,7 @@ console.log('entering a provider key has one home: /logins')
 
 {
   console.log('\nthe move: stored-key byte survival, adapters without posture, and request-bytes control')
-  const movedSecretsPath = join(REPO, 'src/services/providers/providerSecrets.ts')
+  const movedSecretsPath = join(REPO, 'src/utils/accounts/providerSecrets.ts')
   const movedRegistryPath = join(REPO, 'src/services/providers/modelRegistry.ts')
   if (existsSync(movedSecretsPath) && existsSync(movedRegistryPath)) {
     const secretsFile = join(proofHome, '.provider-secrets.json')
