@@ -82,6 +82,7 @@ prove-prune-rung-any-failure.ts
 prove-prune-set.ts
 prove-ptl-recovery-road.ts
 prove-ptl-retry-keeps-capsule.ts
+prove-queued-compact.ts
 prove-restored-read-is-full.ts
 prove-result-room-limiter.ts
 prove-seat-context-receipt.ts
