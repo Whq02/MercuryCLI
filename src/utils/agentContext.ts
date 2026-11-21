@@ -2,6 +2,7 @@ import {
   getOwnerContext,
   withOwnerContext,
   type AgentContext,
+  type InvocationKind,
   type SubagentContext,
 } from './run/ownerContext.js'
 
@@ -17,7 +18,7 @@ export function runWithAgentContext<T>(context: AgentContext, fn: () => T): T {
 
 
 export function consumeInvokingRequestId():
-  | { invokingRequestId: string; invocationKind?: 'spawn' | 'resume' }
+  | { invokingRequestId: string; invocationKind?: InvocationKind }
   | undefined {
   const context = getAgentContext()
   if (!context) return undefined

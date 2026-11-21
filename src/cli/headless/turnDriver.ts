@@ -103,14 +103,107 @@ export type TurnDriver = {
   hasDueQueued(): boolean
 }
 
+interface TurnDriverState {
+  heldBackResult: RowDraft | null
+  anyTurnCompleted: boolean
+  holdReleased: boolean
+  noticesAwaitOperator: boolean
+}
+
+type DriverQueue = ReturnType<typeof driverQueue>
+
+async function runDriverTurn(
+  first: QueuedCommand,
+  ports: TurnDriverPorts,
+  queue: DriverQueue,
+  state: TurnDriverState,
+): Promise<void> {
+  let command = first
+  const initialNotices: QueuedCommand[] = []
+  if (queue.isOperatorWords(first)) {
+    const held = state.noticesAwaitOperator
+    state.noticesAwaitOperator = false
+    for (const notice of queue.queuedMainThread().filter(isTaskNotification)) {
+      if (!held && notice.ridesNextWords !== true) continue
+      const taken = ports.dequeueCommand(notice)
+      if (taken === undefined) continue
+      if (taken.queueId !== undefined) queue.settledAt.delete(taken.queueId)
+      initialNotices.push(taken)
+    }
+  }
+
+  const batch: QueuedCommand[] = [command]
+  if (command.mode === 'prompt') {
+    for (let next = queue.batchableAfter(command); next !== undefined; next = queue.batchableAfter(command)) {
+      batch.push(next)
+    }
+  } else if (command.mode === 'task-notification') {
+    while (isTaskNotification(ports.peek()) && ports.peek()?.origin?.kind !== 'outside-report') {
+      batch.push(queue.takeQueued()!)
+    }
+    if (batch.length > 1) command = foldNotifications(batch)
+  }
+  const batchUuids = [...initialNotices, ...batch]
+    .map(c => c.uuid)
+    .filter((u): u is NonNullable<typeof u> => u !== undefined)
+
+  ports.onTurnStart(command, batch)
+  let turnOpen = false
+  const openIfUnopened = (): void => {
+    if (turnOpen) return
+    turnOpen = true
+    ports.enqueueOutput(ports.openTurnRow(batchUuids))
+  }
+
+  for (const uuid of batchUuids) {
+    ports.notifyLifecycle(uuid, 'started')
+  }
+
+  let answered = false
+  const deliver = (message: RowDraft): void => {
+    const row = message as LooseRow
+    if (turnOpened(row)) turnOpen = true
+    if (isOutcome(row)) {
+      if (row.status === 'completed') state.anyTurnCompleted = true
+      answered = true
+      queue.flushSdkEvents()
+      openIfUnopened()
+      if (!state.holdReleased && ports.hasHoldableBackgroundAgents()) {
+        state.heldBackResult = message
+      } else {
+        state.heldBackResult = null
+        ports.enqueueOutput(message)
+      }
+    } else {
+      queue.flushSdkEvents()
+      ports.enqueueOutput(message)
+    }
+  }
+
+  await ports.executeTurn(command, batch.length > 1 ? batch : [], message => {
+    deliver(message)
+  }, initialNotices).catch((error: unknown) => {
+    if (answered) throw error
+    deliver(ports.onCycleError(error, ports.turnIdOf()))
+  })
+
+  for (const uuid of batchUuids) {
+    ports.notifyLifecycle(uuid, 'completed')
+  }
+
+  ports.onTurnSettled(command)
+}
+
 export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
   const seatContext = AsyncLocalStorage.snapshot()
   let phase: DriverPhase = 'idle'
-  let heldBackResult: RowDraft | null = null
+  const state: TurnDriverState = {
+    heldBackResult: null,
+    anyTurnCompleted: false,
+    holdReleased: false,
+    noticesAwaitOperator: false,
+  }
   let outputClosed = false
-  let anyTurnCompleted = false
-  let holdReleased = false
-  let noticesAwaitOperator = false
   let wakeAgentWait: (() => void) | undefined
   const idleListeners = new Set<() => void>()
   const notifyIdle = (): void => {
@@ -118,12 +211,12 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
     for (const listener of [...idleListeners]) listener()
   }
 
-  const { settledAt, now, queuedMainThread, takeQueued, isOperatorWords, wordsBefore, batchableAfter, runnableHead, settleQueued, flushSdkEvents } = driverQueue(ports)
+  const queue = driverQueue(ports)
+  const { settledAt, now, queuedMainThread, takeQueued, isOperatorWords, wordsBefore, runnableHead, settleQueued, flushSdkEvents } = queue
   let holding = false
   let wallHeld = false
   let wall: (WatchWall & { recheckAtMs: number }) | null = null
   let wallTimerArmed = false
-
   const wallClosed = (): boolean => {
     if (ports.wall === undefined) return false
     const t = now()
@@ -137,7 +230,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
   const dueQueued = (): boolean => {
     const head = runnableHead()
     if (head === undefined) return false
-    if (noticesAwaitOperator) return queuedMainThread().some(isOperatorWords)
+    if (state.noticesAwaitOperator) return queuedMainThread().some(isOperatorWords)
     if (!isTaskNotification(head)) return true
     if (queuedMainThread().some(c => !isTaskNotification(c))) return true
     return !(wall !== null && wall.closed && now() < wall.recheckAtMs)
@@ -156,8 +249,8 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
     holding = false
     wallHeld = false
     const head = runnableHead()
-    if (head === undefined || holdReleased) return undefined
-    if (noticesAwaitOperator) {
+    if (head === undefined || state.holdReleased) return undefined
+    if (state.noticesAwaitOperator) {
       const words = queuedMainThread().find(isOperatorWords)
       return words === undefined ? undefined : ports.dequeueCommand(words)
     }
@@ -197,90 +290,13 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
   const closeOutputOnce = async (): Promise<void> => {
     if (outputClosed) return
     outputClosed = true
-    if (anyTurnCompleted && !ports.isShuttingDown()) await ports.beforeCloseOutput?.()
+    if (state.anyTurnCompleted && !ports.isShuttingDown()) await ports.beforeCloseOutput?.()
     await ports.closeOutput()
-  }
-
-  async function runOneTurn(first: QueuedCommand): Promise<void> {
-    let command = first
-    const initialNotices: QueuedCommand[] = []
-    if (isOperatorWords(first)) {
-      const held = noticesAwaitOperator
-      noticesAwaitOperator = false
-      for (const notice of queuedMainThread().filter(isTaskNotification)) {
-        if (!held && notice.ridesNextWords !== true) continue
-        const taken = ports.dequeueCommand(notice)
-        if (taken === undefined) continue
-        if (taken.queueId !== undefined) settledAt.delete(taken.queueId)
-        initialNotices.push(taken)
-      }
-    }
-
-    const batch: QueuedCommand[] = [command]
-    if (command.mode === 'prompt') {
-      for (let next = batchableAfter(command); next !== undefined; next = batchableAfter(command)) {
-        batch.push(next)
-      }
-    } else if (command.mode === 'task-notification') {
-      while (isTaskNotification(ports.peek()) && ports.peek()?.origin?.kind !== 'outside-report') {
-        batch.push(takeQueued()!)
-      }
-      if (batch.length > 1) command = foldNotifications(batch)
-    }
-    const batchUuids = [...initialNotices, ...batch]
-      .map(c => c.uuid)
-      .filter((u): u is NonNullable<typeof u> => u !== undefined)
-
-    ports.onTurnStart(command, batch)
-    let turnOpen = false
-    const openIfUnopened = (): void => {
-      if (turnOpen) return
-      turnOpen = true
-      ports.enqueueOutput(ports.openTurnRow(batchUuids))
-    }
-
-    for (const uuid of batchUuids) {
-      ports.notifyLifecycle(uuid, 'started')
-    }
-
-    let answered = false
-    const deliver = (message: RowDraft): void => {
-      const row = message as LooseRow
-      if (turnOpened(row)) turnOpen = true
-      if (isOutcome(row)) {
-        if (row.status === 'completed') anyTurnCompleted = true
-        answered = true
-        flushSdkEvents()
-        openIfUnopened()
-        if (!holdReleased && ports.hasHoldableBackgroundAgents()) {
-          heldBackResult = message
-        } else {
-          heldBackResult = null
-          ports.enqueueOutput(message)
-        }
-      } else {
-        flushSdkEvents()
-        ports.enqueueOutput(message)
-      }
-    }
-
-    await ports.executeTurn(command, batch.length > 1 ? batch : [], message => {
-      deliver(message)
-    }, initialNotices).catch((error: unknown) => {
-      if (answered) throw error
-      deliver(ports.onCycleError(error, ports.turnIdOf()))
-    })
-
-    for (const uuid of batchUuids) {
-      ports.notifyLifecycle(uuid, 'completed')
-    }
-
-    ports.onTurnSettled(command)
   }
 
   async function cycle(): Promise<void> {
     phase = 'starting'
-    holdReleased = false
+    state.holdReleased = false
     ports.idleTimerStop()
 
     await ports.beforeCycle()
@@ -313,12 +329,12 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
               'only prompt commands are supported in streaming mode',
             )
           }
-          await runOneTurn(command)
+          await runDriverTurn(command, ports, queue, state)
           settleQueued()
         }
 
         waitingForAgents = false
-        if (!holdReleased && (ports.hasWaitableBackgroundTasks() || dueQueued())) {
+        if (!state.holdReleased && (ports.hasWaitableBackgroundTasks() || dueQueued())) {
           waitingForAgents = true
           if (!ranCommand || holding || wallHeld) {
             phase = 'waiting_for_agents'
@@ -334,9 +350,9 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       } while (waitingForAgents)
       announceWait(0)
 
-      if (heldBackResult) {
-        ports.enqueueOutput(heldBackResult)
-        heldBackResult = null
+      if (state.heldBackResult) {
+        ports.enqueueOutput(state.heldBackResult)
+        state.heldBackResult = null
       }
     } catch (error) {
       failed = true
@@ -387,7 +403,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       ports.wakeSettle?.()
       return
     }
-    if (phase !== 'idle' || (noticesAwaitOperator && !dueQueued())) {
+    if (phase !== 'idle' || (state.noticesAwaitOperator && !dueQueued())) {
       return
     }
     seatContext(() => {
@@ -405,15 +421,15 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
         idleListeners.delete(listener)
       }
     },
-    hasHeldResult: () => heldBackResult !== null,
+    hasHeldResult: () => state.heldBackResult !== null,
     releaseHold: () => {
       if (phase === 'idle') return
-      holdReleased = true
-      noticesAwaitOperator = true
+      state.holdReleased = true
+      state.noticesAwaitOperator = true
       wakeAgentWait?.()
     },
     endOperatorWait: () => {
-      noticesAwaitOperator = false
+      state.noticesAwaitOperator = false
       kick()
     },
     closeOutputOnce,
