@@ -124,7 +124,7 @@ export async function createBashShellProvider(
         const handOver = (env: NodeJS.ProcessEnv, cwd?: string): FrameHandOver => {
           const { frame, ...where } =
             cwd !== undefined && cwd.length > WINDOWS_STARTS_A_PROGRAM_IN
-              ? { frame: `cd -- ${quote([windowsPathToPosixPath(cwd)])} || exit; ${commandString}`, startIn: folderWindowsStartsIn(cwd) }
+              ? { frame: `cd -- ${quote([windowsPathToPosixPath(cwd)])} || exit; unset OLDPWD 2>/dev/null || :; dirs -c 2>/dev/null || :; ${commandString}`, startIn: folderWindowsStartsIn(cwd) }
               : { frame: commandString }
           if (msysArgvCarries(frame, env)) return { args: msysSpawnArgs(frame, noLoginFiles), ...where }
           const own = `-${process.pid}-${frameFiles++}-frame`

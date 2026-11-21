@@ -85,7 +85,6 @@ Promise.race	src/tools/BashTool/BashTool.tsx	2	events 2
 Promise.race	src/tools/McpAuthTool/McpAuthTool.ts	1	events 1
 Promise.race	src/tools/PowerShellTool/PowerShellTool.tsx	1	events 1
 Promise.race	src/utils/generators.ts	1	events 1
-Promise.race	src/utils/wards/wardsRefusals.ts	2	row8 2
 startInterval	src/cli/headless/boot/watchBuildBehind.ts	1	periodic 1
 startInterval	src/cli/headless/boot/wireProcess.ts	1	periodic 1
 startInterval	src/cli/headless/hostAskLiveness.ts	1	heartbeat 1
