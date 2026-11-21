@@ -26,7 +26,7 @@ assert.equal(word.total, 10)
 const rows = computeModelRows(corpus)
 assert.equal(rows.length, 5)
 assert.ok(rows.every(r => r.measured), 'every row is measured from its similarities')
-assert.ok(rows.every(r => r.semantic.total === 10 && r.semantic.at5 <= 10 && r.fusedRank.at5 <= 10 && r.fusedInsertion.at5 <= 10))
+assert.ok(rows.every(r => r.semantic.total === 10 && r.semantic.at5 <= 10 && r.fusedRank.at5 <= 10 && r.fusedInsertion.at5 <= 10), 'computeModelRows in scripts/memory-study/bench-semantic-recall.js must bound total=10 and at5<=10')
 
 const count = (at1: number, at5: number): { at1: number; at5: number; total: number } => ({ at1, at5, total: 25 })
 const row = (name: string, license: string, bytes: number, sem: [number, number], fused: [number, number]): ComputedModelRow => ({
@@ -40,7 +40,7 @@ const ruled = chooseModelByOwnerRuling([
   row('big-gpl', 'GPL-3.0', 500_000_000, [25, 25], [25, 25]),
   row('no-gain', 'MIT', 300_000_000, [10, 21], [11, 21]),
 ], 21)
-assert.ok(ruled !== null)
+assert.ok(ruled !== null, 'chooseModelByOwnerRuling in scripts/memory-study/bench-semantic-recall.js must select a qualifying permissive model')
 assert.equal(ruled.name, 'base-mit', 'the owner\'s rule: permissive licence, beats the word baseline at 5, then the best recall at 5, then at 1, then the bigger model')
 assert.equal(chooseModelByOwnerRuling([row('no-gain', 'MIT', 300_000_000, [10, 21], [11, 21])], 21), null, 'a model that does not beat the word baseline is not chosen')
 assert.equal(chooseModelByOwnerRuling([row('big-gpl', 'GPL-3.0', 500_000_000, [25, 25], [25, 25])], 21), null, 'a non-permissive licence is never chosen')
@@ -67,16 +67,16 @@ assert.equal(byName.get('word-only')!.recallAt5, word.at5)
 assert.ok(byName.get('word+semantic')!.recallAt5 >= word.at5, 'the semantic ordering never loses a word hit at 5 on the fixture')
 
 const raw = readFileSync(STUDY_FIXTURE_PATH, 'utf8')
-assert(!/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i.test(raw))
-assert(!/[A-Za-z0-9_+/=-]{28,}/.test(raw))
+assert(!/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i.test(raw), 'STUDY_FIXTURE_PATH must not contain UUIDs')
+assert(!/[A-Za-z0-9_+/=-]{28,}/.test(raw), 'STUDY_FIXTURE_PATH must not contain long token-like strings')
 assert(!raw.includes('semanticRecallAt'), 'no recorded recall count rides the fixture')
 
 const report = renderStudyReport(corpus)
-assert(report.includes(`chosen=${chosenOnFixture.name}`))
-assert(report.includes('computed on this run'))
-assert(report.includes(`| word-only (BM25×recency) | baseline | 0 | built-in | 0 | 0 | ${word.at1}/10 (`))
-assert(report.includes('| bge-base-en-v1.5-q8_0 | 100-300 MB | 118.0 | MIT | 768 | 12 |'))
-assert(report.includes('| word+semantic+ruling |'))
+assert(report.includes(`chosen=${chosenOnFixture.name}`), `renderStudyReport in scripts/memory-study/bench-semantic-recall.js must include chosen=${chosenOnFixture.name}`)
+assert(report.includes('computed on this run'), 'renderStudyReport in scripts/memory-study/bench-semantic-recall.js must state "computed on this run"')
+assert(report.includes(`| word-only (BM25×recency) | baseline | 0 | built-in | 0 | 0 | ${word.at1}/10 (`), 'renderStudyReport in scripts/memory-study/bench-semantic-recall.js must include word-only baseline row')
+assert(report.includes('| bge-base-en-v1.5-q8_0 | 100-300 MB | 118.0 | MIT | 768 | 12 |'), 'renderStudyReport in scripts/memory-study/bench-semantic-recall.js must include bge-base-en-v1.5-q8_0 row')
+assert(report.includes('| word+semantic+ruling |'), 'renderStudyReport in scripts/memory-study/bench-semantic-recall.js must include word+semantic+ruling ablation row')
 
 const child = Bun.spawnSync([process.execPath, join(import.meta.dir, '../memory-study/bench-semantic-recall.ts')], {
   env: process.env,

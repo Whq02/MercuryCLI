@@ -28,7 +28,7 @@ try {
   for (let i = 1; i <= 25; i++) {
     const result = searchPointers(`question${i}`, { dir, sessions, now: new Date(now), limit: 1 })
     if (result.pointers[0]?.id.startsWith('ledger:')) preempted++
-    if (!result.pointers[0]?.id.startsWith('ledger:')) assert.ok(result.found >= 2)
+    if (!result.pointers[0]?.id.startsWith('ledger:')) assert.ok(result.found >= 2, `searchPointers("question${i}") in src/mneme/mnemePointers.ts expected >=2 total hits (got ${result.found})`)
   }
   console.log(`ledger-before-fact ${preempted}/25`)
   assert.equal(preempted, 0)
@@ -40,7 +40,7 @@ try {
   assert.equal(searchPointers('deployment', { dir: join(scratch, 'empty'), sessions }).pointers[0]?.id, 'ledger:1')
   assert.equal(searchPointers('nonmatchingword', { dir, sessions }).elidable, true)
   retainItems([{ content: 'pendingquartz decision', topic: 'facts' }], { session: 'proof-session' })
-  assert.ok(searchPointers('pendingquartz', { dir, sessions: [{ ...session, handoff: { at: now, text: 'pendingquartz decision' } }], limit: 1 }).pointers[0]?.id.startsWith('pending:'))
+  assert.ok(searchPointers('pendingquartz', { dir, sessions: [{ ...session, handoff: { at: now, text: 'pendingquartz decision' } }], limit: 1 }).pointers[0]?.id.startsWith('pending:'), 'searchPointers("pendingquartz") in src/mneme/mnemePointers.ts must rank pending fact ahead of ledger handoff')
   const key = mnemeProjectKey()
   openEntry(key, { sessionId: 'proof-session', model: 'proof-engine' })
   recordHandoff(key, 'proof-session', 'question1 deployment policy')
