@@ -21,7 +21,7 @@ try {
     assert.equal(result.files.length, 0)
     assert.equal(map.sha256, digest(readFileSync(output)))
     assert.equal(map.format, format)
-    assert.ok(map.wordCount > 0)
+    assert.ok(map.wordCount > 0, `src/tools/DocumentTool/inspect.ts ${format} wordCount expected >0, got ${map.wordCount}`)
     assert.doesNotMatch(JSON.stringify(map), /PRIVATE_BODY_SENTINEL|Private cell/)
     if (format === 'docx') {
       assert.equal(map.outline[0].title, 'Outline title')

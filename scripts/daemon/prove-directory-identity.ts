@@ -51,7 +51,7 @@ try {
 
   process.env.MERCURY_DAEMON_DIR = dir
   const lock = await sock.acquireDaemonLock()
-  assert.ok(lock)
+  assert.ok(lock, `src/daemon/controlSocket.ts acquireDaemonLock failed for clean dir ${dir}`)
   process.env.MERCURY_DAEMON_DIR = upper
   assert.equal(await sock.acquireDaemonLock(), null, 'case aliases cannot own a second daemon')
   const key = await sock.mintControlKey()
@@ -80,7 +80,7 @@ try {
   await sock.clearDeadDaemonRecords()
   await lock.release()
   const successor = await sock.acquireDaemonLock()
-  assert.ok(successor)
+  assert.ok(successor, `src/daemon/controlSocket.ts acquireDaemonLock failed to acquire successor after release in ${dir}`)
   const next = sock.controlSockPath()
   await listen(next, key)
   writeFileSync(sock.daemonStatePath(), JSON.stringify({ ...record, controlSock: next }))

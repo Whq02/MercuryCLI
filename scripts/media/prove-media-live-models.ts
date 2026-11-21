@@ -31,7 +31,7 @@ try {
   await config.writeMediaConfig(root, { imageModel: 'image-one', outputs: join(root, 'outputs') })
   await client.connect(transport)
   const pid = transport.pid
-  assert.ok(pid)
+  assert.ok(pid, 'media stdio transport did not expose server pid after connect; check media server startup')
   const tools = await client.listTools()
   assert.equal((await readModels()).find(model => model.model === 'image-one')!.installed, false)
   for (const id of ['image-one', 'image-two']) {
@@ -46,8 +46,8 @@ try {
     assert.equal(result.isError ?? false, false, JSON.stringify(result))
     const data = JSON.parse((result.content as Array<{ text: string }>)[0]!.text)
     assert.equal(data.status, 'completed')
-    assert.ok(existsSync(data.path))
-    assert.ok((result.content as Array<{ type: string }>).some(part => part.type === 'image'))
+    assert.ok(existsSync(data.path), `image_generate completed but output file missing on disk (model=${data.model}); check media server output writer`)
+    assert.ok((result.content as Array<{ type: string }>).some(part => part.type === 'image'), `image_generate response missing image block (model=${data.model}, types=${(result.content as Array<{ type: string }>).map(p => p.type).join(',')}); check media server`)
     assert.equal(transport.pid, pid)
     return data.model
   }

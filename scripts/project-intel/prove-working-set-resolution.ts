@@ -30,6 +30,7 @@ try {
   writeFileSync(join(root, 'tsconfig.json'), '{}')
   assert.deepEqual(importNeighbours(root, 'src/external.ts'), [], 'a bare package does not resolve against the project root without baseUrl or paths')
   const capsule = assembleContextCapsule({ workspace: root, task: 'check calculateCharge', budget: { maxItems: 1, maxBytes: 512 } })
-  assert.ok(capsule && capsule.items.length <= 1 && Buffer.byteLength(JSON.stringify(capsule.items)) <= 512)
+  const capsuleBytes = capsule ? Buffer.byteLength(JSON.stringify(capsule.items)) : -1
+  assert.ok(capsule && capsule.items.length <= 1 && capsuleBytes <= 512, `src/services/projectIntel/capsule.ts assembleContextCapsule exceeded budget (maxItems=1, maxBytes=512): items=${capsule?.items.length ?? 'null'} bytes=${capsuleBytes}`)
   console.log('working-set aliases, filenames, symbols and impact: PASS')
 } finally { rmSync(root, { recursive: true, force: true }) }

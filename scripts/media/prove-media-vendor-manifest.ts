@@ -19,12 +19,12 @@ try {
   assert.deepEqual(readdirSync(root).sort(), [...Object.keys(manifest.files), 'manifest.json'].sort())
   assert.equal(setSwitch('mercury-media@mercury', true).ok, true)
   const delivered = bundledRoster().find(row => row.name === 'mercury-media')!
-  assert.ok(delivered)
+  assert.ok(delivered, 'bundledRoster missing mercury-media after enabling switch; check bundled extension roster')
   for (const [file, sha256] of Object.entries(manifest.files)) {
     assert.equal(createHash('sha256').update(readFileSync(join(root, file))).digest('hex'), sha256, file)
     const materialized = join(delivered.root, 'server', file)
     assert.equal(createHash('sha256').update(readFileSync(materialized)).digest('hex'), sha256, file)
-    if (file === 'media-memory' && process.platform !== 'win32') assert.ok(statSync(materialized).mode & 0o111)
+    if (file === 'media-memory' && process.platform !== 'win32') { const mode = statSync(materialized).mode; assert.ok(mode & 0o111, `materialized media-memory lacks execute bit (mode=${(mode & 0o777).toString(8)}); check extension materializer`) }
   }
   const { readMediaConfig, writeMediaConfig } = await import(pathToFileURL(join(root, 'config.js')).href)
   const storage = join(proofHome, 'media')

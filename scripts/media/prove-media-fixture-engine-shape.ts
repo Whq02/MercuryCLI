@@ -68,7 +68,8 @@ try {
   assert.equal(extname(win32.binary), '.exe')
   assert.equal(win32.tag, bundled.runtime.tag)
   assert.notEqual(readFileSync(win32.binary).subarray(0, 2).toString('latin1'), '#!')
-  assert.ok(statSync(win32.binary).size > 1024 * 1024)
+  const winSize = statSync(win32.binary).size
+  assert.ok(winSize > 1024 * 1024, `win32 fixture sd-server.exe size=${winSize} bytes, expected >1MB compiled binary; check media fixture installer`)
   assert.deepEqual(readdirSync(runtimeDir).filter(name => /\.(?:cmd|bat)$/i.test(name)), [])
   const port = await freePort()
   await serves(win32.binary, engineArgs(port), port)
@@ -78,7 +79,8 @@ try {
     const posix = readRuntime()
     assert.equal(posix.binary, join(runtimeDir, 'sd-server'))
     assert.equal(readFileSync(posix.binary, 'utf8').split('\n')[0], '#!/usr/bin/env node')
-    assert.ok(statSync(posix.binary).mode & 0o100)
+    const posixMode = statSync(posix.binary).mode
+    assert.ok(posixMode & 0o100, `POSIX fixture sd-server lacks owner execute bit (mode=${(posixMode & 0o777).toString(8)}); check media fixture installer`)
     const nicePort = await freePort()
     await serves('/usr/bin/nice', ['-n', '10', posix.binary, ...engineArgs(nicePort)], nicePort)
   }

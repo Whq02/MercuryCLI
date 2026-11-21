@@ -22,7 +22,7 @@ for (const text of [
       messages.push(createUserMessage({ content: [{ type: 'tool_result', tool_use_id: id, content: i === 0 ? content : 'recent\n'.repeat(20000) }] as never }))
     }
     const result = projectTimeBasedMicrocompact(messages, 'sdk', { pressure: true })
-    assert.ok(result)
+    assert.ok(result, 'projectTimeBasedMicrocompact returned null under pressure; check time-based microcompact projection')
     assert.deepEqual(result.clearedIds, ['reference-0'])
     const row = result.messages[1]!
     assert.equal(row.type, 'user')
