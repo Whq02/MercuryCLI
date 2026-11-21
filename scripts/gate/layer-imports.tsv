@@ -47,10 +47,7 @@ src/utils/model/modelSpellingFold.ts	src/services/model/modelOptions.ts	load	sha
 src/utils/model/utilityModel.ts	src/services/providers/local/tensorfoldHelper.ts	load	the utility-model picker reads route law and the local helper id for the hook runners
 src/utils/model/utilityModel.ts	src/services/providers/routeLaw.ts	load	the utility-model picker reads route law and the local helper id for the hook runners
 src/utils/permissions/decision/engine.ts	src/services/instructions/engine.ts	load	row 8
-src/utils/permissions/decision/rules.ts	src/tools/MonitorTool/constants.ts	load	row 8
 src/utils/permissions/flowLaw.ts	src/tools/BashTool/bashPermissions.ts	load	row 8
-src/utils/permissions/flowLaw.ts	src/tools/DebugTool/prompt.ts	load	row 8
-src/utils/permissions/flowLaw.ts	src/tools/MonitorTool/constants.ts	load	row 8
 src/utils/permissions/runtimeProtection.ts	src/daemon/controlSocket.ts	load	self-protection reads the live daemon pid and script; row 8's floors call it
 src/utils/secureStorage/otherBuilds.ts	src/daemon/controlSocket.ts	load	the credential store checks live processes of other Mercury builds before sealing
 src/utils/secureStorage/otherBuilds.ts	src/daemon/processSweep.ts	load	the credential store checks live processes of other Mercury builds before sealing
