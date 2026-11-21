@@ -26,7 +26,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const slots = await import('../../src/services/providers/accountSlots.ts')
 const scopes = await import('../../src/utils/accounts/scopeScan.ts')
-const auth = await import('../../src/utils/auth.ts')
+const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
 const { SUBSCRIPTION_OAUTH_SCOPES } = await import('../../src/constants/oauth.ts')
 
 section('§A the typed ceiling refusal — boundary-exact, family-named')

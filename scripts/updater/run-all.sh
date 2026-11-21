@@ -5,7 +5,7 @@
 # gate-watch: src/ink/termio/*
 # gate-watch: CONTRIBUTING.md
 # gate-watch: scripts/lib/captureDriver.ts
-# gate-watch: src/daemon/processSweep.ts src/daemon/processSweepRun.ts src/daemon/processSweepPosix.ts src/daemon/processSweepWindows.ts
+# gate-watch: src/utils/processSweep.ts src/daemon/processSweepRun.ts src/daemon/processSweepPosix.ts src/daemon/processSweepWindows.ts
 # gate-watch: src/daemon/headlessRun.ts src/services/acp/childSession.ts src/services/host/jobs.ts src/services/projectServices/serviceManager.ts
 # gate-watch: src/components/Feedback.tsx docs/README.md docs/NIX.md nix/**
 set -uo pipefail

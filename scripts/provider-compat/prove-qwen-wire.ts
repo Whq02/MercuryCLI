@@ -120,7 +120,7 @@ try {
   const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
   const { keyLaneListState, keyLanePins, keyLaneProviderRows, QWEN_MODEL_GROUP } = await import('../../src/services/model/modelOptions.ts')
   const pickerWords = (): string[] => keyLaneProviderRows().filter(row => row.group === QWEN_MODEL_GROUP).map(row => row.descriptionForModel ?? '')
-  const { readStoredQwenApiKey, readStoredQwenKeyBase } = await import('../../src/services/providers/providerSecrets.ts')
+  const { readStoredQwenApiKey, readStoredQwenKeyBase } = await import('../../src/utils/accounts/providerSecrets.ts')
   const { liveModelsReference, knownModelsReference } = await import('../../src/services/resources/adapters/models.ts')
   const { loginFamilyRows, KEY_PAGES, keyPageLine } = await import('../../src/components/loginFamilyRows.ts')
   const { providerAuthLogin, normalizeTerminalAuthFamily } = await import('../../src/cli/handlers/providerAuth.ts')

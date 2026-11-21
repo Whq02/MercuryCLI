@@ -32,7 +32,8 @@ const {
   observedCredentialWall,
   reconnectDoorFor,
 } = await import('../../src/services/providers/credentialWall.ts')
-const { clearOAuthTokenCache, __resetKnownDeadRefreshTokensForTest } = await import('../../src/utils/auth.ts')
+const { __resetKnownDeadRefreshTokensForTest } = await import('../../src/utils/auth.ts')
+const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.ts')
 
 const credsPath = join(HOME, '.credentials.json')
 const seed = (oauth: Record<string, unknown> | null): void => {

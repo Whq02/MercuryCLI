@@ -1,11 +1,8 @@
 import * as React from 'react'
 import { Text } from '../../ink.js'
 import { revokeOAuthToken } from '../../services/oauth/client.js'
-import {
-  clearOAuthTokenCache,
-  getClaudeAIOAuthTokens,
-  removeApiKey,
-} from '../../utils/auth.js'
+import { getClaudeAIOAuthTokens, removeApiKey } from '../../utils/auth.js'
+import { clearOAuthTokenCache } from '../../services/auth/oauthLifecycle.js'
 import { clearBetasCaches } from '../../utils/betas.js'
 import { saveGlobalConfig } from '../../utils/config/globalConfig.js'
 import { gracefulShutdownSync } from '../../utils/gracefulShutdown.js'

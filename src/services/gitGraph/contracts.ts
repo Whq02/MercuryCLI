@@ -1,7 +1,7 @@
 
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-
+export type { GitUnavailable, GitWorktreeInfo } from '../../types/git.js'
 export function gitGraphEnabled(): boolean {
   return !isEnvDefinedFalsy(flagEnv('MERCURY_GIT_GRAPH'))
 }
@@ -54,13 +54,6 @@ export interface GitCommitMeta {
   parents: string[]
 }
 
-export interface GitWorktreeInfo {
-  path: string
-  head: string
-  branch: string | null
-  isMain: boolean
-}
-
 export interface GitConflict {
   id: string
   path: string
@@ -97,10 +90,4 @@ export interface GitPlan {
   appliedAt?: number
   commits?: { sha: string; message: string; files: string[]; transactionId: string }[]
   note?: string
-}
-
-export interface GitUnavailable {
-  failure?: string
-  state: 'unavailable'
-  note: string
 }

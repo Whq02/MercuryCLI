@@ -1,5 +1,5 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
-import { credentialFileRestorer, writeStoredNousApiKey } from '../providerSecrets.js'
+import { credentialFileRestorer, writeStoredNousApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { sleep } from '../../../utils/sleep.js'
 import { NOUS_API_KEY_ENV, nousApiBase, nousSigninIdentity } from './nousAccounts.js'

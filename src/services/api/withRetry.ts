@@ -10,10 +10,10 @@ import {
   getApiKeyFromApiKeyHelperCached,
   getAuthTokenSource,
   getClaudeAIOAuthTokens,
-  handleOAuth401Error,
   isClaudeAISubscriber,
   isEnterpriseSubscriber,
 } from '../../utils/auth.js'
+import { handleOAuth401Error } from '../auth/oauthLifecycle.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { isRevokedSignInText } from '../providers/credentialWall.js'
 import { logError } from '../../utils/log.js'

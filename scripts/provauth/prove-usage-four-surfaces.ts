@@ -299,7 +299,7 @@ section('§7 scheduled spend: Saturn fires replay session envelopes — the one 
 section('§8 the REAL cache: equality holds THROUGH the live 2s activeUsageCache, and the model key invalidates')
 {
   const { writeFileSync } = await import('node:fs')
-  const { clearOAuthTokenCache } = await import('../../src/utils/auth.js')
+  const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.js')
   writeFileSync(
     join(process.env.MERCURY_AUTH_SCOPE_DIR!, '.credentials.json'),
     JSON.stringify({

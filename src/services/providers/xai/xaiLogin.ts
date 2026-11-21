@@ -1,5 +1,5 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
-import { credentialFileRestorer, writeStoredXaiApiKey, writeStoredXaiManagementApiKey } from '../providerSecrets.js'
+import { credentialFileRestorer, writeStoredXaiApiKey, writeStoredXaiManagementApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { resolveXaiApiKey, xaiApiBase, xaiInferenceBase } from './xaiAccounts.js'
 import { startXaiDeviceAuth, pollXaiDeviceToken, writeXaiTokens, writePreferredXaiSource, xaiAuthPathForDisplay, type XaiDeviceAuthStart, type XaiOauthIo } from './xaiOauth.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'

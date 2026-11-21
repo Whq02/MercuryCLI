@@ -12,7 +12,7 @@ console.log(' the process start token on Linux comes from /proc, spelled as ps -
 console.log('============================================================')
 
 const { getProcessStartToken, getProcessStartTokenAsync, linuxProcessStartToken, lstartWords } = await import('../../src/utils/ownerWatch.ts')
-const { parseProcessStartToken } = await import('../../src/daemon/processSweep.ts')
+const { parseProcessStartToken } = await import('../../src/utils/processSweep.ts')
 
 const fixedStat = '4242 (bun) S 1 4242 4242 0 -1 4194560 970 542 0 0 0 0 0 0 20 0 1 0 12068008 3874816 680 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20'
 const boot = 1_792_438_460

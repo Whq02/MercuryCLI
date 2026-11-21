@@ -28,7 +28,7 @@ const geminiLimits = await import('../../src/services/providers/gemini/geminiUsa
 const hfLimits = await import('../../src/services/providers/huggingface/huggingfaceUsageState.ts')
 const accounts = await import('../../src/services/providers/openai/openaiAccounts.ts')
 const cap = await import('../../src/services/capFailover.ts')
-const auth = await import('../../src/utils/auth.ts')
+const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
 
 section('E1 the epoch moves on sign-ins AND removals, and subscribers hear it')
 {

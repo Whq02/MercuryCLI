@@ -52,9 +52,9 @@ const api = await startFixtureApi([
 ])
 const { daemonControlRpc, clearControlKeyMemo } = await import('../../src/daemon/controlSocket.ts')
 const { readMercuryProcesses, recordProcessCensusAtBoot, endStaleProcesses, COCKPIT_HEARTBEAT_ALLOWANCE_MS, processSweepCensusPath } = await import('../../src/daemon/processSweepRun.ts')
-const { PROCESS_SWEEP_WORDS, sameSweepIdentity } = await import('../../src/daemon/processSweep.ts')
+const { PROCESS_SWEEP_WORDS, sameSweepIdentity } = await import('../../src/utils/processSweep.ts')
 const { getProcessStartTokenAsync } = await import('../../src/utils/ownerWatch.ts')
-import type { ProcessSweepEntry } from '../../src/daemon/processSweep.ts'
+import type { ProcessSweepEntry } from '../../src/utils/processSweep.ts'
 
 let passed = 0
 let failed = 0

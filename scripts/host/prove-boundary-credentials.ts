@@ -43,7 +43,7 @@ if (childAt !== -1) {
   delete process.env.MERCURY_HOME
   delete process.env.HF_TOKEN
   const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-  const { writeStoredHuggingfaceApiKey, readStoredHuggingfaceApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredHuggingfaceApiKey, readStoredHuggingfaceApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   const { setAuthScope, clearAuthScope } = await import('../../src/utils/envUtils.ts')
   const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
   const { queueHostBank, queueHostWatch, queueHostSetup } = await import('../../src/services/host/jobs.ts')

@@ -17,7 +17,7 @@ const budget = await import('../../src/services/api/recoveryBudget.js')
 const retry = await import('../../src/services/api/withRetry.js')
 const errors = await import('../../src/services/api/errors.js')
 const { APIError } = await import('../../src/utils/api/sdkErrors.js')
-const auth = await import('../../src/utils/auth.js')
+const auth = { ...(await import('../../src/utils/auth.js')), ...(await import('../../src/services/auth/oauthLifecycle.js')) }
 const { SUBSCRIPTION_OAUTH_SCOPES } = await import('../../src/constants/oauth.js')
 
 let failures = 0

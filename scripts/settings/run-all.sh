@@ -17,7 +17,7 @@
 # gate-watch: src/utils/permissions/filesystem.ts
 # gate-watch: src/utils/*
 # gate-watch: src/utils/cockpit/* src/utils/permissions/PermissionUpdate.ts
-# gate-watch: src/services/providers/moonshot/** src/services/providers/huggingface/** src/services/providers/gemini/** src/services/providers/openrouter/** src/services/providers/local/** src/services/providers/openaicompat/** src/services/providers/deepseek/** src/services/providers/providerSecrets.ts
+# gate-watch: src/services/providers/moonshot/** src/services/providers/huggingface/** src/services/providers/gemini/** src/services/providers/openrouter/** src/services/providers/local/** src/services/providers/openaicompat/** src/services/providers/deepseek/** src/utils/accounts/providerSecrets.ts
 # gate-watch: src/services/localServer/**
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: scripts/ui/fixtures/settings-popup-header/*

@@ -52,7 +52,7 @@ function runIn(body: string, extraEnv: Record<string, string> = {}, keychainHold
     const fs = await import('node:fs')
     const path = await import('node:path')
     const ss = await import(${JSON.stringify(join(SRC, 'utils/secureStorage/index.ts'))})
-    const ps = await import(${JSON.stringify(join(SRC, 'services/providers/providerSecrets.ts'))})
+    const ps = await import(${JSON.stringify(join(SRC, 'utils/accounts/providerSecrets.ts'))})
     const home = ${JSON.stringify(home)}
     const credFile = path.join(home, '.credentials.json')
     const secretsFile = ps.providerSecretsPathForDisplay()
@@ -270,7 +270,7 @@ else {
       new Promise(resolve => setTimeout(() => resolve('still waiting after 4s'), 4000)),
     ])
     out.opened = opened
-    const auth = await import(${JSON.stringify(join(SRC, 'utils/auth.ts'))})
+    const auth = { ...(await import(${JSON.stringify(join(SRC, 'utils/auth.ts'))})), ...(await import(${JSON.stringify(join(SRC, 'services/auth/oauthLifecycle.ts'))})) }
     out.claude = auth.saveOAuthTokensIfNeeded({ accessToken: 'at-2', refreshToken: 'rt-2', expiresAt: 4102444800000, scopes: ['user:inference'], subscriptionType: 'pro', rateLimitTier: null })
     fs.chmodSync(credFile, 0o600)
     out.same = raw(credFile) === before

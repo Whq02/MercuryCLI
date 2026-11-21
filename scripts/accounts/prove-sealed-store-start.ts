@@ -46,12 +46,12 @@ const { plainTextStorage } = await import(join(SRC, 'utils/secureStorage/plainTe
 const { setAuthScope, clearAuthScope } = await import(join(SRC, 'utils/envUtils.ts'))
 const { enableConfigs } = await import(join(SRC, 'utils/config/globalConfig.ts'))
 enableConfigs()
-const auth = await import(join(SRC, 'utils/auth.ts'))
+const auth = { ...(await import(join(SRC, 'utils/auth.ts'))), ...(await import(join(SRC, 'services/auth/oauthLifecycle.ts'))) }
 const sealedRecord = await import(join(SRC, 'utils/secureStorage/sealedRecord.ts'))
 const sealedFile = await import(join(SRC, 'utils/secureStorage/sealedFileStorage.ts'))
 const prefetch = await import(join(SRC, 'utils/secureStorage/keychainPrefetch.ts'))
 const starts = await import(join(SRC, 'utils/secureStorage/sealedStoreStart.ts')).catch(() => null)
-const others = await import(join(SRC, 'utils/secureStorage/otherBuilds.ts')).catch(() => null)
+const others = await import(join(SRC, 'daemon/otherBuilds.ts')).catch(() => null)
 
 type Answer = { ok: true; bytes: Buffer } | { ok: false; why: string; final: boolean }
 type Store = {

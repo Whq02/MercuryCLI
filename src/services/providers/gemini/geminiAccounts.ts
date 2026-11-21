@@ -16,7 +16,7 @@ import {
   generateCodeVerifier,
   generateState,
 } from '../../oauth/crypto.js'
-import { credentialFileUnwritten, credentialJsonToWriteOver, probeCredentialJson, readStoredGeminiApiKey } from '../providerSecrets.js'
+import { credentialFileUnwritten, credentialJsonToWriteOver, probeCredentialJson, readStoredGeminiApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { recordSignIn, noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'

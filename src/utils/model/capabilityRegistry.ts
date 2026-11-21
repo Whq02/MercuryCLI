@@ -118,6 +118,9 @@ export function isProviderCapabilitiesRegistered(): boolean {
   return registered !== undefined
 }
 
-export function providerCapabilities(): ProviderCapabilities | undefined {
+export function providerCapabilities(): ProviderCapabilities {
+  if (registered === undefined) {
+    throw new Error('provider capabilities are not registered: call registerBootDoors() at startup')
+  }
   return registered
 }

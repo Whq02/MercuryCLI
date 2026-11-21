@@ -22,7 +22,7 @@ writeFileSync(join(f.home, 'settings.json'), JSON.stringify({ compatProvider: {
 } }))
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
 resetSettingsCache()
-const { writeStoredCompatApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+const { writeStoredCompatApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
 const { refreshSignInReads } = await import('../../src/daemon/signInView.ts')
 const { deriveScheduleAccountForModel, readLiveAccountFacts } = await import('../../src/daemon/saturnAccount.ts')
 const { applyConcourseScheduleOp } = await import('../../src/daemon/saturn.ts')

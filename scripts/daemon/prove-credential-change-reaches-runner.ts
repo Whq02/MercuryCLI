@@ -57,7 +57,7 @@ seedFirstRun(home, [work])
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const auth = await import('../../src/utils/auth.ts')
+const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
 const { recordSignIn, noteCredentialChange } = await import('../../src/utils/accounts/signInLedger.ts')
 const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.ts')
 const { getSecureStorage } = await import('../../src/utils/secureStorage/index.ts')

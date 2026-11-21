@@ -2,7 +2,7 @@ import { errorMessageWithCause, getErrnoCode } from '../../../utils/errors.js'
 import { formatAge } from '../../../utils/healthCertCore.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { sleep } from '../../../utils/sleep.js'
-import { credentialFileRestorer, writeStoredMetaApiKey } from '../providerSecrets.js'
+import { credentialFileRestorer, writeStoredMetaApiKey } from '../../../utils/accounts/providerSecrets.js'
 import {
   metaApiBase,
   metaAuthPathForDisplay,

@@ -8,15 +8,12 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { isEnvDefinedFalsy, getMercuryHome } from '../../utils/envUtils.js'
 import { getCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
+import type { ActorRefV1, CrewAgentId } from '../../types/crewIdentity.js'
 
 export const AGENT_IDENTITY_SCHEMA = 1 as const
 
-export type CrewAgentId = string & { readonly __brand: 'CrewAgentId' }
+export type { ActorRefV1, CrewAgentId }
 export type CrewSessionId = string & { readonly __brand: 'CrewSessionId' }
-
-export type ActorRefV1 =
-  | { kind: 'agent'; agentId: CrewAgentId }
-  | { kind: 'operator' | 'guest'; principalId: string }
 
 export const AGENT_BINDING_KINDS = ['native', 'provider', 'adapter', 'principal'] as const
 export type AgentBindingKind = (typeof AGENT_BINDING_KINDS)[number]

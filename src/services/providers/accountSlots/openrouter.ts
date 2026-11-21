@@ -1,6 +1,6 @@
 import type { AccountSlotReads, AccountSlot } from './shapes.js'
 import { readMintedOpenrouterKey } from '../openrouter/openrouterAccounts.js'
-import { readStoredOpenrouterApiKey } from '../providerSecrets.js'
+import { readStoredOpenrouterApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { openrouterObservedKeyUsage } from '../openrouter/openrouterUsageState.js'
 import { readSignInRefusal, signInRefusalWords } from '../signInRefusal.js'
 import { label } from './keyLane.js'

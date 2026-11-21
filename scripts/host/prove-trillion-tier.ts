@@ -31,7 +31,7 @@ try {
     const { createHostResource, hostClusterRecord, listHostResources, getHostResource, hostShape, startHostCluster, terminateHostResource } = await import('../../src/services/host/cluster.ts')
     const { hostPriceLines, hostStorageWords } = await import('../../src/services/host/costs.ts')
     const { runHostJob } = await import('../../src/services/host/worker.ts')
-    const { writeStoredRunpodApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+    const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
     const { hostDirectory, readHostRecord, removeHostRecord, patchHostRecord } = await import('../../src/services/host/store.ts')
     const { queueHostSetup, queueHostWatch } = await import('../../src/services/host/jobs.ts')
     const bootstrapFixture = await runpodFixture()

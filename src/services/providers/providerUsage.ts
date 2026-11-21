@@ -4,10 +4,10 @@ import {
   getAuthTokenSource,
   getClaudeAIOAuthTokens,
   getSubscriptionType,
-  invalidateOnDiskChange,
   isAnthropicOAuthSignInExpired,
   isClaudeAISubscriber,
 } from '../../utils/auth.js'
+import { invalidateOnDiskChange } from '../auth/oauthLifecycle.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { buildProviderSnapshot, type ProviderSnapshot } from './modelRegistry.js'
 import type { ProviderFamilyId } from './providerAdapter.js'

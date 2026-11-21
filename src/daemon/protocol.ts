@@ -1,5 +1,5 @@
 
-import type { ProcessSweepDaemonAnswer, ProcessSweepEntry } from './processSweep.js'
+import type { ProcessSweepDaemonAnswer, ProcessSweepEntry } from '../utils/processSweep.js'
 import type { SessionKitEditV1, SessionKitV1 } from './sessionKit.js'
 import { DAEMON_VERB_BORN_AT, type DaemonOpFor, type SessionControlAction } from '../runner/wire/sessionVerbs.js'
 

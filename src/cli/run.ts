@@ -16,7 +16,7 @@ import { type Tool } from '../Tool.js'
 import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'
 import { killTask } from '../tasks/LocalShellTask/killShellTasks.js'
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
-import { registerDefaultProviderCapabilities } from '../services/providers/registerCapabilities.js'
+import { registerBootDoors } from '../services/boot/registerDoors.js'
 
 
 export { joinPromptValues, canBatchWith }
@@ -35,7 +35,7 @@ export async function runHeadless(
   agents: AgentDefinition[],
   options: HeadlessOptions,
 ): Promise<void> {
-  registerDefaultProviderCapabilities()
+  registerBootDoors()
   const { ports, give } = createRunnerPorts(
     {
       live: createRunnerState(),

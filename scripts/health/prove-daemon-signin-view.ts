@@ -54,7 +54,7 @@ for (const k of [
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const auth = await import('../../src/utils/auth.ts')
+const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
 
 let failures = 0

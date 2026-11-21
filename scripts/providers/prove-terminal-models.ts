@@ -22,7 +22,7 @@ enableConfigs()
 await import(`${root}/src/services/resources/registry.ts`)
 const { liveModelsReference, liveModelsReferenceText } = await import(`${root}/src/services/resources/adapters/models.ts`)
 const { getEngineModel } = await import(`${root}/src/utils/model/model.ts`)
-const secrets = await import(`${root}/src/services/providers/providerSecrets.ts`)
+const secrets = await import(`${root}/src/utils/accounts/providerSecrets.ts`)
 const modelsModule = existsSync(`${root}/src/cli/handlers/models.ts`)
   ? await import(`${root}/src/cli/handlers/models.ts`)
   : undefined

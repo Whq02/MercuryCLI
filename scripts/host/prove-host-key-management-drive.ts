@@ -20,7 +20,7 @@ try {
   assert.ok(existsSync(f.root + '/src/services/host/vendorKeys.ts'), 'connected host vendors need key management controls')
   const { vendorKeyRows, manageVendorKey } = await import(f.root + '/src/services/host/vendorKeys.ts')
   const { saveVendorKey, vendorKey, vendorLabel } = await import(f.root + '/src/services/host/vendors/client.ts')
-  const { writeStoredHuggingfaceApiKey } = await import(f.root + '/src/services/providers/providerSecrets.ts')
+  const { writeStoredHuggingfaceApiKey } = await import(f.root + '/src/utils/accounts/providerSecrets.ts')
   const React = await import('react')
   const { Box } = await import('../../src/ink.ts')
   const { AppStateProvider } = await import('../../src/state/AppState.tsx')

@@ -38,7 +38,7 @@ import { qwenProviderAdapter } from './qwen/qwenAdapter.js'
 import { catalogueEpoch } from './catalogueEpoch.js'
 import { isProviderDisabled, resolveDisabledProviders } from './disabledProviders.js'
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
-import { credentialEnvNames } from './providerSecrets.js'
+import { credentialEnvNames } from '../../utils/accounts/providerSecrets.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 
 export interface ProviderSnapshot {

@@ -59,7 +59,7 @@ const records = await import('../../src/services/anthropicLimits.js')
 const { call } = await import('../../src/commands/usage/usage.js')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
-const auth = await import('../../src/utils/auth.js')
+const auth = { ...(await import('../../src/utils/auth.js')), ...(await import('../../src/services/auth/oauthLifecycle.js')) }
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.js')
 const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.js')
 storeOAuthAccountInfo({ accountUuid: '00000000-0000-4000-8000-0000000000dd', emailAddress: 'follows@example.com' })

@@ -72,7 +72,8 @@ const { getContextWindowForModel } = await import('../../src/utils/model/capabil
 const { getModelStrings } = await import('../../src/utils/model/modelStrings.ts')
 const { getAgentModelPickerRows } = await import('../../src/services/model/agentModelPicker.ts')
 const { composeSubModelRegistry } = await import('../../src/services/model/subModelSlots.ts')
-const { clearOAuthTokenCache, isClaudeAISubscriber, isMaxSubscriber } = await import('../../src/utils/auth.ts')
+const { isClaudeAISubscriber, isMaxSubscriber } = await import('../../src/utils/auth.ts')
+const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail?: string): void {

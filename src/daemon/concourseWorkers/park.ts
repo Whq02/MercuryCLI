@@ -4,7 +4,7 @@ import { isProcessAlive, getProcessStartTokenAsync } from '../../utils/ownerWatc
 import { RetirementFence } from '../runnerQuiescence.js'
 import type { RunnerDoor } from '../runnerConnection.js'
 import { workerPidAlive } from '../workerIdentity.js'
-import { tokenBinding } from '../processSweep.js'
+import { tokenBinding } from '../../utils/processSweep.js'
 import { readProcessTreeUnder, readProcessBirth } from '../processTree.js'
 import { endProcessTree } from '../../utils/processGroup.js'
 import { pollUntil, withDeadline } from '../../utils/deadline.js'

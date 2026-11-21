@@ -7,18 +7,15 @@ import {
   PROFILE_SCOPE,
   getOauthConfig,
 } from '../../constants/oauth.js'
-import {
-  checkAndRefreshOAuthTokenIfNeeded,
-  isClaudeAISubscriber,
-  saveApiKey,
-} from '../../utils/auth.js'
+import { isClaudeAISubscriber, saveApiKey } from '../../utils/auth.js'
+import { checkAndRefreshOAuthTokenIfNeeded } from '../auth/oauthLifecycle.js'
 import { getGlobalConfig, saveGlobalConfig, type AccountInfo } from '../../utils/config.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getAuthScope } from '../../utils/envUtils.js'
 import { apiTimeoutMsOverride } from '../../utils/envValidation.js'
 import { logError } from '../../utils/log.js'
 import { getMercuryUserAgent } from '../../utils/userAgent.js'
-import { getOauthProfileFromOauthToken } from './getOauthProfile.js'
+import { getOauthProfileFromOauthToken } from '../../utils/oauth/getOauthProfile.js'
 import type {
   OAuthProfileResponse,
   OAuthTokenExchangeResponse,

@@ -1,6 +1,6 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
-import { writeStoredGroqApiKey } from '../providerSecrets.js'
+import { writeStoredGroqApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { groqApiBase, groqEnvKey } from './groqAccounts.js'
 import { fetchGroqLiveModels, GroqCatalogueHttpError } from './groqCatalogue.js'
 import { hostEnv } from '../../../utils/hostEnv.js'

@@ -40,7 +40,7 @@ try {
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
   const { createHostRoad } = await import('../../src/services/host/index.ts')
   const { hostRunner, closeHostTunnel } = await import('../../src/services/host/ssh.ts')
-  const { writeStoredRunpodApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   const { readHostRecord } = await import('../../src/services/host/store.ts')
   const { runHostJob } = await import('../../src/services/host/worker.ts')
   const { readTunePreferences } = await import('../../src/services/host/tune.ts')

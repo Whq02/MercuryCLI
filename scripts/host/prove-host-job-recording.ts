@@ -155,7 +155,7 @@ const { hostRunner, closeHostTunnel } = await import('../../src/services/host/ss
 const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
 const { saveVendorKey, vendorClient } = await import('../../src/services/host/vendors/client.ts')
 const { HuggingfaceClient } = await import('../../src/services/host/vendors/huggingface.ts')
-const { writeStoredHuggingfaceApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+const { writeStoredHuggingfaceApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
 const { getAuthConfigHomeDir } = await import('../../src/utils/envUtils.ts')
 
 const ssh = fakeSshRunner(f.baseUrl, hostRunner)

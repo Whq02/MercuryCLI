@@ -73,7 +73,7 @@ if (childMode !== -1) {
     const { queueHostWatch } = await import('../../src/services/host/jobs.ts')
     const { writeHostRecord, readHostRecord, hostRecords, removeHostRecord } = await import('../../src/services/host/store.ts')
     const { hostRecipeOfRecord } = await import('../../src/services/host/recipesFile.ts')
-    const { writeStoredRunpodApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+    const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
     const source = HOST_RECIPES.find(row => row.gpu === 'RTX PRO 6000' && row.engine === 'llamacpp')!
     const privateRecipe = { ...source, id: 'boundary-private-model', model: f.model, label: 'Boundary private model · Q4', flags: [...source.flags, '--boundary-proof-marker'] }
     const recipes = join(f.home, 'private-recipes.json')

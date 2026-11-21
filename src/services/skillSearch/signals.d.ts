@@ -1,1 +1,1 @@
-export type DiscoverySignal = any;
+export type { DiscoverySignal } from '../../types/skillDiscovery.js';

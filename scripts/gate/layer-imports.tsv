@@ -1,19 +1,9 @@
-src/utils/accounts/signInLedger.ts	src/services/providers/providerSecrets.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
 src/utils/api.ts	src/services/providers/deferralWire.ts	load	request-shape helpers read provider route and deferral law for messages/apiPlan.ts and apiView.ts
 src/utils/api.ts	src/services/providers/routeLaw.ts	load	request-shape helpers read provider route and deferral law for messages/apiPlan.ts and apiView.ts
-src/utils/artifacts/reviewContracts.ts	src/services/crew/identity.ts	type	a type only: CrewActorRef of src/services/crew/identity.ts
-src/utils/attachments/types.ts	src/tools/FileReadTool/FileReadTool.ts	type	a type only: FileReadTool's output in the attachment union
-src/utils/auth.ts	src/services/oauth/getOauthProfile.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
-src/utils/auth.ts	src/services/oauth/refresh.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
-src/utils/auth.ts	src/services/providers/modelRegistry.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
-src/utils/auth.ts	src/services/providers/providerUsage.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
-src/utils/auth.ts	src/services/wallet/wallet.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
 src/utils/bash/shellCompletion.ts	src/components/PromptInput/PromptInputFooterSuggestions.tsx	type	row 8
 src/utils/cockpit/critterData.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
 src/utils/cockpit/oasisBg.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
 src/utils/cockpit/runtimePosture.ts	src/tools/BashTool/bashPermissions.ts	load	row 8
-src/utils/git.ts	src/services/gitGraph/contracts.ts	type	the git utility hands status observation to src/services/gitGraph
-src/utils/git.ts	src/services/gitGraph/observe.ts	load	the git utility hands status observation to src/services/gitGraph
 src/utils/hooks/crewmateRunner.ts	src/services/providers/catalogueOnDemand.ts	load	hook runners call models and tools for src/utils/hooks/fire.ts, which row 8 imports
 src/utils/hooks/crewmateRunner.ts	src/services/providers/routeLaw.ts	load	hook runners call models and tools for src/utils/hooks/fire.ts, which row 8 imports
 src/utils/hooks/crewmateRunner.ts	src/tools/SyntheticOutputTool/SyntheticOutputTool.ts	load	hook runners call models and tools for src/utils/hooks/fire.ts, which row 8 imports
@@ -26,7 +16,6 @@ src/utils/messages/apiPlan.ts	src/services/api/errors.ts	load	the message normal
 src/utils/messages/attachmentText.ts	src/services/instructions/attachedText.ts	load	the message normalizer formats API error, instruction and tool-result blocks
 src/utils/messages/attachmentText.ts	src/services/providers/limitWarning.ts	load	the message normalizer formats API error, instruction and tool-result blocks
 src/utils/messages/attachmentText.ts	src/tools/BashTool/resultBlock.ts	load	the message normalizer formats API error, instruction and tool-result blocks
-src/utils/messages/attachmentText.ts	src/tools/FileReadTool/FileReadTool.ts	type	the message normalizer formats API error, instruction and tool-result blocks
 src/utils/messages/attachmentText.ts	src/tools/FileReadTool/read/resultBlock.ts	load	the message normalizer formats API error, instruction and tool-result blocks
 src/utils/messages/lookups.ts	src/services/api/errors.ts	load	the message normalizer formats API error, instruction and tool-result blocks
 src/utils/model/model.ts	src/services/model/bareFamilyWords.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
@@ -51,10 +40,6 @@ src/utils/permissions/decision/rules.ts	src/tools/MonitorTool/constants.ts	load	
 src/utils/permissions/flowLaw.ts	src/tools/BashTool/bashPermissions.ts	load	row 8
 src/utils/permissions/flowLaw.ts	src/tools/DebugTool/prompt.ts	load	row 8
 src/utils/permissions/flowLaw.ts	src/tools/MonitorTool/constants.ts	load	row 8
-src/utils/permissions/runtimeProtection.ts	src/daemon/controlSocket.ts	load	self-protection reads the live daemon pid and script; row 8's floors call it
-src/utils/secureStorage/otherBuilds.ts	src/daemon/controlSocket.ts	load	the credential store checks live processes of other Mercury builds before sealing
-src/utils/secureStorage/otherBuilds.ts	src/daemon/processSweep.ts	load	the credential store checks live processes of other Mercury builds before sealing
-src/utils/secureStorage/otherBuilds.ts	src/daemon/processSweepRun.ts	load	the credential store checks live processes of other Mercury builds before sealing
 src/utils/sessionStorage/chain.ts	src/services/desktop/screenshotRetention.ts	load	the transcript chain strips and restores desktop screenshots through screenshotRetention
 src/utils/settings/allErrors.ts	src/services/mcp/config.ts	load	the settings error list collects MCP config load errors
 src/utils/theme.ts	src/components/mercury-ui/sessionAccent.ts	load	its path is the hex exemption of src/utils/wards/wards.ts

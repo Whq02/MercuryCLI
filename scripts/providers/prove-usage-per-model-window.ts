@@ -23,7 +23,7 @@ const section = (t: string): void => console.log('\n' + t)
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const auth = await import('../../src/utils/auth.ts')
+const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
 auth.clearOAuthTokenCache()
 writeFileSync(join(HOME, '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken: 'at-live', refreshToken: 'rt-live', expiresAt: Date.now() + 7 * 24 * 3600_000, scopes: ['user:inference', 'user:profile'], subscriptionType: 'max', rateLimitTier: null } }))
 auth.clearOAuthTokenCache()

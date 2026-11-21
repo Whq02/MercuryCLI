@@ -1,11 +1,6 @@
 import { isOAuthTokenExpired } from '../oauth/client.js'
-import {
-  checkAndRefreshOAuthTokenIfNeeded,
-  getAuthTokenSource,
-  getClaudeAIOAuthTokens,
-  invalidateOnDiskChange,
-  isAnthropicOAuthSignInExpired,
-} from '../../utils/auth.js'
+import { getAuthTokenSource, getClaudeAIOAuthTokens, isAnthropicOAuthSignInExpired } from '../../utils/auth.js'
+import { checkAndRefreshOAuthTokenIfNeeded, invalidateOnDiskChange } from '../auth/oauthLifecycle.js'
 import { noteCredentialChange } from '../../utils/accounts/signInLedger.js'
 
 type SignInFamily = 'anthropic' | 'openai'

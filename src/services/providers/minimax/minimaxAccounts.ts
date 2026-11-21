@@ -1,5 +1,5 @@
 import { flagEnv } from '../../../substrate/flagRegistry.js'
-import { readStoredMinimaxApiKey } from '../providerSecrets.js'
+import { readStoredMinimaxApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

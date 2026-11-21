@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { handoffTurn, startFixtureApi } from '../lib/fixtureApi.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
-import { composeProcessSweepFacts } from '../../src/daemon/processSweep.ts'
+import { composeProcessSweepFacts } from '../../src/utils/processSweep.ts'
 import { createPeer } from '../../src/runner/wire/peer.ts'
 
 const at = process.argv.indexOf('--dist')

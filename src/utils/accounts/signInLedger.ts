@@ -76,7 +76,7 @@ function normaliseFamily(family: string): string | undefined {
 function ledgerPath(io?: SignInLedgerIo): string {
   if (io?.home !== undefined) return join(io.home, SIGN_IN_LEDGER_FILE)
   const { signInLedgerPath } =
-    require('../../services/providers/providerSecrets.js') as typeof import('../../services/providers/providerSecrets.js')
+    require('./providerSecrets.js') as typeof import('./providerSecrets.js')
   return signInLedgerPath(SIGN_IN_LEDGER_FILE)
 }
 

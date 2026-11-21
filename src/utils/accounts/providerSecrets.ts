@@ -1,14 +1,14 @@
 import { chmodSync, mkdirSync, readFileSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { DurablePublishError, durableAtomicPublishSync } from '../../substrate/durablePublish.js'
-import { recordSignIn, noteCredentialChange } from '../../utils/accounts/signInLedger.js'
-export { signInRecordRestorer } from '../../utils/accounts/signInLedger.js'
-import { getAuthConfigHomeDir } from '../../utils/envUtils.js'
-import { errorMessage, getErrnoCode, isENOENT } from '../../utils/errors.js'
-import { logError } from '../../utils/log.js'
-import { refuseProofWriteIntoAccountStore } from '../../utils/proofHomeGuard.js'
-import { passedOver } from '../../utils/passedOver.js'
-import { hostEnv } from '../../utils/hostEnv.js'
+import { recordSignIn, noteCredentialChange } from './signInLedger.js'
+export { signInRecordRestorer } from './signInLedger.js'
+import { getAuthConfigHomeDir } from '../envUtils.js'
+import { errorMessage, getErrnoCode, isENOENT } from '../errors.js'
+import { logError } from '../log.js'
+import { refuseProofWriteIntoAccountStore } from '../proofHomeGuard.js'
+import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 const PROVIDER_SECRETS_VERSION = 1
 const FILE_NAME = '.provider-secrets.json'
@@ -405,7 +405,7 @@ export function readStoredCompatApiKey(name = 'default'): string | undefined {
 }
 export function writeStoredCompatApiKey(key: string | null, name?: string): void {
   if (name !== undefined) {
-    const { configuredCompatEndpoints } = require('./openaicompat/compatAccounts.js') as typeof import('./openaicompat/compatAccounts.js')
+    const { configuredCompatEndpoints } = require('../settings/compatEndpoints.js') as typeof import('../settings/compatEndpoints.js')
     if (!/^[a-z0-9-]{1,32}$/.test(name) || !configuredCompatEndpoints().some(endpoint => endpoint.name === name)) throw new Error(`compatProvider.${name}: unknown endpoint; no key was stored`)
   }
   if (name === undefined || name === 'default') { writeStoredKey('compatApiKey', key); return }

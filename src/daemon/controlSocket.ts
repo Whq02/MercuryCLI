@@ -2,7 +2,6 @@
 import net from 'node:net'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, unlinkSync } from 'node:fs'
-import { flagEnv } from '../substrate/flagRegistry.js'
 import {
   mkdir,
   readFile,
@@ -14,7 +13,7 @@ import {
 import { loadavg, platform, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { acquirePidLock, noteLockRelease, releasePidLock } from '../substrate/pidLock.js'
-import { getMercuryHome } from '../utils/envUtils.js'
+import { daemonDir, daemonStatePath, readDaemonState, type DaemonState } from '../utils/daemonState.js'
 import { directoryIdentity } from '../utils/directoryIdentity.js'
 import { isProcessAlive } from '../utils/ownerWatch.js'
 import { availableCores } from '../utils/availableCores.js'
@@ -37,15 +36,7 @@ import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 declare const MACRO: { VERSION: string }
 
-function configHome(): string {
-  return getMercuryHome()
-}
-
-export function daemonDir(): string {
-  const override = flagEnv('MERCURY_DAEMON_DIR')
-  if (override && override.trim() !== '') return override
-  return join(configHome(), 'daemon')
-}
+export { daemonDir, daemonStatePath, readDaemonState, type DaemonState }
 
 const SUN_PATH_SAFE_MAX = 100
 export function controlSockPath(hostPlatform: string = platform()): string {
@@ -73,52 +64,12 @@ export function controlConnectPath(hostPlatform: string = platform()): string {
   }
   return controlSockPath(hostPlatform)
 }
-export function daemonStatePath(): string {
-  return join(daemonDir(), 'daemon.json')
-}
 
 export function controlKeyPath(): string {
   return join(daemonDir(), 'control.key')
 }
 
 
-export interface DaemonState {
-  pid: number
-  version: string
-  origin: 'transient'
-  startedAt: number
-  dir: string
-  controlSock: string
-  proto?: number
-  buildTree?: string | null
-  script?: string
-  ownerPid?: number | null
-  foreground?: boolean
-  startToken?: string | null
-  startInstant?: string
-  persist?: boolean
-  state?: 'stopping'
-  stoppingAt?: number
-}
-
-export async function readDaemonState(): Promise<DaemonState | null> {
-  try {
-    const raw = await readFile(daemonStatePath(), 'utf8')
-    const parsed = JSON.parse(raw)
-    if (
-      parsed &&
-      typeof parsed === 'object' &&
-      typeof parsed.pid === 'number' &&
-      typeof parsed.startedAt === 'number'
-    ) {
-      return parsed as DaemonState
-    }
-    return null
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
-}
 
 export async function writeDaemonState(
   state: DaemonState,

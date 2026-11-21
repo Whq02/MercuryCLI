@@ -58,7 +58,7 @@ section('the fresh-sign-in trigger: first-only, self-guarded, receipted by')
   const { enableConfigs } = await import('../../src/utils/config.js')
   enableConfigs()
   const ownedMod = await import('../../src/daemon/ownedDaemon.js')
-  const { clearOAuthTokenCache } = await import('../../src/utils/auth.js')
+  const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.js')
   clearOAuthTokenCache()
   const asks: Array<{ op: string; by: string; proto: number }> = []
   const rpc = async (req: { op: 'restart-when-idle'; proto: number; by: string }): Promise<unknown> => {

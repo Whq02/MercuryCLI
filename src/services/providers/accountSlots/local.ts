@@ -1,7 +1,7 @@
 import type { AccountSlotReads, AccountSlot } from './shapes.js'
 import { resolveLocalAccount } from '../local/localAccounts.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
-import { readStoredLocalApiKey } from '../providerSecrets.js'
+import { readStoredLocalApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { keyLaneSlots } from './keyLane.js'
 
 export function localSlots(reads: AccountSlotReads): AccountSlot[] {

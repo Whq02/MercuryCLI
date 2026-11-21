@@ -1,4 +1,4 @@
-import { readStoredZaiApiKey, readStoredZaiKeyPlan } from '../providerSecrets.js'
+import { readStoredZaiApiKey, readStoredZaiKeyPlan } from '../../../utils/accounts/providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { planlessZaiKeyPlan, type ZaiKeyPlanWord, type ZaiPlanSource } from './zaiKeyPlan.js'
 import { hostEnv } from '../../../utils/hostEnv.js'

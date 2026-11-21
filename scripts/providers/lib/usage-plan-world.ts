@@ -128,7 +128,7 @@ export async function usagePlanWorld() {
   const { enableConfigs } = await import(path('src/utils/config.ts'))
   enableConfigs()
   const accounts = await import(path('src/services/providers/moonshot/moonshotAccounts.ts')) as typeof import('../../../src/services/providers/moonshot/moonshotAccounts.js')
-  const secrets = await import(path('src/services/providers/providerSecrets.ts')) as typeof import('../../../src/services/providers/providerSecrets.js')
+  const secrets = await import(path('src/utils/accounts/providerSecrets.ts')) as typeof import('../../../src/utils/accounts/providerSecrets.js')
   accounts.writeMoonshotTokens({ accessToken: 'kimi-fixture-access', refreshToken: 'kimi-fixture-refresh' }, 'global')
   secrets.writeStoredZaiApiKey(glmKey, 'coding')
   const reader = await import(path('src/services/providers/moonshot/moonshotUsageState.ts')) as typeof import('../../../src/services/providers/moonshot/moonshotUsageState.js')

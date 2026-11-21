@@ -1,5 +1,5 @@
 import { flagEnv } from '../../../substrate/flagRegistry.js'
-import { readStoredQwenApiKey, readStoredQwenKeyBase } from '../providerSecrets.js'
+import { readStoredQwenApiKey, readStoredQwenKeyBase } from '../../../utils/accounts/providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { credentialFingerprint } from '../../../utils/accounts/credentialIdentity.js'
 import { passedOver } from '../../../utils/passedOver.js'

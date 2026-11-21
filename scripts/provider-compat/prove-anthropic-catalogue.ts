@@ -56,7 +56,7 @@ function jsonResponse(status: number, body: unknown): Response {
 const catalogue = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts').catch(() => null)
 const { catalogueTrafficVerdict, connectToBrowseReason } = await import('../../src/services/providers/catalogueGate.ts')
 const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
-const { clearOAuthTokenCache } = await import('../../src/utils/auth.ts')
+const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.ts')
 const { OAUTH_BETA_HEADER } = await import('../../src/constants/oauth.ts')
 
 type Call = { url: string; headers: Record<string, string> }

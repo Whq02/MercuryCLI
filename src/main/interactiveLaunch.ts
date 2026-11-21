@@ -17,7 +17,7 @@ import {
   showSetupScreens,
 } from '../interactiveHelpers.js'
 import { launchInvalidSettingsDialog, launchResumeChooser } from '../dialogLaunchers.js'
-import { validateForceLoginOrg } from '../utils/auth.js'
+import { validateForceLoginOrg } from '../services/auth/oauthLifecycle.js'
 import { startBackgroundHousekeeping } from '../services/backgroundHousekeeping.js'
 import { getGlobalConfig, saveGlobalConfigDeferred, flushDeferredGlobalConfigSaves, binaryName, getRemoteControlAtStartup } from '../utils/config.js'
 import { registerSession, updateSessionName } from '../utils/concurrentSessions.js'

@@ -279,7 +279,7 @@ try {
   const { queueHostSetup } = await import('../../src/services/host/jobs.ts')
   const { runHostJob } = await import('../../src/services/host/worker.ts')
   const { readHostRecord } = await import('../../src/services/host/store.ts')
-  const { writeStoredRunpodApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   const ssh = fakeSshRunner(f.baseUrl, hostRunner)
   sshClose = ssh.close
   const overridePath = join(f.home, 'operator-recipes.json')
