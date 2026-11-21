@@ -122,6 +122,19 @@ export function couldNameSecret(word: string, cwd: string, homes: readonly strin
   return false
 }
 
+export function fileUrlPaths(word: string): string[] {
+  const url = /^file:(?:\/\/(?:(?:localhost|127\.0\.0\.1)(?=\/))?|(?=\/(?!\/)))([\s\S]*)$/i.exec(word)
+  if (url === null || (!url[1]!.startsWith('/') && !DRIVE_PATH.test(url[1]!))) return []
+  let decoded: string
+  try {
+    decoded = decodeURIComponent(url[1]!)
+  } catch {
+    decoded = url[1]!
+  }
+  const drive = decoded.startsWith('/') ? decoded.slice(1) : decoded
+  return DRIVE_PATH.test(drive) && (drive !== decoded || drive[1] === '|') ? [decoded, `${drive[0]}:${drive.slice(2)}`] : [decoded]
+}
+
 export function spellingsOf(word: string): string[] {
   const out = [word]
   const equals = word.indexOf('=')
@@ -129,18 +142,7 @@ export function spellingsOf(word: string): string[] {
   for (const candidate of [...out]) {
     const plain = candidate.startsWith('@') ? candidate.slice(1).split(';')[0]! : candidate
     if (plain !== candidate) out.push(plain)
-    const url = /^file:(?:\/\/(?:(?:localhost|127\.0\.0\.1)(?=\/))?|(?=\/(?!\/)))([\s\S]*)$/i.exec(plain)
-    if (url !== null && (url[1]!.startsWith('/') || DRIVE_PATH.test(url[1]!))) {
-      const from = out.length
-      try {
-        out.push(decodeURIComponent(url[1]!))
-      } catch {
-        out.push(url[1]!)
-      }
-      const path = out[from]!
-      const drive = path.startsWith('/') ? path.slice(1) : path
-      if (DRIVE_PATH.test(drive) && (drive !== path || drive[1] === '|')) out.push(`${drive[0]}:${drive.slice(2)}`)
-    }
+    out.push(...fileUrlPaths(plain))
   }
   return out
 }
