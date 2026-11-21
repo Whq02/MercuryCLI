@@ -423,7 +423,7 @@ export function assembleCardRows(facts) {
     rows.push({
       key: 'concourse',
       icon: '⊞',
-      label: 'Session Dashboard (Concourse)',
+      label: 'Session Manager (Concourse)',
       ctx: facts.concourse.ctx,
       ...(facts.concourse.dim ? { dim: true } : {}),
     })
