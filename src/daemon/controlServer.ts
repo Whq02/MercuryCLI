@@ -139,6 +139,7 @@ export interface ControlServerDeps {
     runnerId?: string
     sessionId?: string
     error?: string
+    unconfirmed?: true
     replay?: string
     heldReason?: string
     heldByTitle?: string
@@ -252,7 +253,7 @@ const DISPATCH_WIRE_KEYS = [
 ] as const satisfies readonly (keyof DispatchResult)[]
 const DISPATCH_REFUSAL_WIRE_KEYS = ['state', 'stateRevision', 'heldReason', 'heldByTitle', 'moves'] as const satisfies readonly (keyof DispatchResult)[]
 const dispatchWhole: Whole<
-  Omit<DispatchResult, 'ok' | 'error'>,
+  Omit<DispatchResult, 'ok' | 'error' | 'unconfirmed'>,
   (typeof DISPATCH_WIRE_KEYS)[number] | (typeof DISPATCH_REFUSAL_WIRE_KEYS)[number]
 > = true
 
@@ -1105,7 +1106,7 @@ async function answerSessionDispatch(deps: DepsWith<'concourseDispatch'>, sock: 
   if (!r.ok) {
     return answer(sock, {
       ok: false,
-      code: 'EREFUSED',
+      code: r.unconfirmed ? 'EUNCONFIRMED' : 'EREFUSED',
       error: r.error ?? 'dispatch refused',
       refusal: r.replay,
       ...pickDefined(r, DISPATCH_REFUSAL_WIRE_KEYS),

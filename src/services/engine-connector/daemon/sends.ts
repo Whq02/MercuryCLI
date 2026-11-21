@@ -191,7 +191,7 @@ export class SendsPart {
     }
     for (const s of this.sends) {
       if (landed.has(s.clientMessageId)) continue
-      if (now - s.sentAtMs > ECHO_RETIRE_MS && s.state !== 'queued') {
+      if (now - s.sentAtMs > ECHO_RETIRE_MS && s.state !== 'queued' && s.state !== 'unconfirmed') {
         landed.add(s.clientMessageId)
         continue
       }
@@ -258,6 +258,10 @@ export class SendsPart {
   withdrawn(clientMessageId: string): void {
     this.drop(clientMessageId)
     if (this.sends.length === 0) this.textRetiredRowUuids.clear()
+  }
+
+  unconfirmedDraft(key: string): SeatSend | undefined {
+    return this.sends.find(s => s.state === 'unconfirmed' && s.draftKey === key)
   }
 
   sendOf(clientMessageId: string): SeatSend | undefined {

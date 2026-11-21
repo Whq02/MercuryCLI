@@ -195,6 +195,57 @@ section('§4 rows once, verbs landed through session/applied, deliveries as rows
   add.answer({ accepted: true })
   check('an accepted delivery is true', (await delivery) === true)
 
+  const { PendingQueueAck } = await import('../../src/daemon/runnerConnection.ts')
+  const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+  updateConcourseWorkers(workers => { workers[RUNNER]!.pid = process.pid }, daemonDir)
+  let reached!: (pending: boolean) => void
+  const deadline = new Promise<boolean>(resolve => { reached = resolve })
+  const handler = dispatch.makeConcourseDispatchHandler({
+    dir: daemonDir,
+    admit: async () => { throw new Error('the existing seat must receive this input') },
+    deliver: async (_, row) => {
+      try {
+        const accepted = await stand.connection.deliver(row)
+        reached(false)
+        return accepted
+      } catch (error) {
+        reached(error instanceof PendingQueueAck)
+        throw error
+      }
+    },
+  })
+  const { mock } = await import('bun:test')
+  const daemon = await import('../../src/services/switchboard/ensureDaemon.ts')
+  mock.module('../../src/services/switchboard/ensureDaemon.ts', () => ({ ...daemon, ensureOwnedDaemon: async () => true }))
+  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const submitted: Parameters<typeof handler>[0][] = []
+  let loseReply = false
+  const sender = new DaemonSessionConnector({ sessionId: SESSION, home, workspaceId: '/ws', title: 'delivery', projectLabel: 'proof' } as never, {
+    rpc: async frame => {
+      const input = frame as unknown as Parameters<typeof handler>[0]
+      submitted.push(input)
+      return loseReply ? { ok: false, code: 'ENOCONN', frameWritten: true } : { ...await handler(input) }
+    },
+  })
+  const sending = sender.sendWords('one instruction')
+  const waiting = await stand.nextRequest('queue/add')
+  const unconfirmed = await deadline
+  const draft = submitted[0]!
+  const beforeAck = dispatch.readConcourseDispatches(daemonDir)[draft.clientMessageId]
+  const repeated = sender.sendWords('one instruction')
+  const again = await handler(draft)
+  check('an enqueued instruction whose ACK is held past five seconds is neither failed nor delivered, and is not cancelled', unconfirmed && beforeAck?.state === 'starting' && beforeAck.deliveredAt === undefined && !waiting.cancelled, j({ unconfirmed, state: beforeAck?.state, cancelled: waiting.cancelled }))
+  check('the same draft and a replay of its dispatch ID produce only one queue/add', !again.ok && again.unconfirmed === true && submitted.length === 1 && stand.requests.filter(r => r.method === 'queue/add' && (r.params as { id?: string }).id === draft.clientMessageId).length === 1, j(again))
+  waiting.answer({ accepted: true })
+  const [first, second] = await Promise.all([sending, repeated])
+  const afterAck = await handler(draft)
+  check('the original late ACK settles both sends without restoring the draft or sending it twice', first.state === 'accepted' && second.state === 'accepted' && afterAck.ok && afterAck.state === 'working' && afterAck.replay === 'replayed' && submitted.length === 1, j({ first, second, afterAck }))
+  loseReply = true
+  const lost = await sender.sendWords('check the original')
+  const retry = await sender.sendWords('check the original')
+  await sender.sendWords('a different instruction')
+  check('a written request that loses the daemon reply stays unconfirmed; retry keeps both ID and stamp, and an edit gets a new ID', lost.state === 'pending' && retry.state === 'pending' && submitted.length === 4 && submitted[1]!.clientMessageId === submitted[2]!.clientMessageId && submitted[1]!.sentAt === submitted[2]!.sentAt && submitted[2]!.clientMessageId !== submitted[3]!.clientMessageId, j(submitted.map(r => [r.clientMessageId, r.sentAt])))
+
   const prompt = await dispatch.buildConcoursePromptRow('hello there', { identity: '0b5c2d0a-6e9e-4c4b-8a2c-3f1d2e5b7a91', priority: 'now', sentAt: '2026-10-03T09:00:00Z' }, 'the ground note')
   check('the operator’s words are a prompt row with the ground note above, the identity as id, the band and the stamp', j(prompt) === j({ type: 'prompt', content: 'the ground note\n\nhello there', id: '0b5c2d0a-6e9e-4c4b-8a2c-3f1d2e5b7a91', priority: 'now', sent_at: '2026-10-03T09:00:00Z' }), j(prompt))
   const shell = await dispatch.buildConcoursePromptRow('ls -la', { mode: 'bash', identity: 'not-a-uuid' }, 'never on a command')

@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { SESSION_VERBS } from '../../../runner/wire/sessionVerbs.js'
 import { BASH_INPUT_TAG } from '../../../constants/xml.js'
 import type { Message } from '../../../types/message.js'
@@ -39,13 +39,17 @@ interface DeliveryNeeds {
   drop(clientMessageId: string): void
   withdrawn(clientMessageId: string): void
   dress(clientMessageId: string, state: SeatSend['state']): void
+  unconfirmedDraft(key: string): SeatSend | undefined
   sendOf(clientMessageId: string): SeatSend | undefined
   markWithdrawing(clientMessageId: string, on: boolean): void
   retireUnknown(clientMessageId: string): void
 }
 
+type DeliveryOptions = { mode?: 'prompt' | 'bash'; pastedContents?: Record<number, PastedContent>; extraBlocks?: ContentBlockParam[]; metaFrom?: { command: string }; notesUnreadQuestion?: boolean }
+
 export class DeliveryPart {
-  private retainedSend: { text: string; id: string } | null = null
+  private readonly inFlightDrafts = new Map<string, Promise<SendReceiptV1>>()
+  private retainedSend: { draftKey: string; id: string; sentAtMs: number } | null = null
   private settleWaiters = new Map<string, Array<() => void>>()
   private unreadQuestion: string | null = null
   private unreadQuestionNoted = false
@@ -73,10 +77,16 @@ export class DeliveryPart {
     }
   }
 
-  async deliver(
-    text: string,
-    opts: { mode?: 'prompt' | 'bash'; pastedContents?: Record<number, PastedContent>; extraBlocks?: ContentBlockParam[]; metaFrom?: { command: string }; notesUnreadQuestion?: boolean },
-  ): Promise<SendReceiptV1> {
+  deliver(text: string, opts: DeliveryOptions): Promise<SendReceiptV1> {
+    const key = createHash('sha256').update(JSON.stringify([text, opts.mode ?? 'prompt', opts.pastedContents ?? {}, opts.extraBlocks ?? [], opts.metaFrom?.command ?? null])).digest('hex')
+    const inFlight = this.inFlightDrafts.get(key)
+    if (inFlight) return inFlight
+    const delivery = this.deliverDraft(text, opts, key).finally(() => this.inFlightDrafts.delete(key))
+    this.inFlightDrafts.set(key, delivery)
+    return delivery
+  }
+
+  private async deliverDraft(text: string, opts: DeliveryOptions, draftKey: string): Promise<SendReceiptV1> {
     const { expandPastedTextRefs, pasteUnavailableLine, resolvePastedContents } = await import('../../../history.js')
     const resolved = await resolvePastedContents(text, opts.pastedContents ?? {})
     if (resolved.missing.length > 0) {
@@ -87,8 +97,9 @@ export class DeliveryPart {
     const images = [...this.needs.imageBlocks(pastes), ...(opts.extraBlocks ?? [])]
     if (expanded === '' && images.length === 0) return REFUSED_EMPTY
     const mode: 'prompt' | 'bash' = opts.mode === 'bash' ? 'bash' : 'prompt'
-    const provisionalId =
-      this.retainedSend !== null && this.retainedSend.text === expanded ? this.retainedSend.id : randomUUID()
+    const unconfirmed = this.needs.unconfirmedDraft(draftKey)
+    const retained = this.retainedSend?.draftKey === draftKey ? this.retainedSend : null
+    const provisionalId = unconfirmed?.clientMessageId ?? retained?.id ?? randomUUID()
     const meta = opts.metaFrom !== undefined
     const echo = createUserMessage({ uuid: provisionalId, content: mode === 'bash' ? `<${BASH_INPUT_TAG}>${expanded}</${BASH_INPUT_TAG}>` : expanded, ...(meta ? { isMeta: true } : {}) })
     this.needs.echo(provisionalId, this.needs.factsBusy() ? ({ ...echo, queued: true } as Message) : echo)
@@ -97,7 +108,7 @@ export class DeliveryPart {
     const clientMessageId = answering !== null ? `obl-answer:${answering}` : provisionalId
     if (clientMessageId !== provisionalId) this.needs.rekeyEcho(provisionalId, clientMessageId)
     submitTrace('connector-deliver', expanded, { mode, clientMessageId, ...(meta ? { metaFrom: opts.metaFrom!.command } : {}) })
-    const send: SeatSend = { clientMessageId, text: expanded, sentAtMs: Date.now(), state: 'pending', mode, ...(meta ? {} : { source: { text, mode, pastedContents: pastes } }) }
+    const send: SeatSend = { clientMessageId, draftKey, text: expanded, sentAtMs: unconfirmed?.sentAtMs ?? retained?.sentAtMs ?? Date.now(), state: 'pending', mode, ...(meta ? {} : { source: { text, mode, pastedContents: pastes } }) }
     this.needs.enlist(send)
     this.needs.paint()
     this.needs.wakeLive()
@@ -111,7 +122,7 @@ export class DeliveryPart {
         this.needs.dress(clientMessageId, queuedNow ? 'queued' : 'delivered')
         connectorTrace({ ev: 'send', sid: this.needs.sessionId(), state: queuedNow ? 'queued' : 'delivered' })
       }
-      this.retainedSend = state === 'held' || state === 'failed' ? { text: expanded, id: clientMessageId } : null
+      this.retainedSend = state === 'held' || state === 'failed' ? { draftKey, id: clientMessageId, sentAtMs: send.sentAtMs } : null
       if (state === 'delivered') this.needs.sendDelivered()
       this.needs.wakeLive()
       if (state === 'delivered') {
@@ -158,6 +169,12 @@ export class DeliveryPart {
         ...(images.length > 0 ? { content: [...(expanded !== '' ? [{ type: 'text', text: expanded }] : []), ...images] } : {}),
       })
       const detail = typeof reply.error === 'string' ? reply.error : undefined
+      if ((reply.ok === true && reply.state === 'starting') || (reply.ok !== true && (reply.code === 'EUNCONFIRMED' || reply.frameWritten === true))) {
+        this.noteSettled(clientMessageId)
+        this.needs.dress(clientMessageId, 'unconfirmed')
+        this.needs.wakeLive()
+        return { state: 'pending', detail: 'Delivery is not confirmed. Sending the same draft again checks the original message.' }
+      }
       if (reply.ok === true) return settle('delivered')
       const held = typeof reply.heldReason === 'string' || (detail ?? '').startsWith('session-paused')
       return settle(held ? 'held' : 'refused', detail)
