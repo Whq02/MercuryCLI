@@ -41,8 +41,8 @@ section('§8 the card-tier strip bill (field return F3) — real rows, not paddi
     core.composeLockup(cols, rows, {
       cardRows,
       cardSel: 0,
-      hintSegments: [{ key: '↵ ', label: 'start', tone: 'ivory' }],
-      tinyHint: '↵ start',
+      hintSegments: [{ key: '↵', label: '', tone: 'ivory' }],
+      tinyHint: '↵',
       stripLines: (w: number) => core.composeStrip(chips, w),
     } as never) as { lines: string[]; cardShown: boolean }
   const stripOf = (r: { lines: string[] }): boolean => r.lines.some(l => l.includes('Model'))
@@ -53,22 +53,22 @@ section('§8 the card-tier strip bill (field return F3) — real rows, not paddi
   const p100x30 = compose(100, 30, sevenRows)
   check('the same populated card at 100x30 keeps the strip (headless tier)', p100x30.cardShown && stripOf(p100x30) && !headOf(p100x30))
   const f120x40 = compose(120, 40, fiveRows)
-  check('a fresh five-row card at 120x40 keeps the strip', f120x40.cardShown && stripOf(f120x40))
-  const p120x38 = compose(120, 38, sevenRows)
-  check('the ratified head-bare band stands: 120x38 keeps the art, sheds the strip', p120x38.cardShown && !stripOf(p120x38) && headOf(p120x38))
+  check('a five-row card at 120x40 keeps head + card + one-line strip', f120x40.cardShown && stripOf(f120x40) && headOf(f120x40) && f120x40.lines.length === 35, `lines=${f120x40.lines.length}`)
+  const p120x37 = compose(120, 37, sevenRows)
+  check('with the one-line strip, a seven-row card keeps head + card + strip down to 120x37', p120x37.cardShown && stripOf(p120x37) && headOf(p120x37) && p120x37.lines.length === 37, `lines=${p120x37.lines.length}`)
   const p80x24 = compose(80, 24, sevenRows)
-  check('the 80x24 arrival is untouched (headless, strip shed)', p80x24.cardShown && !stripOf(p80x24) && !headOf(p80x24))
+  check('with the one-line strip, 80x24 keeps the headless card + strip and 80x23 sheds the strip', p80x24.cardShown && stripOf(p80x24) && !headOf(p80x24) && !stripOf(compose(80, 23, sevenRows)))
   const eightRows = Array.from({ length: 8 }, (_, i) => ({ icon: 'x', label: `Row ${i}`, ctx: `ctx ${i}` }))
   const e120x40 = compose(120, 40, eightRows)
-  check('an eight-row card at 120x40 keeps head + card + strip and fills the terminal exactly', e120x40.cardShown && stripOf(e120x40) && headOf(e120x40) && e120x40.lines.length === 40, `lines=${e120x40.lines.length}`)
+  check('an eight-row card at 120x40 keeps head + card + one-line strip (38 lines)', e120x40.cardShown && stripOf(e120x40) && headOf(e120x40) && e120x40.lines.length === 38, `lines=${e120x40.lines.length}`)
   const e100x30 = compose(100, 30, eightRows)
   check('an eight-row card at 100x30 keeps the strip (headless tier)', e100x30.cardShown && stripOf(e100x30) && !headOf(e100x30))
   const e120x38 = compose(120, 38, eightRows)
-  check('an eight-row card at 120x38 stays head-bare (art kept, strip shed)', e120x38.cardShown && !stripOf(e120x38) && headOf(e120x38))
+  check('an eight-row card at 120x38 keeps head + card + one-line strip and fills the terminal exactly', e120x38.cardShown && stripOf(e120x38) && headOf(e120x38) && e120x38.lines.length === 38, `lines=${e120x38.lines.length}`)
   const e80x24 = compose(80, 24, eightRows)
   check('an eight-row card at 80x24 stays the headless bare arrival (every action row survives)', e80x24.cardShown && !stripOf(e80x24) && !headOf(e80x24) && e80x24.lines.length <= 24)
-  const e120x39 = compose(120, 39, eightRows)
-  check('the measured band move: an eight-row card at 120x39 sheds the strip where seven rows kept it (the ladder, not a new law)', e120x39.cardShown && !stripOf(e120x39) && stripOf(compose(120, 39, sevenRows)))
+  const e120x37 = compose(120, 37, eightRows)
+  check('the measured band move: an eight-row card at 120x37 drops the head where seven rows kept it (the ladder, not a new law)', e120x37.cardShown && !headOf(e120x37) && stripOf(e120x37) && headOf(p120x37))
   check('the card floor: eight rows need 22 terminal rows (21 keeps seven)', !compose(100, 21, eightRows).cardShown && compose(100, 21, sevenRows).cardShown && compose(100, 22, eightRows).cardShown)
 }
 
