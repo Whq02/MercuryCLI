@@ -36,6 +36,7 @@ import type { McpServerConfig } from '../../utils/mcp/types.js'
 import { sleep } from '../../utils/sleep.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { portListenerLookupCommand } from '../../utils/platform/words.js'
 
 
 
@@ -869,8 +870,7 @@ export async function performMCPOAuthFlow(
       settle(() => {
         cleanup()
         if (err.code === 'EADDRINUSE') {
-          const command =
-            process.platform === 'win32' ? `netstat -ano | findstr :${port}` : `lsof -ti:${port} -sTCP:LISTEN`
+          const command = portListenerLookupCommand(port)
           reject(
             new Error(
               `Port ${port} is already in use — another process may be holding it. Find it with: ${command}`,

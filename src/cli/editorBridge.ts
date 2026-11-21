@@ -4,30 +4,12 @@ import { locateBridgeVsix, MERCURY_IDE_EXTENSION_ID } from '../utils/editorExten
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { passedOver } from '../utils/passedOver.js'
 import { shimShellOption } from '../utils/platform/spawn.js'
+import { editorCliCandidates } from '../utils/platform/vendors.js'
 
 const EDITOR_CLIS = ['code', 'code-insiders', 'cursor', 'codium', 'windsurf'] as const
 
-const DARWIN_BUNDLE_CLIS: Record<(typeof EDITOR_CLIS)[number], string> = {
-  code: '/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code',
-  'code-insiders': '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code-insiders',
-  cursor: '/Applications/Cursor.app/Contents/Resources/app/bin/cursor',
-  codium: '/Applications/VSCodium.app/Contents/Resources/app/bin/codium',
-  windsurf: '/Applications/Windsurf.app/Contents/Resources/app/bin/windsurf',
-}
-
-const WIN32_CANDIDATES = ['code.cmd', 'code', 'code.exe', 'code-insiders.cmd', 'cursor.cmd', 'codium.cmd', 'windsurf.cmd']
-
 function findEditorCli(): string | null {
-  const isWindows = process.platform === 'win32'
-  const candidates: string[] = []
-  if (isWindows) {
-    candidates.push(...WIN32_CANDIDATES)
-  } else {
-    for (const cli of EDITOR_CLIS) {
-      candidates.push(cli, `/usr/local/bin/${cli}`, `/opt/homebrew/bin/${cli}`)
-      if (process.platform === 'darwin') candidates.push(DARWIN_BUNDLE_CLIS[cli])
-    }
-  }
+  const { candidates, execShell } = editorCliCandidates()
   for (const candidate of candidates) {
     try {
       execFileSync(candidate, ['--version'], {
@@ -35,7 +17,7 @@ function findEditorCli(): string | null {
         stdio: 'pipe',
         timeout: 10_000,
         env: subprocessEnv(),
-        ...(isWindows ? { shell: true } : {}),
+        ...(execShell ? { shell: true } : {}),
       })
       return candidate
     } catch (error) {

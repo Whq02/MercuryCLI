@@ -20,6 +20,7 @@ import { join } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { escapeRegExp } from '../utils/stringUtils.js'
 import { toPosixSeparators } from '../utils/platform/paths.js'
+import { platformDisplayName } from '../utils/platform/words.js'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { utilityCallFor } from '../utils/model/utilityModel.js'
 import { routedCallModelSettled } from '../services/providers/callModelRouter.js'
@@ -188,15 +189,7 @@ function productVersion(): string {
 }
 
 function platformLine(): string {
-  const name =
-    process.platform === 'darwin'
-      ? 'macOS'
-      : process.platform === 'win32'
-        ? 'Windows'
-        : process.platform === 'linux'
-          ? 'Linux'
-          : process.platform
-  return `${name} · ${osType()} ${release()} · ${process.arch} · ${envDynamic.terminal ?? 'unknown terminal'}`
+  return `${platformDisplayName()} · ${osType()} ${release()} · ${process.arch} · ${envDynamic.terminal ?? 'unknown terminal'}`
 }
 
 function installLine(): string {
@@ -475,7 +468,7 @@ export function Feedback({
       const values: Record<string, string> = {
         ...words,
         version: `Mercury ${productVersion()}`,
-        os: process.platform === 'darwin' ? 'macOS' : process.platform === 'win32' ? 'Windows' : process.platform === 'linux' ? 'Linux' : process.platform,
+        os: platformDisplayName(),
         platform: platformLine(),
         install: installLine(),
         family: facts.family,

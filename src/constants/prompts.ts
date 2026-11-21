@@ -1,4 +1,5 @@
-import { platform, release, type as osType, version as osVersion } from 'node:os'
+import { platform } from 'node:os'
+import { platformKernelLine } from '../utils/platform/words.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { canAnswerAsks, getOriginalCwd, getProjectRoot, getSessionId, getSessionKind } from '../bootstrap/state.js'
 import { getCwd } from '../utils/cwd.js'
@@ -102,8 +103,7 @@ async function shellLine(): Promise<string> {
 }
 
 function getUnameSR(): string {
-  if (process.platform === 'win32') return `${osVersion()} ${release()}`
-  return `${osType()} ${release()}`
+  return platformKernelLine()
 }
 
 function knowledgeCutoffSentence(modelId: string): string | null {
