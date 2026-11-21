@@ -180,7 +180,6 @@ function driveEnv(home: string): NodeJS.ProcessEnv {
 
 type Send = Record<string, unknown>
 const gated = (data: string, awaitText: string, extra: Send = {}): Send => ({ data, atTick: 999, awaitText, requireAwait: true, minTick: 1, awaitSettleTicks: 3, ...extra })
-const after = (data: string, ticks: number, extra: Send = {}): Send => ({ data, afterPrevTicks: ticks, ...extra })
 
 type Capture = { marks: Record<string, Frame>; sends: number; receipts: number; stderr: string; endReason: string; status: number | null }
 async function capture(name: string, cfg: Record<string, unknown>, env: NodeJS.ProcessEnv): Promise<Capture> {
@@ -224,50 +223,44 @@ try {
     gated(ESC + '[I', 'shortcuts', { minTick: 2, awaitSettleTicks: 6 }),
     gated('', '← back', { minTick: 2, awaitSettleTicks: 6, mark: 'land' }),
 
-    after(`${PROMPT_1}\r`, 3),
-    gated('', `reply-1:${PROMPT_1}`, { awaitSettleTicks: 5 }),
-    after(`${PROMPT_2}\r`, 3),
-    gated('', `reply-2:${PROMPT_2}`, { awaitSettleTicks: 5 }),
-    after(`${PROMPT_3}\r`, 3),
+    gated(`${PROMPT_1}\r`, 'Type a prompt'),
+    gated(`${PROMPT_2}\r`, `reply-1:${PROMPT_1}`, { awaitSettleTicks: 5 }),
+    gated(`${PROMPT_3}\r`, `reply-2:${PROMPT_2}`, { awaitSettleTicks: 5 }),
     gated('', `reply-3:${PROMPT_3}`, { awaitSettleTicks: 6, mark: 'seeded' }),
 
-    after(CTRL_R, 3),
+    gated(CTRL_R, `reply-3:${PROMPT_3}`),
     gated('', 'search prompts:', { awaitSettleTicks: 3, mark: 'opened' }),
-    after('needle-alpha', 3),
+    gated('needle-alpha', 'search prompts:'),
     gated('', `│❯ ${PROMPT_3}`, { awaitSettleTicks: 4, mark: 'firstMatch' }),
-    after(CTRL_R, 3),
+    gated(CTRL_R, `│❯ ${PROMPT_3}`),
     gated('', `│❯ ${PROMPT_1}`, { awaitSettleTicks: 4, mark: 'cycledMatch' }),
-    after('\r', 3),
+    gated('\r', `│❯ ${PROMPT_1}`),
     gated('', `reply-4:${PROMPT_1}`, { awaitSettleTicks: 6, mark: 'submitted' }),
 
-    after(DRAFT_1, 3),
+    gated(DRAFT_1, `reply-4:${PROMPT_1}`),
     gated('', `│❯ ${DRAFT_1}`, { awaitSettleTicks: 3, mark: 'draft1' }),
-    after(CTRL_R, 3),
-    gated('', 'search prompts:', { awaitSettleTicks: 3 }),
-    after('zzz-no-hit', 3),
+    gated(CTRL_R, `│❯ ${DRAFT_1}`),
+    gated('zzz-no-hit', 'search prompts:'),
     gated('', 'no matching prompt:', { awaitSettleTicks: 4, mark: 'noMatch' }),
-    after(ESC, 3),
+    gated(ESC, 'no matching prompt:'),
     gated('', `│❯ ${DRAFT_1}`, { awaitPattern: '\\A(?![\\s\\S]*no matching prompt:)', awaitSettleTicks: 4, mark: 'escAfterNoMatch' }),
 
-    after(CTRL_R, 3),
-    gated('', 'search prompts:', { awaitSettleTicks: 3 }),
-    after('needle-beta', 3),
+    gated(CTRL_R, `│❯ ${DRAFT_1}`, { awaitPattern: '\\A(?![\\s\\S]*no matching prompt:)' }),
+    gated('needle-beta', 'search prompts:'),
     gated('', `│❯ ${PROMPT_2}`, { awaitSettleTicks: 4, mark: 'betaMatch' }),
-    after(ESC, 3),
+    gated(ESC, `│❯ ${PROMPT_2}`),
     gated('', `│❯ ${PROMPT_2}`, { awaitPattern: '\\A(?![\\s\\S]*search prompts:)', awaitSettleTicks: 4, mark: 'escAccepted' }),
 
-    after(CTRL_U, 3),
-    after(DRAFT_2, 3),
+    gated(CTRL_U + DRAFT_2, `│❯ ${PROMPT_2}`, { awaitPattern: '\\A(?![\\s\\S]*search prompts:)' }),
     gated('', `│❯ ${DRAFT_2}`, { awaitSettleTicks: 3, mark: 'draft2' }),
-    after(CTRL_R, 3),
-    gated('', 'search prompts:', { awaitSettleTicks: 3 }),
-    after('needle-beta', 3),
+    gated(CTRL_R, `│❯ ${DRAFT_2}`),
+    gated('needle-beta', 'search prompts:'),
     gated('', `│❯ ${PROMPT_2}`, { awaitSettleTicks: 4, mark: 'beforeCancel' }),
-    after(CTRL_C, 3),
+    gated(CTRL_C, `│❯ ${PROMPT_2}`),
     gated('', `│❯ ${DRAFT_2}`, { awaitPattern: '\\A(?![\\s\\S]*search prompts:)', awaitSettleTicks: 4, mark: 'cancelled' }),
   ]
 
-  const cap = await capture('history-search-140x40', { cols: COLS, rows: ROWS, total: 1400, cwd, argv: [NODE, DIST], sends, stableTicks: 4 }, driveEnv(home))
+  const cap = await capture('history-search-140x40', { cols: COLS, rows: ROWS, total: 1400, cwd, argv: [NODE, DIST], sends, readyText: `│❯ ${DRAFT_2}`, stableTicks: 4 }, driveEnv(home))
   const m = cap.marks
 
   section('1. Drive completion and seeded prompts')

@@ -37,7 +37,7 @@ const PYTHON = driver.python
 
 seedFirstRun(HOME, [FOLDER])
 
-const READY_LINE = '↵ start  ·  ↑↓ choose'
+const READY_LINE = 'New Session'
 const COMPOSER = 'Type a prompt'
 const WARM_TICKS = 25
 const MOUSE_SETS = ['\x1b[?1000h', '\x1b[?1002h', '\x1b[?1003h', '\x1b[?1006h']
@@ -160,12 +160,11 @@ try {
   const off = await capture({
     id: 'mouse-off',
     sends: [
-      g(READY_LINE, ''),
-      { afterPrevTicks: WARM_TICKS, data: '\r' },
+      g(READY_LINE, '\r', { awaitSettleTicks: WARM_TICKS }),
       g(COMPOSER, '/mouse off', { awaitSettleTicks: 4 }),
-      { afterPrevTicks: 6, data: '\r' },
+      g('❯ /mouse off', '\r', { awaitSettleTicks: 6 }),
       g('mouse capture OFF', '/mouse off', { awaitSettleTicks: 4 }),
-      { afterPrevTicks: 6, data: '\r' },
+      g('❯ /mouse off', '\r', { awaitPattern: 'mouse capture OFF[\\s\\S]*❯ /mouse off', awaitSettleTicks: 6 }),
       g('mouse capture already off', '', { awaitSettleTicks: 4 }),
     ],
     ready: 'mouse capture already off',
@@ -186,10 +185,9 @@ try {
   const on = await capture({
     id: 'mouse-on',
     sends: [
-      g(READY_LINE, ''),
-      { afterPrevTicks: WARM_TICKS, data: '\r' },
+      g(READY_LINE, '\r', { awaitSettleTicks: WARM_TICKS }),
       g(COMPOSER, '/mouse on', { awaitSettleTicks: 4 }),
-      { afterPrevTicks: 6, data: '\r' },
+      g('❯ /mouse on', '\r', { awaitSettleTicks: 6 }),
       g('mouse capture ON', '', { awaitSettleTicks: 4 }),
     ],
     ready: 'mouse capture ON',
