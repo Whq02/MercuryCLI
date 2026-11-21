@@ -15,9 +15,8 @@ import { getProjectDir } from '../../utils/sessionStoragePortable.js'
 import type { CrewmateInView } from './useCrewmateView.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { errorMessage, isENOENT } from '../../utils/errors.js'
-import { startInterval, stopInterval } from '../../utils/timers.js'
-
-export const CREWMATE_TRANSCRIPT_TICK_MS = 2500
+import { subscribeTranscriptFile } from '../../utils/sessionStorage/writer.js'
+import { subscribeUiClock } from '../../utils/cockpit/uiClock.js'
 export const CREWMATE_TRANSCRIPT_READING = 'reading the crewmate\'s transcript…'
 export const CREWMATE_TRANSCRIPT_EMPTY = 'no transcript yet — the crewmate has not written a row'
 
@@ -135,7 +134,10 @@ export function useCrewmateTranscript(crewmate: CrewmateInView | null, rosterSta
   const [tick, setTick] = useState(0)
   const queueVersion = useSyncExternalStore(subscribeCrewmateQueue, crewmateQueueVersion, crewmateQueueVersion)
   const inFlight = useRef(false)
+  const pendingRead = useRef(false)
+  const latestRead = useRef<(() => Promise<void>) | null>(null)
   const lastStamp = useRef<string>('')
+  const hasQueued = taskId !== undefined && crewmateQueueSize(taskId) > 0
   const file = useMemo(() => {
     if (crewmate === null) return null
     const connector = getFocusedSessionConnector()
@@ -147,7 +149,10 @@ export function useCrewmateTranscript(crewmate: CrewmateInView | null, rosterSta
     if (taskId === undefined || file === null || agentId === null) return
     let alive = true
     const read = async (): Promise<void> => {
-      if (inFlight.current) return
+      if (inFlight.current) {
+        pendingRead.current = true
+        return
+      }
       inFlight.current = true
       try {
         let stamp = ''
@@ -183,19 +188,25 @@ export function useCrewmateTranscript(crewmate: CrewmateInView | null, rosterSta
         setDisk({ taskId, rows, read: true, error: readError })
       } finally {
         inFlight.current = false
+        if (pendingRead.current) {
+          pendingRead.current = false
+          void latestRead.current?.()
+        }
       }
     }
+    latestRead.current = read
     void read()
-    const timer = startInterval(() => {
-      void read()
-      if (crewmateQueueSize(taskId) > 0) setTick(n => n + 1)
-    }, CREWMATE_TRANSCRIPT_TICK_MS)
-    timer.unref?.()
+    const stop = subscribeTranscriptFile(file, () => { void read() })
     return () => {
       alive = false
-      stopInterval(timer)
+      if (latestRead.current === read) latestRead.current = null
+      stop()
     }
   }, [taskId, file, agentId, rosterStamp])
+  useTimer(() => {
+    if (!hasQueued) return
+    return subscribeUiClock(1000, () => setTick(n => n + 1))
+  }, [hasQueued])
   usePublish(() => {
     lastStamp.current = ''
   }, [taskId])
