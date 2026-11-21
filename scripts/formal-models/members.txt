@@ -5,6 +5,16 @@ prove-model-filestore.ts
 prove-model-interview.ts
 prove-model-journal.ts
 prove-model-purecores.ts
+prove-screen-properties-agents.ts
+prove-screen-properties-boot-settings.ts
+prove-screen-properties-concourse.ts
+prove-screen-properties-health.ts
+prove-screen-properties-kit.ts
+prove-screen-properties-logins.ts
+prove-screen-properties-menu.ts
+prove-screen-properties-repl.ts
+prove-screen-properties-saturn.ts
+prove-screen-properties-sessions.ts
 prove-screen-properties.ts
 prove-selection-budget-owner.ts
 prove-task-lock-stall.ts
