@@ -1,11 +1,11 @@
 import * as React from 'react'
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { Box, Text, useInput } from '../../ink.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useModalOrTerminalSize } from '../../context/modalContext.js'
-import { useClaim, useLayoutPublish, useSubscription } from '../../hooks/effects.js'
+import { useClaim, useLayoutPublish } from '../../hooks/effects.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import { getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
+import { getFocusedSessionConnector, subscribeFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import type { McpRosterEntryV1, McpToolEntryV1 } from '../../services/engine-connector/types.js'
 import { isMcpOrgan } from '../../services/mcp/membership.js'
 import { MCP_TOOLS_ANSWER_BYTES, MCP_TOOL_DESCRIPTION_CHARS } from '../../services/mcp/toolsAnswer.js'
@@ -27,6 +27,7 @@ import { wrapPlain } from '../../utils/cockpit/wrapPlain.js'
 import { stripTerminalControls } from '../../utils/stringUtils.js'
 
 const subscribe = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
+const readMcpRosterStamp = (): string => JSON.stringify(getFocusedSessionConnector().mcpRoster().clients)
 const WIDTH = 78
 const MCP_POPUP_HINT = '↑↓ move · ↵ act · / filter · esc or click outside closes'
 const MCP_TOOLS_HINT = '↑↓ move · ↵ detail · / filter · esc back to servers'
@@ -157,9 +158,8 @@ type Row = { key: string; server: McpRosterEntryV1; action?: 'tools' | 'disable'
 type ToolViewState = { server: string; tools: readonly McpToolEntryV1[]; omitted: number; reason: string | null; tool: McpToolEntryV1 | null }
 
 export function McpPopup({ onDone }: { onDone: (message?: string) => void }): React.ReactNode {
-  const [, repaint] = useState(0)
-  useSubscription(() => subscribe(() => repaint(value => value + 1)), [])
-  const connector = getFocusedSessionConnector()
+  const connector = useSyncExternalStore(subscribeFocusedSessionConnector, getFocusedSessionConnector, getFocusedSessionConnector)
+  useSyncExternalStore(subscribe, readMcpRosterStamp, readMcpRosterStamp)
   const servers = mcpRosterRowsFailedFirst(connector.mcpRoster())
   const tokens = useMercuryTokens()
   const { accent } = useSessionAccent()
