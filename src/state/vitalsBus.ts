@@ -14,9 +14,13 @@ import {
 import { subscribeThroughFocused, getFocusedSessionConnector, hasFocusedSession } from '../services/engine-connector/focusedConnector.js'
 import { subscribeExecutionEvents } from '../utils/primitives/executionPlane.js'
 import { readSessionWorkersSnapshot, workerPidAlive } from '../daemon/concourseWorkers.js'
+import { subscribeConcourseWorkers } from '../daemon/concourseWorkers/store.js'
 import { runnerRecordAlive } from '../services/engine-connector/workCounts.js'
+import { subscribeUiClock } from '../utils/cockpit/uiClock.js'
+import { getInvocationTracePath } from '../utils/observability/invocationTrace.js'
+import { subscribeStorageFile } from '../utils/sessionStorage/paths.js'
 import { passedOver } from '../utils/passedOver.js'
-import { afterMicrotask, startInterval, startTimeout, stopInterval, stopTimeout } from '../utils/timers.js'
+import { afterMicrotask, startTimeout, stopTimeout } from '../utils/timers.js'
 
 const subscribeFocusedRecords = subscribeThroughFocused((connector, listener) => connector.subscribeRecords(listener))
 
@@ -53,13 +57,15 @@ let snapshots: VitalsSnapshots = {
 
 const listeners = new Set<() => void>()
 let sessionConsumers = 0
-let heartbeat: ReturnType<typeof setInterval> | null = null
+let heartbeat: (() => void) | null = null
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let unsubTranscript: (() => void) | null = null
 let unsubTasks: (() => void) | null = null
 let unsubLive: (() => void) | null = null
 let unsubExecutions: (() => void) | null = null
 let unsubGitFacts: (() => void) | null = null
+let unsubWorkers: (() => void) | null = null
+let unsubTrace: (() => void) | null = null
 let coalescer: SerialCoalescer | null = null
 
 function emit(): void {
@@ -152,19 +158,20 @@ function startEngine(): void {
       logForDebugging(`[vitalsBus] refresh failed (dropped): ${e}`)
     }
   }, 'vitals')
-  heartbeat = startInterval(() => pokeVitals(), HEARTBEAT_MS)
-  heartbeat.unref?.()
+  heartbeat = subscribeUiClock(HEARTBEAT_MS, () => pokeVitals())
   unsubTranscript = subscribeFocusedRecords(() => scheduleDebounced())
   unsubTasks = subscribeFocusedWork(() => scheduleDebounced())
   unsubLive = subscribeFocusedLive(() => scheduleDebounced())
   unsubExecutions = subscribeExecutionEvents(() => scheduleDebounced())
   unsubGitFacts = subscribeGitFacts(() => pokeVitals())
+  unsubWorkers = subscribeConcourseWorkers(() => scheduleDebounced())
+  unsubTrace = subscribeStorageFile(getInvocationTracePath(), () => scheduleDebounced())
   pokeVitals()
 }
 
 function stopEngine(): void {
   if (heartbeat) {
-    stopInterval(heartbeat)
+    heartbeat()
     heartbeat = null
   }
   if (debounceTimer) {
@@ -181,6 +188,10 @@ function stopEngine(): void {
   unsubExecutions = null
   unsubGitFacts?.()
   unsubGitFacts = null
+  unsubWorkers?.()
+  unsubWorkers = null
+  unsubTrace?.()
+  unsubTrace = null
   coalescer?.release()
   coalescer = null
 }
@@ -215,8 +226,11 @@ export function _statsForProofs(): {
     sourceUnsubs:
       (unsubTranscript !== null ? 1 : 0) +
       (unsubTasks !== null ? 1 : 0) +
+      (unsubLive !== null ? 1 : 0) +
       (unsubExecutions !== null ? 1 : 0) +
-      (unsubGitFacts !== null ? 1 : 0),
+      (unsubGitFacts !== null ? 1 : 0) +
+      (unsubWorkers !== null ? 1 : 0) +
+      (unsubTrace !== null ? 1 : 0),
     coalescer: coalescer !== null,
   }
 }
