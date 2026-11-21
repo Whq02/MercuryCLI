@@ -317,6 +317,49 @@ console.log('\n── rewind list and card after shell commands ──')
       )
     }
 
+    for (const [id, cmd] of [
+      ['null-err', 'Get-Content a.txt 2>$null'],
+      ['null-out', 'Get-Content a.txt > $null'],
+      ['null-all', 'Get-Content a.txt *>$null'],
+    ] as const) {
+      const msgs = [
+        userMsg(`u-ps-${id}`, `run ${cmd}`),
+        assistantTool(`a-ps-${id}`, 'PowerShell', { command: cmd }),
+        toolResult(`tr-ps-${id}`, { stdout: '', stderr: '' }),
+      ] as never[]
+      const list = await mountSelector(msgs, undefined, [`u-ps-${id}`])
+      const card = await mountSelector(msgs, msgs[0], [`u-ps-${id}`])
+      check(
+        `PowerShell read redirected to $null (${cmd}) reads "no code changes" and matches card`,
+        list.includes('no code changes') &&
+          !list.includes('shell command ran') &&
+          card.includes('The files already match this point.') &&
+          !card.includes('shell commands ran after this point'),
+        `list=${list.slice(0, 200)} card=${card.slice(0, 200)}`,
+      )
+    }
+
+    for (const [id, cmd] of [
+      ['null-then-rm', 'Get-Content a.txt 2>$null; Remove-Item b.txt'],
+      ['nullx', 'Get-Content a.txt > $nullx'],
+    ] as const) {
+      const msgs = [
+        userMsg(`u-ps-${id}`, `run ${cmd}`),
+        assistantTool(`a-ps-${id}`, 'PowerShell', { command: cmd }),
+        toolResult(`tr-ps-${id}`, { stdout: '', stderr: '' }),
+      ] as never[]
+      const list = await mountSelector(msgs, undefined, [`u-ps-${id}`])
+      const card = await mountSelector(msgs, msgs[0], [`u-ps-${id}`])
+      check(
+        `PowerShell command (${cmd}) still reports shell changes are not put back on list and card`,
+        !list.includes('no code changes') &&
+          list.includes('1 shell command ran — changes it made are not put back') &&
+          !card.includes('The files already match this point.') &&
+          card.includes('No Edit or Write changes to restore; shell commands ran after this point and what they changed is not put back.'),
+        `list=${list.slice(0, 200)} card=${card.slice(0, 200)}`,
+      )
+    }
+
     psToolOffered = false
     try {
       const psUnlistedList = await mountSelector(psReadOnlyMsgs, undefined, ['u-ps-ro-1'])
