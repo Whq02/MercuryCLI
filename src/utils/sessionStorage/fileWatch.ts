@@ -1,5 +1,5 @@
 import { existsSync, watch, type FSWatcher } from 'node:fs'
-import { basename, dirname, resolve } from 'node:path'
+import { basename, dirname, relative, resolve, sep } from 'node:path'
 import { subscribeUiClock } from '../cockpit/uiClock.js'
 import { passedOver } from '../passedOver.js'
 import { resolveWatchRoot } from '../watchRoot.js'
@@ -70,10 +70,13 @@ export function subscribeStorageFile(filePath: string, listener: () => void): ()
       if (watcher !== null && watchedDir === nextDir) return
       closeWatcher()
       const onTarget = nextDir === targetDir
+      const nextChild = onTarget ? null : relative(nextDir, targetDir).split(sep)[0] ?? null
       try {
         const next = watch(resolveWatchRoot(nextDir), { persistent: false }, (_event, filename) => {
           if (disposed) return
+          const name = filename === null ? null : String(filename)
           if (!onTarget) {
+            if (name !== null && nextChild !== null && name !== nextChild) return
             const refreshed = nearestExistingDir(targetDir)
             if (refreshed !== nextDir) {
               armWatcher()
@@ -81,7 +84,6 @@ export function subscribeStorageFile(filePath: string, listener: () => void): ()
             }
             return
           }
-          const name = filename === null ? null : String(filename)
           if (name === null || name === base || name.startsWith(`${base}.`)) {
             fanOutStorageFile(key)
           }

@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, watch, type FSWatcher } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative, sep } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
@@ -101,16 +101,22 @@ export function watchHostDirectory(dir: string, onChange: (filename: string | nu
     if (ancestor) return
     let root = dirname(dir)
     while (root !== dirname(root) && !existsSync(root)) root = dirname(root)
+    const nextChild = relative(root, dir).split(sep)[0] ?? null
     try {
-      const w = watch(resolveWatchRoot(root), { persistent: false }, () => {
+      const w = watch(resolveWatchRoot(root), { persistent: false }, (_event, filename) => {
         if (closed) return
+        if (filename !== null && nextChild !== null && String(filename) !== nextChild) return
         if (existsSync(dir)) {
           arm()
           onChange(null)
         } else {
-          closeWatcher(w)
-          if (ancestor === w) ancestor = null
-          arm()
+          let deeper = dirname(dir)
+          while (deeper !== dirname(deeper) && !existsSync(deeper)) deeper = dirname(deeper)
+          if (deeper !== root) {
+            closeWatcher(w)
+            if (ancestor === w) ancestor = null
+            arm()
+          }
         }
       })
       w.unref?.()
@@ -130,7 +136,7 @@ export function watchHostDirectory(dir: string, onChange: (filename: string | nu
   arm()
   const timer = fallbackMs > 0 ? startInterval(() => {
     if (closed) return
-    if (!watcher) arm()
+    if (!watcher && !ancestor) arm()
     onChange(null)
   }, fallbackMs) : null
   return () => {

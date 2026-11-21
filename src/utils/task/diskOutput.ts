@@ -1,5 +1,5 @@
 import * as fs from 'node:fs'
-import { basename, dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 
 import { subscribeUiClock } from '../cockpit/uiClock.js'
 import { readFileRange } from '../fsOperations.js'
@@ -455,10 +455,12 @@ function armTaskOutputWatcher(entry: OutputWatchEntry): void {
   }
   const parentDir = dirname(entry.path)
   const fileName = basename(entry.path)
+  const nextChild = watchDir === parentDir ? null : relative(watchDir, parentDir).split(sep)[0] ?? null
   try {
     const watcher = fs.watch(resolveWatchRoot(watchDir), { persistent: false }, (_event, changed) => {
       if (entry.closed) return
       if (watchDir === parentDir && changed !== null && String(changed) !== fileName) return
+      if (watchDir !== parentDir && changed !== null && nextChild !== null && String(changed) !== nextChild) return
       if (tryArmFileWatcher(entry)) {
         closeWatcher(entry.dirWatcher)
         entry.dirWatcher = null
