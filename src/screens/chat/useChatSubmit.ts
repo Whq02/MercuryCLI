@@ -1,3 +1,4 @@
+import { featureReached } from '../../substrate/featureReached.js';
 import type { UUID } from 'node:crypto';
 import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
 import { getCommandName, type Command, type ResumeEntrypoint } from '../../commands.js';
@@ -239,6 +240,7 @@ export function useChatSubmit({ addNotification, setAppState, setInputValue, set
       const { context, onDone, mountDialog, failDialog } = openDialogCommand(deps, line, seatCommand, dialogName, commandArgs);
       try {
         const module = await seatCommand.load();
+        featureReached('command', seatCommand.name);
         const element = await module.call(onDone, context, await argsWithPastes(), text.slice(1, spaceAt === -1 ? undefined : spaceAt));
         mountDialog(element);
       } catch (error) {

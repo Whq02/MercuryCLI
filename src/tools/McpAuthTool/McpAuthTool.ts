@@ -1,3 +1,4 @@
+import { featureReached } from '../../substrate/featureReached.js'
 import { z } from 'zod/v4'
 
 import type { Tool, ToolUseContext } from '../../Tool.js'
@@ -107,6 +108,7 @@ export function createMcpAuthTool(
     renderToolResultMessage: () => null,
     renderToolUseErrorMessage: () => null,
     async call(_input: Record<string, never>, context: ToolUseContext) {
+      featureReached('tool', 'mcp__<server>__authenticate')
       const configType = config.type ?? 'stdio'
       if (configType === 'claudeai-proxy') {
         return {

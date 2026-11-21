@@ -13,7 +13,6 @@ export function useConfigKeys({
   filtered,
   selected,
   saveAndClose,
-  setSubMenu,
   activate,
 }: {
   subMenu: SubMenu | null
@@ -26,7 +25,6 @@ export function useConfigKeys({
   filtered: SettingsItem[]
   selected: number
   saveAndClose: () => void
-  setSubMenu: (menu: SubMenu | null) => void
   activate: (index: number) => void
 }): void {
   useInput(
@@ -87,7 +85,7 @@ export function useConfigKeys({
         if (!pastOpenEvent()) return
         const direction: 1 | -1 = key.leftArrow ? -1 : 1
         if (item.kind === 'managed-enum' && item.open !== undefined) {
-          setSubMenu(item.open)
+          activate(selected)
         } else {
           item.change?.(direction)
         }

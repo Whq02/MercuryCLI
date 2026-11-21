@@ -148,7 +148,7 @@ export function Config({
 
   const { saveAndClose, signInFromDoor, escape, activate } = useConfigExits({ changesRef, themeSetting, mountTheme, media, setAppState, onClose, writeFailed, setSubMenu, undoRef, bump, dirtyRef, setThinkingWarning, searchMode, query, setQuery, setSearchMode, filtered })
 
-  useConfigKeys({ subMenu, escape, searchMode, setSearchMode, moveTo, setQuery, pastOpenEvent, filtered, selected, saveAndClose, setSubMenu, activate })
+  useConfigKeys({ subMenu, escape, searchMode, setSearchMode, moveTo, setQuery, pastOpenEvent, filtered, selected, saveAndClose, activate })
 
   const subMenuView = configSubMenuView({ subMenu, media, contentHeight, width, compact, themeSetting, setThemeSetting, setSubMenu, agentDefaults, writeAgents, recordSet, signInFromDoor, merged, writeSource, externalIncludes, localServer })
   if (subMenuView !== null) return subMenuView

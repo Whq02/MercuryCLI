@@ -64,6 +64,11 @@ export function scratchHome(prefix = 'runner-host-'): { home: string; cwd: strin
   }
 }
 
+export function featureTraceEnv(): Record<string, string | undefined> {
+  const trace = process.env.MERCURY_FEATURE_TRACE
+  return trace ? { MERCURY_FEATURE_TRACE: trace, MERCURY_FEATURE_TRACE_PROOF: process.env.MERCURY_FEATURE_TRACE_PROOF || process.argv[1] } : {}
+}
+
 export function hostRunner(opts: HostOptions): HostedRunner {
   const scratch = opts.home === undefined ? scratchHome() : null
   const cwd = opts.cwd ?? scratch?.cwd ?? process.cwd()
@@ -71,6 +76,7 @@ export function hostRunner(opts: HostOptions): HostedRunner {
   const env: Record<string, string | undefined> = {
     PATH: process.platform === 'win32' ? process.env.PATH : posixPath,
     ...(scratch?.env ?? {}),
+    ...featureTraceEnv(),
     ...(opts.env ?? {}),
   }
   const child = spawnInOwnGroup(opts.node, [opts.dist, 'runner', ...(opts.argv ?? [])], { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] })

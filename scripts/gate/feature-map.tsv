@@ -1,0 +1,221 @@
+kind	feature	proof	how
+command	accounts	none	none
+command	advise	none	none
+command	agents	none	none
+command	appearance	none	none
+command	audit	scripts/command-catalogue/prove-audit-command.ts	bundle
+command	bootmenu	none	none
+command	browse	none	none
+command	browser	none	none
+command	caching	none	none
+command	capabilities	none	none
+command	clear	none	none
+command	compact	none	none
+command	concourse	none	none
+command	config	none	none
+command	context	scripts/command-catalogue/prove-unavailable-honesty.ts	bundle
+command	contract	none	none
+command	copy	none	none
+command	crew	none	none
+command	crewmates	none	none
+command	critter	none	none
+command	daemon	none	none
+command	defaultprovider	none	none
+command	diff	none	none
+command	effort	none	none
+command	exit	none	none
+command	export	none	none
+command	extensions	none	none
+command	feedback	scripts/command-catalogue/prove-feedback-issue-road.ts	terminal
+command	general	none	none
+command	health	none	none
+command	help	none	none
+command	hooks	none	none
+command	imagesetup	none	none
+command	jev	none	none
+command	keybindings	none	none
+command	keys	none	none
+command	keysetup	none	none
+command	kill	none	none
+command	llmhost	none	none
+command	localsetup	none	none
+command	logins	none	none
+command	logout	none	none
+command	lsp	none	none
+command	mcp	none	none
+command	memory	none	none
+command	mission	none	none
+command	model	none	none
+command	mouse	none	none
+command	orient	none	none
+command	palette	scripts/command-catalogue/prove-beta-journey-matrix.ts	terminal
+command	permissions	none	none
+command	rename	none	none
+command	restart	none	none
+command	review	scripts/command-catalogue/prove-review-command.ts	bundle
+command	rewind	none	none
+command	run	none	none
+command	runs	none	none
+command	samples	none	none
+command	saturn	none	none
+command	seats	none	none
+command	sessions	scripts/command-catalogue/prove-beta-journey-matrix.ts	terminal
+command	skills	none	none
+command	submodels	none	none
+command	swarm	none	none
+command	swarmchat	none	none
+command	team	none	none
+command	tensorfold	none	none
+command	title	none	none
+command	trace	none	none
+command	unkill	none	none
+command	update-notes	none	none
+command	usage	none	none
+command	verify	none	none
+command	vim	none	none
+command	voice	none	none
+command	whisper	none	none
+command	workbench	none	none
+command	zen	none	none
+screen	ResumeConversation	scripts/ui/prove-resume-conversation-drive.ts	terminal
+screen	agents	none	none
+screen	boot-settings	scripts/command-catalogue/prove-feedback-issue-road.ts	terminal
+screen	concourse	none	none
+screen	health	none	none
+screen	kit	none	none
+screen	logins	none	none
+screen	menu	none	none
+screen	repl	scripts/command-catalogue/prove-beta-journey-matrix.ts	terminal
+screen	saturn	none	none
+screen	session	none	none
+screen	sessions	none	none
+tool	ApolloReview	none	none
+tool	Aseprite	none	none
+tool	AskAdvisor	scripts/advisor/prove-advisor-roads.ts	source
+tool	AskUserQuestion	none	none
+tool	AstEdit	none	none
+tool	AstSearch	none	none
+tool	Bash	none	none
+tool	Blender	none	none
+tool	Browser	none	none
+tool	ChangeSet	none	none
+tool	Checkpoint	none	none
+tool	Computer	none	none
+tool	ContextLeft	none	none
+tool	Contract	scripts/switchboard/prove-contract-tool-hosted.ts	bundle
+tool	Correct	none	none
+tool	CrewBoard	none	none
+tool	Crewmate	none	none
+tool	CronCreate	none	none
+tool	CronDelete	none	none
+tool	CronList	none	none
+tool	Debug	none	none
+tool	Document	none	none
+tool	Edit	none	none
+tool	EnterWorktree	none	none
+tool	Eval	none	none
+tool	ExitWorktree	none	none
+tool	Git	none	none
+tool	Glob	none	none
+tool	Godot	none	none
+tool	Grep	none	none
+tool	Inspect	none	none
+tool	JevEval	none	none
+tool	Journal	none	none
+tool	Journey	none	none
+tool	Launch	none	none
+tool	ListMcpResources	none	none
+tool	LspCodeAction	none	none
+tool	LspFormat	none	none
+tool	LspMoveFile	none	none
+tool	LspMoveSymbol	none	none
+tool	LspRead	none	none
+tool	LspRename	none	none
+tool	LspRequest	none	none
+tool	Monitor	none	none
+tool	NotebookEdit	none	none
+tool	PowerShell	none	none
+tool	ProviderSearch	none	none
+tool	Read	none	none
+tool	ReadMcpResource	none	none
+tool	Recall	none	none
+tool	RecordConvention	none	none
+tool	Reflect	none	none
+tool	ResumeCrewmate	none	none
+tool	Retain	none	none
+tool	Rewind	none	none
+tool	ScheduleWakeup	none	none
+tool	SendMessage	none	none
+tool	Service	none	none
+tool	Skill	none	none
+tool	Sleep	none	none
+tool	Structure	none	none
+tool	StructuredOutput	none	none
+tool	TaskCreate	scripts/tools/prove-task-update-stored.ts	bundle
+tool	TaskGet	scripts/tools/prove-task-update-stored.ts	bundle
+tool	TaskList	scripts/tools/prove-task-update-stored.ts	bundle
+tool	TaskStop	none	none
+tool	TaskUpdate	scripts/tools/prove-task-update-stored.ts	bundle
+tool	Test	none	none
+tool	ToolSearch	scripts/tools/prove-task-update-stored.ts	bundle
+tool	Transaction	none	none
+tool	Unity	none	none
+tool	Video	none	none
+tool	WebFetch	none	none
+tool	WebSearch	none	none
+tool	Write	none	none
+tool	mcp__<server>__authenticate	none	none
+verb	--version	none	none
+verb	acp	none	none
+verb	acp --login	none	none
+verb	auth list	none	none
+verb	auth login	none	none
+verb	auth logout	none	none
+verb	auth mint	none	none
+verb	auth status	none	none
+verb	bridge	none	none
+verb	daemon	scripts/command-catalogue/prove-beta-journey-matrix.ts	bundle
+verb	extension-api	none	none
+verb	extensions add	none	none
+verb	extensions disable	none	none
+verb	extensions enable	none	none
+verb	extensions fence	none	none
+verb	extensions inspect	none	none
+verb	extensions install	none	none
+verb	extensions list	none	none
+verb	extensions refresh	none	none
+verb	extensions remove	none	none
+verb	extensions scaffold	none	none
+verb	extensions sources	none	none
+verb	extensions trust	none	none
+verb	extensions unfence	none	none
+verb	extensions uninstall	none	none
+verb	extensions update	none	none
+verb	godot	none	none
+verb	health	none	none
+verb	help	none	none
+verb	host	none	none
+verb	image	none	none
+verb	install	none	none
+verb	interactive	scripts/advisor/prove-advisor-note-lands.ts	bundle
+verb	lsp install	none	none
+verb	lsp list	none	none
+verb	mcp add	none	none
+verb	mcp get	none	none
+verb	mcp import	none	none
+verb	mcp list	scripts/mcp/prove-mcp-trust-reset.ts	bundle
+verb	mcp remove	none	none
+verb	mcp serve	none	none
+verb	mcp trust-reset	scripts/mcp/prove-mcp-trust-reset.ts	bundle
+verb	mcp-server	none	none
+verb	models	none	none
+verb	roster	none	none
+verb	run	scripts/command-catalogue/prove-unavailable-honesty.ts	bundle
+verb	runner	scripts/advisor/prove-advisor-chip.ts	bundle
+verb	sessions	none	none
+verb	sessions delete	none	none
+verb	sessions list	none	none
+verb	tune	none	none
+verb	update	none	none
+verb	usage	scripts/usage/prove-usage-history.ts	bundle
+verb	version	none	none
