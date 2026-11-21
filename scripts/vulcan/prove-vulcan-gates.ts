@@ -26,7 +26,7 @@ function restoreEnv(): void {
 }
 
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
-const gates = await import('../../src/utils/vulcan/vulcanGates.js')
+const gates = await import('../../src/services/vulcan/vulcanGates.js')
 const { getVulcanClient, resetVulcanClientForTest } = await import('../../src/services/vulcan/vulcanClient.js')
 const installer = await import('../../src/services/vulcan/addonInstaller.js')
 const { getAllBaseTools } = await import('../../src/tools.js')
@@ -186,7 +186,7 @@ section('§6 · flag registry rows')
 section('§7 · behavioral seams — harness map, doctrine, boot menu, health, prompt splice')
 {
   restoreEnv()
-  const { computeHarnessMapLines, resetHarnessMapForTest } = await import('../../src/utils/cockpit/harnessMap.js')
+  const { computeHarnessMapLines, resetHarnessMapForTest } = await import('../../src/services/cockpit/harnessMap.js')
   resetHarnessMapForTest()
   check('harness map: no VULCAN line when off', !computeHarnessMapLines().some(l => l.includes('VULCAN')))
   process.env.MERCURY_GODOT_TOOLS = '1'
@@ -209,7 +209,7 @@ section('§7 · behavioral seams — harness map, doctrine, boot menu, health, p
   check('boot menu: Godot lanes row moved to miscellaneous', lanesRow?.group === 'miscellaneous')
 
   const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
-  const { vulcanEnabled: armedNow } = await import('../../src/utils/vulcan/vulcanGates.ts')
+  const { vulcanEnabled: armedNow } = await import('../../src/services/vulcan/vulcanGates.ts')
   const vulcanCheck = runtimeChecks().find(row => row.id === 'vulcan')
   const vulcanSays = await vulcanCheck?.run()
   check("health: the 'vulcan' check is wired", vulcanCheck?.label === 'Godot control (VULCAN)' && vulcanSays !== undefined && (armedNow() ? vulcanSays.status !== 'off' && vulcanSays.evidence.startsWith('armed (port ') || vulcanSays.evidence.startsWith('project ') : vulcanSays.status === 'off' && vulcanSays.evidence.startsWith('MERCURY_GODOT_TOOLS unset')), vulcanSays?.evidence)

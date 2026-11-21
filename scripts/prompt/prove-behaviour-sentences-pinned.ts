@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/constants/prompts.ts src/utils/cockpit/runtimePosture.ts src/utils/cockpit/harnessMap.ts
+// gate-watch: src/constants/prompts.ts src/utils/cockpit/runtimePosture.ts src/services/cockpit/harnessMap.ts
 // gate-watch: src/mneme/mnemeFrontPage.ts src/services/agentResults/contracts.ts src/constants/subagentDoctrine.ts
 // gate-watch: scripts/prompt/fixtures/prompt-ablation/**
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -41,7 +41,7 @@ const { getSystemPrompt, enhanceSystemPromptWithEnvDetails } = await import('../
 const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.ts')
 const { getOriginalCwd, setOriginalCwd, setCwdState, setAskChannel } = await import('../../src/bootstrap/state.ts')
 const { markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/utils/cockpit/runtimePosture.ts')
-const { resetHarnessMapForTest } = await import('../../src/utils/cockpit/harnessMap.ts')
+const { resetHarnessMapForTest } = await import('../../src/services/cockpit/harnessMap.ts')
 const { getLocalISODate } = await import('../../src/constants/common.ts')
 const { buildSubagentMercurySections } = await import('../../src/constants/subagentDoctrine.ts')
 const { MERCURY_CREW_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryCrewAgent.ts')

@@ -1,4 +1,4 @@
-import { captureSignInRequest, observeSignInResponse } from '../../utils/accounts/signInRefusal.js'
+import { captureSignInRequest, observeSignInResponse } from '../providers/signInRefusal.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
 import { retryAfterHeaderMs } from '../api/retryAfter.js'

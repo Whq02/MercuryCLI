@@ -26,7 +26,7 @@ const { getUnityToolDescription } = await import('../../src/tools/UnityTool/prom
 const { getUnityBridgeClient, resetUnityBridgeClientForTest } = await import('../../src/services/unity/bridgeClient.js')
 const { unityBridgeTokenPath } = await import('../../src/services/unity/bridgeToken.js')
 const { unityTestResultsPath } = await import('../../src/utils/unity/unityProject.js')
-const { computeHarnessMapLines } = await import('../../src/utils/cockpit/harnessMap.js')
+const { computeHarnessMapLines } = await import('../../src/services/cockpit/harnessMap.js')
 const { startFakeUnityBridge } = await import('./fake-bridge.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'unity-bridge-tool-'))

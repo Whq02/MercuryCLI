@@ -12,7 +12,7 @@ import {
 import { openaiLimitWindow } from './openaiLimitState.js'
 import { refreshProviderUsage } from '../providerUsage.js'
 import { recordLaneBillingRefusal } from '../laneBillingState.js'
-import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
+import { captureSignInRequest, observeSignInResponse } from '../signInRefusal.js'
 import { rejectOpenaiCacheRetention } from './openaiCacheRetention.js'
 import { busyRefusalFact } from '../busyRetry.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'

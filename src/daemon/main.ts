@@ -79,6 +79,7 @@ import { makeDaemonRoster } from './run/roster.js'
 import { armSaturn } from './run/saturn.js'
 import { controlServerDeps } from './run/control.js'
 import { passedOver } from '../utils/passedOver.js'
+import { registerDefaultProviderCapabilities } from '../services/providers/registerCapabilities.js'
 
 function resolveDir(args: string[]): string {
   const arg = args.find(a => !a.startsWith('-'))
@@ -96,6 +97,7 @@ function persistDaemonCrash(err: unknown, label: string): void {
 
 
 export async function daemonMain(args: string[]): Promise<void> {
+  registerDefaultProviderCapabilities()
   const verb = parseDaemonVerb(args)
   switch (verb.kind) {
     case 'status':
