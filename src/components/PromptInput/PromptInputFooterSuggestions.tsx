@@ -21,14 +21,8 @@ export type SuggestionType =
   | 'channel-target'
   | 'variable'
 
-export type SuggestionItem = {
-  id: string
-  displayText: string
-  value?: string
-  description?: string
-  metadata?: unknown
-  color?: string
-}
+import type { SuggestionItem } from '../../types/suggestions.js'
+export type { SuggestionItem }
 
 const OVERLAY_MAX_ITEMS = 5
 

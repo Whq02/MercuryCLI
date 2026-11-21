@@ -1,5 +1,5 @@
 import type { ParseEntry } from 'shell-quote'
-import type { SuggestionItem } from '../../components/PromptInput/PromptInputFooterSuggestions.js'
+import type { SuggestionItem } from '../../types/suggestions.js'
 import { logForDebugging } from '../debug.js'
 import { exec } from '../Shell.js'
 import { completionDialect } from '../shell/shellRecord.js'
