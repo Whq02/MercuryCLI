@@ -32,7 +32,7 @@ try {
   clearWebFetchCache()
   const context = { abortController: new AbortController(), options: { isNonInteractiveSession: true } } as never
   const result = await WebFetchTool.call({ url: 'https://fixture.example/precedence' }, context)
-  assert.ok('data' in result)
+  assert.ok('data' in result, 'WebFetchTool.call in src/tools/WebFetchTool/WebFetchTool.js must return a data payload for HTML table fixture')
   const text = result.data.result
   const lines = text.split('\n')
   const row = lines.find(line => line.includes('Command line') && line.includes('Environment, file') && line.includes('--interval=10m'))

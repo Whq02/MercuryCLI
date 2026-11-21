@@ -32,7 +32,7 @@ try {
   for (const row of cases) {
     try {
       const answer = await getURLMarkdownContent(`https://fixture.example/${row.name}`, new AbortController())
-      assert(!('type' in answer))
+      assert(!('type' in answer), `getURLMarkdownContent(${row.name}) in src/tools/WebFetchTool/utils.ts must decode content instead of returning redirect/error object`)
       assert(row.name === 'html' ? answer.content.includes(row.expected) : answer.content === row.expected, JSON.stringify(answer.content))
       assert.equal(answer.bytes, row.bytes.length)
       assert.deepEqual(await getURLMarkdownContent(`https://fixture.example/${row.name}`, new AbortController()), answer)

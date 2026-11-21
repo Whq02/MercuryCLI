@@ -131,13 +131,13 @@ if (!executable.resolved) {
     const resultRecord = await op('engine_result', { id: first.jobId })
     check('engine_result retains every frame and the contact sheet', resultRecord.frames.length === 2 && existsSync(resultRecord.media.contactSheet.path))
     const snapshotSpec = parseEngineTreeSpec('HEAD')
-    assert.ok(!('error' in snapshotSpec))
+    assert.ok(!('error' in snapshotSpec), `parseEngineTreeSpec('HEAD') failed: ${'error' in snapshotSpec ? snapshotSpec.error : ''}; check engine tree parser`)
     const mutable = { suites: [], tree: snapshotSpec, native: false, capture: true, priority: 'lane-gate' as const, budgetMs: 120_000, displayShared: false, keepTree: false, label: null, media: parseEngineMediaRequest('capture', captureArgs, project) }
     const pendingSnapshot = service.submit(mutable)
     mutable.media.clock.seed = 999
     mutable.tree.ref = 'missing-ref'
     const snapshotJob = await pendingSnapshot
-    assert.ok(!('refused' in snapshotJob))
+    assert.ok(!('refused' in snapshotJob), `snapshot capture job refused: ${'refused' in snapshotJob ? snapshotJob.refused : ''}; check EngineJobService.submit`)
     const snapshot = await service.wait(snapshotJob.id, 120_000)
     check('submission snapshots clock and tree before yielding', snapshot?.record?.allPass === true && snapshot.record.media?.request.clock.seed === 1234 && snapshot.record.tree.ref === 'HEAD' && readFileSync(snapshot.record.frames![0]!.path).equals(readFileSync(first.frames[0].path)))
     const pair = await op('engine_capture', { ...captureArgs, pair: { switch: 'feature', a: false, b: true } })
@@ -155,9 +155,9 @@ if (!executable.resolved) {
     check('a PackedScene tour uses the same isolated capture driver', sceneCapture.allPass === true && sceneCapture.frames.length === 1, sceneCapture)
     const profileArgs = { tour: 'fixture', source: 'project', settleFrames: 30, sampleFrames: 60, budgetMs: 120_000, pair: { switch: 'feature', a: false, b: true } }
     const spec = parseEngineTreeSpec('HEAD')
-    assert.ok(!('error' in spec))
+    assert.ok(!('error' in spec), `parseEngineTreeSpec('HEAD') failed for guard worker: ${'error' in spec ? spec.error : ''}; check engine tree parser`)
     const busy = await service.submit({ suites: ['long_checks'], tree: spec, native: false, capture: false, priority: 'lane-gate', budgetMs: 120_000, displayShared: false, keepTree: false, label: 'guard-worker' })
-    assert.ok(!('refused' in busy))
+    assert.ok(!('refused' in busy), `guard-worker engine job refused: ${'refused' in busy ? busy.refused : ''}; check EngineJobService.submit`)
     for (let i = 0; i < 250 && !liveEngines().some(engine => engine.label.startsWith(`${busy.id}:`)); i++) await new Promise(resolve => setTimeout(resolve, 20))
     check('the competing real engine worker is alive', liveEngines().some(engine => engine.label.startsWith(`${busy.id}:`)))
     const refused = await op('engine_profile', profileArgs)

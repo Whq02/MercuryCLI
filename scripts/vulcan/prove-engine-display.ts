@@ -140,7 +140,7 @@ async function main(executable: string): Promise<void> {
   }
   function request(label: string): EngineJobRequest {
     const tree = parseEngineTreeSpec(commit)
-    assert.ok(!('error' in tree))
+    assert.ok(!('error' in tree), `parseEngineTreeSpec(${commit}) failed: ${'error' in tree ? tree.error : ''}; check engine tree parser`)
     return {
       suites: [], tree, native: true, capture: true, priority: 'lane-gate', budgetMs: captureArgs.budgetMs,
       displayShared: true, keepTree: false, label,
@@ -163,7 +163,7 @@ async function main(executable: string): Promise<void> {
   }
   function nativeEvidence(record: EngineRunRecord, label: string): void {
     const media = record.media
-    assert.ok(media)
+    assert.ok(media, `${label} EngineRunRecord missing media evidence (jobId=${record.jobId}); check EngineJobService native capture`)
     check(`${label} records the explicitly requested display route`, media.route === 'display' && media.displayRequested === true && record.native === true)
     check(`${label} records actual non-dummy viewport rendering`, media.evidence.length > 0 && media.evidence.every(row => {
       const renderer = row.renderer as { driver?: string; method?: string } | undefined
@@ -173,7 +173,7 @@ async function main(executable: string): Promise<void> {
     check(`${label} launches native rows without a hidden or headless argument`, rows.length > 0 && rows.every(row => row.ok && !row.argv.includes('--headless') && !row.argv.includes('--hidden')), rows.map(row => ({ name: row.name, argv: row.argv, startedAt: row.startedAt, endedAt: row.endedAt })))
   }
   function pixels(record: EngineRunRecord): void {
-    assert.ok(record.media && record.frames)
+    assert.ok(record.media && record.frames, `EngineRunRecord ${record.jobId} missing media or frames (media=${Boolean(record.media)}, frames=${Boolean(record.frames)}); check native capture output`)
     const frames = record.frames
     check(`${record.jobId} keeps four frames from two boots`, record.media.boots === 2 && frames.length === 4)
     const base = frames.filter(frame => frame.variant === 'a')

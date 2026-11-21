@@ -52,9 +52,9 @@ try {
     assert.equal(normalizeAttachmentForAPI(receipt).length, 0)
   }
   const content = normalizeAttachmentForAPI(capsule[0]!).map(message => JSON.stringify(message.message.content)).join('\n')
-  assert(content.includes('a file fact for the collection proof'))
-  assert(content.includes('capsule-reviewer'))
-  assert(content.includes('capsule-turn-proof'))
+  assert(content.includes('a file fact for the collection proof'), `context_capsule omitted attached file text in src/services/attachments/orchestrator.ts: ${content.slice(0, 200)}`)
+  assert(content.includes('capsule-reviewer'), `context_capsule omitted agent mention capsule-reviewer in src/services/attachments/orchestrator.ts: ${content.slice(0, 200)}`)
+  assert(content.includes('capsule-turn-proof'), `context_capsule omitted skill listing capsule-turn-proof in src/services/attachments/orchestrator.ts: ${content.slice(0, 200)}`)
   console.log('PASS live collector: current input, file read, agent mention and real skill listing enter one capsule with silent receipts')
 } finally {
   process.chdir(priorCwd)

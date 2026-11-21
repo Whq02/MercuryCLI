@@ -59,19 +59,22 @@ try {
   const crowded = await send('claude-opus-5-5', large)
   const wire = JSON.stringify(crowded)
   assert.ok(wire.includes(marker), 'every elided image has a visible marker')
-  assert.ok(Buffer.byteLength(wire) <= 128 * 1024 * 1024)
+  const wireBytes = Buffer.byteLength(wire)
+  assert.ok(wireBytes <= 128 * 1024 * 1024, `Anthropic fitted request ${wireBytes}B exceeds 128MiB budget in src/utils/messages/imageRequestFit.ts`)
   assert.ok(wire.includes(Buffer.concat([png, Buffer.alloc(350_000, 299 % 256)]).toString('base64')), 'newest image stays intact')
-  for (let i = 0; i < 300; i++) assert.ok(wire.includes(`OCR companion ${i}`))
+  for (let i = 0; i < 300; i++) assert.ok(wire.includes(`OCR companion ${i}`), `Anthropic fitted request dropped OCR companion ${i} in src/utils/messages/imageRequestFit.ts`)
   const gemini = JSON.stringify(await send('gemini-3-pro', history(80_000)))
-  assert.ok(gemini.includes(marker))
-  assert.ok(Buffer.byteLength(gemini) <= GEMINI_IMAGE_LIMITS.maxRequestBytes)
+  assert.ok(gemini.includes(marker), 'Gemini oversized image request omitted elision marker in src/utils/messages/imageRequestFit.ts')
+  const geminiBytes = Buffer.byteLength(gemini)
+  assert.ok(geminiBytes <= GEMINI_IMAGE_LIMITS.maxRequestBytes, `Gemini fitted request ${geminiBytes}B exceeds ${GEMINI_IMAGE_LIMITS.maxRequestBytes}B limit in src/utils/messages/imageRequestFit.ts`)
   await send('gpt-5.6-sol', small)
   const openaiBudget = OPENAI_IMAGE_LIMITS.maxRequestBytes
   try {
     OPENAI_IMAGE_LIMITS.maxRequestBytes = 2 * 1024 * 1024
     const openai = JSON.stringify(await send('gpt-5.6-sol', history(8_000)))
-    assert.ok(openai.includes(marker))
-    assert.ok(Buffer.byteLength(openai) <= OPENAI_IMAGE_LIMITS.maxRequestBytes)
+    assert.ok(openai.includes(marker), 'OpenAI oversized image request omitted elision marker in src/utils/messages/imageRequestFit.ts')
+    const openaiBytes = Buffer.byteLength(openai)
+    assert.ok(openaiBytes <= OPENAI_IMAGE_LIMITS.maxRequestBytes, `OpenAI fitted request ${openaiBytes}B exceeds ${OPENAI_IMAGE_LIMITS.maxRequestBytes}B limit in src/utils/messages/imageRequestFit.ts`)
   } finally { OPENAI_IMAGE_LIMITS.maxRequestBytes = openaiBudget }
   const { fitWireImages } = await import('../../src/utils/messages/imageRequestFit.ts')
   for (const [dialect, limits] of [['openai', OPENAI_IMAGE_LIMITS], ['gemini', GEMINI_IMAGE_LIMITS]] as const) {
@@ -79,10 +82,11 @@ try {
       ? { input: small.filter(row => row.type === 'user').map((row: any) => ({ type: 'function_call_output', call_id: row.message.content[0].tool_use_id, output: [{ type: 'input_text', text: row.message.content[0].content[0].text }, { type: 'input_image', image_url: `data:image/png;base64,${png.toString('base64')}` }] })) }
       : { contents: small.filter(row => row.type === 'user').map((row: any) => ({ role: 'user', parts: [{ text: row.message.content[0].content[0].text }, { inlineData: { mimeType: 'image/png', data: png.toString('base64') } }] })) }
     const before = JSON.stringify(payload)
-    const fitted = fitWireImages(payload, { ...limits, maxRequestBytes: Buffer.byteLength(before) - 10_000 })
-    assert.ok(fitted.removed > 0)
-    assert.ok(JSON.stringify(fitted.request).includes(marker))
-    assert.ok(fitted.bytes <= Buffer.byteLength(before) - 10_000)
+    const targetBytes = Buffer.byteLength(before) - 10_000
+    const fitted = fitWireImages(payload, { ...limits, maxRequestBytes: targetBytes })
+    assert.ok(fitted.removed > 0, `fitWireImages(${dialect}) removed 0 images despite ${targetBytes}B cap in src/utils/messages/imageRequestFit.ts`)
+    assert.ok(JSON.stringify(fitted.request).includes(marker), `fitWireImages(${dialect}) omitted elision marker in src/utils/messages/imageRequestFit.ts`)
+    assert.ok(fitted.bytes <= targetBytes, `fitWireImages(${dialect}) fitted bytes ${fitted.bytes}B exceeds ${targetBytes}B cap in src/utils/messages/imageRequestFit.ts`)
     assert.equal(JSON.stringify(payload), before)
     assert.equal(fitWireImages(payload, limits).removed, 0, 'a fitting request is not capped')
   }
