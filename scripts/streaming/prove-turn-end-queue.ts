@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { firstByteBudgetMs } from '../../src/services/providers/streamIdleBudget.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
@@ -96,7 +97,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
   const model = route === 'openai' ? 'gpt-5.6-sol' : 'claude-opus-4-8'
   const out = path.join(RUN_HOME, 'grid.json')
   const holdSends = [
-      { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 60, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${ASK}\r` },
       { requireAwait: true, minTick: 10, awaitText: 'after its last item', awaitSettleTicks: 6, data: `${FIRST}\r` },
       { afterPrevTicks: 10, data: `${SECOND}\r` },
@@ -105,7 +106,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
       { afterPrevTicks: 5 + Math.ceil(BUDGET_AUTHORED_MS / 200) + 40, data: '', mark: 'after-budget' },
   ]
   const toolSends = [
-      { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 60, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${READ_ASK}\r` },
       { requireAwait: true, minTick: 10, awaitText: 'Read', awaitSettleTicks: 3, data: `${FIRST}\r` },
       { afterPrevTicks: 8, data: '/workbench\r', mark: 'chat-queued' },
@@ -115,7 +116,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
       { afterPrevTicks: 10, data: '', mark: 'settled' },
   ]
   const stopSends = [
-      { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 60, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${SLEEP_ASK}\r` },
       { requireAwait: true, minTick: 10, awaitText: 'Running 1 bash command', awaitSettleTicks: 6, data: '\x1b', mark: 'tool-running' },
       { afterPrevTicks: 8, data: '\x1b', mark: 'after-first-esc' },
@@ -125,14 +126,14 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
       { afterPrevTicks: 10, data: '', mark: 'settled' },
   ]
   const crewSends = [
-      { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 60, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${LAUNCH_ASK}\r` },
       { requireAwait: true, minTick: 10, awaitText: 'first-byte-seat', awaitSettleTicks: 15, data: '', mark: 'seat-waiting' },
       { requireAwait: true, minTick: 5, awaitText: 'after its last item', awaitSettleTicks: 8, data: '', mark: 'after-seat' },
       { afterPrevTicks: 10, data: '', mark: 'settled' },
   ]
   const noticeSends = [
-      { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 60, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${NOTICE_ASK}\r` },
       { requireAwait: true, minTick: 10, awaitText: 'sleep 12', awaitSettleTicks: 2, data: '' },
       { requireAwait: true, minTick: 2, awaitText: NOTICE_ROW, awaitSettleTicks: 2, data: `${FIRST}\r`, mark: 'notice-queued' },

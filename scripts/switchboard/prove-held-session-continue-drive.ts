@@ -34,6 +34,7 @@ if (!existsSync(BIN)) {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver, vshotBudgetMs } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
 
@@ -58,7 +59,6 @@ const WORDS3 = 'words for the chat that parks'
 const REPLY3 = 'Parked reply.'
 const HELD_ROW = 'a live runner still holds this session'
 const NO_RUNNER = 'no live runner'
-const READY_LINE = '↵ start  ·  ↑↓ choose'
 const ARROW_DOWN = '\x1b[B'
 const KILLS = 5
 const PROVER_DEADLINE_MS = vshotBudgetMs(280_000)
@@ -260,7 +260,7 @@ const liveEdge = until(() => {
 const h = await capture({
   id: 'held-continue',
   sends: [
-    g(READY_LINE, ARROW_DOWN),
+    g('↑↓', ARROW_DOWN, { awaitPattern: BOOT_FACE_READY }),
     { afterPrevTicks: 2, data: '\r' },
     { afterPrevTicks: 20, data: '', mark: 'continued' },
     { afterPrevTicks: 90, data: WORDS2 },
@@ -316,7 +316,7 @@ if (!(await until(async () => (await has(String(holder.runnerId))).ready, vshotB
 const r = await capture({
   id: 'runnerless-continue',
   sends: [
-    g(READY_LINE, ARROW_DOWN),
+    g('↑↓', ARROW_DOWN, { awaitPattern: BOOT_FACE_READY }),
     { afterPrevTicks: 2, data: '\r' },
     g('revives it', '', { mark: 'continued', awaitSettleTicks: 3 }),
     g('← concourse', '', { mark: 'at-80x21', awaitStableTicks: 2 }),

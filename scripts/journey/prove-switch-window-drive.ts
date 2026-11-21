@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
 const argAfter = (flag: string): string | undefined => {
@@ -101,7 +102,7 @@ async function runArm(arm: 'flat' | 'ceiling' | 'queued'): Promise<{ wire: Captu
       ? [{ requireAwait: true, minTick: 8, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'card' }]
       : []
   const queuedSends = [
-    { atTick: 40, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { atTick: 40, requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { atTick: 80, minTick: 20, requireAwait: true, awaitText: '? for shortcuts', data: `${BIG_ASK}\r` },
     { atTick: 220, minTick: 10, requireAwait: true, awaitText: BIG_REPLY_TAIL, awaitSettleTicks: 3, data: `${HELD_ASK}\r`, mark: 'held-sent' },
     { atTick: 260, minTick: 10, requireAwait: true, awaitText: HELD_OPENING, awaitSettleTicks: 3, data: '/model gpt-5.6-sol\r', mark: 'switch-sent' },
@@ -113,7 +114,7 @@ async function runArm(arm: 'flat' | 'ceiling' | 'queued'): Promise<{ wire: Captu
     argv: ['node', DIST, '--model', 'claude-opus-4-8'],
     cwd: FIXTURE_CWD,
     sends: arm === 'queued' ? queuedSends : [
-      { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, minTick: 20, awaitText: '? for shortcuts', data: `${BIG_ASK}\r` },
       { requireAwait: true, minTick: 10, awaitText: BIG_REPLY_TAIL, awaitSettleTicks: 3, data: '/model gpt-5.6-sol\r', mark: 'switch-sent' },
       ...cardSends,
