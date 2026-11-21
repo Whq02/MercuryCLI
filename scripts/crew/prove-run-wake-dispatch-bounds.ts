@@ -32,7 +32,8 @@ const seam = await import(join(source, 'services/crewBoard/seam.ts'))
 const { flushSessionStorage } = await import(join(source, 'utils/sessionStorage/writer.ts'))
 const { runSwarmCommand } = await import(join(source, 'commands/swarm/swarm.ts'))
 const { query: startTurn } = await import(join(source, 'query.ts'))
-assert(runSwarmCommand('on').startsWith('Swarm on'))
+const swarmOnText = runSwarmCommand('on')
+assert(swarmOnText.startsWith('Swarm on'), `runSwarmCommand('on') did not enable swarm in src/commands/swarm/swarm.ts: ${swarmOnText}`)
 await seam.latchSwarmAgent('poster', 'Poster')
 const store = () => seam.swarmStore()!
 const tasks: Record<string, { type: string; id: string; agentId: string; status: string }> = {}
@@ -48,7 +49,7 @@ async function park(id: string, status = 'completed'): Promise<void> {
   seam.settleSwarmAgent(id)
   seam.mirrorSwarmNotice(id, `completed ${id}`, `${id} completed`, 'completed')
 }
-const trigger = (): void => { assert(store().post(seam.swarmPrincipal('poster')!, { clientOpId: `trigger-${++serial}`, kind: 'result', text: `TRIGGER-${serial}` }).ok) }
+const trigger = (): void => { const posted = store().post(seam.swarmPrincipal('poster')!, { clientOpId: `trigger-${++serial}`, kind: 'result', text: `TRIGGER-${serial}` }); assert(posted.ok, `poster trigger post failed in src/services/crewBoard/store.ts: ${JSON.stringify(posted)}`) }
 type Resume = (args: { agentId: string; onAdmitted?: () => void }) => Promise<unknown>
 const admit: Resume = async args => { args.onAdmitted?.() }
 

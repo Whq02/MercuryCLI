@@ -40,9 +40,9 @@ for (const mode of modes) {
     assert.equal(loaded.includes('crew-board.mjs'), enabled, `${mode}: ${loaded}`)
     if (mode === 'on') {
       const requests = world.fixture.messageRequests()
-      assert(requests.some(r => r.raw.includes('built-lead')))
+      assert(requests.some(r => r.raw.includes('built-lead')), 'swarm on mode did not send built-lead CrewBoard tool call to fixture model')
       assert(session.stdout().includes('eventId'), session.stdout().slice(-3000))
-    } else assert(!world.fixture.messageRequests().some(r => r.raw.includes('CrewBoard reads and posts')))
+    } else assert(!world.fixture.messageRequests().some(r => r.raw.includes('CrewBoard reads and posts')), `${mode}: CrewBoard description leaked onto wire when swarm was not on`)
     console.log(`PASS built session ${mode}: optional implementation ${enabled ? 'loaded with the session on' : 'never loaded with the master off'}`)
   } finally {
     await session.terminate()
