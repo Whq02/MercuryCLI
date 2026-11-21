@@ -18,7 +18,7 @@ import {
 } from '../interactiveHelpers.js'
 import { launchInvalidSettingsDialog, launchResumeChooser } from '../dialogLaunchers.js'
 import { validateForceLoginOrg } from '../utils/auth.js'
-import { startBackgroundHousekeeping } from '../utils/backgroundHousekeeping.js'
+import { startBackgroundHousekeeping } from '../services/backgroundHousekeeping.js'
 import { getGlobalConfig, saveGlobalConfigDeferred, flushDeferredGlobalConfigSaves, binaryName, getRemoteControlAtStartup } from '../utils/config.js'
 import { registerSession, updateSessionName } from '../utils/concurrentSessions.js'
 import { lastCrashReportPath } from '../utils/crashReport.js'
