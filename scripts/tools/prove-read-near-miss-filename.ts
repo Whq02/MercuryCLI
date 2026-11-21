@@ -11,7 +11,7 @@ delete process.env.NODE_ENV
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 const { FileReadTool } = await import(`${SRC}/tools/FileReadTool/FileReadTool.ts`)
-const { summarizeToolResult } = await import(`${SRC}/utils/toolResultSummary.ts`)
+const { summarizeToolResult } = await import(`${SRC}/tools/toolResultSummary.ts`)
 const { getEmptyToolPermissionContext } = await import(`${SRC}/Tool.ts`)
 const { createFileStateCacheWithSizeLimit } = await import(`${SRC}/utils/fileStateCache.ts`)
 

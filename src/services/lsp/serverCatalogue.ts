@@ -6,6 +6,7 @@ import { spawnableSpellings, whichSync } from '../../utils/which.js'
 import { mercuryLspEnabled } from './mercuryLsp.js'
 import type { ScopedLspServerConfig } from './types.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { selectPlatformRemedy } from '../../utils/platform/words.js'
 
 interface CatalogueEntry {
   id: string
@@ -22,7 +23,7 @@ interface CatalogueEntry {
 }
 
 export function remedyFor(entry: Pick<CatalogueEntry, 'remedy' | 'remedyWin32'>, platform: string = process.platform): string {
-  return platform === 'win32' ? entry.remedyWin32 ?? entry.remedy : entry.remedy
+  return selectPlatformRemedy(entry.remedy, entry.remedyWin32, platform)
 }
 
 export const SERVER_CATALOGUE: CatalogueEntry[] = [

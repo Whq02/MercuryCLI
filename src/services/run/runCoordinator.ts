@@ -1,6 +1,6 @@
 
 import { randomUUID } from 'node:crypto'
-import '../changeTransaction/receipts.js'
+import { installChangeReceiptObserver } from '../changeTransaction/receipts.js'
 import { logError } from '../../utils/log.js'
 import { getTaskListId, listTasks } from '../../utils/tasks.js'
 import { verificationSummary } from '../../utils/verification/verificationState.js'
@@ -409,6 +409,8 @@ export async function foldResumedRunForBoot(owner: OwnerKey, cwd: string): Promi
     return { state: 'unavailable', reason, retryable: false }
   }
 }
+
+installChangeReceiptObserver()
 
 subscribeToolStart(event => {
   const state = runs.peek(event.owner)

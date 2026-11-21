@@ -27,7 +27,7 @@ if (!existsSync(DIST)) {
   process.exit(1)
 }
 
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
 for (const key of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[key]
 for (const key of Object.keys(process.env)) if (/^MERCURY_COMPAT_/.test(key)) delete process.env[key]
 for (const key of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME', 'MERCURY_AUTH_SCOPE_DIR', 'MERCURY_USAGE_SEED']) {

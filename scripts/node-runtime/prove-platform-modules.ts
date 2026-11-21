@@ -1703,7 +1703,271 @@ const DESKTOP: Row[] = [
   },
 ]
 
-const ROWS = [...PATHS, ...PROGRAMS, ...SPAWN, ...PROCESSES, ...FILES, ...TERMINAL, ...DESKTOP]
+import { release as hostOsRelease, type as hostOsType, version as hostOsVersion } from 'node:os'
+import {
+  tensorFoldHasNativeEngine,
+  tensorFoldMachineSupportKind,
+  tensorFoldRuntimeDisplayPath,
+  tensorFoldSupportsLanBrowse,
+} from '../../src/utils/platform/tensorfold.js'
+import {
+  asepriteSteamInstallCandidates,
+  asepriteWindowsInstallCandidates,
+  blenderProgramFilesRoot,
+  blenderUserConfigBase,
+  browserDiscoveryCandidates,
+  chromeForTestingRelativePaths,
+  editorCliCandidates,
+  godotBinaryNeedsExeSuffix,
+  godotWellKnownRootsForPlatform,
+  isWinGetGodotPackageDir,
+  ollamaWindowsExeCandidate,
+  unityEditorExecutablePath,
+  unityHubEditorRoots,
+} from '../../src/utils/platform/vendors.js'
+import {
+  accessDeniedErrorHint,
+  brushPackRemedyWords,
+  clearEnvVarCommandWords,
+  credentialStoreWaitNote,
+  desktopGrantWordsForPlatform,
+  editorNotConfiguredWords,
+  ffmpegInstallCommandWords,
+  gdbInstallHintWords,
+  homeRepoRemovalCommands,
+  mercuryInstallUpdateCommand,
+  modelBankCandidateWords,
+  ollamaProbeCommandWords,
+  platformDisplayName,
+  platformKernelLine,
+  portListenerLookupCommand,
+  quoteResumeTitleForShell,
+  selectPlatformRemedy,
+  supportedTerminalHintSuffix,
+  systemBashLabel,
+} from '../../src/utils/platform/words.js'
+
+const normSlash = (value: string): string => value.replaceAll('\\', '/')
+
+const TENSORFOLD: Row[] = [
+  {
+    name: 'tensorfold.tensorFoldHasNativeEngine',
+    answers: () => ({
+      default: tensorFoldHasNativeEngine(),
+      win32: tensorFoldHasNativeEngine('win32'),
+      darwin: tensorFoldHasNativeEngine('darwin'),
+      linux: tensorFoldHasNativeEngine('linux'),
+    }),
+    recorded: {"win32":{"default":false,"win32":false,"darwin":true,"linux":true},"darwin":{"default":true,"win32":false,"darwin":true,"linux":true},"linux":{"default":true,"win32":false,"darwin":true,"linux":true},"win32 by process.platform alone":{"default":false,"win32":false,"darwin":true,"linux":true},"win32 by getPlatform() alone":{"default":true,"win32":false,"darwin":true,"linux":true}},
+  },
+  {
+    name: 'tensorfold.tensorFoldMachineSupportKind',
+    answers: () => ({
+      default: tensorFoldMachineSupportKind(),
+      win32: tensorFoldMachineSupportKind('win32'),
+      darwin: tensorFoldMachineSupportKind('darwin'),
+      linux: tensorFoldMachineSupportKind('linux'),
+      freebsd: tensorFoldMachineSupportKind('freebsd'),
+    }),
+    recorded: {"win32":{"default":"windows-adapter","win32":"windows-adapter","darwin":"macos-metal","linux":"linux-nvidia","freebsd":"unsupported"},"darwin":{"default":"macos-metal","win32":"windows-adapter","darwin":"macos-metal","linux":"linux-nvidia","freebsd":"unsupported"},"linux":{"default":"linux-nvidia","win32":"windows-adapter","darwin":"macos-metal","linux":"linux-nvidia","freebsd":"unsupported"},"win32 by process.platform alone":{"default":"windows-adapter","win32":"windows-adapter","darwin":"macos-metal","linux":"linux-nvidia","freebsd":"unsupported"},"win32 by getPlatform() alone":{"default":"linux-nvidia","win32":"windows-adapter","darwin":"macos-metal","linux":"linux-nvidia","freebsd":"unsupported"}},
+  },
+  {
+    name: 'tensorfold.tensorFoldSupportsLanBrowse',
+    answers: () => ({
+      default: tensorFoldSupportsLanBrowse(),
+      win32: tensorFoldSupportsLanBrowse('win32'),
+      darwin: tensorFoldSupportsLanBrowse('darwin'),
+      linux: tensorFoldSupportsLanBrowse('linux'),
+    }),
+    recorded: {"win32":{"default":false,"win32":false,"darwin":true,"linux":true},"darwin":{"default":true,"win32":false,"darwin":true,"linux":true},"linux":{"default":true,"win32":false,"darwin":true,"linux":true},"win32 by process.platform alone":{"default":false,"win32":false,"darwin":true,"linux":true},"win32 by getPlatform() alone":{"default":true,"win32":false,"darwin":true,"linux":true}},
+  },
+  {
+    name: 'tensorfold.tensorFoldRuntimeDisplayPath',
+    answers: () => ({
+      default: tensorFoldRuntimeDisplayPath(['.mercury', 'bin', 'llama-server']),
+      win32: tensorFoldRuntimeDisplayPath(['.mercury', 'bin', 'llama-server'], 'win32'),
+      darwin: tensorFoldRuntimeDisplayPath(['.mercury', 'bin', 'llama-server'], 'darwin'),
+      linux: tensorFoldRuntimeDisplayPath(['.mercury', 'bin', 'llama-server'], 'linux'),
+    }),
+    recorded: {"win32":{"default":"~\\.mercury\\bin\\llama-server","win32":"~\\.mercury\\bin\\llama-server","darwin":"~/.mercury/bin/llama-server","linux":"~/.mercury/bin/llama-server"},"darwin":{"default":"~/.mercury/bin/llama-server","win32":"~\\.mercury\\bin\\llama-server","darwin":"~/.mercury/bin/llama-server","linux":"~/.mercury/bin/llama-server"},"linux":{"default":"~/.mercury/bin/llama-server","win32":"~\\.mercury\\bin\\llama-server","darwin":"~/.mercury/bin/llama-server","linux":"~/.mercury/bin/llama-server"},"win32 by process.platform alone":{"default":"~\\.mercury\\bin\\llama-server","win32":"~\\.mercury\\bin\\llama-server","darwin":"~/.mercury/bin/llama-server","linux":"~/.mercury/bin/llama-server"},"win32 by getPlatform() alone":{"default":"~/.mercury/bin/llama-server","win32":"~\\.mercury\\bin\\llama-server","darwin":"~/.mercury/bin/llama-server","linux":"~/.mercury/bin/llama-server"}},
+  },
+]
+
+const VENDORS: Row[] = [
+  {
+    name: 'vendors.editorCliCandidates',
+    answers: () => ({
+      default: editorCliCandidates(),
+      win32: editorCliCandidates('win32'),
+      darwin: editorCliCandidates('darwin'),
+      linux: editorCliCandidates('linux'),
+    }),
+    recorded: {"win32":{"default":{"candidates":["code.cmd","code","code.exe","code-insiders.cmd","cursor.cmd","codium.cmd","windsurf.cmd"],"execShell":true},"win32":{"candidates":["code.cmd","code","code.exe","code-insiders.cmd","cursor.cmd","codium.cmd","windsurf.cmd"],"execShell":true},"darwin":{"candidates":["code","/usr/local/bin/code","/opt/homebrew/bin/code","/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code","code-insiders","/usr/local/bin/code-insiders","/opt/homebrew/bin/code-insiders","/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code-insiders","cursor","/usr/local/bin/cursor","/opt/homebrew/bin/cursor","/Applications/Cursor.app/Contents/Resources/app/bin/cursor","codium","/usr/local/bin/codium","/opt/homebrew/bin/codium","/Applications/VSCodium.app/Contents/Resources/app/bin/codium","windsurf","/usr/local/bin/windsurf","/opt/homebrew/bin/windsurf","/Applications/Windsurf.app/Contents/Resources/app/bin/windsurf"],"execShell":false},"linux":{"candidates":["code","/usr/local/bin/code","/opt/homebrew/bin/code","code-insiders","/usr/local/bin/code-insiders","/opt/homebrew/bin/code-insiders","cursor","/usr/local/bin/cursor","/opt/homebrew/bin/cursor","codium","/usr/local/bin/codium","/opt/homebrew/bin/codium","windsurf","/usr/local/bin/windsurf","/opt/homebrew/bin/windsurf"],"execShell":false}},"darwin":{"default":{"candidates":["code","/usr/local/bin/code","/opt/homebrew/bin/code","/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code","code-insiders","/usr/local/bin/code-insiders","/opt/homebrew/bin/code-insiders","/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code-insiders","cursor","/usr/local/bin/cursor","/opt/homebrew/bin/cursor","/Applications/Cursor.app/Contents/Resources/app/bin/cursor","codium","/usr/local/bin/codium","/opt/homebrew/bin/codium","/Applications/VSCodium.app/Contents/Resources/app/bin/codium","windsurf","/usr/local/bin/windsurf","/opt/homebrew/bin/windsurf","/Applications/Windsurf.app/Contents/Resources/app/bin/windsurf"],"execShell":false},"win32":{"candidates":["code.cmd","code","code.exe","code-insiders.cmd","cursor.cmd","codium.cmd","windsurf.cmd"],"execShell":true},"darwin":{"candidates":["code","/usr/local/bin/code","/opt/homebrew/bin/code","/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code","code-insiders","/usr/local/bin/code-insiders","/opt/homebrew/bin/code-insiders","/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code-insiders","cursor","/usr/local/bin/cursor","/opt/homebrew/bin/cursor","/Applications/Cursor.app/Contents/Resources/app/bin/cursor","codium","/usr/local/bin/codium","/opt/homebrew/bin/codium","/Applications/VSCodium.app/Contents/Resources/app/bin/codium","windsurf","/usr/local/bin/windsurf","/opt/homebrew/bin/windsurf","/Applications/Windsurf.app/Contents/Resources/app/bin/windsurf"],"execShell":false},"linux":{"candidates":["code","/usr/local/bin/code","/opt/homebrew/bin/code","code-insiders","/usr/local/bin/code-insiders","/opt/homebrew/bin/code-insiders","cursor","/usr/local/bin/cursor","/opt/homebrew/bin/cursor","codium","/usr/local/bin/codium","/opt/homebrew/bin/codium","windsurf","/usr/local/bin/windsurf","/opt/homebrew/bin/windsurf"],"execShell":false}},"linux":{"default":{"candidates":["code","/usr/local/bin/code","/opt/homebrew/bin/code","code-insiders","/usr/local/bin/code-insiders","/opt/homebrew/bin/code-insiders","cursor","/usr/local/bin/cursor","/opt/homebrew/bin/cursor","codium","/usr/local/bin/codium","/opt/homebrew/bin/codium","windsurf","/usr/local/bin/windsurf","/opt/homebrew/bin/windsurf"],"execShell":false},"win32":{"candidates":["code.cmd","code","code.exe","code-insiders.cmd","cursor.cmd","codium.cmd","windsurf.cmd"],"execShell":true},"darwin":{"candidates":["code","/usr/local/bin/code","/opt/homebrew/bin/code","/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code","code-insiders","/usr/local/bin/code-insiders","/opt/homebrew/bin/code-insiders","/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code-insiders","cursor","/usr/local/bin/cursor","/opt/homebrew/bin/cursor","/Applications/Cursor.app/Contents/Resources/app/bin/cursor","codium","/usr/local/bin/codium","/opt/homebrew/bin/codium","/Applications/VSCodium.app/Contents/Resources/app/bin/codium","windsurf","/usr/local/bin/windsurf","/opt/homebrew/bin/windsurf","/Applications/Windsurf.app/Contents/Resources/app/bin/windsurf"],"execShell":false},"linux":{"candidates":["code","/usr/local/bin/code","/opt/homebrew/bin/code","code-insiders","/usr/local/bin/code-insiders","/opt/homebrew/bin/code-insiders","cursor","/usr/local/bin/cursor","/opt/homebrew/bin/cursor","codium","/usr/local/bin/codium","/opt/homebrew/bin/codium","windsurf","/usr/local/bin/windsurf","/opt/homebrew/bin/windsurf"],"execShell":false}},"win32 by process.platform alone":{"default":{"candidates":["code.cmd","code","code.exe","code-insiders.cmd","cursor.cmd","codium.cmd","windsurf.cmd"],"execShell":true},"win32":{"candidates":["code.cmd","code","code.exe","code-insiders.cmd","cursor.cmd","codium.cmd","windsurf.cmd"],"execShell":true},"darwin":{"candidates":["code","/usr/local/bin/code","/opt/homebrew/bin/code","/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code","code-insiders","/usr/local/bin/code-insiders","/opt/homebrew/bin/code-insiders","/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code-insiders","cursor","/usr/local/bin/cursor","/opt/homebrew/bin/cursor","/Applications/Cursor.app/Contents/Resources/app/bin/cursor","codium","/usr/local/bin/codium","/opt/homebrew/bin/codium","/Applications/VSCodium.app/Contents/Resources/app/bin/codium","windsurf","/usr/local/bin/windsurf","/opt/homebrew/bin/windsurf","/Applications/Windsurf.app/Contents/Resources/app/bin/windsurf"],"execShell":false},"linux":{"candidates":["code","/usr/local/bin/code","/opt/homebrew/bin/code","code-insiders","/usr/local/bin/code-insiders","/opt/homebrew/bin/code-insiders","cursor","/usr/local/bin/cursor","/opt/homebrew/bin/cursor","codium","/usr/local/bin/codium","/opt/homebrew/bin/codium","windsurf","/usr/local/bin/windsurf","/opt/homebrew/bin/windsurf"],"execShell":false}},"win32 by getPlatform() alone":{"default":{"candidates":["code","/usr/local/bin/code","/opt/homebrew/bin/code","code-insiders","/usr/local/bin/code-insiders","/opt/homebrew/bin/code-insiders","cursor","/usr/local/bin/cursor","/opt/homebrew/bin/cursor","codium","/usr/local/bin/codium","/opt/homebrew/bin/codium","windsurf","/usr/local/bin/windsurf","/opt/homebrew/bin/windsurf"],"execShell":false},"win32":{"candidates":["code.cmd","code","code.exe","code-insiders.cmd","cursor.cmd","codium.cmd","windsurf.cmd"],"execShell":true},"darwin":{"candidates":["code","/usr/local/bin/code","/opt/homebrew/bin/code","/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code","code-insiders","/usr/local/bin/code-insiders","/opt/homebrew/bin/code-insiders","/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code-insiders","cursor","/usr/local/bin/cursor","/opt/homebrew/bin/cursor","/Applications/Cursor.app/Contents/Resources/app/bin/cursor","codium","/usr/local/bin/codium","/opt/homebrew/bin/codium","/Applications/VSCodium.app/Contents/Resources/app/bin/codium","windsurf","/usr/local/bin/windsurf","/opt/homebrew/bin/windsurf","/Applications/Windsurf.app/Contents/Resources/app/bin/windsurf"],"execShell":false},"linux":{"candidates":["code","/usr/local/bin/code","/opt/homebrew/bin/code","code-insiders","/usr/local/bin/code-insiders","/opt/homebrew/bin/code-insiders","cursor","/usr/local/bin/cursor","/opt/homebrew/bin/cursor","codium","/usr/local/bin/codium","/opt/homebrew/bin/codium","windsurf","/usr/local/bin/windsurf","/opt/homebrew/bin/windsurf"],"execShell":false}}},
+  },
+  {
+    name: 'vendors.blenderUserConfigBase',
+    answers: () => {
+      const env = { APPDATA: 'C:\\Users\\u\\AppData\\Roaming', XDG_CONFIG_HOME: '/home/u/.xdg' }
+      return {
+        defaultWithEnv: normSlash(blenderUserConfigBase('4.2', '/home/u', env)),
+        defaultNoEnv: normSlash(blenderUserConfigBase('4.2', '/home/u', {})),
+        win32: normSlash(blenderUserConfigBase('4.2', '/home/u', env, 'win32')),
+        darwin: normSlash(blenderUserConfigBase('4.2', '/home/u', env, 'darwin')),
+        linux: normSlash(blenderUserConfigBase('4.2', '/home/u', env, 'linux')),
+      }
+    },
+    recorded: {"win32":{"defaultWithEnv":"C:/Users/u/AppData/Roaming/Blender Foundation/Blender/4.2","defaultNoEnv":"/home/u/AppData/Roaming/Blender Foundation/Blender/4.2","win32":"C:/Users/u/AppData/Roaming/Blender Foundation/Blender/4.2","darwin":"/home/u/Library/Application Support/Blender/4.2","linux":"/home/u/.xdg/blender/4.2"},"darwin":{"defaultWithEnv":"/home/u/Library/Application Support/Blender/4.2","defaultNoEnv":"/home/u/Library/Application Support/Blender/4.2","win32":"C:/Users/u/AppData/Roaming/Blender Foundation/Blender/4.2","darwin":"/home/u/Library/Application Support/Blender/4.2","linux":"/home/u/.xdg/blender/4.2"},"linux":{"defaultWithEnv":"/home/u/.xdg/blender/4.2","defaultNoEnv":"/home/u/.config/blender/4.2","win32":"C:/Users/u/AppData/Roaming/Blender Foundation/Blender/4.2","darwin":"/home/u/Library/Application Support/Blender/4.2","linux":"/home/u/.xdg/blender/4.2"},"win32 by process.platform alone":{"defaultWithEnv":"C:/Users/u/AppData/Roaming/Blender Foundation/Blender/4.2","defaultNoEnv":"/home/u/AppData/Roaming/Blender Foundation/Blender/4.2","win32":"C:/Users/u/AppData/Roaming/Blender Foundation/Blender/4.2","darwin":"/home/u/Library/Application Support/Blender/4.2","linux":"/home/u/.xdg/blender/4.2"},"win32 by getPlatform() alone":{"defaultWithEnv":"/home/u/.xdg/blender/4.2","defaultNoEnv":"/home/u/.config/blender/4.2","win32":"C:/Users/u/AppData/Roaming/Blender Foundation/Blender/4.2","darwin":"/home/u/Library/Application Support/Blender/4.2","linux":"/home/u/.xdg/blender/4.2"}},
+  },
+  {
+    name: 'vendors.browserDiscoveryCandidates',
+    answers: stand => {
+      const fam = { darwin: ['/Applications/Chrome.app'], win32: ['C:\\Chrome\\chrome.exe'], linuxBinaries: ['google-chrome'] }
+      return {
+        stand: browserDiscoveryCandidates(fam, stand.node),
+        win32: browserDiscoveryCandidates(fam, 'win32'),
+        darwin: browserDiscoveryCandidates(fam, 'darwin'),
+        linux: browserDiscoveryCandidates(fam, 'linux'),
+      }
+    },
+    recorded: {"win32":{"stand":{"kind":"paths","candidates":["C:\\Chrome\\chrome.exe"]},"win32":{"kind":"paths","candidates":["C:\\Chrome\\chrome.exe"]},"darwin":{"kind":"paths","candidates":["/Applications/Chrome.app"]},"linux":{"kind":"binaries","binaries":["google-chrome"]}},"darwin":{"stand":{"kind":"paths","candidates":["/Applications/Chrome.app"]},"win32":{"kind":"paths","candidates":["C:\\Chrome\\chrome.exe"]},"darwin":{"kind":"paths","candidates":["/Applications/Chrome.app"]},"linux":{"kind":"binaries","binaries":["google-chrome"]}},"linux":{"stand":{"kind":"binaries","binaries":["google-chrome"]},"win32":{"kind":"paths","candidates":["C:\\Chrome\\chrome.exe"]},"darwin":{"kind":"paths","candidates":["/Applications/Chrome.app"]},"linux":{"kind":"binaries","binaries":["google-chrome"]}},"win32 by process.platform alone":{"stand":{"kind":"paths","candidates":["C:\\Chrome\\chrome.exe"]},"win32":{"kind":"paths","candidates":["C:\\Chrome\\chrome.exe"]},"darwin":{"kind":"paths","candidates":["/Applications/Chrome.app"]},"linux":{"kind":"binaries","binaries":["google-chrome"]}},"win32 by getPlatform() alone":{"stand":{"kind":"binaries","binaries":["google-chrome"]},"win32":{"kind":"paths","candidates":["C:\\Chrome\\chrome.exe"]},"darwin":{"kind":"paths","candidates":["/Applications/Chrome.app"]},"linux":{"kind":"binaries","binaries":["google-chrome"]}}},
+  },
+  {
+    name: 'vendors.chromeForTestingRelativePaths',
+    answers: stand => ({
+      stand: chromeForTestingRelativePaths(stand.node),
+      win32: chromeForTestingRelativePaths('win32'),
+      darwin: chromeForTestingRelativePaths('darwin'),
+      linux: chromeForTestingRelativePaths('linux'),
+    }),
+    recorded: {"win32":{"stand":["chrome-win64/chrome.exe","chrome-win32/chrome.exe"],"win32":["chrome-win64/chrome.exe","chrome-win32/chrome.exe"],"darwin":["chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing","chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"],"linux":["chrome-linux64/chrome","chrome-linux-arm64/chrome"]},"darwin":{"stand":["chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing","chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"],"win32":["chrome-win64/chrome.exe","chrome-win32/chrome.exe"],"darwin":["chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing","chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"],"linux":["chrome-linux64/chrome","chrome-linux-arm64/chrome"]},"linux":{"stand":["chrome-linux64/chrome","chrome-linux-arm64/chrome"],"win32":["chrome-win64/chrome.exe","chrome-win32/chrome.exe"],"darwin":["chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing","chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"],"linux":["chrome-linux64/chrome","chrome-linux-arm64/chrome"]},"win32 by process.platform alone":{"stand":["chrome-win64/chrome.exe","chrome-win32/chrome.exe"],"win32":["chrome-win64/chrome.exe","chrome-win32/chrome.exe"],"darwin":["chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing","chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"],"linux":["chrome-linux64/chrome","chrome-linux-arm64/chrome"]},"win32 by getPlatform() alone":{"stand":["chrome-linux64/chrome","chrome-linux-arm64/chrome"],"win32":["chrome-win64/chrome.exe","chrome-win32/chrome.exe"],"darwin":["chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing","chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"],"linux":["chrome-linux64/chrome","chrome-linux-arm64/chrome"]}},
+  },
+  {
+    name: 'vendors.ollamaWindowsExeCandidate',
+    answers: () => ({
+      default: ollamaWindowsExeCandidate({}, 'C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe'),
+      win32: ollamaWindowsExeCandidate({}, 'C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe', 'win32'),
+      darwin: ollamaWindowsExeCandidate({}, 'C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe', 'darwin'),
+      linux: ollamaWindowsExeCandidate({}, 'C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe', 'linux'),
+    }),
+    recorded: {"win32":{"default":"C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe","win32":"C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe","darwin":null,"linux":null},"darwin":{"default":null,"win32":"C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe","darwin":null,"linux":null},"linux":{"default":null,"win32":"C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe","darwin":null,"linux":null},"win32 by process.platform alone":{"default":"C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe","win32":"C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe","darwin":null,"linux":null},"win32 by getPlatform() alone":{"default":null,"win32":"C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe","darwin":null,"linux":null}},
+  },
+  {
+    name: 'vendors.godotWellKnownRootsForPlatform',
+    answers: () => {
+      const env = {
+        HOME: '/home/u',
+        USERPROFILE: 'C:\\Users\\u',
+        LOCALAPPDATA: 'C:\\Users\\u\\AppData\\Local',
+        ProgramFiles: 'C:\\Program Files',
+        'ProgramFiles(x86)': 'C:\\Program Files (x86)',
+        ProgramData: 'C:\\ProgramData',
+      }
+      return {
+        default: godotWellKnownRootsForPlatform(undefined, env),
+        win32: godotWellKnownRootsForPlatform('win32', env),
+        darwin: godotWellKnownRootsForPlatform('darwin', env),
+        linux: godotWellKnownRootsForPlatform('linux', env),
+      }
+    },
+    recorded: {"win32":{"default":["C:\\Users\\u\\AppData\\Local\\Programs\\Godot","C:\\Program Files\\Godot","C:\\Program Files (x86)\\Godot","C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine","C:\\Program Files\\Steam\\steamapps\\common\\Godot Engine","C:\\Users\\u\\AppData\\Local\\Microsoft\\WinGet\\Links","C:\\Users\\u\\AppData\\Local\\Microsoft\\WinGet\\Packages","C:\\Users\\u\\scoop\\shims","C:\\Users\\u\\scoop\\apps\\godot\\current","C:\\ProgramData\\chocolatey\\bin"],"win32":["C:\\Users\\u\\AppData\\Local\\Programs\\Godot","C:\\Program Files\\Godot","C:\\Program Files (x86)\\Godot","C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine","C:\\Program Files\\Steam\\steamapps\\common\\Godot Engine","C:\\Users\\u\\AppData\\Local\\Microsoft\\WinGet\\Links","C:\\Users\\u\\AppData\\Local\\Microsoft\\WinGet\\Packages","C:\\Users\\u\\scoop\\shims","C:\\Users\\u\\scoop\\apps\\godot\\current","C:\\ProgramData\\chocolatey\\bin"],"darwin":["/Applications","/home/u/Applications","/home/u/Library/Application Support/Steam/steamapps/common/Godot Engine","/opt/homebrew/bin","/usr/local/bin"],"linux":["/home/u/.local/bin","/usr/local/bin","/usr/bin","/var/lib/flatpak/exports/bin","/home/u/.local/share/flatpak/exports/bin","/home/u/.steam/steam/steamapps/common/Godot Engine","/home/u/.local/share/Steam/steamapps/common/Godot Engine","/home/u/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Godot Engine"]},"darwin":{"default":["/Applications","/home/u/Applications","/home/u/Library/Application Support/Steam/steamapps/common/Godot Engine","/opt/homebrew/bin","/usr/local/bin"],"win32":["C:\\Users\\u\\AppData\\Local\\Programs\\Godot","C:\\Program Files\\Godot","C:\\Program Files (x86)\\Godot","C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine","C:\\Program Files\\Steam\\steamapps\\common\\Godot Engine","C:\\Users\\u\\AppData\\Local\\Microsoft\\WinGet\\Links","C:\\Users\\u\\AppData\\Local\\Microsoft\\WinGet\\Packages","C:\\Users\\u\\scoop\\shims","C:\\Users\\u\\scoop\\apps\\godot\\current","C:\\ProgramData\\chocolatey\\bin"],"darwin":["/Applications","/home/u/Applications","/home/u/Library/Application Support/Steam/steamapps/common/Godot Engine","/opt/homebrew/bin","/usr/local/bin"],"linux":["/home/u/.local/bin","/usr/local/bin","/usr/bin","/var/lib/flatpak/exports/bin","/home/u/.local/share/flatpak/exports/bin","/home/u/.steam/steam/steamapps/common/Godot Engine","/home/u/.local/share/Steam/steamapps/common/Godot Engine","/home/u/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Godot Engine"]},"linux":{"default":["/home/u/.local/bin","/usr/local/bin","/usr/bin","/var/lib/flatpak/exports/bin","/home/u/.local/share/flatpak/exports/bin","/home/u/.steam/steam/steamapps/common/Godot Engine","/home/u/.local/share/Steam/steamapps/common/Godot Engine","/home/u/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Godot Engine"],"win32":["C:\\Users\\u\\AppData\\Local\\Programs\\Godot","C:\\Program Files\\Godot","C:\\Program Files (x86)\\Godot","C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine","C:\\Program Files\\Steam\\steamapps\\common\\Godot Engine","C:\\Users\\u\\AppData\\Local\\Microsoft\\WinGet\\Links","C:\\Users\\u\\AppData\\Local\\Microsoft\\WinGet\\Packages","C:\\Users\\u\\scoop\\shims","C:\\Users\\u\\scoop\\apps\\godot\\current","C:\\ProgramData\\chocolatey\\bin"],"darwin":["/Applications","/home/u/Applications","/home/u/Library/Application Support/Steam/steamapps/common/Godot Engine","/opt/homebrew/bin","/usr/local/bin"],"linux":["/home/u/.local/bin","/usr/local/bin","/usr/bin","/var/lib/flatpak/exports/bin","/home/u/.local/share/flatpak/exports/bin","/home/u/.steam/steam/steamapps/common/Godot Engine","/home/u/.local/share/Steam/steamapps/common/Godot Engine","/home/u/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Godot Engine"]},"win32 by process.platform alone":{"default":["C:\\Users\\u\\AppData\\Local\\Programs\\Godot","C:\\Program Files\\Godot","C:\\Program Files (x86)\\Godot","C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine","C:\\Program Files\\Steam\\steamapps\\common\\Godot Engine","C:\\Users\\u\\AppData\\Local\\Microsoft\\WinGet\\Links","C:\\Users\\u\\AppData\\Local\\Microsoft\\WinGet\\Packages","C:\\Users\\u\\scoop\\shims","C:\\Users\\u\\scoop\\apps\\godot\\current","C:\\ProgramData\\chocolatey\\bin"],"win32":["C:\\Users\\u\\AppData\\Local\\Programs\\Godot","C:\\Program Files\\Godot","C:\\Program Files (x86)\\Godot","C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine","C:\\Program Files\\Steam\\steamapps\\common\\Godot Engine","C:\\Users\\u\\AppData\\Local\\Microsoft\\WinGet\\Links","C:\\Users\\u\\AppData\\Local\\Microsoft\\WinGet\\Packages","C:\\Users\\u\\scoop\\shims","C:\\Users\\u\\scoop\\apps\\godot\\current","C:\\ProgramData\\chocolatey\\bin"],"darwin":["/Applications","/home/u/Applications","/home/u/Library/Application Support/Steam/steamapps/common/Godot Engine","/opt/homebrew/bin","/usr/local/bin"],"linux":["/home/u/.local/bin","/usr/local/bin","/usr/bin","/var/lib/flatpak/exports/bin","/home/u/.local/share/flatpak/exports/bin","/home/u/.steam/steam/steamapps/common/Godot Engine","/home/u/.local/share/Steam/steamapps/common/Godot Engine","/home/u/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Godot Engine"]},"win32 by getPlatform() alone":{"default":["/home/u/.local/bin","/usr/local/bin","/usr/bin","/var/lib/flatpak/exports/bin","/home/u/.local/share/flatpak/exports/bin","/home/u/.steam/steam/steamapps/common/Godot Engine","/home/u/.local/share/Steam/steamapps/common/Godot Engine","/home/u/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Godot Engine"],"win32":["C:\\Users\\u\\AppData\\Local\\Programs\\Godot","C:\\Program Files\\Godot","C:\\Program Files (x86)\\Godot","C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine","C:\\Program Files\\Steam\\steamapps\\common\\Godot Engine","C:\\Users\\u\\AppData\\Local\\Microsoft\\WinGet\\Links","C:\\Users\\u\\AppData\\Local\\Microsoft\\WinGet\\Packages","C:\\Users\\u\\scoop\\shims","C:\\Users\\u\\scoop\\apps\\godot\\current","C:\\ProgramData\\chocolatey\\bin"],"darwin":["/Applications","/home/u/Applications","/home/u/Library/Application Support/Steam/steamapps/common/Godot Engine","/opt/homebrew/bin","/usr/local/bin"],"linux":["/home/u/.local/bin","/usr/local/bin","/usr/bin","/var/lib/flatpak/exports/bin","/home/u/.local/share/flatpak/exports/bin","/home/u/.steam/steam/steamapps/common/Godot Engine","/home/u/.local/share/Steam/steamapps/common/Godot Engine","/home/u/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Godot Engine"]}},
+  },
+  {
+    name: 'vendors.godotPackageAndExePredicates',
+    answers: () => ({
+      wingetDefault: [isWinGetGodotPackageDir('godotengine.godot'), isWinGetGodotPackageDir('godot')],
+      wingetWin32: [isWinGetGodotPackageDir('godotengine.godot', 'win32'), isWinGetGodotPackageDir('godot', 'win32')],
+      exeDefault: [godotBinaryNeedsExeSuffix('godot'), godotBinaryNeedsExeSuffix('godot.exe')],
+      exeWin32: [godotBinaryNeedsExeSuffix('godot', 'win32'), godotBinaryNeedsExeSuffix('godot.exe', 'win32')],
+    }),
+    recorded: {"win32":{"wingetDefault":[true,false],"wingetWin32":[true,false],"exeDefault":[true,false],"exeWin32":[true,false]},"darwin":{"wingetDefault":[false,false],"wingetWin32":[true,false],"exeDefault":[false,false],"exeWin32":[true,false]},"linux":{"wingetDefault":[false,false],"wingetWin32":[true,false],"exeDefault":[false,false],"exeWin32":[true,false]},"win32 by process.platform alone":{"wingetDefault":[true,false],"wingetWin32":[true,false],"exeDefault":[true,false],"exeWin32":[true,false]},"win32 by getPlatform() alone":{"wingetDefault":[false,false],"wingetWin32":[true,false],"exeDefault":[false,false],"exeWin32":[true,false]}},
+  },
+  {
+    name: 'vendors.asepriteInstallCandidates',
+    answers: () => {
+      const env = {
+        ProgramFiles: 'C:\\Program Files',
+        'ProgramFiles(x86)': 'C:\\Program Files (x86)',
+        LOCALAPPDATA: 'C:\\Users\\u\\AppData\\Local',
+      }
+      return {
+        steamDefault: asepriteSteamInstallCandidates(undefined, '/home/u', env).map(normSlash),
+        winDefault: asepriteWindowsInstallCandidates(undefined, undefined, '/home/u', env).map(c => ({ candidate: normSlash(c.candidate), source: c.source })),
+        winOverride: asepriteWindowsInstallCandidates('win32', [{ candidate: 'D:/aseprite.exe', source: 'itch' }], '/home/u', env),
+      }
+    },
+    recorded: {"win32":{"steamDefault":["C:/Program Files (x86)/Steam/steamapps/common/Aseprite/Aseprite.exe","C:/Program Files/Steam/steamapps/common/Aseprite/Aseprite.exe"],"winDefault":[{"candidate":"C:/Program Files/Aseprite/Aseprite.exe","source":"program-files"},{"candidate":"C:/Program Files (x86)/Aseprite/Aseprite.exe","source":"program-files"},{"candidate":"C:/Users/u/AppData/Local/itch/apps/aseprite/Aseprite.exe","source":"itch"}],"winOverride":[{"candidate":"D:/aseprite.exe","source":"itch"}]},"darwin":{"steamDefault":["/home/u/Library/Application Support/Steam/steamapps/common/Aseprite/Aseprite.app/Contents/MacOS/aseprite"],"winDefault":[],"winOverride":[{"candidate":"D:/aseprite.exe","source":"itch"}]},"linux":{"steamDefault":["/home/u/.steam/steam/steamapps/common/Aseprite/aseprite","/home/u/.local/share/Steam/steamapps/common/Aseprite/aseprite"],"winDefault":[],"winOverride":[{"candidate":"D:/aseprite.exe","source":"itch"}]},"win32 by process.platform alone":{"steamDefault":["C:/Program Files (x86)/Steam/steamapps/common/Aseprite/Aseprite.exe","C:/Program Files/Steam/steamapps/common/Aseprite/Aseprite.exe"],"winDefault":[{"candidate":"C:/Program Files/Aseprite/Aseprite.exe","source":"program-files"},{"candidate":"C:/Program Files (x86)/Aseprite/Aseprite.exe","source":"program-files"},{"candidate":"C:/Users/u/AppData/Local/itch/apps/aseprite/Aseprite.exe","source":"itch"}],"winOverride":[{"candidate":"D:/aseprite.exe","source":"itch"}]},"win32 by getPlatform() alone":{"steamDefault":["/home/u/.steam/steam/steamapps/common/Aseprite/aseprite","/home/u/.local/share/Steam/steamapps/common/Aseprite/aseprite"],"winDefault":[],"winOverride":[{"candidate":"D:/aseprite.exe","source":"itch"}]}},
+  },
+  {
+    name: 'vendors.blenderProgramFilesRoot',
+    answers: () => {
+      const env = { ProgramFiles: 'C:\\Program Files' }
+      const raw = blenderProgramFilesRoot(undefined, undefined, env)
+      return {
+        default: raw === null ? null : normSlash(raw),
+        override: blenderProgramFilesRoot(undefined, 'D:/Blender', env),
+      }
+    },
+    recorded: {"win32":{"default":"C:/Program Files/Blender Foundation","override":"D:/Blender"},"darwin":{"default":null,"override":null},"linux":{"default":null,"override":null},"win32 by process.platform alone":{"default":"C:/Program Files/Blender Foundation","override":"D:/Blender"},"win32 by getPlatform() alone":{"default":null,"override":null}},
+  },
+  {
+    name: 'vendors.unityPaths',
+    answers: () => {
+      const env = { ProgramFiles: 'C:\\Program Files' }
+      return {
+        rootsDefault: unityHubEditorRoots(undefined, '/home/u', env).map(normSlash),
+        exeDefault: normSlash(unityEditorExecutablePath('/opt/unity/6000.0', undefined)),
+      }
+    },
+    recorded: {"win32":{"rootsDefault":["C:/Program Files/Unity/Hub/Editor"],"exeDefault":"/opt/unity/6000.0/Editor/Unity.exe"},"darwin":{"rootsDefault":["/Applications/Unity/Hub/Editor"],"exeDefault":"/opt/unity/6000.0/Unity.app/Contents/MacOS/Unity"},"linux":{"rootsDefault":["/home/u/Unity/Hub/Editor"],"exeDefault":"/opt/unity/6000.0/Editor/Unity"},"win32 by process.platform alone":{"rootsDefault":["C:/Program Files/Unity/Hub/Editor"],"exeDefault":"/opt/unity/6000.0/Editor/Unity.exe"},"win32 by getPlatform() alone":{"rootsDefault":["/home/u/Unity/Hub/Editor"],"exeDefault":"/opt/unity/6000.0/Editor/Unity"}},
+  },
+]
+
+const WORDS: Row[] = [
+  {
+    name: 'words.labelsAndHints',
+    answers: () => ({
+      display: [platformDisplayName(), platformDisplayName('win32'), platformDisplayName('darwin'), platformDisplayName('linux'), platformDisplayName('freebsd')],
+      bash: systemBashLabel(),
+      termHint: supportedTerminalHintSuffix(),
+      credNote: credentialStoreWaitNote(),
+      gdb: gdbInstallHintWords(),
+      desktopGrant: desktopGrantWordsForPlatform(),
+      brush: brushPackRemedyWords(),
+      bank: modelBankCandidateWords(),
+      ffmpeg: ffmpegInstallCommandWords(),
+      remedy: [selectPlatformRemedy('posix-cmd', 'win-cmd'), selectPlatformRemedy('posix-cmd', undefined)],
+      accessDenied: accessDeniedErrorHint(),
+    }),
+    recorded: {"win32":{"display":["Windows","Windows","macOS","Linux","freebsd"],"bash":"an installed bash","termHint":" (the stable Windows Terminal or your editor’s integrated terminal; PowerShell 7 preferred)","credNote":"checking the credential store and managed settings…","gdb":"install gdb 14+ from MSYS2 (pacman -S mingw-w64-ucrt-x86_64-gdb) — the first release with the native -i=dap interpreter","desktopGrant":"run Mercury from an interactive desktop session (not a service, not a locked desktop); input into an elevated window needs an elevated terminal","brush":"Build the pack: bun run scripts/vendor/build-brush.ts, then rebuild — a release archive carries it.","bank":"~\\mercury-model-bank or ~\\models","ffmpeg":"winget install ffmpeg","remedy":["win-cmd","posix-cmd"],"accessDenied":["/\\bEACCES\\b|\\bEPERM\\b|\\bEBUSY\\b/","file in use: on Windows another program often holds a brief lock (antivirus, search indexer, or open handle). Mercury retried; if it persists, close the holder or exclude the folder from real-time scanning"]},"darwin":{"display":["macOS","Windows","macOS","Linux","freebsd"],"bash":"the system's bash","termHint":"","credNote":"checking the system keychain and managed settings…","gdb":"install gdb 14+ (the first release with the native -i=dap interpreter)","desktopGrant":"allow your terminal application under System Settings → Privacy & Security → Screen Recording and → Accessibility, then restart the terminal application","brush":"Fetch the pack: bun run scripts/vendor/fetch-brush.ts, then rebuild.","bank":"~/mercury-model-bank, ~/models, /Volumes/*/mercury-model-bank or /mnt/*/mercury-model-bank","ffmpeg":"brew install ffmpeg","remedy":["posix-cmd","posix-cmd"],"accessDenied":["/\\bEACCES\\b|\\bEPERM\\b/","permission denied — check file modes/ownership"]},"linux":{"display":["Linux","Windows","macOS","Linux","freebsd"],"bash":"the system's bash","termHint":"","credNote":"checking the system keychain and managed settings…","gdb":"install gdb 14+ (the first release with the native -i=dap interpreter)","desktopGrant":"an X11 session with DISPLAY set; Wayland sessions are refused","brush":"Fetch the pack: bun run scripts/vendor/fetch-brush.ts, then rebuild.","bank":"~/mercury-model-bank, ~/models, /Volumes/*/mercury-model-bank or /mnt/*/mercury-model-bank","ffmpeg":"apt install ffmpeg","remedy":["posix-cmd","posix-cmd"],"accessDenied":["/\\bEACCES\\b|\\bEPERM\\b/","permission denied — check file modes/ownership"]},"win32 by process.platform alone":{"display":["Windows","Windows","macOS","Linux","freebsd"],"bash":"an installed bash","termHint":" (the stable Windows Terminal or your editor’s integrated terminal; PowerShell 7 preferred)","credNote":"checking the credential store and managed settings…","gdb":"install gdb 14+ from MSYS2 (pacman -S mingw-w64-ucrt-x86_64-gdb) — the first release with the native -i=dap interpreter","desktopGrant":"run Mercury from an interactive desktop session (not a service, not a locked desktop); input into an elevated window needs an elevated terminal","brush":"Build the pack: bun run scripts/vendor/build-brush.ts, then rebuild — a release archive carries it.","bank":"~\\mercury-model-bank or ~\\models","ffmpeg":"winget install ffmpeg","remedy":["win-cmd","posix-cmd"],"accessDenied":["/\\bEACCES\\b|\\bEPERM\\b|\\bEBUSY\\b/","file in use: on Windows another program often holds a brief lock (antivirus, search indexer, or open handle). Mercury retried; if it persists, close the holder or exclude the folder from real-time scanning"]},"win32 by getPlatform() alone":{"display":["Linux","Windows","macOS","Linux","freebsd"],"bash":"the system's bash","termHint":"","credNote":"checking the system keychain and managed settings…","gdb":"install gdb 14+ (the first release with the native -i=dap interpreter)","desktopGrant":"an X11 session with DISPLAY set; Wayland sessions are refused","brush":"Fetch the pack: bun run scripts/vendor/fetch-brush.ts, then rebuild.","bank":"~/mercury-model-bank, ~/models, /Volumes/*/mercury-model-bank or /mnt/*/mercury-model-bank","ffmpeg":"apt install ffmpeg","remedy":["posix-cmd","posix-cmd"],"accessDenied":["/\\bEACCES\\b|\\bEPERM\\b/","permission denied — check file modes/ownership"]}},
+  },
+  {
+    name: 'words.platformKernelLine',
+    answers: () => ({
+      defaultIsWinForm: platformKernelLine() === `${hostOsVersion()} ${hostOsRelease()}`,
+      defaultIsPosixForm: platformKernelLine() === `${hostOsType()} ${hostOsRelease()}`,
+      win32IsWinForm: platformKernelLine('win32') === `${hostOsVersion()} ${hostOsRelease()}`,
+      linuxIsPosixForm: platformKernelLine('linux') === `${hostOsType()} ${hostOsRelease()}`,
+    }),
+    recorded: {"win32":{"defaultIsWinForm":true,"defaultIsPosixForm":false,"win32IsWinForm":true,"linuxIsPosixForm":true},"darwin":{"defaultIsWinForm":false,"defaultIsPosixForm":true,"win32IsWinForm":true,"linuxIsPosixForm":true},"linux":{"defaultIsWinForm":false,"defaultIsPosixForm":true,"win32IsWinForm":true,"linuxIsPosixForm":true},"win32 by process.platform alone":{"defaultIsWinForm":true,"defaultIsPosixForm":false,"win32IsWinForm":true,"linuxIsPosixForm":true},"win32 by getPlatform() alone":{"defaultIsWinForm":false,"defaultIsPosixForm":true,"win32IsWinForm":true,"linuxIsPosixForm":true}},
+  },
+  {
+    name: 'words.commandsAndQuoting',
+    answers: () => ({
+      clearEnv: clearEnvVarCommandWords('OPENAI_API_KEY'),
+      portLookup: portListenerLookupCommand(4321),
+      editorHint: editorNotConfiguredWords('/tmp/out.txt'),
+      homeRepoRoot: homeRepoRemovalCommands([]),
+      homeRepoSub: homeRepoRemovalCommands(['project']),
+      quote: quoteResumeTitleForShell("it's a $test \"quote\""),
+      ollama: ollamaProbeCommandWords(process.platform, '/home/u', ' · brew list --formula ollama', 'C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe'),
+      updateWinget: mercuryInstallUpdateCommand('C:\\Users\\u\\AppData\\Local\\Microsoft\\WinGet\\Packages\\MercuryCLI.MercuryCLI_abc\\mercury.exe'),
+      updateDefault: mercuryInstallUpdateCommand('/usr/local/bin/mercury'),
+    }),
+    recorded: {"win32":{"clearEnv":"clear OPENAI_API_KEY (PowerShell: Remove-Item Env:\\OPENAI_API_KEY · cmd: set OPENAI_API_KEY=)","portLookup":"netstat -ano | findstr :4321","editorHint":"written to /tmp/out.txt — set EDITOR (or VISUAL) to open it","homeRepoRoot":{"inspect":"git -C $env:USERPROFILE log --oneline","remove":"Remove-Item -Recurse -Force ([IO.Path]::Combine($env:USERPROFILE, '.git'))"},"homeRepoSub":{"inspect":"git -C ([IO.Path]::Combine($env:USERPROFILE, 'project')) log --oneline","remove":"Remove-Item -Recurse -Force ([IO.Path]::Combine($env:USERPROFILE, 'project', '.git'))"},"quote":"'it''s a $test \"quote\"'","ollama":"where ollama · dir \"C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe\"","updateWinget":"winget upgrade MercuryCLI.MercuryCLI","updateDefault":"irm https://mercury-cli.ai/install.ps1 | iex"},"darwin":{"clearEnv":"unset OPENAI_API_KEY","portLookup":"lsof -ti:4321 -sTCP:LISTEN","editorHint":"written to /tmp/out.txt — set $EDITOR to open it","homeRepoRoot":{"inspect":"git -C \"$HOME\" log --oneline","remove":"rm -rf \"$HOME/.git\""},"homeRepoSub":{"inspect":"git -C \"$HOME/project\" log --oneline","remove":"rm -rf \"$HOME/project/.git\""},"quote":"\"it's a \"'$'\"test \\\"quote\\\"\"","ollama":"which ollama · ls /Applications/Ollama.app /home/u/Applications/Ollama.app · brew list --formula ollama","updateWinget":"curl -fsSL https://mercury-cli.ai/install.sh | sh","updateDefault":"curl -fsSL https://mercury-cli.ai/install.sh | sh"},"linux":{"clearEnv":"unset OPENAI_API_KEY","portLookup":"lsof -ti:4321 -sTCP:LISTEN","editorHint":"written to /tmp/out.txt — set $EDITOR to open it","homeRepoRoot":{"inspect":"git -C \"$HOME\" log --oneline","remove":"rm -rf \"$HOME/.git\""},"homeRepoSub":{"inspect":"git -C \"$HOME/project\" log --oneline","remove":"rm -rf \"$HOME/project/.git\""},"quote":"\"it's a \"'$'\"test \\\"quote\\\"\"","ollama":"which ollama · systemctl status ollama · ls /usr/local/bin/ollama /usr/bin/ollama · brew list --formula ollama","updateWinget":"curl -fsSL https://mercury-cli.ai/install.sh | sh","updateDefault":"curl -fsSL https://mercury-cli.ai/install.sh | sh"},"win32 by process.platform alone":{"clearEnv":"clear OPENAI_API_KEY (PowerShell: Remove-Item Env:\\OPENAI_API_KEY · cmd: set OPENAI_API_KEY=)","portLookup":"netstat -ano | findstr :4321","editorHint":"written to /tmp/out.txt — set EDITOR (or VISUAL) to open it","homeRepoRoot":{"inspect":"git -C $env:USERPROFILE log --oneline","remove":"Remove-Item -Recurse -Force ([IO.Path]::Combine($env:USERPROFILE, '.git'))"},"homeRepoSub":{"inspect":"git -C ([IO.Path]::Combine($env:USERPROFILE, 'project')) log --oneline","remove":"Remove-Item -Recurse -Force ([IO.Path]::Combine($env:USERPROFILE, 'project', '.git'))"},"quote":"'it''s a $test \"quote\"'","ollama":"where ollama · dir \"C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe\"","updateWinget":"winget upgrade MercuryCLI.MercuryCLI","updateDefault":"irm https://mercury-cli.ai/install.ps1 | iex"},"win32 by getPlatform() alone":{"clearEnv":"unset OPENAI_API_KEY","portLookup":"lsof -ti:4321 -sTCP:LISTEN","editorHint":"written to /tmp/out.txt — set $EDITOR to open it","homeRepoRoot":{"inspect":"git -C \"$HOME\" log --oneline","remove":"rm -rf \"$HOME/.git\""},"homeRepoSub":{"inspect":"git -C \"$HOME/project\" log --oneline","remove":"rm -rf \"$HOME/project/.git\""},"quote":"\"it's a \"'$'\"test \\\"quote\\\"\"","ollama":"which ollama · systemctl status ollama · ls /usr/local/bin/ollama /usr/bin/ollama · brew list --formula ollama","updateWinget":"curl -fsSL https://mercury-cli.ai/install.sh | sh","updateDefault":"curl -fsSL https://mercury-cli.ai/install.sh | sh"}},
+  },
+]
+
+const ROWS = [...PATHS, ...PROGRAMS, ...SPAWN, ...PROCESSES, ...FILES, ...TERMINAL, ...DESKTOP, ...TENSORFOLD, ...VENDORS, ...WORDS]
 
 const show = (value: unknown): string =>
   JSON.stringify(value, (_key, v: unknown) =>

@@ -3,7 +3,7 @@ import {
   classifyMcpToolRisk,
   type McpRisk,
   type McpToolAnnotations,
-} from '../../services/mcp/toolPolicy.js'
+} from '../mcp/toolPolicy.js'
 import type { Tool } from '../../Tool.js'
 import { declaredCapability } from './contract.js'
 import { passedOver } from '../passedOver.js'

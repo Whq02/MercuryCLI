@@ -11,11 +11,11 @@ import { DISABLE_KITTY_KEYBOARD, DISABLE_MODIFY_OTHER_KEYS } from '../ink/termio
 import { DBP, DFE, DISABLE_ALTERNATE_SCROLL, DISABLE_MOUSE_TRACKING, EXIT_ALT_SCREEN, SHOW_CURSOR } from '../ink/termio/dec.js'
 import { CLEAR_ITERM2_PROGRESS, CLEAR_TAB_STATUS, CLEAR_TERMINAL_TITLE, supportsTabStatus, wrapForMultiplexer } from '../ink/termio/osc.js'
 import { binaryName } from './config.js'
-import { escapeForPowershellSingleQuotes } from './powershellLiteral.js'
 import { getCurrentSessionTitle, sessionIdExists } from './sessionStorage.js'
 import { restoreOriginalBackground } from './cockpit/warmBackground.js'
 import { passedOver } from './passedOver.js'
 import { terminalTitleTransport } from './platform/terminal.js'
+import { quoteResumeTitleForShell } from './platform/words.js'
 
 
 
@@ -89,18 +89,13 @@ export function cleanupTerminalModes(): void {
 
 let resumeHintPrinted = false
 
-const POSIX_BACKSLASHED = /[\\"]/g
-const POSIX_SPLICED = /[$`!]/g
-
 export function resumeHintArgument(
   title: string | null | undefined,
   sessionId: string,
   platform: NodeJS.Platform = process.platform,
 ): string {
   if (!title) return sessionId
-  return platform === 'win32'
-    ? `'${escapeForPowershellSingleQuotes(title)}'`
-    : `"${title.replace(POSIX_BACKSLASHED, '\\$&').replace(POSIX_SPLICED, "\"'$&'\"")}"`
+  return quoteResumeTitleForShell(title, platform)
 }
 
 export function printResumeHint(): void {

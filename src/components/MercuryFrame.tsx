@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useContext, useSyncExternalStore } from 'react'
 import { buildRunCapsuleLine } from '../commands/run/runInspectorModel.js'
-import { formatSessionCost } from '../utils/spendSpelling.js'
+import { formatSessionCost } from '../services/providers/spendSpelling.js'
 import { processMainOwner } from '../utils/run/resolveOwner.js'
 import { getRunSnapshot, subscribeRuns } from '../services/run/runCoordinator.js'
 import { countOperatorTurns } from '../utils/messages/operatorTurns.js'

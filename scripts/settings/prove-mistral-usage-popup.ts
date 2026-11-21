@@ -17,7 +17,7 @@ const originalNow = Date.now
 let now = MISTRAL_FIXTURE_NOW
 Date.now = () => now
 const fixture = mistralFixture()
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
 for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[name]
 Object.assign(process.env, fixture.env)
 const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()

@@ -8,7 +8,7 @@ import {
   isUntrustedMcpHardeningOn,
   mcpToolAllowed,
   mcpPolicyDenyReason,
-} from '../../src/services/mcp/toolPolicy.js'
+} from '../../src/utils/mcp/toolPolicy.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -169,7 +169,7 @@ section('FC-141 — a mistyped tightening never widens SILENTLY (forgive + name)
   let getRejects: (() => string[]) | null = null
   let describePolicy: (() => string) | null = null
   try {
-    const mod = (await import('../../src/services/mcp/toolPolicy.js')) as {
+    const mod = (await import('../../src/utils/mcp/toolPolicy.js')) as {
       getMcpPolicyRejects?: () => string[]
       describeMcpPolicy: () => string
     }
@@ -210,7 +210,7 @@ section('FC-141 — a mistyped tightening never widens SILENTLY (forgive + name)
     if (globals.MACRO === undefined) globals.MACRO = { VERSION: '1.0.0' }
     ;(await import('../../src/utils/config.ts')).enableConfigs()
     const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
-    const { getMcpPolicyRejects: rejectsNow } = await import('../../src/services/mcp/toolPolicy.ts')
+    const { getMcpPolicyRejects: rejectsNow } = await import('../../src/utils/mcp/toolPolicy.ts')
     const mcpSays = await runtimeChecks().find(row => row.id === 'mcp')?.run()
     check(
       '/health MCP-policy row consults the rejects and can WARN (call-shaped)',
