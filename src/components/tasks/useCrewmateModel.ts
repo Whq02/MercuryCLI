@@ -8,7 +8,7 @@ import { normalizeModelStringForAPI, parseUserSpecifiedModel } from '../../utils
 import { crewmateTranscriptFile } from './useCrewmateTranscript.js'
 import type { CrewmateInView } from './useCrewmateView.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { subscribeAgentMetadataPath } from '../../utils/sessionStorage/paths.js'
+import { subscribeAgentMetadataPath } from '../../utils/sessionStorage/fileWatch.js'
 
 type CrewmateModel = { model: string | null; effort: string | null; next: { model: string | null; effort: string | null } | null }
 type CrewmateRecord = { model: string | null; effort: string | null; effortOverride: string | null }

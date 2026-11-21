@@ -18,7 +18,7 @@ import { subscribeConcourseWorkers } from '../daemon/concourseWorkers/store.js'
 import { runnerRecordAlive } from '../services/engine-connector/workCounts.js'
 import { subscribeUiClock } from '../utils/cockpit/uiClock.js'
 import { getInvocationTracePath } from '../utils/observability/invocationTrace.js'
-import { subscribeStorageFile } from '../utils/sessionStorage/paths.js'
+import { subscribeStorageFile } from '../utils/sessionStorage/fileWatch.js'
 import { passedOver } from '../utils/passedOver.js'
 import { afterMicrotask, startTimeout, stopTimeout } from '../utils/timers.js'
 

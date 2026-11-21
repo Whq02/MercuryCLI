@@ -38,9 +38,8 @@ import {
   getNodeEnv,
   getTranscriptPath,
   isChainParticipant,
-  notifyStorageFile,
-  subscribeStorageFile,
 } from './paths.js'
+import { notifyStorageFile, subscribeStorageFile } from './fileWatch.js'
 import {
   encodeTranscriptLine,
   resetTranscriptFormatCacheForTesting,
