@@ -6,7 +6,7 @@ import { maybeResizeAndDownsampleImageBuffer } from '../../../utils/imageResizer
 import { createUserMessage } from '../../../utils/messages/factories.js'
 import { extractPDFPages, readPDF, removePDFPages } from '../../../utils/pdf.js'
 import { extractPdfText, renderPdfText } from '../../../utils/pdfText.js'
-import { recogniseImage, recognisePdfPage, renderOcr } from '../../../utils/ocr.js'
+import { recogniseImage, recognisePdfPage, renderOcr } from '../../../services/ocr.js'
 import { isPDFSupported, parsePDFPageRange } from '../../../utils/pdfUtils.js'
 import { resolveModelCapabilities } from '../../../utils/model/capabilities.js'
 import { readRegularFile } from '../../../utils/regularFile.js'
