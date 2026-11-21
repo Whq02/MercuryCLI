@@ -26,7 +26,7 @@ import type { BootRow } from './rowActions.js';
 export function bootSplashCompositionOf({ isCompact, composedRows, selectedIndex, core, columns, rows, modelDefaultDoor, stripHint, wordGlow, rowGlow, bottomRowWithNotice, updateLine, chips, plainWhy, keyMapHint }: { isCompact: boolean; composedRows: BootRow[]; selectedIndex: number; core: ReturnType<typeof createSplashCore>; columns: number; rows: number; modelDefaultDoor: boolean; stripHint: string; wordGlow: ReturnType<typeof useGreetingShimmer>; rowGlow: ReturnType<typeof useGreetingShimmer>; bottomRowWithNotice: (core: ReturnType<typeof createSplashCore>, columns: number, keyMapHint: string, notice: string | null, compact: boolean) => string | null; updateLine: string | null; chips: SplashStripChips; plainWhy: PlainWorldWhy | null; keyMapHint: string }) {
   if (isCompact) {
     const compact = core.composeCompactFace(columns, rows, {
-      cardRows: composedRows.map(r => ({ label: r.label, ctx: '', ...(r.dim ? { dim: true } : {}) })),
+      cardRows: composedRows.map(r => ({ label: r.label, ctx: r.key === 'continue' && r.ctx.startsWith('in ') ? r.ctx : '', ...(r.dim ? { dim: true } : {}) })),
       cardSel: selectedIndex,
       hintSegments: [
         { key: '>_', label: '', tone: 'faint' as const },
@@ -53,7 +53,7 @@ export function bootSplashCompositionOf({ isCompact, composedRows, selectedIndex
     cardRows: composedRows.map(r => ({
       icon: r.icon,
       label: r.label,
-      ctx: '',
+      ctx: r.key === 'continue' && r.ctx.startsWith('in ') ? r.ctx : '',
       ...(r.dim ? { dim: true } : {}),
     })),
     cardSel: selectedIndex,

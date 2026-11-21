@@ -27,7 +27,7 @@ let lockupCompactHero = null
 function compose(cols, rows) {
   if (compactHost(cols, rows)) {
     const res = composeCompactFace(cols, rows, {
-      cardRows: cardRows(true).map(r => ({ ...r, ctx: '' })),
+      cardRows: cardRows(true).map(r => ({ ...r, ctx: r.key === 'continue' && r.ctx.startsWith('in ') ? r.ctx : '' })),
       stripLines: composeStrip,
       cardSel,
       hintSegments: [
@@ -48,7 +48,7 @@ function compose(cols, rows) {
   }
   lockupCompactHero = null
   const res = composeLockup(cols, rows, {
-    cardRows: cardRows().map(r => ({ ...r, ctx: '' })),
+    cardRows: cardRows().map(r => ({ ...r, ctx: r.key === 'continue' && r.ctx.startsWith('in ') ? r.ctx : '' })),
     cardSel,
     hintSegments: [
       { key: '↵', label: '', tone: 'ivory' },
