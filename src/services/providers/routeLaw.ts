@@ -1,6 +1,5 @@
 import { normalizeModelStringForAPI } from '../../utils/model/modelNames.js'
 import { compatModelEndpoint, configuredCompatEndpoints } from './openaicompat/compatAccounts.js'
-import { registerDefaultProviderCapabilities } from './registerCapabilities.js'
 import {
   classifyModelRoute,
   COMPAT_MODEL_PREFIX,
@@ -176,6 +175,3 @@ export function healListedCatalogueRowId(
   if (peeled !== undefined && peeled !== raw && listed.has(peeled)) return peeled
   return undefined
 }
-
-registerDefaultProviderCapabilities()
-

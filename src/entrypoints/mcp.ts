@@ -52,6 +52,8 @@ export async function startMCPServer(
   cwd: string,
   debug: boolean,
 ): Promise<void> {
+  const { registerBootDoors } = await import('../services/boot/registerDoors.js')
+  registerBootDoors()
   const readFileStateCache = createFileStateCacheWithSizeLimit(100)
 
   setCwd(cwd)

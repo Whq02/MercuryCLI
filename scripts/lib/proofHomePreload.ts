@@ -53,4 +53,9 @@ if (entryTakesProofHome && singleRunRootMadeHere() !== '') {
   startAgainOnThisEnvironment()
 }
 
+if (entryTakesProofHome && !import.meta.main) {
+  const { registerBootDoors } = await import('../../src/services/boot/registerDoors.ts')
+  registerBootDoors()
+}
+
 if (import.meta.main) console.log(`${process.env.MERCURY_CONFIG_DIR ?? ''}\n${process.env.MERCURY_LOCAL_PROBE_TARGETS ?? ''}\n${process.env.NO_COLOR ?? ''}${process.env.FORCE_COLOR ?? ''}\n${Object.keys(process.env).filter(name => name.startsWith('GIT_')).sort().join(' ')}`)

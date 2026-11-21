@@ -64,6 +64,8 @@ function refuseDebugger(): void {
 refuseDebugger()
 
 export async function main(): Promise<void> {
+  const { registerBootDoors } = await import('./services/boot/registerDoors.js')
+  registerBootDoors()
   profileCheckpoint('main_function_start')
 
   applyBootMenuEnv();

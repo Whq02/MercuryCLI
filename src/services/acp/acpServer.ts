@@ -4,6 +4,7 @@ import { agent, ndJsonStream } from '@agentclientprotocol/sdk'
 import { makeAcpServerState, type AcpServerOptions } from './acpServer/state.js'
 import { sessionRequests } from './acpServer/sessionRequests.js'
 import { mercuryRequests } from './acpServer/mercuryRequests.js'
+import { registerBootDoors } from '../boot/registerDoors.js'
 
 export { permissionAskWire, permissionAllowedOf, permissionAnswerOf } from './acpServer/asks.js'
 export { toolKindOf, toolLocationsOf, toolDiffsOf, TOOL_OUTPUT_WIRE_LIMIT, boundedToolText, toolOutputContentOf, stopReasonOf, acpMcpServersToConfig, planEntriesOf, usageWireOf } from './acpServer/toolWire.js'
@@ -13,6 +14,7 @@ export { acpPromptToComposerDocument, composerDocumentBlocks } from './acpServer
 export { attentionWire, attentionWireFromSnapshot } from './acpServer/attention.js'
 
 export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
+  registerBootDoors()
   const server = makeAcpServerState(opts)
   const { sessions } = server
   const app = mercuryRequests(sessionRequests(agent({ name: 'mercury' }), server, opts))
