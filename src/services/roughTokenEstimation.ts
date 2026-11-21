@@ -1,7 +1,7 @@
 import { inflateSync } from 'node:zlib'
 import type { Message } from '../types/message.js'
 import { normalizeAttachmentForAPI } from './messages/attachmentText.js'
-import { getEngineModel } from '../utils/model/model.js'
+import { getEngineModel } from './model/model.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { modelReceivesImageBlocks } from '../utils/model/capabilities.js'
 import { declaredRouteOf } from './providers/routeLaw.js'

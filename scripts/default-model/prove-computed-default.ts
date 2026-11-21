@@ -85,7 +85,7 @@ const {
 type ComputedDefaultFacts = import('../../src/services/model/computedDefault.ts').ComputedDefaultFacts
 type LaneRowVerdict = import('../../src/services/model/computedDefault.ts').LaneRowVerdict
 const { getDefaultEngineModelSetting, getEngineModel, parseUserSpecifiedModel, renderDefaultModelLabel, renderModelChip, renderModelName } =
-  await import('../../src/utils/model/model.ts')
+  await import('../../src/services/model/model.ts')
 const { setEngineModelOverride } = await import('../../src/bootstrap/state.ts')
 const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
 const { getModelOptions, keyLanePins } = await import('../../src/services/model/modelOptions.ts')

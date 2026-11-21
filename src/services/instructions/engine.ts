@@ -20,7 +20,7 @@ import { getFsImplementation, safeResolvePath } from '../../utils/fsOperations.j
 import { findCanonicalGitRoot, findGitRoot } from '../../utils/git.js'
 import { stripBOM } from '../../utils/jsonRead.js'
 import type { MemoryType } from '../../utils/memory/types.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../model/model.js'
 import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
 import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
 import { forgetHiddenCharacters } from '../../utils/text/hiddenCharacterFindings.js'

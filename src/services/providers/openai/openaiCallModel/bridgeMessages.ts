@@ -9,7 +9,7 @@ import {
   assistantMessageToMessageParam,
   userMessageToMessageParam,
 } from '../../anthropic/messageParams.js'
-import { validateImagesForAPI } from '../../../../utils/imageValidation.js'
+import { validateImagesForAPI } from '../../../imageValidation.js'
 import {
   healWalkableForWire,
 } from '../../../messages.js'

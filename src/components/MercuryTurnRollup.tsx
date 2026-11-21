@@ -14,7 +14,7 @@ import { GLOB_TOOL_NAME } from '../tools/GlobTool/prompt.js'
 import { PROVIDER_SEARCH_TOOL_NAME, WEB_SEARCH_TOOL_NAME } from '../tools/WebSearchTool/prompt.js'
 import type { Message } from '../types/message.js'
 import type { Tools } from '../Tool.js'
-import type { ModelName } from '../utils/model/model.js'
+import type { ModelName } from '../services/model/model.js'
 import type { StreamingThinking } from '../services/messages.js'
 import { passedOver } from '../utils/passedOver.js'
 

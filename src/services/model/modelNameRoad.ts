@@ -1,6 +1,6 @@
 import { isModelAlias } from '../../utils/model/aliases.js'
 import { DECLARED_GENERATION_STEMS } from '../../utils/model/configs.js'
-import { isModelFamilyWord } from '../../utils/model/modelFamilies.js'
+import { isModelFamilyWord } from './modelFamilies.js'
 import { matchModelName, type ModelNameEntry, type ModelNameMatch } from '../../utils/model/modelNameMatcher.js'
 import { getModelOptions, isProviderActionRow } from './modelOptions.js'
 

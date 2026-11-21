@@ -234,7 +234,7 @@ section('6 · the class aliases law')
     "'glm' ⇒ the zai catalogue FLAGSHIP pin (glm-5.3)",
     glm?.backend === 'zai' && glm.model === 'glm-5.3',
   )
-  const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.js')
+  const { parseUserSpecifiedModel } = await import('../../src/services/model/model.js')
   check("'glm' ⇒ the same row the session road resolves for the word", glm?.model === parseUserSpecifiedModel('glm'), `${glm?.model} vs ${parseUserSpecifiedModel('glm')}`)
   for (const [word, provider] of [['kimi', 'moonshot'], ['deepseek', 'deepseek'], ['grok', 'xai']] as const) {
     const keyless = await refusal(() => resolveEngineDispatch(word))

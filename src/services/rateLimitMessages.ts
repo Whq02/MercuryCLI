@@ -1,6 +1,6 @@
 import { getSubscriptionType } from '../utils/auth.js'
 import { formatResetTime } from '../utils/format.js'
-import { getMarketingNameForModel } from '../utils/model/model.js'
+import { getMarketingNameForModel } from './model/model.js'
 import type { AnthropicLimits, RateLimitType } from './anthropicLimits.js'
 import { usageWarningTier } from './providers/usageTiers.js'
 import { passedOver } from '../utils/passedOver.js'

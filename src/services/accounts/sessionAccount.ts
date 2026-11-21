@@ -6,7 +6,7 @@ import {
   type ProviderFamilyPresence,
 } from '../providers/providerUsage.js'
 import { computedDefault, type ComputedDefault } from '../model/computedDefault.js'
-import { getUserSpecifiedModelSetting } from '../../utils/model/model.js'
+import { getUserSpecifiedModelSetting } from '../model/model.js'
 
 type SessionAccountWords =
   | { state: 'email'; text: string; family: string }

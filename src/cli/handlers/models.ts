@@ -1,6 +1,6 @@
 import { writeSync } from 'node:fs'
 import type { LiveModelsReference } from '../../services/resources/adapters/models.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../services/model/model.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { getErrnoCode } from '../../utils/errors.js'
 import { passedOver } from '../../utils/passedOver.js'

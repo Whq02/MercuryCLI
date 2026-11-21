@@ -12,7 +12,7 @@ import { resolveProviderUsability } from '../services/providers/providerUsabilit
 import { mostRecentSignInFamily } from '../services/model/computedDefault.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
-import { renderModelChip } from '../utils/model/model.js';
+import { renderModelChip } from '../services/model/model.js';
 import { loginFamilyFocusFor, loginFamilyInitialFocus } from './loginFamilyRows.js';
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js';
 import { renderSceneLine } from './mercury-ui/SceneCanvas.js';

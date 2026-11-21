@@ -28,7 +28,7 @@ const {
   gptDisplayPin,
 } = await import('../../src/utils/model/pins/gptPins.js')
 const { getPublicModelDisplayName, getMarketingNameForModel, renderModelChip } = await import(
-  '../../src/utils/model/model.js'
+  '../../src/services/model/model.js'
 )
 const { getContextWindowForModel } = await import('../../src/utils/context.js')
 const { formatModelPricing, getModelPricingString, calculateCostFromTokens } = await import('../../src/services/usage/modelCost.js')

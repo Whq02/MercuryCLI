@@ -1,5 +1,5 @@
 import type { AssistantMessage, AssistantMessageError, FailoverCause } from '../../types/message.js'
-import { renderModelName } from '../../utils/model/model.js'
+import { renderModelName } from '../model/model.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import type { CallModelStream } from '../providers/callModelContract.js'
 import { FallbackTriggeredError } from './withRetry.js'

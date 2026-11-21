@@ -326,7 +326,7 @@ section('§6 the paste road on a fixture clipboard')
 
 section('§7 the wire\'s last-chance check names the family\'s limit')
 {
-  const validation = await import('../../src/utils/imageValidation.ts')
+  const validation = await import('../../src/services/imageValidation.ts')
   const big = 'A'.repeat(10 * MiB + 4)
   const messages = [{ type: 'user', message: { role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: big } }] } }]
   let words = ''

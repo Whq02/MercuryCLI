@@ -88,7 +88,7 @@ section('§1 mcpGauge — configured ≠ ready; a publish is the only way to rea
 section('§2 modelGauge — label, window provenance and provider from their owners')
 {
   const g = await import('../../src/services/cockpit/modelGauge.ts')
-  const { renderModelName } = await import('../../src/utils/model/model.ts')
+  const { renderModelName } = await import('../../src/services/model/model.ts')
   const { resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
   const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
   const { getSdkBetas } = await import('../../src/bootstrap/state.ts')

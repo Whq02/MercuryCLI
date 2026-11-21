@@ -39,8 +39,8 @@ process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${server.port}`
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-const allow = await import('../../src/utils/model/modelAllowlist.ts')
-const model = await import('../../src/utils/model/model.ts')
+const allow = await import('../../src/services/model/modelAllowlist.ts')
+const model = await import('../../src/services/model/model.ts')
 const router = await import('../../src/services/providers/callModelRouter.ts')
 const headless = await import('../../src/cli/headless/model.ts')
 const { resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.ts')

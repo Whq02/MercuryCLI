@@ -133,7 +133,7 @@ async function hitsDuring<T>(work: () => Promise<T>): Promise<{ result: T | 'thr
 section('§1 the sovereign home resolves onto its own lane, the utility call included')
 process.env.OPENROUTER_API_KEY = 'sk-or-fixture-sovereign-home'
 seedHome(HOME_MODEL)
-const { getEngineModel } = await import('../../src/utils/model/model.js')
+const { getEngineModel } = await import('../../src/services/model/model.js')
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.js')
 const { utilityCallFor } = await import('../../src/services/model/utilityModel.js')
 {
@@ -278,7 +278,7 @@ section('§5 a carrier-shaped id never reaches the first-party wire verbatim (w3
 }
 
 section('§6 a home with no first-party credential lands its default on a credentialed lane — any lane, by sign-in recency')
-const { getDefaultEngineModel } = await import('../../src/utils/model/model.js')
+const { getDefaultEngineModel } = await import('../../src/services/model/model.js')
 const { evaluateComputedDefault, orderCredentials, resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.js')
 {
   const REG = ['anthropic', 'openai', 'zai', 'openrouter', 'gemini', 'moonshot', 'deepseek', 'openai-compat', 'huggingface', 'local'] as const

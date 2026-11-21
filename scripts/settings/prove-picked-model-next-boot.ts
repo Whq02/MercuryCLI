@@ -28,7 +28,7 @@ function nextBoot(expected: string | null, extra: { env?: string; override?: str
     state.setOriginalCwd(${JSON.stringify(project)});
     state.setAllowedSettingSources(['userSettings', 'projectSettings', 'localSettings']);
     ${extra.override ? `state.setEngineModelOverride(${JSON.stringify(extra.override)});` : ''}
-    const { getUserSpecifiedModelSetting } = await import(${JSON.stringify(join(root, 'src/utils/model/model.ts'))});
+    const { getUserSpecifiedModelSetting } = await import(${JSON.stringify(join(root, 'src/services/model/model.ts'))});
     console.log(JSON.stringify(getUserSpecifiedModelSetting()));
   `
   const child = Bun.spawnSync([process.execPath, '-e', code], {

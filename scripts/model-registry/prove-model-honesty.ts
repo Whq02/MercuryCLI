@@ -69,7 +69,7 @@ const { composeWorkerModelRegistry } = await import('../../src/services/concours
 const { anthropicCredentialPresence, providerFamilyPresences } = await import('../../src/services/providers/providerUsage.ts')
 const { primeOpenaiDiscovery } = await import('../../src/services/providers/providerDiscovery.ts')
 const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.ts')
-const { getEngineModel, getPublicModelDisplayName, parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
+const { getEngineModel, getPublicModelDisplayName, parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
 type ModelOption = import('../../src/services/model/modelOptions.ts').ModelOption
 type Presence = import('../../src/services/providers/providerUsage.ts').ProviderFamilyPresence
 

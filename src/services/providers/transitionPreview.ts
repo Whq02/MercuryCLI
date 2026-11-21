@@ -3,7 +3,7 @@ import { getSdkBetas } from '../../bootstrap/state.js'
 import type { Message } from '../../types/message.js'
 import { isConfigReadingAllowed } from '../../utils/config/globalConfig.js'
 import { resolveContextWindow } from '../../utils/model/capabilities.js'
-import { parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js'
+import { parseUserSpecifiedModel, renderModelName } from '../model/model.js'
 import {
   confirmTransitionPlan,
   MEANINGFUL_LOSS_CLASSES,

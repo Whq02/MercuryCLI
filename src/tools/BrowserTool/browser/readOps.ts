@@ -4,7 +4,7 @@ import type { ToolEffectOutcome } from '../../../Tool.js'
 import { readImageWithTokenBudget } from '../../FileReadTool/FileReadTool.js'
 import { imageDimensionsOfBase64 } from '../../../utils/imageResizer.js'
 import { modelReceivesImageBlocks } from '../../../utils/model/capabilities.js'
-import { getEngineModel } from '../../../utils/model/model.js'
+import { getEngineModel } from '../../../services/model/model.js'
 import { CONSOLE_RING_CAP, pageKitOf } from '../../../services/browser/browserSession.js'
 import {
   type LiveSession,

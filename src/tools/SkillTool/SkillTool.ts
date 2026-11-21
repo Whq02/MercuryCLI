@@ -23,7 +23,7 @@ import {
 } from '../../services/agents/forkedAgent.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { normalizeMessages } from '../../services/messages.js'
-import { resolveSkillModelOverride } from '../../utils/model/model.js'
+import { resolveSkillModelOverride } from '../../services/model/model.js'
 import { getRuleByContentsForToolName } from '../../utils/permissions/permissions.js'
 import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'
 import { ruleSentence } from '../../utils/permissions/ruleReason.js'

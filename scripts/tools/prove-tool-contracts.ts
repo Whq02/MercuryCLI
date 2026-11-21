@@ -49,7 +49,7 @@ for (const id of ['gemini-2.5-pro', 'openrouter/qwen/qwen3-coder', 'huggingface/
   t(`Agent schema accepts the exact engine id '${id}' (the dispatch grammar validates it)`, agentSchema.safeParse({ ...agentBase, model: id }).success === true)
 }
 const { unrecognisedModelWordRefusal } = await import('../../src/services/crew/engineDispatch.ts')
-const { modelFamilyWords } = await import('../../src/utils/model/modelFamilies.ts')
+const { modelFamilyWords } = await import('../../src/services/model/modelFamilies.ts')
 t('the dispatch grammar refuses a word no family declares, naming it', (unrecognisedModelWordRefusal('banana') ?? '').includes("'banana'"))
 t('the dispatch grammar admits a served first-party id', unrecognisedModelWordRefusal('claude-haiku-4-5') === null)
 t('the dispatch grammar admits every family word', modelFamilyWords().every(word => unrecognisedModelWordRefusal(word) === null))

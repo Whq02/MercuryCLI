@@ -16,7 +16,7 @@ import {
   resolveMoonshotDispatchCredential,
 } from './moonshotAccounts.js'
 import { qualifyMoonshotModel } from './moonshotCatalogue.js'
-import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
+import { normalizeModelStringForAPI } from '../../model/model.js'
 import { createAssistantAPIErrorMessage } from '../../messages.js'
 import { withDeadline } from '../../../utils/deadline.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'

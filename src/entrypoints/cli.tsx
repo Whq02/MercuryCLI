@@ -154,6 +154,11 @@ async function main(): Promise<void> {
   }
 
   {
+    const { registerBootDoors } = await import('../services/boot/registerDoors.js')
+    registerBootDoors()
+  }
+
+  {
     const { setupGracefulShutdown, setRunPreflightSignalWriter } = await import('../utils/gracefulShutdown.js')
     setupGracefulShutdown()
     if (runArgs.command === 'run' && (runArgs.format === 'rows' || runArgs.format === 'json') && runArgs.input !== 'rows' && !runArgs.outputRequest) {
@@ -163,11 +168,6 @@ async function main(): Promise<void> {
         writeSync(1, `${JSON.stringify(refusedOutcome([`mercury run stopped before the turn (${signal})`], 'interrupt', 'interrupted'))}\n`)
       })
     }
-  }
-
-  {
-    const { registerBootDoors } = await import('../services/boot/registerDoors.js')
-    registerBootDoors()
   }
 
   {

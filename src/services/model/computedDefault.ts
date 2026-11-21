@@ -218,8 +218,8 @@ const FIRST_PARTY_GATE: Record<string, string> = {
 
 function liveFirstPartyRow(): LaneRowVerdict {
   const { frontierOperatorDecision } =
-    require('../../utils/model/frontierPolicy.js') as typeof import('../../utils/model/frontierPolicy.js')
-  const { renderModelName } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
+    require('./frontierPolicy.js') as typeof import('./frontierPolicy.js')
+  const { renderModelName } = require('./model.js') as typeof import('./model.js')
   const decision = frontierOperatorDecision()
   const row = renderModelName(decision.setting)
   if (decision.source === 'frontier') {
@@ -288,7 +288,7 @@ function pickerRowFor(family: string, rows: ModelOption[] | null): LaneRowVerdic
       require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
     const { providerFrontierFact, openaiSessionDefault } =
       require('./providerFrontier.js') as typeof import('./providerFrontier.js')
-    const { normalizeModelStringForAPI } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
+    const { normalizeModelStringForAPI } = require('./model.js') as typeof import('./model.js')
     const familyRows = rows.filter(
       option =>
         typeof option.value === 'string' &&
@@ -429,7 +429,7 @@ const MEMO_TTL_MS = 2_000
 let memo: { at: number; epoch: number; catalogue: number; decision: ComputedDefault } | null = null
 
 export async function readComputedDefaultCatalogue(): Promise<void> {
-  const { getUserSpecifiedModelSetting } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
+  const { getUserSpecifiedModelSetting } = require('./model.js') as typeof import('./model.js')
   if (getUserSpecifiedModelSetting() !== null) return
   const family = mostRecentSignInFamily()
   if (family === undefined) return

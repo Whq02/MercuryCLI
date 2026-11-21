@@ -32,7 +32,7 @@ import {
   type HealthStatus,
   type LastCertSummary,
 } from '../../utils/healthCertCore.js'
-import { getUserSpecifiedModelSetting } from '../../utils/model/model.js'
+import { getUserSpecifiedModelSetting } from '../model/model.js'
 import { computedDefault } from '../model/computedDefault.js'
 import { gitSnapshot } from '../../utils/cockpit/gitSnapshot.js'
 import { healthFixEnabled } from '../../utils/healthFix.js'
@@ -551,7 +551,7 @@ export function modelRefusalsCheck(): CheckSpec {
     run: () => {
       const { standingModelRefusals, modelRefusalFix, modelRefusalHealthStatus, forgetModelRefusals } =
         require('../providers/anthropic/modelRefusal.js') as typeof import('../providers/anthropic/modelRefusal.js')
-      const { renderModelName } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
+      const { renderModelName } = require('../model/model.js') as typeof import('../model/model.js')
       const refusals = standingModelRefusals()
       if (refusals.length === 0) return { status: 'info', evidence: 'no model refused on any door in this session' }
       const now = Date.now()

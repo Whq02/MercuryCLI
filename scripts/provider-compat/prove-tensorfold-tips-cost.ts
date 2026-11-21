@@ -26,7 +26,7 @@ const { getRelevantTips } = await import('../../src/services/tips/tipRegistry.ts
 const { getCachedLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
 const state = await import('../../src/services/providers/local/tensorfoldState.ts')
 const app = await import('../../src/services/providers/local/tensorfoldApp.ts')
-const { getEngineModel } = await import('../../src/utils/model/model.ts')
+const { getEngineModel } = await import('../../src/services/model/model.ts')
 
 console.log('\n§1 a cloud session evaluating every spinner tip spawns nothing and probes nothing (red on the fold: readTensorFoldState refreshed discovery and spawned ps/tensorfold/sysctl/osascript every 60 s)')
 check('the session is on a cloud model', !getEngineModel().startsWith('local/'), getEngineModel())

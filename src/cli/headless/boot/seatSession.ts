@@ -1,5 +1,5 @@
 import { saveSessionModel } from '../../../utils/sessionStorage.js'
-import { getEngineModel } from '../../../utils/model/model.js'
+import { getEngineModel } from '../../../services/model/model.js'
 import { settleClearModel } from '../../../services/switchboard/sessionReceipts.js'
 import { dirname } from 'node:path'
 import { getTranscriptPath } from '../../../utils/sessionStorage/paths.js'

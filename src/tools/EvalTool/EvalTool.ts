@@ -6,7 +6,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { evalCodePermission } from '../../utils/permissions/shellProtectedPaths.js'
 import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { modelReceivesImageBlocks } from '../../utils/model/capabilities.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../services/model/model.js'
 import { EVAL_IDLE_TTL_MS,
   evalEnabled,
   EVAL_DEFAULT_TIMEOUT_SECONDS,

@@ -15,7 +15,7 @@ delete process.env.MERCURY_EFFORT_LEVEL
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 
-const model = await import('../../src/utils/model/model.ts')
+const model = await import('../../src/services/model/model.ts')
 const caps = await import('../../src/utils/model/capabilities.ts')
 const effort = await import('../../src/utils/effort.ts')
 const router = await import('../../src/services/providers/callModelRouter.ts')

@@ -12,7 +12,7 @@ import type {
   SystemAPIErrorMessage,
 } from '../../../../types/message.js'
 import { isTurnOwningQuerySource } from '../../../../utils/effort.js'
-import { getPublicModelDisplayName } from '../../../../utils/model/model.js'
+import { getPublicModelDisplayName } from '../../../model/model.js'
 import { anthropicLimitVerdict } from '../../../anthropicLimits.js'
 import { refreshProviderUsage } from '../../providerUsage.js'
 import { CLIENT_REQUEST_ID_HEADER, getAnthropicClient } from '../../../api/client.js'

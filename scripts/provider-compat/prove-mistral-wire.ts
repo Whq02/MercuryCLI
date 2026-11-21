@@ -63,7 +63,7 @@ const { resolveProviderUsability } = await import('../../src/services/providers/
 const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
 const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
 const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.ts')
-const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
+const { parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
 const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
 function params(model = 'mistral', effortValue: string | undefined = 'high', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {
   return { messages, tools: [tool], systemPrompt: asSystemPrompt(['Fixture system']), thinkingConfig: thinking ? { type: 'enabled', budgetTokens: 4096 } : { type: 'disabled' }, signal: new AbortController().signal,

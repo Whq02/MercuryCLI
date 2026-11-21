@@ -140,7 +140,7 @@ function guarded(family: ModelListFamily, name: string, typed: () => string[], r
 }
 
 function anthropicTypedIds(): string[] {
-  const model = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
+  const model = require('../model/model.js') as typeof import('../model/model.js')
   return [
     ...new Set(
       [model.getDefaultFableModel(), model.getDefaultOpusModel(), model.getDefaultSonnetModel(), model.getDefaultHaikuModel()].map(id =>

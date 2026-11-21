@@ -19,7 +19,7 @@ import {
   modelSupportsTemperature,
   modelThinkingAlwaysOn,
 } from '../../utils/model/capabilities.js'
-import { normalizeModelStringForAPI } from '../../utils/model/model.js'
+import { normalizeModelStringForAPI } from '../model/model.js'
 
 
 type SideQueryOptions = {

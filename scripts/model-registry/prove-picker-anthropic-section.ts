@@ -84,7 +84,7 @@ const { ANTHROPIC_CONNECT_OPTION_VALUE, getModelOptions, isProviderActionRow, st
 type ModelOption = import('../../src/services/model/modelOptions.ts').ModelOption
 const { FAMILY_GENERATIONS, parseFirstPartyGeneration } = await import('../../src/utils/model/configs.ts')
 const { getModelStrings } = await import('../../src/utils/model/modelStrings.ts')
-const { parseUserSpecifiedModel, renderModelName } = await import('../../src/utils/model/model.ts')
+const { parseUserSpecifiedModel, renderModelName } = await import('../../src/services/model/model.ts')
 const { isClaudeAISubscriber, isMaxSubscriber } = await import('../../src/utils/auth.ts')
 const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.ts')
 const anthropicCatalogue = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts')

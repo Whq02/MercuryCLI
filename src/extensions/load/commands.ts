@@ -11,7 +11,7 @@ import {
   type FrontmatterData,
 } from '../../utils/frontmatterParser.js'
 import { extractDescriptionFromMarkdown, parseSlashCommandToolsFromFrontmatter } from '../../utils/markdownConfigLoader.js'
-import { parseUserSpecifiedModel } from '../../utils/model/model.js'
+import { parseUserSpecifiedModel } from '../../services/model/model.js'
 import { executeShellCommandsInPrompt } from '../../services/tools/promptShellExecution.js'
 import { activeFor, type ActiveExtension } from '../active.js'
 import { substituteOptionsInCommand, substituteOptionsInContent, substituteRootAndData } from '../options.js'

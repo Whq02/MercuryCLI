@@ -84,7 +84,7 @@ section('§1 — the seed: the operator’s own row, or a visible one')
 
 section('§2 — the live composition marks and seeds the operator’s default')
 {
-  const { getEngineModel } = await import('../../src/utils/model/model.ts')
+  const { getEngineModel } = await import('../../src/services/model/model.ts')
   const operatorDefault = await wm.canonicalWorkerModelId(getEngineModel())
   const registry = await wm.composeWorkerModelRegistry()
   const marked = registry.entries.filter(e => e.isOperatorDefault === true)
