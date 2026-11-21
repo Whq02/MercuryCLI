@@ -4,7 +4,7 @@ import { REFUSAL_WARDS, countWardWork, evaluateWards, ownHomeNames, shellTextOut
 import { UNREAD_PART, absolutePath, layersOf, printedBy, programOf, readShellCommands, readShellCommandsFromText, stdinProgram, wordKnown, type Layer, type ReadCommand, type ReadWorld, type ShellRead } from './wardsShellRead.js'
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
-import { startTimeout, stopTimeout } from '../timers.js'
+import { withDeadline } from '../deadline.js'
 
 type RefusalWorld = ReadWorld & {
   platform: NodeJS.Platform
@@ -784,12 +784,12 @@ async function windowsStanding(text: string, dialect: ReadCommand['dialect'], wo
   if (world.platform !== 'win32' || !read.commands.some(command => layersOf(command.argv).some(layer => DELETE_PROGRAMS.has(layer.program) || layer.program === 'find' || layer.program === 'rsync'))) return undefined
   const folderOf = (word: string): string | undefined => (word.includes(UNREAD_PART) ? undefined : windowsPath(word, world))
   const home = world.windowsHome === undefined ? undefined : folderOf(world.windowsHome)
-  let timer: ReturnType<typeof setTimeout> | undefined
   try {
-    const again = await Promise.race([
+    const again = await withDeadline(
       readShellCommands(text, dialect, { cwd: folderOf(cwd), home, homesRoot: home === undefined ? world.homesRoot : posix.dirname(home), ownNames: world.ownNames, folderOf }),
-      new Promise<undefined>(resolve => (timer = startTimeout(resolve, READ_DEADLINE_MS, undefined))),
-    ])
+      READ_DEADLINE_MS,
+      () => undefined,
+    )
     if (again === undefined || again.commands.length !== read.commands.length) return undefined
     const standing = new Map<ReadCommand, string>()
     read.commands.forEach((command, at) => {
@@ -800,8 +800,6 @@ async function windowsStanding(text: string, dialect: ReadCommand['dialect'], wo
   } catch (error) {
     passedOver(error)
     return undefined
-  } finally {
-    stopTimeout(timer)
   }
 }
 function windowsStandingFromText(text: string, dialect: ReadCommand['dialect'], world: RefusalWorld, cwd: string, read: ShellRead): ReadonlyMap<ReadCommand, string> | undefined {
@@ -828,13 +826,10 @@ export async function refusalOfShellCommand(pending: PendingToolCall, cwd: strin
   const dialect = pending.toolName === 'PowerShell' ? 'powershell' : 'posix'
   const world = worldOf(pending, cwd)
   let read: ShellRead | undefined
-  let timer: ReturnType<typeof setTimeout> | undefined
   try {
-    read = await Promise.race([readShellCommands(text, dialect, world), new Promise<undefined>(resolve => (timer = startTimeout(resolve, READ_DEADLINE_MS, undefined)))])
+    read = await withDeadline(readShellCommands(text, dialect, world), READ_DEADLINE_MS, () => undefined)
   } catch {
     return evaluateWards(REFUSAL_WARDS, pending, work)
-  } finally {
-    stopTimeout(timer)
   }
   const late = read === undefined
   const effective = read ?? readShellCommandsFromText(text, dialect, world)
