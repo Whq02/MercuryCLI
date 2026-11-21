@@ -111,18 +111,14 @@ function composeHeldLine(title: string): string {
 async function workspaceOfTranscript(transcriptPath: string | undefined): Promise<string> {
   if (transcriptPath !== undefined) {
     try {
-      const { open } = await import('node:fs/promises')
-      const fh = await open(transcriptPath, 'r')
-      let head: string
-      try {
-        const buf = Buffer.alloc(8192)
-        const { bytesRead } = await fh.read(buf, 0, 8192, 0)
-        head = buf.subarray(0, bytesRead).toString('utf8')
-      } finally {
-        await fh.close()
+      const { historyHead, historyRange } = await import('../../utils/sessionStorage/historyParts.js')
+      const extent = historyHead(transcriptPath)
+      const size = extent.before + extent.end - extent.start
+      if (size > 0) {
+        const head = historyRange(extent, 0, Math.min(size, 8192)).toString('utf8')
+        const m = /"cwd"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(head)
+        if (m) return JSON.parse(`"${m[1]}"`) as string
       }
-      const m = /"cwd"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(head)
-      if (m) return JSON.parse(`"${m[1]}"`) as string
     } catch (error) {
       if (getErrnoCode(error) !== 'ENOENT') throw error
       passedOver(error)

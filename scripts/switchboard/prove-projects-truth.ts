@@ -125,8 +125,9 @@ function check(label: string, cond: boolean, detail = ''): void {
   rmSync(transcript)
   check('T6 a sidecar alone offers no Continue session', scanBootCardFacts(project).cwdProject === null && projectIdentity(project).newestChat === null && parkedSessionsOf(project).length === 0 && projectChatCount(project) === 0)
   const workers = await import('../../src/daemon/concourseWorkers.ts')
+  const realWorkers = { ...workers }
   let lookups = 0
-  mock.module('../../src/daemon/concourseWorkers.ts', () => ({ ...workers, sessionOwnedByLiveWorker: () => { lookups++; throw new Error('invalid resume reached the worker registry') } }))
+  mock.module('../../src/daemon/concourseWorkers.ts', () => ({ ...realWorkers, sessionOwnedByLiveWorker: () => { lookups++; throw new Error('invalid resume reached the worker registry') } }))
   const { focusResumedSession } = await import('../../src/services/switchboard/hopIntoSession.ts')
   for (const id of [`${sessionId}.receipts`, 'not-a-session', '']) {
     try {
@@ -137,7 +138,67 @@ function check(label: string, cond: boolean, detail = ''): void {
     }
   }
   check('T6 an invalid resume never consults or launches a runner', lookups === 0)
+  mock.module('../../src/daemon/concourseWorkers.ts', () => realWorkers)
   mock.restore()
+}
+
+{
+  const { mock } = await import('bun:test')
+  const { mkdirSync, readFileSync, realpathSync } = await import('node:fs')
+  const { QueuePart } = await import('../../src/utils/sessionStorage/writer/queue.ts')
+  const { historyHead } = await import('../../src/utils/sessionStorage/historyParts.ts')
+  const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
+  const state = await import('../../src/bootstrap/state.ts')
+  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const ensure = await import('../../src/services/switchboard/ensureDaemon.ts')
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'projects-truth-folded-')))
+  const sessionFolder = join(root, 'folded-target-project')
+  const processFolder = join(root, 'other-process-folder')
+  mkdirSync(sessionFolder, { recursive: true })
+  mkdirSync(processFolder, { recursive: true })
+  state.setCwdState(processFolder)
+  const store = getProjectDir(sessionFolder)
+  mkdirSync(store, { recursive: true })
+  const foldedSid = '77777777-2222-4333-8444-555555555555'
+  const foldedFile = join(store, `${foldedSid}.jsonl`)
+  const queue = new QueuePart()
+  const land = async (entry: Record<string, unknown>): Promise<void> => {
+    const done = queue.enqueueWrite(foldedFile, entry as never)
+    await queue.flush()
+    await done
+  }
+  const ts = new Date().toISOString()
+  await land({ type: 'user', uuid: 'h-u1', parentUuid: null, sessionId: foldedSid, cwd: sessionFolder, timestamp: ts, isSidechain: false, message: { role: 'user', content: 'opening prompt in target folder' } })
+  await land({ type: 'assistant', uuid: 'h-a1', parentUuid: 'h-u1', sessionId: foldedSid, cwd: sessionFolder, timestamp: ts, isSidechain: false, message: { role: 'assistant', content: [{ type: 'text', text: 'first reply' }] } })
+  for (let i = 0; i < 6; i++) {
+    await land({ type: 'file-history-snapshot', messageId: `snap-${i}`, snapshot: { messageId: `snap-${i}`, trackedFileBackups: { [`file-${i}.ts`]: { backupFileName: `b-${i}`, version: 1, backupTime: ts, pad: 'x'.repeat(2000) } }, timestamp: ts }, isSnapshotUpdate: false })
+  }
+  await land({ type: 'system', subtype: 'compact_boundary', uuid: 'h-cb1', parentUuid: null, sessionId: foldedSid, timestamp: ts, content: 'Conversation compacted', compactMetadata: { trigger: 'manual', preTokens: 10000, preservedSegment: { headUuid: 'h-u1', tailUuid: 'h-a1', anchorUuid: 'h-cb1' } } })
+  await land({ type: 'user', uuid: 'h-u2', parentUuid: 'h-cb1', sessionId: foldedSid, cwd: sessionFolder, timestamp: ts, isSidechain: false, message: { role: 'user', content: 'second stretch prompt' } })
+  await land({ type: 'system', subtype: 'compact_boundary', uuid: 'h-cb2', parentUuid: null, sessionId: foldedSid, timestamp: ts, content: 'Conversation compacted', compactMetadata: { trigger: 'manual', preTokens: 12000, preservedSegment: { headUuid: 'h-u2', tailUuid: 'h-u2', anchorUuid: 'h-cb2' } } })
+  const sealed = historyHead(foldedFile)
+  const rawHead8k = readFileSync(foldedFile, 'utf8').slice(0, 8192)
+  check('T7 fixture: folded twice and carried snapshots push cwd past the first 8 KB of the live head', sealed.before > 0 && !/"cwd"\s*:/.test(rawHead8k), JSON.stringify({ before: sealed.before, firstCwdAt: readFileSync(foldedFile, 'utf8').indexOf('"cwd"') }))
+  let capturedWorkspace = ''
+  const realEnsure = { ...ensure }
+  const realSeat = { ...seat }
+  mock.module('../../src/services/switchboard/ensureDaemon.ts', () => ({ ...realEnsure, ensureOwnedDaemon: async () => false }))
+  mock.module('../../src/services/engine-connector/daemonConnector.ts', () => ({
+    ...realSeat,
+    daemonSessionConnectorFor: (spec: { workspaceId: string }) => {
+      capturedWorkspace = spec.workspaceId
+      return realSeat.daemonSessionConnectorFor(spec as never)
+    },
+  }))
+  const { focusResumedSession } = await import('../../src/services/switchboard/hopIntoSession.ts')
+  const resumed = await focusResumedSession(foldedSid, foldedFile)
+  await resumed.refusal
+  slot.releaseFocusedSessionConnector()
+  mock.module('../../src/services/switchboard/ensureDaemon.ts', () => realEnsure)
+  mock.module('../../src/services/engine-connector/daemonConnector.ts', () => realSeat)
+  mock.restore()
+  check('T7 hopping into a folded session lands in the session folder, not the process folder', resumed.ok && capturedWorkspace === sessionFolder && resumed.title === 'opening prompt in target folder', JSON.stringify({ ok: resumed.ok, title: resumed.ok ? resumed.title : resumed.reason, capturedWorkspace, sessionFolder, processFolder }))
 }
 
 if (failures > 0) {
