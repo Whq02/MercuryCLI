@@ -699,14 +699,23 @@ function splitRedirects(tail: string): string[] {
   return parts
 }
 
-function redirectShown(simple: ReadCommand, commands: readonly ReadCommand[], op: string, target: string): string {
+function redirectShown(simple: ReadCommand, commands: readonly ReadCommand[], op: string, target: string, scan: Scan): string {
   const around = simple.around ?? simple.text
+  if (simple.stages.length === 0) {
+    if (commands.some(command => command.substituted === true && command.inner.length === 0 && around !== '' && command.text.includes(around))) return around
+    const rooted = isAbsolute(target) || /^[A-Za-z]:[\\/]/.test(target) || target.startsWith('\\\\') || target === '~' || target.startsWith('~/') || target.startsWith('~\\')
+    if (!rooted && scan.cwd !== null && /[*?[{]/.test(scan.cwd)) return around
+  }
   const at = simple.text === '' ? -1 : around.lastIndexOf(simple.text)
   if (at < 0) return around
   const tail = around.slice(at + simple.text.length).replace(/^[;)}\s]+/, '')
   if (tail === '' || !/^(?:\d*(?:>>?|>\||<<-?|<<<|<&?|>&)|&>>?)/.test(tail)) return simple.text
   const parts = splitRedirects(tail)
   const matching = parts.find(part => part.startsWith(op) && part.slice(op.length).trimStart().startsWith(target))
+  if (matching === undefined && simple.stages.length === 0) {
+    const written = parts.find(part => part.startsWith(op))
+    if (written !== undefined && outsidePath(unquoteWritten(written.slice(op.length).trimStart()), scan) === null) return around
+  }
   if (matching === undefined && simple.text.includes(op)) return simple.text
   if (matching !== undefined && matching.slice(op.length).trimStart().slice(target.length).trim() !== '') return around
   const lastInner = simple.inner.flat().at(-1)
@@ -746,7 +755,7 @@ async function scanReading(command: string, cwd: string | null, scan: Scan, pare
     scan.asks.push(...here.asks.filter(ask => !scan.asks.includes(ask)))
     scan.aliases = here.aliases ?? scan.aliases
     if (scan.asks.length > 0) break
-    for (const redirect of simple.redirects) checkRedirect(redirect.op, redirect.target, here, cut(read.unread === undefined ? redirectShown(simple, read.commands, redirect.op, redirect.target) : around, 60))
+    for (const redirect of simple.redirects) checkRedirect(redirect.op, redirect.target, here, cut(read.unread === undefined ? redirectShown(simple, read.commands, redirect.op, redirect.target, here) : around, 60))
     scan.asks.push(...here.asks.filter(ask => !scan.asks.includes(ask)))
     for (const layer of layersOf(simple.argv)) {
       if (scan.asks.length > 0) break
