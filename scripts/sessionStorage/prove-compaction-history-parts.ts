@@ -118,6 +118,29 @@ try {
   let picked: string[] = []
   openWorkerTranscript(file, records => { picked = Array.from(records, r => String(recordToEntry(r as never).uuid)) }, 2)
   assert.deepEqual(picked, [partial, summary], 'the capped mirror must return the same two most recent rows without showing the carry twice')
+  const crossed = join(project, 'crossed.jsonl'), twin = join(project, 'crossed-one-file.jsonl')
+  const q = randomUUID(), tool = randomUUID(), result = randomUUID(), last = randomUUID()
+  const b1 = randomUUID(), b2 = randomUUID(), s1 = randomUUID(), s2 = randomUUID()
+  append(crossed, user(q, 'Keep my words across both folds.', null))
+  append(crossed, { ...user(tool, '', q), type: 'assistant', message: { id: 'msg_crossed', role: 'assistant', model: MODEL, content: [{ type: 'tool_use', id: 'call_crossed', name: 'Read', input: { file_path: 'note.txt' } }], stop_reason: 'tool_use', usage: { input_tokens: 10, output_tokens: 2 } } })
+  await land(crossed, compact(b1, sid, { headUuid: q, tailUuid: tool, anchorUuid: s1 }))
+  append(crossed, { ...user(s1, 'First compact summary.', b1), isCompactSummary: true })
+  append(crossed, { ...user(result, '', s1), message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'call_crossed', content: 'The saved result.' }] } })
+  await land(crossed, compact(b2, sid, { headUuid: q, tailUuid: result, anchorUuid: s2 }))
+  append(crossed, { ...user(s2, 'Second compact summary.', b2), isCompactSummary: true })
+  append(crossed, user(last, 'Continue from the result.', s2))
+  writeFileSync(twin, '', { flag: 'wx' })
+  for (const line of historyLines(crossed)) appendFileSync(twin, line)
+  const { buildConversationChain, buildScreenConversation, findLatestMessage } = await import('../../src/utils/sessionStorage/chain.ts')
+  async function chains(path: string) {
+    const loaded = await loadTranscriptFile(path, { throwOnError: true })
+    const leaf = findLatestMessage(loaded.messages.values(), row => loaded.leafUuids.has(row.uuid))
+    assert(leaf, 'the crossed folds must have a leaf to resume')
+    return { model: buildConversationChain(loaded.messages, leaf).map(m => m.uuid), screen: buildScreenConversation(loaded.messages).map(m => m.uuid) }
+  }
+  const original = await chains(twin)
+  for (const id of [q, tool, result, last]) assert(original.model.includes(id) && original.screen.includes(id), `the one-file control must retain ${id} in both views`)
+  assert.deepEqual(await chains(crossed), original, 'both folds must preserve the parent links of the prompt, tool call and result')
   await turn('--resume', 'Read the part and answer.')
   assert.equal(stamp(transcriptLineBytes(sealed)), initial, 'a previous build may append to the live head, never to a sealed part')
   for (const phase of ['seal-part', 'rename', 'flush-dir']) {

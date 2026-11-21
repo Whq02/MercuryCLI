@@ -3,17 +3,34 @@ import { closeSync, constants, copyFileSync, fsyncSync, linkSync, mkdirSync, ope
 import { dirname } from 'node:path'
 import { dirFsyncErrorIsFatal } from '../../platform/files.js'
 import { scheduler } from 'node:timers/promises'
+import { asRecordId } from '../../../fabric/ids.js'
 import { entryToRecord, recordToEntry } from '../../../fabric/entryCodec.js'
 import type { MercuryRecord } from '../../../fabric/record.js'
 import { durableAtomicPublishSync, faultPoint, fsyncEnabled } from '../../../substrate/durablePublish.js'
 import { passedOver } from '../../passedOver.js'
 import { foldWorkerRecord } from '../mirrorRecord.js'
 import { historyHead, historyPartDir, sealedFile, type HistoryIndexRow } from '../historyParts.js'
-import { transcriptLineBytes } from '../transcriptBytes.js'
+import { rangeFromFd, transcriptLineBytes } from '../transcriptBytes.js'
 
-type Range = { at: number; len: number; torn: boolean }
+type Range = { at: number; len: number; torn: boolean; relinkTo?: string }
+type ChainRow = Range & { parent?: string; originalParent?: string }
 type Segment = { headUuid: string; tailUuid: string; anchorUuid: string }
 const sticky = new Set(['summary', 'custom-title', 'ai-title', 'last-prompt', 'tag', 'agent-name', 'agent-color', 'agent-setting', 'session-brief', 'session-brief-add', 'mode', 'advisor-switch', 'swarm-switch', 'model', 'worktree-state', 'pr-link'])
+
+function linkedCopy(fd: number, row: Range, parent: string, file: string): Buffer {
+  const bytes = rangeFromFd(fd, row.at, row.at + row.len)
+  if (bytes.length !== row.len) throw new Error(`History changed while sealing ${file}`)
+  const record = JSON.parse(bytes.toString('utf8')) as MercuryRecord
+  record.parentId = asRecordId(parent)
+  const payload = record.payload
+  if (payload.kind === 'boundary' || payload.kind === 'notice') payload.fields = { ...payload.fields, parentUuid: parent }
+  else if (payload.kind === 'unknown-retained') {
+    const line = payload.fields.line
+    if (line && typeof line === 'object') (line as Record<string, unknown>).parentUuid = parent
+    else payload.fields.parentUuid = parent
+  } else record.annotations = { ...record.annotations, parentUuid: parent }
+  return Buffer.from(JSON.stringify(record) + '\n')
+}
 
 function writeAll(fd: number, data: Buffer): void {
   for (let at = 0; at < data.length;) at += writeSync(fd, data, at, data.length - at)
@@ -52,7 +69,7 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
   const staging = `${part}.${randomUUID()}.tmp`
   const index = openSync(staging, 'wx', 0o600)
   const metadata = new Map<string, Range>()
-  const nodes = new Map<string, Range & { parent?: string }>()
+  const nodes = new Map<string, ChainRow>()
   const segments: Segment[] = []
   const segment = (recordToEntry(boundary).compactMetadata as { preservedSegment?: Segment } | undefined)?.preservedSegment
   let at = 0, lastYield = 0, batch = ''
@@ -83,7 +100,7 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
           else if (segment && (payload.metaKind === 'file-history-snapshot' || payload.metaKind === 'attribution-snapshot')) metadata.set(JSON.stringify([payload.metaKind, payload.fields.messageId]), range)
           else if (segment && payload.metaKind === 'content-replacement') metadata.set(id, range)
         } else if (segment) {
-          nodes.set(id, { ...range, parent: record.parentId })
+          nodes.set(id, { ...range, parent: record.parentId, originalParent: record.parentId })
           if (payload.kind === 'boundary' && payload.boundaryKind === 'compact') {
             const prior = (payload.fields?.compactMetadata as { preservedSegment?: Segment } | undefined)?.preservedSegment
             if (prior) segments.push(prior)
@@ -105,8 +122,9 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
       let id: string | undefined = segment.tailUuid
       const seen = new Set<string>()
       for (;;) {
-        const row: (Range & { parent?: string }) | undefined = id === undefined ? undefined : nodes.get(id)
+        const row: ChainRow | undefined = id === undefined ? undefined : nodes.get(id)
         if (!row || !id || seen.has(id)) return false
+        if (id !== segment.headUuid && row.parent !== row.originalParent) row.relinkTo = row.parent
         carry.push(row)
         if (id === segment.headUuid) break
         seen.add(id)
@@ -114,7 +132,11 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
       }
     }
     carry.sort((a, b) => a.at - b.at)
-    const carrySize = carry.reduce((n, row) => n + row.len + Number(row.torn), 0)
+    const source = openSync(file, 'r')
+    let carrySize = 0
+    try {
+      for (const row of carry) carrySize += row.relinkTo === undefined ? row.len + Number(row.torn) : linkedCopy(source, row, row.relinkTo, file).length
+    } finally { closeSync(source) }
     const current = statSync(file)
     if (current.ino !== before.ino || current.dev !== before.dev || current.size !== before.size || current.mtimeMs !== before.mtimeMs) throw new Error(`History changed while sealing ${file}`)
     const header = entryToRecord({ type: 'mercury-transcript-header', fileVersion: 1, format: 'mercury-records' }, { sessionId: boundary.sessionId, nextOrdinal: () => boundary.creationOrdinal, observedAt: boundary.occurredAt, source: boundary.source })
@@ -131,6 +153,10 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
       const fd = openSync(part, 'r')
       try {
         for (const row of carry) {
+          if (row.relinkTo !== undefined) {
+            yield linkedCopy(fd, row, row.relinkTo, file)
+            continue
+          }
           for (let off = 0; off < row.len;) {
             const piece = Buffer.allocUnsafe(Math.min(256 * 1024, row.len - off))
             const n = readSync(fd, piece, 0, piece.length, row.at + off)
