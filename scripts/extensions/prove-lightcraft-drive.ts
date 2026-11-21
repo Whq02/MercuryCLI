@@ -98,7 +98,7 @@ async function connectBridge(endpoint: string, library: string) {
   assert.equal(tools.tools.length, evidence.toolCount + 3)
   assert.deepEqual(tools.tools.slice(3).map(tool => tool.name), evidence.tools.tools.map((tool: any) => tool.name))
   evidence.resources = await client.listResources()
-  assert.ok(evidence.resources.resources.length > 0)
+  assert.ok(evidence.resources.resources.length > 0, 'lightcraft bridge listResources returned 0 resources in src/extensions/bundled/lightcraft/server/bridge.mjs')
   await client.readResource({ uri: 'lightcraft://document' })
   return client
 }
@@ -151,7 +151,7 @@ async function develop(client: Client, label: string) {
   const id = imported.imported[0]
   const queried = await call(client, 'query_photos')
   const photos = Array.isArray(queried) ? queried : queried.photos ?? queried.items
-  assert.ok(photos.some((photo: any) => photo.id === id && photo.fileName === 'fixture.png'))
+  assert.ok(photos.some((photo: any) => photo.id === id && photo.fileName === 'fixture.png'), `lightcraft query_photos missing imported photo id=${id} (fixture.png)`)
   await call(client, 'select_photos', { ids: [id] })
   await call(client, 'list_controls', { section: 'light' })
   const output = join(work, `${label}-output`)
@@ -167,7 +167,8 @@ async function develop(client: Client, label: string) {
   const after = await sharp(join(output, 'developed.png')).raw().toBuffer({ resolveWithObject: true })
   assert.equal(after.info.width, 96); assert.equal(after.info.height, 64)
   const mean = (bytes: Buffer) => bytes.reduce((sum, n) => sum + n, 0) / bytes.length
-  assert.ok(mean(after.data) > mean(before.data))
+  const beforeMean = mean(before.data), afterMean = mean(after.data)
+  assert.ok(afterMean > beforeMean, `lightcraft +0.7 exposure did not brighten export (before=${beforeMean.toFixed(2)}, after=${afterMean.toFixed(2)})`)
   evidence.pixels = { before: mean(before.data), after: mean(after.data), width: after.info.width, height: after.info.height }
   const artifact = join(root, `${label}-developed.png`)
   await cp(join(output, 'developed.png'), artifact)
@@ -240,7 +241,7 @@ try {
           await new Promise(done => setTimeout(done, 250))
         }
       }
-      assert.ok(attached)
+      assert.ok(attached, `lightcraft GUI probe did not attach within 30000ms on ${endpoint}`)
       evidence.attached = attached
       const upstream = adapter.upstream(context)
       const direct = await connect(upstream.command, upstream.args, upstream.env)
@@ -289,7 +290,7 @@ try {
       const screenshot = await client.callTool({ name: 'ui_screenshot', arguments: {} })
       assert.notEqual(screenshot.isError, true)
       const image = (screenshot.content as Array<{ type: string; data?: string; mimeType?: string }>).find(part => part.type === 'image')
-      assert.ok(image?.data)
+      assert.ok(image?.data, 'lightcraft ui_screenshot response omitted base64 image data')
       evidence.frame = join(root, 'lightcraft-window.png')
       await writeFile(evidence.frame, Buffer.from(image.data, 'base64'))
       assert.doesNotMatch(guiStderr, /rendering headlessly/i, 'A fallback render is not native-window acceptance.')

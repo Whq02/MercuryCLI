@@ -124,7 +124,7 @@ try {
   const started = await startService({ sessionId: 'orphan-endpoints-proof', spec: { name: 'host-running-pod', command: process.execPath, args: ['-e', 'setTimeout(() => {}, 120000)'], cwd: hostDirectory(), readiness: [], readinessMode: 'all', restart: 'never', lifecycle: 'session' } })
   assert.ok('record' in started, JSON.stringify(started))
   stopJob = async () => { const stopped = await stopService(hostDirectory(), 'host-running-pod'); assert.ok('record' in stopped, JSON.stringify(stopped)) }
-  assert.ok(hostJobRunning(protectedRecords.at(-1)!))
+  assert.ok(hostJobRunning(protectedRecords.at(-1)!), 'src/services/host/jobs.ts hostJobRunning returned false for started host-running-pod fixture')
   writeStoredRunpodApiKey(rp.key)
   const road = createHostRoad({ apiBaseUrl: rp.baseUrl, sessionId: 'orphan-endpoints-proof' })
   const events: LlmHostEvent[] = []

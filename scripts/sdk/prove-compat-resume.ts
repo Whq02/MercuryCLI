@@ -33,7 +33,7 @@ try {
       const outcome = await warm.prompt('warm resume')
       assert.equal(outcome.status, 'completed')
       assert.equal(outcome.answer, model === c.model ? 'LLMHOST-READY' : 'ANTHROPIC-ANSWER')
-      assert(warm.rows.some(row => row.type === 'step' && row.model === model))
+      assert(warm.rows.some(row => row.type === 'step' && row.model === model), `warm resume of ${model} emitted no step row for that model in sdk/src/runner.ts`)
     } finally { await warm.close() }
   })
   await check('unavailable saved compat model refuses cold and warm resume without another provider', async () => {
@@ -56,7 +56,7 @@ try {
     } finally { writeFileSync(join(c.home, 'settings.json'), JSON.stringify(c.settings)) }
   })
   await check('Python cold and warm resume preserve the model', () => pythonProof('python-compat-resume.py', c))
-  assert(c.requests.every(request => request.fault === undefined))
+  assert(c.requests.every(request => request.fault === undefined), `compat resume fixture recorded faulted request(s) in src/services/providers/openaicompat/`)
 } finally { await c.close(); clearTimeout(guard) }
 assert.deepEqual(failures, [])
 console.log('PASS headless and both SDK resume roads retain provider, replay and reasoning')

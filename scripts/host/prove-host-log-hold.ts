@@ -5,7 +5,7 @@ import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture } from './runpodFixture.mjs'
 import { KEY, mountOffscreen, pinSourceRef, waitFor } from '../lib/settingsPopupHarness.ts'
 
-assert.ok(process.env.MERCURY_CONFIG_DIR)
+assert.ok(process.env.MERCURY_CONFIG_DIR, 'prove-host-log-hold requires a scratch MERCURY_CONFIG_DIR; run via bin/proof or set scratch home')
 pinSourceRef()
 const f = await llmhostFixture()
 const rp = await runpodFixture()
@@ -49,7 +49,7 @@ try {
   const logRoad: typeof road = async (ask, emit) => { emit({ title: 'Machine controls', words: '', host: { id: 'held-log', price: 3.99, startedAt: since, status: 'RUNNING', step: 'loading' } }); await ask({ step: 'pod-logs', title: 'Engine log', found: Array.from({ length: 40 }, (_, i) => 'engine line ' + String(i + 1).padStart(2, '0')).join('\n'), willRun: '', rows: [] }); return { ok: true, words: 'Machine controls' } }
   let hint = ''
   mounted = await mountOffscreen(React.createElement(AppStateProvider, { children: React.createElement(ThemeProvider, {}, React.createElement(LlmHostDialog, { width: 80, rowBudget: 24, road: logRoad, onHint: text => { hint = text ?? '' } })) }), 80, 24)
-  assert.ok(await waitFor(() => mounted!.screen().includes('engine line 01'), 5000))
+  assert.ok(await waitFor(() => mounted!.screen().includes('engine line 01'), 5000), 'LlmHostDialog pod-logs view did not paint engine line 01 within 5000ms; check LlmHostDialog')
   assert.ok(hint.includes('esc closes') && !hint.includes('choose') && !hint.includes('↵ continue'), hint)
   const first = mounted.screen()
   mounted.push('\u001b[6~')

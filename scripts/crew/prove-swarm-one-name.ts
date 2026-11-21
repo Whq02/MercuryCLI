@@ -83,7 +83,7 @@ await check('one-mention-one-wake', () => world('one-mention-one-wake', w => {
 await check('its-own-wait-and-queued-wake-leave-with-it', () => world('own-wait', w => {
   const old = w.launch('old', 'reviewer')
   const peer = w.launch('peer', 'peer')
-  assert(w.say(old, '@main wake me when kind result', 'ask').ok)
+  assert(w.say(old, '@main wake me when kind result', 'ask').ok, 'own-wait: wait declaration failed in src/services/crewBoard/store.ts')
   w.park(old)
   w.say(peer, 'a result nobody is named in')
   assert.deepEqual(w.woken(), ['old'], 'the wait it declared has queued its wake')
@@ -100,7 +100,7 @@ await check('its-own-wait-and-queued-wake-leave-with-it', () => world('own-wait'
 await check('waits-on-the-seat-follow-the-name', () => world('waits-follow', w => {
   const old = w.launch('old', 'reviewer')
   const peer = w.launch('peer', 'peer')
-  assert(w.say(peer, '@main wake me when seat reviewer posts', 'ask').ok)
+  assert(w.say(peer, '@main wake me when seat reviewer posts', 'ask').ok, 'waits-follow: wait declaration failed in src/services/crewBoard/store.ts')
   w.park(peer)
   w.park(old)
   const fresh = w.launch('fresh', 'reviewer')
@@ -131,7 +131,7 @@ await check('the-captaincy-follows-the-name', () => world('captaincy', w => {
 await check('a-launch-that-fails-puts-the-seat-back', () => world('put-back', w => {
   const old = w.launch('old', 'reviewer', { team: 'review', captain: true })
   const peer = w.launch('peer', 'peer')
-  assert(w.say(old, '@main wake me when kind result', 'ask').ok)
+  assert(w.say(old, '@main wake me when kind result', 'ask').ok, 'put-back: wait declaration failed in src/services/crewBoard/store.ts')
   w.park(old)
   w.say(peer, 'a result')
   const before = { roster: w.roster(), woken: w.woken(), captain: w.board.captain('review')?.agent, wait: w.board.seats().find(seat => seat.agent === 'old')?.wait }
@@ -218,7 +218,7 @@ await check('an-unnamed-launch-as-before', () => world('unnamed', w => {
 await check('started-again-by-id', () => world('by-id', w => {
   const old = w.launch('old', 'reviewer', { team: 'review', captain: true })
   const peer = w.launch('peer', 'peer')
-  assert(w.say(peer, '@main wake me when seat reviewer posts', 'ask').ok)
+  assert(w.say(peer, '@main wake me when seat reviewer posts', 'ask').ok, 'by-id: wait declaration failed in src/services/crewBoard/store.ts')
   w.park(peer)
   w.park(old)
   const fresh = w.launch('fresh', 'reviewer', { team: 'review' })
@@ -248,7 +248,7 @@ await check('a-run-that-is-over-holds-no-name', () => {
   return world('run-over', w => {
     const old = w.launch('old', 'reviewer', { team: 'review', captain: true })
     const peer = w.launch('peer', 'peer')
-    assert(w.say(peer, '@main wake me when seat reviewer posts', 'ask').ok)
+    assert(w.say(peer, '@main wake me when seat reviewer posts', 'ask').ok, 'run-over: wait declaration failed in src/services/crewBoard/store.ts')
     w.park(peer)
     assert.throws(() => w.board.reserveEnrollment(w.main, { agent: 'fresh', name: 'reviewer', team: 'review', named: true }), RUNNING('reviewer'), 'refused while the holder\'s run is alive')
     alive.delete('old')
@@ -304,7 +304,8 @@ await check('the-launch-and-resume-roads', async () => {
   updateSettingsForSource('userSettings', { swarm: { enabled: true } })
   const seam = await import('../../src/services/crewBoard/seam.ts')
   const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
-  assert(runSwarmCommand('on').startsWith('Swarm on'))
+  const swarmOnText = runSwarmCommand('on')
+  assert(swarmOnText.startsWith('Swarm on'), `runSwarmCommand('on') failed in src/commands/swarm/swarm.ts: ${swarmOnText}`)
   const board = seam.swarmStore()!
   const names = (): string[] => board.seats().filter(seat => seat.agent !== 'main').map(seat => `${seat.name}=${seat.agent}:${seat.state}`)
   const launch = async (id: string, input: { name?: string; description: string }): Promise<void> => {

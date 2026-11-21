@@ -172,10 +172,10 @@ const opened = open(reopenFile, 'reopen-session', () => now)
 const a = { author: { sessionId: 'reopen-session', agentId: 'one', executionId: 'execution' }, name: 'one' }
 const b = { author: { sessionId: 'reopen-session', agentId: 'two', executionId: 'execution' }, name: 'two' }
 opened.enroll(a); opened.enroll(b)
-for (let i = 0; i < 8; i++) assert(opened.post(a, { clientOpId: `p${i}`, kind: 'ask', text: `Question ${i}`, mentions: ['two'] }).ok)
-for (let i = 8; i < 120; i++) { now += 15000; assert(opened.post(a, { clientOpId: `wave${i}`, kind: 'ask', text: 'Work finding.' }).ok) }
+for (let i = 0; i < 8; i++) { const r = opened.post(a, { clientOpId: `p${i}`, kind: 'ask', text: `Question ${i}`, mentions: ['two'] }); assert(r.ok, `reopen fixture post p${i} failed in src/services/crewBoard/store.ts: ${JSON.stringify(r)}`) }
+for (let i = 8; i < 120; i++) { now += 15000; const r = opened.post(a, { clientOpId: `wave${i}`, kind: 'ask', text: 'Work finding.' }); assert(r.ok, `reopen fixture post wave${i} failed in src/services/crewBoard/store.ts: ${JSON.stringify(r)}`) }
 const initial = opened.boundary(b, new Set())
-assert(initial)
+assert(initial, 'opened.boundary(b) returned null after 120 posts in src/services/crewBoard/store.ts')
 opened.close()
 const recovered = open(reopenFile, 'reopen-session', () => now)
 check('append-before-notify and prepare-before-dispatch survive reopening', recovered.view().snapshot === 122 && JSON.stringify(recovered.boundary(b, new Set())) === JSON.stringify(initial))

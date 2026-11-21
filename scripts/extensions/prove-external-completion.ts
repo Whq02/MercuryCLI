@@ -62,24 +62,25 @@ try {
   assert.equal(result.costUsd, 0.0123)
   assert.equal(result.inputTokens, 100)
   assert.equal(result.outputTokens, 50)
-  assert.ok(result.ok && result.text === text)
+  assert.ok(result.ok && result.text === text, `src/services/extensions/complete.ts expected text=${text}, got ${result.ok ? result.text.slice(0, 120) : result.error}`)
   assert.equal(captures[0]!.model, 'fixture-think')
-  assert.ok(JSON.stringify(captures[0]!.messages).includes(request.prompt))
-  assert.ok(!JSON.stringify(captures[0]!).includes('"thinking":{"type":"disabled"}'))
-  assert.ok(captures[0]!.max_tokens === undefined || Number(captures[0]!.max_tokens) > 120)
+  assert.ok(JSON.stringify(captures[0]!.messages).includes(request.prompt), 'src/services/extensions/complete.ts wire messages omitted prompt')
+  assert.ok(!JSON.stringify(captures[0]!).includes('"thinking":{"type":"disabled"}'), 'src/services/extensions/complete.ts wire request unexpectedly disabled thinking')
+  assert.ok(captures[0]!.max_tokens === undefined || Number(captures[0]!.max_tokens) > 120, `src/services/extensions/complete.ts wire max_tokens too small: ${String(captures[0]!.max_tokens)}`)
   console.log('PASS selected compat route reaches loopback, returns complete text, and meters the wire-stated cost')
   mode = 'unpriced'
   const unpriced = await callThinkModel(request)
-  assert.ok(unpriced.ok)
+  assert.ok(unpriced.ok, `src/services/extensions/complete.ts unpriced completion failed: ${unpriced.ok ? '' : unpriced.error}`)
   assert.equal(unpriced.costUsd, null)
   assert.equal(unpriced.inputTokens, 100)
   console.log('PASS missing price is not zero; token counts remain')
   mode = 'refuse'
   const refused = await callThinkModel(request)
-  assert.ok(!refused.ok)
+  assert.ok(!refused.ok, 'src/services/extensions/complete.ts 400 refusal unexpectedly returned ok=true')
   assert.match(refused.error, /fixture refuses this book/)
   mode = 'complete'
-  assert.ok((await callThinkModel(request)).ok)
+  const recovered = await callThinkModel(request)
+  assert.ok(recovered.ok, `src/services/extensions/complete.ts recovery request after refusal failed: ${recovered.ok ? '' : recovered.error}`)
   console.log('PASS provider refusal survives and the next request still reaches the selected model')
   mode = 'cut'
   const cut = await callThinkModel(request)
@@ -89,7 +90,7 @@ try {
   const controller = new AbortController()
   onRequest = () => controller.abort()
   const cancelled = await callThinkModel({ ...request, signal: controller.signal })
-  assert.ok(!cancelled.ok)
+  assert.ok(!cancelled.ok, 'src/services/extensions/complete.ts aborted request unexpectedly returned ok=true')
   onRequest = undefined
   mode = 'complete'
   console.log('PASS cancellation reaches the transport and returns no kept thought')

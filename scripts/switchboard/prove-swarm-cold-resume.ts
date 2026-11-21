@@ -52,7 +52,7 @@ let serial = 0
 const dispatch = async (prompt: string) => {
   const result = await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: `cold-${++serial}`, prompt, workspaceDir: world.project, model, effort: 'max', permissionMode: 'sovereign', bypassConsent: true, ...(sessionId ? { targetSessionId: sessionId } : {}) } as never, { timeoutMs: 60_000 }) as { ok: boolean; sessionId?: string }
   assert(result.ok, JSON.stringify(result))
-  if (!sessionId) { assert(result.sessionId); sessionId = result.sessionId }
+  if (!sessionId) { assert(result.sessionId, `concourseDispatch must return sessionId (got ${JSON.stringify(result)})`); sessionId = result.sessionId }
 }
 const childRequests = () => world.fixture.messageRequests().filter(request => (request.body as { model?: string }).model === childModel)
 try {
@@ -60,7 +60,7 @@ try {
   const birth = await daemonControlRpc({ op: 'sessionAdmit', workspaceDir: world.project, isolation: 'shared', model, effort: 'max', permissionMode: 'sovereign', bypassConsent: true, bornBlank: true, runnerArgv: ['--allowed-tools', 'Crewmate', 'CrewBoard', 'Bash'], by: 'operator' } as never, { timeoutMs: 60_000 }) as { ok: boolean; sessionId?: string }
   assert(birth.ok && birth.sessionId, JSON.stringify(birth))
   sessionId = birth.sessionId
-  assert((await daemonControlRpc({ op: 'sessionControl', action: 'focus', sessionId, by: `operator:${process.pid}` } as never)).ok)
+  assert((await daemonControlRpc({ op: 'sessionControl', action: 'focus', sessionId, by: `operator:${process.pid}` } as never)).ok, `daemonControlRpc(sessionControl:focus) must succeed for session ${sessionId}`)
   await dispatch('/swarm status')
   await until('the session starts with its wave on', () => findFiles(world.config, 'board.sqlite').length === 1)
   const path = findFiles(world.config, 'board.sqlite')[0]!
@@ -69,7 +69,7 @@ try {
   const transcript = join(dirname(dirname(dirname(path))), '..', `${sessionId}.jsonl`)
   await until('status answers on without an opt-in', () => existsSync(transcript) && readFileSync(transcript, 'utf8').includes('Swarm on for new crewmates'))
   assert(!readFileSync(transcript, 'utf8').includes('"noticeKind":"crew_chat"'), 'a fresh session paints no swarm row')
-  assert(board.chat().on)
+  assert(board.chat().on, 'crewBoard store in src/services/crewBoard/store.ts must default chat.on to true for new session')
   console.log('PASS a new session starts on with chat on and no extra screen row')
   await dispatch('/swarm on')
   await dispatch('/swarmchat all')
@@ -83,11 +83,11 @@ try {
   const prefix = board.screenEvents(0)
   const chat = board.chat()
   const oldPid = owned()?.pid
-  assert(oldPid && oldPid !== process.pid)
+  assert(oldPid && oldPid !== process.pid, `owned() runner pid from src/daemon/concourseWorkers.ts must be a live child pid (got ${oldPid})`)
   const metaPath = findFiles(world.config, `agent-${target.agent}.meta.json`)[0]!
-  assert(metaPath)
+  assert(metaPath, `agent-${target.agent}.meta.json must exist under scratch config dir`)
   const metadata = readFileSync(metaPath, 'utf8')
-  assert(existsSync(transcript))
+  assert(existsSync(transcript), `session transcript ${sessionId}.jsonl must exist before daemon stop`)
   const beforeTranscript = readFileSync(transcript, 'utf8')
   await stop()
   await until('the stopped daemon releases its runner', () => { try { process.kill(oldPid, 0); return false } catch { return true } })
@@ -100,26 +100,26 @@ try {
   const sender = { author: { sessionId, agentId: 'cold-poster', executionId: 'poster' }, name: 'cold-poster' }
   board.enroll(sender)
   const trigger = board.post(sender, { clientOpId: 'cold-trigger', kind: 'result', about: 'cold-trigger', text: 'COLD-WAKE-PACKET' })
-  assert(trigger.ok)
+  assert(trigger.ok, `board.post(cold-trigger) in src/services/crewBoard/store.ts must succeed (got ${JSON.stringify(trigger)})`)
   assert.equal(board.pendingWakes().find(wake => wake.agent === target.agent)?.eventId, trigger.eventId)
   await start()
   const resumed = await daemonControlRpc({ op: 'sessionAdmit', workspaceDir: world.project, resumeSessionId: sessionId, isolation: 'shared', by: 'operator' } as never, { timeoutMs: 60_000 }) as { ok: boolean }
   assert(resumed.ok, JSON.stringify(resumed))
   await until('the cold session has a new runner', () => owned()?.pid !== undefined && owned()?.pid !== oldPid)
   const resumedPid = owned()!.pid
-  assert(resumedPid)
+  assert(resumedPid, `cold-resumed session ${sessionId} must have a runner pid`)
   const reattached = await daemonControlRpc({ op: 'sessionAdmit', workspaceDir: world.project, resumeSessionId: sessionId, isolation: 'shared', by: 'operator' } as never, { timeoutMs: 60_000 }) as { ok: boolean; liveHop?: boolean }
   assert(reattached.ok && reattached.liveHop, JSON.stringify(reattached))
   assert.equal(owned()?.pid, resumedPid)
   assert.deepEqual(board.chat(), chat)
-  assert(readFileSync(transcript, 'utf8').startsWith(beforeTranscript))
+  assert(readFileSync(transcript, 'utf8').startsWith(beforeTranscript), 'cold resume must preserve prior transcript prefix byte-for-byte')
   await dispatch('Continue the existing wave after the restart.')
   await until('the pending match resumes its original child once', () => board!.view().peerTurns === 1 && board!.screenEvents(0).some(event => event.author.agentId === target.agent && event.lifecycle?.kind === 'done'))
   const resumedRequests = childRequests().slice(beforeRequests)
-  assert(resumedRequests.length)
+  assert(resumedRequests.length, 'cold wake must dispatch at least one resumed child request')
   const request = resumedRequests[0]!.body as { messages: unknown; output_config?: { effort?: string } }
   const wire = JSON.stringify(request.messages)
-  assert(wire.includes('COLD-CHILD-PARKED'))
+  assert(wire.includes('COLD-CHILD-PARKED'), 'resumed child wire must carry prior COLD-CHILD-PARKED assistant turn')
   assert.equal(wire.split('COLD-WAKE-PACKET').length, 2)
   assert.equal(request.output_config?.effort, 'max')
   assert.equal(board.view().peerTurns, 1)

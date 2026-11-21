@@ -93,10 +93,10 @@ try {
   check('the configured Responses endpoint receives the exact minted key without deferral', () => {
     assert.equal(firstCapture.path, '/v1/responses')
     assert.equal(firstCapture.body.prompt_cache_key, expectedKey)
-    assert.ok(firstCapture.raw.includes(`"prompt_cache_key":${JSON.stringify(expectedKey)}`))
+    assert.ok(firstCapture.raw.includes(`"prompt_cache_key":${JSON.stringify(expectedKey)}`), `src/services/providers/openaicompat/compatResponsesTransport.ts raw request missing serialized prompt_cache_key`)
   })
   check('the answer and disjoint cached usage settle normally', () => {
-    assert.ok(first.length > 0 && first.every(row => !row.isApiErrorMessage))
+    assert.ok(first.length > 0 && first.every(row => !row.isApiErrorMessage), `src/services/providers/callModelRouter.ts compat responses turn returned error or empty: len=${first.length}`)
     assert.equal(first.at(-1)!.message.usage.input_tokens, 10)
     assert.equal(first.at(-1)!.message.usage.cache_read_input_tokens, 10)
     assert.equal(first.at(-1)!.message.usage.output_tokens, 3)
@@ -104,7 +104,7 @@ try {
   await turn(wireModel, [createUserMessage({ content: 'Say complete' }), ...first, createUserMessage({ content: 'Continue' })])
   check('continuation preserves the key and signed reasoning replay', () => {
     assert.equal(captures.at(-1)!.body.prompt_cache_key, expectedKey)
-    assert.ok(captures.at(-1)!.body.input.some((item: any) => item.encrypted_content === 'fixture-signed-reasoning'))
+    assert.ok(captures.at(-1)!.body.input.some((item: any) => item.encrypted_content === 'fixture-signed-reasoning'), 'src/services/providers/openaicompat/compatResponsesTransport.ts continuation input omitted signed reasoning item')
   })
   configure('chat-completions'); await turn()
   check('chat and Responses forward the same existing mint', () => assert.equal(captures.at(-1)!.body.prompt_cache_key, expectedKey))
@@ -140,15 +140,15 @@ try {
   const refused = await direct()
   check('a provider refusal remains one refused request', () => {
     assert.equal(captures.length, refusedAt + 1)
-    assert.ok(refused.some(event => event.type === 'stream-fault' && event.fault.status === 400))
+    assert.ok(refused.some(event => event.type === 'stream-fault' && event.fault.status === 400), `src/services/providers/openaicompat/compatResponsesTransport.ts missing 400 stream-fault: ${JSON.stringify(refused).slice(0, 140)}`)
   })
   mode = 'reply'; await turn()
   check('a served turn after refusal still sends the key', () => assert.equal(captures.at(-1)!.body.prompt_cache_key, expectedKey))
   mode = 'truncated'
   const truncated = await direct()
   check('missing terminal event remains a failure after text', () => {
-    assert.ok(truncated.some(event => event.type === 'text-delta'))
-    assert.ok(truncated.some(event => event.type === 'stream-fault' && event.fault.code === 'no-terminal-event'))
+    assert.ok(truncated.some(event => event.type === 'text-delta'), `src/services/providers/openaicompat/compatResponsesTransport.ts truncated stream missing text-delta: ${JSON.stringify(truncated).slice(0, 140)}`)
+    assert.ok(truncated.some(event => event.type === 'stream-fault' && event.fault.code === 'no-terminal-event'), `src/services/providers/openaicompat/compatResponsesTransport.ts truncated stream missing no-terminal-event fault: ${JSON.stringify(truncated).slice(0, 140)}`)
   })
   const controller = new AbortController(); controller.abort()
   const cancelledAt = captures.length

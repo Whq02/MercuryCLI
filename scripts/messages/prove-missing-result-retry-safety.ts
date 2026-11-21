@@ -7,7 +7,7 @@ const call = createAssistantMessage({ content: [{ type: 'tool_use', id: 'unanswe
 const stored = JSON.stringify(call)
 const repaired = ensureToolResultPairing([call])
 const result = repaired[1]?.message.content
-assert(Array.isArray(result))
+assert(Array.isArray(result), 'ensureToolResultPairing in src/utils/messages/pairing.ts must synthesize an array tool_result message for unanswered tool_use')
 assert.equal(result.length, 1)
 assert.equal(result[0]?.type, 'tool_result')
 const block = result[0] as { content: string; is_error: boolean; tool_use_id: string }

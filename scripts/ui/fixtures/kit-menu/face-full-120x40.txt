@@ -1,5 +1,6 @@
 
 
+
                                           ▀█████▄▄▄▄▄      ▄▄▄▄▄▄
                                             ▄▄█▀▀███████▄ █▀▀▀▀▀▀██▄
                                             ▀██████▄▄█▀▀██         ▀█
@@ -17,23 +18,20 @@
                                                              ▀▀█▄
 
 
-                                    ■ ────────────────··· (>_) ···──────────────── ■
+                                   ■ ────────────────··· (>_) ···──────────────── ■
 
                                  ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
 
-                                     >_ ready  ·  ↵ start  ·  m menu  ·  ↑↓ choose
+                                                    >_  ·  ↵  ·  ↑↓
 
-                  ╭──────────────────────────────────────────────────────────────────────────────────╮
-                  │▎❯ ✶ New Session in orchard-src                                start fresh here → │
-                  │   ↳ Continue Last Session                                     orchard-src · 5m → │
-                  │   ⊞ Boot Menu                                               configure boot env → │
-                  │   ⊛ MCPs & Skills                                  what the next session loads → │
-                  │   ◈ Agents                                              create and edit agents → │
-                  │   ✓ Health Check                                            system diagnostics → │
-                  │   ◷ Saturn Scheduler                                sessions born on the clock → │
-                  │   ⚿ Logins                                                sign in to providers → │
-                  │   ⊞ Session Concourse                                  the live board · 2 live → │
-                  │   ↺ Sessions · Projects                               pick a session or a repo → │
-                  ╰──────────────────────────────────────────────────────────────────────────────────╯
+                                        ╭─────────────────────────────────────╮
+                                        │▎❯ ✶ New Session                     │
+                                        │   ↳ Continue Last Session           │
+                                        │   ⚿ Logins/Keys                     │
+                                        │   ⊞ Session Manager (Concourse)     │
+                                        │   ⊞ Boot Menu                       │
+                                        ╰─────────────────────────────────────╯
+
+                                            Model Opus 5   Dir: orchard-src

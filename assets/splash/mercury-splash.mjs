@@ -27,11 +27,13 @@ let lockupCompactHero = null
 function compose(cols, rows) {
   if (compactHost(cols, rows)) {
     const res = composeCompactFace(cols, rows, {
-      cardRows: cardRows(true),
+      cardRows: cardRows(true).map(r => ({ ...r, ctx: '' })),
+      stripLines: composeStrip,
       cardSel,
       hintSegments: [
-        { key: '↵ ', label: 'start', tone: 'ivory' },
-        { key: '↑↓', label: ' choose', tone: 'faint' },
+        { key: '>_', label: '', tone: 'faint' },
+        { key: '↵', label: '', tone: 'ivory' },
+        { key: '↑↓', label: '', tone: 'faint' },
         { key: 'm', label: ' menu', tone: 'faint' },
       ],
       reserveKeyMap: true,
@@ -46,13 +48,13 @@ function compose(cols, rows) {
   }
   lockupCompactHero = null
   const res = composeLockup(cols, rows, {
-    cardRows: cardRows(),
+    cardRows: cardRows().map(r => ({ ...r, ctx: '' })),
     cardSel,
     hintSegments: [
-      { key: '↵ ', label: 'start', tone: 'ivory' },
+      { key: '↵', label: '', tone: 'ivory' },
       ...(!CINEMATIC && menuAvailable ? [{ key: 'm', label: ' menu', tone: 'faint' }] : []),
     ],
-    tinyHint: '↵ start',
+    tinyHint: '↵',
     stripLines: w => composeStrip(w),
     ...(CINEMATIC ? { hintCinematic: true } : {}),
     glowWord: glowWordPhase(),
@@ -827,24 +829,7 @@ function cardRows(menuRows = menuAvailable) {
 }
 
 function composeStrip(w) {
-  const cert = certInfo()
-  const acct = accountLabel()
-  return coreComposeStrip(
-    {
-      model: modelLabel(),
-      critter: critterLabel(),
-      critterHue: ACCENT_HEX,
-      dir: projectDisplayName(process.cwd()),
-      acct:
-        acct === READ_FAILED
-          ? { state: 'unreadable' }
-          : acct
-            ? { state: 'email', text: acct }
-            : { state: 'none' },
-      health: cert ? { verdict: cert.verdict, age: cert.age } : null,
-    },
-    w,
-  )
+  return coreComposeStrip({ model: modelLabel(), dir: projectDisplayName(process.cwd()) }, w)
 }
 
 function activateCardRow(r2) {

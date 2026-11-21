@@ -35,7 +35,7 @@ for (const kind of ['managed', 'pin', 'absent', 'broken'] as const) {
   if (kind === 'broken') assert.match(row.evidence, /MERCURY_BROWSER_PATH is set to .* which does not exist/)
   assert.match(row.detail, /not driven: it is your app/)
   const text = renderPlainCertificate({ sections: json.sections, verdict: 'certified', durationMs: 0 })
-  assert.ok(text.includes(`[${row.status.toUpperCase()}] Browser — ${row.evidence}`))
+  assert.ok(text.includes(`[${row.status.toUpperCase()}] Browser — ${row.evidence}`), `renderPlainCertificate(${kind}) missing Browser row in src/cli/healthPresentation.ts: ${text.slice(0, 200)}`)
 }
 const { interfaceChecks } = await import('../../src/services/health/sections/interface.ts')
 const listed = interfaceChecks().filter(row => row.id === 'iface-browser')

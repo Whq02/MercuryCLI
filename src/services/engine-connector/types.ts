@@ -27,6 +27,7 @@ export type SendWordsOptions = {
 
 export type SendReceiptV1 =
   | { state: 'accepted'; note?: string }
+  | { state: 'pending'; detail: string }
   | { state: 'refused'; detail: string }
 
 export type RecallableSendV1 = { clientMessageId: string; text: string }

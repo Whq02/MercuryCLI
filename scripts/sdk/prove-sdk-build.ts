@@ -88,7 +88,7 @@ try {
   const pkg = JSON.parse(readFileSync(join(scratch, 'sdk/package.json'), 'utf8'))
   assert.equal(pkg.name, 'mercury-cli-sdk'); assert.equal(pkg.version, '0.2.0'); assert.equal(pkg.license, 'Apache-2.0'); assert.notEqual(pkg.private, true)
   assert.equal(Object.keys(pkg.dependencies ?? {}).length, 0)
-  assert(pkg.exports['./testing'].types)
+  assert(pkg.exports['./testing'].types, 'sdk/package.json exports["./testing"] missing types entry')
   symlinkSync(join(root, 'node_modules'), join(scratch, 'sdk/node_modules'), 'junction')
   command('node', [join(root, 'node_modules/typescript/bin/tsc'), '-p', join(scratch, 'sdk/tsconfig.json')], scratch)
   execSync(pkg.scripts.build.split(' && ')[1], { cwd: join(scratch, 'sdk'), stdio: 'inherit' })
@@ -110,7 +110,7 @@ try {
   assert.deepEqual(pythonDocClasses, JSON.parse(retryableClasses), `the is_retryable_outcome docstring names the same classes: ${pythonRetryable}`)
   const loaded = command('node', ['--input-type=module', '-e', `import {run,connect,ROW_TYPES} from ${JSON.stringify(join(scratch, 'sdk/dist/index.js'))}; if(typeof run!=='function'||typeof connect!=='function'||!ROW_TYPES.length)process.exit(1)`], scratch)
   for (const name of readdirSync(join(scratch, 'sdk/src')).filter(n => n.endsWith('.ts'))) {
-    assert(readdirSync(join(scratch, 'sdk/dist')).includes(name.replace('.ts', '.d.ts')))
+    assert(readdirSync(join(scratch, 'sdk/dist')).includes(name.replace('.ts', '.d.ts')), `sdk/dist missing declaration file for sdk/src/${name}`)
     const declaration = ts.createSourceFile(name, readFileSync(join(scratch, 'sdk/dist', name.replace('.ts', '.d.ts')), 'utf8'), ts.ScriptTarget.Latest, true)
     const checkType = (node: ts.Node): void => {
       assert.notEqual(node.kind, ts.SyntaxKind.AnyKeyword, `${name} exports any in its declarations`)
@@ -172,6 +172,6 @@ try {
   command(PYTHON, ['-I', '-S', '-c', `import tarfile;tarfile.open(${JSON.stringify(join(scratch, 'artifacts', sdist))}).extractall(${JSON.stringify(join(scratch, 'unpack'))},**({'filter':'data'} if hasattr(tarfile,'data_filter') else {}))`], scratch)
   command(PYTHON, ['-I', '-S', join(scratch, 'unpack/mercury_cli_sdk-0.2.0/build_backend.py'), join(scratch, 'rebuilt')], scratch)
   assert.deepEqual(readFileSync(join(scratch, 'artifacts', wheel)), readFileSync(join(scratch, 'rebuilt', wheel)))
-  assert(!loaded.includes('error'))
+  assert(!loaded.includes('error'), `built sdk/dist/index.js printed error during Node smoke import: ${loaded.slice(0, 200)}`)
   console.log('PASS clean-copy TypeScript build; dependency-free Node import; Python stdlib-only wheel, sdist and identical rebuild; py.typed')
 } finally { rmSync(scratch, { recursive: true, force: true }) }

@@ -1,4 +1,4 @@
-export const BOOT_FACE_READY = '↵\\s*(start|open)(\\s*·\\s*m\\s*menu)?\\s*·\\s*↑↓\\s*choose'
+export const BOOT_FACE_READY = '>_\\s*·\\s*↵(\\s*·\\s*m\\s*menu)?\\s*·\\s*↑↓'
 
 const BOOT_FACE_PASS_DELAY_MS = 900
 

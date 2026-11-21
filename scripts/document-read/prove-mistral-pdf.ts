@@ -37,11 +37,11 @@ try {
   const body = captured[0]
   assert.equal(body.model, model)
   const parts = body.messages.filter((m: any) => m.role === 'user').flatMap((m: any) => m.content)
-  assert.ok(parts.some((p: any) => p.type === 'document_url' && p.document_url === `data:application/pdf;base64,${data}`))
-  assert.ok(!parts.some((p: any) => p.type === 'file'))
+  assert.ok(parts.some((p: any) => p.type === 'document_url' && p.document_url === `data:application/pdf;base64,${data}`), 'Mistral native PDF request omitted data:application/pdf document_url part in src/services/providers/')
+  assert.ok(!parts.some((p: any) => p.type === 'file'), 'Mistral native PDF request unexpectedly emitted type=file part in src/services/providers/')
   assert.equal(body.reasoning_effort, 'high')
   assert.equal(body.max_tokens, 8192)
-  assert.ok(replies.some(r => r.message.content.some((b: any) => b.type === 'text' && b.text === 'Paper read.')))
+  assert.ok(replies.some(r => r.message.content.some((b: any) => b.type === 'text' && b.text === 'Paper read.')), `routedCallModel(mistral) did not yield expected assistant text in src/services/providers/callModelRouter.ts: ${JSON.stringify(replies).slice(0, 200)}`)
   assert.equal(replies.at(-1).message.usage.output_tokens, 4)
   console.log('PASS routed Mistral native PDF: account catalogue, chat endpoint, document_url bytes, effort/output budget, completion and usage')
 } finally { server.stop(true); rmSync(home, { recursive: true, force: true }) }

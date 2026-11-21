@@ -5,7 +5,7 @@ import { hfEndpointsFixture } from './hfEndpointsFixture.mjs'
 import { KEY, mountOffscreen, waitFor } from '../lib/settingsPopupHarness.ts'
 import type { LlmHostQuestion, LlmHostRoad } from '../../src/services/llmHost/index.ts'
 
-assert.ok(process.env.MERCURY_CONFIG_DIR)
+assert.ok(process.env.MERCURY_CONFIG_DIR, 'prove-rental-screen-values requires a scratch MERCURY_CONFIG_DIR; run via bin/proof or set scratch home')
 const f = await llmhostFixture()
 const rp = await runpodFixture()
 const hf = await hfEndpointsFixture()

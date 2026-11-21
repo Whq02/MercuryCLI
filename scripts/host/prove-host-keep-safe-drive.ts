@@ -46,9 +46,9 @@ try {
   mounted = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width, height }, React.createElement(SettingsPopupSlot)))), width, height)
   const until = async (text: string) => assert.ok(await waitFor(() => mounted!.screen().includes(text), 15000), text + '\n' + mounted!.screen())
   const selected = () => mounted!.lines().find(line => line.includes('› ')) ?? ''
-  const choose = async (text: string) => { for (let i = 0; i < 12 && !selected().includes(text); i++) { const before = selected(); mounted!.push(KEY.down); assert.ok(await waitFor(() => selected() !== before, 3000)) }; assert.ok(selected().includes(text), text + '\n' + mounted!.screen()); mounted!.push(KEY.enter) }
+  const choose = async (text: string) => { for (let i = 0; i < 12 && !selected().includes(text); i++) { const before = selected(); mounted!.push(KEY.down); assert.ok(await waitFor(() => selected() !== before, 3000), `keep-safe cursor did not move toward ${text} on step ${i}; check keepSafeDoor popup`) }; assert.ok(selected().includes(text), text + '\n' + mounted!.screen()); mounted!.push(KEY.enter) }
   const open = () => popup.openSettingsPopup(llmHostPopupRequest(road))
-  const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
+  const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), 'keep-safe settings popup did not close within 5000ms after Esc; check popup close') }
   open(); await until('Copy to another drive')
   const frameAt = process.argv.indexOf('--frames')
   if (frameAt >= 0) {
@@ -72,29 +72,30 @@ try {
   assert.equal((await bank.verifyBank(recipe, join(f.home, 'models'), new AbortController().signal)).files, 3)
   assert.equal(readFileSync(join(path, 'SHA256SUMS'), 'utf8'), hash + '  weights.gguf\n')
   assert.deepEqual(readFileSync(join(path, 'weights.gguf')), bytes)
-  assert.ok(notices.some(text => text.includes('Copied and verified every file')))
+  assert.ok(notices.some(text => text.includes('Copied and verified every file')), `keep-safe copy notices missing verification confirmation (notices=${notices.join(' | ').slice(0, 160)}); check copyBankToFolder`)
   await close()
   await assert.rejects(safe.copyBankToFolder(recipe, folder, join(f.home, 'models'), new AbortController().signal), /already holds/)
-  assert.ok(!readdirSync(join(f.home, 'models')).some(name => name.startsWith('.mercury-copy-')))
+  assert.ok(!readdirSync(join(f.home, 'models')).some(name => name.startsWith('.mercury-copy-')), 'copyBankToFolder left temporary .mercury-copy-* directory behind; check copyBankToFolder cleanup')
   open(); await until('Mirror to a Runpod'); await choose('Mirror to a Runpod'); await until('Keep safe finished'); await close()
   assert.equal(mirrors, 1)
   open(); await until('Upload on first boot'); await choose('Upload on first boot'); await until('Measured upload speed (Mbps)'); mounted!.push('25'); await until('25'); mounted!.push(KEY.enter); await until('Upload this bank on first boot?')
   assert.equal(safe.bankUploadPreference(recipe), undefined)
-  assert.ok(mounted!.screen().includes('bills throughout the upload'))
+  assert.ok(mounted!.screen().includes('bills throughout the upload'), 'keep-safe upload confirm screen missing billing warning; check keepSafeDoor upload confirm')
   await choose('Use my bank on first boot'); await until('Keep safe finished'); await close()
   assert.equal(safe.bankUploadPreference(recipe).bytesPerSecond, 25e6 / 8)
-  assert.ok(safe.bankUploadEstimate({ ...recipe, weightsGb: 510 }).includes('45.3 hours'))
+  const estimate = safe.bankUploadEstimate({ ...recipe, weightsGb: 510 })
+  assert.ok(estimate.includes('45.3 hours'), `bankUploadEstimate for 510GB at 25Mbps=${estimate}, expected 45.3 hours; check bankUploadEstimate`)
   const calls: { command: string; args: string[] }[] = []
-  const runner = { run: async (command: string, args: string[]) => { calls.push({ command, args }); if (command === 'rsync') { const list = args.find(arg => arg.startsWith('--files-from='))!.slice(13); assert.deepEqual(readFileSync(list, 'utf8').trim().split('\n').sort(), ['config.json', 'tokenizer.json', 'weights.gguf']); assert.ok(args.includes(realpathSync(path) + '/')) }; return '' }, tunnel: () => { throw new Error('No tunnel is needed') } }
+  const runner = { run: async (command: string, args: string[]) => { calls.push({ command, args }); if (command === 'rsync') { const list = args.find(arg => arg.startsWith('--files-from='))!.slice(13); assert.deepEqual(readFileSync(list, 'utf8').trim().split('\n').sort(), ['config.json', 'tokenizer.json', 'weights.gguf']); assert.ok(args.includes(realpathSync(path) + '/'), 'rsync args missing trailing-slash bank source path; check uploadBankForRental') }; return '' }, tunnel: () => { throw new Error('No tunnel is needed') } }
   assert.equal(await safe.uploadBankForRental(recipe, 'runpod', { host: '127.0.0.1' }, runner, new AbortController().signal), undefined)
   assert.equal(calls.length, 0)
   const remote = await safe.uploadBankForRental(recipe, 'vast', { host: '127.0.0.1', user: 'root' }, runner, new AbortController().signal)
   assert.equal(remote, '/workspace/mercury-host/keep-safe-fixture/bank-weights')
   assert.equal(calls.filter(call => call.command === 'rsync').length, 1)
-  assert.ok(calls.at(-1)?.args.at(-1)?.includes('sha256sum -c SHA256SUMS'))
-  assert.ok(calls.at(-1)?.args.at(-1)?.includes(completeSums))
+  assert.ok(calls.at(-1)?.args.at(-1)?.includes('sha256sum -c SHA256SUMS'), 'post-upload remote command missing sha256sum -c SHA256SUMS verification; check uploadBankForRental')
+  assert.ok(calls.at(-1)?.args.at(-1)?.includes(completeSums), 'post-upload remote command missing complete SHA256SUMS entries; check uploadBankForRental')
   assert.equal(safe.bankUploadPreference(recipe).source, 'transfer')
-  assert.ok(!readdirSync(join(f.home, 'host')).some(name => name.startsWith('bank-transfer-')))
+  assert.ok(!readdirSync(join(f.home, 'host')).some(name => name.startsWith('bank-transfer-')), 'uploadBankForRental left temporary bank-transfer-* file behind; check uploadBankForRental cleanup')
   const failed = { ...runner, run: async (command: string, args: string[]) => { if (args.at(-1)?.includes('sha256sum')) throw new Error('checksum mismatch'); return '' } }
   await assert.rejects(safe.uploadBankForRental(recipe, 'lambda', { host: '127.0.0.1' }, failed, new AbortController().signal), /checksum mismatch/)
   safe.rememberBankUpload(recipe, undefined)

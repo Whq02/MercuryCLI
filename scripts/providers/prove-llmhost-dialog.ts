@@ -19,7 +19,7 @@ try {
   const drive = async (answers: Record<string, string | null>, onAsk?: (q: any) => void) => {
     const events: any[] = []
     const result = await runLlmHost(async (q: any) => { onAsk?.(q); assert.ok(q.step in answers, `answer for ${q.step}`); return answers[q.step] }, (event: any) => events.push(event), new AbortController().signal)
-    assert.ok(!JSON.stringify(events).includes(f.key))
+    assert.ok(!JSON.stringify(events).includes(f.key), 'src/services/llmHost/index.ts progress events leaked server API key')
     return result
   }
   f.state.modelIds = [f.model, f.model + '-second']
@@ -33,7 +33,7 @@ try {
   f.state.modelIds = [f.model]
   assert.equal((await drive(defaults, question => assert.notEqual(question.step, 'model', 'one listed model skips the model question'))).ok, true)
   const saved = readFileSync(settingsPath, 'utf8')
-  assert.ok(saved.includes('neighbor') && saved.includes('dark') && !saved.includes(f.key))
+  assert.ok(saved.includes('neighbor') && saved.includes('dark') && !saved.includes(f.key), 'src/services/llmHost/index.ts settings.json must preserve neighbor/dark and omit raw API key')
   assert.equal(readStoredCompatApiKey('llmhost'), f.key)
   const recheck = await drive({ servers: 'llmhost', action: 'recheck', model: f.model, confirm: 'run' })
   assert.equal(recheck.ok, true)
@@ -82,17 +82,17 @@ try {
     const element = React.createElement(ThemeProvider, {}, React.createElement(Controls))
     const m = await mountOffscreen(element, columns, rows)
     try {
-      assert.ok(await waitFor(() => controlsMounted && m.screen().includes('choose the model'), 5000))
+      assert.ok(await waitFor(() => controlsMounted && m.screen().includes('choose the model'), 5000), `src/components/LlmHostDialog.tsx did not paint 'choose the model' at ${columns}x${rows}`)
       m.push(KEY.enter)
       assert.ok(await waitFor(() => inputRead === 1, 5000), 'the input owner consumed Enter')
       assert.equal(selected, undefined, 'Enter alone leaves the choice open')
       m.push(KEY.up)
       assert.ok(await waitFor(() => m.screen().includes('› fixture-49'), 5000), `${columns}x${rows} last row stays visible · ${JSON.stringify(inputEvents)}\n${m.screen()}`)
       assert.equal(selected, undefined, 'Enter with no cursor cannot choose a model')
-      assert.ok(m.lines().every(line => stringWidth(line) <= columns))
-      assert.ok(!m.screen().includes('RENDER ERROR'))
+      assert.ok(m.lines().every(line => stringWidth(line) <= columns), `src/components/LlmHostDialog.tsx overflowed width ${columns} at ${columns}x${rows}`)
+      assert.ok(!m.screen().includes('RENDER ERROR'), `src/components/LlmHostDialog.tsx painted RENDER ERROR at ${columns}x${rows}`)
       m.push(KEY.esc)
-      assert.ok(await waitFor(() => selected === null && m.screen().includes('stopped'), 5000))
+      assert.ok(await waitFor(() => selected === null && m.screen().includes('stopped'), 5000), `src/components/LlmHostDialog.tsx Escape did not settle stopped state at ${columns}x${rows}`)
     } finally { m.unmount() }
   }
   console.log('LLMHOST DIALOG GREEN — cancellation at every step, recheck, failed reply, safe repoint, confirmed removal and 120/80/48-column choice screens')

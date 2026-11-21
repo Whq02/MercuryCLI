@@ -116,16 +116,16 @@ try {
   mode = 'text'
   buckets(await run({ messages: [...called, createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'kimi-cache-call', content: 'hello' }] })] }), 400, 300)
   const history = captures.at(-1)!.body.messages
-  assert.ok(history.some((row: any) => row.role === 'assistant' && row.tool_calls?.[0]?.id === 'kimi-cache-call' && row.reasoning_content === 'Keep the cached prefix.'))
-  assert.ok(history.some((row: any) => row.role === 'tool' && row.tool_call_id === 'kimi-cache-call'))
+  assert.ok(history.some((row: any) => row.role === 'assistant' && row.tool_calls?.[0]?.id === 'kimi-cache-call' && row.reasoning_content === 'Keep the cached prefix.'), 'Moonshot replay in src/services/providers/moonshot/ must preserve assistant tool_calls and reasoning_content')
+  assert.ok(history.some((row: any) => row.role === 'tool' && row.tool_call_id === 'kimi-cache-call'), 'Moonshot replay in src/services/providers/moonshot/ must include paired tool_result for kimi-cache-call')
   mode = 'rate'
   const beforeRate = captures.length
-  assert.ok((await run()).some(row => row.error === 'rate_limit'))
+  assert.ok((await run()).some(row => row.error === 'rate_limit'), 'Moonshot 429 must settle with error=rate_limit')
   mode = 'text'
   buckets(await run(), 400, 300)
   assert.equal(captures.length, beforeRate + 2)
   mode = 'truncated'
-  assert.ok((await run()).some(row => row.isApiErrorMessage))
+  assert.ok((await run()).some(row => row.isApiErrorMessage), 'truncated Moonshot SSE stream must settle with an API error row')
   const aborted = new AbortController(); aborted.abort()
   const beforeAbort = captures.length
   assert.deepEqual(await run({ signal: aborted.signal }), [])

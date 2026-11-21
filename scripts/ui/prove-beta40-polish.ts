@@ -75,7 +75,7 @@ try {
     throw new Error('Choice not found: ' + text)
   }
   const text = async (title: string, value = '') => { await until(title); if (value) { m.push(value); await until(value) } m.push(KEY.enter) }
-  const close = async () => { m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 3000)) }
+  const close = async () => { m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 3000), 'src/components/SettingsPopupSlot.tsx Escape did not close host popup within 3000ms') }
   await until('Where should the model run?'); await capture(m, 'host-doors')
   const geometry = settingsPopupGeometry(llmHostPopupRequest(), cols, height)
   console.log('MEASURE host columns=' + cols + ' left=' + geometry.left + ' content=' + geometry.inner)
@@ -88,7 +88,7 @@ try {
   check('confirmation says what billing does and what a failed setup does, without a generic wait', !confirm.willRun.includes('20–90') && confirm.willRun.includes('Billing starts now and continues after closing') && confirm.willRun.includes('Resume or Terminate'))
   check('the confirmation paints its storage and billing words at this width', m.lines().map(line => line.replaceAll('│', '')).join(' ').replace(/\s+/g, ' ').includes('Billing starts now and continues after closing') && m.screen().includes('disk'))
   await choose('Confirm $2.49/hr'); await until('Machine controls')
-  assert.ok(await waitFor(() => readHostRecord('fixture-pod-1')?.step?.startsWith('downloading weights'), 10000))
+  assert.ok(await waitFor(() => readHostRecord('fixture-pod-1')?.step?.startsWith('downloading weights'), 10000), `src/services/host/worker.ts pod fixture-pod-1 step did not reach 'downloading weights': got ${String(readHostRecord('fixture-pod-1')?.step)}`)
   patchHostRecord('fixture-pod-1', { startedAt: new Date(Date.now() - 3600_000).toISOString(), step: 'downloading weights 18.70 GB of 187 GB' })
   await until('so far'); await until('downloading weights 18.70 GB of 187 GB'); await capture(m, 'host-setup-log')
   check('setup tells Escape closes without cancelling the job', m.screen().includes('billing continues'))
@@ -98,7 +98,7 @@ try {
   await close()
   ssh.state.holdHealth = false
   await Promise.all(jobs)
-  assert.ok(readHostRecord('fixture-pod-1')?.jobState === 'ready')
+  assert.ok(readHostRecord('fixture-pod-1')?.jobState === 'ready', `src/services/host/worker.ts expected fixture-pod-1 jobState='ready', got ${String(readHostRecord('fixture-pod-1')?.jobState)}`)
   const settings = JSON.parse(readFileSync(join(f.home, 'settings.json'), 'utf8'))
   check('worker associates its provider with the pod for later termination', settings.compatProvider['pod-fixture-pod-1'].hostPodId === 'fixture-pod-1')
   deliverHostNotices('polish-session')

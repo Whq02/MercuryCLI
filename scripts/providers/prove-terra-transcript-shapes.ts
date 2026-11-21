@@ -46,7 +46,7 @@ const server = createServer((req, res) => {
 })
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
 const address = server.address()
-assert.ok(address && typeof address === 'object')
+assert.ok(address && typeof address === 'object', 'loopback fixture server did not return an AddressInfo object')
 const base = `http://127.0.0.1:${address.port}/v1`
 process.env.MERCURY_OPENAI_API_BASE = base
 process.env.MERCURY_OPENAI_CHATGPT_BASE = base
@@ -63,8 +63,8 @@ const options = { model, effortValue: 'max', querySource: 'sdk', ownerKey: 'terr
 async function turn(messages: Message[]): Promise<AssistantMessage[]> {
   const settled: AssistantMessage[] = []
   for await (const event of openaiCallModel({ messages, systemPrompt: ['Use the fixture tool.'] as never, tools: [tool], thinkingConfig: { type: 'enabled', budgetTokens: 4096 }, signal: new AbortController().signal, options })) if (event.type === 'assistant') settled.push(event)
-  assert.ok(settled.length > 0)
-  assert.ok(settled.every(row => !row.isApiErrorMessage))
+  assert.ok(settled.length > 0, `src/services/providers/openai/openaiCallModel.ts ${model} turn produced 0 assistant messages`)
+  assert.ok(settled.every(row => !row.isApiErrorMessage), `src/services/providers/openai/openaiCallModel.ts ${model} turn returned API error: ${JSON.stringify(settled.map(r => r.error))}`)
   return settled
 }
 try {
@@ -102,8 +102,8 @@ try {
   const request = buildOpenaiResponsesRequest({ model, messages: [{ role: 'user', content: 'Fixture.' }], reasoningEffort: 'max' })
   const cut = []
   for await (const event of streamOpenaiResponses({ baseUrl: base, headers: {}, request, fetchImpl: (async () => new Response(sse({ type: 'response.output_item.done', item: message }), { headers: { 'content-type': 'text/event-stream' } })) as typeof fetch })) cut.push(event)
-  assert.ok(cut.some(e => e.type === 'stream-fault' && e.fault.code === 'no-terminal-event'))
-  assert.ok(!cut.some(e => e.type === 'finish'))
+  assert.ok(cut.some(e => e.type === 'stream-fault' && e.fault.code === 'no-terminal-event'), `src/services/providers/openai/openaiClient.ts truncated stream missing no-terminal-event fault: ${JSON.stringify(cut).slice(0, 140)}`)
+  assert.ok(!cut.some(e => e.type === 'finish'), `src/services/providers/openai/openaiClient.ts truncated stream unexpectedly emitted finish: ${JSON.stringify(cut).slice(0, 140)}`)
   console.log('PASS Terra transcript shapes: reasoning replay, null optionals, ordered tool pairing, disjoint usage, max effort, stable prefix, stop reasons, Retry-After and missing terminal')
 } finally {
   server.closeAllConnections()

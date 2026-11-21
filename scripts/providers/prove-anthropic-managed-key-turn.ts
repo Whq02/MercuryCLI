@@ -15,7 +15,7 @@ try {
   assert.equal(answer.isApiErrorMessage, undefined, 'a warm process must send the newly stored key, not its departed memo')
   assert.equal(world.requests.find(row => row.path === '/v1/messages')?.key, KEY)
   assert.equal(world.auth.isCustomApiKeyApproved(KEY), true)
-  assert.ok(answer.message.content.some(block => block.type === 'text' && block.text === 'fixture answered'))
+  assert.ok(answer.message.content.some(block => block.type === 'text' && block.text === 'fixture answered'), `src/services/api/client.ts warm Haiku turn missing 'fixture answered': ${JSON.stringify(answer.message.content).slice(0, 140)}`)
   world.auth.saveOAuthTokensIfNeeded(SUBSCRIPTION)
   world.auth.writeAnthropicPreferredSource(null)
   const { getAnthropicClient } = await import('../../src/services/api/client.ts')

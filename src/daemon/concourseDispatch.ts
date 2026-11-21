@@ -1,3 +1,4 @@
+import { PendingQueueAck } from './runnerConnection.js'
 import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -669,6 +670,7 @@ export type ConcourseDispatchResult = {
   runnerId?: string
   sessionId?: string
   error?: string
+  unconfirmed?: true
   replay?: 'replayed' | 'edited-replay'
   heldReason?: string
   heldByTitle?: string
@@ -691,8 +693,43 @@ export interface ConcourseDispatchDeps {
 }
 
 export interface ConcourseDispatchHandler {
-  (req: ConcourseDispatchRequest): Promise<ConcourseDispatchResult>
+  (req: ConcourseDispatchRequest): Promise<DispatchAttempt>
   withdraw(clientMessageId: string): Promise<boolean>
+}
+
+const UNCONFIRMED = { ok: false, unconfirmed: true, error: 'The runner has not confirmed this message.' } as const
+
+type DispatchAttempt = ConcourseDispatchResult & { confirmation?: Promise<ConcourseDispatchResult> }
+
+async function deliverDispatch(deps: ConcourseDispatchDeps, dispatches: Record<string, ConcourseDispatchRecordV1>, rec: ConcourseDispatchRecordV1, runnerId: string, row: InputRow, failure: string, extras: Partial<ConcourseDispatchResult> = {}): Promise<DispatchAttempt> {
+  const reply = (current: ConcourseDispatchRecordV1, accepted: boolean | null): ConcourseDispatchResult => ({
+    ok: accepted === true,
+    clientMessageId: current.clientMessageId,
+    state: current.state,
+    stateRevision: current.stateRevision,
+    runnerId,
+    sessionId: current.sessionId,
+    ...extras,
+    ...(accepted === null ? UNCONFIRMED : accepted === false ? { error: failure } : {}),
+  })
+  const settle = (records: Record<string, ConcourseDispatchRecordV1>, current: ConcourseDispatchRecordV1, accepted: boolean): ConcourseDispatchResult => {
+    if (accepted) advance(current, 'working', { deliveredAt: Date.now() })
+    else advance(current, 'failed', { reason: failure })
+    publishDispatchesAfterReply(records, deps.dir)
+    return reply(current, accepted)
+  }
+  try {
+    return settle(dispatches, rec, await deps.deliver(runnerId, row))
+  } catch (error) {
+    if (!(error instanceof PendingQueueAck)) throw error
+    const pending = reply(rec, null)
+    return { ...pending, confirmation: error.confirmed.then(accepted => {
+      const records = readConcourseDispatches(deps.dir)
+      const current = records[rec.clientMessageId]
+      if (current?.state !== 'starting' || current.workerId !== runnerId) return pending
+      return settle(records, current, accepted === true)
+    }) }
+  }
 }
 
 async function attemptRedirectDelivery(
@@ -702,7 +739,7 @@ async function attemptRedirectDelivery(
   target: string,
   prompt: string,
   extras?: ConcoursePromptExtras,
-): Promise<ConcourseDispatchResult> {
+): Promise<DispatchAttempt> {
   const unwritten = readSessionWorkersSnapshot(deps.dir).state === 'unavailable' ? unwrittenSessionRecordsRefusal(deps.dir) : null
   if (unwritten !== null) {
     delete rec.heldReason
@@ -828,32 +865,14 @@ async function attemptRedirectDelivery(
   }
   publishDispatches(dispatches, deps.dir)
   if (operatorSpoke) operatorTookSessionBack(target, deps.dir)
-  const delivered = await deps.deliver(
-    targetRec.runnerId,
-    await buildConcoursePromptRow(prompt, { ...extras, identity: rec.clientMessageId }),
-  )
-  if (delivered) {
-    advance(rec, 'working', { deliveredAt: Date.now() })
-  } else {
-    advance(rec, 'failed', { reason: 'instruction delivery failed (stdin unavailable)' })
-  }
-  publishDispatchesAfterReply(dispatches, deps.dir)
-  return {
-    ok: delivered,
-    clientMessageId: rec.clientMessageId,
-    state: rec.state,
-    stateRevision: rec.stateRevision,
-    runnerId: targetRec.runnerId,
-    sessionId: target,
-    ...(delivered ? {} : { error: 'instruction delivery failed (stdin unavailable)' }),
-  }
+  return deliverDispatch(deps, dispatches, rec, targetRec.runnerId, await buildConcoursePromptRow(prompt, { ...extras, identity: rec.clientMessageId }), 'instruction delivery failed (stdin unavailable)')
 }
 
 export function makeConcourseDispatchHandler(
   deps: ConcourseDispatchDeps,
 ): ConcourseDispatchHandler {
   let tail: Promise<unknown> = Promise.resolve()
-  const run = async (req: ConcourseDispatchRequest): Promise<ConcourseDispatchResult> => {
+  const run = async (req: ConcourseDispatchRequest): Promise<DispatchAttempt> => {
     const digest = promptDigestOf(req.prompt)
     const dispatches = readConcourseDispatches(deps.dir)
     const existing = dispatches[req.clientMessageId]
@@ -878,6 +897,7 @@ export function makeConcourseDispatchHandler(
       }
       if (existing.heldReason === undefined || existing.sessionId !== undefined) return {
         ok: existing.state !== 'failed',
+        ...(existing.state === 'starting' ? UNCONFIRMED : {}),
         clientMessageId: req.clientMessageId,
         state: existing.state,
         stateRevision: existing.stateRevision,
@@ -1042,23 +1062,7 @@ export function makeConcourseDispatchHandler(
             ...(admittedRec.branchName !== undefined ? { branchName: admittedRec.branchName } : {}),
           })
         : undefined
-    const delivered = await deps.deliver(
-      admitted.runnerId,
-      await buildConcoursePromptRow(prompt, { ...promptExtrasOf(req), identity: req.clientMessageId }, groundNote),
-    )
-    if (delivered) {
-      advance(rec, 'working', { deliveredAt: Date.now() })
-    } else {
-      advance(rec, 'failed', { reason: 'worker start delivery failed (stdin unavailable)' })
-    }
-    publishDispatchesAfterReply(dispatches, deps.dir)
-    return {
-      ok: delivered,
-      clientMessageId: req.clientMessageId,
-      state: rec.state,
-      stateRevision: rec.stateRevision,
-      runnerId: admitted.runnerId,
-      sessionId: admitted.sessionId,
+    return deliverDispatch(deps, dispatches, rec, admitted.runnerId, await buildConcoursePromptRow(prompt, { ...promptExtrasOf(req), identity: rec.clientMessageId }, groundNote), 'worker start delivery failed (stdin unavailable)', {
       ...(admitted.branchName !== undefined ? { branchName: admitted.branchName } : {}),
       ...(admitted.mainHolderTitle !== undefined ? { mainHolderTitle: admitted.mainHolderTitle } : {}),
       ...(admitted.modelId !== undefined ? { modelId: admitted.modelId } : {}),
@@ -1067,8 +1071,7 @@ export function makeConcourseDispatchHandler(
       ...(admitted.kitSource !== undefined ? { kitSource: admitted.kitSource } : {}),
       ...(admitted.presetName !== undefined ? { presetName: admitted.presetName } : {}),
       ...(admitted.presetNote !== undefined ? { presetNote: admitted.presetNote } : {}),
-      ...(delivered ? {} : { error: 'worker start delivery failed (stdin unavailable)' }),
-    }
+    })
   }
   const handler = ((req: ConcourseDispatchRequest) => {
     const next = tail.then(

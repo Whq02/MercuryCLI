@@ -1,11 +1,11 @@
 import { Box } from '../../ink.js';
-import type { MenuRow } from '../../substrate/startupMenu.js';
+import type { SettingsRow } from './menuModel.js';
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js';
 import { renderSceneLine } from '../mercury-ui/SceneCanvas.js';
 import type { useInteractiveList } from '../mercury-ui/useInteractiveList.js';
 import type { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
 
-export function settingsRowLine({ composition, list, menuRows, t }: { composition: { placed: string[]; entryAt: Map<number, number> }; list: ReturnType<typeof useInteractiveList<MenuRow>>; menuRows: readonly MenuRow[]; t: ReturnType<typeof useMercuryTokens> }, i: number) {
+export function settingsRowLine({ composition, list, menuRows, t }: { composition: { placed: string[]; entryAt: Map<number, number> }; list: ReturnType<typeof useInteractiveList<SettingsRow>>; menuRows: readonly SettingsRow[]; t: ReturnType<typeof useMercuryTokens> }, i: number) {
   const line = composition.placed[i] ?? '';
   const entryIdx = composition.entryAt.get(i);
   if (entryIdx !== undefined && menuRows[entryIdx] !== undefined) {

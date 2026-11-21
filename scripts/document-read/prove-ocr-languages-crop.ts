@@ -28,7 +28,7 @@ try {
   assert.equal(image.data.type, 'image')
   assert.equal(image.newMessages?.length ?? 0, 0)
   const block = FileReadTool.mapToolResultToToolResultBlockParam(image.data, 'crop-call')
-  assert.ok(Array.isArray(block.content))
+  assert.ok(Array.isArray(block.content), `FileReadTool.mapToolResultToToolResultBlockParam returned non-array content for cropped image in src/tools/FileReadTool/FileReadTool.ts`)
   const caption = block.content.find((part: any) => part.type === 'text') as any
   assert.match(caption?.text ?? '', /This image is the crop \[100, 50, 900, 450\]/)
   assert.match(caption.text, /scaled by 2/)
@@ -41,7 +41,7 @@ try {
   if (process.platform === 'darwin') {
     const engine = await resolveOcrEngine()
     assert.equal(engine.kind, 'native')
-    assert.ok(engine.languages.includes('ar-SA'))
+    assert.ok(engine.languages.includes('ar-SA'), `macOS Vision OCR engine languages omitted ar-SA in src/services/ocr.ts: ${engine.languages.join(',')}`)
     const text = await FileReadTool.call({ file_path: path, ocr: true }, context())
     assert.equal(text.data.type, 'text')
     assert.match(text.data.file.content, /languages:.*ar-SA/)

@@ -236,13 +236,11 @@ def mark(label):
 
 
 def face_row(target):
-    labels = ["New Session", "Continue Last Session", "Boot Menu", "MCPs & Skills", "Agents",
-              "Health Check", "Saturn Scheduler", "Logins", "Session Concourse", "Sessions"]
-    lines = text().split("\n")
-    y_new = next(i for i, l in enumerate(lines) if "New Session" in l)
-    y_t = next(i for i, l in enumerate(lines) if target in l)
-    between = sum(1 for l in lines[y_new + 1:y_t] if any(lab in l for lab in labels))
-    for _ in range(between + 1):
+    labels = ["New Session", "Continue Last Session", "Logins/Keys", "Session Manager (Concourse)", "Boot Menu"]
+    shown = [label for label in labels if any(label in line for line in text().splitlines())]
+    if target not in shown:
+        raise ValueError("Boot face has no row named " + target + "; visible: " + ", ".join(shown))
+    for _ in range(shown.index(target)):
         os.write(fd, b"\x1b[B")
         sleep_pumping(0.15)
     os.write(fd, b"\r")

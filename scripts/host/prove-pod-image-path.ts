@@ -41,7 +41,7 @@ try {
     tunnel() { throw new Error('No tunnel in the launch-script reading') },
   }
   await startHostEngine({ host: 'fixture.invalid' }, recipe, runner, new AbortController().signal, false, true)
-  assert.ok(script.includes('sglang') && script.includes('hf download'))
+  assert.ok(script.includes('sglang') && script.includes('hf download'), 'pod launch script missing sglang or hf download command; check startHostEngine')
   const path = join(home, 'engine.sh')
   writeFileSync(path, script.replaceAll('/proc/1/environ', environ).replaceAll('/workspace', join(home, 'workspace')))
   const result = spawnSync('bash', [path], { encoding: 'utf8', env: { PATH: '/usr/bin:/bin', HOME: home } })

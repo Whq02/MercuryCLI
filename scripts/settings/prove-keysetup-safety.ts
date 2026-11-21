@@ -123,7 +123,7 @@ try {
     completed = 0
     failBell = true
     await assert.rejects(setupTerminal('dark'), /preferences were restored from backup/)
-    assert(calls.some(call => call[0] === 'defaults' && call[1] === 'import'))
+    assert(calls.some(call => call[0] === 'defaults' && call[1] === 'import'), `src/commands/keysetup/keysetup.tsx Apple Terminal rollback did not invoke defaults import: calls=${JSON.stringify(calls)}`)
     assert.equal(completed, 1, 'a successful rollback clears the pending backup instead of repeating it on the next boot')
     assert.equal(getGlobalConfig().optionAsMetaKeyInstalled, false)
   })

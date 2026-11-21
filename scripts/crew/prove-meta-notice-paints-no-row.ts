@@ -105,7 +105,8 @@ tally.section('§2 the runner: the queue facts mark a meta item and leave every 
     const sender = { author: { sessionId: basename(dirname(dirname(dirname(path)))), agentId: 'poster', executionId: 'run' }, name: 'poster' }
     board.enroll(sender)
     const woken = raw.length
-    assert(board.post(sender, { clientOpId: 'ask', kind: 'ask', text: '@main FACTS-ASK which file first?' }).ok)
+    const postedAsk = board.post(sender, { clientOpId: 'ask', kind: 'ask', text: '@main FACTS-ASK which file first?' })
+    assert(postedAsk.ok, `board.post(FACTS-ASK) failed in src/services/crewBoard/store.ts: ${JSON.stringify(postedAsk)}`)
     const wake = await queuedNotice('Read reference-only posts with CrewBoard.')
     tally.check('a queued wake stands in the queue facts, so a host can still count it', wake !== undefined, JSON.stringify(wake))
     tally.check('…and it carries the mark: isMeta true (the parent\'s facts carry none)', wake?.isMeta === true, JSON.stringify(wake))

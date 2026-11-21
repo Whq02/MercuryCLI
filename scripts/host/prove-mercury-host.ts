@@ -131,7 +131,7 @@ try {
   else await register()
   const { namedCompatModelOptions } = await import('../../src/services/providers/openaicompat/compatCatalogue.js')
   const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.js')
-  assert.ok(namedCompatModelOptions().some(row => row.value === model))
+  assert.ok(namedCompatModelOptions().some(row => row.value === model), `box service registration did not expose ${model} in namedCompatModelOptions; check boxRegistration.ts`)
   assert.equal(getContextWindowForModel(model), 131072)
   const settings = JSON.parse(readFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), 'utf8'))
   assert.equal(settings.compatProvider['box-' + machine.name].dialect, 'llamacpp')
@@ -140,7 +140,7 @@ try {
   const plist = readFileSync(boxServiceFiles(machine).unit, 'utf8')
   assert.match(plist, /<key>RunAtLoad<\/key><true\/>/)
   assert.match(plist, /<key>KeepAlive<\/key><true\/>/)
-  assert.ok(plist.includes(fixture.home))
+  assert.ok(plist.includes(fixture.home), 'launchd plist missing fixture home directory path; check boxServiceDocument')
   const linux = boxServiceDocument({ ...machine, os: 'linux' })
   assert.match(linux, /WantedBy=default.target/)
   assert.match(linux, /Restart=on-failure/)
@@ -211,7 +211,7 @@ try {
   writeBox(machine)
   const lines: string[] = []
   assert.equal(await hostCommand(['status', machine.name], { runner: fixture.runner, print: text => lines.push(text) }), 0)
-  assert.ok(lines.some(line => line.includes('0/2 slots busy') && line.includes('tokens/s')))
+  assert.ok(lines.some(line => line.includes('0/2 slots busy') && line.includes('tokens/s')), `host status output missing '0/2 slots busy' and 'tokens/s' (lines=${lines.join(' | ').slice(0, 180)}); check commands/host/index.ts`)
   const { boxServiceLifetimeWords } = await import('../../src/services/host/boxService.js')
   const { HOST_HELP } = await import('../../src/commands/host/index.js')
   assert.match(boxServiceLifetimeWords({ ...machine, os: 'linux' }), /runs while you are logged in on service-fixture.*loginctl enable-linger/)
@@ -227,7 +227,8 @@ try {
   assert.match(reply, /BOX-FIXTURE-READY/)
   const { readBoxService } = await import('../../src/services/host/boxService.js')
   assert.equal(readBoxService(machine.name)!.rateKind, 'whole-turn')
-  assert.ok(readBoxService(machine.name)!.tokensPerSecond! > 0)
+  const boxTps = readBoxService(machine.name)!.tokensPerSecond
+  assert.ok(boxTps! > 0, `box service tokensPerSecond=${boxTps}, expected >0 after fixture turn; check boxService.ts`)
   if (bundleAt >= 0) {
     const status = await fixture.runner.run('node', [process.argv[bundleAt + 1]!, 'host', 'status', machine.name], signal)
     assert.match(status, /slots busy/)
@@ -240,7 +241,7 @@ try {
   const { validateWorkerModelChoice } = await import('../../src/services/concourse/workerModels.js')
   const refused = await validateWorkerModelChoice(model, 'session')
   assert.equal(refused.ok, false)
-  if (!refused.ok) { assert.equal(refused.reason, 'unreachable:box'); assert.match(refused.detail!, /engine stopped/); assert.ok(!JSON.stringify(refused).includes('needs a key')) }
+  if (!refused.ok) { assert.equal(refused.reason, 'unreachable:box'); assert.match(refused.detail!, /engine stopped/); assert.ok(!JSON.stringify(refused).includes('needs a key'), `stopped box refusal misleadingly said 'needs a key' (${JSON.stringify(refused).slice(0, 160)}); check workerModels.ts`) }
   const recordFile = join(process.env.MERCURY_CONFIG_DIR!, 'host', 'services', machine.name + '.json')
   const savedRecord = readFileSync(recordFile, 'utf8')
   writeFileSync(recordFile, '{ not a record')
@@ -262,7 +263,7 @@ try {
   const { stopBoxTunnel } = await import('../../src/services/host/boxRegistration.js')
   await stopBoxTunnel(remoteMachine, fixture.runner, signal, true, tunnelHome)
   await controlBoxService(remoteMachine, 'uninstall', fixture.runner, signal)
-  assert.ok(fixture.commands.some((command: any) => command.command === 'ssh'))
+  assert.ok(fixture.commands.some((command: any) => command.command === 'ssh'), `remote SSH box lifecycle recorded 0 ssh commands (total=${fixture.commands.length}); check boxService/boxRegistration`)
   const halfBox = { ...machine, name: 'window-fixture' }
   const halfPort = await new Promise<number>(resolve => { const socket = createServer(); socket.listen(0, '127.0.0.1', () => { const chosen = (socket.address() as { port: number }).port; socket.close(() => resolve(chosen)) }) })
   const began = Date.now()
@@ -285,7 +286,7 @@ try {
   const ollamaModel = await registerBoxServer(ollamaBox, fixture.runner, signal)
   assert.equal(ollamaModel, 'compat/box-ollama-fixture/' + ollamaRecipe.model)
   assert.equal(getContextWindowForModel(ollamaModel), 262144, 'the Ollama row takes its window from the served /api/ps context')
-  assert.ok(fixture.commands.some((command: any) => command.args.at(-1)?.includes(' pull ')))
+  assert.ok(fixture.commands.some((command: any) => command.args.at(-1)?.includes(' pull ')), 'Ollama box setup did not invoke ollama pull command; check startBoxEngine')
   const ollamaSettings = JSON.parse(readFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), 'utf8'))
   assert.equal(ollamaSettings.compatProvider['box-ollama-fixture'].dialect, 'ollama')
   await controlBoxService(ollamaBox, 'uninstall', fixture.runner, signal)

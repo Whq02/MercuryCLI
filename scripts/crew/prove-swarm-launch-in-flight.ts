@@ -59,7 +59,8 @@ async function until(holds: () => boolean, ms = 30_000): Promise<boolean> {
   return holds()
 }
 
-assert(runSwarmCommand('on').startsWith('Swarm on'))
+const swarmOnText = runSwarmCommand('on')
+assert(swarmOnText.startsWith('Swarm on'), `runSwarmCommand('on') failed in src/commands/swarm/swarm.ts: ${swarmOnText}`)
 const board = seam.swarmStore()!
 const seats = (): string[] => board.seats().filter(seat => seat.agent !== 'main').map(seat => `${seat.name}=${seat.agent}:${seat.state}`)
 const RUNNING = (name: string): string => `A seat named ${name} is running on this board; stop it, or launch this one under another name.`

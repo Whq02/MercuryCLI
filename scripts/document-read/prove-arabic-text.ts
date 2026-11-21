@@ -37,7 +37,7 @@ try {
   const { getToolResultsDir } = await import('../../src/utils/toolResultStorage.ts')
   const cache = readdirSync(getToolResultsDir()).find(file => file.startsWith('pdf-text-'))!
   const cached = JSON.parse(readFileSync(join(getToolResultsDir(), cache), 'utf8'))
-  assert.ok(cached.pages[0].rawText.includes('ـ'))
+  assert.ok(cached.pages[0].rawText.includes('ـ'), `cached pdf-text rawText lost tatweel character in src/utils/pdfText.ts: ${cached.pages[0].rawText}`)
   assert.equal((await extractPdfText(path)).pages[0]!.text, extracted.pages[0]!.text)
   const { zipSync, strToU8 } = await import('fflate')
   writeFileSync(join(home, 'fixture.docx'), zipSync({ 'word/document.xml': strToU8(`<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>${marked}</w:t></w:r></w:p></w:body></w:document>`) }))
@@ -47,10 +47,11 @@ try {
   const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
   const context = { abortController: new AbortController(), options: {}, getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) } as never
   const result = await runWithCwdOverride(home, () => GrepTool.call({ path: home, pattern: marked, literal: true, output_mode: 'content', glob: '*.docx' }, context))
-  assert.ok(JSON.stringify(result.data).includes(quote))
+  const grepJson = JSON.stringify(result.data)
+  assert.ok(grepJson.includes(quote), `GrepTool on Arabic docx missed normalised quote in src/tools/GrepTool/GrepTool.ts: ${grepJson.slice(0, 200)}`)
   mock.module('../../src/tools/WebFetchTool/utils.js', () => ({ getURLMarkdownContent: async () => ({ content: marked, contentType: 'text/html', code: 200, codeText: 'OK', bytes: Buffer.byteLength(marked) }), isPreapprovedUrl: () => true, applyPromptToMarkdown: async () => { throw new Error('no model call') } }))
   const { WebFetchTool } = await import('../../src/tools/WebFetchTool/WebFetchTool.ts')
   const fetched = await WebFetchTool.call({ url: 'https://example.org/fixture' }, context)
-  assert.ok(fetched.data.result.includes(quote))
+  assert.ok(fetched.data.result.includes(quote), `WebFetchTool result missed normalised Arabic quote in src/tools/WebFetchTool/WebFetchTool.ts: ${fetched.data.result.slice(0, 200)}`)
   console.log('PASS Arabic PDF logical order, raw cache, tatweel and NFKC, document quote matching and fetched text')
 } finally { rmSync(home, { recursive: true, force: true }) }

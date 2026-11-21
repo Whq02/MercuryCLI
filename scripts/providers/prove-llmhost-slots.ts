@@ -419,7 +419,7 @@ try {
   for (let i = 0; i < 8; i++) {
     const userB = createUserMessage({ content: `other conversation ${i}` })
     const replies = await runTurn(llamaId, [userB], { agentId: `agent-${i}` })
-    assert.ok(replies.length > 0 && replies.every(row => !row.isApiErrorMessage))
+    assert.ok(replies.length > 0 && replies.every(row => !row.isApiErrorMessage), `src/services/providers/callModelRouter.ts crewmate agent-${i} llamacpp slot turn failed: len=${replies.length}`)
     const body = captures.at(-1)!.body
     if (typeof body.id_slot === 'number') {
       crewSlots.push(body.id_slot)
