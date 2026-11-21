@@ -2,7 +2,7 @@ import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { useDerivedState, useLoad, usePublish, useTimer } from '../../hooks/effects.js';
+import { useLoad, usePublish, useTimer } from '../../hooks/effects.js';
 import { packHints } from '../../components/mercury-ui/geometry.js';
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js';
 import { currentSurfaceRoute } from '../../context/surfaceRoute.js';
@@ -277,19 +277,25 @@ export function useChatSearch({
     const timer = startTimeout(() => setEditorStatus(null), EDITOR_STATUS_MS);
     return () => stopTimeout(timer);
   }, [editorStatus]);
-  const lastColumnsRef = useRef(columns);
-  useDerivedState(() => {
-    if (lastColumnsRef.current === columns) return;
-    lastColumnsRef.current = columns;
+  const [prevColumns, setPrevColumns] = useState(columns);
+  const [columnResetSeq, setColumnResetSeq] = useState(0);
+  if (prevColumns !== columns) {
+    setPrevColumns(columns);
     if (searchBarOpen || committedSearchQuery !== '') {
       setSearchBarOpen(false);
       setCommittedSearchQuery('');
       setSearchMatchCount(null);
       setSearchMatchCurrent(0);
-      jumpRef.current?.disarmSearch();
-      setHighlight('');
+      setColumnResetSeq(seq => seq + 1);
     }
-  }, [columns, searchBarOpen, committedSearchQuery, setHighlight]);
+  }
+  const lastColumnResetSeqRef = useRef(0);
+  usePublish(() => {
+    if (columnResetSeq === lastColumnResetSeqRef.current) return;
+    lastColumnResetSeqRef.current = columnResetSeq;
+    jumpRef.current?.disarmSearch();
+    setHighlight('');
+  }, [columnResetSeq, setHighlight]);
 
   const openTranscriptInEditor = useCallback(() => {
     if (editorInFlightRef.current) return;
