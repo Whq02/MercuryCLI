@@ -14,6 +14,42 @@ function stable<T>(name: string, read: () => T): T {
   return first
 }
 
+async function checkClockAndScroll(): Promise<void> {
+  const { lastClockTick, subscribeUiClock } = await import('../../src/utils/cockpit/uiClock.js')
+  const stopClock = subscribeUiClock(1000, () => {})
+  try { stable('active UI cadence', () => lastClockTick(1000)) } finally { stopClock() }
+  const { createElement, createRef } = await import('react')
+  const { default: ScrollBox } = await import('../../src/ink/components/ScrollBox.js')
+  const { default: Text } = await import('../../src/ink/components/Text.js')
+  const { mountOffscreen, waitFor } = await import('../lib/settingsPopupHarness.ts')
+  const ref = createRef<import('../../src/ink/components/ScrollBox.js').ScrollBoxHandle>()
+  const stage = await mountOffscreen(createElement(ScrollBox, { ref, height: 3, flexDirection: 'column' }, ...Array.from({ length: 12 }, (_, i) => createElement(Text, { key: i }, String(i)))), 60, 12)
+  try {
+    assert.ok(await waitFor(() => ref.current !== null, 1000), 'the recorded pane must mount its scroll handle')
+    const pane = ref.current!
+    const read = () => `${pane.getScrollTop()}:${pane.getPendingDelta()}`
+    const before = stable('mounted pane', read)
+    pane.scrollBy(2)
+    assert.notEqual(stable('pane with pending scroll', read), before)
+  } finally { stage.unmount() }
+}
+
+async function checkRunReads(): Promise<void> {
+  const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
+  const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.js')
+  const { acceptUserRequest, getRunSnapshot, subscribeRuns } = await import('../../src/services/run/runCoordinator.js')
+  const owner = makeOwnerKey({ workspace: home, sessionId: 'snapshot', lane: 'main' })
+  const read = () => getRunSnapshot(owner)
+  assert.equal(stable('run before request', read), null)
+  let updates = 0
+  const stop = subscribeRuns(changed => { if (changed === owner) updates++ })
+  try {
+    const snapshot = acceptUserRequest(owner, { objective: 'test', rootMessageId: null })
+    assert.equal(updates, 1)
+    assert.equal(stable('run after request', read), snapshot)
+  } finally { stop(); await disposeOwner(owner) }
+}
+
 async function checkTileReads(): Promise<void> {
   const { LiveTileStore, TILE_BUDGET_MS_PER_S } = await import('../../src/components/concourse/liveTiles.js')
   let clock = 1_000_000
@@ -84,6 +120,8 @@ try {
   process.env.MERCURY_DAEMON_DIR = join(home, 'daemon')
   await checkTileReads()
   await checkSessionReads()
+  await checkRunReads()
+  await checkClockAndScroll()
   const { createStore } = await import('../../src/state/store.js')
   const { signInLedgerEpoch, subscribeSignInEpoch, noteCredentialChange } = await import('../../src/utils/accounts/signInLedger.js')
   const limits = await import('../../src/services/anthropicLimits.js')
