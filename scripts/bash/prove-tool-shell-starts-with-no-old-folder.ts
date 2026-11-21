@@ -14,6 +14,7 @@ process.env.OLDPWD = home
 
 const { toolShellEnv } = await import('../../src/utils/subprocessEnv.js')
 const { exec, setCwd } = await import('../../src/utils/Shell.js')
+const { endEngineSessionFor, resolveShellEngine, runEngineCommand } = await import('../../src/utils/shell/engineSession.js')
 setCwd(proj)
 
 let passed = 0
@@ -64,6 +65,44 @@ try {
 
   const realReturn = await run(`cd ${home}; cd -; pwd`)
   check('a real return (cd <home>; cd -; pwd) still returns to the project', lastLine(realReturn.stdout) === proj, `stdout=${JSON.stringify(realReturn.stdout)} expected=${JSON.stringify(proj)}`)
+
+  const engine = resolveShellEngine('brush')
+  check('the bundled shell engine is available for session checks', engine.engine === 'brush', engine.engine === 'brush' ? engine.binaryPath : engine.reason)
+  if (engine.engine === 'brush') {
+    const owner = 'proof-tool-shell-oldpwd'
+    const runEngine = async (command: string, cwd: string): Promise<{ stdout: string; stderr: string; code: number }> => {
+      const cmd = runEngineCommand(engine.binaryPath, command, {
+        timeout: 20_000,
+        signal: new AbortController().signal,
+        cwd,
+        owner,
+      })
+      const result = await cmd.result
+      return {
+        stdout: String(result.stdout ?? '').trim(),
+        stderr: String(result.stderr ?? '').trim(),
+        code: result.code,
+      }
+    }
+    try {
+      const enterHome = await runEngine(`cd ${home}; pwd`, proj)
+      check('engine call 1 enters the scratch home', lastLine(enterHome.stdout) === home, `stdout=${JSON.stringify(enterHome.stdout)} expected=${JSON.stringify(home)}`)
+
+      const secondCallReturn = await runEngine('cd -; pwd', proj)
+      check('engine call 2 starts with no OLDPWD from call 1 (cd -; pwd prints project)', lastLine(secondCallReturn.stdout) === proj, `stdout=${JSON.stringify(secondCallReturn.stdout)} expected=${JSON.stringify(proj)}`)
+
+      const pushHome = await runEngine(`pushd ${home} >/dev/null; pushd ${proj} >/dev/null; pwd`, proj)
+      check('engine call 3 leaves the scratch home on the folder stack', lastLine(pushHome.stdout) === proj, `stdout=${JSON.stringify(pushHome.stdout)} expected=${JSON.stringify(proj)}`)
+
+      const secondCallPopd = await runEngine('popd; pwd', proj)
+      check('engine call 4 starts with an empty folder stack (popd; pwd prints project)', lastLine(secondCallPopd.stdout) === proj, `stdout=${JSON.stringify(secondCallPopd.stdout)} expected=${JSON.stringify(proj)}`)
+
+      const engineRealReturn = await runEngine(`cd ${home}; cd -; pwd`, proj)
+      check('engine single-call real return (cd <home>; cd -; pwd) still returns to the project', lastLine(engineRealReturn.stdout) === proj, `stdout=${JSON.stringify(engineRealReturn.stdout)} expected=${JSON.stringify(proj)}`)
+    } finally {
+      await endEngineSessionFor(owner)
+    }
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
