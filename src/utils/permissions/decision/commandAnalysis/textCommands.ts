@@ -1,4 +1,4 @@
-import { layersOf, moveOf, programOf } from './layers.js'
+import { layersOf, programOf } from './layers.js'
 import { UNREAD_PART, type ReadRedirect, type Stage } from './reading.js'
 import { POSIX_SHELLS, ansiC, printedBy, readsStdin } from './scripts.js'
 import { commentStart, dropHeredocBodies, foldContinuations, lexShellUnit } from './textReader.js'
