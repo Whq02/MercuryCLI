@@ -59,8 +59,8 @@ assert.ok(bothRun.sequence.includes(words), `performWebSearch carries the native
 const bothRendered = renderFromRun('xAI grok-4.8 release date', bothRun)
 assert.equal(bothRendered.hits.length, 1)
 assert.equal(bothRendered.hits[0]?.url, hit.url)
-assert.ok(bothRendered.notes.includes('via Anthropic web search (native)'))
-assert.ok(bothRendered.notes.includes('Unverified web text; cite relevant URLs as markdown links.'))
+assert.ok(bothRendered.notes.includes('via Anthropic web search (native)'), `WebSearchTool rendered notes must include via Anthropic web search (native): ${JSON.stringify(bothRendered.notes)}`)
+assert.ok(bothRendered.notes.includes('Unverified web text; cite relevant URLs as markdown links.'), `WebSearchTool rendered notes must include citation guidance: ${JSON.stringify(bothRendered.notes)}`)
 assert.ok(bothRendered.notes.includes(`Anthropic web search answer, the provider's own words, unverified: ${words}`), `the provider's answer reaches the model through performWebSearch: ${JSON.stringify(bothRendered.notes)}`)
 
 const cachedRun = await performWebSearch(
@@ -114,9 +114,9 @@ assert.equal(wordsOnlyRun.via, 'anthropic-native')
 assert.equal(wordsOnlyRun.hits.length, 0)
 const wordsOnlyRendered = renderFromRun('words only query', wordsOnlyRun)
 assert.equal(wordsOnlyRendered.hits.length, 0)
-assert.ok(wordsOnlyRendered.notes.includes('via Anthropic web search (native)'))
-assert.ok(wordsOnlyRendered.notes.includes('Unverified web text; cite relevant URLs as markdown links.'))
-assert.ok(wordsOnlyRendered.notes.includes(`Anthropic web search answer, the provider's own words, unverified: ${words}`))
+assert.ok(wordsOnlyRendered.notes.includes('via Anthropic web search (native)'), `words-only native answer notes must include via Anthropic web search (native): ${JSON.stringify(wordsOnlyRendered.notes)}`)
+assert.ok(wordsOnlyRendered.notes.includes('Unverified web text; cite relevant URLs as markdown links.'), `words-only native answer notes must include citation guidance: ${JSON.stringify(wordsOnlyRendered.notes)}`)
+assert.ok(wordsOnlyRendered.notes.includes(`Anthropic web search answer, the provider's own words, unverified: ${words}`), `words-only native answer notes must preserve provider commentary: ${JSON.stringify(wordsOnlyRendered.notes)}`)
 assert.ok(!wordsOnlyRendered.notes.some(note => note.includes('No source answered') || note.includes('found no matching links')), `words-alone native answer never reads as no-backend: ${JSON.stringify(wordsOnlyRendered.notes)}`)
 
 resetSearchPacing()
@@ -138,11 +138,11 @@ const hitsOnlyRun = await performWebSearch(
     },
   },
 )
-assert.ok(hitsOnlyRun.sequence.every(entry => typeof entry !== 'string'))
+assert.ok(hitsOnlyRun.sequence.every(entry => typeof entry !== 'string'), 'hits-only native run in src/services/search/searchDoor.js must emit no string commentary entries')
 const hitsOnlyRendered = renderFromRun('hits only query', hitsOnlyRun)
 assert.equal(hitsOnlyRendered.hits.length, 1)
-assert.ok(hitsOnlyRendered.notes.includes('via OpenAI web search (native)'))
-assert.ok(hitsOnlyRendered.notes.includes('Unverified web text; cite relevant URLs as markdown links.'))
+assert.ok(hitsOnlyRendered.notes.includes('via OpenAI web search (native)'), `hits-only native answer notes must include via OpenAI web search (native): ${JSON.stringify(hitsOnlyRendered.notes)}`)
+assert.ok(hitsOnlyRendered.notes.includes('Unverified web text; cite relevant URLs as markdown links.'), `hits-only native answer notes must include citation guidance: ${JSON.stringify(hitsOnlyRendered.notes)}`)
 assert.ok(!hitsOnlyRendered.notes.some(note => note.includes("provider's own words")), `hits-only native answer invents no commentary note: ${JSON.stringify(hitsOnlyRendered.notes)}`)
 
 resetSearchPacing()
@@ -175,6 +175,6 @@ const emptyNativeWalk = await performWebSearch(
 )
 assert.equal(braveKnocks, 1, 'when the native door gives neither hits nor words, the cascade walks on')
 assert.equal(emptyNativeWalk.via, 'brave')
-assert.ok(emptyNativeWalk.notes.some(note => note.includes('Anthropic web search found no matching links')))
+assert.ok(emptyNativeWalk.notes.some(note => note.includes('Anthropic web search found no matching links')), `empty native fallthrough in src/services/search/searchDoor.js must note "Anthropic web search found no matching links": ${JSON.stringify(emptyNativeWalk.notes)}`)
 
 console.log('PASS native search answer through performWebSearch: words + hits, cache replay, words alone, hits alone, and empty fallthrough')

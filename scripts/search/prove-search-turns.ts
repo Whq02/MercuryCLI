@@ -11,7 +11,7 @@ const gate = new Promise<void>(r => { release = r })
 const first = withSearchTurn('npm', policy, clock, undefined, async wait => { assert.equal(wait, 0); starts.push(now); started(); await gate; return 'first' })
 await entered
 const abort = new AbortController()
-const second = withSearchTurn('npm', policy, clock, abort.signal, async () => { assert.ok(abort.signal.aborted); return 'cancelled' })
+const second = withSearchTurn('npm', policy, clock, abort.signal, async () => { assert.ok(abort.signal.aborted, 'withSearchTurn in src/services/search/searchPacing.js must invoke cancelled waiter only after abort'); return 'cancelled' })
 const third = withSearchTurn('npm', policy, clock, undefined, async wait => { assert.equal(wait, 0); starts.push(now); return 'third' })
 abort.abort()
 assert.equal(await second, 'cancelled')

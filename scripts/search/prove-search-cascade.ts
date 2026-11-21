@@ -54,7 +54,7 @@ try {
     assert.equal(seen.length, perSearch)
     if (perSearch === 2) {
       assert.match(seen[1]!.url, source === 'stackexchange' ? /^\/2\.3\/questions\/42\?.*filter=withbody/ : /^\/api\/v1\/search\?tags=comment%2C%28story_42%29/)
-      assert.ok(seen[1]!.at - seen[0]!.at >= 1000)
+      assert.ok(seen[1]!.at - seen[0]!.at >= 1000, `officialSearch(${source}) in src/services/search/officialSearch.js must pace excerpt request >=1000ms after search (got ${seen[1]!.at - seen[0]!.at}ms)`)
       assert.ok(run.notes.includes('excerpts fetched for 0 hits'), JSON.stringify(run.notes))
     }
     assert.match(seen[0]!.ua, /^Mercury\/proof \(\+https:\/\/mercury-cli.ai;/)
@@ -62,8 +62,8 @@ try {
     assert.deepEqual(Object.keys(run.hits[0]).sort(), ['snippet', 'source_type', 'title', 'url'])
     assert.equal(run.hits[0].source_type, source)
     const mapped = mapSearchResult({ query: queries[source], durationSeconds: 0, via: run.via, tier: run.tier, results: [{ tool_use_id: 'g', content: run.hits }], notes: run.notes }, 't')
-    assert.ok(Buffer.byteLength(mapped.content) < 2000)
-    assert.ok(!mapped.content.includes('fixture-only-token'))
+    assert.ok(Buffer.byteLength(mapped.content) < 2000, `mapSearchResult(${source}) in src/tools/WebSearchTool/searchOutput.js must stay under 2000 bytes (got ${Buffer.byteLength(mapped.content)})`)
+    assert.ok(!mapped.content.includes('fixture-only-token'), `mapSearchResult(${source}) in src/tools/WebSearchTool/searchOutput.js must never leak auth token`)
     assert.equal(decodeOfficialSearch(source, { wrong: [] }), undefined)
     if (source !== 'github') {
       const again = await officialSearch(source, intent.words, { query: queries[source] }, io)
@@ -72,7 +72,7 @@ try {
     const second = await officialSearch(source, `${intent.words}-other`, { query: `${queries[source]}-other` }, io)
     assert.equal(second.ok, true)
     assert.equal(seen.length, perSearch * 2)
-    assert.ok(seen[perSearch]!.at - seen[perSearch - 1]!.at >= (source === 'github' ? 6000 : 1000))
+    assert.ok(seen[perSearch]!.at - seen[perSearch - 1]!.at >= (source === 'github' ? 6000 : 1000), `officialSearch(${source}) in src/services/search/searchPacing.js must pace consecutive searches >=${source === 'github' ? 6000 : 1000}ms (got ${seen[perSearch]!.at - seen[perSearch - 1]!.at}ms)`)
     pacing.resetSearchPacing(); body = { unexpected: true }
     const malformed = await officialSearch(source, intent.words, { query: queries[source] }, io)
     assert.equal(malformed.ok, false)
@@ -88,7 +88,7 @@ try {
       const before = seen.length
       const refusal = await officialSearch(source, intent.words, { query: queries[source] }, io)
       assert.equal(refusal.ok, false)
-      assert.ok(pacing.coolDownRemainingMs(source, now) >= 90_000)
+      assert.ok(pacing.coolDownRemainingMs(source, now) >= 90_000, `searchPacing in src/services/search/searchPacing.js must enforce >=90000ms cooldown after GitHub 403 Retry-After: 90 (got ${pacing.coolDownRemainingMs(source, now)}ms)`)
       await officialSearch(source, intent.words, { query: queries[source] }, io)
       assert.equal(seen.length, before + 1)
       const missing = await officialSearch(source, intent.words, { query: queries[source] }, { ...io, env: {} })
@@ -105,7 +105,7 @@ try {
     if (source === 'stackexchange') {
       pacing.resetSearchPacing(); body = { ...bodies.stackexchange, backoff: 75 }
       assert.equal((await officialSearch(source, 'backoff', { query: 'backoff' }, io)).ok, true)
-      assert.ok(pacing.coolDownRemainingMs(source, now) >= 75_000)
+      assert.ok(pacing.coolDownRemainingMs(source, now) >= 75_000, `searchPacing in src/services/search/searchPacing.js must enforce >=75000ms cooldown for Stack Exchange backoff: 75 (got ${pacing.coolDownRemainingMs(source, now)}ms)`)
     }
     console.log(`PASS ${source}: fixture API, route, exact fields, UA, pacing, domains and malformed response`)
   }
