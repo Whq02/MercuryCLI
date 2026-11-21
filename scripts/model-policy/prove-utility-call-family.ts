@@ -26,7 +26,7 @@ async function main(): Promise<void> {
   delete process.env.MERCURY_MODEL
   delete process.env.MERCURY_EFFORT_LEVEL
 
-  const { floorEffort, utilityCallFor } = await import('../../src/utils/model/utilityModel.js')
+  const { floorEffort, utilityCallFor } = await import('../../src/services/model/utilityModel.js')
   const { openaiLightChoice } = await import('../../src/services/model/providerFrontier.js')
   const { __resetOpenaiCatalogueForTest, refreshOpenaiCatalogue } = await import('../../src/services/providers/openai/openaiCatalogue.js')
   const { parseGptModelId } = await import('../../src/utils/model/pins/gptPins.js')

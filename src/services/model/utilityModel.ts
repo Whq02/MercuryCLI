@@ -1,11 +1,11 @@
-import { WIRE_EFFORT_RANK } from './pins/gptPins.js'
-import { declaredRouteOf } from '../../services/providers/routeLaw.js'
-import type { EffortValue } from '../effort.js'
-import { EFFORT_LEVELS, type EffortLevel } from '../effortLadder.js'
-import type { ThinkingConfig } from '../thinking.js'
-import { effortVocabularyFor } from './capabilities.js'
-import { getEngineModel } from './model.js'
-import { passedOver } from '../passedOver.js'
+import { WIRE_EFFORT_RANK } from '../../utils/model/pins/gptPins.js'
+import { declaredRouteOf } from '../providers/routeLaw.js'
+import type { EffortValue } from '../../utils/effort.js'
+import { EFFORT_LEVELS, type EffortLevel } from '../../utils/effortLadder.js'
+import type { ThinkingConfig } from '../../utils/thinking.js'
+import { effortVocabularyFor } from '../../utils/model/capabilities.js'
+import { getEngineModel } from '../../utils/model/model.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export interface UtilityCall {
   model: string
@@ -31,7 +31,7 @@ export function floorEffort(vocabulary: readonly string[]): string | undefined {
 
 function servingLocalHelper(): string | undefined {
   try {
-    const { helperModelId } = require('../../services/providers/local/tensorfoldHelper.js') as typeof import('../../services/providers/local/tensorfoldHelper.js')
+    const { helperModelId } = require('../providers/local/tensorfoldHelper.js') as typeof import('../providers/local/tensorfoldHelper.js')
     return helperModelId()
   } catch (error) {
     passedOver(error)
