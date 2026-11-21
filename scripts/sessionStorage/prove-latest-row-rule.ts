@@ -12,7 +12,7 @@ const { findLatestMessage } = await import('../../src/utils/sessionStorage/chain
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + ' — ' : '') + 'change findLatestMessage in src/utils/sessionStorage/chain.ts so the latest accepted row wins by parsed stamp, walking the iterable once' : ''}`)
 }
 
 type Row = { uuid: string; timestamp: string; kind?: string }

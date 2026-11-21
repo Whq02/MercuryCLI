@@ -8,7 +8,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — change hasMarkdownMarkers in src/utils/markdown.ts so the gate opens exactly for text that marked lexes to styled tokens`)
   }
 }
 

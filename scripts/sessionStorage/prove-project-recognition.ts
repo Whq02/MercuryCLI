@@ -11,7 +11,7 @@ mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + 'make the board (inProject in src/utils/bootCardFacts.ts) and the picker (isProjectSession in src/utils/sessionFilter.ts) agree on which sessions belong to the project' : ''}`)
 }
 
 const { inProject, projectIdentity, catalogFirstChat, _resetProjectCatalogForTesting } = await import(

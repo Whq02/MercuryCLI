@@ -16,7 +16,7 @@ const ok = await import('../../src/utils/run/ownerKey.js')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}change src/services/run/contextSelection.ts (candidate index, exclusions, overflow) or buildRequestContextPlan in src/services/run/requestContextPlan.ts so this check holds` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

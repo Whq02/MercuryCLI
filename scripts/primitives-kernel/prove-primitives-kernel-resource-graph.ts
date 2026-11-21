@@ -23,6 +23,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   } else {
     fail++
     console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`)
+    console.log('       fix: resolveResource in src/services/resources/registry.ts dispatches to the adapters src/services/resources/adapters/owner.ts, execution.ts and service.ts (children, state and version come from there); the service itself starts in src/services/projectServices/serviceManager.ts')
   }
 }
 

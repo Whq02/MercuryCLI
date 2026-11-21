@@ -35,7 +35,7 @@ mark('§1')
   }
   for (let i = 0; i < tokens.length; i += 2) popOverlay(tokens[i]!)
   for (let i = 1; i < tokens.length; i += 2) popOverlay(tokens[i]!)
-  check('§1 overlay stack empty after 40 interleaved lifecycles', !anyOverlayActive())
+  check('§1 overlay stack empty after 40 interleaved lifecycles', !anyOverlayActive(), anyOverlayActive() ? 'an overlay stayed active after every token was popped; check popOverlay in src/context/overlayStack.ts removes the entry for its token' : '')
 }
 
 mark('§2')
@@ -45,7 +45,7 @@ mark('§2')
     for (const u of unsubs) u()
   }
   const stats = uiClockStatsForProofs()
-  check('§2 zero clock buckets after 30 mixed rounds', Object.keys(stats).length === 0, JSON.stringify(stats))
+  check('§2 zero clock buckets after 30 mixed rounds', Object.keys(stats).length === 0, `${JSON.stringify(stats)}${Object.keys(stats).length === 0 ? '' : ' (a clock bucket survived its unsubscribes; check the unsubscribe returned by subscribeUiClock in src/utils/cockpit/uiClock.ts deletes an emptied bucket)'}`)
 }
 
 

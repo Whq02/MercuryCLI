@@ -22,6 +22,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   } else {
     fail++
     console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`)
+    console.log('       fix: transaction states and refusals live in beginTransaction and transitionTransaction in src/services/primitives/transactionPlane.ts (TransactionTransitionError in transaction.ts beside it); a tool result becomes a receipt and transaction through observeToolTerminal in src/utils/run/effectObserver.ts; owner disposal is disposeOwner in src/utils/run/ownerLifecycle.ts')
   }
 }
 

@@ -21,7 +21,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — tool round totality exceeded 180s')
+  console.log('\nTIMEOUT — tool round totality exceeded 180s: a round never settled; look at runTools in src/services/tools/toolOrchestration.ts for a tool_use block that is never answered')
   process.exit(1)
 }, 180_000)
 watchdog.unref?.()
@@ -155,7 +155,7 @@ console.log('── 1. the executor is total over hostile blocks ──')
   for (const h of hostile) {
     const id = `tu_hostile_${++i}`
     const r = await round([{ id, name: h.name, input: h.input }], baseTools)
-    t(`${h.label}: settles exactly one tool_result, never throws`, r.threw === undefined && answeredOnce(r.results, [id]), `threw=${r.threw ?? 'no'} results=${r.results.map(x => x.id).join(',')}`)
+    t(`${h.label}: settles exactly one tool_result, never throws`, r.threw === undefined && answeredOnce(r.results, [id]), `threw=${r.threw ?? 'no'} results=${r.results.map(x => x.id).join(',')}. Change runTools in src/services/tools/toolOrchestration.ts so this block settles exactly one tool_result and never throws.`)
     const only = r.results[0]
     if (only && only.isError) {
       t(`${h.label}: the refusal names a reason`, only.text.length > 0 && only.text !== '<tool_use_error></tool_use_error>', only.text.slice(0, 80))
@@ -168,17 +168,17 @@ console.log('── 1. the executor is total over hostile blocks ──')
     ],
     baseTools,
   )
-  t('two blocks under one id: both settle, the round never rejects', dup.threw === undefined && dup.results.length === 2 && dup.results.every(r => r.id === 'tu_dup'), `threw=${dup.threw ?? 'no'} results=${dup.results.length}`)
+  t('two blocks under one id: both settle, the round never rejects', dup.threw === undefined && dup.results.length === 2 && dup.results.every(r => r.id === 'tu_dup'), `threw=${dup.threw ?? 'no'} results=${dup.results.length}. Change runTools in src/services/tools/toolOrchestration.ts so two blocks under one id both settle.`)
   const ids = hostile.map((_, k) => `tu_par_${k}`)
   const par = await round(hostile.map((h, k) => ({ id: ids[k]!, name: h.name, input: h.input })), baseTools)
-  t('the whole hostile family in ONE round: every id answered exactly once, no rejection', par.threw === undefined && answeredOnce(par.results, ids), `threw=${par.threw ?? 'no'} answered=${par.results.length}/${ids.length}`)
+  t('the whole hostile family in ONE round: every id answered exactly once, no rejection', par.threw === undefined && answeredOnce(par.results, ids), `threw=${par.threw ?? 'no'} answered=${par.results.length}/${ids.length}. Change runTools in src/services/tools/toolOrchestration.ts so every id in one round is answered once; run the single-block checks above to find the block that fails.`)
 }
 
 console.log('── 2. result bytes are total ──')
 {
   const r = await round([{ id: 'tu_bytes', name: 'Bash', input: { command: "printf 'A\\033[2J\\007\\000B\\r\\n'; head -c 200000 /dev/zero | tr '\\0' 'y'" } }], baseTools)
-  t('a result carrying control bytes, NUL and 200k bytes settles as one ordinary tool_result', r.threw === undefined && answeredOnce(r.results, ['tu_bytes']) && !r.results[0]!.isError, `threw=${r.threw ?? 'no'} err=${String(r.results[0]?.isError)} ${r.results[0]?.text.slice(0, 60)}`)
-  t('…and the transcript row carries the bytes (the escape did not eat the result)', (r.results[0]?.text ?? '').includes('B') && (r.results[0]?.text.length ?? 0) > 1000, String(r.results[0]?.text.length))
+  t('a result carrying control bytes, NUL and 200k bytes settles as one ordinary tool_result', r.threw === undefined && answeredOnce(r.results, ['tu_bytes']) && !r.results[0]!.isError, `threw=${r.threw ?? 'no'} err=${String(r.results[0]?.isError)} ${r.results[0]?.text.slice(0, 60)}. Change runTools in src/services/tools/toolOrchestration.ts so a result with control bytes settles as an ordinary tool_result.`)
+  t('…and the transcript row carries the bytes (the escape did not eat the result)', (r.results[0]?.text ?? '').includes('B') && (r.results[0]?.text.length ?? 0) > 1000, `${String(r.results[0]?.text.length)}. Change runTools in src/services/tools/toolOrchestration.ts so the result bytes reach the transcript row and are not cut by the control bytes.`)
 }
 
 console.log('── 3. a cancelled round answers every id ──')
@@ -221,8 +221,8 @@ console.log('── 3. a cancelled round answers every id ──')
     const tools = [slow('SlowTool', safe)]
     const ids = ['tu_c1', 'tu_c2', 'tu_c3']
     const r = await round(ids.map(id => ({ id, name: 'SlowTool', input: { text: id } })), tools, 60)
-    t(`${label}: an abort mid-round still answers every id exactly once`, r.threw === undefined && answeredOnce(r.results, ids), `threw=${r.threw ?? 'no'} answered=${r.results.map(x => x.id).join(',')}`)
-    t(`${label}: every answer is error-shaped (nothing claims success after the abort)`, r.results.every(x => x.isError), r.results.map(x => `${x.id}:${x.isError}`).join(','))
+    t(`${label}: an abort mid-round still answers every id exactly once`, r.threw === undefined && answeredOnce(r.results, ids), `threw=${r.threw ?? 'no'} answered=${r.results.map(x => x.id).join(',')}. Change runTools in src/services/tools/toolOrchestration.ts so an abort mid-round still answers every id once.`)
+    t(`${label}: every answer is error-shaped (nothing claims success after the abort)`, r.results.every(x => x.isError), `${r.results.map(x => `${x.id}:${x.isError}`).join(',')}. Change runTools in src/services/tools/toolOrchestration.ts so every answer after an abort is an error result.`)
   }
 }
 
@@ -271,7 +271,7 @@ console.log('── 4. render-path totality over the reachable hostile family �
       }
     }
   }
-  t('no built-in render-path hook throws on the reachable hostile family', throws.length === 0, `${throws.length} throws: ${throws.slice(0, 6).join(' | ')}`)
+  t('no built-in render-path hook throws on the reachable hostile family', throws.length === 0, `${throws.length} throws: ${throws.slice(0, 6).join(' | ')}. Each throw names Tool.hook(input); make that hook in the tool named (its file under src/tools/) total over the hostile input.`)
   if (throws.length > 0) for (const line of throws) console.log(`    ${line}`)
 }
 

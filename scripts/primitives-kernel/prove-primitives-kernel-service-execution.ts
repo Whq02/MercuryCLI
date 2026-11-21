@@ -32,6 +32,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   } else {
     fail++
     console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`)
+    console.log('       fix: the service record is written in src/services/projectServices/serviceManager.ts (startService, restartService, stopService, reconcileRecord) and mirrored into the execution plane by projectServiceExecution in src/services/projectServices/executionProjection.ts; make the two agree there (serviceExecutionDrift compares them)')
   }
 }
 

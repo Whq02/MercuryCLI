@@ -38,7 +38,7 @@ let failed = 0
 let skipped = 0
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)} | to fix, make the instruction file reader in src/services/instructions/discovery.ts (the stat isFile checks) pass over a named pipe instead of opening it, so getInstructionFiles in src/services/instructions/engine.ts answers and still loads the regular file beside it` : ''}`)
 }
 
 const WIN = process.platform === 'win32'

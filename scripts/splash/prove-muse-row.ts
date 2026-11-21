@@ -9,7 +9,7 @@ const { MODEL_NAMES } = await import(join(root, 'assets/splash/splash-core.mjs')
 const source = readFileSync(join(root, 'assets/splash/mercury-splash.mjs'), 'utf8')
 const fn = /function computeModelLabel\(\) \{[\s\S]*?\n\}/.exec(source)?.[0]
 let count = 0
-const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
+const check = (name: string, value: unknown): void => { assert.ok(value, `${name} - change MODEL_NAMES in assets/splash/splash-core.mjs to match META_DISPLAY_PINS in src/utils/model/pins/metaPins.ts, or computeModelLabel in assets/splash/mercury-splash.mjs`); count++; console.log(`[PASS] ${name}`) }
 try {
   for (const pin of META_DISPLAY_PINS) check(`the splash derives ${pin.id} from the dated name owner`, MODEL_NAMES[pin.id] === pin.displayName)
   check('the unresolved family word stays Muse, never a speculative account model', MODEL_NAMES.muse === 'Muse')

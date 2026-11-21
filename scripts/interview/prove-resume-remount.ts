@@ -17,6 +17,18 @@ const { flushInterviewLog, interviewSnapshot, _resetInterviewForProofs } = await
 )
 
 const t = checker()
+let failHint = ''
+const baseCheck = t.check.bind(t)
+const baseSection = t.section.bind(t)
+t.check = (label, cond, detail) => baseCheck(label, cond, cond ? detail : detail ? `${detail} — ${failHint}` : failHint)
+t.section = title => {
+  if (title.startsWith('§1') || title.startsWith('§3') || title.startsWith('§4') || title.startsWith('§5')) {
+    failHint = 'fix presentToolCall in src/services/interview/controller.ts (the join and adopt branch, which calls adoptDurableSessionSync in src/services/interview/store.ts)'
+  } else if (title.startsWith('§2')) {
+    failHint = 'fix adoptDurableSessionSync in src/services/interview/store.ts (the durable session replay) or presentToolCall in src/services/interview/controller.ts'
+  }
+  baseSection(title)
+}
 
 const INPUT = {
   questions: [

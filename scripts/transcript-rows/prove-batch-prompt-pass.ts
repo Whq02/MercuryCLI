@@ -19,10 +19,12 @@ process.chdir(cwd)
 
 let failures = 0
 let checks = 0
+const batchFailureHint = 'to fix, change the batch branch (batchTail) of processUserInput in src/services/processUserInput/processUserInput.ts, or the prompt fold in planApiConversation in src/services/messages/apiPlan.ts'
 function check(label: string, condition: boolean, detail = ''): void {
   checks++
   if (!condition) failures++
-  console.log(`  [${condition ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = condition ? detail : detail ? `${detail} | ${batchFailureHint}` : batchFailureHint
+  console.log(`  [${condition ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 try {

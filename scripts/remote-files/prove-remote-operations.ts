@@ -18,7 +18,7 @@ const { fileGeneration } = await import('../../src/services/changeTransaction/se
 
 const PORT = 27062
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 300 seconds')
+  console.log('  [FAIL] the proof did not finish within 300 seconds; a remote operation in src/services/remoteFiles/ops.ts or the transport set up by scripts/remote-files/remoteKit.ts is hanging, so look at the last section printed above')
   process.exit(1)
 }, 300_000)
 watchdog.unref()
@@ -28,6 +28,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  if (!ok) console.log('     change: the remote operation this check names, in src/services/remoteFiles/ops.ts (remoteReadRange, remoteReadBytes, remoteStat, remoteList, remoteCommit, remoteRealPath, remoteAbsolutePath), so that it gives the answer the label states')
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 const at = (path: string) => parseRemotePath(`ssh://box${path.replaceAll('%', '%25')}`)!

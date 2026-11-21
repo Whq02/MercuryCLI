@@ -21,17 +21,17 @@ try {
   reordered.message.usage = Object.fromEntries(Object.entries(reply.message.usage).reverse()) as typeof reply.message.usage
   await settleTranscriptMessage(reordered)
   await getProject().flush()
-  assert.equal(records().filter(row => row.recordId === reply.uuid).length, 1, 'equivalent output is not written again when object key order changes')
+  assert.equal(records().filter(row => row.recordId === reply.uuid).length, 1, 'equivalent output is not written again when object key order changes: fix settleTranscriptMessage in src/utils/sessionStorage/writer.ts to compare the settled output independent of key order')
   reordered.message.usage = { ...reordered.message.usage, output_tokens: 77 }
   await settleTranscriptMessage(reordered)
   await getProject().flush()
   const outputs = records().filter(row => row.recordId === reply.uuid)
-  assert.equal(outputs.length, 2, 'a real settlement update remains durable')
-  assert.equal(outputs[1].updates, reply.uuid)
-  assert.equal(outputs[1].payload.usage.outputTokens, 77)
+  assert.equal(outputs.length, 2, 'a real settlement update remains durable: settleTranscriptMessage in src/utils/sessionStorage/writer.ts must write one update record when the usage changes')
+  assert.equal(outputs[1].updates, reply.uuid, 'the update record does not point at the original record: fix the record settleTranscriptMessage writes in src/utils/sessionStorage/writer.ts')
+  assert.equal(outputs[1].payload.usage.outputTokens, 77, 'the update record does not carry the changed output_tokens: fix the record settleTranscriptMessage writes in src/utils/sessionStorage/writer.ts')
   await settleTranscriptMessage(reordered)
   await getProject().flush()
-  assert.equal(records().filter(row => row.recordId === reply.uuid).length, 2)
+  assert.equal(records().filter(row => row.recordId === reply.uuid).length, 2, 'settling the same usage again wrote another record: fix settleTranscriptMessage in src/utils/sessionStorage/writer.ts to skip an unchanged settlement')
   console.log('PASS duplicate turn publication and equivalent settlement write once; changed usage keeps its update record')
 } finally {
   await getProject().flush()

@@ -47,7 +47,9 @@ const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.t
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const unifyRerun = 'rerun that one drive with MERCURY_UNIFY_ONLY set to its id prefix (for example u3) after bun run build.ts, and set MERCURY_UNIFY_CAPTURE_DIR to keep its frames'
+  const shown = cond ? detail : [detail, unifyRerun].filter(part => part !== '').join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const driver = resolveCaptureDriver()

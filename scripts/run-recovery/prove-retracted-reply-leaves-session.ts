@@ -40,10 +40,13 @@ import type { Message } from '../../src/types/message.ts'
 
 let failures = 0
 let checks = 0
+const WITHDRAWN_REPLY_FIX_HINT =
+  'what to change: the code that withdraws a cut reply (assistant_retracted in src/run-core/turn/modelReply.ts and src/run-core/turn/state.ts) so the live conversation and the next request drop it; for the resume checks, loadConversationForResume in src/services/resume/conversationRecovery.ts; for the R3 chant checks, src/services/tools/chantGuard.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  if (!cond) console.log(`    ${WITHDRAWN_REPLY_FIX_HINT}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

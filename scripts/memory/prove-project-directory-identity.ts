@@ -33,7 +33,7 @@ const spellingKey = (dir: string): string => capSanitizedName(dir.replace(/[^A-Z
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}fix how a project directory spelling picks its estate in mnemeProjectKeyFor (src/mneme/paths.ts) and resolveDirectoryIdentity (src/utils/projectStoreIdentity.ts)` : ''}`)
 }
 function treeHash(root: string): string {
   const rows: string[] = []

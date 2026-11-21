@@ -25,12 +25,13 @@ const SIZES: Array<[number, number]> = (arg('--sizes')?.split(',') ?? ['100x30',
 const PANE_ROWS = [4, 5, 6, 7, 9] as const
 const BAND_ROWS = 5
 
+const BAND_FAIL_HINT = 'change the bandFits rule (centreRows - 2 >= statusBandRows) and the status band slot in src/components/FullscreenLayout.tsx so the band paints whole or not at all'
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${BAND_FAIL_HINT}${detail ? `: ${detail}` : ''}` : ''}`)
 }
 
 const React = await import('react')

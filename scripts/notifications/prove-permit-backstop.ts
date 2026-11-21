@@ -34,12 +34,15 @@ function pinLanes(n: number | null): void {
 
 const MODEL = 'claude-opus-4-8'
 let failures = 0
+let permitFailHint = ''
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failTail = [detail, permitFailHint ? `fix: ${permitFailHint}` : ''].filter(s => s !== '').join(' · ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && failTail ? ` — ${failTail}` : ''}`)
 }
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — permit backstop exceeded 120s')
+  console.log('  a run never finished: look for a permit that is never granted or never released in acquireModelPermit and releaseModelPermitByCall (src/services/capacity/governor.ts), and in waitForModelPermit and streamModel (src/run-core/turn/streamModel.ts)')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -139,6 +142,7 @@ async function runOnce(
 console.log('permit backstop — serialization, receipts, fault release (the real core, lanes=1)')
 
 console.log('\n§1 — two concurrent runs serialize at the provider boundary')
+permitFailHint = 'the permit is taken in waitForModelPermit (src/run-core/turn/streamModel.ts) through acquireModelPermit (src/services/capacity/governor.ts); with one lane a second call must wait there, and its model_permit event must carry the wait'
 {
   gov._resetCapacityGovernorForTesting()
   pinLanes(1)
@@ -158,6 +162,7 @@ console.log('\n§1 — two concurrent runs serialize at the provider boundary')
 }
 
 console.log('\n§2 — a provider FAULT releases the permit')
+permitFailHint = 'a failed provider call must still release its permit: check the releaseModelPermitByCall calls in streamModel (src/run-core/turn/streamModel.ts) and releaseModelPermitByCall in src/services/capacity/governor.ts'
 {
   gov._resetCapacityGovernorForTesting()
   pinLanes(1)
@@ -168,6 +173,7 @@ console.log('\n§2 — a provider FAULT releases the permit')
 }
 
 console.log('\n§3 — normal completion leaks nothing')
+permitFailHint = 'a finished call must release its permit and the first call must be granted at once: check streamModel (src/run-core/turn/streamModel.ts) and acquireModelPermit (src/services/capacity/governor.ts)'
 {
   gov._resetCapacityGovernorForTesting()
   pinLanes(null)

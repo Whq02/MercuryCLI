@@ -22,15 +22,15 @@ const entries = [
   user(7, 4, 'next'),
 ]
 for (const row of entries) applyTranscriptEntry(state, row)
-assert.equal(Object.getPrototypeOf(state.messages), Map.prototype)
+assert.equal(Object.getPrototypeOf(state.messages), Map.prototype, 'the fold state messages must be a native Map: restore it in emptyFoldState in src/utils/sessionStorage/fold.ts')
 const iter = state.messages.values
 state.messages.values = () => { throw new Error('the conversation view rescanned the whole message map') }
 try {
   const chain = buildConversationChain(state.messages, state.messages.get(id(7)))
-  assert.deepEqual(chain.map((row: any) => row.uuid), [1, 2, 3, 5, 4, 6, 7].map(id))
-  assert.deepEqual([...computeResumeLeaves(state.messages)], [5, 4, 7].map(id))
+  assert.deepEqual(chain.map((row: any) => row.uuid), [1, 2, 3, 5, 4, 6, 7].map(id), 'the chain for the last prompt lost or reordered parallel results, attached notes or the receipt: fix buildConversationChain in src/utils/sessionStorage/chain.ts')
+  assert.deepEqual([...computeResumeLeaves(state.messages)], [5, 4, 7].map(id), 'the resume leaves are wrong: fix computeResumeLeaves in src/utils/sessionStorage/transcriptReader.ts, which must not scan the whole message map')
   applyTranscriptEntry(state, assistant(8, 7, 'final'))
-  assert.equal(buildConversationChain(state.messages, state.messages.get(id(8))).at(-1).uuid, id(8))
+  assert.equal(buildConversationChain(state.messages, state.messages.get(id(8))).at(-1).uuid, id(8), 'a row added after the fold is missing from the chain: fix applyTranscriptEntry in src/utils/sessionStorage/fold.ts or buildConversationChain in chain.ts')
 } finally {
   state.messages.values = iter
 }
@@ -41,7 +41,7 @@ const removed = new Map([
   [id(4), { ...stamp(4, 3), type: 'system', subtype: 'microcompact_boundary', snipMetadata: { removedUuids: [id(2)] } }],
 ])
 applySnipRemovals(removed)
-assert.equal(removed.has(id(2)), false)
-assert.equal(removed.get(id(3)).parentUuid, id(1))
-assert.equal(isTranscribable({ ...stamp(9, 8), type: 'attachment', attachment: { type: 'hook_success', content: '', capsuleReceipt: { digest: 'proof' } } }), true)
+assert.equal(removed.has(id(2)), false, 'a snipped message is still in the map: fix applySnipRemovals in src/utils/sessionStorage/chain.ts')
+assert.equal(removed.get(id(3)).parentUuid, id(1), 'the child of a snipped message was not re-parented to the kept parent: fix applySnipRemovals in src/utils/sessionStorage/chain.ts')
+assert.equal(isTranscribable({ ...stamp(9, 8), type: 'attachment', attachment: { type: 'hook_success', content: '', capsuleReceipt: { digest: 'proof' } } }), true, 'an attachment that carries a capsule receipt is no longer transcribable: fix isTranscribable in src/utils/sessionStorage/chain.ts')
 console.log('PASS indexed fold: native Map shape, no whole-map chain or leaf scan, parallel results, attached notes, growth, snip healing, and receipt persistence')

@@ -38,7 +38,7 @@ console.log('\n── A. compose stability: no frame loses the transcript ──
     },
   })
   cleanupScenario('resume-2turn')
-  check('PTY capture ran', res.status === 0, res.stderr?.slice(0, 200) ?? '')
+  check('PTY capture ran', res.status === 0, `${res.stderr?.slice(0, 200) ?? ''} (the vshot.py capture exited nonzero; run scripts/ui/vshot.py on the scenario config to see why)`)
   const frames: Array<{ f: number; rows: string[] }> = []
   try {
     for (const line of readFileSync(TEE, 'utf8').trim().split('\n')) {
@@ -51,7 +51,7 @@ console.log('\n── A. compose stability: no frame loses the transcript ──
   } catch {
   }
   rmSync(TEE, { force: true })
-  check('composed frames captured', frames.length > 20, `got ${frames.length}`)
+  check('composed frames captured', frames.length > 20, `got ${frames.length} (the INK_COMPOSED_TEE file got too few frames; check the tee write in src/ink/renderer.ts and that the PTY run reached the Bash turn)`)
   let appeared = false
   const gaps: number[] = []
   for (const f of frames) {
@@ -59,10 +59,10 @@ console.log('\n── A. compose stability: no frame loses the transcript ──
     if (has) appeared = true
     else if (appeared) gaps.push(f.f)
   }
-  check('the transcript anchor appeared', appeared)
-  check('NO composed frame lost it during the Bash turn', gaps.length === 0, `gaps=${gaps.slice(0, 8).join(',')}`)
+  check('the transcript anchor appeared', appeared, 'no composed frame shows the first task row; the resume-2turn scenario in scripts/ui/renderScenarios.ts or the resume render did not paint it')
+  check('NO composed frame lost it during the Bash turn', gaps.length === 0, `gaps=${gaps.slice(0, 8).join(',')} (a frame during the Bash turn painted without the transcript; change the render path so no frame drops it, frames come from the tee in src/ink/renderer.ts)`)
   const last = frames[frames.length - 1]
-  check('the bang output landed', last !== undefined && last.rows.some(r => r.includes('flicker-probe-ran')))
+  check('the bang output landed', last !== undefined && last.rows.some(r => r.includes('flicker-probe-ran')), 'the last composed frame lacks the bang output; the !echo send did not run or its output was not painted')
 }
 
 
@@ -71,7 +71,7 @@ console.log('\n── C. the upgrade seam behaves ──────────
   const { syncOutputSupportedNow, upgradeSyncOutputSupport } = await import('../../src/ink/session/capabilities.ts')
   const before = syncOutputSupportedNow()
   upgradeSyncOutputSupport()
-  check('upgrade flips the live read to true', syncOutputSupportedNow() === true, `before=${before}`)
+  check('upgrade flips the live read to true', syncOutputSupportedNow() === true, `before=${before} (upgradeSyncOutputSupport must make syncOutputSupportedNow true in src/ink/session/capabilities.ts; it stays false while MERCURY_NO_SYNC_OUTPUT forces sync output off)`)
 }
 
 console.log()

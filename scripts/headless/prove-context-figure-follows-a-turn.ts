@@ -73,15 +73,15 @@ try {
 }
 
 section('S1 a session nothing has answered yet names no figure, and its first turn does')
-check('before the first turn the facts name no context figure', before !== null && before.used === null, say(before))
-check('while the first turn waits for its second reply the facts name a figure, read from the first reply', first !== null && first.used !== null && first.used > 0 && first.source === 'usage', `after reply 1: ${say(first)}`)
-check('and while it waits for its third and its fourth', second !== null && second.used !== null && second.used > 0 && third !== null && third.used !== null && third.used > 0, `after reply 2: ${say(second)}; after reply 3: ${say(third)}`)
-check('the figure moves with the replies inside the turn: its three readings are not one number', first !== null && second !== null && third !== null && first.used !== null && second.used !== null && third.used !== null && new Set([first.used, second.used, third.used]).size > 1, `${say(first)}, ${say(second)}, ${say(third)}`)
+check('before the first turn the facts name no context figure', before !== null && before.used === null, `${say(before)}; session/facts must report no usage.context used figure before any reply has arrived`)
+check('while the first turn waits for its second reply the facts name a figure, read from the first reply', first !== null && first.used !== null && first.used > 0 && first.source === 'usage', `after reply 1: ${say(first)}; session/facts must report a used figure with fill source usage once the first reply is in`)
+check('and while it waits for its third and its fourth', second !== null && second.used !== null && second.used > 0 && third !== null && third.used !== null && third.used > 0, `after reply 2: ${say(second)}; after reply 3: ${say(third)}; session/facts must keep reporting a positive used figure at each later reply of the turn`)
+check('the figure moves with the replies inside the turn: its three readings are not one number', first !== null && second !== null && third !== null && first.used !== null && second.used !== null && third.used !== null && new Set([first.used, second.used, third.used]).size > 1, `${say(first)}, ${say(second)}, ${say(third)}; session/facts must refresh the context figure from each reply inside the turn, not hold the first one`)
 
 section('S2 the turn over, the figure is the settled one and stands')
-check('the turn completed with its three reads', turned === 'completed' && fixture.requests.length === 4, `the turn: ${turned}; ${fixture.requests.length} request(s); ${runner.stderr().slice(-200)}`)
-check('after the turn the facts still name a figure', after !== null && after.used !== null && after.used > 0, `inside: ${say(third)}; after: ${say(after)}`)
-check('and asked again it is the same figure', after !== null && again !== null && after.used === again.used && after.source === again.source, `${say(after)} then ${say(again)}`)
+check('the turn completed with its three reads', turned === 'completed' && fixture.requests.length === 4, `the turn: ${turned}; ${fixture.requests.length} request(s); ${runner.stderr().slice(-200)}; the turn must finish with status completed after four requests, read the runner stderr above`)
+check('after the turn the facts still name a figure', after !== null && after.used !== null && after.used > 0, `inside: ${say(third)}; after: ${say(after)}; session/facts must still name a used figure once the turn is over`)
+check('and asked again it is the same figure', after !== null && again !== null && after.used === again.used && after.source === again.source, `${say(after)} then ${say(again)}; session/facts must return the same settled figure and source when asked twice after the turn`)
 
 console.log(`    the figures: before ${say(before)}; inside the turn ${say(first)}, ${say(second)}, ${say(third)}; after ${say(after)}`)
 await runner.stop(3_000)

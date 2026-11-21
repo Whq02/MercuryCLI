@@ -287,7 +287,7 @@ async function main(): Promise<void> {
     const expectedRed = EXPECTED_RED.has(leg.label)
     if (!expectedRed && !leg.pass) {
       unexpectedFailures++
-      console.log(`  [REGRESSION] green leg failed: ${leg.label}${leg.detail ? ` — ${leg.detail}` : ''}`)
+      console.log(`  [REGRESSION] green leg failed: ${leg.label}${leg.detail ? ` — ${leg.detail}` : ''} — change evaluateStop in src/services/run/completionEvaluator.ts, reduceRunEvent in src/services/run/runKernel.ts, or the mission hook in src/guards/guards.ts and src/guards/mission.ts that this leg exercises`)
     } else if (expectedRed && leg.pass) {
       unexpectedPasses++
       console.log(`  [NOT-REPRODUCED] expected-red leg passed: ${leg.label}`)

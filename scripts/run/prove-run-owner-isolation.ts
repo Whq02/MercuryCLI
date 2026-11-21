@@ -7,9 +7,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+const OWNER_ISOLATION_FIX_HINT =
+  'what to change: sections 0 and 1 read makeOwnerKey and ownerEquals in src/utils/run/ownerKey.ts and the owner-keyed state in src/utils/verification/verificationState.ts; section 3 reads disposeOwner and ownerLifecycleCounts in src/utils/run/ownerLifecycle.ts, whose disposers must empty every owner-keyed store (verificationState.ts, src/services/cockpit/ctxForecast.ts, src/services/cockpit/contextUsageLive.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log(`    ${OWNER_ISOLATION_FIX_HINT}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

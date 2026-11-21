@@ -15,9 +15,9 @@ const { applySceneStyle, buildDom, composeScene, makeContext } = await import('.
 
 let failures = 0
 let checks = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — to fix: ${hint}` : ''}`)
   if (!cond) failures++
 }
 
@@ -79,16 +79,16 @@ console.log('\n§1 a full repaint emits runs, not a patch per cell')
 {
   const plain = fullRepaint(screen, 'plain full screen')
   const cells = cellsOf(plain.frame)
-  check(`a ${COLS}x${ROWS} screen of plain text composes thousands of cells`, cells > 5000, `${cells} cells`)
-  check('its full repaint is at most three patches per row (the row move, the text, the attribute reset)', plain.patches.length <= ROWS * 3 + 4, `${plain.patches.length} patches for ${cells} cells`)
-  check('every row replays cell-exact', Array.from({ length: ROWS }, (_, y) => plain.terminal.rowText(y).trimEnd() === line(y).trimEnd()).every(Boolean))
+  check(`a ${COLS}x${ROWS} screen of plain text composes thousands of cells`, cells > 5000, `${cells} cells`, 'the scene did not compose; check composeStyled in this file and the renderer in src/ink/renderer.ts')
+  check('its full repaint is at most three patches per row (the row move, the text, the attribute reset)', plain.patches.length <= ROWS * 3 + 4, `${plain.patches.length} patches for ${cells} cells`, 'FrameWriter.render in src/ink/frame-writer.ts must join adjacent cells of one style into one stdout patch')
+  check('every row replays cell-exact', Array.from({ length: ROWS }, (_, y) => plain.terminal.rowText(y).trimEnd() === line(y).trimEnd()).every(Boolean), '', 'FrameWriter.render in src/ink/frame-writer.ts wrote cells that do not replay to the plain rows')
   const styled = fullRepaint(styledScreen, 'styled full screen')
   const styledCells = cellsOf(styled.frame)
-  check('a style change starts a new run: a screen with three styles per row stays within nine patches per row', styled.patches.length <= ROWS * 9 + 4, `${styled.patches.length} patches for ${styledCells} cells`)
-  check('the styled rows replay cell-exact', Array.from({ length: ROWS }, (_, y) => styled.terminal.rowText(y).trimEnd() === line(y).trimEnd()).every(Boolean))
+  check('a style change starts a new run: a screen with three styles per row stays within nine patches per row', styled.patches.length <= ROWS * 9 + 4, `${styled.patches.length} patches for ${styledCells} cells`, 'FrameWriter.render in src/ink/frame-writer.ts must start a new run only where the style changes')
+  check('the styled rows replay cell-exact', Array.from({ length: ROWS }, (_, y) => styled.terminal.rowText(y).trimEnd() === line(y).trimEnd()).every(Boolean), '', 'FrameWriter.render in src/ink/frame-writer.ts wrote cells that do not replay to the styled rows')
   const styledRuns = styled.patches.filter(patch => patch.type === 'stdout')
-  check('the styled screen carries its colours', styled.bytes.includes('\x1b[38;2;221;68;68m') && styled.bytes.includes('\x1b[1m'))
-  check('a run never spans a style boundary', styledRuns.every(patch => patch.type === 'stdout' && patch.content.length <= 60), `longest run ${Math.max(...styledRuns.map(patch => (patch.type === 'stdout' ? patch.content.length : 0)))}`)
+  check('the styled screen carries its colours', styled.bytes.includes('\x1b[38;2;221;68;68m') && styled.bytes.includes('\x1b[1m'), '', 'the colour and bold escapes were lost between FrameWriter.render in src/ink/frame-writer.ts and the serialized bytes')
+  check('a run never spans a style boundary', styledRuns.every(patch => patch.type === 'stdout' && patch.content.length <= 60), `longest run ${Math.max(...styledRuns.map(patch => (patch.type === 'stdout' ? patch.content.length : 0)))}`, 'FrameWriter.render in src/ink/frame-writer.ts or optimizePatches in src/ink/patch-stream.ts merged cells across a style boundary')
 }
 
 console.log('\n§2 the shared newline patch is never extended: a main-screen paint keeps its rows apart across frames')
@@ -104,9 +104,9 @@ console.log('\n§2 the shared newline patch is never extended: a main-screen pai
   const terminal = new AnsiEmulator(40, 6, false)
   terminal.feed(bytesFirst + bytesSecond)
   const output = [...terminal.scrollback, ...terminal.lines()].map(row => row.trimEnd()).filter(row => row !== '')
-  check('the two frames leave alpha, beta and gamma on their own lines in order', output.join('|') === 'alpha|beta|gamma', output.join('|'))
-  check('the growth frame paints only the new row: the newline between frames carries no earlier text', !bytesSecond.includes('alpha') && !bytesSecond.includes('beta'), JSON.stringify(bytesSecond))
-  check('a newline patch stays a bare newline', patchesSecond.every(patch => patch.type !== 'stdout' || !patch.content.includes('\n') || patch.content === '\n'))
+  check('the two frames leave alpha, beta and gamma on their own lines in order', output.join('|') === 'alpha|beta|gamma', output.join('|'), 'FrameWriter.render in src/ink/frame-writer.ts must keep rows on their own lines when a main-screen frame grows')
+  check('the growth frame paints only the new row: the newline between frames carries no earlier text', !bytesSecond.includes('alpha') && !bytesSecond.includes('beta'), JSON.stringify(bytesSecond), 'FrameWriter.render in src/ink/frame-writer.ts must emit only the new row on a growth frame')
+  check('a newline patch stays a bare newline', patchesSecond.every(patch => patch.type !== 'stdout' || !patch.content.includes('\n') || patch.content === '\n'), '', 'optimizePatches in src/ink/patch-stream.ts must never extend the shared newline patch of src/ink/frame-writer.ts')
 }
 
 console.log('\n§3 the diff pass coalesces adjacent changed cells into one run')
@@ -121,8 +121,8 @@ console.log('\n§3 the diff pass coalesces adjacent changed cells into one run')
   const patches = writer.render(before, after, true)
   terminal.feed(serialize(patches))
   const runs = patches.filter(patch => patch.type === 'stdout').map(patch => (patch.type === 'stdout' ? patch.content : ''))
-  check('two changed words become two runs, one per stretch of adjacent cells', runs.length === 2 && runs[0] === 'HELLO' && runs[1] === 'HELLO', JSON.stringify(runs))
-  check('the row replays cell-exact', terminal.rowText(0).trimEnd() === 'HELLO world, HELLO engine', JSON.stringify(terminal.rowText(0)))
+  check('two changed words become two runs, one per stretch of adjacent cells', runs.length === 2 && runs[0] === 'HELLO' && runs[1] === 'HELLO', JSON.stringify(runs), 'FrameWriter.render in src/ink/frame-writer.ts must emit one run per stretch of adjacent changed cells')
+  check('the row replays cell-exact', terminal.rowText(0).trimEnd() === 'HELLO world, HELLO engine', JSON.stringify(terminal.rowText(0)), 'the diff patches from FrameWriter.render in src/ink/frame-writer.ts do not turn the old row into the new one')
 }
 
 console.log(`\n${failures === 0 ? '[PASS]' : '[FAIL]'} writer runs: ${checks - failures}/${checks} checks`)

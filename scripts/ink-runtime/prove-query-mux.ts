@@ -12,11 +12,12 @@ import {
   xtversion,
 } from '../../src/ink/session/querier.js'
 
+const queryMuxFixHint = 'fix TerminalQuerier.send, flush or onResponse in src/ink/session/querier.ts, or response routing in parseMultipleKeypresses in src/ink/input/input-decoder.ts'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  [FAIL] ${label} — ${detail ? `${detail}; ` : ''}${queryMuxFixHint}`)
   }
 }
 

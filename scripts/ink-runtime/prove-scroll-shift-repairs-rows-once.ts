@@ -18,10 +18,11 @@ type Styles = import('../../src/ink/styles.js').Styles
 
 let checks = 0
 let failures = 0
+const scrollShiftFixHint = 'fix the scroll-shift repair of rows in src/ink/compose-walk.ts (the scroll and blit reuse), with src/ink/renderer.ts and src/ink/compose-buffer.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${scrollShiftFixHint}` : ''}`)
 }
 
 const rowOf = (screen: Screen, y: number): string =>

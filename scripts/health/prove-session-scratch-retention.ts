@@ -61,11 +61,26 @@ const { getMercuryHome } = await import('../../src/utils/envUtils.ts')
 const { getProcessStartTokenAsync } = await import('../../src/utils/ownerWatch.ts')
 
 let failures = 0
+let sectionWhere = ''
+const whereBySection: Record<string, string> = {
+  '§1': 'change ensureScratchpadDir, scratchpadOwnerRecord or sweepOwnScratchpad in src/utils/scratchpad.ts, or idleScratchpads in src/daemon/scratchpadRetention.ts',
+  '§2': 'change readScratchpadCensus in src/daemon/scratchpadRetention.ts, or isSessionScratchpad in src/utils/scratchpad.ts',
+  '§3': 'change scratchpadFootprint in src/daemon/scratchpadRetention.ts',
+  '§4': 'change the session-scratch health row in src/services/health/sections/crew/scratch.ts, which reads the census from src/daemon/scratchpadRetention.ts',
+  '§5': 'change the session-scratchpads class of runLifecyclePass in src/substrate/stateLifecycle.ts, which uses src/daemon/scratchpadRetention.ts',
+  '§6': 'change how the session-scratchpads class reads records.retentionDays (src/substrate/stateLifecycle.ts, src/daemon/scratchpadRetention.ts)',
+  '§7': 'change the session-scratch health row and its remedy in src/services/health/sections/crew/scratch.ts, run through runHeadlessFix in src/utils/healthFix.ts',
+  '§8': 'change scratchpadPromptLine in src/utils/scratchpad.ts or computeSimpleEnvInfo in src/constants/prompts.ts',
+}
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond && sectionWhere) console.log(`        to fix: ${sectionWhere}`)
 }
-const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
+const section = (title: string): void => {
+  sectionWhere = whereBySection[title.slice(0, 2)] ?? ''
+  console.log(`\n${'─'.repeat(76)}\n${title}`)
+}
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 const ROOT = getMercuryTempDir()

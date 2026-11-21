@@ -7,9 +7,10 @@ import { join, resolve } from 'node:path'
 
 const REPO = resolve(import.meta.dir, '..', '..')
 let failures = 0
+const sliceFastHint = 'to fix: change the slice planner and runner in scripts/verify/fast.ts (its plan verdict, REFUSED and anchor lines, and the pooled run), or scripts/run-all-suites.sh for the pooled run'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${sliceFastHint}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 

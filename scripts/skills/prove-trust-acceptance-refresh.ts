@@ -54,12 +54,12 @@ function answer(node: React.ReactNode): boolean {
 try {
   const commands = await getCommands(cwd)
   const views = await Promise.all([getSkillToolCommands(cwd), getSlashCommandToolSkills(cwd)])
-  tally.check('all catalogue views exclude the untrusted project skill', !hasSkill(commands) && views.every(view => !hasSkill(view)))
+  tally.check('all catalogue views exclude the untrusted project skill', !hasSkill(commands) && views.every(view => !hasSkill(view)), 'getCommands, getSkillToolCommands and getSlashCommandToolSkills in src/commands.ts must leave out a project skill until the folder is trusted')
   await showSetupScreens({ render: (node: React.ReactNode) => { if (!answer(node)) throw new Error('unexpected setup card') } } as never, 'default', false, commands)
-  tally.check('the trust card was accepted once', accepted === 1 && state.getSessionTrustAccepted())
-  tally.check('the already-held boot catalogue now includes the skill', hasSkill(commands))
-  tally.check('the outer command memo now includes the skill', hasSkill(await getCommands(cwd)))
-  tally.check('both derived skill catalogues refresh without a restart', hasSkill(await getSkillToolCommands(cwd)) && hasSkill(await getSlashCommandToolSkills(cwd)))
+  tally.check('the trust card was accepted once', accepted === 1 && state.getSessionTrustAccepted(), JSON.stringify({ accepted, trusted: state.getSessionTrustAccepted() }) + ' - showSetupScreens in src/interactiveHelpers.tsx must show the TrustDialog once and call setSessionTrustAccepted(true) after it')
+  tally.check('the already-held boot catalogue now includes the skill', hasSkill(commands), 'showSetupScreens in src/interactiveHelpers.tsx must refill the commands array it was given (commands.splice with a fresh getCommands) after trust is accepted')
+  tally.check('the outer command memo now includes the skill', hasSkill(await getCommands(cwd)), 'showSetupScreens in src/interactiveHelpers.tsx must call clearCommandMemoizationCaches after trust is accepted so getCommands in src/commands.ts is recomputed')
+  tally.check('both derived skill catalogues refresh without a restart', hasSkill(await getSkillToolCommands(cwd)) && hasSkill(await getSlashCommandToolSkills(cwd)), 'showSetupScreens in src/interactiveHelpers.tsx must call clearCommandMemoizationCaches after trust is accepted so the derived skill lists in src/commands.ts are recomputed')
 } finally {
   process.chdir(previousCwd)
   rmSync(root, { recursive: true, force: true })

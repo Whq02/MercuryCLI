@@ -31,8 +31,8 @@ globalThis.clearTimeout = ((handle: ReturnType<typeof setTimeout>) => {
   realClear(handle)
 }) as typeof clearTimeout
 let failures = 0
-const check = (label: string, ok: boolean): void => {
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`)
+const check = (label: string, ok: boolean, detail = ''): void => {
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
   if (!ok) failures++
 }
 type Task = React.ComponentProps<typeof TaskListV2>['tasks'][number]
@@ -64,11 +64,11 @@ try {
   rows = rows.map(row => row.id === '5' ? { ...row, status: 'completed' } : row)
   view.resize(element(), 80, 17)
   await settle(100)
-  check('both new completions have priority', view.screen().includes('first completion') && view.screen().includes('second completion'))
+  check('both new completions have priority', view.screen().includes('first completion') && view.screen().includes('second completion'), 'src/components/TaskListV2.tsx must list tasks completed within RECENT_COMPLETION_MS ahead of the pending rows')
   await elapse(29_000)
-  check('the first completion expires', !view.screen().includes('first completion') && view.screen().includes('second completion'))
+  check('the first completion expires', !view.screen().includes('first completion') && view.screen().includes('second completion'), 'src/components/TaskListV2.tsx must drop a completion once RECENT_COMPLETION_MS has passed since it completed, using the timer armed in its useEffect')
   await elapse(1000)
-  check('the next expiry re-arms without a task-list change', !view.screen().includes('second completion') && view.screen().includes('pending three'))
+  check('the next expiry re-arms without a task-list change', !view.screen().includes('second completion') && view.screen().includes('pending three'), 'the useEffect in src/components/TaskListV2.tsx must arm a new timer for the earliest remaining expiry after each expiry fires, without waiting for a tasks change')
 } finally {
   view.unmount()
   for (const handle of timers.keys()) realClear(handle)

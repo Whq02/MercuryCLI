@@ -27,6 +27,14 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
+const predicateHint = '; change isTransportRetryNotice or isNullRenderingSystemRow in src/components/messages/nullRenderingAttachments.ts so a self-healing transport retry is silent and a provider answer (429, 503, 529) keeps its row'
+const painterHint = '; change the SystemTextMessage branch in src/components/messages/SystemTextMessage.tsx that returns null for isTransportRetryNotice, so a transport retry paints nothing and a provider answer keeps its words'
+const factsHint = '; change createSystemAPIErrorMessage in src/utils/messages/systemMessages.ts so the notice row keeps its retry facts'
+const budgetHint = '; change recoveryNoticeFacts in src/services/api/recoveryBudget.ts'
+const waitHint = '; change retryNoticeWait or requestWaitLine in src/services/providers/streamIdleBudget.ts'
+const sdkRowHint = '; change retryWaitRow in src/rows/project.ts'
+const ladderHint = '; change nextReconnect or openReconnectLadder in src/services/api/reconnectLadder.ts'
+const finalRowHint = '; change the spent-budget message of ReconnectBudgetSpentError in src/services/api/reconnectLadder.ts, or how src/components/messages/AssistantTextMessage.tsx paints it'
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
@@ -53,36 +61,36 @@ const serverError = createSystemAPIErrorMessage(new APIError(503, { type: 'error
 section('§1 the predicate: a transport retry the road heals by itself is never painted; a provider’s answer keeps its row')
 {
   for (const [name, row] of [['a connection reset', reset], ['a broken pipe mid-upload', pipe], ['a mid-response cut', cut], ['a first-byte timeout', firstByte], ['a reconnect rung of the outage ladder', outage], ['a stream reissue', fallback]] as const) {
-    check(`${name}: not painted`, isTransportRetryNotice(row as never) && isNullRenderingSystemRow(row as never), JSON.stringify(row.errorDetail))
+    check(`${name}: not painted`, isTransportRetryNotice(row as never) && isNullRenderingSystemRow(row as never), JSON.stringify(row.errorDetail) + predicateHint)
   }
   for (const [name, row] of [['a 529 overloaded answer', busy], ['a 429 with Retry-After', rateLimited], ['a 503', serverError], ['an overloaded answer whose status was lost', overloadedStatusLost]] as const) {
-    check(`${name}: painted as before`, !isTransportRetryNotice(row as never) && !isNullRenderingSystemRow(row as never), JSON.stringify(row.errorDetail))
+    check(`${name}: painted as before`, !isTransportRetryNotice(row as never) && !isNullRenderingSystemRow(row as never), JSON.stringify(row.errorDetail) + predicateHint)
   }
   const resumed = { ...reset, error: {} as never }
-  check('a row read back from the transcript (error:{}) is judged by its errorDetail: still not painted', isTransportRetryNotice(resumed as never))
+  check('a row read back from the transcript (error:{}) is judged by its errorDetail: still not painted', isTransportRetryNotice(resumed as never), 'isTransportRetryNotice must read errorDetail when error is empty' + predicateHint)
 }
 
 section('§2 the ink render: nothing for a healing transport retry; the existing words for a provider’s answer')
 {
   for (const [name, row] of [['connection reset', reset], ['first-byte timeout', firstByte], ['outage rung', outage], ['stream reissue', fallback]] as const) {
     const painted = await paint(row)
-    check(`${name}: the painter prints nothing`, painted === '', JSON.stringify(painted).slice(0, 200))
+    check(`${name}: the painter prints nothing`, painted === '', JSON.stringify(painted).slice(0, 200) + painterHint)
   }
   const painted429 = await paint(rateLimited)
-  check('a 429 keeps its row: the red mark, the words, the countdown', painted429.includes('rate limited') && /Retrying in \d+ seconds… \(attempt 1\/10\)/.test(painted429), JSON.stringify(painted429).slice(0, 300))
+  check('a 429 keeps its row: the red mark, the words, the countdown', painted429.includes('rate limited') && /Retrying in \d+ seconds… \(attempt 1\/10\)/.test(painted429), JSON.stringify(painted429).slice(0, 300) + painterHint)
   const painted529 = await paint(busy)
-  check('a 529 keeps its row', painted529.includes('Overloaded') && painted529.includes('(attempt 2/6)'), JSON.stringify(painted529).slice(0, 300))
+  check('a 529 keeps its row', painted529.includes('Overloaded') && painted529.includes('(attempt 2/6)'), JSON.stringify(painted529).slice(0, 300) + painterHint)
 }
 
 section('§3 the receipts: the retry is still recorded — the row keeps its facts for the transcript, the budget and the SDK stream')
 {
-  check('the notice row is a transcript row (not meta) with its retry facts', (reset as { isMeta?: boolean }).isMeta !== true && reset.retryAttempt === 1 && reset.maxRetries === 10 && reset.retryInMs === 1_000 && reset.errorDetail?.transport?.code === 'ECONNRESET', JSON.stringify(reset.errorDetail))
+  check('the notice row is a transcript row (not meta) with its retry facts', (reset as { isMeta?: boolean }).isMeta !== true && reset.retryAttempt === 1 && reset.maxRetries === 10 && reset.retryInMs === 1_000 && reset.errorDetail?.transport?.code === 'ECONNRESET', JSON.stringify(reset.errorDetail) + factsHint)
   const facts = recoveryNoticeFacts(reset)
-  check('the recovery budget still reads it as a fault wait', facts !== null && facts.kind === 'fault' && facts.cause === 'connection lost' && facts.declaredMs === 1_000, JSON.stringify(facts))
+  check('the recovery budget still reads it as a fault wait', facts !== null && facts.kind === 'fault' && facts.cause === 'connection lost' && facts.declaredMs === 1_000, JSON.stringify(facts) + budgetHint)
   const wait = retryNoticeWait(reset, 0)
-  check('the status row still speaks the wait with its existing words', requestWaitLine(wait) === 'retrying — attempt 1 of 10 after a connection error · in 1 s', requestWaitLine(wait))
+  check('the status row still speaks the wait with its existing words', requestWaitLine(wait) === 'retrying — attempt 1 of 10 after a connection error · in 1 s', requestWaitLine(wait) + waitHint)
   const sdk = retryWaitRow({ session_id: 's', turn: 1 } as never, { attempt: reset.retryAttempt, of: reset.maxRetries, reason: 'a connection error', delayMs: reset.retryInMs, httpStatus: null, sinceMs: 1 }) as { type: string; state: string; attempt?: number; reason: string }
-  check('the SDK row the run stream carries is unchanged: wait/retry with the attempt and the reason', sdk.type === 'wait' && sdk.state === 'retry' && sdk.attempt === 1 && sdk.reason === 'a connection error', JSON.stringify(sdk))
+  check('the SDK row the run stream carries is unchanged: wait/retry with the attempt and the reason', sdk.type === 'wait' && sdk.state === 'retry' && sdk.attempt === 1 && sdk.reason === 'a connection error', JSON.stringify(sdk) + sdkRowHint)
 }
 
 section('§4 a failure that ends the attempt keeps its existing words: the spent reconnect budget')
@@ -90,14 +98,14 @@ section('§4 a failure that ends the attempt keeps its existing words: the spent
   const spentLadder = openReconnectLadder(0, { code: 'ENOTFOUND', words: 'host not found' }, 10 * 60_000, 1)
   for (let i = 0; i < 8; i++) nextReconnect(spentLadder, { code: 'ENOTFOUND', words: 'host not found' }, 10 * 60_000 * (i / 8))
   const spentStep = nextReconnect(spentLadder, { code: 'ENOTFOUND', words: 'host not found' }, 11 * 60_000)
-  check('the ladder is spent', spentStep.spent && spentStep.waitMs === 0)
+  check('the ladder is spent', spentStep.spent && spentStep.waitMs === 0, JSON.stringify(spentStep) + ladderHint)
   const spentNotice = createSystemAPIErrorMessage(new NetworkOutageError(spentStep, new Error('x')), 0, spentStep.reconnect, spentStep.of)
-  check('the last rung’s notice is not painted either (the final row carries the words)', isNullRenderingSystemRow(spentNotice as never))
+  check('the last rung’s notice is not painted either (the final row carries the words)', isNullRenderingSystemRow(spentNotice as never), predicateHint.slice(2))
   const spentError = new ReconnectBudgetSpentError(spentLadder, 11 * 60_000, new Error('x'))
   const finalRow = createAssistantAPIErrorMessage({ content: `${API_ERROR_MESSAGE_PREFIX}: ${spentError.message}` })
   const text = (finalRow.message.content[0] as { text: string }).text
   const paintedFinal = (await renderToString(React.createElement(AssistantTextMessage, { param: { type: 'text', text } }), 100)).trim()
-  check('the final error row paints the spent line as it stands', paintedFinal.includes('the network was unreachable through') && paintedFinal.includes('reconnect budget is spent') && paintedFinal.includes('the turn was ended'), JSON.stringify(paintedFinal).slice(0, 400))
+  check('the final error row paints the spent line as it stands', paintedFinal.includes('the network was unreachable through') && paintedFinal.includes('reconnect budget is spent') && paintedFinal.includes('the turn was ended'), JSON.stringify(paintedFinal).slice(0, 400) + finalRowHint)
 }
 
 console.log('\n' + '='.repeat(60))

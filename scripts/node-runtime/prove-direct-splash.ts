@@ -21,11 +21,14 @@ const {
 } = await import('../../src/substrate/directSplash.ts')
 
 let failures = 0
+let sectionFailHint = ''
 const check = (name: string, cond: boolean, detail = ''): void => {
   if (cond) console.log(`  [PASS] ${name}`)
   else {
     failures++
-    console.log(`  [FAIL] ${name}${detail ? ` — ${detail}` : ''}`)
+    const hintText = sectionFailHint ? `fix: ${sectionFailHint}` : ''
+    const tail = [detail, hintText].filter(s => s !== '').join(' · ')
+    console.log(`  [FAIL] ${name}${tail ? ` — ${tail}` : ''}`)
   }
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
@@ -34,6 +37,7 @@ const BIN = join(ROOT, 'dist', 'mercury.mjs')
 const BLOCK = join(ROOT, 'assets', 'splash', 'launcher-action-block.sh')
 
 section('§1 the takeover gate — the bare line on two TTYs, nothing else')
+sectionFailHint = 'change decideDirectSplash in src/substrate/directSplash.ts so the skip reason matches this line'
 {
   const tty = { stdinTTY: true, stdoutTTY: true }
   const env = {}
@@ -60,6 +64,7 @@ section('§1 the takeover gate — the bare line on two TTYs, nothing else')
 }
 
 section('§2 asset resolution — payload · home · source, a torn pair never answers')
+sectionFailHint = 'change resolveSplashAsset in src/substrate/directSplash.ts so the rung order and the torn-pair rule match this line'
 {
   const present = new Set<string>()
   const exists = (p: string): boolean => present.has(p)
@@ -94,6 +99,7 @@ section('§2 asset resolution — payload · home · source, a torn pair never a
 }
 
 section('§3 THE EXIT-CODE TABLE — the launcher block executed vs the in-process table')
+sectionFailHint = 'make the block assets/splash/launcher-action-block.sh and SPLASH_EXIT, applySplashExit and shellExitCodeOf in src/substrate/directSplash.ts agree; the launcher copy is scripts/ops/launcher-mercury.sh and the deploy legs run scripts/splash/deploy.sh'
 {
   const block = readFileSync(BLOCK, 'utf8')
   const BEGIN = ': mercury-splash-action-begin'
@@ -237,6 +243,7 @@ section('§3 THE EXIT-CODE TABLE — the launcher block executed vs the in-proce
 
 
 section('§5 the ordinary build ships the pair beside the bundle')
+sectionFailHint = 'rebuild with bun run build.ts so dist/ carries splash.mjs and splash-core.mjs copied from assets/splash, and its manifest.json records them'
 if (!existsSync(BIN)) {
   console.log('  [SKIP] dist/mercury.mjs absent — the pooled gate prebuilds it')
 } else {
@@ -256,6 +263,7 @@ if (!existsSync(BIN)) {
 }
 
 section('§6 the road on a real PTY')
+sectionFailHint = 'rerun node dist/mercury.mjs on a TTY and compare with runDirectSplash in src/substrate/directSplash.ts and the driver assets/splash/mercury-splash.mjs'
 const PY = '/usr/bin/python3'
 const pyProbe = spawnSync(PY, ['-c', 'import pty, pyte'], { encoding: 'utf8', timeout: 15_000 })
 if (!existsSync(BIN)) {

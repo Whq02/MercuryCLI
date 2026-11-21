@@ -18,10 +18,12 @@ delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
 
 let failures = 0
 let checks = 0
+const latchFixHint =
+  'fix in src/services/anthropicLimits.ts (extractQuotaStatusFromHeaders, extractQuotaStatusFromError, anthropicWindowObserved, anthropicLimitVerdict, resetLimitsForCredentialSwitch); the meters check reads quotaWindows in src/services/cockpit/quota.ts, the fixture-seam check reads shouldProcessMockLimits in src/services/rateLimitMocking.ts, the subscriber checks read isClaudeAISubscriber in src/utils/auth.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${latchFixHint}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

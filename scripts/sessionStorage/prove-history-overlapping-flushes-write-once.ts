@@ -48,10 +48,10 @@ section('§1 two flushes that overlap (the background flush and a flush asked fo
   await history.flushHistoryNow()
   await settle()
   const lines = linesOnDisk()
-  check('two prompts, two lines on disk', lines.length === 2 && lines[0] === 'first prompt' && lines[1] === 'second prompt', JSON.stringify(lines))
+  check('two prompts, two lines on disk', lines.length === 2 && lines[0] === 'first prompt' && lines[1] === 'second prompt', JSON.stringify(lines) + ' — fix flushPending and flushOnce in src/history.ts so overlapping flushes append each pending prompt once')
   const seen: string[] = []
   for await (const entry of history.getHistory()) seen.push(entry.display)
-  check('the history reads back each prompt once, newest first', JSON.stringify(seen) === JSON.stringify(['second prompt', 'first prompt']), JSON.stringify(seen))
+  check('the history reads back each prompt once, newest first', JSON.stringify(seen) === JSON.stringify(['second prompt', 'first prompt']), JSON.stringify(seen) + ' — check getHistory in src/history.ts and what flushPending wrote to history.jsonl')
 }
 
 section('§2 the exit road under lock contention: the retry loop and the cleanup closure both flush, the prompt lands once')
@@ -66,7 +66,7 @@ section('§2 the exit road under lock contention: the retry loop and the cleanup
   await sleep(1_500)
   await settle()
   const lines = linesOnDisk().slice(before)
-  check('the prompt written during the contended exit is on disk once', lines.length === 1 && lines[0] === 'only prompt', JSON.stringify(lines))
+  check('the prompt written during the contended exit is on disk once', lines.length === 1 && lines[0] === 'only prompt', JSON.stringify(lines) + ' — fix flushWithRetries and the cleanup closure in addToHistory (src/history.ts) so the retry and the cleanup flush write the prompt once')
 }
 
 console.log(failures === 0 ? '\nprove-history-overlapping-flushes-write-once: all green' : `\nprove-history-overlapping-flushes-write-once: ${failures} FAILURE(S)`)

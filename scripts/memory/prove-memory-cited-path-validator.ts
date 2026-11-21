@@ -20,7 +20,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 600)}; ` : ''}fix cited-path handling in citedPathTokens, validateCitedPaths, factMemoryState and memoryStatusWords (src/mneme/memoryRefs.ts), or the start page in composeMemoryAtStart and composeStartPage (src/mneme/entryKnapsack.ts)` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

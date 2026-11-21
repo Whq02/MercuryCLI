@@ -13,7 +13,7 @@ const writer = await import(join(SRC, 'utils/sessionStorage/writer.ts'))
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' | to fix, change the drain of the write queue (_drainWriteQueueInner in src/utils/sessionStorage/writer/queue.ts) so one file that cannot be written does not stop the others and keeps its queued entries, flushSessionStorage in src/utils/sessionStorage/writer.ts so it reports every failing file, or transcriptStoreHealth in src/utils/sessionStorage/writer/storeHealth.ts'}`)
   if (!ok) failures = 1
 }
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))

@@ -21,7 +21,7 @@ import type { CompactMetadata } from '../../src/types/message.js'
 let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass ? `${detail ? ` — ${detail}` : ''} (receipt wording comes from src/services/compact/foldReceipt.ts, the row layout from src/components/messages/CompactBoundaryMessage.tsx, and the emergency prune notice from overflowRecoveryNotice in src/services/compact/overflowRecovery.ts; change the one that owns the missing or extra words)` : ''}`)
 }
 const arg = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)

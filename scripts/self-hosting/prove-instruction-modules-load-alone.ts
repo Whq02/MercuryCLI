@@ -14,7 +14,7 @@ for (const name of modules) {
   const run = spawnSync(process.execPath, ['-e', `${guard}; globalThis.MACRO = { VERSION: '1.0.0' }; await import(${JSON.stringify(join(root, name))})`], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, HOME: home, USERPROFILE: home, DRV_HOME: home } })
   const ok = run.status === 0
   if (!ok) failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name} loads as the first module of a process${ok ? '' : ` — ${(run.stderr || '').split('\n').find(line => /Error/.test(line)) ?? `exit ${run.status}`}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name} loads as the first module of a process${ok ? '' : ` — ${(run.stderr || '').split('\n').find(line => /Error/.test(line)) ?? `exit ${run.status}`} | to fix, open src/services/instructions/${name} and break the import cycle or top-level use of a not-yet-loaded module that makes it fail when it is the first module a process imports`}`)
 }
 rmSync(home, { recursive: true, force: true })
 console.log(`instruction-modules-load-alone: ${modules.length - failed} passed, ${failed} failed`)

@@ -41,7 +41,7 @@ let passed = 0
 let failed = 0
 function check(label: string, ok: boolean): void {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — to fix, change how src/services/instructions/engine.ts (getInstructionFiles, composeInstructionPrompt, getInstructionBundle) chooses and composes the guides of the starting folder, how src/services/attachments/nestedMemory.ts (getNestedMemoryAttachmentsForFile) attaches nested guides, or how getUserContext and isInstructionDiscoveryDisabled in src/context.ts pass them on'}`)
 }
 function drive(options: { touch?: string; bare?: boolean; retired?: boolean } = {}) {
   const home = mkdtempSync(join(scratch, 'home-'))

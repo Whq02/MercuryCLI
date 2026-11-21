@@ -2,7 +2,7 @@
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ' — to fix, see isDroppedLateStreamFrame in src/utils/messages/streaming.ts: after an abort it must drop only stream_event and stream_request_start frames'}`)
   if (!ok) failures = 1
 }
 

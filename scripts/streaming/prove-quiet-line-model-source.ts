@@ -94,13 +94,13 @@ async function scene(appModel: string, sessionModel: string): Promise<{ frame: s
   return { frame: painted(), session, unmount: () => instance.unmount?.() }
 }
 
-check('the flux probe is armed (the leaf\'s render marks are countable)', probe.fluxProbeEnabled() === true)
+check('the flux probe is armed (the leaf\'s render marks are countable)', probe.fluxProbeEnabled() === true, 'MERCURY_FLUX_PROBE is set to 1 at the top of this file and src/utils/flux/fluxProbe.ts fluxProbeEnabled must read it')
 
 section('§1 AppState says Anthropic, the focused session says GPT — no line')
 {
   const s = await scene(CLAUDE, GPT)
-  check('the quiet stretch of a GPT session paints the marker and no thinking line', s.frame.includes(MARKER) && !s.frame.includes('thinking'), JSON.stringify(s.frame.slice(-120)))
-  check('the leaf took no model subscription from the focused session', s.session.listeners() === 0, `listeners=${s.session.listeners()}`)
+  check('the quiet stretch of a GPT session paints the marker and no thinking line', s.frame.includes(MARKER) && !s.frame.includes('thinking'), `${JSON.stringify(s.frame.slice(-120))}; LiveStreamingTail in src/components/LiveStreamingTail.tsx must not paint a thinking line in a quiet stretch of a GPT session`)
+  check('the leaf took no model subscription from the focused session', s.session.listeners() === 0, `listeners=${s.session.listeners()}; the quiet-line leaf rendered by LiveStreamingTail in src/components/LiveStreamingTail.tsx must not subscribe to the focused session model facts`)
   s.unmount()
   await settle()
 }
@@ -108,7 +108,7 @@ section('§1 AppState says Anthropic, the focused session says GPT — no line')
 section('§2 the mirror: AppState says GPT, the focused session says Anthropic — no line')
 {
   const s = await scene(GPT, CLAUDE)
-  check('an Anthropic session paints the marker and no thinking line whatever AppState holds', s.frame.includes(MARKER) && !s.frame.includes('thinking'), JSON.stringify(s.frame.slice(-120)))
+  check('an Anthropic session paints the marker and no thinking line whatever AppState holds', s.frame.includes(MARKER) && !s.frame.includes('thinking'), `${JSON.stringify(s.frame.slice(-120))}; LiveStreamingTail in src/components/LiveStreamingTail.tsx must not paint a thinking line in a quiet stretch of an Anthropic session`)
   s.unmount()
   await settle()
 }
@@ -116,22 +116,22 @@ section('§2 the mirror: AppState says GPT, the focused session says Anthropic �
 section('§3 the feeds: a facts change and a hop drive nothing in the leaf')
 {
   const s = await scene(CLAUDE, GPT)
-  check('fixture: the GPT session\'s quiet stretch paints the marker alone', framed() && !s.frame.includes('thinking'))
+  check('fixture: the GPT session\'s quiet stretch paints the marker alone', framed() && !s.frame.includes('thinking'), `${JSON.stringify(s.frame.slice(-120))}; the scene fixture in this file did not paint the marker alone, so the render or the stub session failed before the check proper`)
   const before = tailRenders()
   s.session.set(CLAUDE)
   await settle()
   s.session.set(GPT)
   await settle()
-  check('the session\'s facts change (GPT → Anthropic → GPT) re-renders the leaf zero times', tailRenders() === before, `render:tail ${tailRenders()} vs ${before}`)
-  check('…and paints no line', framed() && !painted().includes('thinking'), JSON.stringify(painted().slice(-120)))
+  check('the session\'s facts change (GPT → Anthropic → GPT) re-renders the leaf zero times', tailRenders() === before, `render:tail ${tailRenders()} vs ${before}; LiveStreamingTail in src/components/LiveStreamingTail.tsx must not re-render when the focused session model facts change`)
+  check('…and paints no line', framed() && !painted().includes('thinking'), `${JSON.stringify(painted().slice(-120))}; LiveStreamingTail in src/components/LiveStreamingTail.tsx must not paint a thinking line`)
   const other = stubSession(CLAUDE)
   focus.setFocusedSessionConnector(other.connector)
   await settle()
   other.set(GPT)
   await settle()
-  check('a hop to another session, and that session\'s own switch to GPT, re-render the leaf zero times', tailRenders() === before, `render:tail ${tailRenders()} vs ${before}`)
-  check('…the hopped-to session gained no subscriber from the leaf', other.listeners() === 0, `listeners=${other.listeners()}`)
-  check('…and no line paints', framed() && !painted().includes('thinking'), JSON.stringify(painted().slice(-120)))
+  check('a hop to another session, and that session\'s own switch to GPT, re-render the leaf zero times', tailRenders() === before, `render:tail ${tailRenders()} vs ${before}; LiveStreamingTail in src/components/LiveStreamingTail.tsx must not re-render on a focused-session hop or that session switch`)
+  check('…the hopped-to session gained no subscriber from the leaf', other.listeners() === 0, `listeners=${other.listeners()}; the quiet-line leaf rendered by LiveStreamingTail in src/components/LiveStreamingTail.tsx must not subscribe to the hopped-to session`)
+  check('…and no line paints', framed() && !painted().includes('thinking'), `${JSON.stringify(painted().slice(-120))}; LiveStreamingTail in src/components/LiveStreamingTail.tsx must not paint a thinking line after the hop`)
   s.unmount()
   await settle()
 }

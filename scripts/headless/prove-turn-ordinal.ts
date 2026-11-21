@@ -71,4 +71,5 @@ const opened = rows.filter(row => row.type === 'turn')
 const pass = outcomes.length === 3 && outcomes.every((row, index) => row.turn === index + 1 && row.turn_id === opened[index]?.turn_id) && outcomes[1]?.status === 'failed' && outcomes[1]?.error.message.includes('second turn') && outcomes[2]?.status === 'completed' && shutdowns.length === 0
 console.log(`[${pass ? 'PASS' : 'FAIL'}] the real print error callback keeps the second failed turn ordinal and identity through driver recovery`)
 console.log(JSON.stringify({ opened, outcomes, shutdowns }))
+if (!pass) console.log('expected three outcome rows numbered 1 to 3, each with the turn_id of its opening turn row, the second failed with its error message and no shutdown; change onCycleError in src/cli/headless/printDriver.ts, or the recovery that calls it in src/cli/headless/turnDriver.ts')
 process.exit(pass ? 0 : 1)

@@ -6,11 +6,12 @@ import {
 } from '../../src/services/mission/projection.js'
 
 let failures = 0
+const missionProjectionHint = 'fix composeMissionView or buildMissionRow in src/services/mission/projection.ts (or missionEnabled in src/services/mission/contracts.ts for the gate check)'
 function check(label: string, ok: boolean, detail?: string): void {
   if (ok) console.log('  ok  ' + label)
   else {
     failures += 1
-    console.log('  FAIL ' + label + (detail ? ' — ' + detail : ''))
+    console.log('  FAIL ' + label + (detail ? ' — ' + detail : '') + ' — ' + missionProjectionHint)
   }
 }
 

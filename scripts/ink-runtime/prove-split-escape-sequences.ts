@@ -95,11 +95,12 @@ let failures = 0
 let checks = 0
 const seen = new Map<string, number>()
 
+const splitFixHint = 'fix how parseMultipleKeypresses in src/ink/input/input-decoder.ts keeps a split escape sequence pending across reads and the 50 ms flush'
 function fail(label: string, detail: string): void {
   failures++
   const n = (seen.get(label) ?? 0) + 1
   seen.set(label, n)
-  if (n <= 3) console.log(`  [FAIL] ${label} — ${detail}`)
+  if (n <= 3) console.log(`  [FAIL] ${label} — ${detail}; ${splitFixHint}`)
 }
 
 function drive(feeds: Feed[]): ParsedInput[] {

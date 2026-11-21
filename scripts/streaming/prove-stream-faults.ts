@@ -29,8 +29,8 @@ async function scene(
 ): Promise<void> {
   const run = await runArtifactArena({ ...opts, keep: true })
   const fin = finalScreen(run, opts.cols ?? 120, opts.rows ?? 40)
-  check(`${name}: composer usable at settle`, /type a prompt|↵ sends|\? for shortcuts/i.test(fin))
-  check(`${name}: no residual spinner`, !/\(\d+s · ↑/.test(fin))
+  check(`${name}: composer usable at settle`, /type a prompt|↵ sends|\? for shortcuts/i.test(fin), 'the final screen shows no composer after the fault; this runs dist/mercury.mjs, so rebuild with bun run build.ts first, then look at how the turn ends after this fault')
+  check(`${name}: no residual spinner`, !/\(\d+s · ↑/.test(fin), 'a spinner line such as (12s · ↑ is still on the final screen; the turn did not clear its busy state after this fault')
   asserts(fin, run)
   run.cleanup()
 }
@@ -45,7 +45,7 @@ await scene(
     seconds: 11,
   },
   fin => {
-    check('F1: the error surfaced honestly', /[Ee]rror|failure|API/.test(fin))
+    check('F1: the error surfaced honestly', /[Ee]rror|failure|API/.test(fin), 'the final screen has no error text after a 400 before any token; the failed turn must print its error')
   },
 )
 
@@ -60,6 +60,7 @@ await scene(
     check(
       'F2: honest outcome (partial text or a surfaced error, never silence)',
       /alpha bravo/.test(fin) || /[Ee]rror|interrupt|connection|fail/i.test(fin),
+      'the final screen has neither the partial text nor an error after the stream died mid-paragraph; a dead stream must show one of them',
     )
   },
 )
@@ -75,8 +76,8 @@ await scene(
     seconds: 14,
   },
   fin => {
-    check('F3: the recovery turn painted', fin.includes('recovered after the tool error.'))
-    check('F3: errored work wears ▲ (never the denial ✕)', fin.includes('▲') || !fin.includes('✕'))
+    check('F3: the recovery turn painted', fin.includes('recovered after the tool error.'), 'the turn after the failed Read tool call never painted its text; the loop must continue after a tool error')
+    check('F3: errored work wears ▲ (never the denial ✕)', fin.includes('▲') || !fin.includes('✕'), 'a tool error is drawn with the denial mark ✕ and no ▲; errored tool rows must wear ▲')
   },
 )
 
@@ -103,9 +104,9 @@ await scene(
     resizes: ['7000:100:30', '7400:140:45', '7800:90:28', '8200:120:40'],
   })
   const fin = finalScreen(run, 120, 40)
-  check('F5 resize storm: composer usable at settle', /type a prompt|↵ sends|\? for shortcuts/i.test(fin))
-  check('F5: no residual spinner', !/\(\d+s · ↑/.test(fin))
-  check('F5: the stream settled at the final geometry', fin.includes('rs99'))
+  check('F5 resize storm: composer usable at settle', /type a prompt|↵ sends|\? for shortcuts/i.test(fin), 'the final screen shows no composer after the resizes; this runs dist/mercury.mjs, so rebuild with bun run build.ts first')
+  check('F5: no residual spinner', !/\(\d+s · ↑/.test(fin), 'a spinner line such as (12s · ↑ is still on the final screen after the resizes')
+  check('F5: the stream settled at the final geometry', fin.includes('rs99'), 'the last streamed chunk rs99 is missing from the final screen after the resizes; the stream must repaint fully at the final size')
   run.cleanup()
 }
 
@@ -124,7 +125,7 @@ await scene(
     seconds: 12,
   },
   fin => {
-    check('F6: the malformed tail rendered without a wedge', fin.includes('Some prose first.'))
+    check('F6: the malformed tail rendered without a wedge', fin.includes('Some prose first.'), 'the prose before the unterminated code fence and table is missing from the final screen; a malformed markdown tail must not stop earlier text from painting')
   },
 )
 
@@ -144,8 +145,8 @@ await scene(
     seconds: 16,
   },
   fin => {
-    check('F7: turn 1 interrupted honestly', /[Ii]nterrupted/.test(fin) && fin.includes('first turn text'))
-    check('F7: turn 2 answered', fin.includes('second answer.'))
+    check('F7: turn 1 interrupted honestly', /[Ii]nterrupted/.test(fin) && fin.includes('first turn text'), 'the final screen lacks Interrupted or the text streamed before Escape; a cancelled turn must keep its partial text and say it was interrupted')
+    check('F7: turn 2 answered', fin.includes('second answer.'), 'the prompt typed after the interrupt got no answer; a cancelled turn must leave the composer able to submit again')
   },
 )
 

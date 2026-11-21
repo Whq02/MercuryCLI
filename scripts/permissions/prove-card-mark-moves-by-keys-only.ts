@@ -12,6 +12,10 @@ function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
+const selectKeysHint = 'to fix, see Select in src/components/CustomSelect/select.tsx and its key handling in src/components/CustomSelect/use-select-input.ts (scrollMovesFocus, the wheel and page keys)'
+const multiKeysHint = 'to fix, see SelectMulti in src/components/CustomSelect/SelectMulti.tsx and its key handling in src/components/CustomSelect/use-multi-select-state.ts (scrollMovesFocus)'
+const cardKeysHint = 'to fix, see src/components/permissions/PermissionPrompt.tsx, which passes scrollMovesFocus={false} to Select (key handling in src/components/CustomSelect/use-select-input.ts)'
+const consentKeysHint = 'to fix, see the dialog source (src/components/MCPServerApprovalDialog.tsx, src/components/SovereignModeDialog.tsx or src/components/TrustDialog/TrustDialog.tsx), which must pass scrollMovesFocus={false} to Select'
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 }
@@ -86,9 +90,9 @@ section('a list that is no card: the wheel and the page keys move its mark, as b
     await waitFor(() => markOf(view).startsWith('❯ 1.'), 5_000)
     check('it opens with the mark on its first row', markOf(view).startsWith('❯ 1. one'), markOf(view))
     const afterWheel = await press(view, WHEEL_DOWN)
-    check('one wheel notch down moves the mark to the next row and stays with the list', afterWheel.startsWith('❯ 2. two') && through.wheel === 0, `${afterWheel} · passed on ${through.wheel}`)
+    check('one wheel notch down moves the mark to the next row and stays with the list', afterWheel.startsWith('❯ 2. two') && through.wheel === 0, `${afterWheel} · passed on ${through.wheel} · ${selectKeysHint}`)
     const afterPage = await press(view, PAGE_DOWN)
-    check('PageDown moves the mark and stays with the list', afterPage.startsWith('❯ 3. three') && through.page === 0, `${afterPage} · passed on ${through.page}`)
+    check('PageDown moves the mark and stays with the list', afterPage.startsWith('❯ 3. three') && through.page === 0, `${afterPage} · passed on ${through.page} · ${selectKeysHint}`)
   } finally {
     view.unmount()
   }
@@ -103,22 +107,22 @@ section('the same list told that scrolling is not its to take: only arrows and d
   try {
     await waitFor(() => markOf(view).startsWith('❯ 1.'), 5_000)
     const up = await press(view, WHEEL_UP)
-    check('one wheel notch up leaves the mark on the first row', up.startsWith('❯ 1. one'), up)
+    check('one wheel notch up leaves the mark on the first row', up.startsWith('❯ 1. one'), `${up} · ${selectKeysHint}`)
     const upAgain = await press(view, WHEEL_UP)
     const down = await press(view, WHEEL_DOWN)
-    check('a second notch and a notch down leave it there too', upAgain.startsWith('❯ 1. one') && down.startsWith('❯ 1. one'), `${upAgain} · ${down}`)
-    check('each notch is passed on to what scrolls behind the list', through.wheel === 3, `${through.wheel} of 3`)
+    check('a second notch and a notch down leave it there too', upAgain.startsWith('❯ 1. one') && down.startsWith('❯ 1. one'), `${upAgain} · ${down} · ${selectKeysHint}`)
+    check('each notch is passed on to what scrolls behind the list', through.wheel === 3, `${through.wheel} of 3 · ${selectKeysHint}`)
     const pageDown = await press(view, PAGE_DOWN)
     const pageUp = await press(view, PAGE_UP)
-    check('PageDown and PageUp leave the mark and are passed on', pageDown.startsWith('❯ 1. one') && pageUp.startsWith('❯ 1. one') && through.page === 2, `${pageDown} · ${pageUp} · passed on ${through.page}`)
+    check('PageDown and PageUp leave the mark and are passed on', pageDown.startsWith('❯ 1. one') && pageUp.startsWith('❯ 1. one') && through.page === 2, `${pageDown} · ${pageUp} · passed on ${through.page} · ${selectKeysHint}`)
     const arrowDown = await press(view, KEY.down)
     const arrowUp = await press(view, KEY.up)
-    check('the arrows move the mark as before', arrowDown.startsWith('❯ 2. two') && arrowUp.startsWith('❯ 1. one'), `${arrowDown} · ${arrowUp}`)
+    check('the arrows move the mark as before', arrowDown.startsWith('❯ 2. two') && arrowUp.startsWith('❯ 1. one'), `${arrowDown} · ${arrowUp} · ${selectKeysHint}`)
     await press(view, WHEEL_UP)
     await press(view, KEY.enter)
-    check('a notch and then ↵ takes the first row, the one the mark never left', chosen.length === 1 && chosen[0] === 'one', JSON.stringify(chosen))
+    check('a notch and then ↵ takes the first row, the one the mark never left', chosen.length === 1 && chosen[0] === 'one', `${JSON.stringify(chosen)} · ${selectKeysHint}`)
     await press(view, '3')
-    check('a digit still takes its row', chosen.length === 2 && chosen[1] === 'three', JSON.stringify(chosen))
+    check('a digit still takes its row', chosen.length === 2 && chosen[1] === 'three', `${JSON.stringify(chosen)} · ${selectKeysHint}`)
   } finally {
     view.unmount()
   }
@@ -136,22 +140,22 @@ section('the permission card itself: a wheel notch over the transcript never mov
   const view = await mount(h(PermissionPrompt, { options, onSelect: (value: string) => { answers.push(value) }, onCancel: () => { answers.push('cancelled') } } as never))
   try {
     await waitFor(() => markOf(view).startsWith('❯ 1.'), 5_000)
-    check('the card opens with the mark on Yes', markOf(view).startsWith('❯ 1. Yes'), markOf(view))
+    check('the card opens with the mark on Yes', markOf(view).startsWith('❯ 1. Yes'), `${markOf(view)} · ${cardKeysHint}`)
     const one = await press(view, WHEEL_UP)
-    check('one notch up: the mark is still on Yes (it went to No, and ↵ declined)', one.startsWith('❯ 1. Yes'), one)
+    check('one notch up: the mark is still on Yes (it went to No, and ↵ declined)', one.startsWith('❯ 1. Yes'), `${one} · ${cardKeysHint}`)
     const two = await press(view, WHEEL_UP)
-    check('two notches: still on Yes (it went to the wider grant)', two.startsWith('❯ 1. Yes'), two)
+    check('two notches: still on Yes (it went to the wider grant)', two.startsWith('❯ 1. Yes'), `${two} · ${cardKeysHint}`)
     const pageUp = await press(view, PAGE_UP)
-    check('PageUp leaves the mark where it is', pageUp.startsWith('❯ 1. Yes'), pageUp)
-    check('the notches were passed on to what scrolls behind the card', through.wheel === 2, `${through.wheel} of 2`)
+    check('PageUp leaves the mark where it is', pageUp.startsWith('❯ 1. Yes'), `${pageUp} · ${cardKeysHint}`)
+    check('the notches were passed on to what scrolls behind the card', through.wheel === 2, `${through.wheel} of 2 · ${cardKeysHint}`)
     const toNo = await press(view, KEY.down + KEY.down)
     const typing = await press(view, TAB)
     const notchWhileTyping = await press(view, WHEEL_UP)
-    check('with the mark on No and its words being typed, a notch leaves the mark on No', toNo.startsWith('❯ 3.') && notchWhileTyping.startsWith('❯ 3.'), `${toNo} · ${typing} · ${notchWhileTyping}`)
+    check('with the mark on No and its words being typed, a notch leaves the mark on No', toNo.startsWith('❯ 3.') && notchWhileTyping.startsWith('❯ 3.'), `${toNo} · ${typing} · ${notchWhileTyping} · ${cardKeysHint}`)
     await press(view, KEY.up + KEY.up)
     await press(view, WHEEL_DOWN)
     await press(view, KEY.enter)
-    check('after the notches ↵ answers Yes, the row the arrows left the mark on', answers.length === 1 && answers[0] === 'yes', JSON.stringify(answers))
+    check('after the notches ↵ answers Yes, the row the arrows left the mark on', answers.length === 1 && answers[0] === 'yes', `${JSON.stringify(answers)} · ${cardKeysHint}`)
   } finally {
     view.unmount()
   }
@@ -167,9 +171,9 @@ section('the question card: its lists follow the same rule')
     const opened = markOf(view)
     const notch = await press(view, WHEEL_UP)
     const page = await press(view, PAGE_DOWN)
-    check('a list of several answers: a notch and PageDown leave the mark and are passed on', opened.startsWith('❯ 1.') && notch === opened && page === opened && through.wheel === 1 && through.page === 1, `${opened} · ${notch} · ${page} · passed on ${through.wheel}, ${through.page}`)
+    check('a list of several answers: a notch and PageDown leave the mark and are passed on', opened.startsWith('❯ 1.') && notch === opened && page === opened && through.wheel === 1 && through.page === 1, `${opened} · ${notch} · ${page} · passed on ${through.wheel}, ${through.page} · ${multiKeysHint}`)
     const arrow = await press(view, KEY.down)
-    check('the arrow moves it as before', arrow.startsWith('❯ 2.'), arrow)
+    check('the arrow moves it as before', arrow.startsWith('❯ 2.'), `${arrow} · ${multiKeysHint}`)
   } finally {
     view.unmount()
   }
@@ -177,7 +181,7 @@ section('the question card: its lists follow the same rule')
   try {
     await waitFor(() => markOf(plain).startsWith('❯ 1.'), 5_000)
     const notch = await press(plain, WHEEL_DOWN)
-    check('the same list anywhere else still moves on the wheel', notch.startsWith('❯ 2.'), notch)
+    check('the same list anywhere else still moves on the wheel', notch.startsWith('❯ 2.'), `${notch} · ${multiKeysHint}`)
   } finally {
     plain.unmount()
   }
@@ -193,9 +197,9 @@ section('where the terminal sends the wheel as arrows, an arrow is read as a whe
     const down = await press(view, KEY.down)
     const downAgain = await press(view, KEY.down)
     const up = await press(view, KEY.up)
-    check('mouse tracking off, a card\'s list: ↓ ↓ ↑ walks the mark to the second, the third and back to the second row', down.startsWith('❯ 2. two') && downAgain.startsWith('❯ 3. three') && up.startsWith('❯ 2. two'), `${down} · ${downAgain} · ${up}`)
+    check('mouse tracking off, a card\'s list: ↓ ↓ ↑ walks the mark to the second, the third and back to the second row', down.startsWith('❯ 2. two') && downAgain.startsWith('❯ 3. three') && up.startsWith('❯ 2. two'), `${down} · ${downAgain} · ${up} · ${selectKeysHint}`)
     await press(view, KEY.enter)
-    check('…and ↵ takes the row the arrows left the mark on, not the first', chosen.length === 1 && chosen[0] === 'two', JSON.stringify(chosen))
+    check('…and ↵ takes the row the arrows left the mark on, not the first', chosen.length === 1 && chosen[0] === 'two', `${JSON.stringify(chosen)} · ${selectKeysHint}`)
   } finally {
     view.unmount()
   }
@@ -210,9 +214,9 @@ section('where the terminal sends the wheel as arrows, an arrow is read as a whe
     await waitFor(() => markOf(card).startsWith('❯ 1.'), 5_000)
     const one = await press(card, KEY.down)
     const two = await press(card, KEY.down)
-    check('mouse tracking off, the permission card: ↓ ↓ walks the mark from Yes to No', one.startsWith('❯ 2.') && two.startsWith('❯ 3.'), `${markOf(card)} after ${one} · ${two}`)
+    check('mouse tracking off, the permission card: ↓ ↓ walks the mark from Yes to No', one.startsWith('❯ 2.') && two.startsWith('❯ 3.'), `${markOf(card)} after ${one} · ${two} · ${cardKeysHint}`)
     await press(card, KEY.enter)
-    check('…and ↵ there does not answer Yes', answers.length === 1 && answers[0] === 'no', JSON.stringify(answers))
+    check('…and ↵ there does not answer Yes', answers.length === 1 && answers[0] === 'no', `${JSON.stringify(answers)} · ${cardKeysHint}`)
   } finally {
     card.unmount()
   }
@@ -222,10 +226,10 @@ section('where the terminal sends the wheel as arrows, an arrow is read as a whe
     through.wheel = 0
     const down = await pressAsWindowsReadsIt(windows, KEY.down)
     const up = await pressAsWindowsReadsIt(windows, KEY.up)
-    check('Windows before its first wheel report, a card\'s list: ↓ moves the mark down and ↑ back, and the list keeps the key', down.startsWith('❯ 2. two') && up.startsWith('❯ 1. one') && through.wheel === 0, `${down} · ${up} · passed on ${through.wheel}`)
+    check('Windows before its first wheel report, a card\'s list: ↓ moves the mark down and ↑ back, and the list keeps the key', down.startsWith('❯ 2. two') && up.startsWith('❯ 1. one') && through.wheel === 0, `${down} · ${up} · passed on ${through.wheel} · ${selectKeysHint}`)
     through.wheel = 0
     const notch = await press(windows, WHEEL_DOWN)
-    check('a wheel the terminal reports as a wheel is still passed on, the mark where it was', notch === up && through.wheel === 1, `${notch} · passed on ${through.wheel}`)
+    check('a wheel the terminal reports as a wheel is still passed on, the mark where it was', notch === up && through.wheel === 1, `${notch} · passed on ${through.wheel} · ${selectKeysHint}`)
   } finally {
     windows.unmount()
   }
@@ -233,7 +237,7 @@ section('where the terminal sends the wheel as arrows, an arrow is read as a whe
   try {
     await waitFor(() => markOf(several).startsWith('❯ 1.'), 5_000)
     const down = await pressAsWindowsReadsIt(several, KEY.down)
-    check('Windows before its first wheel report, a list of several answers: ↓ moves the mark down', down.startsWith('❯ 2.'), down)
+    check('Windows before its first wheel report, a list of several answers: ↓ moves the mark down', down.startsWith('❯ 2.'), `${down} · ${multiKeysHint}`)
   } finally {
     several.unmount()
   }
@@ -249,9 +253,9 @@ section('three consent lists that are no permission card keep their mark under t
     await waitFor(() => markOf(approval).includes('❯ 2.'), 5_000)
     const opened = markOf(approval)
     const notch = await press(approval, WHEEL_UP)
-    check("a project server's approval opens on this server alone, and a notch up leaves the mark off the wider grant", opened.includes('❯ 2. Use this MCP server') && notch.includes('❯ 2. Use this MCP server'), `${opened} · ${notch}`)
+    check("a project server's approval opens on this server alone, and a notch up leaves the mark off the wider grant", opened.includes('❯ 2. Use this MCP server') && notch.includes('❯ 2. Use this MCP server'), `${opened} · ${notch} · ${consentKeysHint}`)
     const arrow = await press(approval, KEY.up)
-    check('↑ moves it there, as before', arrow.includes('❯ 1. Use this and all future MCP servers'), arrow)
+    check('↑ moves it there, as before', arrow.includes('❯ 1. Use this and all future MCP servers'), `${arrow} · ${consentKeysHint}`)
   } finally {
     approval.unmount()
   }
@@ -259,7 +263,7 @@ section('three consent lists that are no permission card keep their mark under t
   try {
     await waitFor(() => markOf(approvalWithoutMouse).includes('❯ 2.'), 5_000)
     const down = await press(approvalWithoutMouse, KEY.down)
-    check('mouse tracking off, where ↓ arrives as a wheel step: it still moves the mark', down.includes('❯ 3. Continue without this MCP server'), down)
+    check('mouse tracking off, where ↓ arrives as a wheel step: it still moves the mark', down.includes('❯ 3. Continue without this MCP server'), `${down} · ${consentKeysHint}`)
   } finally {
     approvalWithoutMouse.unmount()
   }
@@ -268,7 +272,7 @@ section('three consent lists that are no permission card keep their mark under t
     await waitFor(() => markOf(sovereign).includes('❯ 1.'), 5_000)
     const notch = await press(sovereign, WHEEL_DOWN)
     const notchUp = await press(sovereign, WHEEL_UP)
-    check('the Sovereign consent opens on "No, exit" and a notch either way leaves the mark there, off "Yes, I accept"', notch.includes('❯ 1. No, exit') && notchUp.includes('❯ 1. No, exit'), `${notch} · ${notchUp}`)
+    check('the Sovereign consent opens on "No, exit" and a notch either way leaves the mark there, off "Yes, I accept"', notch.includes('❯ 1. No, exit') && notchUp.includes('❯ 1. No, exit'), `${notch} · ${notchUp} · ${consentKeysHint}`)
     const arrow = await press(sovereign, KEY.down)
     check('↓ moves it, as before', arrow.includes('❯ 2. Yes, I accept'), arrow)
   } finally {
@@ -280,7 +284,7 @@ section('three consent lists that are no permission card keep their mark under t
     await waitFor(() => markOf(trust).includes('❯ 1.'), 5_000)
     const notch = await press(trust, WHEEL_DOWN)
     const notchUp = await press(trust, WHEEL_UP)
-    check('the folder trust card opens on "Yes, I trust this folder" and a notch either way leaves the mark there, off "No, exit"', notch.includes('❯ 1. Yes, I trust this folder') && notchUp.includes('❯ 1. Yes, I trust this folder'), `${notch} · ${notchUp}`)
+    check('the folder trust card opens on "Yes, I trust this folder" and a notch either way leaves the mark there, off "No, exit"', notch.includes('❯ 1. Yes, I trust this folder') && notchUp.includes('❯ 1. Yes, I trust this folder'), `${notch} · ${notchUp} · ${consentKeysHint}`)
     const arrow = await press(trust, KEY.down)
     check('↓ moves it to "No, exit", as before', arrow.includes('❯ 2. No, exit'), arrow)
   } finally {

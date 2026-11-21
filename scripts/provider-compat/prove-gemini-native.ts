@@ -33,10 +33,11 @@ import type { CompatCallModelParams } from '../../src/services/providers/openaic
 
 let checks = 0
 let failures = 0
-function check(label: string, condition: boolean): void {
+function check(label: string, condition: boolean, detail?: string): void {
   checks++
   if (!condition) failures++
   console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}`)
+  if (!condition) console.log(`  fix: ${detail ?? 'compare the behaviour in src/services/providers/gemini/geminiCallModel.ts (turn flow, errors), geminiClient.ts (stream faults) and geminiCodec.ts (request and replay shape) with the label above'}`)
 }
 const model = 'gemini-3.5-flash'
 const tool = { name: 'FixtureEcho', prompt: async () => 'Echo the supplied text.', inputSchema: z.object({ text: z.string(), optional: z.string().optional() }), inputJSONSchema: { type: 'object', properties: { text: { type: 'string' }, optional: { type: 'string' } }, required: ['text'] } }

@@ -51,7 +51,9 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const where = 'open-time refresh and the changed-list notice: useCatalogueRefreshOnOpen in src/commands/model/picker/roads.ts; each family cache, in-flight sharing and refresh: src/services/providers/<family>/<family>Catalogue.ts (local: src/services/providers/local/localDiscovery.ts); the picker components: src/commands/model/mercuryModel.tsx'
+  const shown = !ok ? (detail ? `${detail} — ${where}` : where) : detail
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 const json = (body: unknown, status = 200): Response => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 

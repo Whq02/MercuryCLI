@@ -13,10 +13,12 @@ delete process.env.OPENAI_API_KEY
 
 let failures = 0
 let checks = 0
+const windowCredentialFixHint =
+  'fix in src/services/providers/openai/openaiLimitState.ts (noteOpenaiSourceIdentity, recordOpenaiUsageLimit, recordOpenaiRateHeaders, openaiObservedUsage) for sections A, in src/services/providers/providerUsability.ts (resolveProviderUsability, delegationDispatchBlocker) for B, and in src/services/providers/openai/openaiCatalogue.ts (forgetDepartedOpenaiCatalogues, primeOpenaiCatalogue, getCachedOpenaiCatalogue) for C'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${windowCredentialFixHint}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

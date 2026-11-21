@@ -19,9 +19,10 @@ const lawful = ['ChangeSet', 'Git', 'Test', 'AstSearch', 'AstEdit', 'LspRead', '
 const names = pool.map(tool => tool.name)
 const PREFERENCE = /\bprefer\w*\b|\binstead of\b|\brather than\b|\buse this\b/i
 let failures = 0
+const OPENING_SENTENCE_HINT = 'fix: reword the first sentence of this tool description so it states what the tool does in 40 characters or more, names no other tool and uses no preference wording (prefer, instead of, rather than, use this); the description is the tool prompt() text under src/tools/<Name>Tool (prompt.ts or the tool file) as built by toolToAPISchema in src/services/messages/api.ts'
 function report(ok: boolean, line: string): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${line}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${line}${ok ? '' : ` -- ${OPENING_SENTENCE_HINT}`}`)
 }
 async function describe(name: string): Promise<string> {
   const tool = pool.find(t => t.name === name)

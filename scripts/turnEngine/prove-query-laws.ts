@@ -29,9 +29,11 @@ const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await 
 )
 
 let failures = 0
+const queryLawHint = 'to fix, change the turn loop that query() in src/query.ts runs: the terminal reasons in src/query/transitions.ts and the stream and tool abort handling in src/run-core/turn/modelReply.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? '' : detail ? `${detail} | ${queryLawHint}` : queryLawHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -40,6 +42,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — query laws proof exceeded 180s')
+  console.log('a scripted model turn or a gated probe tool never finished; look at query() in src/query.ts and at the section that printed last')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

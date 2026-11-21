@@ -79,9 +79,9 @@ try {
   result = { threw: String(error) }
 }
 
-check('the consumer settled a failed result carrying the loop body\'s own words', typeof result === 'object' && result !== null && (result as { data?: { status?: string; error?: string } }).data?.status === 'failed' && String((result as { data?: { error?: string } }).data?.error).includes(thrown), JSON.stringify(result).slice(0, 300))
-check('the run was handed back: its finally ran exactly once', finallyRuns === 1, `finally ran ${finallyRuns} time(s)`)
-check('the run was not read on past the throw (one row yielded)', yielded === 1, `yielded ${yielded}`)
+check('the consumer settled a failed result carrying the loop body\'s own words', typeof result === 'object' && result !== null && (result as { data?: { status?: string; error?: string } }).data?.status === 'failed' && String((result as { data?: { error?: string } }).data?.error).includes(thrown), JSON.stringify(result).slice(0, 300) + ' | a throw in the consumer loop body must return a failed result carrying its message; fix runForegroundAgentExecution in src/tools/AgentTool/foregroundExecution.tsx')
+check('the run was handed back: its finally ran exactly once', finallyRuns === 1, `finally ran ${finallyRuns} time(s); the loop must hand the run generator back on a throw so its finally runs once, see runForegroundAgentExecution in src/tools/AgentTool/foregroundExecution.tsx`)
+check('the run was not read on past the throw (one row yielded)', yielded === 1, `yielded ${yielded}; the loop must stop reading the run after a throw, see runForegroundAgentExecution in src/tools/AgentTool/foregroundExecution.tsx`)
 
 console.log(`\ncrewmate-foreground-throw: ${checks} checks, ${failures} failed`)
 process.exit(failures ? 1 : 0)

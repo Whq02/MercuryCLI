@@ -8,7 +8,7 @@ import { writeDiffToTerminal, type DeliverySyscalls } from '../../src/ink/sessio
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}change noteFrameWire, noteFrameCost, governorLevel or governorTrip in src/utils/cockpit/motionGovernor.ts (for the W8 checks also writeDiffToTerminal in src/ink/session/delivery.ts) so this check holds` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

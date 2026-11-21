@@ -32,7 +32,7 @@ if (childAt !== -1) {
   const record = { id: 'boundary-pod', generation: 'generation', sessionId: 'notice-session', name: 'Boundary pod', recipe: 'fixture', price: 0, startedAt: new Date().toISOString(), status: 'RUNNING' }
   let checks = 0
   let failures = 0
-  const check = (name: string, truth: unknown) => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name) }
+  const check = (name: string, truth: unknown, detail?: string) => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name + (!truth && detail ? ' — ' + detail : '')) }
   const child = (mode: string) => {
     const run = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--child', mode], { cwd: home, env: { PATH: process.env.PATH, HOME: home, TMPDIR: home, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true', ...(process.env.BUN_OPTIONS ? { BUN_OPTIONS: process.env.BUN_OPTIONS } : {}) }, encoding: 'utf8', timeout: 15000 })
     assert.equal(run.status, 0, run.stdout + run.stderr)
@@ -41,16 +41,16 @@ if (childAt !== -1) {
   try {
     hostNotice(record, 'ready', 'The model is ready')
     const first = child('leave-queued')
-    check('a notice queues once and never enters another session', first.queued === 1 && first.foreign === 0)
-    check('merely entering an in-memory queue does not claim durable consumption', first.markers === 0)
+    check('a notice queues once and never enters another session', first.queued === 1 && first.foreign === 0, JSON.stringify(first) + ' — expected queued 1 and foreign 0; change deliverHostNotices in src/services/host/notices.ts so it queues a notice once and only for its own session')
+    check('merely entering an in-memory queue does not claim durable consumption', first.markers === 0, JSON.stringify(first) + ' — expected markers 0; change deliverHostNotices in src/services/host/notices.ts so a .delivered marker is written only when the queued command is consumed')
     const second = child('consume')
-    check('a fresh process recovers a notice the earlier process never consumed', second.queued === 1 && second.foreign === 0)
-    check('actual consumption acknowledges the durable notice', second.markers === 1)
+    check('a fresh process recovers a notice the earlier process never consumed', second.queued === 1 && second.foreign === 0, JSON.stringify(second) + ' — expected queued 1 and foreign 0; change deliverHostNotices in src/services/host/notices.ts so an unacknowledged notice is queued again in a fresh process')
+    check('actual consumption acknowledges the durable notice', second.markers === 1, JSON.stringify(second) + ' — expected markers 1; change deliverHostNotices in src/services/host/notices.ts so dequeue of the notice writes its .delivered marker')
     const third = child('leave-queued')
-    check('an acknowledged notice is not delivered again after another restart', third.queued === 0 && third.markers === 1)
+    check('an acknowledged notice is not delivered again after another restart', third.queued === 0 && third.markers === 1, JSON.stringify(third) + ' — expected queued 0 and markers 1; change deliverHostNotices in src/services/host/notices.ts so a notice with a .delivered marker is not queued again')
     hostNotice({ ...record, generation: 'cleared-generation' }, 'failed', 'The setup failed')
     const removed = child('remove')
-    check('mid-turn consumption also acknowledges the notice without a duplicate', removed.queued === 1 && removed.recovered === 0 && removed.markers === 2)
+    check('mid-turn consumption also acknowledges the notice without a duplicate', removed.queued === 1 && removed.recovered === 0 && removed.markers === 2, JSON.stringify(removed) + ' — expected queued 1, recovered 0, markers 2; change the remove path in src/input-core/command-queue.ts and deliverHostNotices in src/services/host/notices.ts so a removed notice is acknowledged and not delivered again')
     console.log('BOUNDARY NOTICES ' + (failures ? 'RED' : 'GREEN') + ' — ' + (checks - failures) + '/' + checks + '; four separate receiver processes, no network')
   } finally { process.env.MERCURY_CONFIG_DIR = outer; rmSync(home, { recursive: true, force: true }) }
   process.exitCode = failures ? 1 : 0

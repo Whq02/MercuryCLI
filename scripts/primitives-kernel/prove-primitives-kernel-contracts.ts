@@ -33,13 +33,19 @@ const {
   const id = { workspace: '/w s|p', sessionId: 's|1', lane: MAIN_LANE }
   const key = makeOwnerKey(id)
   const back = parseOwnerKey(key)
-  check('round-trip with hostile separators', back.workspace === id.workspace && back.sessionId === id.sessionId)
+  check('round-trip with hostile separators', back.workspace === id.workspace && back.sessionId === id.sessionId,
+    'change makeOwnerKey/parseOwnerKey in src/utils/run/ownerKey.ts so encoding then parsing returns the same workspace and sessionId')
   const forged = makeOwnerKey({ workspace: '/w s', sessionId: 'p|s|1', lane: MAIN_LANE })
-  check('separator cannot forge a boundary', !ownerEquals(key, forged))
-  check('isOwnerKey accepts canonical', isOwnerKey(key))
-  check('isOwnerKey rejects junk', !isOwnerKey('mo1|only|three'))
-  check('agent lane derivation', agentLane('a1') === 'agent:a1')
-  check('equality is canonical-string equality', ownerEquals(key, makeOwnerKey({ ...id })))
+  check('separator cannot forge a boundary', !ownerEquals(key, forged),
+    'change makeOwnerKey in src/utils/run/ownerKey.ts to escape the separator so different identities never give one key')
+  check('isOwnerKey accepts canonical', isOwnerKey(key),
+    'change isOwnerKey in src/utils/run/ownerKey.ts to accept the string makeOwnerKey returns')
+  check('isOwnerKey rejects junk', !isOwnerKey('mo1|only|three'),
+    'change isOwnerKey in src/utils/run/ownerKey.ts to reject a key with the wrong number of parts')
+  check('agent lane derivation', agentLane('a1') === 'agent:a1',
+    'change agentLane in src/utils/run/ownerKey.ts to return agent: followed by the agent id')
+  check('equality is canonical-string equality', ownerEquals(key, makeOwnerKey({ ...id })),
+    'change ownerEquals in src/utils/run/ownerKey.ts to compare the canonical key strings')
 }
 
 {
@@ -61,11 +67,15 @@ const {
   })
   await disposeOwner(owner)
   check('disposal propagates to stores and ad-hoc disposers',
-    disposed.includes('store') && disposed.includes('adhoc'))
-  check('disposer errors are isolated', disposed.includes('adhoc-throw'))
-  check('store entry gone after disposal', store.peek(owner) === undefined)
+    disposed.includes('store') && disposed.includes('adhoc'),
+    'change disposeOwner in src/utils/run/ownerLifecycle.ts to call every registered store and every ad-hoc disposer for the owner')
+  check('disposer errors are isolated', disposed.includes('adhoc-throw'),
+    'change disposeOwner in src/utils/run/ownerLifecycle.ts so a throwing disposer does not stop the others')
+  check('store entry gone after disposal', store.peek(owner) === undefined,
+    'change disposeOwner in src/utils/run/ownerLifecycle.ts or OwnerScopedStore in src/utils/run/ownerScopedStore.ts to drop the owner entry on disposal')
   await disposeOwner(owner)
-  check('disposal is idempotent', disposed.length === 3)
+  check('disposal is idempotent', disposed.length === 3,
+    'change disposeOwner in src/utils/run/ownerLifecycle.ts so a second call for the same owner runs no disposer again')
 }
 
 console.log('resource honesty law')
@@ -80,10 +90,12 @@ const ctx = {
 {
   const invalid = await resolveResource('not-a-ref', ctx)
   check('invalid ref ⇒ absent with grammar guidance',
-    invalid.state === 'absent' && invalid.note.includes('mercury://'))
+    invalid.state === 'absent' && invalid.note.includes('mercury://'),
+    'change resolveResource in src/services/resources/registry.ts to answer an invalid ref as absent with a note naming the mercury:// grammar')
   const unknown = await resolveResource('mercury://no-such-kind/x', ctx)
   check('unknown kind ⇒ absent naming known kinds',
-    unknown.state === 'absent' && unknown.note.includes('known kinds') && unknown.note.includes('file'))
+    unknown.state === 'absent' && unknown.note.includes('known kinds') && unknown.note.includes('file'),
+    'change resolveResource in src/services/resources/registry.ts to answer an unknown kind as absent with a note listing the known kinds')
   const thrown = await resolveResource('mercury://seat', {
     ...ctx,
     engineModel: 'axiom-model',
@@ -92,10 +104,12 @@ const ctx = {
     },
   })
   check('throwing adapter degrades to explicit unavailable',
-    thrown.state === 'unavailable' && thrown.note.includes('boom'))
+    thrown.state === 'unavailable' && thrown.note.includes('boom'),
+    'change resolveResource in src/services/resources/registry.ts to catch an adapter error and answer unavailable with the error message in the note')
   process.env.MERCURY_REFS = '0'
   const killed = await resolveResource('mercury://file/x', ctx)
-  check('killed plane ⇒ unavailable, never absent', killed.state === 'unavailable')
+  check('killed plane ⇒ unavailable, never absent', killed.state === 'unavailable',
+    'change resolveResource in src/services/resources/registry.ts to answer unavailable when MERCURY_REFS is 0')
   delete process.env.MERCURY_REFS
 }
 
@@ -103,10 +117,12 @@ const ctx = {
   const text = Array.from({ length: 10 }, (_, i) => `line${i + 1}`).join('\n')
   const page = boundedTextView(text, { cursor: 4, limit: 3 })
   check('bounded read pages honestly',
-    page.text === 'line5\nline6\nline7' && page.page.hasMore && page.page.total === 10)
+    page.text === 'line5\nline6\nline7' && page.page.hasMore && page.page.total === 10,
+    'change boundedTextView in src/services/resources/contracts.ts so cursor and limit select the lines and the page reports hasMore and total')
   const empty = boundedTextView(text, { q: 'no-such-needle' })
   check('legitimate zero rows read as empty text, total 0',
-    empty.text === '' && empty.page.total === 0)
+    empty.text === '' && empty.page.total === 0,
+    'change boundedTextView in src/services/resources/contracts.ts so a query with no match returns empty text and total 0')
 }
 
 console.log('receipt-mint law')
@@ -137,13 +153,16 @@ const receiptsMod = await import('../../src/services/changeTransaction/receipts.
   })
   const afterMutation = receiptsMod.receiptsFor(owner)
   check('succeeded mutation mints exactly one receipt',
-    afterMutation.length === 1 && afterMutation[0]!.seq === 1)
+    afterMutation.length === 1 && afterMutation[0]!.seq === 1,
+    'change observeToolTerminal in src/utils/run/effectObserver.ts or the ring in src/services/changeTransaction/receipts.ts so one succeeded mutation records one receipt with seq 1')
   check('receipt carries intent + effect',
     afterMutation[0]!.intent.targetPaths.includes('/axiom/a.ts') &&
-      afterMutation[0]!.effect.operation === 'file.edit')
+      afterMutation[0]!.effect.operation === 'file.edit',
+    'change observeToolTerminal in src/utils/run/effectObserver.ts so the receipt carries the changed paths as intent targets and the effect operation')
 
   observeToolTerminal({ ...base, toolName: 'Read', effect: undefined })
-  check('effect-less event mints nothing', receiptsMod.receiptsFor(owner).length === 1)
+  check('effect-less event mints nothing', receiptsMod.receiptsFor(owner).length === 1,
+    'change observeToolTerminal in src/utils/run/effectObserver.ts to mint no receipt when the event has no effect')
 
   observeToolTerminal({
     ...base,
@@ -157,7 +176,8 @@ const receiptsMod = await import('../../src/services/changeTransaction/receipts.
       completedAt: 4,
     },
   })
-  check('read-shaped effect mints nothing', receiptsMod.receiptsFor(owner).length === 1)
+  check('read-shaped effect mints nothing', receiptsMod.receiptsFor(owner).length === 1,
+    'change observeToolTerminal in src/utils/run/effectObserver.ts to mint no receipt for an effect with no changed paths')
 
   observeToolTerminal({
     ...base,
@@ -174,10 +194,13 @@ const receiptsMod = await import('../../src/services/changeTransaction/receipts.
   })
   const final = receiptsMod.receiptsFor(owner)
   check('failed-with-changedPaths is recorded truth',
-    final.length === 2 && final[1]!.effect.outcome === 'failed')
-  check('sequence is monotonic', final[1]!.seq === 2)
+    final.length === 2 && final[1]!.effect.outcome === 'failed',
+    'change observeToolTerminal in src/utils/run/effectObserver.ts to record a failed effect that lists changed paths')
+  check('sequence is monotonic', final[1]!.seq === 2,
+    'change the receipt sequence counter in src/services/changeTransaction/receipts.ts to rise by one per receipt')
   await disposeOwner(owner)
-  check('owner disposal clears the ring', receiptsMod.receiptsFor(owner).length === 0)
+  check('owner disposal clears the ring', receiptsMod.receiptsFor(owner).length === 0,
+    'change src/services/changeTransaction/receipts.ts to register its ring with disposeOwner (src/utils/run/ownerLifecycle.ts) so disposal clears it')
 }
 
 console.log('view vocabulary law')
@@ -195,8 +218,9 @@ const { cardTone } = await import('../../src/components/mercury-ui/toolCardGramm
     return t.glyph === fallback.glyph && t.tone === fallback.tone
   })
   check('card grammar covers Law-3 + honesty states', unmapped.length === 0,
-    unmapped.length ? `unmapped: ${unmapped.join(', ')}` : undefined)
-  check('unknown states read neutral, never invented', fallback.glyph === '·')
+    unmapped.length ? `unmapped: ${unmapped.join(', ')}; add each state to the tone table behind cardTone in src/components/mercury-ui/toolCardGrammar.ts` : undefined)
+  check('unknown states read neutral, never invented', fallback.glyph === '·',
+    'change the fallback tone of cardTone in src/components/mercury-ui/toolCardGrammar.ts to the neutral glyph')
 }
 
 console.log(`\n${pass} passed, ${fail} failed`)

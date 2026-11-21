@@ -7,11 +7,18 @@ const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
 let failures = 0
+let failHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = !cond && failHint ? (detail ? `${detail} — ${failHint}` : failHint) : detail
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
+  if (t.startsWith('§1b')) failHint = 'fix composeAnswer in src/components/permissions/AskUserQuestionPermissionRequest/questionState.ts'
+  else if (t.startsWith('§1')) failHint = 'fix projectQuestionState in src/components/permissions/AskUserQuestionPermissionRequest/questionState.ts'
+  else if (t.startsWith('§2')) failHint = 'fix focusSeedAfterOptionsChange in src/components/CustomSelect/use-select-navigation.ts'
+  else if (t.startsWith('§3')) failHint = 'fix optionsEquivalent in src/components/CustomSelect/option-map.ts'
+  else if (t.startsWith('§4')) failHint = 'fix the pointer, tick and checkbox painting in src/components/CustomSelect/select.tsx and SelectMulti.tsx'
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

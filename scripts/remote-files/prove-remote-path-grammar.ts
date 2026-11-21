@@ -26,6 +26,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  if (!ok) console.log('     change: the function this check names in src/utils/remoteFiles/target.ts (parseRemotePath, formatRemotePath, remoteChild, remoteRuleCandidates, remoteRulePattern, remoteRuleAuthority, remoteSessionRule, remoteHostLabel, noteResolvedAuthority), so that its answer matches the label')
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 

@@ -31,7 +31,7 @@ function check(name: string, ok: boolean, detail?: string): void {
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — evidence plane proof exceeded 120s')
+  console.log('\n❌ TIMEOUT — evidence plane proof exceeded 120s; look at startService and waitForReady in src/services/projectServices/serviceManager.ts, the real child ev-svc may never reach readiness')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -60,29 +60,34 @@ console.log('wired producers')
   })
   const change = P.evidenceFor(owner).find(r => r.kind === 'change')
   check('mutation receipt yields observed change evidence',
-    change !== undefined && change.origin === 'observed')
+    change !== undefined && change.origin === 'observed',
+    'a succeeded mutation seen by observeToolTerminal must add an observed change record to the evidence ring in src/services/primitives/evidencePlane.ts')
   check('change evidence references receipt AND transaction',
     change !== undefined &&
       change.refs.some(r => r.startsWith('mercury://receipt/')) &&
-      change.refs.some(r => r.startsWith('mercury://transaction/')))
+      change.refs.some(r => r.startsWith('mercury://transaction/')),
+    'the change evidence must list a mercury://receipt/ ref and a mercury://transaction/ ref in its refs')
 
   P.registerExecution({ owner, id: 'job1', kind: 'process', label: 'job1', lifecycle: 'session' })
   P.transitionExecution(owner, 'job1', 'starting')
   P.settleExecution(owner, 'job1', 'succeeded', { outcome: { code: 0 } })
   const exec = P.evidenceFor(owner).find(r => r.kind === 'execution' && r.claim.includes('job1'))
   check('execution settlement yields observed execution evidence',
-    exec !== undefined && exec.refs.includes('mercury://execution/job1'))
+    exec !== undefined && exec.refs.includes('mercury://execution/job1'),
+    'settleExecution must add an observed execution evidence record whose refs include mercury://execution/job1')
 
   recordEvidence(workDir, { command: 'bun run typecheck', ok: true, scope: 'typecheck', coverage: 'strict tsc' }, owner)
   const checkEv = P.evidenceFor(owner).find(r => r.kind === 'check' && r.claim.includes('strict tsc'))
   check('verification row yields observed check evidence',
-    checkEv !== undefined && checkEv.claim.includes('green'))
+    checkEv !== undefined && checkEv.claim.includes('green'),
+    'recordEvidence in src/utils/verification/verificationState.ts must add an observed check evidence record whose claim names the coverage and reads green')
 
   recordEvidence(workDir, { command: 'bun run typecheck', ok: false, scope: 'typecheck', coverage: 'strict tsc' }, owner)
   const all = P.evidenceFor(owner).filter(r => r.kind === 'check' && r.claim.includes('strict tsc'))
   check('repeat observation supersedes (never silently replaces)',
     all.length === 2 && all[0]!.state === 'superseded' && all[1]!.state === 'present' &&
-      all[1]!.claim.includes('RED'))
+      all[1]!.claim.includes('RED'),
+    'a second observation of the same check must mark the first record superseded and add a present record reading RED, see recordCanonicalEvidence in src/services/primitives/evidencePlane.ts')
 }
 
 console.log('service readiness evidence (real child)')
@@ -104,9 +109,11 @@ console.log('service readiness evidence (real child)')
     r => r.kind === 'check' && r.claim.includes('ev-svc readiness met'),
   )
   check('readiness evidence exists on the project owner',
-    readiness !== undefined && readiness.origin === 'observed')
+    readiness !== undefined && readiness.origin === 'observed',
+    'when a service becomes ready, an observed check record reading ev-svc readiness met must land on the owner from serviceExecutionOwner in src/services/projectServices/executionProjection.ts')
   check('readiness evidence points at the execution',
-    readiness !== undefined && readiness.refs.includes('mercury://execution/service:ev-svc'))
+    readiness !== undefined && readiness.refs.includes('mercury://execution/service:ev-svc'),
+    'the readiness record must list mercury://execution/service:ev-svc in its refs')
   await stopService(workDir, 'ev-svc')
 }
 
@@ -118,12 +125,15 @@ console.log('origin + integrity laws')
     origin: 'declared',
     claim: 'the agent SAYS it ran the gate',
   })
-  check('declared origin is preserved', P.evidenceById(owner, declared.id)?.origin === 'declared')
+  check('declared origin is preserved', P.evidenceById(owner, declared.id)?.origin === 'declared',
+    'change recordCanonicalEvidence or evidenceById in src/services/primitives/evidencePlane.ts to keep the origin given by the caller')
   try {
     P.recordCanonicalEvidence({ owner, kind: 'observation', origin: 'derived', claim: 'derived orphan' })
-    check('derived without sources refused', false)
+    check('derived without sources refused', false,
+      'change recordCanonicalEvidence in src/services/primitives/evidencePlane.ts to throw EvidenceIntegrityError for origin derived with no refs')
   } catch (e) {
-    check('derived without sources refused', e instanceof P.EvidenceIntegrityError)
+    check('derived without sources refused', e instanceof P.EvidenceIntegrityError,
+      'recordCanonicalEvidence in src/services/primitives/evidencePlane.ts must throw EvidenceIntegrityError, not another error')
   }
   const derived = P.recordCanonicalEvidence({
     owner,
@@ -132,7 +142,8 @@ console.log('origin + integrity laws')
     claim: 'derived with sources',
     refs: [`mercury://evidence/${declared.id}`],
   })
-  check('derived with named sources accepted', derived.origin === 'derived')
+  check('derived with named sources accepted', derived.origin === 'derived',
+    'change recordCanonicalEvidence in src/services/primitives/evidencePlane.ts to accept origin derived when refs are given')
 }
 
 console.log('expiry honesty')
@@ -145,11 +156,14 @@ console.log('expiry honesty')
   }
   const ctx = { owner, cwd: workDir }
   const expired = await resolveResource(`mercury://evidence/${early.id}`, ctx)
-  check('ring-evicted evidence reads expired, never absent', expired.state === 'expired')
+  check('ring-evicted evidence reads expired, never absent', expired.state === 'expired',
+    'change the evidence resolver behind resolveResource (src/services/resources/registry.ts) to answer expired for an id that left the ring')
   const absent = await resolveResource('mercury://evidence/ev-never', ctx)
-  check('unknown evidence reads absent', absent.state === 'absent')
+  check('unknown evidence reads absent', absent.state === 'absent',
+    'change the evidence resolver behind resolveResource (src/services/resources/registry.ts) to answer absent for an id never recorded')
   const listing = await resolveResource('mercury://evidence', ctx)
-  check('listing bounded', listing.state === 'ok' && (listing.resource.children?.length ?? 0) <= 50)
+  check('listing bounded', listing.state === 'ok' && (listing.resource.children?.length ?? 0) <= 50,
+    'change the mercury://evidence listing behind resolveResource (src/services/resources/registry.ts) to return state ok with at most 50 children')
 }
 
 console.log('envelope evidence refs (additive, deterministic)')
@@ -184,20 +198,25 @@ console.log('envelope evidence refs (additive, deterministic)')
   const env2 = await build()
   check('envelope carries observed evidence refs',
     (env1.evidenceRefs?.length ?? 0) > 0 &&
-      env1.evidenceRefs!.every(r => r.startsWith('mercury://evidence/')))
+      env1.evidenceRefs!.every(r => r.startsWith('mercury://evidence/')),
+    'change buildAgentResultEnvelope in src/services/agentResults/normalize.ts to fill evidenceRefs with mercury://evidence/ refs of the agent lane evidence')
   check('normalisation stays deterministic',
-    JSON.stringify(env1.evidenceRefs) === JSON.stringify(env2.evidenceRefs))
+    JSON.stringify(env1.evidenceRefs) === JSON.stringify(env2.evidenceRefs),
+    'buildAgentResultEnvelope in src/services/agentResults/normalize.ts must return the same evidenceRefs on every call with the same input')
   check('declared check that never ran stays unknown (never observed)',
-    env1.checks.find(c => c.name === 'never-ran-check')?.state === 'unknown')
+    env1.checks.find(c => c.name === 'never-ran-check')?.state === 'unknown',
+    'buildAgentResultEnvelope in src/services/agentResults/normalize.ts must mark a declared check with no observed run as unknown')
   check('observed changed paths intact (existing contract preserved)',
-    env1.changedPaths.includes(`${workDir}/lane.ts`))
+    env1.changedPaths.includes(`${workDir}/lane.ts`),
+    'buildAgentResultEnvelope in src/services/agentResults/normalize.ts must keep the observed changed paths of the agent lane')
   await disposeOwner(lane)
 }
 
 console.log('owner disposal')
 {
   await disposeOwner(owner)
-  check('disposal clears the evidence ring', P.evidenceFor(owner).length === 0)
+  check('disposal clears the evidence ring', P.evidenceFor(owner).length === 0,
+    'the evidence ring in src/services/primitives/evidencePlane.ts must register for disposeOwner (src/utils/run/ownerLifecycle.ts) so disposal clears it')
 }
 
 console.log(`\n${pass} passed, ${fail} failed`)

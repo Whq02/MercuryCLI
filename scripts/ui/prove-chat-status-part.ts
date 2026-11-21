@@ -2,10 +2,11 @@
 import { settle, waitFor } from '../lib/settingsPopupHarness.ts'
 import { openStatusPart } from './chatScenarios.ts'
 
+const STATUS_PART_HINT = 'change the status part in src/screens/chat/useChatStatus.tsx (the turn boundary, seat clock, tip, signals and spinner rows this check reads)'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${STATUS_PART_HINT}${detail ? `: ${detail}` : ''}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

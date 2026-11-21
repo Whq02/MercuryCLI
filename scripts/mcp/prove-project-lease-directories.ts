@@ -21,7 +21,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)?.slice(0, 600)}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)?.slice(0, 600)}; fix directory leases in takeProjectLeases, releaseProjectLeases, describeProjectLeases and engineLeaseRefusal (src/services/vulcan/engine/leases.ts), or the lease_take tool in src/services/mcp/mercuryServer.ts` : ''}`)
 }
 const owner = projectLeaseHolder('tree-owner')
 const other = projectLeaseHolder('other')

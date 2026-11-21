@@ -15,11 +15,12 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const turnRuleHint = 'the rule this section names is its entry in NO_TOOL_RULES in src/run-core/turn/noToolReply.ts: change the decide of that rule there, or the planted reply in this section if the new behaviour is meant'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${turnRuleHint}` : ''}`)
 }
 const section = (title: string): void => console.log('\n' + '─'.repeat(76) + '\n' + title)
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the turn rules exceeded 180s')
+  console.log('\nTIMEOUT — the turn rules exceeded 180s; a rule in NO_TOOL_RULES (src/run-core/turn/noToolReply.ts) or the test rig in scripts/core-runtime/turnScenarios.ts is waiting on a planted reply that never completes')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

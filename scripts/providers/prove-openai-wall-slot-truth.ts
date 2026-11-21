@@ -2,9 +2,11 @@
 (globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+const wallSlotFixHint =
+  'fix in src/services/providers/openai/openaiLimitState.ts (recordOpenaiUsageLimit, openaiLimitWindow: one record per source) or in src/services/providers/providerUsability.ts (resolveProviderUsability: the openai lane must follow the active source)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${wallSlotFixHint}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

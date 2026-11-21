@@ -8,8 +8,8 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' | ' + hint : ''}`)
   if (!cond) failures++
 }
 
@@ -26,11 +26,12 @@ const row = async (): Promise<{ status: string; evidence: string } | null> => {
 console.log('§1 a clean session reads ok')
 {
   const clean = await row()
-  check('the row exists (config-writes)', clean !== null)
+  check('the row exists (config-writes)', clean !== null, '', 'register the config-writes check (configWritesCheck in src/services/health/sections/crew/home.ts) in the health report sections')
   check(
     'clean reads ok: serialized, 0 fallbacks',
     clean?.status === 'ok' && clean.evidence.includes('0 lockless fallbacks'),
     `${clean?.status}: ${clean?.evidence}`,
+    'change configWritesCheck in src/services/health/sections/crew/home.ts, or getConfigLocklessFallbackCount in src/utils/config/globalConfig.ts if the count is not 0 on a clean session',
   )
 }
 
@@ -45,6 +46,7 @@ console.log('\n§2 recorded fallbacks WARN, counted')
       degraded.evidence.includes('2 config write(s)') &&
       degraded.evidence.includes('race'),
     `${degraded?.status}: ${degraded?.evidence}`,
+    'change configWritesCheck in src/services/health/sections/crew/home.ts so noteConfigLocklessFallback calls in src/utils/config/globalConfig.ts show as a warn with the count and the race wording',
   )
 }
 

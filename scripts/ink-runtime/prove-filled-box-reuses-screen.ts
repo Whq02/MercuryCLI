@@ -22,7 +22,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}Fix how a clean subtree is blitted from the previous screen so it equals a fresh paint, in src/ink/compose-buffer.ts and src/ink/compose-walk.ts (driven by src/ink/renderer.ts)` : ''}`)
 }
 
 function box(style: Styles, children: DOMElement[] = []): DOMElement {

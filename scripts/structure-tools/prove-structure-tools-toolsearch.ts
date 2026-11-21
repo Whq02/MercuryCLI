@@ -30,7 +30,7 @@ for (const [query, winner] of [
   ['run the tests touched by changed files', 'Test'],
 ] as const) {
   const r = await search(query)
-  check(`"${query}" → ${winner} first`, r[0] === winner, r.slice(0, 4).join(', ') || '(none)')
+  check(`"${query}" → ${winner} first`, r[0] === winner, (r.slice(0, 4).join(', ') || '(none)') + ' (top four results); add the query words to the searchHint of the expected tool, or fix the scoring in searchToolsWithKeywords, src/tools/ToolSearchTool/ToolSearchTool.ts')
 }
 
 console.log(failures === 0 ? '\nLATHE TOOLSEARCH GREEN' : `\n${failures} FAILURE(S)`)

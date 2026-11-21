@@ -47,7 +47,7 @@ for (const argument of [id, 'kept title']) {
   const node = await call(message => { done.push(message) }, { resume: async (sessionId: string) => { resumed.push(sessionId) } } as never, argument)
   const mounted = await mountOffscreen(React.createElement(React.Fragment, {}, node), 120, 40)
   await waitFor(() => done.length > 0, 1500)
-  check(`an empty local listing still resolves ${argument === id ? 'an explicit session id' : 'a stored title'}`, resumed.join() === id && done.length === 1 && done[0] === undefined, JSON.stringify({ resumed, done }))
+  check(`an empty local listing still resolves ${argument === id ? 'an explicit session id' : 'a stored title'}`, resumed.join() === id && done.length === 1 && done[0] === undefined, JSON.stringify({ resumed, done }) + ' — in src/commands/sessions/sessions.tsx the argument branch of call must still look up lastSession for an id and searchSessionsByCustomTitle for a title when the local listing is empty, then call performResume')
   mounted.unmount()
 }
 
@@ -56,10 +56,10 @@ hydrationFails = true
 const done: Array<string | undefined> = []
 const node = await call(message => { done.push(message) }, {} as never, '')
 const mounted = await mountOffscreen(React.createElement(React.Fragment, {}, node), 120, 40)
-check('the fallback picker loads its selectable row', await waitFor(() => selected !== undefined, 1500))
+check('the fallback picker loads its selectable row', await waitFor(() => selected !== undefined, 1500), 'the LogSelector never received onSelect; check that call in src/commands/sessions/sessions.tsx still renders the picker when the argument is empty and context.resume is absent')
 selected?.(logs[0])
 await waitFor(() => done.length > 0 || unhandled.length > 0, 1500)
-check('a failed transcript hydration settles through the existing error receipt', done.length === 1 && done[0] === 'Failed to resume: fixture transcript unreadable' && unhandled.length === 0, JSON.stringify({ done, unhandled: unhandled.map(String) }))
+check('a failed transcript hydration settles through the existing error receipt', done.length === 1 && done[0] === 'Failed to resume: fixture transcript unreadable' && unhandled.length === 0, JSON.stringify({ done, unhandled: unhandled.map(String) }) + ' — the selection handler in src/commands/sessions/sessions.tsx must catch a fillSessionListing rejection and call onDone with Failed to resume: and the error message, not let it escape')
 mounted.unmount()
 process.removeListener('unhandledRejection', onUnhandled)
 
@@ -76,13 +76,13 @@ let mirrors = 0
 const renameContext = { messages: [], abortController: new AbortController(), setAppState() { mirrors++ } } as never
 focus('original-session')
 const pending = rename(() => {}, renameContext)
-check('automatic naming waits for its generated name', generated !== undefined)
+check('automatic naming waits for its generated name', generated !== undefined, 'src/commands/rename/rename.ts call must await generateSessionName when no name is given')
 focus('other-session')
 generated?.('generated-name')
 await pending
-check('a generated name targets the session that requested it, not a later focus', renamed.join() === 'original-session' && mirrors === 0, JSON.stringify({ renamed, mirrors }))
+check('a generated name targets the session that requested it, not a later focus', renamed.join() === 'original-session' && mirrors === 0, JSON.stringify({ renamed, mirrors }) + ' — src/commands/rename/rename.ts call must read focusedSessionId before awaiting generateSessionName and send that id in the set-title daemonControlRpc')
 await rename(() => {}, renameContext, 'explicit name')
-check('an explicit name still targets and mirrors the currently focused session', renamed.at(-1) === 'other-session' && mirrors === 1, JSON.stringify({ renamed, mirrors }))
+check('an explicit name still targets and mirrors the currently focused session', renamed.at(-1) === 'other-session' && mirrors === 1, JSON.stringify({ renamed, mirrors }) + ' — src/commands/rename/rename.ts call must send set-title for the focused session and call context.setAppState once when that session is still focused')
 releaseFocusedSessionConnector()
 await releaseScratchHome(home)
 console.log(`prove-sessions-command-routing: ${failures} failure(s)`)

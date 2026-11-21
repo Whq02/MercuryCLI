@@ -24,6 +24,10 @@ function section(t: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 const settle = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+const peerHint = 'change the Peer class in src/runner/wire/peer.ts'
+const splitHint = 'change LineSplitter (feed or flush) in src/runner/wire/peer.ts'
+const methodsHint = 'change the method table in src/runner/wire/methods.ts, or this expectation if the table moved on purpose'
+const errorsHint = 'change the codes and helpers in src/runner/wire/errors.ts'
 
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — runner wire laws exceeded 60s')
@@ -93,15 +97,15 @@ section('W1 framing: partial lines buffer across chunks, CRLF trims, the bound d
   const second = splitter.feed(':2}\r\n\n')
   const tail = splitter.feed('{"c":3}')
   const flushed = splitter.flush()
-  check('one line from the first chunk', first.length === 1 && first[0]!.kind === 'line' && first[0]!.text === '{"a":1}')
-  check('the split line completes on the second chunk and CRLF trims', second.length === 2 && second[0]!.kind === 'line' && second[0]!.text === '{"b":2}')
-  check('a blank line reaches the reader as an empty line', second[1]!.kind === 'line' && second[1]!.text === '')
-  check('an unterminated tail waits', tail.length === 0)
-  check('flush yields the tail', flushed.length === 1 && flushed[0]!.kind === 'line' && flushed[0]!.text === '{"c":3}')
+  check('one line from the first chunk', first.length === 1 && first[0]!.kind === 'line' && first[0]!.text === '{"a":1}', splitHint)
+  check('the split line completes on the second chunk and CRLF trims', second.length === 2 && second[0]!.kind === 'line' && second[0]!.text === '{"b":2}', splitHint)
+  check('a blank line reaches the reader as an empty line', second[1]!.kind === 'line' && second[1]!.text === '', splitHint)
+  check('an unterminated tail waits', tail.length === 0, splitHint)
+  check('flush yields the tail', flushed.length === 1 && flushed[0]!.kind === 'line' && flushed[0]!.text === '{"c":3}', splitHint)
   const bounded = new LineSplitter(16)
   const over = bounded.feed('x'.repeat(20))
   const resync = bounded.feed('yy\n{"d":4}\n')
-  check('an overlong line is dropped once its newline arrives and the reader resyncs on the next line', over.length === 0 && resync.length === 2 && resync[0]!.kind === 'overlong' && resync[1]!.kind === 'line' && resync[1]!.text === '{"d":4}', j(resync))
+  check('an overlong line is dropped once its newline arrives and the reader resyncs on the next line', over.length === 0 && resync.length === 2 && resync[0]!.kind === 'overlong' && resync[1]!.kind === 'line' && resync[1]!.text === '{"d":4}', j(resync) + ' | ' + splitHint)
   const w = world()
   await w.initialize()
   w.raw('{"jsonrpc":"2.0","id":7,"method":"sess')
@@ -110,7 +114,7 @@ section('W1 framing: partial lines buffer across chunks, CRLF trims, the bound d
   w.raw('ion/facts","params":{}}\n')
   await settle(20)
   const answer = w.hostSaw.find(f => f.id === 7)
-  check('the peer serves a request whose bytes arrived in two chunks', w.hostSaw.length === before + 1 && answer !== undefined && j(answer.result) === j({ model: 'm', mode: 'default' }), j(w.hostSaw))
+  check('the peer serves a request whose bytes arrived in two chunks', w.hostSaw.length === before + 1 && answer !== undefined && j(answer.result) === j({ model: 'm', mode: 'default' }), j(w.hostSaw) + ' | ' + peerHint)
   w.host.end()
 }
 
@@ -120,20 +124,20 @@ section('W2 the handshake: the runner holds its output until initialize is answe
   w.runner.notify('row', row(1, 'boot') as never)
   w.runner.notify('row', row(2, 'boot too') as never)
   await settle(20)
-  check('rows before initialize are held, not written', w.hostSaw.length === 0 && w.runner.holdingOutput)
+  check('rows before initialize are held, not written', w.hostSaw.length === 0 && w.runner.holdingOutput, peerHint + ' (holdingOutput and notify must hold rows until initialize is answered)')
   w.raw(j({ jsonrpc: '2.0', id: 5, method: 'session/facts', params: {} }) + '\n')
   await settle(20)
   const early = errorsSeen(w.hostSaw)
-  check('a request before initialize is answered -32002 through the hold', early.length === 1 && early[0]!.id === 5 && early[0]!.code === errors.RPC_NOT_INITIALIZED, j(w.hostSaw))
-  check('the held rows still have not left', w.hostSaw.length === 1)
+  check('a request before initialize is answered -32002 through the hold', early.length === 1 && early[0]!.id === 5 && early[0]!.code === errors.RPC_NOT_INITIALIZED, j(w.hostSaw) + ' | ' + peerHint)
+  check('the held rows still have not left', w.hostSaw.length === 1, peerHint)
   const result = await w.initialize()
   await settle(20)
   check('initialize answers protocol 1, the runner pid and a null session id', result.protocol === 1 && result.runner.pid === process.pid && result.session_id === null)
   const kinds = w.hostSaw.map(f => (f.result !== undefined ? 'result' : f.error !== undefined ? 'error' : f.method === 'row' ? `row:${(f.params as Frame).text}` : f.method))
-  check('the held rows leave right after the answer, in order', j(kinds) === j(['error', 'result', 'row:boot', 'row:boot too']), j(kinds))
-  check('the writer no longer holds', !w.runner.holdingOutput && w.runner.initialized)
+  check('the held rows leave right after the answer, in order', j(kinds) === j(['error', 'result', 'row:boot', 'row:boot too']), j(kinds) + ' | ' + peerHint)
+  check('the writer no longer holds', !w.runner.holdingOutput && w.runner.initialized, peerHint)
   const again = (await rejection(w.initialize())) as InstanceType<typeof errors.RpcError>
-  check('a second initialize is refused -32010 already-initialized', again?.code === errors.RPC_REFUSED && (again.data as { kind: string }).kind === 'already-initialized', j(again))
+  check('a second initialize is refused -32010 already-initialized', again?.code === errors.RPC_REFUSED && (again.data as { kind: string }).kind === 'already-initialized', j(again) + ' | ' + peerHint)
   w.host.end()
 }
 
@@ -147,17 +151,17 @@ section('W3 a request that arrives while initialize is pending waits for the ans
   w.raw(j({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocol: 1, host: { name: 'h', version: '0' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } } }) + '\n')
   w.raw(j({ jsonrpc: '2.0', id: 2, method: 'session/facts', params: {} }) + '\n')
   await settle(100)
-  check('both are answered, initialize first, and the facts request is served rather than refused', j(w.hostSaw.map(f => f.id)) === j([1, 2]) && w.hostSaw[1]!.result !== undefined, j(w.hostSaw))
+  check('both are answered, initialize first, and the facts request is served rather than refused', j(w.hostSaw.map(f => f.id)) === j([1, 2]) && w.hostSaw[1]!.result !== undefined, j(w.hostSaw) + ' | ' + peerHint)
   w.host.end()
   const refusing = world()
   refusing.runner.onRequest('initialize', params => {
     throw errors.refused(`protocol ${params.protocol} is not served`, 'protocol')
   })
   const refusal = (await rejection(refusing.initialize())) as InstanceType<typeof errors.RpcError>
-  check('a protocol mismatch is -32010 kind protocol', refusal?.code === errors.RPC_REFUSED && (refusal.data as { kind: string }).kind === 'protocol' && refusal.message.includes('protocol 1'))
-  check('the runner stays uninitialized', !refusing.runner.initialized)
+  check('a protocol mismatch is -32010 kind protocol', refusal?.code === errors.RPC_REFUSED && (refusal.data as { kind: string }).kind === 'protocol' && refusal.message.includes('protocol 1'), peerHint + ' or ' + errorsHint)
+  check('the runner stays uninitialized', !refusing.runner.initialized, peerHint)
   const after = (await rejection(refusing.host.request('session/facts', {}))) as InstanceType<typeof errors.RpcError>
-  check('and the next request is still -32002', after?.code === errors.RPC_NOT_INITIALIZED)
+  check('and the next request is still -32002', after?.code === errors.RPC_NOT_INITIALIZED, peerHint)
   refusing.host.end()
 }
 
@@ -169,20 +173,20 @@ section('W4 parse errors: -32700 with a null id, the stream continues, three in 
   w.raw('this is not json\n')
   await settle(10)
   const facts = await w.host.request('session/facts', {})
-  check('the bad line is answered -32700 id null', j(errorsSeen(w.hostSaw.slice(mark))[0]) === j({ id: null, code: errors.RPC_PARSE_ERROR }), j(w.hostSaw.slice(mark)))
+  check('the bad line is answered -32700 id null', j(errorsSeen(w.hostSaw.slice(mark))[0]) === j({ id: null, code: errors.RPC_PARSE_ERROR }), j(w.hostSaw.slice(mark)) + ' | ' + peerHint)
   check('and the next request is served', j(facts) === j({ model: 'm', mode: 'default' }))
-  check('one bad line does not desync', w.desyncs.length === 0)
+  check('one bad line does not desync', w.desyncs.length === 0, peerHint + ' (the bad-line counter)')
   w.raw('bad one\n')
   w.raw('bad two\n')
   await w.host.request('session/facts', {})
   w.raw('bad three\n')
   await settle(10)
-  check('a good line between bad lines resets the count', w.desyncs.length === 0, j(w.desyncs))
+  check('a good line between bad lines resets the count', w.desyncs.length === 0, j(w.desyncs) + ' | ' + peerHint + ' (a good line must reset the bad-line counter)')
   w.raw('bad four\n')
   w.raw('bad five\n')
   await settle(10)
-  check(`three consecutive bad lines report a desync (${j(w.desyncs)})`, j(w.desyncs) === j([3]))
-  check('the runner names the desync on its log', w.runnerLog.some(l => l.includes('out of step')))
+  check(`three consecutive bad lines report a desync (${j(w.desyncs)})`, j(w.desyncs) === j([3]), peerHint + ' (onDesync fires after BAD_LINE_LIMIT in src/runner/wire/errors.ts)')
+  check('the runner names the desync on its log', w.runnerLog.some(l => l.includes('out of step')), peerHint + ' (the desync log line)')
   w.host.end()
 }
 
@@ -197,9 +201,9 @@ section('W5 invalid requests: a batch, a non-JSON-RPC object, a bad id')
   w.raw(j({ jsonrpc: '2.0', id: 3 }) + '\n')
   await settle(20)
   const seen = errorsSeen(w.hostSaw.slice(mark))
-  check('each is -32600', seen.length === 4 && seen.every(e => e.code === errors.RPC_INVALID_REQUEST), j(seen))
-  check('a batch and a bad id answer with id null; a bare id frame answers with its id', seen[0]!.id === null && seen[1]!.id === null && seen[2]!.id === null && seen[3]!.id === 3, j(seen))
-  check('none of them count as a bad line', w.desyncs.length === 0)
+  check('each is -32600', seen.length === 4 && seen.every(e => e.code === errors.RPC_INVALID_REQUEST), j(seen) + ' | ' + peerHint)
+  check('a batch and a bad id answer with id null; a bare id frame answers with its id', seen[0]!.id === null && seen[1]!.id === null && seen[2]!.id === null && seen[3]!.id === 3, j(seen) + ' | ' + peerHint)
+  check('none of them count as a bad line', w.desyncs.length === 0, peerHint)
   w.host.end()
 }
 
@@ -208,22 +212,22 @@ section('W6 method not found and invalid params')
   const w = world()
   await w.initialize()
   const unknown = (await rejection(w.host.request('nope' as never, {} as never))) as InstanceType<typeof errors.RpcError>
-  check('an unknown method is -32601 naming the method', unknown?.code === errors.RPC_METHOD_NOT_FOUND && (unknown.data as { method: string }).method === 'nope')
+  check('an unknown method is -32601 naming the method', unknown?.code === errors.RPC_METHOD_NOT_FOUND && (unknown.data as { method: string }).method === 'nope', peerHint)
   const wrongWay = (await rejection(w.host.request('permission/request' as never, { kind: 'tool', tool_use_id: 'toolu_wire', tool_name: 'Bash', input: { command: 'ls' } } as never))) as InstanceType<typeof errors.RpcError>
-  check('a runner-to-host method sent to the runner is -32601', wrongWay?.code === errors.RPC_METHOD_NOT_FOUND)
+  check('a runner-to-host method sent to the runner is -32601', wrongWay?.code === errors.RPC_METHOD_NOT_FOUND, peerHint + ' or the sides in ' + methodsHint)
   const unserved = (await rejection(w.host.request('session/rewind', { user_message_id: 'u', mode: 'code' }))) as InstanceType<typeof errors.RpcError>
-  check('a table method this runner has no handler for is -32601', unserved?.code === errors.RPC_METHOD_NOT_FOUND)
+  check('a table method this runner has no handler for is -32601', unserved?.code === errors.RPC_METHOD_NOT_FOUND, peerHint)
   w.runner.onRequest('session/set_effort', params => ({ effort: params.effort, at: 'now' }))
   w.runner.onRequest('queue/add', () => ({ accepted: true }))
   const notFoundBefore = w.hostSaw.filter(f => (f.error as { code?: number } | undefined)?.code === errors.RPC_METHOD_NOT_FOUND).length
   const noEffort = (await rejection(w.host.request('session/set_effort', {} as never))) as InstanceType<typeof errors.RpcError>
   const issues = (noEffort?.data as { issues?: Array<{ path: string }> } | undefined)?.issues ?? []
-  check('a schema refusal is -32602 with the issues', noEffort?.code === errors.RPC_INVALID_PARAMS && issues.some(i => i.path === 'effort'), j(noEffort))
+  check('a schema refusal is -32602 with the issues', noEffort?.code === errors.RPC_INVALID_PARAMS && issues.some(i => i.path === 'effort'), j(noEffort) + ' | ' + peerHint + ' or the session/set_effort schema in src/runner/wire/methods.ts')
   const userFrame = (await rejection(w.host.request('queue/add', { type: 'user', message: {} } as never))) as InstanceType<typeof errors.RpcError>
-  check('queue/add refuses a frame that is not an input row', userFrame?.code === errors.RPC_INVALID_PARAMS)
+  check('queue/add refuses a frame that is not an input row', userFrame?.code === errors.RPC_INVALID_PARAMS, 'change the queue/add params schema in src/runner/wire/methods.ts')
   w.raw(j({ jsonrpc: '2.0', method: 'no/such_notification', params: {} }) + '\n')
   await settle(10)
-  check('an unknown notification is ignored, never answered', w.hostSaw.filter(f => (f.error as { code?: number } | undefined)?.code === errors.RPC_METHOD_NOT_FOUND).length === notFoundBefore)
+  check('an unknown notification is ignored, never answered', w.hostSaw.filter(f => (f.error as { code?: number } | undefined)?.code === errors.RPC_METHOD_NOT_FOUND).length === notFoundBefore, peerHint)
   w.host.end()
 }
 

@@ -9,9 +9,10 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'utility-call-family-'))
 
 let failures = 0
+const utilityFamilyHint = 'fix utilityCallFor or floorEffort in src/services/model/utilityModel.ts, openaiLightChoice in src/services/model/providerFrontier.ts, or settleAssistantTurn in src/services/providers/callModelRouter.ts, whichever this check exercises'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${utilityFamilyHint}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

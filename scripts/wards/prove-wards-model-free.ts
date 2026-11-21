@@ -6,7 +6,7 @@
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? (detail ? ` — ${detail}` : '') : ` — ${detail ? `${detail}; ` : ''}to fix: the ward verdict must stay a pure local computation in evaluateWards and the rule lists in src/utils/wards/wards.ts, and registerWardsGuard in src/guards/wardsGuard.ts must judge without a network call or a function inside a rule`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -18,7 +18,7 @@ for (const expanded of [false, true]) {
   const frame = (await paint(expanded)).replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '')
   const row = frame.split('\n').find(line => line.includes('[Crewmate]')) ?? ''
   const ok = row.includes(formatClock(completed)!) && !row.includes(formatClock(delivered)!)
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${expanded ? 'expanded' : 'folded'} crew notice carries its completion stamp: ${row.trim()}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${expanded ? 'expanded' : 'folded'} crew notice carries its completion stamp: ${row.trim()}${ok ? '' : ' (the [Crewmate] row must show the completedAt clock from noticeSentAt, not the delivered one; change how src/components/messages/UserTextMessage.tsx passes completedAt and deliveredAt to UserAgentNotificationMessage)'}`)
   if (!ok) failed++
 }
 rmSync(home, { recursive: true, force: true })

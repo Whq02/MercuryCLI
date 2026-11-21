@@ -11,10 +11,12 @@ delete process.env.MERCURY_HOME
 
 let failures = 0
 let checks = 0
+const verdictOwnerFixHint =
+  'fix in src/services/anthropicLimits.ts (anthropicLimitVerdict, anthropicWindowObserved, resetLimitsForCredentialSwitch, extractQuotaStatusFromError) for the verdict and its account stamp, or in src/services/providers/providerUsability.ts (resolveProviderUsability, delegationDispatchBlocker) for the lane and refusal text'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${verdictOwnerFixHint}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

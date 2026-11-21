@@ -13,7 +13,7 @@ const { plainTextStorage } = await import('../../src/utils/secureStorage/plainTe
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : `${detail ? '; ' : ' — '}to fix: change plainTextStorage.update and plainTextStorage.read in src/utils/secureStorage/plainTextStorage.ts so a save over a read-only .credentials.json replaces it and the new credential reads back`}`)
 }
 
 console.log('============================================================')

@@ -52,21 +52,21 @@ if (engine.state === 'unavailable') {
 
 {
   const p = await parsePolyglot(engine, pyLang, PY_GOOD)
-  check('baseline python parses clean', !('state' in p) && p.parseErrors.length === 0)
+  check('baseline python parses clean', !('state' in p) && p.parseErrors.length === 0, 'check that node_modules/@vscode/tree-sitter-wasm/wasm holds tree-sitter-python.wasm and that parsePolyglot in src/utils/structure/grammarFacility.ts loads it')
   if (!('state' in p)) p.tree.delete()
 }
 
 {
   const p = await parsePolyglot(engine, yamlLang, 'key: value\n')
-  check('the detonator answers unavailable BY NAME', 'state' in p && p.note.includes('yaml-detonator'), JSON.stringify(p).slice(0, 140))
+  check('the detonator answers unavailable BY NAME', 'state' in p && p.note.includes('yaml-detonator'), `${JSON.stringify(p).slice(0, 140)} — parsePolyglot in src/utils/structure/grammarFacility.ts must answer unavailable with a note naming the failing grammar`)
 }
 
 {
   const p = await parsePolyglot(engine, pyLang, PY_GOOD)
-  check('python parses CLEAN on the same reference after the detonation', !('state' in p) && p.parseErrors.length === 0, JSON.stringify(p).slice(0, 140))
+  check('python parses CLEAN on the same reference after the detonation', !('state' in p) && p.parseErrors.length === 0, `${JSON.stringify(p).slice(0, 140)} — after one grammar fails, parsePolyglot and loadGrammarEngine in src/utils/structure/grammarFacility.ts must keep the engine usable for other grammars`)
   if (!('state' in p)) p.tree.delete()
   const broken = await parsePolyglot(engine, pyLang, 'def broken(:\n')
-  check('error honesty intact after recovery', !('state' in broken) && broken.parseErrors.length > 0)
+  check('error honesty intact after recovery', !('state' in broken) && broken.parseErrors.length > 0, 'parsePolyglot in src/utils/structure/grammarFacility.ts must still report parseErrors for broken source after a grammar failure')
   if (!('state' in broken)) broken.tree.delete()
 }
 
@@ -76,9 +76,9 @@ if (engine.state === 'unavailable') {
     check('fresh engine after recovery', false, fresh.note)
   } else {
     const p = await parsePolyglot(fresh, yamlLang, 'a: b\n')
-    check('a second detonation still refuses by name', 'state' in p && p.note.includes('yaml-detonator'))
+    check('a second detonation still refuses by name', 'state' in p && p.note.includes('yaml-detonator'), 'a fresh engine from loadGrammarEngine in src/utils/structure/grammarFacility.ts must refuse the bad grammar by name again')
     const py = await parsePolyglot(fresh, pyLang, PY_GOOD)
-    check('and python still parses clean after it', !('state' in py) && py.parseErrors.length === 0)
+    check('and python still parses clean after it', !('state' in py) && py.parseErrors.length === 0, 'a fresh engine from loadGrammarEngine in src/utils/structure/grammarFacility.ts must still parse python after the bad grammar is refused')
     if (!('state' in py)) py.tree.delete()
   }
 }

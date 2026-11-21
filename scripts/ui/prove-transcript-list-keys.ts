@@ -8,8 +8,10 @@ const ROOT = join(import.meta.dir, '..', '..')
 const { reconcileItemKeys } = await import(join(ROOT, 'src/components/virtualListKeys.ts'))
 
 let failures = 0
+const keysHint = 'change reconcileItemKeys in src/components/virtualListKeys.ts (keys must be exact per index, unique among siblings, and keep array identity on a pure append); VirtualMessageList.tsx consumes it'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = !ok && !label.startsWith('CONTROL') ? (detail ? `${detail} — ${keysHint}` : keysHint) : detail
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && shown ? ` — ${shown}` : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)

@@ -33,9 +33,11 @@ import {
 import { getFlagSpec } from '../../src/substrate/flagRegistry.js'
 
 let failures = 0
+const motionFailureHint = 'to fix, change the trip, release and cadence rules in src/utils/cockpit/motionGovernor.ts (noteFrameCost, governorLevel, reducedPeriodMs, idleMotionLevel), the tick tables in src/utils/cockpit/critterIdle.ts (critterIdleTickMs) and src/utils/cockpit/liveGlyphs.ts (glyphTickMs), or the clock in src/ink/components/ClockContext.tsx'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? '' : detail ? `${detail} | ${motionFailureHint}` : motionFailureHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

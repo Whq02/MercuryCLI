@@ -88,13 +88,13 @@ try {
     const started = await until(() => suitePids(w).length === 2, 60_000)
     const pids = suitePids(w)
     strays.push(...pids)
-    check('the suite started under the runner', started && pids.every(running), `pids ${JSON.stringify(pids)}`)
+    check('the suite started under the runner', started && pids.every(running), `pids ${JSON.stringify(pids)}` + ' — scripts/gate/ci-shard.sh must start the suite unit through scripts/gate/run-suite.sh, which records its pids in the file the sleeper writes')
     shard.kill('SIGTERM')
     const result = await exit
-    check('the runner ended as a stopped shell does', result.code === 143 || result.signal === 'SIGTERM', JSON.stringify(result))
+    check('the runner ended as a stopped shell does', result.code === 143 || result.signal === 'SIGTERM', JSON.stringify(result) + ' — scripts/gate/ci-shard.sh must end as a TERM-stopped shell does, with status 143 or signal TERM, after ending its suite')
     const gone = await until(() => !pids.some(running), 3_000)
-    check("no process of the suite is alive once the runner has returned", gone, `alive ${JSON.stringify(pids.filter(running))}`)
-    check('the suite log names the stop', suiteLog(w).includes('__SUITE_RUNNER_SIGNALLED TERM'), suiteLog(w).slice(-200))
+    check("no process of the suite is alive once the runner has returned", gone, `alive ${JSON.stringify(pids.filter(running))}` + ' — end_suite_in_flight in scripts/gate/ci-shard.sh and the signal traps in scripts/gate/run-suite.sh must kill the whole suite tree before the runner returns')
+    check('the suite log names the stop', suiteLog(w).includes('__SUITE_RUNNER_SIGNALLED TERM'), suiteLog(w).slice(-200) + ' — scripts/gate/run-suite.sh must append the __SUITE_RUNNER_SIGNALLED marker to the suite log when its runner is stopped')
   }
 
   section('§2 the shard runner killed outright: no trap runs, and the suite unit ends its own tree within seconds')
@@ -105,13 +105,13 @@ try {
     const started = await until(() => suitePids(w).length === 2, 60_000)
     const pids = suitePids(w)
     strays.push(...pids)
-    check('the suite started under the runner', started && pids.every(running), `pids ${JSON.stringify(pids)}`)
+    check('the suite started under the runner', started && pids.every(running), `pids ${JSON.stringify(pids)}` + ' — scripts/gate/ci-shard.sh must start the suite unit through scripts/gate/run-suite.sh, which records its pids in the file the sleeper writes')
     shard.kill('SIGKILL')
     const result = await exit
-    check('the runner died of the kill', result.signal === 'SIGKILL', JSON.stringify(result))
+    check('the runner died of the kill', result.signal === 'SIGKILL', JSON.stringify(result) + ' — scripts/gate/ci-shard.sh must not trap or ignore KILL, so the harness kill must reach the runner itself')
     const gone = await until(() => !pids.some(running), 15_000)
-    check('no process of the suite is alive fifteen seconds later', gone, `alive ${JSON.stringify(pids.filter(running))}`)
-    check('the suite log says its launcher was gone', suiteLog(w).includes('__SUITE_LAUNCHER_GONE'), suiteLog(w).slice(-200))
+    check('no process of the suite is alive fifteen seconds later', gone, `alive ${JSON.stringify(pids.filter(running))}` + ' — the watch loop in scripts/gate/run-suite.sh must notice the runner is gone and call end_suite_tree within fifteen seconds')
+    check('the suite log says its launcher was gone', suiteLog(w).includes('__SUITE_LAUNCHER_GONE'), suiteLog(w).slice(-200) + ' — scripts/gate/run-suite.sh must append the __SUITE_LAUNCHER_GONE marker when its launcher is gone')
   }
 
   section('§3 a suite unit whose launcher stays runs to its own end, untouched')
@@ -120,8 +120,8 @@ try {
     mkdirSync(w.out, { recursive: true })
     const unit = spawnSync('bash', ['scripts/gate/run-suite.sh', join(w.suites, 'sleeper', 'run-all.sh'), '60', w.out], { cwd: ROOT, env: w.env, encoding: 'utf8', timeout: 120_000, killSignal: 'SIGKILL' })
     const log = suiteLog(w)
-    check('the unit ended green', unit.status === 0, `rc ${unit.status} ${String(unit.stderr).slice(-200)}`)
-    check('no stop marker in its log', !log.includes('__SUITE_LAUNCHER_GONE') && !log.includes('__SUITE_RUNNER_GONE') && !log.includes('__SUITE_RUNNER_SIGNALLED'), log.slice(-200))
+    check('the unit ended green', unit.status === 0, `rc ${unit.status} ${String(unit.stderr).slice(-200)}` + ' — scripts/gate/run-suite.sh must run a suite whose launcher stays to its own end and exit 0')
+    check('no stop marker in its log', !log.includes('__SUITE_LAUNCHER_GONE') && !log.includes('__SUITE_RUNNER_GONE') && !log.includes('__SUITE_RUNNER_SIGNALLED'), log.slice(-200) + ' — scripts/gate/run-suite.sh must write a stop marker only when its launcher or runner is gone or signalled')
   }
 
   section('§4 any launcher: a suite unit started in the background by a shell that is then killed ends its tree')
@@ -133,12 +133,12 @@ try {
     const started = await until(() => suitePids(w).length === 2, 60_000)
     const pids = suitePids(w)
     strays.push(...pids)
-    check('the suite started under the launcher', started && pids.every(running), `pids ${JSON.stringify(pids)}`)
+    check('the suite started under the launcher', started && pids.every(running), `pids ${JSON.stringify(pids)}` + ' — scripts/gate/run-suite.sh must start the suite and record its pids in the file the sleeper writes')
     launcher.kill('SIGKILL')
     await exit
     const gone = await until(() => !pids.some(running), 15_000)
-    check('no process of the suite is alive fifteen seconds later', gone, `alive ${JSON.stringify(pids.filter(running))}`)
-    check('the suite log says its launcher was gone', suiteLog(w).includes('__SUITE_LAUNCHER_GONE'), suiteLog(w).slice(-200))
+    check('no process of the suite is alive fifteen seconds later', gone, `alive ${JSON.stringify(pids.filter(running))}` + ' — the watch loop in scripts/gate/run-suite.sh must notice its launcher is gone and call end_suite_tree within fifteen seconds')
+    check('the suite log says its launcher was gone', suiteLog(w).includes('__SUITE_LAUNCHER_GONE'), suiteLog(w).slice(-200) + ' — scripts/gate/run-suite.sh must append the __SUITE_LAUNCHER_GONE marker when its launcher is gone')
   }
 } finally {
   for (const pid of strays) {

@@ -28,7 +28,8 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const failHint = ' — a rail painted partly: the left rail is src/components/HelmLanesRail.tsx, the right rail is src/components/HelmVitalsRail.tsx with its rows from src/services/cockpit/helmVitalsModel.ts; shed or hide a section whole when the pane is too short; rerun with --frames <dir> to read the frames'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : failHint}`)
 }
 
 const React = await import('react')

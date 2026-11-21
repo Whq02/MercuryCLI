@@ -59,11 +59,11 @@ setFoldBoundsForTests({ stallMs: 5_000, ingestMsPer1kTokens: 0 })
 try {
   const start = Date.now()
   const result = await compactConversation(messages, context, cache, false)
-  check('the cache fork survives more than two silence budgets on heartbeats alone', requests === 1 && Date.now() - start >= 11_000, { requests, ms: Date.now() - start })
-  check('the whole summary survives', result.summaryMessages.some(row => String(row.message.content).includes(summary)))
-  check('the actual session receives the same raw-byte activity relay', activity.length >= 3 && heartbeats >= 20, { activity: activity.length, heartbeats })
+  check('the cache fork survives more than two silence budgets on heartbeats alone', requests === 1 && Date.now() - start >= 11_000, { requests, ms: Date.now() - start, hint: 'the fold stalled or retried despite ping events; armFoldBound in src/services/compact/compact/foldBound.ts must restart its stall timer on each stream activity (bound.touch via onStreamActivity in src/services/compact/compact/summarise.ts)' })
+  check('the whole summary survives', result.summaryMessages.some(row => String(row.message.content).includes(summary)), 'the summary text from the fixture stream is missing from result.summaryMessages; check the fold in src/services/compact/compact/summarise.ts and foldSummary.ts')
+  check('the actual session receives the same raw-byte activity relay', activity.length >= 3 && heartbeats >= 20, { activity: activity.length, heartbeats, hint: 'fewer than 3 streamActivity statuses reached setSDKStatus; the onStreamActivity handler in src/services/compact/compact/summarise.ts must pass each raw-byte activity to context.setSDKStatus' })
 } catch (error) {
-  check('the live stream completes', false, String(error))
+  check('the live stream completes', false, `${String(error)} (compactConversation in src/services/compact/compact.ts threw; the fold stall bound in src/services/compact/compact/foldBound.ts may have cut the stream)`)
 } finally {
   clearTimeout(guard)
   setFoldBoundsForTests(null)

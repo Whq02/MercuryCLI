@@ -31,9 +31,9 @@ if (process.argv[2] === '--child-write') {
 }
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — to fix: ${hint}` : ''}`)
 }
 
 const bunBin = process.execPath
@@ -87,15 +87,19 @@ try {
     await new Promise(r => setTimeout(r, 300))
     const firesBefore = fires
     const code = await childWrite(dir, 'tiny')
-    check('A: child writer exited 0', code === 0)
+    check('A: child writer exited 0', code === 0, '',
+      'the --child-write branch at the top of this file exited non-zero; its mutate through defineStore in src/substrate/fileStore.ts threw, see the child stderr above')
     const delivered = await waitFor(() => n >= 1, 5000)
     check('A: subscribe-before-exist DELIVERS a cross-process write', delivered,
-      `fires ${firesBefore}→${fires}, n=${n}`)
+      `fires ${firesBefore}→${fires}, n=${n}`,
+      'a subscriber attached before the file exists got no cross-process write; check startWatcherOf (the ENOENT branch calling startPollUntilExists) and subscribeChanges in src/substrate/fileStore.ts')
     const before = fires
     const code2 = await childWrite(dir, 'tiny')
-    check('A: second child writer exited 0', code2 === 0)
+    check('A: second child writer exited 0', code2 === 0, '',
+      'the --child-write branch at the top of this file exited non-zero; its mutate through defineStore in src/substrate/fileStore.ts threw, see the child stderr above')
     const deliveredAgain = await waitFor(() => fires > before, 5000)
-    check('A: post-upgrade watcher still delivers', deliveredAgain, `fires ${before}→${fires}`)
+    check('A: post-upgrade watcher still delivers', deliveredAgain, `fires ${before}→${fires}`,
+      'after the poll-until-exists stage the subscriber stopped firing; check that startPollUntilExistsOf in src/substrate/fileStore.ts hands over to a watcher or poll that keeps emitting')
     unsub()
   }
 
@@ -108,10 +112,12 @@ try {
     let delivered = false
     for (let attempt = 0; attempt < 3 && !delivered; attempt++) {
       const code = await childWrite(dir, 'tiny')
-      if (attempt === 0) check('B: child writer exited 0', code === 0)
+      if (attempt === 0) check('B: child writer exited 0', code === 0, '',
+        'the --child-write branch at the top of this file exited non-zero; its mutate through defineStore in src/substrate/fileStore.ts threw, see the child stderr above')
       delivered = await waitFor(() => seen >= 1, 5000)
     }
-    check('B: pre-existing-file subscription delivers a cross-process write', delivered, `seen=${seen}`)
+    check('B: pre-existing-file subscription delivers a cross-process write', delivered, `seen=${seen}`,
+      'a subscriber on an existing file got no cross-process write in 3 attempts; check the chokidar watcher in startWatcherOf and scheduleEmit in src/substrate/fileStore.ts')
     unsub()
   }
 
@@ -121,7 +127,8 @@ try {
     const unsub = tiny(dir).subscribe(v => { seen = v.n }, { immediate: false })
     await tiny(dir).mutate(s => ({ ...s, n: 7 }))
     const delivered = await waitFor(() => seen === 7, 2000)
-    check('C: in-process publish fans out to the subscriber', delivered, `seen=${seen}`)
+    check('C: in-process publish fans out to the subscriber', delivered, `seen=${seen}`,
+      'a mutate in this process did not reach its own subscriber within 2 s; check how the store publishes to rt.listeners after a write in src/substrate/fileStore.ts')
     unsub()
   }
 } finally {

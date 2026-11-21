@@ -267,10 +267,10 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17], [120, 40]] as const) {
       capture.on('error', reject)
       capture.on('close', code => { clearTimeout(timer); resolve(code) })
     })
-    check(`${geometry}: the real-terminal journey completes`, status === 0 && existsSync(out), `exit=${status}`)
+    check(`${geometry}: the real-terminal journey completes`, status === 0 && existsSync(out), `exit=${status} — the capture driver did not finish the scripted journey; read capture.log and daemon.log in the scratch folder named on the last line, and check that the awaited texts in the sends list in this file still appear on screen`)
     if (!existsSync(out)) throw new Error(captureLog)
     const payload = JSON.parse(readFileSync(out, 'utf8')) as Frame & { marks?: Frame[]; sendReceipts?: Array<{ ts: number }>; endReason: string }
-    check(`${geometry}: all sends reached their observed state`, payload.sendReceipts?.length === sends.length && payload.endReason === 'ready', `sends=${payload.sendReceipts?.length}, end=${payload.endReason}`)
+    check(`${geometry}: all sends reached their observed state`, payload.sendReceipts?.length === sends.length && payload.endReason === 'ready', `sends=${payload.sendReceipts?.length}, end=${payload.endReason} — a send waited for text that never painted; compare grid.json in the scratch folder with the awaitText of the sends list in this file`)
     const marks = Object.fromEntries((payload.marks ?? []).map(frame => [frame.label!, frame]))
     const estimateAt = payload.sendReceipts?.[2]?.ts ?? startedAt
     const factAt = payload.sendReceipts?.[3]?.ts ?? startedAt
@@ -284,21 +284,21 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17], [120, 40]] as const) {
     const needleRow = wire.find(row => row.kind === 'needle')
     const firstDeltaAt = wire.find(row => row.kind === 'think')?.at ?? firstUsageAt
     console.log(`[hold] ${geometry}: the row's tokens needle painted ${needleRow ? `${needleRow.at - firstDeltaAt} ms` : 'never (the ceiling ended the hold)'} after the first delta; the usage frame went out ${firstUsageAt - firstDeltaAt} ms after it; the mark landed ${estimateAt - firstDeltaAt} ms after it`)
-    check(`${geometry} estimate: the mark landed before the first usage frame`, estimateAt < firstUsageAt, `mark=${estimateAt} usage=${firstUsageAt}`)
-    check(`${geometry} estimate: before any usage frame the row paints the characters-over-four figure with its ~ mark`, estimateFigure !== null && estimateFigure.estimate && estimateFigure.count <= Math.floor(charsByEstimate / 4) + (cols >= 100 ? 50 : 0), JSON.stringify({ figure: estimateFigure, chars: charsByEstimate }))
+    check(`${geometry} estimate: the mark landed before the first usage frame`, estimateAt < firstUsageAt, `mark=${estimateAt} usage=${firstUsageAt} — the estimate figure painted too late or the fixture sent usage too early; see the hold loop in think and estimateRead in this file`)
+    check(`${geometry} estimate: before any usage frame the row paints the characters-over-four figure with its ~ mark`, estimateFigure !== null && estimateFigure.estimate && estimateFigure.count <= Math.floor(charsByEstimate / 4) + (cols >= 100 ? 50 : 0), JSON.stringify({ figure: estimateFigure, chars: charsByEstimate }) + ' — the row must paint a figure with the ~ mark, at most the streamed characters divided by four, before any usage frame; the figure is read from turnOutputTokens in src/screens/chat/useChatStatus.tsx, see estimate.txt in the scratch folder')
     const factFigure = figureOf(factText)
     const secondUsageAt = wire.find(row => row.kind === 'usage' && row.chars === secondWireTokens)?.at ?? Number.POSITIVE_INFINITY
-    check(`${geometry} fact: the mark landed after the first usage frame and before the second`, factAt > firstUsageAt && factAt < secondUsageAt, `mark=${factAt} first=${firstUsageAt} second=${secondUsageAt}`)
-    check(`${geometry} fact: the row's figure IS the wire's output tokens for the first message (${firstWireTokens}), told as a fact`, factFigure !== null && !factFigure.estimate && factFigure.count === firstWireTokens, JSON.stringify(factFigure))
+    check(`${geometry} fact: the mark landed after the first usage frame and before the second`, factAt > firstUsageAt && factAt < secondUsageAt, `mark=${factAt} first=${firstUsageAt} second=${secondUsageAt} — the fact mark fell outside the window between the two usage frames; see the sends list and the fixture timing in this file`)
+    check(`${geometry} fact: the row's figure IS the wire's output tokens for the first message (${firstWireTokens}), told as a fact`, factFigure !== null && !factFigure.estimate && factFigure.count === firstWireTokens, JSON.stringify(factFigure) + ' — after the first usage frame the row must paint the wire output tokens without the ~ mark; the wire figure is carried by the tail projection built in src/daemon/sessionSeat/stream.ts and read by src/services/engine-connector/daemon/live.ts, see fact.txt in the scratch folder')
     const factSample = samples.filter(sample => sample.at <= factAt).at(-1)
-    check(`${geometry} fact: the tail projection carries the wire figure beside the character count`, factSample !== undefined && factSample.turnOutputTokens === firstWireTokens && factSample.turnChars > 0, JSON.stringify(factSample))
-    check(`${geometry}: the Read ran and the second request arrived with its result`, wire.some(row => row.kind === 'second-request'))
+    check(`${geometry} fact: the tail projection carries the wire figure beside the character count`, factSample !== undefined && factSample.turnOutputTokens === firstWireTokens && factSample.turnChars > 0, JSON.stringify(factSample) + ' — the session tail must carry turnOutputTokens beside turnChars once the first usage frame arrives: see the tail projection in src/daemon/sessionSeat/stream.ts')
+    check(`${geometry}: the Read ran and the second request arrived with its result`, wire.some(row => row.kind === 'second-request'), 'the Read tool call did not run or its result was not sent back; read daemon.log and wire.jsonl in the scratch folder')
     const completeText = marks.complete ? textOf(marks.complete) : ''
-    check(`${geometry}: the second leg painted after the turn`, completeText.includes(secondLeg))
+    check(`${geometry}: the second leg painted after the turn`, completeText.includes(secondLeg), 'the second leg text never painted in the final mark; see the complete mark in grid.json in the scratch folder')
     const last = samples.at(-1)
-    check(`${geometry}: the result clears the wire figure with the character count`, last !== undefined && last.turnOutputTokens === null && last.turnChars === 0, JSON.stringify(last))
+    check(`${geometry}: the result clears the wire figure with the character count`, last !== undefined && last.turnOutputTokens === null && last.turnChars === 0, JSON.stringify(last) + ' — the finished turn must clear turnOutputTokens and turnChars in the session tail: see where the seat resets them in src/daemon/sessionSeat/lifecycle.ts and rows.ts')
     const peak = samples.filter(sample => sample.turnOutputTokens !== null).map(sample => sample.turnOutputTokens!)
-    check(`${geometry}: the projection's figure only ever names a wire total (${firstWireTokens} or ${firstWireTokens + secondWireTokens}), never a partial estimate`, peak.length > 0 && peak.every(value => value === firstWireTokens || value === firstWireTokens + secondWireTokens), JSON.stringify([...new Set(peak)]))
+    check(`${geometry}: the projection's figure only ever names a wire total (${firstWireTokens} or ${firstWireTokens + secondWireTokens}), never a partial estimate`, peak.length > 0 && peak.every(value => value === firstWireTokens || value === firstWireTokens + secondWireTokens), JSON.stringify([...new Set(peak)]) + ' — the tail projection may name only a finished wire total, never a partial estimate: see the turnOutputTokens sum in src/daemon/sessionSeat/stream.ts')
     writeFileSync(join(home, 'tail-samples.json'), `${JSON.stringify(samples, null, 2)}\n`)
     writeFileSync(join(home, 'measurements.json'), `${JSON.stringify({ dist, scratch: home, geometry, estimateAt, factAt, firstUsageAt, secondUsageAt, estimateFigure, factFigure, charsByEstimate }, null, 2)}\n`)
     if (frames) {

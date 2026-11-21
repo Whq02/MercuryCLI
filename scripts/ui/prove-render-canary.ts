@@ -17,5 +17,5 @@ const res = spawnSync(BUN, ['run', CLI, '--scenario', 'frame', '--cols', '120', 
   env: { ...process.env },
 })
 const ok = res.status === 0
-console.log(ok ? '✅ RENDER CANARY GREEN — the built binary paints the cockpit home @120 (oracle-passed)' : `❌ RENDER CANARY RED — ${res.stderr || res.stdout || `status ${res.status}`}`)
+console.log(ok ? '✅ RENDER CANARY GREEN — the built binary paints the cockpit home @120 (oracle-passed)' : `❌ RENDER CANARY RED — ${res.stderr || res.stdout || `status ${res.status}`} — scripts/ui/render-tui.ts failed on the frame scenario at 120 columns (a timeout past 90s leaves status null); run it by hand with bun run scripts/ui/render-tui.ts --scenario frame --cols 120 --out <png> and rebuild dist/mercury.mjs with bun run build.ts if it is stale`)
 process.exit(ok ? 0 : 1)

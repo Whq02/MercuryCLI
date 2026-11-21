@@ -12,7 +12,10 @@ let failures = 0
 let checks = 0
 function fail(name: string, detail: string): void {
   failures++
-  console.log(`  ✗ ${name} — ${detail}`)
+  const mdFix = name.includes('L5')
+    ? 'change computeSeamRows in src/components/Markdown.tsx so the split render (stable part, seam rows, unstable part) has the same rows as the settled render'
+    : 'change advanceStableBoundary in src/components/Markdown.tsx so the stable boundary never moves back, never passes the text, and cuts only where lexing the parts equals lexing the whole'
+  console.log(`  ✗ ${name} — ${detail} · ${mdFix}`)
 }
 function pass(name: string): void {
   console.log(`  ✓ ${name}`)

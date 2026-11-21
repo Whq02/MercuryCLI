@@ -16,12 +16,12 @@ delete process.env.MERCURY_SESSION_KIT
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? detail + ' — ' : ''}change getSkillListingAttachments in src/utils/attachments/skillListing.ts (removedNames, resetSentSkillNames) or the skill_listing render in src/services/messages/attachmentText.ts so a removed skill is announced once` : ''}`)
   if (!ok) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — de-apply prover exceeded 120s')
+  console.log('\nTIMEOUT — de-apply prover exceeded 120s; a listing call never returned, look at getSkillListingAttachments in src/utils/attachments/skillListing.ts')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()

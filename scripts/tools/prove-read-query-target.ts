@@ -27,7 +27,7 @@ if (!given) {
   setCwdState(given)
   setOriginalCwd(given)
   let passed = 0, failed = 0
-  const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${detail}`}`) }
+  const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ' (fix parseReadQueryTarget or formatReadQueryTarget in src/tools/FileReadTool/readQueryTarget.ts for target checks, and src/tools/FileReadTool/readJson.ts or FileReadTool.ts for Read checks) ' + detail}`) }
   let rules = getEmptyToolPermissionContext()
   const context = {
     readFileState: createFileStateCacheWithSizeLimit(100), userModified: false, updateFileHistoryState: () => {},

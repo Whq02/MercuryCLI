@@ -44,7 +44,8 @@ let failures = 0
 const index: string[] = []
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const failHint = ' — outside-press dismissal and the recess live in src/ink/recessLayer.ts (dismissByOutsidePress, registerElevatedSurface); rerun with --frames <dir> to read each mark as text, and build dist first if the journey did not reach its marks'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : failHint}`)
 }
 const deadProviders = Object.fromEntries([
   'MERCURY_ANTHROPIC_OAUTH_BASE', 'ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OPENAI_AUTH_BASE', 'MERCURY_OPENAI_CHATGPT_BASE',

@@ -29,11 +29,26 @@ const { stopOrDismissAgent } = await import('../../src/state/crewmateViewHelpers
 import type { Message as MessageType } from '../../src/types/message.js'
 
 let failures = 0
+let sectionKey = ''
+const SECTION_FIX: Record<string, string> = {
+  '§K1a': 'registerAsyncAgent, registerAgentForeground and crewStillRunning in src/tasks/LocalAgentTask/LocalAgentTask.tsx, crewStillRunningLine in src/services/engine-connector/crewFacts.ts',
+  '§K1b': 'createTurnDriver and releaseHold in src/cli/headless/turnDriver.ts',
+  '§K2': 'pressCrewStop, crewStopArmed and CREW_STOP_WINDOW_MS in src/components/mercury-ui/screens/crewStopChord.ts',
+  '§K3': 'runAsyncAgentLifecycle in src/tools/AgentTool/agentToolUtils.ts, agentStopReasonOf in src/tasks/LocalAgentTask/LocalAgentTask.tsx, stopOrDismissAgent in src/state/crewmateViewHelpers.ts',
+  '§K4': 'AGENT_RESUME_NOTE in src/tasks/LocalAgentTask/LocalAgentTask.tsx',
+  '§K10': 'foldAgentWaitEvent and agentWaitWords in src/tasks/LocalAgentTask/agentWait.ts, the crew fact words in src/services/engine-connector/crewFacts.ts',
+  '§K10b': 'primeOpenaiCatalogue and refreshOpenaiCatalogue in src/services/providers/openai/openaiCatalogue.ts',
+  '§K4b': 'resolveWorkerTools in src/tools/AgentTool/agentToolUtils.ts',
+  '§K11': 'DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = SECTION_FIX[sectionKey] ? `change the code behind this check, see ${SECTION_FIX[sectionKey]}` : ''
+  const shown = [detail, where].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
+  sectionKey = t.split(' ')[0]!
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const taskNotifications = () => getCommandQueueSnapshot().filter(c => c.mode === 'task-notification')
@@ -115,7 +130,7 @@ async function driverScenario(opts: { releaseBeforeResult: boolean; tasksRunning
     idleTimerStop: () => {},
     idleTimerStart: () => {},
     onCycleError: error => {
-      console.log(`  [FAIL] the driver cycle threw — ${String(error)}`)
+      console.log(`  [FAIL] the driver cycle threw — ${String(error)} — see createTurnDriver in src/cli/headless/turnDriver.ts`)
       failures++
       resolveSettled()
       return { type: 'outcome' } as never

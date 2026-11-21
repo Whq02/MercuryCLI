@@ -83,6 +83,7 @@ if (mode === 'subagent') {
   const provenance = readPromptProvenance()
   if (!provenance) {
     console.error('no provenance recorded — composition failed')
+    console.error('what to change: getSystemPrompt in src/constants/prompts.ts must reach composeSystemPrompt in src/prompt/composer.ts, which calls recordPromptComposition in src/utils/cockpit/promptProvenance.ts; read the earlier error above for why composition stopped')
     process.exit(1)
   }
   for (const s of provenance.sections) {

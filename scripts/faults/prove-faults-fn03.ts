@@ -110,18 +110,18 @@ console.log('\ncrewmateCommands.tsx:86 — corrupt or unreadable crewmate metada
     'crewmate-corrupt-effort-no-overwrite',
     corrupt.sameAfterEffort === true &&
       effortReceipts.some(r => r.color === 'warning' && r.text.includes('could not be read')),
-    `same=${String(corrupt.sameAfterEffort)} receipts=${JSON.stringify(effortReceipts)}`,
+    `same=${String(corrupt.sameAfterEffort)} receipts=${JSON.stringify(effortReceipts)}` + ' — change runCrewmateCommand in src/components/PromptInput/crewmateCommands.tsx so an unreadable or corrupt metadata file is left untouched and a warning receipt says it could not be read',
   )
   check(
     'crewmate-corrupt-compact-no-overwrite',
     corrupt.sameAfterCompact === true &&
       compactReceipts.some(r => r.color === 'warning' && r.text.includes('could not be read')),
-    `same=${String(corrupt.sameAfterCompact)} receipts=${JSON.stringify(compactReceipts)}`,
+    `same=${String(corrupt.sameAfterCompact)} receipts=${JSON.stringify(compactReceipts)}` + ' — change the compact path of runCrewmateCommand in src/components/PromptInput/crewmateCommands.tsx so an unreadable or corrupt metadata file is left untouched and a warning receipt says it could not be read',
   )
   check(
     'crewmate-corrupt-picker-warns',
     pickerReceipts.some(r => r.color === 'warning' && r.text.includes('could not be read')),
-    `receipts=${JSON.stringify(pickerReceipts)}`,
+    `receipts=${JSON.stringify(pickerReceipts)}` + ' — change openCrewmateModelPickerFor in src/components/PromptInput/crewmateCommands.tsx so it gives a warning receipt saying the metadata could not be read',
   )
 
   if (!POSIX_MODES) {
@@ -142,7 +142,7 @@ console.log('\ncrewmateCommands.tsx:86 — corrupt or unreadable crewmate metada
       'crewmate-eacces-no-overwrite',
       eacces.same === true &&
         receipts.some(r => r.color === 'warning' && r.text.includes('could not be read')),
-      `same=${String(eacces.same)} receipts=${JSON.stringify(receipts)}`,
+      `same=${String(eacces.same)} receipts=${JSON.stringify(receipts)}` + ' — change runCrewmateCommand in src/components/PromptInput/crewmateCommands.tsx so a metadata file it cannot read (EACCES) is left untouched and a warning receipt says it could not be read',
     )
   }
 
@@ -157,7 +157,7 @@ console.log('\ncrewmateCommands.tsx:86 — corrupt or unreadable crewmate metada
   check(
     'crewmate-absent-control-writes',
     absent.exists === true && parsed?.agentType === 'Explore' && parsed?.effortOverride === 'high',
-    `parsed=${JSON.stringify(parsed)} receipts=${JSON.stringify(absent.receipts)}`,
+    `parsed=${JSON.stringify(parsed)} receipts=${JSON.stringify(absent.receipts)}` + ' — change runCrewmateCommand in src/components/PromptInput/crewmateCommands.tsx so an absent metadata file is created with the agent type and the effort override',
   )
 }
 
@@ -198,7 +198,7 @@ console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf keeps bypass permi
       rejectedNotice?.key === 'bypass-killswitch' &&
       rejectedNotice?.color === 'warning' &&
       rejectedNotice?.text === "bypass permissions stays on: your organization's security policy could not be checked (killswitch probe failed)",
-    `mode=${String(rejected.mode)} available=${String(rejected.available)} notice=${JSON.stringify(rejectedNotice)}`,
+    `mode=${String(rejected.mode)} available=${String(rejected.available)} notice=${JSON.stringify(rejectedNotice)}` + ' — change postLoginSettleOf in src/components/bootLogins/runs.ts so a throwing policy check keeps bypass permissions on and posts the bypass-killswitch warning with the exact text this check expects',
   )
 
   const outerThrow = runScenario(`
@@ -229,7 +229,7 @@ console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf keeps bypass permi
   check(
     'bootlogins-settle-throw-changes-nothing',
     outerThrow.mode === 'sovereign' && outerThrow.available === true && outerNotice === null,
-    `mode=${String(outerThrow.mode)} available=${String(outerThrow.available)} notice=${JSON.stringify(outerNotice)}`,
+    `mode=${String(outerThrow.mode)} available=${String(outerThrow.available)} notice=${JSON.stringify(outerNotice)}` + ' — change postLoginSettleOf in src/components/bootLogins/runs.ts so a throw in its settle step changes no mode and posts no notice',
   )
   const control = runScenario(`
     const { mock } = await import('bun:test')
@@ -258,7 +258,7 @@ console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf keeps bypass permi
   check(
     'bootlogins-killswitch-ok-keeps-sovereign',
     control.mode === 'sovereign' && control.available === true && control.authVersion === 1,
-    `mode=${String(control.mode)} available=${String(control.available)} authVersion=${String(control.authVersion)}`,
+    `mode=${String(control.mode)} available=${String(control.available)} authVersion=${String(control.authVersion)}` + ' — change postLoginSettleOf in src/components/bootLogins/runs.ts so a passing policy check keeps the mode and bumps authVersion once',
   )
 }
 
@@ -296,18 +296,18 @@ console.log('\nWorktreeExitDialog.tsx:43,48 — failed directory restore reports
     res.missing !== true &&
       res.setCwdCalledAfterChdirFail === true &&
       res.chdirFail === 'Could not return to /repo/main (ENOENT: no such directory) — switch back to that folder before continuing.',
-    JSON.stringify(res),
+    JSON.stringify(res) + ' — change restoreWorktreeDirectories in src/components/WorktreeExitDialog.tsx so a failed chdir returns the Could not return to sentence and still calls setCwd',
   )
   check(
     'worktree-exit-setcwd-fail-reports-sentence',
     res.missing !== true &&
       res.setCwdFail === 'Could not return to /repo/main (EACCES: permission denied) — switch back to that folder before continuing.',
-    JSON.stringify(res),
+    JSON.stringify(res) + ' — change restoreWorktreeDirectories in src/components/WorktreeExitDialog.tsx so a failed setCwd returns the Could not return to sentence',
   )
   check(
     'worktree-exit-restore-ok-silent',
     res.missing !== true && res.ok === null,
-    JSON.stringify(res),
+    JSON.stringify(res) + ' — change restoreWorktreeDirectories in src/components/WorktreeExitDialog.tsx so a clean restore returns null',
   )
 }
 
@@ -362,20 +362,20 @@ console.log('\nstudioEditorModel.ts:291 — buildReviewFacts reports unreadable 
       unread.diffLines[0] === 'Could not read existing agent file — check permissions before saving (EACCES: permission denied).' &&
       !unread.diffLines.some(l => l.startsWith('+')) &&
       unread.changed.join(',') === '(existing file unreadable)',
-    JSON.stringify(unread),
+    JSON.stringify(unread) + ' — change buildReviewFacts in src/components/agents/studio/studioEditorModel.ts so an unreadable existing file gives the single advice line and the (existing file unreadable) change entry',
   )
   if (res.posix === true) {
     const painted = String(res.painted ?? '')
     check(
       'studio-review-unreadable-base-advice-visible-at-panel-width',
       painted.includes('Could not read existing agent file — check permissions before saving'),
-      painted.slice(0, 500),
+      painted.slice(0, 500) + ' — change studioReviewView in src/components/agents/studio/studioEditorView.tsx so the unreadable-file advice shows in full at 80 columns',
     )
   }
   check(
     'studio-review-readable-base-control',
     readable.changed.length === 0 && readable.diffLines.length === 0,
-    JSON.stringify(readable),
+    JSON.stringify(readable) + ' — change buildReviewFacts in src/components/agents/studio/studioEditorModel.ts so a readable existing file gives no advice line and no change entry',
   )
 }
 
@@ -430,12 +430,12 @@ console.log('\nstudioEditorModel.ts:457 — opening an unreadable agent file sur
     'studio-open-unreadable-base-sets-note',
     unreadNote !== null &&
       unreadNote.text === 'Could not read existing agent file — check permissions before saving (EACCES: permission denied).',
-    JSON.stringify(unreadNote),
+    JSON.stringify(unreadNote) + ' — change createStudioEditorMachine in src/components/agents/studio/studioEditorModel.ts so an unreadable existing file sets the advice note on the first snapshot',
   )
   check(
     'studio-open-readable-base-control',
     res.okNote === null && res.okName === 'scout',
-    JSON.stringify({ okNote: res.okNote, okName: res.okName }),
+    JSON.stringify({ okNote: res.okNote, okName: res.okName }) + ' — change createStudioEditorMachine in src/components/agents/studio/studioEditorModel.ts so a readable existing file sets no note and loads the agent name',
   )
 }
 
@@ -468,7 +468,7 @@ console.log('\nConcourseRoute.tsx:181 — failed project ground switch notifies 
       rejectNote[0]?.control === 'strip:composer' &&
       rejectNote[0]?.state.state === 'failed' &&
       rejectNote[0]?.state.reason === 'Could not switch to /repo/next (EACCES: permission denied) — pick the repo again.',
-    JSON.stringify(res),
+    JSON.stringify(res) + ' — change applySeedProjectGround in src/components/concourse/ConcourseRoute.tsx so a rejected ground switch notes strip:composer as failed with the Could not switch to sentence',
   )
   check(
     'concourse-route-ground-stayed-sentence',
@@ -477,12 +477,12 @@ console.log('\nConcourseRoute.tsx:181 — failed project ground switch notifies 
       stayedNote[0]?.control === 'strip:composer' &&
       stayedNote[0]?.state.state === 'failed' &&
       stayedNote[0]?.state.reason === 'Could not switch to /repo/next — stayed in /repo/old; pick the repo again.',
-    JSON.stringify(res),
+    JSON.stringify(res) + ' — change applySeedProjectGround in src/components/concourse/ConcourseRoute.tsx so a switch that stays in the old folder notes strip:composer as failed with the stayed in sentence',
   )
   check(
     'concourse-route-ground-ok-silent',
     res.missing !== true && okNote?.length === 0,
-    JSON.stringify(res),
+    JSON.stringify(res) + ' — change applySeedProjectGround in src/components/concourse/ConcourseRoute.tsx so a successful switch notes nothing',
   )
 }
 
@@ -518,7 +518,7 @@ console.log('\nobligationControls.ts:134 — failed claimObligation reports fail
       notes[0]?.state.reason === 'the claim failed (EACCES: permission denied)' &&
       notes[0]?.state.next === 'try claiming again' &&
       res.refreshed === 1,
-    JSON.stringify(res),
+    JSON.stringify(res) + ' — change claimObligation in src/components/concourse/route/obligationControls.ts so a failed claim notes strip:composer as failed with the reason and next text this check expects, then refreshes once',
   )
 }
 
@@ -549,12 +549,12 @@ console.log('\nworkerTranscriptFold.ts:147 — unreadable worker transcript surf
         eacces?.ok === false &&
         typeof eacces.error === 'string' &&
         /EACCES|permission denied/i.test(eacces.error),
-      JSON.stringify(res),
+      JSON.stringify(res) + ' — change openInitialWorkerTranscript in src/components/concourse/workerTranscriptFold.ts so an unreadable transcript returns ok false with the read error',
     )
     check(
       'worker-transcript-absent-control-ok',
       res.missing !== true && absent?.ok === true && absent.result?.records.length === 0,
-      JSON.stringify(res),
+      JSON.stringify(res) + ' — change openInitialWorkerTranscript in src/components/concourse/workerTranscriptFold.ts so an absent transcript returns ok true with no records',
     )
   }
 }
@@ -598,14 +598,14 @@ console.log('\nSessionMirror.tsx:63 — unreadable receipts and transcript error
       typeof eaccesReceipts.error === 'string' &&
       receiptsNote?.state === 'failed' &&
       receiptsNote.reason === `Could not read receipts (${eaccesReceipts.error}) — check permissions.`,
-    JSON.stringify(res),
+    JSON.stringify(res) + ' — change readMirrorReceipts and mirrorStatusNote in src/components/concourse/SessionMirror.tsx so unreadable receipts return an error and a failed note naming it',
   )
   check(
     'session-mirror-unreadable-transcript-note',
     res.missing !== true &&
       transcriptNote?.state === 'failed' &&
       transcriptNote.reason === 'Could not read transcript (EACCES: permission denied) — check permissions.',
-    JSON.stringify(res),
+    JSON.stringify(res) + ' — change mirrorStatusNote in src/components/concourse/SessionMirror.tsx so a transcript error gives a failed note with the Could not read transcript sentence',
   )
   check(
     'session-mirror-absent-receipts-control',
@@ -613,7 +613,7 @@ console.log('\nSessionMirror.tsx:63 — unreadable receipts and transcript error
       absentReceipts?.entries.length === 0 &&
       absentReceipts.error === null &&
       res.cleanNote === undefined,
-    JSON.stringify(res),
+    JSON.stringify(res) + ' — change readMirrorReceipts and mirrorStatusNote in src/components/concourse/SessionMirror.tsx so absent receipts give no error and no note',
   )
 }
 
@@ -648,7 +648,7 @@ console.log('\nextensions/bindings.ts:48 — corrupt or unreadable keybindings.j
     res.corruptHasDefault === true &&
       corruptDeclined.length === 1 &&
       corruptDeclined[0] === `keybindings.json could not be read (not valid JSON) — fix it in ${kbDir} to restore your keys`,
-    JSON.stringify(corruptDeclined),
+    JSON.stringify(corruptDeclined) + ' — change resolveExtensionsBindings in src/components/extensions/bindings.ts so a corrupt keybindings.json adds one declined note naming the folder and keeps the default keys',
   )
   if (res.posix === true) {
     check(
@@ -657,13 +657,13 @@ console.log('\nextensions/bindings.ts:48 — corrupt or unreadable keybindings.j
         eaccesDeclined.length === 1 &&
         eaccesDeclined[0]!.startsWith('keybindings.json could not be read (') &&
         eaccesDeclined[0]!.endsWith(`) — fix it in ${kbDir} to restore your keys`),
-      JSON.stringify(eaccesDeclined),
+      JSON.stringify(eaccesDeclined) + ' — change resolveExtensionsBindings in src/components/extensions/bindings.ts so an unreadable keybindings.json adds one declined note naming the folder',
     )
   }
   check(
     'extensions-bindings-absent-control-empty',
     Array.isArray(res.absent) && (res.absent as string[]).length === 0,
-    JSON.stringify(res.absent),
+    JSON.stringify(res.absent) + ' — change resolveExtensionsBindings in src/components/extensions/bindings.ts so an absent keybindings.json adds no declined note',
   )
 }
 
@@ -704,7 +704,7 @@ console.log('\nMemoryFileSelector.tsx:191 — failed memory folder creation skip
       typeof res.badNote === 'string' &&
       res.badNote.startsWith(`Could not open the memory folder at ${String(res.badDisplay)} (`) &&
       res.badNote.endsWith(') — check folder permissions.'),
-    JSON.stringify(res),
+    JSON.stringify(res) + ' — change openMemoryFolder in src/components/memory/MemoryFileSelector.tsx so a failed mkdir skips openPath and returns the Could not open the memory folder sentence',
   )
   check(
     'memory-selector-mkdir-ok-control',
@@ -712,7 +712,7 @@ console.log('\nMemoryFileSelector.tsx:191 — failed memory folder creation skip
       res.goodNote === null &&
       res.goodExists === true &&
       res.openedGood === res.goodDir,
-    JSON.stringify(res),
+    JSON.stringify(res) + ' — change openMemoryFolder in src/components/memory/MemoryFileSelector.tsx so a good folder is created, opened and returns null',
   )
 }
 
@@ -739,9 +739,9 @@ console.log('\nmemory/centre/actions.ts:63 — a pin whose write is refused does
     out.same = fs.readFileSync(file, 'utf8') === '{ not json'
   `)
   const notes = (res.notes as Array<{ text?: string; kind?: string }> | undefined) ?? []
-  check('memory-centre-pin-refused-no-throw', res.threw === null, JSON.stringify(res))
-  check('memory-centre-pin-refused-note', notes.length === 1 && notes[0]?.kind === 'fail' && String(notes[0]?.text).includes('pin failed:'), JSON.stringify(res))
-  check('memory-centre-pin-refused-not-busy', res.busy === false && res.reloads === 1 && res.same === true, JSON.stringify(res))
+  check('memory-centre-pin-refused-no-throw', res.threw === null, JSON.stringify(res) + ' — change togglePinOf in src/components/memory/centre/actions.ts so a refused pin write is caught and does not throw out of the key handler')
+  check('memory-centre-pin-refused-note', notes.length === 1 && notes[0]?.kind === 'fail' && String(notes[0]?.text).includes('pin failed:'), JSON.stringify(res) + ' — change togglePinOf in src/components/memory/centre/actions.ts so a refused pin write sets one fail note whose text contains pin failed:')
+  check('memory-centre-pin-refused-not-busy', res.busy === false && res.reloads === 1 && res.same === true, JSON.stringify(res) + ' — change togglePinOf in src/components/memory/centre/actions.ts so a refused pin write clears busy, reloads once and leaves the pins file as it was')
 }
 
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)

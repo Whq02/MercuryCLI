@@ -18,7 +18,7 @@ const out = execFileSync(
 check(
   'one-shot semantics: pending → consumed once → env deleted',
   out === '[true,true,false,null]',
-  out,
+  `${out} (expected [true,true,false,null]); to fix, make consumeLauncherAltHold in src/ink/launcherAltHold.ts return true once and delete MERCURY_ALT_HELD`,
 );
 
 process.exit(fail);

@@ -61,8 +61,8 @@ console.log('L1 the held lock — the save refuses, the file stands')
     out.themeAfter = JSON.parse(raw()).theme
     holder.kill()
   `)
-  check('the file is byte-identical after the save under a held lock', r.same === true, `theme after: ${r.themeAfter}`)
-  check('the refusal is counted', r.refusals === 1 && r.refusalsBefore === 0, `refusals=${JSON.stringify(r.refusals)} (before=${JSON.stringify(r.refusalsBefore)})`)
+  check('the file is byte-identical after the save under a held lock', r.same === true, `theme after: ${r.themeAfter}; saveGlobalConfig in src/utils/config/globalConfig.ts must refuse and leave the file untouched while another process holds the lock`)
+  check('the refusal is counted', r.refusals === 1 && r.refusalsBefore === 0, `refusals=${JSON.stringify(r.refusals)} (before=${JSON.stringify(r.refusalsBefore)}); a refused save must raise getConfigContentionRefusalCount in src/utils/config/globalConfig.ts by one`)
 }
 
 console.log('L2 control — an uncontended save lands')
@@ -77,8 +77,8 @@ console.log('L2 control — an uncontended save lands')
     out.keeper = parsed.mcpServers?.keeper !== undefined
     out.refusals = g.getConfigContentionRefusalCount?.() ?? 'absent'
   `)
-  check('the save lands and keeps the rest of the monolith', r.theme === 'not-a-theme' && r.keeper === true, JSON.stringify(r))
-  check('no refusal is counted', r.refusals === 0 || r.refusals === 'absent', `refusals=${JSON.stringify(r.refusals)}`)
+  check('the save lands and keeps the rest of the monolith', r.theme === 'not-a-theme' && r.keeper === true, `${JSON.stringify(r)}; an uncontended saveGlobalConfig in src/utils/config/globalConfig.ts must write the change and keep the other keys`)
+  check('no refusal is counted', r.refusals === 0 || r.refusals === 'absent', `refusals=${JSON.stringify(r.refusals)}; an uncontended saveGlobalConfig must not raise getConfigContentionRefusalCount in src/utils/config/globalConfig.ts`)
 }
 
 console.log('L3 the backup runs outside the locked section')
@@ -92,7 +92,7 @@ console.log('L3 the backup runs outside the locked section')
     const backups = (() => { try { return fs.readdirSync(g.getConfigBackupDir()).filter(n => n.includes('.backup.')) } catch { return [] } })()
     out.backups = backups.length
   `)
-  check('a save still mints the timestamped backup', (r.backups as number) >= 1, `backups=${r.backups}`)
+  check('a save still mints the timestamped backup', (r.backups as number) >= 1, `backups=${r.backups}; saveGlobalConfig in src/utils/config/globalConfig.ts must still write a .backup. file into getConfigBackupDir()`)
 }
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)

@@ -23,10 +23,11 @@ if (!existsSync(DIST)) throw new Error(`Build missing: ${DIST}`)
 if (FRAMES) mkdirSync(FRAMES, { recursive: true })
 let failures = 0
 let checks = 0
-const check = (name: string, ok: boolean, detail = ''): void => {
+const check = (name: string, ok: boolean, detail = '', fix = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${detail ? ` — ${detail}` : ''}`)
+  const shown = !ok && fix ? (detail ? `${detail} — ${fix}` : fix) : detail
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${shown ? ` — ${shown}` : ''}`)
 }
 type Cell = { c?: string }
 type Grid = Cell[][]
@@ -123,19 +124,19 @@ for (const [cols, rows] of SIZES) {
     const turn = wire.find(event => event.kind === 'openai')
     const initial = wire.filter(event => event.kind === 'models' && event.at < (turn?.at ?? 0))
     const refreshes = wire.filter(event => event.kind === 'models' && event.at > (turn?.at ?? Infinity))
-    check(`${tag}: the drive reached every state`, status === 0 && payload.sendReceipts?.length === sends.length, `${payload.sendReceipts?.length}/${sends.length}; ${payload.endReason}`)
-    check(`${tag}: one turn primed the old list`, initial.length === 1 && turn !== undefined, `initial models requests ${initial.length}`)
+    check(`${tag}: the drive reached every state`, status === 0 && payload.sendReceipts?.length === sends.length, `${payload.sendReceipts?.length}/${sends.length}; ${payload.endReason}`, 'a scripted send never saw its awaited screen text: rerun with --frames <dir>, read the last frames, and compare them with the sends list in scripts/journey/prove-model-picker-refresh-drive.ts')
+    check(`${tag}: one turn primed the old list`, initial.length === 1 && turn !== undefined, `initial models requests ${initial.length}`, 'the session should request the model catalogue exactly once before its first turn, and the first turn should reach the fixture; read the wire.jsonl in the --frames folder')
     const liveTerra = (frame: string): boolean => /GPT-5\.6 Terra\s{2,}gpt-5\.6-terra\s{2,}(?:current\s{2,})?\d/.test(frame)
     const liveAstra = (frame: string): boolean => /GPT-6 Astra\s{2,}gpt-6-astra\s{2,}(?:current\s{2,})?\d/.test(frame)
     const openAt = payload.sendReceipts?.[3]?.ts ?? Infinity
     const cachedAt = payload.sendReceipts?.[5]?.ts ?? Infinity
     const landed = wire.find(event => event.kind === 'models-landed' && event.at > openAt)
-    check(`${tag}: the cached rows paint before the delayed refresh (the cursor visits the cached Terra row: a compact popup's window is one row, the local set-up offer holding the row under it)`, liveTerra(before) && !liveAstra(before) && (landed === undefined || cachedAt < landed.at))
-    check(`${tag}: opening makes exactly one background models request within the cache span`, refreshes.length === 1 && refreshes[0]!.at >= openAt && refreshes[0]!.at - turn!.at < 300_000, `refresh requests ${refreshes.length}`)
-    check(`${tag}: the refreshed live row is reachable and the retired row is unavailable in the same popup`, liveAstra(newRow) && !liveTerra(retiredRow) && /GPT-5\.6 Terra\s{2,}gpt-5\.6-terra\s{2,}unavailable/.test(retiredRow), newRow + '\n' + retiredRow)
-    check(`${tag}: focus stays on Sol after its row moves`, /│ │ GPT-5\.6 Sol\s{2,}gpt-5\.6-sol\s{2,}current/.test(after) || /❯ GPT-5\.6 Sol\s{2,}gpt-5\.6-sol\s{2,}current/.test(after))
-    if (cols >= 100 && rows >= 26) check(`${tag}: the roomy popup notice names the changed list`, after.includes('GPT — the live list changed'))
-    else check(`${tag}: the compact popup sheds the notice without losing the current row`, !after.includes('GPT — the live list changed') && /gpt-5\.6-sol\s+current/.test(after))
+    check(`${tag}: the cached rows paint before the delayed refresh (the cursor visits the cached Terra row: a compact popup's window is one row, the local set-up offer holding the row under it)`, liveTerra(before) && !liveAstra(before) && (landed === undefined || cachedAt < landed.at), '', 'the /model popup must paint the cached catalogue rows before the refresh lands: see useCatalogueRefreshOnOpen and the cached road snapshot in src/commands/model/picker/roads.ts; the cached frame is in the --frames folder')
+    check(`${tag}: opening makes exactly one background models request within the cache span`, refreshes.length === 1 && refreshes[0]!.at >= openAt && refreshes[0]!.at - turn!.at < 300_000, `refresh requests ${refreshes.length}`, 'opening /model must trigger exactly one background catalogue refresh: see useCatalogueRefreshOnOpen in src/commands/model/picker/roads.ts')
+    check(`${tag}: the refreshed live row is reachable and the retired row is unavailable in the same popup`, liveAstra(newRow) && !liveTerra(retiredRow) && /GPT-5\.6 Terra\s{2,}gpt-5\.6-terra\s{2,}unavailable/.test(retiredRow), newRow + '\n' + retiredRow, 'after the refresh the new GPT-6 Astra row must be reachable and the dropped GPT-5.6 Terra row must show unavailable in the same popup: see src/commands/model/picker/rows.ts (the unavailable rows) and src/commands/model/picker/select.ts (the GPT catalogue rows)')
+    check(`${tag}: focus stays on Sol after its row moves`, /│ │ GPT-5\.6 Sol\s{2,}gpt-5\.6-sol\s{2,}current/.test(after) || /❯ GPT-5\.6 Sol\s{2,}gpt-5\.6-sol\s{2,}current/.test(after), '', 'the current Sol row must keep its focus and its current marker when the refreshed list reorders it; the refreshed frame is in the --frames folder')
+    if (cols >= 100 && rows >= 26) check(`${tag}: the roomy popup notice names the changed list`, after.includes('GPT — the live list changed'), '', 'a roomy popup must show the notice set by useCatalogueRefreshOnOpen in src/commands/model/picker/roads.ts when the live list changed')
+    else check(`${tag}: the compact popup sheds the notice without losing the current row`, !after.includes('GPT — the live list changed') && /gpt-5\.6-sol\s+current/.test(after), '', 'a compact popup must not show the live-list-changed notice (set in useCatalogueRefreshOnOpen, src/commands/model/picker/roads.ts) and must keep the current Sol row visible')
   } finally {
     fixture.kill('SIGTERM')
   }

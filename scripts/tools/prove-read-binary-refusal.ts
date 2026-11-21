@@ -22,7 +22,7 @@ for (const [path, want] of [
   ['exe', false],
   ['trailing.', false],
 ] as Array<[string, boolean]>) {
-  check(`${JSON.stringify(path)} ⇒ ${want}`, hasBinaryExtension(path) === want, String(hasBinaryExtension(path)))
+  check(`${JSON.stringify(path)} ⇒ ${want}`, hasBinaryExtension(path) === want, String(hasBinaryExtension(path)) + (hasBinaryExtension(path) === want ? '' : ' (fix hasBinaryExtension or its BINARY_EXTENSIONS set in src/constants/files.ts)'))
 }
 
 

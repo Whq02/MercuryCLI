@@ -4,11 +4,12 @@ import {
 } from './live/completion.js'
 
 let failures = 0
+const completionReplanHint = 'fix evaluateMissionCompletion or parseReviewResult in scripts/mission-runner/live/completion.ts so this verdict holds'
 function check(label: string, ok: boolean, detail?: string): void {
   if (ok) console.log('  ok  ' + label)
   else {
     failures += 1
-    console.log('  FAIL ' + label + (detail ? ' — ' + detail : ''))
+    console.log('  FAIL ' + label + (detail ? ' — ' + detail : '') + ' — ' + completionReplanHint)
   }
 }
 

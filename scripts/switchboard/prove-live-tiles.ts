@@ -25,6 +25,12 @@ function check(name: string, ok: boolean, detail = ''): void {
   }
 }
 
+const FIX_LASTLINE = 'change lastLineOf in src/components/concourse/liveTiles.ts'
+const FIX_DERIVE = 'change LiveTileStore.derive or gateTailFreshness in src/components/concourse/liveTiles.ts'
+const FIX_EMIT = 'change LiveTileStore.drain (the stamp compare and nowEquals) in src/components/concourse/liveTiles.ts'
+const FIX_BUDGET = 'change LiveTileStore.drain or setDegraded (or TILE_BUDGET_MS_PER_S) in src/components/concourse/liveTiles.ts'
+const FIX_GEOMETRY = 'change switchboardGeometry in src/components/concourse/ConcourseLayout.tsx'
+
 const tailDir = join(SCRATCH, 'daemon')
 
 let clock = 1_000_000
@@ -48,11 +54,11 @@ function makeStore(force = false): InstanceType<typeof LiveTileStore> {
 }
 
 console.log('L0 lastLineOf')
-check('last non-empty line wins', lastLineOf('first\nsecond\nthird line') === 'third line')
-check('trailing whitespace-only line skipped', lastLineOf('the reply\n   \n') === 'the reply')
-check('inner whitespace collapses', lastLineOf('a\tb   c') === 'a b c')
-check('clip holds the 56 bound', lastLineOf('x'.repeat(200)).length <= 56)
-check('the clip keeps the TAIL (the scroll)', lastLineOf(`${'x'.repeat(60)}TAIL-MARK`).endsWith('TAIL-MARK'))
+check('last non-empty line wins', lastLineOf('first\nsecond\nthird line') === 'third line', FIX_LASTLINE)
+check('trailing whitespace-only line skipped', lastLineOf('the reply\n   \n') === 'the reply', FIX_LASTLINE)
+check('inner whitespace collapses', lastLineOf('a\tb   c') === 'a b c', FIX_LASTLINE)
+check('clip holds the 56 bound', lastLineOf('x'.repeat(200)).length <= 56, FIX_LASTLINE)
+check('the clip keeps the TAIL (the scroll)', lastLineOf(`${'x'.repeat(60)}TAIL-MARK`).endsWith('TAIL-MARK'), FIX_LASTLINE)
 
 console.log('L1 streaming / tool / still')
 {
@@ -64,43 +70,43 @@ console.log('L1 streaming / tool / still')
   publishSessionTail({ schema: 1, sessionId: 's-one', atMs: clock, text: 'Hello board\nSecond line ' }, tailDir)
   store._drainForTesting()
   const streaming = store.readTile('s-one')
-  check('streaming: last line of the block', streaming.kind === 'streaming' && streaming.line === 'Second line', JSON.stringify(streaming))
-  check('streaming change emitted', emits === 1, `emits=${emits}`)
+  check('streaming: last line of the block', streaming.kind === 'streaming' && streaming.line === 'Second line', JSON.stringify(streaming) + ' — ' + FIX_DERIVE)
+  check('streaming change emitted', emits === 1, `emits=${emits} — ${FIX_EMIT}`)
 
   publishSessionTail({ schema: 1, sessionId: 's-one', atMs: clock, text: null }, tailDir)
   activityBySession.set('s-one', { label: 'Bash · bun run build', kind: 'tool' })
   store._drainForTesting()
   const tool = store.readTile('s-one')
-  check('tool: the transcript tail names the running tool', tool.kind === 'tool' && tool.line === 'Bash · bun run build', JSON.stringify(tool))
+  check('tool: the transcript tail names the running tool', tool.kind === 'tool' && tool.line === 'Bash · bun run build', JSON.stringify(tool) + ' — ' + FIX_DERIVE)
 
   activityBySession.set('s-one', { label: 'done — 3 files changed', kind: 'text' })
   clock += 50
   publishSessionTail({ schema: 1, sessionId: 's-one', atMs: clock, text: null }, tailDir)
   store._drainForTesting()
   const settled = store.readTile('s-one')
-  check('settled: last text head', settled.kind === 'settled' && settled.line === 'done — 3 files changed', JSON.stringify(settled))
+  check('settled: last text head', settled.kind === 'settled' && settled.line === 'done — 3 files changed', JSON.stringify(settled) + ' — ' + FIX_DERIVE)
 
   activityBySession.set('s-one', null)
   rmSync(sessionTailPath('s-one', tailDir), { force: true })
   store._drainForTesting()
-  check('still when nothing live', store.readTile('s-one').kind === 'still')
+  check('still when nothing live', store.readTile('s-one').kind === 'still', FIX_DERIVE)
 
   publishSessionTail({ schema: 1, sessionId: 's-one', atMs: clock, text: 'frozen words' }, tailDir)
   clock += 60_000
   activityBySession.set('s-one', { label: 'Bash · sleep', kind: 'tool' })
   store._drainForTesting()
   const stale = store.readTile('s-one')
-  check('stale tail falls to the transcript activity', stale.kind === 'tool', JSON.stringify(stale))
+  check('stale tail falls to the transcript activity', stale.kind === 'tool', JSON.stringify(stale) + ' — ' + FIX_DERIVE)
 
   publishSessionTail({ schema: 1, sessionId: 's-one', atMs: clock, text: 'last words before the wedge' }, tailDir)
   activityBySession.set('s-one', { label: 'Bash · sleep', kind: 'tool' })
   store._drainForTesting()
   const live = store.readTile('s-one')
-  check('a fresh block streams', live.kind === 'streaming' && live.line === 'last words before the wedge', JSON.stringify(live))
+  check('a fresh block streams', live.kind === 'streaming' && live.line === 'last words before the wedge', JSON.stringify(live) + ' — ' + FIX_DERIVE)
   clock += 60_000
   store._drainForTesting()
   const wedged = store.readTile('s-one')
-  check('A WEDGED SEAT\'S TILE FALLS THROUGH ON THE HEARTBEAT with nothing republished (the base froze on its last words)', wedged.kind === 'tool', JSON.stringify(wedged))
+  check('A WEDGED SEAT\'S TILE FALLS THROUGH ON THE HEARTBEAT with nothing republished (the base froze on its last words)', wedged.kind === 'tool', JSON.stringify(wedged) + ' — ' + FIX_DERIVE)
   unsub()
 }
 
@@ -114,17 +120,17 @@ console.log('L2 content-keyed emissions (calm)')
   publishSessionTail({ schema: 1, sessionId: 's-calm', atMs: clock, text: 'steady line' }, tailDir)
   store._drainForTesting()
   const base = emits
-  check('first publish emits', base === 1, `emits=${base}`)
+  check('first publish emits', base === 1, `emits=${base} — ${FIX_EMIT}`)
   for (let i = 0; i < 5; i++) {
     clock += 40
     publishSessionTail({ schema: 1, sessionId: 's-calm', atMs: clock, text: 'steady line' }, tailDir)
     store._drainForTesting()
   }
-  check('same content never re-emits', emits === base, `emits=${emits}`)
+  check('same content never re-emits', emits === base, `emits=${emits} — ${FIX_EMIT}`)
   clock += 40
   publishSessionTail({ schema: 1, sessionId: 's-calm', atMs: clock, text: 'steady line grew' }, tailDir)
   store._drainForTesting()
-  check('poison: changed content emits', emits === base + 1, `emits=${emits}`)
+  check('poison: changed content emits', emits === base + 1, `emits=${emits} — ${FIX_EMIT}`)
   unsub()
 }
 
@@ -138,9 +144,9 @@ console.log('L3 two sessions, distinct markers')
   store._drainForTesting()
   const a = store.readTile('s-alpha')
   const b = store.readTile('s-beta')
-  check('alpha carries only its own marker', a.kind === 'streaming' && a.line === 'MARKER-ALPHA-7317', JSON.stringify(a))
-  check('beta carries only its own marker', b.kind === 'streaming' && b.line === 'MARKER-BETA-9241', JSON.stringify(b))
-  check('poison: the markers differ', a.kind === 'streaming' && b.kind === 'streaming' && a.line !== b.line)
+  check('alpha carries only its own marker', a.kind === 'streaming' && a.line === 'MARKER-ALPHA-7317', JSON.stringify(a) + ' — ' + FIX_DERIVE)
+  check('beta carries only its own marker', b.kind === 'streaming' && b.line === 'MARKER-BETA-9241', JSON.stringify(b) + ' — ' + FIX_DERIVE)
+  check('poison: the markers differ', a.kind === 'streaming' && b.kind === 'streaming' && a.line !== b.line, FIX_DERIVE)
   unsubA()
   unsubB()
 }
@@ -160,32 +166,32 @@ console.log('L4 the budget: degrade and recover')
     clock += 1000
     store._drainForTesting()
   }
-  check('poison: cheap windows never degrade', !store.isDegraded())
+  check('poison: cheap windows never degrade', !store.isDegraded(), FIX_BUDGET)
 
   readCostMs = TILE_BUDGET_MS_PER_S + 20
   clock += 1000
   store._drainForTesting()
   clock += 1000
   store._drainForTesting()
-  check('two over-budget windows degrade', store.isDegraded())
-  check('degrade emitted once', degradeFlips === 1, `flips=${degradeFlips}`)
-  check('degraded tiles answer still (the summary stands)', store.readTile('s-load').kind === 'still')
+  check('two over-budget windows degrade', store.isDegraded(), FIX_BUDGET)
+  check('degrade emitted once', degradeFlips === 1, `flips=${degradeFlips} — ${FIX_BUDGET}`)
+  check('degraded tiles answer still (the summary stands)', store.readTile('s-load').kind === 'still', FIX_BUDGET)
 
   const clockBefore = clock
   store._drainForTesting()
-  check('degraded drain reads nothing', clock === clockBefore)
+  check('degraded drain reads nothing', clock === clockBefore, FIX_BUDGET)
 
   readCostMs = 0
   clock += 5000
   store._drainForTesting()
-  check('one cheap probe is not enough (hysteresis)', store.isDegraded())
+  check('one cheap probe is not enough (hysteresis)', store.isDegraded(), FIX_BUDGET)
   clock += 5000
   publishSessionTail({ schema: 1, sessionId: 's-load', atMs: clock, text: 'heavy words' }, tailDir)
   store._drainForTesting()
-  check('two cheap probes recover', !store.isDegraded())
-  check('recovery emitted', degradeFlips === 2, `flips=${degradeFlips}`)
+  check('two cheap probes recover', !store.isDegraded(), FIX_BUDGET)
+  check('recovery emitted', degradeFlips === 2, `flips=${degradeFlips} — ${FIX_BUDGET}`)
   const back = store.readTile('s-load')
-  check('the live line returns after recovery', back.kind === 'streaming' && back.line === 'heavy words', JSON.stringify(back))
+  check('the live line returns after recovery', back.kind === 'streaming' && back.line === 'heavy words', JSON.stringify(back) + ' — ' + FIX_BUDGET)
   unsub()
 }
 
@@ -194,13 +200,13 @@ console.log('L5 MERCURY_TILES_FORCE_DEGRADE latch')
   const store = makeStore(true)
   const unsub = store.register('s-forced', '/tmp/ws-f', () => {})
   publishSessionTail({ schema: 1, sessionId: 's-forced', atMs: clock, text: 'never shown' }, tailDir)
-  check('forced: degraded from construction', store.isDegraded())
+  check('forced: degraded from construction', store.isDegraded(), 'change the forceDegrade handling in the LiveTileStore constructor and drain in src/components/concourse/liveTiles.ts')
   for (let i = 0; i < 4; i++) {
     clock += 5000
     store._drainForTesting()
   }
-  check('forced: probes never lift it', store.isDegraded())
-  check('forced: tiles stay on the summary', store.readTile('s-forced').kind === 'still')
+  check('forced: probes never lift it', store.isDegraded(), 'change the forceDegrade return in LiveTileStore.drain in src/components/concourse/liveTiles.ts')
+  check('forced: tiles stay on the summary', store.readTile('s-forced').kind === 'still', 'change LiveTileStore.readTile in src/components/concourse/liveTiles.ts')
   unsub()
 }
 
@@ -211,37 +217,39 @@ console.log('L6 peek geometry')
   )
   const closed = switchboardGeometry(120, 40, 0, 4, 2, 1)
   const open = switchboardGeometry(120, 40, 0, 4, 2, 1, ROW_PEEK_DESIRED_ROWS)
-  check('collapsed default grants zero', closed.peekRows === 0)
-  check('wide 120x40 grants the full ~8', open.peekRows === ROW_PEEK_DESIRED_ROWS, `granted=${open.peekRows}`)
+  check('collapsed default grants zero', closed.peekRows === 0, FIX_GEOMETRY)
+  check('wide 120x40 grants the full ~8', open.peekRows === ROW_PEEK_DESIRED_ROWS, `granted=${open.peekRows} — ${FIX_GEOMETRY}`)
   check(
     'the grant comes out of the list window; the manager keeps its full column',
     open.listContentRows === closed.listContentRows - open.peekRows && open.listBand[0] === closed.listBand[0] && open.listBand[1] === closed.listBand[1],
-    `window ${closed.listContentRows} → ${open.listContentRows} for a grant of ${open.peekRows}`,
+    `window ${closed.listContentRows} → ${open.listContentRows} for a grant of ${open.peekRows} — ${FIX_GEOMETRY}`,
   )
-  check('the live view keeps its full column beside it', open.mirrorBand[0] === open.mainBand[0] && open.mirrorBand[1] === open.mainBand[1] && closed.mirrorBand[1] === open.mirrorBand[1])
+  check('the live view keeps its full column beside it', open.mirrorBand[0] === open.mainBand[0] && open.mirrorBand[1] === open.mainBand[1] && closed.mirrorBand[1] === open.mirrorBand[1], FIX_GEOMETRY)
   check(
     'two-pane bands tile the main band (the message box ends the live pane — the two-composers law)',
     open.listBand[0] === open.mainBand[0] &&
       open.listBand[1] === open.mainBand[1] &&
       open.liveComposerBand[1] === open.mainBand[1] - 1 &&
       open.liveCols[1] < open.rightCols[0],
+    FIX_GEOMETRY,
   )
   const sClosed = switchboardGeometry(80, 30, 0, 4, 2, 1)
   const sOpen = switchboardGeometry(80, 30, 0, 4, 2, 1, ROW_PEEK_DESIRED_ROWS)
-  check('stacked grants what the manager can give', sOpen.peekRows > 0 && sOpen.peekRows <= ROW_PEEK_DESIRED_ROWS, `granted=${sOpen.peekRows}`)
+  check('stacked grants what the manager can give', sOpen.peekRows > 0 && sOpen.peekRows <= ROW_PEEK_DESIRED_ROWS, `granted=${sOpen.peekRows} — ${FIX_GEOMETRY}`)
   const sRail = switchboardGeometry(80, 30, 1, 2, 2, 1, ROW_PEEK_DESIRED_ROWS)
-  check('stacked + an ask still grants ≥4 (the NEEDS YOU block keeps its row)', sRail.peekRows >= 4, `granted=${sRail.peekRows}`)
+  check('stacked + an ask still grants ≥4 (the NEEDS YOU block keeps its row)', sRail.peekRows >= 4, `granted=${sRail.peekRows} — ${FIX_GEOMETRY}`)
   const sRailBands = (sRail.listBand[1] - sRail.listBand[0] + 1) + (sRail.mirrorBand[1] - sRail.mirrorBand[0] + 1) + Math.max(0, sRail.thirdBand[1] - sRail.thirdBand[0] + 1)
-  check('stacked + an ask: live view and manager tile the main band (the message box inside the live view)', sRailBands === sRail.mainRows, `${sRailBands} vs main ${sRail.mainRows}`)
+  check('stacked + an ask: live view and manager tile the main band (the message box inside the live view)', sRailBands === sRail.mainRows, `${sRailBands} vs main ${sRail.mainRows} — ${FIX_GEOMETRY}`)
   const sTall = sOpen.mirrorBand[1] - sOpen.mirrorBand[0] + 1
-  check('the stacked live view keeps its ≥6 floor', sTall >= 6, `tall=${sTall}`)
+  check('the stacked live view keeps its ≥6 floor', sTall >= 6, `tall=${sTall} — ${FIX_GEOMETRY}`)
   check(
     'stacked bands tile the main band, live view on top',
     sOpen.mirrorBand[0] === sOpen.mainBand[0] && sOpen.listBand[0] === sOpen.mirrorBand[1] + 1 && sOpen.listBand[1] === sOpen.mainBand[1],
+    FIX_GEOMETRY,
   )
-  check('the stacked drop-down never crushes the list under two rows', sOpen.listContentRows >= 2 && sClosed.listContentRows >= 2, `${sClosed.listContentRows} → ${sOpen.listContentRows}`)
+  check('the stacked drop-down never crushes the list under two rows', sOpen.listContentRows >= 2 && sClosed.listContentRows >= 2, `${sClosed.listContentRows} → ${sOpen.listContentRows} — ${FIX_GEOMETRY}`)
   const tiny = switchboardGeometry(100, 24, 3, 8, 3, 5, ROW_PEEK_DESIRED_ROWS)
-  check('poison: a squeezed grant clamps at 0..8', tiny.peekRows >= 0 && tiny.peekRows <= ROW_PEEK_DESIRED_ROWS, `granted=${tiny.peekRows}`)
+  check('poison: a squeezed grant clamps at 0..8', tiny.peekRows >= 0 && tiny.peekRows <= ROW_PEEK_DESIRED_ROWS, `granted=${tiny.peekRows} — ${FIX_GEOMETRY}`)
 }
 
 removeScratch(SCRATCH)

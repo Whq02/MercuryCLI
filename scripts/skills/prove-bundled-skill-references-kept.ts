@@ -12,7 +12,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok || !detail ? '' : ` — ${detail}`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${detail ? detail + ' — ' : ''}change the reference-file extraction in src/skills/bundledSkills.ts (extractedSkillDir, extractSkillFiles, ownProcessFolder) so a skill folder is made whole, never overwritten, never followed through a link`}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 

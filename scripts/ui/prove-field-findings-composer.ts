@@ -22,9 +22,9 @@ console.log('§2 CI-02 — the masked branch paints renderedValue (the owner alr
   const secret = 'sk-ant-0123456789abcdef'
   const rendered = Cursor.fromText(secret, 80, secret.length).render('', '•', INV)
   const dots = (rendered.match(/•/g) ?? []).length
-  check('the masked render masks every grapheme but the six-tail', dots === [...secret].length - 6, `dots=${dots}`)
-  check('the six-grapheme tail stays readable (the reveal law)', rendered.includes('abcdef'))
-  check('the head never leaks', !rendered.includes('sk-ant'))
+  check('the masked render masks every grapheme but the six-tail', dots === [...secret].length - 6, `dots=${dots} — change Cursor.render in src/utils/Cursor.ts so the mask character covers every grapheme except the last six`)
+  check('the six-grapheme tail stays readable (the reveal law)', rendered.includes('abcdef'), 'change Cursor.render in src/utils/Cursor.ts so the last six graphemes of a masked value are printed')
+  check('the head never leaks', !rendered.includes('sk-ant'), 'change Cursor.render in src/utils/Cursor.ts so the head of a masked value is replaced by the mask character')
 }
 
 process.exit(failures === 0 ? 0 : 1)

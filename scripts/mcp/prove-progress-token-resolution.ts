@@ -10,7 +10,9 @@ const { wireSafeMcpToolName } = await import(join(SRC, 'utils/mcp/mcpStringUtils
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const fixHint = 'fix the toolUseId scan over parentMessage content and the progressSink in callMCPToolWithUrlElicitationRetry, src/services/mcp/client.ts'
+  const shown = cond ? detail : detail ? `${detail}; ${fixHint}` : fixHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const SERVER = 'progress-srv'

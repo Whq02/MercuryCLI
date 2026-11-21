@@ -14,9 +14,10 @@ const forensicsOwner = await import('../../src/services/providers/openai/streamC
 type OpenaiFault = import('../../src/services/providers/openai/openaiWire.js').OpenaiFault
 
 let failures = 0
+const streamCutHint = 'fix streamOpenaiResponses in src/services/providers/openai/openaiClient.ts (fault and forensics on a cut stream) or the owners in src/services/providers/openai/streamCutForensics.ts (phase, size class, headers, cause words, debug line)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${streamCutHint}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

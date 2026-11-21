@@ -18,7 +18,7 @@ const { resolveVulcanClientForTest } = { resolveVulcanClientForTest: (await impo
 let checks = 0
 const evidence: Array<{ label: string; value: unknown }> = []
 function check(label: string, condition: unknown, value?: unknown): void {
-  assert.ok(condition, `${label}${value === undefined ? '' : ': ' + JSON.stringify(value)}`)
+  assert.ok(condition, `${label}${value === undefined ? '' : ': ' + JSON.stringify(value)}; to fix: change how runEngineOp in src/services/vulcan/engine/ops.ts answers an engine query for a job or worker that is not up yet (the ENGINE_BOOTING, BRIDGE_BOOTING and NO_QUERY_ROAD answers), or the job service in src/services/vulcan/engine/service.ts`)
   checks++
   console.log(`PASS ${label}`)
   if (value !== undefined) evidence.push({ label, value })
@@ -108,7 +108,7 @@ async function until<T>(read: () => T, ready: (value: T) => boolean, timeoutMs: 
   return value
 }
 function submitted<T extends object>(job: T | { refused: string }): Exclude<T, { refused: string }> {
-  assert.ok(!('refused' in job), JSON.stringify(job))
+  assert.ok(!('refused' in job), `${JSON.stringify(job)}; the engine job service refused the submit, so see EngineJobService.submit in src/services/vulcan/engine/service.ts for the reason`)
   return job as Exclude<T, { refused: string }>
 }
 const suiteRequest = () => ({ suites: ['scene_checks'], tree: parseEngineTreeSpec('HEAD') as ReturnType<typeof parseEngineTreeSpec> & { ref: string }, native: false, capture: false, priority: 'lane-gate' as const, budgetMs: null, displayShared: false, keepTree: false, label: null })

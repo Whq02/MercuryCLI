@@ -15,10 +15,11 @@ for (const key of ['MERCURY_HOME', 'MERCURY_BARE', 'TYPESAFE_API_KEY', 'NODE_ENV
 
 let failures = 0
 let checks = 0
+const WRITE_GUARD_WHERE = 'change the guard in src/mneme/mnemeContradiction.ts (contradictionBetween, contradictionCandidates, conflictReason, jevJudgeOpen) or its callers retainItems, retainItemsJudged and correctMemory in src/mneme/memoryVerbs.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${WRITE_GUARD_WHERE}${detail ? `; got: ${detail.slice(0, 600)}` : ''}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -143,12 +144,12 @@ check('the pinned rule is byte-identical on disk and its pin untouched', readFil
 check('the refused words are nowhere on disk', !readFileSync(rulesPath, 'utf8').includes('never use bun') && !pendingRows(dir).some(r => r.text.includes('never use bun') || r.text.includes('60 seconds')))
 const block = RetainTool.mapToolResultToToolResultBlockParam({ outcomes, stored: 2, refused: 3 }, 'tid')
 const content = String(block.content)
-check('the tool result carries each refusal with the fact NOT stored', content.startsWith('2 stored · 3 refused') && content.includes(`REFUSED — conflicts with rule ${bunSeq}:`) && content.includes('(the fact was NOT stored)'), content.slice(0, 300))
+check('the tool result carries each refusal with the fact NOT stored', content.startsWith('2 stored · 3 refused') && content.includes(`REFUSED — conflicts with rule ${bunSeq}:`) && content.includes('(the fact was NOT stored)'), 'the refusal block is built by RetainTool.mapToolResultToToolResultBlockParam in src/tools/MemoryTools/MemoryTools.ts; block text: ' + content.slice(0, 300))
 const lines = conflictLines(outcomes)
 console.log(`  the user's lines:\n    ${lines.join('\n    ')}`)
-check('one line reaches the user per conflict, in plain words', lines.length === 3 && lines[0] === `not stored: it conflicts with rule ${bunSeq}, "always use bun for installs; the lockfile only…" — the rule stands` && lines[1] === `not stored: it conflicts with fact ${suitesSeq}, "run the suites in parallel and batch the…"`, j(lines))
-check('the user\'s lines carry no code, no id and no percentage', lines.every(line => !/seq:|pending:|%|\d\.\d/.test(line)), j(lines))
-check('Retain names per-item refusals without preloading the contradiction recovery', RETAIN_PROMPT.includes('refusal reason') && !/Correct|contradiction|\/memory/.test(RETAIN_PROMPT))
+check('one line reaches the user per conflict, in plain words', lines.length === 3 && lines[0] === `not stored: it conflicts with rule ${bunSeq}, "always use bun for installs; the lockfile only…" — the rule stands` && lines[1] === `not stored: it conflicts with fact ${suitesSeq}, "run the suites in parallel and batch the…"`, 'conflictLines in src/tools/MemoryTools/UI.tsx must give one plain line per refusal; lines: ' + j(lines))
+check('the user\'s lines carry no code, no id and no percentage', lines.every(line => !/seq:|pending:|%|\d\.\d/.test(line)), 'conflictLines in src/tools/MemoryTools/UI.tsx must print plain words only; lines: ' + j(lines))
+check('Retain names per-item refusals without preloading the contradiction recovery', RETAIN_PROMPT.includes('refusal reason') && !/Correct|contradiction|\/memory/.test(RETAIN_PROMPT), 'RETAIN_PROMPT in src/constants/tools/memory.ts must mention the refusal reason and not the contradiction recovery')
 
 section('§3 a pending row is on record too; an item that replaces a rule is judged against everything but that rule')
 _resetMemoryVerbSessionStateForTesting()
@@ -219,7 +220,7 @@ check('an amend that keeps its own meaning is not judged against the row it amen
 const amendJudged = await correctMemoryJudged({ op: 'amend', id: `seq:${suitesSeq}`, content: 'the advisor is off by default', reason: 'proof', session: 'write-guard-proof' }, { dir, judge: async pairs => pairs.map(() => 0.2) })
 check('the judged amend road: Jev unsure means the amend is refused only by the evidence rule, never by the guard', !amendJudged.ok && amendJudged.code === 'unseen-evidence', j(amendJudged))
 const correctBlock = CorrectTool.mapToolResultToToolResultBlockParam(amendConflict, 'tid')
-check('the Correct tool result names the conflict', String(correctBlock.content).includes('amend refused (conflict): amend refused: the new wording conflicts with fact'), String(correctBlock.content))
+check('the Correct tool result names the conflict', String(correctBlock.content).includes('amend refused (conflict): amend refused: the new wording conflicts with fact'), 'CorrectTool.mapToolResultToToolResultBlockParam in src/tools/MemoryTools/MemoryTools.ts must name the conflict; block text: ' + String(correctBlock.content))
 _resetMemoryVerbSessionStateForTesting()
 const imported = retainItems([{ content: 'never use bun for installs' }], { session: 'handover', source: 'handover:old-notes', pin: false }, dir, { guard: 'off' })
 check('with the guard off (the hand-over import) the row lands as today', imported[0]?.status === 'stored', j(imported))
@@ -276,8 +277,8 @@ const batchResult = await RetainTool.call({ items: drawerFacts.map(content => ({
 check('one real Retain call stores all twenty exact drawer facts', 'data' in batchResult && batchResult.data.stored === 20 && batchResult.data.refused === 0, j(batchResult))
 check('all twenty drawer facts read back verbatim from pending rows', drawerFacts.every(text => pendingRows(dir).some(row => row.text === text)))
 if ('data' in batchResult) {
-  check('the tool result says twenty stored and has no refusal', String(RetainTool.mapToolResultToToolResultBlockParam(batchResult.data, 'drawers').content).startsWith('20 stored · 0 refused'))
-  check('no false conflict line reaches the user', conflictLines(batchResult.data.outcomes).length === 0)
+  check('the tool result says twenty stored and has no refusal', String(RetainTool.mapToolResultToToolResultBlockParam(batchResult.data, 'drawers').content).startsWith('20 stored · 0 refused'), 'RetainTool.mapToolResultToToolResultBlockParam in src/tools/MemoryTools/MemoryTools.ts must open with the stored and refused counts')
+  check('no false conflict line reaches the user', conflictLines(batchResult.data.outcomes).length === 0, 'conflictLines in src/tools/MemoryTools/UI.tsx printed a conflict for a batch that stored every fact')
 }
 const sequentialDir = mkdtempSync(join(HOME, 'sequential-'))
 for (let n = 1; n <= 12; n++) {

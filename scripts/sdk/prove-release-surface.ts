@@ -13,5 +13,17 @@ const checks: Array<[string, boolean]> = [
   ['generated Python typed package and testing module', ['sdk-py/pyproject.toml', 'sdk-py/src/mercury_cli_sdk/generated.py', 'sdk-py/src/mercury_cli_sdk/testing.py', 'sdk-py/src/mercury_cli_sdk/py.typed'].every(p => existsSync(join(root, p)))],
   ['TypeScript testing subpath', Boolean(pkg.exports?.['./testing']?.types)],
 ]
-for (const [label, ok] of checks) console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`)
+const releaseSurfaceFixes = [
+  'what to change: name, version and license in sdk/package.json, and VERSION in sdk/src/version.ts, so they read mercury-cli-sdk 0.2.0 under Apache-2.0 and not private',
+  'what to change: the same version in sdk-py/pyproject.toml, sdk-py/src/mercury_cli_sdk/version.py, and the line naming mercury-cli-sdk with that version in sdk/README.md and sdk-py/README.md',
+  'what to change: the exports of sdk/src/index.ts (run and connect from client.ts, defineTool, serveTools and defineAgent from helpers.ts); each must be a function',
+  'what to change: MercuryRun in sdk/src/client.ts must define sendPrompt, sendShell, sendNote and closeInput',
+  'what to change: rowOf in sdk/src/parse.ts must return ok with a row of type unknown_row for a row type it does not know',
+  'what to change: restore the missing file among sdk-py/pyproject.toml, sdk-py/src/mercury_cli_sdk/generated.py, testing.py and py.typed',
+  'what to change: add a ./testing export with a types entry to the exports of sdk/package.json',
+]
+for (const [index, [label, ok]] of checks.entries()) {
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`)
+  if (!ok) console.log(`  ${releaseSurfaceFixes[index]}`)
+}
 if (checks.some(([, ok]) => !ok)) process.exit(1)

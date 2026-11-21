@@ -6,7 +6,7 @@ const REPO = join(import.meta.dir, '..', '..')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + 'change ignoringSpecialFiles in src/utils/watchRoot.ts so a fifo, socket or device stat is ignored before the rule is asked and every other stat defers to the rule' : ''}`)
   if (!cond) failures++
 }
 

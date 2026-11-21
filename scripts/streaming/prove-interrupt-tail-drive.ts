@@ -18,7 +18,10 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const tailFix = /^C\d/.test(label)
+    ? 'change interrupt() or readTail() of DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts so the cut words leave the screen at the press and are painted once from the transcript record'
+    : 'rebuild with bun run build.ts first, then change interrupt() or readTail() of DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts, or the wire in scripts/streaming/turn-end-fixture-server.ts if the wire check failed'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}${tailFix}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

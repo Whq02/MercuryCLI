@@ -10,9 +10,11 @@ mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 
 const REPO = join(import.meta.dir, '..', '..')
 let failures = 0
+let sectionHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failText = [detail, sectionHint].filter(part => part !== '').join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && failText ? ` — ${failText}` : ''}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
@@ -22,6 +24,7 @@ console.log('============================================================')
 
 console.log('\n── §1 separators ──')
 {
+  sectionHint = 'fix canonicalizeSuggestionPath and displaySuggestionPath in src/hooks/fileSuggestions.ts, or isPathLikeToken in src/utils/suggestions/directoryCompletion.ts, so the spelling the label names comes out'
   const { canonicalizeSuggestionPath, displaySuggestionPath } = await import(
     join(REPO, 'src/hooks/fileSuggestions.ts')
   )
@@ -43,6 +46,7 @@ console.log('\n── §1 separators ──')
 
 console.log('\n── §2 per-project keying (two projects, one process) ──')
 {
+  sectionHint = 'generateFileSuggestions in src/hooks/fileSuggestions.ts must key its file index by the working directory (runWithCwdOverride in src/utils/cwd.ts), so one project never answers with another project paths and each project rebuilds its own index'
   const projA = join(SCRATCH, 'proj-alpha')
   const projB = join(SCRATCH, 'proj-beta')
   mkdirSync(projA, { recursive: true })
@@ -82,6 +86,7 @@ console.log('\n── §2 per-project keying (two projects, one process) ──'
 
 console.log('\n── §3 timers ──')
 {
+  sectionHint = 'fix armTypeaheadTimer, disarmTypeaheadTimer and typeaheadTimerCensus in src/hooks/useTypeahead.tsx so the census counts only armed debounces that have not fired or been disarmed'
   const typeahead = await import(join(REPO, 'src/hooks/useTypeahead.tsx'))
   check('census starts at zero', typeahead.typeaheadTimerCensus() === 0, String(typeahead.typeaheadTimerCensus()))
   let fired = false
@@ -101,6 +106,7 @@ console.log('\n── §3 timers ──')
 
 console.log('\n── §3b worktree gitdir + tracked-skip ──')
 {
+  sectionHint = 'fix resolveGitDir in src/hooks/fileSuggestions.ts: a linked worktree must resolve through its .git pointer file to the per-worktree git dir, and a non-repo must return null without throwing'
   const { resolveGitDir } = await import(join(REPO, 'src/hooks/fileSuggestions.ts'))
   const { execFileSync } = await import('node:child_process')
   const repoDir = join(SCRATCH, 'gitdir-main')
@@ -126,6 +132,7 @@ console.log('\n── §3b worktree gitdir + tracked-skip ──')
 
 console.log('\n── §4 middle truncation ──')
 {
+  sectionHint = 'fix truncatePathMiddle in src/utils/truncate.ts so both separators keep the root and the file name around the ellipsis within the width budget'
   const { truncatePathMiddle } = await import(join(REPO, 'src/utils/truncate.ts'))
   const posix = 'src/components/prompt-input/PromptInputFooterSuggestions.tsx'
   const win32 = 'src\\components\\prompt-input\\PromptInputFooterSuggestions.tsx'

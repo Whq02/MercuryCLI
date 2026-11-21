@@ -13,9 +13,10 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.NODE_ENV = 'test'
 
+const COPY_LATCH_HINT = 'change useCopyOnSelect in src/hooks/useCopyOnSelect.ts (the subscription, the one copy per settled drag, the latch, the opt-out read) or noteOwnInputSelectionSettled in src/utils/cockpit/inputSelectionBridge.ts for the composer selection'
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + COPY_LATCH_HINT + (detail ? ': ' + detail : '') : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

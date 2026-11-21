@@ -32,7 +32,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)}; fix the agent lease lifetime in beginAgentProjectLeases and takeProjectLeases (src/services/vulcan/engine/leases.ts) and where runAgent starts and ends it (src/tools/AgentTool/runAgent.ts)` : ''}`)
 }
 mock.module('../../src/query.ts', () => ({
   ...realQuery,

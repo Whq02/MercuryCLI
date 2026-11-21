@@ -13,12 +13,13 @@ Object.assign(process.env, {
   MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', BROWSER: '/usr/bin/true',
 })
 
+const EXIT_NOTICE_HINT = 'change SurfaceExitChordNotice in src/components/SurfaceExitChord.tsx (and the text from exitChordNoticeText in src/components/PromptInput/ExitChordNotice.tsx) so the notice fills its own last row and leaves nothing of the row beneath'
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${EXIT_NOTICE_HINT}${detail ? `: ${detail}` : ''}` : ''}`)
 }
 
 const React = await import('react')

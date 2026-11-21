@@ -11,7 +11,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 console.log('agent-card fold: click reveals, cue never lies')
 
-check('hiddenAgentToolUses is total on empty progress', hiddenAgentToolUses([], [] as never) === 0)
+check('hiddenAgentToolUses is total on empty progress', hiddenAgentToolUses([], [] as never) === 0, 'to fix, make hiddenAgentToolUses in src/tools/AgentTool/UI.tsx return 0 for empty progress and empty tools')
 
 
 console.log('\n' + '='.repeat(76))
