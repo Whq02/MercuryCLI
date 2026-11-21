@@ -14,7 +14,6 @@ src/bootstrap/state.ts	apiCapture	owner	module	session; last request and request
 src/bootstrap/state.ts	bootConfig	process	module	boot facts from argv set once in main.tsx (flag settings path and inline, allowed setting sources, session extensions)
 src/bootstrap/state.ts	cacheLatches	owner	module	session; systemPromptSectionCache is the prompt composition memory of the main lane
 src/bootstrap/state.ts	clearBetaHeaderLatches	reset-export
-src/bootstrap/state.ts	clearInvokedSkills	reset-export
 src/bootstrap/state.ts	clearInvokedSkillsForAgent	reset-export
 src/bootstrap/state.ts	clearRegisteredExtensionHooks	reset-export
 src/bootstrap/state.ts	clearRegisteredHooks	reset-export
@@ -26,20 +25,13 @@ src/bootstrap/state.ts	interactionClock	process	module	keyboard clock of the one
 src/bootstrap/state.ts	modelConfig	owner	module	session; engineModelOverride is the model choice of the session
 src/bootstrap/state.ts	posture	process	module	how this process was launched (interactive, ask channel, session kind, client type, one-shot, persistence off, launch permission mode): set once at boot from argv and env, before any claim and valid across it
 src/bootstrap/state.ts	resetCostState	reset-export
-src/bootstrap/state.ts	resetModelStringsForTestingOnly	reset-export
 src/bootstrap/state.ts	resetStateForTests	reset-export
-src/bootstrap/state.ts	resetTotalDurationStateAndCost_FOR_TESTS_ONLY	reset-export
-src/bootstrap/state.ts	resetTurnHookDuration	reset-export
-src/bootstrap/state.ts	resetTurnToolDuration	reset-export
 src/bootstrap/state.ts	scrollGate	process	module	scroll drain gate of the one terminal: wheel events and a 150 ms drain timer
 src/bootstrap/state.ts	sessionIdentity	process	module	root identity of the one session a process hosts (sessionId, originalCwd, projectRoot): every OwnerKey is made from it (utils/run/resolveOwner.ts:13,21), so it cannot sit in a store keyed by one
 src/bootstrap/state.ts	statsHandle	process	module	handle on the stats store of the screen, set once at screen boot (interactiveHelpers.tsx:331)
-src/bootstrap/state.ts	turnAccounting	test	module	seven per-turn fields with no product reader
 src/bootstrap/state.ts	usageLedger	owner	module	session; the totals of the session, shared by its crewmates on purpose
 src/cli/editorBridge.ts	CLI_ROSTER	process	module	Load-time definition shared by all callers
-src/cli/editorBridge.ts	DARWIN_BUNDLE_CLIS	process	module	Load-time table with no local writer
 src/cli/editorBridge.ts	EDITOR_CLIS	process	module	Load-time list with no local writer
-src/cli/editorBridge.ts	WIN32_CANDIDATES	process	module	Load-time list with no local writer
 src/cli/extensionApi.ts	extensionRequest	process	module	Load-time definition shared by all callers
 src/cli/godotEngineCli.ts	GODOT_CLI_VERBS	process	module	Load-time list with no local writer
 src/cli/godotEngineCli.ts	VALUE_FLAGS	process	module	Load-time lookup with no local writer
@@ -696,6 +688,7 @@ src/daemon/clientPresence.ts	rows	process	module	daemon-wide live client presenc
 src/daemon/clientPresence.ts	tableSince	process	module	daemon-wide presence table startup epoch timestamp
 src/daemon/concourseDispatch.ts	CONTROL_OP_OUTCOMES	process	module	Load-time lookup with no local writer
 src/daemon/concourseDispatch.ts	UNCONFIRMED	process	module	load-time data; no local writer
+src/daemon/concourseDispatch.ts	concourseDispatchesStore	process	module	Shared definition for dispatch record stores selected by daemon directory
 src/daemon/concourseDispatch.ts	deferredPublish	process	module	daemon-wide in-flight deferred disk publish queue keyed by ledger path, deleted on flush
 src/daemon/concourseDispatch.ts	ledgerMemo	process	module	file stat-stamped memo of concourse-dispatches.json keyed by full file path
 src/daemon/concourseDispatch.ts	namedControlOpLedgers	process	module	daemon-wide warn-once set keyed by corrupt control-ops ledger file path
@@ -706,6 +699,8 @@ src/daemon/concourseWorkers/record.ts	clearParkedFields	reset-export
 src/daemon/concourseWorkers/store.ts	EMPTY_SESSION_WORKERS	process	module	Load-time definition shared by all callers
 src/daemon/concourseWorkers/store.ts	UNAVAILABLE_SESSION_WORKERS	process	module	Load-time definition shared by all callers
 src/daemon/concourseWorkers/store.ts	concourseDeltaRevision	process	module	per-process monotonic delta stamp sequence counter paired with process.pid
+src/daemon/concourseWorkers/store.ts	concourseDeltaStore	process	module	Shared definition for change stamp stores selected by daemon directory
+src/daemon/concourseWorkers/store.ts	concourseWorkersStore	process	module	Shared definition for worker record stores selected by daemon directory
 src/daemon/concourseWorkers/store.ts	sessionRecordsInFlight	call	module	synchronous re-entrancy stack frame for nested updateConcourseWorkers calls, restored in finally
 src/daemon/concourseWorkers/store.ts	sessionRecordsLastPublished	process	module	last-published concourse-workers.json text keyed by full file path for corrupt-file recovery
 src/daemon/concourseWorkers/store.ts	sessionRecordsUnread	process	module	daemon-wide unreadable workers-file warning and refusal count keyed by file path, deleted on recovery
@@ -760,6 +755,7 @@ src/daemon/handshake.ts	resetHandoverAsksForTesting	reset-export
 src/daemon/handshake.ts	subscribers	process	module	process-wide listener set subscribed to daemon handshake changes
 src/daemon/headlessRun.ts	HEADLESS_PERMISSION_MODES	process	module	Load-time list with no local writer
 src/daemon/longLivedRespawn.ts	DEFAULT_LONG_LIVED_CONFIG	process	module	Load-time table with no local writer
+src/daemon/otherBuilds.ts	BUNDLE_AT_LOAD	process	module	Identity of the running bundle captured when the module loads
 src/daemon/ownedDaemon.ts	envKeptAuthAtSpawn	process	module	process-wide latch recording whether the owned daemon inherited env auth vars at spawn
 src/daemon/ownedDaemon.ts	freshSigninRestartAsked	process	module	process-wide latch preventing duplicate post-signin daemon restart asks
 src/daemon/ownedDaemon.ts	ownedSpawnLabelThisProcess	process	module	process-wide label of the owned daemon spawned by this client process
@@ -772,9 +768,6 @@ src/daemon/permissionAsks.ts	gitOfferGeneration	process	module	daemon-wide git-i
 src/daemon/permissionAsks.ts	gitOfferSettlements	process	module	daemon-wide in-flight git-init obligation settlement chain keyed by requestId
 src/daemon/permissionAsks.ts	pending	process	module	daemon-wide open permission ask broker table keyed by requestId
 src/daemon/permissionAsks.ts	retired	process	module	daemon-wide recently retired ask cause table keyed by requestId
-src/daemon/processSweep.ts	MERCURY_EXECUTABLES	process	module	Load-time lookup with no local writer
-src/daemon/processSweep.ts	MONTHS	process	module	Load-time list with no local writer
-src/daemon/processSweep.ts	PROCESS_SWEEP_WORDS	process	module	Load-time table with no local writer
 src/daemon/processSweepWindows.ts	rawRowSchema	process	module	Load-time definition shared by all callers
 src/daemon/run/periodic.ts	PERIODIC	process	module	Load-time list with no local writer
 src/daemon/run/shutdown.ts	WAY_OUT_AT_ONCE	process	module	Load-time list with no local writer
@@ -1632,13 +1625,16 @@ src/services/attention/viewModel.ts	storeUnsub	process	module	foreground TUI ups
 src/services/attention/viewModel.ts	timer	process	module	foreground TUI burst-coalescing timeout handle, stopped on teardown
 src/services/attention/viewModel.ts	version	process	module	foreground TUI monotonic attention view version counter
 src/services/auth/oauthLifecycle.ts	clearOAuthTokenCache	reset-export
-src/services/auth/oauthLifecycle.ts	lastCredentialsMtimeMs	owner	module	Session state retained in this module
+src/services/auth/oauthLifecycle.ts	in401	process	module	Pending account recovery requests reused until they settle
+src/services/auth/oauthLifecycle.ts	lastCredentialsMtimeMs	process	module	Last modification time observed for the account credential file
+src/services/auth/oauthLifecycle.ts	refreshInFlight	process	module	Shared pending account refresh, released when the refresh settles
 src/services/backgroundHousekeeping.ts	cycle	process	module	process-wide background disk cleanup cycle progress
 src/services/backgroundHousekeeping.ts	seams	test	module	test-only clock/scheduler seam override via _setHousekeepingSeamsForTesting (default Date.now/startTimeout)
 src/services/blender/bridgeClient.ts	resetBlenderBridgeClientForTest	reset-export
 src/services/blender/bridgeClient.ts	singleton	process	module	singleton TCP bridge client to the single local Blender addon window, keyed by port:token
 src/services/blender/bridgeFiles.generated.ts	BLENDER_BRIDGE_FILES	process	module	Load-time list with no local writer
 src/services/blender/headlessRunner.ts	runtimeProbeByBinary	process	module	pure Blender binary runtime probe memo keyed by bin\0mtimeMs\0size
+src/services/boot/registerDoors.ts	booted	process	module	Once-per-process latch for startup registrations
 src/services/browser/browserEmulation.ts	ASPECTS	process	module	Load-time list with no local writer
 src/services/browser/browserEmulation.ts	ASPECT_FIELDS	process	module	Load-time table with no local writer
 src/services/browser/browserEmulation.ts	ASPECT_WORDS	process	module	Load-time table with no local writer
@@ -1707,6 +1703,7 @@ src/services/changeTransaction/seenLines.ts	sessionWrites	owner	module	session-l
 src/services/changeTransaction/seenLines.ts	store	owner	store	agent/session-level seen file line ranges in registered OwnerScopedStore (seen-lines, cap 32, disposed on disposeOwner)
 src/services/changeTransaction/snapshotRing.ts	SNAPSHOT_RING_BOUNDS	process	module	Load-time table with no local writer
 src/services/changeTransaction/snapshotRing.ts	store	owner	store	agent/session-level anchored file snapshots in registered OwnerScopedStore (anchored-snapshots, cap 32, disposed on disposeOwner)
+src/services/cleanup.ts	blobScanCensus	test	module	test-only streaming blob scan read counters inspected solely by scripts/settings/prove-blob-scan-stream.ts
 src/services/cockpit/agentStateSnapshot.ts	EMPTY	process	module	Load-time table with no local writer
 src/services/cockpit/contextUsageLive.ts	listeners	process	module	foreground TUI subscriber Set for context usage gauge
 src/services/cockpit/contextUsageLive.ts	usageSlots	owner	store	agent/session-level live context usage in registered OwnerScopedStore (ctx-usage-live, default cap 64, disposed on disposeOwner)
@@ -1732,8 +1729,8 @@ src/services/cockpit/daemonRosterSnapshot.ts	crewVerdict	process	module	30s TTL 
 src/services/cockpit/daemonRows.ts	OUTCOME_ORDER	process	module	Load-time list with no local writer
 src/services/cockpit/daemonSnapshot.ts	pingInFlight	process	module	in-flight dedup key for daemon control-socket ping
 src/services/cockpit/daemonSnapshot.ts	pingVerdict	process	module	15s TTL cache of daemon control-socket ping keyed by pid:startedAt
-src/services/cockpit/harnessMap.ts	announcedLines	owner	module	session; module; initial announced harness map lines baseline used by getHarnessMapDelta; missing owner store/end; shared/overwritten across sessions in one process
-src/services/cockpit/harnessMap.ts	memo	owner	module	session; module; cached '# Mercury harness map' system prompt section depending on session interactivity/sessionKind/canAnswerAsks; missing owner store/end; latches first session's value across sessions in one process
+src/services/cockpit/harnessMap.ts	announcedLines	owner	module	Session baseline used to report changes to the harness description
+src/services/cockpit/harnessMap.ts	memo	owner	module	Main session harness description reused across prompt compositions
 src/services/cockpit/harnessMap.ts	resetHarnessMapForTest	reset-export
 src/services/cockpit/mcpGauge.ts	latest	process	module	foreground TUI snapshot of MCP server connections
 src/services/cockpit/mcpGauge.ts	listeners	process	module	foreground TUI subscriber Set for MCP gauge
@@ -2434,6 +2431,18 @@ src/services/media/pipeline.ts	pipelineIdentity	process	module	Load-time definit
 src/services/media/pipeline.ts	runRecord	process	module	Load-time definition shared by all callers
 src/services/media/pipeline.ts	stepRecord	process	module	Load-time definition shared by all callers
 src/services/media/setup.ts	RUNTIME_WORDS	process	module	Load-time table with no local writer
+src/services/messages/api.ts	MARKDOWN_EXTENSIONS	process	module	Load-time list with no local writer
+src/services/messages/api.ts	serializedSchemaKeys	process	module	WeakMap pure memo of jsonStringify(tool.inputJSONSchema) keyed by object identity, GC-reclaimed
+src/services/messages/api.ts	strippedFieldsLogged	process	module	one-time debug log latch for beta-strip schema field removal
+src/services/messages/attachmentText.ts	bashWording	process	module	Load-time table with no local writer
+src/services/messages/attachmentText.ts	fileReadWording	process	module	Load-time table with no local writer
+src/services/messages/attachmentText.ts	renderers	process	module	Load-time table with no local writer
+src/services/messages/lookups.ts	EMPTY_LOOKUPS	process	module	immutable empty MessageLookups template (callers spread and construct fresh Maps/Sets)
+src/services/messages/lookups.ts	EMPTY_STRING_SET	process	module	Derived collection initialized at load
+src/services/messages/toolSearch.ts	DEFAULT_UNSUPPORTED_PATTERNS	process	module	Load-time list with no local writer
+src/services/messages/toolSearch.ts	memoizedDeferredToolTokens	process	module	lodash memoize keyed by caller-supplied cacheKey for deferred tool token counts
+src/services/messages/toolSearch.ts	optimisticDebugEmitted	process	module	one-shot debug log dedupe flag for optimistic tool search
+src/services/messages/toolSearch.ts	toolDefinitionCount	process	module	process-wide startup registration hook supplying tool definition token counter
 src/services/mission/goalJudge.ts	GOAL_QUESTION	process	module	Load-time table with no local writer
 src/services/mission/goalJudge.ts	helperForTesting	test	module	test-only goal judge override installed by _setMissionJudgeForTesting
 src/services/mission/projection.ts	TERMINAL_RUN	process	module	Load-time lookup with no local writer
@@ -2453,6 +2462,13 @@ src/services/model/computedDefault.ts	KIND_WORDS	process	module	Load-time table 
 src/services/model/computedDefault.ts	memo	process	module	2s TTL account-wide default-model memo keyed by signInLedgerEpoch and catalogueEpoch (one account sign-in shared per DESIGN.md)
 src/services/model/computedDefault.ts	resetComputedDefaultMemo	reset-export
 src/services/model/computedDefault.ts	walkingPicker	process	module	synchronous recursion guard (try/finally, no await) preventing picker circularity
+src/services/model/frontierPolicy.ts	resolvingFrontier	process	module	synchronous recursion guard (try/finally, no await) for model allowlist check
+src/services/model/model.ts	CAPITALIZED_ALIASES	process	module	Load-time lookup with no local writer
+src/services/model/model.ts	DISPLAY_NAMES	process	module	Load-time table with no local writer
+src/services/model/model.ts	MARKETING_NAMES	process	module	Load-time table with no local writer
+src/services/model/model.ts	ONE_M_TWIN_KEYS	process	module	Load-time lookup with no local writer
+src/services/model/model.ts	RETIRED_LARGE_IDS	process	module	Load-time lookup with no local writer
+src/services/model/modelFamilies.ts	FIRST_PARTY_FAMILY_WORDS	process	module	Load-time lookup with no local writer
 src/services/model/modelNameRoad.ts	CLASS_WORDS	process	module	Load-time lookup with no local writer
 src/services/model/modelTransition.ts	MEANINGFUL_LOSS_CLASSES	process	module	Load-time list with no local writer
 src/services/model/subModelSlots.ts	SUB_MODEL_CONTAINERS	process	module	Load-time list with no local writer
@@ -2463,6 +2479,7 @@ src/services/notices/unreadLedger.ts	resetNoticeLedger	reset-export
 src/services/notices/unreadLedger.ts	seq	owner	module	Session state retained in this module
 src/services/oauth/refresh.ts	ORGANIZATION_SUBSCRIPTIONS	process	module	Load-time table with no local writer
 src/services/oauth/refresh.ts	pendingDaemonRestart	process	module	in-flight process-wide owned daemon restart promise after OAuth sign-in
+src/services/pdfUtils.ts	DOCUMENT_EXTENSIONS	process	module	Load-time lookup with no local writer
 src/services/preventSleep.ts	cleanupRegistered	process	module	one-time latch registering caffeinate shutdown via registerCleanup
 src/services/preventSleep.ts	helper	process	module	process-wide caffeinate ChildProcess handle killed on refcount 0 or cleanup
 src/services/preventSleep.ts	referenceCount	process	module	process-wide refcount of active turns keeping macOS caffeinate alive
@@ -2621,7 +2638,7 @@ src/services/providers/gemini/geminiAccounts.ts	refreshInFlight	process	module	s
 src/services/providers/gemini/geminiAdapter.ts	geminiProviderAdapter	process	module	Load-time table with no local writer
 src/services/providers/gemini/geminiCallModel.ts	geminiLaneProfile	process	module	Load-time table with no local writer
 src/services/providers/gemini/geminiCallModel.ts	planLastGoodBase	process	module	process-wide map of last working Code Assist base URL keyed by projectId
-src/services/providers/gemini/geminiCallModel.ts	planSession	owner	module	session level (module): Code Assist plan trajectoryId/sessionId/step counter
+src/services/providers/gemini/geminiCallModel.ts	planSession	process	module	Provider request identifiers and step counter initialized once for the process
 src/services/providers/gemini/geminiCatalogue.ts	EMPTY_LIVE_IDS	process	module	Load-time lookup with no local writer
 src/services/providers/gemini/geminiCatalogue.ts	GEMINI_XHIGH_ROW_EFFORTS	process	module	Load-time list with no local writer
 src/services/providers/gemini/geminiCatalogue.ts	catalogueCache	process	module	process-wide TTL cache of provider live model catalogue keyed by credential/endpoint identity
@@ -2909,8 +2926,6 @@ src/services/providers/providerIdentityLine.ts	memo	process	module	2s TTL memo o
 src/services/providers/providerKeyCommand.ts	OUTSIDE_CHECKOUT_SOURCES	process	module	Load-time lookup with no local writer
 src/services/providers/providerKeyCommand.ts	cache	process	module	Process provider-command cache
 src/services/providers/providerKeyCommand.ts	seenEpoch	process	module	last observed signInLedgerEpoch for invalidating providerKeyCommand cache
-src/services/providers/providerSecrets.ts	KEY_FIELD_FAMILY	process	module	Load-time table with no local writer
-src/services/providers/providerSecrets.ts	credentialAsideWords	process	module	one-shot diagnostic map keyed by credential file path for damaged files kept aside
 src/services/providers/providerUsage.ts	ALL_FAMILIES	process	module	Load-time list with no local writer
 src/services/providers/providerUsage.ts	POOL_LABELS	process	module	Load-time table with no local writer
 src/services/providers/providerUsage.ts	activeUsageCache	process	module	2s TTL memo of active provider usage keyed by model, credential epoch, and record version
@@ -3155,7 +3170,7 @@ src/services/search/searxngInstances.ts	SEARXNG_RATE_POLICY	process	module	Load-
 src/services/search/tavily.ts	TAVILY_PACING	process	module	Load-time table with no local writer
 src/services/sessionStart.ts	firstPrompt	owner	module	session level; module let; cleared on takeFirstPrompt, missing owner key/disposal — written by runSessionStartHooks
 src/services/settings/faultNotices.ts	resetToldSettingsFaults	reset-export
-src/services/settings/faultNotices.ts	told	owner	module	Session state retained in this module
+src/services/settings/faultNotices.ts	told	owner	module	Settings faults already reported in the session, removed when the fault clears
 src/services/structure/astPatterns/languages.ts	AST_BOUNDS	process	module	Load-time table with no local writer
 src/services/structure/astPatterns/languages.ts	LANGUAGE_ALIASES	process	module	Load-time table with no local writer
 src/services/structure/astPatterns/languages.ts	LANGUAGE_PATTERN_EXAMPLES	process	module	Load-time table with no local writer
@@ -3347,8 +3362,8 @@ src/services/wallet/identityWords.ts	ACCOUNT_WORDS	process	module	Load-time tabl
 src/services/wallet/identityWords.ts	DEVICE_CODE_SIGN_INS	process	module	Load-time lookup with no local writer
 src/services/wallet/identityWords.ts	FAMILY_ACCOUNT_WORDS	process	module	Load-time table with no local writer
 src/services/wallet/identityWords.ts	KIMI_HOST_WORDS	process	module	Load-time table with no local writer
-src/services/wallet/wallet.ts	activeMemo	owner	module	Short-lived session account selection cache
-src/services/wallet/wallet.ts	entriesMemo	owner	module	Short-lived session account list cache
+src/services/wallet/wallet.ts	activeMemo	process	module	Short-lived cache of the active account selection for each provider
+src/services/wallet/wallet.ts	entriesMemo	process	module	Short-lived process cache of the account list for the current configuration
 src/services/wallet/wallet.ts	resetWalletEntriesMemo	reset-export
 src/services/workbench/attentionBridge.ts	STATE_MAP	process	module	Load-time table with no local writer
 src/services/workbench/attentionBridge.ts	registered	process	module	idempotent one-time guard registering workbench attention gatherer
@@ -3364,8 +3379,13 @@ src/services/workbench/projection.ts	lastGood	process	module	single interactive 
 src/services/workbench/projection.ts	listeners	process	module	single interactive terminal workbench snapshot subscriber set
 src/services/workbench/projection.ts	oneShotVersion	process	module	monotonic version counter for one-shot workbench snapshot queries
 src/services/workbench/projection.ts	snapshot	process	module	single interactive terminal workbench projection snapshot
+src/services/workbench/projection.ts	watchedAgentMeta	process	module	Agent metadata watches attached to the shared projection and cleared when it stops
 src/services/workbench/selectors.ts	EXECUTION_THREAD_KINDS	process	module	Load-time lookup with no local writer
-src/services/worktree.ts	refusalCountsByDirectory	owner	module	Session state retained in this module
+src/services/worktree.ts	EPHEMERAL_SLUG_PATTERNS	process	module	Load-time list with no local writer
+src/services/worktree.ts	THROWAWAY_ADJECTIVES	process	module	Load-time list with no local writer
+src/services/worktree.ts	THROWAWAY_NOUNS	process	module	Load-time list with no local writer
+src/services/worktree.ts	creationChainByRepository	process	module	canonical-git-root-keyed promise chain serializing concurrent git worktree creation locks
+src/services/worktree.ts	refusalCountsByDirectory	owner	module	Session worktree refusal counts grouped by directory and retained in the module
 src/skills/bundled/code-review.ts	SKILL_BODY	process	module	Load-time definition shared by all callers
 src/skills/bundled/code-review.ts	frontmatter	process	module	Load-time definition shared by all callers
 src/skills/bundled/code-reviewContent.ts	SKILL_FILES	process	module	Load-time table with no local writer
@@ -3436,7 +3456,9 @@ src/state/vitalsBus.ts	unsubExecutions	process	module	single-terminal vitals exe
 src/state/vitalsBus.ts	unsubGitFacts	process	module	single-terminal vitals git-facts unsubscribe handle
 src/state/vitalsBus.ts	unsubLive	process	module	single-terminal vitals focused-live unsubscribe handle
 src/state/vitalsBus.ts	unsubTasks	process	module	single-terminal vitals focused-work unsubscribe handle
+src/state/vitalsBus.ts	unsubTrace	process	module	Trace file subscription released when the process vitals monitor stops
 src/state/vitalsBus.ts	unsubTranscript	process	module	single-terminal vitals focused-records unsubscribe handle
+src/state/vitalsBus.ts	unsubWorkers	process	module	Worker subscription released when the process vitals monitor stops
 src/substrate/argvSpellings.ts	BANKED_FLAG_SPELLINGS	process	module	Derived collection initialized at load
 src/substrate/bootBeacon.ts	clearBootAttempts	reset-export
 src/substrate/bootNotes.ts	notes	process	module	process-boot diagnostic notes bounded at 16
@@ -3675,8 +3697,6 @@ src/tools/BashTool/readOnlyValidation.ts	OUTPUT_OPERATORS	process	module	Load-ti
 src/tools/BashTool/readOnlyValidation.ts	inputReads	call	module	WeakMap keyed by tool_use input object retaining PreparedRead for call lifetime
 src/tools/BashTool/readOnlyValidation.ts	preparedReads	process	module	WeakRef memo of parsed Bash read-only verdicts keyed by command text and validated against cwd/originalCwd/platform/bare
 src/tools/BashTool/readOnlyValidation.ts	reclaimedReads	process	module	FinalizationRegistry deleting expired WeakRef entries from preparedReads
-src/tools/BashTool/safeWrappers.ts	SAFE_ENV_VARS	process	module	Load-time lookup with no local writer
-src/tools/BashTool/safeWrappers.ts	WRAPPER_COMMANDS	process	module	Load-time list with no local writer
 src/tools/BlenderTool/BlenderTool.ts	BlenderTool	process	module	Load-time definition shared by all callers
 src/tools/BlenderTool/BlenderTool.ts	LOCAL_MUTATES	process	module	Load-time lookup with no local writer
 src/tools/BlenderTool/BlenderTool.ts	LOCAL_OPS	process	module	Load-time lookup with no local writer
@@ -4008,7 +4028,7 @@ src/tools/ToolSearchTool/ToolSearchTool.ts	getToolDescriptionMemoized	owner	modu
 src/tools/ToolSearchTool/ToolSearchTool.ts	inputSchema	process	module	Load-time definition shared by all callers
 src/tools/ToolSearchTool/ToolSearchTool.ts	outputSchema	process	module	Load-time definition shared by all callers
 src/tools/ToolSearchTool/cooccurPrior.ts	sessionDiscovered	owner	module	Agent state retained in this module
-src/tools/ToolSearchTool/cooccurPrior.ts	tableCache	owner	module	Session state retained in this module
+src/tools/ToolSearchTool/cooccurPrior.ts	tableCache	process	module	Tool co-occurrence counts cached for the configured memory directory across sessions
 src/tools/ToolSearchTool/prompt.ts	ANNOUNCED_WITH_PURPOSE	process	module	Load-time lookup with no local writer
 src/tools/ToolSearchTool/prompt.ts	ECONOMY_DEFERRED	process	module	Load-time lookup with no local writer
 src/tools/ToolSearchTool/prompt.ts	LOCAL_CORE	process	module	Load-time lookup with no local writer
@@ -4094,14 +4114,15 @@ src/utils/Shell.ts	sessionCwdSeen	owner	module	session; last observed cwdState u
 src/utils/Shell.ts	shellCwd	owner	module	Main session shell cursor; agent calls use their directory context
 src/utils/accounts/accountIdentity.ts	cache	process	module	5-minute TTL cache of live OAuth profile identity keyed by auth dir and signInLedgerEpoch (forgetScopeIdentity / _resetIdentityCacheForTesting)
 src/utils/accounts/accountIdentity.ts	clearScopeIdentitySnapshot	reset-export
+src/utils/accounts/providerSecrets.ts	KEY_FIELD_FAMILY	process	module	Load-time table with no local writer
 src/utils/accounts/providerSecrets.ts	clearEveryStoredCompatKey	reset-export
+src/utils/accounts/providerSecrets.ts	credentialAsideWords	process	module	one-shot diagnostic map keyed by credential file path for damaged files kept aside
 src/utils/accounts/scopeScan.ts	FOREIGN_HARNESS_CONFIG_HOMES	process	module	Load-time lookup with no local writer
 src/utils/accounts/scopeScan.ts	FOREIGN_HARNESS_HOMES	process	module	Load-time lookup with no local writer
 src/utils/accounts/signInLedger.ts	KINDS	process	module	Load-time lookup with no local writer
 src/utils/accounts/signInLedger.ts	epoch	process	module	process-wide monotonic credential-change epoch counter shared across single account sign-in
 src/utils/accounts/signInLedger.ts	epochListeners	process	module	process-wide subscriber set for credential-change epoch notifications, bounded by caller unsubscribe
 src/utils/accounts/signInLedger.ts	fanOutQueued	process	module	microtask coalescing latch for sign-in epoch listener fan-out
-src/utils/accounts/signInRefusal.ts	clearSignInRefusal	reset-export
 src/utils/activityLedger.ts	EMPTY	process	module	Load-time table with no local writer
 src/utils/activityManager.ts	activityManager	process	module	process singleton ActivityManager tracking interactive terminal user activity vs active CLI operations
 src/utils/agentMemory.ts	MEMORY_GRANT_TOOL_NAMES	process	module	Load-time list with no local writer
@@ -4115,9 +4136,6 @@ src/utils/ansiToPng.ts	SHADE_BLEND	process	module	Load-time table with no local 
 src/utils/ansiToPng.ts	STROKE_GLYPHS	process	module	Load-time table with no local writer
 src/utils/ansiToPng.ts	fallbackGlyphCache	process	module	lazy pure memo of rasterized static fallback glyph bitmap
 src/utils/ansiToPng.ts	fontCache	process	module	lazy pure memo of rasterized static STROKE_GLYPHS bitmaps
-src/utils/api.ts	MARKDOWN_EXTENSIONS	process	module	Load-time list with no local writer
-src/utils/api.ts	serializedSchemaKeys	process	module	WeakMap pure memo of jsonStringify(tool.inputJSONSchema) keyed by object identity, GC-reclaimed
-src/utils/api.ts	strippedFieldsLogged	process	module	one-time debug log latch for beta-strip schema field removal
 src/utils/api/emptyUsage.ts	EMPTY_USAGE	process	module	Derived collection initialized at load
 src/utils/api/transportEvidence.ts	STALE_SOCKET_CODES	process	module	Load-time lookup with no local writer
 src/utils/api/transportEvidence.ts	ring	owner	module	session; module; bounded 8-entry
@@ -4145,15 +4163,13 @@ src/utils/auth.ts	clearApiKeyHelperCache	reset-export
 src/utils/auth.ts	clearAuthCredentialMemos	reset-export
 src/utils/auth.ts	clearOAuthTokenMemos	reset-export
 src/utils/auth.ts	clearUnsavedRefresh	reset-export
-src/utils/auth.ts	getApiKeyFromConfigOrMacOSKeychain	owner	module	Session state retained in this module
-src/utils/auth.ts	getClaudeAIOAuthTokens	owner	module	Session state retained in this module
+src/utils/auth.ts	getApiKeyFromConfigOrMacOSKeychain	process	module	Process memo of the managed account configuration read
+src/utils/auth.ts	getClaudeAIOAuthTokens	process	module	Process memo of the signed-in account read from secure storage
 src/utils/auth.ts	helperCache	process	module	single-account apiKeyHelper execution cache (ttl, epoch, in-flight dedupe, failure record), cleared by clearApiKeyHelperCache
-src/utils/auth.ts	in401	process	module	in-flight 401 refresh dedupe map keyed by failedAccessToken and deleted in finally
 src/utils/auth.ts	knownDeadRefreshTokens	process	module	process-wide set of refresh token strings already rejected as dead (has __resetKnownDeadRefreshTokensForTest)
-src/utils/auth.ts	managedKeyMemoStamp	owner	module	Session state retained in this module
-src/utils/auth.ts	refreshInFlight	process	module	single-account in-flight OAuth token refresh dedupe promise cleared in finally
+src/utils/auth.ts	managedKeyMemoStamp	process	module	Configuration revision used to invalidate the managed account memo
 src/utils/auth.ts	scopedAccountIdentityCache	process	module	mtime+size validated cache of oauthAccount identity snapshots keyed by auth dir
-src/utils/auth.ts	signedOutOAuthMemoStamp	owner	module	Session state retained in this module
+src/utils/auth.ts	signedOutOAuthMemoStamp	process	module	Configuration revision used to invalidate the signed-out account memo
 src/utils/auth.ts	unsavedRefresh	process	module	single-account in-memory fallback holding refreshed OAuth tokens when secure-storage save fails
 src/utils/authFileDescriptor.ts	apiKeySlot	process	module	one-shot process-inherited FD cache for MERCURY_API_KEY_FILE_DESCRIPTOR (fd readable once per process)
 src/utils/authFileDescriptor.ts	oauthTokenSlot	process	module	one-shot process-inherited FD cache for MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR (fd readable once per process)
@@ -4229,7 +4245,6 @@ src/utils/capability/manifest.ts	EXEC_NAME_HINTS	process	module	Load-time list w
 src/utils/capability/manifest.ts	NET_NAME_HINTS	process	module	Load-time list with no local writer
 src/utils/capability/manifest.ts	READ_NAME_HINTS	process	module	Load-time list with no local writer
 src/utils/capability/manifest.ts	RISKS	process	module	Load-time list with no local writer
-src/utils/cleanup.ts	blobScanCensus	test	module	test-only streaming blob scan read counters inspected solely by scripts/settings/prove-blob-scan-stream.ts
 src/utils/cleanupRegistry.ts	cleanupFunctions	process	module	process exit cleanup callback registry, bounded by caller unregister
 src/utils/cliHighlight.ts	sharedApiPromise	process	module	lazy singleton resolved cli-highlight API promise
 src/utils/cliHighlight.ts	sharedLoadPromise	process	module	lazy singleton dynamic-import promise for cli-highlight package
@@ -4394,7 +4409,7 @@ src/utils/config/schema.ts	GLOBAL_CONFIG_KEYS	process	module	immutable list of a
 src/utils/config/schema.ts	PROJECT_CONFIG_KEYS	process	module	immutable list of allowed project config keys
 src/utils/config/schema.ts	isGlobalConfigKey	process	module	immutable key membership predicate closed over constant Set
 src/utils/config/schema.ts	isProjectConfigKey	process	module	immutable key membership predicate closed over constant Set
-src/utils/config/trust.ts	_trustAccepted	owner	module	Session state retained in this module
+src/utils/config/trust.ts	_trustAccepted	process	module	Workspace trust status retained in the process for the current project
 src/utils/config/trust.ts	resetTrustDialogAcceptedCacheForTesting	reset-export
 src/utils/configConstants.ts	EDITOR_MODES	process	module	Load-time list with no local writer
 src/utils/crashReport.ts	conversationLocator	process	module	process-level crash-handler callback locating active session id and transcript path
@@ -4452,7 +4467,7 @@ src/utils/env.ts	isWslEnvironment	process	module	memoized host WSL marker file c
 src/utils/envDynamic.ts	envDynamic	process	module	process host environment facade extending env with getIsDocker and isMuslEnvironment
 src/utils/envDynamic.ts	getIsDocker	process	module	memoized host /.dockerenv check
 src/utils/envDynamic.ts	muslProbeResult	process	module	load-time async Linux musl libc probe result
-src/utils/envUtils.ts	authScope	owner	module	Session state retained in this module
+src/utils/envUtils.ts	authScope	process	module	Process fallback for the account configuration directory when a call has no override
 src/utils/envUtils.ts	clearAuthScope	reset-export
 src/utils/envUtils.ts	getMercuryHome	process	module	memoized config home keyed by MERCURY_CONFIG_DIR and MERCURY_HOME
 src/utils/errorLogSink.ts	closedPaths	process	module	process-wide set of error log paths closed after reaching 8 MiB ceiling or write failure
@@ -4613,6 +4628,7 @@ src/utils/hooks/hooksSettings.ts	LAYER_WORDS	process	module	Load-time table with
 src/utils/hooks/matcherGrammar.ts	COMMAND_TOOLS	process	module	Load-time lookup with no local writer
 src/utils/hooks/matcherGrammar.ts	PATH_TOOLS	process	module	Load-time lookup with no local writer
 src/utils/hooks/matching.ts	spent	owner	module	session; module (keyed by sessionId\0hookId, no bound and no owner end); retains spent once-hooks of ended sessions
+src/utils/hooks/runnerRegistry.ts	registered	process	module	Hook runner callbacks installed at process startup
 src/utils/hooks/toolPermission.ts	howAToolIsPermitted	process	module	one-time circular-dependency function registration via tellHooksHowAToolIsPermitted
 src/utils/imagePaste.ts	pasteSequence	process	module	monotonic counter for unique temp paste filenames under mercury-paste-${pid}
 src/utils/imageProcessor/imagePackArm.ts	armedDir	process	module	process-wide NODE_PATH and Module._initPaths arming latch for vendored sharp pack
@@ -4663,7 +4679,7 @@ src/utils/managedEnvConstants.ts	SAFE_ENV_VARS	process	module	Load-time lookup w
 src/utils/markdown.ts	ROMAN	process	module	Load-time list with no local writer
 src/utils/markdown.ts	markedConfigured	process	module	one-time marked.use global tokenizer configuration latch
 src/utils/markdownConfigLoader.ts	clearMarkdownFileCache	reset-export
-src/utils/markdownConfigLoader.ts	loadMarkdownFilesForSubdir	owner	module	Session state retained in this module
+src/utils/markdownConfigLoader.ts	loadMarkdownFilesForSubdir	process	module	Project markdown reads cached by subdirectory, working directory and command trust status
 src/utils/mcp/toolPolicy.ts	RISK_RANK	process	module	load-time data; no local writer
 src/utils/mcp/types.ts	ConfigScopeSchema	process	module	once() pure lazy Zod schema singleton
 src/utils/mcp/types.ts	McpAnthropicProxyServerConfigSchema	process	module	once() pure lazy Zod schema singleton
@@ -4680,15 +4696,10 @@ src/utils/memory/types.ts	MEMORY_TYPE_VALUES	process	module	Load-time list with 
 src/utils/mercuryTokens.ts	rampCache	process	module	pure color-ramp memo keyed by role|ground|floor (finite theme palette)
 src/utils/mercuryTokens.ts	tokenCache	process	module	pure theme-token memo keyed by themeName|accent (finite theme x accent)
 src/utils/messageQueueManager.ts	resetCommandQueue	reset-export
-src/utils/messages/attachmentText.ts	bashWording	process	module	Load-time table with no local writer
-src/utils/messages/attachmentText.ts	fileReadWording	process	module	Load-time table with no local writer
-src/utils/messages/attachmentText.ts	renderers	process	module	Load-time table with no local writer
 src/utils/messages/authWallHold.ts	FINISHED_LOCAL_COMMAND	process	module	Load-time lookup with no local writer
 src/utils/messages/authWallHold.ts	HARNESS_ROW	process	module	Load-time lookup with no local writer
 src/utils/messages/factories.ts	SYNTHETIC_MESSAGES	process	module	Load-time lookup with no local writer
 src/utils/messages/factories.ts	nonSyntheticRoles	process	module	Load-time lookup with no local writer
-src/utils/messages/lookups.ts	EMPTY_LOOKUPS	process	module	immutable empty MessageLookups template (callers spread and construct fresh Maps/Sets)
-src/utils/messages/lookups.ts	EMPTY_STRING_SET	process	module	Derived collection initialized at load
 src/utils/messages/normalize.ts	ROWS_OF_PARENT	process	module	WeakMap pure memo keyed by Message object identity, GCd with message
 src/utils/messages/normalize.ts	_normalizePassesForProof	test	module	exported pass counter read solely by scripts/model-transition/prove-transition-e-reconnect.ts
 src/utils/messages/noticeRows.ts	MINUTE_WORDS	process	module	Load-time list with no local writer
@@ -4725,6 +4736,7 @@ src/utils/model/capabilities.ts	UNKNOWN_ID_LADDER	process	module	Load-time list 
 src/utils/model/capabilities.ts	clearBetasCaches	reset-export
 src/utils/model/capabilities.ts	getAllModelBetas	process	module	memoize keyed by all inputs (model, env beta flags, isClaudeAISubscriber)
 src/utils/model/capabilities.ts	getModelBetas	process	module	memoize keyed by same full input fingerprint delegating to getAllModelBetas
+src/utils/model/capabilityRegistry.ts	registered	process	module	Provider capability lookup installed at process startup
 src/utils/model/configs.ts	ALL_MODEL_CONFIGS	process	module	Load-time table with no local writer
 src/utils/model/configs.ts	CANONICAL_ID_TO_KEY	process	module	Derived collection initialized at load
 src/utils/model/configs.ts	CANONICAL_MODEL_IDS	process	module	Derived collection initialized at load
@@ -4735,13 +4747,6 @@ src/utils/model/configs.ts	FIRST_PARTY_GENERATION_RE	process	module	Load-time lo
 src/utils/model/configs.ts	MIRROR_FAMILY_WORDS	process	module	Derived collection initialized at load
 src/utils/model/defaultProviderRung.ts	KNOWN_FAMILIES	process	module	Load-time lookup with no local writer
 src/utils/model/deprecation.ts	DEPRECATION_TABLE	process	module	Load-time list with no local writer
-src/utils/model/frontierPolicy.ts	resolvingFrontier	process	module	synchronous recursion guard (try/finally, no await) for model allowlist check
-src/utils/model/model.ts	CAPITALIZED_ALIASES	process	module	Load-time lookup with no local writer
-src/utils/model/model.ts	DISPLAY_NAMES	process	module	Load-time table with no local writer
-src/utils/model/model.ts	MARKETING_NAMES	process	module	Load-time table with no local writer
-src/utils/model/model.ts	ONE_M_TWIN_KEYS	process	module	Load-time lookup with no local writer
-src/utils/model/model.ts	RETIRED_LARGE_IDS	process	module	Load-time lookup with no local writer
-src/utils/model/modelFamilies.ts	FIRST_PARTY_FAMILY_WORDS	process	module	Load-time lookup with no local writer
 src/utils/model/modelLookup.ts	PROVIDER_MODEL_PAGES	process	module	Load-time table with no local writer
 src/utils/model/modelNameMatcher.ts	VENDOR_WORDS	process	module	Load-time list with no local writer
 src/utils/model/modelNames.ts	DECLARED_CANONICALS	process	module	immutable sorted ModelConfig array derived once at load
@@ -4847,7 +4852,6 @@ src/utils/ownerWatch.ts	win32PsExeCached	process	module	memoized host Windows Po
 src/utils/passedOverSink.ts	NOT_THERE	process	module	Load-time lookup with no local writer
 src/utils/pdf.ts	pdftoppmAvailable	process	module	memoized host binary availability probe (pdftoppm -v)
 src/utils/pdfText.ts	pending	process	module	in-flight dedupe map for PDF worker extraction keyed by content-addressed cache path (dir + sha256), deleted in finally
-src/utils/pdfUtils.ts	DOCUMENT_EXTENSIONS	process	module	Load-time lookup with no local writer
 src/utils/permissions/PermissionMode.ts	ADDRESSABLE_WORDS	process	module	Load-time lookup with no local writer
 src/utils/permissions/PermissionMode.ts	SEALS	process	module	Load-time table with no local writer
 src/utils/permissions/PermissionUpdate.ts	LANDED	process	module	Load-time table with no local writer
@@ -4896,6 +4900,13 @@ src/utils/permissions/decision/commandAnalysis/sequence.ts	WRITES	process	module
 src/utils/permissions/decision/commandAnalysis/stateStatements.ts	OPENED_STATEMENTS	process	module	Load-time lookup with no local writer
 src/utils/permissions/decision/commandAnalysis/stateStatements.ts	STATE_COMMANDS	process	module	Load-time lookup with no local writer
 src/utils/permissions/decision/commandAnalysis/stateStatements.ts	STATE_STATEMENTS	process	module	Load-time lookup with no local writer
+src/utils/permissions/decision/commandAnalysis/textCommands.ts	CLOSING_KEYWORDS	process	module	Fixed block terminators used by the shell text reader
+src/utils/permissions/decision/commandAnalysis/textCommands.ts	DECLARATIONS	process	module	Fixed declaration words used by the shell text reader
+src/utils/permissions/decision/commandAnalysis/textCommands.ts	HEREDOC_SHELL_WORDS	process	module	Fixed shell words used by the here-document reader
+src/utils/permissions/decision/commandAnalysis/textCommands.ts	HEREDOC_WORD_BREAK	process	module	Fixed word boundaries used by the here-document reader
+src/utils/permissions/decision/commandAnalysis/textCommands.ts	MAYBE_KEYWORDS	process	module	Fixed conditional keywords used by the shell text reader
+src/utils/permissions/decision/commandAnalysis/textCommands.ts	PASSTHROUGH	process	module	Fixed command names used by the shell text reader
+src/utils/permissions/decision/commandAnalysis/textCommands.ts	PLAIN_KEYWORDS	process	module	Fixed keywords used by the shell text reader
 src/utils/permissions/decision/commandAnalysis/textReader.ts	COMMENT_PRECEDERS	process	module	load-time lookup; no local writer
 src/utils/permissions/decision/commandAnalysis/textReader.ts	DELETE_WORDS	process	module	load-time lookup; no local writer
 src/utils/permissions/decision/commandAnalysis/textReader.ts	FIND_ACTIONS	process	module	load-time lookup; no local writer
@@ -4905,6 +4916,7 @@ src/utils/permissions/decision/commandAnalysis/textReader.ts	POWERSHELL_WORDS	pr
 src/utils/permissions/decision/commandAnalysis/textReader.ts	STDIN_SHELL_WORDS	process	module	load-time lookup; no local writer
 src/utils/permissions/decision/commandAnalysis/textReader.ts	STRING_RUNNERS	process	module	load-time lookup; no local writer
 src/utils/permissions/decision/commandAnalysis/total.ts	failing	test	module	test-only fault-injection latch toggled solely by failShellReadingForTesting (used by scripts/wards/prove-floors-spellings.ts)
+src/utils/permissions/decision/commandAnalysis/totalPosix.ts	COVERED_IN_EXPANSION	process	module	Fixed syntax node kinds handled in a shell word expansion
 src/utils/permissions/decision/commandAnalysis/totalPosix.ts	PASSTHROUGH	process	module	Load-time lookup with no local writer
 src/utils/permissions/decision/commandAnalysis/totalPosix.ts	WORD_KINDS	process	module	Load-time lookup with no local writer
 src/utils/permissions/decision/commandAnalysis/totalPosix.ts	WRITE_KEEPERS	process	module	Load-time lookup with no local writer
@@ -4916,6 +4928,7 @@ src/utils/permissions/decision/commandAnalysis/written.ts	written	process	module
 src/utils/permissions/decision/engine.ts	composedFrom	owner	module	Session state retained in this module
 src/utils/permissions/decision/engine.ts	composing	owner	module	Session state retained in this module
 src/utils/permissions/decision/engine.ts	defaultDecisionPorts	process	module	Load-time table with no local writer
+src/utils/permissions/decision/loadedInstructionsPeek.ts	registered	process	module	Instruction lookup callback installed at process startup
 src/utils/permissions/decision/requestMessage.ts	REASON_TABLE	process	module	Load-time table with no local writer
 src/utils/permissions/decision/rules.ts	PERMISSION_RULE_SOURCES	process	module	Load-time list with no local writer
 src/utils/permissions/decision/rules.ts	WHOLE_TOOL_MATCHERS	process	module	Load-time list with no local writer
@@ -4941,6 +4954,7 @@ src/utils/permissions/flowLaw.ts	DELETE_VERBS	process	module	Load-time lookup wi
 src/utils/permissions/flowLaw.ts	DISK_VERBS	process	module	Load-time lookup with no local writer
 src/utils/permissions/flowLaw.ts	FLOW_DELETERS	process	module	Load-time lookup with no local writer
 src/utils/permissions/flowLaw.ts	FLOW_LAW	process	module	Load-time table with no local writer
+src/utils/permissions/flowLaw.ts	FLOW_WRAPPERS	process	module	Fixed command wrappers recognized by the flow reader
 src/utils/permissions/flowLaw.ts	FORGE_FORMS	process	module	Load-time list with no local writer
 src/utils/permissions/flowLaw.ts	GIT_FORMS	process	module	Load-time list with no local writer
 src/utils/permissions/flowLaw.ts	GIT_TREE_WRITES	process	module	Load-time lookup with no local writer
@@ -4978,11 +4992,14 @@ src/utils/permissions/protectedPaths.ts	SYSTEM_TREES	process	module	Load-time li
 src/utils/permissions/rootNotice.ts	shown	process	module	one-time stderr warning latch when running as uid 0 in sovereign mode
 src/utils/permissions/ruleReason.ts	RULE_SOURCE_WORDS	process	module	Load-time table with no local writer
 src/utils/permissions/runtimeProtection.ts	ownProcessesRead	process	module	2s TTL cache of host ps process table keyed by protected PID list (process.pid + daemon PID)
+src/utils/permissions/safeWrappers.ts	SAFE_ENV_VARS	process	module	Fixed environment variable names recognized by the command wrapper reader
+src/utils/permissions/safeWrappers.ts	WRAPPER_COMMANDS	process	module	Fixed command names recognized by the command wrapper reader
 src/utils/permissions/serviceInputHistory.ts	runs	process	module	LRU-bounded (64 entries, 4KB state / 8KB pending) shell state history per managed service keyed by (project, name) and reset when run id changes
 src/utils/permissions/shellProtectedPaths/credentialWrite.ts	NET_WRITTEN	process	module	Load-time table with no local writer
 src/utils/permissions/shellProtectedPaths/credentialWrite.ts	TREE_REMOVERS	process	module	Load-time lookup with no local writer
 src/utils/permissions/shellProtectedPaths/folders.ts	CD_PROGRAMS	process	module	Load-time lookup with no local writer
 src/utils/permissions/shellProtectedPaths/folders.ts	ON_CONVENTIONAL_WAY	process	module	Load-time lookup with no local writer
+src/utils/permissions/shellProtectedPaths/folders.ts	SHELL_BUILTINS	process	module	Fixed shell built-in names used when reading folder changes
 src/utils/permissions/shellProtectedPaths/folders.ts	namedFolders	process	module	2s TTL host-fs glob directory cache capped at 32 entries, keyed by pattern (note: overflow cap prioritization reads mercuryHomes())
 src/utils/permissions/shellProtectedPaths/homes.ts	CONVENTIONAL_HOME	process	module	Load-time lookup with no local writer
 src/utils/permissions/shellProtectedPaths/homes.ts	HOLDS_CONVENTIONAL_HOME	process	module	Load-time lookup with no local writer
@@ -5003,14 +5020,17 @@ src/utils/permissions/shellProtectedPaths/listings.ts	PIPED_FILE_READERS	process
 src/utils/permissions/shellProtectedPaths/listings.ts	POWERSHELL_LISTERS	process	module	Load-time lookup with no local writer
 src/utils/permissions/shellProtectedPaths/listings.ts	TREE_COPIERS	process	module	Load-time lookup with no local writer
 src/utils/permissions/shellProtectedPaths/listings.ts	TREE_SEARCHERS	process	module	Load-time lookup with no local writer
+src/utils/permissions/shellProtectedPaths/secretReach.ts	PLAIN_CD_PROGRAMS	process	module	Fixed names of directory-changing commands
 src/utils/permissions/shellProtectedPaths/selfProtection.ts	ATTRIBUTE_WRITERS	process	module	Load-time lookup with no local writer
 src/utils/permissions/shellProtectedPaths/selfProtection.ts	GIT_WRITES	process	module	Load-time lookup with no local writer
+src/utils/permissions/shellProtectedPaths/selfProtection.ts	KILL_RECEIVERS	process	module	Fixed process command names used by the runtime path reader
 src/utils/permissions/shellProtectedPaths/selfProtection.ts	PACKAGE_WRITES	process	module	Load-time lookup with no local writer
 src/utils/permissions/shellProtectedPaths/selfProtection.ts	PATTERN_READERS	process	module	Load-time lookup with no local writer
 src/utils/permissions/shellProtectedPaths/words.ts	COPY_SWITCHES	process	module	Load-time list with no local writer
 src/utils/permissions/shellProtectedPaths/words.ts	COPY_VALUED	process	module	Load-time list with no local writer
 src/utils/permissions/shellProtectedPaths/words.ts	COPY_VALUED_ALIASES	process	module	Load-time lookup with no local writer
 src/utils/permissions/shellProtectedPaths/words.ts	OTHER_WRITERS	process	module	Load-time lookup with no local writer
+src/utils/permissions/shellProtectedPaths/words.ts	PIPED_PRINTERS	process	module	Fixed print command names used when reading pipelines
 src/utils/permissions/shellProtectedPaths/words.ts	READ_FILE_LETTERS	process	module	Load-time table with no local writer
 src/utils/permissions/shellProtectedPaths/words.ts	RUNTIME_WRITERS	process	module	Load-time lookup with no local writer
 src/utils/permissions/shellProtectedPaths/words.ts	TREE_MOVERS	process	module	Load-time list with no local writer
@@ -5030,6 +5050,9 @@ src/utils/platform/spawn.ts	EMPTY_ENV_DEFAULTS	process	module	Load-time table wi
 src/utils/platform/spawn.ts	SYSTEM_PROGRAM_FOLDERS	process	module	Load-time lookup with no local writer
 src/utils/platform/spawn.ts	WINDOWS_HEADLESS_GIT_DEFAULTS	process	module	Load-time table with no local writer
 src/utils/platform/spawn.ts	WINDOWS_TOOL_SHELL_DEFAULTS	process	module	Load-time table with no local writer
+src/utils/platform/vendors.ts	DARWIN_BUNDLE_CLIS	process	module	Fixed editor command locations for macOS bundles
+src/utils/platform/vendors.ts	EDITOR_CLIS	process	module	Fixed command names used to find supported editors
+src/utils/platform/vendors.ts	WIN32_EDITOR_CANDIDATES	process	module	Fixed editor command candidates for Windows
 src/utils/platform/words.ts	clearEnvVarCommandWords	reset-export
 src/utils/powershell/dangerousCmdlets.ts	DANGEROUS_SCRIPT_BLOCK_CMDLETS	process	module	Load-time lookup with no local writer
 src/utils/powershell/dangerousCmdlets.ts	FILEPATH_EXECUTION_CMDLETS	process	module	Load-time lookup with no local writer
@@ -5068,6 +5091,9 @@ src/utils/processGroup.ts	saysWhatEnded	process	module	process-level logger call
 src/utils/processGroup.ts	shellThatServes	process	module	process-level resolver returning active Windows MSYS shell path
 src/utils/processGroup.ts	shellsNotedHere	process	module	dedupe set of Windows MSYS shell paths recorded in this process's jobs file
 src/utils/processGroup.ts	treeEndsStarted	process	module	in-flight Windows tree-termination promises awaited at shutdown, deleted on settle
+src/utils/processSweep.ts	MERCURY_EXECUTABLES	process	module	Load-time lookup with no local writer
+src/utils/processSweep.ts	MONTHS	process	module	Load-time list with no local writer
+src/utils/processSweep.ts	PROCESS_SWEEP_WORDS	process	module	Load-time table with no local writer
 src/utils/profilerBase.ts	perf	process	module	cached reference to globalThis.performance
 src/utils/projectBoundary.ts	ONEDRIVE_REDIRECTED	process	module	Load-time list with no local writer
 src/utils/projectBoundary.ts	PROJECT_MARKER_EXTENSIONS	process	module	Load-time list with no local writer
@@ -5145,12 +5171,12 @@ src/utils/secureStorage/keychainPrefetch.ts	clearLegacyApiKeyPrefetch	reset-expo
 src/utils/secureStorage/keychainPrefetch.ts	legacyApiKeyResult	process	module	one-shot startup legacy keychain prefetch memo for shared sign-in
 src/utils/secureStorage/keychainPrefetch.ts	prefetchInFlight	process	module	one-shot startup keychain/sealed-store prefetch promise for shared sign-in
 src/utils/secureStorage/macOsKeychainHelpers.ts	clearKeychainCache	reset-export
-src/utils/secureStorage/macOsKeychainHelpers.ts	keychainCacheState	owner	module	Session state retained in this module
+src/utils/secureStorage/macOsKeychainHelpers.ts	keychainCacheState	process	module	Thirty-second cache of account keychain reads for the configuration home
 src/utils/secureStorage/macOsKeychainStorage.ts	KEYCHAIN_UNREACHABLE	process	module	Load-time table with no local writer
 src/utils/secureStorage/macOsKeychainStorage.ts	keychainLockedMemo	process	module	process-wide memo of OS keychain lock state (show-keychain-info)
 src/utils/secureStorage/macOsKeychainStorage.ts	keychainUnread	process	module	process-wide macOS keychain read error diagnostic for shared sign-in
 src/utils/secureStorage/macOsKeychainStorage.ts	macOsKeychainStorage	process	module	Load-time table with no local writer
-src/utils/secureStorage/otherBuilds.ts	BUNDLE_AT_LOAD	process	module	Load-time definition shared by all callers
+src/utils/secureStorage/otherBuildsRegistry.ts	registered	process	module	Other-build status callback installed at process startup
 src/utils/secureStorage/plainTextStorage.ts	plainTextStorage	process	module	Load-time table with no local writer
 src/utils/secureStorage/sealedFileStorage.ts	ENTRY_MAPS	process	module	Load-time lookup with no local writer
 src/utils/secureStorage/sealedFileStorage.ts	MAPS_OF_ENTRY_MAPS	process	module	Load-time lookup with no local writer
@@ -5180,10 +5206,16 @@ src/utils/sessionStorage.ts	clearSessionMetadata	reset-export
 src/utils/sessionStorage.ts	resetProjectFlushStateForTesting	reset-export
 src/utils/sessionStorage.ts	resetProjectForTesting	reset-export
 src/utils/sessionStorage.ts	resetSessionFilePointer	reset-export
+src/utils/sessionStorage/branchSelection.ts	PRUNE_CHAIN_KINDS	process	module	Fixed transcript record kinds eligible for branch selection
+src/utils/sessionStorage/branchSelection.ts	PRUNE_KIND_NEEDLE	process	module	Fixed byte marker for the transcript record kind
+src/utils/sessionStorage/branchSelection.ts	PRUNE_MESSAGE_ID_NEEDLE	process	module	Fixed byte marker for the provider message identifier
+src/utils/sessionStorage/branchSelection.ts	PRUNE_PARENT_NEEDLE	process	module	Fixed byte marker for the parent record identifier
+src/utils/sessionStorage/branchSelection.ts	RECORD_LINE_PREFIX	process	module	Fixed byte prefix for transcript record lines
 src/utils/sessionStorage/builtInCommands.ts	builtInCommandNames	process	module	process-wide startup registration hook supplying built-in command names
 src/utils/sessionStorage/clearedSessions.ts	clearedSessionAt	reset-export
 src/utils/sessionStorage/clearedSessions.ts	memo	process	module	5s TTL memo of disk <mercuryHome>/cleared-sessions.json
 src/utils/sessionStorage/clearedSessions.ts	resetClearedSessionsMemo	reset-export
+src/utils/sessionStorage/fileWatch.ts	storageFileWatchers	process	module	Shared watchers indexed by storage path and released when the last subscriber leaves
 src/utils/sessionStorage/fold.ts	foldRows	process	module	Load-time table with no local writer
 src/utils/sessionStorage/logs.ts	clearSessionMessagesCache	reset-export
 src/utils/sessionStorage/logs.ts	clearSessionMetadata	reset-export
@@ -5197,19 +5229,14 @@ src/utils/sessionStorage/sessionMeta.ts	scalarFields	process	module	Load-time li
 src/utils/sessionStorage/sessionWriter.ts	exitHook	process	module	one-shot guard registering process exit handler for held writer locks
 src/utils/sessionStorage/sessionWriter.ts	held	process	module	process-wide Set of acquired .writer.lock file paths unlinked on process exit
 src/utils/sessionStorage/sessionWriter.ts	owner	process	module	Load-time definition shared by all callers
+src/utils/sessionStorage/streamFold.ts	METADATA_MARKER_BUFS	process	module	Read-only byte forms of the transcript metadata markers
+src/utils/sessionStorage/streamFold.ts	METADATA_TYPE_MARKERS	process	module	Fixed text markers for transcript metadata records
+src/utils/sessionStorage/streamFold.ts	previousPartMetadata	process	module	Fixed metadata kinds read from earlier transcript parts
 src/utils/sessionStorage/transcriptBytes.ts	nodeTranscriptReaderIo	process	module	Load-time table with no local writer
 src/utils/sessionStorage/transcriptBytes.ts	transcriptIo	test	module	test-only IO hook mutated solely by setTranscriptReaderIoForTesting
 src/utils/sessionStorage/transcriptBytes.ts	transcriptReaderCensus	process	module	process-wide diagnostic counters for transcript reader IO
+src/utils/sessionStorage/transcriptProjector.ts	registered	process	module	Transcript projection callbacks installed at process startup
 src/utils/sessionStorage/transcriptReader.ts	EMPTY	process	module	Load-time definition shared by all callers
-src/utils/sessionStorage/transcriptReader.ts	METADATA_MARKER_BUFS	process	module	Derived collection initialized at load
-src/utils/sessionStorage/transcriptReader.ts	METADATA_TYPE_MARKERS	process	module	Load-time list with no local writer
-src/utils/sessionStorage/transcriptReader.ts	PRE_BOUNDARY_METADATA_KINDS	process	module	Load-time lookup with no local writer
-src/utils/sessionStorage/transcriptReader.ts	PRUNE_CHAIN_KINDS	process	module	Load-time lookup with no local writer
-src/utils/sessionStorage/transcriptReader.ts	PRUNE_KIND_NEEDLE	process	module	Load-time definition shared by all callers
-src/utils/sessionStorage/transcriptReader.ts	PRUNE_MESSAGE_ID_NEEDLE	process	module	Load-time definition shared by all callers
-src/utils/sessionStorage/transcriptReader.ts	PRUNE_PARENT_NEEDLE	process	module	Load-time definition shared by all callers
-src/utils/sessionStorage/transcriptReader.ts	RECORD_CARRY_PREFIX	process	module	Load-time definition shared by all callers
-src/utils/sessionStorage/transcriptReader.ts	RECORD_LINE_PREFIX	process	module	Load-time definition shared by all callers
 src/utils/sessionStorage/transcriptReader.ts	ZERO_ACCOUNTING	process	module	Derived collection initialized at load
 src/utils/sessionStorage/transcriptReader.ts	degradationListeners	process	module	UI subscriber registry for transcript load degradation notifications
 src/utils/sessionStorage/transcriptReader.ts	generationSeq	process	module	monotonic process-wide generation sequence counter for transcript reader resets
@@ -5226,9 +5253,9 @@ src/utils/sessionStorage/transcriptReader.ts	states	process	module	file-path-key
 src/utils/sessionStorage/vnext.ts	fileStates	process	module	file-path-keyed transcript ordinal and header state map for on-disk jsonl files
 src/utils/sessionStorage/vnext.ts	reportedReadFailures	process	module	file-path-keyed dedupe Set for transcript format read failure health notices
 src/utils/sessionStorage/vnext.ts	resetTranscriptFormatCacheForTesting	reset-export
+src/utils/sessionStorage/writer.ts	agentFileMessages	owner	module	Message identifiers retained by agent transcript path after a successful read
 src/utils/sessionStorage/writer.ts	agentTranscriptDestinations	owner	module	agent; Map<agentId, filePath> routing subagent writes; never deleted on agent end; missing owner end
 src/utils/sessionStorage/writer.ts	cleanupRegistered	process	module	one-shot guard registering transcript writer flush cleanup and exit-cliff seam
-src/utils/sessionStorage/writer.ts	getAgentFileMessages	owner	module	agent; memoize(filePath) caching Promise<Set<string>> per agent transcript; never evicted on agent end; missing owner end
 src/utils/sessionStorage/writer.ts	getSessionMessages	owner	module	session; memoize(sessionId) caching Promise<Set<UUID>>; cleared only via clearSessionMessagesCache; missing owner end
 src/utils/sessionStorage/writer.ts	project	owner	module	Session state retained in this module
 src/utils/sessionStorage/writer.ts	reportedAgentReadFailures	process	module	file-path-keyed dedupe Set for agent transcript read failure health notices
@@ -5237,6 +5264,7 @@ src/utils/sessionStorage/writer.ts	resetProjectForTesting	reset-export
 src/utils/sessionStorage/writer.ts	resetSessionFilePointer	reset-export
 src/utils/sessionStorage/writer.ts	sessionRecordIds	owner	module	session; Map<filePath, Set<UUID>> of known record IDs per session transcript; never evicted; missing owner end
 src/utils/sessionStorage/writer.ts	transcriptMessagesVisited	process	module	monotonic diagnostic counter of messages visited by transcript writer
+src/utils/sessionStorage/writer/sealPart.ts	sticky	process	module	Fixed metadata kinds carried into the live transcript head
 src/utils/sessionStorage/writer/storeHealth.ts	storeHealth	process	module	process-wide transcript store disk health status
 src/utils/sessionStorage/writer/storeHealth.ts	storeHealthListeners	process	module	UI subscriber registry for transcript store health updates
 src/utils/sessionStoragePortable.ts	BOUNDARY_MARKER	process	module	Load-time definition shared by all callers
@@ -5375,7 +5403,7 @@ src/utils/shell/shellRecord.ts	passedOver	process	module	list of shell candidate
 src/utils/shell/shellRecord.ts	settledSystemRecord	process	module	settled machine ShellRecord cached once systemShellRecord resolves
 src/utils/shell/shellRecord.ts	shellWordTold	owner	module	session; single-slot latch suppressing repeat no-shell/pin-passed-over user notice; missing owner end
 src/utils/shell/shellRecord.ts	systemShellRecord	process	module	zero-arg memo discovering the machine bash/engine ShellRecord once per process
-src/utils/shell/shellRecord.ts	toldOfLoginFiles	owner	module	agent; Set<reader> deduping one-time login-file absence notice per reader; missing owner end
+src/utils/shell/shellRecord.ts	toldOfLoginFiles	process	module	Reader names already notified about absent login files in this process
 src/utils/shell/shellRecord.ts	whyNoAnswer	process	module	map of shell candidate paths to startup probe failure reasons
 src/utils/shell/shellRecord.ts	whyUnfit	process	module	map of shell candidate paths to startup probe unfitness reasons
 src/utils/shell/shellToolUtils.ts	SHELL_TOOL_NAMES	process	module	Load-time list with no local writer
@@ -5450,6 +5478,7 @@ src/utils/task/TaskOutput.ts	activePolling	process	module	Set<taskId> of tasks a
 src/utils/task/TaskOutput.ts	pollRegistry	process	module	process-wide Map<taskId, TaskOutput> for shared 1s progress polling
 src/utils/task/TaskOutput.ts	pollTimer	process	module	shared 1s interval handle driving TaskOutput progress polling
 src/utils/task/diskOutput.ts	memoizedTasksDir	owner	module	Session state retained in this module
+src/utils/task/diskOutput.ts	outputWatchers	process	module	Shared task output watchers indexed by resolved path until the last subscriber leaves
 src/utils/task/diskOutput.ts	outputsAwaitingTranscript	owner	module	agent; Map<transcriptPath, outputPath> linking task output stub to transcript; deleted on link or evictTaskOutput
 src/utils/task/diskOutput.ts	pendingOperations	process	module	process-wide Set of in-flight disk output promises drained on flush
 src/utils/task/diskOutput.ts	writers	owner	module	agent; Map<taskId, DiskTaskOutput> buffered output writers per task; deleted by evictTaskOutput
@@ -5485,10 +5514,6 @@ src/utils/toolSchemaCache.ts	clearToolSchemaCache	reset-export
 src/utils/toolSchemaCache.ts	conversationSchemas	owner	module	agent; Map<boundKey, Map<toolName, json>> freezing per-conversation tool schemas; cleared via clearConversationToolSchemas(owner); leaks unless called at agent end
 src/utils/toolSchemaCache.ts	resetConversationToolSchemas	reset-export
 src/utils/toolSchemaCache.ts	toolSchemaCache	process	module	shared API tool schema conversion cache cleared on schema change
-src/utils/toolSearch.ts	DEFAULT_UNSUPPORTED_PATTERNS	process	module	Load-time list with no local writer
-src/utils/toolSearch.ts	memoizedDeferredToolTokens	process	module	lodash memoize keyed by caller-supplied cacheKey for deferred tool token counts
-src/utils/toolSearch.ts	optimisticDebugEmitted	process	module	one-shot debug log dedupe flag for optimistic tool search
-src/utils/toolSearch.ts	toolDefinitionCount	process	module	process-wide startup registration hook supplying tool definition token counter
 src/utils/transcriptSearch.ts	EMPTY_FACETS	process	module	Load-time table with no local writer
 src/utils/transcriptSearch.ts	NON_INDEXING_TOOLS	process	module	Load-time lookup with no local writer
 src/utils/transcriptSearch.ts	searchTextCache	process	module	WeakMap pure memo of extracted search text per message object
@@ -5496,7 +5521,7 @@ src/utils/unity/bridgeProtocol.ts	UNITY_BRIDGE_CLIENT_ERROR_CODES	process	module
 src/utils/unity/bridgeProtocol.ts	UNITY_BRIDGE_EVENTS	process	module	Load-time list with no local writer
 src/utils/unity/bridgeProtocol.ts	UNITY_BRIDGE_SERVER_ERROR_CODES	process	module	Load-time list with no local writer
 src/utils/unity/bridgeProtocol.ts	UNITY_BRIDGE_VERBS	process	module	Load-time table with no local writer
-src/utils/user.ts	getGitEmail	owner	module	Agent state retained in this module
+src/utils/user.ts	getGitEmail	process	module	Repository Git email read from the working directory and memoized until the user cache is cleared
 src/utils/user.ts	resetUserCache	reset-export
 src/utils/verification/projectGates.ts	SCOPES	process	module	Load-time lookup with no local writer
 src/utils/verification/projectGates.ts	cache	process	module	5s TTL + mtime/size-fingerprinted cache of <cwd>/.mercury/gates.json keyed by cwd
@@ -5605,12 +5630,8 @@ src/utils/words.ts	VERBS	process	module	Load-time list with no local writer
 src/utils/workerRole.ts	ALL_ROLE_ENV_VARS	process	module	Load-time list with no local writer
 src/utils/workerRole.ts	LIVE_ROLE_ENV_VARS	process	module	Load-time list with no local writer
 src/utils/workerRole.ts	RETIRED_SEAT_ENV_VARS	process	module	Load-time list with no local writer
-src/utils/worktree.ts	EPHEMERAL_SLUG_PATTERNS	process	module	Load-time list with no local writer
-src/utils/worktree.ts	THROWAWAY_ADJECTIVES	process	module	Load-time list with no local writer
-src/utils/worktree.ts	THROWAWAY_NOUNS	process	module	Load-time list with no local writer
-src/utils/worktree.ts	creationChainByRepository	process	module	canonical-git-root-keyed promise chain serializing concurrent git worktree creation locks
 src/utils/worktree/delta.ts	MERCURY_EPHEMERAL_PREFIXES	process	module	Load-time list with no local writer
-src/utils/worktree/session.ts	currentWorktreeSession	owner	module	Session state retained in this module
+src/utils/worktree/session.ts	currentWorktreeSession	owner	module	Current worktree held for the session until the worktree is left
 src/utils/worktreeClone.ts	CLONEFILE_SCRIPT	process	module	Load-time definition shared by all callers
 src/utils/worktreeClone.ts	DISCARD_SCRIPT	process	module	Load-time definition shared by all callers
 src/utils/worktreeClone.ts	NAME_TAKEN_CODES	process	module	Load-time lookup with no local writer
