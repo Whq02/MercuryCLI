@@ -1,4 +1,3 @@
-import chalk from 'chalk'
 import { APIUserAbortError } from '../../utils/api/sdkErrors.js'
 import { getLastCacheSafeParams } from '../../services/agents/forkedAgent.js'
 import { getUserContext } from '../../context.js'
@@ -17,6 +16,7 @@ import {
   withFoldStatus,
   ERROR_MESSAGE_USER_ABORT,
 } from '../../services/compact/compact.js'
+import { manualCompactDisplayText, shouldEnrichForLiveDisplay } from '../../services/compact/manualReceipt.js'
 import { foldModelFor, getAutoCompactThreshold } from '../../services/compact/autoCompact.js'
 import { awaitContextWindowSource } from '../../services/context/contextWindowWarmup.js'
 import { tokenCountWithEstimation } from '../../services/context/tokens.js'
@@ -25,18 +25,13 @@ import { suppressCompactWarning } from '../../services/compact/compactWarningSta
 import { runPostCompactCleanup } from '../../services/compact/postCompactCleanup.js'
 import { shouldUseSessionMemoryCompaction, trySessionMemoryCompaction } from '../../services/compact/sessionMemoryCompact.js'
 import { setLastSummarizedMessageId } from '../../services/SessionMemory/sessionMemoryUtils.js'
-import { getBindingDisplayText } from '../../keybindings/resolver.js'
-import { loadKeybindingsSync } from '../../keybindings/loadUserBindings.js'
 import type { LocalCommandResult, LocalJSXCommandContext } from '../../types/command.js'
 import type { Message, UserMessage } from '../../types/message.js'
 import { getMessagesAfterCompactBoundary } from '../../utils/messages.js'
-import { getUpgradeMessage } from '../../utils/model/contextWindowUpgradeCheck.js'
 import { buildEffectiveSystemPrompt } from '../../utils/systemPrompt.js'
 import { fetchSystemPromptParts } from '../../services/agents/queryContext.js'
 import type { CacheSafeParams } from '../../services/agents/forkedAgent.js'
 import { isAbortError, errorMessage, hasExactErrorMessage } from '../../utils/errors.js'
-import { formatTokens } from '../../utils/format.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
 import { logError } from '../../utils/log.js'
 
 export { NOTHING_TO_COMPACT_KEY, nothingToCompactLine } from '../../services/compact/compact.js'
@@ -75,35 +70,6 @@ async function buildCompactCacheSafeParams(
   }
 }
 
-function buildDisplayText(
-  context: LocalJSXCommandContext,
-  result: CompactionResult,
-  messagesHandedIn: number,
-): string {
-  const kept = result.messagesToKeep?.length ?? 0
-  const folded = Math.max(0, messagesHandedIn - kept)
-  const pre = result.preCompactTokenCount
-  const post = result.truePostCompactTokenCount
-  const facts: string[] = []
-  if (folded > 0) facts.push(`folded ${folded} message${folded === 1 ? '' : 's'} into the summary`)
-  if (typeof pre === 'number' && pre > 0 && typeof post === 'number' && post >= 0) {
-    facts.push(`context ${formatTokens(pre)} → ${formatTokens(post)} tokens`)
-  }
-  if (kept > 0) facts.push(`last ${kept} message${kept === 1 ? '' : 's'} kept verbatim`)
-  const head = facts.length > 0 ? `Compacted — ${facts.join(' · ')}` : 'Compacted'
-  const parts: string[] = []
-  if (shouldEnrichForLiveDisplay(context) && !context.getAppState().verbose) {
-    const chord =
-      getBindingDisplayText('app:toggleTranscript', 'Global', loadKeybindingsSync()) ?? 'ctrl+o'
-    parts.push(`(${chord} reads the full summary — what the agent retains)`)
-  }
-  for (const note of result.notes ?? []) parts.push(note)
-  const tip = getUpgradeMessage(context.getAppState().engineModel)?.tip
-  if (tip) parts.push(tip)
-  const rest = parts.join('\n')
-  return chalk.dim(rest ? `${head}\n${rest}` : head)
-}
-
 function enrichSummaryForLiveDisplay(
   result: CompactionResult,
   messagesHandedIn: number,
@@ -130,11 +96,6 @@ function enrichSummaryForLiveDisplay(
       ...(kept > 0 ? { keptMessages: kept } : {}),
     } as UserMessage['summarizeMetadata']
   }
-}
-
-function shouldEnrichForLiveDisplay(context: LocalJSXCommandContext): boolean {
-  if (!context.options.isNonInteractiveSession) return true
-  return flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
 }
 
 export async function call(
@@ -169,7 +130,7 @@ async function callUnderFoldStatus(
         return {
           type: 'compact',
           compactionResult: sessionMemoryResult,
-          displayText: buildDisplayText(context, sessionMemoryResult, projected.length),
+          displayText: manualCompactDisplayText(context, sessionMemoryResult, projected.length),
         }
       }
     }
@@ -217,7 +178,7 @@ async function callUnderFoldStatus(
     return {
       type: 'compact',
       compactionResult: result,
-      displayText: buildDisplayText(context, result, summaryInput.length),
+      displayText: manualCompactDisplayText(context, result, summaryInput.length),
     }
   } catch (error) {
     if (context.abortController.signal.aborted || isAbortError(error)) {
