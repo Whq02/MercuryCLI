@@ -19,6 +19,7 @@ import { allowRulesThatPreAuthorise } from './lateAllowRules.js'
 import { ownGroundCategory } from './ownGround.js'
 import { serviceInputAsSent, serviceInputKey } from './serviceInputHistory.js'
 import { inlineScriptWriteTargets } from './shellProtectedPaths.js'
+import { placesCertain } from './shellProtectedPaths/folders.js'
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
 
@@ -736,58 +737,68 @@ async function scanReading(command: string, cwd: string | null, scan: Scan, pare
       return
     }
   }
+  const places: Array<string | null> | null =
+    read.unread === undefined && !placesCertain(read, command)
+      ? [...new Set<string | null>([cwd, ...read.commands.map(one => one.cwd).filter((folder): folder is string => folder !== undefined)])].slice(0, 8)
+      : null
   for (const simple of commandOrder(read.commands)) {
     if (scan.asks.length > 0) break
-    const here: Scan = { ...scan, cwd: simple.cwd ?? scan.cwd }
+    const primary = simple.cwd ?? scan.cwd
+    const folders = places === null ? [primary] : [...new Set<string | null>([primary, ...places])]
     const around = simple.around ?? simple.text
     const found = (ask: FlowAsk): void => {
       if (!preAuthorised(around, scan.rules)) scan.asks.push(ask)
     }
     const shown = shownOf(simple)
-    if (!shown.some(word => /^~\+(?=\/|$)/.test(word))) {
-      await checkCommand(shown, here, simple.text, false, shown)
-    }
-    if (here.asks.length === 0 && !sameWords(shown, simple.argv)) {
-      here.cwd = simple.cwd ?? scan.cwd
-      await checkCommand(simple.argv, here, simple.text, false, simple.argv)
-    }
-    if (parent !== undefined && !simple.substituted && simple.stages.length === 0 && simple.body === undefined) scan.cwd = here.cwd
-    scan.asks.push(...here.asks.filter(ask => !scan.asks.includes(ask)))
-    scan.aliases = here.aliases ?? scan.aliases
-    if (scan.asks.length > 0) break
-    for (const redirect of simple.redirects) checkRedirect(redirect.op, redirect.target, here, cut(read.unread === undefined ? redirectShown(simple, read.commands, redirect.op, redirect.target, here) : around, 60))
-    scan.asks.push(...here.asks.filter(ask => !scan.asks.includes(ask)))
-    for (const layer of layersOf(simple.argv)) {
+    for (let at = 0; at < folders.length; at++) {
       if (scan.asks.length > 0) break
-      const fed = layer.wrappers.includes('xargs')
-      const computed = layer.argv.some(word => word.includes(UNREAD_PART))
-      if (FLOW_DELETERS.has(layer.program) && (fed || computed)) {
-        const sources: ReadCommand[] = []
-        const seen = new Set<number>()
-        const inner = (indexes: readonly number[]): void => {
-          for (const index of indexes) {
-            const one = read.commands[index]
-            if (one === undefined || seen.has(index)) continue
-            seen.add(index)
-            sources.push(one)
-            inner(one.inner.flat())
-          }
-        }
-        inner(simple.inner.flat())
-        if (fed) for (const earlier of read.commands) if (sharesEarlierStage(earlier, simple)) sources.push(earlier)
-        const words = [...(fed && simple.input !== undefined ? simple.input.split(/\s+/) : []), ...sources.flatMap(source => [...source.argv.slice(1), ...(printedBy(source)?.split(/\s+/) ?? [])])].filter(word => word !== '' && !word.startsWith('-') && !word.includes(UNREAD_PART))
-        for (const source of sources.length > 0 ? sources : [simple]) {
-          const ask = outsideAsk('it deletes', words, { ...here, cwd: source.cwd ?? here.cwd }, [cut(around, 60)])
-          if (ask !== null) {
-            found(ask)
-            break
-          }
-        }
+      const place = folders[at]!
+      const here: Scan = { ...scan, cwd: place }
+      if (!shown.some(word => /^~\+(?=\/|$)/.test(word))) {
+        await checkCommand(shown, here, simple.text, false, shown)
       }
-      const flag = FLOW_SCRIPT_LANGUAGES.test(layer.program) ? layer.argv.findIndex((word, index) => index > 0 && /^-(?:e|c|p|E|r)$/.test(word)) : -1
-      if (flag >= 0 && scan.asks.length === 0) {
-        const ask = outsideAsk('it deletes or overwrites', inlineScriptWriteTargets(layer.argv.slice(flag + 1).join(' ')), here, [cut(around, 60)])
-        if (ask !== null) found(ask)
+      if (here.asks.length === 0 && !sameWords(shown, simple.argv)) {
+        here.cwd = place
+        await checkCommand(simple.argv, here, simple.text, false, simple.argv)
+      }
+      if (at === 0 && parent !== undefined && !simple.substituted && simple.stages.length === 0 && simple.body === undefined) scan.cwd = here.cwd
+      scan.asks.push(...here.asks.filter(ask => !scan.asks.includes(ask)))
+      scan.aliases = here.aliases ?? scan.aliases
+      if (scan.asks.length > 0) break
+      for (const redirect of simple.redirects) checkRedirect(redirect.op, redirect.target, here, cut(read.unread === undefined ? redirectShown(simple, read.commands, redirect.op, redirect.target, here) : around, 60))
+      scan.asks.push(...here.asks.filter(ask => !scan.asks.includes(ask)))
+      for (const layer of layersOf(simple.argv)) {
+        if (scan.asks.length > 0) break
+        const fed = layer.wrappers.includes('xargs')
+        const computed = layer.argv.some(word => word.includes(UNREAD_PART))
+        if (FLOW_DELETERS.has(layer.program) && (fed || computed)) {
+          const sources: ReadCommand[] = []
+          const seen = new Set<number>()
+          const inner = (indexes: readonly number[]): void => {
+            for (const index of indexes) {
+              const one = read.commands[index]
+              if (one === undefined || seen.has(index)) continue
+              seen.add(index)
+              sources.push(one)
+              inner(one.inner.flat())
+            }
+          }
+          inner(simple.inner.flat())
+          if (fed) for (const earlier of read.commands) if (sharesEarlierStage(earlier, simple)) sources.push(earlier)
+          const words = [...(fed && simple.input !== undefined ? simple.input.split(/\s+/) : []), ...sources.flatMap(source => [...source.argv.slice(1), ...(printedBy(source)?.split(/\s+/) ?? [])])].filter(word => word !== '' && !word.startsWith('-') && !word.includes(UNREAD_PART))
+          for (const source of sources.length > 0 ? sources : [simple]) {
+            const ask = outsideAsk('it deletes', words, { ...here, cwd: at === 0 ? (source.cwd ?? here.cwd) : here.cwd }, [cut(around, 60)])
+            if (ask !== null) {
+              found(ask)
+              break
+            }
+          }
+        }
+        const flag = FLOW_SCRIPT_LANGUAGES.test(layer.program) ? layer.argv.findIndex((word, index) => index > 0 && /^-(?:e|c|p|E|r)$/.test(word)) : -1
+        if (flag >= 0 && scan.asks.length === 0) {
+          const ask = outsideAsk('it deletes or overwrites', inlineScriptWriteTargets(layer.argv.slice(flag + 1).join(' ')), here, [cut(around, 60)])
+          if (ask !== null) found(ask)
+        }
       }
     }
   }
