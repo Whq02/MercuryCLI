@@ -18,7 +18,8 @@ const { createUserMessage } = await import('../../src/services/messages.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 const tools = [TestTool, ToolSearchTool, BashTool]
 let failures = 0
-function check(label: string, ok: boolean) { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`); if (!ok) failures++ }
+const failWhere = 'look in planToolPayload and its deferred set in src/services/providers/toolEconomy.ts, and isDeferredToolFor in src/tools/ToolSearchTool/prompt.ts (whether Test is deferred by route, prompt profile and declared runner)'
+function check(label: string, ok: boolean) { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${failWhere}`}`); if (!ok) failures++ }
 try {
   for (const [model, profile] of [['claude-fable-5-1', true], ['gpt-6-astra', true], ['local/qwen3-32b', true], ['local/qwen3-32b', false]] as const) {
     if (profile) delete process.env.MERCURY_LOCAL_PROMPT_PROFILE

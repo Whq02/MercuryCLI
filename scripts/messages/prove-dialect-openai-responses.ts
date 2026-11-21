@@ -20,7 +20,7 @@ for (const name of ['MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_AUTH_SCOPE_DIR', 'ME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${!cond ? ' · the request and the stream folding come from openaiCallModel in src/services/providers/openai/openaiCallModel.ts; the shared fixture is scripts/messages/dialectFixture.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n  ' + t + '\n' + '─'.repeat(76))

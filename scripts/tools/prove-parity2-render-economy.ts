@@ -11,12 +11,15 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_HOME
 
 let failures = 0
+let failHint = ''
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  const shown = ok ? detail : [detail, failHint].filter(Boolean).join(' | ')
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${shown ? ` — ${shown}` : ''}`)
   if (!ok) failures = 1
 }
 
 {
+  failHint = 'change the quiet update check in src/services/privateChannel/quietUpdateNotice.ts (runQuietUpdateCheck, decideQuietCheck, updateNoticeText, scheduleQuietUpdateNotice) or the MERCURY_UPDATE_NOTICE flag in src/substrate/flagRegistry.ts'
   const { runQuietUpdateCheck, decideQuietCheck, updateNoticeText, readUpdateNoticeCache, writeUpdateNoticeCache, updateNoticeCachePath, UPDATE_NOTICE_DAILY_MS, scheduleQuietUpdateNotice } =
     await import('../../src/services/privateChannel/quietUpdateNotice.ts')
   const { flagEnabled } = await import('../../src/substrate/flagRegistry.ts')
@@ -60,11 +63,13 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   disarm()
   t('MERCURY_UPDATE_NOTICE=0 never arms the check', !armed)
   delete process.env.MERCURY_UPDATE_NOTICE
+  failHint = 'edit docs/TERMINAL-RUNTIME.md so it says the update check sends nothing about the machine or the operator and names MERCURY_UPDATE_NOTICE=0'
   const doc = readFileSync('docs/TERMINAL-RUNTIME.md', 'utf8')
   t('the runtime doc states exactly what the check sends', /sends nothing about the machine or the\s+operator/.test(doc) && /MERCURY_UPDATE_NOTICE=0/.test(doc))
 }
 
 {
+  failHint = 'fix truncatePathMiddle in src/utils/truncate.ts so a long path keeps its root and filename and puts the ellipsis in the middle'
   const { truncatePathMiddle } = await import('../../src/utils/truncate.ts')
   const long = 'src/components/permissions/FilePermissionDialog/useFilePermissionDialog.ts'
   const shown = truncatePathMiddle(long, 50)
@@ -72,6 +77,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 
 {
+  failHint = 'fix the list and rule spacing in applyMarkdown in src/utils/markdown.ts'
   const { applyMarkdown } = await import('../../src/utils/markdown.ts')
   const render = (src: string) => applyMarkdown(src, 'dark', null, 60)
   t('a tight list stacks one item per line', render('- one\n- two\n- three') === '- one\n- two\n- three')
@@ -83,6 +89,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 
 {
+  failHint = 'cut at grapheme boundaries in src/utils/intl.ts (sliceHeadAtGrapheme, sliceTailAtGrapheme), and make generatePreview in src/utils/toolResultStorage.ts and boundHookContext in src/utils/hooks/contextBound.ts use them'
   const { sliceHeadAtGrapheme, sliceTailAtGrapheme } = await import('../../src/utils/intl.ts')
   const emoji = '🎉'
   const text = `ab${emoji}cd`
@@ -103,6 +110,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 
 {
+  failHint = 'make every frame of the failing spinner set one terminal width: BRIDGE_SPINNER_FRAMES in src/constants/figures.ts or getDefaultCharacters in src/components/Spinner/utils.ts'
   const { stringWidth } = await import('../../src/ink/stringWidth.ts')
   const { BRIDGE_SPINNER_FRAMES } = await import('../../src/constants/figures.ts')
   const { getDefaultCharacters } = await import('../../src/components/Spinner/utils.ts')
@@ -118,6 +126,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 
 {
+  failHint = 'cap each skill description in formatCommandsWithinBudget in src/utils/skillListingFormat.ts (the entry must end with an ellipsis and stay under 300 chars)'
   const { formatCommandsWithinBudget } = await import('../../src/utils/skillListingFormat.ts')
   const huge = 'x'.repeat(5_000)
   const line = formatCommandsWithinBudget([{ name: 'big-skill', description: huge } as never], 1_000_000)

@@ -24,7 +24,7 @@ const { getAssistantMessageFromError } = await import(join(src, 'services/api/er
 const { isRetryableError, withRetry, CannotRetryError } = await import(join(src, 'services/api/withRetry.ts'))
 let failures = 0
 let checks = 0
-const check = (name: string, ok: boolean) => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}`) }
+const check = (name: string, ok: boolean) => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ' — fix the retry policy in isRetryableError and withRetry (src/services/api/withRetry.ts), or the notice and wait fields in getAssistantMessageFromError (src/services/api/errors.ts), whichever this label names'}`) }
 const refusal = (status: number, message = 'credential rejected', headers: Record<string, string> = {}) => new APIError(status, { error: { message } }, message, new Headers(headers))
 const seed = (accessToken: string) => {
   writeFileSync(join(home, '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken, refreshToken: 'fixture-refresh', expiresAt: Date.now() + 3_600_000, scopes: ['user:inference'], subscriptionType: 'max', rateLimitTier: null } }))

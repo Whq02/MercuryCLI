@@ -20,11 +20,23 @@ process.chdir(PROJ)
 
 
 let failures = 0
+const doorHints: Record<string, string> = {
+  '§1': 'to fix, look at initializeToolPermissionContext in src/utils/permissions/permissionSetup.ts (how the allow and skip flags set isBypassPermissionsModeAvailable)',
+  '§2': 'to fix, look at bootBirthFacts, setBootBirthFacts and carriedConsentOf in src/services/switchboard/bootBirthFacts.ts',
+  '§3': 'to fix, look at buildConcourseWorkerSpec in src/daemon/concourseWorkers.ts and buildRunnerInvocation in src/daemon/headlessRun.ts (where the consent becomes argv)',
+  '§4': 'to fix, look at headlessPermissionArgv in src/daemon/headlessRun.ts',
+  '§5': 'to fix, look at ensureWarmRunner and claimWarmRunner in src/daemon/warmRunner.ts (the consent gate on the warm pool)',
+  '§7': 'to fix, look at buildRunnerInvocation in src/daemon/headlessRun.ts and resolvePermissionModeTransition in src/cli/headless/controlHandlers.ts',
+}
+let doorHint = ''
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond || doorHint === '' ? '' : ` — ${doorHint}`}`)
   if (!cond) failures++
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
+const section = (t: string): void => {
+  doorHint = doorHints[t.slice(0, 2)] ?? ''
+  console.log('\n' + '─'.repeat(76) + '\n' + t)
+}
 
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()

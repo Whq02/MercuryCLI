@@ -14,6 +14,9 @@ CREATE TABLE rowidbig(value TEXT); INSERT INTO rowidbig(rowid,value) VALUES(9223
 CREATE TABLE withoutbig(id INTEGER PRIMARY KEY,value TEXT) WITHOUT ROWID; INSERT INTO withoutbig VALUES(9223372036854775807,'withoutbig');`)
 seed.close()
 const client = await readViewMcp(home)
+const rowHint = 'change how a keyed SQLite row is read and rendered (renderSqliteRow, renderSqliteValue, selectSqliteRows in src/tools/FileReadTool/readRichFormats.ts); the Node side runs the built dist/mercury.mjs, so rebuild with bun run build.ts first'
+const writeHint = 'change the addressed SQLite row update in the Write tool under src/tools/FileWriteTool (write/call.ts, structuredTargets.ts) so it targets the row Read showed'
+const queryHint = 'change the sql= engine in src/tools/FileReadTool/sqliteQueryProcess.ts so a large integer is returned exactly'
 const bunRead = async (path: string): Promise<string> => {
   try { return (await kit.FileReadTool.call({ file_path: path }, kit.context)).data.file.content }
   catch (error) { return String(error) }
@@ -24,8 +27,8 @@ try {
     const target = `${file}:typed/${id}`
     const node = await client.call('Read', { file_path: target })
     const bun = await bunRead(target)
-    kit.check(`Node: ordinary row ${id} keeps every previous byte`, node === expected, node)
-    kit.check(`Bun: ordinary row ${id} keeps every previous byte`, bun === expected, bun)
+    kit.check(`Node: ordinary row ${id} keeps every previous byte`, node === expected, `${node} | ${rowHint}`)
+    kit.check(`Bun: ordinary row ${id} keeps every previous byte`, bun === expected, `${bun} | ${rowHint}`)
   }
   for (const [table, column] of [['pkbig','id'],['rowidbig','rowid'],['withoutbig','id']] as const) {
     const target = `${file}:${table}/9223372036854775807`
@@ -34,14 +37,14 @@ try {
     const exact = (body: string) => {
       try { return JSON.parse(body)[column] === '9223372036854775807' && !/9\.223372|9223372036854776000/.test(body) } catch { return false }
     }
-    kit.check(`Node: ${table} keeps the exact full-width key`, exact(node), node)
-    kit.check(`Bun: ${table} keeps the exact full-width key`, exact(bun), bun)
-    kit.check(`${table}: both runtimes return identical row bytes`, node === bun)
+    kit.check(`Node: ${table} keeps the exact full-width key`, exact(node), `${node} | ${rowHint}`)
+    kit.check(`Bun: ${table} keeps the exact full-width key`, exact(bun), `${bun} | ${rowHint}`)
+    kit.check(`${table}: both runtimes return identical row bytes`, node === bun, `Node and Bun rows differ | ${rowHint}`)
     const written = await client.call('Write', { file_path: target, content: '{"value":"updated"}' })
     const after = await client.call('Read', { file_path: target })
-    kit.check(`${table}: Write names the same row Read showed`, written.includes('"type":"update"') && exact(after) && after.includes('"value": "updated"'), written)
+    kit.check(`${table}: Write names the same row Read showed`, written.includes('"type":"update"') && exact(after) && after.includes('"value": "updated"'), `${written} | ${writeHint}`)
   }
   const sql = await client.call('Read', { file_path: `${file}#read?sql=SELECT id FROM pkbig` })
-  kit.check('sql= remains exact on its independent query engine', sql.includes('[9223372036854775807]'), sql)
+  kit.check('sql= remains exact on its independent query engine', sql.includes('[9223372036854775807]'), `${sql} | ${queryHint}`)
 } finally { await client.close() }
 kit.finish()

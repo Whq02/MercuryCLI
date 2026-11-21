@@ -8,9 +8,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+const failureWhere = 'change resolveContextWindow in src/utils/model/capabilities.ts (pin, live catalogue row or labelled fallback), or for the W5 await and warm-up checks awaitContextWindowSource and warmContextWindowSources in src/services/context/contextWindowWarmup.ts, or the catalogue refresh in src/services/providers/ named by the check'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + failureWhere : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

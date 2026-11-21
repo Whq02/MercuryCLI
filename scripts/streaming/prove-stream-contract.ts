@@ -14,7 +14,7 @@ function check(name: string, ok: boolean, detail?: string): void {
     console.log(`  ✓ ${name}`)
   } else {
     failures++
-    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''} — fix the behaviour in src/utils/messages/streaming.ts (handleMessageFromStream, isDroppedLateStreamFrame), src/utils/messages/streamingTailStore.ts (createStreamingTailStore) or src/services/tools/chantGuard.ts (StreamChantWatch, detectChant, trimChantedReplyMessages), whichever this check names`)
   }
 }
 

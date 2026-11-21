@@ -20,7 +20,8 @@ let checks = 0
 function check(label: string, cond: boolean, detail?: string): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  const failHint = cond ? '' : ' | to fix: the reader named in the label emits the reasoning deltas, so change its stream function (section 1 src/services/providers/openaicompat/compatChatClient.ts, 2 src/services/providers/zai/zaiClient.ts, 3 src/services/providers/gemini/geminiClient.ts, 4 src/services/providers/local/ollamaChatTransport.ts, 5 src/services/providers/openai/openaiWire.ts and openaiClient.ts, 6 src/services/providers/moonshot/moonshotCallModel.ts and src/fabric/entryCodec.ts)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${failHint}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

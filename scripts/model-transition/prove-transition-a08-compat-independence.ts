@@ -22,9 +22,10 @@ const router = await import('../../src/services/providers/callModelRouter.ts')
 const profile = await import('../../src/services/instructions/profile.ts')
 
 let failures = 0
+const failureWhere = 'resolveRequestedInstructionProfile and setSessionInstructionProfile in src/services/instructions/profile.ts must only change the instruction profile; keep the model getters in src/services/model/model.ts, the capabilities in src/utils/model/capabilities.ts, resolveEffortTruth in src/utils/effort.ts and classifyModelRoute in src/services/providers/callModelRouter.ts from reading the profile'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + failureWhere : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

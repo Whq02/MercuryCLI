@@ -12,7 +12,8 @@ db.run('CREATE TABLE categories(id INTEGER PRIMARY KEY, name TEXT); CREATE TABLE
 db.close()
 let client = await readViewMcp(home)
 let passed = 0, failed = 0
-const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${detail}`}`) }
+let failHint = 'change the SQLite view of Read in src/tools/FileReadTool/sqliteQuery.ts (request handling) or src/tools/FileReadTool/sqliteQueryProcess.ts (the engine and its authorizer); the proof runs the built dist/mercury.mjs, so rebuild with bun run build.ts first'
+const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${[detail, failHint].filter(Boolean).join(' | ')}`}`) }
 const read = (target: string) => client.call('Read', { file_path: target })
 const digest = () => createHash('sha256').update(readFileSync(file)).digest('hex')
 try {
@@ -50,6 +51,7 @@ try {
   check('database listing discovers exact SQL spelling', listing.includes(`Read(file_path: ${JSON.stringify(`${file}#read?sql=SELECT * FROM sqlite_schema`)})`), listing.slice(0, 400))
   const row = await read(`${file}:work/1`)
   check('ordinary keyed Read retains row content', row.includes('a&b?%+') && row.includes('"id": 1'), row)
+  failHint = 'change the addressed SQLite row update in the Write tool under src/tools/FileWriteTool (write/call.ts, structuredTargets.ts); the proof runs the built dist/mercury.mjs, so rebuild with bun run build.ts first'
   const wrote = await client.call('Write', { file_path: `${file}:work/1`, content: '{"name":"changed"}' })
   check('release Node can update an addressed SQLite row', wrote.includes('"type":"update"'), wrote)
   const afterWrite = new Database(file, { readonly: true })
@@ -57,6 +59,7 @@ try {
   afterWrite.close()
   await client.close()
   client = await readViewMcp(home, ['Read(work.sqlite)'])
+  failHint = 'make the #read?sql= query view honor a Read deny rule on the database file (a deny on the source must also deny its query and symlink aliases); the proof runs the built dist/mercury.mjs, so rebuild with bun run build.ts first'
   check('query does not evade a source deny', !(await read(`${file}#read?sql=SELECT * FROM work`)).includes('target: SQLite query'))
   if (process.platform !== 'win32') {
     const link = join(home, 'alias.sqlite')

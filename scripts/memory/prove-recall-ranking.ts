@@ -3,7 +3,7 @@ import { lookupTokens, rankCandidates, type LookupCandidate } from '../../src/mn
 
 let failures = 0
 function check(label: string, holds: boolean, detail: unknown = ''): void {
-  console.log(`[${holds ? 'PASS' : 'FAIL'}] ${label}${holds ? '' : ` — ${JSON.stringify(detail)}`}`)
+  console.log(`[${holds ? 'PASS' : 'FAIL'}] ${label}${holds ? '' : ` — ${JSON.stringify(detail)} · change lookupTokens (stems, identifiers, query terms) or rankCandidates (BM25 score, recency, pins) in src/mneme/mnemeLookup.ts, whichever this label names`}`)
   if (!holds) failures++
 }
 const rows = JSON.parse(readFileSync(new URL('./fixtures/ranking/entries.json', import.meta.url), 'utf8')) as Array<{ seq: number; text: string; time: string }>

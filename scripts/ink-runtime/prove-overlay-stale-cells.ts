@@ -19,12 +19,14 @@ type ComposeContext = import('./frameHarness.js').ComposeContext
 const COLS = 50
 const ROWS = 14
 
+const overlayFixHint =
+  'the reused-frame paint left cells that a fresh paint does not; fix the overlay invalidation in invalidOverlayRects (src/ink/compose-walk.ts) or the blit and clear path in src/ink/compose-buffer.ts and src/ink/renderer.ts'
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${overlayFixHint}`}`)
 }
 
 function rowText(screen: Screen, y: number): string {

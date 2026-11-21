@@ -12,7 +12,7 @@ delete process.env.MERCURY_BARE
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}clearInstructionFileCaches in src/services/instructions/engine.ts must reach the getUserContext and getSystemContext memos in src/context.ts through the listener that armInstructionInvalidation registers` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

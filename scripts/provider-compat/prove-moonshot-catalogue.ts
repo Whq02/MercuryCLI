@@ -28,7 +28,8 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const failHint = ok ? '' : ' | to fix: read the failing label, then change the matching function in src/services/providers/moonshot/moonshotCatalogue.ts (decodeMoonshotModel, fetchMoonshotLiveModels, refreshMoonshotCatalogue, moonshotCatalogueRows, qualifyMoonshotModel); default-choice labels: computedDefault in src/services/model/computedDefault.ts; chat labels: src/services/providers/moonshot/moonshotCallModel.ts'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${failHint}`)
 }
 const page = { object: 'list', data: [
   { id: 'kimi-k2.6', object: 'model', created: 100, owned_by: 'moonshot', context_length: 262144, supports_image_in: true, supports_video_in: false, supports_reasoning: true },

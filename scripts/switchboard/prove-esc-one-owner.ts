@@ -5,7 +5,8 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failHint = cond ? '' : ' | to fix: the paint-order owner is boardModalOwner in src/components/concourse/boardModalOwner.ts (section 1 and 2); the one-pop-per-event esc law is isTopOverlayNow and popOverlay in src/context/overlayStack.ts (section 4)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${failHint}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

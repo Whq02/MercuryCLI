@@ -14,7 +14,10 @@ import type { MnemeRewriter } from '../../src/mneme/mnemeConsolidate.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
-  if (!cond) failures++
+  if (!cond) {
+    failures++
+    console.log('    change splitDoc, pickMergePartner or mergeDocs in src/mneme/mnemeTopicDocs.ts, or the split and merge step of maybeConsolidate in src/mneme/mnemeConsolidate.ts')
+  }
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 

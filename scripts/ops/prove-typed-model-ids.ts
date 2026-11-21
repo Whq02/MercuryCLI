@@ -10,7 +10,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const SCRIPT = join(ROOT, 'scripts', 'ops', 'check-typed-model-ids.ts')
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' | ' : '') + 'change scripts/ops/check-typed-model-ids.ts (its output lines, exit code or requests) or the typed tables under src/utils/model/pins that it judges' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

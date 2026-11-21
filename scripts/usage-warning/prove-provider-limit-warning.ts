@@ -4,9 +4,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+const limitWarningFixHint = 'fix providerLimitWarning in src/services/providers/limitWarning.ts (the lane signals and the warning text); the weekly and Fable window words come from rateLimitWindowName in src/services/rateLimitMessages.ts, and the fold of the endpoint pools from foldUtilizationFromEndpoint in src/services/anthropicLimits.ts and anthropicPoolWindowViews in src/services/providers/providerUsage.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? `${detail}; ` : ''}${limitWarningFixHint}`}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

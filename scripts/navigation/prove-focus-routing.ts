@@ -11,10 +11,11 @@ import {
 import { bumpInputEventSeqForMouse } from '../../src/ink/events/input-event.js'
 
 let failures = 0
+const failureWhere = 'change pushOverlay, popOverlay, isTopOverlayNow or topOverlayOwnsPageKeys in src/context/overlayStack.ts, or the input event sequence in src/ink/events/input-event.ts (bumpInputEventSeqForMouse)'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   if (!cond || process.env.COMPASS_PROOF_VERBOSE) {
-    console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — ' + failureWhere}`)
   }
 }
 

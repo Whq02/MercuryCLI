@@ -18,9 +18,10 @@ const vnext = await import('../../src/utils/sessionStorage/vnext.ts')
 const recovery = await import('../../src/services/resume/conversationRecovery.ts')
 
 let failures = 0
+const tailReaderFailHint = 'fix the reader behaviour this check names in src/utils/sessionStorage/transcriptReader.ts (readTranscript, readTranscriptChainSince, scanTranscriptLinesBackward, retainTranscript; byte reads in transcriptBytes.ts), the load path in src/utils/sessionStorage/loading.ts, or for section I the daemon connector in src/services/engine-connector/daemonConnector.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — to fix: ${tailReaderFailHint}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

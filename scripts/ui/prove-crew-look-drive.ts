@@ -51,7 +51,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — to fix, look at the crew view pop-up in src/components/mercury-ui/screens/CrewView.tsx and its host src/components/CrewViewSlot.tsx, rerun with --dump to print the frames` : ''}`)
 }
 
 type Cell = { c?: string; fg?: string; bg?: string; bold?: boolean }

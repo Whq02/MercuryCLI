@@ -58,6 +58,9 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
+const DRAG_HINT = 'fix handleSelectionDrag in src/ink/ink/selection.ts'
+const AUTOSCROLL_HINT = 'fix the drag autoscroll in src/components/ScrollKeybindingHandler.tsx (AUTOSCROLL_STEP_ROWS, AUTOSCROLL_TICK_MS)'
+const COPY_HINT = 'fix copySelectionNoClear in src/ink/ink/selection.ts'
 
 const COLS = 120
 const ROWS = 40
@@ -228,7 +231,7 @@ const tailRow = (() => {
   for (let y = 0; y < ROWS; y++) if (glassRowText(y).includes(TAIL_MARK)) return y
   return -1
 })()
-check('the transcript tail is on the glass', tailRow > 0, `tailRow=${tailRow}; fault=${glassFault}`)
+check('the transcript tail is on the glass', tailRow > 0, `tailRow=${tailRow}; fault=${glassFault}; the fixture transcript did not paint its tail row, so look at the ScrollBox sticky scroll in src/ink/components/ScrollBox`)
 const ANCHOR: Cell = { col: 30, row: Math.max(1, tailRow - 8) }
 function focusAt(k: number): Cell {
   const perRow = PANE_C1 - PANE_C0 + 1
@@ -274,31 +277,31 @@ async function glassEqualsRedraw(label: string): Promise<void> {
   for (let i = 0; i < before.length && diffs.length < 3; i++) {
     if (before[i] !== after[i]) diffs.push(`(${i % COLS},${Math.floor(i / COLS)}) ${before[i]} → ${after[i]}`)
   }
-  check(`${label}: the glass equals a forced full redraw`, diffs.length === 0 && glassFault === '', glassFault || diffs.join('; '))
+  check(`${label}: the glass equals a forced full redraw`, diffs.length === 0 && glassFault === '', `${glassFault || diffs.join('; ')}; the selection highlight must leave no stale cells after a grow, shrink or content change, ${DRAG_HINT}`)
 }
 
 section('§1 coalescing — a chunk of drag reports paints once, at its last position')
 {
   const pressFrames = await pressAt(ANCHOR)
-  check('a press paints one frame', pressFrames === 1, `${pressFrames} frames`)
+  check('a press paints one frame', pressFrames === 1, `${pressFrames} frames; ${DRAG_HINT}`)
   const N = 200
   const motions = Array.from({ length: N }, (_, k) => sgr(LEFT | MOTION, focusAt(k)))
   let f0 = frames
   push(motions.join(''))
   await twoTicks()
-  check(`${N} drag reports in one chunk paint at most one frame`, frames - f0 <= 1, `${frames - f0} frames`)
+  check(`${N} drag reports in one chunk paint at most one frame`, frames - f0 <= 1, `${frames - f0} frames; a chunk of drag reports must paint once at its last position, ${DRAG_HINT}`)
   const last = focusAt(N - 1)
-  check('the coalesced frame carries the final focus', same(ink.selection.focus, last), JSON.stringify(ink.selection.focus))
+  check('the coalesced frame carries the final focus', same(ink.selection.focus, last), `${JSON.stringify(ink.selection.focus)}; ${DRAG_HINT}`)
   flushGlass()
   const beyond: Cell = { col: last.col + 1, row: last.row }
   const highlight = styleKey(last)
-  check('the glass highlights the final focus cell and not the cell beyond it', highlight !== styleKey(beyond), `focus ${highlight} beyond ${styleKey(beyond)}`)
+  check('the glass highlights the final focus cell and not the cell beyond it', highlight !== styleKey(beyond), `focus ${highlight} beyond ${styleKey(beyond)}; ${DRAG_HINT}`)
 
   f0 = frames
   push(sgr(LEFT | MOTION, last))
   await twoTicks()
-  check('a report for the cell already focused paints nothing', frames - f0 === 0, `${frames - f0} frames`)
-  check('a release paints one frame', (await releaseAt(last)) === 1)
+  check('a report for the cell already focused paints nothing', frames - f0 === 0, `${frames - f0} frames; ${DRAG_HINT}`)
+  check('a release paints one frame', (await releaseAt(last)) === 1, `a release must paint exactly one frame; ${DRAG_HINT} and handleSelectionRelease in the same file`)
   await clearAll()
 
   const word: Cell = { col: 30, row: ANCHOR.row }
@@ -309,15 +312,15 @@ section('§1 coalescing — a chunk of drag reports paints once, at its last pos
   await twoTicks()
   push(sgr(LEFT, word))
   await twoTicks()
-  check('a double-click selects a word', ink.selection.anchorSpan?.kind === 'word', JSON.stringify(ink.selection.anchorSpan))
+  check('a double-click selects a word', ink.selection.anchorSpan?.kind === 'word', `${JSON.stringify(ink.selection.anchorSpan)}; fix handleMultiClick in src/ink/ink/selection.ts`)
   f0 = frames
   push(sgr(LEFT | MOTION, { col: word.col + 1, row: word.row }))
   await twoTicks()
-  check('a word-mode report inside the selected word paints nothing', frames - f0 === 0, `${frames - f0} frames`)
+  check('a word-mode report inside the selected word paints nothing', frames - f0 === 0, `${frames - f0} frames; ${DRAG_HINT}`)
   f0 = frames
   push(sgr(LEFT | MOTION, { col: word.col + 15, row: word.row }))
   await twoTicks()
-  check('a word-mode report into a later word paints one frame', frames - f0 === 1, `${frames - f0} frames`)
+  check('a word-mode report into a later word paints one frame', frames - f0 === 1, `${frames - f0} frames; ${DRAG_HINT}`)
   await releaseAt({ col: word.col + 15, row: word.row })
   await clearAll()
 }
@@ -336,8 +339,8 @@ section('§2 the blit survives — a drag frame composes no text and costs a ste
     if (lastComposeCounts.blit === 0) blitMissing++
   }
   const drag = durations.slice(d0)
-  check(`${N} chunked drag reports paint ${N} frames`, drag.length === N, `${drag.length} frames`)
-  check('no drag frame composes text (the blit engaged on every one)', composedText === 0 && blitMissing === 0, `composed=${composedText} blitMissing=${blitMissing}`)
+  check(`${N} chunked drag reports paint ${N} frames`, drag.length === N, `${drag.length} frames; ${DRAG_HINT}`)
+  check('no drag frame composes text (the blit engaged on every one)', composedText === 0 && blitMissing === 0, `composed=${composedText} blitMissing=${blitMissing}; a drag must repaint only the selection cells, ${DRAG_HINT}`)
   await releaseAt(focusAt(N - 1))
   await clearAll()
   const s0 = durations.length
@@ -349,7 +352,7 @@ section('§2 the blit survives — a drag frame composes no text and costs a ste
   check(
     'a drag frame\'s median cost stays in the steady frame\'s class (≤ 5×, 0.5 ms floor)',
     dragP50 <= bound,
-    `drag p50 ${dragP50.toFixed(3)} ms vs steady p50 ${steadyP50.toFixed(3)} ms (bound ${bound.toFixed(3)} ms)`,
+    `drag p50 ${dragP50.toFixed(3)} ms vs steady p50 ${steadyP50.toFixed(3)} ms (bound ${bound.toFixed(3)} ms); ${DRAG_HINT}`,
   )
   console.log(`  drag p50 ${dragP50.toFixed(3)} ms · p95 ${pct(drag, 95).toFixed(3)} ms · steady p50 ${steadyP50.toFixed(3)} ms`)
 }
@@ -363,10 +366,10 @@ section('§3 the ghosts — the glass equals a full redraw after every step')
   await glassEqualsRedraw('shrink to ten cells')
   flushGlass()
   const vacated = focusAt(30)
-  check('the vacated cell carries no highlight after the shrink', styleKey(vacated) !== styleKey(focusAt(5)), `vacated ${styleKey(vacated)} vs selected ${styleKey(focusAt(5))}`)
+  check('the vacated cell carries no highlight after the shrink', styleKey(vacated) !== styleKey(focusAt(5)), `vacated ${styleKey(vacated)} vs selected ${styleKey(focusAt(5))}; ${DRAG_HINT}`)
   push(Array.from({ length: 700 }, (_, k) => sgr(LEFT | MOTION, focusAt(k))).join(''))
   await twoTicks()
-  check('the selection reaches the tail row', ink.selection.focus?.row === tailRow, JSON.stringify(ink.selection.focus))
+  check('the selection reaches the tail row', ink.selection.focus?.row === tailRow, `${JSON.stringify(ink.selection.focus)}; ${DRAG_HINT}`)
   setTailText?.(`199 ${TAIL_MARK} CHANGED the quick brown fox jumps over the lazy dog`)
   await settle(50)
   await glassEqualsRedraw('content change under the selection')
@@ -379,7 +382,7 @@ section('§3 the ghosts — the glass equals a full redraw after every step')
   let highlighted = 0
   const plain = styleKey({ col: 40, row: ANCHOR.row })
   for (let y = 1; y < tailRow; y++) for (let x = PANE_C0; x <= PANE_C1; x++) if (styleKey({ col: x, row: y }) !== plain) highlighted++
-  check('no transcript cell carries a highlight after the clear', highlighted === 0, `${highlighted} cells`)
+  check('no transcript cell carries a highlight after the clear', highlighted === 0, `${highlighted} cells; clearTextSelection in src/ink/ink/selection.ts must clear every highlighted cell`)
 }
 
 section('§4 scroll under a drag — the tick scrolls, motion reports never do; the highlight follows the text')
@@ -433,7 +436,7 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   held.stop()
   console.log(`  after the hold: ${facts()}`)
   const heldStill = top0 - scrollTop()
-  check(`a pointer held still above the pane scrolls the content by the tick (${AUTOSCROLL_STEP_ROWS} rows per clock tick, counted through the clock seam)`, held.ticks() >= 1 && rowsForTicks(heldStill, held.ticks()), `${heldStill} rows for ${held.ticks()} ticks`)
+  check(`a pointer held still above the pane scrolls the content by the tick (${AUTOSCROLL_STEP_ROWS} rows per clock tick, counted through the clock seam)`, held.ticks() >= 1 && rowsForTicks(heldStill, held.ticks()), `${heldStill} rows for ${held.ticks()} ticks; ${AUTOSCROLL_HINT}`)
   const top1 = scrollTop()
   const moving = countTicks()
   for (let k = 0; k < 30; k++) {
@@ -443,7 +446,7 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   await twoTicks()
   moving.stop()
   const heldMoving = top1 - scrollTop()
-  check("thirty reports at the edge scroll the tick's rows, not thirty (the rate, not the count)", rowsForTicks(heldMoving, moving.ticks()) && heldMoving < 30, `${heldMoving} rows for 30 reports over ${moving.ticks()} ticks`)
+  check("thirty reports at the edge scroll the tick's rows, not thirty (the rate, not the count)", rowsForTicks(heldMoving, moving.ticks()) && heldMoving < 30, `${heldMoving} rows for 30 reports over ${moving.ticks()} ticks; ${AUTOSCROLL_HINT}`)
   const top2 = scrollTop()
   const blocked = countTicks()
   await settle(60)
@@ -456,19 +459,19 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   await twoTicks()
   blocked.stop()
   const heldBlocked = top2 - scrollTop()
-  check('the loop blocked 200 ms mid-hold: the rows are still the delivered ticks × the step (the law holds under load)', rowsForTicks(heldBlocked, blocked.ticks()), `${heldBlocked} rows for ${blocked.ticks()} ticks`)
+  check('the loop blocked 200 ms mid-hold: the rows are still the delivered ticks × the step (the law holds under load)', rowsForTicks(heldBlocked, blocked.ticks()), `${heldBlocked} rows for ${blocked.ticks()} ticks; ${AUTOSCROLL_HINT}`)
 
   await twoTicks()
   flushGlass()
   const anchorNow = rowWith(anchorLine)
   const rows = highlightedRows()
-  check('the anchor line moved down with the scrolled content', anchorNow > ANCHOR_B.row, `anchor line ${JSON.stringify(anchorLine)} now at row ${anchorNow} (was ${ANCHOR_B.row}); scrolled ${heldStill + heldMoving} rows`)
-  check('the anchor line is still highlighted at its new row (the highlight followed the text)', anchorNow >= 0 && rows.includes(anchorNow), `highlighted rows ${rows[0]}..${rows.at(-1)}, anchor at ${anchorNow}`)
-  check('the highlight spans from the pane top down to the anchor line', rows.length > 0 && rows[0]! <= viewportTop && rows.at(-1)! >= anchorNow, `rows ${rows[0]}..${rows.at(-1)}, anchor at ${anchorNow}`)
+  check('the anchor line moved down with the scrolled content', anchorNow > ANCHOR_B.row, `anchor line ${JSON.stringify(anchorLine)} now at row ${anchorNow} (was ${ANCHOR_B.row}); scrolled ${heldStill + heldMoving} rows; ${DRAG_HINT}`)
+  check('the anchor line is still highlighted at its new row (the highlight followed the text)', anchorNow >= 0 && rows.includes(anchorNow), `highlighted rows ${rows[0]}..${rows.at(-1)}, anchor at ${anchorNow}; ${DRAG_HINT}`)
+  check('the highlight spans from the pane top down to the anchor line', rows.length > 0 && rows[0]! <= viewportTop && rows.at(-1)! >= anchorNow, `rows ${rows[0]}..${rows.at(-1)}, anchor at ${anchorNow}; ${DRAG_HINT}`)
   const copied = (ink as unknown as { copySelectionNoClear: () => string }).copySelectionNoClear()
-  check('the copy carries the anchor line and the lines that scrolled in above it', copied.includes(anchorLine.slice(0, 6)) && copied.split('\n').length >= heldStill, `${copied.split('\n').length} lines copied; ${JSON.stringify(copied.slice(-80))}`)
+  check('the copy carries the anchor line and the lines that scrolled in above it', copied.includes(anchorLine.slice(0, 6)) && copied.split('\n').length >= heldStill, `${copied.split('\n').length} lines copied; ${JSON.stringify(copied.slice(-80))}; ${COPY_HINT}`)
   const clipboardFile = join(SCRATCH, 'clipboard.txt')
-  check('the copy went to the fixture clipboard file, never the machine\'s clipboard', existsSync(clipboardFile) && readFileSync(clipboardFile, 'utf8') === copied, existsSync(clipboardFile) ? `${readFileSync(clipboardFile, 'utf8').length} bytes in the file vs ${copied.length} copied` : 'no clipboard file')
+  check('the copy went to the fixture clipboard file, never the machine\'s clipboard', existsSync(clipboardFile) && readFileSync(clipboardFile, 'utf8') === copied, existsSync(clipboardFile) ? `${readFileSync(clipboardFile, 'utf8').length} bytes in the file vs ${copied.length} copied` : `no clipboard file; ${COPY_HINT}`)
   await releaseAt(above)
   await clearAll()
   ;(handle as unknown as { scrollToBottom: () => void } | null)?.scrollToBottom()
@@ -482,7 +485,7 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   await releaseAt({ col: ANCHOR.col + 20, row: tailBefore })
   flushGlass()
   const textsBefore = highlightedRows().map(y => glassRowText(y).slice(PANE_C0, PANE_C0 + 16))
-  check('a selection stands on the last three lines', textsBefore.length === 3, `${textsBefore.length} rows (${highlightedRows().join(',')}); ${facts()}`)
+  check('a selection stands on the last three lines', textsBefore.length === 3, `${textsBefore.length} rows (${highlightedRows().join(',')}); ${facts()}; ${DRAG_HINT}`)
   setStreamedRows?.(4)
   await settle(150)
   flushGlass()
@@ -490,7 +493,7 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   console.log(`  glass tail rows: ${tailRows()}`)
   const textsAfter = highlightedRows().map(y => glassRowText(y).slice(PANE_C0, PANE_C0 + 16))
   check('four streamed lines scrolled the pane (the tail moved up)', rowWith(TAIL_MARK) === tailBefore - 4, `tail ${tailBefore} → ${rowWith(TAIL_MARK)}`)
-  check('the same lines stay highlighted after the stream (the follow translation)', JSON.stringify(textsAfter) === JSON.stringify(textsBefore), `before ${JSON.stringify(textsBefore)} after ${JSON.stringify(textsAfter)}`)
+  check('the same lines stay highlighted after the stream (the follow translation)', JSON.stringify(textsAfter) === JSON.stringify(textsBefore), `before ${JSON.stringify(textsBefore)} after ${JSON.stringify(textsAfter)}; ${DRAG_HINT}`)
   await clearAll()
   flushGlass()
   const tail2 = rowWith(TAIL_MARK)
@@ -503,7 +506,7 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   await settle(150)
   flushGlass()
   const anchorRowNow = rowWith(anchorText)
-  check('while dragging, the anchor line moved up with the stream and is still highlighted', anchorRowNow === tail2 - 6 && highlightedRows().includes(anchorRowNow), `anchor ${JSON.stringify(anchorText)} at ${anchorRowNow} (expected ${tail2 - 6}); highlighted ${highlightedRows().join(',')}`)
+  check('while dragging, the anchor line moved up with the stream and is still highlighted', anchorRowNow === tail2 - 6 && highlightedRows().includes(anchorRowNow), `anchor ${JSON.stringify(anchorText)} at ${anchorRowNow} (expected ${tail2 - 6}); highlighted ${highlightedRows().join(',')}; ${DRAG_HINT}`)
   await releaseAt({ col: ANCHOR.col + 20, row: tail2 })
   await clearAll()
   ;(handle as unknown as { scrollToBottom: () => void } | null)?.scrollToBottom()
@@ -547,8 +550,8 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   }
   await twoTicks()
   const worstQueue = Math.max(...queueSamples)
-  check(`${k} reports over 5 s with the pane scrolling: the input queue stays ≤ 1 report at every sample`, worstQueue <= 1, `worst ${worstQueue.toFixed(2)} reports pending; ${frames - f0} frames painted`)
-  check('keystrokes typed through the drag land within one painted frame (the frame index, never the wall clock)', keyFrameDeltas.length >= 5 && Math.max(...keyFrameDeltas) <= 1, `${keyFrameDeltas.length} keys, worst ${keyFrameDeltas.length ? Math.max(...keyFrameDeltas) : '?'} frames (${keyLatencies.map(x => x.toFixed(1)).join(' ')} ms)`)
+  check(`${k} reports over 5 s with the pane scrolling: the input queue stays ≤ 1 report at every sample`, worstQueue <= 1, `worst ${worstQueue.toFixed(2)} reports pending; ${frames - f0} frames painted; ${AUTOSCROLL_HINT}`)
+  check('keystrokes typed through the drag land within one painted frame (the frame index, never the wall clock)', keyFrameDeltas.length >= 5 && Math.max(...keyFrameDeltas) <= 1, `${keyFrameDeltas.length} keys, worst ${keyFrameDeltas.length ? Math.max(...keyFrameDeltas) : '?'} frames (${keyLatencies.map(x => x.toFixed(1)).join(' ')} ms); ${AUTOSCROLL_HINT}`)
   console.log(`  ${k} reports · ${frames - f0} frames · worst queue ${worstQueue.toFixed(2)} · keys ${keyLatencies.map(x => x.toFixed(1)).join(' ')} ms · scrollTop every half second ${scrollSamples.join(' ')} → ${scrollTop()}`)
   keyLanded = null
   await releaseAt({ col: 40, row: 0 })

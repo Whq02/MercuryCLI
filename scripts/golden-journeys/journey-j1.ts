@@ -62,8 +62,8 @@ writeRunSidecar(
 
 const walker = new JourneyWalker(sid, 'j1')
 const glance = walker.glance()
-check('the closing report is on screen', hasProse(glance, 'check.sh reports PASS'))
-check('the resume recap card renders', hasProse(glance, 'resumed clean'))
+check('the closing report is on screen', hasProse(glance, 'check.sh reports PASS'), 'the closing assistant message seeded by writeSession above must be painted in the resumed session glance; read the capture grid-j1 in the run home')
+check('the resume recap card renders', hasProse(glance, 'resumed clean'), 'the resume recap card must render the words resumed clean for a completed run sidecar; see src/components/messages/ResumeRecapCard.tsx')
 
 const facts = [
   walker.probeFact('outcome', 'Fix the fixture greeting', [{ cmd: '/run' }]),
@@ -72,8 +72,8 @@ const facts = [
 ]
 
 const diff = walker.nav({ cmd: '/diff' })
-check('/diff mounts the review workspace', diff.ok && /diff|review|sources/i.test(diff.text))
-check('/diff lists the real changed file', diff.text.includes('greet.ts'))
+check('/diff mounts the review workspace', diff.ok && /diff|review|sources/i.test(diff.text), 'the /diff slash command must mount the review workspace (diff, review or sources on screen); ok=' + diff.ok)
+check('/diff lists the real changed file', diff.text.includes('greet.ts'), 'the review workspace must list src/greet.ts, the path of the Edit tool-effected event seeded in the run sidecar above')
 
 const escBack = capture({
   sid,
@@ -81,11 +81,11 @@ const escBack = capture({
   sends: [...slashSends('/diff'), { afterPrevTicks: 40, data: '\x1b' }],
   total: 130,
 })
-check('esc returns from review to the composer', /❯/.test(escBack.text))
+check('esc returns from review to the composer', /❯/.test(escBack.text), 'one Escape in the review workspace must return to the composer prompt; read the capture grid-j1-diff-esc in the run home')
 
 const sidecar = readRunSidecar(sid)
-check('the completed sidecar stays terminal after resume', sidecar.snapshot.lifecycle === 'completed')
-check('run identity is stable', sidecar.snapshot.runId === 'run_momentum_j1')
+check('the completed sidecar stays terminal after resume', sidecar.snapshot.lifecycle === 'completed', 'lifecycle=' + String(sidecar.snapshot.lifecycle) + '; resuming the session must not rewrite the completed run sidecar (the file ending .run.json in the session project dir)')
+check('run identity is stable', sidecar.snapshot.runId === 'run_momentum_j1', 'runId=' + String(sidecar.snapshot.runId) + '; resuming the session must keep the run id written by writeRunSidecar above')
 
 const reviewOffer = walker.probeFact('review-offer', 'review', [])
 const specialist = new Set<string>()

@@ -27,11 +27,12 @@ const DEAD = 'http://127.0.0.1:1'
 const KEY = 'proof-key-ci-gate-not-a-real-key'
 let failures = 0
 let checks = 0
-const check = (label: string, ok: boolean, detail = ''): void => {
+const check = (label: string, ok: boolean, detail = '', hint = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!ok && hint ? ` — ${hint}` : ''}`)
 }
+const catalogueHint = 'the live-catalogue admission of a model id is in src/services/providers/catalogueAdmission.ts (modelNotOfferedByCatalogue and the refusal paths beside it) and the provider catalogue readers under src/services/providers; the captures and wire ledger are kept under the worlds path printed at the end'
 type Grid = Array<Array<{ c?: string }>>
 type Payload = { grid: Grid; marks?: Array<{ label: string; grid: Grid }>; sendReceipts?: unknown[]; endReason?: string }
 const text = (grid: Grid): string => grid.map(row => row.map(cell => cell.c ?? ' ').join('').trimEnd()).join('\n')
@@ -124,7 +125,7 @@ for (const family of FAMILIES) {
         const output = JSON.stringify({ modelsUrl, listStatus: response.status, listed, ...result, wire }, null, 2)
         writeFileSync(join(OUT ?? home, `${tag}-control.json`), output)
         check(`${tag}: the fixture lists the next id and lacks the typed default`, listed.data.some(row => row.id === next) && listed.data.every(row => row.id !== retired))
-        check(`${tag}: naming the served id succeeds on the same bundle and credential`, result.code === 0 && result.stdout.includes('fixture catalogue answer'), output)
+        check(`${tag}: naming the served id succeeds on the same bundle and credential`, result.code === 0 && result.stdout.includes('fixture catalogue answer'), output, 'the control run (node dist/mercury.mjs run --model <served id>) failed against the fixture: fix the fixture or the provider base env before reading the matrix')
         continue
       }
       const runPrintMatrix = async (): Promise<void> => {
@@ -162,15 +163,15 @@ for (const family of FAMILIES) {
           const chats = wire.filter(hit => hit.url.endsWith('/chat/completions'))
           if (test.providerReason) {
             const words = result.stdout
-            check(`${tag} ${test.name}: a typed id the list lacks reaches the wire and Z.AI's own refusal follows the status (Mercury refuses nothing before Z.AI does)`, chats.some(hit => hit.model === retired && hit.status === 404) && words.includes('http-404') && words.includes('fixture refuses retired model') && words.indexOf('http-404') < words.indexOf('fixture refuses retired model'), JSON.stringify({ chats, stdout: words.slice(-400) }))
+            check(`${tag} ${test.name}: a typed id the list lacks reaches the wire and Z.AI's own refusal follows the status (Mercury refuses nothing before Z.AI does)`, chats.some(hit => hit.model === retired && hit.status === 404) && words.includes('http-404') && words.includes('fixture refuses retired model') && words.indexOf('http-404') < words.indexOf('fixture refuses retired model'), JSON.stringify({ chats, stdout: words.slice(-400) }), catalogueHint)
           } else if (test.unreadDefault) {
-            check(`${tag} ${test.name}: a signed-in account whose list cannot be read never defaults onto a typed id (no chat on ${retired}, no fixture answer)`, !chats.some(hit => hit.model === retired) && !result.stdout.includes('fixture catalogue answer'), JSON.stringify({ chats, stdout: result.stdout }))
+            check(`${tag} ${test.name}: a signed-in account whose list cannot be read never defaults onto a typed id (no chat on ${retired}, no fixture answer)`, !chats.some(hit => hit.model === retired) && !result.stdout.includes('fixture catalogue answer'), JSON.stringify({ chats, stdout: result.stdout }), catalogueHint)
           } else if (test.refused) {
-            check(`${tag} ${test.name}: refusal precedes every chat request`, chats.length === 0 && result.stdout.includes('is not offered by the') && result.stdout.includes('live catalogue'), JSON.stringify({ chats, stdout: result.stdout }))
+            check(`${tag} ${test.name}: refusal precedes every chat request`, chats.length === 0 && result.stdout.includes('is not offered by the') && result.stdout.includes('live catalogue'), JSON.stringify({ chats, stdout: result.stdout }), catalogueHint)
           } else {
-            check(`${tag} ${test.name}: the chosen id reaches its own wire and answers`, chats.some(hit => hit.model === test.expected && hit.status === 200) && result.stdout.includes('fixture catalogue answer'), JSON.stringify({ chats, stdout: result.stdout }))
+            check(`${tag} ${test.name}: the chosen id reaches its own wire and answers`, chats.some(hit => hit.model === test.expected && hit.status === 200) && result.stdout.includes('fixture catalogue answer'), JSON.stringify({ chats, stdout: result.stdout }), catalogueHint)
           }
-          if (test.degraded) check(`${tag} ${test.name}: degraded admission is visible`, result.stdout.includes('live model catalogue is unavailable') && result.stdout.includes('proceeding with'), result.stdout)
+          if (test.degraded) check(`${tag} ${test.name}: degraded admission is visible`, result.stdout.includes('live model catalogue is unavailable') && result.stdout.includes('proceeding with'), result.stdout, catalogueHint)
           if (test.dark) check(`${tag}: traffic off makes no models request`, !wire.some(hit => hit.url.endsWith('/models')))
         }
       }
@@ -209,11 +210,11 @@ for (const family of FAMILIES) {
       const chat = wire.find(hit => hit.url.endsWith('/chat/completions'))
       const picker = marks.get('picker') ?? text(payload.grid)
       const liveName = family === 'zai' ? 'GLM Fixture Next' : 'Kimi Fixture Next'
-      check(`${tag}: the drive reached every state`, status === 0 && payload.sendReceipts?.length === sends.length, `${payload.sendReceipts?.length}/${sends.length}; ${payload.endReason}`)
-      check(`${tag}: the provider list was fetched`, wire.some(hit => hit.url.endsWith('/models') && hit.status === 200), JSON.stringify(wire))
-      check(`${tag}: the fresh default requests the newest served id`, chat?.model === next, JSON.stringify(chat))
+      check(`${tag}: the drive reached every state`, status === 0 && payload.sendReceipts?.length === sends.length, `${payload.sendReceipts?.length}/${sends.length}; ${payload.endReason}`, 'a send awaited text that never appeared: read capture.log in the world path printed at the end and the saved frames, and fix the screen text the sends wait for in this script or the screen that stopped rendering it')
+      check(`${tag}: the provider list was fetched`, wire.some(hit => hit.url.endsWith('/models') && hit.status === 200), JSON.stringify(wire), catalogueHint)
+      check(`${tag}: the fresh default requests the newest served id`, chat?.model === next, JSON.stringify(chat), catalogueHint)
       check(`${tag}: the first chat succeeds`, marks.get('chat')?.includes('fixture catalogue answer') === true)
-      check(`${tag}: the picker includes the untyped live id`, picker.includes(next) || picker.includes(liveName), picker)
+      check(`${tag}: the picker includes the untyped live id`, picker.includes(next) || picker.includes(liveName), picker, catalogueHint)
       check(`${tag}: the picker excludes the retired typed row`, !picker.includes(retired) && !picker.includes(family === 'zai' ? 'GLM-5.3' : 'Kimi K3'))
       check(`${tag}: catalogue and chat use the credential's own base`, wire.filter(hit => hit.url.endsWith('/models') || hit.url.endsWith('/chat/completions')).every(hit => hit.url.startsWith(family === 'zai' ? '/zai/' : family === 'kimi' ? '/coding/v1/' : '/platform/v1/')))
       if (cols === SIZES[0]?.[0] && rows === SIZES[0]?.[1]) await runPrintMatrix()

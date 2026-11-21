@@ -28,8 +28,9 @@ enableConfigs()
 const h = React.createElement
 
 let failures = 0
+const asyncNoteWhere = 'fix the pending note and the close handling of async actions in useInteractiveList in src/components/mercury-ui/useInteractiveList.ts'
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? `${detail}; ` : ''}${asyncNoteWhere}` : ''}`)
   if (!ok) failures = 1
 }
 

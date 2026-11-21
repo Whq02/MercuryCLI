@@ -109,7 +109,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}${!cond ? (label.startsWith('self-test') ? ' — to fix, change compareRow, rowAgrees or the VOLATILE and SUBSTITUTIONS tables in scripts/ui/prove-crew-screens-unchanged.ts' : ' — to fix, undo the change to the crew screen that moved (rerun with --dump to print the frames or --page <file> for the side-by-side page); if the change is intended, re-pin the stored frames with --pin') : ''}`)
 }
 
 const glyphOf = (cell: Cell | undefined): string => (cell === undefined ? ' ' : (cell.c ?? ' ') === '' ? ' ' : (cell.c ?? ' '))

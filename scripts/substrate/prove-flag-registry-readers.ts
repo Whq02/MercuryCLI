@@ -632,18 +632,18 @@ section('§0 the reading on a planted estate: every reader the net reaches is na
   const want = planted.flatMap(p => p.named.map(n => `${p.file}:${n}`)).join(' ')
   check('a direct read, a read through a helper, a read of a rows file, a path test in a sweep and a shell grep are each named with their line', ['scripts/a/prove-read.ts:3', 'scripts/a/prove-read.ts:4', 'scripts/a/prove-read.ts:5', 'scripts/a/prove-read.ts:6', 'scripts/a/prove-read.ts:7', 'scripts/a/run.sh:3'].every(at => unlisted.some(m => where(m) === at)), `seen ${seen}`)
   check("each reader the review planted is named with its line and nothing else is: a path built from parts, a template with a hole, a second helper and its caller, a walk of the folder, a glob, a command over the folder, a shell variable and wildcard, an import with an attribute, the rows folder, a path test of a sweep's own, a script with no extension, a path in a data file", seen === want, `seen ${seen} · want ${want}`)
-  check('a named row excuses its whole line once: a copy of the line and a longer line that holds it are named, and the row is not stale', unlisted.some(m => where(m) === 'scripts/a/gen-list.ts:5') && unlisted.some(m => where(m) === 'scripts/a/gen-list.ts:7') && !unlisted.some(m => where(m) === 'scripts/a/gen-list.ts:2') && stale.length === 0)
+  check('a named row excuses its whole line once: a copy of the line and a longer line that holds it are named, and the row is not stale', unlisted.some(m => where(m) === 'scripts/a/gen-list.ts:5') && unlisted.some(m => where(m) === 'scripts/a/gen-list.ts:7') && !unlisted.some(m => where(m) === 'scripts/a/gen-list.ts:2') && stale.length === 0, `seen ${seen} · stale ${stale.length}; judge in this file must match a named row against the whole line, once, and scan must report the other lines of gen-list.ts`)
   check('module-state.tsv accepts only valid inventory first-column paths under its generator header; a path in a reason, a malformed row, the same table under another name and module-state.tsv without its header are all named', !seen.includes(`${MODULE_STATE_TABLE}:3`) && !seen.includes(`${MODULE_STATE_TABLE}:4`) && !seen.includes(`${MODULE_STATE_TABLE}:5`) && [6, 7, 8, 9, 10].every(n => unlisted.some(m => where(m) === `${MODULE_STATE_TABLE}:${n}`)) && unlisted.some(m => where(m) === 'scripts/a/module-state-copy.tsv:3') && headerless.mentions.map(where).join(' ') === `${MODULE_STATE_TABLE}:1` && partialHeader.mentions.map(where).join(' ') === `${MODULE_STATE_TABLE}:2`, `headerless ${headerless.mentions.map(where).join(' ')} · partial ${partialHeader.mentions.map(where).join(' ')}`)
   check('five plain imports are counted as lookups, and a comment, a document, the door, another file of the folder and a label that says the name are not named', got.imports === 5 && !seen.includes('prove-lookup') && !seen.includes('notes.md') && !seen.includes(DOOR), `imports ${got.imports}`)
-  check(`out of reach, as the estate check's label says: ${OUT_OF_REACH}`, !seen.includes('out-of-reach') && !seen.includes('hole-list-reader'))
+  check(`out of reach, as the estate check's label says: ${OUT_OF_REACH}`, !seen.includes('out-of-reach') && !seen.includes('hole-list-reader'), `seen ${seen}; scan in this file reports a mention the estate check does not expect to reach, so either narrow its patterns (SPELLINGS, FOLDER, IN_A_LINE) or move the claim out of the label`)
 }
 
 section("§1 the door: the registry's files, their text and the path test")
 {
   const files = flagRegistryFiles()
-  check('the list holds the registry module first and only registry files', files[0] === MODULE_PATH && files.every(isFlagRegistryFile), files.join(', '))
-  check('the path test takes the module and anything under the rows folder, in either spelling of the separator', isFlagRegistryFile(MODULE_PATH) && isFlagRegistryFile(`${ROWS_DIR}/core.ts`) && isFlagRegistryFile(spell('src\\@S@\\flags\\deep\\core.ts')) && isFlagRegistryFile(spell('src\\@S@\\@M@.ts')))
-  check('the path test refuses a neighbour, a look-alike and the door itself', !isFlagRegistryFile(spell('src/@S@/flagOff.ts')) && !isFlagRegistryFile(`${ROWS_DIR}.ts`) && !isFlagRegistryFile(`${ROWS_DIR}Extra/core.ts`) && !isFlagRegistryFile(`${MODULE_PATH}x`) && !isFlagRegistryFile(DOOR))
+  check('the list holds the registry module first and only registry files', files[0] === MODULE_PATH && files.every(isFlagRegistryFile), `${files.join(', ')}; flagRegistryFiles in scripts/lib/flagRegistrySource.ts must list the registry module first and only paths isFlagRegistryFile accepts`)
+  check('the path test takes the module and anything under the rows folder, in either spelling of the separator', isFlagRegistryFile(MODULE_PATH) && isFlagRegistryFile(`${ROWS_DIR}/core.ts`) && isFlagRegistryFile(spell('src\\@S@\\flags\\deep\\core.ts')) && isFlagRegistryFile(spell('src\\@S@\\@M@.ts')), 'isFlagRegistryFile in scripts/lib/flagRegistrySource.ts must accept the module and any path under the rows folder, with / or a backslash as the separator')
+  check('the path test refuses a neighbour, a look-alike and the door itself', !isFlagRegistryFile(spell('src/@S@/flagOff.ts')) && !isFlagRegistryFile(`${ROWS_DIR}.ts`) && !isFlagRegistryFile(`${ROWS_DIR}Extra/core.ts`) && !isFlagRegistryFile(`${MODULE_PATH}x`) && !isFlagRegistryFile(DOOR), 'isFlagRegistryFile in scripts/lib/flagRegistrySource.ts must refuse a neighbour file, a rows-folder look-alike and the door itself')
   const split = mkdtempSync(join(tmpdir(), 'flag-registry-door-'))
   const w = (rel: string, body: string): void => {
     mkdirSync(dirname(join(split, rel)), { recursive: true })
@@ -660,7 +660,7 @@ section("§1 the door: the registry's files, their text and the path test")
   check('on a tree whose rows live in the rows folder the list is the module and every .ts file under the folder, in order', after.join(' ') === [MODULE_PATH, `${ROWS_DIR}/a.ts`, `${ROWS_DIR}/b.ts`, `${ROWS_DIR}/deep/c.ts`].join(' '), after.join(' '))
   rmSync(join(split, MODULE_PATH))
   rmSync(join(split, ROWS_DIR), { recursive: true, force: true })
-  check('a tree with no registry has no files', flagRegistryFiles(split).length === 0)
+  check('a tree with no registry has no files', flagRegistryFiles(split).length === 0, 'flagRegistryFiles in scripts/lib/flagRegistrySource.ts must return an empty list when neither the module nor the rows folder exists under the given root')
   rmSync(split, { recursive: true, force: true })
 }
 
@@ -670,14 +670,14 @@ section("§2 the estate: a script reads the registry's text through the door or 
   const got = scan(ROOT, files)
   const { unlisted, stale } = judge(got.mentions, NAMED)
   console.log(`  ${files.length} files under scripts · ${got.read} read, whatever their extension (documents and binary files aside) · ${got.imports} plain imports of the registry · 1 door (${DOOR}) · ${got.mentions.length - unlisted.length} named lines that read nothing · ${unlisted.length} unlisted`)
-  check('the door is a script of this tree', files.includes(DOOR))
+  check('the door is a script of this tree', files.includes(DOOR), `${DOOR} must exist and be tracked by git, since this proof lists the scripts folder with git ls-files`)
   check(
     `no script names the registry's files outside a plain import and the door (0 unlisted readers; out of reach: ${OUT_OF_REACH})`,
     unlisted.length === 0,
     `${unlisted.length} found — ${INSTEAD}; the named list only shrinks:` + unlisted.slice(0, 40).map(m => `\n      ${where(m)} ${m.text.slice(0, 140)}`).join(''),
   )
   check('every named row still stands, on its whole line and once (a row whose line is gone is removed, and the count below with it)', stale.length === 0, stale.map(r => `${r.file} [${r.line.slice(0, 60)}]`).join(' · '))
-  check(`the named list holds ${NAMED_ROWS} rows, each with its reason, and none of them reads the text`, NAMED.length === NAMED_ROWS && NAMED.every(r => r.why.trim().length > 0), `rows ${NAMED.length}`)
+  check(`the named list holds ${NAMED_ROWS} rows, each with its reason, and none of them reads the text`, NAMED.length === NAMED_ROWS && NAMED.every(r => r.why.trim().length > 0), `rows ${NAMED.length}; change NAMED and NAMED_ROWS together in this file, and give every row a reason`)
 }
 
 section('§3 the reading of src on a planted estate: a registered flag named at the environment is named with its file, its line, the flag and the verb')

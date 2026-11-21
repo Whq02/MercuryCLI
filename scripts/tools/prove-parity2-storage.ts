@@ -11,8 +11,10 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_HOME
 
 let failures = 0
+const failHint = 'change rememberedExpandedView and getDefaultAppState in src/state/AppStateStore.ts, or the expandedView key saved by saveGlobalConfig in src/utils/config/globalConfig.ts'
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  const shown = ok ? detail : [detail, failHint].filter(Boolean).join(' | ')
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${shown ? ` — ${shown}` : ''}`)
   if (!ok) failures = 1
 }
 

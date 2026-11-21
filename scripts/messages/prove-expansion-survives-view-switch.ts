@@ -18,7 +18,7 @@ delete process.env.MERCURY_HOME
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' · the transcript click road and the opened-row memory belong to the Messages component in src/components/Messages.tsx; an opened thinking row must stay open when the view swaps lead to crewmate and back' : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)

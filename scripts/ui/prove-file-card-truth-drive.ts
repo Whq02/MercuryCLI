@@ -23,10 +23,20 @@ if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let failures = 0
 let checks = 0
+const fileCardHint = (label: string): string => {
+  const where = label.startsWith('convention')
+    ? 'the convention card is src/tools/RecordConventionTool/RecordConventionTool.ts'
+    : label.startsWith('git-apply')
+      ? 'the git card is src/components/permissions/GitPermissionRequest/GitPermissionRequest.tsx (plan from src/services/gitGraph/plan.ts)'
+      : label.startsWith('error-row')
+        ? 'the refusal reason in the transcript row comes from the Edit tool (src/tools/FileEditTool/UI.tsx and sectionEdit.ts)'
+        : 'the edit and create cards are src/components/permissions/FileEditPermissionRequest/FileEditPermissionRequest.tsx with src/tools/FileEditTool/sectionEdit.ts and UI.tsx'
+  return `${where}; fix the card text or diff rows there, or rerun with --record only if the new frame is the intended one (stored frames live in scripts/ui/fixtures/file-cards); run node dist/mercury.mjs through bun run build.ts first, this drive reads dist`
+}
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${fileCardHint(label)}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

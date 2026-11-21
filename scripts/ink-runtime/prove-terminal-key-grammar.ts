@@ -34,7 +34,7 @@ if (CHILD !== undefined) {
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix the byte-sequence split in parseMultipleKeypresses (src/ink/input/input-decoder.ts) or the key naming in interpretKey (src/ink/input/interpreter.ts); the kitty-protocol latch for CSI P is in src/ink/session/capabilities.ts' : ''}`)
 }
 
 function atomsOf(chunk: string): ParsedInput[] {

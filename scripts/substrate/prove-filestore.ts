@@ -6,7 +6,7 @@ import { defineStore, publishAtomic, VERSION_KEY } from '../../src/substrate/fil
 
 let failures = 0
 const ok = (cond: boolean, label: string) => {
-  console.log(`${cond ? '  ✅' : '  ❌'} ${label}`)
+  console.log(`${cond ? '  ✅' : '  ❌'} ${label}${cond ? '' : ' — fix defineStore (read, write, mutate, subscribe) or publishAtomic in src/substrate/fileStore.ts; the check label names the section'}`)
   if (!cond) failures++
 }
 

@@ -12,7 +12,10 @@ import type { AssignedRow, MnemeDraft } from '../../src/mneme/mnemeConsolidate.t
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
-  if (!cond) failures++
+  if (!cond) {
+    failures++
+    console.log('    change validateDraft (the refusal rules) or maybeConsolidate (it must leave CURRENT unchanged on a refusal) in src/mneme/mnemeConsolidate.ts; the reason after the dash is what the validator returned')
+  }
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 

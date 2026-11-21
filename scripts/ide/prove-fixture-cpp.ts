@@ -102,7 +102,7 @@ try {
         .find(d => /conflicting types|arity|declared/i.test(d.message))
       if (!hit) await new Promise(r => setTimeout(r, 150))
     }
-    check('the declaration conflict is diagnosed', hit !== undefined, JSON.stringify(published.flatMap(p => p.files.flatMap(f => f.diagnostics.map(d => d.message)))).slice(0, 200))
+    check('the declaration conflict is diagnosed', hit !== undefined, JSON.stringify(published.flatMap(p => p.files.flatMap(f => f.diagnostics.map(d => d.message)))).slice(0, 200) + '; hint: clangd published no conflicting-types diagnostic for tally.c, so check src/services/lsp/clangdLane.ts (probeBuiltinClangd) and the publish forwarding in src/services/lsp/passiveFeedback.ts and LSPDiagnosticRegistry.ts')
     await tx.noteStep({
       id: record.id,
       owner,
@@ -147,7 +147,7 @@ try {
       },
     } as never)
     const receipt = receiptsFor(owner).at(-1)
-    check('the receipt minted', receipt !== undefined)
+    check('the receipt minted', receipt !== undefined, 'hint: observeToolTerminal in src/utils/run/effectObserver.ts recorded no receipt for the Edit effect; check that a succeeded edit with changedPaths reaches receiptsFor in src/services/changeTransaction/receipts.ts')
     const noted = await tx.noteStep({
       id: record.id,
       owner,
@@ -156,14 +156,14 @@ try {
       refs: [`mercury://receipt/${receipt?.id}`],
       from: proj,
     })
-    check('apply step carries the receipt ref', noted.state === 'ok')
+    check('apply step carries the receipt ref', noted.state === 'ok', `${JSON.stringify(noted).slice(0, 200)}; hint: noteStep in src/services/ide/ideTransaction.ts refused the apply step with a mercury://receipt ref`)
   }
 
   section('3 · stabilize — the push-lane barrier answers honestly')
   {
     await manager.changeAndSaveFile(srcC, readFileSync(srcC, 'utf8'))
     const verdict = await awaitDiagnosticStabilization(manager, srcC)
-    check('an honest verdict (fresh/unchanged/unsupported/timed-out)', ['fresh', 'unchanged', 'unsupported', 'timed-out'].includes(verdict.state), JSON.stringify(verdict))
+    check('an honest verdict (fresh/unchanged/unsupported/timed-out)', ['fresh', 'unchanged', 'unsupported', 'timed-out'].includes(verdict.state), `${JSON.stringify(verdict)}; hint: awaitDiagnosticStabilization in src/tools/LSPTool/mercuryOps/afterWrite.ts returned a state outside the four honest answers`)
     await tx.noteStep({
       id: record.id,
       owner,
@@ -178,7 +178,7 @@ try {
   {
     const out = path.join(proj, 'tally')
     const build = spawnSync('clang', ['-g', '-O0', '-o', out, srcC], { encoding: 'utf8', env: { ...process.env } })
-    check('clang compiles the fixed source clean', build.status === 0, (build.stderr ?? '').slice(0, 200))
+    check('clang compiles the fixed source clean', build.status === 0, `${(build.stderr ?? '').slice(0, 200)}; hint: clang rejected the fixed tally.c source written in step 2 of this script, so fix that source text`)
     const noted = await tx.noteStep({
       id: record.id,
       owner,
@@ -188,7 +188,7 @@ try {
       outcome: build.status === 0 ? 'ok' : 'failed',
       from: proj,
     })
-    check('build step noted', noted.state === 'ok')
+    check('build step noted', noted.state === 'ok', `${JSON.stringify(noted).slice(0, 200)}; hint: noteStep in src/services/ide/ideTransaction.ts refused the build step`)
   }
 
   section('5 · debug — lldb-dap proves the runtime value')
@@ -203,18 +203,18 @@ try {
       breakpoints: new Map([[srcC, [{ line: 6, condition: 'i == 3' }]]]),
     })
     const stop = await session.waitForStopOutcome(20_000)
-    check('the conditional breakpoint stops (i == 3)', stop.state === 'stopped', JSON.stringify(stop))
+    check('the conditional breakpoint stops (i == 3)', stop.state === 'stopped', `${JSON.stringify(stop)}; hint: the lldb-dap session from createDapSession in src/services/dap/dapClient.ts never stopped on the conditional breakpoint (line 6, i == 3); check the breakpoint passing and waitForStopOutcome`)
     if (stop.state === 'stopped') {
       const threadId = stop.info.threadId ?? 1
       const stack = await session.request('stackTrace', { threadId, startFrame: 0, levels: 3 })
       const frameId = (stack.stackFrames as Array<{ id: number }>)[0]!.id
       const evald = await session.request('evaluate', { expression: 'total', frameId, context: 'repl' })
-      check('the running total at i==3 is 25 (10 + 3*5)', String(evald.result).includes('= 25') || String(evald.result) === '25', JSON.stringify(evald).slice(0, 120))
+      check('the running total at i==3 is 25 (10 + 3*5)', String(evald.result).includes('= 25') || String(evald.result) === '25', `${JSON.stringify(evald).slice(0, 120)}; hint: the evaluate request in the dapClient.ts session returned a different value for total at the stop`)
       session.lastStopped = null
       await session.request('continue', { threadId })
       const end = await session.waitForStopOutcome(15_000)
       await session.drainOutput()
-      check('clean termination with the FIXED total 30', end.state === 'terminated' && session.output.some(l => l.includes('total: 30')), JSON.stringify(session.output.slice(-4)))
+      check('clean termination with the FIXED total 30', end.state === 'terminated' && session.output.some(l => l.includes('total: 30')), `${JSON.stringify(session.output.slice(-4))}; hint: after continue the dapClient.ts session did not terminate cleanly or its output lacked total: 30`)
     }
     await dap.removeDapSession(owner, 'fixture-cpp')
     delete process.env.MERCURY_DAP_ADAPTERS
@@ -224,7 +224,7 @@ try {
   section('6 · prove — the mechanical gate closes the loop')
   {
     const done = await tx.finishTransaction({ id: record.id, owner, verdict: 'completed', from: proj })
-    check('the transaction completes through the gate', done.state === 'ok' && done.record.verdict === 'completed', JSON.stringify(done).slice(0, 200))
+    check('the transaction completes through the gate', done.state === 'ok' && done.record.verdict === 'completed', `${JSON.stringify(done).slice(0, 200)}; hint: finishTransaction in src/services/ide/ideTransaction.ts did not complete; read the gate reason above and the steps noted earlier`)
   }
 } finally {
   unsubscribe()

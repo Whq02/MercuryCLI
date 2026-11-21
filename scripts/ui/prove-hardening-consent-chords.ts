@@ -36,7 +36,12 @@ let failures = 0
 const warnings: string[] = []
 const originalError = console.error
 console.error = (...args: unknown[]): void => { warnings.push(args.map(String).join(' ')); originalError(...args) }
-const check = (label: string, ok: boolean): void => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`) }
+const consentChordHint = (label: string): string => {
+  if (label.includes('extension')) return 'the extension uninstall confirm lives in src/components/extensions/board/slot.tsx (slotParts onInput): it must return on ctrl, meta or super and act only on a plain y'
+  if (label.includes('React keys')) return 'a list in src/components/concourse/ConcourseScreen.tsx or its rows renders without a stable key prop; read the console.error warning printed above'
+  return 'the consent keys live in src/components/concourse/screen/keys/modalKeys.ts (modalKeys): act on y or n only when plainConsent holds (no ctrl, meta or super); a card that does not mount is drawn from src/components/concourse/screen/modals.tsx'
+}
+const check = (label: string, ok: boolean): void => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${consentChordHint(label)}`}`) }
 const noop = (): void => {}
 const callbacks: ConcourseCallbacks = {
   enterSession: noop, peekSession: noop, answerObligation: noop, openObligation: noop, claimObligation: noop,

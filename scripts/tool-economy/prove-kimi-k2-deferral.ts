@@ -16,10 +16,12 @@ for (const key of ['NODE_ENV', 'ANTHROPIC_BASE_URL', 'MERCURY_TOOL_SEARCH', 'MER
 
 let failed = 0
 let checked = 0
+const failWhere = 'look in deferralWireFormFor in src/services/providers/deferralWire.ts, the capability read in src/services/providers/moonshot/moonshotCatalogue.ts, the model sets in src/utils/model/pins/kimiPins.ts, the search description in src/tools/ToolSearchTool/ToolSearchTool.ts, and the request body built through routedCallModel in src/services/providers/callModelRouter.ts'
 const check = (name: string, ok: boolean, detail = '') => {
   checked++
   if (!ok) failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, failWhere].filter(Boolean).join(' — ')
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${!ok && shown ? ` — ${shown}` : ''}`)
 }
 const KIMI = 'kimi-for-coding'
 let dynamic = true

@@ -7,7 +7,7 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — to fix: saveGlobalConfig and getGlobalConfigWriteCount in src/utils/config/globalConfig.ts must keep the projects map in the cache and on disk (locked and fresh-home saves) and skip the write for a same-reference updater; for the trust checks see setPathTrusted and isPathTrusted in src/utils/config/trust.ts'}`)
 }
 const HERE = import.meta.dir
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')

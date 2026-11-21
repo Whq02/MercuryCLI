@@ -63,20 +63,20 @@ const candidate: HelixRunRow[] = [
 
 const good = evaluateGraduation(baseline, candidate, floors)
 check('a strictly better candidate graduates', good.graduated, good.headline)
-check('interventions criterion is NAMED not-applicable', good.criteria.some(c => c.id === 'interventions' && c.status === 'not-applicable'))
-check('every criterion carries a note', good.criteria.every(c => c.note.length > 0))
+check('interventions criterion is NAMED not-applicable', good.criteria.some(c => c.id === 'interventions' && c.status === 'not-applicable'), 'change evaluateGraduation in scripts/mission-runner/live/graduation.ts so the interventions criterion is added with status not-applicable')
+check('every criterion carries a note', good.criteria.every(c => c.note.length > 0), 'give every criterion added in evaluateGraduation (scripts/mission-runner/live/graduation.ts) a non-empty note')
 
 const tie = evaluateGraduation(baseline, baseline.map(r => ({ ...r, policyId: 'selected' })), floors)
-check('a tie never graduates', !tie.graduated && tie.headline.startsWith('NO POLICY GRADUATED'))
+check('a tie never graduates', !tie.graduated && tie.headline.startsWith('NO POLICY GRADUATED'), 'a tie must fail a criterion in evaluateGraduation (scripts/mission-runner/live/graduation.ts) and the headline must start with NO POLICY GRADUATED; got ' + tie.headline)
 
 const claimy = candidate.map(r =>
   r.family === 11 ? { ...r, incorrectClaim: true, status: 'rejected' as const, accepted: false } : r,
 )
 const claimVerdict = evaluateGraduation(baseline, claimy, floors)
-check('mechanical-task claims refuse graduation', !claimVerdict.graduated && claimVerdict.criteria.some(c => c.id === 'incorrect-claims' && c.status === 'fail'))
+check('mechanical-task claims refuse graduation', !claimVerdict.graduated && claimVerdict.criteria.some(c => c.id === 'incorrect-claims' && c.status === 'fail'), 'evaluateGraduation (scripts/mission-runner/live/graduation.ts) must fail the incorrect-claims criterion when a family 11 candidate row has incorrectClaim; headline ' + claimVerdict.headline)
 
 const redFloors = evaluateGraduation(baseline, candidate, { deterministicFloorsGreen: false })
-check('red deterministic floors refuse graduation', !redFloors.graduated)
+check('red deterministic floors refuse graduation', !redFloors.graduated, 'evaluateGraduation (scripts/mission-runner/live/graduation.ts) must not graduate when deterministicFloorsGreen is false; headline ' + redFloors.headline)
 
 const regressed = candidate.map(r => (r.family === 14 || r.family === 6 ? { ...r, status: 'rejected' as const, accepted: false } : r))
 const regressedMore = regressed.map(r => (r.family === 5 ? { ...r, status: 'accepted' as const, accepted: true } : r))
@@ -84,9 +84,10 @@ const famVerdict = evaluateGraduation(baseline, regressedMore, floors)
 check(
   'a family regression is not hidden by the aggregate',
   famVerdict.criteria.some(c => c.id === 'family-regressions') ,
+  'evaluateGraduation (scripts/mission-runner/live/graduation.ts) must add a family-regressions criterion when a family that the baseline accepted is rejected by the candidate',
 )
 
-check('verdict is deterministic', JSON.stringify(good) === JSON.stringify(evaluateGraduation(baseline, candidate, floors)))
+check('verdict is deterministic', JSON.stringify(good) === JSON.stringify(evaluateGraduation(baseline, candidate, floors)), 'evaluateGraduation (scripts/mission-runner/live/graduation.ts) must return the same verdict for the same rows; remove any clock, random or ordering dependence')
 
 if (failures > 0) {
   console.error('prove-graduation: ' + failures + ' failure(s)')

@@ -58,7 +58,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
 } })
 process.env.MERCURY_ORCAROUTER_API_BASE = `http://127.0.0.1:${server.port}/v1`
 let checks = 0
-const check = (name: string, value: unknown): void => { assert.ok(value, name); checks++; console.log(`[PASS] ${name}`) }
+const check = (name: string, value: unknown): void => { assert.ok(value, `${name} | to fix: route and wire ids are in src/services/providers/routeLaw.ts, the live list and prices in src/services/providers/orcarouter/orcarouterCatalogue.ts, the request and refusals in src/services/providers/orcarouter/orcarouterCallModel.ts and src/services/providers/openaicompat/compatChatCallModel.ts, usage and balance in src/services/providers/orcarouter/orcarouterUsageState.ts`); checks++; console.log(`[PASS] ${name}`) }
 try {
   const { classifyModelRoute, canonicalWireModelId } = await import('../../src/services/providers/routeLaw.ts')
   check('OrcaRouter has its own route', classifyModelRoute('orcarouter/openai/gpt-4o-mini').route === 'orcarouter')

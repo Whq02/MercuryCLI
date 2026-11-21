@@ -31,7 +31,8 @@ if (frames) mkdirSync(frames, { recursive: true })
 let failures = 0
 function check(label: string, ok: boolean, detail = '') {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const signInWindowHint = 'fix the first-run flow in src/components/Onboarding.tsx (theme, sign-in list, footer) or its rows in src/components/loginFamilyRows.ts (loginFamilyRows, SIGN_IN_LATER_ROW) so the cursor row, the closed frame and the later row fit the terminal size named in the label'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${signInWindowHint}` : ''}`)
 }
 function Journey() {
   const [done, setDone] = React.useState(false)

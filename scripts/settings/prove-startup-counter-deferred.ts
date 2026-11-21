@@ -5,10 +5,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — fix: ${hint}` : ''}`)
 }
+const HINT_GLOBAL_STORE = 'saveGlobalConfigDeferred, flushDeferredGlobalConfigSaves and hasPendingDeferredGlobalConfigSaves in src/utils/config/globalConfig.ts'
+const HINT_PROJECT_SAVE = 'saveProjectConfigForWorkspace in src/utils/config/projectConfig.ts must publish the pending global update with its own write (and src/utils/config/globalConfig.ts must clear it)'
+const HINT_STARTUP_RECORDS = 'recordFirstStartTime in src/utils/config/derived.ts, recordPermissionPosture in src/utils/config/trust.ts and the deferred queue in src/utils/config/globalConfig.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
@@ -60,12 +63,12 @@ section('D1 a deferred save: cache now, zero writes; the flush publishes once')
     await g.flushDeferredGlobalConfigSaves()
     out.writesAfterSecondFlush = g.getGlobalConfigWriteCount()
   `)
-  check('the seed landed with one write', r.writesSeeded === 1, `writes=${String(r.writesSeeded)}`)
-  check('the deferred save lands in the cache at once (first-render readers see 5)', r.cacheAfterDeferred === 5, `cache=${String(r.cacheAfterDeferred)}`)
-  check('…with ZERO disk writes (the disk still reads 4)', r.writesAfterDeferred === 1 && r.diskAfterDeferred === 4, `writes=${String(r.writesAfterDeferred)} disk=${String(r.diskAfterDeferred)}`)
-  check('the update is pending until published', r.pendingAfterDeferred === true)
-  check('the flush publishes it — exactly one write, disk and cache agree at 5', r.writesAfterFlush === 2 && r.diskAfterFlush === 5 && r.cacheAfterFlush === 5, `writes=${String(r.writesAfterFlush)} disk=${String(r.diskAfterFlush)}`)
-  check('…and clears the pending list; a second flush writes nothing', r.pendingAfterFlush === false && r.writesAfterSecondFlush === 2, `writes=${String(r.writesAfterSecondFlush)}`)
+  check('the seed landed with one write', r.writesSeeded === 1, `writes=${String(r.writesSeeded)}`, 'saveGlobalConfig in src/utils/config/globalConfig.ts must publish exactly one write')
+  check('the deferred save lands in the cache at once (first-render readers see 5)', r.cacheAfterDeferred === 5, `cache=${String(r.cacheAfterDeferred)}`, 'saveGlobalConfigDeferred in src/utils/config/globalConfig.ts must apply the updater to the cached config at once')
+  check('…with ZERO disk writes (the disk still reads 4)', r.writesAfterDeferred === 1 && r.diskAfterDeferred === 4, `writes=${String(r.writesAfterDeferred)} disk=${String(r.diskAfterDeferred)}`, 'saveGlobalConfigDeferred in src/utils/config/globalConfig.ts must not write the disk before the flush')
+  check('the update is pending until published', r.pendingAfterDeferred === true, '', 'hasPendingDeferredGlobalConfigSaves in src/utils/config/globalConfig.ts must report true until the flush')
+  check('the flush publishes it — exactly one write, disk and cache agree at 5', r.writesAfterFlush === 2 && r.diskAfterFlush === 5 && r.cacheAfterFlush === 5, `writes=${String(r.writesAfterFlush)} disk=${String(r.diskAfterFlush)}`, 'flushDeferredGlobalConfigSaves in src/utils/config/globalConfig.ts must publish the pending update in one write')
+  check('…and clears the pending list; a second flush writes nothing', r.pendingAfterFlush === false && r.writesAfterSecondFlush === 2, `writes=${String(r.writesAfterSecondFlush)}`, 'flushDeferredGlobalConfigSaves in src/utils/config/globalConfig.ts must clear the pending list so a second flush writes nothing')
   console.log('  BEFORE: 1 locked + backed-up + fsync\'d whole-config publish in front of the first paint, every boot · AFTER: 0 before the paint; the same one publish rides the background class')
 }
 
@@ -87,10 +90,10 @@ section('D2 a save in between folds the pending update into its own write')
     out.writesAfterFlush = g.getGlobalConfigWriteCount()
     out.diskCountAfterFlush = readDisk()?.numStartups
   `)
-  check('the intermediate save carried the increment with its own field (disk: not-a-theme, 5)', r.diskTheme === 'not-a-theme' && r.diskCount === 5, `theme=${String(r.diskTheme)} count=${String(r.diskCount)}`)
-  check('the cache agrees', r.cacheCount === 5, `cache=${String(r.cacheCount)}`)
-  check('two writes in total (seed + the intermediate save) and nothing left pending', r.writes === 2 && r.pending === false, `writes=${String(r.writes)} pending=${String(r.pending)}`)
-  check('the flush afterwards writes nothing (the increment is not applied twice)', r.writesAfterFlush === 2 && r.diskCountAfterFlush === 5, `writes=${String(r.writesAfterFlush)} disk=${String(r.diskCountAfterFlush)}`)
+  check('the intermediate save carried the increment with its own field (disk: not-a-theme, 5)', r.diskTheme === 'not-a-theme' && r.diskCount === 5, `theme=${String(r.diskTheme)} count=${String(r.diskCount)}`, 'saveGlobalConfig in src/utils/config/globalConfig.ts must fold the pending deferred update into its own write')
+  check('the cache agrees', r.cacheCount === 5, `cache=${String(r.cacheCount)}`, HINT_GLOBAL_STORE)
+  check('two writes in total (seed + the intermediate save) and nothing left pending', r.writes === 2 && r.pending === false, `writes=${String(r.writes)} pending=${String(r.pending)}`, 'saveGlobalConfig in src/utils/config/globalConfig.ts must clear the pending list once it folds the update in')
+  check('the flush afterwards writes nothing (the increment is not applied twice)', r.writesAfterFlush === 2 && r.diskCountAfterFlush === 5, `writes=${String(r.writesAfterFlush)} disk=${String(r.diskCountAfterFlush)}`, 'flushDeferredGlobalConfigSaves in src/utils/config/globalConfig.ts must not apply an already folded update twice')
 }
 
 section('D3 the same-reference law: a no-change updater schedules nothing')
@@ -103,7 +106,7 @@ section('D3 the same-reference law: a no-change updater schedules nothing')
     out.writes = g.getGlobalConfigWriteCount()
     out.disk = readDisk()?.numStartups
   `)
-  check('nothing pending, nothing written on flush, the disk untouched', r.pending === false && r.writes === 1 && r.disk === 4, `pending=${String(r.pending)} writes=${String(r.writes)} disk=${String(r.disk)}`)
+  check('nothing pending, nothing written on flush, the disk untouched', r.pending === false && r.writes === 1 && r.disk === 4, `pending=${String(r.pending)} writes=${String(r.writes)} disk=${String(r.disk)}`, 'saveGlobalConfigDeferred in src/utils/config/globalConfig.ts must schedule nothing when the updater returns the same object')
 }
 
 section('D4 two deferred updates stack — both apply once, one write')
@@ -120,8 +123,8 @@ section('D4 two deferred updates stack — both apply once, one write')
     out.diskTheme = disk?.theme
     out.writes = g.getGlobalConfigWriteCount()
   `)
-  check('the cache carries both at once', r.cacheCount === 5 && r.cacheTheme === 'not-a-theme', `count=${String(r.cacheCount)} theme=${String(r.cacheTheme)}`)
-  check('one flush publishes both in one write (5, not-a-theme)', r.diskCount === 5 && r.diskTheme === 'not-a-theme' && r.writes === 2, `count=${String(r.diskCount)} theme=${String(r.diskTheme)} writes=${String(r.writes)}`)
+  check('the cache carries both at once', r.cacheCount === 5 && r.cacheTheme === 'not-a-theme', `count=${String(r.cacheCount)} theme=${String(r.cacheTheme)}`, 'saveGlobalConfigDeferred in src/utils/config/globalConfig.ts must stack updaters on the cached config')
+  check('one flush publishes both in one write (5, not-a-theme)', r.diskCount === 5 && r.diskTheme === 'not-a-theme' && r.writes === 2, `count=${String(r.diskCount)} theme=${String(r.diskTheme)} writes=${String(r.writes)}`, 'flushDeferredGlobalConfigSaves in src/utils/config/globalConfig.ts must apply every stacked updater in one write')
 }
 
 section('pending global changes survive a project-config save')
@@ -147,9 +150,9 @@ for (const fallback of [false, true]) for (const changed of [false, true]) {
     mock.module(${JSON.stringify(join(SRC, 'utils/lockfile.ts'))}, () => ({ lockSync() { throw Object.assign(new Error('fixture lock unavailable'), { code: 'ENOTSUP' }) } }))
   ` : '')
   const label = `${fallback ? 'fallback' : 'locked'} / ${changed ? 'changed project' : 'unchanged project'}`
-  check(`${label}: the project write carries the pending global update`, r.diskCount === 5 && r.cacheCount === 5 && (r.project === true) === changed && r.projectExists === changed, JSON.stringify(r))
-  check(`${label}: the project publish clears pending changes without applying them twice`, r.pending === false && r.writes === 2 && r.writesAfterFlush === 2 && r.afterFlush === 5, JSON.stringify(r))
-  check(`${label}: the intended publication path was exercised`, fallback ? Number(r.fallbacks) >= 2 : r.fallbacks === 0, JSON.stringify(r))
+  check(`${label}: the project write carries the pending global update`, r.diskCount === 5 && r.cacheCount === 5 && (r.project === true) === changed && r.projectExists === changed, JSON.stringify(r), HINT_PROJECT_SAVE)
+  check(`${label}: the project publish clears pending changes without applying them twice`, r.pending === false && r.writes === 2 && r.writesAfterFlush === 2 && r.afterFlush === 5, JSON.stringify(r), HINT_PROJECT_SAVE)
+  check(`${label}: the intended publication path was exercised`, fallback ? Number(r.fallbacks) >= 2 : r.fallbacks === 0, JSON.stringify(r), 'the locked or lockless publication path counted by getConfigLocklessFallbackCount in src/utils/config/globalConfig.ts was not the one taken; check the lock mock in this proof against src/utils/lockfile.ts')
 }
 
 section('another process refresh preserves the pending cached view')
@@ -179,8 +182,8 @@ section('another process refresh preserves the pending cached view')
     let refreshConfig
     mock.module('fs', () => ({ ...fs, watchFile: (_file, _options, callback) => { refreshConfig = callback }, unwatchFile: () => {} }))
   `)
-  check('a fresh disk view includes the pending update for cache readers', r.theme === 'not-a-theme' && r.cacheCount === 5 && r.pending === true && r.writes === 1, JSON.stringify(r))
-  check('the later flush applies it once to the external write', r.diskCount === 5 && r.diskTheme === 'not-a-theme' && r.writesAfterFlush === 2, JSON.stringify(r))
+  check('a fresh disk view includes the pending update for cache readers', r.theme === 'not-a-theme' && r.cacheCount === 5 && r.pending === true && r.writes === 1, JSON.stringify(r), 'the cache refresh from another process in src/utils/config/globalConfig.ts must re-apply the pending deferred updates to the fresh disk view')
+  check('the later flush applies it once to the external write', r.diskCount === 5 && r.diskTheme === 'not-a-theme' && r.writesAfterFlush === 2, JSON.stringify(r), HINT_GLOBAL_STORE)
 }
 
 section('deferred flush carries an undeclared project key as written')
@@ -193,7 +196,7 @@ section('deferred flush carries an undeclared project key as written')
     out.diskHistory = readDisk()?.projects.fixture.history ?? null
     out.diskCount = readDisk()?.numStartups
   `)
-  check('the undeclared project key rides the deferred cache and the published config untouched', JSON.stringify(r.cacheHistory) === '["as written"]' && JSON.stringify(r.diskHistory) === '["as written"]' && r.diskCount === 5, JSON.stringify(r))
+  check('the undeclared project key rides the deferred cache and the published config untouched', JSON.stringify(r.cacheHistory) === '["as written"]' && JSON.stringify(r.diskHistory) === '["as written"]' && r.diskCount === 5, JSON.stringify(r), 'the deferred cache and flush in src/utils/config/globalConfig.ts must carry keys the config schema does not declare as written')
 }
 
 section('startup metadata remains usable while another process holds the config lock')
@@ -240,10 +243,10 @@ section('startup metadata remains usable while another process holds the config 
   `)
   const cache = r.cached as { started: boolean; remote: boolean; output: string; undeclared: unknown }
   const disk = r.disk as Record<string, unknown>
-  check('startup readers see first-start and the saved settings without a write; an undeclared key is carried as written', cache.started && cache.remote === true && cache.output === 'compact' && cache.undeclared === true && r.writesBefore === 1, JSON.stringify(r))
-  check('the diagnostic posture is cached and persisted without granting trust', r.posture === 'bypass' && r.diskPosture === 'bypass' && r.trusted === false, JSON.stringify(r))
-  check('contention yields to the lock-release callback and never uses Atomics.wait', r.pendingWhileLocked === true && r.released === true && r.waits === 0, JSON.stringify(r))
-  check('one later publish carries all startup metadata and the undeclared key, and clears the queue', r.writesAfter === 2 && r.pendingAfter === false && typeof disk.firstStartTime === 'string' && disk.remoteControlAtStartup === true && !('toolOutput' in disk) && disk.notAConfigKey === true, JSON.stringify(r))
+  check('startup readers see first-start and the saved settings without a write; an undeclared key is carried as written', cache.started && cache.remote === true && cache.output === 'compact' && cache.undeclared === true && r.writesBefore === 1, JSON.stringify(r), HINT_STARTUP_RECORDS)
+  check('the diagnostic posture is cached and persisted without granting trust', r.posture === 'bypass' && r.diskPosture === 'bypass' && r.trusted === false, JSON.stringify(r), 'recordPermissionPosture in src/utils/config/trust.ts must cache and persist the posture without setting trust')
+  check('contention yields to the lock-release callback and never uses Atomics.wait', r.pendingWhileLocked === true && r.released === true && r.waits === 0, JSON.stringify(r), 'the lock contention path of flushDeferredGlobalConfigSaves in src/utils/config/globalConfig.ts must wait on the release callback and never call Atomics.wait')
+  check('one later publish carries all startup metadata and the undeclared key, and clears the queue', r.writesAfter === 2 && r.pendingAfter === false && typeof disk.firstStartTime === 'string' && disk.remoteControlAtStartup === true && !('toolOutput' in disk) && disk.notAConfigKey === true, JSON.stringify(r), HINT_STARTUP_RECORDS)
 }
 
 section('exhausted background retries preserve pending data for a later save')
@@ -275,8 +278,8 @@ section('exhausted background retries preserve pending data for a later save')
     out.writesAfter = g.getGlobalConfigWriteCount()
   `)
   const after = r.after as Record<string, unknown>
-  check('exhaustion records a refusal without publishing or discarding the update', r.refusals === 1 && Number(r.callbacks) > 0 && r.pending === true && r.cache === 5 && r.disk === 4 && r.writes === 1, JSON.stringify(r))
-  check('later flushes publish once and retain an intervening external change', after.numStartups === 5 && after.theme === 'not-a-theme' && r.pendingAfter === false && r.writesAfter === 2, JSON.stringify(r))
+  check('exhaustion records a refusal without publishing or discarding the update', r.refusals === 1 && Number(r.callbacks) > 0 && r.pending === true && r.cache === 5 && r.disk === 4 && r.writes === 1, JSON.stringify(r), 'flushDeferredGlobalConfigSaves in src/utils/config/globalConfig.ts must count a contention refusal and keep the update pending when its retries run out')
+  check('later flushes publish once and retain an intervening external change', after.numStartups === 5 && after.theme === 'not-a-theme' && r.pendingAfter === false && r.writesAfter === 2, JSON.stringify(r), 'a later flush in src/utils/config/globalConfig.ts must publish the kept update once on top of the external change')
 }
 
 section('process exit publishes startup metadata without the background task')
@@ -300,7 +303,7 @@ section('process exit publishes startup metadata without the background task')
     })
     process.exit(0)
   `)
-  check('exit synchronously publishes the first-start and diagnostic records without granting trust', r.before === null && r.pendingBefore === true && typeof r.started === 'string' && r.posture === 'standard' && r.trusted === false && r.pendingAfter === false, JSON.stringify(r))
+  check('exit synchronously publishes the first-start and diagnostic records without granting trust', r.before === null && r.pendingBefore === true && typeof r.started === 'string' && r.posture === 'standard' && r.trusted === false && r.pendingAfter === false, JSON.stringify(r), HINT_STARTUP_RECORDS)
 }
 
 

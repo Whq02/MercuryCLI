@@ -11,7 +11,8 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spell
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const failHint = cond ? '' : ' | to fix: the older-chats count and rows come from olderChatsCensus and parkedBoardRows in src/services/concourse/concourseSnapshot.ts; declared controls and legends from CONCOURSE_CONTROLS and regionKeysFor in src/components/concourse/controlManifest.ts; the live composer lock and paint from liveComposerGateOf and liveComposerPaintOf in src/components/concourse/screen/composerGate.ts(x), whichever the label names'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${failHint}`)
 }
 
 const { enableConfigs } = await import('../../src/utils/config.js')

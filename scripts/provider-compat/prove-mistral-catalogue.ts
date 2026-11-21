@@ -23,7 +23,8 @@ const { resolveModelPricing } = await import('../../src/services/usage/modelCost
 const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
 const { validateModel } = await import('../../src/services/providers/validateModel.ts')
 let count = 0
-const check = (name: string, ok: unknown): void => { assert.ok(ok, name); count++; console.log(`[PASS] ${name}`) }
+const mistralFailureHint = 'Fix the behaviour this check names in src/services/providers/mistral/mistralCatalogue.ts (refreshMistralCatalogue, mistralCatalogueRows, mistralListedModel, newestMistralModel, getCachedMistralCatalogue) or src/services/providers/mistral/mistralAdapter.ts (mistralCatalogueEntries); for routing, price, context or effort checks see the module the imported function comes from at the top of this file.'
+const check = (name: string, ok: unknown): void => { assert.ok(ok, `${name} | ${mistralFailureHint}`); count++; console.log(`[PASS] ${name}`) }
 let calls = 0
 const page = (data: unknown[], status = 200): typeof fetch => (async (url, init) => {
   calls++

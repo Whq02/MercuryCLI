@@ -30,7 +30,7 @@ if (process.argv[2] === '--child') {
   const scratch = mkdtempSync(join(tmpdir(), 'transaction-frames-'))
   const comparison = process.argv[2]
   let failures = 0
-  const check = (label: string, ok: boolean) => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`) }
+  const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` - ${detail}` : ''}`) }
   try {
     const { resolveCaptureDriver, captureEngineEntry, vshotBudgetMs } = await import('../lib/captureDriver.js')
     const driver = resolveCaptureDriver()
@@ -45,9 +45,12 @@ if (process.argv[2] === '--child') {
       const grid = capture(root, 'tip')
       console.log(grid)
       check(`T13 @${cols} historical inputs and results render`, grid.includes('begin x') && grid.includes('step apply [failed] tx-1') &&
-        grid.includes('resume tx-1') && grid.includes('Noted [ok] apply on tx-1 (1 step(s)).') && grid.includes('TRANSACTION REPLAY END'))
-      check(`@${cols} automatic status is visible`, grid.includes('unsaved record [open]') && grid.includes('test: bun test'))
-      if (comparison) check(`@${cols} frames match the base renderer exactly`, capture(comparison, 'base') === grid)
+        grid.includes('resume tx-1') && grid.includes('Noted [ok] apply on tx-1 (1 step(s)).') && grid.includes('TRANSACTION REPLAY END'),
+        'hint: the grid printed above lacks a historical use or result line; fix renderToolUseMessage and renderToolResultMessage in src/tools/TransactionTool/UI.tsx')
+      check(`@${cols} automatic status is visible`, grid.includes('unsaved record [open]') && grid.includes('test: bun test'),
+        'hint: the grid printed above lacks the automatic status text; fix renderToolResultMessage for op status in src/tools/TransactionTool/UI.tsx')
+      if (comparison) check(`@${cols} frames match the base renderer exactly`, capture(comparison, 'base') === grid,
+        'hint: the frame from the base source tree differs from the one printed above; compare src/tools/TransactionTool/UI.tsx between the two trees')
     }
   } finally {
     rmSync(scratch, { recursive: true, force: true })

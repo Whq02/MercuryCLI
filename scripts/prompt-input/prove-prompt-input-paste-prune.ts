@@ -11,8 +11,9 @@ process.env.MERCURY_CONFIG_DIR = home
 const { scenario, cleanupScenario } = await import('../ui/renderScenarios.ts')
 
 let failures = 0
+const pastePruneWhere = 'a big paste must reach the durable draft with its chip, text and content: fix boundDraft and the draft save in src/utils/promptDraft.ts, and rebuild dist/mercury.mjs before reading the capture'
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? (detail ? ` — ${detail}` : '') : ` — ${detail ? `${detail}; ` : ''}${pastePruneWhere}`}`)
   if (!ok) failures = 1
 }
 
@@ -29,7 +30,7 @@ function capture(tag: string, sends: unknown[], total: number): string[] {
     timeout: vshotBudgetMs(200_000),
     env: { ...process.env, MERCURY_AWAY_SUMMARY: '0', MERCURY_CONFIG_DIR: home },
   })
-  if (res.status !== 0) throw new Error(`vshot ${tag} failed: ${res.stderr?.slice(-500)}`)
+  if (res.status !== 0) throw new Error(`vshot ${tag} failed: ${res.stderr?.slice(-500)}; run scripts/ui/vshot.py with ${cfgPath} by hand after rebuilding dist/mercury.mjs`)
   return rowsOf(JSON.parse(readFileSync(out, 'utf8')) as Grid)
 }
 

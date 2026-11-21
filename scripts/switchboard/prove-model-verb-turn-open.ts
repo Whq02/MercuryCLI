@@ -7,7 +7,8 @@ const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const failHint = ok ? '' : ' | to fix: the turn-open predicate is seatTurnOpen in src/daemon/sessionSeat/state.ts (exported by src/daemon/sessionSeat.ts); the set_model hold-until-turn-end answer and the session/applied notification follow the wire contract in src/runner/wire/sessionVerbs.ts, with the verb handled by the runner behind it'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${failHint}`)
 }
 
 const seat = await import(join(SRC, 'daemon/sessionSeat.ts'))

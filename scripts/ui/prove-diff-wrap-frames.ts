@@ -30,7 +30,7 @@ import type { StructuredPatchHunk } from '../../src/utils/diff.js'
 let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}${pass ? '' : ' — the wrap and band paint of the diff box is in src/components/FileEditToolUpdatedMessage.tsx and src/components/StructuredDiffList.tsx'}`)
 }
 const arg = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)

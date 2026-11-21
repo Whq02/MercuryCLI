@@ -6,7 +6,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix boundTailForInline (its row cut, open-fence carry and fenceFoldCensus counters) in src/components/LiveStreamingTail.tsx, or the oracle in this file if the intended bound changed` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -7,7 +7,7 @@ const check = (name: string, ok: boolean, detail = ''): void => {
     console.log(`  ok  ${name}`)
   } else {
     failures++
-    console.error(`  RED ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error(`  RED ${name} — ${detail ? `${detail} — ` : ''}fix caretVerticalOp in src/components/concourse/lineDraft.ts so this case holds`)
   }
 }
 const NL = String.fromCharCode(10)

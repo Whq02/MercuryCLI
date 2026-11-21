@@ -19,8 +19,10 @@ const NEVER = 'deadbeef-aaaa-4bbb-8ccc-00000000dead'
 const HOUR = 3_600_000
 
 let failures = 0
+let failWhere = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, failWhere].filter(Boolean).join(' — ')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && shown ? ` — ${shown}` : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
@@ -127,6 +129,7 @@ function boot(h: Home, extraEnv: Record<string, string> = {}): { screen: string;
 const offered = (screen: string): string | null => /Resume that session/.test(screen) ? (/session ([0-9a-f]{8})/.exec(screen)?.[1] ?? '?') : null
 const saysGone = (screen: string): boolean => /its transcript is gone/.test(screen)
 
+failWhere = 'build the artifact with bun run build.ts, or point MERCURY_CRASH_REENTRY_BIN at a built mercury.mjs'
 section('§0 the artifact')
 check('dist/mercury.mjs is built (this proof drives the artifact)', existsSync(BIN), BIN)
 if (!existsSync(BIN)) {
@@ -134,6 +137,7 @@ if (!existsSync(BIN)) {
   process.exit(1)
 }
 
+failWhere = 'the boot notice is built in src/screens/chat/useChatBoot.tsx, the offered way back is src/components/CrashResumeDialog.tsx, the transcript is chosen by resolveCrashTranscript in src/utils/crashReport.ts (the registry road ties the report pid to a sessions/<pid>.json)'
 section('§1 the report names a session the transcript store never held, but the registry ties its pid to the transcript')
 {
   const h = seedHome('registry')
@@ -148,6 +152,7 @@ section('§1 the report names a session the transcript store never held, but the
   check('the transcript-is-gone words are not said', !saysGone(b.screen))
 }
 
+failWhere = 'the boot notice is built in src/screens/chat/useChatBoot.tsx, the offered way back is src/components/CrashResumeDialog.tsx, the transcript is chosen by resolveCrashTranscript in src/utils/crashReport.ts (the project road takes the newest transcript of the crash project)'
 section('§2 the report carries no session id at all; the project holds the crashed transcript')
 {
   const h = seedHome('null-id')
@@ -159,6 +164,7 @@ section('§2 the report carries no session id at all; the project holds the cras
   check(`the dialog offers the newest transcript of that project (${CRASHED.slice(0, 8)})`, offered(b.screen) === CRASHED.slice(0, 8), `offered: ${offered(b.screen) ?? 'nothing'}; gone: ${saysGone(b.screen)}`)
 }
 
+failWhere = 'the boot notice is built in src/screens/chat/useChatBoot.tsx, the offered way back is src/components/CrashResumeDialog.tsx, the transcript is chosen by resolveCrashTranscript in src/utils/crashReport.ts (the moved road follows cleared-sessions.json)'
 section('§3 the report carries the id a /clear moved on from; the work went on in the transcript born at the clear')
 {
   const h = seedHome('cleared')
@@ -173,6 +179,7 @@ section('§3 the report carries the id a /clear moved on from; the work went on 
   check(`the dialog offers the transcript the /clear moved the session to (${MOVED_TO.slice(0, 8)})`, offered(b.screen) === MOVED_TO.slice(0, 8), `offered: ${offered(b.screen) ?? 'nothing'}`)
 }
 
+failWhere = 'the notice text (its transcript is gone) is built in src/screens/chat/useChatBoot.tsx, and resolveCrashTranscript in src/utils/crashReport.ts decides whether a transcript exists'
 section('§4 a report whose transcript truly does not exist still says so')
 {
   const h = seedHome('gone')
@@ -186,6 +193,7 @@ section('§4 a report whose transcript truly does not exist still says so')
   check('the notice says the transcript is gone', saysGone(b.screen), b.screen.slice(0, 300))
 }
 
+failWhere = 'the report is written by persistCrashReport in src/utils/crashReport.ts, called from src/components/RowErrorBoundary.tsx; the back-in notice is built in src/screens/chat/useChatBoot.tsx'
 section('§5 a crash inside a chat records the chat itself: its id and its transcript; the next boot into it says so')
 {
   const h = seedHome('identity')
@@ -199,6 +207,7 @@ section('§5 a crash inside a chat records the chat itself: its id and its trans
   check('the notice inside that very chat says it is back in, offering no second door', /this is that session, back in/.test(crashed.screen) && offered(crashed.screen) === null, crashed.screen.slice(Math.max(0, at - 20), at + 260))
 }
 
+failWhere = 'change resolveCrashTranscript in src/utils/crashReport.ts (the road named in the label)'
 section('§6 the resolver, road by road')
 {
   const mod = (await import('../../src/utils/crashReport.ts')) as Record<string, unknown>

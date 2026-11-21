@@ -28,7 +28,12 @@ const { addShelfItem, createComposerDocument, reorderShelfItem } = await import(
 const { hashPastedText, storePastedText } = await import('../../src/utils/pasteStore.ts')
 const { cacheImagePath, storeImage } = await import('../../src/utils/imageStore.ts')
 
-const t = checker()
+const baseChecker = checker()
+const t = {
+  ...baseChecker,
+  check: (label: string, cond: boolean, detail = '', hint = ''): void =>
+    baseChecker.check(label, cond, cond ? detail : [detail, hint].filter(Boolean).join(' — ')),
+}
 
 const TINY_PNG =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
@@ -69,15 +74,18 @@ t.section('§1 — attach: scope, interview-wide default, duplicate no-op')
     'three refs attached in order',
     s.context.map(c => c.refId).join(',') === 'image:1,paste:abc,file:src/x.ts',
     s.context.map(c => c.refId).join(','),
+    'attachContext in src/services/interview/controller.ts must append the context-attached event, and its case in applyEvent in src/services/interview/contracts.ts must add the ref in order',
   )
-  t.check('the image is scoped to decision 1', s.contextScope['image:1'] === q1.id)
-  t.check('the paste is scoped to decision 2', s.contextScope['paste:abc'] === q2.id)
-  t.check('the file is interview-wide (absent scope)', s.contextScope['file:src/x.ts'] === undefined)
+  t.check('the image is scoped to decision 1', s.contextScope['image:1'] === q1.id, '', 'the context-attached case in applyEvent (src/services/interview/contracts.ts) must record the questionId in contextScope')
+  t.check('the paste is scoped to decision 2', s.contextScope['paste:abc'] === q2.id, '', 'the context-attached case in applyEvent (src/services/interview/contracts.ts) must record the questionId in contextScope')
+  t.check('the file is interview-wide (absent scope)', s.contextScope['file:src/x.ts'] === undefined, '', 'an attach with no questionId must leave contextScope empty for that ref: context-attached case in applyEvent, src/services/interview/contracts.ts')
   const before = s
   attachContext({ refId: 'image:1', kind: 'image', label: 'diagram.png' }, q1.id)
   t.check(
     'a duplicate refId attach is a semantic no-op (slice identity)',
     interviewSnapshot().context === before.context && interviewSnapshot().contextScope === before.contextScope,
+    '',
+    'a repeated refId must return the same state slices: context-attached case in applyEvent, src/services/interview/contracts.ts',
   )
 }
 
@@ -85,18 +93,21 @@ t.section('§2 — detach removes exactly one; identity and order survive')
 {
   detachContext('paste:abc')
   const s = interviewSnapshot()
-  t.check('the detached ref is gone', !s.context.some(c => c.refId === 'paste:abc'))
+  t.check('the detached ref is gone', !s.context.some(c => c.refId === 'paste:abc'), '', 'detachContext in src/services/interview/controller.ts and the context-detached case in applyEvent in src/services/interview/contracts.ts must remove the ref')
   t.check(
     'the OTHERS keep identity and order',
     s.context.map(c => c.refId).join(',') === 'image:1,file:src/x.ts',
     s.context.map(c => c.refId).join(','),
+    'the context-detached case in applyEvent (src/services/interview/contracts.ts) must remove only the named ref and keep the order of the others',
   )
-  t.check('its scope entry is cleaned', !('paste:abc' in s.contextScope))
+  t.check('its scope entry is cleaned', !('paste:abc' in s.contextScope), '', 'the context-detached case in applyEvent (src/services/interview/contracts.ts) must delete the ref from contextScope')
   const before = s
   detachContext('paste:abc')
   t.check(
     'detaching an absent ref is a semantic no-op (slice identity)',
     interviewSnapshot().context === before.context && interviewSnapshot().contextScope === before.contextScope,
+    '',
+    'a detach of an unknown refId must return the same state slices: context-detached case in applyEvent, src/services/interview/contracts.ts',
   )
 }
 
@@ -104,8 +115,8 @@ t.section('§3 — undo is re-attach: the SAME refId, the same scope')
 {
   attachContext({ refId: 'paste:abc', kind: 'large-paste', label: 'Pasted text · 40 lines' }, q2.id)
   const s = interviewSnapshot()
-  t.check('the ref is back under its own identity', s.context.some(c => c.refId === 'paste:abc'))
-  t.check('with its per-decision scope restored', s.contextScope['paste:abc'] === q2.id)
+  t.check('the ref is back under its own identity', s.context.some(c => c.refId === 'paste:abc'), '', 'attachContext (src/services/interview/controller.ts) must accept the same refId again after a detach')
+  t.check('with its per-decision scope restored', s.contextScope['paste:abc'] === q2.id, '', 'the context-attached case in applyEvent (src/services/interview/contracts.ts) must store the questionId again')
 }
 
 t.section('§4 — the decision record joins context BY refId per decision')
@@ -119,13 +130,15 @@ t.section('§4 — the decision record joins context BY refId per decision')
     'decision 1 carries its scoped ref + the interview-wide ref',
     d1.contextRefIds.join(',') === 'image:1,file:src/x.ts',
     d1.contextRefIds.join(','),
+    'buildDecisionRecord in src/services/interview/decisionRecord.ts must list the refs scoped to the decision plus the interview-wide refs',
   )
   t.check(
     'decision 2 carries ITS scoped ref + the interview-wide ref',
     d2.contextRefIds.join(',') === 'file:src/x.ts,paste:abc',
     d2.contextRefIds.join(','),
+    'buildDecisionRecord in src/services/interview/decisionRecord.ts must list the refs scoped to the decision plus the interview-wide refs',
   )
-  t.check('no decision carries another decision\'s scoped ref', !d1.contextRefIds.includes('paste:abc') && !d2.contextRefIds.includes('image:1'))
+  t.check('no decision carries another decision\'s scoped ref', !d1.contextRefIds.includes('paste:abc') && !d2.contextRefIds.includes('image:1'), '', 'the contextRefIds filter in buildDecisionRecord (src/services/interview/decisionRecord.ts) must drop refs scoped to a different decision')
 }
 
 t.section('§5 — reorder lives at the shelf owner: a pure permutation of ids')
@@ -140,11 +153,15 @@ t.section('§5 — reorder lives at the shelf owner: a pure permutation of ids')
     'a reorder is a permutation — same ids, new order',
     [...reordered.items.map(i => i.id)].sort().join(',') === [...ids].sort().join(',') &&
       reordered.items.map(i => i.id).join(',') !== ids.join(','),
+    '',
+    'reorderShelfItem in src/input-core/composer-document.ts must only permute the existing items, moving the item one place by the given offset',
   )
-  t.check('the moved item kept its identity and ref', reordered.items[1]!.id === ids[2] && reordered.items[1]!.ref === 'mercury://session/x')
+  t.check('the moved item kept its identity and ref', reordered.items[1]!.id === ids[2] && reordered.items[1]!.ref === 'mercury://session/x', '', 'reorderShelfItem in src/input-core/composer-document.ts must move the item without rebuilding its id or ref')
   t.check(
     'the interview joins by refId, order-independent (identity, not position)',
     imageRefNumericId('image:1') === 1 && imageRefNumericId('paste:abc') === null,
+    '',
+    'imageRefNumericId in src/services/interview/controller.ts must return the number for an image: refId and null for any other refId',
   )
 }
 
@@ -163,17 +180,19 @@ t.section('§6 — the boundary reads each body once from its owner store')
   const blocks = (await buildContextBlocks(interviewSnapshot())) ?? []
   const imageBlock = blocks.find(b => b.type === 'image')
   const textBlock = blocks.find(b => b.type === 'text')
-  t.check('the image body arrived from the imageStore', imageBlock !== undefined && (imageBlock as { source: { data: string } }).source.data.length > 0)
-  t.check('the text body arrived from the pasteStore', textBlock !== undefined && (textBlock as { text: string }).text.includes('pasted line 60'))
+  t.check('the image body arrived from the imageStore', imageBlock !== undefined && (imageBlock as { source: { data: string } }).source.data.length > 0, '', 'buildContextBlocks in src/services/interview/controller.ts must read the image body from the image store (src/utils/imageStore.ts) for an image: ref')
+  t.check('the text body arrived from the pasteStore', textBlock !== undefined && (textBlock as { text: string }).text.includes('pasted line 60'), '', 'buildContextBlocks in src/services/interview/controller.ts must read the pasted text from the paste store (src/utils/pasteStore.ts) for a paste: ref')
   t.check(
     'tagged with its refId AND its decision',
     (textBlock as { text: string } | undefined)?.text.includes(`ref="paste:${hash}"`) === true &&
       (textBlock as { text: string } | undefined)?.text.includes(`decision="${q2.decisionId}"`) === true,
+    '',
+    'buildContextBlocks in src/services/interview/controller.ts must tag each text block with its ref and decision attributes',
   )
 
   attachContext({ refId: 'image:999', kind: 'image', label: 'lost.png' }, q1.id)
   const withMissing = (await buildContextBlocks(interviewSnapshot())) ?? []
-  t.check('a missing body is a bounded skip', withMissing.length === blocks.length)
+  t.check('a missing body is a bounded skip', withMissing.length === blocks.length, '', 'buildContextBlocks in src/services/interview/controller.ts must skip a ref whose body is not in the store instead of adding a block or throwing')
 }
 
 rmSync(scratch, { recursive: true, force: true })

@@ -15,7 +15,8 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const lifetimeWhere = 'verdict lifetime: anthropicLimitVerdict and extractQuotaStatusFromHeaders in src/services/anthropicLimits.ts; refusal words and dispatch gate: anthropicLimitReads, resolveProviderUsability, delegationDispatchBlocker in src/services/providers/providerUsability.ts; cap-return window: observedFamilyWindow in src/services/capFailover.ts'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}fix the owner this label names (${lifetimeWhere})` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

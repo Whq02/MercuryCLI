@@ -15,6 +15,9 @@ function check(label: string, cond: boolean, detail = ''): void {
 const ROOT = join(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const VSHOT = join(ROOT, 'scripts', 'ui', 'vshot.py')
+const SENDS_HINT = 'a send never found its awaitText on screen; open the saved grid.json (set USAGE_WARNING_SHOT_DIR to keep it) and compare with the awaitText of that send in this file'
+const STRIP_HINT = 'the strip text is built in warningFacts and providerLimitWarningFacts in src/services/providers/limitWarning.ts; the notice is shown by src/hooks/notifs/useRateLimitWarningNotification.tsx'
+const CLEAR_HINT = 'the notice should leave the screen after it shows; see src/hooks/notifs/useRateLimitWarningNotification.tsx'
 if (!existsSync(DIST)) {
   console.log('  [SKIP] dist/mercury.mjs absent — build first (the gate prebuilds)')
   process.exit(0)
@@ -173,15 +176,15 @@ for (const cols of [178, 120]) {
     },
   )
   console.log(`\nanthropic fixture · ${cols} cols`)
-  check(`every send became due (${cols})`, sends > 0 && receipts === sends)
+  check(`every send became due (${cols})`, sends > 0 && receipts === sends, `${receipts} receipts for ${sends} sends; ${SENDS_HINT}`)
   const frame = (marks.warning ?? '').replace(/\s+/g, ' ')
   check(
     `the strip paints the ruled grammar (${cols})`,
     /Anthropic: 80% of the weekly limit used · resets /.test(frame),
-    frame.slice(-260) || '(no warning frame)',
+    `${frame.slice(-260) || '(no warning frame)'}; ${STRIP_HINT}`,
   )
-  check(`…with the warn lead (${cols})`, frame.includes('▲ Anthropic: 80%'), frame.slice(-140))
-  check(`the hints return once the notice clears (${cols})`, text.includes('? for shortcuts') && !text.includes('limit used'), text.slice(-200))
+  check(`…with the warn lead (${cols})`, frame.includes('▲ Anthropic: 80%'), `${frame.slice(-140)}; ${STRIP_HINT}`)
+  check(`the hints return once the notice clears (${cols})`, text.includes('? for shortcuts') && !text.includes('limit used'), `${text.slice(-200)}; ${CLEAR_HINT}`)
 }
 
 for (const cols of [178, 120]) {
@@ -228,15 +231,15 @@ for (const cols of [178, 120]) {
     },
   )
   console.log(`\nanthropic per-model-pool fixture · ${cols} cols`)
-  check(`every send became due (${cols})`, sends > 0 && receipts === sends)
+  check(`every send became due (${cols})`, sends > 0 && receipts === sends, `${receipts} receipts for ${sends} sends; ${SENDS_HINT}`)
   const frame = (marks.warning ?? '').replace(/\s+/g, ' ')
   check(
     `the strip names the session model's OWN pool, not the calm all-models week (${cols})`,
     /Anthropic: 90% of the Opus limit used · resets /.test(frame) && !/of the Fable limit used/.test(frame),
-    frame.slice(-260) || '(no warning frame)',
+    `${frame.slice(-260) || '(no warning frame)'}; ${STRIP_HINT}`,
   )
-  check(`…with the warn lead (${cols})`, frame.includes('▲ Anthropic: 90%'), frame.slice(-140))
-  check(`the hints return once the notice clears (${cols})`, text.includes('? for shortcuts') && !text.includes('limit used'), text.slice(-200))
+  check(`…with the warn lead (${cols})`, frame.includes('▲ Anthropic: 90%'), `${frame.slice(-140)}; ${STRIP_HINT}`)
+  check(`the hints return once the notice clears (${cols})`, text.includes('? for shortcuts') && !text.includes('limit used'), `${text.slice(-200)}; ${CLEAR_HINT}`)
 }
 
 const requestedPort = Number(process.env.WARNING_STRIP_PORT ?? 0)
@@ -312,15 +315,15 @@ for (const cols of [178, 120]) {
     },
   )
   console.log(`\nopenrouter fixture · ${cols} cols`)
-  check(`every send became due (${cols})`, sends > 0 && receipts === sends)
+  check(`every send became due (${cols})`, sends > 0 && receipts === sends, `${receipts} receipts for ${sends} sends; ${SENDS_HINT}`)
   const frame = (marks.warning ?? '').replace(/\s+/g, ' ')
   check(
     `the strip paints the ruled grammar (${cols})`,
     frame.includes('OpenRouter: 84% of the credit cap used'),
-    frame.slice(-260) || '(no warning frame)',
+    `${frame.slice(-260) || '(no warning frame)'}; ${STRIP_HINT}`,
   )
-  check(`…with the warn lead (${cols})`, frame.includes('▲ OpenRouter: 84%'), frame.slice(-140))
-  check(`the hints return once the notice clears (${cols})`, text.includes('? for shortcuts') && !text.includes('credit cap used'), text.slice(-200))
+  check(`…with the warn lead (${cols})`, frame.includes('▲ OpenRouter: 84%'), `${frame.slice(-140)}; ${STRIP_HINT}`)
+  check(`the hints return once the notice clears (${cols})`, text.includes('? for shortcuts') && !text.includes('credit cap used'), `${text.slice(-200)}; ${CLEAR_HINT}`)
 }
 
 server.close()

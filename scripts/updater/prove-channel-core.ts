@@ -24,8 +24,9 @@ import {
 import { createHash } from 'node:crypto'
 
 let failures = 0
+const channelCoreFixHint = 'fix the function this check exercises in src/services/privateChannel/channelCore.ts (parsePrivateTag, comparePrivateVersions, assetNameFor, selectRelease, selectBridgePrevious, lookupChecksum, judgeExtractedLayout, describePayload, projectReleases, resolveChannelRepo or rateLimitResetMinutes, as the check name says)'
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}${channelCoreFixHint}`}`)
   if (!cond) failures++
 }
 const createHashHex = (text: string): string => createHash('sha256').update(text).digest('hex')

@@ -7,9 +7,9 @@ import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
 
 console.log('============================================================')
@@ -61,7 +61,7 @@ console.log('\n── §2 REAL BINARY: CI=true, zero credentials, seeded home �
       MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
     },
   })
-  check('the capture completed (vshot exit 0 — the wedge is the exit-4 path)', res.status === 0, `exit=${res.status} ${String(res.stderr ?? '').slice(0, 200)}`)
+  check('the capture completed (vshot exit 0 — the wedge is the exit-4 path)', res.status === 0, `exit=${res.status} ${String(res.stderr ?? '').slice(0, 200)}`, 'run bun run build.ts so dist/mercury.mjs exists, then rerun with CI_KEYLESS_KEEP_SCRATCH=1 and read the boot face in the kept scratch folder; with CI=true and no credentials the app must reach the boot face, not wait for sign-in')
 
   type Grid = Array<Array<{ c: string }>>
   const gridText = (g: Grid): string => g.map(row => row.map(c => c.c).join('')).join('\n')
@@ -76,9 +76,9 @@ console.log('\n── §2 REAL BINARY: CI=true, zero credentials, seeded home �
     painted = boot.replace(/\s/g, '').length
   } catch {
   }
-  check('the Logins row adverts the way in (sign in to providers)', boot.includes('Logins') && boot.includes('sign in to providers'))
-  check('the face is live (New Session standing — never an error screen, never a wedge)', boot.includes('New Session'))
-  check('a real paint, not a near-blank grid', painted > 200, `${painted} painted glyphs`)
+  check('the Logins row adverts the way in (sign in to providers)', boot.includes('Logins') && boot.includes('sign in to providers'), '', 'the Logins row text comes from loginsGlance in src/components/bootLogins/facts.ts; the boot face must paint it when no provider is signed in')
+  check('the face is live (New Session standing — never an error screen, never a wedge)', boot.includes('New Session'), '', 'the boot face did not paint New Session; rerun with CI_KEYLESS_KEEP_SCRATCH=1 and look at the captured boot.json grid for an error screen or an empty frame')
+  check('a real paint, not a near-blank grid', painted > 200, `${painted} painted glyphs`, 'the captured frame is near blank; the app drew little or nothing before the capture ended, so check that dist/mercury.mjs is current and that the vshot capture saw the boot face')
 
   if (process.env.CI_KEYLESS_KEEP_SCRATCH !== '1') rmSync(scratch, { recursive: true, force: true })
   else console.log(`scratch kept: ${scratch}`)

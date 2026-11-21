@@ -10,8 +10,9 @@ const REEL = join(ROOT, 'scripts/motion/splash-reel.py')
 const PY = '/usr/bin/python3'
 
 let failures = 0
+const failureWhere = 'change the splash scene in assets/splash/mercury-splash.mjs (the motion law this check names); scripts/motion/splash-reel.py only records and measures it'
 function check(name: string, ok: boolean, detail = ''): void {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ' — ' + failureWhere}`)
   if (!ok) failures++
 }
 

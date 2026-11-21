@@ -31,7 +31,7 @@ try {
     const frame = m.screen()
     const ok = frame.includes('Google sign-in') && frame.includes(email) === shown
     if (!ok) failures++
-    console.log(`${ok ? 'PASS' : 'FAIL'} Gemini usage obeys identity visibility=${shown}${ok ? '' : `\n${frame}`}`)
+    console.log(`${ok ? 'PASS' : 'FAIL'} Gemini usage obeys identity visibility=${shown}${ok ? '' : `\nThe Gemini section of the Usage screen must show the Google sign-in heading, and show the account email only when view.accountIdentity is true; check the Gemini block in src/components/Settings/usage/sections.tsx and shownIdentityWords in src/services/providers/providerIdentityLine.ts.\n${frame}`}`)
     m.unmount()
   }
 } finally {

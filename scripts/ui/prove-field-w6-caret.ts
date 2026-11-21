@@ -6,7 +6,7 @@ const check = (name: string, ok: boolean, detail?: string): void => {
   if (ok) console.log(`  ok  ${name}`)
   else {
     failures++
-    console.error(`  RED ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error(`  RED ${name}${detail ? ` — ${detail}` : ''} | fix Cursor.insert in src/utils/Cursor.ts: the caret must land after the inserted text measured in the normalised (composed) document, never at the isolated-insert length`)
   }
 }
 

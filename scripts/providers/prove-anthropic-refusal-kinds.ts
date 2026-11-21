@@ -20,7 +20,8 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const refusalWhere = 'classification and words: classifyAnthropicRefusal, anthropicSignInWords, anthropicWindowWords, standingAnthropicRefusal in src/services/providers/anthropicRefusal.ts; dispatch refusal: delegationDispatchBlocker in src/services/providers/providerUsability.ts; latch: extractQuotaStatusFromError in src/services/anthropicLimits.ts; chat notice: getAssistantMessageFromError in src/services/api/errors.ts'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}fix the owner this label names (${refusalWhere})` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

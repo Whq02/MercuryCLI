@@ -69,8 +69,8 @@ if (process.env.REWESC_CHILD) {
   const { CONFIG_HOME, scenario, cleanupScenario } = await import('../ui/renderScenarios.ts')
 
   let failures = 0
-  const check = (name: string, ok: boolean, detail = ''): void => {
-    console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail && !ok ? ` — ${detail}` : ''}`)
+  const check = (name: string, ok: boolean, detail = '', hint = ''): void => {
+    console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail && !ok ? ` — ${detail}` : ''}${hint && !ok ? ` — ${hint}` : ''}`)
     if (!ok) failures++
   }
   const section = (name: string): void => {
@@ -118,7 +118,7 @@ if (process.env.REWESC_CHILD) {
       },
     })
     if (res.status !== 0) {
-      check(`${tag}: PTY journey completed`, false, (res.stderr ?? '').slice(-300))
+      check(`${tag}: PTY journey completed`, false, (res.stderr ?? '').slice(-300), 'the vshot capture of the resume-2turn scenario failed or timed out; the stderr above says why, and a stale dist build or a missing scenario in scripts/ui/renderScenarios.ts is the usual cause')
       return null
     }
     check(`${tag}: PTY journey completed`, true)
@@ -144,7 +144,7 @@ if (process.env.REWESC_CHILD) {
       },
     })
     if (res.status !== 0) {
-      check(`${tag}: fixture journey completed`, false, (res.stderr ?? '').slice(-300))
+      check(`${tag}: fixture journey completed`, false, (res.stderr ?? '').slice(-300), 'the fixture child (REWESC_CHILD branch of this file, rendering MessageSelector) failed or timed out; the stderr above says why')
       return null
     }
     check(`${tag}: fixture journey completed`, true)
@@ -172,11 +172,11 @@ if (process.env.REWESC_CHILD) {
     )
     if (p) {
       const open = mark(p, 'open')
-      check('the pick list was up when the closing esc fired', open !== undefined && textOf(open.grid).includes(PICK_TITLE))
-      check("…and its footer promises 'esc close'", open !== undefined && textOf(open.grid).includes(PICK_FOOTER))
+      check('the pick list was up when the closing esc fired', open !== undefined && textOf(open.grid).includes(PICK_TITLE), '', 'esc esc should open the rewind pick list in src/components/MessageSelector.tsx; it was not painted before the closing esc')
+      check("…and its footer promises 'esc close'", open !== undefined && textOf(open.grid).includes(PICK_FOOTER), '', 'the pick list footer in src/components/MessageSelector.tsx must read esc close')
       const final = textOf(p.grid)
-      check('esc CLOSED the rewind surface (no chrome left)', !final.includes(PICK_TITLE), 'Rewind still painted')
-      check('…back to the chat with the composer up', final.includes('❯'))
+      check('esc CLOSED the rewind surface (no chrome left)', !final.includes(PICK_TITLE), 'Rewind still painted', 'one esc must call onClose from the pick phase key handling in src/components/MessageSelector.tsx')
+      check('…back to the chat with the composer up', final.includes('❯'), '', 'after the rewind surface closes the chat composer prompt must be painted again')
       check('…and Mercury stayed open', p.endReason !== 'eof', `endReason=${p.endReason}`)
     }
     cleanupScenario('resume-2turn')
@@ -199,11 +199,11 @@ if (process.env.REWESC_CHILD) {
     )
     if (p) {
       const confirm = mark(p, 'confirm')
-      check('the confirm phase painted before its esc', confirm !== undefined && textOf(confirm.grid).includes(CONFIRM_MARKER))
+      check('the confirm phase painted before its esc', confirm !== undefined && textOf(confirm.grid).includes(CONFIRM_MARKER), '', 'selecting a message with enter must show the confirm phase in src/components/MessageSelector.tsx')
       const pick = mark(p, 'pick-again')
-      check('esc from confirm returned to the pick list', pick !== undefined && textOf(pick.grid).includes(PICK_TITLE))
+      check('esc from confirm returned to the pick list', pick !== undefined && textOf(pick.grid).includes(PICK_TITLE), '', 'esc in the confirm phase must step back to the pick list, not close; see the key handling in src/components/MessageSelector.tsx')
       const final = textOf(p.grid)
-      check('the second esc went home (no rewind chrome)', !final.includes(PICK_TITLE) && final.includes('❯'))
+      check('the second esc went home (no rewind chrome)', !final.includes(PICK_TITLE) && final.includes('❯'), '', 'esc from the pick list must close the rewind surface; see the key handling in src/components/MessageSelector.tsx')
     }
     cleanupScenario('resume-2turn')
   }
@@ -224,10 +224,10 @@ if (process.env.REWESC_CHILD) {
     )
     if (p) {
       const final = textOf(p.grid)
-      check('the restore CLOSED the rewind surface (no stale chrome)', !final.includes(PICK_TITLE), 'Rewind still painted')
-      check('the transcript kept the earlier turn', final.includes('first task'))
+      check('the restore CLOSED the rewind surface (no stale chrome)', !final.includes(PICK_TITLE), 'Rewind still painted', 'confirming the restore must close the selector via onClose in src/components/MessageSelector.tsx')
+      check('the transcript kept the earlier turn', final.includes('first task'), '', 'the resume-2turn scenario transcript lost the first turn after the restore')
       const composerRow = rowsOf(p.grid).find(l => l.includes('❯') && l.includes('second task'))
-      check('the rewound prompt is STAGED in the composer', composerRow !== undefined)
+      check('the rewound prompt is STAGED in the composer', composerRow !== undefined, '', 'after the restore the second task prompt must be put back in the composer')
       check('Mercury stayed open', p.endReason !== 'eof', `endReason=${p.endReason}`)
     }
     cleanupScenario('resume-2turn')
@@ -249,9 +249,9 @@ if (process.env.REWESC_CHILD) {
     )
     if (p) {
       const restoring = mark(p, 'restoring')
-      check("the 'Restoring…' wait was painted when esc fired", restoring !== undefined && textOf(restoring.grid).includes('Restoring'))
-      check('…and the wait names its own escape route', restoring !== undefined && textOf(restoring.grid).includes('esc returns to the chat'))
-      check('esc closed the surface from the restoring wait', textOf(p.grid).includes('SELECTOR-CLOSED'))
+      check("the 'Restoring…' wait was painted when esc fired", restoring !== undefined && textOf(restoring.grid).includes('Restoring'), '', 'while onRestore is pending MessageSelector.tsx must paint the Restoring line')
+      check('…and the wait names its own escape route', restoring !== undefined && textOf(restoring.grid).includes('esc returns to the chat'), '', 'the Restoring line in src/components/MessageSelector.tsx must carry the text esc returns to the chat')
+      check('esc closed the surface from the restoring wait', textOf(p.grid).includes('SELECTOR-CLOSED'), '', 'esc during the restoring wait must call onClose in src/components/MessageSelector.tsx')
     }
   }
 
@@ -271,8 +271,8 @@ if (process.env.REWESC_CHILD) {
     )
     if (p) {
       const err = mark(p, 'error')
-      check('the failure card was painted when esc fired', err !== undefined && textOf(err.grid).includes('Restore failed'))
-      check('ONE esc closed the failure card', textOf(p.grid).includes('SELECTOR-CLOSED'))
+      check('the failure card was painted when esc fired', err !== undefined && textOf(err.grid).includes('Restore failed'), '', 'a rejected onRestore must paint Restore failed in src/components/MessageSelector.tsx')
+      check('ONE esc closed the failure card', textOf(p.grid).includes('SELECTOR-CLOSED'), '', 'one esc on the failure card must call onClose in src/components/MessageSelector.tsx')
     }
   }
 

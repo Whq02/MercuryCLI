@@ -17,7 +17,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}fix the scenario headers and setters in src/services/mockRateLimits.ts (setMockRateLimitScenario, setMockUsagePercent, getMockHeaders), the decoding in extractQuotaStatusFromHeaders (src/services/anthropicLimits.ts), the tier percents in src/services/providers/usageTiers.ts, observedFamilyWindow (src/services/capFailover.ts) or providerLimitWarningFacts (src/services/providers/limitWarning.ts), whichever this label names` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

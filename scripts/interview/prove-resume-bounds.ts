@@ -22,7 +22,12 @@ const {
 const { rebuildInterview } = await import('../../src/services/interview/contracts.ts')
 const { readFileSync } = await import('node:fs')
 
-const t = checker()
+const baseChecker = checker()
+const t = {
+  ...baseChecker,
+  check: (label: string, cond: boolean, detail = '', hint = ''): void =>
+    baseChecker.check(label, cond, cond ? detail : [detail, hint].filter(Boolean).join(' — ')),
+}
 
 const INPUT = {
   questions: [
@@ -97,11 +102,13 @@ t.section('§1 — rebuild cost: a LINEAR slope envelope by operation count')
     `dedupe ops slope 100→200 is linear (${(o2 / o1).toFixed(2)}× ≤ ${SLOPE_MAX})`,
     o2 / Math.max(1, o1) <= SLOPE_MAX,
     `ops: ${o1} → ${o2}`,
+    'foldInterviewShared in src/services/interview/contracts.ts must dedupe event ids in constant time per event (the shared seen set), not by rescanning earlier events',
   )
   t.check(
     `dedupe ops slope 200→400 is linear (${(o3 / o2).toFixed(2)}× ≤ ${SLOPE_MAX})`,
     o3 / Math.max(1, o2) <= SLOPE_MAX,
     `ops: ${o2} → ${o3}`,
+    'foldInterviewShared in src/services/interview/contracts.ts must dedupe event ids in constant time per event (the shared seen set), not by rescanning earlier events',
   )
   const quadOps = (n: number): number => (n * (n - 1)) / 2
   t.check(
@@ -118,7 +125,7 @@ t.section('§1b — the absolute keystroke budget (separate from the complexity 
   const t2 = performance.now()
   for (let i = 0; i < 5; i++) rebuildInterview(big)
   const bigMs = (performance.now() - t2) / 5
-  t.check(`a full-session rebuild stays under 250 ms (${bigMs.toFixed(1)} ms)`, bigMs < 250)
+  t.check(`a full-session rebuild stays under 250 ms (${bigMs.toFixed(1)} ms)`, bigMs < 250, '', 'rebuildInterview in src/services/interview/contracts.ts folds a 400-event session too slowly: remove the per-event work that grows with the log')
 }
 
 t.section('§2 — worst-case adoption stays bounded by the capped file')
@@ -127,9 +134,9 @@ t.section('§2 — worst-case adoption stays bounded by the capped file')
   const t0 = performance.now()
   const adopted = adoptDurableSessionSync({ toolUseId: 'toolu_hist_0' })
   const ms = performance.now() - t0
-  t.check('the oldest session in a full file still adopts', adopted)
-  t.check(`adoption stays under 300 ms (${ms.toFixed(1)} ms)`, ms < 300)
-  t.check('the adopted state is complete', interviewSnapshot().questionOrder.length === 1)
+  t.check('the oldest session in a full file still adopts', adopted, '', 'adoptDurableSessionSync in src/services/interview/store.ts did not find toolu_hist_0 in the durable file: check the cap that drops sessions and the key lookup')
+  t.check(`adoption stays under 300 ms (${ms.toFixed(1)} ms)`, ms < 300, '', 'adoptDurableSessionSync in src/services/interview/store.ts is too slow on a full file: look at what it reads and rebuilds')
+  t.check('the adopted state is complete', interviewSnapshot().questionOrder.length === 1, '', 'adoptDurableSessionSync in src/services/interview/store.ts must rebuild the adopted session into the live state')
 }
 
 t.section('§3 — the session cap holds under churn')
@@ -138,11 +145,12 @@ t.section('§3 — the session cap holds under churn')
     'the durable file holds at most 10 sessions after 10 opens',
     Object.keys(file.sessions).length <= 10,
     `${Object.keys(file.sessions).length}`,
+    'the trim to MAX_SESSIONS in src/services/interview/store.ts must drop the oldest sessions when the log is written',
   )
   await seedSession('toolu_hist_extra_a', 10)
   await seedSession('toolu_hist_extra_b', 10)
   const after = JSON.parse(readFileSync(logPath, 'utf8')) as { sessions: Record<string, unknown> }
-  t.check('…and after 12', Object.keys(after.sessions).length <= 10, `${Object.keys(after.sessions).length}`)
+  t.check('…and after 12', Object.keys(after.sessions).length <= 10, `${Object.keys(after.sessions).length}`, 'the trim to MAX_SESSIONS in src/services/interview/store.ts must drop the oldest sessions when the log is written')
 }
 
 t.section('§4 — a reconnect can never roll back a newer decision')
@@ -151,10 +159,10 @@ t.section('§4 — a reconnect can never roll back a newer decision')
   commitAnswer(qid, { optionIds: [optB] })
   await flushInterviewLog()
   _resetInterviewForProofs()
-  t.check('the durable session re-adopts', adoptDurableSessionSync({ toolUseId: 'toolu_rollback' }))
+  t.check('the durable session re-adopts', adoptDurableSessionSync({ toolUseId: 'toolu_rollback' }), '', 'adoptDurableSessionSync in src/services/interview/store.ts could not re-adopt the flushed session: check that flushInterviewLog writes it under its toolUseId')
   const s = interviewSnapshot()
-  t.check('the NEWEST committed decision is present — no rollback', s.questions[qid]?.committed?.optionIds[0] === optB)
-  t.check('the churned note is present too', s.questions[qid]?.note === 'seeded 6')
+  t.check('the NEWEST committed decision is present — no rollback', s.questions[qid]?.committed?.optionIds[0] === optB, '', 'the adopted session lost the last commitAnswer: flushInterviewLog or adoptDurableSessionSync in src/services/interview/store.ts must keep the newest events')
+  t.check('the churned note is present too', s.questions[qid]?.note === 'seeded 6', '', 'the adopted session lost the note set by setNote: flushInterviewLog or adoptDurableSessionSync in src/services/interview/store.ts must keep the newest events')
 }
 
 rmSync(scratch, { recursive: true, force: true })

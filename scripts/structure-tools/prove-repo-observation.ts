@@ -21,7 +21,7 @@ const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix the code this check imports: git at-ref reads and compare in src/services/gitGraph/observe.ts, host search and PR diff in src/services/repoHost/repoHost.ts, run watch in src/services/repoHost/runWatch.ts; the section heading above names the area' : ''}`)
 }
 function section(name: string): void {
   console.log(`\n${name}`)

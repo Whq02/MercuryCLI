@@ -10,6 +10,8 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
 }
 
+const DISCOVERY_WHERE = 'fix fetchToolsForClient and getToolDiscoveryFailure in src/services/mcp/client.ts (the catch records toolDiscoveryFailures, the wrapper evicts the memo once nextRetryAt has passed)'
+
 function scriptedServer(name: string): { connection: Record<string, unknown>; calls: () => number; heal: () => void } {
   let calls = 0
   let healthy = false
@@ -35,10 +37,10 @@ console.log('L1 a failed discovery is recorded and the immediate re-read stays m
 const srv = scriptedServer('scripted-srv')
 {
   const first = await client.fetchToolsForClient(srv.connection as never)
-  t('the failed discovery answers empty (unchanged surface)', Array.isArray(first) && first.length === 0)
-  t('the failure is recorded with its reason', getFailure !== undefined && getFailure('scripted-srv')?.message.includes('exploded') === true, getFailure ? JSON.stringify(getFailure('scripted-srv')) : 'getToolDiscoveryFailure is absent')
+  t('the failed discovery answers empty (unchanged surface)', Array.isArray(first) && first.length === 0, `got ${JSON.stringify(first)}; ${DISCOVERY_WHERE}`)
+  t('the failure is recorded with its reason', getFailure !== undefined && getFailure('scripted-srv')?.message.includes('exploded') === true, getFailure ? JSON.stringify(getFailure('scripted-srv')) + `; ${DISCOVERY_WHERE}` : `getToolDiscoveryFailure is absent; export it from src/services/mcp/client.ts`)
   const second = await client.fetchToolsForClient(srv.connection as never)
-  t('an immediate re-read stays memoized (no thundering retry)', second.length === 0 && srv.calls() === 1, `request calls=${srv.calls()}`)
+  t('an immediate re-read stays memoized (no thundering retry)', second.length === 0 && srv.calls() === 1, `request calls=${srv.calls()}; ${DISCOVERY_WHERE}`)
 }
 
 console.log('L2 the backoff elapses, the next read retries, a healed server serves its tools')
@@ -49,12 +51,12 @@ console.log('L2 the backoff elapses, the next read retries, a healed server serv
     const base = realNow()
     Date.now = () => base + 31_000
     const third = await client.fetchToolsForClient(srv.connection as never)
-    t('the read after the backoff RETRIES (the poisoned entry evicted)', srv.calls() === 2, `request calls=${srv.calls()}`)
-    t('the healed server contributes its tools', third.length === 1, `tools=${third.length}`)
+    t('the read after the backoff RETRIES (the poisoned entry evicted)', srv.calls() === 2, `request calls=${srv.calls()}; ${DISCOVERY_WHERE}`)
+    t('the healed server contributes its tools', third.length === 1, `tools=${third.length}; ${DISCOVERY_WHERE}`)
   } finally {
     Date.now = realNow
   }
-  t('the failure record clears on success', getFailure === undefined || getFailure('scripted-srv') === null, getFailure ? JSON.stringify(getFailure('scripted-srv')) : '')
+  t('the failure record clears on success', getFailure === undefined || getFailure('scripted-srv') === null, getFailure ? JSON.stringify(getFailure('scripted-srv')) + `; the success path must call toolDiscoveryFailures.delete in src/services/mcp/client.ts` : '')
 }
 
 console.log('L3 controls — a healthy first discovery records nothing; explicit invalidation refetches at once')
@@ -62,10 +64,10 @@ console.log('L3 controls — a healthy first discovery records nothing; explicit
   const healthy = scriptedServer('healthy-srv')
   healthy.heal()
   const tools = await client.fetchToolsForClient(healthy.connection as never)
-  t('a healthy discovery serves tools and records no failure', tools.length === 1 && (getFailure === undefined || getFailure('healthy-srv') === null))
+  t('a healthy discovery serves tools and records no failure', tools.length === 1 && (getFailure === undefined || getFailure('healthy-srv') === null), `tools=${tools.length}; ${DISCOVERY_WHERE}`)
   client.fetchToolsForClient.cache.delete('healthy-srv')
   await client.fetchToolsForClient(healthy.connection as never)
-  t('the listChanged/onclose invalidation road still refetches at once', healthy.calls() === 2, `request calls=${healthy.calls()}`)
+  t('the listChanged/onclose invalidation road still refetches at once', healthy.calls() === 2, `request calls=${healthy.calls()}; fetchToolsForClient.cache must stay the memo cache in src/services/mcp/client.ts`)
 }
 
 console.log(failures === 0 ? 'TOOL DISCOVERY RETRY: ALL PASS' : 'TOOL DISCOVERY RETRY: RED')

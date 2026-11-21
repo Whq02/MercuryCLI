@@ -6,9 +6,13 @@ import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settl
 pinSourceRef()
 const home = pinScratchHome('hooks-menu-refresh')
 let failures = 0
+const menuRefreshHint = 'the open menu did not pick up the settings change: make src/components/hooks/HooksConfigMenu.tsx recompute its counts and managed-only notice (listHooks, managedHooksOnly from src/utils/hooks/hooksConfigSnapshot.ts) after settingsChangeDetector.notifyChange, and check that refreshHooksSnapshot re-reads settings.json'
 const check = (label: string, ok: boolean): void => {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`)
-  if (!ok) failures++
+  if (!ok) {
+    failures++
+    console.log(`  ${menuRefreshHint}`)
+  }
 }
 await import('../../src/tools/AgentTool/AgentTool.js')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')

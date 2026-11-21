@@ -17,7 +17,8 @@ const { resolveAgentTools, filterToolsForAgent } = await import('../../src/tools
 const { restrictScoutTools } = await import('../../src/tools/AgentTool/scoutPolicy.ts')
 let failures = 0
 let checks = 0
-const check = (label: string, yes: boolean) => { checks++; if (!yes) failures++; console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}`) }
+const resumeRulesHint = 'to fix, make ResumeCrewmate follow the SendMessage rules in the function this check exercises: assembleToolPool in src/tools.ts, getDenyRuleForTool, toolAlwaysAllowedRule and getAskRuleForTool in src/utils/permissions/decision/rules.ts, wholeToolDenyRulesCovering in src/utils/permissions/ruleReason.ts, resolveAgentTools and filterToolsForAgent in src/tools/AgentTool/agentToolUtils.ts, restrictScoutTools in src/tools/AgentTool/scoutPolicy.ts'
+const check = (label: string, yes: boolean) => { checks++; if (!yes) failures++; console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${yes ? '' : ` — ${resumeRulesHint}`}`) }
 const base = getEmptyToolPermissionContext()
 const pool = assembleToolPool(base, [])
 const names = (tools: readonly { name: string }[]) => tools.map(tool => tool.name)

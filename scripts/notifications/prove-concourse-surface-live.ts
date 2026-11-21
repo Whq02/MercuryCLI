@@ -29,7 +29,8 @@ function check(label: string, ok: boolean, detail?: string): void {
   if (ok) console.log(`  ✅ ${label}`)
   else {
     failures += 1
-    console.log(`  ❌ ${label}${detail ? ` — ${detail}` : ''}`)
+    const where = 'change buildConcourseSnapshot or the draft store (readConcourseDraft, writeConcourseDraft) in src/services/concourse/concourseSnapshot.ts, or boardRowsOf in src/components/concourse/contracts.ts for the board-order checks'
+    console.log(`  ❌ ${label} — ${detail ? `${detail} | ` : ''}${where}`)
   }
 }
 

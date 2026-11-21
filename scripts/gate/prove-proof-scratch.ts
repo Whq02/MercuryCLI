@@ -9,7 +9,7 @@ const world = mkdtempSync(join(tmpdir(), 'proof-scratch-pin-'))
 let failures = 0
 const check = (name: string, ok: boolean, detail = '') => {
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? `: ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? `: ${detail}` : ''}${ok ? '' : ' (change scripts/lib/proofScratch.cjs: installProofScratch, reapThenRemove, reapDaemonFoldersSync; the suite legs also run scripts/gate/run-suite.sh and the single legs run scripts/gate/proofScratchSubject.ts)'}`)
 }
 const paths = (file: string): string[] => existsSync(file) ? readFileSync(file, 'utf8').trim().split('\n').filter(Boolean) : []
 const legacyRoot = ['/private/tmp/mw', '/tmp/mw'].find(candidate => existsSync(candidate))

@@ -62,8 +62,8 @@ writeRunSidecar(
 
 const walker = new JourneyWalker(sid, 'j2')
 const glance = walker.glance()
-check('the diagnosis (root cause) is on screen', hasProse(glance, 'Root cause'))
-check('the passing re-check is reported', hasProse(glance, 'now reports PASS'))
+check('the diagnosis (root cause) is on screen', hasProse(glance, 'Root cause'), 'the resumed session should paint the final assistant message at first glance; rebuild dist and check how the resumed conversation is rendered, or whether the capture painted at all')
+check('the passing re-check is reported', hasProse(glance, 'now reports PASS'), 'the final assistant line should be visible at first glance in the resumed session; rebuild dist and check how the resumed conversation is rendered')
 
 const facts = [
   walker.probeFact('outcome', 'failing greeting check', [{ cmd: '/run' }]),
@@ -72,7 +72,7 @@ const facts = [
 ]
 
 const diff = walker.nav({ cmd: '/diff' })
-check('/diff lists the fixed file', diff.text.includes('greet.ts'))
+check('/diff lists the fixed file', diff.text.includes('greet.ts'), 'src/greet.ts was edited by the Edit tool round in the seeded session, so the /diff review (src/commands/diff/diff.tsx) should list it; check how it collects per-turn changes')
 
 const escBack = capture({
   sid,
@@ -80,7 +80,7 @@ const escBack = capture({
   sends: [...slashSends('/diff'), { afterPrevTicks: 40, data: '\x1b' }],
   total: 130,
 })
-check('esc returns from review to the composer', /❯/.test(escBack.text))
+check('esc returns from review to the composer', /❯/.test(escBack.text), 'Esc in the /diff review (src/commands/diff/diff.tsx) should close it and leave the composer prompt on screen; check its Esc handling')
 
 const reviewOffer = walker.probeFact('review-offer', 'review', [])
 const specialist = new Set<string>()

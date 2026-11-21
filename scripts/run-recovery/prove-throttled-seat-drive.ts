@@ -296,7 +296,7 @@ const runLeg = async (arm: string): Promise<Leg> => {
     model: 'claude-opus-5',
     effort: 'high',
   } as never, { timeoutMs: WARM_BOOT_ALLOWANCE_MS })) as { ok?: boolean; sessionId?: string; runnerId?: string; error?: string }
-  check(`${arm}: the session opened`, opened.ok === true && typeof opened.sessionId === 'string', JSON.stringify(opened))
+  check(`${arm}: the session opened`, opened.ok === true && typeof opened.sessionId === 'string', JSON.stringify(opened) + '; the daemon refused concourseDispatch, read daemon.log in the kept world folder printed as [forensics]')
   const sid = opened.sessionId ?? ''
   await untilAsync(() => parentTranscript(sid).includes('fixture answers') && readFacts(sid)?.busy === false, 45_000, 50)
   const granted = (await daemonControlRpc({ op: 'sessionControl', action: 'grant-workflows', sessionId: sid, by: 'seat-drive' } as never)) as { ok?: boolean; outcome?: string; error?: string; detail?: string }
@@ -386,13 +386,13 @@ const legStarts = new Map<string, number>()
 const t0Of = (leg: Leg): number => legStarts.get(leg.arm) ?? 0
 console.log('throttled seat — the retry budget under each provider answer, on the real daemon')
 try {
-  check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
+  check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), 'the daemon did not answer ping in 60 s; read daemon.log in the kept world folder printed as [forensics], and rebuild dist/mercury.mjs with bun run build.ts if it is stale')
   for (const arm of ARMS) {
     console.log(`\n── ${arm} ──`)
     const leg = await runLeg(arm)
     legs.push(leg)
     printLeg(leg)
-    check(`${arm}: the parent's turn ended`, leg.parentDone, `waits=${leg.waits.length} notices=${leg.notices}`)
+    check(`${arm}: the parent's turn ended`, leg.parentDone, `waits=${leg.waits.length} notices=${leg.notices}; the parent never wrote parent done within the leg, read the parent transcript and daemon.log in the kept world folder printed as [forensics]`)
     const busy = /provider busy \(HTTP 429\) — waiting \d+ s before retry \d+ of \d+/
     const spent = /the provider refused \d+ times? in a row \(HTTP (429, busy|529, overloaded)\) — the 6s retry budget is spent/
     const near = (ms: number | null): boolean => ms !== null && ms >= BUDGET_MS - 1_500 && ms <= BUDGET_MS + 4_000
@@ -402,7 +402,7 @@ try {
       check('L1 the row names the budget left', leg.waits.some(w => /of the 6s retry budget left$/.test(w)), leg.waits.join(' | '))
       check('L1 the third refusal spends the budget: the seat stops typed', leg.cut !== null && leg.notices >= 3, `cut=${leg.cut} notices=${leg.notices}`)
       check('L1 the cut fires at the budget, on the harness clock', near(cutAfterMs(leg)), String(cutAfterMs(leg)))
-      check('L1 the receipt names the refusals and the budget', leg.receipt !== null && spent.test(leg.receipt) && /HTTP 429/.test(leg.receipt), leg.receipt ?? '(none)')
+      check('L1 the receipt names the refusals and the budget', leg.receipt !== null && spent.test(leg.receipt) && /HTTP 429/.test(leg.receipt), (leg.receipt ?? '(none)') + '; the crewmate failure receipt should state the refusal count, HTTP 429 and the spent retry budget; the wording comes from src/services/api/recoveryBudget.ts')
       check('L1 the seat row settled failed with the spent line as its reason', leg.seatStatus === 'failed' && leg.seatError !== null && /retry budget is spent/.test(leg.seatError), `${leg.seatStatus} ${leg.seatError}`)
     }
     if (arm === '429-bare') {
@@ -443,7 +443,7 @@ try {
       check('L8 a hung wire: the stream, its reissue, then ONE non-streamed answer — never a ladder of ceilings', seatRequests.filter(c => c.streaming === true).length === 2 && nonStreamed.length === 1, JSON.stringify(seatRequests.map(c => [c.streaming, c.nth])))
       check('L8 the seat is cut with the silence named: the stream\'s budget, the fallback\'s ceiling, the model', leg.receipt !== null && /the stream went quiet for 2 s and one non-streamed answer got nothing in 8 s from /.test(leg.receipt) && /no keep-alive arrived/.test(leg.receipt), leg.receipt ?? '(none)')
       check('L8 the seat row settled failed with the same reason', leg.seatStatus === 'failed' && leg.seatError !== null && /the stream went quiet for 2 s/.test(leg.seatError), `${leg.seatStatus} ${leg.seatError}`)
-      check('L8 the cut came inside the two budgets and the one ceiling, with slack', leg.endedAt !== null && leg.endedAt - t0Of(leg) < IDLE_MS * 2 + FALLBACK_MS + 12_000, String(leg.endedAt !== null ? leg.endedAt - t0Of(leg) : null))
+      check('L8 the cut came inside the two budgets and the one ceiling, with slack', leg.endedAt !== null && leg.endedAt - t0Of(leg) < IDLE_MS * 2 + FALLBACK_MS + 12_000, String(leg.endedAt !== null ? leg.endedAt - t0Of(leg) : null) + ' ms elapsed; the hung seat ran longer than two idle budgets plus one fallback ceiling, so a ladder of ceilings is back; read the retry and fallback path behind src/services/api/recoveryBudget.ts')
     }
     if (arm === 'slow') {
       check('L6 a live slow stream raises no notice and no wait words', leg.notices === 0 && leg.waits.length === 0, `notices=${leg.notices} waits=${leg.waits.join(' | ')}`)

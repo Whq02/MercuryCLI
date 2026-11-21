@@ -13,8 +13,9 @@ const stable = (value: any): any => {
   if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map(key => [key, stable(value[key])]))
   return value
 }
-const check = (name: string, holds: boolean): void => {
+const check = (name: string, holds: boolean, hint?: string): void => {
   console.log(`${holds ? 'PASS' : 'FAIL'} ${name}`)
+  if (!holds && hint) console.log(`  ${hint}`)
   if (!holds) process.exitCode = 1
 }
 const mode = process.argv[2]
@@ -22,14 +23,14 @@ const mode = process.argv[2]
 if (mode === '--compare') {
   const old = JSON.parse(readFileSync(resolve(process.argv[3]!), 'utf8'))
   const next = JSON.parse(readFileSync(resolve(process.argv[4]!), 'utf8'))
-  check('resume parity corpus cardinality', old.sessions.length === next.sessions.length && old.projects.length === next.projects.length)
+  check('resume parity corpus cardinality', old.sessions.length === next.sessions.length && old.projects.length === next.projects.length, 'The two capture files hold a different number of sessions or projects; capture both from the same corpus directory with this script and --capture.')
   for (let index = 0; index < old.sessions.length; index++) {
-    check(`resume parity session ${index + 1} entry order, content, facts, leaves and snapshots`, isDeepStrictEqual(old.sessions[index], next.sessions[index]))
+    check(`resume parity session ${index + 1} entry order, content, facts, leaves and snapshots`, isDeepStrictEqual(old.sessions[index], next.sessions[index]), 'A resume read changed between the two captures; diff the two capture files for this session and look at loadTranscriptFile in src/utils/sessionStorage/loading.ts and the resume loaders it feeds.')
   }
-  check('resume parity project listing rows, labels and order', isDeepStrictEqual(old.projects, next.projects))
+  check('resume parity project listing rows, labels and order', isDeepStrictEqual(old.projects, next.projects), 'The project listing rows differ between the captures; diff the projects arrays and look at sessionFilesLite and enrichSessionListings in src/utils/sessionStorage/logs.ts.')
   const changed = structuredClone(old.sessions)
   changed[0].entries[0].digest = 'changed'
-  check('resume parity detects a changed entry digest', !isDeepStrictEqual(old.sessions, changed))
+  check('resume parity detects a changed entry digest', !isDeepStrictEqual(old.sessions, changed), 'The comparison did not notice a changed entry digest; the comparison in this script is broken, so fix it here before trusting any parity result.')
 } else {
   const root = mkdtempSync(join(tmpdir(), 'resume-parity-'))
   const home = join(root, 'home')
@@ -99,8 +100,8 @@ if (mode === '--compare') {
       const path = join(project, `${sessionId}.jsonl`)
       writeFileSync(path, entries.map(entry => encodeTranscriptLine(path, entry).line).join(''))
       const fold = await loadTranscriptFile(path)
-      check('resume parity synthetic entries remain byte-equivalent', snap([...fold.messages.values()]) === snap(entries.slice(0, 2)))
-      check('resume parity synthetic leaf and metadata', fold.leafUuids.has(entries[1]!.uuid as never) && fold.customTitles.get(sessionId) === 'saved title' && fold.tags.get(sessionId) === 'saved tag' && fold.worktreeStates.get(sessionId) === null)
+      check('resume parity synthetic entries remain byte-equivalent', snap([...fold.messages.values()]) === snap(entries.slice(0, 2)), 'loadTranscriptFile in src/utils/sessionStorage/loading.ts returns messages that differ from the lines encodeTranscriptLine wrote (src/utils/sessionStorage/vnext.ts); compare the encode and decode paths.')
+      check('resume parity synthetic leaf and metadata', fold.leafUuids.has(entries[1]!.uuid as never) && fold.customTitles.get(sessionId) === 'saved title' && fold.tags.get(sessionId) === 'saved tag' && fold.worktreeStates.get(sessionId) === null, 'loadTranscriptFile in src/utils/sessionStorage/loading.ts lost the leaf, custom title, tag or worktree state of the synthetic session; check which of the four folds is missing.')
     }
     const projectsRoot = join(home, 'projects')
     const sessions: unknown[] = []
@@ -119,7 +120,7 @@ if (mode === '--compare') {
         const before = digest(readFileSync(path).toString('utf8'))
         const fold = await loadTranscriptFile(path)
         const warm = await loadTranscriptFile(path)
-        check(`resume parity warm read ${sessions.length + 1}`, snap(warm) === snap(fold))
+        check(`resume parity warm read ${sessions.length + 1}`, snap(warm) === snap(fold), 'A second loadTranscriptFile of the same file differs from the first; look at the cache in src/utils/sessionStorage/transcriptReader.ts.')
         const entries = [...fold.messages].map(([id, row]) => ({ id, type: row.type, digest: snap(row) }))
         const chains = [...fold.leafUuids].map(id => ({ id, rows: buildConversationChain(fold.messages, fold.messages.get(id)!).map(row => ({ id: row.uuid, type: row.type, digest: snap(row) })) }))
         const allLeaves = await listingsOfSessionFile(path)
@@ -139,11 +140,11 @@ if (mode === '--compare') {
           if (typeof id === 'string') persisted.add(id)
         }
         const { messages: _, ...metadata } = fold
-        check(`resume parity read-only file ${sessions.length + 1}`, before === digest(readFileSync(path).toString('utf8')))
+        check(`resume parity read-only file ${sessions.length + 1}`, before === digest(readFileSync(path).toString('utf8')), 'Reading or resuming this session rewrote its jsonl file; find the writer the resume path calls (src/utils/sessionStorage) and make the read path leave the file untouched.')
         sessions.push({ id: sessionId, entries, chains, metadata: snap(metadata), leaves: snap(allLeaves), resumed: snap(resumed), conversation: resumeDigest(conversation, persisted), headless: resumeDigest(headless, persisted) })
       }
     }
-    check('resume parity corpus is nonempty', sessions.length > 0)
+    check('resume parity corpus is nonempty', sessions.length > 0, 'No session file was found under the projects directory; pass a corpus directory whose project folders hold files named <uuid>.jsonl.')
     if (mode === '--capture') {
       const output = resolve(process.argv[4]!)
       writeFileSync(output, JSON.stringify({ sessions, projects }, null, 2) + '\n', { mode: 0o600 })

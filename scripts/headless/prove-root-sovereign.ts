@@ -14,6 +14,6 @@ for (const [uid, modes, expected] of [
   [0, ['default', 'sovereign', 'flow', 'sovereign'], notice],
 ] as const) {
   const result = spawnSync(process.execPath, ['-e', `process.getuid = () => ${uid}; const { noteRootSovereign } = await import(${JSON.stringify(modulePath)}); for (const mode of ${JSON.stringify(modes)}) noteRootSovereign(mode); console.log('continued')`], { env: process.env, encoding: 'utf8' })
-  check(`uid ${uid} and ${modes.join('/')} continue with the one applicable notice`, result.status === 0 && result.stdout === 'continued\n' && result.stderr === expected, JSON.stringify(result))
+  check(`uid ${uid} and ${modes.join('/')} continue with the one applicable notice`, result.status === 0 && result.stdout === 'continued\n' && result.stderr === expected, `${JSON.stringify(result)} - change noteRootSovereign in src/utils/permissions/rootNotice.ts so the notice prints to stderr once, only for uid 0 in sovereign mode, and the run continues`)
 }
 process.exit(failures === 0 ? 0 : 1)

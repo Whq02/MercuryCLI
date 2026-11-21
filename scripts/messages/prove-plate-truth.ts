@@ -8,7 +8,7 @@ import { join, resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' · the plate, the clock column and the message meta come from clockColumnOf, TranscriptNameplate, NameplateClock and MessageMetaProvider in src/components/messages/TranscriptNameplate.tsx' : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)

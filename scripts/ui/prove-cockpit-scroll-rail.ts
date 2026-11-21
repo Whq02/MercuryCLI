@@ -9,7 +9,9 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const failHint = 'what to change: the cockpit rail or scroll pill rendered in the cockpit-scrolled scenario (scenario in scripts/ui/renderScenarios.ts) no longer matches this frame; for PTY capture failures read the vshot.py error'
+  const shown = cond ? detail : [detail, failHint].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 console.log('============================================================')

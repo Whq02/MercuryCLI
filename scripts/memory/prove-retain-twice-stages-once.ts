@@ -13,7 +13,7 @@ const dir = mnemeLibraryDir()
 
 let failures = 0
 let checks = 0
-const check = (label: string, ok: boolean, detail = ''): void => { checks++; console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok || !detail ? '' : `: ${detail.slice(0, 500)}`}`); if (!ok) failures++ }
+const check = (label: string, ok: boolean, detail = ''): void => { checks++; console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok || !detail ? '' : `: ${detail.slice(0, 500)} · retainItems in src/mneme/memoryVerbs.ts must answer already-staged with the first row id, for single-line and multi-line content, and stage no second row`}`); if (!ok) failures++ }
 
 const ONE_LINE = 'the release notes are written from the fold notes'
 const TWO_LINES = 'the gate runs in Docker on this machine\nand the hosted gate stays off until the owner says so'

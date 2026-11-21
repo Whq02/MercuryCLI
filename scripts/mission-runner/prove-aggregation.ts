@@ -45,20 +45,20 @@ const FIXTURE: HelixRunRow[] = [
 const once = JSON.stringify(aggregate(FIXTURE))
 const twice = JSON.stringify(aggregate(FIXTURE))
 const shuffled = JSON.stringify(aggregate([...FIXTURE].reverse()))
-check('aggregate is byte-stable', once === twice)
-check('aggregate is order-independent', once === shuffled)
+check('aggregate is byte-stable', once === twice, 'aggregate in scripts/mission-runner/live/aggregate.ts must give the same JSON for the same rows on every call')
+check('aggregate is order-independent', once === shuffled, 'aggregate in scripts/mission-runner/live/aggregate.ts must sort or key its rows so the input order does not change the result')
 
 const result = aggregate(FIXTURE)
 const solo = result.byPolicy.find(p => p.policyId === 'solo')!
 check('all executed solo runs counted', solo.runs === 4, String(solo.runs))
-check('rejected counted', solo.rejected === 1)
-check('incomplete counted', solo.incomplete === 1)
-check('indeterminate counted', solo.indeterminate === 1)
+check('rejected counted', solo.rejected === 1, `rejected ${solo.rejected} (expected 1): check the per-policy status counts in aggregate, scripts/mission-runner/live/aggregate.ts`)
+check('incomplete counted', solo.incomplete === 1, `incomplete ${solo.incomplete} (expected 1): check the per-policy status counts in aggregate, scripts/mission-runner/live/aggregate.ts`)
+check('indeterminate counted', solo.indeterminate === 1, `indeterminate ${solo.indeterminate} (expected 1): check the per-policy status counts in aggregate, scripts/mission-runner/live/aggregate.ts`)
 check('accepted rate over EXECUTED runs', solo.acceptedRate === 0.25, String(solo.acceptedRate))
-check('incorrect claims separate', solo.incorrectClaims === 1)
+check('incorrect claims separate', solo.incorrectClaims === 1, `incorrectClaims ${solo.incorrectClaims} (expected 1): check how aggregate in scripts/mission-runner/live/aggregate.ts counts rows with incorrectClaim`)
 const naPolicy = result.byPolicy.find(p => p.policyId === 'collaboration')!
-check('NA separated from executed', naPolicy.runs === 0 && naPolicy.notApplicable === 1)
-check('markdown renders', renderMarkdown(result).includes('| solo |'))
+check('NA separated from executed', naPolicy.runs === 0 && naPolicy.notApplicable === 1, `runs ${naPolicy.runs}, notApplicable ${naPolicy.notApplicable} (expected 0 and 1): aggregate in scripts/mission-runner/live/aggregate.ts must count not-applicable rows apart from executed runs`)
+check('markdown renders', renderMarkdown(result).includes('| solo |'), 'renderMarkdown in scripts/mission-runner/live/aggregate.ts must write one table row per policy, starting with | solo |')
 
 {
   const superseded = [
@@ -67,14 +67,14 @@ check('markdown renders', renderMarkdown(result).includes('| solo |'))
     row({ taskId: 'T18', runIndex: 1 }),
   ]
   const latest = latestRows(superseded)
-  check('latest view keeps one row per cell', latest.length === 2)
-  check('the run-2 correction wins', latest.find(r => r.taskId === 'T10')?.status === 'accepted')
-  check('latest view is order-independent', JSON.stringify(latestRows([...superseded].reverse())) === JSON.stringify(latest))
+  check('latest view keeps one row per cell', latest.length === 2, `${latest.length} rows (expected 2): latestRows in scripts/mission-runner/live/aggregate.ts must keep only the highest runIndex per task and policy`)
+  check('the run-2 correction wins', latest.find(r => r.taskId === 'T10')?.status === 'accepted', 'latestRows in scripts/mission-runner/live/aggregate.ts must keep the row with the higher runIndex')
+  check('latest view is order-independent', JSON.stringify(latestRows([...superseded].reverse())) === JSON.stringify(latest), 'latestRows in scripts/mission-runner/live/aggregate.ts must order its result independently of the input order')
 }
 
 const digests = HELIX_POLICIES.map(policyDigest)
-check('policy digests distinct', new Set(digests).size === digests.length)
-check('policy digests shaped', digests.every(d => /^hp1-[0-9a-f]{16}$/.test(d)))
+check('policy digests distinct', new Set(digests).size === digests.length, 'every policy in HELIX_POLICIES, scripts/mission-runner/live/policies.ts, must hash to its own policyDigest')
+check('policy digests shaped', digests.every(d => /^hp1-[0-9a-f]{16}$/.test(d)), `digests ${digests.join(' ')}: policyDigest in scripts/mission-runner/live/policies.ts must return hp1- and 16 hex digits`)
 
 if (failures > 0) {
   console.error('prove-aggregation: ' + failures + ' failure(s)')

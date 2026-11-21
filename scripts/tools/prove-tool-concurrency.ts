@@ -25,9 +25,15 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/file
 let failures = 0
 const check = (label: string, ok: boolean, detail = '') => {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ': ' + detail : ''}`)
-  if (!ok) failures++
+  if (!ok) {
+    failures++
+    console.log('  change isReadOnly or isConcurrencySafe on the named tool (BashTool prepare and its verdicts live in src/tools/BashTool/BashTool.tsx and readOnlyValidation.ts), or the batching in runTools in src/services/tools/toolOrchestration.ts; the census probes are in src/services/capability/census.ts')
+  }
 }
-const watchdog = setTimeout(() => process.exit(1), 30000)
+const watchdog = setTimeout(() => {
+  console.log('[FAIL] watchdog: this proof did not finish in 30 seconds; look at runTools in src/services/tools/toolOrchestration.ts for a call that never settles')
+  process.exit(1)
+}, 30000)
 try {
   const census = buildToolCensus()
   const required = ['Edit', 'Write', 'TaskStop', 'ApolloReview', 'Monitor', 'Read', 'Grep', 'Glob', 'ToolSearch']

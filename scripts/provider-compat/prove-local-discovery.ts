@@ -14,9 +14,10 @@ delete process.env.MERCURY_LOCAL_BASE_URL
 delete process.env.MERCURY_DISABLE_1M_CONTEXT
 
 let failures = 0
+const localDiscoveryHint = 'fix the behaviour this check names in src/services/providers/local/ (localDiscovery.ts for probing and records, localCatalogue.ts for picker rows, localWindow.ts for the context window and its setting, localCallModel.ts for the lane profile and request-fit refusal, localAccounts.ts), src/services/providers/openaicompat/compatWire.ts (buildLocalExtras), src/utils/model/capabilities.ts (resolveContextWindow, effort support), src/services/crew/engineDispatch.ts (resolveEngineDispatch) or src/services/cockpit/modelGauge.ts (modelGauge)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${localDiscoveryHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

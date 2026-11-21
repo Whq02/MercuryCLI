@@ -23,9 +23,12 @@ const { makeOwnerKey, MAIN_LANE } = await import('../../src/utils/run/ownerKey.t
 type SampleRecord = import('../../src/utils/samples/contracts.ts').SampleRecordV1
 
 let failures = 0
+const samplesShellFailHint =
+  'fix the page markup and its inline script in renderSampleShell (src/services/samples/shell.ts), or the marks body and message in parseMarksBody and formatMarksMessage (src/services/samples/marks.ts); a P check failing means the proof fixture itself changed'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? '' : detail ? `${detail} | ${samplesShellFailHint}` : samplesShellFailHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -40,7 +43,7 @@ async function until(cond: () => Promise<boolean> | boolean, ms = 6000): Promise
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — samples shell proof exceeded 120s')
+  console.log('\n❌ TIMEOUT — samples shell proof exceeded 120s; a driven check waited for a page state that never came, so read the last V or I section printed above and the matching script in renderSampleShell (src/services/samples/shell.ts)')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

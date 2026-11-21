@@ -14,7 +14,8 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.OPENAI_API_KEY = 'fixture-openai-key'
 process.env.MERCURY_DAEMON_DIR = join(proofHome, 'daemon')
 let failures = 0
-const check = (label: string, ok: boolean): void => { console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`); if (!ok) failures++ }
+const failWhere = 'look in planToolPayload and the roster latch in src/services/providers/toolEconomy.ts, the deferred_tools_delta announcement in src/services/attachments/orchestrator.ts (getAttachments), the seat launch in src/tools/AgentTool/runAgent.ts, and the CrewBoard tool from swarmTools in src/services/crewBoard/seam.ts; the CAPTURE line printed after the request checks holds the raw requests'
+const check = (label: string, ok: boolean): void => { console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${failWhere}`}`); if (!ok) failures++ }
 const model = 'gpt-6-luna'
 type Item = Record<string, any>
 const captures: Item[] = []

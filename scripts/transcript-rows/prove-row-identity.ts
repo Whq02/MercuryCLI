@@ -34,20 +34,20 @@ console.log('── row-identity ratchet (shipped artifact) ──')
     seconds: 15,
     probe: true,
   })
-  check('WRITE scene: fixture served both turns', run.fixture.messageRequests().length >= 2, `${run.fixture.messageRequests().length}`)
+  check('WRITE scene: fixture served both turns', run.fixture.messageRequests().length >= 2, `the fixture served ${run.fixture.messageRequests().length} requests, fewer than 2; the Write turn never reached its second request, so look at the arena run output from runArtifactArena (scripts/streaming/artifactArena.ts)`)
   const mounts = markCounts(run, 'mount:tool-row:')
   const unmounts = markCounts(run, 'unmount:tool-row:')
   const ids = Object.keys(mounts)
-  check('exactly one tool row mounted', ids.length === 1, JSON.stringify(mounts))
+  check('exactly one tool row mounted', ids.length === 1, `expected one tool-row mount mark; the Write tool row is mounted by useFluxMountMark in src/components/messages/AssistantToolUseMessage.tsx. ${JSON.stringify(mounts)}`)
   check(
     'the row mounted ONCE through pending→consent→running→settled',
     ids.length === 1 && mounts[ids[0]!] === 1,
-    JSON.stringify(mounts),
+    `the tool row mounted more than once; keep the row mounted from pending to settled in src/components/messages/AssistantToolUseMessage.tsx. ${JSON.stringify(mounts)}`,
   )
   check(
     'no remount (an unmount would mean the settled row is a different mount)',
     Object.keys(unmounts).length === 0,
-    JSON.stringify(unmounts),
+    `a tool row unmounted, so the settled row is a different mount; keep one mounted row in src/components/messages/AssistantToolUseMessage.tsx. ${JSON.stringify(unmounts)}`,
   )
 }
 
@@ -69,21 +69,21 @@ console.log('── row-identity ratchet (shipped artifact) ──')
     seconds: 16,
     probe: true,
   })
-  check('READS scene: fixture served all three turns', run.fixture.messageRequests().length >= 3, `${run.fixture.messageRequests().length}`)
+  check('READS scene: fixture served all three turns', run.fixture.messageRequests().length >= 3, `the fixture served ${run.fixture.messageRequests().length} requests, fewer than 3; the READS scene did not run all its turns, so look at the arena run output from runArtifactArena (scripts/streaming/artifactArena.ts)`)
   const group = markCounts(run, 'mount:read-group')
   const groupUn = markCounts(run, 'unmount:read-group')
   const tail = markCounts(run, 'mount:tail')
   const toolRows = markCounts(run, 'mount:tool-row:')
-  check('the read group mounted exactly once', group['mount:read-group'] === 1, JSON.stringify(group))
-  check('the group never remounted', (groupUn['unmount:read-group'] ?? 0) === 0, JSON.stringify(groupUn))
+  check('the read group mounted exactly once', group['mount:read-group'] === 1, `the read group must mount exactly once; see useFluxMountMark in src/components/messages/CollapsedReadSearchContent.tsx. ${JSON.stringify(group)}`)
+  check('the group never remounted', (groupUn['unmount:read-group'] ?? 0) === 0, `the read group unmounted while the turn grew; keep it mounted in src/components/messages/CollapsedReadSearchContent.tsx. ${JSON.stringify(groupUn)}`)
   const toolRowsUn = markCounts(run, 'unmount:tool-row:')
   check(
     'reads ride the group from the first call — no standalone read row mounts',
     Object.keys(toolRows).length === 0 && Object.keys(toolRowsUn).length === 0,
-    JSON.stringify({ ...toolRows, ...toolRowsUn }),
+    `a read mounted a standalone tool row; reads must join the group from the first call, so check src/components/messages/AssistantToolUseMessage.tsx and src/components/messages/CollapsedReadSearchContent.tsx. ${JSON.stringify({ ...toolRows, ...toolRowsUn })}`,
   )
   const tailUn = markCounts(run, 'unmount:tail')
-  check('the tail is one persistent mount across streams', tail['mount:tail'] === 1 && (tailUn['unmount:tail'] ?? 0) === 0, JSON.stringify({ ...tail, ...tailUn }))
+  check('the tail is one persistent mount across streams', tail['mount:tail'] === 1 && (tailUn['unmount:tail'] ?? 0) === 0, `the streaming tail must mount once and never unmount between streams; see useFluxMountMark in src/components/LiveStreamingTail.tsx. ${JSON.stringify({ ...tail, ...tailUn })}`)
 }
 
 console.log(failures === 0 ? '✅ row-identity GREEN' : `❌ row-identity RED (${failures})`)

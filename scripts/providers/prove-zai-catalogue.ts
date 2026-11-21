@@ -32,8 +32,9 @@ const LIVE_IDS_NEWEST_FIRST = 'glm-5.3,glm-5.3-flash,glm-5.3-flashx,glm-5.2,glm-
 const FLOOR = 'glm-5.3,glm-5.3-flash,glm-5.2'
 
 let count = 0
+const ZAI_FAILURE_HINT = 'what to change: the Z.AI catalogue rows, source and refresh in src/services/providers/zai/zaiCatalogue.ts, the adapter view in src/services/providers/zai/zaiAdapter.ts, the model pins in src/utils/model/pins/glmPins.ts, or the picker rows in src/services/model/modelOptions.ts, whichever this check names; the list fixture is scripts/providers/fixtures/zai-models-2026-10-05.json'
 const check = (name: string, ok: unknown, detail = ''): void => {
-  assert.ok(ok, `${name}${detail ? ` — ${detail}` : ''}`)
+  assert.ok(ok, `${name}${detail ? ` — ${detail}` : ''} — ${ZAI_FAILURE_HINT}`)
   count++
   console.log(`[PASS] ${name}`)
 }

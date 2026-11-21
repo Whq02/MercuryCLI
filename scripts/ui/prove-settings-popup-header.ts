@@ -63,9 +63,9 @@ const write = process.argv.includes('--write')
 if (frames) mkdirSync(frames, { recursive: true })
 if (write) mkdirSync(stills, { recursive: true })
 let failures = 0
-function check(name: string, ok: boolean, detail = ''): void {
+function check(name: string, ok: boolean, detail = '', hint = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${detail ? ` — ${detail}` : ''}${!ok && hint ? ` — ${hint}` : ''}`)
 }
 const React = await import('react')
 const h = React.createElement
@@ -137,7 +137,7 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
       baselineStill = now === baseline && header.test(now) && ['transcript row', 'WORKBENCH', 'FILES · orchard', 'Type a prompt'].every(mark => now.includes(mark)) ? baselineStill + 1 : 0
       baseline = now
       return baselineStill >= 3
-    }, 8000))
+    }, 8000), '', 'the chat scaffold never settled with the centre header, transcript, WORKBENCH, FILES and prompt rows on screen; look at src/components/FullscreenLayout.tsx and the harness in scripts/lib/settingsPopupHarness.ts')
     const before = scene.lines()
     const headerRow = before.findIndex(line => header.test(line))
     const plan = railPlanAt(columns, true)
@@ -151,7 +151,7 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
       stable = now === last && now.includes(title) ? stable + 1 : 0
       last = now
       return stable >= 3
-    }, 8000))
+    }, 8000), '', `the popup titled ${title} never painted and held still; check settingsPopupHost and the popup open path in src/components/SettingsPopupSlot.tsx and src/utils/cockpit/settingsPopup.ts`)
     const after = scene.lines()
     const titleRow = after.findIndex(line => line.includes(title))
     const popupLeft = after[titleRow]?.lastIndexOf('│', after[titleRow]!.indexOf(title)) ?? -1
@@ -160,15 +160,15 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
     const popupBottom = after.findIndex((line, y) => y > titleRow && cell(after, popupLeft, y) === '╰')
     const gutter = popupTop - 1
     const label = `${columns}x${rows} /${surface.view}`
-    check(`${label}: the pane's top border stays visible above the top gutter`, headerRow >= 0 && header.test(after[headerRow] ?? '') && gutter > headerRow, `border row ${headerRow + 1}, gutter row ${gutter + 1}, popup border row ${popupTop + 1}`)
-    check(`${label}: the entire top border row is unchanged`, after[headerRow] === before[headerRow], after[headerRow] === before[headerRow] ? '' : JSON.stringify({ before: before[headerRow], after: after[headerRow] }))
-    check(`${label}: all four corners and the bottom gutter fit the measured centre`, popupLeft > plan.lanesW && popupRight > popupLeft && popupBottom > popupTop && popupBottom + 1 < centreBottom, `centre bottom ${centreBottom + 1}, popup ${popupTop + 1}..${popupBottom + 1}`)
-    check(`${label}: the top gutter is an opaque blank row`, popupLeft >= 0 && Array.from({ length: popupRight - popupLeft + 3 }, (_, i) => cell(after, popupLeft - 1 + i, gutter)).every(c => c === ' '))
-    check(`${label}: the footer stays visible`, after.some(line => line.includes('click outside closes') || line.includes('esc closes')))
+    check(`${label}: the pane's top border stays visible above the top gutter`, headerRow >= 0 && header.test(after[headerRow] ?? '') && gutter > headerRow, `border row ${headerRow + 1}, gutter row ${gutter + 1}, popup border row ${popupTop + 1}`, 'the popup must start below the pane top border, see settingsPopupGeometry in src/components/SettingsPopupSlot.tsx')
+    check(`${label}: the entire top border row is unchanged`, after[headerRow] === before[headerRow], after[headerRow] === before[headerRow] ? '' : JSON.stringify({ before: before[headerRow], after: after[headerRow] }), `the popup must not paint over the top border row, see settingsPopupGeometry in src/components/SettingsPopupSlot.tsx`)
+    check(`${label}: all four corners and the bottom gutter fit the measured centre`, popupLeft > plan.lanesW && popupRight > popupLeft && popupBottom > popupTop && popupBottom + 1 < centreBottom, `centre bottom ${centreBottom + 1}, popup ${popupTop + 1}..${popupBottom + 1}`, `the popup must fit inside the measured centre, see settingsPopupGeometry in src/components/SettingsPopupSlot.tsx`)
+    check(`${label}: the top gutter is an opaque blank row`, popupLeft >= 0 && Array.from({ length: popupRight - popupLeft + 3 }, (_, i) => cell(after, popupLeft - 1 + i, gutter)).every(c => c === ' '), '', 'the gutter row above the popup must be blank; see src/components/PopupGutter.tsx')
+    check(`${label}: the footer stays visible`, after.some(line => line.includes('click outside closes') || line.includes('esc closes')), '', 'no footer hint row found; the popup must keep its footer, see src/components/SettingsPopupSlot.tsx')
     const flush = Array.from({ length: Math.max(0, popupBottom - popupTop - 1) }, (_, at) => popupTop + 1 + at).filter(y => cell(after, popupRight - 1, y) !== ' ')
-    check(`${label}: every row, the hint row with them, keeps a blank cell before the right border`, popupRight > popupLeft && flush.length === 0, flush.map(y => (after[y] ?? '').trim().slice(-48)).join(' | '))
+    check(`${label}: every row, the hint row with them, keeps a blank cell before the right border`, popupRight > popupLeft && flush.length === 0, flush.map(y => (after[y] ?? '').trim().slice(-48)).join(' | '), `every popup row must leave a blank cell before the right border, see src/components/SettingsPopupSlot.tsx`)
     if (surface.view === 'config') {
-      check(`${label}: a full-height popup starts its gutter on the pane's first interior row, immediately below the top border`, gutter === headerRow + 1)
+      check(`${label}: a full-height popup starts its gutter on the pane's first interior row, immediately below the top border`, gutter === headerRow + 1, '', `gutter row ${gutter + 1} vs border row ${headerRow + 1}; a full-height popup must put its gutter directly below the top border, see settingsPopupGeometry in src/components/SettingsPopupSlot.tsx`)
       const { PATIENCE_NORMAL, patienceWords } = await import('../../src/services/providers/patience.ts')
       const specimen = 'Patience with a quiet model'
       const whole = `normal · ${patienceWords(PATIENCE_NORMAL)}`
@@ -176,7 +176,7 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
       if (row === undefined) check(`${label}: only the 30-row popup is too short to list the row whose value overflows`, rows === 30)
       else {
         const painted = row.slice(row.indexOf(specimen) + specimen.length).split('│')[0]!.trim()
-        check(`${label}: a value its cell cannot hold is cut with an ellipsis, as its neighbours are`, painted.endsWith('…') && whole.startsWith(painted.slice(0, -1)), JSON.stringify(painted))
+        check(`${label}: a value its cell cannot hold is cut with an ellipsis, as its neighbours are`, painted.endsWith('…') && whole.startsWith(painted.slice(0, -1)), JSON.stringify(painted), `an overflowing value must be cut with an ellipsis, see the settings row rendering under src/components/Settings`)
       }
     }
     const frame = after.join('\n') + '\n'
@@ -186,9 +186,9 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
       writeFileSync(join(frames, `${surface.view}-${columns}x${rows}-rows.json`), JSON.stringify({ header: headerRow + 1, gutter: gutter + 1, border: popupTop + 1, bottom: popupBottom + 1, centreBottom: centreBottom + 1 }) + '\n')
     }
     if (write) writeFileSync(join(stills, name), frame)
-    else if (!frames && !arg('--source-ref') && process.platform === 'darwin') check(`${label}: the stored frame matches the source render`, readFileSync(join(stills, name), 'utf8') === frame)
+    else if (!frames && !arg('--source-ref') && process.platform === 'darwin') check(`${label}: the stored frame matches the source render`, readFileSync(join(stills, name), 'utf8') === frame, '', `the stored frame scripts/ui/fixtures/settings-popup-header/${name} differs from the render; if the change is intended regenerate with bun scripts/ui/prove-settings-popup-header.ts --write`)
     store.closeSettingsPopup()
-    check(`${label}: closing restores the top border and transcript`, await waitFor(() => !scene.screen().includes(title) && scene.lines()[headerRow] === before[headerRow], 4000))
+    check(`${label}: closing restores the top border and transcript`, await waitFor(() => !scene.screen().includes(title) && scene.lines()[headerRow] === before[headerRow], 4000), '', 'after closeSettingsPopup in src/utils/cockpit/settingsPopup.ts the popup title must leave the screen and the top border row must return unchanged')
     scene.unmount()
     resetOverlayStackForTests()
   }
@@ -197,21 +197,21 @@ for (const framed of [true, false]) {
   for (const height of [3, 6, 12, 17, 30, 40]) {
     const ref = React.createRef<import('../../src/ink.ts').DOMElement>()
     const scene = await mountOffscreen(h(Box, { width: 80, height: 40 }, h(Box, { ref, width: 60, height, ...(framed ? { borderStyle: 'round' } : {}) })), 80, 40)
-    check(`${height}-row host: the measured element settled`, await waitFor(() => ref.current !== null && measureElement(ref.current).height === height, 4000))
+    check(`${height}-row host: the measured element settled`, await waitFor(() => ref.current !== null && measureElement(ref.current).height === height, 4000), '', 'the fixture box never measured at its set height; look at measureElement in src/ink.ts')
     const band = ref.current === null ? null : settingsPopupHost(ref.current, framed)
     const top = framed ? 1 : 0
     const available = Math.max(0, height - (framed ? 2 : 0))
-    check(`${height}-row ${framed ? 'framed' : 'unframed'} host: the measured band is the whole interior (the border alone, no header row reserved)`, band?.top === top && band?.rows === available, JSON.stringify(band))
+    check(`${height}-row ${framed ? 'framed' : 'unframed'} host: the measured band is the whole interior (the border alone, no header row reserved)`, band?.top === top && band?.rows === available, JSON.stringify(band), `settingsPopupHost in src/components/SettingsPopupSlot.tsx must return the whole interior of the host`)
     if (band?.top !== undefined && band.rows !== undefined) {
       const geometry = settingsPopupGeometry({ width: 110, rows: 44 }, band.columns, 40, band.left, { top: band.top, rows: band.rows })
       const expected = Math.max(0, available - 2)
       const compact = expected - 7 < 8
-      check(`${height}-row host: chrome and compact floor stay inside the smaller budget`, geometry.rows === expected && geometry.compact === compact && geometry.rowBudget === Math.max(0, expected - (compact ? 3 : 7)), JSON.stringify(geometry))
+      check(`${height}-row host: chrome and compact floor stay inside the smaller budget`, geometry.rows === expected && geometry.compact === compact && geometry.rowBudget === Math.max(0, expected - (compact ? 3 : 7)), JSON.stringify(geometry), `settingsPopupGeometry in src/components/SettingsPopupSlot.tsx must keep chrome and the compact floor inside the budget`)
     }
     scene.unmount()
   }
 }
-check('no fixture fetch was needed', fetches.length === 0, `${fetches.length} attempts`)
+check('no fixture fetch was needed', fetches.length === 0, `${fetches.length} attempts`, `${fetches.join(', ')}; the source render reached for the network, find which component fetches on mount`)
 await releaseScratchHome(HOME)
 if (write && failures === 0) registerGeneratedAsset(ASSET)
 console.log(`settings-popup-header: ${failures} failed`)

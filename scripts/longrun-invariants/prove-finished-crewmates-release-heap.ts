@@ -24,7 +24,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (title: string): void => console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the crewmate batches exceeded 240s')
+  console.log('\nTIMEOUT — the crewmate batches exceeded 240s; a crewmate turn in runAgent (src/tools/AgentTool/runAgent.ts) did not end, or the loopback model on 127.0.0.1 stopped answering')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -143,7 +143,7 @@ const answered = await getAgentTranscript('second-000' as never)
 check(
   `every crewmate ran its turn against the loopback model (${requests} requests) and its transcript is on disk`,
   requests >= 2 * BATCH + AT_ONCE && JSON.stringify(answered?.messages ?? []).includes('reply '),
-  `${requests} requests; second-000 has ${answered?.messages.length ?? 0} rows on disk`,
+  `${requests} requests; second-000 has ${answered?.messages.length ?? 0} rows on disk; a crewmate ended before its turn ran or its transcript was not flushed: look at runAgent in src/tools/AgentTool/runAgent.ts and flushSessionStorage in src/utils/sessionStorage.ts`,
 )
 check(
   `the second batch of ${BATCH} finished crewmates keeps ${mb(kept)} MB of heap after a collection (${mb(afterFirst)} MB before it, ${mb(afterSecond)} MB after; the ceiling is ${KEPT_AFTER_A_BATCH_MB} MB and may only be lowered)`,

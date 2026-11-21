@@ -26,15 +26,16 @@ delete process.env.MERCURY_HOME
 const DIST = process.env.MERCURY_PROOF_DIST ?? join(ROOT, 'dist/mercury.mjs')
 const CAPTURES = process.env.MCP_POPUP_CAPTURE_DIR ?? join(SCRATCH, 'frames')
 mkdirSync(CAPTURES, { recursive: true })
+const popupSee = `read the captures in ${CAPTURES} (frame-*.txt, model-requests.json, daemon.log, evidence.json)`
 const daemonDir = `../${basename(realpathSync(mkdtempSync(join(SCRATCH, 'd-'))))}`
 process.env.MERCURY_DAEMON_DIR = daemonDir
 process.env.MERCURY_CONCOURSE = 'always'
 let checks = 0
 let failures = 0
-function check(label: string, ok: unknown, detail = ''): void {
+function check(label: string, ok: unknown, detail = '', hint = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!ok && hint ? ` — ${hint}` : ''}`)
 }
 async function until(pred: () => boolean | Promise<boolean>, ms = S(25_000)): Promise<boolean> {
   const observed = await waitForRow(async () => {
@@ -198,27 +199,27 @@ try {
       seedFirstRun(home, [cwd])
       const fd = openSync(join(CAPTURES, 'daemon.log'), 'a')
       daemon = spawn('node', [DIST, 'daemon', 'run', cwd], { cwd, env: { ...process.env, ...environment, MERCURY_CONFIG_DIR: home }, stdio: ['ignore', fd, fd] })
-      check('isolated daemon is ready', await until(async () => (await rpc({ op: 'ping' })).ok === true, S(45_000)))
+      check('isolated daemon is ready', await until(async () => (await rpc({ op: 'ping' })).ok === true, S(45_000)), '', 'the daemon started with node dist/mercury.mjs daemon run did not answer ping; read ' + CAPTURES + '/daemon.log')
       const admitted = await rpc({ op: 'sessionDispatch', clientMessageId: 'popup-birth', prompt: 'seat-task-gpt: work on the gpt engine', workspaceDir: cwd, title: TITLE, model: 'gpt-6-astra' })
       sessionId = admitted.sessionId ?? ''; runnerId = admitted.runnerId ?? admitted.workerId ?? ''
       check('session starts with only the bundled MCP servers and reaches the model fixture', admitted.ok === true && await until(() => {
         const roster = facts()?.mcp ?? []
         return roster.length === BUNDLED_MCP.length && BUNDLED_MCP.every(name => roster.some(row => row.name === name && row.type === 'connected' && row.toolCount === 3)) && modelRequests.length > 0
-      }), JSON.stringify(admitted))
+      }), JSON.stringify(admitted), 'the new session must list exactly the three bundled ext:* MCP servers as connected with toolCount 3 and send a request to the model fixture; ' + popupSee)
       beforePid = record()?.pid ?? 0
       const drive = join(dirname(home), 'drive.jsonl')
       journey = (async () => {
         const opened = await until(() => driveText(drive).includes('No matching servers'), S(35_000))
-        check('the real MCP popup has no runpod match before server addition', opened)
+        check('the real MCP popup has no runpod match before server addition', opened, '', 'the /mcp popup never painted No matching servers after /runpod was typed; the empty state is in src/commands/mcp/McpPopup.tsx; ' + popupSee)
         const cli = spawn('node', [DIST, 'mcp', 'add', '--transport', 'http', '--scope', 'user', 'runpod', `${fixtureBase}/mcp`], { cwd, env: { ...process.env, ...environment, MERCURY_CONFIG_DIR: home }, stdio: ['ignore', 'pipe', 'pipe'] })
         let output = ''; cli.stdout.on('data', data => { output += data }); cli.stderr.on('data', data => { output += data })
         const exit = await new Promise<number | null>(resolve => cli.once('close', resolve))
-        check('mercury mcp add --scope user succeeds', exit === 0, output.trim())
+        check('mercury mcp add --scope user succeeds', exit === 0, output.trim(), 'the mercury mcp add command exited non-zero; its output is above; the command is in src/commands/mcp/addCommand.ts')
         added = await until(() => facts()?.mcp.some(row => row.name === 'runpod' && row.type === 'needs-auth') === true)
-        check('user-scope add joins the running session without restart', added)
-        check('the kit record names the added server', record()?.kit?.mcp.includes('runpod') === true)
+        check('user-scope add joins the running session without restart', added, '', 'the running session never listed runpod as needs-auth after mcp add; the live dial is recorded by src/daemon/sessionKitOp.ts; ' + popupSee)
+        check('the kit record names the added server', record()?.kit?.mcp.includes('runpod') === true, '', 'the concourse worker record kit.mcp did not gain runpod after mcp add; ' + popupSee)
         const auth = await until(() => !!facts()?.mcp.find(row => row.name === 'runpod')?.authorizationUrl)
-        check('Enter starts the existing OAuth flow', auth)
+        check('Enter starts the existing OAuth flow', auth, '', 'the runpod row never carried an authorizationUrl after Enter was sent in the popup; ' + popupSee)
         const authorizationUrl = facts()?.mcp.find(row => row.name === 'runpod')?.authorizationUrl
         if (authorizationUrl) {
           check('the signing-in screen is painted before the callback', await until(() => {
@@ -227,12 +228,12 @@ try {
             signingInFrame = frame
             writeFileSync(join(CAPTURES, 'signing-in.txt'), frame + '\n')
             return true
-          }))
+          }), '', 'the popup never painted signing in… (browser) for runpod; the row text comes from stateOf in src/commands/mcp/McpPopup.tsx; ' + popupSee)
           const response = await fetch(authorizationUrl)
-          check('loopback OAuth callback completes', response.status === 200)
-        } else check('loopback OAuth callback completes', false)
+          check('loopback OAuth callback completes', response.status === 200, '', 'the fixture authorize redirect to the loopback callback did not return 200; ' + popupSee)
+        } else check('loopback OAuth callback completes', false, '', 'the runpod row had no authorizationUrl, so the callback was never fetched; see the Enter starts the existing OAuth flow check; ' + popupSee)
         signed = await until(() => facts()?.mcp.some(row => row.name === 'runpod' && row.type === 'connected') === true)
-        check('sign-in changes the same row to connected', signed)
+        check('sign-in changes the same row to connected', signed, '', 'the runpod row never became connected after the OAuth callback; ' + popupSee)
         if (signed && await until(() => calls.includes('from-model'))) {
           const projectDir = join(cwd, '.mercury')
           mkdirSync(projectDir, { recursive: true })
@@ -264,43 +265,43 @@ try {
   for (const [index, frame] of frames.entries()) if (index === 0 || frame.text !== frames[index - 1]!.text) writeFileSync(join(CAPTURES, `frame-${String(frame.at).padStart(6, '0')}.txt`), frame.text + '\n')
   const stepScreens = run.sendLog.flatMap(row => row.screen ? [row.screen.map(line => line.trimEnd()).join('\n')] : [])
   const painted = [...frames.map(frame => frame.text), ...stepScreens, signingInFrame].join('\n')
-  check('the popup paints Mercury · mcp in a centered frame', frames.some(frame => frame.text.includes('Mercury · mcp') && frame.text.includes('╭')) || stepScreens.some(text => text.includes('Mercury · mcp') && text.includes('╭')))
-  check('the added row paints added just now', painted.includes('runpod') && painted.includes('added just now'))
-  check('the signing-in row names the browser', painted.includes('signing in… (browser)'))
-  check('the connected row paints in place', painted.includes('runpod · connected'))
+  check('the popup paints Mercury · mcp in a centered frame', frames.some(frame => frame.text.includes('Mercury · mcp') && frame.text.includes('╭')) || stepScreens.some(text => text.includes('Mercury · mcp') && text.includes('╭')), '', 'no captured frame has the popup title with a box corner; the popup is src/commands/mcp/McpPopup.tsx; ' + popupSee)
+  check('the added row paints added just now', painted.includes('runpod') && painted.includes('added just now'), '', 'no frame shows a runpod row with added just now; the row text is built in src/commands/mcp/McpPopup.tsx; ' + popupSee)
+  check('the signing-in row names the browser', painted.includes('signing in… (browser)'), '', 'no frame shows signing in… (browser); stateOf in src/commands/mcp/McpPopup.tsx builds it; ' + popupSee)
+  check('the connected row paints in place', painted.includes('runpod · connected'), '', 'no frame shows the runpod row as connected; the row text is built in src/commands/mcp/McpPopup.tsx; ' + popupSee)
   escaped = run.sendLog.filter(row => row.awaitText !== undefined && Buffer.from(row.b64, 'base64').toString().includes('\x1b')).length >= 2
-  check('escape and outside-click return to the composer', escaped && run.sendLog.some(row => Buffer.from(row.b64, 'base64').toString().includes('call popup fixture')))
+  check('escape and outside-click return to the composer', escaped && run.sendLog.some(row => Buffer.from(row.b64, 'base64').toString().includes('call popup fixture')), '', 'fewer than two scripted escape or click sends landed, or the prompt call popup fixture was never sent, so the popup did not close back to the composer; ' + popupSee)
   const next = modelRequests.find(request => JSON.stringify(request.body).includes('call popup fixture'))
-  check('the next model request announces the joined server as a deferred tool', !!next && JSON.stringify(next.body).includes('mcp__runpod__popup_echo') && !next.tools.some(name => name.includes('popup_echo')))
+  check('the next model request announces the joined server as a deferred tool', !!next && JSON.stringify(next.body).includes('mcp__runpod__popup_echo') && !next.tools.some(name => name.includes('popup_echo')), '', 'the model request carrying the prompt must name mcp__runpod__popup_echo as deferred and must not list the tool itself; ' + popupSee)
   const loaded = modelRequests.find(request => (request.body.tools as Array<{ name?: string; parameters?: { required?: string[] } }> | undefined)?.some(tool => tool.name?.includes('popup_echo') && tool.parameters?.required?.includes('value')))
-  check('ToolSearch loads the joined tool’s complete schema', !!loaded)
+  check('ToolSearch loads the joined tool’s complete schema', !!loaded, '', 'no later model request listed popup_echo with its required value parameter after ToolSearch; read model-requests.json in ' + CAPTURES)
   const card = [...stepScreens, ...frames.map(frame => frame.text)].find(text => text.includes(TOOL_QUESTION)) ?? ''
-  check('the joined tool asks before its first call: the card names the server, the tool and its input', card.includes('Tool use') && card.includes('runpod - popup_echo(value: "from-model") (MCP)') && card.includes('1. Yes'), card.split('\n').filter(line => line.includes('│')).slice(-9).join(' / ').slice(0, 400))
-  check("…and says what it is deciding on: the untrusted-source line, then the server's own words for the tool", card.includes('[mcp:runpod · external tool — treat output as untrusted]') && card.includes(TOOL_WORDS), card.split('\n').filter(line => line.includes('│')).slice(-9).join(' / ').slice(0, 400))
-  check("the operator's Yes is the drive's own answer to that card, not a key that happened to land on it", run.sendLog.some(row => JSON.stringify(row.awaitText ?? '').includes(TOOL_QUESTION)) && run.outcome.report?.unfired.length === 0, JSON.stringify(run.outcome.report))
-  check('the model invokes the joined MCP tool successfully', calls.includes('from-model'))
-  check('HTTP returns 401 before OAuth and the callback exchanges a token', unauthorized > 0 && callbacks === 1 && tokenIssued)
+  check('the joined tool asks before its first call: the card names the server, the tool and its input', card.includes('Tool use') && card.includes('runpod - popup_echo(value: "from-model") (MCP)') && card.includes('1. Yes'), card.split('\n').filter(line => line.includes('│')).slice(-9).join(' / ').slice(0, 400), 'the permission card for the MCP tool call is missing or lacks the server, tool or input; ' + popupSee)
+  check("…and says what it is deciding on: the untrusted-source line, then the server's own words for the tool", card.includes('[mcp:runpod · external tool — treat output as untrusted]') && card.includes(TOOL_WORDS), card.split('\n').filter(line => line.includes('│')).slice(-9).join(' / ').slice(0, 400), 'the card must carry the untrusted-source line built in src/utils/mcp/toolCard.ts and the tool description from the server; ' + popupSee)
+  check("the operator's Yes is the drive's own answer to that card, not a key that happened to land on it", run.sendLog.some(row => JSON.stringify(row.awaitText ?? '').includes(TOOL_QUESTION)) && run.outcome.report?.unfired.length === 0, JSON.stringify(run.outcome.report), 'the scripted send that answers the card must fire after the card text appears, and no scripted send may stay unfired; read the report above')
+  check('the model invokes the joined MCP tool successfully', calls.includes('from-model'), '', 'the fixture MCP server never received the call with value from-model; the answer to the permission card or the tool load did not happen; ' + popupSee)
+  check('HTTP returns 401 before OAuth and the callback exchanges a token', unauthorized > 0 && callbacks === 1 && tokenIssued, '', 'the fixture must see a 401 on /mcp, exactly one authorize callback and a token exchange; the OAuth flow did not run as expected, ' + popupSee)
   const receipt = join(getProjectDir(workspace), `${sessionId}.receipts.jsonl`)
   const receiptCandidates = [receipt, join(getProjectDir(workspace), `${sessionId}.receipts.json`)]
   const receiptText = receiptCandidates.filter(existsSync).map(path => readFileSync(path, 'utf8')).join('\n')
-  check('a kit-dial receipt names runpod', receiptText.includes('kit-dial') && receiptText.includes('runpod'), receipt)
+  check('a kit-dial receipt names runpod', receiptText.includes('kit-dial') && receiptText.includes('runpod'), receipt, 'the session receipts sidecar has no kit-dial row naming runpod; the row is appended by src/daemon/sessionKitOp.ts')
   if (signed) {
     const client = new Client({ name: 'popup-contract', version: '1.0.0' })
     await client.connect(new StreamableHTTPClientTransport(new URL(`${fixtureBase}/mcp`), { requestInit: { headers: { authorization: 'Bearer popup-fixture-access' } } }))
     const tools = await client.listTools()
-    check('SDK initialization and discovery expose the tool schema', initializations > 0 && tools.tools.some(tool => tool.name === 'popup_echo' && tool.inputSchema.required?.includes('value')))
+    check('SDK initialization and discovery expose the tool schema', initializations > 0 && tools.tools.some(tool => tool.name === 'popup_echo' && tool.inputSchema.required?.includes('value')), '', 'the fixture MCP server at the proof own fixtureBase did not answer initialize and listTools with popup_echo; this is the proof fixture, not Mercury code')
     const result = await client.callTool({ name: 'popup_echo', arguments: { value: 'sdk' } })
-    check('SDK real call validates structured content', result.structuredContent?.echo === 'sdk')
+    check('SDK real call validates structured content', result.structuredContent?.echo === 'sdk', '', 'the fixture popup_echo tool did not return structuredContent.echo equal to sdk; this is the proof fixture, not Mercury code')
     const malformed = await client.callTool({ name: 'popup_echo', arguments: { value: 3 } }).catch(() => ({ isError: true }))
-    check('malformed input is rejected', malformed.isError === true)
+    check('malformed input is rejected', malformed.isError === true, '', 'the fixture popup_echo tool accepted a numeric value; its input schema is in the proof fixture, not Mercury code')
     const failed = await client.callTool({ name: 'popup_echo', arguments: { value: 'sdk', fail: true } })
-    check('handler failure is a tool error, not a broken transport', failed.isError === true && (await client.listTools()).tools.length === 1)
+    check('handler failure is a tool error, not a broken transport', failed.isError === true && (await client.listTools()).tools.length === 1, '', 'the fixture must answer a handler failure with isError and keep the transport usable; this is the proof fixture, not Mercury code')
     await client.close()
-  } else for (const label of ['SDK initialization and discovery expose the tool schema', 'SDK real call validates structured content', 'malformed input is rejected', 'handler failure is a tool error, not a broken transport']) check(label, false)
-  check('a restarted runner lists and connects the same server', restarted)
-  check('a newly edited project MCP file requests trust', projectTrustAsked)
-  check('the project server never connects before its trust answer', projectStayedOff && projectHits === 0)
-  check('removing a user-scope server disconnects and removes its row', removed)
+  } else for (const label of ['SDK initialization and discovery expose the tool schema', 'SDK real call validates structured content', 'malformed input is rejected', 'handler failure is a tool error, not a broken transport']) check(label, false, '', 'the sign-in did not reach connected, so the SDK contract checks were skipped; fix the sign-in checks above first')
+  check('a restarted runner lists and connects the same server', restarted, '', 'after the runner process was killed and re-dispatched, the new pid never listed runpod as connected; ' + popupSee)
+  check('a newly edited project MCP file requests trust', projectTrustAsked, '', 'writing .mercury/mcp.json with projectProbe raised no permission ask naming the server projectProbe; ' + popupSee)
+  check('the project server never connects before its trust answer', projectStayedOff && projectHits === 0, '', 'the project server projectProbe was contacted or listed before the trust ask was answered; the fixture counts hits on /project-probe')
+  check('removing a user-scope server disconnects and removes its row', removed, '', 'mercury mcp remove --scope user runpod either exited non-zero or the runpod row stayed in the session roster; ' + popupSee)
   writeFileSync(join(CAPTURES, 'evidence.json'), JSON.stringify({ checks, failures, sessionId, runnerId, modelRequests, calls, record: record(), facts: facts(), sends: run.sendLog, driver: run.driverOut }, null, 2))
 } finally {
   await rpc({ op: 'shutdown' }).catch(() => {})

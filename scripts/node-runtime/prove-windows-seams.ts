@@ -6,11 +6,28 @@ import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
+let seamWhere = ''
+const seamPointers: Record<string, string> = {
+  '(1)': 'change registerMcpAddCommand in src/commands/mcp/addCommand.ts, or where the mcp command calls it, so add is registered before parsing',
+  '(2)': 'change createReadRuleSuggestion in src/utils/permissions/PermissionUpdate.ts (the writer) or rootForPattern in src/utils/permissions/filesystem.ts (the reader) so both use one drive spelling',
+  '(3)': 'change normalizePathForConfigKey in src/utils/path.ts',
+  '(4)': 'change the gh probe in src/services/health/sections/coding-loop-fast.ts or whichSync in src/utils/which.ts',
+  '(5)': 'change canonicalHomeSpelling in src/utils/envUtils.ts',
+  '(10)': 'change the starter file in src/keybindings/template.ts (generateKeybindingsTemplate) or the rules in src/keybindings/validate.ts',
+  '(12)': 'change the reserved-shortcut tables in src/keybindings/reservedShortcuts.ts',
+  '(14)': 'change sweepProbeDir in src/services/health/healthDeepProbes.ts',
+  '(15)': 'change ripGrep, ripGrepAnswer or isRipgrepUsageDiagnostic in src/utils/ripgrep.ts',
+  '(17)': 'change getRawSpellingKeychainStorageServiceName in src/utils/secureStorage/macOsKeychainHelpers.ts or operatorPrincipal in src/substrate/identity/identity.ts',
+}
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
+  const hint = [detail, seamWhere].filter(part => part !== '').join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !hint ? '' : ` — ${hint}`}`)
   if (!cond) failures++
 }
-const section = (s: string): void => console.log(`\n── ${s} ──`)
+const section = (s: string): void => {
+  seamWhere = seamPointers[s.slice(0, s.indexOf(')') + 1)] ?? ''
+  console.log(`\n── ${s} ──`)
+}
 
 section('(1) `mercury mcp add` is registered BEFORE the parser looks for it')
 {

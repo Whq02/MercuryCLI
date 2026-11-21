@@ -31,11 +31,11 @@ const SIZE: Size = ((): Size => {
 let failures = 0
 let checks = 0
 const verdicts: Array<{ label: string; ok: boolean; detail: string }> = []
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   checks += 1
   if (!cond) failures += 1
   verdicts.push({ label, ok: cond, detail })
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}${!cond && hint ? ` — to fix: ${hint}` : ''}`)
 }
 
 const driver = resolveCaptureDriver()
@@ -454,7 +454,7 @@ for (const journey of JOURNEYS) {
   }
   const receipts = cap.payload?.sendReceipts?.map(r => r.atTick) ?? []
   console.log(`  wire: ${fixture.hits.map(h => `${h.n}:${h.facts.notice ? 'notice' : `s${h.facts.step}`}→${h.answer}`).join(' · ')}`)
-  check(`${tag}: the journey happened (engine exit 0, every send due, the turn ended on its last words)`, cap.status === 0 && receipts.length === (journey.name === 'forty-line-delivery' ? 4 : 3) && cap.payload?.endReason === 'stable' && typeof cap.payload?.readyAt === 'number', `exit=${cap.status} sends=${receipts.length}/3 end=${cap.payload?.endReason} ready=${cap.payload?.readyAt} · ${leg.log}`)
+  check(`${tag}: the journey happened (engine exit 0, every send due, the turn ended on its last words)`, cap.status === 0 && receipts.length === (journey.name === 'forty-line-delivery' ? 4 : 3) && cap.payload?.endReason === 'stable' && typeof cap.payload?.readyAt === 'number', `exit=${cap.status} sends=${receipts.length}/3 end=${cap.payload?.endReason} ready=${cap.payload?.readyAt} · ${leg.log}`, 'read the engine log named in the detail; if the turn never reached its last words, rebuild dist with bun run build.ts and rerun, else fix the notice rows render in src/components/messages/UserNoticeMessage.tsx')
   let frames: Frame[] = []
   try {
     frames = await replay(leg)
@@ -464,29 +464,29 @@ for (const journey of JOURNEYS) {
   const last = frames[frames.length - 1]
   const lastRuns = last === undefined ? [] : runsIn(last)
   const raw = rawWrapperFrames(frames)
-  check(`${tag}: no frame paints the notice's raw wrapper`, raw.length === 0, raw.length === 0 ? '' : `${raw.length} frames, first: ${firstRunOf(raw, r => r.includes('<monitor') || r.includes('</monitor>'))}`)
-  check(`${tag}: no frame paints a notice under the operator's caret`, runFrames(frames, r => r.includes('❯ <monitor')).length === 0, firstRunOf(frames, r => r.includes('❯ <monitor')))
+  check(`${tag}: no frame paints the notice's raw wrapper`, raw.length === 0, raw.length === 0 ? '' : `${raw.length} frames, first: ${firstRunOf(raw, r => r.includes('<monitor') || r.includes('</monitor>'))}`, 'a raw monitor wrapper reached the screen; fold it into a plate through wrappedNoticeBlocks and hasNoticeFold in src/utils/messages/noticeRows.ts, rendered by src/components/messages/UserNoticeMessage.tsx')
+  check(`${tag}: no frame paints a notice under the operator's caret`, runFrames(frames, r => r.includes('❯ <monitor')).length === 0, firstRunOf(frames, r => r.includes('❯ <monitor')), 'a notice was painted as the operator typed row; a notice must render as a plate, not as a prompt, so fix noticeOfText in src/utils/messages/noticeRows.ts and the row choice in src/components/messages/UserTextMessage.tsx')
   if (journey.name === 'forty-line-delivery') {
     const plate = '[Monitor] the forty-line watch · 40 lines · last: event-40 ›'
-    check(`${tag}: the model received all forty watch lines at the tool boundary`, fixture.hits.some(hit => hit.facts.fortyLines && hit.facts.step >= 2), JSON.stringify(fixture.hits))
+    check(`${tag}: the model received all forty watch lines at the tool boundary`, fixture.hits.some(hit => hit.facts.fortyLines && hit.facts.step >= 2), JSON.stringify(fixture.hits), 'the model request after the tool boundary lacked the event-40 line; the bundled watch lines must be handed to the model in the same delivery as the tool result, so inspect the watch delivery path of the Monitor tool')
     const laterFrames = frames.filter(frame => paneRows(frame.lines).some(row => row.includes('typed after the watch delivery') && row.includes('❯')))
-    check(`${tag}: the delivered fold stays above every later typed row while the turn continues`, laterFrames.length > 0 && laterFrames.every(frame => { const rows = paneRows(frame.lines); return rows.findIndex(row => row.includes(plate)) >= 0 && rows.findIndex(row => row.includes(plate)) < rows.findIndex(row => row.includes('typed after the watch delivery') && row.includes('❯')) }), `frames=${laterFrames.length}`)
-    check(`${tag}: the forty-line delivery never wears a held plate after the model receives it`, laterFrames.length > 0 && laterFrames.every(frame => !paneRows(frame.lines).some(row => row.includes(plate) && row.includes('held'))))
-    check(`${tag}: the collapsed cockpit never paints the raw event lines`, frames.every(frame => !paneRows(frame.lines).some(row => /^event-\d+$/.test(row.trim()))))
+    check(`${tag}: the delivered fold stays above every later typed row while the turn continues`, laterFrames.length > 0 && laterFrames.every(frame => { const rows = paneRows(frame.lines); return rows.findIndex(row => row.includes(plate)) >= 0 && rows.findIndex(row => row.includes(plate)) < rows.findIndex(row => row.includes('typed after the watch delivery') && row.includes('❯')) }), `frames=${laterFrames.length}`, 'the delivered plate must stay above the later typed row for every frame after that row appears; keep delivered notice rows ahead of newly typed input in the message list order')
+    check(`${tag}: the forty-line delivery never wears a held plate after the model receives it`, laterFrames.length > 0 && laterFrames.every(frame => !paneRows(frame.lines).some(row => row.includes(plate) && row.includes('held'))), '', 'once the model has received the forty lines the plate must stop wearing the held dress; clear the held state when the notice is delivered')
+    check(`${tag}: the collapsed cockpit never paints the raw event lines`, frames.every(frame => !paneRows(frame.lines).some(row => /^event-\d+$/.test(row.trim()))), '', 'a collapsed watch must show only its counted plate; keep the event lines hidden while fold is true and not expanded in src/components/messages/UserNoticeMessage.tsx')
   }
   if (journey.name === 'monitor-mid-turn-rows') {
     const plate = (r: string): boolean => r.includes(`[Monitor] ${WATCH_MID}`)
-    check(`${tag}: the plate names the watch`, runFrames(frames, plate).length > 0, `runs: ${lastRuns.join(' ‖ ')}`)
-    check(`${tag}: event lines stay behind a counted fold, not under a caret`, runFrames(frames, r => plate(r) && /· \d+ lines? ›/.test(r) && !r.includes('event-1') && !r.includes('❯')).length > 0, `runs: ${lastRuns.join(' ‖ ')}`)
-    check(`${tag}: the held dress and arrival clock precede the plate while the runner's queue holds the notice`, rowFrames(frames, r => /^held\s+since \d{2}:\d{2}:\d{2}\s/.test(r) && plate(r)).length > 0, firstRunOf(frames, r => r.includes('monitor ·')))
-    check(`${tag}: the turn ends with the notice rows standing under their plate`, lastRuns.some(r => r.includes(DONE)) && lastRuns.some(r => plate(r) && /· \d+ lines? ›/.test(r) && !r.includes('event-3') && !r.includes('❯')), `runs: ${lastRuns.join(' ‖ ')}`)
+    check(`${tag}: the plate names the watch`, runFrames(frames, plate).length > 0, `runs: ${lastRuns.join(' ‖ ')}`, 'no row carried the plate [Monitor] followed by the watch name; fix noticePlate in src/utils/messages/noticeRows.ts or the plate render in src/components/messages/UserNoticeMessage.tsx')
+    check(`${tag}: event lines stay behind a counted fold, not under a caret`, runFrames(frames, r => plate(r) && /· \d+ lines? ›/.test(r) && !r.includes('event-1') && !r.includes('❯')).length > 0, `runs: ${lastRuns.join(' ‖ ')}`, 'the plate must carry a counted fold (· N lines ›) with its event lines hidden; fix the counted and tail text in src/components/messages/UserNoticeMessage.tsx')
+    check(`${tag}: the held dress and arrival clock precede the plate while the runner's queue holds the notice`, rowFrames(frames, r => /^held\s+since \d{2}:\d{2}:\d{2}\s/.test(r) && plate(r)).length > 0, firstRunOf(frames, r => r.includes('monitor ·')), 'while the runner queue holds the notice the row must read held since HH:MM:SS before the plate; find where the held dress and arrival clock are stamped on queued notice rows (the notice row render is src/components/messages/UserNoticeMessage.tsx)')
+    check(`${tag}: the turn ends with the notice rows standing under their plate`, lastRuns.some(r => r.includes(DONE)) && lastRuns.some(r => plate(r) && /· \d+ lines? ›/.test(r) && !r.includes('event-3') && !r.includes('❯')), `runs: ${lastRuns.join(' ‖ ')}`, 'at turn end the notice plate must still stand folded with a count and no event lines; fix the fold render in src/components/messages/UserNoticeMessage.tsx')
   }
   if (journey.name === 'notice-between-turns') {
     const plate = (r: string): boolean => r.includes(`[Monitor] ${WATCH_LATE}`)
-    check(`${tag}: the notice that woke the turn stands under its counted plate, its line folded`, runFrames(frames, r => plate(r) && r.includes('· 1 line ›') && !r.includes('late-event') && !r.includes('❯')).length > 0, `runs: ${lastRuns.join(' ‖ ')}`)
+    check(`${tag}: the notice that woke the turn stands under its counted plate, its line folded`, runFrames(frames, r => plate(r) && r.includes('· 1 line ›') && !r.includes('late-event') && !r.includes('❯')).length > 0, `runs: ${lastRuns.join(' ‖ ')}`, 'the notice that woke the turn must show as a plate with a one-line count and its line folded; fix the fold render in src/components/messages/UserNoticeMessage.tsx and noticePlate in src/utils/messages/noticeRows.ts')
     const plateAt = runIndex(lastRuns, plate)
     const notedAt = runIndex(lastRuns, r => r.includes(NOTED))
-    check(`${tag}: the reply to the notice follows the notice row`, plateAt !== -1 && notedAt !== -1 && plateAt < notedAt, `plate=${plateAt} noted=${notedAt} runs: ${lastRuns.join(' ‖ ')}`)
+    check(`${tag}: the reply to the notice follows the notice row`, plateAt !== -1 && notedAt !== -1 && plateAt < notedAt, `plate=${plateAt} noted=${notedAt} runs: ${lastRuns.join(' ‖ ')}`, 'the model reply must be ordered after the notice row that woke it; fix the placement of delivered notice rows relative to the reply in the message list order')
   }
   if (journey.name === 'text-between-tools') {
     const carried = (r: string): boolean => r.includes(CARRIED)
@@ -494,13 +494,13 @@ for (const journey of JOURNEYS) {
     const noticeRun = (r: string): boolean => plate(r) || r.includes('<monitor task=')
     const firstFull = frames.findIndex(f => runsIn(f).some(r => r.includes('before the next step')))
     const gaps = firstFull === -1 ? [] : frames.slice(firstFull).filter(f => !runsIn(f).some(carried))
-    check(`${tag}: the words written before the tool call stand in every frame from their first full paint to the end`, firstFull !== -1 && gaps.length === 0, firstFull === -1 ? 'the words never painted whole' : `${gaps.length} frames without them, first: frame ${gaps[0]?.i} · tick ${gaps[0]?.tick}`)
+    check(`${tag}: the words written before the tool call stand in every frame from their first full paint to the end`, firstFull !== -1 && gaps.length === 0, firstFull === -1 ? 'the words never painted whole' : `${gaps.length} frames without them, first: frame ${gaps[0]?.i} · tick ${gaps[0]?.tick}`, 'the assistant words written before a tool call must stay on screen once painted; a notice arriving must not remove or replace them in the message list')
     const above = frames.filter(f => { const runs = runsIn(f); const c = runIndex(runs, carried); const n = runIndex(runs, noticeRun); return c !== -1 && n !== -1 && n < c })
-    check(`${tag}: the notice never stands above the words it arrived after`, above.length === 0, above.length === 0 ? '' : `${above.length} frames, first: frame ${above[0]?.i} · tick ${above[0]?.tick}: ${runsIn(above[0]!).join(' ‖ ')}`)
+    check(`${tag}: the notice never stands above the words it arrived after`, above.length === 0, above.length === 0 ? '' : `${above.length} frames, first: frame ${above[0]?.i} · tick ${above[0]?.tick}: ${runsIn(above[0]!).join(' ‖ ')}`, 'a notice that arrives after the assistant words must be placed below them; fix the ordering of delivered notice rows against streamed assistant text in the message list')
     const c = runIndex(lastRuns, carried)
     const p = runIndex(lastRuns, plate)
     const d = runIndex(lastRuns, r => r.includes(DONE))
-    check(`${tag}: at the end the words stand, the notice beneath them, the turn's last words last`, c !== -1 && p !== -1 && d !== -1 && c < p && p < d, `carried=${c} plate=${p} done=${d} runs: ${lastRuns.join(' ‖ ')}`)
+    check(`${tag}: at the end the words stand, the notice beneath them, the turn's last words last`, c !== -1 && p !== -1 && d !== -1 && c < p && p < d, `carried=${c} plate=${p} done=${d} runs: ${lastRuns.join(' ‖ ')}`, 'the final order must be the carried words, then the notice plate, then the turn last words; fix the ordering of delivered notice rows in the message list')
   }
   saveArtifacts(leg, frames, fixture.hits)
 }

@@ -9,9 +9,10 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'posture-blind-'))
 
 let failures = 0
+const familyBlindHint = 'to fix, make setPermissionModeWithGuards and validateModeEntry in src/utils/permissions/permissionSetup.ts return the same verdict whatever MERCURY_MODEL names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : `${detail ? ` — ${detail}` : ''} — ${familyBlindHint}`}${cond && detail ? ` — ${detail}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -13,7 +13,7 @@ const rows = new Map([
 const get = Map.prototype.get
 let reads = 0
 Map.prototype.get = function (key) {
-  if (++reads > 128) throw new Error('FAIL snip parent resolution repeats a removed cycle without making progress')
+  if (++reads > 128) throw new Error('FAIL snip parent resolution repeats a removed cycle without making progress; make the parent walk in applySnipRemovals (src/utils/sessionStorage/chain.ts) stop on a uuid it has already visited')
   return get.call(this, key)
 }
 try {
@@ -21,8 +21,8 @@ try {
 } finally {
   Map.prototype.get = get
 }
-assert.equal(rows.has('a'), false)
-assert.equal(rows.has('b'), false)
-assert.equal(rows.get('c')?.parentUuid, null)
-assert.equal(rows.get('cut')?.parentUuid, 'c')
+assert.equal(rows.has('a'), false, 'applySnipRemovals in src/utils/sessionStorage/chain.ts left row a in the map although the snip boundary lists it in removedUuids')
+assert.equal(rows.has('b'), false, 'applySnipRemovals in src/utils/sessionStorage/chain.ts left row b in the map although the snip boundary lists it in removedUuids')
+assert.equal(rows.get('c')?.parentUuid, null, 'applySnipRemovals in src/utils/sessionStorage/chain.ts must set the parent of retained row c to null when its whole parent chain was removed')
+assert.equal(rows.get('cut')?.parentUuid, 'c', 'applySnipRemovals in src/utils/sessionStorage/chain.ts changed the parent of the boundary row, which should stay c')
 console.log('PASS snip parent cycles terminate and retain the surviving conversation')

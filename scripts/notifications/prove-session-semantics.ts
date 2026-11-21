@@ -87,7 +87,7 @@ try {
       return false
     }
   }, 60_000)
-  check('the daemon is up', up)
+  check('the daemon is up', up, 'the daemon did not answer concourseList in 60s; read ' + join(SCRATCH, 'daemon.log') + ' and rebuild dist/mercury.mjs with bun run build.ts')
 
   const dispatch = (await daemonControlRpc(
     {
@@ -101,7 +101,7 @@ try {
     } as never,
     { timeoutMs: 30_000 },
   )) as { ok?: boolean; sessionId?: string; state?: string; error?: string }
-  check('dispatch admits + delivers (state working)', dispatch.ok === true && dispatch.state === 'working', dispatch.error ?? dispatch.state ?? '')
+  check('dispatch admits + delivers (state working)', dispatch.ok === true && dispatch.state === 'working', (dispatch.error ?? dispatch.state ?? '') + ' | makeConcourseDispatchHandler in src/daemon/concourseDispatch.ts must admit a fresh dispatch and return state working')
   const sessionId = String(dispatch.sessionId ?? '')
 
   const { workerTranscriptPath, openWorkerTranscript } = await import('../../src/services/concourse/workerTranscript.ts')
@@ -122,9 +122,9 @@ try {
       return false
     }
   }
-  check('turn 1 landed in the worker transcript', await untilAsync(inTranscript('pong — the first worker turn')), tpath)
+  check('turn 1 landed in the worker transcript', await untilAsync(inTranscript('pong — the first worker turn')), tpath + ' | the worker never wrote the first turn there; read ' + join(SCRATCH, 'daemon.log'))
   const pidBefore = (await recOf())?.pid
-  check('the worker has a live pid', typeof pidBefore === 'number', String(pidBefore))
+  check('the worker has a live pid', typeof pidBefore === 'number', String(pidBefore) + ' | the concourseList row for the dispatched session has no pid; the worker did not start, read ' + join(SCRATCH, 'daemon.log'))
 
   const redirect = (await daemonControlRpc(
     {
@@ -138,8 +138,8 @@ try {
     } as never,
     { timeoutMs: 30_000 },
   )) as { ok?: boolean; state?: string; error?: string }
-  check('redirect delivers into the live session (state working)', redirect.ok === true && redirect.state === 'working', redirect.error ?? '')
-  check('the steer turn landed', await untilAsync(inTranscript('STEER-OK')))
+  check('redirect delivers into the live session (state working)', redirect.ok === true && redirect.state === 'working', (redirect.error ?? '') + ' | a dispatch with targetSessionId must deliver into the live session (makeConcourseDispatchHandler in src/daemon/concourseDispatch.ts)')
+  check('the steer turn landed', await untilAsync(inTranscript('STEER-OK')), 'the redirected prompt never produced a turn in ' + tpath + '; read ' + join(SCRATCH, 'daemon.log'))
 
   const hung = (await daemonControlRpc(
     {
@@ -153,13 +153,13 @@ try {
     } as never,
     { timeoutMs: 30_000 },
   )) as { ok?: boolean; error?: string }
-  check('the hung-turn delivery is accepted', hung.ok === true, hung.error ?? '')
+  check('the hung-turn delivery is accepted', hung.ok === true, (hung.error ?? '') + ' | a dispatch to the live session was refused (makeConcourseDispatchHandler in src/daemon/concourseDispatch.ts)')
   await api.messageRequestStarted(3)
   const interrupt = (await daemonControlRpc(
     { op: 'sessionControl', action: 'interrupt', sessionId, by: 'operator' } as never,
     { timeoutMs: 10_000 },
   )) as { ok?: boolean; outcome?: string; detail?: string }
-  check('interrupt receipt: applied through the worker control channel', interrupt.outcome === 'applied', interrupt.detail ?? '')
+  check('interrupt receipt: applied through the worker control channel', interrupt.outcome === 'applied', (interrupt.detail ?? '') + ' | the sessionControl interrupt in src/daemon/controlServer.ts must reach the worker control channel and return outcome applied')
   const afterInterrupt = (await daemonControlRpc(
     {
       op: 'concourseDispatch',
@@ -172,15 +172,15 @@ try {
     } as never,
     { timeoutMs: 30_000 },
   )) as { ok?: boolean; error?: string }
-  check('post-interrupt delivery is accepted', afterInterrupt.ok === true, afterInterrupt.error ?? '')
-  check('the post-interrupt turn completed (the abort consequence)', await untilAsync(inTranscript('AFTER-INTERRUPT-OK'), 120_000))
+  check('post-interrupt delivery is accepted', afterInterrupt.ok === true, (afterInterrupt.error ?? '') + ' | a dispatch after an interrupt must still be accepted (makeConcourseDispatchHandler in src/daemon/concourseDispatch.ts)')
+  check('the post-interrupt turn completed (the abort consequence)', await untilAsync(inTranscript('AFTER-INTERRUPT-OK'), 120_000), 'the interrupt did not abort the hung turn so the next turn could run; read ' + join(SCRATCH, 'daemon.log'))
 
   const pause = (await daemonControlRpc(
     { op: 'sessionControl', action: 'pause', sessionId, by: 'operator' } as never,
     { timeoutMs: 10_000 },
   )) as { outcome?: string; detail?: string }
-  check('pause receipt: applied', pause.outcome === 'applied', pause.detail ?? '')
-  check('the record shows paused', await untilAsync(async () => (await recOf())?.paused === true, 15_000))
+  check('pause receipt: applied', pause.outcome === 'applied', (pause.detail ?? '') + ' | the sessionControl pause in src/daemon/controlServer.ts must return outcome applied')
+  check('the record shows paused', await untilAsync(async () => (await recOf())?.paused === true, 15_000), 'the concourseList worker row never gained pausedAt after the pause receipt; read ' + join(SCRATCH, 'daemon.log'))
   const heldTry = (await daemonControlRpc(
     {
       op: 'concourseDispatch',
@@ -196,16 +196,16 @@ try {
   check(
     'a redirect while paused is HELD with the typed reason (never failed)',
     heldTry.ok === false && (heldTry as { heldReason?: string }).heldReason === 'session-paused' && heldTry.state === 'queued',
-    `ok=${heldTry.ok} state=${heldTry.state} err=${heldTry.error ?? ''}`,
+    `ok=${heldTry.ok} state=${heldTry.state} err=${heldTry.error ?? ''} | a dispatch to a paused session must be held with heldReason session-paused and state queued (makeConcourseDispatchHandler in src/daemon/concourseDispatch.ts)`,
   )
   const { readConcourseDispatches } = await import('../../src/daemon/concourseDispatch.ts')
   const heldRow = readConcourseDispatches(daemonDir)['sem-5']
-  check('the ledger row carries heldReason session-paused', heldRow?.heldReason === 'session-paused', JSON.stringify(heldRow ?? {}))
+  check('the ledger row carries heldReason session-paused', heldRow?.heldReason === 'session-paused', JSON.stringify(heldRow ?? {}) + ' | the held dispatch row must be stored with heldReason session-paused (makeConcourseDispatchHandler in src/daemon/concourseDispatch.ts)')
   const resume = (await daemonControlRpc(
     { op: 'sessionControl', action: 'resume', sessionId, by: 'operator' } as never,
     { timeoutMs: 10_000 },
   )) as { outcome?: string; detail?: string }
-  check('resume receipt: applied', resume.outcome === 'applied', resume.detail ?? '')
+  check('resume receipt: applied', resume.outcome === 'applied', (resume.detail ?? '') + ' | the sessionControl resume in src/daemon/controlServer.ts must return outcome applied')
   const replay = (await daemonControlRpc(
     {
       op: 'concourseDispatch',
@@ -218,8 +218,8 @@ try {
     } as never,
     { timeoutMs: 30_000 },
   )) as { ok?: boolean; state?: string; error?: string }
-  check('the SAME-id replay after resume delivers (state working)', replay.ok === true && replay.state === 'working', replay.error ?? '')
-  check('the held turn completed after resume', await untilAsync(inTranscript('AFTER-RESUME-OK'), 120_000))
+  check('the SAME-id replay after resume delivers (state working)', replay.ok === true && replay.state === 'working', (replay.error ?? '') + ' | after resume the held clientMessageId sem-5 must deliver on replay (makeConcourseDispatchHandler in src/daemon/concourseDispatch.ts)')
+  check('the held turn completed after resume', await untilAsync(inTranscript('AFTER-RESUME-OK'), 120_000), 'the replayed held prompt never produced a turn in ' + tpath + '; read ' + join(SCRATCH, 'daemon.log'))
   const replayAgain = (await daemonControlRpc(
     {
       op: 'concourseDispatch',
@@ -232,7 +232,7 @@ try {
     } as never,
     { timeoutMs: 30_000 },
   )) as { ok?: boolean; replay?: string }
-  check('a second replay of the same id returns the SAME receipt (no re-delivery)', replayAgain.replay === 'replayed', JSON.stringify(replayAgain))
+  check('a second replay of the same id returns the SAME receipt (no re-delivery)', replayAgain.replay === 'replayed', JSON.stringify(replayAgain) + ' | a repeated clientMessageId must return the stored receipt with replay replayed, not deliver again (makeConcourseDispatchHandler in src/daemon/concourseDispatch.ts)')
 
   const obligations = await import('../../src/services/crew/obligations.ts')
   const raised = await obligations.upsertObligation({
@@ -243,20 +243,20 @@ try {
     dir: crewDir,
   } as never)
   const openBefore = await obligations.openObligations({ dir: crewDir })
-  check('the obligation is a durable open needs-you row', openBefore.some(o => o.obligationId === raised.obligationId))
+  check('the obligation is a durable open needs-you row', openBefore.some(o => o.obligationId === raised.obligationId), 'upsertObligation in src/services/crew/obligations.ts did not leave the row in openObligations')
   const settled = await obligations.resolveObligation(raised.obligationId, {
     kind: 'answered',
     by: 'operator',
     dir: crewDir,
   } as never)
-  check('resolveObligation settles it answered', settled.settled === true && settled.status === 'answered', JSON.stringify(settled))
+  check('resolveObligation settles it answered', settled.settled === true && settled.status === 'answered', JSON.stringify(settled) + ' | resolveObligation in src/services/crew/obligations.ts must settle an open row as answered')
   const openAfter = await obligations.openObligations({ dir: crewDir })
-  check('no open row remains after the answer', !openAfter.some(o => o.obligationId === raised.obligationId))
+  check('no open row remains after the answer', !openAfter.some(o => o.obligationId === raised.obligationId), 'openObligations in src/services/crew/obligations.ts still lists the answered row')
 
   const modelCalls = api.messageRequests().length
-  check('the provider saw EXACTLY the five scripted worker turns', modelCalls === 5, `${modelCalls} calls`)
+  check('the provider saw EXACTLY the five scripted worker turns', modelCalls === 5, `${modelCalls} calls | a dispatch was delivered twice or a turn never reached the fixture provider; compare the five scripted turns with the dispatch steps above`)
   const pidAfter = (await recOf())?.pid
-  check('the worker pid never changed across every semantic', pidAfter === pidBefore, `${pidBefore} → ${pidAfter}`)
+  check('the worker pid never changed across every semantic', pidAfter === pidBefore, `${pidBefore} → ${pidAfter} | the worker was respawned by an interrupt, pause or resume; read ` + join(SCRATCH, 'daemon.log'))
 } finally {
   try {
     await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never, { timeoutMs: 8000 })

@@ -9,9 +9,11 @@ process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'unused-home')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+let failureWhere = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, failureWhere].filter(Boolean).join('; ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -48,6 +50,7 @@ const readProjects = (home: string): Record<string, { hasTrustDialogAccepted?: b
 
 section('the derivation agrees with the product (findCanonicalGitRoot)')
 {
+  failureWhere = 'make canonicalProjectKeyOf in scripts/lib/firstRunSeed.ts derive the same key as findCanonicalGitRoot in src/utils/git.ts'
   check('a linked worktree keys to the MAIN worktree root', canonicalProjectKeyOf(lane) === main, `${canonicalProjectKeyOf(lane)} vs ${main}`)
   check('…exactly as the product derives it', canonicalProjectKeyOf(lane) === findCanonicalGitRoot(lane), `${canonicalProjectKeyOf(lane)} vs ${findCanonicalGitRoot(lane)}`)
   check('the main checkout keys to itself', canonicalProjectKeyOf(main) === main && findCanonicalGitRoot(main) === main)
@@ -56,6 +59,7 @@ section('the derivation agrees with the product (findCanonicalGitRoot)')
 
 section('the seed writes every key the product will read')
 {
+  failureWhere = 'fix seedFirstRun in scripts/lib/firstRunSeed.ts so it writes the raw cwd key plus the canonicalProjectKeyOf key, trusted and onboarded'
   const homeLane = join(SCRATCH, 'home-lane')
   seedFirstRun(homeLane, [lane])
   const projects = readProjects(homeLane)
@@ -80,6 +84,7 @@ section('the seed writes every key the product will read')
 
 section('absent-only stands')
 {
+  failureWhere = 'fix seedFirstRun in scripts/lib/firstRunSeed.ts so it leaves an existing .mercury.json alone and writes only under the home it is given'
   const homeKept = join(SCRATCH, 'home-kept')
   mkdirSync(homeKept, { recursive: true })
   writeFileSync(join(homeKept, '.mercury.json'), '{"theme":"not-a-theme","projects":{}}\n')

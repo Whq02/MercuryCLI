@@ -38,40 +38,40 @@ let roster: ReturnType<typeof connector.workRoster> = { rows: [], mission: [] }
 let rosterReads = 0
 connector.workRoster = () => { rosterReads++; return roster }
 setFocusedSessionConnector(connector)
-check('the daemon connector offers the seat-live extension the bus subscribes through', hasSeatLive(connector))
+check('the daemon connector offers the seat-live extension the bus subscribes through', hasSeatLive(connector), 'DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts must satisfy hasSeatLive from src/services/engine-connector/seatLive.ts (subscribeLive)')
 
 let notified = 0
 const unsubscribe = vitals.subscribeVitals(() => { notified++ }, true)
 try {
   const first = await until(() => vitals.getVitals().version > 0, REFRESH_BUDGET_MS)
-  check('subscribing starts the engine and the first refresh lands', vitals.getVitals().version > 0, `${first} ms, version ${vitals.getVitals().version}`)
+  check('subscribing starts the engine and the first refresh lands', vitals.getVitals().version > 0, `${first} ms, version ${vitals.getVitals().version}; subscribeVitals in src/state/vitalsBus.ts must start a refresh for the focused connector and publish a snapshot`)
   await settle(600)
   const settled = vitals.getVitals().version
   const settledNotices = notified
   await settle(QUIET_MS)
-  check(`with no change on the focused session the vitals hold still for ${QUIET_MS} ms (the heartbeat is 15 s away)`, vitals.getVitals().version === settled && notified === settledNotices, `version ${settled} → ${vitals.getVitals().version}, notices ${settledNotices} → ${notified}`)
+  check(`with no change on the focused session the vitals hold still for ${QUIET_MS} ms (the heartbeat is 15 s away)`, vitals.getVitals().version === settled && notified === settledNotices, `version ${settled} → ${vitals.getVitals().version}, notices ${settledNotices} → ${notified}; src/state/vitalsBus.ts must publish only when a reading changed`)
 
   const standing = vitals.getVitals()
   const readBeforeNoise = rosterReads
   connector.adoptRecord({ ...record, title: 'same readings, live notification' })
   await until(() => rosterReads > readBeforeNoise, REFRESH_BUDGET_MS)
   await settle(300)
-  check('a live notification still re-reads the sources when their values stay the same', rosterReads > readBeforeNoise)
-  check('unchanged readings keep the snapshot, timestamp and version without notifying', vitals.getVitals() === standing && notified === settledNotices, `version ${standing.version} → ${vitals.getVitals().version}, notices ${settledNotices} → ${notified}`)
+  check('a live notification still re-reads the sources when their values stay the same', rosterReads > readBeforeNoise, 'a live notification from the focused connector (adoptRecord in src/services/engine-connector/daemonConnector.ts) must trigger a refresh in src/state/vitalsBus.ts that reads workRoster')
+  check('unchanged readings keep the snapshot, timestamp and version without notifying', vitals.getVitals() === standing && notified === settledNotices, `version ${standing.version} → ${vitals.getVitals().version}, notices ${settledNotices} → ${notified}; the refresh in src/state/vitalsBus.ts must keep the current snapshot when the readings are equal`)
   const readBeforePoke = rosterReads
   vitals.pokeVitals()
   await until(() => rosterReads > readBeforePoke, REFRESH_BUDGET_MS)
   await settle(300)
-  check('a heartbeat refresh with the same readings also stays silent', rosterReads > readBeforePoke && vitals.getVitals() === standing && notified === settledNotices)
+  check('a heartbeat refresh with the same readings also stays silent', rosterReads > readBeforePoke && vitals.getVitals() === standing && notified === settledNotices, 'pokeVitals in src/state/vitalsBus.ts must re-read the sources and keep the snapshot and subscribers silent when the readings are equal')
 
   const before = vitals.getVitals().version
   const beforeAt = Date.now()
   roster = { rows: [], mission: [{ id: 'resumed-task', subject: 'Resumed task', status: 'in_progress' }] }
   connector.adoptRecord({ ...record, title: 'resumed fixture, runner alive' })
   const waited = await until(() => vitals.getVitals().tasks.some(task => task.id === 'resumed-task'), REFRESH_BUDGET_MS)
-  check('a live change on the focused connector publishes the changed reading within the debounce, not on the heartbeat', vitals.getVitals().tasks.some(task => task.id === 'resumed-task') && vitals.getVitals().version === before + 1 && waited < REFRESH_BUDGET_MS, `version ${before} → ${vitals.getVitals().version} after ${waited} ms`)
-  check('the changed reading reaches the subscribers once', notified === settledNotices + 1, `${settledNotices} → ${notified}`)
-  check('the refresh is stamped at the live change, not at the subscription', vitals.getVitals().refreshedAt >= beforeAt, `refreshedAt ${vitals.getVitals().refreshedAt} vs ${beforeAt}`)
+  check('a live change on the focused connector publishes the changed reading within the debounce, not on the heartbeat', vitals.getVitals().tasks.some(task => task.id === 'resumed-task') && vitals.getVitals().version === before + 1 && waited < REFRESH_BUDGET_MS, `version ${before} → ${vitals.getVitals().version} after ${waited} ms; src/state/vitalsBus.ts must refresh on the focused connector live notification and publish one new version`)
+  check('the changed reading reaches the subscribers once', notified === settledNotices + 1, `${settledNotices} → ${notified}; src/state/vitalsBus.ts must notify subscribers once per published change`)
+  check('the refresh is stamped at the live change, not at the subscription', vitals.getVitals().refreshedAt >= beforeAt, `refreshedAt ${vitals.getVitals().refreshedAt} vs ${beforeAt}; src/state/vitalsBus.ts must stamp refreshedAt when the refresh publishes`)
   const changed = vitals.getVitals()
   const changedNotices = notified
   const readBeforeEqual = rosterReads
@@ -79,7 +79,7 @@ try {
   connector.adoptRecord({ ...record, title: 'equal readings in fresh objects' })
   await until(() => rosterReads > readBeforeEqual, REFRESH_BUDGET_MS)
   await settle(300)
-  check('equal fresh objects retain the published task array and snapshot', rosterReads > readBeforeEqual && vitals.getVitals() === changed && vitals.getVitals().tasks === changed.tasks && notified === changedNotices)
+  check('equal fresh objects retain the published task array and snapshot', rosterReads > readBeforeEqual && vitals.getVitals() === changed && vitals.getVitals().tasks === changed.tasks && notified === changedNotices, 'src/state/vitalsBus.ts must compare readings by value and keep the published snapshot and tasks array when fresh objects are equal')
 } finally {
   unsubscribe()
   releaseFocusedSessionConnector()

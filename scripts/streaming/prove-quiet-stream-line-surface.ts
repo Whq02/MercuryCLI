@@ -10,8 +10,9 @@ process.env.MERCURY_FLUX_PROBE = '1'
 delete process.env.MERCURY_FLUX_PROBE_TEE
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
+const quietSurfaceFixHint = 'change LiveStreamingTail in src/components/LiveStreamingTail.tsx (its textSuppressed path, the phase snapshot and the settled ghost) so a suppressed surface paints no prose, ghost or thinking line and does not re-render per delta'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${quietSurfaceFixHint}` : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)

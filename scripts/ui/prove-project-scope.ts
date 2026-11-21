@@ -12,9 +12,11 @@ import {
 } from '../../src/utils/sessionStorage/clearedSessions.js'
 
 let failures = 0
+let failureWhere = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = !cond && failureWhere ? (detail ? `${detail}; ${failureWhere}` : failureWhere) : detail
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -28,6 +30,7 @@ console.log('============================================================')
 
 section('1. isProjectSession semantics')
 {
+  failureWhere = 'fix isProjectSession in src/utils/sessionFilter.ts'
   const root = '/Users/op/dev/orchard'
   check('exact root ⇒ in', isProjectSession(log('/Users/op/dev/orchard'), root))
   check('nested cwd ⇒ in', isProjectSession(log('/Users/op/dev/orchard/src/utils'), root))
@@ -45,6 +48,7 @@ section('1. isProjectSession semantics')
 
 section('2. partitionByProject')
 {
+  failureWhere = 'fix partitionByProject in src/utils/sessionFilter.ts'
   const root = '/r/proj'
   const logs = [log('/r/proj'), log('/r/proj/sub'), log('/r/other'), log(undefined)]
   const { inProject, elsewhere } = partitionByProject(logs, root)
@@ -54,6 +58,7 @@ section('2. partitionByProject')
 
 section('3. the /clear'.concat("'ed-session cache (operator model: cleared = closed on purpose)"))
 {
+  failureWhere = 'fix isSessionCleared and markSessionCleared in src/utils/sessionStorage/clearedSessions.ts'
   const prevHome = process.env.MERCURY_CONFIG_DIR
   const home = mkdtempSync(join(tmpdir(), 'cleared-proof-'))
   process.env.MERCURY_CONFIG_DIR = home

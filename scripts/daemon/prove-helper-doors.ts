@@ -174,9 +174,9 @@ try {
     const before = node(predecessorSockPath(predecessor))
     const moved = renameSocketForPredecessor(predecessor)
     const after = node(predecessorSockPath(predecessor))
-    check("the predecessor's own socket is the same node after the successor's rename step — a socket, not the sibling's link", before !== null && after !== null && before.ino === after.ino && after.kind === 'socket', { before, after, moved })
-    check("the plane link still points at the sibling's socket", present(planeLink) && node(planeLink)?.kind === 'link' && readlinkSync(planeLink) === basename(predecessorSockPath(sibling)), readdirSync(planeDir))
-    check("the step reports the predecessor's socket as serving on its own path", moved === true, moved)
+    check("the predecessor's own socket is the same node after the successor's rename step — a socket, not the sibling's link", before !== null && after !== null && before.ino === after.ino && after.kind === 'socket', { hint: 'renameSocketForPredecessor in src/daemon/handover.ts must leave the predecessor pid socket in place and never replace it with a link', before, after, moved })
+    check("the plane link still points at the sibling's socket", present(planeLink) && node(planeLink)?.kind === 'link' && readlinkSync(planeLink) === basename(predecessorSockPath(sibling)), { hint: 'renameSocketForPredecessor in src/daemon/handover.ts must not touch the plane link', dir: readdirSync(planeDir) })
+    check("the step reports the predecessor's socket as serving on its own path", moved === true, { hint: 'renameSocketForPredecessor in src/daemon/handover.ts must return true when the predecessor socket serves on its own path', moved })
     await closeServer(predecessorSocket)
     await closeServer(siblingSocket)
     rmSync(planeLink, { force: true })
@@ -188,14 +188,14 @@ try {
     const tmpPlane = `/${'t'.repeat(64)}/hermes-daemon-0123456789ab.sock`
     const homePlane = `/${'h'.repeat(75)}/daemon/control.sock`
     const pidOf = handoverMod.predecessorSockPidOf
-    check('the reader exists', typeof pidOf === 'function')
+    check('the reader exists', typeof pidOf === 'function', 'src/daemon/handover.ts must export predecessorSockPidOf')
     const longForm = (predecessorSockPath as (pid: number, plane?: string) => string)(54321, tmpPlane)
-    check('a pid socket past the path limit under the shared temp directory carries the home hash in its name', basename(longForm) === '0123456789ab.54321.sock', longForm)
-    check('…and the reader maps it back to its pid', pidOf?.(basename(longForm), tmpPlane) === 54321, longForm)
-    check("…while another home's bare <pid>.sock in that directory is not read as this home's", pidOf?.('54321.sock', tmpPlane) === null && pidOf?.('fedcba987654.54321.sock', tmpPlane) === null)
+    check('a pid socket past the path limit under the shared temp directory carries the home hash in its name', basename(longForm) === '0123456789ab.54321.sock', `predecessorSockPath in src/daemon/handover.ts must keep the home hash in the fallback pid-socket name — ${longForm}`)
+    check('…and the reader maps it back to its pid', pidOf?.(basename(longForm), tmpPlane) === 54321, `predecessorSockPidOf in src/daemon/handover.ts must map the fallback name back to its pid — ${longForm}`)
+    check("…while another home's bare <pid>.sock in that directory is not read as this home's", pidOf?.('54321.sock', tmpPlane) === null && pidOf?.('fedcba987654.54321.sock', tmpPlane) === null, 'predecessorSockPidOf in src/daemon/handover.ts must return null for a pid socket name carrying another home hash')
     const homeForm = (predecessorSockPath as (pid: number, plane?: string) => string)(54321, homePlane)
     check("in the home's own daemon directory the short form stays <pid>.sock and reads back", basename(homeForm) === '54321.sock' && pidOf?.(basename(homeForm), homePlane) === 54321, homeForm)
-    check('the usual form reads back under both planes', pidOf?.('control.sock.777', homePlane) === 777 && pidOf?.('hermes-daemon-0123456789ab.sock.777', tmpPlane) === 777 && pidOf?.('control.sock', homePlane) === null && pidOf?.('control.key', homePlane) === null)
+    check('the usual form reads back under both planes', pidOf?.('control.sock.777', homePlane) === 777 && pidOf?.('hermes-daemon-0123456789ab.sock.777', tmpPlane) === 777 && pidOf?.('control.sock', homePlane) === null && pidOf?.('control.key', homePlane) === null, 'predecessorSockPidOf in src/daemon/handover.ts must read control.sock.<pid> and the hashed temp form, and return null for control.sock and control.key')
   }
 
   console.log('§C two successors of one hosting helper race for the plane: the older helper keeps its door and its chat stays reachable (the spawn skew scans the window)')
@@ -219,7 +219,7 @@ try {
       const y = spawnHelper(payload(`y${round}`), { MERCURY_DAEMON_HANDOVER_FROM: String(plane) })
       check(`round ${round}: both successors decided`, await until(() => decided(x) && decided(y), 20_000), { x: logs.get(x), y: logs.get(y) })
       const winnerServes = await until(async () => { const h = await hello(); return h.ok && h.op === 'hello' && h.ready && (h.pid === x || h.pid === y) }, 20_000)
-      check(`round ${round}: one successor serves the plane`, winnerServes)
+      check(`round ${round}: one successor serves the plane`, winnerServes, 'neither racing successor answered hello ready on the plane within 20s; read its log and the took the plane lines of the daemon run in src/daemon/main.ts')
       const loserGone = await until(() => !isProcessAlive(x) || !isProcessAlive(y), 45_000)
       winner = isProcessAlive(x) ? x : y
       const loser = winner === x ? y : x
@@ -246,7 +246,7 @@ try {
     const back = await until(() => node(door)?.kind === 'socket', 35_000)
     note(`the superseded helper's socket was back after ${Date.now() - t0} ms: ${back}`)
     check('a superseded helper whose own socket vanished binds it again within the heal floor', back, readdirSync(planeDir))
-    check('its chat answers through the plane again', await until(() => answers(hosted[hosted.length - 1]!.chat), 10_000))
+    check('its chat answers through the plane again', await until(() => answers(hosted[hosted.length - 1]!.chat), 10_000), 'the superseded helper must rebind its own pid socket so a session verb reaches its chat; see predecessorSockPath and the road code in src/daemon/handover.ts')
     check('the plane link still names the newest helper', node(planeLink)?.kind === 'link' && readlinkSync(planeLink) === basename(predecessorSockPath(plane)), readdirSync(planeDir))
     const status = await settledStatus(join(home, 'runtime/current'), text => text.includes(`pid ${superseded}: 1 live workers`) && !text.includes('unknown'))
     check('status counts the healed helper with its chat, nothing unknown', status.text.includes(`pid ${superseded}: 1 live workers`) && !status.text.includes('unknown'), helpersLine(status.text))
@@ -273,7 +273,7 @@ try {
     const row = saturnRow()
     note(`the schedule's dispatch row: ${JSON.stringify(row)}; the plane helper's tick: ${ticked(plane).join(' | ')}`)
     check("the schedule fired once, delivered by the helper that hosts the chat — never 'stdin unavailable' from a helper that does not", fired && row !== undefined && !(row.state === 'failed' && /stdin unavailable/.test(row.reason ?? '')), row)
-    check('the plane helper walked it on its own tick', ticked(plane).length > 0, logs.get(plane))
+    check('the plane helper walked it on its own tick', ticked(plane).length > 0, `the plane helper must log a saturn tick line for the one-shot schedule; its log follows — ${logs.get(plane)}`)
     const walkers = hosted.map(h => h.helper).filter(pid => ticked(pid).length > 0)
     check('no superseded helper walked it — a helper that holds no plane fires nothing it does not host', walkers.length === 0, walkers.map(pid => ({ pid, lines: ticked(pid) })))
   }
@@ -296,8 +296,8 @@ try {
     const plain = await cli(['stop'], join(home, 'runtime/current'))
     note(`a plain stop said (rc ${plain.code}): ${plain.text.trim()}`)
     const expected = hosted.length + 1
-    check(`a plain stop is acknowledged and counts every helper's chats — reaped ${expected} worker(s)`, plain.code === 0 && plain.text.includes(`reaped ${expected} worker(s)`), plain.text.trim())
-    check('every chat left with its helper', await until(() => [planeChat, ...hosted.map(h => h.chat)].every(chat => !isProcessAlive(chat.pid)), 30_000))
+    check(`a plain stop is acknowledged and counts every helper's chats — reaped ${expected} worker(s)`, plain.code === 0 && plain.text.includes(`reaped ${expected} worker(s)`), `the daemon stop command must count the workers of every helper, not only the plane helper — ${plain.text.trim()}`)
+    check('every chat left with its helper', await until(() => [planeChat, ...hosted.map(h => h.chat)].every(chat => !isProcessAlive(chat.pid)), 30_000), 'a plain daemon stop must reap the runners of the superseded helpers too')
     check('every helper left through that one stop', await until(() => [plane, ...hosted.map(h => h.helper)].every(pid => helperExits.has(pid)), 30_000), [plane, ...hosted.map(h => h.helper)].filter(pid => !helperExits.has(pid)))
     const after = await cli(['status'], join(home, 'runtime/current'))
     check('the final status says zero helpers and zero live workers', after.text.includes('0 running / 0 live workers'), helpersLine(after.text))

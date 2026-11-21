@@ -84,7 +84,7 @@ for (const file of files) {
     offenders.push(`${rel(file)} stores a ${family.name} sign-in and boots the product without ${family.seam} (${family.road} reaches the live host from a run outside the hosted shard)`)
   }
 }
-check('no boot proof leaves a stored sign-in\'s live road open', offenders.length === 0, `${offenders.length} open road(s)`)
+check('no boot proof leaves a stored sign-in\'s live road open', offenders.length === 0, `${offenders.length} open road(s); in each proof listed below, set the named seam env var to the dead local base (as scripts/gate/ci-shard.sh does with HERMETIC_DEAD_BASE) in the env the proof boots the product with`)
 for (const line of offenders) console.log(`    ${line}`)
 
 console.log('§2 every render scenario that stores a family sign-in names that family\'s sign-in seam inside its own block')
@@ -105,7 +105,7 @@ for (let k = 0; k < starts.length; k++) {
     openBlocks.push(`scenario ${starts[k]!.name} (line ${starts[k]!.line + 1}) stores a ${family.name} sign-in without ${family.seam}`)
   }
 }
-check('no render scenario leaves a stored sign-in\'s live road open', openBlocks.length === 0, `${openBlocks.length} open block(s)`)
+check('no render scenario leaves a stored sign-in\'s live road open', openBlocks.length === 0, `${openBlocks.length} open block(s); in scripts/ui/renderScenarios.ts, add the named seam env var, pointed at a dead local base, inside each scenario block listed below`)
 for (const line of openBlocks) console.log(`    ${line}`)
 
 console.log('§3 every source-level proof that walks the Anthropic refresh road with a stored sign-in names the sign-in seam')
@@ -121,11 +121,11 @@ for (const file of files) {
   if (names(file, text, 'MERCURY_ANTHROPIC_OAUTH_BASE')) continue
   sourceOffenders.push(`${rel(file)} calls the refresh road with a stored sign-in and no MERCURY_ANTHROPIC_OAUTH_BASE`)
 }
-check('no source-level refresh proof leaves the token endpoint live', sourceOffenders.length === 0, `${sourceOffenders.length} open road(s)`)
+check('no source-level refresh proof leaves the token endpoint live', sourceOffenders.length === 0, `${sourceOffenders.length} open road(s); in each proof listed below, set MERCURY_ANTHROPIC_OAUTH_BASE to a dead local base before it calls the refresh road, or mock axios.defaults.adapter`)
 for (const line of sourceOffenders) console.log(`    ${line}`)
 
 console.log('§4 the walk saw the estate')
-check('the walk read more than one thousand proof files', files.length > 1000, `${files.length} files`)
+check('the walk read more than one thousand proof files', files.length > 1000, `${files.length} files; the walk of scripts/ (ROOT, skipping node_modules) came up short, so check the walk function and that scripts/ is the tree being read`)
 check('the census knows the hosted shard\'s own pin line', readFileSync(join(ROOT, 'gate', 'ci-shard.sh'), 'utf8').includes('export MERCURY_ANTHROPIC_OAUTH_BASE="$HERMETIC_DEAD_BASE"'))
 
 console.log(failures === 0 ? '\nsign-in roads pinned: GREEN' : `\nsign-in roads pinned: ${failures} RED`)

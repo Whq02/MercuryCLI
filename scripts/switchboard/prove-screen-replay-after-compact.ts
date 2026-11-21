@@ -183,24 +183,24 @@ function judgeScreen(label: string, screenRows: ReadonlyArray<{ uuid: string; ty
   const onDisk = new Set(entries.map(e => e.uuid))
   const ids = screenRows.map(r => r.uuid)
   const foreign = ids.filter(id => !onDisk.has(id))
-  check(`${label}: every row on the screen is a record of the file (no echo or ghost left behind)`, foreign.length === 0, j(foreign))
+  check(`${label}: every row on the screen is a record of the file (no echo or ghost left behind)`, foreign.length === 0, j(foreign) + ' — the screen painted rows the transcript file does not hold; make readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts return only records of the file')
   const dupes = ids.filter((id, i) => ids.indexOf(id) !== i)
-  check(`${label}: no record is painted twice`, dupes.length === 0, j(dupes))
+  check(`${label}: no record is painted twice`, dupes.length === 0, j(dupes) + ' — a record is painted twice; make readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts keep each uuid once')
   const epoch = epochOf(entries)
   if (epoch === null) {
-    check(`${label}: the record has a compaction boundary to judge against`, false)
+    check(`${label}: the record has a compaction boundary to judge against`, false, 'the transcript file holds no compact_boundary row; the earlier /compact checks should have failed first, read them and the daemon log')
     return
   }
   const painted = new Set(ids)
   const missing = [...epoch.all].filter(id => !painted.has(id))
   const extra = ids.filter(id => !epoch.all.has(id))
-  check(`${label}: the screen holds the newest compaction's boundary, its kept tail and every record after it — once each (${epoch.all.size} records)`, missing.length === 0 && extra.length === 0, j({ missing: missing.slice(0, 8), extra: extra.slice(0, 8), screen: ids.length, epoch: epoch.all.size }))
+  check(`${label}: the screen holds the newest compaction's boundary, its kept tail and every record after it — once each (${epoch.all.size} records)`, missing.length === 0 && extra.length === 0, j({ missing: missing.slice(0, 8), extra: extra.slice(0, 8), screen: ids.length, epoch: epoch.all.size }) + ' — the screen must hold exactly the newest boundary, its kept tail and later records; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
   const afterOnScreen = ids.filter(id => epoch.after.includes(id))
-  check(`${label}: the records after the compaction paint in the order the file holds them`, j(afterOnScreen) === j(epoch.after), j({ screen: afterOnScreen.slice(-6), file: epoch.after.slice(-6) }))
-  check(`${label}: the boundary row paints first`, ids[0] === epoch.boundary, j(ids.slice(0, 3)))
+  check(`${label}: the records after the compaction paint in the order the file holds them`, j(afterOnScreen) === j(epoch.after), j({ screen: afterOnScreen.slice(-6), file: epoch.after.slice(-6) }) + ' — rows after the compaction must paint in file order; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
+  check(`${label}: the boundary row paints first`, ids[0] === epoch.boundary, j(ids.slice(0, 3)) + ' — the compaction boundary row must come first on the screen; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
   const text = screenRows.map(textOf).join('\n')
   const absent = words.filter(w => !text.includes(w))
-  check(`${label}: every word sent and every reply received after the compaction is on the screen`, absent.length === 0, j(absent))
+  check(`${label}: every word sent and every reply received after the compaction is on the screen`, absent.length === 0, j(absent) + ' — these words are missing from the painted rows; a sent or replied record was lost from the screen, see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
 }
 
 section('§A the reader law — a record re-emitted after a compaction never moves or prunes the live rows (the owner\'s record, synthesized)')
@@ -233,18 +233,18 @@ section('§A the reader law — a record re-emitted after a compaction never mov
   const named = (rows: ReadonlyArray<{ uuid: string }>): string[] => rows.map(r => name.get(r.uuid) ?? r.uuid.slice(0, 4))
   write([u1, a1, u2, a2, B, S, u3, a3])
   let chain = await reader.readTranscriptChainSince(path, null)
-  check('the compaction folds the head: boundary, summary, the kept tail, the turn after', j(named(chain.rows)) === j(['B', 'S', 'u2', 'a2', 'u3', 'a3']), j(named(chain.rows)))
+  check('the compaction folds the head: boundary, summary, the kept tail, the turn after', j(named(chain.rows)) === j(['B', 'S', 'u2', 'a2', 'u3', 'a3']), j(named(chain.rows)) + ' — readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts must return boundary, summary, kept tail, then the turn after')
   write([{ ...u1, parentUuid: a3.uuid }, { ...a1 }, u4, a4])
   chain = await reader.readTranscriptChainSince(path, chain.cursor)
-  check('a re-emission of the folded head chained onto the leaf, then a live turn chained onto it: the screen keeps the fold and adds the live turn — the folded rows do not come back', j(named(chain.rows)) === j(['B', 'S', 'u2', 'a2', 'u3', 'a3', 'u4', 'a4']), j(named(chain.rows)))
+  check('a re-emission of the folded head chained onto the leaf, then a live turn chained onto it: the screen keeps the fold and adds the live turn — the folded rows do not come back', j(named(chain.rows)) === j(['B', 'S', 'u2', 'a2', 'u3', 'a3', 'u4', 'a4']), j(named(chain.rows)) + ' — a re-emitted folded head must not bring folded rows back or drop the live turn; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
   write([{ ...u2, parentUuid: a4.uuid }, { ...a2 }, { ...B }, { ...S }, { ...u3 }, { ...a3 }, u5, a5])
   chain = await reader.readTranscriptChainSince(path, chain.cursor)
-  check('the boundary and its epoch re-emitted after the live turn, then the next turn chained onto the pre-re-emission leaf: every record of the epoch paints once, in order — the live turn between them stays', j(named(chain.rows)) === j(['B', 'S', 'u2', 'a2', 'u3', 'a3', 'u4', 'a4', 'u5', 'a5']), j(named(chain.rows)))
+  check('the boundary and its epoch re-emitted after the live turn, then the next turn chained onto the pre-re-emission leaf: every record of the epoch paints once, in order — the live turn between them stays', j(named(chain.rows)) === j(['B', 'S', 'u2', 'a2', 'u3', 'a3', 'u4', 'a4', 'u5', 'a5']), j(named(chain.rows)) + ' — a re-emitted epoch must paint once each, in order, keeping the live turn; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
   const cold = await reader.readTranscriptChainSince(path, null)
-  check('a cold read of the same file (a reattach, a resume) paints the same rows', j(named(cold.rows)) === j(named(chain.rows)), j(named(cold.rows)))
-  check('the writer\'s dedup set is every record id on disk, pruned by nothing', typeof reader.readTranscriptRecordIds === 'function' && (await reader.readTranscriptRecordIds(path)).size === 13, typeof reader.readTranscriptRecordIds === 'function' ? String((await reader.readTranscriptRecordIds(path)).size) : 'no readTranscriptRecordIds')
+  check('a cold read of the same file (a reattach, a resume) paints the same rows', j(named(cold.rows)) === j(named(chain.rows)), j(named(cold.rows)) + ' — a cold read (cursor null) must equal the incremental read; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
+  check('the writer\'s dedup set is every record id on disk, pruned by nothing', typeof reader.readTranscriptRecordIds === 'function' && (await reader.readTranscriptRecordIds(path)).size === 13, typeof reader.readTranscriptRecordIds === 'function' ? String((await reader.readTranscriptRecordIds(path)).size) + ' ids, expected 13; readTranscriptRecordIds in src/utils/sessionStorage/transcriptReader.ts must return every record id on disk' : 'readTranscriptRecordIds is not exported from src/utils/sessionStorage/transcriptReader.ts')
   const twice = createdTwice(path)
-  check('the synthesized record carries the re-emissions the owner\'s file carries (the shape under test)', twice.length === 8, j(twice.length))
+  check('the synthesized record carries the re-emissions the owner\'s file carries (the shape under test)', twice.length === 8, j(twice.length) + ' — the fixture should hold 8 records written twice; the synthesized writes in this section changed, not the reader')
 }
 
 type Stamped = Record<string, unknown> & { uuid: string; timestamp: string }
@@ -299,12 +299,12 @@ for (const subtype of ['crew_chat', 'local_command', 'user']) {
     : w.note('second', 'SECOND-IDLE-POST', first.uuid, '2026-11-01T00:00:03Z', subtype)
   w.write([u, a, first, second])
   const expected = j(['u', 'a', 'first', 'second'])
-  check(`${subtype}: the fixture contains a real two-note parent chain`, entriesOf(w.path).find(row => row.uuid === second.uuid)?.parentUuid === first.uuid)
-  check(`${subtype}: a cold screen keeps both terminal rows`, j(await w.screen()) === expected, j(await w.screen()))
-  check(`${subtype}: a resumed chain keeps both terminal rows`, j(await w.resume()) === expected, j(await w.resume()))
+  check(`${subtype}: the fixture contains a real two-note parent chain`, entriesOf(w.path).find(row => row.uuid === second.uuid)?.parentUuid === first.uuid, 'the second note was not stored as a child of the first; encodeTranscriptLine in src/utils/sessionStorage/vnext.ts or the fixture rows in this section changed')
+  check(`${subtype}: a cold screen keeps both terminal rows`, j(await w.screen()) === expected, j(await w.screen()) + ' — readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts dropped a terminal note')
+  check(`${subtype}: a resumed chain keeps both terminal rows`, j(await w.resume()) === expected, j(await w.resume()) + ' — loadTranscriptFile in src/utils/sessionStorage/loading.ts or buildConversationChain in src/utils/sessionStorage/chain.ts dropped a terminal note')
   const other = `${w.path}.reattach.jsonl`
   copyFileSync(w.path, other)
-  check(`${subtype}: a second independent reader keeps both terminal rows`, j(await w.screen(other)) === expected, j(await w.screen(other)))
+  check(`${subtype}: a second independent reader keeps both terminal rows`, j(await w.screen(other)) === expected, j(await w.screen(other)) + ' — a fresh read of a copied file must match; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
 }
 if (process.argv.includes('--idle-chain-only')) {
   clearTimeout(guard)
@@ -333,9 +333,9 @@ section('§A2 clocks — the newest compaction is the latest boundary in file or
   const a4 = w.assistant('a4', 'the live reply after the second fold', u4.uuid, '2026-10-20T10:17:00Z')
   w.write([u1, a1, B1, S1, u2, a2, u3, a3, B2, S2, u4, a4])
   const screen = await w.screen()
-  check('a fold written on a machine whose clock runs an hour behind the previous fold\'s: the screen holds that fold, its kept tail and the live turn', j(screen) === j(['B2', 'S2', 'u3', 'a3', 'u4', 'a4']), j(screen))
+  check('a fold written on a machine whose clock runs an hour behind the previous fold\'s: the screen holds that fold, its kept tail and the live turn', j(screen) === j(['B2', 'S2', 'u3', 'a3', 'u4', 'a4']), j(screen) + ' — the newest fold is the last boundary in file order, not by timestamp; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
   const resume = await w.resume()
-  check('the same file resumed: the model gets the newest fold\'s chain, never the epoch it folded', j(resume) === j(['B2', 'S2', 'u3', 'a3', 'u4', 'a4']), j(resume))
+  check('the same file resumed: the model gets the newest fold\'s chain, never the epoch it folded', j(resume) === j(['B2', 'S2', 'u3', 'a3', 'u4', 'a4']), j(resume) + ' — resume must pick the last boundary in file order; see loadTranscriptFile in src/utils/sessionStorage/loading.ts and buildConversationChain in src/utils/sessionStorage/chain.ts')
 }
 {
   const w = stampedWorld('clock-behind-no-tail')
@@ -351,7 +351,7 @@ section('§A2 clocks — the newest compaction is the latest boundary in file or
   const a3 = w.assistant('a3', 'the live reply', u3.uuid, '2026-10-20T10:17:00Z')
   w.write([u1, a1, B1, S1, u2, a2, B2, S2, u3, a3])
   const screen = await w.screen()
-  check('the same move with folds that keep no tail: the screen holds the later fold and the live turn', j(screen) === j(['B2', 'S2', 'u3', 'a3']), j(screen))
+  check('the same move with folds that keep no tail: the screen holds the later fold and the live turn', j(screen) === j(['B2', 'S2', 'u3', 'a3']), j(screen) + ' — with no kept tail the later fold in file order still wins; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
 }
 {
   const w = stampedWorld('clock-tie')
@@ -366,7 +366,7 @@ section('§A2 clocks — the newest compaction is the latest boundary in file or
   const a2 = w.assistant('a2', 'the live reply', u2.uuid, '2026-10-20T10:04:00Z')
   w.write([u1, a1, B1, S1, B2, S2, u2, a2])
   const screen = await w.screen()
-  check('two folds stamped in the same millisecond: the later one in the file is the newest', j(screen) === j(['B2', 'S2', 'u2', 'a2']), j(screen))
+  check('two folds stamped in the same millisecond: the later one in the file is the newest', j(screen) === j(['B2', 'S2', 'u2', 'a2']), j(screen) + ' — equal timestamps must fall back to file order; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
 }
 
 section('§A3 the resume snapshot — a record keeps its first position through the snapshot, and a snapshot an older reader wrote is not trusted')
@@ -389,7 +389,7 @@ section('§A3 the resume snapshot — a record keeps its first position through 
   const a4 = w.assistant('a4', 'fourth reply', u4.uuid, '2026-10-20T10:09:00Z')
   w.write([u1, a1, B1, S1, u2, a2, u3, a3, B2, S2, u4, a4])
   const before = await w.screen()
-  check('a cold read before any re-emission wrote the resume snapshot', j(before) === j(['B2', 'S2', 'u3', 'a3', 'u4', 'a4']) && existsSync(`${w.path}.resume-snapshot.json`), j(before))
+  check('a cold read before any re-emission wrote the resume snapshot', j(before) === j(['B2', 'S2', 'u3', 'a3', 'u4', 'a4']) && existsSync(`${w.path}.resume-snapshot.json`), j(before) + ' — either the cold read returned the wrong rows or no .resume-snapshot.json was written next to the transcript; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
   w.write([{ ...B1 }, { ...S1 }, { ...u2 }, { ...a2 }])
   const u5 = w.user('u5', 'the words chained onto the re-emitted row', a2.uuid, '2026-10-20T10:10:00Z')
   const a5 = w.assistant('a5', 'the reply after them', u5.uuid, '2026-10-20T10:11:00Z')
@@ -397,12 +397,12 @@ section('§A3 the resume snapshot — a record keeps its first position through 
   const copy = `${w.path}.no-snapshot.jsonl`
   copyFileSync(w.path, copy)
   const cold = await w.screen(copy)
-  check('a cold read of the re-emitted record adopts the live turn the re-emission cut', j(cold) === j(['B2', 'S2', 'u3', 'a3', 'u4', 'a4', 'u5', 'a5']), j(cold))
+  check('a cold read of the re-emitted record adopts the live turn the re-emission cut', j(cold) === j(['B2', 'S2', 'u3', 'a3', 'u4', 'a4', 'u5', 'a5']), j(cold) + ' — a cold read must keep the live turn chained onto a re-emitted row; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
   const viaSnapshot = await w.screen()
-  check('a read through the snapshot written before the re-emission paints exactly the cold read\'s rows', j(viaSnapshot) === j(cold), j(viaSnapshot))
+  check('a read through the snapshot written before the re-emission paints exactly the cold read\'s rows', j(viaSnapshot) === j(cold), j(viaSnapshot) + ' — the snapshot path must paint what the cold path paints; see the resume-snapshot handling in src/utils/sessionStorage/transcriptReader.ts')
   const resumeVia = await w.resume()
   const resumeCold = await w.resume(copy)
-  check('the resume chain through the snapshot is the cold read\'s', j(resumeVia) === j(resumeCold), j({ resumeVia, resumeCold }))
+  check('the resume chain through the snapshot is the cold read\'s', j(resumeVia) === j(resumeCold), j({ resumeVia, resumeCold }) + ' — resume through the snapshot must equal resume from the plain file; see loadTranscriptFile in src/utils/sessionStorage/loading.ts')
 }
 {
   const { createHash } = await import('node:crypto')
@@ -418,7 +418,7 @@ section('§A3 the resume snapshot — a record keeps its first position through 
   const kept = entriesOf(w.path).filter(e => e.uuid !== u2.uuid).map(e => [e.uuid, e])
   writeFileSync(`${w.path}.resume-snapshot.json`, JSON.stringify({ schemaVersion: 4, byteCursor: cursor, prefixDigest: createHash('sha256').update(bytes.subarray(Math.max(0, cursor - 4096), cursor)).digest('hex'), fold: { messages: { '«map»': kept } } }))
   const screen = await w.screen()
-  check('a snapshot written by the reader before this one (the owner\'s file carries one that lost three live rows) is not trusted: the live words paint', screen.includes('u2'), j(screen))
+  check('a snapshot written by the reader before this one (the owner\'s file carries one that lost three live rows) is not trusted: the live words paint', screen.includes('u2'), j(screen) + ' — a snapshot with an older schemaVersion must be ignored; see the resume-snapshot handling in src/utils/sessionStorage/transcriptReader.ts')
 }
 
 section('§A4 settlement — a settlement re-publication wins over the first copy; a folded row stays folded; a byte-identical re-append changes nothing')
@@ -441,12 +441,12 @@ section('§A4 settlement — a settlement re-publication wins over the first cop
   w.write([{ ...u3 }])
   const next = await reader.readTranscriptChainSince(w.path, first.cursor)
   const bodies = next.rows.map(r => j((r as { message?: unknown }).message ?? ''))
-  check('the rows and their order stand after three settlements and a byte-identical re-append', j(w.named(next.rows)) === j(['B', 'S', 'u2', 'a2', 'u3', 'a3']), j(w.named(next.rows)))
-  check('the settled live reply paints its settled body, the first copy\'s body is gone', bodies.some(b => b.includes('live reply, settled')) && !bodies.some(b => b.includes('live reply, streaming')))
-  check('the settled kept reply paints its settled body', bodies.some(b => b.includes('the kept reply, settled')))
-  check('a settlement of a folded row does not bring it back', !bodies.some(b => b.includes('the folded reply')))
+  check('the rows and their order stand after three settlements and a byte-identical re-append', j(w.named(next.rows)) === j(['B', 'S', 'u2', 'a2', 'u3', 'a3']), j(w.named(next.rows)) + ' — settlement re-publications and a byte-identical re-append must not move or add rows; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
+  check('the settled live reply paints its settled body, the first copy\'s body is gone', bodies.some(b => b.includes('live reply, settled')) && !bodies.some(b => b.includes('live reply, streaming')), j(bodies) + ' — the settlement copy of a row must replace the first copy; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
+  check('the settled kept reply paints its settled body', bodies.some(b => b.includes('the kept reply, settled')), j(bodies) + ' — a settled kept-tail row must paint its settled body; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
+  check('a settlement of a folded row does not bring it back', !bodies.some(b => b.includes('the folded reply')), j(bodies) + ' — a settlement of a folded row must not bring it back; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
   const cold = await w.screen()
-  check('a cold read paints the same rows', j(cold) === j(w.named(next.rows)), j(cold))
+  check('a cold read paints the same rows', j(cold) === j(w.named(next.rows)), j(cold) + ' — cold and incremental reads must agree; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
 }
 
 section('§A5 the writer\'s dedup set — the ids this process wrote survive a dropped memo; the incremental scan survives a cut')
@@ -466,7 +466,7 @@ section('§A5 the writer\'s dedup set — the ids this process wrote survive a d
   await writerMod.flushSessionStorage()
   const file = pathsMod.getTranscriptPath() as string
   const twice = createdTwice(file)
-  check('the memo dropped while the last rows still sit in the write queue: the whole array recorded again writes nothing twice', twice.length === 0 && entriesOf(file).length === 4, j({ twice: twice.length, rows: entriesOf(file).length }))
+  check('the memo dropped while the last rows still sit in the write queue: the whole array recorded again writes nothing twice', twice.length === 0 && entriesOf(file).length === 4, j({ twice: twice.length, rows: entriesOf(file).length }) + ' — recordTranscript in src/utils/sessionStorage/writer.ts must skip ids already written even after the memo is dropped')
 }
 {
   const dir = join(SCRATCH, 'scan-cut')
@@ -482,7 +482,7 @@ section('§A5 the writer\'s dedup set — the ids this process wrote survive a d
   reader._resetTranscriptRecordIdScansForTesting()
   const whole = await reader.readTranscriptRecordIds(path)
   const missing = [...whole].filter(id => !incremental.has(id))
-  check('a line cut from the scanned prefix, then the file grows past the old offset: the incremental scan holds every id a whole-file scan finds', missing.length === 0 && incremental.size === whole.size, j({ missing: missing.length, incremental: incremental.size, whole: whole.size }))
+  check('a line cut from the scanned prefix, then the file grows past the old offset: the incremental scan holds every id a whole-file scan finds', missing.length === 0 && incremental.size === whole.size, j({ missing: missing.length, incremental: incremental.size, whole: whole.size }) + ' — readTranscriptRecordIds in src/utils/sessionStorage/transcriptReader.ts must rescan when the file shrinks under the old offset')
 }
 
 section('§A6 the growth read — the first row after the fold lands alone, parented onto the summary: the kept tail stays on the chain (the Linux pool\'s §G red: a screen reading between the summary and the next row lost the whole kept tail)')
@@ -502,14 +502,14 @@ section('§A6 the growth read — the first row after the fold lands alone, pare
   reader._resetTranscriptReaderForTesting()
   w.write([u1, a1, u2, a2, B, S])
   let chain = await reader.readTranscriptChainSince(w.path, null)
-  check('a read that ends on the summary holds the boundary, the summary and the kept tail', j(w.named(chain.rows)) === j(['B', 'S', 'u2', 'a2']), j(w.named(chain.rows)))
+  check('a read that ends on the summary holds the boundary, the summary and the kept tail', j(w.named(chain.rows)) === j(['B', 'S', 'u2', 'a2']), j(w.named(chain.rows)) + ' — a read ending on the summary must hold the kept tail; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
   w.write([u3])
   chain = await reader.readTranscriptChainSince(w.path, chain.cursor)
-  check('the first row after the fold, read alone, chains onto the kept tail — the kept tail is not lost to the growth read', j(w.named(chain.rows)) === j(['B', 'S', 'u2', 'a2', 'u3']), j(w.named(chain.rows)))
+  check('the first row after the fold, read alone, chains onto the kept tail — the kept tail is not lost to the growth read', j(w.named(chain.rows)) === j(['B', 'S', 'u2', 'a2', 'u3']), j(w.named(chain.rows)) + ' — the first row after the fold, read alone, must chain onto the kept tail; see the growth read in readTranscriptChainSince, src/utils/sessionStorage/transcriptReader.ts')
   w.write([a3, u4, a4])
   chain = await reader.readTranscriptChainSince(w.path, chain.cursor)
-  check('the turns that follow stay on the one chain, every row once', j(w.named(chain.rows)) === j(['B', 'S', 'u2', 'a2', 'u3', 'a3', 'u4', 'a4']), j(w.named(chain.rows)))
-  check('a cold read of the same file agrees with the grown one', j(await w.screen()) === j(w.named(chain.rows)), j(await w.screen()))
+  check('the turns that follow stay on the one chain, every row once', j(w.named(chain.rows)) === j(['B', 'S', 'u2', 'a2', 'u3', 'a3', 'u4', 'a4']), j(w.named(chain.rows)) + ' — the later turns must stay on one chain, each row once; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
+  check('a cold read of the same file agrees with the grown one', j(await w.screen()) === j(w.named(chain.rows)), j(await w.screen()) + ' — the cold read must agree with the grown read; see readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts')
 }
 
 if (!existsSync(DIST) || NODE === '') {
@@ -789,28 +789,28 @@ const WORDS = ['the first words of the session', 'the second words', 'the third 
 
 try {
   section('§B folds 46ag and 46ao: measured shrinkable turns let the runner compact twice while the screen reads through its real connector')
-  check('daemon A came up', (await requireLiveDaemon(A, { what: 'screen-replay-after-compact: daemon A', timeoutMs: 45_000, log: logA })) === Apid)
+  check('daemon A came up', (await requireLiveDaemon(A, { what: 'screen-replay-after-compact: daemon A', timeoutMs: 45_000, log: logA })) === Apid, 'daemon A did not come up as the process this proof spawned; read ' + logA)
   const born = await dispatch(WORDS[0]!)
   const sid = born.sessionId ?? ''
-  check('the session was born on the daemon by the operator', born.ok === true && sid !== '', j(born))
+  check('the session was born on the daemon by the operator', born.ok === true && sid !== '', j(born) + ' — the daemon refused the first concourseDispatch; read ' + logA)
   const transcript = transcriptPathOf(sid)
   const replyLanded = (words: string): boolean => read(transcript).includes(`heard ${words}`) && facts(sid)?.busy === false
-  check('the first turn settled', await untilAsync(() => replyLanded(WORDS[0]!), 60_000), read(transcript).slice(-300))
+  check('the first turn settled', await untilAsync(() => replyLanded(WORDS[0]!), 60_000), read(transcript).slice(-300) + ' — no settled reply in the transcript within 60s; read ' + logA)
   const screenRecord = { sessionId: sid, runnerId: recOf(sid)?.runnerId ?? 'runner', title: 'Screen replay probe', projectLabel: 'work', workspaceId: work, home: projectDir, modelKey: 'claude-sonnet-5' }
   const screen = new DaemonSessionConnector(screenRecord)
   screens.push(screen)
   await screen.attach()
-  check('the screen attached to the session\'s own transcript', screen.transcriptFile() === transcript && screen.records().length > 0, j({ file: screen.transcriptFile(), rows: screen.records().length }))
+  check('the screen attached to the session\'s own transcript', screen.transcriptFile() === transcript && screen.records().length > 0, j({ file: screen.transcriptFile(), rows: screen.records().length }) + ' — DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts must attach to the session transcript file and hold its records')
   const say = async (words: string): Promise<void> => {
     const sent = await dispatch(words, { targetSessionId: sid })
-    check(`sent: ${words}`, sent.ok === true, j(sent))
-    check(`answered: ${words}`, await untilAsync(() => replyLanded(words), 60_000), read(transcript).slice(-300))
+    check(`sent: ${words}`, sent.ok === true, j(sent) + ' — the daemon refused the dispatch; read ' + logA)
+    check(`answered: ${words}`, await untilAsync(() => replyLanded(words), 60_000), read(transcript).slice(-300) + ' — no settled reply in the transcript within 60s; read ' + logA)
   }
   await say(WORDS[1]!)
   await say(WORDS[2]!)
   const boardPath = join(projectDir, sid, 'boards', 'wave', 'board.sqlite')
   const switched = await dispatch('/swarm on', { targetSessionId: sid })
-  check('the replay fixture enables its own board', switched.ok === true && await untilAsync(() => existsSync(boardPath) && facts(sid)?.busy === false, 30_000), j(switched))
+  check('the replay fixture enables its own board', switched.ok === true && await untilAsync(() => existsSync(boardPath) && facts(sid)?.busy === false, 30_000), j(switched) + ' — /swarm on did not create the board file ' + boardPath + '; read ' + logA)
   const { open: openBoard } = await import('../../src/services/crewBoard/store.ts')
   replayBoard = openBoard(boardPath, sid)
   replayBoard.setChat({ on: true, filter: { kind: 'all' } })
@@ -822,11 +822,11 @@ try {
     if (!posted.ok) throw new Error(posted.reason)
     return posted.eventId
   })
-  check('both idle posts become durable without another prompt', await untilAsync(() => idleIds.every(id => entriesOf(transcript).some(row => row.uuid === id)), 30_000))
+  check('both idle posts become durable without another prompt', await untilAsync(() => idleIds.every(id => entriesOf(transcript).some(row => row.uuid === id)), 30_000), 'the idle board posts never reached the transcript ' + transcript + ' within 30s; read ' + logA)
   const firstIdle = entriesOf(transcript).find(row => row.uuid === idleIds[0])!
   const secondIdle = entriesOf(transcript).find(row => row.uuid === idleIds[1])!
-  check('the actual runner records the second idle row as a child of the first', secondIdle.parentUuid === firstIdle.uuid, j({ first: firstIdle.uuid, parent: secondIdle.parentUuid }))
-  check('both arrivals really were idle', firstIdle.turnId === undefined && secondIdle.turnId === undefined)
+  check('the actual runner records the second idle row as a child of the first', secondIdle.parentUuid === firstIdle.uuid, j({ first: firstIdle.uuid, parent: secondIdle.parentUuid }) + ' — the runner must record consecutive idle rows as a chain; compare the parentUuid of the two rows in ' + transcript)
+  check('both arrivals really were idle', firstIdle.turnId === undefined && secondIdle.turnId === undefined, 'an idle row carries a turnId, so it was recorded inside a turn; look at the rows in ' + transcript)
   const idleOn = async (label: string, target: { records(): ReadonlyArray<DisplayRow> }): Promise<void> => {
     const kept = (): string[] => { const epoch = epochOf(entriesOf(transcript)); return epoch === null ? idleIds : idleIds.filter(id => epoch.all.has(id)) }
     check(`${label}: the current epoch and the idle rows it holds reach the screen projection`, await untilAsync(() => {
@@ -834,7 +834,7 @@ try {
       const epoch = epochOf(entriesOf(transcript))
       if (epoch !== null && !rows.some(row => row.uuid === epoch.boundary)) return false
       return kept().every(id => rows.some(row => row.uuid === id))
-    }, 20_000))
+    }, 20_000), 'the connector records() never held the epoch boundary and the idle rows within 20s; compare it with ' + transcript)
     const expected = kept()
     const prior = process.env.MERCURY_TURN_RECEIPT
     try {
@@ -843,12 +843,12 @@ try {
         const projected = receiptMod.injectTurnReceipts([...target.records()], SCRATCH) as DisplayRow[]
         const rows = projected.filter(row => row.type === 'system' && row.subtype === 'crew_chat' && idleIds.includes(row.uuid))
         const words = rows.map(row => idleWords[idleIds.indexOf(row.uuid)]!)
-        check(`${label}: receipt=${flag} paints an idle row exactly when the epoch holds it (${expected.length} of ${idleIds.length}), once, in order, with its complete words`, j(rows.map(row => row.uuid)) === j(expected) && j(rows.map(row => row.content)) === j(words) && rows.every(row => row.turnId === undefined), j({ rows: rows.map(row => row.uuid), expected }))
-        check(`${label}: receipt=${flag} never puts idle rows inside a turn receipt`, projected.every(row => !(row.board ?? []).some(post => idleIds.includes(post.uuid))))
+        check(`${label}: receipt=${flag} paints an idle row exactly when the epoch holds it (${expected.length} of ${idleIds.length}), once, in order, with its complete words`, j(rows.map(row => row.uuid)) === j(expected) && j(rows.map(row => row.content)) === j(words) && rows.every(row => row.turnId === undefined), j({ rows: rows.map(row => row.uuid), expected }) + ' — injectTurnReceipts in src/utils/cockpit/turnReceipt.ts must keep the idle rows the epoch holds, once, in order, with their words')
+        check(`${label}: receipt=${flag} never puts idle rows inside a turn receipt`, projected.every(row => !(row.board ?? []).some(post => idleIds.includes(post.uuid))), 'an idle post was folded into a turn receipt board; see injectTurnReceipts in src/utils/cockpit/turnReceipt.ts')
         if (rows.length === 0) continue
         for (const columns of [120, 80]) {
           const painted = await paintScreenRows(rows, columns)
-          check(`${label}: receipt=${flag} paints the ${rows.length} kept idle message(s) once at ${columns} columns`, words.every(word => painted.split(word).length === 2) && (words.length < 2 || painted.indexOf(words[0]!) < painted.indexOf(words[1]!)), painted)
+          check(`${label}: receipt=${flag} paints the ${rows.length} kept idle message(s) once at ${columns} columns`, words.every(word => painted.split(word).length === 2) && (words.length < 2 || painted.indexOf(words[0]!) < painted.indexOf(words[1]!)), painted + ' — each idle message must paint once, in order; see CrewChatRow in src/components/messages/CrewChatRow.tsx')
         }
       }
     } finally {
@@ -857,13 +857,13 @@ try {
     }
   }
   const coldIdle = await reader.readTranscriptChainSince(transcript, null)
-  check('a cold load of the live two-row chain retains both', idleIds.every(id => coldIdle.rows.some((row: { uuid: string }) => row.uuid === id)))
+  check('a cold load of the live two-row chain retains both', idleIds.every(id => coldIdle.rows.some((row: { uuid: string }) => row.uuid === id)), 'a cold readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts dropped an idle row')
   await idleOn('before compact', screen)
   const boundariesOnDisk = (): number => recordLines(transcript).filter(r => (r.payload as { kind?: string; boundaryKind?: string } | undefined)?.kind === 'boundary').length
   const compact = async (label: string, expected: number): Promise<void> => {
     const sent = await dispatch('/compact', { targetSessionId: sid })
-    check(`${label}: /compact dispatched`, sent.ok === true, j(sent))
-    check(`${label}: the fold landed (a compaction boundary record on disk)`, await untilAsync(() => boundariesOnDisk() >= expected && facts(sid)?.busy === false, 90_000), j({ boundaries: boundariesOnDisk(), busy: facts(sid)?.busy }))
+    check(`${label}: /compact dispatched`, sent.ok === true, j(sent) + ' — the daemon refused the /compact dispatch; read ' + logA)
+    check(`${label}: the fold landed (a compaction boundary record on disk)`, await untilAsync(() => boundariesOnDisk() >= expected && facts(sid)?.busy === false, 90_000), j({ boundaries: boundariesOnDisk(), busy: facts(sid)?.busy }) + ' — no new compaction boundary record on disk within 90s; read ' + logA)
   }
   await compact('the first fold', 1)
   await idleOn('after the first compact', screen)
@@ -876,8 +876,8 @@ try {
   const foldedEntries = entriesOf(transcript)
   const foldedBoundary = epochOf(foldedEntries)!.boundary
   const foldedWork = foldedEntries.filter(row => row.uuid === foldedBoundary).at(-1)?.compactMetadata?.work
-  check('the older idle pair folded with its turn: the boundary carries no retained rows and the pair is not in the kept tail', foldedWork !== undefined && !('idle' in foldedWork) && idleIds.every(id => !epochOf(foldedEntries)!.preserved.includes(id)), j(foldedWork))
-  check('no receipt carries board rows', (foldedWork?.receipts ?? []).every(receipt => !('board' in receipt)), j(foldedWork?.receipts))
+  check('the older idle pair folded with its turn: the boundary carries no retained rows and the pair is not in the kept tail', foldedWork !== undefined && !('idle' in foldedWork) && idleIds.every(id => !epochOf(foldedEntries)!.preserved.includes(id)), j(foldedWork) + ' — the second boundary must not retain the older idle pair; compare compactMetadata.work of the boundary row in ' + transcript)
+  check('no receipt carries board rows', (foldedWork?.receipts ?? []).every(receipt => !('board' in receipt)), j(foldedWork?.receipts) + ' — receipts stored on the boundary row must not carry board rows; compare compactMetadata.work in ' + transcript)
   await say(WORDS[6]!)
   await say(WORDS[7]!)
   const recordQuiet = async (): Promise<void> => {
@@ -902,9 +902,9 @@ try {
 
   section('§C the record: a row already on disk is never appended again')
   const twice = createdTwice(transcript)
-  check('no record of the session was created twice (the re-emission the owner\'s file carries does not happen)', twice.length === 0, `${twice.length} record(s) created twice, e.g. ${j(twice.slice(0, 3))}`)
+  check('no record of the session was created twice (the re-emission the owner\'s file carries does not happen)', twice.length === 0, `${twice.length} record(s) created twice, e.g. ${j(twice.slice(0, 3))} — recordTranscript in src/utils/sessionStorage/writer.ts must not append a record id already on disk`)
   const chainEntries = entriesOf(transcript)
-  check('the record holds the two compactions and every turn', boundariesOnDisk() === 2 && WORDS.every(w => chainEntries.some(e => textOf(e as never).includes(w))), j({ boundaries: boundariesOnDisk(), rows: chainEntries.length }))
+  check('the record holds the two compactions and every turn', boundariesOnDisk() === 2 && WORDS.every(w => chainEntries.some(e => textOf(e as never).includes(w))), j({ boundaries: boundariesOnDisk(), rows: chainEntries.length }) + ' — expected 2 compaction boundaries and every sent words in ' + transcript)
 
   section('§D the screen that stayed attached through both folds, and a screen attaching now')
   const afterSecondFold = WORDS.slice(6)
@@ -916,7 +916,7 @@ try {
   await fresh.attach()
   await screenSettled(fresh)
   judgeScreen('a screen attaching now', fresh.records(), transcript, [...afterSecondFold, ...repliesAfter])
-  check('both screens paint the same rows', j(screen.records().map(r => r.uuid)) === j(fresh.records().map(r => r.uuid)))
+  check('both screens paint the same rows', j(screen.records().map(r => r.uuid)) === j(fresh.records().map(r => r.uuid)), 'a screen attached before the folds and one attached now hold different records; see DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts')
   await idleOn('a second window after compact', fresh)
   fresh.detach()
 
@@ -924,9 +924,9 @@ try {
   pointBoth('Y')
   const pidBefore = recOf(sid)?.pid ?? 0
   const restarted = await restartSessionOnInstalledBuild({ sessionId: sid, turnActive: facts(sid)?.busy === true, work: [], tell: () => {}, resume: (s: string) => resumeAsTheScreenDoes(s, 'update') })
-  check('/restart moved the session onto the installed build', restarted.ok === true && restarted.line.includes(`Restarted on the installed build (${SHORT_Y})`), j(restarted))
+  check('/restart moved the session onto the installed build', restarted.ok === true && restarted.line.includes(`Restarted on the installed build (${SHORT_Y})`), j(restarted) + ' — see restartSessionOnInstalledBuild in src/commands/restart/restart.ts')
   const pidAfter = recOf(sid)?.pid ?? 0
-  check('a new runner stands behind the session', pidAfter !== 0 && pidAfter !== pidBefore && isProcessAlive(pidAfter), j({ pidBefore, pidAfter }))
+  check('a new runner stands behind the session', pidAfter !== 0 && pidAfter !== pidBefore && isProcessAlive(pidAfter), j({ pidBefore, pidAfter }) + ' — after /restart the session needs a new live runner; see restartSessionOnInstalledBuild in src/commands/restart/restart.ts')
   await idleOn('the resumed session before another prompt', screen)
   await say(WORDS[7]! + ' again, after the restart')
   await screenSettled(screen)
@@ -939,12 +939,12 @@ try {
   judgeScreen('a screen attaching after /restart', afterRestart.records(), transcript, afterRestartWords)
   await idleOn('a second window after resume', afterRestart)
   afterRestart.detach()
-  check('still no record created twice after the restart', createdTwice(transcript).length === 0, j(createdTwice(transcript).slice(0, 3)))
+  check('still no record created twice after the restart', createdTwice(transcript).length === 0, j(createdTwice(transcript).slice(0, 3)) + ' — the resumed runner must not re-append records already on disk; see recordTranscript in src/utils/sessionStorage/writer.ts')
 
   section('§F the daemon restarts: the session is resumed by a new daemon; the screen shows every row once')
   const Bpid = (await hello())?.pid ?? 0
   const runnerPid = recOf(sid)?.pid ?? 0
-  check('§F starts with a live daemon and runner to take down (a missing pid is a failure, never a signal to the process group)', Bpid > 0 && runnerPid > 0, j({ Bpid, runnerPid }))
+  check('§F starts with a live daemon and runner to take down (a missing pid is a failure, never a signal to the process group)', Bpid > 0 && runnerPid > 0, j({ Bpid, runnerPid }) + ' — the daemon hello or the runner record in concourse-workers.json returned no pid; nothing was signalled')
   for (const pid of [Bpid, runnerPid].filter(candidate => Number.isInteger(candidate) && candidate > 0)) {
     try {
       process.kill(pid, 'SIGKILL')
@@ -954,9 +954,9 @@ try {
   const logC = join(SCRATCH, 'daemon-C.log')
   const C = spawnDaemon(logC)
   const Cpid = C.pid ?? 0
-  check('daemon C came up', (await requireLiveDaemon(C, { what: 'screen-replay-after-compact: daemon C', timeoutMs: 45_000, log: logC })) === Cpid)
+  check('daemon C came up', (await requireLiveDaemon(C, { what: 'screen-replay-after-compact: daemon C', timeoutMs: 45_000, log: logC })) === Cpid, 'daemon C did not come up as the process this proof spawned; read ' + logC)
   const resumed = await resumeAsTheScreenDoes(sid)
-  check('the session resumed on daemon C', resumed === null, String(resumed))
+  check('the session resumed on daemon C', resumed === null, String(resumed) + ' — the sessionAdmit resume on the new daemon was refused; read ' + logC)
   await say('the ninth words, after the daemon restart')
   const finalWords = [...afterRestartWords, 'the ninth words, after the daemon restart']
   await screenSettled(screen)
@@ -968,14 +968,14 @@ try {
   judgeScreen('a screen attaching after the daemon restart', afterDaemon.records(), transcript, finalWords)
   await idleOn('a second window after daemon restart', afterDaemon)
   afterDaemon.detach()
-  check('no record created twice across the whole scenario', createdTwice(transcript).length === 0, j(createdTwice(transcript).slice(0, 3)))
+  check('no record created twice across the whole scenario', createdTwice(transcript).length === 0, j(createdTwice(transcript).slice(0, 3)) + ' — see recordTranscript in src/utils/sessionStorage/writer.ts')
 
   section('§G an automatic fold in the middle of a turn: the dedup memo drops while the turn\'s own rows are in flight, then the runner records its whole array through it')
   const foldsBefore = boundariesOnDisk()
   const probeSent = await dispatch(`the tenth words: ${AUTO_FOLD_PROBE}`, { targetSessionId: sid })
   check('sent: a turn whose first reply calls a tool with the window nearly full', probeSent.ok === true, j(probeSent))
   check('an automatic fold landed mid-turn and the turn settled', await untilAsync(() => boundariesOnDisk() > foldsBefore && facts(sid)?.busy === false && read(transcript).includes('the probe tool ran'), 90_000), j({ boundaries: boundariesOnDisk(), before: foldsBefore, busy: facts(sid)?.busy }))
-  check('no record created twice after the mid-turn fold', createdTwice(transcript).length === 0, j(createdTwice(transcript).slice(0, 3)))
+  check('no record created twice after the mid-turn fold', createdTwice(transcript).length === 0, j(createdTwice(transcript).slice(0, 3)) + ' — the runner recorded its whole array again after the memo dropped; see recordTranscript in src/utils/sessionStorage/writer.ts')
   await screenSettled(screen)
   judgeScreen('the attached screen after the mid-turn fold', screen.records(), transcript, [])
   await idleOn('after the automatic compact', screen)
@@ -989,7 +989,7 @@ try {
   await dispatch(QUEUED_FOLD_PROBE, { targetSessionId: sid })
   if (!await untilAsync(() => receiptStep === 'holding', 30_000)) throw new Error('the hosted runner never began the receipt probe')
   const sent = await screen.sendWords('/compact keep the receipt note')
-  check('the attached screen queued /compact while the runner was in its first step', sent.state === 'accepted', j(sent))
+  check('the attached screen queued /compact while the runner was in its first step', sent.state === 'accepted', j(sent) + ' — screen.sendWords in src/services/engine-connector/daemonConnector.ts did not accept the queued /compact')
   releaseTool.resolve()
   if (!await untilAsync(() => receiptStep === 'resumed', 60_000)) throw new Error('the hosted turn never reached its step after the fold')
   const during = entriesOf(transcript)
@@ -999,12 +999,12 @@ try {
   if (persisted.length === 1) await untilAsync(() => screen.records().some(row => row.uuid === persisted[0]!.uuid), 10_000)
   const shown = freshReceipts(screen.records())
   const painted = await paintScreenRows(shown, 180)
-  check('the attached screen paints the one persisted receipt before the next reply', persisted.length === 1 && shown.length === 1 && shown[0]?.uuid === persisted[0]?.uuid && /Compacted — folded \d+ messages? into the summary · context \S+ → \S+ tokens/.test(painted), j({ persisted: persisted.length, shown: shown.length, painted }))
+  check('the attached screen paints the one persisted receipt before the next reply', persisted.length === 1 && shown.length === 1 && shown[0]?.uuid === persisted[0]?.uuid && /Compacted — folded \d+ messages? into the summary · context \S+ → \S+ tokens/.test(painted), j({ persisted: persisted.length, shown: shown.length, painted }) + ' — exactly one Compacted receipt row must be persisted and shown on the attached screen before the next reply')
   releaseReply.resolve()
   check('the hosted turn continued to its answer', await untilAsync(() => facts(sid)?.busy === false && read(transcript).includes('the receipt turn is complete'), 30_000))
   await screenSettled(screen)
   const ended = freshReceipts(entriesOf(transcript))
-  check('turn end added no second receipt on disk or on the attached screen', ended.length === 1 && ended[0]?.uuid === persisted[0]?.uuid && j(freshReceipts(screen.records()).map(row => row.uuid)) === j(ended.map(row => row.uuid)), j(ended.map(row => row.uuid)))
+  check('turn end added no second receipt on disk or on the attached screen', ended.length === 1 && ended[0]?.uuid === persisted[0]?.uuid && j(freshReceipts(screen.records()).map(row => row.uuid)) === j(ended.map(row => row.uuid)), j(ended.map(row => row.uuid)) + ' — turn end must not add a second Compacted receipt row to the transcript or the attached screen')
 } finally {
   releaseTool.resolve()
   releaseReply.resolve()

@@ -31,7 +31,8 @@ function check(label: string, ok: boolean, detail?: string): void {
   if (ok) console.log(`  ✅ ${label}`)
   else {
     failures += 1
-    console.log(`  ❌ ${label}${detail ? ` — ${detail}` : ''}`)
+    const where = 'change by section above: §1-§5 and §10 src/daemon/concourseWorktrees.ts (ensureWorkerWorktree, classifyWorktreeDirt, reapWorkerWorktree, forkCommitState); §6-§7 src/daemon/concourseWorkers.ts (settleConcourseWorker, reconcileConcourseWorkers, recordCollisionEvidence); §8 preflightConcourseDispatch in src/daemon/concourseDispatch.ts'
+    console.log(`  ❌ ${label} — ${detail ? `${detail} | ` : ''}${where}`)
   }
 }
 

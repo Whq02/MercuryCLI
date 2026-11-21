@@ -31,9 +31,10 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 
 let failures = 0
+const deepseekProvenanceHint = 'fix the behaviour this check names in src/services/providers/deepseek/deepseekCatalogue.ts (refreshDeepseekCatalogue, deepseekCatalogueRows, cachedLiveIds), src/utils/model/pins/deepseekPins.ts (names and id grammar), src/services/providers/deepseek/deepseekAdapter.ts (router catalogue) or src/services/providers/openaicompat/compatWire.ts (buildDeepseekExtras, effort dial)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${deepseekProvenanceHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

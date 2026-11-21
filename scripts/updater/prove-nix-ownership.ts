@@ -17,10 +17,11 @@ const entry = join(payload, 'mercury.mjs')
 const node = nodeBinPath()
 let failures = 0
 let checks = 0
+const nixOwnershipFixHint = 'ownership checks: fix classifyInstallProvenance or provenanceGuidance in src/services/privateChannel/installProvenance.ts; update, install and rollback sentence checks: the Nix words live in src/services/privateChannel/updateRemedy.ts and installerUpgrade.ts; a check that finds changed bytes means a command wrote into the read-only Nix payload, home or PATH folder'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? `${detail}; ` : ''}${nixOwnershipFixHint}`}`)
 }
 function snapshot(dir: string): string {
   if (!existsSync(dir)) return 'absent'

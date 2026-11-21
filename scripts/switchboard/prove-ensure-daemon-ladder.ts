@@ -4,7 +4,8 @@ import { mock } from 'bun:test'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failHint = cond ? '' : ' | to fix: the rounds, pauses, spawn guard and heal order live in ensureOwnedDaemon in src/services/switchboard/ensureDaemon.ts; compare the walked steps above with the wanted ladder named in the label'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${failHint}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 

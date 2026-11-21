@@ -33,17 +33,18 @@ process.env.MERCURY_CACHE_CLOCK = '0'
 
 let failures = 0
 let checks = 0
+const LOW_EFFORT_WHERE = 'the effort row and its header are built in src/services/providers/anthropic/messageEffort.ts and the ask is sent by askForHandoff in src/mneme/handoffAsk.ts; a build check needs dist/mercury.mjs built first'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — where to look: ${LOW_EFFORT_WHERE}${detail ? ` — ${detail.slice(0, 900)}` : ''}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the handoff effort prover exceeded 240s')
+  console.log('\nTIMEOUT — the handoff effort prover exceeded 240s; a fixture request never answered, so look at the last section printed above and at the ask in src/mneme/handoffAsk.ts')
   process.exit(1)
 }, 240_000)
 guard.unref?.()

@@ -28,33 +28,34 @@ const heldCopies = (): string[] => {
   if (process.platform === 'linux') return readdirSync('/proc/self/fd').map(fd => { try { return readlinkSync(`/proc/self/fd/${fd}`) } catch { return '' } }).filter(target => target.includes('mercury-sqlite-read-'))
   return execFileSync('lsof', ['-p', String(process.pid)], { encoding: 'utf8' }).split('\n').filter(line => line.includes('mercury-sqlite-read-')).map(line => line.replace(/\s+/g, ' '))
 }
+const sqliteHint = ' | change renderSqliteTarget in src/tools/FileReadTool/readRichFormats.ts (the leftover-log private copy via openPrivateCopy, and the read-only open) so a read leaves the database, its -wal and -shm as they were'
 const client = await readViewMcp(home)
 try {
   for (const [runtime, file, read] of [['Node', leftover, (path: string) => client.call('Read', { file_path: path })], ['Bun', leftoverBun, bunRead]] as const) {
     const before = state(file)
     const row = await read(`${file}:items/2`), table = await read(`${file}:items`), listing = await read(file)
-    kit.check(`${runtime}: a keyed read of a database with a leftover log reads the row the log holds`, row.includes('"value": "only in the log"'), row)
-    kit.check(`${runtime}: its table read includes that row`, table.includes('only in the log') && table.includes('in the database'), table)
-    kit.check(`${runtime}: the database listing answers`, listing.includes('items'), listing)
-    kit.check(`${runtime}: nothing new stands beside the database and its bytes and its log are unchanged`, state(file) === before && !existsSync(`${file}-shm`), `${before} → ${state(file)}`)
+    kit.check(`${runtime}: a keyed read of a database with a leftover log reads the row the log holds`, row.includes('"value": "only in the log"'), row + sqliteHint)
+    kit.check(`${runtime}: its table read includes that row`, table.includes('only in the log') && table.includes('in the database'), table + sqliteHint)
+    kit.check(`${runtime}: the database listing answers`, listing.includes('items'), listing + sqliteHint)
+    kit.check(`${runtime}: nothing new stands beside the database and its bytes and its log are unchanged`, state(file) === before && !existsSync(`${file}-shm`), `${before} → ${state(file)}${sqliteHint}`)
     if (runtime !== 'Bun') continue
     if (process.platform === 'win32') console.log('[SKIP] Bun: a read that has answered holds none of its private copy open: on this platform the three reads above are the witness, a copy still held could not be removed')
     else {
       const held = heldCopies()
-      kit.check('Bun: a read that has answered holds none of its private copy open', held.length === 0, held.join(' | '))
+      kit.check('Bun: a read that has answered holds none of its private copy open', held.length === 0, held.join(' | ') + sqliteHint + ' (close the private copy in the finally path of renderSqliteTarget)')
     }
   }
   const bothBefore = state(both)
   const kept = await client.call('Read', { file_path: `${both}:items/2` })
-  kit.check('Node: a shared-memory file that was there stays, with the database and the log unchanged', kept.includes('only in the log') && state(both) === bothBefore, `${bothBefore} → ${state(both)}`)
+  kit.check('Node: a shared-memory file that was there stays, with the database and the log unchanged', kept.includes('only in the log') && state(both) === bothBefore, `${bothBefore} → ${state(both)}${sqliteHint}`)
   const emptyBefore = state(empty)
   const plain = await client.call('Read', { file_path: `${empty}:items/1` })
-  kit.check('Node: an empty log leaves no shared-memory file either', plain.includes('in the database') && state(empty) === emptyBefore, `${emptyBefore} → ${state(empty)}`)
+  kit.check('Node: an empty log leaves no shared-memory file either', plain.includes('in the database') && state(empty) === emptyBefore, `${emptyBefore} → ${state(empty)}${sqliteHint}`)
   const liveBefore = state(live)
   const held = await client.call('Read', { file_path: `${live}:items/2` })
-  kit.check('Node: a database another connection holds open is read with its files unchanged', held.includes('only in the log') && state(live) === liveBefore, `${liveBefore} → ${state(live)}`)
+  kit.check('Node: a database another connection holds open is read with its files unchanged', held.includes('only in the log') && state(live) === liveBefore, `${liveBefore} → ${state(live)}${sqliteHint}`)
   writer.run("INSERT INTO items VALUES(3,'written while open')")
   const later = await client.call('Read', { file_path: `${live}:items/3` })
-  kit.check('Node: it sees what that connection wrote since', later.includes('written while open'), later)
+  kit.check('Node: it sees what that connection wrote since', later.includes('written while open'), later + sqliteHint)
 } finally { await client.close(); writer.close() }
 kit.finish()

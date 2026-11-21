@@ -23,18 +23,19 @@ const failures = [
 ]
 const unverified = 'Unverified web text; cite relevant URLs as markdown links.'
 const via = viaLine('duckduckgo', 'keyless')
+const honestyLinesWhere = ' | fix mapSearchResult in src/tools/WebSearchTool/searchOutput.ts or searchPayload in src/services/search/searchPayload.ts'
 
 const block = mapSearchResult({ query: 'migration plan', results: [{ tool_use_id: 'g1', content: hits }], durationSeconds: 1, via: 'duckduckgo', tier: 'keyless', notes: [DUCKDUCKGO_TERMS, ...failures], hint: KEYED_DOOR_REMEDY }, 'proof')
 const payload = String(block.content)
 const parsed = JSON.parse(payload) as { hits: { snippet: string; source_type: string }[]; notes: string[] }
-assert.ok(parsed.notes.includes(via), `the via line names the door that answered; it must survive the notes budget — notes kept: ${JSON.stringify(parsed.notes)}`)
-assert.ok(parsed.notes.includes(unverified), `the unverified-text line is the law's own sentence; it must survive the notes budget — notes kept: ${JSON.stringify(parsed.notes)}`)
-assert.ok(parsed.notes.includes(DUCKDUCKGO_TERMS), 'the first-use terms notice must survive the notes budget')
+assert.ok(parsed.notes.includes(via), `the via line names the door that answered; it must survive the notes budget — notes kept: ${JSON.stringify(parsed.notes)}${honestyLinesWhere}`)
+assert.ok(parsed.notes.includes(unverified), `the unverified-text line is the law's own sentence; it must survive the notes budget — notes kept: ${JSON.stringify(parsed.notes)}${honestyLinesWhere}`)
+assert.ok(parsed.notes.includes(DUCKDUCKGO_TERMS), `the first-use terms notice must survive the notes budget${honestyLinesWhere}`)
 
 const whole = searchPayload(hits, [via, unverified])
 const kept = JSON.parse(whole) as { hits: { snippet: string }[] }
 const estimate = roughTokenCountEstimation(JSON.stringify({ hits, notes: [via, unverified] }))
-assert.ok(estimate < SEARCH_PAYLOAD_TOKEN_CEILING, `the full ten-hit answer measures ${estimate} tokens by the tree's own estimator, under the ${SEARCH_PAYLOAD_TOKEN_CEILING} ceiling`)
-assert.equal(kept.hits.length, DEFAULT_MAX_RESULTS, `an answer whose token estimate is under the ceiling reaches the model whole: ${kept.hits.length} of ${DEFAULT_MAX_RESULTS} hits delivered`)
-assert.equal(kept.hits.filter(hit => hit.snippet !== '').length, DEFAULT_MAX_RESULTS, `every delivered hit keeps its snippet: ${kept.hits.filter(hit => hit.snippet !== '').length} of ${DEFAULT_MAX_RESULTS} snippets delivered`)
+assert.ok(estimate < SEARCH_PAYLOAD_TOKEN_CEILING, `the full ten-hit answer measures ${estimate} tokens by the tree's own estimator, under the ${SEARCH_PAYLOAD_TOKEN_CEILING} ceiling; the fixture hits or SEARCH_PAYLOAD_TOKEN_CEILING in src/services/search/searchPayload.ts changed${honestyLinesWhere}`)
+assert.equal(kept.hits.length, DEFAULT_MAX_RESULTS, `an answer whose token estimate is under the ceiling reaches the model whole: ${kept.hits.length} of ${DEFAULT_MAX_RESULTS} hits delivered${honestyLinesWhere}`)
+assert.equal(kept.hits.filter(hit => hit.snippet !== '').length, DEFAULT_MAX_RESULTS, `every delivered hit keeps its snippet: ${kept.hits.filter(hit => hit.snippet !== '').length} of ${DEFAULT_MAX_RESULTS} snippets delivered${honestyLinesWhere}`)
 console.log(`PASS search payload honesty lines: the via line, the unverified line and the terms notice survive the budget; ten hits with snippets (${estimate} estimated tokens) reach the model whole`)

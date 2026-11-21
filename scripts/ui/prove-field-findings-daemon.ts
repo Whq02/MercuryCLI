@@ -35,8 +35,8 @@ console.log('§1 daemon roster — outcome first')
     ],
   } as unknown as Parameters<typeof deriveDaemonRows>[0]
   const rows = deriveDaemonRows(status).workers
-  check('the derive carries the wire outcome on the settled seat and none on the live one', rows[0]?.outcome === 'degraded' && rows[1]?.outcome === undefined, JSON.stringify(rows.map(r => r.outcome)))
-  check('a settled seat is never busy', rows[0]?.busy === false)
+  check('the derive carries the wire outcome on the settled seat and none on the live one', rows[0]?.outcome === 'degraded' && rows[1]?.outcome === undefined, `${JSON.stringify(rows.map(r => r.outcome))} — deriveDaemonRows in src/services/cockpit/daemonRows.ts must copy the wire outcome of each worker into its row and leave it off when the worker has none`)
+  check('a settled seat is never busy', rows[0]?.busy === false, `busy ${String(rows[0]?.busy)} — deriveDaemonRows in src/services/cockpit/daemonRows.ts sets busy from the worker busy flag; a crashed seat that reports none must read false`)
 }
 
 

@@ -50,18 +50,18 @@ for (const [signal, expected] of [['SIGHUP', 129], ['SIGTERM', 143]] as const) {
     const toolStarted = await waitFor(() => pidWritten(marker), 20_000)
     toolPid = toolStarted ? Number(readFileSync(marker, 'utf8')) : 0
     const before = shellTreeRows(toolPid)
-    check(`${signal}: the shell tool is running before the signal`, toolPid > 1 && before.length > 0, `pid ${toolPid}, rows: ${shellTreeWords(before)}`)
+    check(`${signal}: the shell tool is running before the signal`, toolPid > 1 && before.length > 0, `pid ${toolPid}, rows: ${shellTreeWords(before)}; the Bash tool never wrote its pid marker within 20s, so the headless run did not reach the tool step (check the run output and the fixture API turns)`)
     child.kill(signal)
     const code = await closed
     const rows: Array<Record<string, unknown>> = []
     for (const line of out.trim().split('\n')) { try { rows.push(JSON.parse(line)) } catch {} }
     const last = rows.at(-1)
-    check(`${signal}: exits ${expected}`, code === expected, JSON.stringify({ code, err: err.slice(0, 300) }))
-    check(`${signal}: the last row is the interrupted turn's outcome`, last?.type === 'outcome' && last.status === 'interrupted', JSON.stringify(last ?? rows.map(row => row.type)))
+    check(`${signal}: exits ${expected}`, code === expected, JSON.stringify({ code, err: err.slice(0, 300) }) + '; the headless run must exit 129 on SIGHUP and 143 on SIGTERM, see the signal handlers in src/cli/headless/boot/ownSignals.ts')
+    check(`${signal}: the last row is the interrupted turn's outcome`, last?.type === 'outcome' && last.status === 'interrupted', JSON.stringify(last ?? rows.map(row => row.type)) + '; on a signal the rows format must end with an outcome row of status interrupted, see src/cli/headless/boot/ownSignals.ts')
     let left = shellTreeRows(toolPid)
     const deadline = Date.now() + 5_000
     while (left.length > 0 && Date.now() < deadline) { await sleep(50); left = shellTreeRows(toolPid) }
-    check(`${signal}: the tool's shell is gone with the run (no process left behind)`, left.length === 0, `still alive after the run exited: ${shellTreeWords(left)}`)
+    check(`${signal}: the tool's shell is gone with the run (no process left behind)`, left.length === 0, `still alive after the run exited: ${shellTreeWords(left)}; the signal path must end the Bash tool process tree before the run exits (src/cli/headless/boot/ownSignals.ts, endProcessTree in src/utils/processGroup.ts)`)
   } finally {
     clearTimeout(timeout)
     if (toolPid > 1) await endProcessTree(toolPid)

@@ -24,7 +24,8 @@ CREATE TABLE restricted(id INTEGER PRIMARY KEY, item INTEGER REFERENCES items(id
 CREATE TABLE cascading(id INTEGER PRIMARY KEY, item INTEGER REFERENCES items(id) ON DELETE CASCADE); INSERT INTO cascading VALUES(1,3);`)
 seed.close()
 const kit = await readViewKit(home)
-const { check } = kit
+const deleteHint = ' | change the row-delete path (previewSqliteDeletion, prepareSqliteDeletion, callStructuredWriteTarget) in src/tools/FileWriteTool/structuredTargets.ts, or the row read and identity in src/tools/FileReadTool/readRichFormats.ts'
+const check = (name: string, ok: boolean, detail = ''): void => kit.check(name, ok, ok ? detail : detail + deleteHint)
 let client = await readViewMcp(home)
 const read = (path: string) => client.call('Read', { file_path: path })
 const del = (path: string, content = 'DELETE') => client.call('Write', { file_path: `${path}#delete`, content })

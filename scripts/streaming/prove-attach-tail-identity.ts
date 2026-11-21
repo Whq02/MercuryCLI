@@ -9,7 +9,7 @@ const { createStreamingTailStore } = await import('../../src/utils/messages/stre
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix by section: section 1 in src/utils/messages/streamingTailStore.ts (createStreamingTailStore, setMessageId, readIds), section 2 in src/utils/messages/tailRetirement.ts (computeTailRelease), section 3 in src/daemon/sessionSeat.ts (onSeatRow, onSeatSpawned), section 4 in src/services/engine-connector/daemon/tail.ts (TailPart) and src/services/engine-connector/daemonConnector.ts (DaemonSessionConnector)` : ''}`)
   if (!ok) failures++
 }
 

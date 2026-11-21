@@ -13,6 +13,8 @@ const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${t
 const { escapeForPowershellSingleQuotes } = await import('../../src/utils/powershellLiteral.ts')
 const { resumeHintArgument } = await import('../../src/utils/shutdownRestoration.ts')
 
+const escaperHint = 'fix escapeForPowershellSingleQuotes in src/utils/powershellLiteral.ts'
+const resumeHintHint = 'fix quoteResumeTitleForShell in src/utils/platform/words.ts (called by resumeHintArgument in src/utils/shutdownRestoration.ts)'
 const units = (text: string): string => Array.from({ length: text.length }, (_, i) => text.charCodeAt(i)).join(',')
 const CASES = [
   "it's here",
@@ -25,12 +27,12 @@ const OLD = (text: string): string => text.replace(/'/g, "''")
 
 section('§1 the escaper doubles every character PowerShell reads as a single quote')
 {
-  check("an ASCII quote doubles", escapeForPowershellSingleQuotes("it's") === "it''s")
-  check('each typographic single quote doubles as itself', escapeForPowershellSingleQuotes('\u2018\u2019\u201A\u201B') === '\u2018\u2018\u2019\u2019\u201A\u201A\u201B\u201B')
-  check('other text is untouched', escapeForPowershellSingleQuotes('C:\\Temp\\a "b" `c` $d') === 'C:\\Temp\\a "b" `c` $d')
-  check('the resume hint speaks the same literal on win32', resumeHintArgument('Don\u2019t', 'sid', 'win32') === "'Don\u2019\u2019t'")
-  check('…and keeps the exact ASCII form the older proof pins', resumeHintArgument("it's here", 'sid', 'win32') === "'it''s here'")
-  check('…and leaves the POSIX form alone', resumeHintArgument('Don\u2019t "x"', 'sid', 'darwin') === '"Don\u2019t \\"x\\""')
+  check("an ASCII quote doubles", escapeForPowershellSingleQuotes("it's") === "it''s", escaperHint)
+  check('each typographic single quote doubles as itself', escapeForPowershellSingleQuotes('\u2018\u2019\u201A\u201B') === '\u2018\u2018\u2019\u2019\u201A\u201A\u201B\u201B', escaperHint)
+  check('other text is untouched', escapeForPowershellSingleQuotes('C:\\Temp\\a "b" `c` $d') === 'C:\\Temp\\a "b" `c` $d', escaperHint)
+  check('the resume hint speaks the same literal on win32', resumeHintArgument('Don\u2019t', 'sid', 'win32') === "'Don\u2019\u2019t'", resumeHintHint)
+  check('…and keeps the exact ASCII form the older proof pins', resumeHintArgument("it's here", 'sid', 'win32') === "'it''s here'", resumeHintHint)
+  check('…and leaves the POSIX form alone', resumeHintArgument('Don\u2019t "x"', 'sid', 'darwin') === '"Don\u2019t \\"x\\""', resumeHintHint)
 }
 
 section('§2 a real PowerShell reads the literal back unchanged (Windows hosts)')
@@ -45,10 +47,10 @@ if (process.platform !== 'win32') {
     run(CASES.map(text => `$s = ${literalOf(text)}; (($s.ToCharArray() | ForEach-Object { [int]$_ }) -join ',')`).join('; '))
   const expected = CASES.map(units).join('\n')
   const fixed = readBack(text => `'${escapeForPowershellSingleQuotes(text)}'`)
-  check('every case reads back with the same UTF-16 units, nothing else printed', fixed.status === 0 && fixed.out.replace(/\r/g, '') === expected, JSON.stringify(fixed))
-  check('the injection case printed nothing of its own', !fixed.out.includes('PWNED'))
+  check('every case reads back with the same UTF-16 units, nothing else printed', fixed.status === 0 && fixed.out.replace(/\r/g, '') === expected, `${escaperHint}; ${JSON.stringify(fixed)}`)
+  check('the injection case printed nothing of its own', !fixed.out.includes('PWNED'), escaperHint)
   const hint = readBack(text => resumeHintArgument(text, 'sid', 'win32'))
-  check('the printed resume hint, pasted into PowerShell, is the title', hint.status === 0 && hint.out.replace(/\r/g, '') === expected, JSON.stringify(hint))
+  check('the printed resume hint, pasted into PowerShell, is the title', hint.status === 0 && hint.out.replace(/\r/g, '') === expected, `${resumeHintHint}; ${JSON.stringify(hint)}`)
   const old = readBack(text => `'${OLD(text)}'`)
   check('CONTROL: the ASCII-only doubling this replaced does not survive the same cases on this host', old.status !== 0 || old.out.replace(/\r/g, '') !== expected, JSON.stringify(old))
 }

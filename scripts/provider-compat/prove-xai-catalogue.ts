@@ -21,7 +21,7 @@ const { resolveContextWindow, effortVocabularyFor, modelSupportsThinking, modelR
 const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
 const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
 let count = 0
-const check = (name: string, ok: unknown): void => { assert.ok(ok, name); count++; console.log(`[PASS] ${name}`) }
+const check = (name: string, ok: unknown): void => { assert.ok(ok, `${name} (start at refreshXaiCatalogue and xaiCatalogueRows in src/services/providers/xai/xaiCatalogue.ts, then the module this label names: routeLaw.ts, modelOptions.ts, capabilities.ts or modelCost.ts)`); count++; console.log(`[PASS] ${name}`) }
 let calls = 0
 const page = (data: unknown[], status = 200): typeof fetch => (async (url, init) => {
   calls++

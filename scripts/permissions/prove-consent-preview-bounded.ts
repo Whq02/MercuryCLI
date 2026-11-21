@@ -5,8 +5,9 @@ const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
 let failures = 0
+const budgetHint = 'to fix, change the function this check names in src/components/permissions/consentBodyBudget.ts (CONSENT_CHROME_ROWS, consentBodyBudget, consentContentWidth, paintedRows, cutToRows, boundLines, boundHunks, totalHunkRows, diffPaintWidth, filePaintWidth)'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? ` — ${detail}` : ''} — ${budgetHint}` : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)

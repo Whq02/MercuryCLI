@@ -203,16 +203,16 @@ for (const journey of journeys) {
     if (!labels.every(label => marks.has(label))) continue
     const rowsAt = (label: string): string[] => (marks.get(label)?.grid ?? []).map(row => row.map(c => c.c).join('').trimEnd())
     for (const label of labels) printFrame(`${tag} ${label} (${marks.get(label)!.cols}x${marks.get(label)!.rows})`, rowsAt(label))
-    check(`${tag}: the ${stage} is up at the card mark`, joined(rowsAt('card')).includes(HOME_READY))
-    check(`${tag}: the Concourse is up at the concourse mark`, joined(rowsAt('concourse')).includes(CONCOURSE_READY) && !joined(rowsAt('concourse')).includes(HOME_ONLY))
-    check(`${tag}: the ${stage} is back at the back mark`, joined(rowsAt('back')).includes(HOME_ONLY) && !joined(rowsAt('back')).includes(CONCOURSE_READY))
+    check(`${tag}: the ${stage} is up at the card mark`, joined(rowsAt('card')).includes(HOME_READY), `the frame at the card mark lacks ${HOME_READY}; read the printed frame above and the engine log ${log}`)
+    check(`${tag}: the Concourse is up at the concourse mark`, joined(rowsAt('concourse')).includes(CONCOURSE_READY) && !joined(rowsAt('concourse')).includes(HOME_ONLY), `the shift key must switch the screen from the ${stage} to the Concourse; read the printed concourse frame above`)
+    check(`${tag}: the ${stage} is back at the back mark`, joined(rowsAt('back')).includes(HOME_ONLY) && !joined(rowsAt('back')).includes(CONCOURSE_READY), `the opposite shift key must return from the Concourse to the ${stage}; read the printed back frame above`)
     const frames = readTee(tee)
     check(`${tag}: the tee recorded the pty bytes`, frames.length > 0, tee)
     const cardTick = marks.get('card')!.atTick
     const beforeCard = bytesIn(frames, 0, cardTick)
     const cardNeedle = Buffer.from(FACE_READY, 'utf8').toString('latin1')
     const afterFirstPaint = afterFirstPaintOf(beforeCard, cardNeedle)
-    check(`${tag}: the boot card's first paint is in the tee`, afterFirstPaint !== null)
+    check(`${tag}: the boot card's first paint is in the tee`, afterFirstPaint !== null, `the card text ${FACE_READY} was not found in the bytes before the card mark; check the tee ${tee}`)
     const probeFired = beforeCard.includes('\x1b[6n')
     const probeErasures = widthProbeErasures(frames)
     const windows: Array<{ event: string; bytes: string; rows: number }> = [
@@ -229,7 +229,7 @@ for (const journey of journeys) {
       const second = settled[1]
       if (first !== undefined && second !== undefined) {
         check(`${tag}: the marks after each resize came after the resize`, first.untilTick < small.atTick && second.untilTick < large.atTick && small.atTick <= second.untilTick, `stages ${first.untilTick},${second.untilTick} marks ${small.atTick},${large.atTick}`)
-        check(`${tag}: the small mark is at 80x24 and the large mark at 120x40`, small.cols === 80 && small.rows === 24 && large.cols === 120 && large.rows === 40)
+        check(`${tag}: the small mark is at 80x24 and the large mark at 120x40`, small.cols === 80 && small.rows === 24 && large.cols === 120 && large.rows === 40, `small ${small.cols}x${small.rows}, large ${large.cols}x${large.rows}; the capture resizes set in the config at ${cfgPath} were not applied`)
         windows.push({ event: 'resize 120x40 to 80x24', bytes: bytesIn(frames, first.untilTick, small.atTick), rows: 24 })
         windows.push({ event: 'resize 80x24 to 120x40', bytes: bytesIn(frames, second.untilTick, large.atTick), rows: 40 })
       }
@@ -244,7 +244,7 @@ for (const journey of journeys) {
       check(`${tag} ${window.event}: no frame addresses a row below the terminal's last row (${window.rows})`, counts.tallestRow <= window.rows, describe(counts))
       if (resizeWindow || routeWindow) {
         check(`${tag} ${window.event}: no erase of the display, no scrollback erase, no alternate-screen switch`, counts.erase === 0 && counts.scrollback === 0 && counts.altEnter === 0 && counts.altLeave === 0, describe(counts))
-        check(`${tag} ${window.event}: the repaint is a whole frame written in place inside one synchronized write`, wholeFrameSharesSynchronizedPaint(window.bytes))
+        check(`${tag} ${window.event}: the repaint is a whole frame written in place inside one synchronized write`, wholeFrameSharesSynchronizedPaint(window.bytes), `the repaint must begin with ${JSON.stringify(WHOLE_FRAME_HEAD)} inside one synchronized-output write (2026h to 2026l); ${describe(counts)}`)
       } else {
         const allowedErases = window.event.startsWith('splash to card') && probeFired ? probeErasures : 0
         const note = allowedErases > 0 ? ' — the width probe alt-screen cleanup erases allowed' : ''

@@ -10,10 +10,11 @@ for (const key of ['MERCURY_HOME', 'MERCURY_SEATS', 'MERCURY_CRITTER']) delete p
 
 let checks = 0
 let failures = 0
+const heldKeysHint = 'to fix, look at useKeysHeldUntilFirstPaint in src/components/permissions/hooks.ts (keys typed before the first frame must be held, Esc excepted) and its use in src/components/permissions/PermissionRequest.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? ` — ${detail.slice(0, 900)}` : ''} — ${heldKeysHint}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)

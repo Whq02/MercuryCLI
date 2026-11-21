@@ -4,7 +4,7 @@ const root = resolve(process.argv[2] ?? new URL('../..', import.meta.url).pathna
 const { reorderAttachmentsForAPI } = await import(`${root}/src/services/messages/apiView.ts`)
 let failures = 0
 const check = (name: string, ok: boolean, detail = '') => {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok || !detail ? '' : ` — ${detail}`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${detail ? detail + ' · ' : ''}reorderAttachmentsForAPI in src/services/messages/apiViewRows.ts decides where attachments sit and which rows are stopping points`}`)
   if (!ok) failures++
 }
 const user = (id: string, content: unknown = `text ${id}`) => ({ type: 'user', uuid: id, message: { role: 'user', content } })

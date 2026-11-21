@@ -11,8 +11,13 @@ import {
 } from './jobcontrolHost.ts'
 
 let failures = 0
+const deepRerunHint = (name: string): string => {
+  if (/certificate|checks|esc after/.test(name)) return 'the d and r keys and the rerun of the health certificate are in src/commands/health/HealthCertificate.tsx (rerun): r must clear the certificate, run again at the depth in use and repaint the N checks summary; read the grid lines above'
+  if (/mouse|alternate screen|disarm/.test(name)) return 'a deep rerun must not disarm mouse tracking or leave the alternate screen mid-journey, and the exit must restore the terminal modes; read the mode events in the detail above'
+  return 'the deep health run spawns a debug adapter child: it must never stop Mercury (state T) or take the terminal foreground process group from it; read the samples in the detail above and the debug adapter spawn the deep run uses'
+}
 const check = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail && !ok ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? `${detail} | ` : ''}${deepRerunHint(name)}` : ''}`)
   if (!ok) failures++
 }
 const section = (name: string): void => {

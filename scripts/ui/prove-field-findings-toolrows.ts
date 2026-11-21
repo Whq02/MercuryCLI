@@ -7,7 +7,7 @@ const check = (name: string, ok: boolean, detail?: string): void => {
     console.log(`  ok  ${name}`)
   } else {
     failures++
-    console.error(`  RED ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error(`  RED ${name}${detail ? ` — ${detail}` : ''} — fix isPathInside in src/utils/pathPrefix.ts`)
   }
 }
 

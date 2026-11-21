@@ -68,8 +68,12 @@ if (process.argv[2] === '--child') {
 }
 
 let failures = 0
+const headlessWriteHint = (label: string): string =>
+  /ring|title/.test(label) && !label.includes('stream carries')
+    ? 'the mode ledger is src/ink/root/terminalModeLedger.ts (shutdownReleaseObligations, noteModeAcquired, noteModeReleased) and the ring is createTabRing in src/ink/terminalWrite.ts: a ring or title must be an open obligation only while held, and be released with its own clear'
+    : 'a headless render must write only the frame: check useTabRing in src/ink/terminalWrite.ts, useTerminalTitle in src/ink/hooks/use-terminal-title.ts and cleanupTerminalModes in src/utils/shutdownRestoration.ts so none of them writes to a stream that is not a live terminal; rerun the child with bun run scripts/ui/prove-headless-writes-nothing.ts --child <dir> to see its own error'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${headlessWriteHint(label)}` : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)

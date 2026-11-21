@@ -12,7 +12,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — fix boundPatchForRender or DIFF_LINE_RENDER_CAP in src/components/StructuredDiff/lineBudget.ts`)
   }
 }
 

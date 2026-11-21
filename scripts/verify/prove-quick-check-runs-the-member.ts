@@ -11,6 +11,8 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
+const FILTER_HINT = 'fix drive_members in scripts/lib/drive-members.sh, which reads MERCURY_SUITE_MEMBER'
+const FAST_HINT = 'fix the plan and member lines of scripts/verify/fast.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'quick-check-member-'))
 const marks = join(scratch, 'markers')
@@ -84,13 +86,13 @@ try {
   section("§1 the runner's own filter: one member by MERCURY_SUITE_MEMBER, and a name that is no member is an error")
   {
     const whole = twin(null)
-    check('with no name the twin runs every member', whole.status === 0 && markers() === 'one,two', `${whole.status} · ${markers()}`)
+    check('with no name the twin runs every member', whole.status === 0 && markers() === 'one,two', `${whole.status} · ${markers()} · ${FILTER_HINT}`)
     resetMarkers()
     const one = twin('prove-two.ts')
-    check('with a name it runs that member alone and says so', one.status === 0 && markers() === 'two' && one.out.includes('one member alone by MERCURY_SUITE_MEMBER (prove-two.ts)'), `${one.status} · ${markers()} · ${lineWith(one.out, 'MERCURY_SUITE_MEMBER')}`)
+    check('with a name it runs that member alone and says so', one.status === 0 && markers() === 'two' && one.out.includes('one member alone by MERCURY_SUITE_MEMBER (prove-two.ts)'), `${one.status} · ${markers()} · ${lineWith(one.out, 'MERCURY_SUITE_MEMBER')} · ${FILTER_HINT}`)
     resetMarkers()
     const none = twin('prove-nope.ts')
-    check('a name its list does not hold exits 1 by its own line and runs nothing', none.status === 1 && markers() === '' && none.out.includes('MERCURY_SUITE_MEMBER names prove-nope.ts, which is no member in scripts/stream-drives/members.txt'), `${none.status} · ${markers()} · ${none.out.trim()}`)
+    check('a name its list does not hold exits 1 by its own line and runs nothing', none.status === 1 && markers() === '' && none.out.includes('MERCURY_SUITE_MEMBER names prove-nope.ts, which is no member in scripts/stream-drives/members.txt'), `${none.status} · ${markers()} · ${none.out.trim()} · ${FILTER_HINT}`)
   }
 
   section('§2 a member of a suite the full run does not read, changed alone: the quick check runs that member through the twin')
@@ -98,15 +100,15 @@ try {
     appendFileSync(join(scratch, 'scripts/stream/prove-one.ts'), 'console.log(1)\n')
     resetMarkers()
     const plan = fast(['--plan'])
-    check('the plan names the twin as not read by the full run', lineWith(plan.out, 'not read by the anchor').includes('stream-drives'), lineWith(plan.out, 'not read by the anchor'))
-    check('and says the changed member runs here, through the twin', lineWith(plan.out, 'scripts/stream/prove-one.ts changed and is a member of stream-drives').includes('scripts/stream-drives/run-all.sh') && lineWith(plan.out, 'plan:').includes('changed members alone [prove-one.ts of stream-drives]'), `${lineWith(plan.out, 'is a member of')} · ${lineWith(plan.out, 'plan:')}`)
-    check('a plan runs nothing', plan.status === 0 && markers() === '', `${plan.status} · ${markers()}`)
+    check('the plan names the twin as not read by the full run', lineWith(plan.out, 'not read by the anchor').includes('stream-drives'), `${lineWith(plan.out, 'not read by the anchor')} · ${FAST_HINT}`)
+    check('and says the changed member runs here, through the twin', lineWith(plan.out, 'scripts/stream/prove-one.ts changed and is a member of stream-drives').includes('scripts/stream-drives/run-all.sh') && lineWith(plan.out, 'plan:').includes('changed members alone [prove-one.ts of stream-drives]'), `${lineWith(plan.out, 'is a member of')} · ${lineWith(plan.out, 'plan:')} · ${FAST_HINT}`)
+    check('a plan runs nothing', plan.status === 0 && markers() === '', `${plan.status} · ${markers()} · ${FAST_HINT}; a plan must not run any member`)
     const ran = fast([])
-    check('the run is green', ran.status === 0, `status ${ran.status} · ${ran.out.slice(-500)}`)
-    check('the changed member ran once, its sibling in the twin did not, and the plain suite ran in the pool', markers() === 'one,stream' && readFileSync(join(marks, 'one'), 'utf8') === 'ran\n', markers())
-    check("the verdict holds the member's line with its seconds", /✓ member prove-one\.ts of stream-drives, alone through its own runner \(\d+s\)/.test(ran.out) && ran.out.includes('stream-drives but for the changed members above'), `${lineWith(ran.out, 'member prove-one.ts')} · ${lineWith(ran.out, 'NOT covered')}`)
+    check('the run is green', ran.status === 0, `status ${ran.status} · ${ran.out.slice(-500)} · ${FAST_HINT}`)
+    check('the changed member ran once, its sibling in the twin did not, and the plain suite ran in the pool', markers() === 'one,stream' && readFileSync(join(marks, 'one'), 'utf8') === 'ran\n', `${markers()} · ${FAST_HINT} so the changed member runs once through its own runner`)
+    check("the verdict holds the member's line with its seconds", /✓ member prove-one\.ts of stream-drives, alone through its own runner \(\d+s\)/.test(ran.out) && ran.out.includes('stream-drives but for the changed members above'), `${lineWith(ran.out, 'member prove-one.ts')} · ${lineWith(ran.out, 'NOT covered')} · ${FAST_HINT}`)
     const row = lastEvidence()
-    check('the evidence row names the member', row?.scope === 'fast' && row.ok === true && row.coverage.includes('members alone [prove-one.ts of stream-drives]'), JSON.stringify(row))
+    check('the evidence row names the member', row?.scope === 'fast' && row.ok === true && row.coverage.includes('members alone [prove-one.ts of stream-drives]'), `${JSON.stringify(row)} · ${FAST_HINT}, where the evidence coverage text is built`)
   }
 
   section('§3 a red member turns the quick check red')
@@ -114,7 +116,7 @@ try {
     writeFileSync(join(scratch, 'scripts/stream/prove-one.ts'), 'process.exit(1)\n')
     resetMarkers()
     const ran = fast([])
-    check('exit 1, with the member named as failed', ran.status === 1 && /✕ member prove-one\.ts of stream-drives/.test(ran.out) && ran.out.includes('verify:fast RED'), `status ${ran.status} · ${lineWith(ran.out, 'member prove-one.ts')}`)
+    check('exit 1, with the member named as failed', ran.status === 1 && /✕ member prove-one\.ts of stream-drives/.test(ran.out) && ran.out.includes('verify:fast RED'), `status ${ran.status} · ${lineWith(ran.out, 'member prove-one.ts')} · ${FAST_HINT}`)
     git('checkout', '--', 'scripts/stream/prove-one.ts')
   }
 
@@ -123,12 +125,12 @@ try {
     appendFileSync(join(scratch, 'scripts/loop/prove-loop.ts'), 'console.log(1)\n')
     resetMarkers()
     const ran = fast([])
-    check('a changed member of a suite whose runner has no filter is named as not run, and is not run', ran.status === 0 && lineWith(ran.out, 'scripts/loop/prove-loop.ts changed and is a member of loop-drives').includes('cannot run one member alone') && markers() === 'loop', `${ran.status} · ${markers()} · ${lineWith(ran.out, 'loop-drives')}`)
+    check('a changed member of a suite whose runner has no filter is named as not run, and is not run', ran.status === 0 && lineWith(ran.out, 'scripts/loop/prove-loop.ts changed and is a member of loop-drives').includes('cannot run one member alone') && markers() === 'loop', `${ran.status} · ${markers()} · ${lineWith(ran.out, 'loop-drives')} · ${FAST_HINT}`)
     git('checkout', '--', 'scripts/loop/prove-loop.ts')
     runner('scripts/fresh-drives/run-all.sh', ['# gate-class: pty', '. "$(dirname "$0")/../lib/drive-members.sh" || exit 78', 'cd "$(dirname "$0")/../.." || exit 1', `drive_members fresh-drives 'scripts/stream/$name' "scripts/fresh-drives/members.txt"`])
     w('scripts/fresh-drives/members.txt', 'prove-one.ts\n')
     const plan = fast(['--plan'])
-    check('a suite the anchor has never seen is still an escalation to the full run', lineWith(plan.out, 'plan verdict').includes('ESCALATE to the FULL gate (new-suite)') && lineWith(plan.out, 'plan verdict').includes('fresh-drives'), lineWith(plan.out, 'plan verdict'))
+    check('a suite the anchor has never seen is still an escalation to the full run', lineWith(plan.out, 'plan verdict').includes('ESCALATE to the FULL gate (new-suite)') && lineWith(plan.out, 'plan verdict').includes('fresh-drives'), `${lineWith(plan.out, 'plan verdict')} · ${FAST_HINT}`)
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })

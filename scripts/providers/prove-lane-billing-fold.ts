@@ -11,7 +11,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}fix recordLaneBillingRefusal, recordLaneTurnSettled and laneBillingState in src/services/providers/laneBillingState.ts, or how resolveProviderUsability in src/services/providers/providerUsability.ts reads them (the family count check compares it with PROVIDER_ID_SPACES in src/services/providers/idSpaces.ts)` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

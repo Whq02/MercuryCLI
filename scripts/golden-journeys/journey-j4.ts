@@ -37,7 +37,7 @@ const rowsBefore = conversationRowCount()
 const seedSidecar = readRunSidecar(sid)
 
 const bootA = capture({ sid, tag: 'j4-boot-a' })
-check('boot A renders the resumed session', bootA.ok && hasProse(bootA, 'wiring the config loader'))
+check('boot A renders the resumed session', bootA.ok && hasProse(bootA, 'wiring the config loader'), `capture painted=${bootA.ok}; the resumed session (--resume) should show the seeded conversation text at first glance; rebuild dist and check how the resumed conversation is rendered`)
 const afterA = readRunSidecar(sid)
 
 const torn = capture({ sid, tag: 'j4-boot-torn', total: 20, stableTicks: 0 })
@@ -45,20 +45,22 @@ void torn
 
 const walker = new JourneyWalker(sid, 'j4')
 const bootB = walker.glance('boot-b')
-check('boot B renders after the torn boot', bootB.ok && hasProse(bootB, 'resumed clean'))
+check('boot B renders after the torn boot', bootB.ok && hasProse(bootB, 'resumed clean'), `capture painted=${bootB.ok}; a boot after a boot killed early should still resume and show the resumed-clean line; check reconcileOnResume in src/services/run/runCoordinator.ts`)
 const afterB = readRunSidecar(sid)
 const rowsAfter = conversationRowCount()
 
-check('run identity survives every boundary', afterB.snapshot.runId === seedSidecar.snapshot.runId)
+check('run identity survives every boundary', afterB.snapshot.runId === seedSidecar.snapshot.runId, `runId ${seedSidecar.snapshot.runId} became ${afterB.snapshot.runId}; a resume must keep the sidecar runId, see reconcileOnResume in src/services/run/runCoordinator.ts`)
 check(
   'no duplicate deliverables after restarts',
   new Set(afterB.snapshot.deliverables.map(d => d.id)).size === afterB.snapshot.deliverables.length,
+  'a resume added a deliverable id twice; check reconcileOnResume in src/services/run/runCoordinator.ts',
 )
 check(
   'observed changed paths are never duplicated',
   new Set(afterB.snapshot.changedPaths).size === afterB.snapshot.changedPaths.length,
+  'a resume recorded a changed path twice; check reconcileOnResume in src/services/run/runCoordinator.ts',
 )
-check('the sidecar stays structurally loadable', typeof afterB.snapshot.objective === 'string')
+check('the sidecar stays structurally loadable', typeof afterB.snapshot.objective === 'string', 'the run sidecar lost its objective string after the torn boot; check how src/services/run/runSidecar.ts writes and loads it')
 
 const reconciledOnResume =
   afterB.writeSeq > seedSidecar.writeSeq ||
@@ -75,8 +77,8 @@ spawnSync('node', [DIST, 'run', 'continue the work', '--resume', sid], {
   env: journeyChildEnv(),
 })
 const afterPrint = readRunSidecar(sid)
-check('B4: a run-mode resume preserves the durable runId (finding A)', afterPrint.snapshot.runId === beforePrint.snapshot.runId)
-check('B4: the print resume ADVANCES the sidecar (the reconcile engaged)', afterPrint.writeSeq > beforePrint.writeSeq)
+check('B4: a run-mode resume preserves the durable runId (finding A)', afterPrint.snapshot.runId === beforePrint.snapshot.runId, `runId ${beforePrint.snapshot.runId} became ${afterPrint.snapshot.runId}; the headless run --resume must reuse the durable runId, see reconcileOnResume in src/services/run/runCoordinator.ts`)
+check('B4: the print resume ADVANCES the sidecar (the reconcile engaged)', afterPrint.writeSeq > beforePrint.writeSeq, `writeSeq stayed ${afterPrint.writeSeq}; the headless run --resume should call reconcileOnResume (src/services/run/runCoordinator.ts) and write the sidecar`)
 
 check('every walker capture painted (C3)', walker.failedCaptures.length === 0, walker.failedCaptures.join(' · '))
 

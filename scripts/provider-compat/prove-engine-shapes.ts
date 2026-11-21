@@ -25,10 +25,11 @@ const fixtures = await Promise.all(dialects.map(dialect => startEngineRules(dial
 writeFileSync(resolve(process.env.MERCURY_CONFIG_DIR, 'settings.json'), JSON.stringify({ compatProvider: Object.fromEntries(fixtures.map(fixture => [fixture.dialect, { baseUrl: fixture.baseUrl, dialect: fixture.dialect, models: [fixture.model] }])) }))
 let failures = 0
 let checks = 0
+const engineShapesHint = 'fix the behaviour this check names in src/services/providers/openaicompat/ (compatWire.ts buildHostedExtras for effort and output ceiling, compatChatClient.ts streamCompatChat and mapCompatHttpFailure for streams and refusals, compatChatCallModel/faults.ts compatTerminalFaultText for the cause-and-remedy text, compatProbe.ts inspectCompatServer for capabilities), src/services/providers/zai/zaiCodec.ts (mapToolsToZai, mapMessagesToZai) or src/services/providers/callModelRouter.ts (routedCallModel); if the engine fixture itself looks wrong, see scripts/provider-compat/fixtures/engineRules.mjs'
 function check(label: string, ok: boolean, detail: unknown = '') {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${JSON.stringify(detail)}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${JSON.stringify(detail)} · ${engineShapesHint}`}`)
 }
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()

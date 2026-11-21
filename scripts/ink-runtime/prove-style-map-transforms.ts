@@ -48,7 +48,7 @@ section('arm 2: node (bundle-and-run — the shipped wrap engine)')
     env: process.env,
     timeout: 180_000,
   })
-  check('the laws bundle for node (the search suite\'s bundle-for-node, the product\'s own resolution laws)', built.status === 0, `${built.stdout}${built.stderr}`.slice(-600))
+  check('the laws bundle for node (the search suite\'s bundle-for-node, the product\'s own resolution laws)', built.status === 0, `${built.stdout}${built.stderr}`.slice(-600) + ' — the bundle step failed; fix the import or syntax error named above in scripts/ink-runtime/styleMapLaws.ts or what it imports, or check scripts/search/lib/bundle-for-node.ts')
   if (built.status === 0) {
     const nodeBin = process.env.MERCURY_NODE_BIN ?? 'node'
     const version = spawnSync(nodeBin, ['--version'], { encoding: 'utf8', env: process.env }).stdout?.trim() ?? '(unknown)'
@@ -62,8 +62,8 @@ section('arm 2: node (bundle-and-run — the shipped wrap engine)')
     process.stdout.write(ran.stdout ?? '')
     const stderrLines = (ran.stderr ?? '').split('\n').filter(l => l.trim() !== '')
     if (stderrLines.length > 0) process.stdout.write(stderrLines.map(l => `    | ${l}`).join('\n') + '\n')
-    check('every law holds under node too (the arm relays its failure count)', ran.status === 0, `status ${ran.status}`)
-    check('the node arm actually ran the laws (its log carries the §4 defect pin)', (ran.stdout ?? '').includes('(node) THE DEFECT PIN: the second segment is wholly red past the decomposed cluster'))
+    check('every law holds under node too (the arm relays its failure count)', ran.status === 0, `status ${ran.status} — read the FAIL lines the node arm printed above; the laws are in scripts/ink-runtime/styleMapLaws.ts, so fix the style-map code they exercise so it holds under node as well as bun`)
+    check('the node arm actually ran the laws (its log carries the §4 defect pin)', (ran.stdout ?? '').includes('(node) THE DEFECT PIN: the second segment is wholly red past the decomposed cluster'), 'the node arm did not print its defect-pin line; it likely crashed before the laws finished (see the stderr lines above) or the pin text changed in scripts/ink-runtime/styleMapLaws.ts')
   }
 }
 

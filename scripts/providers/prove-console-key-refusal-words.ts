@@ -15,7 +15,7 @@ delete process.env.NODE_ENV
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}fix how createAndStoreApiKey in src/services/oauth/client.ts turns the key-creation response into its error message or returned key` : ''}`)
 }
 
 type Answer = { status: number; body: string; contentType?: string }

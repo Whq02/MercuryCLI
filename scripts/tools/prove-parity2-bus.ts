@@ -28,13 +28,16 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_HOME
 
 let failures = 0
+let failWhere = ''
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  const shown = ok ? detail : [detail, failWhere].filter(Boolean).join(' — ')
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${shown ? ` — ${shown}` : ''}`)
   if (!ok) failures = 1
 }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 {
+  failWhere = 'change the Stream class in src/utils/stream.ts (enqueue, done, the async iterator)'
   const { Stream } = await import('../../src/utils/stream.ts')
   const stream = new Stream<number>()
   const N = 200_000
@@ -66,6 +69,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 }
 
 {
+  failWhere = 'change drainPipedStdoutForExit in src/utils/gracefulShutdown.ts'
   const { drainPipedStdoutForExit } = await import('../../src/utils/gracefulShutdown.ts')
   t('a TTY never waits', (await drainPipedStdoutForExit({ isTTY: true, writableLength: 5_000 })).drained)
   t('an empty pipe buffer is already drained', (await drainPipedStdoutForExit({ isTTY: false, writableLength: 0 })).drained)
@@ -89,6 +93,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
   const stuckResult = await stuckWait
   t('a consumer whose pipe is gone ends the wait with the remainder counted', !stuckResult.drained && stuckResult.remainingBytes === 777)
 
+  failWhere = 'change observeStdoutPressure or drainPipedStdoutForExit in src/utils/gracefulShutdown.ts'
   const { observeStdoutPressure } = await import('../../src/utils/gracefulShutdown.ts')
   const blindStream = () => {
     const drains: Array<() => void> = []
@@ -117,6 +122,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
   counted.stream.writableLength = 0
   t("a refused write whose counter was live is left to the counter (node's shape: a broken pipe empties the buffer and no drain event follows)", (await drainPipedStdoutForExit(counted.stream)).drained)
 
+  failWhere = 'change quiesceCleanupBeforeExit or EXIT_QUIESCENCE_MS in src/utils/gracefulShutdown.ts'
   const { quiesceCleanupBeforeExit, EXIT_QUIESCENCE_MS } = await import('../../src/utils/gracefulShutdown.ts')
   t('the quiescence grace is bounded and small (a wedged cleanup cannot hold the exit)', EXIT_QUIESCENCE_MS > 0 && EXIT_QUIESCENCE_MS <= 1_000)
   const settledStart = Date.now()
@@ -136,6 +142,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
   const TIMER_LEAD_MS = 2
   t('a wedged cleanup is abandoned at the grace, never held forever', wedgedMs >= 80 - TIMER_LEAD_MS && wedgedMs < 500)
 
+  failWhere = 'change gracefulShutdown or the stdout drain it awaits in src/utils/gracefulShutdown.ts; the child script is written by this file and its stderr is printed above'
   const childScript = join(SCRATCH, 'child.ts')
   writeFileSync(
     childScript,
@@ -198,6 +205,7 @@ await gracefulShutdown(0)
 {
   const { decideIdleRetirement, transcriptTextHasConversation, transcriptHasConversation, sweepIdleEmptyConcourseSessions, retiredNowLabel, concourseIdleRetireMs, DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES } =
     await import('../../src/daemon/idleRetirement.ts')
+  failWhere = 'change decideIdleRetirement, transcriptTextHasConversation, transcriptHasConversation or sweepIdleEmptyConcourseSessions in src/daemon/idleRetirement.ts'
   const { concourseWorkersPath, readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
 
@@ -313,6 +321,7 @@ await gracefulShutdown(0)
   const after = readSessionWorkers(daemonDir)
   const w1 = after['concourse-w1']!
   t('the sweep requests the stop with the typed retired fact beside the request', w1.stopRequestedAt !== undefined && w1.stopRequestedRetired?.reason === 'idle-empty' && w1.stopRequestedRetired.thresholdMs === T, JSON.stringify(w1))
+  failWhere = 'change sweepIdleEmptyConcourseSessions or retiredNowLabel in src/daemon/idleRetirement.ts, or completeRequestedStop reached through src/daemon/concourseWorkers.ts'
   const { updateConcourseWorkers, completeRequestedStop } = await import('../../src/daemon/concourseWorkers.ts')
   updateConcourseWorkers(workers => {
     const w = workers['concourse-w1']
@@ -331,6 +340,7 @@ await gracefulShutdown(0)
   mkdirSync(crewDir, { recursive: true })
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
   enableConfigs()
+  failWhere = 'change buildConcourseSnapshot in src/services/concourse/concourseSnapshot.ts'
   const { buildConcourseSnapshot } = await import('../../src/services/concourse/concourseSnapshot.ts')
   const { projectIdentity } = await import('../../src/utils/bootCardFacts.ts')
   const snapshot = await buildConcourseSnapshot({ recordsDir: daemonDir, crewDir, nowMs: Date.now(), project: projectIdentity(ws) })

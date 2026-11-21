@@ -11,7 +11,7 @@ import { hostRunner } from '../lib/runnerHost.ts'
 const at = process.argv.indexOf('--dist')
 const dist = at < 0 ? join(import.meta.dir, '../../dist/mercury.mjs') : process.argv[at + 1]!
 let failures = 0
-const check = (label: string, okay: boolean, detail: unknown): void => { if (!okay) failures++; console.log(`[${okay ? 'PASS' : 'FAIL'}] ${label}${okay ? '' : ` — ${JSON.stringify(detail)}`}`) }
+const check = (label: string, okay: boolean, detail: unknown, hint = ''): void => { if (!okay) failures++; console.log(`[${okay ? 'PASS' : 'FAIL'}] ${label}${okay ? '' : ` — ${JSON.stringify(detail)}${hint === '' ? '' : ` — ${hint}`}`}`) }
 for (const kind of ['note-main', 'note-absent', 'shell', 'shell-signal']) {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'input-delivery-')))
   seedFirstRun(home, [home])
@@ -37,13 +37,13 @@ for (const kind of ['note-main', 'note-absent', 'shell', 'shell-signal']) {
   const output = stdout.split('\n').filter(Boolean).map(line => JSON.parse(line) as Record<string, any>)
   const outcome = output.find(row => row.type === 'outcome')
   if (kind === 'shell-signal') {
-    check('a signalled shell turn emits interrupted before exit 130', rc === 130 && outcome?.status === 'interrupted' && fixture.requests.length === 0, { rc, outcome, stderr })
+    check('a signalled shell turn emits interrupted before exit 130', rc === 130 && outcome?.status === 'interrupted' && fixture.requests.length === 0, { rc, outcome, stderr }, 'change the shell-row handling in acceptInput (src/cli/headless/inputDoor.ts) or the run exit path so a SIGINT during a shell row ends with an interrupted outcome row and exit 130 without a model request')
   } else if (kind === 'shell') {
     const text = output.filter(row => row.type === 'command_output').map(row => row.text).join('\n')
-    check('shell output reaches a command_output row and its outcome answer', rc === 0 && text.includes('SHELL-OUT') && text.includes('SHELL-ERR <>&') && outcome?.answer === text && fixture.requests.length === 0, { rc, output, stderr })
+    check('shell output reaches a command_output row and its outcome answer', rc === 0 && text.includes('SHELL-OUT') && text.includes('SHELL-ERR <>&') && outcome?.answer === text && fixture.requests.length === 0, { rc, output, stderr }, 'change the shell-row handling in acceptInput (src/cli/headless/inputDoor.ts) so stdout and stderr of the command come out as command_output rows and the outcome answer equals their text, with no model request')
   } else {
-    check(`${kind}: the main prompt behind an addressed note completes`, rc === 0 && outcome?.status === 'completed' && outcome.answer === 'PROMPT-COMPLETE', { rc, output, stderr })
-    check(`${kind}: the agent note is not consumed by the main model`, fixture.requests.length === 1 && fixture.requests.every(req => !req.allTexts.some(text => text.includes('AGENT-ONLY-NOTE'))), fixture.requests.map(req => req.allTexts))
+    check(`${kind}: the main prompt behind an addressed note completes`, rc === 0 && outcome?.status === 'completed' && outcome.answer === 'PROMPT-COMPLETE', { rc, output, stderr }, 'change the note-row handling in acceptInput (src/cli/headless/inputDoor.ts) so a note to main or to an absent agent does not stop the prompt row that follows it from completing')
+    check(`${kind}: the agent note is not consumed by the main model`, fixture.requests.length === 1 && fixture.requests.every(req => !req.allTexts.some(text => text.includes('AGENT-ONLY-NOTE'))), fixture.requests.map(req => req.allTexts), 'change the note-row handling in acceptInput (src/cli/headless/inputDoor.ts) so an addressed note is routed to its agent and never reaches the main model request')
   }
   rmSync(home, { recursive: true, force: true })
 }
@@ -57,9 +57,9 @@ for (const kind of ['note-main', 'note-absent', 'shell', 'shell-signal']) {
     const started = await host.waitFor('shell start', row => row.type === 'turn' && row.state === 'started')
     const interrupt = await host.request('turn/interrupt', { turn_id: String(started.turn_id) })
     const outcome = await host.waitFor('interrupted shell outcome', row => row.type === 'outcome')
-    check('host interruption settles a shell turn as interrupted with its original identity', interrupt.interrupted && outcome.status === 'interrupted' && outcome.turn_id === started.turn_id && outcome.turn === started.turn, outcome)
+    check('host interruption settles a shell turn as interrupted with its original identity', interrupt.interrupted && outcome.status === 'interrupted' && outcome.turn_id === started.turn_id && outcome.turn === started.turn, outcome, 'change how the runner answers the turn/interrupt request (declared in src/runner/wire/sessionVerbs.ts) so an interrupted shell turn settles with its original turn_id and turn')
     const rc = await host.stop()
-    check('a hosted interrupted shell exits 1 on EOF', rc === 1, { rc, stderr: host.stderr() })
+    check('a hosted interrupted shell exits 1 on EOF', rc === 1, { rc, stderr: host.stderr() }, 'change the runner exit path so a hosted run whose shell turn was interrupted exits 1 when stdin reaches EOF')
   } finally {
     await host.stop()
     rmSync(home, { recursive: true, force: true })

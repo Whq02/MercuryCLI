@@ -75,8 +75,9 @@ const {
 } = await import('../../src/services/privateChannel/installLayout.js')
 
 let failures = 0
+const installLayoutFixHint = 'fix the function this check exercises in src/services/privateChannel/installLayout.ts (validatePayloadDir, installPayload, switchCurrent, acquireUpdateLock, writeShim, shimContent, uninstallLayout, formatUninstallReport, sweepUpdaterResidue, pruneSupersededVersions, readCurrentVersionState, pointerValueOf, pathEntryEquals or reconcileManagedShims, as the check name says); the payload digest checks compare with scripts/release/payloadContract.mjs'
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}${installLayoutFixHint}`}`)
   if (!cond) failures++
 }
 

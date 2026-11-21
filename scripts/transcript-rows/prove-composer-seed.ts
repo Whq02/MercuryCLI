@@ -33,7 +33,10 @@ import type { Key } from '../../src/ink.js'
 let failures = 0
 function check(name: string, ok: boolean, detail = ''): void {
   console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}`)
-  if (!ok) failures++
+  if (!ok) {
+    failures++
+    console.log('    change isSeedableInput, trySeedComposer, armComposerSeed, enterHeldByQueuedWords, queuedWordsHint or the consent decline row in src/utils/cockpit/composerSeed.ts (the screen checks run the built app with the Write permission card)')
+  }
 }
 
 console.log('── composer type-through (shipped artifact) ──')

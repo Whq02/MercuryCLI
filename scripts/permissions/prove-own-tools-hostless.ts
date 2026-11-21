@@ -19,8 +19,9 @@ const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
 const { JourneyTool } = await import('../../src/tools/JourneyTool/JourneyTool.ts')
 const { StructureTool } = await import('../../src/tools/StructureTool/StructureTool.ts')
 let failures = 0
+const hostlessHint = 'to fix, look at decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts and the checkPermissions of the named tool under src/tools (TestTool, EvalTool, DebugTool, JourneyTool, StructureTool)'
 function check(label: string, ok: boolean, detail = '') {
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + detail}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + detail + ' — ' + hostlessHint}`)
   if (!ok) failures++
 }
 const assistant = { message: { id: 'own-tools-hostless' } } as never

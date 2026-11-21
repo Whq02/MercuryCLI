@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix the source file named in the heading line printed above this check (the heading path sits under src/services/), so that it fails loudly or reports the failure instead of hiding it' : ''}`)
 }
 function skip(label: string, why: string): void {
   console.log(`  [SKIP] ${label} — ${why}`)

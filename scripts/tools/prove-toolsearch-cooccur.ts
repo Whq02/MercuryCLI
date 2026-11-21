@@ -8,6 +8,7 @@ let fail = 0
 const ok = (l: string) => console.log(`  ✓ ${l}`)
 const bad = (l: string) => {
   console.log(`  ✗ ${l}`)
+  console.log('    change toolSearchCooccurEnabled, recordToolDiscovery or cooccurBoostFor in src/tools/ToolSearchTool/cooccurPrior.ts, or the boost line in searchToolsWithKeywords in src/tools/ToolSearchTool/ToolSearchTool.ts, until this line passes')
   fail = 1
 }
 const assert = (cond: unknown, l: string) => (cond ? ok(l) : bad(l))

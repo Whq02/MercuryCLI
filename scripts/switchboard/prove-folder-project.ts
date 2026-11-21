@@ -30,7 +30,8 @@ delete process.env.MERCURY_HOME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const failHint = cond ? '' : ' | to fix: change the folder-as-project facts in src/utils/bootCardFacts.ts (currentProject, projectIdentity, workedInProjects, inProject, catalogFirstChat) or the estate stamp in src/utils/projectLocal/paths.ts (initializeProjectLocalEstate); the label names the law that broke'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${failHint}`)
 }
 const read = (rel: string): string => readFileSync(rel, 'utf8')
 

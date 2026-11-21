@@ -23,9 +23,10 @@ if (driver.kind !== 'posix-pty') {
 }
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : [detail, hint].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
@@ -110,7 +111,7 @@ await api.close()
 
 type Grid = Array<Array<{ c?: string }>>
 const gridText = (grid: Grid): string => grid.map(row => row.map(c => c.c ?? ' ').join('').trimEnd()).join('\n')
-check('the capture wrote a grid', existsSync(outPath), stderr.join('').slice(-400))
+check('the capture wrote a grid', existsSync(outPath), stderr.join('').slice(-400), 'the PTY driver scripts/ui/vshot.py exited without writing its grid; read the stderr tail above, and rebuild with bun run build.ts if dist/mercury.mjs did not start')
 const payload = existsSync(outPath)
   ? (JSON.parse(readFileSync(outPath, 'utf8')) as { grid: Grid; marks?: Array<{ label: string; grid: Grid }>; sendReceipts?: Array<{ ts: number }>; endReason?: string })
   : { grid: [] as Grid }
@@ -121,12 +122,12 @@ const markTs = new Map<string, number>()
   const receipt = payload.sendReceipts?.[i]
   if (receipt) markTs.set(m.label, receipt.ts)
 })
-check('the face painted (the ready line is on the face-ready frame)', paintsBootFaceReady(marks.get('face-ready') ?? ''), (marks.get('face-ready') ?? '').slice(0, 300))
-check('the chat opened (the composer is on the chat-ready frame)', (marks.get('chat-ready') ?? '').includes(COMPOSER))
-check('the turn was submitted and answered (the reply is on the replied frame)', (marks.get('replied') ?? '').includes(REPLY), (marks.get('replied') ?? '').slice(-600))
+check('the face painted (the ready line is on the face-ready frame)', paintsBootFaceReady(marks.get('face-ready') ?? ''), (marks.get('face-ready') ?? '').slice(0, 300), 'the Boot face never showed its ready line within the wait; compare the frame above with BOOT_FACE_READY in scripts/lib/bootFace.ts and look for a boot step that now blocks the first paint')
+check('the chat opened (the composer is on the chat-ready frame)', (marks.get('chat-ready') ?? '').includes(COMPOSER), '', 'Enter on the Boot face did not open a chat with the Type a prompt composer; run node dist/mercury.mjs in a PTY and check that New Session still opens the chat')
+check('the turn was submitted and answered (the reply is on the replied frame)', (marks.get('replied') ?? '').includes(REPLY), (marks.get('replied') ?? '').slice(-600), 'the fixture reply CENSUS-REPLY-OK never reached the screen; check that the typed prompt was submitted and that the turn reached the fixture API at ANTHROPIC_BASE_URL')
 const readyTs = markTs.get('face-ready') ?? Number.POSITIVE_INFINITY
 const submitTs = markTs.get('submit') ?? Number.POSITIVE_INFINITY
-check('the first wire request followed the submit', firstRequestTs !== null && firstRequestTs >= submitTs, `submit ${submitTs} · first request ${firstRequestTs}`)
+check('the first wire request followed the submit', firstRequestTs !== null && firstRequestTs >= submitTs, `submit ${submitTs} · first request ${firstRequestTs}`, 'a model request was recorded before the submit mark, or none arrived; find what sends a wire request before the prompt is submitted, or why the submitted turn sent none')
 const turnEnd = firstRequestTs ?? Number.POSITIVE_INFINITY
 
 interface Spawn { t: number; kind: string; sync: boolean; cmd: string; args: string[]; ms?: number; err?: string }
@@ -162,7 +163,7 @@ for (const name of readdirSync(LOGS)) {
 }
 const byRole = (role: Role): Proc[] => procs.filter(p => p.role === role)
 const iface = byRole('interface')[0]
-check('the census saw the interface, the daemon and the warm runner', !!iface && byRole('daemon').length > 0 && byRole('runner').length > 0, procs.map(p => `${p.role}:${p.pid}`).join(' '))
+check('the census saw the interface, the daemon and the warm runner', !!iface && byRole('daemon').length > 0 && byRole('runner').length > 0, procs.map(p => `${p.role}:${p.pid}`).join(' '), 'a process role is missing from the census logs; check scripts/ui/fixtures/spawn-census/preload.cjs still loads through NODE_OPTIONS and that roleOf in this file still matches how the daemon and runner are started')
 
 const exe = (s: Spawn): string => basename(s.cmd).toLowerCase()
 const isGit = (s: Spawn): boolean => exe(s) === 'git' || exe(s) === 'git.exe'
@@ -196,28 +197,28 @@ if (iface) {
   const after = sync.filter(s => s.t >= readyTs)
   const turn = sync.filter(s => s.t >= submitTs && s.t <= turnEnd)
   const beforeOther = before.filter(s => !isGit(s))
-  check('interface: at most one synchronous non-git spawn before the face paints', beforeOther.length <= 1, beforeOther.map(describe).join(' · '))
-  check('interface: a PATH lookup never spawns a process', sync.filter(isLookup).length === 0 && iface.spawns.filter(isLookup).length === 0, iface.spawns.filter(isLookup).map(describe).join(' · '))
-  check('interface: the git facts spawn nothing synchronously before the face paints', before.filter(isGit).length === 0, before.filter(isGit).map(describe).join(' · '))
-  check('interface: nothing spawns synchronously after the first paint, git included', after.length === 0, after.map(describe).join(' · '))
-  check('interface: the submitted turn spawns nothing synchronously before its first wire request, git included', turn.length === 0, turn.map(describe).join(' · '))
-  check('interface: the typescript compiler file is never read by the interface', iface.tsReads.length === 0, iface.tsReads.map(r => `${r.path} (${r.ms} ms)`).join(' · '))
+  check('interface: at most one synchronous non-git spawn before the face paints', beforeOther.length <= 1, beforeOther.map(describe).join(' · '), 'the listed spawns run synchronously before the face paints; make each one asynchronous or move it after first paint')
+  check('interface: a PATH lookup never spawns a process', sync.filter(isLookup).length === 0 && iface.spawns.filter(isLookup).length === 0, iface.spawns.filter(isLookup).map(describe).join(' · '), 'the listed which or where spawn is a PATH lookup; resolve the executable by scanning PATH in process instead of spawning')
+  check('interface: the git facts spawn nothing synchronously before the face paints', before.filter(isGit).length === 0, before.filter(isGit).map(describe).join(' · '), 'the listed git spawns run synchronously before the face paints; run them asynchronously or after first paint')
+  check('interface: nothing spawns synchronously after the first paint, git included', after.length === 0, after.map(describe).join(' · '), 'the listed spawns run synchronously after the first paint; switch each to an asynchronous spawn')
+  check('interface: the submitted turn spawns nothing synchronously before its first wire request, git included', turn.length === 0, turn.map(describe).join(' · '), 'the listed spawns block the submitted turn before its first wire request; switch each to an asynchronous spawn or move it after the request is sent')
+  check('interface: the typescript compiler file is never read by the interface', iface.tsReads.length === 0, iface.tsReads.map(r => `${r.path} (${r.ms} ms)`).join(' · '), 'the interface process read the typescript compiler file listed; load it only in the LSP sidecar or another process, not in the interface')
 }
 for (const role of ['daemon', 'runner'] as const) {
   for (const p of byRole(role)) {
     const other = p.spawns.filter(s => s.sync && !isGit(s) && !(role === 'daemon' && isOwnerWatch(s)))
     const watch = role === 'daemon' ? p.spawns.filter(s => s.sync && isOwnerWatch(s)).length : 0
-    check(`${role}: never spawns synchronously (non-git${role === 'daemon' ? `; the owner watch's ${watch} sync ps read(s) belong to its own owner` : ''})`, other.length === 0, other.map(describe).join(' · '))
+    check(`${role}: never spawns synchronously (non-git${role === 'daemon' ? `; the owner watch's ${watch} sync ps read(s) belong to its own owner` : ''})`, other.length === 0, other.map(describe).join(' · '), 'the listed spawns run synchronously in this process; switch each to an asynchronous spawn')
   }
 }
 for (const p of procs) {
   const attributed = p.stalls.filter(st => st.ms > 200 && spawnStall(st) !== undefined)
-  check(`${p.role}: no stall over 200 ms is attributed to a spawn`, attributed.length === 0, attributed.map(st => `${st.ms} ms ← ${spawnStall(st)}`).join(' · '))
+  check(`${p.role}: no stall over 200 ms is attributed to a spawn`, attributed.length === 0, attributed.map(st => `${st.ms} ms ← ${spawnStall(st)}`).join(' · '), 'the event loop stalled over 200 ms inside the listed synchronous spawn; make that call asynchronous')
   const walks = p.spawns.filter(isEstateWalk)
-  check(`${p.role}: the configuration estate walk spawns no search process`, walks.length === 0, `${walks.length} walk(s): ${walks.slice(0, 3).map(describe).join(' · ')}`)
+  check(`${p.role}: the configuration estate walk spawns no search process`, walks.length === 0, `${walks.length} walk(s): ${walks.slice(0, 3).map(describe).join(' · ')}`, 'the listed rg --files for *.md is the configuration estate walk; walk the directories in process instead of spawning a search')
   const syncProbes = p.spawns.filter(s => s.sync && isInterpreterProbe(s))
   const asyncProbes = p.spawns.filter(s => !s.sync && isInterpreterProbe(s))
-  check(`${p.role}: the interpreter probe is asynchronous and runs at most once`, syncProbes.length === 0 && asyncProbes.length <= 1, [...syncProbes, ...asyncProbes].map(describe).join(' · '))
+  check(`${p.role}: the interpreter probe is asynchronous and runs at most once`, syncProbes.length === 0 && asyncProbes.length <= 1, [...syncProbes, ...asyncProbes].map(describe).join(' · '), 'the listed python or node --version probes must run asynchronously and be cached so they run at most once per process')
 }
 
 if (process.env.CENSUS_KEEP === '1') console.log(`\n  kept: ${SCRATCH}`)

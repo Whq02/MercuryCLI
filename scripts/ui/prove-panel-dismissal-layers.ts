@@ -33,9 +33,9 @@ enableConfigs()
 const roster: WorkRosterV1 = { mission: [], rows: ['first', 'second'].map(id => ({ id, name: `${id} agent`, kind: 'agent', status: 'completed', startTime: 1, endTime: 2 })) }
 setFocusedSessionConnector(Object.assign(new NoSessionConnector(), { sessionId: () => 'fixture', workRoster: () => roster }))
 let failures = 0
-function check(label: string, ok: boolean, detail = ''): void {
+function check(label: string, ok: boolean, detail = '', hint = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok && hint ? ` — to fix: ${hint}` : ''}`)
 }
 const h = React.createElement
 const panels = {
@@ -68,26 +68,26 @@ try {
     const send = async (data: string): Promise<void> => { (stdin as unknown as Readable).push(data); await settle() }
     try {
       await settle()
-      check(`${kind} recess=${recess}: the backdrop uses the requested policy`, recessActive() === (recess === '1'))
+      check(`${kind} recess=${recess}: the backdrop uses the requested policy`, recessActive() === (recess === '1'), '', 'recessActive in src/ink/recessLayer.ts must follow MERCURY_RECESS while the panel is open under FullscreenLayout (src/components/FullscreenLayout.tsx)')
       if (kind === 'tasks') {
-        check(`${kind} recess=${recess}: the real list paints both fixture rows`, screenText().includes('first agent') && screenText().includes('second agent'))
+        check(`${kind} recess=${recess}: the real list paints both fixture rows`, screenText().includes('first agent') && screenText().includes('second agent'), '', 'BackgroundTasksDialog (src/components/tasks/BackgroundTasksDialog.tsx) must list every row of the focused connector work roster')
         await send('\r')
-        check(`${kind} recess=${recess}: Enter on a crewmate row enters its view and the activity screen gives way (the view is the chat's, never a card)`, closed && viewing() === 'first' && !screenText().includes('Activity') && screenText().includes('◉ first agent') && screenText().includes('untouched composer'), screenText())
-        check(`${kind} recess=${recess}: dismissal leaves the work roster unchanged`, roster.rows.every(row => row.status === 'completed'))
+        check(`${kind} recess=${recess}: Enter on a crewmate row enters its view and the activity screen gives way (the view is the chat's, never a card)`, closed && viewing() === 'first' && !screenText().includes('Activity') && screenText().includes('◉ first agent') && screenText().includes('untouched composer'), screenText(), 'Enter on a row of BackgroundTasksDialog (src/components/tasks/BackgroundTasksDialog.tsx) must call onDone and set viewingAgentTaskId to that row, leaving the chat and composer on screen')
+        check(`${kind} recess=${recess}: dismissal leaves the work roster unchanged`, roster.rows.every(row => row.status === 'completed'), '', 'closing the tasks dialog must not change any work roster row status; look for a stop or kill action fired by the Enter or click path in src/components/tasks/BackgroundTasksDialog.tsx')
         continue
       }
       if (kind === 'crew') {
-        check(`${kind} recess=${recess}: the real list paints both fixture rows`, screenText().includes('first agent') && screenText().includes('second agent'))
+        check(`${kind} recess=${recess}: the real list paints both fixture rows`, screenText().includes('first agent') && screenText().includes('second agent'), '', 'CrewView (src/components/mercury-ui/screens/CrewView.tsx) must list every row of the focused connector work roster')
         await send('\r')
-        check(`${kind} recess=${recess}: Enter opens the real work card`, screenText().includes('› first agent'), screenText())
+        check(`${kind} recess=${recess}: Enter opens the real work card`, screenText().includes('› first agent'), screenText(), 'Enter on the selected row of CrewView (src/components/mercury-ui/screens/CrewView.tsx) must open that work card')
         await send('\x1b[<0;1;1M\x1b[<0;1;1m')
-        check(`${kind} recess=${recess}: one outside click returns from card to list`, !closed && !screenText().includes('› first agent') && screenText().includes('second agent'), screenText())
+        check(`${kind} recess=${recess}: one outside click returns from card to list`, !closed && !screenText().includes('› first agent') && screenText().includes('second agent'), screenText(), 'one outside click on an open work card must return to the CrewView list and keep the panel open; fix the outside-click handling of the card in src/components/mercury-ui/screens/CrewView.tsx')
       } else {
-        check(`${kind} recess=${recess}: the real detail card paints`, screenText().includes('fixture command'), screenText())
+        check(`${kind} recess=${recess}: the real detail card paints`, screenText().includes('fixture command'), screenText(), 'ShellDetailDialog (src/components/tasks/ShellDetailDialog.tsx) must paint the shell command it is given')
       }
       await send('\x1b[<0;1;1M\x1b[<0;1;1m')
-      check(`${kind} recess=${recess}: the outside click closes the remaining frame`, closed && screenText().includes('untouched composer'), screenText())
-      check(`${kind} recess=${recess}: dismissal leaves the work roster unchanged`, roster.rows.every(row => row.status === 'completed'))
+      check(`${kind} recess=${recess}: the outside click closes the remaining frame`, closed && screenText().includes('untouched composer'), screenText(), 'an outside click must call the panel onClose or onDone and leave the chat and composer painted; fix the outside-click dismissal in the open panel or in FullscreenLayout (src/components/FullscreenLayout.tsx)')
+      check(`${kind} recess=${recess}: dismissal leaves the work roster unchanged`, roster.rows.every(row => row.status === 'completed'), '', 'dismissing a panel must not change any work roster row status; check the dismissal path of the open panel under src/components')
     } finally {
       instance.unmount()
     }

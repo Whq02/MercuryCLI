@@ -22,8 +22,8 @@ console.log('§1 RHP-1 — the multi-line measure wraps like the compositor')
   const ceilHeight = measureText(text, 80).height
   const wrappedLines = text.split('\n').map(l => wrapText(l, 80, 'wrap'))
   const paintedRows = wrappedLines.join('\n').split('\n').length
-  check('the disease at the primitives: the ceiling reserves fewer rows than the wrap paints', token.length === 41 && ceilHeight === 6 && paintedRows === 8, `ceil=${ceilHeight} painted=${paintedRows}`)
-  check('wrapped-then-measured equals the painted row count (the law the measure now follows)', measureText(wrappedLines.join('\n'), 80).height === paintedRows)
+  check('the disease at the primitives: the ceiling reserves fewer rows than the wrap paints', token.length === 41 && ceilHeight === 6 && paintedRows === 8, `ceil=${ceilHeight} painted=${paintedRows} — the primitives measureText in src/ink/measure-text.ts and wrapText in src/ink/wrap-text.ts no longer give 6 measured and 8 painted rows for this text; restore the one that moved`)
+  check('wrapped-then-measured equals the painted row count (the law the measure now follows)', measureText(wrappedLines.join('\n'), 80).height === paintedRows, `measured ${measureText(wrappedLines.join('\n'), 80).height} rows, painted ${paintedRows} — measureText in src/ink/measure-text.ts must count the rows wrapText in src/ink/wrap-text.ts paints`)
 }
 
 process.exit(failures === 0 ? 0 : 1)

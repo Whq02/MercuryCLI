@@ -31,9 +31,10 @@ type Facts = import('./fixtures/tstates.ts').Facts
 type TState = import('./fixtures/tstates.ts').TState
 
 let failures = 0
+const FAIL_HINT = 'fix the tensorfold view in src/components/MercuryModelPicker.tsx or pickerFactsOf in src/commands/tensorfold/pickerFacts.ts, or the expected words in EXPECT and the state in scripts/tensorfold/fixtures/tstates.ts if the new wording is intended'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${FAIL_HINT}${detail ? ` | ${detail.slice(0, 700)}` : ''}` : ''}`)
 }
 
 const SIZES: Array<[number, number]> = [[160, 48], [110, 34], [96, 30]]

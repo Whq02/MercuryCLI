@@ -30,10 +30,10 @@ const run = await runArtifactArena({
   probe: true,
 })
 
-check('scene ran (frames painted)', (run.probe?.frames.total ?? 0) > 50, `${run.probe?.frames.total} frames`)
-check('scene streamed + painted patches', (run.probe?.counters['patches'] ?? 0) > 0)
+check('scene ran (frames painted)', (run.probe?.frames.total ?? 0) > 50, `${run.probe?.frames.total} frames; rebuild dist with bun run build.ts and read the arena output above, the scene in scripts/streaming/artifactArena.ts did not paint`)
+check('scene streamed + painted patches', (run.probe?.counters['patches'] ?? 0) > 0, 'no patches counted; rebuild dist with bun run build.ts and read the arena output above')
 const risk = run.probe?.counters['stale-frame-risk'] ?? 0
-check('GENERATION LAW: zero stale-frame-risk across stream/type/cancel/settle', risk === 0, `${risk} violations`)
+check('GENERATION LAW: zero stale-frame-risk across stream/type/cancel/settle', risk === 0, `${risk} violations; assertBaseDeliverable in src/ink/root/frame-ledger.ts counted a frame whose diff base was never delivered while no contamination was set, so fix the settle and commitFrame calls that feed FrameLedger`)
 
 try {
   const s4 = JSON.parse(
@@ -42,10 +42,10 @@ try {
   check(
     'URGENT-FLUSH VERDICT: recorded echo p95 under the 50ms budget (no flush shipped)',
     s4.echoDuringStream.p95 > 0 && s4.echoDuringStream.p95 < 50,
-    `recorded p95=${s4.echoDuringStream.p95}ms`,
+    `recorded p95=${s4.echoDuringStream.p95}ms; re-record echoDuringStream.p95 in scripts/streaming/fixtures/artifact-stream-s4.json or lower the echo latency while streaming`,
   )
 } catch (e) {
-  check('URGENT-FLUSH VERDICT evidence readable', false, String(e))
+  check('URGENT-FLUSH VERDICT evidence readable', false, `${String(e)}; scripts/streaming/fixtures/artifact-stream-s4.json must exist and hold echoDuringStream.p95`)
 }
 
 console.log(failures === 0 ? '✅ FLUX scheduler-integrity GREEN' : `❌ FLUX scheduler-integrity RED (${failures})`)

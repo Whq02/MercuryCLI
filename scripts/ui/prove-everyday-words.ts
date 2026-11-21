@@ -59,7 +59,7 @@ const { Client, StdioClientTransport } = await import('../../src/utils/mcp/sdk.j
 const { registerBundledAppInstall, bundledAppInstallPermission } = await import('../../src/extensions/installConsent.js')
 const h = React.createElement
 let checks = 0
-function check(label: string, ok: unknown): void { assert.ok(ok, label); checks++; console.log(`PASS ${label}`) }
+function check(label: string, ok: unknown): void { assert.ok(ok, `${label} — rerun with --frames DIR and read the frame named in this label; the wording to change is in the component that screen renders (the dynamic imports at the top of this file name them)`); checks++; console.log(`PASS ${label}`) }
 async function key(m: Mounted, data: string): Promise<void> { m.push(data); await settle(120) }
 async function mount(body: React.ReactNode, cols: number, rows: number, initialState = getDefaultAppState()): Promise<Mounted> {
   const m = await mountOffscreen(h(AppStateProvider, { initialState }, h(ThemeProvider, {}, h(KeybindingSetup, {}, h(Box, { width: cols, height: rows, flexDirection: 'column' }, body)))), cols, rows)

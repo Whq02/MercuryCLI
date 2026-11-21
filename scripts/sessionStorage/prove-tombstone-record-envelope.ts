@@ -37,16 +37,16 @@ try {
 
   await writer.removeTranscriptMessage(insideTail)
   const afterFast = await loadTranscriptFile(file)
-  assert.equal(afterFast.messages.has(insideTail), false, 'FAIL a record inside the tail window is removed by the byte search')
-  assert.equal(afterFast.messages.has(beyondTail), true, 'FAIL the fast path removes only its target')
-  assert.equal(afterFast.messages.has(retained), true, 'FAIL the fast path removes only its target')
+  assert.equal(afterFast.messages.has(insideTail), false, 'FAIL a record inside the tail window is removed by the byte search; removeTranscriptMessage in src/utils/sessionStorage/writer.ts must drop the row whose uuid matches within the tail read')
+  assert.equal(afterFast.messages.has(beyondTail), true, 'FAIL the fast path removes only its target; removeTranscriptMessage in src/utils/sessionStorage/writer.ts removed a row other than the uuid it was given')
+  assert.equal(afterFast.messages.has(retained), true, 'FAIL the fast path removes only its target; removeTranscriptMessage in src/utils/sessionStorage/writer.ts removed a row other than the uuid it was given')
 
   await writer.removeTranscriptMessage(beyondTail)
   const afterSlow = await loadTranscriptFile(file)
-  assert.equal(afterSlow.messages.has(beyondTail), false, 'FAIL a record beyond the tail window is removed by the identity the reader restores')
-  assert.equal(afterSlow.messages.has(retained), true, 'FAIL the rewrite keeps the unrelated row')
-  assert.equal(lineOf(file, retained), retainedLine, 'FAIL the rewrite keeps the unrelated row byte for byte')
-  assert.equal(lineOf(file, beyondTail), undefined, 'FAIL the removed row leaves no line behind')
+  assert.equal(afterSlow.messages.has(beyondTail), false, 'FAIL a record beyond the tail window is removed by the identity the reader restores; removeTranscriptMessage in src/utils/sessionStorage/writer.ts must fall back to the full-file path when the uuid is not in the tail window')
+  assert.equal(afterSlow.messages.has(retained), true, 'FAIL the rewrite keeps the unrelated row; the full-file rewrite in removeTranscriptMessage (src/utils/sessionStorage/writer.ts) dropped a row it was not asked to remove')
+  assert.equal(lineOf(file, retained), retainedLine, 'FAIL the rewrite keeps the unrelated row byte for byte; the full-file rewrite in removeTranscriptMessage (src/utils/sessionStorage/writer.ts) must write every other line back unchanged')
+  assert.equal(lineOf(file, beyondTail), undefined, 'FAIL the removed row leaves no line behind; the full-file rewrite in removeTranscriptMessage (src/utils/sessionStorage/writer.ts) must not write the removed row back')
   writer.resetProjectForTesting()
   console.log('PASS tombstones remove their target inside and beyond the tail window by the identity the reader restores, and keep every other row byte for byte')
 } finally {

@@ -19,12 +19,14 @@ const { applySceneStyle, buildDom, makeContext } = await import('./frameHarness.
 type ComposeContext = import('./frameHarness.js').ComposeContext
 type Styles = import('../../src/ink/styles.js').Styles
 
+const scrollFixHint =
+  'a reused scroll paint or a hit test differs from the expected result; fix the scroll shift and cached-rect reuse in src/ink/compose-walk.ts and src/ink/renderer.ts, the cache eviction in src/ink/node-cache.ts, or hitTest and dispatchClick in src/ink/geometry/hit.ts'
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${scrollFixHint}`}`)
 }
 
 const rowOf = (screen: Screen, y: number): string =>

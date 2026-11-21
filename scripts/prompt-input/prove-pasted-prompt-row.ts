@@ -50,7 +50,7 @@ const daemonReady = new Promise<boolean>(settle => {
     settle(false)
   })
 })
-check('the isolated fixture daemon is ready', await daemonReady, daemonLog.slice(-180))
+check('the isolated fixture daemon is ready', await daemonReady, `${daemonLog.slice(-180)}; the fixture daemon (node dist/mercury.mjs daemon run) must print control socket up, so rebuild dist/mercury.mjs and run that command by hand`)
 type Capture = { grid: { c: string }[][]; marks?: { label: string; grid: { c: string }[][] }[] }
 const rowsOf = (grid: { c: string }[][]): string[] => grid.map(row => row.map(cell => cell.c || ' ').join('').trimEnd())
 try {
@@ -75,19 +75,19 @@ try {
     })
     let capture: Capture | undefined
     try { capture = JSON.parse(readFileSync(out, 'utf8')) as Capture } catch {}
-    check(`${band.cols}: the real paste-chip send and fixture response complete`, result.code === 0, `rc ${result.code} ${result.stderr.slice(-250)}`)
+    check(`${band.cols}: the real paste-chip send and fixture response complete`, result.code === 0, `rc ${result.code} ${result.stderr.slice(-250)}; run scripts/ui/vshot.py with ${config} to see where the paste send stopped, after rebuilding dist/mercury.mjs`)
     const marks = Object.fromEntries((capture?.marks ?? []).map(mark => [mark.label, rowsOf(mark.grid)]))
     for (const [name, rows] of Object.entries(marks)) if (frameDir !== undefined) writeFileSync(join(frameDir, `drive-${band.cols}x${band.rows}-${name}.txt`), rows.join('\n') + '\n')
-    check(`${band.cols}: the composer really made a paste chip`, (marks.chip ?? []).some(row => row.includes('│❯') && row.includes('[Pasted text #1')))
+    check(`${band.cols}: the composer really made a paste chip`, (marks.chip ?? []).some(row => row.includes('│❯') && row.includes('[Pasted text #1')), 'a bracketed paste of this size must collapse to the chip that formatPastedTextRef in src/history.ts writes, shown in the composer row')
     const sent = marks.sent ?? []
     const sentRow = band.cols >= 100 ? sent.some(row => row.includes('[sam]') && row.includes('pasted visible head')) : sent.some(row => row.includes('pasted visible tail'))
-    check(`${band.cols}: the operator's row stands as soon as the paste is sent, before the reply`, sentRow, sent.filter(row => row.includes('pasted') || row.includes('[sam]')).join(' | '))
+    check(`${band.cols}: the operator's row stands as soon as the paste is sent, before the reply`, sentRow, `${sent.filter(row => row.includes('pasted') || row.includes('[sam]')).join(' | ')}; the sent paste must show in the transcript as soon as it is submitted, before the model replies`)
     const rows = marks.replied ?? []
-    check(`${band.cols}: the sent paste is visible beside the reply, not silently dropped`, rows.some(row => row.includes('pasted visible tail')) && rows.some(row => row.includes(reply)) && !rows.some(row => row.includes('│❯') && row.includes('[Pasted text')), rows.filter(row => row.includes('pasted')).join(' | '))
+    check(`${band.cols}: the sent paste is visible beside the reply, not silently dropped`, rows.some(row => row.includes('pasted visible tail')) && rows.some(row => row.includes(reply)) && !rows.some(row => row.includes('│❯') && row.includes('[Pasted text')), `${rows.filter(row => row.includes('pasted')).join(' | ')}; after the reply the transcript must still show the sent paste and the composer must hold no paste chip`)
     cleanupScenario('resume-2turn')
   }
   const requests = api.messageRequests()
-  check('the model receives the full pasted text including the literal markup', requests.some(request => JSON.stringify(request.body).includes('pasted visible head') && JSON.stringify(request.body).includes(quoted) && JSON.stringify(request.body).includes('pasted visible tail')), `${requests.length} requests`)
+  check('the model receives the full pasted text including the literal markup', requests.some(request => JSON.stringify(request.body).includes('pasted visible head') && JSON.stringify(request.body).includes(quoted) && JSON.stringify(request.body).includes('pasted visible tail')), `${requests.length} requests; the submitted prompt must carry the pasted text whole, literal markup included, to the model request`)
 } finally {
   try { await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never) } catch {}
   daemon.kill()

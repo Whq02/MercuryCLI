@@ -57,7 +57,7 @@ const tool = { name: 'Read', inputSchema: z.object({ file_path: z.string() }), d
 let failures = 0
 function check(label: string, actual: unknown, expected: unknown): void {
   try { assert.deepEqual(actual, expected); console.log(`PASS ${label}`) }
-  catch { failures++; console.error(`FAIL ${label}: ${JSON.stringify(actual)} != ${JSON.stringify(expected)}`) }
+  catch { failures++; console.error(`FAIL ${label}: ${JSON.stringify(actual)} != ${JSON.stringify(expected)} | to fix: the thinking vocabulary is read from /api/show in src/services/providers/local/localDiscovery.ts, the effort view is effortVocabularyFor in src/utils/model/capabilities.ts, and the think field of the request body is built in src/services/providers/local/ollamaChatTransport.ts`) }
 }
 async function send(name: string, effort: string | undefined, thinking = true, messages: any[] = [createUserMessage({ content: 'Read the fixture.' })]) {
   const rows: any[] = []

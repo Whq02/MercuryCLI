@@ -17,7 +17,8 @@ process.env.HOME = home
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const failHint = ok ? '' : ' | to fix: the mixed-upstream fault read, the strip and the one retry live in src/services/providers/openrouter/openrouterResponsesTransport.ts (isMixedUpstreamHistoryFault, withoutEncryptedReasoning, mixedUpstreamRetryWords)'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${failHint}`)
 }
 type Body = Record<string, unknown>
 type Capture = { path: string; body: Body }

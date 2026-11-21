@@ -10,9 +10,10 @@ const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
 let failures = 0
+const failureWhere = 'change resolveEffortTruth, noteAgentEffortWord or effortAdjustedReceiptLine in src/utils/effort.ts, agentOwnEffortWord or resolveAgentEffort in src/tools/AgentTool/runAgent.ts, or effortSentOf in src/services/engine-connector/seatProjections.ts, whichever the check names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + failureWhere : ''}`)
 }
 
 console.log('============================================================')

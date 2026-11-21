@@ -12,7 +12,11 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = /^(DENY|ALLOW):/.test(label)
+    ? 'fix where runToolUse yields the permission.decided hook row in src/services/tools/toolExecution.ts so it lands after the tool result'
+    : 'fix buildConversationChain in src/utils/sessionStorage/chain.ts so a row recorded after the result threads onto the chain and one between call and result stays a side branch'
+  const shown = detail ? `${detail} | ${where}` : where
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

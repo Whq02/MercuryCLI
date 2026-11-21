@@ -12,10 +12,11 @@ import {
 import { stringWidth } from '../../src/ink/stringWidth.js'
 
 let failures = 0
+const failureWhere = 'change frameCells, innerWidth, panelWidth, viewportRows, packHints or shedToFit in src/components/mercury-ui/geometry.ts, paneWindow in src/components/mercury-ui/paneWindow.ts, or packFooter in src/components/mercury-ui/footerHint.ts, whichever the check names'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   if (!cond || process.env.COMPASS_PROOF_VERBOSE) {
-    console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — ' + failureWhere}`)
   }
 }
 

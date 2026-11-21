@@ -28,7 +28,7 @@ const {openaiCallModel}=await load('src/services/providers/openai/openaiCallMode
 const {asSystemPrompt}=await load('src/utils/systemPromptType.ts')
 const {getEmptyToolPermissionContext}=await load('src/Tool.ts')
 let failed=0
-const check=(label:string,yes:boolean):void=>{if(!yes)failed++;console.log(`[${yes?'PASS':'FAIL'}] ${label}`)}
+const check=(label:string,yes:boolean):void=>{if(!yes)failed++;console.log(`[${yes?'PASS':'FAIL'}] ${label}${yes?'':' | to fix: the field policy is openaiCacheRetention and rejectOpenaiCacheRetention in src/services/providers/openai/openaiCacheRetention.ts; the one-time retry on a refused field is in src/services/providers/openai/openaiCallModel.ts'}`)}
 async function run(model:string):Promise<any[]>{const rows:any[]=[];for await(const row of openaiCallModel({messages:[{type:'user',uuid:randomUUID(),message:{role:'user',content:'answer complete'}}],systemPrompt:asSystemPrompt(['stable instructions']),tools:[],thinkingConfig:{type:'adaptive'},signal:new AbortController().signal,options:{model,querySource:'main_thread',isNonInteractiveSession:true,getToolPermissionContext:async()=>getEmptyToolPermissionContext(),agents:[],mcpTools:[],hasAppendSystemPrompt:false,effortValue:'high'}}))rows.push(row);return rows}
 try{
  await run('gpt-5.5')

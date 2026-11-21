@@ -18,7 +18,7 @@ const { AppStateProvider } = await import('../../src/state/AppState.tsx')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { renderCreateResultMessage, renderCreateToolUseMessage } = await import('../../src/tools/ScheduleCronTool/UI.tsx')
 let failures = 0
-const check = (label: string, ok: boolean) => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`) }
+const check = (label: string, ok: boolean) => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`); if (!ok) console.log('  change renderCreateResultMessage (the result row) or renderCreateToolUseMessage (the header) in src/tools/ScheduleCronTool/UI.tsx') }
 const frameAt = process.argv.indexOf('--frames')
 const framePath = frameAt < 0 ? undefined : process.argv[frameAt + 1]
 const captured: string[] = []

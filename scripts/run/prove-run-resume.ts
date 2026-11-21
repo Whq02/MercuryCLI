@@ -10,9 +10,12 @@ const HOME = mkdtempSync(join(tmpdir(), 'run-resume-home-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 
 let failures = 0
+const runResumeFailHint =
+  'fix the sidecar save and load in src/services/run/runSidecar.ts (saveRunSidecar, loadRunSidecar), the resume fold in src/services/run/runCoordinator.ts (reconcileOnResume, foldResumedRunForBoot, takeResumeFoldNotice) or the event reducer in src/services/run/runKernel.ts (reduceRunEvent), whichever the section named above exercises'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : detail ? `${detail} | ${runResumeFailHint}` : runResumeFailHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

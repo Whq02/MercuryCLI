@@ -20,9 +20,10 @@ process.chdir(ROOT)
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
+const mouseTailWhere = 'a mouse report cut by a flush must be swallowed whole, never typed: fix parseMultipleKeypresses (its flush path) in src/ink/input/input-decoder.ts; the pty checks run the built dist/mercury.mjs, so rebuild it before reading them'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail.slice(0, 300)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? (detail ? ` — ${detail.slice(0, 300)}` : '') : ` — ${mouseTailWhere}${detail ? `; ${detail.slice(0, 300)}` : ''}`}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

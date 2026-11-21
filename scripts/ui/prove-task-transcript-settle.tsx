@@ -7,9 +7,12 @@ import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, 
 pinSourceRef()
 const home = pinScratchHome('task-transcript-settle')
 let failures = 0
-const check = (label: string, ok: boolean): void => {
+const check = (label: string, ok: boolean, detail?: string): void => {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`)
-  if (!ok) failures++
+  if (!ok) {
+    failures++
+    if (detail) console.log(`  ${detail}`)
+  }
 }
 const deferred = <T,>() => {
   let resolve!: (value: T) => void
@@ -64,11 +67,11 @@ try {
     return <Text>{JSON.stringify(read)}</Text>
   }
   const crewView = await mount(<CrewProbe stamp={1} />)
-  check('the crew starts its disk read', await waitFor(() => diskReads === 1, 3000))
+  check('the crew starts its disk read', await waitFor(() => diskReads === 1, 3000), 'useCrewmateTranscript in src/components/tasks/useCrewmateTranscript.ts did not call loadTranscriptFile once on mount; check that its disk read starts from the effect.')
   crewView.resize(wrap(<CrewProbe stamp={2} />), 100, 32)
   await settle(100)
   diskRead.resolve({ messages: new Map([['row', { type: 'assistant', uuid: 'row', agentId: 'fixture-crew', message: { content: [{ type: 'text', text: 'crew final answer' }] } }]]) } as never)
-  check('a roster update during disk IO does not permanently lose the unchanged transcript', await waitFor(() => crewView.screen().includes('crew final answer'), 5500))
+  check('a roster update during disk IO does not permanently lose the unchanged transcript', await waitFor(() => crewView.screen().includes('crew final answer'), 5500), 'the transcript read in src/components/tasks/useCrewmateTranscript.ts must not drop a finished disk read when the stamp changes mid-read; check how it discards a stale read.')
   crewView.unmount()
   releaseFocusedSessionConnector()
   await settle(100)
@@ -76,9 +79,9 @@ try {
   let closed = 0
   const agent = { id: 'fixture-agent', type: 'local_agent', status: 'completed', startTime: 1000, endTime: 2000, agentType: 'fixture', description: 'fixture detail', prompt: 'fixture brief' } as never
   const card = await mount(<AsyncAgentDetailDialog agent={agent} onDone={() => { closed++ }} />)
-  check('the agent card renders', await waitFor(() => card.screen().includes('fixture brief'), 3000))
+  check('the agent card renders', await waitFor(() => card.screen().includes('fixture brief'), 3000), 'AsyncAgentDetailDialog in src/components/tasks/AsyncAgentDetailDialog.tsx should render the agent prompt for a completed agent.')
   card.push(KEY.esc)
-  check('escape closes the agent card once', await waitFor(() => closed === 1, 1000))
+  check('escape closes the agent card once', await waitFor(() => closed === 1, 1000), 'AsyncAgentDetailDialog in src/components/tasks/AsyncAgentDetailDialog.tsx must call onDone exactly once on escape; closed=' + closed)
   card.unmount()
   await settle(100)
 
@@ -93,11 +96,11 @@ try {
   }
   const initialState = { ...getDefaultAppState(), tasks: { 'fixture-shell': shell } }
   const shellView = await mountOffscreen(wrap(<ShellProbe />, initialState), 100, 32)
-  check('the shell card renders its running state', await waitFor(() => shellView.screen().includes('fixture command') && shellView.screen().includes('last output') && shellView.screen().includes('running'), 3000))
+  check('the shell card renders its running state', await waitFor(() => shellView.screen().includes('fixture command') && shellView.screen().includes('last output') && shellView.screen().includes('running'), 3000), 'BackgroundTasksDialog in src/components/tasks/BackgroundTasksDialog.tsx should open the shell task detail with its command, last output and running state.')
   shellClosed = 0
   setState!(state => ({ ...state, tasks: { 'fixture-shell': { ...shell, status: 'failed', endTime: Date.now(), result: { code: 23, interrupted: false } } } }))
   await settle(300)
-  check('shell settlement keeps the final output and exit code readable', shellClosed === 0 && shellView.screen().includes('exit 23') && shellView.screen().includes('last output'))
+  check('shell settlement keeps the final output and exit code readable', shellClosed === 0 && shellView.screen().includes('exit 23') && shellView.screen().includes('last output'), 'a shell task that settles as failed must keep the detail open (shellClosed=' + shellClosed + ') and show the exit code and output; look at BackgroundTasksDialog in src/components/tasks/BackgroundTasksDialog.tsx.')
   shellView.unmount()
 } finally {
   releaseFocusedSessionConnector()

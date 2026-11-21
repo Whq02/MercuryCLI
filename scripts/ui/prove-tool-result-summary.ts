@@ -4,7 +4,10 @@ import { summarizeToolResult, MAX_INLINE_SUMMARY } from '../../src/tools/toolRes
 let fail = 0
 const t = (name: string, ok: boolean, detail = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
-  if (!ok) fail = 1
+  if (!ok) {
+    fail = 1
+    console.log('  summarizeToolResult in src/tools/toolResultSummary.ts returned something other than the value named in this check; change the rule for that tool or MAX_INLINE_SUMMARY there.')
+  }
 }
 
 const bash = (over: Record<string, unknown> = {}) => ({

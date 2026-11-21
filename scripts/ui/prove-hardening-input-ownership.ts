@@ -22,10 +22,18 @@ const { caretVerticalOp, clampCaret } = await import('../../src/components/conco
 const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.js')
 let failures = 0
 let checks = 0
+const inputOwnershipHint = (label: string): string => {
+  if (label.includes('session manager')) return 'the fallback view is src/components/mercury-ui/screens/SessionManagerView.tsx: it must paint its fallback text and close on Escape'
+  if (label.includes('caret')) return 'caretVerticalOp and clampCaret in src/components/concourse/lineDraft.ts must keep the caret on a grapheme boundary'
+  if (label.startsWith('interactive')) return 'the key handler is useInteractiveList in src/components/mercury-ui/useInteractiveList.ts: ignore ctrl, meta and super chords on plain action keys, keep ctrl+n navigation'
+  if (label.startsWith('flat')) return 'the key handler is useFlatList in src/components/mercury-ui/useFlatList.ts: ignore ctrl, meta and super chords on the primary and reload keys, keep ctrl+n navigation'
+  if (label.includes('left') || label.includes('Escape follows')) return 'the close modes are in CommandCenter in src/components/mercury-ui/components.tsx (closeKeys)'
+  return 'the pick list is RowPickModal in src/components/concourse/RowPickModal.tsx: the cursor must stay visible and Enter must pick the selected option'
+}
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${inputOwnershipHint(label)}` : ''}`)
 }
 const settle = async (): Promise<void> => {
   for (let i = 0; i < 4; i++) {

@@ -44,7 +44,8 @@ const { writeStoredMoonshotApiKey } = await import('../../src/utils/accounts/pro
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failHint = cond ? '' : ' | to fix: change the function this label names in src/services/providers/moonshot/moonshotAccounts.ts (startMoonshotDeviceAuth, pollMoonshotDeviceToken, refreshMoonshotTokens, resolveMoonshotAccount, resolveMoonshotDispatchCredential, the base and url helpers) or the stored key in src/utils/accounts/providerSecrets.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${failHint}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

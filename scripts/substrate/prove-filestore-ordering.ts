@@ -6,9 +6,9 @@ import { join } from 'node:path'
 import { defineStore, _setEmitReadGateForProofs } from '../../src/substrate/fileStore.js'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', failHint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && failHint ? ` — ${failHint}` : ''}`)
 }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
@@ -67,9 +67,10 @@ console.log('prove-filestore-ordering')
     '§1 in-process publish delivered BEFORE write() resolved (microtask, not the 25ms debounce)',
     got.length === 1 && got[0]!.at <= tResolved,
     got.length ? `delivered ${(tResolved - got[0]!.at).toFixed(1)}ms before resolution` : 'no delivery',
+    'write in defineStore (src/substrate/fileStore.ts) must publish to in-process subscribers before it resolves',
   )
   await sleep(250)
-  check('§2 watcher echo of own publish deduped (exactly one delivery)', got.filter(g => g.n === 1).length === 1, `${got.length} deliveries`)
+  check('§2 watcher echo of own publish deduped (exactly one delivery)', got.filter(g => g.n === 1).length === 1, `${got.length} deliveries`, 'the store in src/substrate/fileStore.ts must dedupe the watcher echo of its own write')
   unsub()
 }
 
@@ -87,7 +88,7 @@ console.log('prove-filestore-ordering')
     }
     unsub()
   }
-  check('§3 never-old-after-new across 20 subscribe/write interleavings', violation === '', violation)
+  check('§3 never-old-after-new across 20 subscribe/write interleavings', violation === '', violation, 'subscribe and write in src/substrate/fileStore.ts must never deliver an older value after a newer one')
 }
 
 {
@@ -101,10 +102,10 @@ console.log('prove-filestore-ordering')
     await sleep(50)
     waited += 50
   }
-  check('§4a delete emits the declared empty()', seen.includes('empty'), `${seen.join(',')} after ${waited}ms`)
+  check('§4a delete emits the declared empty()', seen.includes('empty'), `${seen.join(',')} after ${waited}ms`, 'the watcher path in src/substrate/fileStore.ts must emit the declared empty() when the file is deleted')
   await store.write({ n: 7, tag: 'reborn' })
   await sleep(50)
-  check('§4b recreate emits the new value', seen[seen.length - 1] === 'reborn', seen.join(','))
+  check('§4b recreate emits the new value', seen[seen.length - 1] === 'reborn', seen.join(','), 'write in src/substrate/fileStore.ts must emit the new value after the file was deleted')
   unsub()
 }
 
@@ -115,10 +116,10 @@ console.log('prove-filestore-ordering')
   writeFileSync(tmp, '{ this is not json')
   renameSync(tmp, filePath)
   await sleep(300)
-  check('§5a corrupt intermediate emits nothing (skipped, logged)', seen.length === 0, seen.join(','))
+  check('§5a corrupt intermediate emits nothing (skipped, logged)', seen.length === 0, seen.join(','), 'the watcher read in src/substrate/fileStore.ts must skip a file that fails to decode instead of emitting')
   await store.write({ n: 9, tag: 'healed' })
   await sleep(50)
-  check('§5b next valid publish recovers the stream', seen[seen.length - 1] === 'healed', seen.join(','))
+  check('§5b next valid publish recovers the stream', seen[seen.length - 1] === 'healed', seen.join(','), 'write in src/substrate/fileStore.ts must still emit after a skipped corrupt file')
   unsub()
 }
 
@@ -129,11 +130,11 @@ console.log('prove-filestore-ordering')
   const unsubB = store.subscribe(v => b.push(v.n), { immediate: false })
   await store.write({ n: 20, tag: 'both' })
   await sleep(20)
-  check('§6a both subscribers received', a.includes(20) && b.includes(20))
+  check('§6a both subscribers received', a.includes(20) && b.includes(20), '', 'subscribe in src/substrate/fileStore.ts must fan a write out to every subscriber')
   unsubA()
   await store.write({ n: 21, tag: 'only-b' })
   await sleep(20)
-  check('§6b after unsubscribe A, only B receives', !a.includes(21) && b.includes(21))
+  check('§6b after unsubscribe A, only B receives', !a.includes(21) && b.includes(21), '', 'the unsubscribe function from subscribe in src/substrate/fileStore.ts must remove only its own listener')
   unsubB()
 }
 
@@ -144,6 +145,7 @@ console.log('prove-filestore-ordering')
     '§7 zero live watchers/timers after last unsubscribe',
     stats.listeners === 0 && !stats.watcher && !stats.pollTimer && !stats.pollFloorTimer && !stats.debounceTimer,
     JSON.stringify(stats),
+    'the last unsubscribe in src/substrate/fileStore.ts must close the watcher and clear the poll, poll floor and debounce timers',
   )
 }
 
@@ -158,13 +160,13 @@ console.log('prove-filestore-ordering')
     renameSync(tmp, ${JSON.stringify(filePath)});
   `
   const r = spawnSync(process.execPath, ['-e', child], { encoding: 'utf8' })
-  check('§8a child writer exited clean', r.status === 0, r.stderr ?? '')
+  check('§8a child writer exited clean', r.status === 0, r.stderr ?? '', 'the inline node child script in this file failed; read its stderr above')
   let waited = 0
   while (!seen.includes('from-child') && waited < WATCHER_DELIVERY_BUDGET_MS) {
     await sleep(50)
     waited += 50
   }
-  check('§8b cross-process write delivered via watcher', seen.includes('from-child'), `${waited}ms`)
+  check('§8b cross-process write delivered via watcher', seen.includes('from-child'), `${waited}ms`, 'the watcher in src/substrate/fileStore.ts must deliver a write made by another process')
   unsub()
 }
 
@@ -205,11 +207,11 @@ console.log('prove-filestore-ordering')
     await sleep(25)
     waited9 += 25
   }
-  check('§9a the watcher-path read parked at the injection gate', gated >= 1, `${waited9}ms`)
+  check('§9a the watcher-path read parked at the injection gate', gated >= 1, `${waited9}ms`, 'the watcher path in src/substrate/fileStore.ts must read through the gate set by _setEmitReadGateForProofs')
 
   await store9.write({ n: 3, tag: 'newest' })
   await sleep(30)
-  check('§9b the local publish fanned out immediately', seen[seen.length - 1] === 3, seen.join(','))
+  check('§9b the local publish fanned out immediately', seen[seen.length - 1] === 3, seen.join(','), 'write in src/substrate/fileStore.ts must publish to subscribers while a watcher read is parked')
 
   releaseGate()
   _setEmitReadGateForProofs(null)
@@ -219,6 +221,7 @@ console.log('prove-filestore-ordering')
     '§9c EPOCH FENCE: the stale read is discarded — never old-after-new',
     idx3 !== -1 && !seen.slice(idx3).includes(2),
     seen.join(','),
+    'the watcher read in src/substrate/fileStore.ts must drop a read that began before a newer publish (publishEpoch check)',
   )
 
   await sleep(1000)
@@ -226,11 +229,13 @@ console.log('prove-filestore-ordering')
     '§9d newest stays last through 3+ no-write floor intervals (no sticky-stale swallow)',
     seen[seen.length - 1] === 3,
     seen.join(','),
+    'the poll floor in src/substrate/fileStore.ts must not re-emit an older external value after a newer publish',
   )
   check(
     '§9e exactly one emission of the newest value (no stale-then-repeat duplicate)',
     seen.filter(n => n === 3).length === 1,
     seen.join(','),
+    'the watcher and poll paths in src/substrate/fileStore.ts must not emit the newest value a second time',
   )
   unsub()
 }
@@ -241,6 +246,7 @@ console.log('prove-filestore-ordering')
     '§10 last unsubscribe resets the revision/opId watermark (fresh re-subscribe baseline)',
     stats.lastSeenRevision === null && stats.lastEmittedOpId === null,
     JSON.stringify(stats),
+    'the last unsubscribe in src/substrate/fileStore.ts must reset lastSeenRevision and lastEmittedOpId',
   )
 }
 
@@ -292,6 +298,7 @@ console.log('prove-filestore-ordering')
     '§11a a backward stamped revision still DELIVERS (content authority — never deaf)',
     changes.some(c => c.n === 10),
     `${waitedA}ms ${JSON.stringify(changes)}`,
+    'subscribeChanges in src/substrate/fileStore.ts must deliver a file whose stamped revision went backward',
   )
 
   externalWrite(11, 3, 'ext-op-jump')
@@ -305,6 +312,7 @@ console.log('prove-filestore-ordering')
     '§11b the adopted watermark makes the next skip PROVABLE (rev1→rev3 = 1 skipped, catch-up)',
     jump !== undefined && jump.skipped === 1 && jump.cause === 'catch-up',
     JSON.stringify(changes),
+    'subscribeChanges in src/substrate/fileStore.ts must adopt the delivered revision as its watermark and report skippedRevisions and cause catch-up',
   )
   unsub()
 }

@@ -41,23 +41,24 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   check(
     'spinnerSlotReserved carries every non-streaming gate',
     gates.flying && gates.stopping && !gates.resting && !gates.dialog && gates.dialogWithSpinner && !gates.card,
-    JSON.stringify(gates),
+    `${JSON.stringify(gates)} — what to change: the spinnerSlotReserved condition in useChatStatus, src/screens/chat/useChatStatus.tsx`,
   );
   check(
     'showSpinner = slot && the streaming-prose swap only',
     plain === 'spinner' && streaming === 'hold' && suppressed === 'spinner' && streamingUnderCard === 'none' && restingQuiet === 'none' && thinkingUnderCard === 'none',
-    `${plain} · ${streaming} · ${suppressed} · ${streamingUnderCard} · ${restingQuiet} · ${thinkingUnderCard}`,
+    `${plain} · ${streaming} · ${suppressed} · ${streamingUnderCard} · ${restingQuiet} · ${thinkingUnderCard} — what to change: the showSpinner and hold rows derived from spinnerSlotReserved in useChatStatus, src/screens/chat/useChatStatus.tsx`,
   );
   check(
     'the streaming hold keeps the 1-row slot while prose streams',
     streamingSlot && streaming === 'hold',
-    `${streamingSlot} · ${streaming}`,
+    `${streamingSlot} · ${streaming} — what to change: the streaming hold branch beside spinnerSlotReserved in useChatStatus, src/screens/chat/useChatStatus.tsx`,
   );
 }
 const { SQUARE_DOCK_ART_LINES } = await import('../../src/utils/cockpit/critterData.js');
 check(
   `the slot constant derives from the grids (dock=${SQUARE_DOCK_ART_LINES})`,
   Number.isInteger(SQUARE_DOCK_ART_LINES) && SQUARE_DOCK_ART_LINES >= 3,
+  'what to change: SQUARE_DOCK_ART_LINES must stay an integer of at least 3, derived from CRITTERS in src/utils/cockpit/critterData.ts',
 );
 
 process.exit(fail);

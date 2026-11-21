@@ -27,8 +27,8 @@ process.env.MERCURY_CONFIG_DIR = RUN_HOME
 const { scenario, cleanupScenario } = await import('./renderScenarios.ts')
 
 let fail = 0
-const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+const t = (name: string, ok: boolean, detail = '', hint = ''): void => {
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${!ok && hint ? ` — ${hint}` : ''}`)
   if (!ok) fail = 1
 }
 
@@ -63,7 +63,7 @@ const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cf
 })
 cleanupScenario('frame')
 if (res.status !== 0) {
-  console.log(`FAIL  capture ran — ${res.stderr?.slice(0, 300)}`)
+  console.log(`FAIL  capture ran — ${res.stderr?.slice(0, 300)} — scripts/ui/vshot.py exited nonzero for this scenario: run it by hand with the cfg written by this script and read its stderr`)
   rmSync(RUN_HOME, { recursive: true, force: true })
   process.exit(1)
 }
@@ -78,22 +78,22 @@ const tee = readFileSync(teePath, 'utf8')
   .map(l => JSON.parse(l) as { ts: number; len: number })
 rmSync(RUN_HOME, { recursive: true, force: true })
 
-t('send receipts recorded', (payload.sendReceipts?.length ?? 0) === 5, `${payload.sendReceipts?.length ?? 0}`)
-t('the production write tee is live', tee.length > 3, `${tee.length} writes`)
+t('send receipts recorded', (payload.sendReceipts?.length ?? 0) === 5, `${payload.sendReceipts?.length ?? 0}`, 'the five sends in cfg.sends must each fire in scripts/ui/vshot.py, which records a sendReceipt per send; a send whose awaitText never appeared is not recorded')
+t('the production write tee is live', tee.length > 3, `${tee.length} writes`, 'INK_WRITE_TEE must be honoured by writeDiffToTerminal in src/ink/session/delivery.ts, which appends one line per terminal write')
 const text = payload.grid.map(r => r.map(c => c.c).join('')).join('\n')
-t('the typed text landed (echo is real, not assumed)', text.includes('hello'))
+t('the typed text landed (echo is real, not assumed)', text.includes('hello'), '', 'the five sends never reached the prompt: check the awaitText and tick schedule of cfg.sends in this script and the input path of the frame scenario in scripts/ui/renderScenarios.ts')
 
 const CEILING_MS = 300
 const latencies: number[] = []
 for (const s of payload.sendReceipts ?? []) {
   const first = tee.find(w => w.ts >= s.ts)
   if (!first) {
-    t(`key@tick${s.atTick}: a paint followed the key`, false)
+    t(`key@tick${s.atTick}: a paint followed the key`, false, '', 'no terminal write was teed after the key was sent: INK_WRITE_TEE in src/ink/session/delivery.ts recorded none after this send')
     continue
   }
   const d = first.ts - s.ts
   latencies.push(d)
-  t(`key@tick${s.atTick}: input→paint ${d}ms ≤ ${CEILING_MS}ms`, d <= CEILING_MS)
+  t(`key@tick${s.atTick}: input→paint ${d}ms ≤ ${CEILING_MS}ms`, d <= CEILING_MS, '', 'a terminal write landed too long after the key: look at what delays the paint in src/ink/session/delivery.ts writeDiffToTerminal and the render scheduling it follows')
 }
 if (latencies.length > 0) {
   const sorted = [...latencies].sort((a, b) => a - b)

@@ -16,8 +16,22 @@ delete process.env.MERCURY_SESSION_KIT
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+const kitDialsWhere = (name: string): string => {
+  const c = name.charAt(0)
+  if (c === 'B' || c === 'H') return 'change setProcessSessionKit, completeProcessSessionKit or applyProcessSessionKitEdit in src/services/mcp/sessionKitPin.ts, or kitMembership in src/services/mcp/membership.ts'
+  if (c === 'E') return 'change kitDialCandidates, kitEditMcpDelta or dropMcpServerFromAppState in src/services/mcp/kitDial.ts'
+  if (c === 'C') return 'change setSessionKitDial in src/daemon/sessionSeat/kit.ts, onSeatIdle in src/daemon/sessionSeat/edges.ts or onSeatSpawned in src/daemon/sessionSeat/lifecycle.ts'
+  if (c === 'G') return 'change setKit in src/services/engine-connector/noSessionConnector.ts'
+  if (c === 'F') return 'change validateSessionKit or applyKitEdit in src/daemon/sessionKit.ts, kitDropsCommand in src/skills/kitGovernance.ts, or completeSessionKitFromRoster in src/services/mcp/kitCompletion.ts'
+  if (c === 'A') return 'change mcpRosterLine, MCP_EMPTY_ROSTER_LINE or kitDialLine in src/commands/mcp/route.ts'
+  if (c === 'S') return 'change offSkillNamesOf in src/skills/kitGovernance.ts or skillsRosterOf in src/services/engine-connector/rosterTerms.ts'
+  if (c === 'D') return 'change setSessionKitDial in src/daemon/sessionSeat/kit.ts or the menu store in src/services/mcp/kitStore.ts so a dial never writes config or a sibling record'
+  return ''
+}
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  const hint = ok ? '' : kitDialsWhere(name)
+  const text = !ok && (detail || hint) ? ` — ${[detail, hint].filter(Boolean).join('; ')}` : ''
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${text}`)
   if (!ok) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
