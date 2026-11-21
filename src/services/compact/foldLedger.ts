@@ -156,12 +156,12 @@ export function renderFoldLedger(ledger: FoldLedger): string {
     version: 1, epoch: ledger.epoch,
     stretch: { records: records.length, first: records[0], last: records.at(-1), sha256: ledger.sourceDigest, tools: tools.length, files: files.length, byTool: Object.fromEntries(byName) },
     page: { newestTools: toolPage.length, olderToolsOmitted: tools.length - toolPage.length, newestFiles: filePage.length, olderFilesOmitted: files.length - filePage.length, carriedBy: 'this epoch\'s boundary record, whole' },
-    earlierFolds: { records: ledger.priorRecords, operatorMessages: totals.operator.messages - operator.length, tools: totals.tools - tools.length, files: totals.files - files.length, carriedBy: 'this epoch\'s boundary record, whole' },
+    earlierFolds: { records: ledger.priorRecords, operatorMessages: totals.operator.messages - operator.length, tools: totals.tools - tools.length, files: totals.files - files.length, carriedBy: 'their own boundary records, whole' },
     operator: { messages: operator.length, bytes: operator.reduce((n, row) => n + row.bytes, 0) },
     tools: toolPage.map(({ argumentDigest, epoch, file, ...receipt }) => ({ ...receipt, ...(file && receipt.outcome !== 'error' ? { file } : {}) })),
     files: filePage.map(({ epoch, ...file }) => file),
     run: ledger.run,
     witnessesInBoundary: { sourceIds: totals.records, operatorHashes: totals.operator.messages, argumentHashes: totals.tools, deniedFilePaths: totals.deniedFilePaths },
   }
-  return `## Fold ledger\nSource facts below are deterministic; generated summary text does not change them. This index covers the stretch folded now, its newest ${FOLD_INDEX_PAGE} tool receipts and file anchors whole and the older ones by count; the earlier folds' receipts are counted here. Every receipt is carried whole in this epoch's boundary record in the transcript. An observed file anchor is not permission to edit unread content. Missing command exit codes are unknown. Open operator asks are not marked complete by a summary.\n\n${JSON.stringify(index)}`
+  return `## Fold ledger\nSource facts below are deterministic; generated summary text does not change them. This index covers the stretch folded now, its newest ${FOLD_INDEX_PAGE} tool receipts and file anchors whole and the older ones by count; the earlier folds' receipts are counted here. Each fold's receipts are carried whole in its own boundary record in the transcript. An observed file anchor is not permission to edit unread content. Missing command exit codes are unknown. Open operator asks are not marked complete by a summary.\n\n${JSON.stringify(index)}`
 }
