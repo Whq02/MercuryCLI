@@ -17,7 +17,7 @@ function section(t: string): void {
 }
 
 const storage = (await import('../../src/utils/sessionStorage.js')) as typeof import('../../src/utils/sessionStorage.js')
-const agent = (await import('../../src/utils/model/agent.js')) as typeof import('../../src/utils/model/agent.js')
+const agent = (await import('../../src/services/model/agent.js')) as typeof import('../../src/services/model/agent.js')
 const record = (await import('../../src/services/crew/crewmateRecord.js')) as typeof import('../../src/services/crew/crewmateRecord.js')
 
 console.log('============================================================')

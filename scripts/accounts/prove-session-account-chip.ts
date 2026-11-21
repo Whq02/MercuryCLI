@@ -126,7 +126,7 @@ section('C5 the words are the ONE identity composer\'s')
 
 section('C7 the model chip beside it: the decision\'s own row word, healed when the catalogue lands')
 {
-  const computed = await import('../../src/utils/model/computedDefault.ts')
+  const computed = await import('../../src/services/model/computedDefault.ts')
   const catalogue = await import('../../src/services/providers/catalogueEpoch.ts')
   const keyless = { setting: 'claude-fable-5-1', why: 'no provider is signed in yet — /logins signs one in, and its newest usable row becomes the default' }
   const gated = (why: string) => ({ usable: false as const, why })

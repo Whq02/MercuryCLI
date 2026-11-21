@@ -3,7 +3,7 @@ import type { useEngineModel } from '../../hooks/useEngineModel.js';
 import { resolveEffectiveAgentRuntime } from '../../services/agents/resolver.js';
 import { computeStudioValidation, effectiveStudioRuntime, studioDestinationPath, type FieldId, type StudioEditorSnapshot, type StudioValidation } from '../agents/studio/studioEditorModel.js';
 import type { Tools } from '../../Tool.js';
-import { agentModelAvailabilityNote } from '../../utils/model/agentModelPicker.js';
+import { agentModelAvailabilityNote } from '../../services/model/agentModelPicker.js';
 import { renderModelChip } from '../../utils/model/model.js';
 import { getSessionAccent, getSessionCritterKey } from '../mercury-ui/sessionAccent.js';
 import type { useGreetingShimmer } from '../mercury-ui/useGreetingShimmer.js';

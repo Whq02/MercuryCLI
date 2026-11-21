@@ -30,11 +30,11 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
 const { GPT_DISPLAY_PINS } = catalogue
-const { getModelOptions, OPENAI_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.js')
-const { providerFrontierFact, providerLightFact } = await import('../../src/utils/model/providerFrontier.js')
+const { getModelOptions, OPENAI_MODEL_GROUP } = await import('../../src/services/model/modelOptions.js')
+const { providerFrontierFact, providerLightFact } = await import('../../src/services/model/providerFrontier.js')
 const { utilityCallFor } = await import('../../src/utils/model/utilityModel.js')
 const router = await import('../../src/services/providers/openai/openaiAdapter.js')
-const { computedDefault, resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.js')
+const { computedDefault, resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.js')
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.js')
 
 let failures = 0

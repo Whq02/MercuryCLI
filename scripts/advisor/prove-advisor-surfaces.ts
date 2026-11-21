@@ -73,7 +73,7 @@ const { Usage, ADVISOR_SPEND_LABEL, SCHEDULED_SPEND_LABEL } = await import('../.
 const { Box, render, flushPendingSyncWork, EventEmitter } = await import('../../src/ink.js')
 const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
 const { getGlobalConfig } = await import('../../src/utils/config.ts')
-const slots = await import('../../src/utils/model/subModelSlots.ts')
+const slots = await import('../../src/services/model/subModelSlots.ts')
 
 const MODEL = 'claude-opus-4-8'
 const usageOf = (input: number, output: number, cacheRead = 0, cacheWrite = 0): Raw => ({ input_tokens: input, output_tokens: output, cache_read_input_tokens: cacheRead, cache_creation_input_tokens: cacheWrite })

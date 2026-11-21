@@ -21,8 +21,8 @@ const { foldModelSpelling, resolveCatalogueSpelling, catalogueSpellingExamples }
   '../../src/utils/model/modelSpellingFold.ts'
 )
 const { parseUserSpecifiedModel, parseUserSpecifiedModelRaw } = await import('../../src/utils/model/model.ts')
-import type { ModelOption } from '../../src/utils/model/modelOptions.ts'
-const { GPT_CONNECT_OPTION_VALUE } = await import('../../src/utils/model/modelOptions.ts')
+import type { ModelOption } from '../../src/services/model/modelOptions.ts'
+const { GPT_CONNECT_OPTION_VALUE } = await import('../../src/services/model/modelOptions.ts')
 
 console.log('§1 the fold over an injected provider-equal catalogue')
 const cat: ModelOption[] = [

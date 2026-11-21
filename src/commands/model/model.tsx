@@ -21,11 +21,11 @@ import {
   type SeatReceiptState,
   type SettledSelection,
   type TransitionPlan,
-} from '../../utils/model/modelTransition.js'
+} from '../../services/model/modelTransition.js'
 import { isModelAlias } from '../../utils/model/aliases.js'
 import { isModelAllowed } from '../../utils/model/modelAllowlist.js'
 import { isModelFromDisabledProvider, isProviderDisabled } from '../../services/providers/disabledProviders.js'
-import { BARE_FAMILY_WORDS } from '../../utils/model/bareFamilyWords.js'
+import { BARE_FAMILY_WORDS } from '../../services/model/bareFamilyWords.js'
 import { validateModel } from '../../services/providers/validateModel.js'
 import { checkOpus1mAccess, checkSonnet1mAccess } from '../../utils/model/check1mAccess.js'
 import {

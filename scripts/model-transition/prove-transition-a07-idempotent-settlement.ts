@@ -12,7 +12,7 @@ process.env.MERCURY_HOME = mkdtempSync(join(tmpdir(), 'ctm-a07-home-'))
 const ROOT = join(import.meta.dir, '..', '..')
 
 const { settleModelSelection, settlePendingAtBoundary } = await import(
-  '../../src/utils/model/modelTransition.ts'
+  '../../src/services/model/modelTransition.ts'
 )
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 

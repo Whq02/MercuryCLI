@@ -11,7 +11,7 @@ mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 
 import { execFileSync } from 'node:child_process'
 import { getIsGit } from '../../src/utils/git.js'
-import { getAgentModel } from '../../src/utils/model/agent.js'
+import { getAgentModel } from '../../src/services/model/agent.js'
 import { sessionEnvNoticeForResult, scrubbedSessionEnvNotice } from '../../src/tools/shared/sessionEnvNotice.js'
 import * as state from '../../src/bootstrap/state.js'
 import { consumeInvokingRequestId, getAgentContext, runWithAgentContext, type SubagentContext } from '../../src/utils/agentContext.js'

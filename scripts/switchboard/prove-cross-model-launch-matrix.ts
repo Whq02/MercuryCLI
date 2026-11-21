@@ -75,7 +75,7 @@ const SPECIMENS: ReadonlyArray<{ family: string; id: string }> = [
 
 section('§1 — the catalog family census: every row folds to a DECLARED family')
 {
-  const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
+  const { getModelOptions } = await import('../../src/services/model/modelOptions.ts')
   const families = new Map<string, number>()
   const unrecognised: string[] = []
   for (const o of getModelOptions()) {

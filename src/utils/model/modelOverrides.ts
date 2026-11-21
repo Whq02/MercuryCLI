@@ -2,7 +2,7 @@ import { getInitialSettings } from '../settings/settings.js'
 import { declaredRouteOf } from '../../services/providers/routeLaw.js'
 import { getCanonicalName } from './modelNames.js'
 import { ALL_MODEL_CONFIGS, familyHeadOf } from './configs.js'
-import { bareModelIdOf, bareFamilyWordOfRoute } from './bareFamilyWords.js'
+import { bareModelIdOf, bareFamilyWordOfRoute } from '../../services/model/bareFamilyWords.js'
 
 export interface OperatorModelFacts {
   contextWindow?: number

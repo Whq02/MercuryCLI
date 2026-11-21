@@ -1,7 +1,7 @@
 
 import { logForDebugging } from '../../utils/debug.js'
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
-import { CHOOSE_A_MODEL_WORDS, NO_SIGN_IN_ROW, NO_USABLE_ROW, isChooseAModel, keylessReason, resetComputedDefaultMemo, type LaneRowVerdict } from '../../utils/model/computedDefault.js'
+import { CHOOSE_A_MODEL_WORDS, NO_SIGN_IN_ROW, NO_USABLE_ROW, isChooseAModel, keylessReason, resetComputedDefaultMemo, type LaneRowVerdict } from '../model/computedDefault.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 type WorkerModelRefusal =
@@ -62,7 +62,7 @@ interface SeatFamilyChoiceV1 {
 export function neutralSeatDefault(): SeatFamilyChoiceV1 | null {
   try {
     const { computedDefault } =
-      require('../../utils/model/computedDefault.js') as typeof import('../../utils/model/computedDefault.js')
+      require('../model/computedDefault.js') as typeof import('../model/computedDefault.js')
     const decision = computedDefault()
     if (decision.source === 'keyless' || decision.provider === null) return null
     return { family: decision.provider, setting: decision.setting, row: decision.row }
@@ -75,7 +75,7 @@ export function neutralSeatDefault(): SeatFamilyChoiceV1 | null {
 export function seatFamilyChoices(): SeatFamilyChoiceV1[] {
   try {
     const { computedDefault } =
-      require('../../utils/model/computedDefault.js') as typeof import('../../utils/model/computedDefault.js')
+      require('../model/computedDefault.js') as typeof import('../model/computedDefault.js')
     const out: SeatFamilyChoiceV1[] = []
     for (const considered of computedDefault().considered) {
       if (!considered.verdict.usable) continue
@@ -259,7 +259,7 @@ export async function canonicalWorkerModelId(idOrKey: string): Promise<string> {
 }
 
 export async function composeWorkerModelRegistry(reads: WorkerRegistryReads = {}): Promise<WorkerModelRegistryV1> {
-  const { getModelOptions } = await import('../../utils/model/modelOptions.js')
+  const { getModelOptions } = await import('../model/modelOptions.js')
   const { declaredRouteOf } = await import('../providers/routeLaw.js')
   const options = reads.modelOptions !== undefined ? reads.modelOptions() : getModelOptions()
   const credentials = await readCredentialPresences()
@@ -496,7 +496,7 @@ export async function validateWorkerModelChoice(
         return { ok: false, ...noAccount }
       }
       if (arm === 'session' && idOrKey === undefined) {
-        const { computedDefault } = require('../../utils/model/computedDefault.js') as typeof import('../../utils/model/computedDefault.js')
+        const { computedDefault } = require('../model/computedDefault.js') as typeof import('../model/computedDefault.js')
         const decision = computedDefault()
         if (decision.source === 'keyless' && decision.considered.length > 0) {
           return { ok: true, entry: { ...entry, displayName: NO_USABLE_ROW }, keyless: true, note: `${NO_USABLE_ROW} — ${keylessReason(decision)}` }
@@ -519,7 +519,7 @@ async function unnamedLaunchNoAccount(
   refusal: WorkerModelRefusal,
 ): Promise<{ reason: typeof NO_ACCOUNT_REFUSAL; detail: string; action: string } | undefined> {
   try {
-    const { computedDefault } = await import('../../utils/model/computedDefault.js')
+    const { computedDefault } = await import('../model/computedDefault.js')
     const credentials = await readCredentialPresences()
     const anyCredentialed = [...credentials.values()].some(present => present === true)
     return noAccountRefusal(refusal, computedDefault().provider ?? undefined, anyCredentialed)
@@ -531,7 +531,7 @@ async function unnamedLaunchNoAccount(
 
 async function unnamedLaunchDrift(refusal: WorkerModelRefusal): Promise<{ detail: string; action: string } | undefined> {
   try {
-    const { computedDefault } = await import('../../utils/model/computedDefault.js')
+    const { computedDefault } = await import('../model/computedDefault.js')
     const credentials = await readCredentialPresences()
     return defaultProviderDriftNote(refusal, computedDefault().provider ?? undefined, family => credentials.get(family) === true)
   } catch (error) {

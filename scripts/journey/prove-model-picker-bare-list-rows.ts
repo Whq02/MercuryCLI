@@ -147,7 +147,7 @@ const { call } = await import('../../src/commands/model/mercuryModel.tsx')
 const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.ts')
 const moonshot = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')
 const deepseek = await import('../../src/services/providers/deepseek/deepseekCatalogue.ts')
-const options = await import('../../src/utils/model/modelOptions.ts')
+const options = await import('../../src/services/model/modelOptions.ts')
 const { getModelOptions, isProviderActionRow, OPENAI_MODEL_GROUP, MOONSHOT_MODEL_GROUP, DEEPSEEK_MODEL_GROUP, ZAI_MODEL_GROUP } = options
 
 let failures = 0

@@ -15,11 +15,11 @@ for (const key of ['MERCURY_HOME', 'MERCURY_AUTH_SCOPE_DIR', 'OPENAI_API_KEY', '
 
 const { GPT_DISPLAY_PINS } = await import('../../src/utils/model/pins/gptPins.js')
 const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
-const { providerFrontierFact, openaiSessionDefault, openaiLightChoice } = await import('../../src/utils/model/providerFrontier.js')
+const { providerFrontierFact, openaiSessionDefault, openaiLightChoice } = await import('../../src/services/model/providerFrontier.js')
 const { effortFamiliesLabel } = await import('../../src/utils/effort.js')
 const { ZEN_DISPLAY_PINS, zenDisplayPin, zenPinObservedAt, zenServedShapeOf, zenAcceptsEffort } = await import('../../src/utils/model/pins/zenPins.js')
 const zenCatalogue = await import('../../src/services/providers/zen/zenCatalogue.js')
-const { keyLanePins } = await import('../../src/utils/model/modelOptions.js')
+const { keyLanePins } = await import('../../src/services/model/modelOptions.js')
 const { NOUS_PORTAL_RECOMMENDED } = await import('../../src/services/providers/nous/nousCatalogue.js')
 const { readModelListFacts } = await import('../../src/services/providers/typedModelIds.js')
 const { resolveModelPricing } = await import('../../src/services/usage/modelCost.js')
@@ -50,7 +50,7 @@ try {
     assert.deepEqual(providerFrontierFact('openai'), { modelId: sol, displayName: 'GPT-6.2 Sol', observedAt: '2026-11-17' })
     assert.equal(openaiSessionDefault([astra, sol])?.modelId, sol)
   })
-  const frontierModule = await import('../../src/utils/model/providerFrontier.js') as Record<string, unknown>
+  const frontierModule = await import('../../src/services/model/providerFrontier.js') as Record<string, unknown>
   check('the frontier line no caller under src read is gone with what only it used: the module offers no such name, and a frontier fact carries a model, a name and at most a date', () => {
     assert.equal('providerFrontierLine' in frontierModule, false)
     assert.deepEqual(Object.keys(providerFrontierFact('openai') ?? {}), ['modelId', 'displayName', 'observedAt'])

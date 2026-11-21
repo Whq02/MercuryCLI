@@ -33,7 +33,7 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/file
 const { query: startTurn } = await import('../../src/query.ts')
 const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
-const { getAgentModel } = await import('../../src/utils/model/agent.ts')
+const { getAgentModel } = await import('../../src/services/model/agent.ts')
 const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
 const { flushSessionStorage, readAgentMetadata } = await import('../../src/utils/sessionStorage.ts')
 await import('../../src/tasks.ts')

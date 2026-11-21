@@ -843,7 +843,7 @@ export function getErrorMessageIfRefusal(
     : 'The model ended the response early (stop_reason: refusal). Use /rewind (or shift+up) to edit your last message, or start a new session.'
   try {
     const { providerLightFact } =
-      require('../../utils/model/providerFrontier.js') as typeof import('../../utils/model/providerFrontier.js')
+      require('../model/providerFrontier.js') as typeof import('../model/providerFrontier.js')
     const { declaredRouteOf } =
       require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
     const errorRoute = declaredRouteOf(model)

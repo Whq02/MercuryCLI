@@ -7,8 +7,11 @@ import { readRegularFileSync } from '../../../utils/regularFile.js'
 import type { FileReadingLimits } from '../../../utils/fileReadLimits.js'
 import type { Output, CropBox, LaneResult } from './schema.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { createChildAbortController } from '../../../utils/abortController.js'
+import { withDeadline } from '../../../utils/deadline.js'
 
 const IMAGE_TOKEN_BUDGET_DEFAULT = 25000
+const IMAGE_CAPTION_OCR_CEILING_MS = 3_000
 
 type ImageOutput = Extract<Output, { type: 'image' }>
 
@@ -143,6 +146,25 @@ export function imageReadCaptions(
   return captions
 }
 
+export async function recogniseImageCaption(bytes: Buffer, parent: AbortController): Promise<string | null> {
+  const reading = createChildAbortController(parent)
+  try {
+    const ocr = await withDeadline(
+      recogniseImage(bytes, reading.signal).catch(error => {
+        if (parent.signal.aborted) throw error
+        passedOver(error)
+        return null
+      }),
+      IMAGE_CAPTION_OCR_CEILING_MS,
+      () => null,
+      { signal: parent.signal },
+    )
+    return ocr && ocr.ok && ocr.text.trim() ? renderOcr(ocr) : null
+  } finally {
+    reading.abort()
+  }
+}
+
 export async function readImageLane(
   resolvedPath: string,
   keyPath: string,
@@ -154,8 +176,8 @@ export async function readImageLane(
   const { cropped, ...data } = await readImageWithTokenBudget(resolvedPath, limits.maxTokens, undefined, crop, scale)
   if (!isRemotePath(keyPath)) context.nestedMemoryAttachmentTriggers?.add(keyPath)
   const captions = imageReadCaptions(resolvedPath, data.file.dimensions, cropped, scale)
-  const ocr = await recogniseImage(Buffer.from(data.file.base64, 'base64'), context.abortController.signal)
-  if (ocr.ok && ocr.text.trim()) captions.push(renderOcr(ocr))
+  const ocr = await recogniseImageCaption(Buffer.from(data.file.base64, 'base64'), context.abortController)
+  if (ocr !== null) captions.push(ocr)
   if (captions.length) data.file.caption = captions.join('\n')
   return { data }
 }

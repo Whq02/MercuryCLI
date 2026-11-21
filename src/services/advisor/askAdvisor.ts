@@ -11,7 +11,7 @@ import {
   renderAgentDigest,
   type AdvisorRoad,
 } from './advisorNote.js'
-import { advisorDispatchEffort, advisorSeatRefusal, readAdvisorSettings, resolveAdvisorModel } from '../../utils/advisor/advisorSettings.js'
+import { advisorDispatchEffort, advisorSeatRefusal, readAdvisorSettings, resolveAdvisorModel } from './advisorSettings.js'
 
 export const ADVISOR_QUESTION_MAX_CHARS = 4000
 

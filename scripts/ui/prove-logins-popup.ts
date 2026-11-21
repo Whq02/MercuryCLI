@@ -22,7 +22,7 @@ async function stub(path: string, overrides: Record<string, unknown>): Promise<v
 }
 await stub('../../src/context/notifications.js', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
 await stub('../../src/hooks/useCatalogueEpoch.js', { useCatalogueEpoch: () => 0 })
-await stub('../../src/utils/model/computedDefault.js', { mostRecentSignInFamily: () => undefined })
+await stub('../../src/services/model/computedDefault.js', { mostRecentSignInFamily: () => undefined })
 await stub('../../src/utils/browser.js', { openBrowser: async () => true })
 let estate = 'absent'
 const ids = ['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'local', 'openai-compat', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'melious', 'orcarouter', 'cerebras', 'fireworks', 'qwen']

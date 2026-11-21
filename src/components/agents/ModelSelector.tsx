@@ -4,7 +4,7 @@ import { Box, Text } from '../../ink.js'
 import {
   agentModelPickOutcome,
   getAgentModelPickerRows,
-} from '../../utils/model/agentModelPicker.js'
+} from '../../services/model/agentModelPicker.js'
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { AMBER } from '../mercuryPalette.js'
 import { Select } from '../CustomSelect/index.js'

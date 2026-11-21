@@ -28,7 +28,7 @@ export interface MainLoopIdentityInput {
 
 function connectHomeWords(route: CallModelRoute | string): string {
   const { subModelConnectHome } =
-    require('../../../utils/model/subModelSlots.js') as typeof import('../../../utils/model/subModelSlots.js')
+    require('../../model/subModelSlots.js') as typeof import('../../model/subModelSlots.js')
   const home = subModelConnectHome(route)
   return home.command ?? home.note
 }

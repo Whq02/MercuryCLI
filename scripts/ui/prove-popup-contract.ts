@@ -518,10 +518,10 @@ for (const cols of [80, 120]) {
 
 const bootFactsModule = await import('../../src/utils/bootCardFacts.ts')
 mock.module('../../src/utils/bootCardFacts.ts', () => ({ ...bootFactsModule, workedInProjects: () => options.map(row => ({ dir: '/fixture/' + row.value, base: 'ground-' + row.label, ageMs: 0 })) }))
-const subModelsModule = await import('../../src/utils/model/subModelSlots.ts')
+const subModelsModule = await import('../../src/services/model/subModelSlots.ts')
 const registryEntries = options.map(row => ({ kind: 'model', source: 'openai', modelId: 'fixture-' + row.value, displayName: row.label, state: 'selectable', availability: 'ready', description: 'Fixture model' }))
 let subPicked = ''
-mock.module('../../src/utils/model/subModelSlots.ts', () => ({ ...subModelsModule, composeSubModelRegistry: () => ({ families: [{ source: 'openai', label: 'OpenAI', credentialed: true, credentialLabel: 'fixture' }], entries: registryEntries }), resolveSubModel: () => ({ origin: 'unset', model: '' }), setSubModel: (_container: string, value: string | null) => { subPicked = value ?? 'unset'; return { ok: true, receipt: 'Fixture selection saved' } } }))
+mock.module('../../src/services/model/subModelSlots.ts', () => ({ ...subModelsModule, composeSubModelRegistry: () => ({ families: [{ source: 'openai', label: 'OpenAI', credentialed: true, credentialLabel: 'fixture' }], entries: registryEntries }), resolveSubModel: () => ({ origin: 'unset', model: '' }), setSubModel: (_container: string, value: string | null) => { subPicked = value ?? 'unset'; return { ok: true, receipt: 'Fixture selection saved' } } }))
 const { GroundPicker } = await import('../../src/components/concourse/GroundPicker.tsx')
 const { SubModelPicker } = await import('../../src/components/SubModelPicker.tsx')
 const { LocalSetupDialog, LOCAL_SETUP_POPUP_HINT } = await import('../../src/components/LocalSetupDialog.tsx')

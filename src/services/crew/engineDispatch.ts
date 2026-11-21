@@ -47,7 +47,7 @@ import { huggingfaceLiveModel, refreshHuggingfaceCatalogue } from '../providers/
 import { isLocalModelId, localRecordFor, localWireId, LOCAL_MODEL_PREFIX } from '../providers/local/localCatalogue.js'
 import { refreshLocalDiscovery } from '../providers/local/localDiscovery.js'
 import { getEngineModel, parseUserSpecifiedModel, parseUserSpecifiedModelRaw } from '../../utils/model/model.js'
-import { bareFamilyListWords, bareFamilyWordOf, bareFamilyWordOfRoute, bareModelIdOf } from '../../utils/model/bareFamilyWords.js'
+import { bareFamilyListWords, bareFamilyWordOf, bareFamilyWordOfRoute, bareModelIdOf } from '../model/bareFamilyWords.js'
 import { isModelAlias } from '../../utils/model/aliases.js'
 import { isModelFamilyWord, modelFamilyWords } from '../../utils/model/modelFamilies.js'
 import { canonicalWireModelId, classifyModelRoute, declaredRouteOf, providerDisplayName } from '../providers/routeLaw.js'

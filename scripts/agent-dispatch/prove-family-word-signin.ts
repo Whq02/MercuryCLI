@@ -63,7 +63,7 @@ console.log('============================================================')
 
 ;(await import('../../src/utils/config.ts')).enableConfigs()
 const engine = await import('../../src/services/crew/engineDispatch.ts')
-const words = await import('../../src/utils/model/bareFamilyWords.ts')
+const words = await import('../../src/services/model/bareFamilyWords.ts')
 const discovery = await import('../../src/services/providers/providerDiscovery.ts')
 const xai = await import('../../src/services/providers/xai/xaiCatalogue.ts')
 const meta = await import('../../src/services/providers/meta/metaCatalogue.ts')
@@ -92,7 +92,7 @@ const resetAll = (): void => {
 
 section('§1 the table: every family word names its pinned default and reads its list state')
 {
-  const table = words.BARE_FAMILY_WORDS as ReadonlyArray<Partial<import('../../src/utils/model/bareFamilyWords.ts').BareFamilyWord> & { word: string }>
+  const table = words.BARE_FAMILY_WORDS as ReadonlyArray<Partial<import('../../src/services/model/bareFamilyWords.ts').BareFamilyWord> & { word: string }>
   const pinOf = (word: string): { id: string; displayName: string } | undefined => {
     const entry = table.find(row => row.word === word)
     return typeof entry?.pinnedDefault === 'function' ? entry.pinnedDefault() : undefined
