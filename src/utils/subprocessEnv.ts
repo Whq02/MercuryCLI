@@ -99,20 +99,24 @@ export function toolShellEnv(
   platform: string = process.platform,
 ): NodeJS.ProcessEnv {
   const keyOf = (key: string): string => toolShellEnvKey(key, platform)
+  const oldPwdKey = keyOf('OLDPWD')
   const child: NodeJS.ProcessEnv = {}
   const names = new Map<string, string>()
   for (const [key, value] of Object.entries(env)) {
-    if (value === undefined || isPlatformAskpassVar(key, value, platform)) continue
-    const previous = names.get(keyOf(key))
+    const folded = keyOf(key)
+    if (value === undefined || folded === oldPwdKey || isPlatformAskpassVar(key, value, platform)) continue
+    const previous = names.get(folded)
     if (previous !== undefined && previous !== key) delete child[previous]
     child[key] = value
-    names.set(keyOf(key), key)
+    names.set(folded, key)
   }
   for (const [key, value] of Object.entries(overrides)) {
-    const previous = names.get(keyOf(key))
+    const folded = keyOf(key)
+    if (folded === oldPwdKey) continue
+    const previous = names.get(folded)
     if (previous !== undefined && previous !== key) delete child[previous]
     child[key] = value
-    names.set(keyOf(key), key)
+    names.set(folded, key)
   }
   const defaults = { ...TOOL_SHELL_DEFAULTS, ...extraToolShellDefaults(platform) }
   for (const [key, value] of Object.entries(defaults)) {
