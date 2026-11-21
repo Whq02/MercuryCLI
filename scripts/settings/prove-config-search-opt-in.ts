@@ -28,9 +28,10 @@ const open = async () => {
 try {
   assert.equal(duckduckgoScrapingEnabled(), true)
   let m = await open()
-  assert.match(m.screen(), /DuckDuckGo page scraping\s+on/)
-  assert.ok(m.screen().includes('terms'))
-  assert.ok(m.screen().includes('off keeps general queries to the official sources and your keys'))
+  const screenBefore = m.screen()
+  assert.match(screenBefore, /DuckDuckGo page scraping\s+on/)
+  assert.ok(screenBefore.includes('terms'), `src/components/Settings/Config.tsx DuckDuckGo row missing 'terms' notice: ${screenBefore.slice(0, 160)}`)
+  assert.ok(screenBefore.includes('off keeps general queries to the official sources and your keys'), `src/components/Settings/Config.tsx DuckDuckGo row missing off-meaning description: ${screenBefore.slice(0, 160)}`)
   m.push(KEY.right)
   await waitFor(() => !duckduckgoScrapingEnabled(), 4000)
   assert.match(m.screen(), /DuckDuckGo page scraping\s+off/)
