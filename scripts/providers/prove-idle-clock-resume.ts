@@ -18,7 +18,10 @@ if (process.argv[2] === '--child') {
     process.exit(fired === null ? 0 : 1)
   })
   console.log('READY')
-  setTimeout(() => process.exit(2), 8000)
+  setTimeout(() => {
+    console.log('child watchdog: no byte reached the child within 8 seconds of READY; check the SIGSTOP, write and SIGCONT steps of the parent branch in this file')
+    process.exit(2)
+  }, 8000)
 } else {
   const clock = Date.now
   let skew = 0
@@ -29,11 +32,11 @@ if (process.argv[2] === '--child') {
     watchdog.noteActivity()
     skew = 600000
     await delay(350)
-    assert.equal(watchdog.fired(), null, 'wall-clock jumps do not consume idle time')
+    assert.equal(watchdog.fired(), null, 'wall-clock jumps do not consume idle time: createStreamIdleWatchdog in src/services/providers/streamIdleBudget.ts must measure silence with performance.now, not Date.now')
   } finally { Date.now = clock; watchdog.stop() }
   const stalled = createStreamIdleWatchdog({ timeoutMs: 100 })
   await delay(150)
-  assert(stalled.fired() !== null, 'real silence still expires')
+  assert(stalled.fired() !== null, 'real silence still expires: onStreamIdleDeadline in createStreamIdleWatchdog (src/services/providers/streamIdleBudget.ts) must set its fire once silentMs reaches timeoutMs')
   stalled.stop()
   if (process.platform !== 'win32') {
     let client: net.Socket | undefined
@@ -53,7 +56,7 @@ if (process.argv[2] === '--child') {
       process.kill(child.pid, 'SIGCONT')
       const exit = await child.exited
       await reading
-      assert.equal(exit, 0, output)
+      assert.equal(exit, 0, `${output}child exit ${exit}: 1 means the idle watchdog fired before the buffered byte was read after SIGCONT, so onStreamIdleDeadline in createStreamIdleWatchdog (src/services/providers/streamIdleBudget.ts) must re-queue itself when it wakes more than 100 ms late; 2 means no byte reached the child`)
     } finally {
       if (child.exitCode === null) { process.kill(child.pid, 'SIGCONT'); child.kill() }
       client?.destroy()
