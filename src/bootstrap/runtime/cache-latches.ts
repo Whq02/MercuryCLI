@@ -6,7 +6,6 @@ export class CacheLatchOwner {
     string,
     { key: string | null; value: string | null; byKey?: Map<string, string | null> }
   > = new Map()
-  lastEmittedDate: string | null = null
 
   clearBetaHeaderLatches(): void {
     this.cacheEditingHeaderLatched = null
