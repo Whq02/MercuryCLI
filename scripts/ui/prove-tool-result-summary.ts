@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { summarizeToolResult, MAX_INLINE_SUMMARY } from '../../src/utils/toolResultSummary.js'
+import { summarizeToolResult, MAX_INLINE_SUMMARY } from '../../src/tools/toolResultSummary.js'
 
 let fail = 0
 const t = (name: string, ok: boolean, detail = '') => {

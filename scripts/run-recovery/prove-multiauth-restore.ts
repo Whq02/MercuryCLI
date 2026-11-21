@@ -22,7 +22,7 @@ const { restoreConversationModelFromMessages } = await import(
   '../../src/services/resume/sessionRestore.ts'
 )
 const { buildAwayRecap } = await import('../../src/utils/cockpit/awaySummary.ts')
-const { summarizeToolResult } = await import('../../src/utils/toolResultSummary.ts')
+const { summarizeToolResult } = await import('../../src/tools/toolResultSummary.ts')
 const { SYNTHETIC_MODEL } = await import('../../src/utils/messages/factories.ts')
 import type { Message } from '../../src/types/message.ts'
 

@@ -19,7 +19,7 @@ console.log('============================================================')
 delete process.env.MERCURY_EFFORT_LEVEL
 delete process.env.MERCURY_WORKFLOW_ROUTING
 
-const appearance = await import('../../src/utils/profile/appearanceSnapshot.js')
+const appearance = await import('../../src/components/mercury-ui/appearanceSnapshot.js')
 const composer = await import('../../src/prompt/composer.js')
 
 section('§5 — composition order: identity → operator/dynamic → wrapper → mode')

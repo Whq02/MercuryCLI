@@ -54,7 +54,7 @@ try {
   const { activeSourceUsage } = await import('../../src/services/providers/providerUsage.ts')
   const usage = activeSourceUsage({ model }) as ReturnType<typeof activeSourceUsage> & { rental?: { spendUSD: number; price: number; id: string } }
   check('F44R-23: active spend resolves the seated rental', usage.rental?.id === 'current' && usage.rental.price === 3.99 && Math.abs(usage.rental.spendUSD - 0.399) < 0.01, JSON.stringify(usage.rental))
-  const { formatCost } = await import('../../src/utils/spendSpelling.ts')
+  const { formatCost } = await import('../../src/services/providers/spendSpelling.ts')
   check('provider sub-cent formatting is unchanged', formatCost(0.0007) === '$0.0007')
 } finally { mounted?.unmount(); releaseFocusedSessionConnector(); removeHostRecord('old'); removeHostRecord('current') }
 process.exitCode = failures ? 1 : 0
