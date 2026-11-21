@@ -122,6 +122,43 @@ try {
   await checkSessionReads()
   await checkRunReads()
   await checkClockAndScroll()
+  const { createMcpRosterStore } = await import('../../src/commands/mcp/route.js')
+  let names: string[] = []
+  let changed = () => {}
+  const roster = createMcpRosterStore({
+    mcpRoster: () => ({ clients: names.map(name => ({ name, type: 'connected' as const })) }),
+    subscribeModel: listener => { changed = listener; return () => { changed = () => {} } },
+  })
+  assert.deepEqual(stable('empty MCP roster', roster.getSnapshot), [])
+  names = ['first']
+  const stopRoster = roster.subscribe(() => {})
+  try {
+    const firstRoster = stable('MCP roster changed before attach', roster.getSnapshot)
+    assert.equal(firstRoster[0]?.name, 'first')
+    names = ['second']
+    changed()
+    const nextRoster = stable('MCP roster after notification', roster.getSnapshot)
+    assert.notEqual(nextRoster, firstRoster)
+    assert.equal(nextRoster[0]?.name, 'second')
+  } finally { stopRoster() }
+
+  const { latestWarningSnapshot, mintImmediateReceipt, subscribeWarningReceipts } = await import('../../src/utils/model/seatReceipts.js')
+  const initialWarning = stable('boot warning before receipt', latestWarningSnapshot)
+  mintImmediateReceipt('test warning', 'warning')
+  const warning = stable('queued boot warning', latestWarningSnapshot)
+  assert.notEqual(warning, initialWarning)
+  assert.equal(warning?.receipt.text, 'test warning')
+  let warnings = 0
+  const stopWarnings = subscribeWarningReceipts(() => { warnings++ })
+  try {
+    assert.equal(warnings, 1)
+    mintImmediateReceipt('test information')
+    assert.equal(stable('warning after information', latestWarningSnapshot), warning)
+    mintImmediateReceipt('another test warning', 'warning')
+    assert.equal(warnings, 2)
+    assert.notEqual(stable('next boot warning', latestWarningSnapshot), warning)
+  } finally { stopWarnings() }
+
   const { createChatScreenStore, recordChatConsentResolved, selectResolvedConsentCount } = await import('../../src/screens/chat/chatStore.js')
   const chat = createChatScreenStore()
   const otherChat = createChatScreenStore()

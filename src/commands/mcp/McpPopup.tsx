@@ -6,10 +6,10 @@ import { useModalOrTerminalSize } from '../../context/modalContext.js'
 import { useClaim, useLayoutPublish } from '../../hooks/effects.js'
 import { useSessionConnector } from '../../hooks/useSessionConnector.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import type { EngineConnectorV1, McpRosterEntryV1, McpToolEntryV1 } from '../../services/engine-connector/types.js'
+import type { McpRosterEntryV1, McpToolEntryV1 } from '../../services/engine-connector/types.js'
 import { isMcpOrgan } from '../../services/mcp/membership.js'
 import { MCP_TOOLS_ANSWER_BYTES, MCP_TOOL_DESCRIPTION_CHARS } from '../../services/mcp/toolsAnswer.js'
-import { mcpRosterRowsFailedFirst } from './route.js'
+import { createMcpRosterStore, mcpRosterRowsFailedFirst } from './route.js'
 import { InteractiveRow } from '../../components/mercury-ui/InteractiveRow.js'
 import { ProductLockup } from '../../components/mercury-ui/components.js'
 import { panelWidth, scrolledWindow } from '../../components/mercury-ui/geometry.js'
@@ -26,37 +26,6 @@ import { commandPopupClaim, growCommandPopup, type CommandPopupShape } from '../
 import { wrapPlain } from '../../utils/cockpit/wrapPlain.js'
 import { stripTerminalControls } from '../../utils/stringUtils.js'
 
-const EMPTY_MCP_CLIENTS: readonly McpRosterEntryV1[] = Object.freeze([])
-
-function readMcpClients(connector: EngineConnectorV1): readonly McpRosterEntryV1[] {
-  const clients = connector.mcpRoster().clients
-  return clients.length === 0 ? EMPTY_MCP_CLIENTS : clients
-}
-
-function createMcpRosterStore(connector: EngineConnectorV1): {
-  subscribe: (listener: () => void) => () => void
-  getSnapshot: () => readonly McpRosterEntryV1[]
-} {
-  let current = readMcpClients(connector)
-  return {
-    getSnapshot: () => current,
-    subscribe: (listener: () => void) => {
-      const refresh = (): void => {
-        const next = readMcpClients(connector)
-        if (!Object.is(next, current)) {
-          current = next
-          listener()
-        }
-      }
-      const unsubscribe = connector.subscribeModel(refresh)
-      const afterAttach = readMcpClients(connector)
-      if (!Object.is(afterAttach, current)) {
-        current = afterAttach
-      }
-      return unsubscribe
-    },
-  }
-}
 const WIDTH = 78
 const MCP_POPUP_HINT = '↑↓ move · ↵ act · / filter · esc or click outside closes'
 const MCP_TOOLS_HINT = '↑↓ move · ↵ detail · / filter · esc back to servers'
