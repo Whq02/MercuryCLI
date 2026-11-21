@@ -7,12 +7,15 @@ import { join } from 'node:path'
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'tool-shell-oldpwd-')))
 const proj = join(scratch, 'proj')
 const home = join(scratch, 'home')
-mkdirSync(proj, { recursive: true })
+const altDir = join(proj, 'alt')
+const altSub = join(altDir, 'sub')
+mkdirSync(altSub, { recursive: true })
 mkdirSync(join(home, '.ssh'), { recursive: true })
 process.env.HOME = home
 process.env.OLDPWD = home
+process.env.CDPATH = `.:${home}`
 
-const { toolShellEnv } = await import('../../src/utils/subprocessEnv.js')
+const { loginExportsCarried, toolShellEnv, withLoginExports } = await import('../../src/utils/subprocessEnv.js')
 const { exec, setCwd } = await import('../../src/utils/Shell.js')
 const { endEngineSessionFor, resolveShellEngine, runEngineCommand } = await import('../../src/utils/shell/engineSession.js')
 setCwd(proj)
@@ -44,13 +47,18 @@ try {
   console.log(' the tool shell starts with no inherited OLDPWD')
   console.log('============================================================')
 
-  const posixEnv = toolShellEnv({ OLDPWD: home, PATH: '/usr/bin' }, { OLDPWD: home }, 'darwin')
-  check('toolShellEnv drops OLDPWD from env and overrides on posix', !('OLDPWD' in posixEnv), JSON.stringify(posixEnv.OLDPWD))
+  const posixEnv = toolShellEnv({ OLDPWD: home, CDPATH: `.:${home}`, PATH: '/usr/bin' }, { OLDPWD: home, CDPATH: `.:${home}` }, 'darwin')
+  check('toolShellEnv drops OLDPWD and CDPATH from env and overrides on posix', !('OLDPWD' in posixEnv) && !('CDPATH' in posixEnv), JSON.stringify({ OLDPWD: posixEnv.OLDPWD, CDPATH: posixEnv.CDPATH }))
 
-  const winEnv = toolShellEnv({ oldpwd: home, PATH: 'C:\\Windows' }, { OldPwd: home }, 'win32')
-  const winHasOldPwd = Object.keys(winEnv).some(key => key.toUpperCase() === 'OLDPWD')
-  check('toolShellEnv drops OLDPWD case-insensitively on win32', !winHasOldPwd, JSON.stringify(Object.keys(winEnv).filter(key => key.toUpperCase() === 'OLDPWD')))
+  const winEnv = toolShellEnv({ oldpwd: home, cdpath: `.:${home}`, PATH: 'C:\\Windows' }, { OldPwd: home, CdPath: `.:${home}` }, 'win32')
+  const winHasStripped = Object.keys(winEnv).some(key => key.toUpperCase() === 'OLDPWD' || key.toUpperCase() === 'CDPATH')
+  check('toolShellEnv drops OLDPWD and CDPATH case-insensitively on win32', !winHasStripped, JSON.stringify(Object.keys(winEnv).filter(key => key.toUpperCase() === 'OLDPWD' || key.toUpperCase() === 'CDPATH')))
 
+  const carriedLogin = loginExportsCarried({ CDPATH: `.:${home}`, OLDPWD: home, CUSTOM_LOGIN_VAR: '1' })
+  check('loginExportsCarried drops CDPATH and OLDPWD while keeping normal exports', !('CDPATH' in carriedLogin) && !('OLDPWD' in carriedLogin) && carriedLogin.CUSTOM_LOGIN_VAR === '1', JSON.stringify(carriedLogin))
+
+  const mergedLogin = withLoginExports({ PATH: '/usr/bin' }, { CDPATH: `.:${home}`, OLDPWD: home, CUSTOM_LOGIN_VAR: '1' }, [], 'darwin')
+  check('withLoginExports drops CDPATH and OLDPWD while carrying normal exports', !('CDPATH' in mergedLogin) && !('OLDPWD' in mergedLogin) && mergedLogin.CUSTOM_LOGIN_VAR === '1', JSON.stringify(mergedLogin))
   const lastLine = (text: string): string => text.split(/\r?\n/).map(line => line.trim()).filter(Boolean).at(-1) ?? ''
 
   const bareReturn = await run('cd -; pwd')
@@ -66,6 +74,15 @@ try {
   const realReturn = await run(`cd ${home}; cd -; pwd`)
   check('a real return (cd <home>; cd -; pwd) still returns to the project', lastLine(realReturn.stdout) === proj, `stdout=${JSON.stringify(realReturn.stdout)} expected=${JSON.stringify(proj)}`)
 
+  const cdpathProbe = await run('cd .ssh; pwd')
+  check('cd .ssh; pwd stays in the project when CDPATH=.:<home> is in Mercury env', lastLine(cdpathProbe.stdout) === proj, `stdout=${JSON.stringify(cdpathProbe.stdout)} expected=${JSON.stringify(proj)}`)
+
+  const cdpathWrite = await run('cd .ssh; echo k >> authorized_keys; pwd')
+  const cdpathLeaked = existsSync(join(home, '.ssh', 'authorized_keys'))
+  check('cd .ssh; echo k >> authorized_keys writes no key in <home>/.ssh under inherited CDPATH', !cdpathLeaked && lastLine(cdpathWrite.stdout) === proj, `leaked=${cdpathLeaked} stdout=${JSON.stringify(cdpathWrite.stdout)}`)
+
+  const inlineCdpath = await run(`CDPATH=${altDir} cd sub; pwd`)
+  check('in-line CDPATH=<x> cd y still works inside the same line', lastLine(inlineCdpath.stdout) === altSub, `stdout=${JSON.stringify(inlineCdpath.stdout)} expected=${JSON.stringify(altSub)}`)
   const engine = resolveShellEngine('brush')
   check('the bundled shell engine is available for session checks', engine.engine === 'brush', engine.engine === 'brush' ? engine.binaryPath : engine.reason)
   if (engine.engine === 'brush') {
@@ -99,6 +116,12 @@ try {
 
       const engineRealReturn = await runEngine(`cd ${home}; cd -; pwd`, proj)
       check('engine single-call real return (cd <home>; cd -; pwd) still returns to the project', lastLine(engineRealReturn.stdout) === proj, `stdout=${JSON.stringify(engineRealReturn.stdout)} expected=${JSON.stringify(proj)}`)
+
+      const engineSetCdpath = await runEngine(`export CDPATH=.:${home}; echo ok`, proj)
+      check('engine call 5 sets CDPATH in the session', lastLine(engineSetCdpath.stdout) === 'ok', `stdout=${JSON.stringify(engineSetCdpath.stdout)}`)
+
+      const engineAfterCdpath = await runEngine('echo "cdpath=${CDPATH:-unset}"; cd .ssh; pwd', proj)
+      check('engine call 6 starts with CDPATH unset and cd .ssh stays in project', engineAfterCdpath.stdout.includes('cdpath=unset') && lastLine(engineAfterCdpath.stdout) === proj, `stdout=${JSON.stringify(engineAfterCdpath.stdout)} expected=${JSON.stringify(proj)}`)
     } finally {
       await endEngineSessionFor(owner)
     }

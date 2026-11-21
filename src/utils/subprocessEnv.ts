@@ -99,12 +99,12 @@ export function toolShellEnv(
   platform: string = process.platform,
 ): NodeJS.ProcessEnv {
   const keyOf = (key: string): string => toolShellEnvKey(key, platform)
-  const oldPwdKey = keyOf('OLDPWD')
+  const dropped = new Set([keyOf('OLDPWD'), keyOf('CDPATH')])
   const child: NodeJS.ProcessEnv = {}
   const names = new Map<string, string>()
   for (const [key, value] of Object.entries(env)) {
     const folded = keyOf(key)
-    if (value === undefined || folded === oldPwdKey || isPlatformAskpassVar(key, value, platform)) continue
+    if (value === undefined || dropped.has(folded) || isPlatformAskpassVar(key, value, platform)) continue
     const previous = names.get(folded)
     if (previous !== undefined && previous !== key) delete child[previous]
     child[key] = value
@@ -112,7 +112,7 @@ export function toolShellEnv(
   }
   for (const [key, value] of Object.entries(overrides)) {
     const folded = keyOf(key)
-    if (folded === oldPwdKey) continue
+    if (dropped.has(folded)) continue
     const previous = names.get(folded)
     if (previous !== undefined && previous !== key) delete child[previous]
     child[key] = value
@@ -189,7 +189,7 @@ function scrub(clone: NodeJS.ProcessEnv, scrubForCI: boolean, isolateCredentials
 }
 
 const SHELL_KEEPS_TO_ITSELF =
-  /^(?:_|SHLVL|PWD|OLDPWD|SHELLOPTS|BASHOPTS|BASHPID|PS[0-4]|PSVAR|PROMPT[2-4]?|PROMPT_COMMAND|PROMPT_DIRTRIM|PROMPT_EOL_MARK|RPROMPT2?|RPS[12]|SPROMPT|HIST\w*|SAVEHIST|(?:BASH|ZSH)(?:_\w*)?)$/
+  /^(?:_|SHLVL|PWD|OLDPWD|CDPATH|SHELLOPTS|BASHOPTS|BASHPID|PS[0-4]|PSVAR|PROMPT[2-4]?|PROMPT_COMMAND|PROMPT_DIRTRIM|PROMPT_EOL_MARK|RPROMPT2?|RPS[12]|SPROMPT|HIST\w*|SAVEHIST|(?:BASH|ZSH)(?:_\w*)?)$/
 
 export function loginExportsCarried(exported: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const carried: NodeJS.ProcessEnv = {}
@@ -211,11 +211,12 @@ export function withLoginExports(
   platform: string = process.platform,
 ): NodeJS.ProcessEnv {
   if (carried === undefined) return env
-  const held = new Set([...Object.keys(env), ...scrubbed].map(key => toolShellEnvKey(key, platform)))
+  const held = new Set([...Object.keys(env), ...scrubbed, 'OLDPWD', 'CDPATH'].map(key => toolShellEnvKey(key, platform)))
   const gained: NodeJS.ProcessEnv = {}
   for (const [name, value] of Object.entries(carried)) {
     if (isPlatformAskpassVar(name, value, platform)) continue
-    if (toolShellEnvKey(name, platform) !== 'PATH' && !held.has(toolShellEnvKey(name, platform))) gained[name] = value
+    const folded = toolShellEnvKey(name, platform)
+    if (folded !== 'PATH' && !held.has(folded)) gained[name] = value
   }
   const path = loginPathOverride(env.PATH ?? '', carried, platform)
   if (path !== undefined && path !== (env.PATH ?? '')) gained.PATH = path
