@@ -12,7 +12,6 @@
 # gate-watch: src/state/crewLedger.ts
 # gate-watch: src/services/concourse/workerModels.ts
 # gate-watch: src/services/engine-connector/*
-# gate-watch: src/state/crewLedger.ts
 # gate-watch: src/tools/AgentTool/*
 # gate-watch: src/utils/*
 # gate-watch: src/utils/accounts/signInLedger.ts

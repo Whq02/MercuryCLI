@@ -2,7 +2,6 @@
 # gate-class: pure
 # gate-watch: README.md
 # gate-watch: src/services/providers/**
-# gate-watch: src/services/providers/**
 # gate-watch: src/tasks/LocalAgentTask/*
 # gate-watch: src/utils/*
 set -u
