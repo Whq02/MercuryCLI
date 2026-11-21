@@ -23,6 +23,7 @@ export const CONTROL_FRAME_CAP = 1 << 20
 type DaemonErrorCode =
   | 'ENOCONN'
   | 'ETIMEOUT'
+  | 'EUNCONFIRMED'
   | 'ESTARTING'
   | 'ENOJOB'
   | 'EALIVE'

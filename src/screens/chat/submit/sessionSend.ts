@@ -54,10 +54,11 @@ function handBackRefusedLine(deps: SubmitDeps, line: SubmitLine, receipt: SendRe
   const { addNotification, setInputValue, setInputMode, setPastedContents, armedHandedBackRef } = deps;
   const { input, seatPastes } = line;
   if (receipt.state !== 'refused') {
-    if (receipt.note !== undefined && receipt.note !== '') {
+    const note = receipt.state === 'pending' ? receipt.detail : receipt.note;
+    if (note !== undefined && note !== '') {
       addNotification({
         key: 'focused-session-send-note',
-        text: receipt.note,
+        text: note,
         priority: 'high',
         timeoutMs: RECEIPT_TIMEOUT_MS,
       });

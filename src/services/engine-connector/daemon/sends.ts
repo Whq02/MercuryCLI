@@ -141,9 +141,10 @@ export class SendsPart {
   private retireSendsLostWithRunner(queue: SessionFactsV1['queue'], recoveredCommandIds: readonly string[] = []): void {
     const listed = new Set<string>(recoveredCommandIds.filter(id => typeof id === 'string'))
     for (const entry of queue) if (typeof entry.uuid === 'string') listed.add(entry.uuid)
-    this.sends = this.sends.map(s => s.state === 'queued' && listed.has(s.clientMessageId) ? { ...s, crossedRunner: true as const } : s)
+    const carried = (s: SeatSend): boolean => s.state === 'queued' || s.state === 'unconfirmed'
+    this.sends = this.sends.map(s => carried(s) && listed.has(s.clientMessageId) ? { ...s, crossedRunner: true as const } : s)
     const lost = this.sends.filter(
-      s => s.state === 'queued' && s.withdrawing !== true && !isNoticeKey(s.clientMessageId) && !listed.has(s.clientMessageId),
+      s => carried(s) && s.withdrawing !== true && !isNoticeKey(s.clientMessageId) && !listed.has(s.clientMessageId),
     )
     if (lost.length === 0) return
     const gone = new Set(lost.map(s => s.clientMessageId))
@@ -191,7 +192,7 @@ export class SendsPart {
     }
     for (const s of this.sends) {
       if (landed.has(s.clientMessageId)) continue
-      if (now - s.sentAtMs > ECHO_RETIRE_MS && s.state !== 'queued') {
+      if (now - s.sentAtMs > ECHO_RETIRE_MS && (s.state === 'delivered' || s.state === 'taken')) {
         landed.add(s.clientMessageId)
         continue
       }
@@ -258,6 +259,10 @@ export class SendsPart {
   withdrawn(clientMessageId: string): void {
     this.drop(clientMessageId)
     if (this.sends.length === 0) this.textRetiredRowUuids.clear()
+  }
+
+  unconfirmedDraft(key: string): SeatSend | undefined {
+    return this.sends.find(s => s.state === 'unconfirmed' && s.draftKey === key)
   }
 
   sendOf(clientMessageId: string): SeatSend | undefined {
