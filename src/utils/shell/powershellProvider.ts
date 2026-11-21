@@ -17,6 +17,8 @@ const PLAIN_RENDER_PRELUDE =
 export const UTF8_OUTPUT_PRELUDE =
   "try { $PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'; $PSDefaultParameterValues['Set-Content:Encoding'] = 'utf8'; $PSDefaultParameterValues['Add-Content:Encoding'] = 'utf8'; [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false) } catch {}\n"
 
+const CLEAR_LOCATION_HISTORY_PRELUDE =
+  'try { & { for ($i = 0; $i -lt 25; $i++) { Set-Location -LiteralPath . } } } catch {}\n'
 function cwdFileName(id: number | string): string {
   return `mercury-cwd-${id}`
 }
@@ -39,7 +41,7 @@ export function createPowerShellProvider(shellPath: string): ShellProvider {
 
     async buildExecCommand(command: string, opts: BuildExecCommandOptions) {
       const cwdFileInShell = posixPath.join(tmpdir(), cwdFileName(opts.id))
-      const assembled = PLAIN_RENDER_PRELUDE + UTF8_OUTPUT_PRELUDE + command + buildTrailer(cwdFileInShell)
+      const assembled = PLAIN_RENDER_PRELUDE + UTF8_OUTPUT_PRELUDE + CLEAR_LOCATION_HISTORY_PRELUDE + command + buildTrailer(cwdFileInShell)
       return { commandString: assembled, cwdFilePath: cwdFileInShell }
     },
 
