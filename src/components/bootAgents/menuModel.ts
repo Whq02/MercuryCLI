@@ -25,7 +25,7 @@ export function agentsFaceBase({ counts, mainModel, wordGlow, workspaceDir }: { 
     summaryRows: agentFaceSummaryRows(counts),
     environment,
     glowWord: wordGlow,
-    moreHint: '… (the trail continues — a taller terminal shows it whole)',
+    moreHint: '… (the trail continues — taller terminal)',
   };
   return base;
 }

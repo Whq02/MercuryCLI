@@ -31,7 +31,7 @@ export function saturnMenuOf({ mainModel, saturnSummaryRows, facts, nowMs, wordG
     summaryRows: saturnSummaryRows(facts, nowMs),
     environment,
     glowWord: wordGlow,
-    moreHint: '… (the trail continues — a taller terminal shows it whole)',
+    moreHint: '… (the trail continues — taller terminal)',
   };
   if (form !== null) {
     const previewNow = givenNow ?? Date.now();

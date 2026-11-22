@@ -196,7 +196,7 @@ export function composeSaturn(
     summaryRows: saturnSummaryRows(facts, FIXED_NOW),
     environment: STILL_ENVIRONMENT,
     statusRight: saturnStatusLine(facts),
-    moreHint: '… (the trail continues — a taller terminal shows it whole)',
+    moreHint: '… (the trail continues — taller terminal)',
     legend: saturnLegendOf({ busy: false }),
     detailOverride:
       selected !== null ? saturnDetailLines(selected, FIXED_NOW, fixtureReceiptsOf(selected)) : saturnEmptyDetailLines(facts),
@@ -244,7 +244,7 @@ export function composeSaturnForm(
     summaryRows: saturnSummaryRows(FIXTURE_FACTS, FIXED_NOW),
     environment: STILL_ENVIRONMENT,
     statusRight: 'the seven facts — ↵ edits a row',
-    moreHint: '… (the trail continues — a taller terminal shows it whole)',
+    moreHint: '… (the trail continues — taller terminal)',
     legend: saturnFormLegendOf({ prompt: false, pick: false }),
     detailOverride: saturnFormDetailLines(form, compiled, preflight, FIXED_NOW),
   }

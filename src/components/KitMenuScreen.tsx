@@ -448,7 +448,7 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
       title: 'mcps & skills',
       summaryTitle: 'NEXT SESSION',
       summaryRows: kitSummaryRows(kitCounts(listRows, states)),
-      moreHint: '… (the trail continues — a taller terminal shows it whole)',
+      moreHint: '… (the trail continues — taller terminal)',
       environment,
       statusRight,
       glowWord: wordGlow,

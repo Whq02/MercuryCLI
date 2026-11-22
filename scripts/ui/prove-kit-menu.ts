@@ -88,7 +88,7 @@ t.section("§3 — THE COMPOSER STAYS ONE: composeBootMenu's host fields are opt
     statusRight: 'no blocking issues detected — changes reach new sessions',
     legend: '↑↓ move · pgup/pgdn page · ↵ change (saved) · ⌫ default · a apply receipts · esc back',
   }
-  const explicit = { ...legacy, title: 'boot menu', summaryTitle: 'LAUNCH SUMMARY', moreHint: '… (the trail continues — a taller terminal shows it whole)', entries: legacyEntries.map(e => ({ ...e, inert: false })) }
+  const explicit = { ...legacy, title: 'boot menu', summaryTitle: 'LAUNCH SUMMARY', moreHint: '… (the trail continues — taller terminal)', entries: legacyEntries.map(e => ({ ...e, inert: false })) }
   for (const [cols, rows] of [[120, 40], [142, 44], [100, 30], [80, 24]] as const) {
     const a = (core.composeBootMenu(cols, rows, legacy) as { lines: string[] }).lines.join('\n')
     const b = (core.composeBootMenu(cols, rows, explicit) as { lines: string[] }).lines.join('\n')

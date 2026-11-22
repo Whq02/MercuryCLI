@@ -73,7 +73,7 @@ export function composeManager(cols: number, rows: number, catalogue: KitCatalog
     title: 'mcps & skills',
     summaryTitle: 'NEXT SESSION',
     summaryRows: kitSummaryRows(kitCounts(listRows, states)),
-    moreHint: '… (the trail continues — a taller terminal shows it whole)',
+    moreHint: '… (the trail continues — taller terminal)',
     environment: { model: 'Opus 5', critter: 'Octopus', critterHue: '#B07BE0', dirBase: 'orchard-src', dirTail: '' },
     statusRight: `${kitStatusLine(states.size)}  ·  2 established sessions unchanged`,
     legend: prompt ? KIT_LEGEND_PROMPT : KIT_LEGEND_PRESET,
