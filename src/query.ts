@@ -10,18 +10,32 @@ import {
   projectLegacyYields,
   type LegacyQueryYield,
 } from './run-core/project-legacy.js'
-import { notBuilt } from './pi/holes.js'
 
 export type { QueryParams } from './run-core/turn-machine.js'
 
 export async function* queryEvents(
   params: QueryParams,
 ): AsyncGenerator<RunEvent, Terminal> {
-  return notBuilt('src/query.ts:16')
+  noteQueryTurnStart(params)
+  const consumedCommandUuids: string[] = []
+  let terminal: Terminal | undefined
+  try {
+    terminal = yield* runEventCore(params, consumedCommandUuids)
+    for (const uuid of consumedCommandUuids) {
+      notifyCommandLifecycle(uuid, 'completed')
+    }
+    return terminal
+  } finally {
+    await noteQueryTurnEnd({
+      querySource: params.querySource,
+      toolUseContext: params.toolUseContext,
+      reason: terminal?.reason ?? 'threw',
+    })
+  }
 }
 
 export async function* query(
   params: QueryParams,
 ): AsyncGenerator<LegacyQueryYield, Terminal> {
-  return notBuilt('src/query.ts:38')
+  return yield* projectLegacyYields(queryEvents(params))
 }
