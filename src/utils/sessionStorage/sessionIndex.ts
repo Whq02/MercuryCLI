@@ -145,7 +145,7 @@ function sessionLabelFacts(head: string, tail: string, builtIn: (name: string) =
     }
   }
   return {
-    firstPrompt: last('lastPrompt') || sessionPromptFromWindow(head, builtIn) || fieldPrefix(head, 'content', 200) || fieldPrefix(head, 'text', 200) || '',
+    firstPrompt: sessionPromptFromWindow(head, builtIn) || last('lastPrompt') || fieldPrefix(head, 'content', 200) || fieldPrefix(head, 'text', 200) || '',
     gitBranch: last('gitBranch') ?? first('gitBranch'),
     isSidechain: firstField(head, 'isSidechain') === true,
     projectPath: typeof cwd === 'string' && cwd ? cwd : first('cwd'),

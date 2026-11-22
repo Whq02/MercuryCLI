@@ -210,7 +210,7 @@ try {
       check('A6 the reader that finds a session\'s first prompt for the sessions list passes over the start row ahead of it', sessionPromptFromWindow(head, undefined, true) === 'RUN first prompt.', j(sessionPromptFromWindow(head, undefined, true)), 'sessionPromptFromWindow in src/utils/sessionStorage/sessionIndex.ts must skip the turn-start row and return the first prompt')
       const listed = await run(arena, ['sessions', 'list'])
       const row = listed.stdout.split('\n').find(line => line.startsWith(SID)) ?? ''
-      check('A7 the sessions list names the session by its last prompt, as it does for a record with no start row', listed.exit === 0 && row.endsWith('RUN second prompt.'), j({ exit: listed.exit, row, err: listed.stderr.slice(-200) }), 'the sessions list prompt reader (sessionPromptFromWindow in src/utils/sessionStorage/sessionIndex.ts) must skip turn-start rows when naming a session by its last prompt')
+      check('A7 the sessions list names the session by its first prompt, as it does for a record with no start row', listed.exit === 0 && row.endsWith('RUN first prompt.'), j({ exit: listed.exit, row, err: listed.stderr.slice(-200) }), 'the sessions list prompt reader (sessionPromptFromWindow in src/utils/sessionStorage/sessionIndex.ts) must skip turn-start rows when naming a session by its first prompt')
     } finally {
       await fixture.close()
     }
