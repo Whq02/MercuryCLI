@@ -75,6 +75,8 @@ const save = (name: string, lines: string[]): void => {
 const settingsPath = join(HOME, 'settings.json')
 const HAIKU = 'claude-haiku-4-5-20251001'
 const SONNET = 'claude-sonnet-5-5'
+const OPUS = 'claude-opus-5-5'
+const EFFORT_NOTE = 'Sonnet 5.5 honors off at low, medium and high effort; thinking stays on at xhigh and max. Opus 5.5 keeps thinking on'
 writeFileSync(settingsPath, JSON.stringify({ engine: { model: HAIKU } }))
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
@@ -90,8 +92,12 @@ section('§1 the row and the engine agree on what an absent key means')
   check('with no engine.reasoning key the engine thinks (the default-on rule)', shouldEnableThinkingByDefault() === true)
   const config = await import('../../src/components/Settings/Config.tsx')
   check('a model that takes the control: the row applies', config.thinkingRowApplicability(HAIKU).applies === true)
-  const always = config.thinkingRowApplicability(SONNET)
-  check('a model whose thinking is always on says so in the row', always.applies === false && always.naText === 'n/a — Sonnet 5.5 keeps thinking on', JSON.stringify(always))
+  check('Sonnet 5.5 takes the control (off stops its thinking before an answer up to high effort), its [1m] twin with it', config.thinkingRowApplicability(SONNET).applies === true && config.thinkingRowApplicability(`${SONNET}[1m]`).applies === true, JSON.stringify(config.thinkingRowApplicability(SONNET)))
+  const always = config.thinkingRowApplicability(OPUS)
+  check('a model whose thinking is always on says so in the row', always.applies === false && always.naText === 'n/a — Opus 5.5 keeps thinking on', JSON.stringify(always))
+  check('Fable 5.2 and Mythos 5.2 keep that answer', ['claude-fable-5-2', 'claude-mythos-5-2'].every(model => config.thinkingRowApplicability(model).applies === false))
+  const { modelThinkingAlwaysOn } = await import('../../src/utils/model/capabilities.ts')
+  check('the wire law every other reader asks keeps its answer for Sonnet 5.5', modelThinkingAlwaysOn(SONNET) && modelThinkingAlwaysOn(OPUS))
 }
 
 const React = await import('react')
@@ -135,6 +141,8 @@ const wrap = (node: React.ReactNode): React.ReactNode => h(ThemeProvider as neve
 const rowOf = (m: Mounted, needle: string): string => m.lines().find(l => l.includes(needle)) ?? ''
 const thinkingRow = (m: Mounted): string => rowOf(m, '› Thinking').replace(/^.*?› Thinking/, '› Thinking').replace(/\s*│.*$/, '').replace(/\s+/g, ' ').trim()
 
+const popupWords = (m: Mounted): string => m.lines().map(line => line.split('│ │')[1]?.trim()).join(' ')
+
 async function openConfigOnThinking(): Promise<{ m: Mounted; closed: unknown[] }> {
   initializeSurfaceRoute(ROOT_CHAT_ROUTE)
   resetChromeModeLatchForTests()
@@ -166,6 +174,7 @@ section('§2 /config on Haiku 4.5 (a model that takes the control): the row chan
 {
   const { m } = await openConfigOnThinking()
   check('with no key saved the row reads on, as the engine runs', thinkingRow(m).endsWith('on'), thinkingRow(m))
+  check('under the row: where thinking stays on whatever the setting', popupWords(m).includes(EFFORT_NOTE), popupWords(m))
   check('the file has no reasoning key yet', engineOf().reasoning === undefined, JSON.stringify(engineOf()))
   save('thinking-row-on-120x40', m.lines())
   m.push(KEY.right)
@@ -199,11 +208,28 @@ section('§2 /config on Haiku 4.5 (a model that takes the control): the row chan
   await closeScene(m)
 }
 
-section('§3 /config on Sonnet 5.5 (thinking always on): the row says why it cannot change')
+section('§3 /config on Sonnet 5.5 (off stops its thinking before an answer up to high effort): the row takes the keys')
 {
   writeFileSync(settingsPath, JSON.stringify({ engine: { model: SONNET } }))
   const { m } = await openConfigOnThinking()
-  check('the row names the model and says it keeps thinking on', thinkingRow(m).includes('n/a — Sonnet 5.5 keeps thinking on'), thinkingRow(m))
+  check('with no key saved the row reads on', thinkingRow(m) === '› Thinking on', thinkingRow(m))
+  check('under the row: off asks the model not to, and Sonnet 5.5 keeps thinking on at xhigh and max', popupWords(m).includes('Off asks the model not to think before answering.') && popupWords(m).includes(EFFORT_NOTE), popupWords(m))
+  m.push(KEY.right)
+  const off = await waitFor(() => thinkingRow(m) === '› Thinking off' && engineOf().reasoning === false, 6000)
+  check('→ turns the row off and writes engine.reasoning false', off, `${thinkingRow(m)} · ${JSON.stringify(engineOf())}`)
+  resetSettingsCache()
+  check('the engine reads that key: a session that starts now starts with thinking off', shouldEnableThinkingByDefault() === false)
+  m.push(KEY.left)
+  const on = await waitFor(() => thinkingRow(m) === '› Thinking on' && engineOf().reasoning === undefined, 6000)
+  check('← turns it on again: the key is removed', on, `${thinkingRow(m)} · ${JSON.stringify(engineOf())}`)
+  await closeScene(m)
+}
+
+section('§4 /config on Opus 5.5 (thinking always on): the row says why it cannot change')
+{
+  writeFileSync(settingsPath, JSON.stringify({ engine: { model: OPUS } }))
+  const { m } = await openConfigOnThinking()
+  check('the row names the model and says it keeps thinking on', thinkingRow(m).includes('n/a — Opus 5.5 keeps thinking on'), thinkingRow(m))
   m.push(KEY.right)
   await settle(300)
   check('→ changes nothing and writes nothing', thinkingRow(m).includes('keeps thinking on') && engineOf().reasoning === undefined, `${thinkingRow(m)} · ${JSON.stringify(engineOf())}`)

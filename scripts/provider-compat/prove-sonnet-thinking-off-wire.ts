@@ -112,7 +112,7 @@ try {
     check(`${model}: no thinking parameter`, sent.failed === null && !('thinking' in sent.body), shown(sent))
   }
   check('a carrier spelling and an undeclared generation never take the setting', !caps.modelThinkingOffIsBetweenTools('openrouter/anthropic/claude-sonnet-5-5', { effort: 'high' }) && !caps.modelThinkingOffIsBetweenTools('claude-sonnet-5-7', { effort: 'high' }) && !caps.modelThinkingOffIsBetweenTools('claude-opus-5-5', { effort: 'high' }))
-  check('thinking stays always on for the row, so the settings row and the side roads read as they did', caps.modelThinkingAlwaysOn(SONNET))
+  check('thinking stays always on for the row, so the side roads read as they did', caps.modelThinkingAlwaysOn(SONNET))
 
   section('§5 between_tools takes no per-message effort and no thinking block beside it')
   const said = { type: 'assistant', uuid: '00000000-0000-4000-a000-000000000002', timestamp: '2026-11-22T00:00:00.000Z', message: { id: 'msg_said', type: 'message', role: 'assistant', model: SONNET, content: [{ type: 'text', text: 'OK', citations: [] }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } } } as unknown as Message
