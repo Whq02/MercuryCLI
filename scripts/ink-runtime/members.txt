@@ -68,3 +68,4 @@ prove-ink-terminal-event-behaviour.ts
 prove-line-width-cache-behaviour.ts
 prove-ink-warn-behaviour.ts
 prove-search-highlight-behaviour.ts
+prove-cell-layout-box-behaviour.ts
