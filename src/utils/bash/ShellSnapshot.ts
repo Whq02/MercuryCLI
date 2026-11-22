@@ -29,7 +29,7 @@ import { birthAfter, birthMark, endMsysGroupBeside, endProcessBornAfter, endProc
 import { ripgrepCommand } from '../ripgrep.js'
 import { sleep } from '../sleep.js'
 import { loginExportsCarried, pathWithLoginEntries, subprocessEnv } from '../subprocessEnv.js'
-import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, SNAPSHOT_READS_BACK, SNAPSHOT_READS_FUNCTIONS, argv0FunctionBody, noteLoginExports, noteLoginFiles, snapshotProfileOf, zshNamedBeforeBash, type LoginFilesAbsence, type ShellRecord } from '../shell/shellRecord.js'
+import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, SNAPSHOT_READS_BACK, SNAPSHOT_READS_BACK_ALIASES, SNAPSHOT_READS_FUNCTIONS, argv0FunctionBody, noteLoginExports, noteLoginFiles, snapshotProfileOf, zshNamedBeforeBash, type LoginFilesAbsence, type ShellRecord } from '../shell/shellRecord.js'
 import { windowsShellRoadActive, withOwnPrograms, withRoadPrograms, withShippedPrograms } from '../shell/windowsShellRoad.js'
 import { msysSourceLine } from '../shell/msysArgv.js'
 import { windowsPathToPosixPath } from '../windowsPaths.js'
@@ -393,7 +393,11 @@ done`)
 
     lines.push('echo "# Aliases" >> "$SNAPSHOT_FILE"')
     const winptyFilter = snapshotAliasPipelineFilter()
-    lines.push(`( set +o posix 2>/dev/null; alias )${winptyFilter} | sed 's/^alias /alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"`)
+    lines.push(
+      readBack
+        ? `${SNAPSHOT_READS_BACK_ALIASES}${winptyFilter} | head -n 1000 >> "$SNAPSHOT_FILE"`
+        : `( set +o posix 2>/dev/null; alias )${winptyFilter} | sed 's/^alias /alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"`,
+    )
   } else {
     lines.push(SNAPSHOT_KEEPS_ALIASES)
   }
