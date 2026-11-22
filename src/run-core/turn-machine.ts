@@ -22,8 +22,8 @@ import { makeRequest } from './turn/makeRequest.js'
 import { modelReply } from './turn/modelReply.js'
 import { noToolReply } from './turn/noToolReply.js'
 import { runToolCalls } from './turn/runToolCalls.js'
-import type { IterationState, RunCtx, SettledDecision, TurnState, TurnStep } from './turn/state.js'
-import { notBuilt } from '../pi/holes.js'
+import type { IterationState, NextTurn, RunCtx, SettledDecision, TurnState, TurnStep } from './turn/state.js'
+import { runAgentLoop } from '../pi/loop/agent-loop.js'
 
 export {
   PAUSE_TURN_CONTINUATION_LIMIT,
@@ -59,7 +59,7 @@ export async function* runEventCore(
   params: QueryParams,
   consumedCommandUuids: string[],
 ): AsyncGenerator<RunEvent, Terminal> {
-  return notBuilt('src/run-core/turn-machine.ts:59')
+  return yield* memorySignalScope(runTurns(params, consumedCommandUuids))
 }
 
 const STEPS_BEFORE_THE_LAST: readonly TurnStep[] = [modelReply, noToolReply, runToolCalls]
@@ -70,4 +70,80 @@ async function* settleTurn(run: RunCtx, iter: IterationState): AsyncGenerator<Ru
     if (decision.kind !== 'go_on') return decision
   }
   return yield* afterTools(run, iter)
+}
+
+function createRunCtx(params: QueryParams, consumedCommandUuids: string[]): RunCtx {
+  const run: RunCtx = {
+    params,
+    querySource: params.querySource,
+    fallbackModel: params.fallbackModel,
+    skipCacheWrite: params.skipCacheWrite,
+    consumedCommandUuids,
+    systemPrompt: params.systemPrompt,
+    systemContext: params.systemContext,
+    userContext: params.userContext,
+    deps: params.deps ?? productionDeps(),
+    emit: createEventMint(),
+    budgetGuard: new BudgetGuard(),
+    awaitingReply: [],
+    announcedStepNudges: 0,
+    checkpointSettleWarned: false,
+    pendingMemoryWrites: [],
+    holdMemoryWriteRefusals: refused => {
+      for (const refusal of memoryWriteRefusals(refused)) {
+        const held = run.pendingMemoryWrites.some(pending => pending.id === refusal.id && pending.argumentsRaw === refusal.argumentsRaw)
+        if (!held) run.pendingMemoryWrites.push(refusal)
+      }
+    },
+    memoryWriteLostEvent: () => {
+      if (run.pendingMemoryWrites.length === 0) return null
+      const message = createSystemMessage(memoryWriteLostNotice(run.pendingMemoryWrites), 'error')
+      run.pendingMemoryWrites.length = 0
+      return run.emit({ kind: 'notice', message })
+    },
+  }
+  return run
+}
+
+function firstTurnOf(params: QueryParams): TurnState {
+  return {
+    messages: params.messages,
+    toolUseContext: params.toolUseContext,
+    turnCount: 1,
+    transition: undefined,
+    stopHookActive: undefined,
+    autoCompactTracking: undefined,
+    overflowEpisode: FRESH_OVERFLOW_EPISODE,
+    pendingOverflow: undefined,
+    maxOutputTokensOverride: params.maxOutputTokensOverride,
+    maxOutputTokensRecoveryCount: 0,
+    streamFaultRecoveryCount: 0,
+    toolCallRefusalRecoveryCount: 0,
+  }
+}
+
+async function* runTurn(run: RunCtx, state: TurnState, ordinal: number): AsyncGenerator<RunEvent, SettledDecision> {
+  const request = yield* makeRequest(run, state, ordinal)
+  return request.kind === 'go_on' ? yield* settleTurn(run, request.iter) : request
+}
+
+async function* steeringDrainsInsideTheTurn(turn: TurnState): AsyncGenerator<RunEvent, TurnState> {
+  return turn
+}
+
+async function* followUpsDrainInsideTheTurn(): AsyncGenerator<RunEvent, NextTurn | null> {
+  return null
+}
+
+async function* runTurns(params: QueryParams, consumedCommandUuids: string[]): AsyncGenerator<RunEvent, Terminal> {
+  const run = createRunCtx(params, consumedCommandUuids)
+  return yield* runAgentLoop({
+    emit: run.emit,
+    querySource: params.querySource,
+    agentId: params.toolUseContext.agentId,
+    firstTurn: firstTurnOf(params),
+    runTurn: (state: TurnState, ordinal) => runTurn(run, state, ordinal),
+    drainSteering: steeringDrainsInsideTheTurn,
+    drainFollowUps: followUpsDrainInsideTheTurn,
+  })
 }
