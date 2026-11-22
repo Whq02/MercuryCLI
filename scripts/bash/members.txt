@@ -105,3 +105,4 @@ prove-powershell-prelude-when.ts
 prove-shell-provider-behaviour.ts
 prove-bash-spec-alias-behaviour.ts
 prove-bash-spec-nohup-behaviour.ts
+prove-bash-spec-sleep-behaviour.ts
