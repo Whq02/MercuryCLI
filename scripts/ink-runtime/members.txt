@@ -64,3 +64,4 @@ prove-x10-tail-resync.ts
 prove-app-recording.ts
 prove-compose-buffer-recording.ts
 prove-ink-event-behaviour.ts
+prove-ink-terminal-event-behaviour.ts
