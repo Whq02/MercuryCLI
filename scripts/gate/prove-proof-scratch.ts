@@ -135,6 +135,7 @@ process.exit(process.argv[3] === 'red' ? 1 : 0);
     const short = mkdtempSync(join(realpathSync('/tmp'), 'psp-'))
     try {
       const subject = join(root, 'scripts/gate/proofScratchSubject.ts')
+      const runtimeCache = join(world, 'runtime-transpiler-cache')
       const singleEnv = (temp: string): Record<string, string> => ({
         ...Object.fromEntries(Object.entries(bareEnv).filter(([name]) => !name.startsWith('BASH_FUNC_') && name !== 'MERCURY_TMPDIR')),
         TMPDIR: temp,
@@ -176,7 +177,7 @@ process.exit(process.argv[3] === 'red' ? 1 : 0);
         mkdirSync(account)
         const run = await drive('bare', 'natural', temp, undefined, [], env => {
           const { MERCURY_CONFIG_DIR: _home, MERCURY_HOME: _other, MERCURY_LOCAL_PROBE_TARGETS: _probe, ...rest } = env
-          return { ...rest, HOME: account, NO_COLOR: '1' }
+          return { ...rest, HOME: account, NO_COLOR: '1', BUN_RUNTIME_TRANSPILER_CACHE_PATH: runtimeCache }
         })
         const runRoot = run.made[0]
         const own = run.facts?.own.home ?? ''
@@ -191,7 +192,7 @@ process.exit(process.argv[3] === 'red' ? 1 : 0);
         mkdirSync(account)
         const bare = await drive('bound-bare', 'natural', temp, undefined, [], env => {
           const { MERCURY_CONFIG_DIR: _home, MERCURY_HOME: _other, ...rest } = env
-          return { ...rest, HOME: account }
+          return { ...rest, HOME: account, BUN_RUNTIME_TRANSPILER_CACHE_PATH: runtimeCache }
         })
         const home = bare.facts?.own.home ?? ''
         const socket = `${home}/daemon/control.sock`
@@ -243,7 +244,7 @@ process.exit(process.argv[3] === 'red' ? 1 : 0);
         mkdirSync(account)
         const bare = await drive('failclean-bare', 'failclean', bareTemp, undefined, [], env => {
           const { MERCURY_CONFIG_DIR: _home, MERCURY_HOME: _other, ...rest } = env
-          return { ...rest, HOME: account }
+          return { ...rest, HOME: account, BUN_RUNTIME_TRANSPILER_CACHE_PATH: runtimeCache }
         })
         check('single red, nothing left to read, its own scratch home inside the root: the root goes, the home with it', bare.code === 1 && bare.made[0] !== undefined && isRunRoot(bare.made[0], bareTemp) && readdirSync(bareTemp).length === 0 && readdirSync(account).length === 0, `rc=${bare.code} root=${bare.made[0]} left=${JSON.stringify(readdirSync(bareTemp))} ${bare.output}`)
       }
