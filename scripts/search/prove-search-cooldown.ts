@@ -76,6 +76,16 @@ function fixture(random = 0.5) {
   check('an answer clears the refusal streak', pacing.coolDownRemainingMs('duckduckgo', f.clock.now()) === 0)
 }
 
+{
+  const f = fixture()
+  await f.search('first refusal')
+  f.answer()
+  const sleep = f.clock.sleep
+  f.clock.sleep = (ms, signal) => sleep(ms === 30_000 ? ms - 1 : ms, signal)
+  const answer = await f.search('after an early wake')
+  check('waking one millisecond early finishes the cool-down and the second html request answers', answer.ok && f.seen.length === 2 && f.seen[1]?.url === f.seen[0]?.url && f.seen[1]?.at === 30_000 && JSON.stringify(f.sleeps) === '[29999,1]', { answer, seen: f.seen, sleeps: f.sleeps })
+}
+
 for (const [label, random, repeats, header, duration, waits] of [
   ['first-refusal jitter maximum', 1, 1, '', 37_500, true],
   ['second-refusal jitter minimum', 0, 2, '', 45_000, false],

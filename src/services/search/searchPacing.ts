@@ -184,10 +184,13 @@ export async function withSearchTurn<T>(door: PacedDoor, policy: SearchRatePolic
     return run(0)
   }
   try {
-    let waitMs = coolDownRemainingMs(door, clock.now())
-    if (!signal?.aborted && waitMs > 0 && waitMs <= (policy.coolDownWaitMs ?? 0)) {
+    let checkedAt = clock.now()
+    const waitLimit = checkedAt + (policy.coolDownWaitMs ?? 0)
+    let waitMs = coolDownRemainingMs(door, checkedAt)
+    while (!signal?.aborted && waitMs > 0 && checkedAt + waitMs <= waitLimit) {
       await clock.sleep(waitMs, signal)
-      waitMs = coolDownRemainingMs(door, clock.now())
+      checkedAt = clock.now()
+      waitMs = coolDownRemainingMs(door, checkedAt)
     }
     if (signal?.aborted || waitMs > 0) return await run(waitMs)
     await clock.sleep(Math.max(0, (nextRequestAt.get(door) ?? 0) - clock.now()), signal)
