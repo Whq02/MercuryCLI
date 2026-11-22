@@ -133,3 +133,4 @@ prove-windows-path.ts
 prove-windows-removal-roots.ts
 prove-write-ladder-wiring.ts
 prove-write-refusal-scope.ts
+prove-dangerous-patterns-behaviour.ts
