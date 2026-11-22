@@ -19,3 +19,4 @@ change	pi	packages/schema/src/builders.ts	src/pi/loop/pi-declarations.ts	3 decla
 change	pi	packages/schema/src/typebox-static.ts	src/pi/loop/pi-declarations.ts	8 declarations the loop's imports reach; 0 as declare statements with no body or value; export kept on 0; comments removed	the loop compiles on its own until it speaks our messages	0
 change	pi	packages/telemetry/src/index.ts	src/pi/loop/pi-declarations.ts	9 declarations the loop's imports reach; 0 as declare statements with no body or value; export kept on 0; comments removed	the loop compiles on its own until it speaks our messages	0
 change	pi	packages/telemetry/src/metrics.ts	src/pi/loop/pi-declarations.ts	6 declarations the loop's imports reach; 0 as declare statements with no body or value; export kept on 0; comments removed	the loop compiles on its own until it speaks our messages	0
+change	pi	packages/tui/src/kill-ring.ts	src/pi/edit/kill-ring.ts	comments removed (4)	the tree holds no code comments	1
