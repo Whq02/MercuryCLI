@@ -53,6 +53,7 @@ prove-fold-stall-liveness.ts
 prove-fold-stall-wire-budget.ts
 prove-fold-status.ts
 prove-fold-stream-progress.ts
+prove-fold-that-shrinks-goes-through.ts
 prove-fold-thinking-feeds-watchdog.ts
 prove-fold-work-counts.ts
 prove-footer-window-owner.ts
