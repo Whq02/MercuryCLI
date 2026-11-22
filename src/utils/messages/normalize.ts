@@ -10,7 +10,6 @@ import type {
 import { createUserMessage } from './factories.js'
 import { storedBlocksOf } from '../../rows/content.js'
 import { deriveUUID } from './identity.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 export function contentBlocksOf(content: unknown): (ContentBlock | ContentBlockParam)[] {
   return storedBlocksOf(content)
@@ -48,17 +47,80 @@ export function normalizeMessages(messages: UserMessage[]): NormalizedUserMessag
 export function normalizeMessages(messages: (AssistantMessage | UserMessage)[]): (NormalizedAssistantMessage | NormalizedUserMessage)[]
 export function normalizeMessages(messages: Message[]): NormalizedMessage[]
 export function normalizeMessages(messages: Message[]): NormalizedMessage[] {
-  return notBuilt('src/utils/messages/normalize.ts:94')
+  _normalizePassesForProof++
+  let latched = false
+  return messages.flatMap(message => {
+    if (message.type === 'assistant') {
+      const blocks = contentBlocksOf(message.message.content)
+      latched ||= blocks.length > 1
+      const chained = latched
+      return remembered(message, chained, () => assistantRows(message, blocks, chained))
+    }
+    if (message.type === 'user') {
+      const { content } = message.message
+      const chainedSoFar = latched
+      if (typeof content === 'string') return remembered(message, chainedSoFar, () => userTextRow(message, content, chainedSoFar))
+      const blocks = contentBlocksOf(content)
+      latched ||= blocks.length > 1
+      const chained = latched
+      return remembered(message, chained, () => userBlockRows(message, blocks, chained))
+    }
+    return [message]
+  })
 }
 
-type ToolUseRequestMessage = Unbuilt
+function assistantRows(parent: AssistantMessage, blocks: (ContentBlock | ContentBlockParam)[], latched: boolean): NormalizedMessage[] {
+  return blocks.map(
+    (block, index) =>
+      ({
+        type: 'assistant',
+        timestamp: parent.timestamp,
+        message: { ...parent.message, content: [block], context_management: parent.message.context_management ?? null },
+        isMeta: parent.isMeta,
+        isVirtual: parent.isVirtual,
+        requestId: parent.requestId,
+        uuid: uuidOfRow(parent, latched, index),
+        error: parent.error,
+        isApiErrorMessage: parent.isApiErrorMessage,
+        ...(block.type === 'text' && parent.inReplyTo !== undefined ? { inReplyTo: parent.inReplyTo } : {}),
+      }) as NormalizedMessage,
+  )
+}
+
+function userBlockRows(parent: UserMessage, blocks: (ContentBlock | ContentBlockParam)[], latched: boolean): NormalizedMessage[] {
+  let images = 0
+  return blocks.map((block, index) => {
+    const pasteId = block.type === 'image' ? parent.imagePasteIds?.[images++] : undefined
+    return {
+      ...createUserMessage({
+        content: [block as ContentBlockParam],
+        toolUseResult: parent.toolUseResult,
+        mcpMeta: parent.mcpMeta,
+        isMeta: parent.isMeta,
+        isVisibleInTranscriptOnly: parent.isVisibleInTranscriptOnly,
+        isVirtual: parent.isVirtual,
+        timestamp: parent.timestamp,
+        imagePasteIds: pasteId !== undefined ? [pasteId] : undefined,
+        origin: parent.origin,
+      }),
+      ...(parent.queued === true ? { queued: true } : {}),
+      ...(parent.heldFor === 'compaction' ? { heldFor: 'compaction' } : {}),
+      uuid: uuidOfRow(parent, latched, index),
+      sourceUuid: parent.uuid,
+    } as NormalizedMessage
+  })
+}
+
+type ToolUseRequestMessage = NormalizedAssistantMessage<ToolUseBlock>
 
 export function isToolUseRequestMessage(message: Message): message is ToolUseRequestMessage {
-  return notBuilt('src/utils/messages/normalize.ts:116')
+  return message.type === 'assistant' && contentBlocksOf(message.message.content).some(block => block.type === 'tool_use')
 }
 
-type ToolUseResultMessage = Unbuilt
+type ToolUseResultMessage = NormalizedUserMessage & { message: { content: [ToolResultBlockParam] } }
 
 export function isToolUseResultMessage(message: Message): message is ToolUseResultMessage {
-  return notBuilt('src/utils/messages/normalize.ts:124')
+  if (message.type !== 'user') return false
+  const { content } = message.message
+  return (Array.isArray(content) && content[0]?.type === 'tool_result') || Boolean(message.toolUseResult)
 }
