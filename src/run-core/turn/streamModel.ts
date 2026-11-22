@@ -288,18 +288,22 @@ export async function* settleReply(run: RunCtx, iter: IterationState, emit: Even
   iter.assistantMessages.push(message)
   yield* classifyDroppedThinking(run, iter, emit, settling, message)
   if (toolUseContext.rosterOwner === undefined) {
-    const record = await boundPrefixRecordToEmit(String(rosterOwnerFromToolUseContext(toolUseContext)), iter.messagesForQuery, iter.currentModel, {
-      rosterOnly: toolUseContext.agentId !== undefined,
-      context: { userContext: run.userContext, systemContext: run.systemContext },
-    })
+    const record = await boundPrefixRecordToEmit(
+      String(rosterOwnerFromToolUseContext(toolUseContext)),
+      iter.messagesForQuery,
+      iter.currentModel,
+      toolUseContext.agentId !== undefined
+        ? { rosterOnly: true, context: { userContext: run.userContext, systemContext: run.systemContext } }
+        : { rosterOnly: false },
+    )
     if (record !== null) yield emit({ kind: 'attachment', message: record })
   }
   const calls = message.message.content.filter((block): block is ToolUseBlock => block.type === 'tool_use')
-  for (const block of calls) {
-    iter.toolUseBlocks.push(block)
-    if (!iter.closingTurn) iter.early.offer(block, message, iter.toolUseBlocks.length - 1)
-  }
-  if (calls.length > 0) iter.needsFollowUp = true
+  if (calls.length === 0) return
+  iter.toolUseBlocks.push(...calls)
+  iter.needsFollowUp = true
+  if (iter.closingTurn) return
+  for (const block of calls) iter.early.offer(block, message, iter.toolUseBlocks.indexOf(block))
 }
 
 export function* streamReceipts(iter: IterationState, emit: EventMint, settleGauge: (message: AssistantMessage) => void): Generator<RunEvent> {
@@ -334,19 +338,19 @@ export function* streamReceipts(iter: IterationState, emit: EventMint, settleGau
   }
 }
 
-function boundGaugeOf(iter: IterationState, sent: readonly Message[]): RequestGaugeView | undefined {
+function boundGaugeOf(iter: IterationState): RequestGaugeView | undefined {
   const planned = iter.requestPlan.gauge
   if (planned === undefined) return undefined
-  const owner = ownerFromToolUseContext(iter.toolUseContext)
   const key = calibrationKeyFor(declaredRouteOf(iter.currentModel) ?? 'unrecognised', iter.currentModel)
-  const bound = bindRequestGauge(sent, key, getContextEpoch(owner).epoch, planned.fixed, planned.rebase)
+  const epoch = getContextEpoch(ownerFromToolUseContext(iter.toolUseContext)).epoch
+  const bound = bindRequestGauge(iter.messagesForQuery, key, epoch, planned.fixed, planned.rebase)
   return planned.digest === bound.digest && planned.sourceDigest !== undefined ? { ...bound, sourceDigest: planned.sourceDigest } : bound
 }
 
-function unlandedFoldBoundaryOf(sent: readonly Message[]): string | undefined {
-  const boundary = sent.findLast((row): row is SystemCompactBoundaryMessage => row.type === 'system' && row.subtype === 'compact_boundary')
-  if (boundary === undefined || boundary.compactMetadata.cacheEpoch === undefined) return undefined
-  const landed = sent.some(row => row.type === 'assistant' && row.foldLanding?.boundaryId === boundary.uuid)
+function unlandedFoldBoundaryOf(view: readonly Message[]): string | undefined {
+  const boundary = view.findLast((row): row is SystemCompactBoundaryMessage => row.type === 'system' && row.subtype === 'compact_boundary' && row.compactMetadata.cacheEpoch !== undefined)
+  if (boundary === undefined) return undefined
+  const landed = view.some(row => row.type === 'assistant' && row.foldLanding?.boundaryId === boundary.uuid)
   return landed ? undefined : boundary.uuid
 }
 
@@ -359,8 +363,7 @@ export async function* streamOneCall(run: RunCtx, iter: IterationState, emit: Ev
     ? prependUserContext(iter.messagesForQuery, await firstTurnUserContext(run.userContext, run.systemContext, options.engineModel, toolUseContext.agentId, iter.messagesForQuery))
     : iter.messagesForQuery
 
-  const gauge = boundGaugeOf(iter, sent)
-  let foldBoundary = gauge === undefined ? undefined : unlandedFoldBoundaryOf(sent)
+  const gauge = boundGaugeOf(iter)
   const settling: ReplySettling = {
     callId,
     projectedReplies: new Map(),
@@ -368,26 +371,29 @@ export async function* streamOneCall(run: RunCtx, iter: IterationState, emit: Ev
     settleGauge: message => {
       if (gauge === undefined || message.contextGauge !== undefined) return
       if (settleRequestGauge(gauge, message) === null) return
-      const usage = foldCacheUsage(message.message.usage)
-      if (foldBoundary !== undefined && usage !== null) {
+      const boundaryId = unlandedFoldBoundaryOf(iter.messagesForQuery)
+      const landed = foldCacheUsage(message.message.usage)
+      if (boundaryId !== undefined && landed !== null) {
         const fixedPrefix = settling.fixedPrefix ?? pendingPrefixVerdict(ownerKey)?.fixedPrefix
-        message.foldLanding = { boundaryId: foldBoundary, usage, ...(fixedPrefix !== undefined ? { fixedPrefix } : {}) }
-        foldBoundary = undefined
+        message.foldLanding = { boundaryId, usage: landed, ...(fixedPrefix !== undefined ? { fixedPrefix } : {}) }
       }
       const shown = settling.projectedReplies.get(message.uuid)
       if (shown !== undefined && shown !== message) {
         shown.contextGauge = message.contextGauge
         if (message.foldLanding !== undefined) shown.foldLanding = message.foldLanding
       }
-      if (iter.callOrdinal === 1 && usage !== null) reconcileAppliedPlanUsage(ownerFromToolUseContext(toolUseContext), usage.input)
+      if (callId !== `${iter.turnId}.c1`) return
+      const { usage } = message.message
+      reconcileAppliedPlanUsage(ownerFromToolUseContext(toolUseContext), (usage.input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0))
     },
   }
 
-  let presented = !swarmRoad(toolUseContext.agentId)
+  let boardTold = false
   const reachedTheRoad = (): void => {
-    if (presented) return
-    presented = true
+    if (boardTold) return
     try {
+      if (!swarmRoad(toolUseContext.agentId)) return
+      boardTold = true
       swarmPresented(toolUseContext.agentId, sent, callId)
     } catch (error) {
       logForDebugging(`crew board accounting: ${error}`)
@@ -396,7 +402,6 @@ export async function* streamOneCall(run: RunCtx, iter: IterationState, emit: Ev
 
   let restarted = false
   if (isTurnOwningQuerySource(run.querySource)) recordSentRequest(ownerKey, sent)
-  const chantWatch = new StreamChantWatch()
   const stream = run.deps.callModel({
     messages: sent,
     systemPrompt: iter.fullSystemPrompt,
@@ -435,25 +440,23 @@ export async function* streamOneCall(run: RunCtx, iter: IterationState, emit: Ev
   })
 
   const findTool = (name: string): ReturnType<typeof findToolByName> => findToolByName(options.tools, name)
-  function* retractRestartedAttempt(): Generator<RunEvent> {
-    if (!restarted) return
-    restarted = false
-    for (const settled of iter.assistantMessages) {
-      if (settled.inReplyTo !== undefined && settled.inReplyTo.length > 0) iter.replyTo.unshift(...settled.inReplyTo)
-      yield emit({ kind: 'assistant_retracted', message: settled })
-    }
-    iter.needsFollowUp = resetForRetry(iter).needsFollowUp
-  }
-
+  let chantWatch = new StreamChantWatch()
   for await (const item of stream) {
-    yield* retractRestartedAttempt()
+    if (item.type === 'stream_event' || (item.type === 'assistant' && item.isApiErrorMessage !== true)) reachedTheRoad()
+    if (restarted) {
+      restarted = false
+      for (const settled of iter.assistantMessages) {
+        if (settled.inReplyTo !== undefined && settled.inReplyTo.length > 0) iter.replyTo.unshift(...settled.inReplyTo)
+        yield emit({ kind: 'assistant_retracted', message: settled })
+      }
+      iter.needsFollowUp = resetForRetry(iter).needsFollowUp
+      chantWatch = new StreamChantWatch()
+    }
     if (item.type === 'assistant') {
-      if (item.isApiErrorMessage !== true) reachedTheRoad()
       yield* settleReply(run, iter, emit, settling, item, backfillCloneForYield(item, findTool))
       continue
     }
     if (item.type === 'stream_event') {
-      reachedTheRoad()
       if (iter.streamChant !== undefined) continue
       const chant = chantWatch.feed(item.event)
       if (chant !== null) {
@@ -464,7 +467,6 @@ export async function* streamOneCall(run: RunCtx, iter: IterationState, emit: Ev
     }
     yield emit({ kind: 'stream_delta', callId, raw: backfillCloneForYield(item, findTool) })
   }
-  yield* retractRestartedAttempt()
 
   yield* streamReceipts(iter, emit, settling.settleGauge)
 }
