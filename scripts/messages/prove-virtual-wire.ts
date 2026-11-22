@@ -1,8 +1,9 @@
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { DIALECT_CONVERSATION, VIRTUAL_ROW } from './dialectFixture.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const root = resolve(process.argv[2] ?? new URL('../..', import.meta.url).pathname)
+const root = resolve(process.argv[2] ?? fileURLToPath(new URL('../..', import.meta.url)))
 const source = (path: string) => import(`${root}/src/${path}.ts`)
 const { enableConfigs } = await source('utils/config')
 enableConfigs()

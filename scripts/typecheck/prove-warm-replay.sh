@@ -6,20 +6,24 @@ runner="$here/run-all.sh"
 fail=0
 work=$(mktemp -d "${TMPDIR:-/tmp}/warm-replay.XXXXXX")
 trap 'rm -rf "$work"' EXIT
+tsc_work="$work"
+if command -v cygpath >/dev/null 2>&1; then
+  tsc_work="$(cygpath -m "$work")"
+fi
 
 printf 'export const a: number = 1\n' >"$work/a.ts"
 printf 'export const b = 1\n' >"$work/b.ts"
-printf '{"compilerOptions":{"strict":true,"noEmit":true},"files":["%s/a.ts","%s/b.ts"]}' "$work" "$work" >"$work/tsconfig.json"
+printf '{"compilerOptions":{"strict":true,"noEmit":true},"files":["a.ts","b.ts"]}' >"$work/tsconfig.json"
 : >"$work/baseline.txt"
 : >"$work/hard-zero.txt"
 
 run_tc() {
   (
     cd "$repo" \
-      && MERCURY_TYPECHECK_CFG="$work/tsconfig.json" \
+      && MERCURY_TYPECHECK_CFG="$tsc_work/tsconfig.json" \
         MERCURY_TYPECHECK_BASELINE="$work/baseline.txt" \
         MERCURY_TYPECHECK_HARDZERO="$work/hard-zero.txt" \
-        MERCURY_TYPECHECK_BUILDINFO="$work/bi.tsbuildinfo" \
+        MERCURY_TYPECHECK_BUILDINFO="$tsc_work/bi.tsbuildinfo" \
         bash "$runner" ${1:-} >"$work/last.out" 2>&1
   )
   echo $?
@@ -42,7 +46,7 @@ else
   echo "  ✗ B broken (rc=$rcB):"; sed 's/^/      /' "$work/last.out"; fail=1
 fi
 
-(cd "$repo" && node_modules/.bin/tsc --noEmit -p "$work/tsconfig.json" >"$work/raw.out" 2>&1) || true
+(cd "$repo" && node_modules/.bin/tsc --noEmit -p "$tsc_work/tsconfig.json" >"$work/raw.out" 2>&1) || true
 fp=$(grep -E 'error TS[0-9]+:' "$work/raw.out" | sed -E -f "$here/fingerprint.sed" | sort | uniq -c | sed -E 's/^ *([0-9]+) /\1\t/')
 printf '%s\n' "$fp" >"$work/baseline.txt"
 rcC=$(run_tc '--warm')

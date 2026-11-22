@@ -39,7 +39,7 @@ else
 fi
 
 booted_version=$(node "$dist" --version 2>&1)
-expected_version="Mercury $(node -p "require('$root/package.json').version")"
+expected_version="Mercury $(node -p "require('./package.json').version")"
 if [[ "$booted_version" == "$expected_version" ]]; then
   ok "BOOTED identity: --version → '$booted_version'"
 else
