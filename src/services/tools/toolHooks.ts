@@ -149,11 +149,16 @@ export async function resolveHookPermissionDecision(
   const effective = hookResult.updatedInput ?? input
   if (hookResult.behavior === 'ask') {
     if (postureBypassesAsks(context.getAppState().toolPermissionContext)) return { decision: await ask(effective), input: effective }
-    const forced = { behavior: 'ask', message: hookResult.message, updatedInput: hookResult.updatedInput, decisionReason: hookResult.decisionReason } as PermissionAskDecision
+    const forced = {
+      behavior: 'ask',
+      ...(hookResult.message !== undefined ? { message: hookResult.message } : {}),
+      ...(hookResult.updatedInput !== undefined ? { updatedInput: hookResult.updatedInput } : {}),
+      ...(hookResult.decisionReason !== undefined ? { decisionReason: hookResult.decisionReason } : {}),
+    } as PermissionAskDecision
     return { decision: await ask(effective, forced), input: effective }
   }
 
-  const interactionOwed = hookResult.updatedInput === undefined && tool.requiresUserInteraction?.(input) === true
+  const interactionOwed = tool.requiresUserInteraction?.() === true && hookResult.updatedInput === undefined
   if (interactionOwed || context.alwaysCallCanUseTool === true) return { decision: await ask(effective), input: effective }
   const objection = await checkRuleBasedPermissions(tool, effective, context)
   if (objection === null) {
