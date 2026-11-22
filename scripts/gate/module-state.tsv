@@ -377,6 +377,7 @@ src/components/agents/studio/studioData.ts	SCOPE_TABS	process	module	Load-time l
 src/components/agents/studio/studioData.ts	STATUS_FILTERS	process	module	Load-time list with no local writer
 src/components/agents/studio/studioEditorModel.ts	FIELD_ROWS	process	module	Load-time list with no local writer
 src/components/bootAgents/actions.ts	clearFormRowOf	reset-export
+src/components/bootLogins/facts.ts	UNAVAILABLE_REASON_WORDS	process	module	load-time data; no local writer
 src/components/bootSaturn/actions.ts	clearFormRowOf	reset-export
 src/components/bootSettings/menuModel.ts	settingsEditors	process	module	load-time data; no local writer
 src/components/bootSplash/settingsLayerDeepLink.ts	settingsLayerDeepLink	process	module	single-TUI one-shot deep-link flag into boot settings layer (consumed on read)
