@@ -81,12 +81,12 @@ function runTerminalRestoration(): void {
     return
   }
   if (!process.stdout.isTTY) return
-  for (const bytes of [FALLBACK_CLOSE_SYNC_UPDATE, FALLBACK_EXIT_ALT_SCREEN, FALLBACK_SHOW_CURSOR]) {
-    try {
-      writeSync(1, bytes)
-    } catch (error) {
-      passedOver(error)
-    }
+  try {
+    writeSync(1, FALLBACK_CLOSE_SYNC_UPDATE)
+    writeSync(1, FALLBACK_EXIT_ALT_SCREEN)
+    writeSync(1, FALLBACK_SHOW_CURSOR)
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -295,21 +295,21 @@ function persistCrash(error: unknown, origin: 'uncaught-exception' | 'unhandled-
 }
 
 function onUncaughtException(error: unknown): void {
-  if (breaker.tripped) return
   if (isModuleLoadFailure(error) && !shutdownInProgress) {
     failLoud(error, 'uncaught-exception')
     return
   }
+  if (breaker.tripped) return
   const name = error instanceof Error ? error.name : 'Error'
   const message = error instanceof Error ? error.message : String(error)
   logForDebugging(`uncaughtException: ${name}: ${truncate(message, 2000)}`)
   logForDiagnosticsNoPII('error', 'uncaught_exception', { name })
+  const tripped = recordUncaughtAndCheckBreaker(Date.now())
+  if (tripped || breaker.ring.length < BREAKER_RING_CAPACITY) breaker.ring.push({ name, message: truncate(message, 200) })
   if (!persistedUncaughtOnce) {
     persistedUncaughtOnce = true
     persistCrash(error, 'uncaught-exception')
   }
-  const tripped = recordUncaughtAndCheckBreaker(Date.now())
-  if (tripped || breaker.ring.length < BREAKER_RING_CAPACITY) breaker.ring.push({ name, message: truncate(message, 200) })
   if (!tripped) return
   runTerminalRestoration()
   for (const record of breaker.ring) process.stderr.write(`${record.name}: ${record.message}\n`)
@@ -442,8 +442,7 @@ async function loadRestorationOnTty(door: string): Promise<void> {
 }
 
 function cleanupFailureWords(error: unknown): string {
-  if (error instanceof SyntaxError) return 'a record it read is not valid JSON'
-  return error instanceof Error ? error.message : String(error)
+  return error instanceof SyntaxError ? 'a record it read is not valid JSON' : String(error)
 }
 
 export async function gracefulShutdown(
