@@ -1,6 +1,6 @@
 import type { AnyObject, CanUseToolFn, Tool, ToolUseContext } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
-import type { PermissionDecision, PermissionDecisionReason } from '../../types/permissions.js'
+import type { PermissionAskDecision, PermissionDecision, PermissionDecisionReason, PermissionDenyDecision } from '../../types/permissions.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { HOOK_CUT_BUDGET_MS } from '../../utils/hooks/contract.js'
 import { errorMessage } from '../../utils/errors.js'
@@ -12,7 +12,6 @@ import type { HookScope } from '../../utils/hooks/sessionHooks.js'
 import { postureBypassesAsks } from '../../utils/permissions/decision/engine.js'
 import { checkRuleBasedPermissions } from '../../utils/permissions/permissions.js'
 import { getRuleBehaviorDescription } from '../../utils/permissions/PermissionResult.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export type HookPermissionOutcome = {
   behavior: 'allow' | 'ask' | 'deny'
@@ -30,7 +29,17 @@ export type HookAnnounce = (prepared: PreparedHooks) => void
 const notifiedUnreadHookSettings = new Set<string>()
 
 function notifyUnreadHookSettings(scope: HookScope, toolUseContext: ToolUseContext): void {
-  return notBuilt('src/services/tools/toolHooks.ts:31')
+  for (const unread of hooksSettingsUnreadErrors(scope.cwd)) {
+    const told = `${scope.sessionId}\n${unread.path}`
+    if (notifiedUnreadHookSettings.has(told)) continue
+    notifiedUnreadHookSettings.add(told)
+    toolUseContext.addNotification?.({
+      key: `hook-settings-unread:${unread.path}`,
+      color: 'warning',
+      priority: 'high',
+      text: `hook settings at ${unread.path} could not be read (${unread.error}), so no hook runs — fix the file to bring them back`,
+    })
+  }
 }
 
 export async function beforeToolHooks(tool: Tool, toolUseID: string, input: AnyObject, toolUseContext: ToolUseContext, signal: AbortSignal, announce?: HookAnnounce): Promise<HookFireResult> {
@@ -56,7 +65,23 @@ export async function afterToolHooks(
   signal: AbortSignal | undefined,
   announce?: HookAnnounce,
 ): Promise<HookFireResult> {
-  return notBuilt('src/services/tools/toolHooks.ts:59')
+  const scope = hookScopeOf(toolUseContext)
+  const prepared = await prepareHooks(
+    'tool.after',
+    {
+      tool: tool.name,
+      input,
+      output: ended.output,
+      call_id: toolUseID,
+      ok: ended.ok,
+      ...(ended.error !== undefined ? { error: ended.error } : {}),
+      cut: ended.cut,
+      wall_ms: Math.max(0, Math.round(ended.wallMs)),
+    },
+    ended.cut ? { scope, budgetMs: HOOK_CUT_BUDGET_MS, toolUseContext } : { scope, signal, toolUseContext },
+  )
+  if (prepared.names.length > 0) announce?.(prepared)
+  return prepared.run()
 }
 
 export function permissionDecidedHooks(
@@ -67,11 +92,30 @@ export function permissionDecidedHooks(
   toolUseContext: ToolUseContext,
   signal: AbortSignal,
 ): Promise<HookFireResult> {
-  return notBuilt('src/services/tools/toolHooks.ts:77')
+  return fireHooks('permission.decided', { tool: tool.name, input, call_id: toolUseID, ...decided }, { scope: hookScopeOf(toolUseContext), signal, toolUseContext })
 }
 
 export function deciderOf(reason: PermissionDecisionReason | undefined): 'rule' | 'mode' | 'hook' | 'operator' | 'safety' | 'other' {
-  return notBuilt('src/services/tools/toolHooks.ts:88')
+  switch (reason?.type) {
+    case 'rule':
+      return 'rule'
+    case 'mode':
+    case 'bypassedAsk':
+      return 'mode'
+    case 'hook':
+      return 'hook'
+    case 'guard':
+    case 'safetyCheck':
+      return 'safety'
+    case 'permissionPromptTool':
+    case 'asyncAgent':
+    case 'workingDir':
+    case 'other':
+    case 'subcommandResults':
+      return 'other'
+    default:
+      return 'operator'
+  }
 }
 
 export function hookPermissionOutcomeOf(result: HookFireResult, toolName: string): HookPermissionOutcome | undefined {
@@ -93,5 +137,28 @@ export async function resolveHookPermissionDecision(
   assistantMessage: AssistantMessage,
   toolUseID: string,
 ): Promise<{ decision: PermissionDecision; input: AnyObject }> {
-  return notBuilt('src/services/tools/toolHooks.ts:121')
+  const ask = (asked: AnyObject, forced?: PermissionDecision): Promise<PermissionDecision> =>
+    forced === undefined ? canUseTool(tool, asked, context, assistantMessage, toolUseID) : canUseTool(tool, asked, context, assistantMessage, toolUseID, forced)
+
+  if (hookResult === undefined) return { decision: await ask(input), input }
+  if (hookResult.behavior === 'deny') {
+    const decision = { behavior: 'deny', message: hookResult.message, decisionReason: hookResult.decisionReason } as PermissionDenyDecision
+    return { decision, input }
+  }
+
+  const effective = hookResult.updatedInput ?? input
+  if (hookResult.behavior === 'ask') {
+    if (postureBypassesAsks(context.getAppState().toolPermissionContext)) return { decision: await ask(effective), input: effective }
+    const forced = { behavior: 'ask', message: hookResult.message, updatedInput: hookResult.updatedInput, decisionReason: hookResult.decisionReason } as PermissionAskDecision
+    return { decision: await ask(effective, forced), input: effective }
+  }
+
+  const interactionOwed = hookResult.updatedInput === undefined && tool.requiresUserInteraction?.(input) === true
+  if (interactionOwed || context.alwaysCallCanUseTool === true) return { decision: await ask(effective), input: effective }
+  const objection = await checkRuleBasedPermissions(tool, effective, context)
+  if (objection === null) {
+    return { decision: { behavior: 'allow', updatedInput: effective, decisionReason: hookResult.decisionReason }, input: effective }
+  }
+  if (objection.behavior === 'deny') return { decision: objection, input: effective }
+  return { decision: await ask(effective), input: effective }
 }
