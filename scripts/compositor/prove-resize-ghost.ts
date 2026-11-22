@@ -107,12 +107,13 @@ try {
     Buffer.concat(frames.filter(f => f.tick >= from && (to === null || f.tick < to)).map(f => f.bytes)).toString('latin1')
   const countOf = (hay: string, needle: string): number => hay.split(needle).length - 1
   const WHOLE_FRAME_HEAD = '\x1b[H\x1b[0m'
+  const shrinkErases = env.TERM_PROGRAM === 'Apple_Terminal' ? 1 : 0
   const erasesAfterFirstResize = countOf(bytesIn(changeTicks[0] ?? 45, null), '\x1b[2J')
   const wholeFramesAfterFirstResize = countOf(bytesIn(changeTicks[0] ?? 45, null), WHOLE_FRAME_HEAD)
   check(
-    'G3 every geometry change repaints THROUGH the overwrite law (whole frames ≥ settled changes, no erase of the display)',
-    wholeFramesAfterFirstResize >= SETTLED_CHANGES + 1 && erasesAfterFirstResize === 0,
-    `${wholeFramesAfterFirstResize} whole frames and ${erasesAfterFirstResize} erases for ${SETTLED_CHANGES} settled changes + one burst; a resize must repaint with a whole-frame overwrite (ESC[H ESC[0m) and never erase the display (ESC[2J)`,
+    'G3 every geometry change repaints THROUGH the overwrite law (whole frames ≥ settled changes, only Apple Terminal erases on shrink)',
+    wholeFramesAfterFirstResize >= SETTLED_CHANGES + 1 && erasesAfterFirstResize === shrinkErases,
+    `${wholeFramesAfterFirstResize} whole frames and ${erasesAfterFirstResize} erases for ${SETTLED_CHANGES} settled changes + one burst; a resize must repaint with a whole-frame overwrite (ESC[H ESC[0m) with ${shrinkErases} display erases (ESC[2J) across this journey`,
   )
 
   check('G2 stage snapshots recorded for every geometry', stages.length === cfg.resizes.length, `${stages.length} stages for ${cfg.resizes.length} resizes; the vshot run (scripts/ui/vshot.py) did not settle at every commanded geometry, so check whether the walk reached the station before the resizes`)
@@ -138,7 +139,8 @@ try {
   if (burstStart !== undefined) windows.push(['the burst', burstStart, null])
   for (const [label, from, to] of windows) {
     const bytes = bytesIn(from, to)
-    check(`G5 ${label}: exactly ONE whole-frame overwrite in its window and no erase of the display`, countOf(bytes, WHOLE_FRAME_HEAD) === 1 && countOf(bytes, '\x1b[2J') === 0, `${countOf(bytes, WHOLE_FRAME_HEAD)} whole frames, ${countOf(bytes, '\x1b[2J')} erases; each geometry change must produce exactly one whole-frame overwrite and no ESC[2J`)
+    const erases = from === changeTicks[0] ? shrinkErases : 0
+    check(`G5 ${label}: exactly ONE whole-frame overwrite and ${erases} display erases`, countOf(bytes, WHOLE_FRAME_HEAD) === 1 && countOf(bytes, '\x1b[2J') === erases, `${countOf(bytes, WHOLE_FRAME_HEAD)} whole frames, ${countOf(bytes, '\x1b[2J')} erases; emit one overwrite per settle and an erase on the Apple Terminal shrink only`)
   }
   if (burstStart !== undefined) {
     const burst = bytesIn(burstStart, null)

@@ -5,10 +5,12 @@ import { RESIZE_SETTLE_MS } from '../constants.js'
 import { syncOutputSupportedNow, syncOutputCapabilityNow } from '../session/capabilities.js'
 import { writeDiffToTerminal } from '../session/delivery.js'
 import { ENTER_ALT_SCREEN } from '../termio/dec.js'
+import { ERASE_SCREEN } from '../termio/csi.js'
 import { liveSize, buildParkPatch, resetFramesForAltScreen } from './frames.js'
 import type Ink from '../ink.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 import { consoleSizeNeedsPolling } from '../../utils/platform/terminal.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 type HandleResizeReads = Pick<
   Ink,
@@ -101,11 +103,13 @@ type ApplySizeReads = Pick<
 >
 
 export function applySize(this: ApplySizeReads, columns: number, rows: number): void {
+  const shrank = columns < this.cachedColumns || rows < this.cachedRows
   this.cachedColumns = columns
   this.cachedRows = rows
   this.parkPatch = buildParkPatch.call(this)
   if (this.altScreenActive && !this.isPaused && this.isTTY) {
-    termWrite(this.options.stdout, resizeReassertBytes(this.mouseTracking))
+    const erase = shrank && hostEnv().TERM_PROGRAM === 'Apple_Terminal' ? ERASE_SCREEN : ''
+    termWrite(this.options.stdout, resizeReassertBytes(this.mouseTracking) + erase)
     resetFramesForAltScreen.call(this)
     this.wholeFrameDue = true
   }
