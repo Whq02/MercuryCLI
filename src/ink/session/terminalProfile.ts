@@ -31,6 +31,7 @@ interface ProfileCheckResult {
 export interface TerminalProfileResolution {
   version: number
   verdict: 'full' | 'capable' | 'unsupported'
+  kind: string
   checks: ProfileCheckResult[]
 }
 
@@ -91,9 +92,9 @@ export function resolveTerminalProfile(probe: ProfileProbe = {}): TerminalProfil
     }
   })()
   const conptyEra = platform === 'win32' && isConptyEraBuild(release)
+  const fingerprints = `WT_SESSION=${env.WT_SESSION ? 'set' : 'unset'} TERM_PROGRAM=${env.TERM_PROGRAM ?? '(unset)'}${env.MSYSTEM ? ` MSYSTEM=${env.MSYSTEM}` : ''}`
   if (platform === 'win32') {
     const modern = probe.modernWindowsHost ?? isModernWindowsTerminal()
-    const fingerprints = `WT_SESSION=${env.WT_SESSION ? 'set' : 'unset'} TERM_PROGRAM=${env.TERM_PROGRAM ?? '(unset)'}${env.MSYSTEM ? ` MSYSTEM=${env.MSYSTEM}` : ''}`
     checks.push({
       id: 'win32-conpty-host',
       label: 'ConPTY-era console',
@@ -170,11 +171,12 @@ export function resolveTerminalProfile(probe: ProfileProbe = {}): TerminalProfil
     remediation: 'Progress-capable terminals mirror long-running work in the tab/taskbar.',
   })
 
-  const requiredFailed = checks.some(c => c.requirement === 'required' && !c.ok)
+  const requiredFailed = checks.filter(c => c.requirement === 'required' && !c.ok)
   const allOk = checks.every(c => c.ok)
   return {
     version: TERMINAL_PROFILE_VERSION,
-    verdict: requiredFailed ? 'unsupported' : allOk ? 'full' : 'capable',
+    verdict: requiredFailed.length > 0 ? 'unsupported' : allOk ? 'full' : 'capable',
+    kind: [`v${TERMINAL_PROFILE_VERSION}`, `TERM=${term ?? '(unset)'}`, fingerprints, ...requiredFailed.map(c => c.id)].join(', '),
     checks,
   }
 }

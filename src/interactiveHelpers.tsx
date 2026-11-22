@@ -76,6 +76,14 @@ function completeOnboarding(): void {
   }))
 }
 
+function keepTerminalCheckContinued(kind: string): void {
+  saveGlobalConfig(current =>
+    current.terminalChecksContinued?.[kind]
+      ? current
+      : { ...current, terminalChecksContinued: { ...current.terminalChecksContinued, [kind]: true } },
+  )
+}
+
 
 function SetupGroundFill({ children }: { children: React.ReactNode }): React.ReactNode {
   const tokens = useMercuryTokens()
@@ -183,23 +191,24 @@ export async function showSetupScreens(
   let onboardingShown = false
 
   const resolution = resolveTerminalProfile()
-  if (resolution.verdict === 'unsupported') {
+  if (resolution.verdict === 'unsupported' && !getGlobalConfig().terminalChecksContinued?.[resolution.kind]) {
     const choice = await showSetupDialog<'exit' | 'continue'>(root, done => (
       <TerminalProfileCard resolution={resolution} onDone={done} />
     ))
     if (choice === 'exit') {
-      const missing = resolution.checks
+      const found = resolution.checks
         .filter(row => row.requirement === 'required' && !row.ok)
-        .map(row => row.label)
-        .join(', ')
+        .map(row => row.evidence)
+        .join('; ')
       await exitWithMessage(
         root,
-        `This terminal is missing required capabilities: ${missing || 'see the card above'}.\n` +
+        `This window cannot show Mercury the way it is designed: ${found}.\n` +
           `Use a supported terminal${supportedTerminalHintSuffix()}.\n` +
           'Non-interactive use works anywhere via mercury run.',
         { exitCode: 1, plainLines: true },
       )
     }
+    if (resolveTerminalProfile().verdict === 'unsupported') keepTerminalCheckContinued(resolution.kind)
   }
 
   try {

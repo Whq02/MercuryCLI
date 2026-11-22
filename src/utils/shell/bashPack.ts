@@ -3,7 +3,10 @@ import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { brushPackTreeDigest } from './brushPack.js'
+import { describeArtifactIdentity } from '../artifactIdentity.js'
+import { passedOver } from '../passedOver.js'
 import { packPlatformFor } from '../platform/programs.js'
+import { mercuryInstallUpdateCommand } from '../platform/words.js'
 
 const BASH_PACK_SEGMENTS = ['vendor', 'bash'] as const
 export const BASH_PACK_PATH = BASH_PACK_SEGMENTS.join('/')
@@ -241,6 +244,19 @@ export type BashPackResolution =
   | { state: 'ok'; dir: string; binaryPath: string; manifest: BashPackManifest; source: 'vendored' | 'workspace' }
   | { state: 'unavailable'; note: string }
 
+function restoringInstallCommand(): string | null {
+  const identity = describeArtifactIdentity('')
+  if (identity.distribution !== 'packaged-install' || identity.entry === null) return null
+  if (!existsSync(path.join(path.dirname(path.dirname(identity.entry)), 'current.txt'))) return null
+  try {
+    const manifest = JSON.parse(readFileSync(path.join(path.dirname(identity.entry), 'manifest.json'), 'utf8')) as { bash?: { vendored?: boolean } }
+    if (manifest.bash?.vendored === false) return null
+  } catch (error) {
+    passedOver(error)
+  }
+  return mercuryInstallUpdateCommand(identity.entry)
+}
+
 export function resolveBashPackDir(moduleDir: string = path.dirname(fileURLToPath(import.meta.url))): BashPackResolution {
   const platform = bashPackPlatform()
   if (platform === null) {
@@ -263,8 +279,9 @@ export function resolveBashPackDir(moduleDir: string = path.dirname(fileURLToPat
     dir = parent
   }
   if (vendoredCheck.state === 'mismatch') return { state: 'unavailable', note: vendoredCheck.note }
+  const reinstall = restoringInstallCommand()
   return {
     state: 'unavailable',
-    note: `no bash pack for ${platform}: neither ${BASH_PACK_PATH}/${platform} beside the bundle nor the checkout's own (prepare it: ${bashPrepareCommand(platform, false)}, then rebuild)`,
+    note: `no bash pack for ${platform}: neither ${BASH_PACK_PATH}/${platform} beside the bundle nor the checkout's own (${reinstall === null ? `prepare it: ${bashPrepareCommand(platform, false)}, then rebuild` : `reinstall Mercury to restore it: ${reinstall}`})`,
   }
 }

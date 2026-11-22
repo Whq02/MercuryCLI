@@ -111,11 +111,15 @@ t.section('leg 2 — Exit leaves the guidance, not a cockpit')
       { atTick: 40, requireAwait: true, awaitText: 'Exit — relaunch', minTick: 5, awaitSettleTicks: 2, data: '\x1b[B' },
       { afterPrevTicks: 2, requireAwait: true, awaitText: 'Exit — relaunch', awaitPattern: '[❯›][^\\n]*Exit — relaunch', data: '\r' },
     ],
-    readyText: 'missing required capabilities',
+    readyText: 'Non-interactive use works anywhere via mercury run',
     stableTicks: 4,
     total: 90,
   })
-  t.check('the exit guidance line paints', r.text.includes('missing required capabilities'), 'guidance')
+  t.check(
+    'the exit guidance paints: what the check found, then the way that works anywhere',
+    r.text.includes('cannot show Mercury the way it is designed: TERM=dumb') && r.text.includes('Non-interactive use works anywhere via mercury run'),
+    'the exit branch of showSetupScreens in src/interactiveHelpers.tsx writes these lines',
+  )
   t.check('…and no cockpit followed (the card never continued)', !r.text.includes('? for shortcuts'), 'cockpit')
 }
 

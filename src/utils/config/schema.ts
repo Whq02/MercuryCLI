@@ -254,6 +254,7 @@ type TerminalSetup = {
   appleTerminalSetupInProgress?: boolean
   shiftEnterKeyBindingInstalled?: boolean
   optionAsMetaKeyInstalled?: boolean
+  terminalChecksContinued?: Record<string, true>
 }
 
 type Voice = {

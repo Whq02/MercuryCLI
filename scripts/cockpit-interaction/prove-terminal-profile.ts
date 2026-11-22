@@ -2,8 +2,43 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import * as React from 'react'
 import { checker } from '../engine-durability/harness.ts'
 import { resolveTerminalProfile, TERMINAL_PROFILE_VERSION } from '../../src/ink/session/terminalProfile.ts'
+
+if (process.argv[2] === '--leave') {
+  const platform = Object.getOwnPropertyDescriptor(process, 'platform')!
+  Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
+  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  enableConfigs()
+  const { showSetupScreens } = await import('../../src/interactiveHelpers.tsx')
+  const leave = (node: React.ReactNode): boolean => {
+    if (Array.isArray(node)) return node.some(leave)
+    if (!React.isValidElement(node)) return false
+    const props = node.props as { children?: React.ReactNode; onDone?: (choice: string) => void }
+    if (typeof node.type === 'function' && node.type.name === 'TerminalProfileCard') {
+      props.onDone?.('exit')
+      return true
+    }
+    return leave(props.children)
+  }
+  if (process.argv[3] === 'win32') Object.defineProperty(process, 'platform', { ...platform, value: 'win32' })
+  await showSetupScreens(
+    {
+      render: (node: React.ReactNode) => {
+        if (!leave(node)) throw new Error('a setup screen other than the terminal check was shown')
+      },
+      unmount: () => Object.defineProperty(process, 'platform', platform),
+    } as never,
+    'default',
+    false,
+  )
+  process.exit(0)
+}
 
 const t = checker()
 
@@ -258,6 +293,59 @@ t.section('structure')
   )
   const ids = r.checks.map(c => c.id)
   t.check('check ids are unique', new Set(ids).size === ids.length, ids.join(','))
+}
+
+t.section('the parting words after Exit on the terminal check')
+{
+  const scratch = mkdtempSync(join(tmpdir(), 'terminal-parting-'))
+  const leave = (platform: 'win32' | 'own', term?: string): { status: number | null; lines: string[] } => {
+    const home = mkdtempSync(join(scratch, 'home-'))
+    writeFileSync(join(home, '.mercury.json'), JSON.stringify({ theme: 'dark', hasCompletedOnboarding: true }))
+    const child = spawnSync(process.execPath, [import.meta.path, '--leave', platform], {
+      cwd: scratch,
+      env: {
+        PATH: process.env.PATH,
+        HOME: process.env.HOME,
+        TMPDIR: process.env.TMPDIR,
+        MERCURY_CONFIG_DIR: home,
+        MERCURY_DAEMON_DIR: join(home, 'daemon'),
+        MERCURY_CREDENTIAL_STORE: 'file',
+        MERCURY_LOCAL_PROBE_TARGETS: 'none',
+        TERM: term,
+      },
+      encoding: 'utf8',
+      timeout: 60_000,
+    })
+    return { status: child.status, lines: child.stdout.split('\n').filter(line => line !== '') }
+  }
+  const fix = 'the exit branch of showSetupScreens in src/interactiveHelpers.tsx must open its parting lines with what the failing required rows found (their evidence), and leave the two lines after it as they are'
+  const conhost = leave('win32')
+  t.check('the old Windows console: Exit ends the process with status 1', conhost.status === 1, `status ${conhost.status} · ${fix}`)
+  t.check(
+    'its first line says what the window is and what it does not do, in the words of the check',
+    conhost.lines[0] === 'This window cannot show Mercury the way it is designed: the old Windows console — it names itself to nothing and does not draw frames atomically (WT_SESSION=unset TERM_PROGRAM=(unset)).',
+    `${conhost.lines[0]} · ${fix}`,
+  )
+  t.check(
+    'no line names the window where a capability should stand',
+    conhost.lines.length > 0 && !conhost.lines.some(line => line.includes('capabilities: this window')),
+    `${conhost.lines.join(' | ')} · ${fix}`,
+  )
+  t.check(
+    'the supported terminals and the mercury run line follow it',
+    conhost.lines[1] === 'Use a supported terminal (the stable Windows Terminal or your editor’s integrated terminal; PowerShell 7 preferred).' &&
+      conhost.lines[2] === 'Non-interactive use works anywhere via mercury run.',
+    `${conhost.lines.slice(1).join(' | ')} · ${fix}`,
+  )
+  if (process.platform !== 'win32') {
+    const dumb = leave('own', 'dumb')
+    t.check(
+      'TERM=dumb: the first line names the TERM the check read',
+      dumb.status === 1 && dumb.lines[0] === `This window cannot show Mercury the way it is designed: TERM=dumb platform=${process.platform}.`,
+      `status ${dumb.status} · ${dumb.lines[0]} · ${fix}`,
+    )
+  }
+  rmSync(scratch, { recursive: true, force: true })
 }
 
 t.finish('prove-terminal-profile')

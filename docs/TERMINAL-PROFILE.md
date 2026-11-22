@@ -16,11 +16,16 @@ The verdict is one of:
   Nothing is reduced: `required` is only the floor the design cannot render
   without, and a missing recommended row only informs the report card.
 - `unsupported`: a required row failed. Interactive boot shows the
-  requirement card **before** the main interface: you can exit (with the missing
-  labels named, and the pointer that non-interactive use works anywhere via
+  requirement card **before** the main interface: you can exit (with what the
+  check found, and the pointer that non-interactive use works anywhere via
   `mercury run`) or continue knowingly, never entering a silently degraded UI. The
   exit guidance is written as plain lines below the card, so a terminal
   without cursor addressing shows it whole.
+  Continue anyway is kept in the global config for that kind of window (the
+  profile version, how the window names itself and the required rows it
+  misses): the next start in a window that reads the same goes straight in,
+  a window that reads differently is asked again, and `/health` keeps naming
+  what the window lacks.
 
 Consumers: the boot requirement surface, the `/health` terminal-profile
 report card, and the trace view.

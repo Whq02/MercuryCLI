@@ -62,6 +62,7 @@ prove-settings-row-sources.ts
 prove-shell-row-reads-the-record.ts
 prove-signed-out-is-not-a-fault.ts
 prove-tensorfold-health-row.ts
+prove-terminal-row-after-continue.ts
 prove-transcript-store-row.ts
 prove-tree-scratch-cleanup.ts
 prove-tree-scratch-killed-git.ts

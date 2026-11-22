@@ -28,8 +28,9 @@ export function interfaceChecks(): CheckSpec[] {
             detail,
           }
         }
+        const cannotDraw = missing.some(c => c.requirement === 'required' && c.id !== 'win32-first-class-host')
         return {
-          status: p.verdict === 'unsupported' ? 'fail' : p.verdict === 'capable' ? 'info' : 'ok',
+          status: p.verdict === 'unsupported' ? (cannotDraw ? 'fail' : 'warn') : p.verdict === 'capable' ? 'info' : 'ok',
           evidence: `profile v${p.version} ${p.verdict} · ${cols}x${rows} · ${color}${missing.length ? ` · missing: ${missing.map(c => c.id).join(', ')}` : ''} · hand-back: ${handback.native ? 'native' : 'stop + fg'}`,
           detail,
           ...(p.verdict === 'unsupported'

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
@@ -24,7 +24,7 @@ type Ready = { id: string; state: string; detail: string; remedy?: string }
 type Cert = { sections?: Array<{ checks: Array<Row & { id: string }> }>; readiness?: Ready[] }
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'shell-row-')))
 
-function health(bundle: string, name: string, env: Record<string, string | undefined> = {}): { row: (Row & { id: string }) | undefined; ready: Ready | undefined; text: string } {
+function health(bundle: string, name: string, env: Record<string, string | undefined> = {}): { row: (Row & { id: string }) | undefined; ready: Ready | undefined; build: string; install: string; text: string } {
   const ran = spawnSync('node', [bundle, 'health', '--json'], {
     encoding: 'utf8',
     timeout: 180_000,
@@ -33,9 +33,11 @@ function health(bundle: string, name: string, env: Record<string, string | undef
   })
   try {
     const cert = JSON.parse(ran.stdout) as Cert
-    return { row: cert.sections?.flatMap(part => part.checks).find(row => row.id === 'shell'), ready: cert.readiness?.find(row => row.id === 'tool:shell'), text: '' }
+    const rows = cert.sections?.flatMap(part => part.checks) ?? []
+    const said = (id: string): string => rows.find(row => row.id === id)?.evidence ?? ''
+    return { row: rows.find(row => row.id === 'shell'), ready: cert.readiness?.find(row => row.id === 'tool:shell'), build: said('build-identity'), install: said('install-provenance'), text: '' }
   } catch {
-    return { row: undefined, ready: undefined, text: `status ${String(ran.status)} · ${(ran.stderr ?? '').slice(-300)}` }
+    return { row: undefined, ready: undefined, build: '', install: '', text: `status ${String(ran.status)} · ${(ran.stderr ?? '').slice(-300)}` }
   }
 }
 
@@ -116,16 +118,47 @@ try {
       if (POSIX) {
         const passed = health(bundle, 'bundle-pin', { HOME: emptyHome, MERCURY_WINDOWS_SHELL_ROAD: 'locate', MERCURY_GIT_BASH_PATH: pin })
         check('with a pin passed over, the two rows of health --json say the same, what was passed over among it', same(passed) && (passed.row?.evidence ?? '').includes(PASSED_PIN), JSON.stringify({ row: passed.row, ready: passed.ready }) + passed.text)
-        const view = join(scratch, 'dist-without-the-pack')
-        mkdirSync(join(view, 'vendor'), { recursive: true })
-        for (const name of readdirSync(dirname(bundle))) {
-          if (name !== 'vendor' && lstatSync(join(dirname(bundle), name)).isFile()) copyFileSync(join(dirname(bundle), name), join(view, name))
+        const withoutThePack = (view: string): string => {
+          mkdirSync(join(view, 'vendor'), { recursive: true })
+          for (const name of readdirSync(dirname(bundle))) {
+            if (name !== 'vendor' && lstatSync(join(dirname(bundle), name)).isFile()) copyFileSync(join(dirname(bundle), name), join(view, name))
+          }
+          for (const name of readdirSync(join(dirname(bundle), 'vendor'))) {
+            if (name !== 'bash') symlinkSync(join(dirname(bundle), 'vendor', name), join(view, 'vendor', name))
+          }
+          return join(view, 'mercury.mjs')
         }
-        for (const name of readdirSync(join(dirname(bundle), 'vendor'))) {
-          if (name !== 'bash') symlinkSync(join(dirname(bundle), 'vendor', name), join(view, 'vendor', name))
-        }
-        const bare = health(join(view, 'mercury.mjs'), 'bundle-no-pack', { HOME: emptyHome })
+        const bare = health(withoutThePack(join(scratch, 'dist-without-the-pack')), 'bundle-no-pack', { HOME: emptyHome })
         check('with the bash pack gone from beside the bundle, the two rows say the same, and both name the skipped pack as what to mend', same(bare) && (bare.row?.fix ?? '').startsWith('The bash pack is skipped in this install:'), JSON.stringify({ row: bare.row, ready: bare.ready }) + bare.text)
+        const REMEDY = ' · the remedy of the absent pack is chosen by resolveBashPackDir in src/utils/shell/bashPack.ts: the install command for a packaged install that stands in a versions folder beside its current.txt and whose build carried the pack; the command that makes the pack everywhere else'
+        const bareSays = `${bare.row?.evidence ?? ''} | ${bare.row?.fix ?? ''}`
+        check('…a packaged copy run in place, with no versions folder around it, keeps the command that makes the pack', bare.build.includes('packaged-install') && /\(prepare it: bun run scripts\/vendor\/build-bash\.ts \(needs [^)]+\), then rebuild\)$/.test(bare.row?.fix ?? '') && !bareSays.includes('reinstall Mercury'), bareSays + REMEDY)
+        const { mercuryInstallUpdateCommand } = await import('../../src/utils/platform/words.ts')
+        const version = (JSON.parse(readFileSync(join(dirname(bundle), 'manifest.json'), 'utf8')) as { version: string }).version
+        const versions = join(scratch, 'versions')
+        const installedBundle = withoutThePack(join(versions, version))
+        writeFileSync(join(versions, 'current.txt'), `${version}\n`)
+        const installed = health(installedBundle, 'managed-no-pack', { HOME: emptyHome, MERCURY_VERSIONS_DIR: versions })
+        const reinstall = `(reinstall Mercury to restore it: ${mercuryInstallUpdateCommand(installedBundle)})`
+        const installedSays = `${installed.row?.evidence ?? ''} | ${installed.row?.fix ?? ''}`
+        check('a managed install whose bash pack is gone: the certificate itself reads it as a packaged install that mercury install manages', installed.build.includes('packaged-install') && installed.install.startsWith(`managed ${version} at `), JSON.stringify({ build: installed.build, install: installed.install }) + installed.text)
+        check('…its two rows say the same', same(installed), JSON.stringify({ row: installed.row, ready: installed.ready }) + REMEDY)
+        check('…and both give the remedy an installed user can follow: the install command, in the evidence and at the end of the fix', (installed.row?.evidence ?? '').includes(reinstall) && (installed.row?.fix ?? '').startsWith('The bash pack is skipped in this install:') && (installed.row?.fix ?? '').endsWith(reinstall), installedSays + REMEDY)
+        check('…and name no script of a checkout and no rebuild', installedSays.length > 3 && !/scripts\/vendor\/|then rebuild/.test(installedSays), installedSays + REMEDY)
+        const skippedBundle = withoutThePack(join(scratch, 'packaged-from-a-build-without-the-pack'))
+        const skippedManifest = join(dirname(skippedBundle), 'manifest.json')
+        writeFileSync(skippedManifest, JSON.stringify({ ...(JSON.parse(readFileSync(skippedManifest, 'utf8')) as object), bash: { vendored: false } }))
+        const skipped = health(skippedBundle, 'packaged-build-no-pack', { HOME: emptyHome })
+        const skippedSays = `${skipped.row?.evidence ?? ''} | ${skipped.row?.fix ?? ''}`
+        check('a packaged build whose own record says it was made without the pack keeps the command that makes it', skipped.build.includes('packaged-install') && same(skipped) && /\(prepare it: bun run scripts\/vendor\/build-bash\.ts \(needs [^)]+\), then rebuild\)$/.test(skipped.row?.fix ?? '') && !skippedSays.includes('reinstall Mercury'), skippedSays + REMEDY)
+        const checkout = join(scratch, 'checkout')
+        const builtBundle = withoutThePack(join(checkout, 'dist'))
+        writeFileSync(join(checkout, 'build.ts'), '')
+        for (const marker of ['src', '.git']) mkdirSync(join(checkout, marker))
+        const built = health(builtBundle, 'checkout-no-pack', { HOME: emptyHome })
+        const builtSays = `${built.row?.evidence ?? ''} | ${built.row?.fix ?? ''}`
+        check('a build in a checkout that holds no bash pack: the certificate itself reads it as a source build', built.build.includes('source-build') && built.install.startsWith('development '), JSON.stringify({ build: built.build, install: built.install }) + built.text)
+        check('…its two rows say the same, and the remedy stays the command that makes the pack, then a rebuild', same(built) && /\(prepare it: bun run scripts\/vendor\/build-bash\.ts \(needs [^)]+\), then rebuild\)$/.test(built.row?.fix ?? '') && !builtSays.includes('reinstall Mercury'), builtSays + REMEDY)
         const handsOver = health(bundle, 'bundle-hands-over', { HOME: handsOverHome })
         check('where nothing of the login files is carried, the two rows say the same, with the same change to make', same(handsOver) && (handsOver.row?.evidence ?? '').includes(NOT_CARRIED), JSON.stringify({ row: handsOver.row, ready: handsOver.ready }) + handsOver.text)
       }

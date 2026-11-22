@@ -39,7 +39,8 @@ host: the full interface is designed for it (the VS Code integrated terminal
 also qualifies). A host that does not meet the profile shows a
 terminal-check card first, and its first row (`1`, Continue anyway)
 starts the full interface. The card names what is missing; continuing does
-not select a reduced presentation.
+not select a reduced presentation, and Mercury keeps the answer for that kind
+of window, so the next start there goes straight in.
 PowerShell 7 (`pwsh`) is the shell to run inside that host. Not `cmd.exe`,
 not the old blue "Windows PowerShell 5". Every command below is PowerShell.
 
