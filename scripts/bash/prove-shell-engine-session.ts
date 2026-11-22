@@ -315,7 +315,7 @@ section('§8 an engine that dies between commands: the pipe error is heard, the 
     unheard = String(error)
   }
   process.on('uncaughtException', onUncaught)
-  const exited = new Promise<void>(resolve => child?.once('exit', () => resolve()))
+  const exited = new Promise<void>(resolve => (child === null ? resolve() : child.once('exit', () => resolve())))
   child?.kill('SIGKILL')
   const writeQuietly = (): void => {
     try {
