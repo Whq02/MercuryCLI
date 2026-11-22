@@ -456,8 +456,13 @@ if (LEG === 'face' || LEG === 'both') {
     const pane = markText(r.payload, 'pane')
     const roster = markText(r.payload, 'roster')
     const end = r.payload === null ? '' : gridText(r.payload.grid)
-    const claudeRow = (text: string): string | undefined =>
-      text.split('\n').find(l => l.includes('Anthropic — Claude subscription') && l.indexOf('Anthropic — Claude subscription') < 60)
+    const claudeRow = (text: string): string | undefined => {
+      const lines = text.split('\n')
+      const at = lines.findIndex(l => l.includes('Anthropic — Claude subscription') && l.indexOf('Anthropic — Claude subscription') < 60)
+      if (at < 0) return undefined
+      const below = lines[at + 1] ?? ''
+      return below.slice(0, 60).includes(' — ') ? lines[at] : `${lines[at]}\n${below}`
+    }
     const rowNames = (row: string | undefined, email: string): boolean => (row ?? '').includes(email) || new RegExp(`${email.slice(0, email.indexOf('@') + 5)}[\\w.]*…`).test(row ?? '')
     record('capture', `vshot=${r.status} end=${r.payload?.endReason ?? '?'} · ${r.daemon}`)
     record('fixture hits', r.hits.join(' | ') || 'none')
