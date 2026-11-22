@@ -13,7 +13,6 @@ export function useAnimationValue<T extends string | number | boolean>(
   const parked = useContext(MotionParkContext)
   const [viewportRef, { isVisible }] = useTerminalViewport()
   const [value, setValue] = useState(() => derive(clock ? clock.now() : 0))
-  const shownRef = useRef(value)
   const deriveRef = useRef(derive)
   deriveRef.current = derive
 
@@ -26,9 +25,7 @@ export function useAnimationValue<T extends string | number | boolean>(
       if (present === bucket) return
       bucket = present
       const next = deriveRef.current(now)
-      if (Object.is(next, shownRef.current)) return
-      shownRef.current = next
-      setValue(next)
+      setValue(held => (Object.is(held, next) ? held : next))
     }, true)
   }, [clock, intervalMs, isVisible, parked])
 
