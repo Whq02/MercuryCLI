@@ -2,7 +2,6 @@ prove-background-notice-fold.ts
 prove-backspace-burst.ts
 prove-bang-shell-row-live.ts
 prove-boot-compact.ts
-prove-boot-detail-pane-fits.ts
 prove-boot-leaves-no-launcher-without-an-install.ts
 prove-boot-lockup-roundtrip.ts
 prove-boot-spawn-census.ts
@@ -18,7 +17,6 @@ prove-concourse-compact-drive.ts
 prove-config-model-doors-drive.ts
 prove-consent-card-fits-drive.ts
 prove-consent-card-holds-under-words.ts
-prove-continue-row-elsewhere.ts
 prove-crew-live-drive.ts
 prove-crew-seats-drive.ts
 prove-crewmates-door-drive.ts
@@ -41,7 +39,6 @@ prove-jobcontrol-host-teardown.ts
 prove-keybindings-editor-safe.ts
 prove-launcher-job-control.ts
 prove-logins-copy-key-stays-out-of-draft.ts
-prove-logins-state-words.ts
 prove-mission-before-seat.ts
 prove-mission-served-drive.ts
 prove-mode-band-first-frame-drive.ts

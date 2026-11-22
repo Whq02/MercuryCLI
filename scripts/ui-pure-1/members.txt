@@ -98,3 +98,6 @@ prove-hip-vocab.ts
 prove-desert-verbs-cadence.ts
 prove-wrap-plain.ts
 scripts/ui-pure-1/prove-filtered-picker-first-match.ts
+prove-boot-detail-pane-fits.ts
+prove-continue-row-elsewhere.ts
+prove-logins-state-words.ts

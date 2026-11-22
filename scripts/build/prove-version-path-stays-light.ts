@@ -69,7 +69,7 @@ if (existsSync(BUNDLE)) {
   try {
     const traceFile = join(scratch, 'trace.tsv')
     const traced = spawnSync(nodeBin, [BUNDLE, '--version'], {
-      env: { ...envClean, MERCURY_FEATURE_TRACE: traceFile, MERCURY_FEATURE_TRACE_PROOF: 'scripts/build/prove-version-path-stays-light.ts' },
+      env: { ...process.env, MERCURY_FEATURE_TRACE: traceFile, MERCURY_FEATURE_TRACE_PROOF: 'scripts/build/prove-version-path-stays-light.ts' },
       encoding: 'utf8',
       timeout: 15_000,
     })
