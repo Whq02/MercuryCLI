@@ -24,7 +24,7 @@ import { getCompactPrompt, renderFoldedWork } from './prompt.js'
 import { computeVerbatimRecentTail, DEFAULT_KEEP_ROUNDS, foldLandingCeiling, foldableResults, foldedResultPlaceholder, isMercuryCompactKeepTailEnabled, withFoldedResults } from './verbatimTail.js'
 import { operatorTextOf, selectOperatorMessages } from '../../utils/compact/operatorMessages.js'
 import { prepareFoldContext } from './foldTransaction.js'
-import { renderFoldMemory, retireFoldToMemory } from './foldRetirement.js'
+import { renderFoldMemory, retireFoldToMemory, withdrawFoldMemory } from './foldRetirement.js'
 import { carryFoldPrefix } from './cacheEpoch.js'
 import { restoreBoundPrefixFromMessages } from '../providers/anthropic/boundPrefixRecord.js'
 import { stripThinkingFromIndex } from '../messages/apiFilters.js'
@@ -76,6 +76,7 @@ export async function compactConversation(
   context = transaction.context
   let ceiling = recompactionInfo?.autoCompactThreshold
   let landing: number | undefined
+  let writtenFact: string | undefined
   const summaryContext = summaryModel === undefined ? context : withEngineModel(context, summaryModel)
   const summaryCacheSafeParams =
     summaryModel === undefined
@@ -135,6 +136,9 @@ export async function compactConversation(
       messages, owner, epoch: ledger.epoch, records: ledger.totals.records,
       aborted: context.abortController.signal.aborted,
       ...(context.agentId === undefined ? {} : { agent: String(context.agentId) }),
+      wrote: id => {
+        writtenFact = id
+      },
     })
     const memoryText = renderFoldMemory(memory)
 
@@ -266,6 +270,8 @@ export async function compactConversation(
       truePostCompactTokenCount,
     }
   } catch (err) {
+    const stays = writtenFact === undefined ? null : withdrawFoldMemory(writtenFact)
+    if (stays !== null) logForDebugging(`compact: the memory row ${writtenFact} of a fold that did not land stays — ${stays}`, { level: 'warn' })
     if (!isAutoCompact) notifyCompactionError(context, err)
     throw err
   } finally {
