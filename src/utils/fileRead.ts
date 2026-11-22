@@ -2,8 +2,6 @@ import type { Stats } from 'fs'
 import { logForDebugging } from './debug.js'
 import { getFsImplementation, safeResolvePath, type FsOperations } from './fsOperations.js'
 import { passedOver } from './passedOver.js'
-import { notBuilt } from '../pi/holes.js'
-
 
 export type LineEndingType = 'CRLF' | 'LF'
 
@@ -37,11 +35,16 @@ function specialFileKindAt(fsImpl: FsOperations, resolvedPath: string): string |
 }
 
 export function detectEncodingForResolvedPath(resolvedPath: string): BufferEncoding {
-  return notBuilt('src/utils/fileRead.ts:38')
+  const { buffer, bytesRead } = getFsImplementation().readSync(resolvedPath, { length: SNIFF_BYTES })
+  return bytesRead >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe ? 'utf16le' : 'utf8'
 }
 
 export function detectLineEndingsForString(content: string): LineEndingType {
-  return notBuilt('src/utils/fileRead.ts:46')
+  let balance = 0
+  for (let i = 0; i < content.length; i++) {
+    if (content[i] === '\n') balance += content[i - 1] === '\r' ? 1 : -1
+  }
+  return balance > 0 ? 'CRLF' : 'LF'
 }
 
 export function readFileSyncWithMetadata(filePath: string): {
@@ -51,9 +54,23 @@ export function readFileSyncWithMetadata(filePath: string): {
   lineEndings: LineEndingType
   losslessDecode: boolean
 } {
-  return notBuilt('src/utils/fileRead.ts:58')
+  const fs = getFsImplementation()
+  const { resolvedPath, isSymlink } = safeResolvePath(fs, filePath)
+  if (isSymlink) logForDebugging(`fileRead: reading ${filePath} through symlink at ${resolvedPath}`)
+  const kind = specialFileKindAt(fs, resolvedPath)
+  if (kind) throw new NotARegularFileError(filePath, kind)
+  const encoding = detectEncodingForResolvedPath(resolvedPath)
+  const bytes = fs.readFileBytesSync(resolvedPath)
+  const rawContent = bytes.toString(encoding)
+  return {
+    content: rawContent.replaceAll('\r\n', '\n'),
+    encoding,
+    lineEndings: detectLineEndingsForString(rawContent.slice(0, SNIFF_BYTES)),
+    losslessDecode: Buffer.from(rawContent, encoding).equals(bytes),
+    rawContent,
+  }
 }
 
 export function readFileSync(filePath: string): string {
-  return notBuilt('src/utils/fileRead.ts:88')
+  return readFileSyncWithMetadata(filePath).content
 }
