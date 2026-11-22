@@ -1,9 +1,10 @@
 const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-export function idCellPattern(id: string, shortest = 12): string {
+export function idCellPattern(id: string, shortest = 6): string {
   const whole = `${escapeRegExp(id)}(?=\\s|$)`
-  const ends = Array.from({ length: Math.max(0, id.length - shortest) }, (_, k) => escapeRegExp(id.slice(1 + k)))
-  return ends.length === 0 ? whole : `(?:${whole}|…(?:${ends.join('|')})(?=\\s|$))`
+  const starts = Array.from({ length: Math.max(0, id.length - shortest) }, (_, k) => escapeRegExp(id.slice(0, id.length - 1 - k)))
+  const ends = Array.from({ length: Math.max(0, id.length - 1) }, (_, k) => escapeRegExp(id.slice(1 + k)))
+  return starts.length === 0 ? whole : `(?:${whole}|(?:${starts.join('|')})…(?:${ends.join('|')})?(?=\\s|$))`
 }
 
 export const showsId = (screen: string, id: string): boolean => new RegExp(idCellPattern(id)).test(screen)

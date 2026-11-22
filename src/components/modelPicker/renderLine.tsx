@@ -2,8 +2,7 @@ import figures from 'figures'
 import * as React from 'react'
 import { Box, Text } from '../../ink.js'
 import type { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import { padTo, GLYPH, truncateToWidth } from '../../utils/glyphs.js'
-import { truncateStartToWidth } from '../../utils/truncate.js'
+import { displayWidth, padTo, GLYPH, truncateToWidth } from '../../utils/glyphs.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
 import { FAINT, IVORY, SAND } from '../mercuryPalette.js'
 import { FOLD_CLOSED_LEAD, FOLD_OPEN_LEAD } from '../mercury-ui/menuFold.js'
@@ -15,7 +14,9 @@ import {
   isModelRow,
   moreLineWords,
   pickerCellColumns,
-  type pickerColumns,
+  pickerIdSpan,
+  pickerIdText,
+  type PickerColumns,
   type PickerLine,
   type ProviderHeading,
 } from '../../utils/model/modelPickerGroups.js'
@@ -24,7 +25,10 @@ import type { ModelChoice } from './choice.js'
 import type { pickerActs, pickerCursor } from './moves.js'
 
 const cell = (text: string, width: number): string => (width <= 2 ? '' : `${padTo(text, width - 2)}  `)
-const idCell = (id: string, width: number): string => cell(truncateStartToWidth(id, Math.max(0, width - 2)), width)
+const idAndState = (id: string, state: string, columns: PickerColumns, spare: number, listed: readonly string[]): [string, string] => {
+  const widths = pickerIdSpan(columns, displayWidth(id), displayWidth(state), spare)
+  return [cell(pickerIdText(id, widths.id - 2, listed), widths.id), state === '' ? ' '.repeat(widths.state) : cell(state, widths.state)]
+}
 
 type LineArgs = Pick<ReturnType<typeof pickerCursor>, 'selectRow'> &
   Pick<ReturnType<typeof pickerActs>, 'commitCurrent'> & {
@@ -40,10 +44,12 @@ type LineArgs = Pick<ReturnType<typeof pickerCursor>, 'selectRow'> &
     focusedSupports1m: boolean
     focusedGptToggle: boolean
     context1m: boolean
-    columns: ReturnType<typeof pickerColumns>
+    columns: PickerColumns
+    listed: readonly string[]
   }
 
-export function pickerLineRenderer({ i, headings, inner, selectRow, commitCurrent, TERRA, tokens, compact, narrowId, cardWidth, stateWordOf, focusedSupports1m, focusedGptToggle, context1m, columns }: LineArgs) {
+export function pickerLineRenderer({ i, headings, inner, selectRow, commitCurrent, TERRA, tokens, compact, narrowId, cardWidth, stateWordOf, focusedSupports1m, focusedGptToggle, context1m, columns, listed }: LineArgs) {
+  const spareOf = (cells: PickerColumns): number => Math.max(0, cells.tail - (compact ? 1 : 0))
   const renderLine = (line: PickerLine<ModelChoice>, idx: number): React.ReactNode => {
     if (line.kind === 'heading') {
       const on = idx === i
@@ -89,6 +95,8 @@ export function pickerLineRenderer({ i, headings, inner, selectRow, commitCurren
       const cells = pickerCellColumns(inner - 4)
       if (compact && narrowId) cells.id = Math.max(0, cells.id - 1)
       const ink = (tone: Parameters<typeof tensorFoldInk>[0]): string => tensorFoldInk(tone, tokens, TERRA)
+      const memory = truncateToWidth(choice.memory?.text ?? '', cells.tail)
+      const [idText, stateText] = idAndState(m.id, choice.state?.text ?? '', cells, memory === '' ? spareOf(cells) : 0, listed)
       return (
         <InteractiveRow key={line.key} id={`model:row:${line.key}`} selected={on} onSelect={() => selectRow(idx)} onActivate={commitCurrent} flexDirection="column" selectionBand={compact}>
           <Box borderStyle={on && !compact ? 'round' : undefined} borderColor={on && !compact ? TERRA : undefined} paddingLeft={on && !compact ? 1 : 2} paddingRight={1} flexDirection="column">
@@ -103,10 +111,10 @@ export function pickerLineRenderer({ i, headings, inner, selectRow, commitCurren
               ) : (
                 <>
                   <Text bold color={IVORY}>{cell(m.name, cells.alias)}</Text>
-                  <Text color={FAINT}>{idCell(m.id, cells.id)}</Text>
-                  <Text color={ink(choice.state?.tone ?? 'faint')}>{cell(choice.state?.text ?? '', cells.state)}</Text>
+                  <Text color={FAINT}>{idText}</Text>
+                  <Text color={ink(choice.state?.tone ?? 'faint')}>{stateText}</Text>
                   <Text color={FAINT}>{cell(m.ctx, cells.ctx)}</Text>
-                  <Text color={ink(choice.memory?.tone ?? 'faint')}>{truncateToWidth(choice.memory?.text ?? '', cells.tail)}</Text>
+                  <Text color={ink(choice.memory?.tone ?? 'faint')}>{memory}</Text>
                 </>
               )}
             </Text>
@@ -120,6 +128,7 @@ export function pickerLineRenderer({ i, headings, inner, selectRow, commitCurren
     const alias = model ? (hasAlias(m) ? m.name : '—') : m.name
     const ctxText = on && (focusedSupports1m || focusedGptToggle) ? (context1m ? (m.ctx1m ?? m.ctx) : (m.ctxBase ?? m.ctx)) : m.ctx
     const tail = model && !hasAlias(m) ? truncateToWidth(MODEL_PICKER_NO_ALIAS, columns.tail) : ''
+    const [idText, stateText] = idAndState(m.id, stateWord, columns, tail === '' ? spareOf(columns) : 0, listed)
     return (
       <InteractiveRow
         key={line.key}
@@ -137,13 +146,13 @@ export function pickerLineRenderer({ i, headings, inner, selectRow, commitCurren
             {model ? (
               <>
                 <Text bold color={m.gated ? SAND : hasAlias(m) ? IVORY : FAINT}>{cell(alias, columns.alias)}</Text>
-                <Text color={FAINT}>{idCell(m.id, columns.id)}</Text>
+                <Text color={FAINT}>{idText}</Text>
               </>
             ) : (
               <Text bold color={m.gated ? SAND : IVORY}>{m.name}</Text>
             )}
             {model ? <>
-              <Text color={stateColor}>{cell(stateWord, columns.state)}</Text>
+              <Text color={stateColor}>{stateText}</Text>
               <Text color={FAINT}>{cell(ctxText, columns.ctx)}</Text>
               <Text color={tokens.info}>{tail}</Text>
             </> : null}
