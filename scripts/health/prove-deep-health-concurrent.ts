@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { execFile } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -49,6 +49,26 @@ function findCheck(cert: HealthCert | null, id: string): HealthCheck | undefined
   }
   return undefined
 }
+
+const NEUTRAL = new Set(['ok', 'info', 'off'])
+function notOk(cert: HealthCert | null): HealthCheck[] {
+  return cert ? cert.sections.flatMap(section => section.checks.filter(c => !NEUTRAL.has(c.status))) : []
+}
+
+const machineTag = `${process.platform === 'win32' ? 'win' : process.platform}-${process.arch}`
+const bundledApps = join(repoRoot, 'src', 'extensions', 'bundled')
+const trueHere = new Map<string, { why: string; says: string }>()
+if (!existsSync(join(repoRoot, 'vendor', 'bash', machineTag))) {
+  trueHere.set('shell', { why: `this checkout holds no vendor/bash/${machineTag}`, says: 'no bash pack for' })
+}
+const unreleased = readdirSync(bundledApps).filter(name => {
+  const lock = join(bundledApps, name, 'server', `${name}.lock.json`)
+  return existsSync(lock) && (JSON.parse(readFileSync(lock, 'utf8')) as { platforms?: Record<string, unknown> }).platforms?.[machineTag] === undefined
+})
+if (unreleased.length > 0) {
+  trueHere.set('extensions', { why: `${unreleased.join(', ')} have no release for ${machineTag}`, says: ' partial · 0 broken' })
+}
+const certifiedHere = trueHere.size === 0 ? 'ends certified' : `cautions on ${[...trueHere].map(([id, fact]) => `${id} alone where ${fact.why}`).join(' and on ')}, every other check certified`
 
 function runHealthDeep(cwd: string, configDir: string, extraArgs: string[] = []): Promise<RunResult> {
   return new Promise(resolvePromise => {
@@ -102,10 +122,12 @@ async function main(): Promise<void> {
           r.status === 0,
           `rc=${r.status} verdict=${r.cert?.verdict ?? 'none'} journey=${jl?.status}:${jl?.evidence ?? ''} stderr=${r.stderr.slice(0, 120)} — run node dist/mercury.mjs health --json --deep and read the journey-loop check; fix probeJourneyLoop in src/services/health/healthDeepProbes.ts so concurrent runs stay isolated`,
         )
+        const cautions = notOk(r.cert)
         check(
-          `full run ${idx + 1} ends certified`,
-          r.cert?.verdict === 'certified',
-          `verdict=${r.cert?.verdict ?? 'none'} — a non-certified verdict means a check in the cert failed or the JSON did not parse; read the cert from node dist/mercury.mjs health --json --deep`,
+          `full run ${idx + 1} ${certifiedHere}`,
+          r.cert?.verdict === (cautions.length === 0 ? 'certified' : 'caution') &&
+            cautions.every(c => c.status === 'warn' && trueHere.has(c.id) && String(c.evidence).includes(trueHere.get(c.id)!.says)),
+          `verdict=${r.cert?.verdict ?? 'none'} · not ok: ${cautions.map(c => `${c.id} ${c.status}: ${c.evidence ?? ''}`).join(' | ') || 'none read'} — a check named here that is true of this machine joins trueHere in scripts/health/prove-deep-health-concurrent.ts with the fact that makes it true; any other is a fault of that check in src/services/health, or the JSON did not parse; read the cert from node dist/mercury.mjs health --json --deep`,
         )
         check(
           `full run ${idx + 1} journey-loop is ok with full pipeline evidence`,
