@@ -27,7 +27,6 @@ import { gitExe } from './git/gitExe.js'
 import { isENOENT } from './errors.js'
 import { passedOver } from './passedOver.js'
 import { startTimeout, stopTimeout } from './timers.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 export { findGitRoot } from './git/gitRoot.js'
 export { gitExe } from './git/gitExe.js'
@@ -81,12 +80,12 @@ export const getIsGit = memoizeWithLRU(
 )
 
 export async function dirIsInGitRepo(cwd: string): Promise<boolean> {
-  return notBuilt('src/utils/git.ts:82')
+  return findGitRoot(cwd) !== null
 }
 
 
 async function getHead(): Promise<string> {
-  return notBuilt('src/utils/git.ts:87')
+  return getCachedHead()
 }
 
 export async function getBranch(cwd?: string): Promise<string> {
@@ -163,7 +162,18 @@ async function probeUpstream(): Promise<{ value: UpstreamFact | null; fault: str
 type UntrackedMode = 'all' | 'normal' | 'no'
 
 async function probeClean(mode: UntrackedMode): Promise<{ value: boolean | null; fault: string | null }> {
-  return notBuilt('src/utils/git.ts:165')
+  const result = await runGitProbe(['status', '--porcelain', `--untracked-files=${mode}`, ...projectScopePathspec(getCwd())], { GIT_OPTIONAL_LOCKS: '0' })
+  if (result.fault !== null) return { value: null, fault: result.fault }
+  if (result.status !== 0) return { value: false, fault: null }
+  for (const row of result.stdout.split('\n')) {
+    const line = row.trimEnd()
+    if (!line) continue
+    const path = line.slice(2).trimStart().replace(/^"|"$/g, '')
+    if (path.startsWith(`${MERCURY_PROJECT_DIR}/health/`)) continue
+    if (mode === 'normal' && path === `${MERCURY_PROJECT_DIR}/`) continue
+    return { value: false, fault: null }
+  }
+  return { value: true, fault: null }
 }
 
 export async function getIsClean(options?: {
@@ -174,14 +184,26 @@ export async function getIsClean(options?: {
   return (await probeClean(mode)).value ?? false
 }
 
-type GitFileStatus = Unbuilt
+type GitFileStatus = { untracked: string[]; tracked: string[] }
 
 export async function getFileStatus(): Promise<GitFileStatus> {
-  return notBuilt('src/utils/git.ts:195')
+  const result = await execFileNoThrow(gitExe(), ['-c', 'core.quotePath=false', 'status', '--porcelain', '-z', ...projectScopePathspec(getCwd())], { preserveOutputOnError: false })
+  const files: GitFileStatus = { untracked: [], tracked: [] }
+  if (result.code !== 0) return files
+  const rows = result.stdout.split('\0').filter(Boolean)
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]!
+    const status = row.slice(0, 2)
+    const path = row.slice(3)
+    if (status[0] === 'R' || status[0] === 'C') i++
+    if (status === '??') files.untracked.push(path)
+    else if (path) files.tracked.push(path)
+  }
+  return files
 }
 
 async function getWorktreeCount(): Promise<number> {
-  return notBuilt('src/utils/git.ts:222')
+  return getWorktreeCountFromFs()
 }
 
 
@@ -428,7 +450,15 @@ export function gitProbeNote(): string | null {
   return probeNotice
 }
 
-export type GitRepoState = Unbuilt
+export type GitRepoState = {
+  branchName: string
+  commitHash: string
+  isClean: boolean
+  isHeadOnRemote: boolean
+  remoteUrl: string | null
+  unpushedCount: number
+  worktreeCount: number
+}
 
 function sameState(a: GitRepoState, b: GitRepoState): boolean {
   return (
@@ -492,7 +522,20 @@ export function _gitFactsForTesting(): {
 }
 
 export async function getGithubRepo(): Promise<string | null> {
-  return notBuilt('src/utils/git.ts:541')
+  const url = await getRemoteUrl()
+  if (!url) {
+    logForDebugging('getGithubRepo: no remote url')
+    return null
+  }
+  const { parseGitRemote } = await import('./detectRepository.js')
+  const repo = parseGitRemote(url)
+  if (repo?.host !== 'github.com') {
+    logForDebugging(`getGithubRepo: not a github.com remote (${redactGitRemoteCredentials(url)})`)
+    return null
+  }
+  const name = `${repo.owner}/${repo.name}`
+  logForDebugging(`getGithubRepo: ${name}`)
+  return name
 }
 
 
