@@ -91,6 +91,7 @@ export function coldSpecOf({ req, records, workspaceId, sessionId, runnerId, wor
     ...(req.title !== undefined ? { title: partiallySanitizeUnicode(req.title) } : {}),
     ...(req.resumeSessionId !== undefined ? { resume: true } : {}),
     ...(req.permissionMode !== undefined ? { permissionMode: req.permissionMode } : {}),
+    ...(req.permissionModeTyped === true ? { permissionModeTyped: true as const } : {}),
     ...(req.bypassConsent === true ? { bypassConsent: true as const } : {}),
     ...(runnerArgv !== undefined && runnerArgv.length > 0 ? { runnerArgv } : {}),
     kind,

@@ -257,6 +257,7 @@ export function reviveConcourseWorker(
     kitOverride?: SessionKitV1
     modelOverride?: string
     permissionMode?: PermissionMode
+    permissionModeTyped?: true
     bypassConsent?: boolean
     kind?: SessionKind
     restartReason?: 'update'
@@ -292,6 +293,7 @@ export function reviveConcourseWorker(
   const reviveKit = opts?.kitOverride ?? rec.kit
   const reviveModel = opts?.modelOverride ?? rec.modelKey
   const revivePosture = opts?.permissionMode ?? rec.permissionMode
+  const reviveTyped = opts?.permissionMode !== undefined ? opts.permissionModeTyped === true : rec.permissionModeTyped === true
   const reviveConsent = opts?.bypassConsent ?? rec.bypassConsent === true
   const reviveKind = opts?.kind ?? rec.kind ?? sessionKindOfAsker(by)
   const restartReason = runnerRestartReasonOf(rec, opts?.restartReason)
@@ -305,6 +307,7 @@ export function reviveConcourseWorker(
     ...(rec.runnerArgv !== undefined ? { runnerArgv: rec.runnerArgv } : {}),
     ...(reviveKit !== undefined ? { kit: reviveKit } : {}),
     ...(revivePosture !== undefined ? { permissionMode: revivePosture } : {}),
+    ...(reviveTyped ? { permissionModeTyped: true as const } : {}),
     ...(reviveConsent ? { bypassConsent: true as const } : {}),
     restartReason,
     resume: true,

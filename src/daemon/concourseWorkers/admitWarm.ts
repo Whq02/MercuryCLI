@@ -42,6 +42,7 @@ export function warmSeatAnswer({ req, deps, workspaceId, effectiveIsolation, kin
         ...(req.birthKey !== undefined ? { birthKey: req.birthKey } : {}),
         ...kitStampOf(kit),
         permissionMode: claimPosture,
+        ...(req.permissionModeTyped === true ? { permissionModeTyped: true as const } : {}),
         ...(req.bypassConsent === true ? { bypassConsent: true as const } : {}),
         kind,
       }

@@ -323,6 +323,7 @@ async function routeBootJourney({ args, opts, root, appProps, chatProps, inputPr
       model: typedString(opts.model) !== undefined && args.userSpecifiedModel !== undefined ? args.resolvedInitialModel : null,
       effort: typeof opts.effort === 'string' ? opts.effort : null,
       permissionMode: args.permissionMode,
+      permissionModeTyped: typedString(opts.mode) === args.permissionMode,
       bypassConsent: effectiveContext.isBypassPermissionsModeAvailable === true,
       runnerArgv: runnerArgvFromBoot(process.argv.slice(2)),
     })

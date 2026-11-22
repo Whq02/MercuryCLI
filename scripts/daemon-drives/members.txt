@@ -12,3 +12,4 @@ prove-turn-output-tokens-drive.ts
 prove-process-sweep-world.ts
 prove-update-old-window-drive.ts
 prove-update-leftover-helper.ts
+prove-hop-carries-boot-mode.ts

@@ -35,6 +35,7 @@ prove-dispatch-ledger-kept-aside.ts
 prove-drained-turn-edge.ts
 prove-dupline-agent-drain.ts
 prove-endpoint-gone-runner-stays.ts
+prove-explicit-default-mode-reaches-runner.ts
 prove-facts-stamp-order.ts
 prove-field-e004-daemon-skew.ts
 prove-headless-permission-mode.ts

@@ -75,7 +75,10 @@ export function useChatAsks({
       return { ...prev, toolPermissionContext: { ...next, mode: held } };
     });
   }, [setAppState]);
-  useClaim(() => subscribeFocusedPermissionMode(adoptRunnerMode), [adoptRunnerMode]);
+  useClaim(() => {
+    if (getFocusedSessionConnector().modelFacts().effectiveSource === 'live') adoptRunnerMode();
+    return subscribeFocusedPermissionMode(adoptRunnerMode);
+  }, [adoptRunnerMode]);
 
   const setToolPermissionContext = useCallback(
     (context: ToolPermissionContext, options?: { preserveMode?: boolean }) => {
