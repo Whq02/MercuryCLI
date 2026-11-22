@@ -24,7 +24,6 @@ export class ConfigParseError extends MercuryError {
     readonly defaultConfig: unknown,
   ) {
     super(message)
-    this.name = 'ConfigParseError'
   }
 }
 
