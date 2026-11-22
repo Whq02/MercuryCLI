@@ -11,7 +11,7 @@ import { MCPTool } from '../../../tools/MCPTool/MCPTool.js'
 import { mcpInfoFromString } from '../../../utils/mcp/mcpStringUtils.js'
 import { getEngineModel } from '../../model/model.js'
 import { readSessionAsks, type SessionAskProjectionV1, type SessionFactsV1 } from '../seatProjections.js'
-import type { AskAnswerV1, AskReceiptV1, SendReceiptV1, SessionAskV1 } from '../types.js'
+import type { AskAnswerV1, AskReceiptV1, SendReceiptV1, SessionAskV1, WorkRowV1 } from '../types.js'
 import { emitAll, type Listeners } from './shared.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { controlFrame } from './controlCarrier.js'
@@ -36,6 +36,23 @@ function toolFor(name: string): Tool {
     name,
     userFacingName: () => (served?.toolName === undefined ? name : `${served.serverName} - ${served.toolName} (MCP)`),
   }
+}
+
+const CREWMATE_GLYPH = '△'
+
+function crewmateTypeLabel(agentType: string | undefined): string {
+  if (!agentType || agentType === 'mercury-crew' || agentType === 'worker') return 'crewmate'
+  return agentType
+}
+
+function formatCrewmateAskLine(agentId: string, work: readonly WorkRowV1[] | undefined): string {
+  const row = work?.find(item => item.kind === 'agent' && (item.agentId === agentId || item.id === agentId))
+  if (row === undefined) return `${CREWMATE_GLYPH} ${agentId}`
+  const label = crewmateTypeLabel(row.agentType)
+  const detail = row.name.trim()
+  return detail === '' || detail === label || detail === row.agentType
+    ? `${CREWMATE_GLYPH} ${label}`
+    : `${CREWMATE_GLYPH} ${label} ${detail}`
 }
 
 export class AsksPart {
@@ -136,6 +153,8 @@ export class AsksPart {
       ...(decisionReason !== undefined ? { decisionReason } : {}),
     }
     let description = row.description ?? tool.userFacingName(row.input) ?? row.toolName
+    const crewmateId = row.agentId !== undefined && row.agentId !== '' ? row.agentId : undefined
+    const needs = this.needs
     const confirm: ToolUseConfirm = {
       assistantMessage: this.assistantRecordFor(row.toolUseId, row.toolName, row.input),
       tool,
@@ -148,6 +167,13 @@ export class AsksPart {
       permissionResult: permissionResult as ToolUseConfirm['permissionResult'],
       permissionPromptStartTimeMs: row.askedAt,
       ...(row.cwd !== undefined ? { cwd: row.cwd } : {}),
+      ...(crewmateId !== undefined
+        ? {
+            get crewmate() {
+              return formatCrewmateAskLine(crewmateId, needs.facts()?.work)
+            },
+          }
+        : {}),
       onUserInteraction: () => {},
       onAbort: () => {
         void this.answerThroughDaemon(row.requestId, { kind: 'abort' })

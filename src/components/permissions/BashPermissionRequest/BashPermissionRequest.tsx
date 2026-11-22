@@ -237,6 +237,11 @@ function BashCommandPermissionRequest(
               <Text dimColor>{summary}</Text>
             )}
             <Text dimColor>in {toTildePath(runFolder)}</Text>
+            {toolUseConfirm.crewmate ? (
+              <Text dimColor wrap="truncate-end">
+                {toolUseConfirm.crewmate}
+              </Text>
+            ) : null}
           </Box>
           <PermissionExplainerContent visible={explainer.visible} promise={explainer.promise} fallback={<Text dimColor>{summary}</Text>} />
           {debugVisible ? (

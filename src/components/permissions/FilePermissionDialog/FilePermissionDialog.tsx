@@ -90,7 +90,7 @@ export function FilePermissionDialog<T extends ToolInput>({
 
   return (
     <Box flexDirection="column">
-      <PermissionDialog title={title} subtitle={subtitle} workerBadge={workerBadge}>
+      <PermissionDialog title={title} subtitle={subtitle} crewmate={toolUseConfirm.crewmate} workerBadge={workerBadge}>
         <Box flexDirection="column">
           {content}
           {sqliteRowWrite ? <Text>{SQLITE_ROW_NOT_CHECKPOINTED}</Text> : null}

@@ -101,7 +101,7 @@ export function BrowserPermissionRequest({
 
   if (provisioning) {
     return (
-      <PermissionDialog title="Browser download" workerBadge={workerBadge}>
+      <PermissionDialog title="Browser download" crewmate={toolUseConfirm.crewmate} workerBadge={workerBadge}>
         <Box flexDirection="column">
           {downloadLines.map((line, i) => (
             <Text key={i}>{line}</Text>
@@ -115,7 +115,7 @@ export function BrowserPermissionRequest({
   }
 
   return (
-    <PermissionDialog title="Browser" workerBadge={workerBadge}>
+    <PermissionDialog title="Browser" crewmate={toolUseConfirm.crewmate} workerBadge={workerBadge}>
       <Box flexDirection="column">
         {typeof useMessage === 'string' ? (
           <ConsentBodyText text={useMessage} />

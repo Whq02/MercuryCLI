@@ -33,8 +33,12 @@ const { bashToolUseOptions } = await import('../../src/components/permissions/Ba
 const { powershellToolUseOptions } = await import('../../src/components/permissions/PowerShellPermissionRequest/powershellToolUseOptions.tsx')
 const { FileWritePermissionRequest } = await import('../../src/components/permissions/FileWritePermissionRequest/FileWritePermissionRequest.tsx')
 const { ComputerPermissionRequest } = await import('../../src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
+const { BashPermissionRequest } = await import('../../src/components/permissions/BashPermissionRequest/BashPermissionRequest.tsx')
 const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
+const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
+const { AsksPart } = await import('../../src/services/engine-connector/daemon/asks.ts')
+const { publishSessionAsks } = await import('../../src/services/engine-connector/seatProjections.ts')
 const { AppStateProvider } = await import('../../src/state/AppState.tsx')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { render } = await import('../../src/ink.ts')
@@ -43,7 +47,7 @@ const { resetSettingsCache } = await import('../../src/utils/settings/settingsCa
 
 let failures = 0
 const HINT =
-  'change getFilePermissionOptions in src/components/permissions/FilePermissionDialog/permissionOptions.tsx, bashToolUseOptions in src/components/permissions/BashPermissionRequest/bashToolUseOptions.tsx, powershellToolUseOptions in src/components/permissions/PowerShellPermissionRequest/powershellToolUseOptions.tsx, shellPermissionHelpers in src/components/permissions/shellPermissionHelpers.tsx, and ComputerPermissionRequest in src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx so no card offers an option whose grant is empty'
+  'change getFilePermissionOptions in src/components/permissions/FilePermissionDialog/permissionOptions.tsx, bashToolUseOptions in src/components/permissions/BashPermissionRequest/bashToolUseOptions.tsx, powershellToolUseOptions in src/components/permissions/PowerShellPermissionRequest/powershellToolUseOptions.tsx, shellPermissionHelpers in src/components/permissions/shellPermissionHelpers.tsx, ComputerPermissionRequest in src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx, AsksPart in src/services/engine-connector/daemon/asks.ts, or PermissionDialog / BashPermissionRequest in src/components/permissions/'
 
 function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? `${detail} — ` : ''}${HINT}`}`)
@@ -319,6 +323,137 @@ try {
       computerNumbered[1]?.startsWith('2. No, and tell Mercury') === true &&
       !renderedComputerCard.some(r => r.includes('Enable sovereign mode')),
     JSON.stringify(computerNumbered),
+  )
+
+  const crewSessionId = 'crew-card-session'
+  publishSessionAsks({
+    schema: 1,
+    sessionId: crewSessionId,
+    asks: [
+      {
+        requestId: 'req-crew',
+        toolUseId: 'tu-crew',
+        toolName: 'Bash',
+        input: { command: 'wc -l src/*.js' },
+        cwd: projectDir,
+        agentId: 'scout-1',
+        askedAt: Date.now(),
+      },
+      {
+        requestId: 'req-main',
+        toolUseId: 'tu-main',
+        toolName: 'Bash',
+        input: { command: 'wc -l src/*.js' },
+        cwd: projectDir,
+        askedAt: Date.now(),
+      },
+    ],
+  })
+  const asksPart = new AsksPart({
+    record: () => ({ sessionId: crewSessionId }),
+    rows: () => [],
+    facts: () => ({
+      model: { effective: 'claude-sonnet-5-5', setting: null },
+      work: [
+        {
+          id: 'task-scout',
+          kind: 'agent',
+          agentId: 'scout-1',
+          agentType: 'mercury-scout',
+          name: 'Count lines in src files',
+          status: 'running',
+          startTime: Date.now(),
+        },
+      ],
+    }) as never,
+    permissionMode: () => 'default',
+    chainRpc: async () => ({ ok: true, outcome: 'applied' }),
+    deliver: async () => ({ ok: true }) as never,
+  })
+  asksPart.readAsks()
+  const crewConfirm = asksPart.asks().find(a => a.id === 'req-crew')!.confirm as { crewmate?: string }
+  const mainConfirm = asksPart.asks().find(a => a.id === 'req-main')!.confirm as { crewmate?: string }
+  check(
+    'crewmate ask: AsksPart stamps the transcript crewmate line on the confirm and leaves main asks unset',
+    crewConfirm.crewmate === '△ mercury-scout Count lines in src files' && mainConfirm.crewmate === undefined,
+    JSON.stringify({ crew: crewConfirm.crewmate, main: mainConfirm.crewmate }),
+  )
+
+  const bashCrewFrame = await drawCard(
+    React.createElement(BashPermissionRequest as never, {
+      toolUseConfirm: {
+        ...crewConfirm,
+        tool: BashTool,
+        description: 'Run a shell command',
+        cwd: projectDir,
+        permissionResult: { behavior: 'ask', message: 'Run a shell command' },
+      },
+      toolUseContext: {},
+      onDone() {},
+      onReject() {},
+      verbose: false,
+    } as never),
+    'default',
+  )
+  const bashMainFrame = await drawCard(
+    React.createElement(BashPermissionRequest as never, {
+      toolUseConfirm: {
+        ...mainConfirm,
+        tool: BashTool,
+        description: 'Run a shell command',
+        cwd: projectDir,
+        permissionResult: { behavior: 'ask', message: 'Run a shell command' },
+      },
+      toolUseContext: {},
+      onDone() {},
+      onReject() {},
+      verbose: false,
+    } as never),
+    'default',
+  )
+  const folderRowIndex = bashCrewFrame.findIndex(r => r.startsWith('in '))
+  const crewRowIndex = bashCrewFrame.findIndex(r => r === '△ mercury-scout Count lines in src files')
+  check(
+    'crewmate bash card: names the crewmate in transcript form right beside the folder line',
+    folderRowIndex >= 0 && crewRowIndex === folderRowIndex + 1,
+    JSON.stringify({ folderRowIndex, crewRowIndex, bashCrewFrame }),
+  )
+  check(
+    'main bash card: carries no crewmate line and matches a main-agent card byte for byte',
+    !bashMainFrame.some(r => r.includes('△')) &&
+      bashCrewFrame.filter(r => r !== '△ mercury-scout Count lines in src files').join('\n') === bashMainFrame.join('\n'),
+    JSON.stringify({ bashMainFrame }),
+  )
+
+  const fileCrewFrame = await drawCard(
+    React.createElement(FileWritePermissionRequest as never, {
+      toolUseConfirm: {
+        tool: FileWriteTool,
+        input: { file_path: outsideFile, content: 'x\n' },
+        toolUseID: 'file-crew',
+        description: 'Write file',
+        assistantMessage: { message: { id: 'card-crew-file' } },
+        permissionResult: { behavior: 'ask', message: 'Write file' },
+        permissionPromptStartTimeMs: Date.now(),
+        crewmate: '△ mercury-scout Count lines in src files',
+        onUserInteraction() {},
+        onAllow() {},
+        onReject() {},
+        onAbort() {},
+        recheckPermission: async () => {},
+        toolUseContext: { readFileState: new Map() },
+      },
+      toolUseContext: { readFileState: new Map() },
+      onDone() {},
+      onReject() {},
+      verbose: false,
+    } as never),
+    'default',
+  )
+  check(
+    'crewmate file card: names the crewmate in transcript form on non-shell cards too',
+    fileCrewFrame.includes('△ mercury-scout Count lines in src files'),
+    JSON.stringify(fileCrewFrame),
   )
 } finally {
   process.chdir(originalCwd)

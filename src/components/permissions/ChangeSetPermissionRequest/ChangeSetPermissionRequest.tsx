@@ -126,7 +126,7 @@ export function ChangeSetPermissionRequest(props: PermissionRequestProps): React
   }, [changed, budget, expanded, innerWidth]);
 
   return (
-    <PermissionDialog title="Apply change set" workerBadge={workerBadge}>
+    <PermissionDialog title="Apply change set" crewmate={toolUseConfirm.crewmate} workerBadge={workerBadge}>
       <Box flexDirection="column" paddingX={2} paddingY={1}>
         {plan ? (
           <>

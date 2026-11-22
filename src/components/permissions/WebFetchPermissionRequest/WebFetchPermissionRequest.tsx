@@ -88,7 +88,7 @@ export function WebFetchPermissionRequest({
   })
 
   return (
-    <PermissionDialog title="Fetch" workerBadge={workerBadge}>
+    <PermissionDialog title="Fetch" crewmate={toolUseConfirm.crewmate} workerBadge={workerBadge}>
       <Box flexDirection="column">
         {typeof useMessage === 'string' ? (
           <ConsentBodyText text={useMessage} />

@@ -173,7 +173,7 @@ export function ComputerPermissionRequest({
   })
 
   return (
-    <PermissionDialog title="Computer" workerBadge={workerBadge}>
+    <PermissionDialog title="Computer" crewmate={toolUseConfirm.crewmate} workerBadge={workerBadge}>
       <Box flexDirection="column">
         {typeof useMessage === 'string' ? (
           <ConsentBodyText text={useMessage} />

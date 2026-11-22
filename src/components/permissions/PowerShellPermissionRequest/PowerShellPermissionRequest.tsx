@@ -173,6 +173,11 @@ export function PowerShellPermissionRequest({
             {explainer.visible ? null : (
               <Text dimColor>{toolUseConfirm.description}</Text>
             )}
+            {toolUseConfirm.crewmate ? (
+              <Text dimColor wrap="truncate-end">
+                {toolUseConfirm.crewmate}
+              </Text>
+            ) : null}
           </Box>
           <PermissionExplainerContent visible={explainer.visible} promise={explainer.promise} fallback={<Text dimColor>{toolUseConfirm.description}</Text>} />
           {debugVisible ? (

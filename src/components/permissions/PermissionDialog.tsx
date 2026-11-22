@@ -20,6 +20,7 @@ type Props = {
   color?: keyof Theme
   titleColor?: keyof Theme
   innerPaddingX?: number
+  crewmate?: string
   workerBadge?: WorkerBadgeProps
   titleRight?: React.ReactNode
   children: React.ReactNode
@@ -31,6 +32,7 @@ export function PermissionDialog({
   color = 'warning',
   titleColor,
   innerPaddingX = 1,
+  crewmate,
   workerBadge,
   titleRight,
   children,
@@ -84,6 +86,11 @@ export function PermissionDialog({
             {modeChip}
           </Box>
         </Box>
+        {crewmate ? (
+          <Text dimColor wrap="truncate-end">
+            {crewmate}
+          </Text>
+        ) : null}
       </Box>
       <Box flexDirection="column" paddingX={innerPaddingX}>
         {children}

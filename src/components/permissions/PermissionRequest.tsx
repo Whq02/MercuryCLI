@@ -64,6 +64,7 @@ export type ToolUseConfirm<Input = Record<string, unknown>> = {
   permissionResult: PermissionDecision
   permissionPromptStartTimeMs: number
   cwd?: string
+  crewmate?: string
   workerBadge?: WorkerBadgeProps
   onUserInteraction: () => void
   onAbort: () => void
