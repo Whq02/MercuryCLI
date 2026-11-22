@@ -408,7 +408,7 @@ counts only live machines returned by the vendors; failed local records,
 volumes and watches are left out of that count. Each vendor says how many machines it returned, `none`,
 `no instances`, `no endpoints` or `unread`; an unread vendor adds `+?` to the
 count instead of claiming a complete zero. Rows use the vendor's own name:
-`Runpod pod`, `Vast.ai instance`, `Lambda instance` or `HF endpoint`.
+`Runpod pod`, `Vast.ai instance`, `Lambda instance`, `HF endpoint`, `Hyperstack instance`, `Verda instance` or `DigitalOcean instance`.
 Vendor read errors appear once at the top, with their HTTP status and details
 behind the vendor row. A rejected credential stays parked until it changes.
 Each machine row shows its state, hourly rate and available spend estimate.
@@ -424,8 +424,8 @@ times, and the detail row names the failed request and cause and shows **Retry**
   place without re-downloading weights. If the reload fails, Mercury restores
   the previous launch script.
 - **Stop (Runpod and Vast.ai pods):** stops GPU compute billing while keeping
-  the pod or container disk. Storage continues to bill while stopped. Lambda
-  instances and Runpod clusters cannot be stopped and bill until terminated.
+  the pod or container disk. Storage continues to bill while stopped. Lambda,
+  Hyperstack, Verda and DigitalOcean instances and Runpod clusters cannot be stopped and bill until terminated.
 - **Terminate:** deletes the pod, cluster or instance after confirmation and
   checks the vendor's instance list to confirm it is gone. On Runpod pods with
   an attached fast-load volume, Mercury asks whether to keep or delete the
