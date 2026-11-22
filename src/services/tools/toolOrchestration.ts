@@ -3,7 +3,7 @@ import type { AssistantMessage, Message } from '../../types/message.js'
 import type { ToolUseBlock } from '../../types/wire.js'
 import { all } from '../../utils/generators.js'
 import { logError } from '../../utils/log.js'
-import { runToolUse } from './toolExecution.js'
+import { runToolUse, type MessageUpdateLazy } from './toolExecution.js'
 import { closeRound } from './loopGuard.js'
 import { batchClaimOf, claimsCompatible, type BatchClaim } from './toolBatching.js'
 import type { EarlyStarts } from './earlyStarts.js'
@@ -16,12 +16,34 @@ import { readRequestGauge } from '../run/requestGauge.js'
 import { tokenCountWithEstimation } from '../context/tokens.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { bindResultRoom, bindResultRoomRound, createResultRoom, resultRoomBudget, resultRoomFor, resultRoomForRound, type ResultRoom } from '../run/resultRoom.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 type MessageUpdate = {
   message?: Message
   newContext: ToolUseContext
+}
+
+const CONCURRENT_CALLS_CEILING = 10
+
+type ClaimedCall = { block: ToolUseBlock; ordinal: number; claim: BatchClaim }
+
+type CallBatch = { exclusive: boolean; calls: ClaimedCall[] }
+
+function parentOf(block: ToolUseBlock, assistantMessages: readonly AssistantMessage[]): AssistantMessage | undefined {
+  return assistantMessages.find(row => row.message.content.some(part => part.type === 'tool_use' && part.id === block.id))
+}
+
+function batchesOf(calls: readonly ClaimedCall[]): CallBatch[] {
+  const batches: CallBatch[] = []
+  for (const call of calls) {
+    const last = batches.at(-1)
+    if (call.claim.kind !== 'exclusive' && last !== undefined && !last.exclusive && last.calls.every(held => claimsCompatible(held.claim, call.claim))) {
+      last.calls.push(call)
+      continue
+    }
+    batches.push({ exclusive: call.claim.kind === 'exclusive', calls: [call] })
+  }
+  return batches
 }
 
 function addInProgress(context: ToolUseContext, id: string): void {
@@ -94,5 +116,64 @@ export async function* runTools(
   toolUseContext: ToolUseContext,
   early?: EarlyStarts,
 ): AsyncGenerator<MessageUpdate> {
-  return notBuilt('src/services/tools/toolOrchestration.ts:108')
+  await early?.ready()
+  const roundID = early?.roundID ?? `round:${randomUUID()}`
+  const gate = early?.gate ?? canUseTool
+  const owner = ownerFromToolUseContext(toolUseContext)
+  const { signal } = toolUseContext.abortController
+  openResultRoomForRound(roundID, assistantMessages, toolUseContext)
+
+  async function* updatesOf(call: ClaimedCall, context: ToolUseContext): AsyncGenerator<MessageUpdateLazy, void> {
+    const { block } = call
+    addInProgress(context, block.id)
+    try {
+      const adopted = early?.take(block.id)
+      if (adopted !== undefined) {
+        yield* adopted.updates
+        return
+      }
+      await parkBeforeBlock(block, context)
+      yield* runToolUse(block, parentOf(block, assistantMessages)!, gate, context, { id: roundID, ordinal: call.ordinal })
+    } finally {
+      removeInProgress(context, block.id)
+    }
+  }
+
+  const calls: ClaimedCall[] = []
+  for (const [ordinal, block] of toolUseBlocks.entries()) {
+    calls.push({ block, ordinal, claim: await batchClaimOf(block, toolUseContext) })
+  }
+
+  let current = toolUseContext
+  for (const batch of batchesOf(calls)) {
+    if (batch.exclusive) {
+      for (const call of batch.calls) {
+        for await (const update of updatesOf(call, current)) {
+          if (update.contextModifier !== undefined) current = update.contextModifier.modifier(current)
+          yield { message: update.message, newContext: current }
+        }
+      }
+      continue
+    }
+    const snapshot = current
+    const modifiers = new Map<string, Array<(context: ToolUseContext) => ToolUseContext>>()
+    for await (const update of all(batch.calls.map(call => updatesOf(call, snapshot)), CONCURRENT_CALLS_CEILING)) {
+      if (update.contextModifier !== undefined) {
+        modifiers.set(update.contextModifier.toolUseID, [...(modifiers.get(update.contextModifier.toolUseID) ?? []), update.contextModifier.modifier])
+      }
+      yield { message: update.message, newContext: snapshot }
+    }
+    for (const call of batch.calls) {
+      for (const modifier of modifiers.get(call.block.id) ?? []) {
+        try {
+          current = modifier(current)
+        } catch (error) {
+          logError(error)
+        }
+      }
+    }
+    yield { newContext: current }
+  }
+
+  for (const message of closeRound(owner, roundID, !signal.aborted).messages) yield { message, newContext: current }
 }
