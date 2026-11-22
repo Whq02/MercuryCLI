@@ -1,9 +1,12 @@
 #!/usr/bin/env bun
+import { mock } from 'bun:test'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
+import * as realFs from 'node:fs'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, dirname, join } from 'node:path'
+import { basename, dirname, isAbsolute, join, normalize, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { z } from 'zod/v4'
 import { removeScratch } from '../lib/removeScratch.ts'
 
@@ -19,10 +22,12 @@ if (!process.env.REACH_CORPUS_ROOT) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'deny-reach-corpus-')))
   const home = join(root, 'home')
   const config = join(root, 'config')
+  const tmp = join(root, 'tmp')
   mkdirSync(home)
   mkdirSync(config)
+  mkdirSync(tmp)
   const child = Bun.spawnSync([process.execPath, ...process.argv.slice(1)], {
-    env: { ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_'))), HOME: home, USERPROFILE: home, REACH_CORPUS_ROOT: root, MERCURY_CONFIG_DIR: config, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: join(root, 'no-git-config') },
+    env: { ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_'))), HOME: home, USERPROFILE: home, TMPDIR: tmp, TEMP: tmp, TMP: tmp, REACH_CORPUS_ROOT: root, MERCURY_CONFIG_DIR: config, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: join(root, 'no-git-config') },
     stdio: ['inherit', 'inherit', 'inherit'],
   })
   removeScratch(root)
@@ -79,6 +84,96 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.NODE_ENV = 'test'
 for (const key of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS', 'MERCURY_TREE_SCAN_CEILING']) delete process.env[key]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+
+const hostFs = { ...realFs }
+function isolateHostDisk(roots: readonly string[]): void {
+  const snap = hostFs
+  const promisesSnap = { ...realFs.promises }
+  const expanded = [...roots]
+  for (const root of [...expanded]) {
+    if (root.startsWith('/private/var/') || root.startsWith('/private/tmp/')) expanded.push(root.slice('/private'.length))
+  }
+  const caseFold = process.platform === 'darwin' || process.platform === 'win32'
+  const norm = (path: string): string => {
+    const clean = normalize(path).replace(/\/+$/, '') || '/'
+    return caseFold ? clean.toLowerCase() : clean
+  }
+  const allowed = [...new Set(expanded.map(norm))]
+  const pathText = (target: unknown): string | null => {
+    if (typeof target === 'string') return target
+    if (target instanceof URL) return fileURLToPath(target)
+    if (Buffer.isBuffer(target)) return target.toString('utf8')
+    return null
+  }
+  const inside = (target: unknown): boolean => {
+    const text = pathText(target)
+    if (text === null || text === '') return true
+    const abs = norm(isAbsolute(text) ? text : resolve(process.cwd(), text))
+    return allowed.some(root => abs === root || abs.startsWith(`${root}/`))
+  }
+  const enoent = (syscall: string, target: unknown): NodeJS.ErrnoException => {
+    const error = new Error(`ENOENT: no such file or directory, ${syscall} '${String(target)}'`) as NodeJS.ErrnoException
+    error.code = 'ENOENT'
+    error.errno = -2
+    error.syscall = syscall
+    error.path = String(target)
+    return error
+  }
+  const wrappedPromises: Record<string, unknown> = { ...promisesSnap }
+  for (const [op, syscall] of [['stat', 'stat'], ['lstat', 'lstat'], ['realpath', 'realpath'], ['readlink', 'readlink'], ['readdir', 'scandir'], ['access', 'access'], ['open', 'open'], ['readFile', 'open']] as const) {
+    const orig = promisesSnap[op] as (...args: unknown[]) => Promise<unknown>
+    wrappedPromises[op] = (...args: unknown[]) => (inside(args[0]) ? orig(...args) : Promise.reject(enoent(syscall, args[0])))
+  }
+  const wrapped: Record<string, unknown> = { ...snap, promises: wrappedPromises }
+  wrapped.existsSync = (target: realFs.PathLike) => (inside(target) ? snap.existsSync(target) : false)
+  wrapped.statSync = (target: realFs.PathLike, opts?: realFs.StatSyncOptions) => {
+    if (inside(target)) return snap.statSync(target, opts)
+    if (opts?.throwIfNoEntry === false) return undefined
+    throw enoent('stat', target)
+  }
+  wrapped.lstatSync = (target: realFs.PathLike, opts?: realFs.StatSyncOptions) => {
+    if (inside(target)) return snap.lstatSync(target, opts)
+    if (opts?.throwIfNoEntry === false) return undefined
+    throw enoent('lstat', target)
+  }
+  wrapped.readdirSync = (target: realFs.PathLike, opts?: unknown) => {
+    if (inside(target)) return snap.readdirSync(target, opts as never)
+    throw enoent('scandir', target)
+  }
+  wrapped.readlinkSync = (target: realFs.PathLike, opts?: unknown) => {
+    if (inside(target)) return snap.readlinkSync(target, opts as never)
+    throw enoent('readlink', target)
+  }
+  wrapped.accessSync = (target: realFs.PathLike, mode?: number) => {
+    if (inside(target)) return snap.accessSync(target, mode)
+    throw enoent('access', target)
+  }
+  wrapped.openSync = (target: realFs.PathLike, ...rest: unknown[]) => {
+    if (inside(target)) return (snap.openSync as (...args: unknown[]) => number)(target, ...rest)
+    throw enoent('open', target)
+  }
+  wrapped.readFileSync = (target: realFs.PathOrFileDescriptor, ...rest: unknown[]) => {
+    if (typeof target === 'number' || inside(target)) return (snap.readFileSync as (...args: unknown[]) => unknown)(target, ...rest)
+    throw enoent('open', target)
+  }
+  wrapped.realpathSync = Object.assign(
+    (target: realFs.PathLike, opts?: unknown) => {
+      if (inside(target)) return snap.realpathSync(target, opts as never)
+      throw enoent('realpath', target)
+    },
+    {
+      native: (target: realFs.PathLike, opts?: unknown) => {
+        if (inside(target)) return snap.realpathSync.native(target, opts as never)
+        throw enoent('realpath', target)
+      },
+    },
+  )
+  mock.module('node:fs', () => ({ ...wrapped, default: wrapped }))
+  mock.module('fs', () => ({ ...wrapped, default: wrapped }))
+  mock.module('node:fs/promises', () => ({ ...wrappedPromises, default: wrappedPromises }))
+  mock.module('fs/promises', () => ({ ...wrappedPromises, default: wrappedPromises }))
+}
+isolateHostDisk([ROOT, realpathSync(join(import.meta.dir, '..', '..'))])
 
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
@@ -263,7 +358,7 @@ async function readingsOf(spelled: string): Promise<Readings> {
 }
 
 function commandsOf(path: string): string[] {
-  const value = JSON.parse(readFileSync(path, 'utf8')) as unknown
+  const value = JSON.parse(hostFs.readFileSync(path, 'utf8')) as unknown
   if (!Array.isArray(value)) throw new Error(`${path} is not a JSON array of commands`)
   return value.map(entry => (typeof entry === 'string' ? entry : (entry as { command: string }).command))
 }
