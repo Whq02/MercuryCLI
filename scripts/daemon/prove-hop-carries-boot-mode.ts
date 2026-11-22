@@ -4,9 +4,10 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { resolveCaptureDriver } from '../lib/captureDriver.ts'
+import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { distBuildInputs } from '../lib/distProvenance.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { untilAsync } from '../lib/untilAsync.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const key of ['MERCURY_HOME', 'MERCURY_DAEMON_DIR', 'MERCURY_DAEMON_OWNER_PID', 'MERCURY_DAEMON_OWNER_FD', 'MERCURY_DAEMON_PERMISSION_MODE', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_CONCOURSE_WORKER', 'MERCURY_CONCOURSE', 'MERCURY_WARM_RUNNER', 'CI', 'NODE_ENV']) {
@@ -55,7 +56,7 @@ const FRAMES = 24
 const BAND_RE = /\b(sovereign mode|implement mode|apollo mode|flow|don't ask) on\b/
 const bandOf = (text: string): string => BAND_RE.exec(text)?.[1]?.replace(' mode', '') ?? 'blank'
 const bandWordOf = (mode: string): string => (mode === 'default' ? 'blank' : mode === 'dontAsk' ? "don't ask" : mode)
-const ringFrom = (mode: Mode): string => getNextPermissionMode({ mode, isBypassPermissionsModeAvailable: true } as never)
+const ringFrom = (mode: Mode) => getNextPermissionMode({ mode, isBypassPermissionsModeAvailable: true } as never)
 
 const HINTS = {
   hop: 'a hop into a live runner must push no mode: hopIntoBoardSessionLanding and applyLaunchWordOnHop in src/services/switchboard/hopIntoSession.ts carry the model and the effort only, and the live arm of reactivateConcourseSession (src/daemon/concourseWorkers/reactivate.ts) answers liveHop without a respawn',
@@ -67,15 +68,6 @@ let failures = 0
 const check = (label: string, cond: boolean, detail: string, hint: string): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` (${[detail, hint].filter(Boolean).join('; ')})`}`)
-}
-const wait = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
-async function until(cond: () => boolean | Promise<boolean>, ms: number): Promise<boolean> {
-  const deadline = Date.now() + ms
-  do {
-    if (await cond()) return true
-    await wait(150)
-  } while (Date.now() < deadline)
-  return cond()
 }
 const rpc = (request: object, timeoutMs = 15_000): Promise<Record<string, unknown>> => daemonControlRpc(request as never, { timeoutMs }) as Promise<Record<string, unknown>>
 function printFrame(title: string, text: string): void {
@@ -146,20 +138,18 @@ for (const run of RUNS) {
   let log = ''
   const daemon: ChildProcess = spawn('node', [BIN, 'daemon', 'run', work], { cwd: work, env: { ...process.env, ...PROOF_ENV, NO_COLOR: '1', MERCURY_CONFIG_DIR: home, MERCURY_DAEMON_DIR: daemonDir, MERCURY_DAEMON_PERSIST: '1', MERCURY_DAEMON_NO_SELF_WARM: '1' }, stdio: ['ignore', 'pipe', 'pipe'] })
   for (const stream of [daemon.stdout, daemon.stderr]) stream?.on('data', d => (log += String(d)))
-  const exited = new Promise<void>(r => daemon.once('exit', () => r()))
   try {
-    const ready = await until(async () => {
+    const ready = await untilAsync(async () => {
       const hello = (await rpc({ op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: '1.0.0', clientBuildTree: null }).catch(() => ({ ok: false }))) as { ok?: boolean; ready?: boolean }
       return hello.ok === true && hello.ready === true
-    }, 60_000)
+    }, vshotBudgetMs(60_000), 150)
     const born = ready ? await rpc({ op: 'sessionAdmit', workspaceDir: work, birthKey: randomUUID(), isolation: 'shared', bornBlank: true, by: 'operator', title: 'the live one', permissionMode: run.live, bypassConsent: true }, 60_000) : { ok: false }
     const sid = typeof born.sessionId === 'string' ? born.sessionId : ''
     const factsNow = (): { permissionMode?: string; queueReady?: boolean; runnerGeneration?: number } | null => readSessionFacts(sid, daemonDir)
-    const spoke = sid !== '' && (await until(async () => {
+    const spoke = sid !== '' && (await untilAsync(async () => {
       await rpc({ op: 'sessionControl', action: 'session-facts', sessionId: sid, by: 'operator' }).catch(() => undefined)
-      await wait(250)
       return factsNow()?.queueReady === true
-    }, 60_000))
+    }, vshotBudgetMs(60_000), 250))
     check(`${run.id} a live runner holds the session in ${permissionModeTitle(run.live)}`, spoke && factsNow()?.permissionMode === run.live, `ready=${ready} admitted=${JSON.stringify(born).slice(0, 200)} facts=${JSON.stringify(factsNow()?.permissionMode)} daemon=${log.slice(-300)}`, HINTS.drive)
     if (!spoke) continue
     seedTranscript(work, sid)
@@ -170,18 +160,22 @@ for (const run of RUNS) {
       if (facts?.permissionMode !== undefined && facts.permissionMode !== words.at(-1)) words.push(facts.permissionMode)
       if (facts?.runnerGeneration !== undefined) generations.add(facts.runnerGeneration)
     }, 100)
+    const next = ringFrom(run.live)
+    const composer = { requireAwait: true, awaitText: COMPOSER }
+    const filtered = { requireAwait: true, awaitText: `/ ${ROW}` }
+    const chat = { requireAwait: true, awaitText: 'Seed reply.' }
     const sends: Send[] = [
-      { atTick: 200, awaitText: COMPOSER, minTick: 3, awaitSettleTicks: 0, data: '', mark: 'f00' },
-      ...Array.from({ length: FRAMES }, (_, k) => ({ afterPrevTicks: 1, data: '', mark: `f${String(k + 1).padStart(2, '0')}` })),
-      { afterPrevTicks: 2, data: '/config' },
-      { afterPrevTicks: 2, data: '\r' },
-      { afterPrevTicks: 60, awaitText: 'Auto-compact', awaitSettleTicks: 4, data: ROW },
-      { afterPrevTicks: 40, awaitText: ROW, awaitSettleTicks: 4, data: '', mark: 'config' },
-      { afterPrevTicks: 2, data: ESC },
-      { afterPrevTicks: 5, data: ESC },
-      { afterPrevTicks: 8, data: '', mark: 'closed' },
-      { afterPrevTicks: 1, data: `${ESC}[Z` },
-      { afterPrevTicks: 25, data: '', mark: 'stepped' },
+      { ...composer, minTick: 3, data: '', mark: 'f00' },
+      ...Array.from({ length: FRAMES }, (_, k) => ({ ...composer, awaitSettleTicks: 1, data: '', mark: `f${String(k + 1).padStart(2, '0')}` })),
+      { ...composer, data: '/config' },
+      { requireAwait: true, awaitText: '❯ /config', data: '\r' },
+      { requireAwait: true, awaitText: 'Auto-compact', awaitSettleTicks: 4, data: ROW },
+      { ...filtered, awaitSettleTicks: 4, data: '', mark: 'config' },
+      { ...filtered, data: ESC },
+      { requireAwait: true, awaitText: 'Auto-compact', data: ESC },
+      { ...chat, data: '', mark: 'closed' },
+      { ...chat, data: `${ESC}[Z` },
+      { requireAwait: true, awaitText: `${permissionModeTitle(next).toLowerCase()} on`, data: '', mark: 'stepped' },
     ]
     const screen = await screenOf(run.id, home, daemonDir, work, ['--mode', run.launch, '--resume', sid], sends)
     clearInterval(watching)
@@ -205,7 +199,6 @@ for (const run of RUNS) {
     const untrue = `${SESSION_WORDS} ${permissionModeTitle(run.launch)}`
     check(`${run.id} /config never says "${untrue}" of a session that runs in ${permissionModeTitle(run.live)}`, config !== null && !config.includes(untrue), (row ?? '').trim(), HINTS.copy)
 
-    const next = ringFrom(run.live)
     check(`${run.id} the settings pane is closed before the key`, closed !== null && !closed.includes(ROW) && closed.includes(COMPOSER), 'the pane still covers the chat', HINTS.drive)
     check(`${run.id} one shift+tab steps from the mode the row shows (${run.live} → ${next}), not from the launch's (${run.launch} → ${ringFrom(run.launch)})`, stepped !== null && bandOf(stepped) === bandWordOf(next), `the band reads ${stepped === null ? '(no frame)' : bandOf(stepped)}`, HINTS.copy)
     console.log(`  [TRUTH] ${run.id}: the runner's own words over the drive: ${words.join(' → ')} · runner generations seen: ${[...generations].join(',')}`)
@@ -213,7 +206,7 @@ for (const run of RUNS) {
     check(`${run.id} the hop kept the one runner (no respawn)`, generations.size === 1, [...generations].join(','), HINTS.hop)
   } finally {
     await rpc({ op: 'shutdown', reapWorkers: true }, 5_000).catch(() => undefined)
-    const gone = await Promise.race([exited.then(() => true), wait(15_000).then(() => false)])
+    const gone = await untilAsync(() => daemon.exitCode !== null || daemon.signalCode !== null, vshotBudgetMs(15_000), 150)
     if (!gone) daemon.kill('SIGKILL')
     delete process.env.MERCURY_DAEMON_DIR
   }
