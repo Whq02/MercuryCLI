@@ -16,10 +16,13 @@ import { readRequestGauge } from '../run/requestGauge.js'
 import { tokenCountWithEstimation } from '../context/tokens.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { bindResultRoom, bindResultRoomRound, createResultRoom, resultRoomBudget, resultRoomFor, resultRoomForRound, type ResultRoom } from '../run/resultRoom.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
+import { notBuilt } from '../../pi/holes.js'
 
 
-type MessageUpdate = Unbuilt
+type MessageUpdate = {
+  message?: Message
+  newContext: ToolUseContext
+}
 
 function addInProgress(context: ToolUseContext, id: string): void {
   try {
