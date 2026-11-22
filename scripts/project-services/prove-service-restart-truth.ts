@@ -28,6 +28,7 @@ const { readRecord, servicesDir, startService, stopService, restartService } = m
   stopService: (cwd: string, name: string) => Promise<Rec>
   restartService: (cwd: string, name: string, sessionId: string) => Promise<Rec>
 }
+const { processStartProbeKind } = await import('../../src/utils/platform/processes.ts')
 const decideServiceStrike = (manager as Rec).decideServiceStrike as
   | ((facts: { pid: number | null; startToken: string | null; currentToken: string | null; ownedHandle?: boolean }) => string)
   | undefined
@@ -152,14 +153,19 @@ section('§4 the token backfill retries a probe that could not answer')
   const emptyDir = join(workDir, 'empty-path')
   mkdirSync(emptyDir, { recursive: true })
   const savedPath = process.env.PATH
+  const savedPlatform = Object.getOwnPropertyDescriptor(process, 'platform')
+  const probeReadsProc = processStartProbeKind() === 'linux-proc' && savedPlatform !== undefined
+  const probeAnswers = (): void => {
+    process.env.PATH = savedPath
+    if (probeReadsProc && savedPlatform) Object.defineProperty(process, 'platform', savedPlatform)
+  }
   process.env.PATH = emptyDir
+  if (probeReadsProc) Object.defineProperty(process, 'platform', { ...savedPlatform, value: 'darwin' })
   let started: Rec
   try {
     started = await startService({ sessionId: SESSION, spec: spec(workDir, 'late') })
   } finally {
-    setTimeout(() => {
-      process.env.PATH = savedPath
-    }, 300).unref?.()
+    setTimeout(probeAnswers, 300).unref?.()
   }
   const record = (started as { record?: Rec }).record
   const pid = Number(record?.pid)
@@ -171,7 +177,7 @@ section('§4 the token backfill retries a probe that could not answer')
     if (typeof token === 'string' && token.length > 0) break
     await sleep(100)
   }
-  process.env.PATH = savedPath
+  probeAnswers()
   check('THE TOKEN LANDS ON THE RECORD once the probe can answer (the base gave the backfill one shot)', typeof token === 'string' && token.length > 0, 'still null after 8s')
   await stopService(workDir, 'late')
   kill(pid)
