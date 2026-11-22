@@ -1,8 +1,11 @@
 import { z } from 'zod/v4'
-import { notBuilt } from '../pi/holes.js'
 
 export function semanticNumber<Inner extends z.ZodType = z.ZodNumber>(
   inner?: Inner,
 ): z.ZodPreprocess<Inner> {
-  return notBuilt('src/utils/semanticNumber.ts:5')
+  return z.preprocess(value => {
+    if (typeof value !== 'string' || !/^-?\d+(?:\.\d+)?$/.test(value)) return value
+    const number = Number(value)
+    return Number.isFinite(number) ? number : value
+  }, (inner ?? z.number()) as Inner)
 }
