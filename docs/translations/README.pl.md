@@ -397,7 +397,7 @@ Flagi uruchomieniowe są zdefiniowane w `src/substrate/flagRegistry.ts`, udostę
 | --- | --- |
 | `/imagesetup` | Skonfiguruj lokalne modele obrazów i wideo. |
 | `/llmhost` | Wybierz model do wynajęcia w Runpod, Vast.ai lub Lambda, uruchom go na własnym komputerze albo podłącz istniejący serwer. |
-| `/tensorfold` | Uruchom lokalny model w TensorFold: zainstaluj silnik, pobierz model, udostępnij go na tym Macu, współdziel w sieci lub wynajmij dla niego GPU i przełącz się na niego, wszystko na jednym ekranie. |
+| `/tensorfold` | Uruchom lokalny model w TensorFold: zainstaluj silnik, pobierz model, udostępnij go na swoim komputerze, współdziel w sieci lub wynajmij dla niego GPU i przełącz się na niego, wszystko na jednym ekranie. |
 | `/restart` | Przenosi ten czat na zainstalowaną wersję Mercury; działające obserwatory i powłoki w tle się zatrzymują. |
 | `/mcp` | Sprawdź serwery, zaloguj się, przeglądaj narzędzia i parametry każdego serwera, połącz ponownie albo przełącz serwer dla tego czatu. |
 
