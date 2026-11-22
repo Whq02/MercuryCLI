@@ -6,13 +6,8 @@ import { passedOver } from 'src/utils/passedOver.js'
 import { createSignal } from 'src/utils/signal.js'
 
 function startFolder(): string {
-  let folder: string
-  try {
-    folder = cwd()
-  } catch (error) {
-    passedOver(error)
-    return ''
-  }
+  if (typeof process === 'undefined' || typeof cwd !== 'function' || typeof realpathSync !== 'function') return ''
+  const folder = cwd()
   try {
     return realpathSync(folder).normalize('NFC')
   } catch (error) {
