@@ -271,7 +271,6 @@ export async function liveModelsReference(ctx: Pick<ResourceContext, 'engineMode
 
 import { MODEL_LOOKUP_LADDER, PROVIDER_MODEL_PAGES } from '../../../utils/model/modelLookup.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 export function liveModelsReferenceText(reference: LiveModelsReference): string {
   const lines: string[] = [
@@ -306,7 +305,41 @@ export function liveModelsReferenceText(reference: LiveModelsReference): string 
 }
 
 export async function knownModelsReference(): Promise<KnownModelsReference> {
-  return notBuilt('src/services/resources/adapters/models.ts:307')
+  const providers: KnownProviderPage[] = []
+  const { ALL_MODEL_CONFIGS, FAMILY_GENERATIONS } = await import('../../../utils/model/configs.js')
+  const { getMarketingNameForModel } = await import('../../model/model.js')
+  const anthropic: BareFamilyWordRow[] = []
+  for (const keys of Object.values(FAMILY_GENERATIONS)) {
+    for (const key of keys) {
+      const id = (ALL_MODEL_CONFIGS as Record<string, { firstParty: string }>)[key]?.firstParty
+      if (id === undefined || anthropic.some(row => row.id === id)) continue
+      anthropic.push({ id, displayName: getMarketingNameForModel(id) ?? id })
+    }
+  }
+  providers.push({ provider: 'anthropic', providerName: providerDisplayName('anthropic'), models: anthropic })
+  const { GPT_DISPLAY_PINS } = await import('../../../utils/model/pins/gptPins.js')
+  providers.push({ provider: 'openai', providerName: providerDisplayName('openai'), familyWord: 'gpt', models: GPT_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName })) })
+  for (const entry of BARE_FAMILY_WORDS) {
+    const pinned = entry.pinnedDefault()
+    providers.push({ provider: entry.route, providerName: providerDisplayName(entry.route), familyWord: entry.word, ...(pinned !== undefined ? { defaultId: pinned.id } : {}), models: entry.knownRows() })
+  }
+  const { GEMINI_PRICE_PINS } = await import('../../../utils/model/pins/geminiPins.js')
+  providers.push({ provider: 'gemini', providerName: providerDisplayName('gemini'), familyWord: 'gemini', models: GEMINI_PRICE_PINS.map(pin => ({ id: pin.id, displayName: pin.id })) })
+  const { HUGGINGFACE_DISPLAY_PINS } = await import('../../../utils/model/pins/huggingfacePins.js')
+  providers.push({ provider: 'huggingface', providerName: providerDisplayName('huggingface'), familyWord: 'huggingface', models: HUGGINGFACE_DISPLAY_PINS.map(pin => ({ id: `huggingface/${pin.id}`, displayName: pin.displayName })) })
+  const { ZEN_DISPLAY_PINS, zenQualifiedId } = await import('../../../utils/model/pins/zenPins.js')
+  providers.push({ provider: 'zen', providerName: providerDisplayName('zen'), familyWord: 'zen', models: ZEN_DISPLAY_PINS.map(pin => ({ id: zenQualifiedId(pin.id), displayName: pin.displayName })) })
+  const { TOGETHER_DISPLAY_PINS, togetherQualifiedId } = await import('../../../utils/model/pins/togetherPins.js')
+  providers.push({ provider: 'together', providerName: providerDisplayName('together'), familyWord: 'together', models: TOGETHER_DISPLAY_PINS.map(pin => ({ id: togetherQualifiedId(pin.id), displayName: pin.displayName })) })
+  const { GROQ_DISPLAY_PINS, groqQualifiedId } = await import('../../../utils/model/pins/groqPins.js')
+  providers.push({ provider: 'groq', providerName: providerDisplayName('groq'), familyWord: 'groq', models: GROQ_DISPLAY_PINS.map(pin => ({ id: groqQualifiedId(pin.id), displayName: pin.displayName })) })
+  const { ORCAROUTER_DISPLAY_PINS, orcarouterQualifiedId } = await import('../../providers/orcarouter/orcarouterCatalogue.js')
+  providers.push({ provider: 'orcarouter', providerName: providerDisplayName('orcarouter'), familyWord: 'orcarouter', models: ORCAROUTER_DISPLAY_PINS.map(pin => ({ id: orcarouterQualifiedId(pin.id), displayName: pin.displayName })) })
+  const { CEREBRAS_DISPLAY_PINS, cerebrasQualifiedId } = await import('../../../utils/model/pins/cerebrasPins.js')
+  providers.push({ provider: 'cerebras', providerName: providerDisplayName('cerebras'), familyWord: 'cerebras', models: CEREBRAS_DISPLAY_PINS.map(pin => ({ id: cerebrasQualifiedId(pin.id), displayName: pin.displayName })) })
+  const { FIREWORKS_DISPLAY_PINS, fireworksQualifiedId } = await import('../../../utils/model/pins/fireworksPins.js')
+  providers.push({ provider: 'fireworks', providerName: providerDisplayName('fireworks'), familyWord: 'fireworks', models: FIREWORKS_DISPLAY_PINS.map(pin => ({ id: fireworksQualifiedId(pin.id), displayName: pin.displayName })) })
+  return { version: MERCURY_VERSION, providers }
 }
 
 export function knownModelsReferenceText(reference: KnownModelsReference): string {

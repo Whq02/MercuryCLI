@@ -18,7 +18,7 @@ export function normalizeModelStringForAPI(model: string): string {
 }
 
 export function firstPartyString(key: keyof typeof ALL_MODEL_CONFIGS): string {
-  return notBuilt('src/utils/model/modelNames.ts:19')
+  return getModelStrings()[key]
 }
 
 export function getDefaultOpusModel(): string {

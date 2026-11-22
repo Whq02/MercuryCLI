@@ -89,8 +89,44 @@ export function askLivelyOf(run: AgentRun, canUseTool: NonNullable<RunAgentParam
   return notBuilt('src/tools/AgentTool/runAgent/watch.ts:87')
 }
 
-export function callModelOf(run: AgentRun, arg1: { deps: ReturnType<typeof productionDeps>; agentId: AgentId }): Unbuilt {
-  return notBuilt('src/tools/AgentTool/runAgent/watch.ts:119')
+export function callModelOf(run: AgentRun, { deps, agentId }: { deps: ReturnType<typeof productionDeps>; agentId: AgentId }) {
+  const callModel: typeof deps.callModel = async function* (request) {
+    let retried = false
+    for (;;) {
+      const requestController = new AbortController()
+      const forwardAbort = (): void => requestController.abort(request.signal.reason)
+      if (request.signal.aborted) forwardAbort()
+      else request.signal.addEventListener('abort', forwardAbort, { once: true })
+      let produced = false
+      let resend = false
+      run.stoppedAfterRetry = false
+      run.retryStalledRequest = error => {
+        if (request.signal.aborted) return false
+        if (retried) run.stoppedAfterRetry = true
+        if (requestController.signal.aborted || produced || retried) return false
+        retried = true
+        resend = true
+        logForDebugging(`runAgent: ${agentId} stalled request — retrying the same request once on ${request.options.model}`, { level: 'warn' })
+        requestController.abort(error)
+        return true
+      }
+      try {
+        for await (const message of deps.callModel({ ...request, signal: requestController.signal })) {
+          if (resend) continue
+          if (message.type === 'assistant' || message.type === 'stream_event') produced = true
+          yield message
+        }
+      } catch (error) {
+        if (!resend || request.signal.aborted) throw error
+      } finally {
+        run.retryStalledRequest = null
+        request.signal.removeEventListener('abort', forwardAbort)
+        requestController.abort()
+      }
+      if (!resend || request.signal.aborted) return
+    }
+  }
+  return callModel
 }
 
 type ObserveNeeds = { recovery: RecoveryBudget; accountant: RecoveryAccountant; onQueryProgress: RunAgentParams['onQueryProgress']; touchThrough: (declaredMs: number) => void; declaredRecoveryWaitMs: typeof declaredRecoveryWaitMs }

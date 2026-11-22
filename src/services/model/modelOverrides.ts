@@ -4,12 +4,37 @@ import { getCanonicalName } from '../../utils/model/modelNames.js'
 import { ALL_MODEL_CONFIGS, familyHeadOf } from '../../utils/model/configs.js'
 import { bareModelIdOf, bareFamilyWordOfRoute } from './bareFamilyWords.js'
 import type { OperatorModelFacts } from '../../utils/model/capabilityRegistry.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export type { OperatorModelFacts }
 
 export function modelHasRecordedFacts(model: string): boolean {
-  return notBuilt('src/services/model/modelOverrides.ts:10')
+  model = bareModelIdOf(model)
+  switch (declaredRouteOf(model)) {
+    case 'anthropic': return familyHeadOf(model) === null && Object.values(ALL_MODEL_CONFIGS).some(row => row.firstParty === getCanonicalName(model))
+    case 'openai': return Boolean(require('../../utils/model/pins/gptPins.js').gptDisplayPin(model))
+    case 'zai': return Boolean(require('../../utils/model/pins/glmPins.js').glmDisplayPin(model))
+    case 'moonshot': return Boolean(require('../../utils/model/pins/kimiPins.js').kimiDisplayPin(model))
+    case 'deepseek': return Boolean(require('../../utils/model/pins/deepseekPins.js').deepseekDisplayPin(model))
+    case 'xai': return Boolean(require('../../utils/model/pins/xaiPins.js').xaiDisplayPin(model))
+    case 'meta': return Boolean(require('../../utils/model/pins/metaPins.js').metaDisplayPin(model))
+    case 'mistral': return Boolean(require('../../utils/model/pins/mistralPins.js').mistralDisplayPin(model))
+    case 'gemini': return Boolean(require('../../utils/model/pins/geminiPins.js').geminiPricePin(model))
+    case 'huggingface': return Boolean(require('../../utils/model/pins/huggingfacePins.js').huggingfaceDisplayPin(model.replace(/^huggingface\//, '')))
+    case 'zen': return Boolean(require('../../utils/model/pins/zenPins.js').zenDisplayPin(model))
+    case 'minimax': return Boolean(require('../../utils/model/pins/minimaxPins.js').minimaxDisplayPin(model))
+    case 'together': return Boolean(require('../../utils/model/pins/togetherPins.js').togetherDisplayPin(model))
+    case 'cohere': return Boolean(require('../../utils/model/pins/coherePins.js').cohereDisplayPin(model))
+    case 'qwen': return Boolean(require('../../utils/model/pins/qwenPins.js').qwenDisplayPin(model))
+    case 'groq': return Boolean(require('../../utils/model/pins/groqPins.js').groqDisplayPin(model))
+    case 'melious': return Boolean(require('../providers/melious/meliousCatalogue.js').meliousListedModel(model))
+    case 'orcarouter': return Boolean(require('../providers/orcarouter/orcarouterCatalogue.js').orcarouterListedModel(model))
+    case 'cerebras': return Boolean(require('../../utils/model/pins/cerebrasPins.js').cerebrasDisplayPin(model))
+    case 'fireworks': return Boolean(require('../../utils/model/pins/fireworksPins.js').fireworksDisplayPin(model))
+    default: {
+      const route = declaredRouteOf(model)
+      return route !== null && bareFamilyWordOfRoute(route)?.knownRow(model) !== undefined
+    }
+  }
 }
 
 export function operatorModelFacts(model: string, recorded: OperatorModelFacts = {}): OperatorModelFacts | undefined {
