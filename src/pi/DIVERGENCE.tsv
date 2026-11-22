@@ -1,0 +1,21 @@
+row	donor	donor_path	our_path	change	reason	batch
+fork	pi	https://github.com/earendil-works/pi	src/pi	tag v1.6.0, commit faac585884ae2c013a6b1400f3e9e77f10b34bac, 2026-11-20	the fork point	0
+change	pi	packages/agent/src/agent-loop.ts	src/pi/loop/agent-loop.ts	comments removed (42)	the tree holds no code comments	0
+change	pi	packages/agent/src/agent-loop.ts	src/pi/loop/agent-loop.ts	the import of @earendil-works/pi-ai reads ./pi-declarations.ts	no pi package is in the tree	0
+change	pi	packages/agent/src/agent.ts	src/pi/loop/agent.ts	comments removed (29)	the tree holds no code comments	0
+change	pi	packages/agent/src/agent.ts	src/pi/loop/agent.ts	the import of @earendil-works/pi-ai reads ./pi-declarations.ts	no pi package is in the tree	0
+change	pi	packages/agent/src/stream-fn.ts	src/pi/loop/stream-fn.ts	comments removed (1)	the tree holds no code comments	0
+change	pi	packages/agent/src/types.ts	src/pi/loop/types.ts	comments removed (90)	the tree holds no code comments	0
+change	pi	packages/agent/src/types.ts	src/pi/loop/types.ts	the imports of @earendil-works/pi-ai and @earendil-works/pi-schema read ./pi-declarations.ts	no pi package is in the tree	0
+change	pi	packages/ai/src/providers/compat-schema.ts	src/pi/loop/pi-declarations.ts	10 declarations the loop's imports reach; 5 as declare statements with no body or value; export kept on 0; comments removed	the loop compiles on its own until it speaks our messages	0
+change	pi	packages/ai/src/providers/model-schema.ts	src/pi/loop/pi-declarations.ts	16 declarations the loop's imports reach; 8 as declare statements with no body or value; export kept on 0; comments removed	the loop compiles on its own until it speaks our messages	0
+change	pi	packages/ai/src/types.ts	src/pi/loop/pi-declarations.ts	49 declarations the loop's imports reach; 0 as declare statements with no body or value; export kept on 16; comments removed	the loop compiles on its own until it speaks our messages	0
+change	pi	packages/ai/src/utils/diagnostics.ts	src/pi/loop/pi-declarations.ts	2 declarations the loop's imports reach; 0 as declare statements with no body or value; export kept on 0; comments removed	the loop compiles on its own until it speaks our messages	0
+change	pi	packages/ai/src/utils/event-stream.ts	src/pi/loop/pi-declarations.ts	2 declarations the loop's imports reach; 2 as declare statements with no body or value; export kept on 2; comments removed	the loop compiles on its own until it speaks our messages	0
+change	pi	packages/ai/src/utils/identity.ts	src/pi/loop/pi-declarations.ts	5 declarations the loop's imports reach; 2 as declare statements with no body or value; export kept on 3; comments removed	the loop compiles on its own until it speaks our messages	0
+change	pi	packages/ai/src/utils/transcript.ts	src/pi/loop/pi-declarations.ts	9 declarations the loop's imports reach; 7 as declare statements with no body or value; export kept on 8; comments removed	the loop compiles on its own until it speaks our messages	0
+change	pi	packages/ai/src/utils/validation.ts	src/pi/loop/pi-declarations.ts	1 declaration the loop's imports reach; 1 as declare statements with no body or value; export kept on 1; comments removed	the loop compiles on its own until it speaks our messages	0
+change	pi	packages/schema/src/builders.ts	src/pi/loop/pi-declarations.ts	3 declarations the loop's imports reach; 0 as declare statements with no body or value; export kept on 1; comments removed	the loop compiles on its own until it speaks our messages	0
+change	pi	packages/schema/src/typebox-static.ts	src/pi/loop/pi-declarations.ts	8 declarations the loop's imports reach; 0 as declare statements with no body or value; export kept on 0; comments removed	the loop compiles on its own until it speaks our messages	0
+change	pi	packages/telemetry/src/index.ts	src/pi/loop/pi-declarations.ts	9 declarations the loop's imports reach; 0 as declare statements with no body or value; export kept on 0; comments removed	the loop compiles on its own until it speaks our messages	0
+change	pi	packages/telemetry/src/metrics.ts	src/pi/loop/pi-declarations.ts	6 declarations the loop's imports reach; 0 as declare statements with no body or value; export kept on 0; comments removed	the loop compiles on its own until it speaks our messages	0
