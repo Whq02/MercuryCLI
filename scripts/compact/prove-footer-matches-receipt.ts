@@ -50,16 +50,16 @@ type Turn = import('../lib/fixtureApi.ts').ScriptedTurn
 const notes = Array.from({ length: 700 }, (_, i) => `Note ${i + 1}: module ${(i * 7919) % 1000} changed and its ${(i * 31) % 97} checks pass.`).join(' ')
 const afterFigureOf = (receipt: string): string => /context \S+ → (\S+) tokens/.exec(receipt)?.[1] ?? 'no after figure'
 
-async function foldInTheProduct(usageOf: (turn: number) => { input_tokens: number; output_tokens: number }): Promise<{ receipt: string; before: number | null; footer: number | null; source: string | null; refusal: string; settled: number | null; settledSource: string | null; recorded: number | undefined }> {
+async function foldInTheProduct(usageOf: (turn: number) => { input_tokens: number; output_tokens: number }): Promise<{ receipt: string; before: number | null; footer: number | null; source: string | null; refusal: string; summaries: number; settled: number | null; settledSource: string | null; recorded: number | undefined }> {
   const home = join(scratch, `runner-${randomUUID()}`)
   const session = randomUUID()
-  const seen = { receipt: '', before: null as number | null, footer: null as number | null, source: null as string | null, refusal: '', settled: null as number | null, settledSource: null as string | null }
+  const seen = { receipt: '', before: null as number | null, footer: null as number | null, source: null as string | null, refusal: '', summaries: -1, settled: null as number | null, settledSource: null as string | null }
   const turns: Turn[] = [
     ...[0, 1, 2, 3].map(turn => ({ kind: 'text' as const, text: notes, usage: usageOf(turn) })),
     { kind: 'text', text: '<summary>The notes of the earlier turns are recorded and nothing is open.</summary>', whenBody: FOLD, usage: usageOf(4) },
     { kind: 'text', text: 'carried on', usage: usageOf(5) },
   ]
-  await withFixtureRunner(turns, async runner => {
+  await withFixtureRunner(turns, async (runner, api) => {
     for (const turn of [1, 2, 3, 4]) {
       await runner.prompt(`record the notes, pass ${turn}`)
       await runner.waitFor(`turn ${turn}`, row => row.type === 'outcome' && row.turn === turn)
@@ -74,6 +74,7 @@ async function foldInTheProduct(usageOf: (turn: number) => { input_tokens: numbe
     await runner.prompt('/compact')
     const again = await runner.waitFor('a second /compact at once', row => row.type === 'outcome' && row.turn === 6)
     seen.refusal = String((again.error as { message?: string } | undefined)?.message ?? again.answer ?? '')
+    seen.summaries = api.messageRequests().filter(request => request.raw.includes(FOLD)).length
     await runner.prompt('carry on')
     await runner.waitFor('the turn after the fold', row => row.type === 'outcome' && row.turn === 7)
     const settled = (await liveFactsOf(runner)).usage.context
@@ -94,6 +95,7 @@ section('1 the built product, a provider that counts fewer tokens than the estim
   check("the footer reads the after size of the fold's record, the figure the receipt prints", run.footer !== null && run.footer === run.recorded, JSON.stringify({ footer: run.footer, recorded: run.recorded, receipt: run.receipt }), FILL)
   check('it is still marked as an estimate: no provider count has landed', run.source === 'estimate', String(run.source), FILL)
   check('a second /compact at once names that same figure in its refusal', run.refusal === `Nothing to compact: the last fold already holds this conversation (${afterFigureOf(run.receipt)} tokens)`, run.refusal, 'createFoldMeter in src/services/compact/compact/foldMeasure.ts must take the context before a fold from contextFill in src/services/context/tokens.ts')
+  check('that second /compact asks for no summary: the one request of the session is the fold that landed', run.summaries === 1, String(run.summaries), 'call in src/commands/compact/compact.ts must refuse a fold that would fold no working round before it asks for a summary (manualFoldHasNothingToFold in src/services/compact/compact/projection.ts)')
   check("once the next answer lands, the footer reads the provider's count", run.settledSource === 'usage' && run.settled === 30_005, JSON.stringify({ settled: run.settled, source: run.settledSource }), FILL)
 }
 
@@ -103,6 +105,7 @@ section('2 the built product, a provider that reports no usage: the footer after
   check('/compact folds and its receipt reads a smaller context', run.receipt.startsWith('Compacted — folded ') && run.recorded !== undefined && run.before !== null && run.recorded < run.before, JSON.stringify(run), FILL)
   check("the footer reads the after size of the fold's record: the folded rows are not counted, the skills list on its way back is", run.footer !== null && run.footer === run.recorded, JSON.stringify({ footer: run.footer, recorded: run.recorded, receipt: run.receipt }), FILL)
   check('a second /compact at once names that same figure in its refusal', run.refusal === `Nothing to compact: the last fold already holds this conversation (${afterFigureOf(run.receipt)} tokens)`, run.refusal, 'createFoldMeter in src/services/compact/compact/foldMeasure.ts must take the context before a fold from contextFill in src/services/context/tokens.ts')
+  check('that second /compact asks for no summary: the one request of the session is the fold that landed', run.summaries === 1, String(run.summaries), 'call in src/commands/compact/compact.ts must refuse a fold that would fold no working round before it asks for a summary (manualFoldHasNothingToFold in src/services/compact/compact/projection.ts)')
   check('once the next turn has run, the footer counts the conversation that stands, no less than the fold left', run.settledSource === 'estimate' && run.settled !== null && run.recorded !== undefined && run.settled >= run.recorded, JSON.stringify({ settled: run.settled, recorded: run.recorded }), FILL)
 }
 

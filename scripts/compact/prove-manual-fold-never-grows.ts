@@ -286,25 +286,52 @@ section('2 Windows SUBMIT 352 shape (RequestGauge + high-effort thinking + large
   const standingBefore = estimateContextTokens(stripThinkingFromIndex(short.messages as never, 0), MODEL)
   const standingAfter = estimateContextTokens(buildPostCompactMessages(landed.compactionResult) as never, MODEL)
   check(
-    'a short summary: the fold lands once, without its restored files, smaller than the 57.6k it found by the measure and by the estimate',
-    summaryRequests() === reqsBefore + 1 && restoredFileCount === 0 && landed.compactionResult.preCompactTokenCount === 57_600 && (landed.compactionResult.truePostCompactTokenCount ?? Infinity) < 57_600 && standingAfter < standingBefore,
-    `receipt=${plainOf(landed)} reqs=${summaryRequests() - reqsBefore} restoredFiles=${restoredFileCount} estimate ${standingBefore} → ${standingAfter}`,
+    'a short summary: the summariser is asked exactly once',
+    summaryRequests() === reqsBefore + 1,
+    `reqs=${summaryRequests() - reqsBefore}`,
+    hintJudged,
+  )
+  check(
+    'a short summary: the fold lands without its restored files, smaller than the 57.6k it found by the measure and by the estimate',
+    restoredFileCount === 0 && landed.compactionResult.preCompactTokenCount === 57_600 && (landed.compactionResult.truePostCompactTokenCount ?? Infinity) < 57_600 && standingAfter < standingBefore,
+    `receipt=${plainOf(landed)} restoredFiles=${restoredFileCount} estimate ${standingBefore} → ${standingAfter}`,
     hintJudged,
   )
   const long = windowsShapedSession()
   const readSnapshot = JSON.stringify([...long.reads.entries()])
+  const rowsSnapshot = JSON.stringify(long.messages)
+  const longContext = makeContext(long.messages, long.reads)
   const refused = await withSummaryServer(`<summary>\n${'The pricing work went step by step and each step was checked. '.repeat(130)}\n</summary>`, async asked => {
     try {
-      return { result: (await call('', makeContext(long.messages, long.reads) as never)) as CompactCallResult, threw: '', asked: asked() }
+      return { result: (await call('', longContext as never)) as CompactCallResult, threw: '', asked: asked() }
     } catch (error) {
       return { result: undefined, threw: error instanceof Error ? error.message : String(error), asked: asked() }
     }
   })
+  const hintKept = 'compactConversation in src/services/compact/compact.ts must throw its refusal before anything of the fold is committed: the read state of the caller and its conversation rows stand as they were'
   check(
-    'a summary of the 2,000 tokens the projection used to assume: asked once, the fold is refused and the conversation kept, in the plain words',
-    refused.result === undefined && refused.asked === 1 && refused.threw === 'Nothing to compact yet: a summary would not shrink the 57.6k tokens.' && JSON.stringify([...long.reads.entries()]) === readSnapshot,
-    `threw=${refused.threw || 'none'} result=${refused.result ? plainOf(refused.result) : 'none'} asked=${refused.asked}`,
+    'a summary of the 2,000 tokens the projection used to assume: the summariser is asked exactly once',
+    refused.asked === 1,
+    `asked=${refused.asked}`,
     hintJudged,
+  )
+  check(
+    'a summary of the 2,000 tokens the projection used to assume: the fold is refused in the plain words',
+    refused.result === undefined && refused.threw === 'Nothing to compact yet: a summary would not shrink the 57.6k tokens.',
+    `threw=${refused.threw || 'none'} result=${refused.result ? plainOf(refused.result) : 'none'}`,
+    hintJudged,
+  )
+  check(
+    'a summary of the 2,000 tokens the projection used to assume: the read state is as it was',
+    JSON.stringify([...long.reads.entries()]) === readSnapshot,
+    `keys=${[...long.reads.keys()].join(',')} size=${long.reads.size}`,
+    hintKept,
+  )
+  check(
+    'a summary of the 2,000 tokens the projection used to assume: the conversation is as it was, row for row',
+    longContext.messages === long.messages && JSON.stringify(long.messages) === rowsSnapshot,
+    `rows=${long.messages.length} same=${longContext.messages === long.messages}`,
+    hintKept,
   )
 }
 
