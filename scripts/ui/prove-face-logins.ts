@@ -494,7 +494,7 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   const sorted = loginsSortedArms(facts)
   t.check('signed-in rows float first, catalogue order within each class', sorted.map(a => a.row.value).join(',') === 'openai,anthropic,huggingface,moonshot,openrouter,gemini,zai,deepseek,xai,meta,mistral,nous,minimax,together,cohere,groq,melious,orcarouter,cerebras,fireworks,qwen,zen')
   const entry = loginsEntryOf(claudeArm, facts)
-  t.check('an entry groups under its state class with the owner’s row label (clamped to the entry width)', entry.group === 'signed in' && entry.label === 'Anthropic — Claude subscription or Cons…' && entry.valueLabel === 'op@example.com')
+  t.check('an entry groups under its state class with the owner’s full row label', entry.group === 'signed in' && entry.label === 'Anthropic — Claude subscription or Console sign-in / API key' && entry.valueLabel === 'op@example.com')
 
   t.check('the summary counts distinct families (22), signed and ready', JSON.stringify(loginsSummaryRows(facts).map(r => `${r.key}=${r.value}`)) === JSON.stringify(['Families=22', 'Signed in=4 of 22', 'Ready=4 lanes']))
   t.check('the status line: signed of total · ready', loginsStatusLine(facts) === '4 of 22 families signed in · 4 ready')
@@ -502,7 +502,7 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   t.check('the legend names only the moves that exist (↵ joined with the first flow)', loginsLegendOf() === '↑↓ move · pgup/pgdn page · ↵ sign in · esc back')
 
   const wide = composeLogins(120, 40, { sel: 0 }).join('\n')
-  t.check('the wide frame carries the classes, the chips and the LOGINS panel', ['signed in', 'available', 'op@example.com', 'not signed in', 'LOGINS', 'Signed in  4 of 22', 'xAI — Grok subscription sign-in or API …', 'Meta — Muse Code sign-in or API key', 'Mistral — API key', 'Nous Portal — sign-in or API key', 'MiniMax — API key or M Plan key', 'Together AI — API key', 'Cohere — API key', 'Groq — API key', 'Melious AI — API key', 'OrcaRouter — device-code sign-in or API…', 'Cerebras — API key', '… 3 more below'].every(s => wide.includes(s)))
+  t.check('the wide frame carries the classes, the chips and the LOGINS panel', ['signed in', 'available', 'op@example.com', 'not signed in', 'LOGINS', 'Signed in  4 of 22', 'Anthropic — Claude subscription or Console sign-in / API key', 'Kimi (Moonshot) — device-code sign-in or API key', 'GLM (Z.AI) — API key (general or GLM Coding Plan)', 'xAI — Grok subscription sign-in or API key', 'Meta — Muse Code sign-in or API key', 'Mistral — API key', 'Nous Portal — sign-in or API key', 'MiniMax — API key or M Plan key', 'Together AI — API key', 'Cohere — API key', 'Groq — API key', 'Melious AI — API key', '… 5 more below'].every(s => wide.includes(s)))
   const floor = composeLogins(64, 12, { sel: 0 }).join('\n')
   t.check('the 64×12 floor frame WARNS and keeps the way out', floor.includes('wants at least') && floor.includes('esc back'))
 

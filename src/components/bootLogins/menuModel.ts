@@ -29,6 +29,7 @@ export function loginsMenuModelOf(
       : null;
   return {
     title: 'logins',
+    fitLabels: true,
     summaryTitle: 'LOGINS',
     summaryRows: loginsSummaryRows(facts, opts.notice ?? null),
     noticeLine: opts.notice ?? null,

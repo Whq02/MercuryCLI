@@ -51,6 +51,7 @@ export interface SplashProjectRow {
 
 export interface BootMenuEntry {
   label: string
+  detailLabel?: string
   group: string
   groupTitle?: string
   summary: string
@@ -79,6 +80,7 @@ export interface BootMenuData {
   detailOverride?: string[]
   glowWord?: GlowPhase | null
   title?: string
+  fitLabels?: boolean
   summaryTitle?: string
   summaryRows?: readonly BootMenuSummaryRow[]
   noticeLine?: string | null
