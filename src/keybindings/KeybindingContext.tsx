@@ -4,7 +4,6 @@ import type { Key } from '../ink/events/input-event.js'
 import { getPlatform } from '../utils/platform.js'
 import { getBindingDisplayText, resolveKeyWithChordState, type ChordResolveResult } from './resolver.js'
 import type { KeybindingContextName, ParsedBinding, ParsedKeystroke } from './types.js'
-import { notBuilt } from '../pi/holes.js'
 
 type Registration = { action: string; context: KeybindingContextName; handler: () => void }
 export type HandlerRegistry = Map<string, Set<Registration>>
@@ -71,6 +70,15 @@ export function useOptionalKeybindingContext(): KeybindingContextValue | null {
   return useContext(KeybindingContext)
 }
 
-export function useRegisterKeybindingContext(context: KeybindingContextName, isActive?: boolean): void {
-  return notBuilt('src/keybindings/KeybindingContext.tsx:146')
+export function useRegisterKeybindingContext(context: KeybindingContextName, isActive = true): void {
+  const value = useContext(KeybindingContext)
+  const register = value?.registerActiveContext
+  const unregister = value?.unregisterActiveContext
+  useLayoutClaim(() => {
+    if (!isActive || !register || !unregister) return
+    register(context)
+    return () => {
+      unregister(context)
+    }
+  }, [context, isActive, register, unregister])
 }

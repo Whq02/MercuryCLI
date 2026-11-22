@@ -16,5 +16,37 @@ export function usePermissionRequestLogging(toolUseConfirm: ToolUseConfirm, scre
 }
 
 export function useKeysHeldUntilFirstPaint(): void {
-  return notBuilt('src/components/permissions/hooks.ts:30')
+  const ink = useContext(InkInstanceContext)
+  const { stdin, internal_eventEmitter } = useStdin()
+  const painted = useRef(false)
+
+  useLayoutClaim(() => {
+    if (!ink) return undefined
+    painted.current = false
+    const typedAheadRead = (): void => {
+      painted.current = true
+    }
+    const stop = ink.subscribeFrame(() => {
+      stop()
+      if (stdin instanceof ReadStream) startImmediate(() => startImmediate(typedAheadRead))
+      else typedAheadRead()
+    })
+    ink.scheduleRender()
+    return stop
+  }, [ink, stdin])
+
+  useClaim(() => {
+    if (!ink) return undefined
+    const hold = (event: InputEvent): void => {
+      if (painted.current) return
+      const { input, key } = event
+      if (key.escape || key.ctrl || event.wheelStep) return
+      if (trySeedComposer(input, key)) event.stopImmediatePropagation()
+      else markInputConsumedThroughCurrentSeq()
+    }
+    internal_eventEmitter.prependListener('input', hold)
+    return () => {
+      internal_eventEmitter.removeListener('input', hold)
+    }
+  }, [ink, internal_eventEmitter])
 }

@@ -36,7 +36,6 @@ import { GLYPH, padTo } from '../utils/glyphs.js'
 import { applyNavMotion, decodeNavKey } from './mercury-ui/navSemantics.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { atlasViewOf } from './inputAtlas/atlasView.js'
-import { notBuilt } from '../pi/holes.js'
 
 
 const CHORD_WIDTH = 16
@@ -64,10 +63,222 @@ function stateTone(
   return t.info
 }
 
-export function MercuryInputAtlas(arg0: {
+export function MercuryInputAtlas({
+  onClose,
+}: {
   onClose: () => void
 }): React.ReactNode {
-  return notBuilt('src/components/MercuryInputAtlas.tsx:66')
+  const t = useMercuryTokens()
+  const kb = useKeybindingContext()
+  const termRows = useTerminalSize().rows
+  const cockpitActive = React.useContext(CockpitActiveContext)
+  const overlayToken = useRegisterOverlay('input-atlas', true, { ownsPageKeys: true })
+
+  const [query, setQuery] = useState('')
+  const [cursorOffset, setCursorOffset] = useState(0)
+  const [sel, setSel] = useState(0)
+  const [mode, setMode] = useState<Mode>('browse')
+  const [report, setReport] = useState<LookupReport | null>(null)
+  const [pending, setPending] = useState<ParsedKeystroke[] | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+
+  const [contextIndex, setContextIndex] = useState(() =>
+    Math.max(0, ALL_CONTEXTS.indexOf('Chat')),
+  )
+  const inspected = ALL_CONTEXTS[contextIndex] ?? 'Chat'
+  const contexts = useMemo<KeybindingContextName[]>(
+    () => (inspected === 'Global' ? ['Global'] : [inspected, 'Global']),
+    [inspected],
+  )
+
+  const defaultCount = useMemo(() => parseBindings(DEFAULT_BINDINGS).length, [])
+
+  const rows = useMemo(
+    () =>
+      buildAtlas(kb.bindings, { defaultCount }).filter(r =>
+        contexts.includes(r.context),
+      ),
+    [kb.bindings, defaultCount, contexts],
+  )
+  const filtered = useMemo(
+    () => rows.filter(r => atlasMatches(r, query)),
+    [rows, query],
+  )
+
+  const rowCap = viewportRows(termRows, {
+    reserve: cockpitActive ? cockpitBottomSlotReserve(termRows) : HEIGHT_RESERVE,
+    min: MIN_ROWS,
+    cap: MAX_ROWS,
+  })
+  const clampedSel = Math.min(sel, Math.max(0, filtered.length - 1))
+  if (sel !== clampedSel) setSel(clampedSel)
+
+  const listRows = filtered.length > rowCap ? Math.max(1, rowCap - 1) : rowCap
+  const winStart = paneWindow(filtered.length, clampedSel, listRows).start
+  const shown = filtered.slice(winStart, winStart + listRows)
+  const current = filtered[clampedSel]
+
+  const leaveCapture = useCallback(() => {
+    setMode('browse')
+    setPending(null)
+  }, [])
+
+  const onLookupKey = useCallback(
+    (input: string, key: import('../ink.js').Key) => {
+      if (key.escape && pending === null) {
+        leaveCapture()
+        return
+      }
+      const result = resolveKeyWithChordState(
+        input,
+        key,
+        contexts,
+        kb.bindings,
+        pending,
+      )
+      const explained = explainResolution(
+        input,
+        key,
+        contexts,
+        kb.bindings,
+        pending,
+        result,
+        {
+          defaultCount,
+          passesThroughToEditor: !unboundConsumes(input, key),
+        },
+      )
+      setReport(explained)
+      if (result.type === 'chord_started') {
+        setPending(result.pending)
+        return
+      }
+      setPending(null)
+      setMode('browse')
+    },
+    [contexts, kb.bindings, defaultCount, pending, leaveCapture],
+  )
+
+  const onRebindKey = useCallback(
+    (input: string, key: import('../ink.js').Key) => {
+      if (key.escape) {
+        leaveCapture()
+        setNotice('rebind cancelled')
+        return
+      }
+      const row = current
+      if (!row || row.action === null) {
+        leaveCapture()
+        return
+      }
+      const result = resolveKeyWithChordState(input, key, contexts, kb.bindings, pending)
+      if (result.type === 'chord_started') {
+        setPending(result.pending)
+        return
+      }
+      const explained = explainResolution(input, key, contexts, kb.bindings, pending, result, {
+        defaultCount,
+        passesThroughToEditor: false,
+      })
+      setPending(null)
+      setMode('browse')
+      const chord = explained.chord
+      if (!chord || chord === '…') {
+        setNotice('that keystroke has no chord spelling Mercury can store')
+        return
+      }
+      if (explained.reserved && explained.reserved.severity === 'error') {
+        setNotice(`${chord} is reserved — ${explained.reserved.reason}`)
+        return
+      }
+      void writeUserBinding({ context: row.context, chord, action: row.action })
+        .then(written => {
+          setNotice(
+            written.ok
+              ? `${chord} → ${row.action} written to ${toTildePath(written.path)}`
+              : written.error,
+          )
+        })
+        .catch((e: unknown) =>
+          setNotice(`rebind failed — ${e instanceof Error ? e.message : String(e)}`),
+        )
+    },
+    [current, contexts, kb.bindings, defaultCount, pending, leaveCapture],
+  )
+
+  useClaim(() => {
+    if (mode === 'lookup') return claimKeyCapture(onLookupKey)
+    if (mode === 'rebind') return claimKeyCapture(onRebindKey)
+    return undefined
+  }, [mode, onLookupKey, onRebindKey])
+
+  useInput(
+    (input, key, event) => {
+      if (mode !== 'browse') return
+      const action = decodeNavKey(input, key, { orientation: 'vertical', pageKeys: true })
+      if (action === 'cancel') {
+        if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return
+        event.stopImmediatePropagation()
+        onClose()
+        return
+      }
+      if (
+        action === 'movePrevious' ||
+        action === 'moveNext' ||
+        action === 'pagePrevious' ||
+        action === 'pageNext'
+      ) {
+        event.stopImmediatePropagation()
+        const target = applyNavMotion(action, clampedSel, filtered.length, {
+          orientation: 'vertical',
+          pageSize: listRows,
+        })
+        if (target !== null) setSel(target)
+        return
+      }
+      if (key.tab) {
+        event.stopImmediatePropagation()
+        setContextIndex(i => (i + (key.shift ? ALL_CONTEXTS.length - 1 : 1)) % ALL_CONTEXTS.length)
+        setSel(0)
+        return
+      }
+    },
+    { isActive: true },
+  )
+
+  useRegisterKeybindingContext('Atlas')
+  useKeybinding(
+    'atlas:lookup',
+    () => {
+      if (mode !== 'browse') return false
+      setReport(null)
+      setNotice(null)
+      setMode('lookup')
+    },
+    { context: 'Atlas' },
+  )
+  useKeybinding(
+    'atlas:rebind',
+    () => {
+      if (mode !== 'browse') return false
+      setNotice(null)
+      if (current && current.action !== null) setMode('rebind')
+      else setNotice('select an action first — an unbind row has nothing to rebind')
+    },
+    { context: 'Atlas' },
+  )
+  const lookupChord = useShortcutDisplay('atlas:lookup', 'Atlas', 'ctrl+l')
+  const rebindChord = useShortcutDisplay('atlas:rebind', 'Atlas', 'ctrl+r')
+
+  const liveContexts = Array.from(kb.activeContexts)
+  const footer =
+    mode === 'lookup'
+      ? 'press the chord you want explained · esc back'
+      : mode === 'rebind'
+        ? 'press the chord to assign · esc cancel'
+        : `${filtered.length} of ${rows.length} · tab context · ${lookupChord} look up · ${rebindChord} rebind`
+
+  return atlasViewOf({ t, kb, query, setQuery, cursorOffset, setCursorOffset, sel: clampedSel, setSel, mode, report, pending, notice, inspected, filtered, winStart, shown, current, liveContexts, footer, onClose, stateTone, LookupView, RowDetail, CHORD_WIDTH, ACTION_WIDTH, QUERY_WIDTH })
 }
 
 function RowDetail({
