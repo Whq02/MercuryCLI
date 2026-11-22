@@ -35,7 +35,7 @@ const SIZES: Array<[number, number]> = [
   [150, 45],
 ]
 
-const SPLASH_READY: Record<string, string | string[]> = { lockup: ['>_', '↵'], menu: 's launch', projects: '↑↓ choose' }
+const SPLASH_READY: Record<string, string | string[]> = { lockup: ['>_', '↵'], menu: 's launch', projects: ['>_', '↵', '↑↓'] }
 const SURFACE_NEEDLES: Record<string, string[]> = { 'model-picker-home': ['Mercury · model', 'closes'] }
 const SURFACE_STILL_REGION: Record<string, (cols: number, rows: number) => [number, number, number, number]> = {
   'cockpit-mission': (cols, rows) => [0, 0, cols, rows - 2],

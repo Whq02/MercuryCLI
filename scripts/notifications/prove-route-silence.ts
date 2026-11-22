@@ -6,6 +6,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker, scratchRoot } from '../engine-durability/harness.ts'
+import { paintsBootFaceReady } from '../lib/bootFace.ts'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 import { grabScreens, requireDist, runArtifactArena, visibleText, type ArenaRun } from '../streaming/artifactArena.ts'
 import { referenceFixtureSnapshot } from './concourseReferenceSeed.ts'
@@ -30,8 +31,8 @@ const run: ArenaRun = await runArtifactArena({
     { awaitText: 'Type a prompt', text: '/bootmenu', afterPrevMs: 800 },
     { awaitText: '/bootmenu', text: '\r' },
     { awaitText: 'What it controls', text: '\x1b' },
-    { awaitText: ['start fresh here', 'configure boot env'], text: '\x1b' },
-    { awaitText: 'start fresh here', awaitAbsent: '❯', text: '\x1b' },
+    { awaitText: ['New Session', 'Boot Menu'], text: '\x1b' },
+    { awaitText: 'New Session', awaitAbsent: '❯', text: '\x1b' },
     { awaitText: 'Boot Settings opened', text: '' },
     ...healFence(850, ROUTE_SECONDS * 1000),
   ],
@@ -75,9 +76,9 @@ try {
       ((rows?.rows ?? []) as Parameters<typeof visibleText>[0][]).map(visibleText).join('\n').replace(/\s+/g, '')
     const open = squash({ rows: run.sendLog.find(e => e.step === 3)?.screen ?? [] })
     const final = squash(grabScreens(run, 120, 36, [-1])[0])
-    t.check('the canonical Boot face painted on the route (settings esc → face)', open.includes('startfreshhere'), open.slice(0, 200) || '(blank)')
-    t.check('a second card action row painted (the face came WHOLE)', open.includes('configurebootenv'), 'action row needle')
-    t.check('the second Esc restored the session frame (the face gone)', !final.includes('startfreshhere'), final.slice(0, 200) || '(blank)')
+    t.check('the canonical Boot face painted on the route (settings esc → face)', paintsBootFaceReady(open) && open.includes('NewSession'), open.slice(0, 200) || '(blank)')
+    t.check('a second card action row painted (the face came WHOLE)', open.includes('BootMenu'), 'action row needle')
+    t.check('the second Esc restored the session frame (the face gone)', !final.includes('NewSession') && !paintsBootFaceReady(final), final.slice(0, 200) || '(blank)')
     t.check('the route receipt reached the transcript', final.includes('BootSettingsopened'), 'receipt needle')
   }
 
