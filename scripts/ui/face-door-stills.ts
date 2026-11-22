@@ -229,7 +229,7 @@ export function composeResume(
     opts.prune === undefined
       ? null
       : 'receipt' in opts.prune
-        ? { detailOverride: pruneReceiptLines(opts.prune.receipt, FIXED_NOW), legend: pruneLegendOf('receipt') }
+        ? { detailOverride: pruneReceiptLines(opts.prune.receipt, FIXED_NOW), detailOverrideConfirms: true, legend: pruneLegendOf('receipt') }
         : (() => {
             const offer = buildPruneOffer(
               flat.map(f => f.row.log),
@@ -237,6 +237,7 @@ export function composeResume(
             )
             return {
               detailOverride: pruneCardLines(offer, (opts.prune as { answer: 'no' | 'yes' }).answer, FIXED_NOW),
+              detailOverrideConfirms: true,
               legend: pruneLegendOf('card', offer.candidates.length > 0),
             }
           })()

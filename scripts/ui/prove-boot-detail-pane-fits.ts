@@ -23,6 +23,7 @@ const core = createSplashCore({ nocolor: true, truecolor: false }) as {
 }
 
 const FIX = 'fix wrapDetailLine and moreHint wrapping in composeBootMenuWide (assets/splash/splash-core.mjs) and moreHint strings in KitMenuScreen.tsx, bootAgents/menuModel.ts, bootLogins/menuModel.ts, bootSaturn/menu.tsx'
+const WHOLE_FIX = 'in composeBootMenuWide (assets/splash/splash-core.mjs) cut the detail rows above moreHint between whole lines: a line that wraps and does not fit above the trail line is not begun, and the trail line takes its place'
 
 function detailInnerLines(lines: string[]): string[] {
   const start = lines.findIndex(l => l.includes('SETTING DETAIL'))
@@ -186,6 +187,28 @@ t.section('§2 — OVERLONG DETAIL LINES WRAP WHEN THE PANE HAS ROWS FREE (AGENT
   const joinedPath = innerPath.map(l => l.trim()).join('')
   const pathOk = clippedPath.length === 0 && joinedPath.includes('fixture-scout.md')
   t.check('agents 120×40: unbreakable long file path wraps instead of clipping with ellipsis', pathOk, pathOk ? '' : `${FIX} | clipped=${JSON.stringify(clippedPath)} inner=${JSON.stringify(innerPath)}`)
+
+  t.section('§3 — A WRAPPED LINE IS SHOWN WHOLE OR NOT BEGUN: THE TRAIL LINE TAKES ITS PLACE')
+  const trail36 = inner36.findIndex(l => l.includes('the trail continues'))
+  const above36 = inner36.slice(0, Math.max(0, trail36)).map(l => l.trim()).filter(Boolean)
+  const whole36 = trail36 > 0 && above36.at(-1) === 'scope: Built-in agents' && !above36.some(l => l.includes('(your'))
+  t.check('agents 120×36: the pane ends on a whole line and the trail line stands where the model line would begin', whole36, whole36 ? '' : `${WHOLE_FIX} | above the trail line=${JSON.stringify(above36.slice(-2))}`)
+
+  const kitAt = (selIdx: number) => ({ ...kitTall, selIdx })
+  const halves: string[] = []
+  let cuts = 0
+  for (let rows = 31; rows <= 50; rows++) {
+    const panes: Array<[string, unknown]> = [['agents', agentsM], ...kitTall.entries.map((entry, i): [string, unknown] => [`mcps & skills · ${entry.label}`, kitAt(i)])]
+    for (const [name, model] of panes) {
+      const shown = detailInnerLines(core.composeBootMenu(120, rows, model).lines)
+      const at = shown.findIndex(l => l.includes('the trail continues'))
+      if (at <= 0) continue
+      cuts++
+      const tall = detailInnerLines(core.composeBootMenu(120, 90, model).lines)
+      if (/^ {3}\S/.test(tall[at] ?? '') && shown[at - 1] === tall[at - 1]) halves.push(`${name} 120×${rows}: ${JSON.stringify(shown[at - 1]!.trim())} without ${JSON.stringify(tall[at]!.trim())}`)
+    }
+  }
+  t.check(`agents and mcps & skills, 120 columns, 31 to 50 rows: no pane ends on the first half of a wrapped line (${cuts} panes carry the trail line)`, cuts > 0 && halves.length === 0, cuts === 0 ? 'no pane carried the trail line: the sweep proves nothing, widen its rows' : `${WHOLE_FIX} | ${halves.join(' · ')}`)
 }
 
 t.finish('prove-boot-detail-pane-fits')
