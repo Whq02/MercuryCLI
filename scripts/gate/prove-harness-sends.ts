@@ -70,8 +70,8 @@ console.log('\n§1 the words the helper waits for')
     'computerDriveKit FACE_READY matches the Boot card (both full and compact) and never matches the pre-card splash, the Concourse, or consent/contract/setup cards',
     kitFaceReady !== '' &&
       [
-        '│▎❯ ✶ New Session in project                      start fresh here → │',
-        "│ ❯ New Session in City St George's · start fresh here         │",
+        '│▎❯ ✶ New Session                  │',
+        '│ ❯ New Session                    │',
       ].every(line => line.includes(kitFaceReady)) &&
       [
         '>_  ·  ↵',
