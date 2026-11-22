@@ -27,12 +27,10 @@ import {
   annotateBoundaryWithWork,
   buildPostCompactMessages,
   type CompactionResult,
-  contextAfterFold,
   createAsyncAgentAttachmentsIfNeeded,
-  measuredByAnotherFamily,
+  foldSizes,
 } from './compact.js'
 import type { ToolUseContext } from '../../Tool.js'
-import { stripThinkingFromIndex } from '../messages/apiFilters.js'
 import { estimateContextTokens, estimateMessageTokens } from './microCompact.js'
 import { getCompactUserSummaryMessage } from './prompt.js'
 
@@ -246,10 +244,9 @@ export async function trySessionMemoryCompaction(
     result.postCompactTokenCount = estimate
     result.truePostCompactTokenCount = estimate
     if (trigger === 'manual') {
-      const estimatedBefore = estimateContextTokens(stripThinkingFromIndex(messages, 0))
-      if (estimate >= estimatedBefore) return null
-      const foreign = rosterContext !== undefined && measuredByAnotherFamily(messages, rosterContext.options.engineModel)
-      if (preTokens > 0 && !foreign) result.truePostCompactTokenCount = contextAfterFold(preTokens, estimatedBefore, estimate)
+      const sizes = foldSizes(messages, rosterContext?.options.engineModel, preTokens, estimateContextTokens)
+      if (estimate >= sizes.before) return null
+      if (preTokens > 0) result.truePostCompactTokenCount = sizes.after(estimate)
     }
     return result
   } catch (err) {

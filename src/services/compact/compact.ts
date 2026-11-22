@@ -54,7 +54,7 @@ export { withFoldStatus, withEngineModel } from './compact/status.js'
 export { estimateFixedRequestTokens } from './compact/summariserFit.js'
 export { isRefold, manualFoldHasNothingToFold, nothingToCompactReason, projectManualFold } from './compact/projection.js'
 export type { ManualFoldProjection } from './compact/projection.js'
-export { contextAfterFold, measuredByAnotherFamily } from './compact/foldMeasure.js'
+export { foldSizes } from './compact/foldMeasure.js'
 export { partialCompactConversation } from './compact/partial.js'
 
 void notifyCompaction

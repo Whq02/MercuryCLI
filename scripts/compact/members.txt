@@ -24,6 +24,7 @@ prove-fold-at-threshold-unshaped.ts
 prove-fold-breaker-answers.ts
 prove-fold-cache-epoch.ts
 prove-fold-cache-owners.ts
+prove-fold-counts-what-comes-back.ts
 prove-fold-families-census.ts
 prove-fold-family-roads.ts
 prove-fold-heartbeat-relay.ts

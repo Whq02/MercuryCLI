@@ -31,15 +31,20 @@ export function createFoldMeter(
       ? estimateRequestGauge(request, gauge.fixed, gauge.density, model)
       : estimateContextTokens(request, model)
   }
-  const before = count(withoutSkillsList(stripThinkingFromIndex(messages, 0)))
   const measureResult = (result: CompactionResult): number => count(buildPostCompactMessages(result))
-  const foreign = measuredByAnotherFamily(messages, model)
-  const after = (landed: number): number => (foreign ? landed : contextAfterFold(context, before, landed))
-  return { gauge, context, before, count, measureResult, after }
+  return { gauge, context, count, measureResult, ...foldSizes(messages, model, context, count) }
 }
 
-export function measuredByAnotherFamily(messages: readonly Message[], model: string): boolean {
-  return contextFill(messages).source === 'usage' && contextFill(messages, model).source === 'estimate'
+export function foldSizes(
+  messages: Message[],
+  model: string | undefined,
+  context: number,
+  count: (rows: Message[]) => number,
+): { before: number; after: (landed: number) => number } {
+  const standing = stripThinkingFromIndex(messages, 0)
+  const before = count(withoutSkillsList(standing))
+  const reading = contextFill(messages, model).source === 'usage' ? context : Math.min(context, count(standing))
+  return { before, after: (landed: number): number => contextAfterFold(reading, before, landed) }
 }
 
 function withoutSkillsList(rows: Message[]): Message[] {
@@ -52,7 +57,7 @@ function withoutSkillsList(rows: Message[]): Message[] {
   })
 }
 
-export function contextAfterFold(context: number, before: number, after: number): number {
+function contextAfterFold(context: number, before: number, after: number): number {
   const saved = before - after
   return saved < context ? context - saved : Math.floor((context * after) / before)
 }
