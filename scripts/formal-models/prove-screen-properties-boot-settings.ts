@@ -556,6 +556,10 @@ try {
       const { frame: initial } = await mountBootFace({ history, concourseLive: true, compact: false })
       t.check(`history=${history}: fresh boot selects New Session`, focusedRowLabels(initial)[0] === 'New Session', `got ${JSON.stringify(focusedRowLabels(initial))}`)
       let frame = await sendKey(KEYS.down)
+      if (history === 'cross') {
+        t.check(`history=${history}: down lands on Continue Last Session, the row of another project`, focusedRowLabels(frame)[0] === 'Continue Last Session', `got ${JSON.stringify(focusedRowLabels(frame))} — the continue row of another project is choosable in src/components/bootSplash/rowActions.ts`)
+        frame = await sendKey(KEYS.down)
+      }
       t.check(`history=${history}: down lands on Logins/Keys`, focusedRowLabels(frame)[0] === 'Logins/Keys', `got ${JSON.stringify(focusedRowLabels(frame))}`)
       await sendKey(KEYS.enter)
       frame = await sendKey(KEYS.esc)

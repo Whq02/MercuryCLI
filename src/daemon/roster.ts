@@ -28,7 +28,10 @@ function wireEntry(h: WorkerHandle, retarget: RetargetPart): WireRosterEntry {
     })
     e.model = wire.model
     e.effort = wire.effort
-    if (h.longLived.turnActive && h.longLived.turnStartedAt !== undefined) e.turnStartedAt = h.longLived.turnStartedAt
+    if (h.longLived.turnActive && h.longLived.turnStartedAt !== undefined) {
+      e.turnOpenedAt = h.longLived.turnStartedAt
+      e.turnStartedAt = Math.max(e.turnOpenedAt, h.longLived.lastDeliveredAt ?? e.turnOpenedAt)
+    }
     if (wire.pendingModel !== undefined) e.pendingModel = wire.pendingModel
     if (wire.pendingEffort !== undefined) e.pendingEffort = wire.pendingEffort
     e.respawns = h.longLived.respawns
@@ -43,8 +46,8 @@ function wireEntry(h: WorkerHandle, retarget: RetargetPart): WireRosterEntry {
     if (!h.entry.outcome) {
       e.busy = !retarget.seatIsIdle(h.longLived)
       if (h.longLived.turnActive !== undefined) e.turnActive = h.longLived.turnActive
-      if (e.busy && h.longLived.turnStartedAt !== undefined) {
-        e.turnElapsedMs = Math.max(0, Date.now() - h.longLived.turnStartedAt)
+      if (e.busy && e.turnStartedAt !== undefined) {
+        e.turnElapsedMs = Math.max(0, Date.now() - e.turnStartedAt)
       }
     }
   }
@@ -177,8 +180,10 @@ export class TaskRoster {
         .then(sup => sup.markConcourseWorkerDelivery(short))
         .catch(passedOver)
     }
-    const undoStart = (): void => {
-      if (!opensTurn || ll.connection !== door || ll.turnEdges !== edgesBefore) return
+    const finishDelivery = (accepted: boolean | null): void => {
+      if (ll.connection !== door || ll.turnEdges !== edgesBefore) return
+      if (accepted && !opensTurn && row.type === 'prompt') ll.lastDeliveredAt = Date.now()
+      if (accepted || !opensTurn) return
       ll.turnActive = false
       ll.turnStartedAt = undefined
       if (worker) {
@@ -189,10 +194,10 @@ export class TaskRoster {
     }
     try {
       const accepted = await door.deliver(row, policy)
-      if (!accepted) undoStart()
+      finishDelivery(accepted)
       return accepted
     } catch (error) {
-      if (error instanceof PendingQueueAck) void error.confirmed.then(accepted => { if (accepted !== true) undoStart() })
+      if (error instanceof PendingQueueAck) void error.confirmed.then(finishDelivery)
       throw error
     }
   }
