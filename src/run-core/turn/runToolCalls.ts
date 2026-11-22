@@ -14,7 +14,6 @@ import type { Terminal } from '../../query/transitions.js'
 import type { RunEvent } from '../events.js'
 import type { EventMint, IterationState, RunCtx, TurnDecision } from './state.js'
 import { emitSyntheticSettlements } from './streamModel.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const MAX_TURNS_CUT: TurnCut = { kind: 'cut', detail: 'the turn budget was spent' }
 
@@ -47,5 +46,61 @@ function toolUpdateEvent(message: Message, emit: EventMint): RunEvent {
 }
 
 export async function* runToolCalls(run: RunCtx, iter: IterationState): AsyncGenerator<RunEvent, TurnDecision> {
-  return notBuilt('src/run-core/turn/runToolCalls.ts:48')
+  const { emit } = run
+  const { maxTurns } = run.params
+  if (iter.closingTurn && maxTurns !== undefined) {
+    iter.early.reset()
+    yield* emitSyntheticSettlements(iter.assistantMessages, turnCutResultText(MAX_TURNS_CUT), 'aborted', emit)
+    yield emit({
+      kind: 'attachment',
+      message: createAttachmentMessage({ type: 'max_turns_reached', maxTurns, turnCount: iter.state.turnCount }),
+    })
+    const lost = run.memoryWriteLostEvent()
+    if (lost !== null) yield lost
+    const terminal: Terminal = { reason: 'max_turns', turnCount: iter.state.turnCount }
+    return { kind: 'end', terminal }
+  }
+
+  for (const block of iter.toolUseBlocks) {
+    yield emit({ kind: 'tool_started', toolUseId: block.id, toolName: block.name })
+  }
+
+  let updatedToolUseContext = iter.toolUseContext
+  let shouldPreventContinuation = false
+  let loopStoppedCycle: string[] | null = null
+  let loopStoppedRecord: Message | null = null
+  const { tools } = iter.toolUseContext.options
+  for await (const update of runTools(iter.toolUseBlocks, iter.assistantMessages, run.params.canUseTool, iter.toolUseContext, iter.early)) {
+    updatedToolUseContext = { ...update.newContext, callChain: iter.callChain }
+    const { message } = update
+    if (message === undefined) continue
+    if (message.type === 'attachment' && message.attachment.type === 'loop_stopped') {
+      loopStoppedCycle = message.attachment.cycle
+      loopStoppedRecord = message
+      continue
+    }
+    yield toolUpdateEvent(message, emit)
+    if (message.type === 'attachment') {
+      if (message.attachment.type === 'hook' && message.attachment.outcome === 'stop') shouldPreventContinuation = true
+      iter.toolResults.push(message)
+      continue
+    }
+    for (const row of normalizeMessagesForAPI([message], tools)) {
+      if (row.type === 'user') iter.toolResults.push(row)
+    }
+  }
+
+  settleMemoryWriteRefusals(run.pendingMemoryWrites, iter.toolUseBlocks.filter(block => !iter.answeredRefusalIds.has(block.id)))
+  run.holdMemoryWriteRefusals(iter.allRefusedToolCalls)
+  if (iter.refusedToolCalls.length > 0) {
+    const correction = createUserMessage({ content: toolCallRefusalCorrection(iter.refusedToolCalls), isMeta: true })
+    yield emit({ kind: 'hook_message', message: correction })
+    iter.toolResults.push(correction)
+  }
+
+  iter.shouldPreventContinuation = shouldPreventContinuation
+  iter.loopStoppedCycle = loopStoppedCycle
+  iter.loopStoppedRecord = loopStoppedRecord
+  iter.updatedToolUseContext = updatedToolUseContext
+  return { kind: 'go_on' }
 }
