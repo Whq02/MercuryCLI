@@ -34,9 +34,11 @@ import {
   type CompactionResult,
   ERROR_MESSAGE_USER_ABORT,
   foldRemedyIsHeadless,
+  isNothingToCompactMessage,
   isRefold,
   manualFoldHasNothingToFold,
   nothingToCompactLine,
+  nothingToCompactReason,
   projectManualFold,
   type RecompactionInfo,
   withFoldStatus,
@@ -391,14 +393,16 @@ export async function autoCompactIfNeeded(
     logForDebugging(message)
   }
 
+  let restoreFiles = true
   if (asked) {
     const projection = await projectManualFold(messages, toolUseContext, cacheSafeParams, getAutoCompactThreshold(model))
     const refold = isRefold(messages)
     if (projection !== null && (refold ? manualFoldHasNothingToFold(projection) : projection.after >= projection.before)) {
-      const line = nothingToCompactLine(projection.context, refold)
+      const line = nothingToCompactLine(projection.context, nothingToCompactReason(projection, refold))
       if (!askedByOperator) queued?.complete()
       return { ...notCompacted, refusal: askedByOperator ? crewmateCompactNothingWords(askingCrewmateName(toolUseContext), line) : line, declined: true }
     }
+    if (projection !== null) restoreFiles = projection.restoreFiles
   }
   const refills = rapidRefillCount(tracking)
   const tripped = refills >= RAPID_REFILL_LIMIT
@@ -412,6 +416,7 @@ export async function autoCompactIfNeeded(
     previousCompactTurnId: tracking?.turnId,
     autoCompactThreshold: threshold,
     querySource,
+    ...(asked ? { restoreFiles, mustShrink: true } : {}),
   }
 
   const instructions = queued?.instructions
@@ -459,8 +464,12 @@ export async function autoCompactIfNeeded(
     if (err instanceof APIUserAbortError) {
       return forced ? { ...notCompacted, refusal: ERROR_MESSAGE_USER_ABORT } : notCompacted
     }
-    logError(err)
     const reason = err instanceof Error ? err.message : String(err)
+    if (asked && isNothingToCompactMessage(reason)) {
+      if (!askedByOperator) queued?.complete()
+      return { ...notCompacted, refusal: askedByOperator ? crewmateCompactNothingWords(askingCrewmateName(toolUseContext), reason) : reason, declined: true }
+    }
+    logError(err)
     if (err instanceof CompactionRefusedForHistoryError) {
       logForDebugging(
         `autoCompact: the summary request was refused for a malformed history — automatic compaction is paused for the rest of this run: ${err.providerWords.slice(0, 160)}`,

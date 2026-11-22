@@ -1,12 +1,12 @@
 import type { ToolUseContext, CompactProgressEvent } from '../../../Tool.js'
 import { APIUserAbortError } from '../../../utils/api/sdkErrors.js'
 import { FOLD_STAMP_THROTTLE_MS, type FoldExit, type FoldStatusV1, type FoldTrigger, beginFoldStatus, foldStatusExit, foldStatusOnEvent } from '../foldStatus.js'
-import { ERROR_MESSAGE_NOT_ENOUGH_MESSAGES, ERROR_MESSAGE_USER_ABORT } from './limits.js'
+import { ERROR_MESSAGE_USER_ABORT, isNothingToCompactMessage } from './limits.js'
 import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export function notifyCompactionError(context: ToolUseContext, err: unknown): void {
   const message = err instanceof Error ? err.message : String(err)
-  if (message === ERROR_MESSAGE_USER_ABORT || message === ERROR_MESSAGE_NOT_ENOUGH_MESSAGES) return
+  if (message === ERROR_MESSAGE_USER_ABORT || isNothingToCompactMessage(message)) return
   context.addNotification?.({
     key: 'compact-error',
     text: `Compaction error: ${message}`,
@@ -80,7 +80,7 @@ export async function withFoldStatus<T, C extends ToolUseContext>(
   } finally {
     if (pending !== null) stopTimeout(pending)
     status = foldStatusExit(status, exit, Date.now(), reason)
-    restoreAfterCompaction(context, { compacting: status })
+    restoreAfterCompaction(context, isNothingToCompactMessage(reason ?? '') ? null : { compacting: status })
     if (facts.trigger !== 'manual') context.setSDKStatus?.(null)
   }
 }

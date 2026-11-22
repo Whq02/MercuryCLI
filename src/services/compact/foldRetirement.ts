@@ -158,16 +158,61 @@ export function retireFoldToMemory(input: {
   return { ...base, state: 'committed', pointer }
 }
 
+export function previewFoldMemoryText(input: {
+  messages: readonly Message[]
+  owner: OwnerKey
+  epoch: number
+  records: number
+  agent?: string
+  sessions?: readonly LedgerEntry[]
+}): string {
+  const sessionId = String(getSessionId())
+  const sessions = input.sessions ?? currentLedger()
+  const sourceRange = foldMemorySourceRange(input.messages)
+  const item = selectFoldMemoryItem(getRunSnapshot(input.owner), sessionId, input.epoch, sourceRange, input.records)
+  const expected = item ? foldMemoryStoredText(item) : ''
+  const base = {
+    version: 1 as const,
+    epoch: input.epoch,
+    sessionOrdinal: sessionOrdinal(sessionId, sessions) ?? null,
+    sourceRange,
+    contentWitness: { algorithm: 'sha256' as const, digest: foldMemoryWitness(expected) },
+    item,
+  }
+  if (item === null) return renderFoldMemory({ ...base, state: 'failed', reason: 'nothing to retire: the run holds no substantive state' })
+  if (input.agent !== undefined) return renderFoldMemory({ ...base, state: 'failed', reason: 'a crewmate fold writes no project memory; its run state stays in its own transcript' })
+  if (!memoryVerbsEnabled()) return renderFoldMemory({ ...base, state: 'failed', reason: 'memory is off — nothing was stored' })
+  return renderFoldMemoryLines(sourceRange, {
+    id: 'pending:0000000000000',
+    kind: 'fact',
+    title: item.topic,
+    digest: base.contentWitness.digest,
+  })
+}
+
+function renderFoldMemoryLines(
+  range: FoldMemorySourceRange,
+  committed: { id: string; kind: string; title: string; digest: string },
+): string {
+  const rest = `Everything else folded stays in the transcript, source records ${short(range.firstRecordId)}…${short(range.lastRecordId)} (rounds ${range.firstTurn}–${range.lastTurn}), indexed by the fold ledger below.`
+  return [
+    '## Moved to memory',
+    `[${committed.id}] ${committed.kind} · ${committed.title} — stored in project memory, read back whole (sha256 ${committed.digest.slice(0, 12)}); Recall read:"${committed.id}" returns it.`,
+    rest,
+  ].join('\n')
+}
+
 export function renderFoldMemory(envelope: FoldMemoryEnvelope): string {
   const range = envelope.sourceRange
-  const rest = `Everything else folded stays in the transcript, source records ${short(range.firstRecordId)}…${short(range.lastRecordId)} (rounds ${range.firstTurn}–${range.lastTurn}), indexed by the fold ledger below.`
   if (envelope.state === 'committed') {
-    return [
-      '## Moved to memory',
-      `[${envelope.pointer.id}] ${envelope.pointer.kind} · ${envelope.pointer.title} — stored in project memory, read back whole (sha256 ${envelope.contentWitness.digest.slice(0, 12)}); Recall read:"${envelope.pointer.id}" returns it.`,
-      rest,
-    ].join('\n')
+    return renderFoldMemoryLines(range, {
+      id: envelope.pointer.id,
+      kind: envelope.pointer.kind,
+      title: envelope.pointer.title,
+      digest: envelope.contentWitness.digest,
+    })
   }
+  const rest = `Everything else folded stays in the transcript, source records ${short(range.firstRecordId)}…${short(range.lastRecordId)} (rounds ${range.firstTurn}–${range.lastTurn}), indexed by the fold ledger below.`
   const head = envelope.state === 'pending' ? 'Not confirmed in memory' : 'Nothing moved to memory'
   const kept = envelope.item === null ? '' : ' The unsaved run state is in this epoch\'s boundary record; the run capsule above carries the same state.'
   return ['## Moved to memory', `${head}: ${envelope.reason}.${kept}`, rest].join('\n')

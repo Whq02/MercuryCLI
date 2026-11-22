@@ -163,7 +163,7 @@ section('C a first fold that would grow the conversation refuses before the summ
   const outputTokens = result === undefined ? inputTokens : estimateContextTokens(buildPostCompactMessages(result.compactionResult))
   console.log(`  first-fold estimate: ${inputTokens} → ${outputTokens}; ${result ? plainOf(result) : threw}`)
   check('the audit fixture contains 220 estimated tokens (the content-aware estimator of fold 46ao; 307 under the byte count before it)', inputTokens === 220, String(inputTokens), 'the estimate comes from estimateContextTokens in src/services/compact/microCompact.ts; update the expected 220 only if that estimator changed on purpose')
-  check('a first fold refuses with existing compact words, without claiming a previous fold', result === undefined && threw === 'Nothing to compact: 960 tokens (Not enough messages to compact.)', `threw=${threw ?? 'no'} result=${result ? plainOf(result) : 'none'}`, hintManualRefusal)
+  check('a first fold refuses with the true recent-turns reason, without claiming a previous fold', result === undefined && threw === 'Nothing to compact yet: the recent turns are kept whole and hold most of the 960 tokens.', `threw=${threw ?? 'no'} result=${result ? plainOf(result) : 'none'}`, hintManualRefusal)
   check('no summariser request went out', summaryRequests() === before, `${summaryRequests()} vs ${before}`, hintManualRefusal)
   check('the context is unchanged', JSON.stringify(short) === snapshot, '', hintManualRefusal)
   check('the conversation did not grow', outputTokens === inputTokens, `${inputTokens} → ${outputTokens}`, hintManualRefusal)
@@ -173,7 +173,7 @@ section('D the line\'s shape: the key the command recognises, and the one senten
 {
   check('the key', NOTHING_TO_COMPACT_KEY === 'Nothing to compact: ', NOTHING_TO_COMPACT_KEY, 'NOTHING_TO_COMPACT_KEY lives in src/services/compact/compact/limits.ts')
   check('after a fold', nothingToCompactLine(169_900) === 'Nothing to compact: the last fold already holds this conversation (169.9k tokens)', nothingToCompactLine(169_900), 'nothingToCompactLine in src/services/compact/compact/limits.ts')
-  check('before a fold', nothingToCompactLine(960, false) === 'Nothing to compact: 960 tokens (Not enough messages to compact.)', nothingToCompactLine(960, false), 'nothingToCompactLine in src/services/compact/compact/limits.ts')
+  check('before a fold', nothingToCompactLine(960, false) === 'Nothing to compact yet: too few messages to fold (960 tokens).', nothingToCompactLine(960, false), 'nothingToCompactLine in src/services/compact/compact/limits.ts')
 }
 
 section('E the projection does not perform reads, authorize unseen content, or populate the user-context memo')
