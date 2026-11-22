@@ -3,6 +3,7 @@ import { cwd } from 'process'
 import { asSessionId, type SessionId } from 'src/types/ids.js'
 import { randomUUID } from 'src/utils/crypto.js'
 import { passedOver } from 'src/utils/passedOver.js'
+import { createSignal } from 'src/utils/signal.js'
 
 function startFolder(): string {
   let folder: string
@@ -27,8 +28,8 @@ export class SessionIdentityOwner {
   sessionId: SessionId
   sessionProjectDir: string | null = null
   readonly planSlugCache: Map<string, string> = new Map()
-  private readonly sessionSwitched = new Set<(id: SessionId) => void>()
-  private readonly cwdChanged = new Set<(cwd: string) => void>()
+  private readonly sessionSwitched = createSignal<[id: SessionId]>()
+  private readonly cwdChanged = createSignal<[cwd: string]>()
 
   constructor() {
     const folder = startFolder()
@@ -49,14 +50,14 @@ export class SessionIdentityOwner {
   setCwdState(nextCwd: string): void {
     const stored = nextCwd.normalize('NFC')
     this.cwd = stored
-    for (const listener of this.cwdChanged) listener(stored)
+    this.cwdChanged.emit(stored)
   }
 
   switchSession(sessionId: SessionId, projectDir?: string | null): void {
     this.planSlugCache.delete(this.sessionId)
     this.sessionId = sessionId
     this.sessionProjectDir = projectDir ?? null
-    for (const listener of this.sessionSwitched) listener(sessionId)
+    this.sessionSwitched.emit(sessionId)
   }
 
   regenerateSessionId(): SessionId {
@@ -67,16 +68,10 @@ export class SessionIdentityOwner {
   }
 
   onSessionSwitch(listener: (id: SessionId) => void): () => void {
-    this.sessionSwitched.add(listener)
-    return () => {
-      this.sessionSwitched.delete(listener)
-    }
+    return this.sessionSwitched.subscribe(listener)
   }
 
   onCwdChange(listener: (cwd: string) => void): () => void {
-    this.cwdChanged.add(listener)
-    return () => {
-      this.cwdChanged.delete(listener)
-    }
+    return this.cwdChanged.subscribe(listener)
   }
 }
