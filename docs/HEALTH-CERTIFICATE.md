@@ -109,6 +109,15 @@ When TensorFold is installed, serving, exited or running under
 `/config`, AUTH carries the `Helper model` (`helper-model`) row
 ([TENSORFOLD.md](TENSORFOLD.md#the-support-line-and-health)).
 
+INTERFACE's `Terminal profile` row (`iface-terminal`) reads the window the
+check runs in ([TERMINAL-PROFILE.md](TERMINAL-PROFILE.md)): `ok` for a full
+profile and `info` when only recommended rows are absent. A window that can
+draw the interface but is not a first-class host (the old Windows console, a
+mintty window) reads `warn` with what it lacks and the remedy, so the window
+alone makes the verdict `caution`, never `fault`. A window that cannot draw
+the interface at all (`TERM=dumb`, a console older than Windows 10 1809)
+reads `fail`.
+
 INTERFACE's `Browser` row names the executable the Browser tool resolves:
 Chrome for Testing with its build id and managed cache path, or your
 explicit executable pin. Installed Chrome, Edge, Chromium and Brave apps are
