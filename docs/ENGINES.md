@@ -196,7 +196,7 @@ Mercury uses Meta’s OpenAI-compatible Chat Completions endpoint at
 `https://api.meta.ai/v1/chat/completions`, with streaming, function tools,
 JSON-schema output and the model’s documented reasoning effort. `none` is
 not supported; `max` is documented for Muse Wonder 1.0 and Standard Muse
-Spark 1.3, not for the Contributor variant. No
+Spark 1.3 and is undocumented for the Contributor variant. No
 reasoning-off flag is sent. Meta also provides Responses and Messages APIs;
 its Chat Completions API does **not** preserve private reasoning across
 turns. Mercury’s Meta road therefore replays the conversation and tool
