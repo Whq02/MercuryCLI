@@ -84,6 +84,7 @@ export interface CompatLaneProfile {
   billingRemedy?: string
   recoverCredential?(): Promise<CompatCredential | undefined | null>
   requestUrl(): string
+  wrapFetch?(fetchImpl: typeof fetch): typeof fetch
   wireModelId(modelId: string): string
   requestFitRefusal?(estimate: { requestBytes: number; estTokens: number; toolCount: number; wireModel: string }): string | undefined
   servedWindowTokens?(): number | undefined

@@ -17,6 +17,9 @@ interface ZenFixture {
   listReads: number
   modelList: unknown[]
   mode: ZenFixtureMode
+  oldStatus: number
+  oldPaths: string[]
+  newPaths: string[]
   stop(): void
 }
 
@@ -45,11 +48,19 @@ export function startZenFixture(opts: { key: string; goKey?: string; modelList?:
     listReads: 0,
     modelList: opts.modelList ?? [...ZEN_FIXTURE_LIVE_LIST],
     mode: 'text' as ZenFixtureMode,
+    oldStatus: 200,
+    oldPaths: [] as string[],
+    newPaths: [] as string[],
   }
   const goKey = opts.goKey ?? `${opts.key}-go`
   const bearerOf = (req: Request): string | undefined => req.headers.get('authorization')?.match(/^Bearer (\S+)$/)?.[1]
   const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
-    const path = new URL(req.url).pathname
+    const asked = new URL(req.url).pathname
+    const path = asked.replace(/^\/inference\//, '/zen/')
+    if (path === asked) {
+      state.oldPaths.push(asked)
+      if (state.oldStatus !== 200) return new Response(errorBody('FixtureError', 'this base does not serve the path'), { status: state.oldStatus, headers: { 'content-type': 'application/json' } })
+    } else state.newPaths.push(asked)
     if (path === '/zen/v1/models') {
       state.listReads++
       return Response.json({ object: 'list', data: state.modelList })
@@ -134,6 +145,10 @@ export function startZenFixture(opts: { key: string; goKey?: string; modelList?:
     set modelList(value: unknown[]) { state.modelList = value },
     get mode() { return state.mode },
     set mode(value: ZenFixtureMode) { state.mode = value },
+    get oldStatus() { return state.oldStatus },
+    set oldStatus(value: number) { state.oldStatus = value },
+    get oldPaths() { return state.oldPaths },
+    get newPaths() { return state.newPaths },
     stop: () => server.stop(true),
   }
 }

@@ -363,6 +363,15 @@ prompt caching. The gateway's errors are typed: a refused or exhausted key
 console page to fix it; a Go-plan window reached (`GoUsageLimitError`) carries
 its `retry-after`.
 
+Requests go to `https://opencode.ai/zen/v1`, and the Go usage read to
+`/zen/go/v1`. The vendor's [harness page](https://opencode.ai/docs/console/harnesses)
+names newer bases, `https://opencode.ai/inference` and
+`https://opencode.ai/inference/go`; Mercury keeps them as a fallback. A
+request the first base answers with 404 or 410 is sent once to the same plan's
+new base (`/inference/v1`, `/inference/go/v1`), and when that base serves, the
+session keeps to it and the debug log says so. A refusal (401, 403, 429), a
+server error or a timeout never moves the base.
+
 The meter: the session's spend at the recorded prices, and, for a key that
 carries an **OpenCode Go** plan, the plan's 5-hour, weekly and monthly windows
 from `GET /zen/go/v1/usage`. The pay-as-you-go balance is shown only in the
