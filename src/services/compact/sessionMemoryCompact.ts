@@ -27,6 +27,7 @@ import {
   annotateBoundaryWithWork,
   buildPostCompactMessages,
   type CompactionResult,
+  contextAfterFold,
   createAsyncAgentAttachmentsIfNeeded,
 } from './compact.js'
 import type { ToolUseContext } from '../../Tool.js'
@@ -241,12 +242,13 @@ export async function trySessionMemoryCompaction(
     if (autoCompactThreshold !== undefined && estimate >= autoCompactThreshold) {
       return null
     }
+    result.postCompactTokenCount = estimate
+    result.truePostCompactTokenCount = estimate
     if (trigger === 'manual') {
       const estimatedBefore = estimateContextTokens(stripThinkingFromIndex(messages, 0))
       if (estimate >= estimatedBefore) return null
+      if (preTokens > 0) result.truePostCompactTokenCount = contextAfterFold(preTokens, estimatedBefore, estimate)
     }
-    result.postCompactTokenCount = estimate
-    result.truePostCompactTokenCount = estimate
     return result
   } catch (err) {
     logForDebugging(`sessionMemoryCompact: attempt failed: ${String(err)}`)

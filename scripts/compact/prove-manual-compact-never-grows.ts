@@ -163,7 +163,7 @@ section('C a first fold that would grow the conversation refuses before the summ
   const outputTokens = result === undefined ? inputTokens : estimateContextTokens(buildPostCompactMessages(result.compactionResult))
   console.log(`  first-fold estimate: ${inputTokens} → ${outputTokens}; ${result ? plainOf(result) : threw}`)
   check('the audit fixture contains 220 estimated tokens (the content-aware estimator of fold 46ao; 307 under the byte count before it)', inputTokens === 220, String(inputTokens), 'the estimate comes from estimateContextTokens in src/services/compact/microCompact.ts; update the expected 220 only if that estimator changed on purpose')
-  check('a first fold refuses with the true recent-turns reason, without claiming a previous fold', result === undefined && threw === 'Nothing to compact yet: the recent turns are kept whole and hold most of the 960 tokens.', `threw=${threw ?? 'no'} result=${result ? plainOf(result) : 'none'}`, hintManualRefusal)
+  check('a first fold refuses with the true reason, without claiming a previous fold', result === undefined && threw === 'Nothing to compact yet: a summary would not shrink the 960 tokens.', `threw=${threw ?? 'no'} result=${result ? plainOf(result) : 'none'}`, hintManualRefusal)
   check('no summariser request went out', summaryRequests() === before, `${summaryRequests()} vs ${before}`, hintManualRefusal)
   check('the context is unchanged', JSON.stringify(short) === snapshot, '', hintManualRefusal)
   check('the conversation did not grow', outputTokens === inputTokens, `${inputTokens} → ${outputTokens}`, hintManualRefusal)
