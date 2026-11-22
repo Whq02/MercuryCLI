@@ -73,3 +73,4 @@ prove-token-budget-behaviour.ts
 prove-display-tags-behaviour.ts
 prove-hook-registry-behaviour.ts
 prove-generators-behaviour.ts
+prove-abort-controller-behaviour.ts
