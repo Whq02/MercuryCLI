@@ -221,8 +221,8 @@ for (const [columns, height] of [[80, 24], [100, 30], [120, 40], [178, 51], [200
   if (columns >= 60) check(`${columns}x${height}: the tail column reads "new · no alias" whole or ends with the ellipsis, never wraps`, tails.length > 0 && tails.every(l => /new · no alias|new · no…|new · no …/.test(l)) && !lines.some(l => /^\s*│\s+alias\s*│/.test(l)), tails.map(inner).join(' | '))
   else check(`${columns}x${height}: at the floor every model row is one line cut with the ellipsis`, lines.filter(l => /│ (?:│ | {2})(?:❯ )?[A-Za-z—]/.test(l) && !/[▾▸❯] [A-Z]/.test(l) && !/ · |╭|╰|context|effort|filter by|↑↓/.test(l)).every(l => l.includes('…')), lines.slice(3, 8).map(inner).join(' | '))
   if (columns >= 100) check(`${columns}x${height}: the longest OpenRouter id stands whole with its ctx`, /nvidia\/nemotron-3-ultra:free\s{2,}1M ctx/.test(nemotron), inner(nemotron))
-  const sixty = lineWith(lines, ID60.slice(-12))
-  check(`${columns}x${height}: the sixty-character id keeps its end behind the ellipsis and its 1.31M ctx cell stands`, columns < 60 || (/…\S*-identifier-x\s/.test(sixty) && !sixty.includes(ID60.slice(0, 12)) && (columns < 100 || sixty.includes('1.31M ctx'))), inner(sixty))
+  const sixty = lineWith(lines, ID60.slice(0, 12))
+  check(`${columns}x${height}: the sixty-character id keeps its start, is cut once at its end where its row cannot hold it, and its 1.31M ctx cell stands`, columns < 60 || (new RegExp(`\\s${ID60.slice(0, 12)}\\S*(?:…|${ID60.slice(-12)})\\s`).test(sixty) && !/\s…\S/.test(sixty) && (columns < 100 || sixty.includes('1.31M ctx'))), `${inner(sixty)}; the id cell is pickerIdText and pickerIdSpan in src/utils/model/modelPickerGroups.ts, drawn by idAndState in src/components/modelPicker/renderLine.tsx`)
   const odd = lineWith(lines, 'x/y·z') || oddSeen
   check(`${columns}x${height}: an id holding · and │ paints in its cell without breaking the row (in the final frame or one the walk audited)`, columns < 60 || (odd !== '' && problems.length === 0 && auditBox('odd', [lines[0]!, ...lines.slice(1)], columns).length === 0), inner(odd))
   board.close()

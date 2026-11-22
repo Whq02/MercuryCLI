@@ -1,5 +1,5 @@
 import { stringWidth } from '../../ink/stringWidth.js'
-import { truncateToWidth } from '../truncate.js'
+import { truncateKeepingTail, truncateToWidth } from '../truncate.js'
 import { modelNameKey } from './modelNameMatcher.js'
 
 export type CatalogueDoorFacet = { group: string; family: string; total: number; open?: boolean }
@@ -351,4 +351,34 @@ export function pickerColumns(rowWidth: number): PickerColumns {
 export function pickerCellColumns(rowWidth: number): PickerColumns {
   const base = pickerColumns(rowWidth)
   return { ...base, id: base.id - 1, state: base.state + 1 }
+}
+
+export function pickerIdSpan(columns: PickerColumns, idWidth: number, stateWidth: number, spare: number): { id: number; state: number } {
+  if (columns.id <= 2) return { id: columns.id, state: columns.state }
+  const span = columns.id + columns.state
+  const word = stateWidth === 0 ? 0 : Math.min(columns.state, stateWidth + 2)
+  const need = idWidth + 2
+  const kept = Math.max(columns.id, span - word)
+  const id = need <= kept ? Math.max(columns.id, need) : need + word <= span + spare ? need : kept
+  return { id, state: Math.max(word, span - id) }
+}
+
+const ID_WORD_BREAK = /[^A-Za-z0-9.]/
+
+export function pickerIdText(id: string, width: number, listed: readonly string[]): string {
+  if (stringWidth(id) <= width) return id
+  const atEnd = truncateToWidth(id, width)
+  const head = atEnd.slice(0, -1)
+  const alike = listed.filter(other => other !== id && other.startsWith(head))
+  if (alike.length === 0) return atEnd
+  const sharedEnd = (other: string): number => {
+    let n = 0
+    while (n < id.length && n < other.length && id[id.length - 1 - n] === other[other.length - 1 - n]) n++
+    return n
+  }
+  let from = Math.max(0, id.length - 1 - Math.max(...alike.map(sharedEnd)))
+  while (from > 0 && !ID_WORD_BREAK.test(id[from - 1]!)) from--
+  const firstWord = id.search(ID_WORD_BREAK)
+  const room = width - 1 - Math.max(1, firstWord < 0 ? id.length : firstWord)
+  return truncateKeepingTail(id, width, Math.max(0, Math.min(id.length - from, room)))
 }

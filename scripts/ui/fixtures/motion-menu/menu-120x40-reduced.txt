@@ -19,8 +19,8 @@
    │ AGENTS                                                         │  │ Current value                              │
    │   Crewmates                                       default (on) │  │ reduced                                    │
    │                                                                │  │ now: reduced (set by you)                  │
-   │ MISCELLANEOUS                                                  │  │ reduced cadence: 250 ms a tick (250 ms     │
-   │   Launch animation                                default (on) │  │ … (the trail continues — taller terminal)  │
+   │ MISCELLANEOUS                                                  │  │ … (the trail continues — taller terminal)  │
+   │   Launch animation                                default (on) │  │                                            │
    │   Godot language lanes                           default (off) │  ╰────────────────────────────────────────────╯
    │   Godot control surface (VULCAN)                 default (off) │  ╭────────────────────────────────────────────╮
    │   Unity dev lanes                                default (off) │  │ LAUNCH SUMMARY                             │

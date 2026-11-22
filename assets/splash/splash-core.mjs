@@ -1029,30 +1029,34 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   const expandDetailRows = (items, budget) => {
     const overflows = items.length > budget
     let free = Math.max(0, budget - items.length)
-    const out = []
-    for (const item of items) {
-      if (item.fixed !== undefined) {
-        out.push(item.fixed)
-        continue
-      }
+    return items.map(item => {
+      if (item.fixed !== undefined) return [item.fixed]
       const wrapped = wrapDetailLine(item.raw, detailLineW, textW)
       const extra = wrapped.length - 1
       if (extra > 0 && (overflows || extra <= free)) {
         if (!overflows) free -= extra
-        for (const l of wrapped) out.push(item.style(l))
-      } else {
-        out.push(item.style(item.raw))
+        return wrapped.map(l => item.style(l))
       }
-    }
-    return out
+      return [item.style(item.raw)]
+    })
   }
-  const dRows = expandDetailRows(dItems, detailBudget)
+  const dLines = expandDetailRows(dItems, detailBudget)
+  const dRows = dLines.flat()
+  const wholeLines = room => {
+    if (m.detailOverrideConfirms) return dRows.slice(0, room)
+    const kept = []
+    for (const line of dLines) {
+      if (kept.length + line.length > room) break
+      kept.push(...line)
+    }
+    return kept
+  }
   const hintRaw = m.moreHint ?? '… (the trail continues — taller terminal)'
   const hintLines = wrapDetailLine(hintRaw, detailLineW, textW).map(l => ' ' + faint + l + R)
   const hintShown = hintLines.slice(0, Math.max(1, detailBudget))
   const dShown =
     dRows.length > detailBudget
-      ? [...dRows.slice(0, Math.max(0, detailBudget - hintShown.length)), ...hintShown]
+      ? [...wholeLines(Math.max(0, detailBudget - hintShown.length)), ...hintShown]
       : dRows
   const dPadded = [...dShown, ...Array(Math.max(0, detailBudget - dShown.length)).fill('')]
   const detailPanel = panelLines('SETTING DETAIL', dPadded, RIGHT_W)

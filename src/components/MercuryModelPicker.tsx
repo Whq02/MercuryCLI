@@ -366,7 +366,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
     },
     inner,
   )
-  const renderLine = pickerLineRenderer({ i, headings, inner, selectRow, commitCurrent, TERRA, tokens, compact, narrowId, cardWidth, stateWordOf, focusedSupports1m, focusedGptToggle, context1m, columns })
+  const renderLine = pickerLineRenderer({ i, headings, inner, selectRow, commitCurrent, TERRA, tokens, compact, narrowId, cardWidth, stateWordOf, focusedSupports1m, focusedGptToggle, context1m, columns, listed: lines.flatMap(line => (line.kind === 'row' ? [line.row.id] : [])) })
   return (
     <Box flexDirection="column" alignItems={modelPickerCentred() ? 'center' : 'flex-start'}>
     <Box ref={surfaceRef} flexDirection="column" borderStyle="round" borderColor={tokens.borderStrong} paddingX={1} width={panelWidth} flexShrink={0}>
