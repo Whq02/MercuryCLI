@@ -177,7 +177,7 @@ export function renderSkill(name: string, layout: Layout = DEFAULT_LAYOUT, list:
     `      : {}),\n` +
     `    userInvocable: String(frontmatter['user-invocable'] ?? '').toLowerCase() !== 'false',\n` +
     `    ...(Object.keys(SKILL_FILES).length > 0 ? { files: SKILL_FILES } : {}),\n` +
-    `    async getPromptForCommand(args) {\n` +
+    `    async getPromptForCommand(args: string) {\n` +
     `      const parts: string[] = [SKILL_BODY.trimStart()]\n` +
     `      if (args) parts.push(args)\n` +
     `      return [{ type: 'text', text: parts.join('\\n\\n') }]\n` +
