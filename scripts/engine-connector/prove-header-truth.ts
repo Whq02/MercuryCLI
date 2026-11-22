@@ -73,7 +73,7 @@ section('§2 the row\'s words per state, with and without a crew, at three width
   check('idle, the crew running on (esc left them): the crew\'s clock, never "ready"', bar.statusLine(live('idle', false), status(), crew) === 'crewmates thought for 28m')
   check('idle, the crew settled: "ready" (the landed rows keep their time in the CREW box)', bar.statusLine(live('idle', false), status(), receipt) === 'ready')
   const wait: SeatStatusV1['wait'] = { kind: 'first-byte', cold: false, promptTokens: 900, model: 'Opus 5', budgetMs: 120_000, sinceMs: NOW - 3_000, attempt: 1 }
-  check('the first-byte wait outranks the crew\'s clock, and speaks its budget in minutes', bar.statusLine(live('thinking'), status({ wait }), crew) === 'waiting for the first byte from Opus 5 — within 2m', bar.statusLine(live('thinking'), status({ wait }), crew))
+  check('the first-byte wait outranks the crew\'s clock, and speaks its limit in minutes', bar.statusLine(live('thinking'), status({ wait }), crew) === 'waiting for the first byte from Opus 5 — gives up after 2m', bar.statusLine(live('thinking'), status({ wait }), crew))
   check('the wait on agents outranks the crew\'s clock (the runner\'s own count words)', bar.statusLine(live('waiting', true, 2), status(), crew) === 'waiting on 2 crewmates')
   check('the wait on agents by kind outranks the crew\'s clock', bar.statusLine({ ...live('waiting', true, 3), waitingOn: { agents: 2, shells: 1, asks: 0 } }, status(), crew) === 'waiting on 2 crewmates · 1 shell')
   check('the stuck verdict outranks the crew\'s clock', bar.statusLine(live('thinking'), status({ stuck: true, quietMs: 120_000 }), crew) === 'no stream events for 2m — the session may be stuck (the watchdog aborts at 2m)', bar.statusLine(live('thinking'), status({ stuck: true, quietMs: 120_000 }), crew))
@@ -86,7 +86,7 @@ section('§2 the row\'s words per state, with and without a crew, at three width
     check(`${cols} columns: the crew's clock is left whole for the row's own end cut`, fitted === clock, fitted)
     const waitLine = bar.statusLine(live('thinking'), status({ wait: { ...wait, cold: true, promptTokens: 26_000 } }), crew)
     const fittedWait = bar.fitStatusLine(waitLine, cols, fixed)
-    check(`${cols} columns: a wait line keeps its budget clause under the cut`, fittedWait.endsWith('within 2m') && stringWidth(fittedWait) <= Math.max(12, cols - fixed), fittedWait)
+    check(`${cols} columns: a wait line keeps its limit clause without cutting words`, fittedWait.endsWith('gives up after 2m') && !fittedWait.includes('…') && stringWidth(fittedWait) <= Math.max(12, cols - fixed), fittedWait)
   }
 }
 

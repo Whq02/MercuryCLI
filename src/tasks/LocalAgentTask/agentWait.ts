@@ -166,7 +166,7 @@ export function agentWaitWords(wait: AgentWaitV1 | null | undefined, nowMs: numb
     case 'request-sent':
       return 'request sent'
     case 'first-byte':
-      return `waiting for the first byte${counter !== null ? ` · ${counter}` : ''}, within ${agentWaitBudget(wait.budgetMs ?? 0)}`
+      return `waiting for the first byte${counter !== null ? ` · ${counter}` : ''}, gives up after ${agentWaitBudget(wait.budgetMs ?? 0)}`
     case 'retry': {
       const delay = agentWaitBudget(wait.budgetMs ?? 0)
       const ladder = wait.attempt !== undefined ? ` (retry ${wait.attempt}${wait.of !== undefined ? ` of ${wait.of}` : ''})` : ''

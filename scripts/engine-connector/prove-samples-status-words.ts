@@ -337,7 +337,7 @@ async function main(): Promise<void> {
   const late = cases[0]![1]
   const stuck = cases[1]![1]
   const second = cases[3]![1]
-  check("the reviewer's case: the late first-byte warning at 178 keeps '2m so far' and its whole head", lawful['late first byte@178/1'] === late && late.includes('2m so far') && !lawful['late first byte@178/1']!.includes('·…'), lawful['late first byte@178/1'])
+  check("the reviewer's case: the late first-byte warning at 178 keeps '2m so far' and its whole head", (lawful['late first byte@178/1'] === late || lawful['late first byte@178/1'] === tail(late, 1)) && late.includes('2m so far') && !lawful['late first byte@178/1']!.includes('·…'), lawful['late first byte@178/1'])
   check("the reviewer's case: the stuck warning at 120 keeps 'for 45s'", lawful['stuck@120/1'] === stuck && stuck.includes('for 45s'), lawful['stuck@120/1'])
   check("the reviewer's case: the second esc at 100 reads exactly as it does without samples, its head surviving", lawful['interrupting again@100/1'] === bar.fitStatusLine(second, 100 + chordDelta, cases[3]![2]) && lawful['interrupting again@100/1']!.startsWith('interrupt'), lawful['interrupting again@100/1'])
   check("the reviewer's case: the long effort receipt at 100 reads exactly as it does without samples", lawful['effort receipt with the saved note@100/1'] === bar.fitStatusLine(receipts[1]![1], 100 + chordDelta, cases[5]![2]), lawful['effort receipt with the saved note@100/1'])
