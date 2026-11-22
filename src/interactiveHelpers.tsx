@@ -188,13 +188,13 @@ export async function showSetupScreens(
       <TerminalProfileCard resolution={resolution} onDone={done} />
     ))
     if (choice === 'exit') {
-      const missing = resolution.checks
+      const found = resolution.checks
         .filter(row => row.requirement === 'required' && !row.ok)
-        .map(row => row.label)
-        .join(', ')
+        .map(row => row.evidence)
+        .join('; ')
       await exitWithMessage(
         root,
-        `This terminal is missing required capabilities: ${missing || 'see the card above'}.\n` +
+        `This window cannot show Mercury the way it is designed: ${found}.\n` +
           `Use a supported terminal${supportedTerminalHintSuffix()}.\n` +
           'Non-interactive use works anywhere via mercury run.',
         { exitCode: 1, plainLines: true },

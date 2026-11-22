@@ -16,8 +16,8 @@ The verdict is one of:
   Nothing is reduced: `required` is only the floor the design cannot render
   without, and a missing recommended row only informs the report card.
 - `unsupported`: a required row failed. Interactive boot shows the
-  requirement card **before** the main interface: you can exit (with the missing
-  labels named, and the pointer that non-interactive use works anywhere via
+  requirement card **before** the main interface: you can exit (with what the
+  check found, and the pointer that non-interactive use works anywhere via
   `mercury run`) or continue knowingly, never entering a silently degraded UI. The
   exit guidance is written as plain lines below the card, so a terminal
   without cursor addressing shows it whole.
