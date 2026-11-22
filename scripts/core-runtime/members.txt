@@ -64,3 +64,4 @@ prove-alt-entry-restore-point.ts
 prove-restart-carry-identity.ts
 prove-bare-slash-words.ts
 prove-owner-bleed.ts
+prove-memoize-behaviour.ts
