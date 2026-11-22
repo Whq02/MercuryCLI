@@ -15,6 +15,7 @@ const long = (inputTokens: number): ScriptedTurn => ({ kind: 'text', text: notes
 const METER = 'createFoldMeter in src/services/compact/compact/foldMeasure.ts must count the conversation before the fold by the estimate it counts the fold with, never by the smaller of that estimate and the provider figure'
 const RECEIPT = 'compactConversation in src/services/compact/compact.ts must report the after figure of a manual fold as the before figure less what the fold saved by the one estimate'
 const SENT_AGAIN = 'createFoldMeter in src/services/compact/compact/foldMeasure.ts must leave the skills list out of the count before the fold: the next turn sends it again, so a fold credited with it can leave the next request longer'
+const FLOOR = 'projectManualFold in src/services/compact/compact/projection.ts must project the summary at the shortest prose Mercury records as a full one (DEGRADED_SUMMARY_LENGTH in src/services/compact/compact/limits.ts), so that the summariser is asked and its real summary judged'
 
 let failures = 0
 function check(label: string, ok: boolean, seen: unknown, change: string): void {
@@ -74,6 +75,27 @@ async function summaryNearlyAsLongAsItsTurn(): Promise<void> {
   }, { env: { MERCURY_SESSION_KIND: 'oculus' } })
 }
 
+async function foldOfOneShortAnswer(): Promise<void> {
+  const short: ScriptedTurn = { kind: 'text', text: notes.slice(0, 8_000), usage: { input_tokens: 20_500, output_tokens: 1_700 } }
+  await withFixtureRunner([short, long(22_300), long(30_400), { kind: 'text', text: SUMMARY, whenBody: FOLD }, { kind: 'text', text: 'carried on' }], async (runner, api) => {
+    for (const [index, ask] of ['record the first notes', 'record the notes', 'record the notes once more'].entries()) {
+      await runner.prompt(ask)
+      await runner.waitFor(`turn ${index + 1}`, row => row.type === 'outcome' && row.turn === index + 1)
+    }
+    await runner.prompt('/compact')
+    const folded = await runner.waitFor('the turn of /compact', row => row.type === 'outcome' && row.turn === 4)
+    await runner.prompt('carry on')
+    await runner.waitFor('the turn after the fold', row => row.type === 'outcome' && row.turn === 5)
+    const receipt = String(folded.answer ?? (folded.error as { message?: string } | undefined)?.message ?? '')
+    const figures = receiptFigures(receipt)
+    const { summaries, before, after } = aroundTheFold(api)
+    check('a head of one 2,000-token answer: /compact folds it, where a summary assumed at 2,000 tokens would have refused', folded.status === 'completed' && receipt.startsWith('Compacted — folded '), receipt, FLOOR)
+    check('a head of one 2,000-token answer: the summary is asked for once', summaries.length === 1, summaries.length, FLOOR)
+    check('a head of one 2,000-token answer: the receipt reads a smaller context after than before', figures.after < figures.before, receipt, FLOOR)
+    check('a head of one 2,000-token answer: the request after the fold is shorter than the unfolded conversation, the third turn and its answer', before !== undefined && after !== undefined && after.raw.length < before.raw.length + notes.length, { before: before?.raw.length, answer: notes.length, after: after?.raw.length }, FLOOR)
+  }, { env: { MERCURY_SESSION_KIND: 'oculus' } })
+}
+
 async function queuedMidTurn(): Promise<void> {
   const home = mkdtempSync(join(tmpdir(), 'fold-that-shrinks-'))
   const session = randomUUID()
@@ -110,5 +132,6 @@ async function queuedMidTurn(): Promise<void> {
 
 await twoLongTurns()
 await summaryNearlyAsLongAsItsTurn()
+await foldOfOneShortAnswer()
 await queuedMidTurn()
 process.exitCode = failures ? 1 : 0

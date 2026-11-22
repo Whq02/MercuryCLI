@@ -46,6 +46,7 @@ const { call } = await import('../../src/commands/compact/compact.ts')
 const { compactConversation, buildPostCompactMessages, projectManualFold } = await import('../../src/services/compact/compact.ts')
 const { estimateContextTokens } = await import('../../src/services/compact/microCompact.ts')
 const { requestGaugeDigest } = await import('../../src/services/run/requestGauge.ts')
+const { stripThinkingFromIndex } = await import('../../src/services/messages/apiFilters.ts')
 const { createUserMessage } = await import('../../src/services/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
@@ -174,8 +175,37 @@ section('1 restored files would make the fold grow: projection counts disk size,
   )
 }
 
-section('2 Windows SUBMIT 352 shape (RequestGauge + high-effort thinking + large recent read + restored files): refuses before any model call')
-{
+async function withSummaryServer<T>(summary: string, run: (asked: () => number) => Promise<T>): Promise<T> {
+  let asked = 0
+  const server = createServer((req, res) => {
+    const chunks: Buffer[] = []
+    req.on('data', c => chunks.push(c as Buffer))
+    req.on('end', () => {
+      asked++
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      const sse = (o: unknown) => `data: ${JSON.stringify(o)}\n\n`
+      res.end([
+        `event: message_start\n${sse({ type: 'message_start', message: { id: 'msg_giant', type: 'message', role: 'assistant', model: MODEL, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 100, output_tokens: 1 } } })}`,
+        `event: content_block_start\n${sse({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } })}`,
+        `event: content_block_delta\n${sse({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: summary } })}`,
+        `event: content_block_stop\n${sse({ type: 'content_block_stop', index: 0 })}`,
+        `event: message_delta\n${sse({ type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: { input_tokens: 100, output_tokens: 16_000 } })}`,
+        `event: message_stop\n${sse({ type: 'message_stop' })}`,
+      ].join(''))
+    })
+  })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', () => resolve()))
+  const prevBaseUrl = process.env.ANTHROPIC_BASE_URL
+  process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+  try {
+    return await run(() => asked)
+  } finally {
+    process.env.ANTHROPIC_BASE_URL = prevBaseUrl
+    await new Promise<void>(resolve => server.close(() => resolve()))
+  }
+}
+
+function windowsShapedSession(): { messages: AnyMsg[]; reads: InstanceType<typeof FileStateCache> } {
   const messages: AnyMsg[] = []
   const reads = new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024)
   const f1 = join(scratch, 'pricing.js')
@@ -243,47 +273,45 @@ section('2 Windows SUBMIT 352 shape (RequestGauge + high-effort thinking + large
       } : {}),
     })
   }
-  const ctx = makeContext(messages, reads)
+  return { messages, reads }
+}
+
+section('2 Windows SUBMIT 352 shape (RequestGauge + high-effort thinking + large recent read + restored files): the summariser is asked, and the fold lands smaller or not at all')
+{
+  const hintJudged = 'compactConversation in src/services/compact/compact.ts must judge the real summary by the one estimate of createFoldMeter in src/services/compact/compact/foldMeasure.ts: land the fold without its restored files when that is smaller than the conversation, and keep the conversation when it is not'
+  const short = windowsShapedSession()
   const reqsBefore = summaryRequests()
-  let threw: string | undefined
-  let result: CompactCallResult | undefined
-  try {
-    result = (await call('', ctx as never)) as CompactCallResult
-  } catch (error) {
-    threw = error instanceof Error ? error.message : String(error)
-  }
+  const landed = (await call('', makeContext(short.messages, short.reads) as never)) as CompactCallResult
+  const restoredFileCount = landed.compactionResult.attachments.filter(a => a.attachment.type === 'file' || a.attachment.type === 'compact_file_reference').length
+  const standingBefore = estimateContextTokens(stripThinkingFromIndex(short.messages as never, 0), MODEL)
+  const standingAfter = estimateContextTokens(buildPostCompactMessages(landed.compactionResult) as never, MODEL)
   check(
-    'refuses before calling the summariser when even without restored files the fold would not shrink below 57.6k',
-    result === undefined && threw !== undefined && summaryRequests() === reqsBefore,
-    `threw=${threw ?? 'none'} result=${result ? plainOf(result) : 'none'} reqs=${summaryRequests() - reqsBefore}`,
-    'createFoldMeter in src/services/compact/compact/foldMeasure.ts must count before with thinking stripped, by the one estimate projectManualFold in src/services/compact/compact/projection.ts counts the fold with, so a fold that would not land smaller is refused before the summariser',
+    'a short summary: the fold lands once, without its restored files, smaller than the 57.6k it found by the measure and by the estimate',
+    summaryRequests() === reqsBefore + 1 && restoredFileCount === 0 && landed.compactionResult.preCompactTokenCount === 57_600 && (landed.compactionResult.truePostCompactTokenCount ?? Infinity) < 57_600 && standingAfter < standingBefore,
+    `receipt=${plainOf(landed)} reqs=${summaryRequests() - reqsBefore} restoredFiles=${restoredFileCount} estimate ${standingBefore} → ${standingAfter}`,
+    hintJudged,
+  )
+  const long = windowsShapedSession()
+  const readSnapshot = JSON.stringify([...long.reads.entries()])
+  const refused = await withSummaryServer(`<summary>\n${'The pricing work went step by step and each step was checked. '.repeat(130)}\n</summary>`, async asked => {
+    try {
+      return { result: (await call('', makeContext(long.messages, long.reads) as never)) as CompactCallResult, threw: '', asked: asked() }
+    } catch (error) {
+      return { result: undefined, threw: error instanceof Error ? error.message : String(error), asked: asked() }
+    }
+  })
+  check(
+    'a summary of the 2,000 tokens the projection used to assume: asked once, the fold is refused and the conversation kept, in the plain words',
+    refused.result === undefined && refused.asked === 1 && refused.threw === 'Nothing to compact yet: a summary would not shrink the 57.6k tokens.' && JSON.stringify([...long.reads.entries()]) === readSnapshot,
+    `threw=${refused.threw || 'none'} result=${refused.result ? plainOf(refused.result) : 'none'} asked=${refused.asked}`,
+    hintJudged,
   )
 }
 
 section('3 post-summary growth guard: when the summariser returns an oversized summary, the manual fold aborts and keeps the original context')
 {
   const giantSummary = `<summary>\n${'1. Detailed summary section repeating verbatim context and code snippets. '.repeat(900)}\n</summary>`
-  const giantServer = createServer((req, res) => {
-    const chunks: Buffer[] = []
-    req.on('data', c => chunks.push(c as Buffer))
-    req.on('end', () => {
-      res.writeHead(200, { 'content-type': 'text/event-stream' })
-      const sse = (o: unknown) => `data: ${JSON.stringify(o)}\n\n`
-      res.end([
-        `event: message_start\n${sse({ type: 'message_start', message: { id: 'msg_giant', type: 'message', role: 'assistant', model: MODEL, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 100, output_tokens: 1 } } })}`,
-        `event: content_block_start\n${sse({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } })}`,
-        `event: content_block_delta\n${sse({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: giantSummary } })}`,
-        `event: content_block_stop\n${sse({ type: 'content_block_stop', index: 0 })}`,
-        `event: message_delta\n${sse({ type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: { input_tokens: 100, output_tokens: 16_000 } })}`,
-        `event: message_stop\n${sse({ type: 'message_stop' })}`,
-      ].join(''))
-    })
-  })
-  await new Promise<void>(resolve => giantServer.listen(0, '127.0.0.1', () => resolve()))
-  const addr = giantServer.address() as { port: number }
-  const prevBaseUrl = process.env.ANTHROPIC_BASE_URL
-  process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${addr.port}`
-  try {
+  await withSummaryServer(giantSummary, async () => {
     const messages: AnyMsg[] = []
     const reads = new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024)
     reads.set(partialFiles[0]!, { content: 'keep-me\n', timestamp: 50, offset: 0, limit: undefined })
@@ -326,10 +354,7 @@ section('3 post-summary growth guard: when the summariser returns an oversized s
       `keys=${[...reads.keys()].join(',')} size=${reads.size}`,
       'compactConversation in src/services/compact/compact.ts must restore context.readFileState from ledgerBeforeFold before throwing on a post-summary growth abort',
     )
-  } finally {
-    process.env.ANTHROPIC_BASE_URL = prevBaseUrl
-    await new Promise<void>(resolve => giantServer.close(() => resolve()))
-  }
+  })
 }
 
 section('4 automatic fold drops restored files when they would push the landed context above before')
