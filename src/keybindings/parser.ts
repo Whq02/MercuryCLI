@@ -1,5 +1,4 @@
 import type { Chord, KeybindingBlock, ParsedBinding, ParsedKeystroke } from './types.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 const MODIFIER_TOKENS: Record<string, keyof Omit<ParsedKeystroke, 'key'>> = {
   ctrl: 'ctrl',
@@ -26,11 +25,20 @@ const KEY_ALIASES: Record<string, string> = {
 }
 
 export function parseKeystroke(input: string): ParsedKeystroke {
-  return notBuilt('src/keybindings/parser.ts:28')
+  const stroke: ParsedKeystroke = { key: '', ctrl: false, alt: false, shift: false, meta: false, super: false }
+  for (const part of input.split('+')) {
+    const token = part.trim().toLowerCase()
+    if (!token) continue
+    if (Object.hasOwn(MODIFIER_TOKENS, token)) stroke[MODIFIER_TOKENS[token]!] = true
+    else stroke.key = Object.hasOwn(KEY_ALIASES, token) ? KEY_ALIASES[token]! : token
+  }
+  return stroke
 }
 
 export function parseChord(input: string): Chord {
-  return notBuilt('src/keybindings/parser.ts:50')
+  if (input === ' ') return [parseKeystroke('space')]
+  const text = input.trim()
+  return text === '' ? [] : text.split(/\s+/).map(parseKeystroke)
 }
 
 const DISPLAY_NAMES: Record<string, string> = {
@@ -54,16 +62,29 @@ function displayKey(key: string): string {
   return DISPLAY_NAMES[key] ?? key
 }
 
-export function chordToString(chord: Chord): string {
-  return notBuilt('src/keybindings/parser.ts:91')
+export type DisplayPlatform = 'linux' | 'macos' | 'unknown' | 'windows' | 'wsl'
+
+function spellStroke(stroke: ParsedKeystroke, platform?: DisplayPlatform): string {
+  const parts: string[] = []
+  if (stroke.ctrl) parts.push('ctrl')
+  if (stroke.alt || (platform !== undefined && stroke.meta)) parts.push(platform === 'macos' ? 'opt' : 'alt')
+  if (stroke.shift) parts.push('shift')
+  if (platform === undefined && stroke.meta) parts.push('meta')
+  if (stroke.super) parts.push(platform === undefined || platform === 'macos' ? 'cmd' : 'super')
+  parts.push(displayKey(stroke.key))
+  return parts.join('+')
 }
 
-export type DisplayPlatform = Unbuilt
+export function chordToString(chord: Chord): string {
+  return chord.map(stroke => spellStroke(stroke)).join(' ')
+}
 
-export function chordToDisplayString(chord: Chord, platform?: DisplayPlatform): string {
-  return notBuilt('src/keybindings/parser.ts:111')
+export function chordToDisplayString(chord: Chord, platform: DisplayPlatform = 'linux'): string {
+  return chord.map(stroke => spellStroke(stroke, platform)).join(' ')
 }
 
 export function parseBindings(blocks: KeybindingBlock[]): ParsedBinding[] {
-  return notBuilt('src/keybindings/parser.ts:115')
+  return blocks.flatMap(({ context, bindings }) =>
+    Object.entries(bindings).map(([pattern, action]) => ({ chord: parseChord(pattern), action, context })),
+  )
 }
