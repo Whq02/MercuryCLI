@@ -3471,6 +3471,7 @@ src/substrate/envStamps.ts	resetOwnEnvWritesForTesting	reset-export
 src/substrate/fileStore.ts	STORE_LOCK_OPTIONS	process	module	Load-time table with no local writer
 src/substrate/fileStore.ts	compromisedLocks	process	module	process-wide set of file-store lock paths reported compromised by lockfile
 src/substrate/fileStore.ts	emitReadGateForProofs	test	module	test-only async barrier hook injected by _setEmitReadGateForProofs
+src/substrate/flagRegistry.ts	FLAG_REGISTRY	process	module	Load-time definition shared by all callers
 src/substrate/flagRegistry.ts	byEnv	process	module	immutable lookup map populated once at load from FLAG_REGISTRY
 src/substrate/flagRegistry.ts	selfWritten	process	module	process-wide map of process.env flag mutations made via setFlagEnv
 src/substrate/flags/accounts.ts	ACCOUNTS_FLAGS	process	module	Load-time list with no local writer

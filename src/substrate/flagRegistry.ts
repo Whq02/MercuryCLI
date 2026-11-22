@@ -1,88 +1,49 @@
 import { flagReadsOff } from './flagOff.js'
+import { ACCOUNTS_FLAGS } from './flags/accounts.js'
+import { API_FLAGS } from './flags/api.js'
+import { BOOT_FLAGS } from './flags/boot.js'
+import { COCKPIT_FLAGS } from './flags/cockpit.js'
+import { CONTEXT_FLAGS } from './flags/context.js'
+import { DAEMON_FLAGS } from './flags/daemon.js'
+import { DESKTOP_FLAGS } from './flags/desktop.js'
+import { HEALTH_FLAGS } from './flags/health.js'
+import { IDE_FLAGS } from './flags/ide.js'
+import { MCP_FLAGS } from './flags/mcp.js'
+import { MODEL_FLAGS } from './flags/model.js'
+import { PERMISSIONS_FLAGS } from './flags/permissions.js'
+import { PROJECT_FLAGS } from './flags/project.js'
+import { PROOFS_FLAGS } from './flags/proofs.js'
+import { PROVIDERS_FLAGS } from './flags/providers.js'
+import { SCREEN_FLAGS } from './flags/screen.js'
+import { SESSION_FLAGS } from './flags/session.js'
+import { TOOLS_FLAGS } from './flags/tools.js'
 import type { FlagSpec } from './flags/spec.js'
 
 export type { FlagKind, FlagSpec, FlagTier } from './flags/spec.js'
 
-function createFlagStore(): {
-  registry: readonly FlagSpec[]
-  get: (env: string) => FlagSpec | undefined
-} {
-  const loaders: ReadonlyArray<() => readonly FlagSpec[]> = [
-    () => (require('./flags/session.js') as typeof import('./flags/session.js')).SESSION_FLAGS,
-    () => (require('./flags/boot.js') as typeof import('./flags/boot.js')).BOOT_FLAGS,
-    () => (require('./flags/accounts.js') as typeof import('./flags/accounts.js')).ACCOUNTS_FLAGS,
-    () => (require('./flags/api.js') as typeof import('./flags/api.js')).API_FLAGS,
-    () => (require('./flags/cockpit.js') as typeof import('./flags/cockpit.js')).COCKPIT_FLAGS,
-    () => (require('./flags/context.js') as typeof import('./flags/context.js')).CONTEXT_FLAGS,
-    () => (require('./flags/daemon.js') as typeof import('./flags/daemon.js')).DAEMON_FLAGS,
-    () => (require('./flags/desktop.js') as typeof import('./flags/desktop.js')).DESKTOP_FLAGS,
-    () => (require('./flags/health.js') as typeof import('./flags/health.js')).HEALTH_FLAGS,
-    () => (require('./flags/ide.js') as typeof import('./flags/ide.js')).IDE_FLAGS,
-    () => (require('./flags/mcp.js') as typeof import('./flags/mcp.js')).MCP_FLAGS,
-    () => (require('./flags/model.js') as typeof import('./flags/model.js')).MODEL_FLAGS,
-    () => (require('./flags/permissions.js') as typeof import('./flags/permissions.js')).PERMISSIONS_FLAGS,
-    () => (require('./flags/project.js') as typeof import('./flags/project.js')).PROJECT_FLAGS,
-    () => (require('./flags/proofs.js') as typeof import('./flags/proofs.js')).PROOFS_FLAGS,
-    () => (require('./flags/providers.js') as typeof import('./flags/providers.js')).PROVIDERS_FLAGS,
-    () => (require('./flags/screen.js') as typeof import('./flags/screen.js')).SCREEN_FLAGS,
-    () => (require('./flags/tools.js') as typeof import('./flags/tools.js')).TOOLS_FLAGS,
-  ]
-  const map = new Map<string, FlagSpec>()
-  let nextLoader = 0
-  let materialized = false
-  const backing: FlagSpec[] = []
+export const FLAG_REGISTRY: readonly FlagSpec[] = [
+  ...ACCOUNTS_FLAGS,
+  ...API_FLAGS,
+  ...BOOT_FLAGS,
+  ...COCKPIT_FLAGS,
+  ...CONTEXT_FLAGS,
+  ...DAEMON_FLAGS,
+  ...DESKTOP_FLAGS,
+  ...HEALTH_FLAGS,
+  ...IDE_FLAGS,
+  ...MCP_FLAGS,
+  ...MODEL_FLAGS,
+  ...PERMISSIONS_FLAGS,
+  ...PROJECT_FLAGS,
+  ...PROOFS_FLAGS,
+  ...PROVIDERS_FLAGS,
+  ...SCREEN_FLAGS,
+  ...SESSION_FLAGS,
+  ...TOOLS_FLAGS,
+].sort((a, b) => (a.env < b.env ? -1 : a.env > b.env ? 1 : 0))
 
-  const loadNext = (): void => {
-    const rows = loaders[nextLoader++]!()
-    for (const f of rows) map.set(f.env, f)
-  }
-
-  const ensureAll = (): FlagSpec[] => {
-    if (!materialized) {
-      materialized = true
-      while (nextLoader < loaders.length) loadNext()
-      const rows = Array.from(map.values()).sort((a, b) => (a.env < b.env ? -1 : a.env > b.env ? 1 : 0))
-      backing.push(...rows)
-    }
-    return backing
-  }
-
-  const get = (env: string): FlagSpec | undefined => {
-    const hit = map.get(env)
-    if (hit !== undefined) return hit
-    while (nextLoader < loaders.length) {
-      loadNext()
-      const found = map.get(env)
-      if (found !== undefined) return found
-    }
-    return undefined
-  }
-
-  const registry: readonly FlagSpec[] = new Proxy(backing, {
-    get(target, prop, receiver) {
-      ensureAll()
-      return Reflect.get(target, prop, receiver)
-    },
-    has(target, prop) {
-      ensureAll()
-      return Reflect.has(target, prop)
-    },
-    ownKeys(target) {
-      ensureAll()
-      return Reflect.ownKeys(target)
-    },
-    getOwnPropertyDescriptor(target, prop) {
-      ensureAll()
-      return Reflect.getOwnPropertyDescriptor(target, prop)
-    },
-  })
-
-  return { registry, get }
-}
-
-const byEnv = createFlagStore()
-
-export const FLAG_REGISTRY: readonly FlagSpec[] = byEnv.registry
+const byEnv = new Map<string, FlagSpec>()
+for (const f of FLAG_REGISTRY) byEnv.set(f.env, f)
 
 export function getFlagSpec(env: string): FlagSpec | undefined {
   return byEnv.get(env)
