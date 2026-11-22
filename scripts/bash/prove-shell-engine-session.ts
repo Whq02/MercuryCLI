@@ -428,6 +428,14 @@ if (process.platform === 'win32') {
   check('the function the login file defines is carried into the session', started.stdout.includes('carried-past-the-trap'), `${JSON.stringify(started.stdout)}; ${trapFix}`)
 }
 
+section('§15 a login file that makes the capture write words the engine cannot read back (a function standing in for awk): the session starts without that snapshot')
+if (process.platform === 'win32') {
+  console.log('  [SKIP] this section runs off Windows: its login home is a POSIX home, a ~/.profile the engine reads at login')
+} else {
+  const started = startedAtLogin(String.raw`awk() { command awk "$@"; echo "it's awk"; }` + '\n', 'echo started')
+  check('the session starts and runs its first command', started.code === 0 && started.stdout.includes('started'), `${JSON.stringify(started)}; getSnapshot in src/utils/shell/engineSession.ts must hand the engine its login snapshot only after a fresh engine has read it back`)
+}
+
 resetEngineSessionForTest()
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '✅ ALL SHELL-ENGINE SESSION PROOFS PASS' : `❌ ${failures} SHELL-ENGINE SESSION PROOF(S) FAILED`)
