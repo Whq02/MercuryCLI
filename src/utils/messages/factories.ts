@@ -7,7 +7,6 @@ import { MESSAGE_STAMPER } from '../../rows/project.js'
 import { NO_CONTENT_MESSAGE } from '../../constants/messages.js'
 import { COMMAND_ARGS_TAG, COMMAND_MESSAGE_TAG, COMMAND_NAME_TAG, LOCAL_COMMAND_CAVEAT_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js'
 import { CANCEL_MESSAGE, INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE, NO_RESPONSE_REQUESTED, REJECT_MESSAGE, turnCutLine, turnCutOf } from './rejectionText.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 function fields<T, K extends keyof T>(record: T, names: readonly K[]): Pick<T, K> {
   return Object.fromEntries(names.map(name => [name, record[name]])) as Pick<T, K>
@@ -34,7 +33,15 @@ export function createUserMessage(input: {
   batchUuids?: string[]
   queued?: true
 }): UserMessage {
-  return notBuilt('src/utils/messages/factories.ts:18')
+  const identity = MESSAGE_STAMPER.mint({ uuid: input.uuid, timestamp: input.timestamp })
+  return {
+    ...fields(input, ['isMeta', 'isVisibleInTranscriptOnly', 'isVirtual', 'isCompactSummary', 'summarizeMetadata', 'toolUseResult', 'mcpMeta', 'imagePasteIds', 'sourceToolAssistantUUID', 'permissionMode', 'origin', 'queued']),
+    type: 'user',
+    message: { role: 'user', content: input.content || NO_CONTENT_MESSAGE },
+    uuid: identity.uuid,
+    timestamp: identity.timestamp,
+    ...(input.batchUuids !== undefined && input.batchUuids.length > 0 ? { batchUuids: input.batchUuids } : {}),
+  }
 }
 
 export function prepareUserContent(input: {
@@ -131,13 +138,66 @@ export function createToolResultStopMessage(toolUseID: string): ToolResultBlockP
   return { tool_use_id: toolUseID, is_error: true, content: CANCEL_MESSAGE, type: 'tool_result' }
 }
 
-export const SYNTHETIC_MODEL: Unbuilt = unbuilt('src/utils/messages/factories.ts:146')
-export const SYNTHETIC_MESSAGES: Unbuilt = unbuilt('src/utils/messages/factories.ts:147')
+export const SYNTHETIC_MODEL = '<synthetic>'
+export const SYNTHETIC_MESSAGES = new Set([INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE, CANCEL_MESSAGE, REJECT_MESSAGE, NO_RESPONSE_REQUESTED])
 
-type AssistantDraft = Unbuilt
+type AssistantDraft = {
+  content: ContentBlock[]
+  usage?: Usage
+  isVirtual?: true
+  isApiErrorMessage?: boolean
+  apiError?: AssistantMessage['apiError']
+  error?: AssistantMessageError
+  errorDetails?: string
+  overflowSignal?: AssistantMessage['overflowSignal']
+  mediaRefusal?: AssistantMessage['mediaRefusal']
+  busyRefusal?: AssistantMessage['busyRefusal']
+  failover?: AssistantMessage['failover']
+}
+
+function emptyUsage(): Usage {
+  return {
+    input_tokens: 0,
+    output_tokens: 0,
+    cache_creation_input_tokens: 0,
+    cache_read_input_tokens: 0,
+    server_tool_use: { web_search_requests: 0, web_fetch_requests: 0 },
+    cache_creation: { ephemeral_1h_input_tokens: 0, ephemeral_5m_input_tokens: 0 },
+    service_tier: null,
+    inference_geo: null,
+    iterations: null,
+    speed: null,
+  } as Usage
+}
 
 function localAssistant(draft: AssistantDraft): AssistantMessage {
-  return notBuilt('src/utils/messages/factories.ts:176')
+  const usage = draft.usage ?? emptyUsage()
+  const identity = MESSAGE_STAMPER.mint()
+  const id = MESSAGE_STAMPER.id()
+  return {
+    ...fields(draft, ['apiError', 'error', 'errorDetails', 'isVirtual']),
+    ...(draft.overflowSignal !== undefined ? { overflowSignal: draft.overflowSignal } : {}),
+    ...(draft.mediaRefusal !== undefined ? { mediaRefusal: draft.mediaRefusal } : {}),
+    ...(draft.busyRefusal !== undefined ? { busyRefusal: draft.busyRefusal } : {}),
+    ...(draft.failover !== undefined ? { failover: draft.failover } : {}),
+    type: 'assistant',
+    uuid: identity.uuid,
+    timestamp: identity.timestamp,
+    message: {
+      id,
+      role: 'assistant',
+      type: 'message',
+      content: draft.content,
+      usage,
+      model: SYNTHETIC_MODEL,
+      stop_reason: 'stop_sequence',
+      stop_sequence: '',
+      container: null,
+      context_management: null,
+    },
+    requestId: undefined,
+    isApiErrorMessage: draft.isApiErrorMessage ?? false,
+  }
 }
 
 export function createAssistantMessage(input: {
@@ -161,7 +221,17 @@ export function createAssistantAPIErrorMessage(input: {
   mediaRefusal?: AssistantMessage['mediaRefusal'] | null
   busyRefusal?: AssistantMessage['busyRefusal'] | null
 }): AssistantMessage {
-  return notBuilt('src/utils/messages/factories.ts:219')
+  return localAssistant({
+    apiError: input.apiError,
+    error: input.error,
+    errorDetails: input.errorDetails,
+    content: [textBlock(input.content)],
+    isApiErrorMessage: true,
+    failover: input.failover,
+    overflowSignal: input.overflow ?? undefined,
+    mediaRefusal: input.mediaRefusal ?? undefined,
+    busyRefusal: input.busyRefusal ?? undefined,
+  })
 }
 
 const nonSyntheticRoles = new Set<Message['type']>(['progress', 'attachment', 'system'])
