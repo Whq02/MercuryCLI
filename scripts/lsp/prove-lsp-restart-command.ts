@@ -1,6 +1,7 @@
 import { mock } from 'bun:test'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const ROOT = join(import.meta.dir, '..', '..')
 
@@ -55,7 +56,7 @@ const world = {
   reinitialized: 0,
   waited: 0,
 }
-const managerPath = new URL('../../src/services/lsp/manager.ts', import.meta.url).pathname
+const managerPath = fileURLToPath(new URL('../../src/services/lsp/manager.ts', import.meta.url))
 const realManager = await import(managerPath)
 mock.module(managerPath, () => ({
   ...realManager,

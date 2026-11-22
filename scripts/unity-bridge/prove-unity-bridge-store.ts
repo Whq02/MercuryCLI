@@ -3,6 +3,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -28,7 +29,7 @@ const { UnityTool } = await import('../../src/tools/UnityTool/UnityTool.js')
 const { resetUnityBridgeClientForTest } = await import('../../src/services/unity/bridgeClient.js')
 const { startFakeUnityBridge } = await import('./fake-bridge.js')
 
-const repo = path.join(path.dirname(new URL(import.meta.url).pathname), '..', '..')
+const repo = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const scratch = mkdtempSync(path.join(tmpdir(), 'unity-bridge-store-'))
 const proj = path.join(scratch, 'game')
 mkdirSync(path.join(proj, 'Assets'), { recursive: true })

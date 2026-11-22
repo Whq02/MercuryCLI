@@ -2,6 +2,7 @@
 
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 let fail = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -170,7 +171,7 @@ check(
 
 check(
   'this proof file exists at the path the census claims',
-  existsSync(new URL(import.meta.url).pathname),
+  existsSync(fileURLToPath(import.meta.url)),
 )
 
 console.log(

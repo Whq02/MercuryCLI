@@ -1,12 +1,13 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { bigWordmarkRows } from '../../src/components/mercury-ui/assets.js'
 import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
-const REPO = join(new URL('.', import.meta.url).pathname, '../..')
+const REPO = join(fileURLToPath(new URL('.', import.meta.url)), '../..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
 const VSHOT = join(REPO, 'scripts/ui/vshot.py')
 const CONFIG_HOME = resolveProofHome([REPO.normalize('NFC')])

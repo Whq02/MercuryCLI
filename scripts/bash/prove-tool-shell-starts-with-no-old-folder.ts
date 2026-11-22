@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -18,7 +19,38 @@ process.env.CDPATH = `.:${home}`
 const { loginExportsCarried, toolShellEnv, withLoginExports } = await import('../../src/utils/subprocessEnv.js')
 const { exec, setCwd } = await import('../../src/utils/Shell.js')
 const { endEngineSessionFor, resolveShellEngine, runEngineCommand } = await import('../../src/utils/shell/engineSession.js')
+const { locateGitBash } = await import('../../src/utils/windowsPaths.js')
 setCwd(proj)
+
+const shQuote = (value: string): string => `'${value.replaceAll("'", "'\\''")}'`
+const gitBash = (() => {
+  if (process.platform !== 'win32') return null
+  const located = locateGitBash()
+  return 'path' in located ? located.path : null
+})()
+const cygpath = (flag: '-u' | '-w', value: string): string => {
+  if (gitBash === null) return value
+  try {
+    return execFileSync(gitBash, ['-c', `cygpath ${flag} -- "$1"`, '_', value], { encoding: 'utf8', windowsHide: true }).trim() || value
+  } catch {
+    return value
+  }
+}
+const normalizePath = (value: string): string => {
+  if (process.platform !== 'win32') return value
+  const native = value.startsWith('/') ? cygpath('-w', value) : value
+  let canonical = native
+  try {
+    if (existsSync(native)) canonical = realpathSync(native)
+  } catch {
+    canonical = native
+  }
+  return canonical.replaceAll('/', '\\').toLowerCase()
+}
+const samePath = (a: string, b: string): boolean => normalizePath(a) === normalizePath(b)
+const missingHome = join(home, 'zzz-missing')
+const bashAltDir = process.platform === 'win32' ? cygpath('-u', altDir) : altDir
+if (process.platform === 'win32') process.env.CDPATH = `.:${cygpath('-u', home)}`
 
 let passed = 0
 let failed = 0
@@ -62,27 +94,27 @@ try {
   const lastLine = (text: string): string => text.split(/\r?\n/).map(line => line.trim()).filter(Boolean).at(-1) ?? ''
 
   const bareReturn = await run('cd -; pwd')
-  check('cd -; pwd stays in the project when OLDPWD was set in Mercury env', lastLine(bareReturn.stdout) === proj, `stdout=${JSON.stringify(bareReturn.stdout)} expected=${JSON.stringify(proj)}`)
+  check('cd -; pwd stays in the project when OLDPWD was set in Mercury env', samePath(lastLine(bareReturn.stdout), proj), `stdout=${JSON.stringify(bareReturn.stdout)} expected=${JSON.stringify(proj)}`)
 
-  const missingThenReturn = await run(`cd ${home}/zzz-missing; cd -; pwd`)
-  check('cd <home>/zzz-missing; cd -; pwd stays in the project', lastLine(missingThenReturn.stdout) === proj, `stdout=${JSON.stringify(missingThenReturn.stdout)} expected=${JSON.stringify(proj)}`)
+  const missingThenReturn = await run(`cd ${shQuote(missingHome)}; cd -; pwd`)
+  check('cd <home>/zzz-missing; cd -; pwd stays in the project', samePath(lastLine(missingThenReturn.stdout), proj), `stdout=${JSON.stringify(missingThenReturn.stdout)} expected=${JSON.stringify(proj)}`)
 
-  const missingWrite = await run(`cd ${home}/zzz-missing; cd -; echo k >> .ssh/authorized_keys; pwd`)
+  const missingWrite = await run(`cd ${shQuote(missingHome)}; cd -; echo k >> .ssh/authorized_keys; pwd`)
   const leakedKeys = existsSync(join(home, '.ssh', 'authorized_keys'))
-  check('missing entry + cd - never writes into <home>/.ssh/authorized_keys', !leakedKeys && lastLine(missingWrite.stdout) === proj, `leaked=${leakedKeys} stdout=${JSON.stringify(missingWrite.stdout)}`)
+  check('missing entry + cd - never writes into <home>/.ssh/authorized_keys', !leakedKeys && samePath(lastLine(missingWrite.stdout), proj), `leaked=${leakedKeys} stdout=${JSON.stringify(missingWrite.stdout)}`)
 
-  const realReturn = await run(`cd ${home}; cd -; pwd`)
-  check('a real return (cd <home>; cd -; pwd) still returns to the project', lastLine(realReturn.stdout) === proj, `stdout=${JSON.stringify(realReturn.stdout)} expected=${JSON.stringify(proj)}`)
+  const realReturn = await run(`cd ${shQuote(home)}; cd -; pwd`)
+  check('a real return (cd <home>; cd -; pwd) still returns to the project', samePath(lastLine(realReturn.stdout), proj), `stdout=${JSON.stringify(realReturn.stdout)} expected=${JSON.stringify(proj)}`)
 
   const cdpathProbe = await run('cd .ssh; pwd')
-  check('cd .ssh; pwd stays in the project when CDPATH=.:<home> is in Mercury env', lastLine(cdpathProbe.stdout) === proj, `stdout=${JSON.stringify(cdpathProbe.stdout)} expected=${JSON.stringify(proj)}`)
+  check('cd .ssh; pwd stays in the project when CDPATH=.:<home> is in Mercury env', samePath(lastLine(cdpathProbe.stdout), proj), `stdout=${JSON.stringify(cdpathProbe.stdout)} expected=${JSON.stringify(proj)}`)
 
   const cdpathWrite = await run('cd .ssh; echo k >> authorized_keys; pwd')
   const cdpathLeaked = existsSync(join(home, '.ssh', 'authorized_keys'))
-  check('cd .ssh; echo k >> authorized_keys writes no key in <home>/.ssh under inherited CDPATH', !cdpathLeaked && lastLine(cdpathWrite.stdout) === proj, `leaked=${cdpathLeaked} stdout=${JSON.stringify(cdpathWrite.stdout)}`)
+  check('cd .ssh; echo k >> authorized_keys writes no key in <home>/.ssh under inherited CDPATH', !cdpathLeaked && samePath(lastLine(cdpathWrite.stdout), proj), `leaked=${cdpathLeaked} stdout=${JSON.stringify(cdpathWrite.stdout)}`)
 
-  const inlineCdpath = await run(`CDPATH=${altDir} cd sub; pwd`)
-  check('in-line CDPATH=<x> cd y still works inside the same line', lastLine(inlineCdpath.stdout) === altSub, `stdout=${JSON.stringify(inlineCdpath.stdout)} expected=${JSON.stringify(altSub)}`)
+  const inlineCdpath = await run(`CDPATH=${shQuote(bashAltDir)} cd sub; pwd`)
+  check('in-line CDPATH=<x> cd y still works inside the same line', samePath(lastLine(inlineCdpath.stdout), altSub), `stdout=${JSON.stringify(inlineCdpath.stdout)} expected=${JSON.stringify(altSub)}`)
   const engine = resolveShellEngine('brush')
   check('the bundled shell engine is available for session checks', engine.engine === 'brush', engine.engine === 'brush' ? engine.binaryPath : engine.reason)
   if (engine.engine === 'brush') {
@@ -102,26 +134,26 @@ try {
       }
     }
     try {
-      const enterHome = await runEngine(`cd ${home}; pwd`, proj)
-      check('engine call 1 enters the scratch home', lastLine(enterHome.stdout) === home, `stdout=${JSON.stringify(enterHome.stdout)} expected=${JSON.stringify(home)}`)
+      const enterHome = await runEngine(`cd ${shQuote(home)}; pwd`, proj)
+      check('engine call 1 enters the scratch home', samePath(lastLine(enterHome.stdout), home), `stdout=${JSON.stringify(enterHome.stdout)} expected=${JSON.stringify(home)}`)
 
       const secondCallReturn = await runEngine('cd -; pwd', proj)
-      check('engine call 2 starts with no OLDPWD from call 1 (cd -; pwd prints project)', lastLine(secondCallReturn.stdout) === proj, `stdout=${JSON.stringify(secondCallReturn.stdout)} expected=${JSON.stringify(proj)}`)
+      check('engine call 2 starts with no OLDPWD from call 1 (cd -; pwd prints project)', samePath(lastLine(secondCallReturn.stdout), proj), `stdout=${JSON.stringify(secondCallReturn.stdout)} expected=${JSON.stringify(proj)}`)
 
-      const pushHome = await runEngine(`pushd ${home} >/dev/null; pushd ${proj} >/dev/null; pwd`, proj)
-      check('engine call 3 leaves the scratch home on the folder stack', lastLine(pushHome.stdout) === proj, `stdout=${JSON.stringify(pushHome.stdout)} expected=${JSON.stringify(proj)}`)
+      const pushHome = await runEngine(`pushd ${shQuote(home)} >/dev/null; pushd ${shQuote(proj)} >/dev/null; pwd`, proj)
+      check('engine call 3 leaves the scratch home on the folder stack', samePath(lastLine(pushHome.stdout), proj), `stdout=${JSON.stringify(pushHome.stdout)} expected=${JSON.stringify(proj)}`)
 
       const secondCallPopd = await runEngine('popd; pwd', proj)
-      check('engine call 4 starts with an empty folder stack (popd; pwd prints project)', lastLine(secondCallPopd.stdout) === proj, `stdout=${JSON.stringify(secondCallPopd.stdout)} expected=${JSON.stringify(proj)}`)
+      check('engine call 4 starts with an empty folder stack (popd; pwd prints project)', samePath(lastLine(secondCallPopd.stdout), proj), `stdout=${JSON.stringify(secondCallPopd.stdout)} expected=${JSON.stringify(proj)}`)
 
-      const engineRealReturn = await runEngine(`cd ${home}; cd -; pwd`, proj)
-      check('engine single-call real return (cd <home>; cd -; pwd) still returns to the project', lastLine(engineRealReturn.stdout) === proj, `stdout=${JSON.stringify(engineRealReturn.stdout)} expected=${JSON.stringify(proj)}`)
+      const engineRealReturn = await runEngine(`cd ${shQuote(home)}; cd -; pwd`, proj)
+      check('engine single-call real return (cd <home>; cd -; pwd) still returns to the project', samePath(lastLine(engineRealReturn.stdout), proj), `stdout=${JSON.stringify(engineRealReturn.stdout)} expected=${JSON.stringify(proj)}`)
 
-      const engineSetCdpath = await runEngine(`export CDPATH=.:${home}; echo ok`, proj)
+      const engineSetCdpath = await runEngine(`export CDPATH=.:${shQuote(home)}; echo ok`, proj)
       check('engine call 5 sets CDPATH in the session', lastLine(engineSetCdpath.stdout) === 'ok', `stdout=${JSON.stringify(engineSetCdpath.stdout)}`)
 
       const engineAfterCdpath = await runEngine('echo "cdpath=${CDPATH:-unset}"; cd .ssh; pwd', proj)
-      check('engine call 6 starts with CDPATH unset and cd .ssh stays in project', engineAfterCdpath.stdout.includes('cdpath=unset') && lastLine(engineAfterCdpath.stdout) === proj, `stdout=${JSON.stringify(engineAfterCdpath.stdout)} expected=${JSON.stringify(proj)}`)
+      check('engine call 6 starts with CDPATH unset and cd .ssh stays in project', engineAfterCdpath.stdout.includes('cdpath=unset') && samePath(lastLine(engineAfterCdpath.stdout), proj), `stdout=${JSON.stringify(engineAfterCdpath.stdout)} expected=${JSON.stringify(proj)}`)
     } finally {
       await endEngineSessionFor(owner)
     }
@@ -143,7 +175,6 @@ try {
   if (psPath === null) {
     console.log('  [SKIP] no pwsh/PowerShell binary on this host; skipping live PowerShell location-history checks')
   } else {
-    const samePath = (a: string, b: string): boolean => (process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b)
     const runPs = async (command: string): Promise<{ stdout: string; stderr: string; code: number }> => {
       const shell = await exec(command, new AbortController().signal, 'powershell', {
         timeout: 20_000,

@@ -66,8 +66,8 @@ export function makePayload(dir: string, version: string, opts: PayloadOpts = {}
   const body = opts.stagedFail
     ? 'process.exit(1)\n'
     : `import { readFileSync } from 'node:fs'
-const m = JSON.parse(readFileSync(new URL('./manifest.json', import.meta.url), 'utf8'))
-${opts.postSwitchFail ? `const dir = decodeURIComponent(new URL('.', import.meta.url).pathname)\nif (/[\\/\\\\]${version.replace(/\./g, '\\.')}[\\/\\\\]$/.test(dir)) process.exit(1)\n` : ''}console.log('Mercury ' + m.version)
+${opts.postSwitchFail ? `import { fileURLToPath } from 'node:url'\n` : ''}const m = JSON.parse(readFileSync(new URL('./manifest.json', import.meta.url), 'utf8'))
+${opts.postSwitchFail ? `const dir = fileURLToPath(new URL('.', import.meta.url))\nif (/[\\/\\\\]${version.replace(/\./g, '\\.')}[\\/\\\\]$/.test(dir)) process.exit(1)\n` : ''}console.log('Mercury ' + m.version)
 `
   writeFileSync(join(dir, 'mercury.mjs'), opts.bundlePath ? readFileSync(opts.bundlePath) : body)
   writeFileSync(join(dir, 'splash.mjs'), `// fixture splash ${version}\n`)

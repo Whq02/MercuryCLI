@@ -4,13 +4,14 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { untilAsync } from '../lib/untilAsync.ts'
 import { startDaemonClientBeat } from '../lib/daemonClientBeat.ts'
 import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
-const REPO = join(new URL('.', import.meta.url).pathname, '..', '..')
+const REPO = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
 const VSHOT = join(REPO, 'scripts', 'ui', 'vshot.py')
 if (!existsSync(BIN)) {

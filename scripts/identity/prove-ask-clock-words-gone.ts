@@ -2,6 +2,7 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const REPO = join(import.meta.dir, '..', '..')
 const J = (...parts: string[]): string => parts.join('')
@@ -21,7 +22,7 @@ const RETIRED_SPELLINGS = [
   J('permissionAsk', 'ExpiryMs'),
 ]
 const TEXT = /\.(tsx?|mts|cts|[cm]?jsx?|sh|bash|json|jsonl|md|txt|tsv|csv|ya?ml|toml|html|css|ps1|py)$/
-const SELF = relative(REPO, new URL(import.meta.url).pathname)
+const SELF = relative(REPO, fileURLToPath(import.meta.url)).replaceAll('\\', '/')
 const tree = execFileSync('git', ['-C', REPO, 'ls-files', '-z', '--', 'src', 'scripts', 'docs'], { encoding: 'utf8', maxBuffer: 1 << 28 })
   .split('\0')
   .filter(rel => rel !== '' && rel !== SELF && TEXT.test(rel))

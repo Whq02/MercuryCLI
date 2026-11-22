@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   CORPUS_PREREQUISITES,
   CORPUS_SCHEMA_VERSION,
@@ -37,7 +38,7 @@ export function corpusDigest(): string {
 }
 
 function buildManifest(): Record<string, unknown> {
-  const repoRoot = resolve(new URL('../../..', import.meta.url).pathname)
+  const repoRoot = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
   const scratch = mkdtempSync(join(tmpdir(), 'helix-manifest-'))
   let seeded
   try {
@@ -94,7 +95,7 @@ if (import.meta.main) {
   const manifest = buildManifest()
   const serialized = JSON.stringify(manifest, null, 2) + '\n'
   if (process.argv.includes('--write')) {
-    const repoRoot = resolve(new URL('../../..', import.meta.url).pathname)
+    const repoRoot = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
     writeFileSync(join(repoRoot, MANIFEST_PATH), serialized, 'utf8')
     console.log('wrote ' + MANIFEST_PATH + ' (' + manifest.corpusDigest + ')')
   } else {

@@ -1,8 +1,9 @@
 import { strict as assert } from 'node:assert'
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const root = resolve(process.argv[2] ?? new URL('../..', import.meta.url).pathname)
+const root = resolve(process.argv[2] ?? fileURLToPath(new URL('../..', import.meta.url)))
 const { streamCompatChat } = await import(`${root}/src/services/providers/openaicompat/compatChatClient.ts`)
 const { streamGeminiContent } = await import(`${root}/src/services/providers/gemini/geminiClient.ts`)
 const { streamOllamaChat } = await import(`${root}/src/services/providers/local/ollamaChatTransport.ts`)

@@ -1,8 +1,9 @@
 import { strict as assert } from 'node:assert'
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { DIALECT_CONVERSATION } from './dialectFixture.ts'
 
-const root = resolve(process.argv[2] ?? new URL('../..', import.meta.url).pathname)
+const root = resolve(process.argv[2] ?? fileURLToPath(new URL('../..', import.meta.url)))
 const { mergeAssistantMessages } = await import(`${root}/src/services/messages/merge.ts`)
 const model = DIALECT_CONVERSATION[1] as any
 const left = { ...model, message: { ...model.message, content: 'left text' } }

@@ -2,6 +2,7 @@
 import * as net from 'node:net'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   UNITY_BRIDGE_PROTOCOL_VERSION,
   UNITY_BRIDGE_HIERARCHY_NODE_CAP,
@@ -45,7 +46,7 @@ interface FakeUnityBridge {
 }
 
 const DEFAULT_TESTS_XML = path.join(
-  path.dirname(new URL(import.meta.url).pathname),
+  path.dirname(fileURLToPath(import.meta.url)),
   '..',
   'ide',
   'fixtures',

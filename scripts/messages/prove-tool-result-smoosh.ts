@@ -1,6 +1,7 @@
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const root = resolve(process.argv[2] ?? new URL('../..', import.meta.url).pathname)
+const root = resolve(process.argv[2] ?? fileURLToPath(new URL('../..', import.meta.url)))
 const { smooshIntoToolResult } = await import(`${root}/src/services/messages/merge.ts`)
 let failures = 0
 const hint = 'change smooshIntoToolResult in src/services/messages/merge.ts so this case returns the shape the label names'

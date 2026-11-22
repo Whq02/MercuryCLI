@@ -3,12 +3,13 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { HelixSolutionVariant, HelixTask } from './corpus/contracts.js'
 import { HELIX_TASKS } from './corpus/tasks.js'
 import { gradeTask } from './corpus/grade.js'
 import { seedAll, type SeededRepo } from './corpus/seed.js'
 
-const repoRoot = resolve(new URL('../..', import.meta.url).pathname)
+const repoRoot = resolve(fileURLToPath(new URL('../..', import.meta.url)))
 const scratch = mkdtempSync(join(tmpdir(), 'helix-falsify-'))
 const started = Date.now()
 

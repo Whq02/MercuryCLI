@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   CORPUS_SCHEMA_VERSION,
   HELIX_FAMILIES,
@@ -84,7 +85,7 @@ check(
   HELIX_TASKS.some(t => t.runner?.collaboration && t.family === 16),
 )
 
-const repoRoot = resolve(new URL('../..', import.meta.url).pathname)
+const repoRoot = resolve(fileURLToPath(new URL('../..', import.meta.url)))
 let committed: Record<string, unknown> | null = null
 try {
   committed = JSON.parse(readFileSync(join(repoRoot, MANIFEST_PATH), 'utf8'))

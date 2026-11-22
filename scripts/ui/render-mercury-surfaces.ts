@@ -2,13 +2,14 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { resolveProofHome } from '../lib/proofHome.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BUN = process.env.BUN || join(process.env.HOME!, '.bun', 'bin', 'bun')
 const CONFIG_HOME = resolveProofHome([process.cwd()])
-const VSHOT = new URL('./vshot.py', import.meta.url).pathname
+const VSHOT = fileURLToPath(new URL('./vshot.py', import.meta.url))
 const BIN = join(REPO, 'dist', 'mercury.mjs')
 
 if (!existsSync(VSHOT)) {

@@ -8,7 +8,7 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const BIN = join(root, 'dist', 'mercury.mjs')
-const VSHOT = new URL('./vshot.py', import.meta.url).pathname
+const VSHOT = fileURLToPath(new URL('./vshot.py', import.meta.url))
 if (!existsSync(VSHOT) || !existsSync(BIN)) {
   console.error('vshot.py or dist/mercury.mjs missing — build first (bun run build.ts, AGENTS.md); render-verify drives the built binary.')
   process.exit(1)
