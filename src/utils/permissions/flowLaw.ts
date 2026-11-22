@@ -140,7 +140,7 @@ export const FLOW_LAW = {
   2: { name: 'git that rewrites or publishes history', git: GIT_FORMS.map(entry => entry.form), forges: FORGE_FORMS.map(entry => `${entry.commands.join('/')} ${entry.form}`) },
   3: { name: 'publishing and deploying', table: PUBLISH_TABLE.map(entry => ({ commands: entry.commands, forms: entry.forms, why: entry.why })) },
   4: {
-    name: 'deleting or overwriting outside the project tree and the run\'s own scratch',
+    name: "deleting or overwriting outside the project tree (the temp folders and this run's own scratch aside)",
     verbs: { delete: [...DELETE_VERBS], move: [...MOVE_VERBS], copy: [...COPY_VERBS], inPlace: [...INPLACE_EDITORS].map(name => `${name} -i`), stream: [...TEE_VERBS, 'truncate', 'dd of=', 'ln -f', 'curl -o', 'wget -O', 'find -delete', '> >> &> redirects'], disk: ['mkfs*', ...DISK_VERBS] },
     free: ['the starting folder and its worktrees', 'the scratchpad and every path this run created', 'the temp roots (TMPDIR, /tmp, /var/tmp)'],
   },
