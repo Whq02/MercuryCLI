@@ -68,6 +68,7 @@ export async function reactivateConcourseSession(
     keyless?: true
     effort?: string
     permissionMode?: PermissionMode
+    runnerArgv?: string[]
     bypassConsent?: true
     kit?: SessionKitV1
     preset?: { name: string; kit: SessionKitV1; note?: string }
@@ -123,12 +124,13 @@ export async function reactivateConcourseSession(
   const kitNote = kit.deltasReadError !== undefined ? kitDeltasUnreadNote(kit.deltasReadError) : undefined
   const kitSource: KitStampSource = args.kit !== undefined ? 'carried' : args.preset !== undefined ? 'preset' : 'derived'
   const restartReason = runnerRestartReasonOf(rec, args.restartReason)
+  const runnerArgv = args.runnerArgv !== undefined && args.runnerArgv.length > 0 ? args.runnerArgv : rec.runnerArgv
   if (
     deps.claimWarm !== undefined &&
     kind === 'oculus' &&
     ((rec.isolation ?? 'exclusive') === 'exclusive' || rec.isolation === 'shared') &&
     rec.worktreePath === undefined &&
-    (rec.runnerArgv === undefined || rec.runnerArgv.length === 0)
+    (runnerArgv === undefined || runnerArgv.length === 0)
   ) {
     const claimStartedAt = Date.now()
     const claimPosture = seatInitialPermissionMode(args.permissionMode)
@@ -201,7 +203,8 @@ export async function reactivateConcourseSession(
     }
   }
   const keylessDrift = (args.keyless === true) !== (rec.keyless === true)
-  if (args.modelKey !== rec.modelKey || effort !== rec.effort || isolationDrift || keylessDrift) {
+  const runnerArgvDrift = args.runnerArgv !== undefined && args.runnerArgv.length > 0 && JSON.stringify(args.runnerArgv) !== JSON.stringify(rec.runnerArgv)
+  if (args.modelKey !== rec.modelKey || effort !== rec.effort || isolationDrift || keylessDrift || runnerArgvDrift) {
     try {
       updateConcourseWorkers(workers => {
         const w = workers[rec.runnerId]
@@ -211,6 +214,7 @@ export async function reactivateConcourseSession(
         if (args.keyless === true) w.keyless = true
         else delete w.keyless
         if (isolationDrift) w.isolation = claimIsolation
+        if (runnerArgvDrift && args.runnerArgv !== undefined) w.runnerArgv = [...args.runnerArgv]
       }, deps.dir)
     } catch (error) {
       return recordsTakeNoWrite(error)
@@ -265,7 +269,7 @@ export async function reactivateConcourseSession(
       effort,
       kit,
       ...(rec.title !== undefined ? { title: rec.title } : {}),
-      ...(rec.runnerArgv !== undefined ? { runnerArgv: rec.runnerArgv } : {}),
+      ...(runnerArgv !== undefined && runnerArgv.length > 0 ? { runnerArgv } : {}),
       ...(args.permissionMode !== undefined ? { permissionMode: args.permissionMode } : {}),
       ...(args.bypassConsent === true ? { bypassConsent: true as const } : {}),
       resume: true,

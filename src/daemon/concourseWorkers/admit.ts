@@ -260,6 +260,7 @@ export function makeConcourseAdmitHandler(
             ...(keyless ? { keyless: true } : {}),
             ...(req.effort !== undefined ? { effort: req.effort } : {}),
             ...(req.permissionMode !== undefined ? { permissionMode: req.permissionMode } : {}),
+            ...(req.runnerArgv !== undefined && req.runnerArgv.length > 0 ? { runnerArgv: req.runnerArgv } : {}),
             ...(req.bypassConsent === true ? { bypassConsent: true as const } : {}),
             ...(req.kit !== undefined ? { kit: req.kit } : {}),
             ...(preset !== undefined ? { preset } : {}),

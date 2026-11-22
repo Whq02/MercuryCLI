@@ -3,3 +3,4 @@ prove-effort-normalizer.ts
 prove-effort-persistence.ts
 prove-effort-served-word-survives-blank.ts
 prove-effort-slider-ends-at-max.ts
+prove-resume-runs-shown-effort.ts
