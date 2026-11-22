@@ -44,8 +44,7 @@ import { isCohereModelId } from './pins/coherePins.js'
 import { isGroqModelId, groqDisplayPin, groqEffortVocabulary } from './pins/groqPins.js'
 import { isCerebrasModelId, cerebrasDisplayPin, cerebrasEffortVocabulary } from './pins/cerebrasPins.js'
 import { isFireworksModelId, fireworksDisplayPin, fireworksEffortVocabulary } from './pins/fireworksPins.js'
-import { isQwenModelId, qwenDisplayPin } from './pins/qwenPins.js'
-import { QWEN_TEMPLATE_EFFORT_STEPS } from './pins/qwenTemplate.js'
+import { isQwenModelId, qwenDefaultEffort, qwenDisplayPin, qwenEffortSteps } from './pins/qwenPins.js'
 import {
   deepseekDisplayPin,
   DEEPSEEK_EFFORTS,
@@ -191,6 +190,13 @@ export function modelThinkingAlwaysOn(model: string): boolean {
   if (isCarrierShapedId(model)) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   return canonical.includes('fable-5') || canonical.includes('mythos-5') || canonical === 'claude-opus-5-5' || canonical === 'claude-sonnet-5-5'
+}
+
+export function modelThinkingOffIsBetweenTools(model: string, outputConfig: { effort?: string | null; format?: unknown }): boolean {
+  if (isCarrierShapedId(model) || getCanonicalName(model) !== 'claude-sonnet-5-5') return false
+  if (outputConfig.format !== undefined && outputConfig.format !== null) return false
+  const { effort } = outputConfig
+  return effort === undefined || effort === null || effort === 'low' || effort === 'medium' || effort === 'high'
 }
 
 export function modelNarratesInThinkingBlocks(model: string): boolean {
@@ -440,7 +446,7 @@ function baseEffortVocabularyFor(model: string): EffortVocabularyView {
   if (isQwenModelId(model) || route === 'qwen') {
     const vocabulary = qwenModelFacts(model).efforts
     return vocabulary.length > 0
-      ? { kind: 'provider', source: 'qwen', vocabulary, defaultEffort: 'xhigh', thinkingGated: true, steps: QWEN_TEMPLATE_EFFORT_STEPS }
+      ? { kind: 'provider', source: 'qwen', vocabulary, defaultEffort: qwenDefaultEffort(model), thinkingGated: true, steps: qwenEffortSteps(model) }
       : { kind: 'none', source: 'qwen' }
   }
   if (route === 'openrouter') {

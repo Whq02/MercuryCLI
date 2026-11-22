@@ -31,6 +31,8 @@ const offline = argv.includes('--offline')
 const withSources = argv.includes('--sources')
 const PACK_ROOT = resolve(valueOf('--out') ?? join(ROOT, ...BASH_PACK_PATH.split('/')))
 const CACHE_DIR = resolve(valueOf('--cache') ?? join(PACK_ROOT, 'archive', 'msys2'))
+const DOWNLOAD_TRIES = 3
+const DOWNLOAD_LIMIT_MS = 300_000
 
 function fail(msg: string): never {
   console.error(`fetch-bash-win: ${msg}`)
@@ -73,11 +75,9 @@ async function secure(pinned: PinnedFile): Promise<void> {
   if (offline) fail(pinnedFileFault(pinned) ?? `${pinned.file} is not usable`)
   if (standing !== null) console.log(`fetch-bash-win: ${pinned.file} in the cache does not match the lock — downloading it again`)
   console.log(`fetch-bash-win: downloading ${pinned.url}`)
-  const response = await fetch(pinned.url)
-  if (!response.ok) fail(`download failed for ${pinned.file}: HTTP ${response.status} ${response.statusText}`)
   mkdirSync(resolve(pinned.path, '..'), { recursive: true })
   const tmp = `${pinned.path}.tmp-${process.pid}`
-  await Bun.write(tmp, response)
+  await download(pinned, tmp)
   const measured = measureFile(tmp)
   if (measured === null || measured.bytes !== pinned.bytes || measured.sha256 !== pinned.sha256) {
     rmSync(tmp, { force: true })
@@ -85,6 +85,25 @@ async function secure(pinned: PinnedFile): Promise<void> {
   }
   renameSync(tmp, pinned.path)
   console.log(`fetch-bash-win: ok ${pinned.file}  ${pinned.bytes} bytes  sha256 ${pinned.sha256}  (downloaded, verified)`)
+}
+
+async function download(pinned: PinnedFile, tmp: string): Promise<void> {
+  let fault = ''
+  for (let attempt = 1; attempt <= DOWNLOAD_TRIES; attempt++) {
+    try {
+      const response = await fetch(pinned.url, { signal: AbortSignal.timeout(DOWNLOAD_LIMIT_MS) })
+      if (response.ok) {
+        await Bun.write(tmp, response)
+        return
+      }
+      fault = `HTTP ${response.status} ${response.statusText}`
+    } catch (error) {
+      fault = error instanceof Error ? error.message : String(error)
+    }
+    rmSync(tmp, { force: true })
+    if (attempt < DOWNLOAD_TRIES) console.log(`fetch-bash-win: ${pinned.file} did not arrive (${fault}); try ${attempt + 1} of ${DOWNLOAD_TRIES}`)
+  }
+  fail(`download failed for ${pinned.file} after ${DOWNLOAD_TRIES} tries: ${fault}`)
 }
 
 async function main(): Promise<void> {

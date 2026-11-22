@@ -7,7 +7,7 @@ export function isDeepseekModelId(model: string): boolean {
 
 export const DEEPSEEK_EFFORTS: ReadonlySet<string> = new Set(['low', 'high', 'max'])
 
-export const DEEPSEEK_RETIRED_ALIASES: ReadonlyMap<string, string> = new Map([['deepseek-v4-flash', 'deepseek-flash']])
+export const DEEPSEEK_RETIRED_ALIASES: ReadonlyMap<string, string> = new Map([['deepseek-v4-flash', 'deepseek-flash'], ['deepseek-v4-flash-vision-exp', 'deepseek-flash']])
 
 export function deepseekRetiredAliasTarget(id: string): string | undefined {
   return DEEPSEEK_RETIRED_ALIASES.get(id.trim().toLowerCase())

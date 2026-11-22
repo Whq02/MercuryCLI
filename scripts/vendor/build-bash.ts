@@ -25,6 +25,8 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const LOCK_PATH = join(ROOT, 'vendor', 'bash.lock.json')
 const PACK_ROOT = join(ROOT, ...BASH_PACK_PATH.split('/'))
 const ARCHIVE_DIR = join(PACK_ROOT, 'archive')
+const DOWNLOAD_TRIES = 3
+const DOWNLOAD_LIMIT_MS = 300_000
 
 interface PinnedFile {
   file: string
@@ -188,15 +190,28 @@ async function secure(pinned: PinnedFile): Promise<string> {
   const path = join(ARCHIVE_DIR, pinned.file)
   if (existsSync(path) && sha256(readFileSync(path)) === pinned.sha256) return path
   console.log(`build-bash: downloading ${pinned.url}`)
-  const res = await fetch(pinned.url)
-  if (!res.ok) fail(`download failed for ${pinned.file}: HTTP ${res.status} ${res.statusText}`)
-  const bytes = Buffer.from(await res.arrayBuffer())
+  const bytes = await download(pinned)
   const digest = sha256(bytes)
   if (digest !== pinned.sha256) fail(`sha256 mismatch for ${pinned.file}: got ${digest.slice(0, 24)}…, lock pins ${pinned.sha256.slice(0, 24)}… — refusing (the source changed)`)
   const tmp = `${path}.tmp-${process.pid}`
   writeFileSync(tmp, bytes)
   renameSync(tmp, path)
   return path
+}
+
+async function download(pinned: PinnedFile): Promise<Buffer> {
+  let fault = ''
+  for (let attempt = 1; attempt <= DOWNLOAD_TRIES; attempt++) {
+    try {
+      const res = await fetch(pinned.url, { signal: AbortSignal.timeout(DOWNLOAD_LIMIT_MS) })
+      if (res.ok) return Buffer.from(await res.arrayBuffer())
+      fault = `HTTP ${res.status} ${res.statusText}`
+    } catch (error) {
+      fault = error instanceof Error ? error.message : String(error)
+    }
+    if (attempt < DOWNLOAD_TRIES) console.log(`build-bash: ${pinned.file} did not arrive (${fault}); try ${attempt + 1} of ${DOWNLOAD_TRIES}`)
+  }
+  fail(`download failed for ${pinned.file} after ${DOWNLOAD_TRIES} tries: ${fault}`)
 }
 
 function skipReason(lock: Lock, platform: BashPackPlatform): string | null {

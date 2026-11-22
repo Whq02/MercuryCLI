@@ -12,7 +12,7 @@ export type AnthropicMessageParams = {
   system?: string | readonly TextBlockParam[]
   tools?: ApiToolUnion[]
   tool_choice?: { type: 'auto'; disable_parallel_tool_use?: boolean } | { type: 'tool'; name: string; disable_parallel_tool_use?: boolean } | { type: 'any'; disable_parallel_tool_use?: boolean } | { type: 'none' }
-  thinking?: { type: 'adaptive'; display?: 'summarized' | 'omitted' } | { type: 'enabled'; budget_tokens: number; display?: 'summarized' | 'omitted' } | { type: 'disabled' }
+  thinking?: { type: 'adaptive'; display?: 'summarized' | 'omitted' } | { type: 'enabled'; budget_tokens: number; display?: 'summarized' | 'omitted' } | { type: 'disabled' } | { type: 'between_tools' }
   output_config?: AnthropicOutputConfig
   metadata?: { user_id?: string | null }
   betas?: string[]

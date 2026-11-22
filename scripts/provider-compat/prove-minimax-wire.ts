@@ -163,6 +163,7 @@ try {
   planBody = { model_remains: [] }
   const payg = await storeMinimaxApiKeyLogin('proof-key-minimax-payg-fixture-not-a-real-key')
   check('a pay-as-you-go key stores with no plan window named', payg.ok && payg.receipt.includes('no M Plan window — pay-as-you-go'))
+  check('with no override the plan read asks the host its page names (platform.minimax.io/docs/m-plan/faq, read 2026-11-22) while chat stays on the API host, and the proof seam moves both', await (async () => { const accounts = await import('../../src/services/providers/minimax/minimaxAccounts.ts'); return accounts.minimaxPlanRemainsUrl({}) === 'https://www.minimax.io/v1/token_plan/remains' && accounts.minimaxChatCompletionsUrl({}) === 'https://api.minimax.io/v1/chat/completions' && accounts.minimaxPlanRemainsUrl({ MERCURY_MINIMAX_API_BASE: 'http://127.0.0.1:9/v1/' }) === 'http://127.0.0.1:9/v1/token_plan/remains' })())
   for (const [status, body] of [[403, { base_resp: { status_code: 1004, status_msg: 'token not match group' } }], [404, { error: 'not found' }], [204, null]] as const) {
     planStatus = status; planBody = body
     __resetMinimaxUsageForTest()

@@ -219,7 +219,7 @@ const { homeLaneAdmissionRefusal } = await import('../../src/services/providers/
   check('unrecognised + first-party origin + no earned fact ⇒ the typed refusal, byte-stable on the sentence head',
     typeof refusal === 'string' && refusal.startsWith("'foo-bar-9' is not a model id any provider family declares ("), String(refusal))
   check('…naming BOTH earned roads and the /model remedy (operator-fixable without reading code)',
-    typeof refusal === 'string' && /ANTHROPIC_\* model pin/.test(refusal) && /ANTHROPIC_BASE_URL/.test(refusal) && /\/model/.test(refusal), String(refusal))
+    typeof refusal === 'string' && /MERCURY_MODEL, MERCURY_DEFAULT_\*_MODEL or MERCURY_CUSTOM_MODEL_OPTION pin/.test(refusal) && /ANTHROPIC_BASE_URL/.test(refusal) && /\/model/.test(refusal), String(refusal))
   check('…and stating the refusal came before any request', typeof refusal === 'string' && /Refused before any request/.test(refusal), String(refusal))
   check('a gateway base URL admits (its endpoint owns its ids)',
     homeLaneAdmissionRefusal('foo-bar-9', { ...firstPartyNoFact, firstPartyBaseUrl: () => false }) === null)

@@ -370,9 +370,19 @@ function envOverrides(): Record<string, string> {
 
 function getSnapshot(binaryPath: string): Promise<string | undefined> {
   if (snapshotPromise === null) {
-    snapshotPromise = createAndSaveSnapshot({ path: binaryPath, origin: 'engine' }).catch(passedOverAs(undefined))
+    snapshotPromise = createAndSaveSnapshot({ path: binaryPath, origin: 'engine' })
+      .then(snapshot => readBack(binaryPath, snapshot))
+      .catch(passedOverAs(undefined))
   }
   return snapshotPromise
+}
+
+async function readBack(binaryPath: string, snapshot: string | undefined): Promise<string | undefined> {
+  if (snapshot === undefined) return undefined
+  const read = await parseCheck(binaryPath, `source ${quote([snapshot])} || :`, [])
+  if (read.ok) return snapshot
+  logForDebugging(`the engine could not read its login snapshot back and starts without it: ${read.message}`)
+  return undefined
 }
 
 function cwdThatResolves(preferred?: string): string {
@@ -688,7 +698,7 @@ async function killSession(live: LiveSession): Promise<void> {
   }
 }
 
-function parseCheck(binaryPath: string, command: string): Promise<{ ok: boolean; message: string }> {
+function parseCheck(binaryPath: string, command: string, flags: readonly string[] = ['-n']): Promise<{ ok: boolean; message: string }> {
   return new Promise(resolve => {
     let settledGuard = false
     const finish = (ok: boolean, message: string): void => {
@@ -698,7 +708,7 @@ function parseCheck(binaryPath: string, command: string): Promise<{ ok: boolean;
     }
     let child: ChildProcess
     try {
-      child = spawn(binaryPath, [...ENGINE_FLAGS, '-n', '-c', command], {
+      child = spawn(binaryPath, [...ENGINE_FLAGS, ...flags, '-c', command], {
         env: withoutWhatTheEngineRefuses(subprocessEnv()),
         stdio: ['ignore', 'ignore', 'pipe'],
         windowsHide: true,

@@ -593,16 +593,28 @@ export function isSameModel(a: string, b: string): boolean {
   return getCanonicalName(a) === getCanonicalName(b)
 }
 
+const THINKING_READ_BY_ALL: readonly string[] = [
+  'claude-opus-4-6', 'claude-opus-4-5', 'claude-opus-4-1', 'claude-opus-4',
+  'claude-sonnet-5', 'claude-sonnet-4-6', 'claude-sonnet-4-5', 'claude-sonnet-4', 'claude-3-7-sonnet', 'claude-3-5-sonnet',
+  'claude-haiku-4-5', 'claude-3-5-haiku',
+]
+
 const THINKING_READ_BY: Readonly<Record<string, readonly string[]>> = {
   'claude-fable-5-2': ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5', 'claude-opus-5-5', 'claude-fable-5', 'claude-fable-5-1'],
   'claude-fable-5-1': ['claude-opus-5', 'claude-opus-5-5', 'claude-fable-5'],
+  'claude-fable-5': ['claude-opus-5'],
   'claude-opus-5-5': ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5'],
+  'claude-opus-5': [],
   'claude-sonnet-5-5': ['claude-haiku-5-5'],
+  'claude-haiku-5-5': [],
 }
 
 export function readsThinkingOf(target: string, writer: string): boolean {
   const [to, from] = [getCanonicalName(target), getCanonicalName(writer)]
-  return to === from || (THINKING_READ_BY[to]?.includes(from) ?? false)
+  if (to === from) return true
+  const reads = Object.hasOwn(THINKING_READ_BY, to) ? THINKING_READ_BY[to] : undefined
+  if (THINKING_READ_BY_ALL.includes(from)) return reads !== undefined || THINKING_READ_BY_ALL.includes(to)
+  return reads?.includes(from) ?? false
 }
 
 export function thinkingPrefixDigest(system: unknown, tools: unknown): string {

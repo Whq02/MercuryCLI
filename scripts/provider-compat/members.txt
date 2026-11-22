@@ -131,6 +131,7 @@ prove-reasoning-text-delta.ts
 prove-route-law.ts
 prove-sglang-thinking-switch.ts
 prove-silent-thinking-continuation.ts
+prove-sonnet-thinking-off-wire.ts
 prove-stream-cut-continuation.ts
 prove-stream-error-recovery.ts
 prove-switch-matrix-adversary.ts
@@ -152,6 +153,7 @@ prove-tensorfold-tips-cost.ts
 prove-tensorfold-warm-prefix.ts
 prove-tensorfold-wire.ts
 prove-thinking-drop-clean-retry.ts
+prove-thinking-read-by-table.ts
 prove-together-wire.ts
 prove-tool-call-gate.ts
 prove-tool-call-refusal-loop.ts

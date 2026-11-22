@@ -68,8 +68,8 @@ export const ENGINE_USAGE_PRESENTATION: Record<
   },
   minimax: {
     title: 'MiniMax usage',
-    connect: '/logins minimax adds a MiniMax API key or M Plan Subscription Key (MINIMAX_API_KEY works too)',
-    limitsNote: 'A pay-as-you-go key draws the Open Platform balance shown at platform.minimax.io; an M Plan Subscription Key meters its 5-hour and weekly windows here.',
+    connect: '/logins minimax adds a MiniMax API key or M Plan API key (MINIMAX_API_KEY works too)',
+    limitsNote: 'A pay-as-you-go key draws the Open Platform balance shown at platform.minimax.io; an M Plan API key meters its 5-hour and weekly windows here.',
   },
   together: {
     title: 'Together AI usage',

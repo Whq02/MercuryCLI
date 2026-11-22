@@ -5,7 +5,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
-import { resolveZenApiKey, zenApiBase } from './zenAccounts.js'
+import { resolveZenApiKey, zenApiBase, zenFetch } from './zenAccounts.js'
 import { zenDisplayName, zenDisplayPin, zenServedShapeOf, type ZenServedShape, type ZenWireShape } from '../../../utils/model/pins/zenPins.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
@@ -35,7 +35,7 @@ class ZenCatalogueHttpError extends Error {
 export async function fetchZenLiveModels(opts: { baseUrl: string; key?: string; fetchImpl?: typeof fetch }): Promise<{ models: ZenLiveModel[]; fetchedAtMs: number }> {
   let response: Response
   try {
-    response = await fetchWithProviderDeadline(opts.fetchImpl ?? getApiFetch(), 'zen', 15_000, `${opts.baseUrl.replace(/\/+$/, '')}/models`, {
+    response = await fetchWithProviderDeadline(zenFetch(opts.fetchImpl ?? getApiFetch()), 'zen', 15_000, `${opts.baseUrl.replace(/\/+$/, '')}/models`, {
       method: 'GET',
       headers: { accept: 'application/json', 'user-agent': getProductUserAgent(), ...(opts.key ? { authorization: `Bearer ${opts.key}` } : {}) },
       ...(opts.fetchImpl ? {} : getProxyFetchOptions()),

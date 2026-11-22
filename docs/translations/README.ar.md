@@ -11,7 +11,7 @@ Mercury CLI (mercury-cli.ai، وحزمة npm باسم `mercury-tech-cli`) يُش
 يقرأ الوكيل الملفات ويعدّلها، ويشغّل أوامر shell، وينتقل خطوة بخطوة عبر الاختبارات ومصحّحات الأخطاء، ويتحقق من النتائج. أنت تختار مزوّد النموذج والنموذج نفسه، وما يُسمح للوكيل بفعله:
 
 - **Concourse متعدد الجلسات و worktrees معزولة:** شغّل عدة جلسات جنبًا إلى جنب على Session Concourse (`/concourse`)، وفوّض العمل المتوازي إلى Crewmates عبر المزوّدين (`Crewmate`) داخل نسخ `git worktree` معزولة، مع حجوزات ملفات المشروع (project file leases) حتى لا تكتب الوكلاء المتوازية فوق عمل بعضها.
-- **22 مزوّدًا للنماذج، و `/llmhost` و `/localsetup`:** أبقِ المزوّدين الاثنين والعشرين جميعهم مسجّلين الدخول في وقت واحد (OpenAI، Anthropic، Google Gemini، DeepSeek، Moonshot/Kimi، Z.AI/GLM، OpenRouter، Hugging Face، xAI/Grok، Meta/Muse، Mistral، Nous Portal، OpenCode Zen، Qwen، MiniMax، Together AI، Cohere، Groq، Cerebras، Fireworks AI، Melious AI، OrcaRouter)، وبدّل بين المزوّدين والنماذج أثناء المحادثة. افتح `/llmhost` لاختيار نموذج، وفحص خيارات التكميم (quantization)، وتقسيم `conversations × context`، ومستوى التفكير، وتشغيله على وحدة GPU مستأجرة (Runpod أو Vast.ai أو Lambda)، أو على حاسوبك الخاص (`mercury host`)، أو على خادم موجود. أو شغّل نموذجًا محليًا على TensorFold عبر `/tensorfold` ([docs/TENSORFOLD.md](../TENSORFOLD.md))، أو شغّل `/localsetup` لتثبيت Ollama أو توصيله جنبًا إلى جنب مع LM Studio و vLLM و llama.cpp.
+- **22 مزوّدًا للنماذج، و `/llmhost` و `/localsetup`:** أبقِ المزوّدين الاثنين والعشرين جميعهم مسجّلين الدخول في وقت واحد (OpenAI، Anthropic، Google Gemini، DeepSeek، Moonshot/Kimi، Z.AI/GLM، OpenRouter، Hugging Face، xAI/Grok، Meta/Muse، Mistral، Nous Portal، OpenCode Zen، Qwen، MiniMax، Together AI، Cohere، Groq، Cerebras، Fireworks AI، Melious AI، OrcaRouter)، وبدّل بين المزوّدين والنماذج أثناء المحادثة. افتح `/llmhost` لاختيار نموذج، وفحص خيارات التكميم (quantization)، وتقسيم `conversations × context`، ومستوى التفكير، وتشغيله على وحدة GPU مستأجرة (Runpod، Vast.ai، Lambda، Hugging Face Inference Endpoints، Hyperstack، Verda أو DigitalOcean)، أو على حاسوبك الخاص (`mercury host`)، أو على خادم موجود. أو شغّل نموذجًا محليًا على TensorFold عبر `/tensorfold` ([docs/TENSORFOLD.md](../TENSORFOLD.md))، أو شغّل `/localsetup` لتثبيت Ollama أو توصيله جنبًا إلى جنب مع LM Studio و vLLM و llama.cpp.
 - **ذاكرة المشروع الهجينة RAG في Mneme:** تعتمد على نموذج تضمين دلالي BGE بحجم 118 MB يعمل على الجهاز (`bge-base-en-v1.5`)، مع ترتيب الكلمات بخوارزمية BM25 وتتبّع الاستشهادات، وقواعد مثبّتة بنصّها الحرفي، وسياق بدء يراعي الفرع الحالي، وفحوص التناقض عند الكتابة، وملاحظات تسليم الجلسات، والرسم البياني في المتصفح عبر `/memory page`.
 - **أدوات المُصرِّف (Compiler) والشجرة النحوية (AST) وتصحيح DAP:** تربط ذكاء الشيفرة عبر LSP وإعادة الهيكلة المعاينة مسبقًا (`LspRead`، `LspRename`، `LspMoveSymbol`، `LspMoveFile`، `LspCodeAction`، `LspFormat`)، والبحث وإعادة الكتابة بالشجرة النحوية (AST) لـ 57 لغة عبر tree-sitter (`AstSearch`، `AstEdit`)، ومُصحّح أخطاء مدمجًا بواسطة Debug Adapter Protocol (`Debug`) (`debugpy`، `js-debug`، `lldb`، `gdb`، `dlv`) للدخول خطوة بخطوة إلى اختبارات Python و Node و Go و Rust الفاشلة، وخلايا `Eval` دائمة لـ Python و JavaScript.
 - **`WebSearch` بلا مفاتيح و `WebFetch` بصيغة markdown:** يبحث عبر البحث الأصلي لدى المزوّد، ومفاتيح Brave أو Tavily، وواجهات API الرسمية (Stack Exchange و npm و PyPI و crates.io و GitHub و Hacker News و Wikipedia)، و SearXNG و DuckDuckGo (بلا مفاتيح)، ويجلب الوثائق العامة بصيغة markdown ضمن ميزانية استدعاء قدرها 38,000 حرف.
@@ -250,13 +250,13 @@ echo 'export PATH="$HOME/.mercury/bin:$PATH"' >> ~/.zshrc
 - **Meta (Muse):** Sign in with Meta (اشتراك Muse Code، أو رمز جهاز في متصفحك)، أو مفتاح Model API بنظام الدفع حسب الاستخدام. يتبادل Sign in with Meta رمز الجهاز مع نقاط نهاية OIDC الخاصة بـ Meta (`https://auth.meta.com/oidc/device/authorization/` و `/oidc/device/token/`) بموجب معرّف العميل العام لـ Muse Code، ويرسل token الحساب الناتج مرة واحدة إلى `https://api.meta.ai/muse-code/key` لإصدار مفتاح API للاشتراك (وكذلك في قراءات `/usage` المحدودة لمستوى الخطة ونوافذ استخدامها)، ولا يرسل مع كل طلب نموذج سوى المفتاح الذي أُصدر إلى `https://api.meta.ai/v1`. أما مفتاح Model API الملصوق أو `MODEL_API_KEY` / `META_API_KEY` فيُحاسَب بنظام الدفع حسب الاستخدام.
 
 - **Qwen:** مفتاح QwenCloud (Token Plan أو الدفع حسب الاستخدام) أو مفتاح Alibaba Cloud Model Studio (الدفع حسب الاستخدام أو Token Plan أو Coding Plan)، يُفحص عبر نقطة النهاية الخاصة به قبل حفظه؛ ويعرض مفتاح الخطة نماذج الخطة، وتأتي Qwen3.8 Max أولًا.
-- **MiniMax:** مفتاح Open Platform أو مفتاح اشتراك M Plan.
+- **MiniMax:** مفتاح Open Platform أو M Plan API key.
 - **Together AI** و **Cohere:** مفتاح API.
 - **Groq** و **Cerebras** و **Fireworks AI:** مفتاح API؛ ويمكن أيضًا أن يأتي مفتاح أي عائلة من أمر يُسمّى في `credentials.keyCommands.<family>`.
 
 تتصل Mistral و Nous Portal و OpenCode Zen عبر `/logins` أيضًا، ليبلغ المجموع 22 عائلة مزوّدين لتسجيل الدخول. وتعمل خوادم النماذج المحلية (Ollama و LM Studio و vLLM و llama.cpp) ونقاط النهاية المخصصة المتوافقة مع OpenAI دون تسجيل دخول لدى مزوّد. شغّل `/localsetup` لتثبيت Ollama أو تشغيله، وسحب نموذج يتناسب مع ذاكرتك، وضبط نافذة السياق الخاصة به، أو لربط خادم LM Studio أو vLLM أو llama.cpp قيد التشغيل ([docs/LOCAL-SETUP.md](../LOCAL-SETUP.md)). ويستخدم كل مزوّد بروتوكوله وبيانات اعتماده ومعالجته للأخطاء الخاصة به، ولا تنتقل الطلبات أبدًا إلى مزوّد آخر. راجع [docs/ENGINES.md](../ENGINES.md).
 
-يعرض `/llmhost` النماذج التي يمكنك استضافتها، ويُبيّن مكان تشغيل كل نموذج الآن: على وحدة GPU مستأجرة من Runpod أو Vast.ai أو Lambda، أو على حاسوبك الخاص، أو على حاسوب SSH محفوظ (`mercury host`)، أو على خادم نماذج موجود. وتعرض صفحة كل نموذج خيارات التكميم، وكيف تتوزع ميزانية ذاكرة GPU على المحادثات المتوازية (`conversations × context`)، ومستوى التفكير الافتراضي (الذي يغيّره `/effort` لكل طلب). ويتطلب تأجير GPU تأكيدًا صريحًا لسعر الساعة، ويستمر الإعداد في الخلفية إذا أغلقت النافذة المنبثقة. وعلى Runpod يمكنك أيضًا ضبط الجودة وتقسيمات السياق والتفكير قبل التأجير أو على pod قيد التشغيل (`Tune`)، وإبقاء الأوزان على volume سريع التحميل، وضبط مراقبات المخزون كل 5 ثوانٍ. وتأجير Vast.ai و Lambda جديد في الإصدار 1.0.0-beta.40، وجرى التحقق منهما مقابل واجهات API المنشورة لدى المزوّدين باستخدام بيانات اختبار ثابتة (fixtures)، ولم تُجرَ تشغيلات تأجير حية. راجع [docs/LLM-HOST.md](../LLM-HOST.md).
+يعرض `/llmhost` النماذج التي يمكنك استضافتها، ويُبيّن مكان تشغيل كل نموذج الآن: على وحدة GPU مستأجرة من Runpod، Vast.ai، Lambda، Hugging Face Inference Endpoints، Hyperstack، Verda أو DigitalOcean، أو على حاسوبك الخاص، أو على حاسوب SSH محفوظ (`mercury host`)، أو على خادم نماذج موجود. وتعرض صفحة كل نموذج خيارات التكميم، وكيف تتوزع ميزانية ذاكرة GPU على المحادثات المتوازية (`conversations × context`)، ومستوى التفكير الافتراضي (الذي يغيّره `/effort` لكل طلب). ويتطلب تأجير GPU تأكيدًا صريحًا لسعر الساعة، ويستمر الإعداد في الخلفية إذا أغلقت النافذة المنبثقة. وعلى Runpod يمكنك أيضًا ضبط الجودة وتقسيمات السياق والتفكير قبل التأجير أو على pod قيد التشغيل (`Tune`)، وإبقاء الأوزان على volume سريع التحميل، وضبط مراقبات المخزون كل 5 ثوانٍ. راجع [docs/LLM-HOST.md](../LLM-HOST.md).
 
 تستخدم الجلسات الجديدة أحدث مزوّد رُبط لديك وأحدث نموذج متاح لذلك الحساب. وتُتخطّى النماذج التي لا يستطيع الحساب الوصول إليها. وإذا لم يكن لدى ذلك المزوّد نموذج صالح للاستخدام، يتحقق Mercury من المزوّد التالي الأحدث ربطًا. ويحدث هذا الاختيار عند بدء الجلسة؛ أما الطلب الفاشل في جلسة قائمة فيبقى مع مزوّده.
 
@@ -417,20 +417,20 @@ docker run --rm mercury --version
 | الفئة | الأوامر |
 | --- | --- |
 | current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
-| crew & delegation | `/agents` `/crewmates` `/crew` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
+| crew & delegation | `/agents` `/crewmates` `/crew` `/swarm` `/swarmchat` `/general` `/team` `/whisper` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/restart` |
 | memory & goals | `/memory` |
 | model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
-| config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
+| config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/imagesetup` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
 | appearance & cockpit | `/appearance` `/critter` `/palette` `/zen` `/browse` |
 | account & app | `/logins` `/logout` `/accounts` `/defaultprovider` `/update-notes` `/feedback` `/help` `/exit` |
 
 | الأمر | وظيفته |
 | --- | --- |
 | `/imagesetup` | إعداد نماذج الصور والفيديو المحلية. |
-| `/llmhost` | اختر نموذجًا لتأجيره على Runpod أو Vast.ai أو Lambda، أو لتشغيله على حاسوبك، أو لربط خادم موجود. |
+| `/llmhost` | اختر نموذجًا لتأجيره على Runpod، Vast.ai، Lambda، Hugging Face Inference Endpoints، Hyperstack، Verda أو DigitalOcean، أو لتشغيله على حاسوبك، أو لربط خادم موجود. |
 | `/tensorfold` | شغّل نموذجًا محليًا على TensorFold: ثبّت المحرّك، واسحب نموذجًا، وقدّمه على حاسوبك، أو شاركه على شبكتك أو استأجر له وحدة GPU، وانتقل إليه، كل ذلك في شاشة واحدة. |
 | `/restart` | انقل هذه المحادثة إلى بناء Mercury المثبَّت؛ وتتوقف المراقبات (watches) والصدفات الخلفية الجارية. |
 | `/mcp` | افحص الخوادم، وسجّل الدخول، وتصفّح أدوات كل خادم ومعاملاته، وأعد الاتصال، أو بدّل حالة خادم لهذه المحادثة. |

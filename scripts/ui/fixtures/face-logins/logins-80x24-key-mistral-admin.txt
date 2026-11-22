@@ -1,10 +1,10 @@
 
   (>_) MERCURY · logins
   Mistral Admin API key (optional) Optional Admin API key from
-  backoffice.mistral.ai (Enterprise plans) unlocks the organisation usage
-  meter and spend limit. Stored auth-scoped (mode 600); MISTRAL_ADMIN_API_KEY
-  wins. Enterprise plans issue it at backoffice.mistral.ai. key: ▌ ↵ stores ·
-  empty/esc skips; API key stays
+  admin.mistral.ai (Enterprise plans) unlocks the organisation usage meter and
+  spend limit. Stored auth-scoped (mode 600); MISTRAL_ADMIN_API_KEY wins.
+  Enterprise plans issue it at admin.mistral.ai. key: ▌ ↵ stores · empty/esc
+  skips; API key stays
 
   ↑ 7 more
     Google Gemini — Google sign-in, API key      not signed in

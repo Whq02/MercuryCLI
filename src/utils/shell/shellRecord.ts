@@ -456,6 +456,14 @@ export const SNAPSHOT_READS_FUNCTIONS = 'echo "{ shopt -s extglob" >> "$SNAPSHOT
 
 export const SNAPSHOT_READS_BACK = '( shopt -s extglob; eval "$(printf \'eval %q\' "$(declare -f -- "$__mercury_fn")")" ) >/dev/null 2>&1 || continue'
 
+export const SNAPSHOT_READS_BACK_ALIASES = `compgen -a | while IFS= read -r __mercury_alias; do
+  __mercury_shown=$(alias -- "$__mercury_alias" 2>/dev/null) || continue
+  __mercury_value=\${__mercury_shown#*=\\'}
+  __mercury_line=$(printf 'alias -- %s=%q' "$__mercury_alias" "\${__mercury_value%\\'}")
+  ( unalias -a; eval "$__mercury_line"; [ "$(alias -- "$__mercury_alias")" = "$__mercury_shown" ] ) >/dev/null 2>&1 || continue
+  printf '%s\\n' "$__mercury_line"
+done`
+
 export const SNAPSHOT_OPTIONS: readonly string[] = [
   `shopt -p | head -n 1000 >> "$SNAPSHOT_FILE"`,
   `set -o | awk '$2 == "on" { print "set -o " $1 }' | head -n 1000 >> "$SNAPSHOT_FILE"`,

@@ -9,7 +9,7 @@ Mercury CLI (mercury-cli.ai, แพ็กเกจ npm `mercury-tech-cli`) ช�
 เอเจนต์อ่านและแก้ไขไฟล์ รันคำสั่ง shell ไล่ดูทีละขั้นผ่านการทดสอบและดีบักเกอร์ และตรวจสอบผลลัพธ์ คุณเป็นผู้เลือกผู้ให้บริการโมเดล โมเดล และสิ่งที่เอเจนต์ได้รับอนุญาตให้ทำ:
 
 - **Session Concourse แบบหลายเซสชันและ worktree แยกกัน:** รันหลายเซสชันควบคู่กันบน Session Concourse (`/concourse`) และมอบงานขนานให้ crewmates ข้ามผู้ให้บริการ (`Crewmate`) ใน checkout ของ `git worktree` ที่แยกกัน โดยใช้ lease ไฟล์ของโปรเจกต์ เพื่อไม่ให้เอเจนต์ที่ทำงานขนานเขียนทับกัน
-- **ผู้ให้บริการโมเดล 22 ราย, `/llmhost` และ `/localsetup`:** ทำให้ผู้ให้บริการทั้ง 22 รายลงชื่อเข้าใช้ไว้พร้อมกันได้ (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Melious AI, OrcaRouter) และสลับผู้ให้บริการกับโมเดลได้กลางแชท เปิด `/llmhost` เพื่อเลือกโมเดล ตรวจสอบ quantization การแบ่ง `conversations × context` และระดับ thinking แล้วรันบน GPU ที่เช่า (Runpod, Vast.ai หรือ Lambda) บนคอมพิวเตอร์ของคุณ (`mercury host`) หรือบนเซิร์ฟเวอร์ที่มีอยู่แล้ว รันโมเดลในเครื่องบน TensorFold ด้วย `/tensorfold` ([docs/TENSORFOLD.md](../TENSORFOLD.md)) หรือรัน `/localsetup` เพื่อติดตั้งหรือเชื่อมต่อ Ollama ควบคู่กับ LM Studio, vLLM และ llama.cpp
+- **ผู้ให้บริการโมเดล 22 ราย, `/llmhost` และ `/localsetup`:** ทำให้ผู้ให้บริการทั้ง 22 รายลงชื่อเข้าใช้ไว้พร้อมกันได้ (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Melious AI, OrcaRouter) และสลับผู้ให้บริการกับโมเดลได้กลางแชท เปิด `/llmhost` เพื่อเลือกโมเดล ตรวจสอบ quantization การแบ่ง `conversations × context` และระดับ thinking แล้วรันบน GPU ที่เช่า (Runpod, Vast.ai, Lambda, Hugging Face Inference Endpoints, Hyperstack, Verda หรือ DigitalOcean) บนคอมพิวเตอร์ของคุณ (`mercury host`) หรือบนเซิร์ฟเวอร์ที่มีอยู่แล้ว รันโมเดลในเครื่องบน TensorFold ด้วย `/tensorfold` ([docs/TENSORFOLD.md](../TENSORFOLD.md)) หรือรัน `/localsetup` เพื่อติดตั้งหรือเชื่อมต่อ Ollama ควบคู่กับ LM Studio, vLLM และ llama.cpp
 - **หน่วยความจำโปรเจกต์แบบ hybrid RAG ของ Mneme:** ใช้โมเดล semantic embedding BGE 118 MB ที่รันบนอุปกรณ์ (`bge-base-en-v1.5`) ร่วมกับการจัดอันดับคำแบบ BM25 และการติดตาม citation กฎที่ปักหมุดซึ่งคงข้อความเดิมทุกตัวอักษร (pinned rules) บริบทตอนเริ่มต้นที่รับรู้ branch การตรวจความขัดแย้งตอนบันทึก โน้ตส่งต่อระหว่างเซสชัน และกราฟเบราว์เซอร์ `/memory page`
 - **เครื่องมือ compiler, AST และ DAP debugging:** เชื่อมต่อ LSP code intelligence และการ refactor แบบดูตัวอย่างก่อนนำไปใช้ (`LspRead`, `LspRename`, `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`) การค้นหาและเขียนโครงสร้าง AST ด้วย tree-sitter ใน 57 ภาษา (`AstSearch`, `AstEdit`) debugger แบบ Debug Adapter Protocol ในตัว (`Debug`) ผ่าน `debugpy`, `js-debug`, `lldb`, `gdb`, `dlv` สำหรับไล่เทสต์ Python, Node, Go และ Rust ที่ล้มเหลวทีละขั้น และ `Eval` cells ของ Python และ JavaScript ที่คงสถานะไว้ได้
 - **`WebSearch` ที่ไม่ต้องใช้คีย์ และ `WebFetch` แบบ markdown:** ค้นหาผ่าน provider-native search คีย์ Brave หรือ Tavily API อย่างเป็นทางการ (Stack Exchange, npm, PyPI, crates.io, GitHub, Hacker News, Wikipedia) SearXNG และ DuckDuckGo ที่ไม่ต้องใช้คีย์ และดึงเอกสารสาธารณะเป็น markdown ภายในงบ 38,000 ตัวอักษรต่อการเรียกหนึ่งครั้ง
@@ -232,13 +232,13 @@ echo 'export PATH="$HOME/.mercury/bin:$PATH"' >> ~/.zshrc
 - **Meta (Muse):** Sign in with Meta (การสมัครสมาชิก Muse Code, device code ในเบราว์เซอร์ของคุณ) หรือคีย์ Model API แบบจ่ายตามการใช้งาน Sign in with Meta แลก device code กับ endpoint OIDC ของ Meta (`https://auth.meta.com/oidc/device/authorization/` และ `/oidc/device/token/`) ภายใต้ public client id ของ Muse Code แล้วส่งโทเคนบัญชีที่ได้ไปยัง `https://api.meta.ai/muse-code/key` เพียงครั้งเดียวเพื่อสร้างคีย์ API ของการสมัครสมาชิก (และอ่าน `/usage` แบบจำกัดเพื่อดูระดับแพ็กเกจและช่วงการใช้งาน) จากนั้นส่งเฉพาะคีย์ที่สร้างขึ้นนั้นในทุกคำขอโมเดลไปยัง `https://api.meta.ai/v1` คีย์ Model API ที่วางเข้ามา หรือ `MODEL_API_KEY` / `META_API_KEY` จะเรียกเก็บเงินแบบจ่ายตามการใช้งาน
 
 - **Qwen:** คีย์ QwenCloud (Token Plan หรือจ่ายตามการใช้งาน) หรือคีย์ Alibaba Cloud Model Studio (จ่ายตามการใช้งาน, Token Plan หรือ Coding Plan) ซึ่งจะถูกตรวจสอบบน endpoint ของตัวเองก่อนจัดเก็บ คีย์ของแพ็กเกจจะแสดงรายการโมเดลของแพ็กเกจ โดย Qwen3.8 Max ขึ้นก่อน
-- **MiniMax:** คีย์ Open Platform หรือคีย์การสมัครสมาชิก M Plan
+- **MiniMax:** คีย์ Open Platform หรือ M Plan API key
 - **Together AI** และ **Cohere:** คีย์ API
 - **Groq**, **Cerebras** และ **Fireworks AI:** คีย์ API; คีย์ของตระกูลใดก็ได้สามารถมาจากคำสั่งที่ระบุไว้ใน `credentials.keyCommands.<family>`
 
 Mistral, Nous Portal และ OpenCode Zen ก็เชื่อมต่อผ่าน `/logins` ได้เช่นกัน รวมเป็นตระกูลผู้ให้บริการที่ลงชื่อเข้าใช้ได้ 22 ตระกูล เซิร์ฟเวอร์โมเดลในเครื่อง (Ollama, LM Studio, vLLM และ llama.cpp) และ endpoint ที่เข้ากันได้กับ OpenAI แบบกำหนดเองทำงานได้โดยไม่ต้องลงชื่อเข้าใช้ผู้ให้บริการ รัน `/localsetup` เพื่อติดตั้งหรือเริ่ม Ollama, ดึงโมเดลที่พอดีกับหน่วยความจำของคุณ, ตั้งค่า context window ของมัน หรือเชื่อมต่อกับเซิร์ฟเวอร์ LM Studio, vLLM หรือ llama.cpp ที่กำลังรันอยู่ ([docs/LOCAL-SETUP.md](../LOCAL-SETUP.md)) แต่ละผู้ให้บริการใช้โปรโตคอล ข้อมูลประจำตัว และการจัดการข้อผิดพลาดของตัวเอง และคำขอจะไม่ย้อนไปยังผู้ให้บริการอื่นเลย ดู [docs/ENGINES.md](../ENGINES.md)
 
-`/llmhost` แสดงรายการโมเดลที่คุณโฮสต์ได้ และบอกว่าแต่ละโมเดลรันได้ที่ใดในขณะนี้: บน GPU ที่เช่าจาก Runpod, Vast.ai หรือ Lambda, บนคอมพิวเตอร์ของคุณหรือคอมพิวเตอร์ SSH ที่บันทึกไว้ (`mercury host`) หรือบนเซิร์ฟเวอร์โมเดลที่มีอยู่แล้ว แต่ละหน้าโมเดลแสดงตัวเลือก quantization, วิธีที่งบหน่วยความจำ GPU ถูกแบ่งให้การสนทนาที่ทำงานขนาน (`conversations × context`) และระดับ thinking เริ่มต้น (ซึ่ง `/effort` เปลี่ยนได้ในแต่ละคำขอ) การเช่า GPU ต้องยืนยันราคารายชั่วโมงอย่างชัดเจน และการตั้งค่าจะดำเนินต่อในพื้นหลังหากคุณปิดป๊อปอัป บน Runpod คุณยังปรับคุณภาพ การแบ่ง context และ thinking ได้ก่อนเช่า หรือบน pod ที่กำลังรันอยู่ (`Tune`) เก็บน้ำหนักโมเดลไว้บน volume ที่โหลดเร็ว และตั้งการเฝ้าสต็อก 5 วินาทีได้ การเช่า Vast.ai และ Lambda เป็นฟีเจอร์ใหม่ใน 1.0.0-beta.40 และได้รับการตรวจสอบกับ API ที่ผู้ให้บริการเผยแพร่ด้วย fixture ทดสอบ (ไม่ได้มีการเช่าจริง) ดู [docs/LLM-HOST.md](../LLM-HOST.md)
+`/llmhost` แสดงรายการโมเดลที่คุณโฮสต์ได้ และบอกว่าแต่ละโมเดลรันได้ที่ใดในขณะนี้: บน GPU ที่เช่าจาก Runpod, Vast.ai, Lambda, Hugging Face Inference Endpoints, Hyperstack, Verda หรือ DigitalOcean, บนคอมพิวเตอร์ของคุณหรือคอมพิวเตอร์ SSH ที่บันทึกไว้ (`mercury host`) หรือบนเซิร์ฟเวอร์โมเดลที่มีอยู่แล้ว แต่ละหน้าโมเดลแสดงตัวเลือก quantization, วิธีที่งบหน่วยความจำ GPU ถูกแบ่งให้การสนทนาที่ทำงานขนาน (`conversations × context`) และระดับ thinking เริ่มต้น (ซึ่ง `/effort` เปลี่ยนได้ในแต่ละคำขอ) การเช่า GPU ต้องยืนยันราคารายชั่วโมงอย่างชัดเจน และการตั้งค่าจะดำเนินต่อในพื้นหลังหากคุณปิดป๊อปอัป บน Runpod คุณยังปรับคุณภาพ การแบ่ง context และ thinking ได้ก่อนเช่า หรือบน pod ที่กำลังรันอยู่ (`Tune`) เก็บน้ำหนักโมเดลไว้บน volume ที่โหลดเร็ว และตั้งการเฝ้าสต็อก 5 วินาทีได้ ดู [docs/LLM-HOST.md](../LLM-HOST.md)
 
 เซสชันใหม่ใช้ผู้ให้บริการที่คุณเชื่อมต่อล่าสุดและโมเดลที่ใหม่ที่สุดซึ่งบัญชีนั้นใช้ได้ โมเดลที่บัญชีเข้าถึงไม่ได้จะถูกข้าม หากผู้ให้บริการนั้นไม่มีโมเดลที่ใช้งานได้ Mercury จะตรวจผู้ให้บริการที่เชื่อมต่อล่าสุดรายถัดไป การเลือกนี้เกิดขึ้นตอนเริ่มเซสชัน คำขอที่ล้มเหลวในเซสชันที่มีอยู่แล้วจะยังคงอยู่กับผู้ให้บริการเดิม
 
@@ -383,20 +383,20 @@ docker run --rm mercury --version
 | หมวด | คำสั่ง |
 | --- | --- |
 | current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
-| crew & delegation | `/agents` `/crewmates` `/crew` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
+| crew & delegation | `/agents` `/crewmates` `/crew` `/swarm` `/swarmchat` `/general` `/team` `/whisper` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/restart` |
 | memory & goals | `/memory` |
 | model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
-| config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
+| config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/imagesetup` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
 | appearance & cockpit | `/appearance` `/critter` `/palette` `/zen` `/browse` |
 | account & app | `/logins` `/logout` `/accounts` `/defaultprovider` `/update-notes` `/feedback` `/help` `/exit` |
 
 | คำสั่ง | การทำงาน |
 | --- | --- |
 | `/imagesetup` | ตั้งค่าโมเดลภาพและวิดีโอในเครื่อง |
-| `/llmhost` | เลือกโมเดลที่จะเช่าบน Runpod, Vast.ai หรือ Lambda, รันบนคอมพิวเตอร์ของคุณ หรือเชื่อมต่อกับเซิร์ฟเวอร์ที่มีอยู่แล้ว |
+| `/llmhost` | เลือกโมเดลที่จะเช่าบน Runpod, Vast.ai, Lambda, Hugging Face Inference Endpoints, Hyperstack, Verda หรือ DigitalOcean, รันบนคอมพิวเตอร์ของคุณ หรือเชื่อมต่อกับเซิร์ฟเวอร์ที่มีอยู่แล้ว |
 | `/tensorfold` | รันโมเดลในเครื่องบน TensorFold: ติดตั้งเอนจิน ดึงโมเดล เปิดให้บริการบนคอมพิวเตอร์ของคุณ แชร์บนเครือข่ายของคุณหรือเช่า GPU สำหรับโมเดลนั้น แล้วสลับไปใช้งาน ทั้งหมดในหน้าจอเดียว |
 | `/restart` | ย้ายแชทนี้ไปยังบิลด์ Mercury ที่ติดตั้งไว้; การ watch และ background shell ที่กำลังรันจะหยุด |
 | `/mcp` | ตรวจสอบเซิร์ฟเวอร์ ลงชื่อเข้าใช้ ดูเครื่องมือและพารามิเตอร์ของแต่ละเซิร์ฟเวอร์ เชื่อมต่อใหม่ หรือเปิด/ปิดเซิร์ฟเวอร์สำหรับแชทนี้ |

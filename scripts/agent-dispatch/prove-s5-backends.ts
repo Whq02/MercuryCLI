@@ -129,7 +129,7 @@ section('1b · the home-lane admission at the dispatch seam (the neutrality ruli
     )
     check(
       '…and BOTH earned roads before any HTTP (the pin road and the gateway road)',
-      /ANTHROPIC_\* model pin/.test(refusalText) && /ANTHROPIC_BASE_URL/.test(refusalText),
+      /MERCURY_MODEL, MERCURY_DEFAULT_\*_MODEL or MERCURY_CUSTOM_MODEL_OPTION pin/.test(refusalText) && /ANTHROPIC_BASE_URL/.test(refusalText),
       refusalText,
     )
     const absenceSeen: Array<{ err: boolean; text: string }> = []

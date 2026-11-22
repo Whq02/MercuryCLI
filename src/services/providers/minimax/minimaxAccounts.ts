@@ -4,6 +4,7 @@ import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 
 const MINIMAX_API_BASE_URL = 'https://api.minimax.io/v1'
+const MINIMAX_PLAN_BASE_URL = 'https://www.minimax.io/v1'
 export const MINIMAX_ENV_KEY = 'MINIMAX_API_KEY'
 
 export function minimaxApiBase(env: NodeJS.ProcessEnv = hostEnv()): string {
@@ -15,7 +16,7 @@ export function minimaxChatCompletionsUrl(env: NodeJS.ProcessEnv = hostEnv()): s
 }
 
 export function minimaxPlanRemainsUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
-  return `${minimaxApiBase(env)}/token_plan/remains`
+  return `${(flagEnv('MERCURY_MINIMAX_API_BASE', env)?.trim() || MINIMAX_PLAN_BASE_URL).replace(/\/+$/, '')}/token_plan/remains`
 }
 
 export function minimaxEnvKey(env: NodeJS.ProcessEnv = hostEnv()): { key: string; name: 'MINIMAX_API_KEY' } | undefined {

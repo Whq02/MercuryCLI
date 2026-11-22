@@ -224,7 +224,7 @@ export function keyLegStoreLine(leg: FaceKeyLegId): string {
     case 'mistral':
       return 'Proven on the model list first; stored auth-scoped (mode 600); MISTRAL_API_KEY wins. An optional Admin API key follows for /usage.';
     case 'mistral-admin':
-      return 'Stored auth-scoped (mode 600); MISTRAL_ADMIN_API_KEY wins. Enterprise plans issue it at backoffice.mistral.ai.';
+      return 'Stored auth-scoped (mode 600); MISTRAL_ADMIN_API_KEY wins. Enterprise plans issue it at admin.mistral.ai.';
     case 'groq':
       return 'Checked on the model list first; stored auth-scoped (mode 600); GROQ_API_KEY wins. Text models only.';
     case 'melious':

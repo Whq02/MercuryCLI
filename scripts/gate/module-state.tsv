@@ -2579,6 +2579,7 @@ src/services/providers/anthropic/streamCore/streamEvents.ts	resetStreamAttempt	r
 src/services/providers/anthropic/thinkingBinding.ts	DROP_KINDS	process	module	Load-time lookup with no local writer
 src/services/providers/anthropic/thinkingBinding.ts	SETTING_LABELS	process	module	Load-time table with no local writer
 src/services/providers/anthropic/thinkingBinding.ts	THINKING_READ_BY	process	module	Load-time table with no local writer
+src/services/providers/anthropic/thinkingBinding.ts	THINKING_READ_BY_ALL	process	module	load-time data; no local writer
 src/services/providers/anthropic/thinkingBinding.ts	dropStates	owner	module	agent level (module): Map<owner, OwnerDropState> tracking thinking-drop streak per owner
 src/services/providers/anthropic/thinkingBinding.ts	resetThinkingDropStates	reset-export
 src/services/providers/anthropic/thinkingBinding.ts	rewriteNoticed	owner	module	agent level (module): Set<owner> one-shot rewrite notice latch per owner
@@ -3018,6 +3019,7 @@ src/services/providers/zai/zaiUsageState.ts	inFlight	process	module	process-wide
 src/services/providers/zai/zaiUsageState.ts	lastFailure	process	module	process-wide provider account usage/rate-limit observation state shared across single account sign-in
 src/services/providers/zai/zaiUsageState.ts	observed	process	module	process-wide provider account usage/rate-limit observation state shared across single account sign-in
 src/services/providers/zai/zaiUsageState.ts	stateIdentity	process	module	process-wide provider account usage/rate-limit observation state shared across single account sign-in
+src/services/providers/zen/zenAccounts.ts	goneBases	process	module	process-wide record of the OpenCode Zen bases that answered 404 or 410 while their documented base served, kept for the session
 src/services/providers/zen/zenAdapter.ts	zenProviderAdapter	process	module	Load-time table with no local writer
 src/services/providers/zen/zenCallModel.ts	zenLaneProfile	process	module	Load-time table with no local writer
 src/services/providers/zen/zenCatalogue.ts	EMPTY_IDS	process	module	Load-time lookup with no local writer

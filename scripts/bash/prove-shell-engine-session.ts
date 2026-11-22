@@ -85,8 +85,9 @@ async function run(command: string, timeoutMs = 30_000, owner?: string): Promise
   return (await cmd.result) as Result
 }
 
-if (process.argv.includes('--login-row')) {
-  console.log(`ROW ${JSON.stringify(await run('echo started; reads_back'))}`)
+const loginRowAt = process.argv.indexOf('--login-row')
+if (loginRowAt !== -1) {
+  console.log(`ROW ${JSON.stringify(await run(process.argv[loginRowAt + 1]!))}`)
   resetEngineSessionForTest()
   process.exit(0)
 }
@@ -363,21 +364,76 @@ section('§9 an interrupt with one command running and one waiting in line: the 
   check('…and is told — the note the aborted command must not swallow', /interrupted/.test(next.stderr) && /reset/.test(next.stderr), JSON.stringify(next.stderr))
 }
 
+const { spawnSync } = await import('node:child_process')
+function startedAtLogin(profile: string, command: string): Result {
+  const loginHome = fs.mkdtempSync(join(os.tmpdir(), 'engine-login-home-'))
+  fs.writeFileSync(join(loginHome, '.profile'), profile)
+  fs.mkdirSync(join(loginHome, 'temp'))
+  const child = spawnSync(process.execPath, [import.meta.path, '--login-row', command], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, HOME: loginHome, USERPROFILE: loginHome, TMPDIR: join(loginHome, 'temp') } })
+  fs.rmSync(loginHome, { recursive: true, force: true })
+  const row = (child.stdout ?? '').split('\n').find(line => line.startsWith('ROW '))
+  return row === undefined ? { stdout: '', stderr: `the child that owns the login home printed no row (exit ${String(child.status)}): ${(child.stderr ?? '').slice(-300)}`, code: -1, interrupted: false } : JSON.parse(row.slice('ROW '.length))
+}
+
 section('§12 a login file with a function the engine prints in a form it cannot read back: the session starts, and what it reads back is carried')
 if (process.platform === 'win32') {
   console.log('  [SKIP] this section runs off Windows: its login home is a POSIX home, a ~/.profile the engine reads at login')
 } else {
-  const { spawnSync } = await import('node:child_process')
-  const loginHome = fs.mkdtempSync(join(os.tmpdir(), 'engine-login-home-'))
-  fs.writeFileSync(join(loginHome, '.profile'), 'reads_back() { echo carried-by-the-engine; }\nholds_a_here_document() {\n  cat <<EOF\nfrom a here-document\nEOF\n}\n')
-  fs.mkdirSync(join(loginHome, 'temp'))
-  const child = spawnSync(process.execPath, [import.meta.path, '--login-row'], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, HOME: loginHome, USERPROFILE: loginHome, TMPDIR: join(loginHome, 'temp') } })
-  const row = (child.stdout ?? '').split('\n').find(line => line.startsWith('ROW '))
-  const started: Result = row === undefined ? { stdout: '', stderr: `the child that owns the login home printed no row (exit ${String(child.status)}): ${(child.stderr ?? '').slice(-300)}`, code: -1, interrupted: false } : JSON.parse(row.slice('ROW '.length))
+  const started = startedAtLogin('reads_back() { echo carried-by-the-engine; }\nholds_a_here_document() {\n  cat <<EOF\nfrom a here-document\nEOF\n}\n', 'echo started; reads_back')
   const captureFix = 'the function loop of buildCaptureScript in src/utils/bash/ShellSnapshot.ts must run SNAPSHOT_READS_BACK of src/utils/shell/shellRecord.ts for the engine, so that only a definition the engine reads back is kept'
   check('the session starts and runs its first command', started.code === 0 && started.stdout.includes('started'), `${JSON.stringify(started)}; ${captureFix}`)
   check('the function the engine reads back is carried into the session', started.stdout.includes('carried-by-the-engine'), `${JSON.stringify(started.stdout)}; ${captureFix}`)
-  fs.rmSync(loginHome, { recursive: true, force: true })
+}
+
+section('§13 a login file with aliases the engine prints in a form it cannot read back: the session starts, an alias it reads back is carried as written, another is left out')
+if (process.platform === 'win32') {
+  console.log('  [SKIP] this section runs off Windows: its login home is a POSIX home, a ~/.profile the engine reads at login')
+} else {
+  const profile = [
+    "alias plain='echo plain-alias'",
+    String.raw`alias single='echo it'\''s here'`,
+    String.raw`alias double="echo \"double\" quoted"`,
+    String.raw`alias ansi='echo $'\''tab\there'\'''`,
+    "alias newline='echo line1",
+    "echo line2'",
+    "alias trailing='echo trailing '",
+    "alias 'semi;colon'='echo never-carried'",
+    '',
+  ].join('\n')
+  const asked = [
+    'echo started; plain',
+    "for n in single double ansi newline trailing 'semi;colon'; do",
+    '  if carried=$(alias -- "$n" 2>/dev/null); then',
+    '    [ "$carried" = "$( ( unalias -a; . "$HOME/.profile"; alias -- "$n" ) 2>/dev/null )" ] && echo "$n as-written" || echo "$n changed"',
+    '  else',
+    '    echo "$n left-out"',
+    '  fi',
+    'done',
+  ].join('\n')
+  const started = startedAtLogin(profile, asked)
+  const aliasFix = "the alias line of buildCaptureScript in src/utils/bash/ShellSnapshot.ts must print the engine's aliases through SNAPSHOT_READS_BACK_ALIASES of src/utils/shell/shellRecord.ts, so that only an alias the engine reads back is written"
+  check('the session starts and runs its first command', started.code === 0 && started.stdout.includes('started'), `${JSON.stringify(started)}; ${aliasFix}`)
+  check('a plain alias is carried and expands', started.stdout.includes('plain-alias'), `${JSON.stringify(started.stdout)}; ${aliasFix}`)
+  check("an alias whose value holds a single quote, double quotes, $'…', a newline or a trailing space is carried as the login file wrote it", ['single', 'double', 'ansi', 'newline', 'trailing'].every(name => started.stdout.includes(`${name} as-written`)), `${JSON.stringify(started.stdout)}; ${aliasFix}`)
+  check('an alias the engine cannot read back is left out', started.stdout.includes('semi;colon left-out'), `${JSON.stringify(started.stdout)}; ${aliasFix}`)
+}
+
+section('§14 a login file with a DEBUG trap that prints: its words stay out of what the engine sources, the session starts, and what the file defines is carried')
+if (process.platform === 'win32') {
+  console.log('  [SKIP] this section runs off Windows: its login home is a POSIX home, a ~/.profile the engine reads at login')
+} else {
+  const started = startedAtLogin(String.raw`carried_past_the_trap() { echo carried-past-the-trap; }` + '\n' + String.raw`trap 'echo "it'\''s a trap"' DEBUG` + '\n', 'echo started; carried_past_the_trap')
+  const trapFix = 'buildCaptureScript in src/utils/bash/ShellSnapshot.ts must clear the DEBUG trap for the engine once the login file is read, before it prints the exports and writes the snapshot'
+  check('the session starts and runs its first command', started.code === 0 && started.stdout.includes('started'), `${JSON.stringify(started)}; ${trapFix}`)
+  check('the function the login file defines is carried into the session', started.stdout.includes('carried-past-the-trap'), `${JSON.stringify(started.stdout)}; ${trapFix}`)
+}
+
+section('§15 a login file that makes the capture write words the engine cannot read back (a function standing in for awk): the session starts without that snapshot')
+if (process.platform === 'win32') {
+  console.log('  [SKIP] this section runs off Windows: its login home is a POSIX home, a ~/.profile the engine reads at login')
+} else {
+  const started = startedAtLogin(String.raw`awk() { command awk "$@"; echo "it's awk"; }` + '\n', 'echo started')
+  check('the session starts and runs its first command', started.code === 0 && started.stdout.includes('started'), `${JSON.stringify(started)}; getSnapshot in src/utils/shell/engineSession.ts must hand the engine its login snapshot only after a fresh engine has read it back`)
 }
 
 resetEngineSessionForTest()

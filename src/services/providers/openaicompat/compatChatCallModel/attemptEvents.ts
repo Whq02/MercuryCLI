@@ -23,6 +23,7 @@ export function openCompatEvents(
     ...(profile.onResponseHeaders ? { onResponseHeaders: profile.onResponseHeaders } : {}),
     ...(extraHeaders && Object.keys(extraHeaders).length > 0 ? { extraHeaders } : {}),
     url: requestUrl,
+    ...(profile.wrapFetch ? { wrapFetch: profile.wrapFetch } : {}),
     request,
     signal,
     imagesSupported: ctx.imagesSupported,
