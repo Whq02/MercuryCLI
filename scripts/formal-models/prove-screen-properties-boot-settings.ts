@@ -240,7 +240,7 @@ function buildFacts(mode: HistoryMode): { facts: BootCardFacts; expectedSessionI
       totalSessions: 1,
       totalProjects: 1,
     },
-    expectedSessionId: null,
+    expectedSessionId: sessionId,
   }
 }
 
@@ -337,7 +337,6 @@ async function mountBootFace(scenario: Pick<Scenario, 'history' | 'concourseLive
       ? ['New Session', 'Logins/Keys', 'Session Manager (Concourse)', 'Boot Menu']
       : ['New Session', 'Continue Last Session', 'Logins/Keys', 'Session Manager (Concourse)', 'Boot Menu']
   const disabledRows = new Set<RowLabel>()
-  if (scenario.history === 'cross') disabledRows.add('Continue Last Session')
   if (!scenario.concourseLive) disabledRows.add('Session Manager (Concourse)')
   return { frame, expectedSessionId, expectedRows, disabledRows }
 }

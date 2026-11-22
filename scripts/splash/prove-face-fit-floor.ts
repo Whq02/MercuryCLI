@@ -67,8 +67,8 @@ function compose(cols: number, rows: number): { lines: string[]; cardShown: bool
   const crossFacts = {
     cwdBase: 'repo',
     menuAvailable: true,
-    continueTarget: { base: 'otherrepo', ageMs: 60_000, cross: true, dim: true },
-    concourse: { ctx: 'the live board' },
+    continueTarget: { base: 'otherrepo', ageMs: 60_000, cross: true },
+    concourse: { ctx: 'unregistered in this build', dim: true },
     kitArmedPreset: null,
     agentsCtx: null,
     saturnCtx: null,
@@ -77,15 +77,13 @@ function compose(cols: number, rows: number): { lines: string[]; cardShown: bool
   } as never
   const rowsWithCross = assembleCardRows(crossFacts) as Array<{ key: string; ctx: string; dim?: boolean }>
   const cont = rowsWithCross.find(r => r.key === 'continue')
-  t('§3 the cross-repo row is dim', cont?.dim === true)
+  t('§3 the cross-repo row is live (not dim)', cont !== undefined && cont.dim !== true)
   t('§3 …and its ctx names the target repo', cont !== undefined && cont.ctx === 'in otherrepo', cont?.ctx ?? '')
-  const composed = compose(100, 40)
-  void composed
-  const withDim = core.composeLockup(100, 40, { ...opts, cardRows: rowsWithCross }) as { lines: string[] }
-  const dimLine = withDim.lines.find(l => l.includes('in otherrepo'))
-  t('§3 the dim row paints no → affordance', dimLine !== undefined && !dimLine.includes('→'), dimLine?.trim().slice(0, 80) ?? '')
-  const liveLine = withDim.lines.find(l => l.includes('the live board'))
-  t('§3 a live row keeps its →', liveLine !== undefined && liveLine.includes('→'))
+  const withCross = core.composeLockup(100, 40, { ...opts, cardRows: rowsWithCross }) as { lines: string[] }
+  const crossLine = withCross.lines.find(l => l.includes('in otherrepo'))
+  t('§3 the cross-repo row keeps its → affordance', crossLine !== undefined && crossLine.includes('→'), crossLine?.trim().slice(0, 80) ?? '')
+  const dimLine = withCross.lines.find(l => l.includes('unregistered in this build'))
+  t('§3 a dim row paints no → affordance', dimLine !== undefined && !dimLine.includes('→'), dimLine?.trim().slice(0, 80) ?? '')
 }
 
 {
