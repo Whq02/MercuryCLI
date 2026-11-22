@@ -104,7 +104,7 @@ async function main(): Promise<void> {
     args = process.argv.slice(2)
   }
   if (cwdIsMissing()) {
-    process.stderr.write(`${MISSING_CWD_LINE}\n`)
+    writeSync(2, `${MISSING_CWD_LINE}\n`)
     process.exitCode = 1
     return
   }
@@ -128,7 +128,6 @@ async function main(): Promise<void> {
 
   const { applyBankedFlagSpellings } = await import('../substrate/argvSpellings.js')
   applyBankedFlagSpellings(process.argv)
-  args = process.argv.slice(2)
   if (underNode && home !== null) {
     await armCompileCache(home)
     if (hostEnv().NODE_DISABLE_COMPILE_CACHE === undefined) {
@@ -169,26 +168,26 @@ async function main(): Promise<void> {
   const { fluxProbeEnabled } = await import('../utils/flux/fluxProbe.js')
   fluxProbeEnabled()
 
-  if (args[0] === '--lsp-ts-sidecar') {
+  if (process.argv[2] === '--lsp-ts-sidecar') {
     profileCheckpoint('route_lsp_ts_sidecar')
     const { runLspSidecarEntry } = await import('../services/lsp/tsSidecar/entry.js')
     return runLspSidecarEntry()
   }
-  if (args[0] === '--lsp-web-sidecar') {
+  if (process.argv[2] === '--lsp-web-sidecar') {
     profileCheckpoint('route_lsp_web_sidecar')
     const { runWebLspSidecarEntry } = await import('../services/lsp/webSidecar/entry.js')
     return runWebLspSidecarEntry()
   }
-  if (args[0] === '--mercury-host-job') {
+  if (process.argv[2] === '--mercury-host-job') {
     await configsOn()
     await tellTheBuiltInCommands()
     const { runHostJob } = await import('../services/host/worker.js')
-    return runHostJob(args[1] ?? '', args[2] ?? '')
+    return runHostJob(process.argv[3] ?? '', process.argv[4] ?? '')
   }
-  if (args[0] === '--mercury-tcp-bridge') {
+  if (process.argv[2] === '--mercury-tcp-bridge') {
     profileCheckpoint('route_tcp_bridge')
     const { runTcpBridgeEntry } = await import('../services/tcpBridge/entry.js')
-    return runTcpBridgeEntry(args.slice(1))
+    return runTcpBridgeEntry(process.argv.slice(3))
   }
   if (args[0] === 'host') {
     await configsOn()
@@ -264,7 +263,7 @@ async function startupFailed(error: unknown): Promise<void> {
     failLoud(error, 'boot')
   } catch (failure) {
     passedOver(failure)
-    console.error(`MERCURY COULD NOT START\ncause: ${error instanceof Error ? error.stack || error.message : String(error)}`)
+    process.stderr.write(`MERCURY COULD NOT START\ncause: ${error instanceof Error ? error.stack || error.message : String(error)}\n`)
     process.exit(1)
   }
 }
