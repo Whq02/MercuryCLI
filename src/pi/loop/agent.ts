@@ -178,6 +178,127 @@ type ActiveRun = {
 	abortController: AbortController;
 };
 
+function normalizePromptInput(input: string | AgentMessage | AgentMessage[], images?: ImageContent[]): AgentMessage[] {
+	if (Array.isArray(input)) {
+		return input;
+	}
+
+	if (typeof input !== "string") {
+		return [input];
+	}
+
+	const content: Array<TextContent | ImageContent> = [{ type: "text", text: input }];
+	if (images && images.length > 0) {
+		content.push(...images);
+	}
+	return [{ role: "user", content, timestamp: Date.now() }];
+}
+
+type AgentQueues = {
+	steering: PendingMessageQueue;
+	followUp: PendingMessageQueue;
+};
+
+function createAgentLoopConfig(
+	agent: Agent,
+	queues: AgentQueues,
+	options: { skipInitialSteeringPoll?: boolean },
+): AgentLoopConfig {
+	let skipInitialSteeringPoll = options.skipInitialSteeringPoll === true;
+	return {
+		model: agent.state.model,
+		reasoning: agent.state.thinkingLevel === "off" ? undefined : agent.state.thinkingLevel,
+		sessionId: agent.sessionId,
+		onPayload: agent.onPayload,
+		onResponse: agent.onResponse,
+		onProviderStreamEvent: agent.onProviderStreamEvent,
+		transport: agent.transport,
+		thinkingBudgets: agent.thinkingBudgets,
+		maxRetryDelayMs: agent.maxRetryDelayMs,
+		identity: agent.identity,
+		toolExecution: agent.toolExecution,
+		beforeToolCall: agent.beforeToolCall,
+		afterToolCall: agent.afterToolCall,
+		finishTurn: agent.finishTurn,
+		prepareRequest: agent.prepareRequest,
+		prepareNextTurn:
+			agent.prepareNextTurnWithContext || agent.prepareNextTurn
+				? async (context) => {
+						if (agent.prepareNextTurnWithContext) {
+							return await agent.prepareNextTurnWithContext(context, agent.signal);
+						}
+						return await agent.prepareNextTurn?.(agent.signal);
+					}
+				: undefined,
+		convertToLlm: agent.convertToLlm,
+		transformContext: agent.transformContext,
+		getApiKey: agent.getApiKey,
+		getSteeringMessages: async () => {
+			if (skipInitialSteeringPoll) {
+				skipInitialSteeringPoll = false;
+				return [];
+			}
+			return queues.steering.drain();
+		},
+		getFollowUpMessages: async () => queues.followUp.drain(),
+	};
+}
+
+function createFailureMessage(model: AgentState["model"], error: unknown, aborted: boolean): AgentMessage {
+	return {
+		role: "assistant",
+		content: [{ type: "text", text: "" }],
+		api: model.api,
+		provider: model.provider,
+		model: model.id,
+		usage: EMPTY_USAGE,
+		stopReason: aborted ? "aborted" : "error",
+		errorMessage: error instanceof Error ? error.message : String(error),
+		timestamp: Date.now(),
+	};
+}
+
+function applyAgentEvent(state: MutableAgentState, event: AgentEvent): void {
+	switch (event.type) {
+		case "message_start":
+			state.streamingMessage = event.message;
+			break;
+
+		case "message_update":
+			state.streamingMessage = event.message;
+			break;
+
+		case "message_end":
+			state.streamingMessage = undefined;
+			state.messages.push(event.message);
+			break;
+
+		case "tool_execution_start": {
+			const pendingToolCalls = new Set(state.pendingToolCalls);
+			pendingToolCalls.add(event.toolCallId);
+			state.pendingToolCalls = pendingToolCalls;
+			break;
+		}
+
+		case "tool_execution_end": {
+			const pendingToolCalls = new Set(state.pendingToolCalls);
+			pendingToolCalls.delete(event.toolCallId);
+			state.pendingToolCalls = pendingToolCalls;
+			break;
+		}
+
+		case "turn_end":
+			if (event.message.role === "assistant" && event.message.errorMessage) {
+				state.errorMessage = event.message.errorMessage;
+			}
+			break;
+
+		case "agent_end":
+			state.streamingMessage = undefined;
+			break;
+	}
+}
+
 export class Agent {
 	private _state: MutableAgentState;
 	private readonly listeners = new Set<(event: AgentEvent, signal: AbortSignal) => Promise<void> | void>();
@@ -332,7 +453,7 @@ export class Agent {
 				"Agent is already processing a prompt. Use steer() or followUp() to queue messages, or wait for completion.",
 			);
 		}
-		const messages = this.normalizePromptInput(input, images);
+		const messages = normalizePromptInput(input, images);
 		await this.runPromptMessages(messages);
 	}
 
@@ -363,25 +484,6 @@ export class Agent {
 		}
 
 		await this.runContinuation();
-	}
-
-	private normalizePromptInput(
-		input: string | AgentMessage | AgentMessage[],
-		images?: ImageContent[],
-	): AgentMessage[] {
-		if (Array.isArray(input)) {
-			return input;
-		}
-
-		if (typeof input !== "string") {
-			return [input];
-		}
-
-		const content: Array<TextContent | ImageContent> = [{ type: "text", text: input }];
-		if (images && images.length > 0) {
-			content.push(...images);
-		}
-		return [{ role: "user", content, timestamp: Date.now() }];
 	}
 
 	private async runPromptMessages(
@@ -420,44 +522,7 @@ export class Agent {
 	}
 
 	private createLoopConfig(options: { skipInitialSteeringPoll?: boolean } = {}): AgentLoopConfig {
-		let skipInitialSteeringPoll = options.skipInitialSteeringPoll === true;
-		return {
-			model: this._state.model,
-			reasoning: this._state.thinkingLevel === "off" ? undefined : this._state.thinkingLevel,
-			sessionId: this.sessionId,
-			onPayload: this.onPayload,
-			onResponse: this.onResponse,
-			onProviderStreamEvent: this.onProviderStreamEvent,
-			transport: this.transport,
-			thinkingBudgets: this.thinkingBudgets,
-			maxRetryDelayMs: this.maxRetryDelayMs,
-			identity: this.identity,
-			toolExecution: this.toolExecution,
-			beforeToolCall: this.beforeToolCall,
-			afterToolCall: this.afterToolCall,
-			finishTurn: this.finishTurn,
-			prepareRequest: this.prepareRequest,
-			prepareNextTurn:
-				this.prepareNextTurnWithContext || this.prepareNextTurn
-					? async (context) => {
-							if (this.prepareNextTurnWithContext) {
-								return await this.prepareNextTurnWithContext(context, this.signal);
-							}
-							return await this.prepareNextTurn?.(this.signal);
-						}
-					: undefined,
-			convertToLlm: this.convertToLlm,
-			transformContext: this.transformContext,
-			getApiKey: this.getApiKey,
-			getSteeringMessages: async () => {
-				if (skipInitialSteeringPoll) {
-					skipInitialSteeringPoll = false;
-					return [];
-				}
-				return this.steeringQueue.drain();
-			},
-			getFollowUpMessages: async () => this.followUpQueue.drain(),
-		};
+		return createAgentLoopConfig(this, { steering: this.steeringQueue, followUp: this.followUpQueue }, options);
 	}
 
 	private async runWithLifecycle(executor: (signal: AbortSignal) => Promise<void>): Promise<void> {
@@ -486,17 +551,7 @@ export class Agent {
 	}
 
 	private async handleRunFailure(error: unknown, aborted: boolean): Promise<void> {
-		const failureMessage = {
-			role: "assistant",
-			content: [{ type: "text", text: "" }],
-			api: this._state.model.api,
-			provider: this._state.model.provider,
-			model: this._state.model.id,
-			usage: EMPTY_USAGE,
-			stopReason: aborted ? "aborted" : "error",
-			errorMessage: error instanceof Error ? error.message : String(error),
-			timestamp: Date.now(),
-		} satisfies AgentMessage;
+		const failureMessage = createFailureMessage(this._state.model, error, aborted);
 		await this.processEvents({ type: "message_start", message: failureMessage });
 		await this.processEvents({ type: "message_end", message: failureMessage });
 		await this.processEvents({ type: "turn_end", message: failureMessage, toolResults: [] });
@@ -512,44 +567,7 @@ export class Agent {
 	}
 
 	private async processEvents(event: AgentEvent): Promise<void> {
-		switch (event.type) {
-			case "message_start":
-				this._state.streamingMessage = event.message;
-				break;
-
-			case "message_update":
-				this._state.streamingMessage = event.message;
-				break;
-
-			case "message_end":
-				this._state.streamingMessage = undefined;
-				this._state.messages.push(event.message);
-				break;
-
-			case "tool_execution_start": {
-				const pendingToolCalls = new Set(this._state.pendingToolCalls);
-				pendingToolCalls.add(event.toolCallId);
-				this._state.pendingToolCalls = pendingToolCalls;
-				break;
-			}
-
-			case "tool_execution_end": {
-				const pendingToolCalls = new Set(this._state.pendingToolCalls);
-				pendingToolCalls.delete(event.toolCallId);
-				this._state.pendingToolCalls = pendingToolCalls;
-				break;
-			}
-
-			case "turn_end":
-				if (event.message.role === "assistant" && event.message.errorMessage) {
-					this._state.errorMessage = event.message.errorMessage;
-				}
-				break;
-
-			case "agent_end":
-				this._state.streamingMessage = undefined;
-				break;
-		}
+		applyAgentEvent(this._state, event);
 
 		const signal = this.activeRun?.abortController.signal;
 		if (!signal) {

@@ -7,6 +7,7 @@ change	pi	packages/agent/src/agent-loop.ts	src/pi/loop/agent-loop.ts	executePrep
 change	pi	packages/agent/src/agent.ts	src/pi/loop/agent.ts	comments removed (29)	the tree holds no code comments	0
 change	pi	packages/agent/src/agent.ts	src/pi/loop/agent.ts	the import of @earendil-works/pi-ai reads ./pi-declarations.ts	no pi package is in the tree	0
 change	pi	packages/agent/src/agent.ts	src/pi/loop/agent.ts	the constructor takes options.streamFn as given; the fallback to getDefaultStreamFn is gone	the stream function is a required option and the registry behind the fallback is not carried	1
+change	pi	packages/agent/src/agent.ts	src/pi/loop/agent.ts	four parts of the class Agent are module functions it calls, bodies as they were: normalizePromptInput, createAgentLoopConfig, createFailureMessage and applyAgentEvent	no class over 300 lines (Agent was 382 lines, is 279)	1
 change	pi	packages/agent/src/stream-fn.ts	src/pi/loop/stream-fn.ts	comments removed (1)	the tree holds no code comments	0
 change	pi	packages/agent/src/stream-fn.ts	src/pi/loop/stream-fn.ts	the file is not carried: setDefaultStreamFn, getDefaultStreamFn and the binding they share are gone	no module-level mutable state; nothing in the tree sets a default stream function	1
 change	pi	packages/agent/src/types.ts	src/pi/loop/types.ts	comments removed (90)	the tree holds no code comments	0
