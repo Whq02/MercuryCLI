@@ -329,7 +329,7 @@ section('N5 · without the local law (the setup prover\'s road) the transport ke
   const run = await play({ fx, runMs: 200_000, local: false, idleMs: 120_000 })
   const fault = faults(run)[0]
   check('the generic first-byte budget (198 s for 65k on a 2-minute idle) fired as the typed first-byte fault, retryable', fault?.code === 'first-byte-timeout' && fault.retryable === true && fault.message === `no first byte from ${MODEL} after 3m 18s (a 65k-token prompt ingesting uncached)`, JSON.stringify(fault))
-  check('the row carried a deadline, never a promise', run.waits[0] !== null && (run.waits[0] as Record<string, unknown>).promise === undefined && lines(run)[0] === `ingesting a 65k-token prompt on ${MODEL} — first byte expected within 3m 18s`, lines(run)[0])
+  check('the row carried a deadline, never a promise', run.waits[0] !== null && (run.waits[0] as Record<string, unknown>).promise === undefined && lines(run)[0] === `ingesting a 65k-token prompt on ${MODEL} — gives up after 3m 18s`, lines(run)[0])
   const quiet = fixture({ firstByteAtMs: 1_000, body: [{ atMs: 10, chunks: [row({ model: MODEL, message: { role: 'assistant', content: 'partial' }, done: false })] }], close: false, alive: () => true })
   const silent = await play({ fx: quiet, runMs: 200_000, local: false, idleMs: 120_000 })
   const cut = faults(silent)[0]

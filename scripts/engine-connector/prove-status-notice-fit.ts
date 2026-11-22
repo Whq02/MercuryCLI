@@ -59,7 +59,7 @@ async function main(): Promise<void> {
   const warmWait: RequestWaitV1 = { kind: 'first-byte', cold: false, promptTokens: 900, model: 'Opus 5', budgetMs: 120_000, sinceMs: t0, attempt: 1 }
   const retryWait: RequestWaitV1 = { kind: 'retry', attempt: 2, of: 5, reason: 'a 529', delayMs: 8_000, sinceMs: t0 }
   const reconnectWait: RequestWaitV1 = { kind: 'retry', attempt: 1, of: 6, reason: 'network unreachable (ENETUNREACH)', delayMs: 2_000, sinceMs: t0 }
-  const SENTENCE = 'ingesting a 62k-token prompt on Opus 5 — first byte expected within 1m 18s'
+  const SENTENCE = 'ingesting a 62k-token prompt on Opus 5 — gives up after 1m 18s'
   const notices: Array<[string, SessionLiveV1, SeatStatusV1]> = [
     ['cold ingest', thinking, statusWith({ wait: coldWait })],
     ['cold ingest past its budget', thinking, statusWith({ wait: coldWait, quietMs: 95_000 })],
@@ -87,9 +87,8 @@ async function main(): Promise<void> {
     const fixedOn = (platform: string): number => 1 + stringWidth(PROJECT) + 3 + 2 + stringWidth(keyHintLabel('esc interrupts · ⇧← back', platform))
     const offMacFixed = fixedOn('linux')
     const warm = bar.statusLine(thinking, notices[2]![2])
-    const warmTail = warm.slice(warm.lastIndexOf(' — '))
     const floor = bar.fitStatusLine(warm, 60, offMacFixed)
-    check('off-mac the way back spells shift+ and the 60-column fixed cells are five wider: the warm wait hits the budget floor and the ellipsis still leads its tail clause', offMacFixed === fixedOn('macos') + 5 && floor === `${ELLIPSIS}${warmTail}` && stringWidth(floor) === bar.statusLineBudget(60, offMacFixed), `${floor} (budget ${bar.statusLineBudget(60, offMacFixed)})`, 'fitStatusLine and statusLineBudget in src/components/SwitchboardTagBar.tsx must put the ellipsis ahead of the tail clause at the budget floor, and keyHintLabel must spell shift+ off macOS')
+    check('off-mac the way back spells shift+ and the 60-column fixed cells are five wider: the warm wait hits the budget floor and the ellipsis still leads its tail', offMacFixed === fixedOn('macos') + 5 && floor.startsWith(ELLIPSIS) && floor.endsWith('after 2m') && stringWidth(floor) === bar.statusLineBudget(60, offMacFixed), `${floor} (budget ${bar.statusLineBudget(60, offMacFixed)})`, 'fitStatusLine and statusLineBudget in src/components/SwitchboardTagBar.tsx must put the ellipsis ahead of the tail clause at the budget floor, and keyHintLabel must spell shift+ off macOS')
   }
 
   const settle = async (): Promise<void> => {
@@ -210,7 +209,7 @@ async function main(): Promise<void> {
     const detail = `${quote(painted.row)} fitted=${JSON.stringify(fitted)} right=${JSON.stringify(plan.right)}`
     if (fitted === '') check(`${label} @${columns}: no room for the words under the floor — they leave; the model leads and the way back stands`, painted.row.startsWith(` ${HEAD.slice(0, 3)}`) && !painted.row.includes(` · ${painted.words.slice(0, 6)}`) && rightEdge(painted, columns), detail, fitHint)
     else if (whole) check(`${label} @${columns}: the words paint whole after the model and effort, the way back at the right edge`, painted.row.startsWith(` ${HEAD} · ${painted.words}`) && !painted.row.includes(ELLIPSIS) && rightEdge(painted, columns), detail, fitHint)
-    else if (room) check(`${label} @${columns}: the rule's own cut (an ellipsis, the tail clause kept), the way back at the right edge`, painted.row.startsWith(` ${HEAD} · ${fitted}`) && fitted.includes(ELLIPSIS) && fitted.endsWith(painted.words.slice(-4)) && rightEdge(painted, columns), detail, fitHint)
+    else if (room) check(`${label} @${columns}: the shortened words keep the tail clause, the way back at the right edge`, painted.row.startsWith(` ${HEAD} · ${fitted}`) && (fitted.includes(ELLIPSIS) || /^(?:ingesting|waiting|gives up after)\b/.test(fitted)) && fitted.endsWith(painted.words.slice(-4)) && rightEdge(painted, columns), detail, fitHint)
     else check(`${label} @${columns}: no room beside the fixed cells — the row's own end cut marks the cut and keeps the way back`, painted.row.startsWith(` ${HEAD.slice(0, 3)}`) && painted.row.includes(ELLIPSIS) && rightEdge(painted, columns), detail, fitHint)
     check(`${label} @${columns}: never a bare cut, within the width, one line`, (fitted === '' || !cutBare(painted)) && stringWidth(painted.row) <= columns && !painted.row.includes('\n'), quote(painted.row), fitHint)
   }
@@ -241,7 +240,7 @@ async function main(): Promise<void> {
     check('178: the sentence whole after the model and effort, the folder and branch, the way back at the right edge', roomy.row.startsWith(` ${HEAD} · ${SENTENCE}`) && roomy.row.includes(' mercury ⌥ main  ') && rightEdge(roomy, 178), quote(roomy.row), 'FocusedSessionStatusRow and statusRowPlan in src/components/SwitchboardTagBar.tsx must paint the whole sentence, the folder and branch, and the way back at 178 columns')
     const small = (await paint(80, 21, 'status-row', cold)).get('cold ingest')!
     const fitted = planOf(small, 80).rest
-    check("80: the rule's cut (the ellipsis, the budget kept), the way back at the right edge", small.row.startsWith(` ${HEAD} · ${fitted}`) && fitted.includes(ELLIPSIS) && fitted.endsWith('1m 18s') && rightEdge(small, 80), `${quote(small.row)} fitted=${JSON.stringify(fitted)}`, 'fitStatusLine and statusRowPlan in src/components/SwitchboardTagBar.tsx must cut with an ellipsis and keep the budget clause at 80 columns')
+    check("80: whole parts drop cleanly (no mid-word cut, the limit kept), the way back at the right edge", small.row.startsWith(` ${HEAD} · ${fitted}`) && fitted === 'gives up after 1m 18s' && !fitted.includes(ELLIPSIS) && rightEdge(small, 80), `${quote(small.row)} fitted=${JSON.stringify(fitted)}`, 'fitStatusLine and statusRowPlan in src/components/SwitchboardTagBar.tsx must drop whole parts and keep the limit clause at 80 columns')
   }
 }
 

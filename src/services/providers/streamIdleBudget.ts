@@ -243,10 +243,72 @@ export function requestWaitLine(wait: RequestWaitV1, compact = false, pastEstima
       ? `ingesting ${prompt} — first byte expected in about ${seconds(wait.budgetMs)}${again}`
       : `waiting for the first byte from ${compact ? 'the model' : wait.model} — expected in about ${seconds(wait.budgetMs)}${again}`
   }
-  if (compact) return `${wait.cold ? 'ingesting prompt' : 'waiting'} — first byte within ${seconds(wait.budgetMs)}${again}`
+  if (compact) return `${wait.cold ? 'ingesting prompt' : 'waiting'} — gives up after ${seconds(wait.budgetMs)}${again}`
   return wait.cold
-    ? `ingesting a ${kTokens(wait.promptTokens)} prompt on ${wait.model} — first byte expected within ${seconds(wait.budgetMs)}${again}`
-    : `waiting for the first byte from ${wait.model} — within ${seconds(wait.budgetMs)}${again}`
+    ? `ingesting a ${kTokens(wait.promptTokens)} prompt on ${wait.model} — gives up after ${seconds(wait.budgetMs)}${again}`
+    : `waiting for the first byte from ${wait.model} — gives up after ${seconds(wait.budgetMs)}${again}`
+}
+
+const WAIT_ELAPSED_SUFFIX = / · \d+[sm] so far$/
+const COLD_WAIT_HEAD = /^(still )?ingesting (a \S+-token )prompt(?: on .+?)?( \(attempt \d+\))?$/
+const COLD_COMPACT_HEAD = /^(still )?ingesting prompt( \(attempt \d+\))?$/
+const WARM_WAIT_HEAD = /^(still )?waiting for the first byte(?: from .+?)?( \(attempt \d+\))?$/
+const SILENCE_WAIT_MODEL = /^(no bytes for .+ — ).+'s (server .+)$/
+
+export function shortenRequestWaitLine(line: string, fits: (candidate: string) => boolean): string | null {
+  const silence = SILENCE_WAIT_MODEL.exec(line)
+  if (silence !== null) {
+    const plain = `${silence[1]}the ${silence[2]}`
+    return fits(plain) ? plain : null
+  }
+  const dash = line.indexOf(' — ')
+  let head = line
+  let tail = ''
+  if (dash !== -1) {
+    head = line.slice(0, dash)
+    tail = line.slice(dash)
+  } else {
+    const count = WAIT_ELAPSED_SUFFIX.exec(line)?.[0]
+    if (count !== undefined) {
+      head = line.slice(0, line.length - count.length)
+      tail = count
+    }
+  }
+  const candidates: string[] = []
+  const cold = COLD_WAIT_HEAD.exec(head)
+  if (cold !== null) {
+    const still = cold[1] ?? ''
+    const figure = cold[2] ?? ''
+    const again = cold[3] ?? ''
+    candidates.push(
+      `${still}ingesting ${figure}prompt${again}${tail}`,
+      `${still}ingesting prompt${again}${tail}`,
+      `${still}ingesting${again}${tail}`,
+    )
+  } else {
+    const coldCompact = COLD_COMPACT_HEAD.exec(head)
+    if (coldCompact !== null) {
+      candidates.push(`${coldCompact[1] ?? ''}ingesting${coldCompact[2] ?? ''}${tail}`)
+    } else {
+      const warm = WARM_WAIT_HEAD.exec(head)
+      if (warm !== null) {
+        const still = warm[1] ?? ''
+        const again = warm[2] ?? ''
+        candidates.push(
+          `${still}waiting for the first byte${again}${tail}`,
+          `${still}waiting${again}${tail}`,
+        )
+      } else if (head === 'waiting' || head === 'still waiting') {
+        candidates.push(line)
+      }
+    }
+  }
+  if (candidates.length === 0) return null
+  if (tail.startsWith(' — ')) candidates.push(tail.slice(3))
+  for (const candidate of candidates) {
+    if (candidate !== line && fits(candidate)) return candidate
+  }
+  return null
 }
 
 export function requestWaitLinePastEstimate(line: string): boolean {

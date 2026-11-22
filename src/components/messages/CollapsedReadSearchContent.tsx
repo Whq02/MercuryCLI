@@ -23,6 +23,8 @@ import {
 } from '../../services/engine-connector/shellRunning.js'
 import type { ToolFamily } from '../mercury-ui/toolGlyphs.js'
 import { useSelectedMessageBg } from '../messageActions.js'
+import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
+import { isUserInterruptResultText } from '../../utils/messages/rejectionText.js'
 import { collapsedGroupView, verboseGroupView, type Fragment } from './collapsedReadSearch/views.js'
 
 const HINT_MIN_DISPLAY_MS = 700
@@ -116,9 +118,16 @@ export function CollapsedReadSearchContent({
 
   const anyErrored = memberIds.some(id => lookups.erroredToolUseIDs.has(id))
   const anyDenied = memberIds.some(id => lookups.deniedToolUseIDs.has(id))
-  const deniedIds = React.useMemo(
-    () => memberIds.filter(id => lookups.deniedToolUseIDs.has(id)),
-    [memberIds, lookups.deniedToolUseIDs],
+  const bashDeniedIds = React.useMemo(
+    () =>
+      memberEntries
+        .filter(entry => entry.name === BASH_TOOL_NAME && lookups.deniedToolUseIDs.has(entry.id))
+        .map(entry => entry.id),
+    [memberEntries, lookups.deniedToolUseIDs],
+  )
+  const bashInterruptedIds = React.useMemo(
+    () => bashDeniedIds.filter(id => isUserInterruptResultText(memberResultText(lookups, id))),
+    [bashDeniedIds, lookups],
   )
   const runningIds = React.useMemo(
     () => memberIds.filter(id => inProgressToolUseIDs.has(id)),
@@ -126,9 +135,11 @@ export function CollapsedReadSearchContent({
   )
   const active = isActiveGroup && runningIds.length > 0
   const settledCount = Math.max(0, memberIds.length - runningIds.length)
-  const bashDenied = Math.min(deniedIds.length, bashCount)
+  const bashDenied = Math.min(bashDeniedIds.length, bashCount)
   const bashRan = Math.max(0, bashCount - bashDenied)
-  const bashBlocked = Math.min(bashDenied, settledCount)
+  const bashStopped = Math.min(bashDenied, settledCount)
+  const bashInterrupted = Math.min(bashInterruptedIds.length, bashStopped)
+  const bashBlocked = bashStopped - bashInterrupted
   const shellId = active && shouldAnimate && !isTranscriptMode ? firstRunningShellId(memberEntries, inProgressToolUseIDs) : null
   const movedByOperator = memberIds.some(id =>
     movedToBackgroundByOperator(
@@ -259,6 +270,9 @@ export function CollapsedReadSearchContent({
   if (bashBlocked > 0) {
     fragments.push(counted('blocked', bashBlocked, 'bash command', 'shell'))
   }
+  if (bashInterrupted > 0) {
+    fragments.push(counted('interrupted', bashInterrupted, 'bash command', 'shell'))
+  }
   const hadNonMemory = fragments.length > 0
   if (memoryReads > 0) {
     fragments.push(counted(past ? 'recalled' : 'recalling', memoryReads, 'memory', 'memory'))
@@ -284,6 +298,7 @@ export function CollapsedReadSearchContent({
     latch.mcp +
     bashRan +
     bashBlocked +
+    bashInterrupted +
     memoryReads +
     memorySearches +
     memoryWrites

@@ -178,8 +178,8 @@ section('L2 — THE WAIT IS SPOKEN while the Opus headers are held')
   const seen = markGrids.get('wait-seen') ?? ''
   const line = seen.split('\n').find(l => l.includes('ingesting a')) ?? ''
   check("the status row read the cold wait on its await, not its deadline", (receipts[5]?.atTick ?? 999) < 330, `tick ${receipts[5]?.atTick} — the status row never showed ingesting a; look at the wait line text in src/services/providers/streamIdleBudget.ts and whether the fixture held the Opus headers`)
-  check("the words: 'ingesting a Nk-token prompt on Opus 5 — first byte expected within N s' (minutes at or above sixty: 'within 1m 15s')", /ingesting a \d+k-token prompt on Opus 5 — first byte expected within (?:\d+ s|\d+m(?: \d+s)?)\b/.test(line), line || seen.split('\n').slice(-8).join('\n') + ' — the cold-wait line must read like the text built in src/services/providers/streamIdleBudget.ts (cold branch with kTokens and seconds); change that text or this pattern together')
-  const named = /within (?:(\d+)m(?: (\d+)s)?|(\d+) s)/.exec(line)
+  check("the words: 'ingesting a Nk-token prompt on Opus 5 — gives up after N s' (minutes at or above sixty: 'gives up after 1m 15s')", /ingesting a \d+k-token prompt on Opus 5 — gives up after (?:\d+ s|\d+m(?: \d+s)?)\b/.test(line), line || seen.split('\n').slice(-8).join('\n') + ' — the cold-wait line must read like the text built in src/services/providers/streamIdleBudget.ts (cold branch with kTokens and seconds); change that text or this pattern together')
+  const named = /gives up after (?:(\d+)m(?: (\d+)s)?|(\d+) s)/.exec(line)
   const budget = named === null ? 0 : named[3] !== undefined ? Number(named[3]) * 1000 : (Number(named[1]) * 60 + Number(named[2] ?? 0)) * 1000
   check(`the named budget outlasts the 5 s hold and the 3 s idle budget (named ${budget} ms)`, budget > HOLD_MS && budget > IDLE_MS, `${line} — the first byte budget named in the wait line must exceed the hold and the idle budget; see the cold-ingest budget in src/services/providers/streamIdleBudget.ts`)
 }

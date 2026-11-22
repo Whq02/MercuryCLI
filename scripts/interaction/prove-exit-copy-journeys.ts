@@ -87,7 +87,7 @@ const dumpBottom = (label: string, grid: Array<Array<{ c: string }>>, count = 12
   console.log('      └')
 }
 
-const NOTICE = 'twice to close Mercury'
+const NOTICE = 'again to close Mercury'
 const INTERRUPTED_ROW = '⨯ Interrupted'
 
 section('A · idle: ctrl+c arms, a second press INSIDE 3 s closes Mercury')

@@ -391,7 +391,7 @@ if (cap !== null) {
   for (const seat of ['fable', 'gpt'] as Seat[]) {
     const rows = rowsOf(seat)
     const firstByte = rows.filter(r => r.includes('waiting for the first byte'))
-    check(`W1 ${SEATS[seat]}: the first-byte wait names its budget ("waiting for the first byte · Ns, within N s" — a minute or more spelled in minutes)`, firstByte.some(r => /waiting for the first byte · \d+s, within (?:\d+m(?: \d+s)?|\d+ ?s)\b/.test(r)), firstByte[0]?.slice(0, 160) ?? rows[0]?.slice(0, 160) ?? '(no row)', 'change agentWaitWords in src/tasks/LocalAgentTask/agentWait.ts so the first-byte phase prints its elapsed counter and budget')
+    check(`W1 ${SEATS[seat]}: the first-byte wait names its limit ("waiting for the first byte · Ns, gives up after N s" — a minute or more spelled in minutes)`, firstByte.some(r => /waiting for the first byte · \d+s, gives up after (?:\d+m(?: \d+s)?|\d+ ?s)\b/.test(r)), firstByte[0]?.slice(0, 160) ?? rows[0]?.slice(0, 160) ?? '(no row)', 'change agentWaitWords in src/tasks/LocalAgentTask/agentWait.ts so the first-byte phase prints its elapsed counter and limit')
     const reasoningSeconds = rows.map(r => /reasoning (\d+)s\b/.exec(r)?.[1]).filter((v): v is string => v !== undefined).map(Number)
     const reasoningTokens = rows.map(r => /reasoning \d+s · ~(\d+) tokens so far/.exec(r)?.[1]).filter((v): v is string => v !== undefined).map(Number)
     const moves = (xs: readonly number[]): boolean => xs.length >= 2 && xs[xs.length - 1]! > xs[0]!

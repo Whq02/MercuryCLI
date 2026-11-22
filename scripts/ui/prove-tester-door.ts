@@ -107,7 +107,7 @@ const quiet = await drive('quiet-exit', [...enter, ...command('/exit')], 280, fa
 const quietText = text(quiet.grid)
 check('ordinary exit after a clean session closes with no door (the pass: "nothing had broken")', quiet.endReason === 'eof' && count(quietText) === 0, 'endReason=' + quiet.endReason + ', door count=' + count(quietText) + '; a session that saw no failure must not print the door line: check takeTesterDoor and sessionSawFailure in src/commands/feedback/testerDoor.ts.')
 frame('quiet-exit', quietText.split('\n').filter(line => /Session saved|Something broke/.test(line)).map(line => line.trim()))
-const control = await drive('control-exit', [...enter, { requireAwait: true, awaitText: composer, awaitSettleTicks: 2, data: '\x03' }, { atTick: 230, awaitText: 'twice to close Mercury', requireAwait: true, data: '\x03' }], 300, farewell)
+const control = await drive('control-exit', [...enter, { requireAwait: true, awaitText: composer, awaitSettleTicks: 2, data: '\x03' }, { atTick: 230, awaitText: 'again to close Mercury', requireAwait: true, data: '\x03' }], 300, farewell)
 const controlText = text(control.grid)
 check('composer exit after a clean session closes with no door', control.endReason === 'eof' && count(controlText) === 0, 'endReason=' + control.endReason + ', door count=' + count(controlText) + '; a clean session must not print the door line: check takeTesterDoor and sessionSawFailure in src/commands/feedback/testerDoor.ts.')
 frame('control-exit', controlText.split('\n').filter(line => /Session saved|Something broke/.test(line)).map(line => line.trim()))

@@ -32,7 +32,7 @@ const { referenceFixtureSnapshot } = await import('../notifications/concourseRef
 type Grid = { grid: { c: string }[][] }
 const linesOf = (g: Grid): string[] => g.grid.map(r => r.map(c => c.c || ' ').join(''))
 
-const NOTICE = 'press ctrl+c twice to close Mercury'
+const NOTICE = 'press ctrl+c again to close Mercury'
 const NOTICE_ROW = `  ${NOTICE}`
 
 const scratch = join(tmpdir(), `exit-everywhere-look-${process.pid}-home`)

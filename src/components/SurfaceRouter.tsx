@@ -17,7 +17,7 @@ import { logError } from '../utils/log.js';
 import { crashReportDirDisplay, persistCrashReport } from '../utils/crashReport.js';
 import { FAINT } from './mercuryPalette.js';
 import { GLYPH } from '../utils/glyphs.js';
-import { exitChordNoticeText } from './PromptInput/ExitChordNotice.js';
+import { EXIT_CHORD_HINT } from './PromptInput/ExitChordNotice.js';
 import {
   hasFocusedSession,
   landingInFlight,
@@ -65,7 +65,7 @@ export function SurfaceFaultInjection({ kind }: { kind: string }): React.ReactNo
 }
 
 function SurfaceCrashCard({ kind }: { kind: string }): React.ReactElement {
-  const moves = [stripKeyMapHint(), exitChordNoticeText(null)].filter(s => s !== '').join(' · ');
+  const moves = [stripKeyMapHint(), EXIT_CHORD_HINT].filter(s => s !== '').join(' · ');
   return (
     <Box flexDirection="column" flexGrow={1} alignItems="center" justifyContent="center" gap={1}>
       <Text color={FAINT}>
