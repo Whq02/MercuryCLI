@@ -66,7 +66,7 @@ try {
   const release = join(scratch, 'release'); mkdirSync(release)
   const tree = join(scratch, 'tree', 'tensorfold-' + TENSORFOLD_HOST_VERSION + '-' + platform); mkdirSync(join(tree, 'bin'), { recursive: true }); mkdirSync(join(tree, 'lib'))
   const calls = join(sandbox, 'calls.jsonl')
-  writeFileSync(join(tree, 'bin', 'tensorfold-native'), '#!/bin/bash\nprintf \'%s\\n\' "$(printf \'%s\\t\' "$@")" >> ' + JSON.stringify(calls) + '\ncase "$1" in --version) echo "tensorfold-native ' + TENSORFOLD_HOST_VERSION + '";; pull) echo "pulled $2 into $HF_HOME";; serve) echo "serving $2 (HOME=$HOME)"; test "$(stat -f %Lp "${@: -1}" 2>/dev/null || stat -c %a "${@: -1}")" = 600 || { echo "key file is not 0600"; exit 9; };; esac\n', { mode: 0o755 })
+  writeFileSync(join(tree, 'bin', 'tensorfold-native'), '#!/bin/bash\nprintf \'%s\\n\' "$(printf \'%s\\t\' "$@")" >> ' + JSON.stringify(calls) + '\ncase "$1" in --version) echo "tensorfold-native ' + TENSORFOLD_HOST_VERSION + '";; pull) echo "pulled $2 into $HF_HOME";; serve) echo "serving $2 (HOME=$HOME)"; test "$(stat -c %a "${@: -1}" 2>/dev/null || stat -f %Lp "${@: -1}")" = 600 || { echo "key file is not 0600"; exit 9; };; esac\n', { mode: 0o755 })
   writeFileSync(join(tree, 'lib', 'libtfgrammar.so'), 'fixture grammar library\n')
   for (const file of ['LICENSE', 'VERSION', 'SHA256SUMS']) writeFileSync(join(tree, file), file + '\n')
   const tar = spawnSync('tar', ['-czf', join(release, archiveName), '-C', join(scratch, 'tree'), 'tensorfold-' + TENSORFOLD_HOST_VERSION + '-' + platform], { encoding: 'utf8' })
