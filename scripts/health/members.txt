@@ -46,6 +46,7 @@ prove-managed-policy-row.ts
 prove-model-lists-row.ts
 prove-model-pin-resolve.ts
 prove-model-refusals-row.ts
+prove-next-lines-read-whole.ts
 prove-ocr-row.ts
 prove-off-rows-name-the-set-value.ts
 prove-preflight-estate-gate.ts

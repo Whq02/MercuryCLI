@@ -204,6 +204,12 @@ function fixCardRows(flow: FixFlow | null, width: number): number {
   return 2 + 1 + wrapped.reduce((n, text) => n + lines(text), 0)
 }
 
+function nextActionRows(actions: ReturnType<typeof nextActions>, width: number): number {
+  if (actions.length === 0) return 0
+  const textWidth = Math.max(1, width - 2)
+  return actions.reduce((n, a) => n + wrapText(a.fix ?? '', textWidth, 'wrap').split('\n').length, 0) + 2
+}
+
 function FixCard({ flow }: { flow: FixFlow }): React.ReactNode {
   const destructive = flow.check.remedy?.class === 'destructive'
   const register = destructive ? CRIMSON : AMBER
@@ -513,7 +519,7 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
   const actions = cert && cert.verdict !== 'certified' ? nextActions(checks, 3) : []
   const sections = cert ? cert.sections : liveSections
   const fixRows = fixCardRows(fixFlow, innerW)
-  const nextRows = actions.length > 0 ? actions.length + 2 : 0
+  const nextRows = nextActionRows(actions, innerW)
   const contentRows = nextRows + sections.reduce((n, s) => n + 2 + s.checks.length, 0) + (openId ? frameRows : 0)
   const layout = healthPopupLayout(frameRows, fixRows, Math.max(1, contentRows))
   pageRowsRef.current = layout.listRows - 1
