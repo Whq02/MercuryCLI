@@ -113,18 +113,27 @@ function BashCommandPermissionRequest(
   const isCompound = decisionReason?.type === 'subcommandResults'
 
   const initialSeed = useMemo(() => {
+    let raw: string | undefined
     if (isCompound) {
       const contents = gatedSuggestions ? suggestedBashRuleContents(gatedSuggestions) : []
-      return contents.length === 1 ? contents[0] : undefined
+      raw = contents.length === 1 ? contents[0] : undefined
+    } else {
+      const simple = getSimpleCommandPrefix(command)
+      if (simple !== null) raw = `${simple} *`
+      else {
+        const first = getFirstWordPrefix(command)
+        if (first !== null) raw = `${first} *`
+        else raw = command.includes('*') ? undefined : command
+      }
     }
-    const simple = getSimpleCommandPrefix(command)
-    if (simple !== null) return `${simple} *`
-    const first = getFirstWordPrefix(command)
-    if (first !== null) return `${first} *`
-    return command.includes('*') ? undefined : command
+    if (raw !== undefined && raw.endsWith(' *') && !raw.slice(0, -2).includes('*')) {
+      return { display: raw.slice(0, -2), wildcard: true }
+    }
+    return { display: raw, wildcard: false }
   }, [isCompound, gatedSuggestions, command])
 
-  const [editablePrefix, setEditablePrefix] = useState<string | undefined>(initialSeed)
+  const [editablePrefix, setEditablePrefix] = useState<string | undefined>(initialSeed.display)
+  const wildcardPrefixRef = useRef(initialSeed.wildcard)
   const userEditedRef = useRef(false)
   const handleEditablePrefixChange = (value: string): void => {
     userEditedRef.current = true
@@ -140,7 +149,10 @@ function BashCommandPermissionRequest(
       .then(prefixes => {
         if (cancelled || userEditedRef.current) return
         const first = prefixes[0]
-        if (first) setEditablePrefix(`${first} *`)
+        if (first) {
+          wildcardPrefixRef.current = true
+          setEditablePrefix(first)
+        }
       })
       .catch(passedOver)
     return () => {
@@ -185,10 +197,12 @@ function BashCommandPermissionRequest(
         if (trimmed === '') {
           toolUseConfirm.onAllow(toolUseConfirm.input, [])
         } else {
+          const ruleContent =
+            wildcardPrefixRef.current && !trimmed.includes('*') ? `${trimmed} *` : trimmed
           toolUseConfirm.onAllow(toolUseConfirm.input, [
             {
               type: 'addRules',
-              rules: [{ toolName: BASH_TOOL_NAME, ruleContent: trimmed }],
+              rules: [{ toolName: BASH_TOOL_NAME, ruleContent }],
               behavior: 'allow',
               destination: 'localSettings',
             },

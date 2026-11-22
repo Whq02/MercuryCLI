@@ -67,6 +67,7 @@ export function PowerShellPermissionRequest({
     [command],
   )
   const [editablePrefix, setEditablePrefix] = useState<string | undefined>(initialSeed)
+  const wildcardPrefixRef = useRef(false)
   const userEditedRef = useRef(false)
   const handleEditablePrefixChange = (value: string): void => {
     userEditedRef.current = true
@@ -81,7 +82,10 @@ export function PowerShellPermissionRequest({
       .then(prefixes => {
         if (cancelled || userEditedRef.current) return
         const first = prefixes[0]
-        if (first) setEditablePrefix(`${first} *`)
+        if (first) {
+          wildcardPrefixRef.current = true
+          setEditablePrefix(first)
+        }
       })
       .catch(passedOver)
     return () => {
@@ -125,10 +129,12 @@ export function PowerShellPermissionRequest({
         if (trimmed === '') {
           toolUseConfirm.onAllow(toolUseConfirm.input, [])
         } else {
+          const ruleContent =
+            wildcardPrefixRef.current && !trimmed.includes('*') ? `${trimmed} *` : trimmed
           toolUseConfirm.onAllow(toolUseConfirm.input, [
             {
               type: 'addRules',
-              rules: [{ toolName: POWERSHELL_TOOL_NAME, ruleContent: trimmed }],
+              rules: [{ toolName: POWERSHELL_TOOL_NAME, ruleContent }],
               behavior: 'allow',
               destination: 'localSettings',
             },

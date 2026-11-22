@@ -539,6 +539,143 @@ try {
       sudoAsk.behavior === 'ask' && Array.isArray(sudoAsk.suggestions) && sudoAsk.suggestions.length > 0,
       JSON.stringify(sudoAsk),
     )
+
+    const pushSaved: unknown[] = []
+    const pushCardLines = await drawCard(
+      React.createElement(BashPermissionRequest as never, {
+        toolUseConfirm: {
+          tool: BashTool,
+          input: { command: 'git push' },
+          toolUseID: 'shell-words-push',
+          description: 'Run a shell command',
+          cwd: projectDir,
+          assistantMessage: flowAssistant,
+          permissionResult: pushAsk,
+          permissionPromptStartTimeMs: Date.now(),
+          onUserInteraction() {},
+          onAllow(_input: unknown, rules: unknown[]) {
+            pushSaved.push(rules)
+          },
+          onReject() {},
+          onAbort() {},
+          recheckPermission: async () => {},
+          toolUseContext: flowCtx,
+        },
+        toolUseContext: flowCtx,
+        onDone() {},
+        onReject() {},
+        verbose: false,
+      } as never),
+      'flow',
+    )
+    const pushOption2 = pushCardLines.find(r => /^2\./.test(r)) ?? ''
+    check(
+      'shell card option 2 (wildcard): single space after 2. and with:, no trailing star',
+      pushOption2 === "2. Yes, and don't ask again for commands starting with: git push",
+      JSON.stringify(pushOption2),
+    )
+
+    const sudoCardLines = await drawCard(
+      React.createElement(BashPermissionRequest as never, {
+        toolUseConfirm: {
+          tool: BashTool,
+          input: { command: sudoCmd },
+          toolUseID: 'shell-words-sudo',
+          description: 'Run a shell command',
+          cwd: projectDir,
+          assistantMessage: flowAssistant,
+          permissionResult: sudoAsk,
+          permissionPromptStartTimeMs: Date.now(),
+          onUserInteraction() {},
+          onAllow() {},
+          onReject() {},
+          onAbort() {},
+          recheckPermission: async () => {},
+          toolUseContext: flowCtx,
+        },
+        toolUseContext: flowCtx,
+        onDone() {},
+        onReject() {},
+        verbose: false,
+      } as never),
+      'flow',
+    )
+    const sudoOption2 = sudoCardLines.find(r => /^2\./.test(r)) ?? ''
+    check(
+      'shell card option 2 (exact): single space after 2. and with:',
+      sudoOption2 === "2. Yes, and don't ask again for commands starting with: sudo -n true",
+      JSON.stringify(sudoOption2),
+    )
+
+    {
+      const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
+      const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
+      const { mountOffscreen, KEY } = await import('../lib/settingsPopupHarness.ts')
+      const savedRules: unknown[][] = []
+      for (const [cmd, askResult] of [
+        ['git push', pushAsk],
+        [sudoCmd, sudoAsk],
+      ] as const) {
+        const base = getDefaultAppState()
+        const initialState = { ...base, toolPermissionContext: { ...base.toolPermissionContext, mode: 'flow' as const } }
+        let captured: unknown[] = []
+        const scene = await mountOffscreen(
+          React.createElement(
+            ThemeProvider as never,
+            null,
+            React.createElement(
+              AppStateProvider as never,
+              { initialState } as never,
+              React.createElement(
+                KeybindingSetup as never,
+                null,
+                React.createElement(BashPermissionRequest as never, {
+                  toolUseConfirm: {
+                    tool: BashTool,
+                    input: { command: cmd },
+                    toolUseID: `save-${cmd}`,
+                    description: 'Run a shell command',
+                    cwd: projectDir,
+                    assistantMessage: flowAssistant,
+                    permissionResult: askResult,
+                    permissionPromptStartTimeMs: Date.now(),
+                    onUserInteraction() {},
+                    onAllow(_input: unknown, rules: unknown[]) {
+                      captured = rules
+                    },
+                    onReject() {},
+                    onAbort() {},
+                    recheckPermission: async () => {},
+                    toolUseContext: flowCtx,
+                  },
+                  toolUseContext: flowCtx,
+                  onDone() {},
+                  onReject() {},
+                  verbose: false,
+                } as never),
+              ),
+            ),
+          ),
+          100,
+          40,
+        )
+        await new Promise(resolve => setTimeout(resolve, 120))
+        scene.push(KEY.down)
+        await new Promise(resolve => setTimeout(resolve, 100))
+        scene.push(KEY.enter)
+        await new Promise(resolve => setTimeout(resolve, 100))
+        scene.unmount()
+        savedRules.push(captured)
+      }
+      const pushRule = (savedRules[0]?.[0] as { rules?: Array<{ ruleContent?: string }> } | undefined)?.rules?.[0]?.ruleContent
+      const sudoRule = (savedRules[1]?.[0] as { rules?: Array<{ ruleContent?: string }> } | undefined)?.rules?.[0]?.ruleContent
+      check(
+        'shell card option 2 save: git push still saves Bash(git push *) and sudo still saves exact rule',
+        pushRule === 'git push *' && sudoRule === 'sudo -n true',
+        JSON.stringify({ pushRule, sudoRule }),
+      )
+    }
+    void pushSaved
   }
 } finally {
   process.chdir(originalCwd)
