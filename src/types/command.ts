@@ -8,16 +8,33 @@ import type { SessionListing } from './logs.js'
 import type { ContentBlockParam } from './wire.js'
 import type { ExtensionManifest } from '../extensions/manifest.js'
 import type { ThemeName } from '../utils/theme.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
-type LoadedFromLabel = Unbuilt
-type CommandSource = Unbuilt
-type CommandAvailability = Unbuilt
+type LoadedFromLabel = 'skills' | 'extension' | 'managed' | 'bundled' | 'mcp'
+type CommandSource = 'mcp' | 'userSettings' | 'projectSettings' | 'localSettings' | 'flagSettings' | 'policySettings' | 'extension' | 'builtin' | 'bundled'
+type CommandAvailability = 'claude-ai' | 'console' | 'any-provider-credential'
 
-export type UiRouteAliasKind = Unbuilt
-export type CommandSeat = Unbuilt
-export type CommandResultDisplay = Unbuilt
-export type ResumeEntrypoint = Unbuilt
+export type UiRouteAliasKind = 'concourse'
+export type CommandSeat = 'screen' | 'session'
+export type CommandResultDisplay = 'skip' | 'system' | 'user'
+export type ResumeEntrypoint =
+  | 'cli_flag'
+  | 'slash_command_picker'
+  | 'slash_command_session_id'
+  | 'slash_command_title'
+  | 'fork'
+  | 'switchboard'
+
+type CommandWords = {
+  name: string
+  description: string
+  menuDescription?: string
+  currentValue?: () => string | undefined
+  hasUserSpecifiedDescription?: boolean
+  userFacingName?: () => string
+  argumentHint?: string
+  whenToUse?: string
+  version?: string
+}
 
 type CommandDoors = Partial<{
   isEnabled: () => boolean
@@ -43,26 +60,93 @@ type CommandHandling = Partial<{
   scope: 'session' | 'agent'
 }>
 
-export type CommandBase = Unbuilt
+export type CommandBase = CommandWords & CommandDoors & CommandOrigin & CommandHandling
 
-export type PromptCommand = Unbuilt
+export type PromptCommand = CommandBase & {
+  type: 'prompt'
+  progressMessage: string
+  contentLength: number
+  argNames?: string[]
+  allowedTools?: string[]
+  model?: string
+  effort?: EffortValue
+  source: CommandSource
+  extensionInfo?: {
+    manifest: ExtensionManifest
+    id: string
+  }
+  disableNonInteractive?: boolean
+  hooks?: HooksSettings
+  skillRoot?: string
+  context?: 'inline' | 'fork'
+  agent?: string
+  pathFilters?: string[]
+  getPromptForCommand(args: string, context: ToolUseContext): Promise<ContentBlockParam[]>
+}
 
-export type Command = Unbuilt
+type LocalCommand = CommandBase & {
+  type: 'local'
+  supportsNonInteractive: boolean
+  load: () => Promise<{ call: LocalCommandCall }>
+  seat?: 'screen'
+  userPrivate?: boolean
+  interruptFirst?: boolean
+  uiRouteAlias?: UiRouteAliasKind
+}
 
-export type LocalCommandResult = Unbuilt
+type LocalJSXCommand = CommandBase & {
+  type: 'local-jsx'
+  load: () => Promise<{ call: LocalJSXCommandCall }>
+  headlessVerbs?: readonly string[]
+}
 
-export type LocalCommandCall = (...args: Unbuilt[]) => Unbuilt
+export type Command = PromptCommand | LocalCommand | LocalJSXCommand
 
-export type LocalJSXCommandOnDone = (...args: Unbuilt[]) => Unbuilt
+type CompactionHandoff = {
+  boundaryMarker: Message
+  operatorMessages?: Message
+  summaryMessages: Message[]
+  messagesToKeep?: Message[]
+  attachments: Message[]
+  hookResults: Message[]
+}
 
-export type LocalJSXCommandContext = Unbuilt
+export type LocalCommandResult =
+  | { type: 'text'; value: string }
+  | { type: 'compact'; compactionResult: CompactionHandoff; displayText?: string }
+  | { type: 'skip' }
 
-export type LocalJSXCommandCall = (...args: Unbuilt[]) => Unbuilt
+export type LocalCommandCall = (args: string, context: LocalJSXCommandContext) => Promise<LocalCommandResult>
+
+type CommandDoneOptions = {
+  display?: CommandResultDisplay
+  metaMessages?: string[]
+  shouldQuery?: boolean
+  nextInput?: string
+  submitNextInput?: boolean
+}
+
+export type LocalJSXCommandOnDone = (result?: string, options?: CommandDoneOptions) => void
+
+export type LocalJSXCommandContext = ToolUseContext & {
+  setMessages: (updater: (prev: Message[]) => Message[]) => void
+  canUseTool?: CanUseToolFn
+  onChangeAPIKey: () => void
+  resume?: (sessionId: UUID, log: SessionListing, entrypoint: ResumeEntrypoint) => Promise<void>
+  options: ToolUseContext['options'] & { theme: ThemeName }
+}
+
+export type LocalJSXCommandCall = (
+  onDone: LocalJSXCommandOnDone,
+  context: LocalJSXCommandContext,
+  args: string,
+  invokedAs?: string,
+) => Promise<React.ReactNode | null>
 
 export function getCommandName(command: Command): string {
-  return notBuilt('src/types/command.ts:150')
+  return command.userFacingName?.() ?? command.name
 }
 
 export function isCommandEnabled(command: Command): boolean {
-  return notBuilt('src/types/command.ts:154')
+  return command.isEnabled?.() ?? true
 }
