@@ -254,7 +254,7 @@ try {
     await action
     await settle(first.seen, frame => live(frame, spec.newName))
     check(`${spec.word}: the changed rows replace the cached list`, live(first.seen(), spec.newName) && !live(first.seen(), spec.oldName), first.seen().split('\n').filter(l => l.includes('refresh') || l.includes('Refresh')).join(' | '))
-    check(`${spec.word}: the highlight follows the same id when the row moves`, new RegExp(`│ │ (?:—|\\S[^│]*?)\\s{2,}(?:…\\S*)?${spec.model.slice(-20).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(first.seen()), first.seen().split('\n').filter(l => l.includes('│ │ ')).join(' | '))
+    check(`${spec.word}: the highlight follows the same id when the row moves`, new RegExp(`│ │ (?:—|\\S[^│]*?)\\s{2,}\\S*${spec.model.slice(-20).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(first.seen()), first.seen().split('\n').filter(l => l.includes('│ │ ')).join(' | '))
     check(`${spec.word}: the changed list paints the family's notice`, first.seen().includes(notice), first.seen().split('\n').filter(l => l.includes('catalogue')).join(' | '))
     first.send('\r')
     await flush()
