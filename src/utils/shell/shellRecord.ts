@@ -460,7 +460,6 @@ export const SNAPSHOT_READS_BACK_ALIASES = `compgen -a | while IFS= read -r __me
   __mercury_shown=$(alias -- "$__mercury_alias" 2>/dev/null) || continue
   __mercury_value=\${__mercury_shown#*=\\'}
   __mercury_line=$(printf 'alias -- %s=%q' "$__mercury_alias" "\${__mercury_value%\\'}")
-  case $__mercury_line in *$'\\n'*) continue ;; esac
   ( unalias -a; eval "$__mercury_line"; [ "$(alias -- "$__mercury_alias")" = "$__mercury_shown" ] ) >/dev/null 2>&1 || continue
   printf '%s\\n' "$__mercury_line"
 done`
