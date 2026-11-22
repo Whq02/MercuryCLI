@@ -746,7 +746,7 @@ async function executePreparedToolCall(
 	try {
 		const result = await prepared.tool.execute(
 			prepared.toolCall.id,
-			prepared.args as never,
+			prepared.args,
 			signal,
 			(partialResult) => {
 				if (!acceptingUpdates) return;

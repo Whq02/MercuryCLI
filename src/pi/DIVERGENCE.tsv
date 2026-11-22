@@ -3,6 +3,7 @@ fork	pi	https://github.com/earendil-works/pi	src/pi	tag v1.6.0, commit faac58588
 change	pi	packages/agent/src/agent-loop.ts	src/pi/loop/agent-loop.ts	comments removed (42)	the tree holds no code comments	0
 change	pi	packages/agent/src/agent-loop.ts	src/pi/loop/agent-loop.ts	the import of @earendil-works/pi-ai reads ./pi-declarations.ts	no pi package is in the tree	0
 change	pi	packages/agent/src/agent-loop.ts	src/pi/loop/agent-loop.ts	runAgentLoop and runAgentLoopContinue hand streamFn on as given; the fallback to getDefaultStreamFn is gone	the stream function is a required argument and the registry behind the fallback is not carried	1
+change	pi	packages/agent/src/agent-loop.ts	src/pi/loop/agent-loop.ts	executePreparedToolCall hands prepared.args to execute with no cast (was: as never)	no as never; the parameter of execute already accepts the value	1
 change	pi	packages/agent/src/agent.ts	src/pi/loop/agent.ts	comments removed (29)	the tree holds no code comments	0
 change	pi	packages/agent/src/agent.ts	src/pi/loop/agent.ts	the import of @earendil-works/pi-ai reads ./pi-declarations.ts	no pi package is in the tree	0
 change	pi	packages/agent/src/agent.ts	src/pi/loop/agent.ts	the constructor takes options.streamFn as given; the fallback to getDefaultStreamFn is gone	the stream function is a required option and the registry behind the fallback is not carried	1
