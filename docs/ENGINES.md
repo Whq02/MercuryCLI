@@ -100,8 +100,10 @@ that model's requests and it re-plans without them. Across a switch Mercury
 carries a model's thinking into the next model's requests where Anthropic's
 table says that model reads it (into Fable 5.2: Haiku 5.5, Sonnet 5.5, Opus
 5, Opus 5.5, Fable 5 and Fable 5.1; into Fable 5.1: Opus 5, Opus 5.5
-and Fable 5; into Opus 5.5: Haiku 5.5, Sonnet 5.5 and Opus 5; into Sonnet
-5.5: Haiku 5.5; a Mythos model as its Fable counterpart) and the system prompt
+and Fable 5; into Fable 5: Opus 5; into Opus 5.5: Haiku 5.5, Sonnet 5.5 and
+Opus 5; into Sonnet 5.5: Haiku 5.5; into every Claude model in Mercury's
+list: Opus 4.8, Sonnet 5, Haiku 4.5 and the Opus, Sonnet and Haiku models
+before them; a Mythos model as its Fable counterpart) and the system prompt
 and tools are the ones the thinking was written under. Any other thinking
 stays out and the transcript says so once. Fable 5.2's blocks stay with the
 account that wrote them too: after a switch to another account the provider

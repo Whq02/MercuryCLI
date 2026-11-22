@@ -2579,6 +2579,7 @@ src/services/providers/anthropic/streamCore/streamEvents.ts	resetStreamAttempt	r
 src/services/providers/anthropic/thinkingBinding.ts	DROP_KINDS	process	module	Load-time lookup with no local writer
 src/services/providers/anthropic/thinkingBinding.ts	SETTING_LABELS	process	module	Load-time table with no local writer
 src/services/providers/anthropic/thinkingBinding.ts	THINKING_READ_BY	process	module	Load-time table with no local writer
+src/services/providers/anthropic/thinkingBinding.ts	THINKING_READ_BY_ALL	process	module	load-time data; no local writer
 src/services/providers/anthropic/thinkingBinding.ts	dropStates	owner	module	agent level (module): Map<owner, OwnerDropState> tracking thinking-drop streak per owner
 src/services/providers/anthropic/thinkingBinding.ts	resetThinkingDropStates	reset-export
 src/services/providers/anthropic/thinkingBinding.ts	rewriteNoticed	owner	module	agent level (module): Set<owner> one-shot rewrite notice latch per owner

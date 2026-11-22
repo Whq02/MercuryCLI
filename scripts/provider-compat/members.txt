@@ -153,6 +153,7 @@ prove-tensorfold-tips-cost.ts
 prove-tensorfold-warm-prefix.ts
 prove-tensorfold-wire.ts
 prove-thinking-drop-clean-retry.ts
+prove-thinking-read-by-table.ts
 prove-together-wire.ts
 prove-tool-call-gate.ts
 prove-tool-call-refusal-loop.ts
