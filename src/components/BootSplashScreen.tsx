@@ -229,8 +229,7 @@ export function BootSplashScreen(): React.ReactNode {
         continueTarget: facts.cwdProject
           ? { base: facts.cwdProject.base, ageMs: facts.cwdProject.ageMs, cross: false }
           : facts.recentLast
-            ?
-              { base: facts.recentLast.base, ageMs: facts.recentLast.ageMs, cross: true, dim: true }
+            ? { base: facts.recentLast.base, ageMs: facts.recentLast.ageMs, cross: true }
             : null,
         menuAvailable: true,
         concourse: chatBoot

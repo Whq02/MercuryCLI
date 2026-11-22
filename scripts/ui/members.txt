@@ -18,6 +18,7 @@ prove-concourse-compact-drive.ts
 prove-config-model-doors-drive.ts
 prove-consent-card-fits-drive.ts
 prove-consent-card-holds-under-words.ts
+prove-continue-row-elsewhere.ts
 prove-crew-live-drive.ts
 prove-crew-seats-drive.ts
 prove-crewmates-door-drive.ts

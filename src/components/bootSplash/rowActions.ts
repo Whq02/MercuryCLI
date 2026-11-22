@@ -15,20 +15,24 @@ export type BootRow = {
   dim?: boolean;
 };
 
+async function groundTrustedProject(dir: string): Promise<void> {
+  const { isPathTrusted } = await import('../../utils/config.js');
+  if (isPathTrusted(dir)) {
+    const [snap, ground] = await Promise.all([
+      import('../../services/concourse/concourseSnapshot.js'),
+      import('../../services/switchboard/harnessGround.js'),
+    ]);
+    await snap.writeConcourseSeedOverride({ projectDir: dir });
+    await ground.applyHarnessGround(dir);
+  }
+}
+
 export function openProjectOf({ flipFirstBirth }: { flipFirstBirth: (start: (born: typeof bornSession) => ReturnType<typeof bornSession>) => Promise<string | null> }, p: BootProjectFact): AsyncListNote {
   return {
     pending: 'opening…',
     result: (async (): Promise<string | null> => {
       try {
-        const [{ isPathTrusted }, snap] = await Promise.all([
-          import('../../utils/config.js'),
-          import('../../services/concourse/concourseSnapshot.js'),
-        ]);
-        if (isPathTrusted(p.dir)) {
-          await snap.writeConcourseSeedOverride({ projectDir: p.dir });
-          const ground = await import('../../services/switchboard/harnessGround.js');
-          await ground.applyHarnessGround(p.dir);
-        }
+        await groundTrustedProject(p.dir);
         if (p.sessionId !== null) {
           const hop = await import('../../services/switchboard/hopIntoSession.js');
           const outcome = await hop.focusResumedSession(p.sessionId, p.transcriptPath ?? undefined, { title: p.base });
@@ -62,13 +66,15 @@ export function runRowOf({ flipFirstBirth, facts, permissionModeRef, setSettings
       };
     }
     case 'continue': {
-      const target = facts.cwdProject;
+      const cross = facts.cwdProject === null;
+      const target = facts.cwdProject ?? facts.recentLast;
       if (!target?.sessionId) return null;
       const sid = target.sessionId;
       return {
         pending: 'opening…',
         result: (async (): Promise<string | null> => {
           try {
+            if (cross) await groundTrustedProject(target.dir);
             const hop = await import('../../services/switchboard/hopIntoSession.js');
             const outcome = await hop.focusResumedSession(sid, target.transcriptPath ?? undefined, {
               permissionMode: permissionModeRef.current,
