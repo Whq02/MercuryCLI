@@ -248,8 +248,8 @@ section('§K10 the wait tells its truth — the phase fold, the one spelling, ev
   const same = foldAgentWaitEvent(wait, { type: 'stream_event', event: { type: 'ping' } }, t0 + 100)
   check('K10 an event that moves nothing returns the SAME wait (no republish)', same === wait)
   wait = foldAgentWaitEvent(wait, { type: 'request_wait', wait: { kind: 'first-byte', cold: true, promptTokens: 900, model: 'Fable 5.1', budgetMs: 60_000, sinceMs: t0 + 50, attempt: 1 } }, t0 + 60)
-  check('K10 the first-byte wait names its limit (minutes at or above sixty seconds) and counts from its own clock', wait?.phase === 'first-byte' && agentWaitWords(wait, t0 + 4050) === 'waiting for the first byte · 4s, gives up after 1m', agentWaitWords(wait, t0 + 4050) ?? 'null')
-  check('K10 a budget under a minute keeps its seconds', agentWaitWords({ ...wait!, budgetMs: 45_000 }, t0 + 4050) === 'waiting for the first byte · 4s, gives up after 45 s', agentWaitWords({ ...wait!, budgetMs: 45_000 }, t0 + 4050) ?? 'null')
+  check('K10 the first-byte wait names its limit (minutes at or above sixty seconds) and counts from its own clock', wait?.phase === 'first-byte' && agentWaitWords(wait, t0 + 4050) === 'waiting for the first byte · 4s, limit 1m', agentWaitWords(wait, t0 + 4050) ?? 'null')
+  check('K10 a budget under a minute keeps its seconds', agentWaitWords({ ...wait!, budgetMs: 45_000 }, t0 + 4050) === 'waiting for the first byte · 4s, limit 45 s', agentWaitWords({ ...wait!, budgetMs: 45_000 }, t0 + 4050) ?? 'null')
   wait = foldAgentWaitEvent(wait, { type: 'request_wait', wait: null }, t0 + 3000)
   check('K10 the wait ending ⇒ the first byte is in, no tokens yet', wait?.phase === 'replying' && agentWaitWords(wait, t0 + 3500) === 'first byte in, no tokens yet')
   wait = foldAgentWaitEvent(wait, { type: 'stream_event', event: { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'weighing' } } }, t0 + 4000)
@@ -276,7 +276,7 @@ section('§K10 the wait tells its truth — the phase fold, the one spelling, ev
   const rows = projectWorkRoster({ 'ag-w': running } as never)
   check('K10 the roster row carries the phase whole', rows[0]?.phase?.phase === 'first-byte' && rows[0]?.phase?.budgetMs === 45_000)
   const facts = crew.crewAgentFactsOf(rows[0]!, 'fx')!
-  check('K10 the row stays running while its detail keeps the phase', facts.phase?.phase === 'first-byte' && crew.crewStatusWords(facts, t0 + 2000) === 'running' && crew.crewPhaseWords(facts, t0 + 2000) === 'waiting for the first byte · 2s, gives up after 45 s' && crew.crewStateLabel(facts) === 'running')
+  check('K10 the row stays running while its detail keeps the phase', facts.phase?.phase === 'first-byte' && crew.crewStatusWords(facts, t0 + 2000) === 'running' && crew.crewPhaseWords(facts, t0 + 2000) === 'waiting for the first byte · 2s, limit 45 s' && crew.crewStateLabel(facts) === 'running')
   const toolRow = projectWorkRoster({ 'ag-t': { ...running, id: 'ag-t', agentId: 'ag-t', progress: { toolUseCount: 1, tokenCount: 0, recentActivities: [], lastActivity: { toolName: 'Read', input: {}, activityDescription: 'Read notes.txt' }, phase: { phase: 'tool', sinceMs: t0 } } } } as never)
   const toolFacts = crew.crewAgentFactsOf(toolRow[0]!, 'fx')!
   check('K10 the tool phase speaks the running tool\'s own line', crew.crewPhaseWords(toolFacts, t0 + 1000) === 'Read notes.txt')
@@ -287,7 +287,7 @@ section('§K10 the wait tells its truth — the phase fold, the one spelling, ev
   check('K10 the seat gate\'s own sentence outranks the phase on the card line; the status cell speaks the GATE and the holders ride the row\'s tail (a narrow row sheds the holders last, never the gate)', crew.crewPhaseWords(seatFacts, t0 + 2000) === 'waiting for a seat — 3 of 3 held (a, b, the chat)' && crew.crewStatusWords(seatFacts, t0 + 2000) === 'waiting for a seat — 3 of 3 held' && crew.crewWaitHolders(seatFacts) === 'held by a, b, the chat' && crew.crewWaitLine(seatFacts) === 'waiting for a seat — 3 of 3 held (a, b, the chat)' && seatFacts.phase?.phase === 'first-byte')
   const aw = await import('../../src/tasks/LocalAgentTask/agentWait.js')
   const stillWords = aw.agentWaitWords({ phase: 'first-byte', sinceMs: t0, budgetMs: 60_000 }, null)
-  check('K10 the one spelling without a counter — the still for a per-frame channel', stillWords === 'waiting for the first byte, gives up after 1m' && aw.agentWaitWords({ phase: 'reasoning', sinceMs: t0 }, null) === 'reasoning, no tokens yet' && aw.agentWaitWords({ phase: 'first-byte', sinceMs: t0, budgetMs: 60_000 }, t0 + 3000) === 'waiting for the first byte · 3s, gives up after 1m', stillWords)
+  check('K10 the one spelling without a counter — the still for a per-frame channel', stillWords === 'waiting for the first byte, limit 1m' && aw.agentWaitWords({ phase: 'reasoning', sinceMs: t0 }, null) === 'reasoning, no tokens yet' && aw.agentWaitWords({ phase: 'first-byte', sinceMs: t0, budgetMs: 60_000 }, t0 + 3000) === 'waiting for the first byte · 3s, limit 1m', stillWords)
 }
 
 section('§K10b a GPT seat pays no per-runner catalogue fetch — the daemon\'s snapshot rides the claim')
