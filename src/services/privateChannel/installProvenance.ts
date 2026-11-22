@@ -51,6 +51,7 @@ export interface InstallProbeFacts {
   entryRuntimeManifestPresent: boolean
   entryLaunchersPresent: boolean
   devMarkersPresent: boolean
+  devCheckoutRoot?: string | null
   managedCoResident: { root: string; current: string | null } | null
   version: string
   buildSha?: string
@@ -147,7 +148,7 @@ export function classifyInstallProvenance(f: InstallProbeFacts): InstallProvenan
     return {
       ...base,
       kind: 'development',
-      activeRoot: dirOf(f.invokedPath),
+      activeRoot: f.devCheckoutRoot ?? dirOf(f.invokedPath),
       updateOwner: 'source-build',
       evidence: [f.devMarkersPresent ? 'build.ts + src/ + .git above the entry — a confirmed source checkout (IP-04)' : DEPLOYED_SOURCE_EVIDENCE],
       disagreements: [],
@@ -304,6 +305,7 @@ export function gatherInstallProbeFacts(overrides?: {
     : false
 
   let devMarkersPresent = false
+  let devCheckoutRoot: string | null = null
   if (entryDir) {
     for (const root of [dirOf(entryDir), dirOf(dirOf(entryDir))]) {
       if (
@@ -312,6 +314,7 @@ export function gatherInstallProbeFacts(overrides?: {
         existsSync(join(root, '.git'))
       ) {
         devMarkersPresent = true
+        devCheckoutRoot = root
         break
       }
     }
@@ -340,6 +343,7 @@ export function gatherInstallProbeFacts(overrides?: {
     entryRuntimeManifestPresent,
     entryLaunchersPresent,
     devMarkersPresent,
+    devCheckoutRoot,
     managedCoResident,
     version,
     ...(buildSha ? { buildSha } : {}),

@@ -81,13 +81,13 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
   )
 
   const groupPrefixes: HelpRow[] = [
-    { key: 'bash', text: '! for bash mode' },
+    { key: 'bash', text: '! for shell mode' },
     { key: 'cmds', text: '/ for commands' },
     { key: 'at', text: '@ for file paths' },
   ]
   const groupChat: HelpRow[] = [
     { key: 'esc', text: 'double tap esc to clear input' },
-    { key: 'mode', text: `${cycleModeShortcut} for implement mode` },
+    { key: 'mode', text: `${cycleModeShortcut} to cycle the mode` },
     { key: 'tsc', text: `${transcriptShortcut} for the transcript` },
     { key: 'todos', text: `${tasksShortcut} to toggle tasks` },
     { key: 'nl', text: getNewlineInstructions() },

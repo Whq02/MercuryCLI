@@ -85,7 +85,7 @@ const FOOTER_HINT = 'esc close'
 const TAB_ROW = 'general'
 const tabsLineOf = (m: Mounted): string => m.lines().find(l => l.includes(TAB_ROW) && l.includes('commands')) ?? ''
 const footerOf = (m: Mounted): string => m.lines().findLast(l => l.includes('esc close')) ?? ''
-const onGeneral = (m: Mounted): boolean => m.screen().includes('! for bash mode')
+const onGeneral = (m: Mounted): boolean => m.screen().includes('! for shell mode')
 const onCommands = (m: Mounted): boolean => m.screen().includes('Browse default commands')
 const onShortcuts = (m: Mounted): boolean => m.screen().includes('everyday') && !onGeneral(m)
 

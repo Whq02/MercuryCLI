@@ -305,7 +305,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
         ? emitJson({ mode: 'check', ...check, provenance: provenanceRecord })
         : failJson({ mode: 'check', ...check, provenance: provenanceRecord })
     }
-    const thisMercury = sourceCheckout ? `\n  this Mercury: ${provenanceStatusWords(provenance, npmWrapper)}` : ''
+    const thisMercury = provenance.kind !== 'managed' ? `\n  this Mercury: ${provenanceStatusWords(provenance, npmWrapper)}` : ''
     switch (check.state) {
       case 'update-available': {
         const next = installer
@@ -313,8 +313,9 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
           : sourceCheckout
             ? `this Mercury: ${provenanceStatusWords(provenance, npmWrapper)}`
             : `run \`mercury update\` to install it${npmWrapper === null ? '' : ` (${NPM_WRAPPER_ROAD_WORDS})`}`
+        const beside = !installer && !sourceCheckout ? thisMercury : ''
         return cliOk(
-          `update available: ${check.tag} (installed: ${check.installed})\n  asset: ${check.assetName}\n  channel: ${check.channelRepo} (${describeChannelRoad(check.road)})\n${next}`,
+          `update available: ${check.tag} (installed: ${check.installed})\n  asset: ${check.assetName}\n  channel: ${check.channelRepo} (${describeChannelRoad(check.road)})${beside}\n${next}`,
         )
       }
       case 'current':

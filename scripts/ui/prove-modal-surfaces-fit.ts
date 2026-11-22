@@ -142,7 +142,7 @@ if (driver.kind !== 'posix-pty') {
     const open = r.marks.open ?? ''
     const rows = open.split('\n')
     check('/help at 100x30: "$EDITOR" reads whole (no clipped column)', open.includes('to edit in $EDITOR'))
-    const bashRow = rows.find(row => row.includes('! for bash mode'))
+    const bashRow = rows.find(row => row.includes('! for shell mode'))
     const cmdRow = rows.find(row => row.includes('/ for commands'))
     const secondColumn = (row: string | undefined): string => (row ?? '').split(/\s{2,}/).map(s => s.trim()).filter(Boolean)[1] ?? ''
     const twoColumns = /(⇧← |shift\+← |for command palette)/.test(secondColumn(bashRow)) && /(for command palette|to open a file)/.test(secondColumn(cmdRow))

@@ -35,8 +35,12 @@ export function UserNoticeMessage({
         if (block.kind === 'crew-board') return <Text key={index} dimColor wrap="truncate-end">{clock}{plate}</Text>
         const arrival = index === 0 && !noticeCarriesOwnClock(block) && arrivedAt ? ` · arrived ${arrivedAt}` : ''
         const delivery = index === 0 && !noticeCarriesOwnClock(block) && deliveredAt ? ` · delivered ${deliveredAt}` : ''
-        const count = block.kind === 'monitor' ? block.count ?? block.lines.length : block.lines.length
-        const counted = fold ? ` · ${count} line${count === 1 ? '' : 's'}` : ''
+        const count = block.kind === 'monitor'
+          ? block.count ?? block.lines.length
+          : block.kind === 'task' && block.count === null
+            ? null
+            : block.lines.length
+        const counted = fold && count !== null ? ` · ${count} line${count === 1 ? '' : 's'}` : ''
         const last = block.kind === 'monitor' && block.last !== undefined ? ` · last: ${block.last}` : ''
         const tail = `${arrival}${delivery}${fold && block.lines.length > 0 ? expanded ? ' ⌄' : ' ›' : ''}`
         const suffix = `${counted}${last}${tail}`

@@ -29,7 +29,7 @@ export type NoticeBlock =
   | { kind: 'monitor'; taskId: string; name: string; lines: string[]; count?: number; last?: string }
   | { kind: 'notice'; lines: string[] }
   | { kind: 'crew-board'; name: string; postKind: string; lines: string[] }
-  | { kind: 'task'; plate: string; status: string; lines: string[] }
+  | { kind: 'task'; plate: string; status: string; lines: string[]; count?: number | null }
   | { kind: 'saturn'; origin: SaturnOrigin; lines: string[] }
   | { kind: 'advisor'; origin: AdvisorOrigin; lines: string[] }
   | { kind: 'outside-report'; origin: OutsideReportOrigin; lines: string[] }
@@ -271,7 +271,7 @@ export function taskNoticeBlock(text: string): NoticeBlock | null {
     : crewmate ? `[Crewmate] ${crewmate[1]}${status ? ` · ${status === 'killed' ? 'stopped' : status}` : ''}`
     : summary
   const details = result ?? [summary, tag('command'), tag('output-file')].filter(Boolean).join('\n')
-  return { kind: 'task', plate, status, lines: noticeLines(details) }
+  return { kind: 'task', plate, status, lines: noticeLines(details), ...(background && result === null ? { count: null } : {}) }
 }
 
 export function hasNoticeFold(row: { type?: string; isMeta?: boolean; origin?: unknown; message?: { content?: unknown }; attachment?: { type?: string; commandMode?: string; prompt?: unknown; origin?: unknown } }): boolean {
