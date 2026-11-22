@@ -260,7 +260,8 @@ section('6. a resize settles by overwriting')
   await settle(500)
   const settled = w.screen.since(mark)
   check('the settled frame carries the scene', w.screen.text().includes('head row that never changes') && w.screen.text().includes('foot row that never changes'), w.screen.text())
-  check('no CSI 2J on the wire across the resize', !settled.includes(`${ESC}[2J`), JSON.stringify(settled.slice(0, 160)))
+  const expectedErases = process.env.TERM_PROGRAM === 'Apple_Terminal' ? 1 : 0
+  check(`the shrink writes ${expectedErases} display erases`, erases(settled) === expectedErases, JSON.stringify(settled.slice(0, 160)))
   await w.end()
 }
 

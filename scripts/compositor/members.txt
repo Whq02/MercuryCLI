@@ -7,3 +7,4 @@ prove-ground-contrast-floors.ts
 prove-field-findings-keytruth.ts
 prove-hangul-jamo-width.ts
 prove-reuse-equals-fresh.ts
+prove-resize-wipes-old-cells.ts

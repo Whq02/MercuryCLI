@@ -125,7 +125,8 @@ function read(label: string, snaps: Map<string, Snap>): void {
     check(`${label}: ${name}, repaired by overwriting (no erase of the display, whole or below)`, snap !== undefined && snap.flash.eraseDisplay === 0 && snap.flash.eraseBelow === 0 && snap.flash.altSwitch === 0, JSON.stringify(snap?.flash))
   }
   const storm = snaps.get('a resize storm settled')
-  check(`${label}: a resize storm settles without an erase of the whole display`, storm !== undefined && storm.flash.eraseDisplay === 0 && inked(storm) > 500, JSON.stringify(storm?.flash))
+  const shrinkErases = process.env.TERM_PROGRAM === 'Apple_Terminal' ? 1 : 0
+  check(`${label}: a resize storm settles with ${shrinkErases} display erases`, storm !== undefined && storm.flash.eraseDisplay === shrinkErases && inked(storm) > 500, JSON.stringify(storm?.flash))
   const back = snaps.get('the first size again')
   check(`${label}: back at the first size every cell equals the painted frame`, back !== undefined && differing(back, painted) === '', back ? differing(back, painted) : 'no snapshot')
   check(`${label}: and that settle erased no row the frame had painted (the hold erases below the old frame only)`, back !== undefined && back.flash.eraseDisplay === 0, JSON.stringify(back?.flash))
