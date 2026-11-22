@@ -95,3 +95,4 @@ prove-view-reaches-status-row.ts
 prove-visual-baseline-jobs.ts
 prove-voice-journey.ts
 prove-voice-local-journey.ts
+prove-use-shimmer-animation-behaviour.ts
