@@ -1,8 +1,6 @@
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
-
-export const INTERRUPT_MESSAGE: Unbuilt = unbuilt('src/utils/messages/turnCut.ts:3')
-export const INTERRUPT_MESSAGE_FOR_TOOL_USE: Unbuilt =
-  unbuilt('src/utils/messages/turnCut.ts:4')
+export const INTERRUPT_MESSAGE = '[Request interrupted by user]'
+export const INTERRUPT_MESSAGE_FOR_TOOL_USE =
+  '[Request interrupted by user for tool use]'
 
 export function interruptedToolsLine(toolNames: readonly string[]): string {
   const names = [...new Set(toolNames)]
@@ -75,7 +73,22 @@ export function isCutResultText(text: string): boolean {
 }
 
 export function turnCutOfText(text: string): TurnCut | null {
-  return notBuilt('src/utils/messages/turnCut.ts:77')
+  if (text === INTERRUPT_MESSAGE || text === INTERRUPT_MESSAGE_FOR_TOOL_USE) return { kind: 'operator' }
+  const lead = '[Request cut off'
+  const during = ' during tool use'
+  if (!text.startsWith(lead) || !text.endsWith(']')) return null
+  const body = text.slice(lead.length, -1)
+  const form = body.startsWith(during) ? body.slice(during.length) : body
+  if (form.startsWith(' by ') && form.length > ' by '.length) {
+    const why = form.slice(' by '.length)
+    const detailed = `${IDLE_TIMEOUT_WORDS}: `
+    return why.startsWith(detailed) ? { kind: 'idle-timeout', detail: why.slice(detailed.length) } : { kind: 'idle-timeout' }
+  }
+  if (form.startsWith(': ') && form.length > ': '.length) {
+    const why = form.slice(': '.length)
+    return why === PARENT_STOP_WORDS ? { kind: 'parent-stop' } : { kind: 'cut', detail: why }
+  }
+  return null
 }
 
 export function isTurnCutText(text: string): boolean {
