@@ -282,16 +282,16 @@ text, a key) asks once: the card names the application in front by its name
 and identity, names the act, and asks how long you want to allow. Five
 answers, in this order:
 
-- **Yes, for this session — every application** allows this act and every
+- **`Yes, for this session — every application`** allows this act and every
   later act in every application for the rest of the session; a resume
   keeps it, a new session asks again.
-- **No, and tell Mercury what to do differently (esc)** refuses the act and hands
+- **`No, and tell Mercury what to do differently (esc)`** refuses the act and hands
   the composer back to you.
-- **Yes, for 1 hour — every application** allows every act in every
+- **`Yes, for 1 hour — every application`** allows every act in every
   application for one hour from now.
-- **Yes, for 24 hours — every application** does the same for twenty-four
+- **`Yes, for 24 hours — every application`** does the same for twenty-four
   hours.
-- **Enable sovereign mode to avoid further permissions by default** turns
+- **`Enable sovereign mode to avoid further permissions by default`** turns
   sovereign mode on for this session and saves the Boot Menu's `Sovereign
   mode` row, so no later session asks either, for anything, until you
   turn the row off. Under sovereign mode the card never appears.
