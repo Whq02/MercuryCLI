@@ -149,7 +149,13 @@ export async function* runTools(
     if (batch.exclusive) {
       for (const call of batch.calls) {
         for await (const update of updatesOf(call, current)) {
-          if (update.contextModifier !== undefined) current = update.contextModifier.modifier(current)
+          if (update.contextModifier !== undefined) {
+            try {
+              current = update.contextModifier.modifier(current)
+            } catch (error) {
+              logError(error)
+            }
+          }
           yield { message: update.message, newContext: current }
         }
       }
