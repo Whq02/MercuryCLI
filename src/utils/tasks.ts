@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import * as fs from 'node:fs'
 
+import uniqBy from 'lodash-es/uniqBy.js'
 import { z } from 'zod'
 
 import { flagEnv } from '../substrate/flagRegistry.js'
@@ -16,61 +17,83 @@ import { getErrnoCode } from './errors.js'
 import { createSignal } from './signal.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
 import { passedOver } from './passedOver.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
-export const TASK_STATUSES: Unbuilt = unbuilt('src/utils/tasks.ts:21')
-export type TaskStatus = Unbuilt
+export const TASK_STATUSES = ['pending', 'in_progress', 'completed'] as const
+export type TaskStatus = (typeof TASK_STATUSES)[number]
 
-export const TaskSchema: Unbuilt = unbuilt('src/utils/tasks.ts:26')
-export type Task = Unbuilt
+const TaskStatusSchema = lazySchema(() => z.enum(TASK_STATUSES))
+
+export const TaskSchema = lazySchema(() =>
+  z.object({
+    id: z.string(),
+    subject: z.string(),
+    description: z.string(),
+    activeForm: z.string().optional(),
+    owner: z.string().optional(),
+    status: TaskStatusSchema(),
+    blocks: z.array(z.string()),
+    blockedBy: z.array(z.string()),
+    metadata: z.record(z.string(), z.unknown()).optional(),
+    epoch: z.number().optional(),
+  }),
+)
+export type Task = z.infer<ReturnType<typeof TaskSchema>>
 
 export function isTaskToolsEnabled(): boolean {
-  return notBuilt('src/utils/tasks.ts:42')
+  return isEnvTruthy(flagEnv('MERCURY_TASKS')) || !getIsNonInteractiveSession()
 }
 
 export function getTaskListId(): string {
-  return notBuilt('src/utils/tasks.ts:46')
+  return flagEnv('MERCURY_TASK_LIST_ID') || getSessionId()
 }
 
 export async function listSessionMission(): Promise<Task[]> {
-  return notBuilt('src/utils/tasks.ts:50')
+  return uniqBy(await listTasks(getTaskListId()), task => task.id)
 }
 
 export function sanitizePathComponent(input: string): string {
-  return notBuilt('src/utils/tasks.ts:63')
+  return input.replace(/[^a-zA-Z0-9_-]/g, '-')
 }
 
 
 export function getTasksDir(taskListId: string): string {
-  return notBuilt('src/utils/tasks.ts:68')
+  return join(getMercuryHome(), 'tasks', sanitizePathComponent(taskListId))
 }
 
 export function getTaskPath(taskListId: string, taskId: string): string {
-  return notBuilt('src/utils/tasks.ts:72')
+  return join(getTasksDir(taskListId), `${sanitizePathComponent(taskId)}.json`)
 }
 
 export async function ensureTasksDir(taskListId: string): Promise<void> {
-  return notBuilt('src/utils/tasks.ts:76')
+  await fs.promises.mkdir(getTasksDir(taskListId), { recursive: true })
 }
 
 function highWatermarkPath(taskListId: string): string {
-  return notBuilt('src/utils/tasks.ts:80')
+  return join(getTasksDir(taskListId), '.highwatermark')
 }
 
 function epochPath(taskListId: string): string {
-  return notBuilt('src/utils/tasks.ts:84')
+  return join(getTasksDir(taskListId), '.epoch')
 }
 
 function listLockPath(taskListId: string): string {
-  return notBuilt('src/utils/tasks.ts:88')
+  return join(getTasksDir(taskListId), '.lock')
+}
+
+function taskLockPath(taskListId: string, taskId: string): string {
+  return `${getTaskPath(taskListId, taskId)}.pidlock`
 }
 
 
-const tasksUpdatedSignal: Unbuilt = unbuilt('src/utils/tasks.ts:97')
+const tasksUpdatedSignal = createSignal()
 
 export function notifyTasksUpdated(): void {
-  return notBuilt('src/utils/tasks.ts:99')
+  try {
+    tasksUpdatedSignal.emit()
+  } catch (error) {
+    passedOver(error)
+  }
 }
 
 export const onTasksUpdated = tasksUpdatedSignal.subscribe
@@ -169,7 +192,36 @@ export async function resetTaskList(
   taskListId: string,
   opts?: { onlyIfAllCompleted?: boolean },
 ): Promise<boolean> {
-  return notBuilt('src/utils/tasks.ts:199')
+  await ensureTasksDir(taskListId)
+  const reset = await withLock(listLockPath(taskListId), 'tasks-reset', async () => {
+    if (opts?.onlyIfAllCompleted) {
+      const tasks = await listTasks(taskListId)
+      if (tasks.length === 0 || tasks.some(task => task.status !== 'completed')) return false
+    }
+    const highest = await highestNumericIdOnDisk(taskListId)
+    if (highest > (await readHighWatermark(taskListId))) {
+      await publishAtomic(highWatermarkPath(taskListId), jsonStringify(highest))
+    }
+    const epoch = (await readTaskEpoch(taskListId)) + 1
+    await publishAtomic(epochPath(taskListId), jsonStringify({ epoch, resetAt: new Date().toISOString() }))
+    let names: string[] = []
+    try {
+      names = await fs.promises.readdir(getTasksDir(taskListId))
+    } catch (error) {
+      passedOver(error)
+    }
+    for (const name of names) {
+      if (!isTaskBodyName(name)) continue
+      try {
+        await fs.promises.unlink(join(getTasksDir(taskListId), name))
+      } catch (error) {
+        passedOver(error)
+      }
+    }
+    return true
+  })
+  if (reset) notifyTasksUpdated()
+  return reset
 }
 
 export async function sweepDeadEpochTasks(taskListId: string): Promise<number> {
@@ -277,7 +329,24 @@ export async function getTask(taskListId: string, taskId: string, preloadedEpoch
 }
 
 export async function listTasks(taskListId: string): Promise<Task[]> {
-  return notBuilt('src/utils/tasks.ts:342')
+  const ids = await listTaskIdsOnDisk(taskListId)
+  if (ids.length === 0) return []
+  const epoch = await readTaskEpoch(taskListId)
+  const tasks = await Promise.all(ids.map(id => getTask(taskListId, id, epoch)))
+  return tasks.filter(task => task !== null)
+}
+
+async function updateTaskUnlocked(
+  taskListId: string,
+  taskId: string,
+  updates: Partial<Omit<Task, 'id'>>,
+): Promise<Task | null> {
+  const existing = await getTask(taskListId, taskId)
+  if (!existing) return null
+  const updated: Task = { ...existing, ...updates, id: existing.id }
+  await publishAtomic(getTaskPath(taskListId, taskId), jsonStringify(updated, null, 2))
+  notifyTasksUpdated()
+  return updated
 }
 
 export async function updateTask(
@@ -285,15 +354,43 @@ export async function updateTask(
   taskId: string,
   updates: Partial<Omit<Task, 'id'>>,
 ): Promise<Task | null> {
-  return notBuilt('src/utils/tasks.ts:363')
+  if (!(await getTask(taskListId, taskId))) return null
+  return withLock(taskLockPath(taskListId, taskId), 'tasks-update', () =>
+    updateTaskUnlocked(taskListId, taskId, updates),
+  )
 }
 
 export async function deleteTask(taskListId: string, taskId: string): Promise<boolean> {
-  return notBuilt('src/utils/tasks.ts:374')
+  const numericId = parseInt(taskId, 10)
+  if (!Number.isNaN(numericId) && numericId > (await readHighWatermark(taskListId))) {
+    await publishAtomic(highWatermarkPath(taskListId), jsonStringify(numericId))
+  }
+  try {
+    await fs.promises.unlink(getTaskPath(taskListId, taskId))
+  } catch (error) {
+    if (getErrnoCode(error) === 'ENOENT') return false
+    throw error
+  }
+  for (const task of await listTasks(taskListId)) {
+    const blocks = task.blocks.filter(id => id !== taskId)
+    const blockedBy = task.blockedBy.filter(id => id !== taskId)
+    if (blocks.length === task.blocks.length && blockedBy.length === task.blockedBy.length) continue
+    await updateTask(taskListId, task.id, { blocks, blockedBy })
+  }
+  notifyTasksUpdated()
+  return true
 }
 
 export async function blockTask(taskListId: string, fromTaskId: string, toTaskId: string): Promise<boolean> {
-  return notBuilt('src/utils/tasks.ts:395')
+  const [fromTask, toTask] = await Promise.all([getTask(taskListId, fromTaskId), getTask(taskListId, toTaskId)])
+  if (!fromTask || !toTask) return false
+  if (!fromTask.blocks.includes(toTaskId)) {
+    await updateTask(taskListId, fromTaskId, { blocks: [...fromTask.blocks, toTaskId] })
+  }
+  if (!toTask.blockedBy.includes(fromTaskId)) {
+    await updateTask(taskListId, toTaskId, { blockedBy: [...toTask.blockedBy, fromTaskId] })
+  }
+  return true
 }
 
 
@@ -306,11 +403,48 @@ type ClaimTaskResult =
   | { success: false; reason: 'blocked'; task: Task; blockedByTasks: string[] }
   | { success: false; reason: 'agent_busy'; task: Task; busyWithTasks: string[] }
 
+async function claimChecked(
+  taskListId: string,
+  taskId: string,
+  claimantAgentId: string,
+  checkAgentBusy: boolean,
+  write: (updates: Partial<Omit<Task, 'id'>>) => Promise<Task | null>,
+): Promise<ClaimTaskResult> {
+  const task = await getTask(taskListId, taskId)
+  if (!task) return { success: false, reason: 'task_not_found' }
+  if (task.owner && task.owner !== claimantAgentId) return { success: false, reason: 'already_claimed', task }
+  if (task.status === 'completed') return { success: false, reason: 'already_resolved', task }
+  const tasks = await listTasks(taskListId)
+  const unresolved = new Set(tasks.filter(other => other.status !== 'completed').map(other => other.id))
+  const blockedByTasks = task.blockedBy.filter(id => unresolved.has(id))
+  if (blockedByTasks.length > 0) return { success: false, reason: 'blocked', task, blockedByTasks }
+  if (checkAgentBusy) {
+    const busyWithTasks = tasks
+      .filter(other => other.owner === claimantAgentId && other.id !== task.id && other.status !== 'completed')
+      .map(other => other.id)
+    if (busyWithTasks.length > 0) return { success: false, reason: 'agent_busy', task, busyWithTasks }
+  }
+  const claimed = await write({ owner: claimantAgentId })
+  if (!claimed) return { success: false, reason: 'task_not_found' }
+  return { success: true, task: claimed }
+}
+
 export async function claimTask(
   taskListId: string,
   taskId: string,
   claimantAgentId: string,
   options?: ClaimTaskOptions,
 ): Promise<ClaimTaskResult> {
-  return notBuilt('src/utils/tasks.ts:417')
+  if (!(await getTask(taskListId, taskId))) return { success: false, reason: 'task_not_found' }
+  const taskLock = taskLockPath(taskListId, taskId)
+  const write = (updates: Partial<Omit<Task, 'id'>>): Promise<Task | null> =>
+    updateTaskUnlocked(taskListId, taskId, updates)
+  if (options?.checkAgentBusy) {
+    return withLock(listLockPath(taskListId), 'tasks-claim', () =>
+      claimChecked(taskListId, taskId, claimantAgentId, true, updates =>
+        withLock(taskLock, 'tasks-claim', () => write(updates)),
+      ),
+    )
+  }
+  return withLock(taskLock, 'tasks-claim', () => claimChecked(taskListId, taskId, claimantAgentId, false, write))
 }
