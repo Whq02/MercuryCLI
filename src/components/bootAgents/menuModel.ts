@@ -1,6 +1,8 @@
 import { basename } from 'node:path';
 import type { useEngineModel } from '../../hooks/useEngineModel.js';
 import { resolveEffectiveAgentRuntime } from '../../services/agents/resolver.js';
+import { bootBirthFacts } from '../../services/switchboard/bootBirthFacts.js';
+import { getInitialEffortSetting, parseEffortValue, type EffortValue } from '../../utils/effort.js';
 import { computeStudioValidation, effectiveStudioRuntime, studioDestinationPath, type FieldId, type StudioEditorSnapshot, type StudioValidation } from '../agents/studio/studioEditorModel.js';
 import type { Tools } from '../../Tool.js';
 import { agentModelAvailabilityNote } from '../../services/model/agentModelPicker.js';
@@ -9,6 +11,10 @@ import { getSessionAccent, getSessionCritterKey } from '../mercury-ui/sessionAcc
 import type { useGreetingShimmer } from '../mercury-ui/useGreetingShimmer.js';
 import { AGENT_FACE_LEGEND_FORM, agentFormEntryOf, agentFormDetailLines, AGENT_FACE_LEGEND_TRASH, AGENT_FACE_LEGEND_PROMPT, AGENT_FACE_LEGEND_PICK, agentFaceEntryOf, AGENT_FACE_LEGEND_CONFIRM, agentDeleteConfirmLines, agentFaceSummaryRows, type FaceEntry, AGENT_FACE_LEGEND, agentTrashEntryOf, agentFaceStatusLine, agentFaceDetailLines } from './face.js';
 import type { AgentDefinitions, AgentFormState, AgentLists, AgentsFaceBase } from './context.js';
+
+export function bootSessionEffort(): EffortValue | undefined {
+  return parseEffortValue(bootBirthFacts().effort ?? undefined) ?? getInitialEffortSetting();
+}
 
 export function agentsFaceBase({ counts, mainModel, wordGlow, workspaceDir }: { counts: AgentDefinitions['counts']; mainModel: ReturnType<typeof useEngineModel>; wordGlow: ReturnType<typeof useGreetingShimmer>; workspaceDir: string }) {
   const critterKey = getSessionCritterKey();
@@ -30,7 +36,7 @@ export function agentsFaceBase({ counts, mainModel, wordGlow, workspaceDir }: { 
   return base;
 }
 
-export function formFace({ base, defs, faceTools, form, formList, formPick, formPrompt, formRowIds, formSnap, mainModel, note, pickList, workspaceDir }: { base: AgentsFaceBase; defs: AgentDefinitions['defs']; faceTools: Tools; form: NonNullable<AgentFormState['form']>; formList: AgentLists['formList']; formPick: AgentFormState['formPick']; formPrompt: AgentFormState['formPrompt']; formRowIds: Array<'destination' | FieldId>; formSnap: NonNullable<AgentFormState['formSnap']>; mainModel: ReturnType<typeof useEngineModel>; note: AgentDefinitions['note']; pickList: AgentLists['pickList']; workspaceDir: string }) {
+export function formFace({ base, defs, faceTools, form, formList, formPick, formPrompt, formRowIds, formSnap, mainModel, note, pickList, sessionEffort, workspaceDir }: { base: AgentsFaceBase; defs: AgentDefinitions['defs']; faceTools: Tools; form: NonNullable<AgentFormState['form']>; formList: AgentLists['formList']; formPick: AgentFormState['formPick']; formPrompt: AgentFormState['formPrompt']; formRowIds: Array<'destination' | FieldId>; formSnap: NonNullable<AgentFormState['formSnap']>; mainModel: ReturnType<typeof useEngineModel>; note: AgentDefinitions['note']; pickList: AgentLists['pickList']; sessionEffort?: EffortValue; workspaceDir: string }) {
   const snap = formSnap;
   const validation = computeStudioValidation({
     doc: snap.doc,
@@ -50,10 +56,14 @@ export function formFace({ base, defs, faceTools, form, formList, formPick, form
     base: undefined,
     scope: snap.scope,
     parentModel: mainModel,
-    sessionEffort: undefined,
+    sessionEffort: sessionEffort ?? bootSessionEffort(),
     tools: faceTools,
   });
-  const effectiveLine = `${effRun.modelIntent} → ${effRun.model} · effort ${effRun.effort.label}${modelAvailability !== null ? ` · ${modelAvailability}` : ''}`;
+  const effortWord =
+    effRun.effortIntent === undefined && effRun.effort.supportsEffort && effRun.effort.appliedValue === undefined && effRun.effort.label === 'default'
+      ? 'session'
+      : effRun.effort.label;
+  const effectiveLine = `${effRun.modelIntent} → ${effRun.model} · effort ${effortWord}${modelAvailability !== null ? ` · ${modelAvailability}` : ''}`;
   if (formPick !== null) {
     return formPickFace({ base, destination, effectiveLine, form, formPick, pickList, snap, validation });
   }
@@ -187,7 +197,7 @@ export function trashFace({ base, trash, trashList }: { base: AgentsFaceBase; tr
   };
 }
 
-export function listFace({ base, built, confirm, counts, defs, faceTools, list, listRows, mainModel, note }: { base: AgentsFaceBase; built: AgentDefinitions['built']; confirm: AgentFormState['confirm']; counts: AgentDefinitions['counts']; defs: AgentDefinitions['defs']; faceTools: Tools; list: AgentLists['list']; listRows: AgentDefinitions['listRows']; mainModel: ReturnType<typeof useEngineModel>; note: AgentDefinitions['note'] }) {
+export function listFace({ base, built, confirm, counts, defs, faceTools, list, listRows, mainModel, note, sessionEffort }: { base: AgentsFaceBase; built: AgentDefinitions['built']; confirm: AgentFormState['confirm']; counts: AgentDefinitions['counts']; defs: AgentDefinitions['defs']; faceTools: Tools; list: AgentLists['list']; listRows: AgentDefinitions['listRows']; mainModel: ReturnType<typeof useEngineModel>; note: AgentDefinitions['note']; sessionEffort?: EffortValue }) {
   const entries = listRows.map(agentFaceEntryOf);
   const selected = list.selectedRow;
   const detailOverride = confirm
@@ -199,7 +209,7 @@ export function listFace({ base, built, confirm, counts, defs, faceTools, list, 
           selected.agent
             ? resolveEffectiveAgentRuntime(selected.agent, {
                 parentModel: mainModel,
-                sessionEffort: undefined,
+                sessionEffort: sessionEffort ?? bootSessionEffort(),
                 tools: faceTools,
               })
             : null,
