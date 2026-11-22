@@ -210,6 +210,7 @@ function installProofScratch(options = {}) {
 }
 const SKIP_SCAN_DIRS = new Set(['node_modules', '.git', 'vendor'])
 const BIRTH_SLACK_MS = 1000
+const LINUX_CLOCK_TICKS_PER_SECOND = 100
 function sleepSync(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 }
@@ -246,6 +247,18 @@ function win32PsExe() {
   } catch {}
   return 'powershell.exe'
 }
+function linuxProcess(pid) {
+  try {
+    const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8')
+    const startTicks = Number(stat.slice(stat.lastIndexOf(')') + 1).trim().split(/\s+/)[19])
+    const upSeconds = Number(fs.readFileSync('/proc/uptime', 'utf8').trim().split(/\s+/)[0])
+    const command = fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').replace(/\0+$/, '').replace(/\0/g, ' ').trim()
+    if (!Number.isFinite(startTicks) || !Number.isFinite(upSeconds) || !command) return null
+    return { state: 'ok', bornMs: Date.now() - (upSeconds - startTicks / LINUX_CLOCK_TICKS_PER_SECOND) * 1000, command }
+  } catch {
+    return null
+  }
+}
 function inspectProcess(pid) {
   if (!pidAlive(pid)) return { state: 'gone' }
   const { execFileSync } = require('node:child_process')
@@ -265,6 +278,10 @@ function inspectProcess(pid) {
     const command = line.slice(tab + 1).trim()
     if (!Number.isFinite(bornMs)) return pidAlive(pid) ? { state: 'unreadable' } : { state: 'gone' }
     return { state: 'ok', bornMs, command }
+  }
+  if (process.platform === 'linux') {
+    const read = linuxProcess(pid)
+    if (read) return read
   }
   for (const ps of ['ps', '/bin/ps', '/usr/bin/ps']) {
     try {
