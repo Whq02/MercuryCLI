@@ -31,12 +31,12 @@ export const ApprovalSchema = lazySchema(() =>
 export type Approval = z.infer<ReturnType<typeof ApprovalSchema>>
 
 export const SwitchesSchema = lazySchema(() =>
-  z.object(Object.fromEntries(SWITCH_KINDS.map(kind => [kind, z.boolean()])) as Record<SwitchKind, z.ZodBoolean>),
+  z.looseObject(Object.fromEntries(SWITCH_KINDS.map(kind => [kind, z.boolean()])) as Record<SwitchKind, z.ZodBoolean>),
 )
 export type Switches = Record<SwitchKind, boolean>
 
 export const InstalledRecordSchema = lazySchema(() =>
-  z.object({
+  z.looseObject({
     name: z.string(),
     label: z.string(),
     version: z.string(),
@@ -137,8 +137,22 @@ export function writeSources(data: SourcesFile): void {
   writeDurable(getSourcesFile(), JSON.stringify(data, null, 2) + '\n')
 }
 
+function withChannelsSwitch(record: InstalledRecord): InstalledRecord {
+  return typeof record.switches.channels === 'boolean' ? record : { ...record, switches: { ...record.switches, channels: true } }
+}
+
 export function writeInstalled(data: InstalledFile): void {
-  writeDurable(getInstalledFile(), JSON.stringify(data, null, 2) + '\n')
+  const records = Object.fromEntries(Object.entries(data).map(([id, record]) => [id, withChannelsSwitch(record)]))
+  writeDurable(getInstalledFile(), JSON.stringify(records, null, 2) + '\n')
+}
+
+export function restoreChannelsSwitches(data: InstalledFile): void {
+  if (!Object.values(data).some(record => withChannelsSwitch(record) !== record)) return
+  try {
+    writeInstalled(data)
+  } catch (error) {
+    passedOver(error)
+  }
 }
 
 export function updateSources(mutate: (current: SourcesFile) => SourcesFile | void): { ok: true } | { ok: false; error: string } {

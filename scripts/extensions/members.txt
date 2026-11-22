@@ -18,6 +18,7 @@ prove-lightcraft.ts
 prove-manifest-contract.ts
 prove-permission-obedience.ts
 prove-photocraft.ts
+prove-roster-read-by-the-release-before.ts
 prove-source-lifecycle.ts
 prove-source-row-plain-text.ts
 prove-trust-gate.ts
