@@ -174,13 +174,12 @@ const tableMoves = (read: string[]): { moved: string[]; gone: number } => {
 }
 const { moved, gone } = tableMoves(rows)
 check(
-  `${TABLE_NAME} holds what the census read of the counts that may only fall: prose kept by rule and the comments of the excepted folders, file by file (${rows.length} rows)`,
+  `${TABLE_NAME} holds what the census read of the counts that may only fall: prose kept by rule and the comments of the excepted folders, file by file (${rows.length} rows${gone > 0 ? `, and ${gone} of the table's rows read nothing in this tree` : ''})`,
   held !== null && moved.length === 0,
   held === null
     ? `${TABLE_NAME} is absent; write it once: bun scripts/orphans/prove-comment-census.ts --write --first`
     : `${moved.length} row(s) moved; delete the new docstring or comment, and where one left write the table: bun scripts/orphans/prove-comment-census.ts --write\n    ${moved.join('\n    ')}`,
 )
-if (gone > 0) console.log(`    ${gone} row(s) of the table read nothing in this tree: a published checkout carries no comment the publish filter strips and no file it drops; where one left the private tree, write the table: bun scripts/orphans/prove-comment-census.ts --write`)
 
 const published: string[] = rows.filter(row => !row.startsWith('excepted'))
 for (const [folder, files] of tree.excepted) {
