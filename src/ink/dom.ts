@@ -7,14 +7,57 @@ import squashTextNodes from './squash-text-nodes.js'
 import type { Color, Styles, TextStyles } from './styles.js'
 import { expandTabs } from './tabstops.js'
 import wrapText from './wrap-text.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
-export type DOMNodeAttribute = Unbuilt
+export type DOMNodeAttribute = boolean | string | number
 
-type TextName = Unbuilt
-export type ElementNames = Unbuilt
+type TextName = '#text'
+export type ElementNames =
+  | 'ink-root'
+  | 'ink-box'
+  | 'ink-text'
+  | 'ink-virtual-text'
+  | 'ink-link'
+  | 'ink-progress'
+  | 'ink-raw-ansi'
 
-export type DOMElement = Unbuilt
+type ScrollState = {
+  scrollTop?: number
+  pendingScrollDelta?: number
+  scrollClampMin?: number
+  scrollClampMax?: number
+  scrollHeight?: number
+  scrollViewportHeight?: number
+  scrollViewportTop?: number
+  scrollClampGapPrev?: number
+  stickyScroll?: boolean
+  lastStableAtBottom?: boolean
+  scrollAnchor?: { el: DOMElement; offset: number }
+}
+
+export type DOMElement = {
+  nodeName: ElementNames
+  parentNode: DOMElement | undefined
+  childNodes: DOMNode[]
+  attributes: Record<string, DOMNodeAttribute>
+  style: Styles
+  dirty: boolean
+  textStyles?: TextStyles
+  layoutNode?: LayoutNode
+  isHidden?: boolean
+  scroll?: ScrollState
+  _eventHandlers?: Record<string, unknown>
+  debugOwnerChain?: string[]
+  onRender?: () => void
+  onImmediateRender?: () => void
+  onComputeLayout?: () => void
+  focusManager?: FocusManager
+  hasRenderedContent?: boolean
+  __prevOwnBg?: Color
+  __prevUniformBg?: Color
+  __prevOpaque?: boolean
+  __prevOwnRowBg?: boolean
+  __prevRowSampler?: boolean
+}
 
 export type TextNode = {
   nodeName: TextName
@@ -127,11 +170,49 @@ export function insertBeforeNode(
   newChild: DOMNode,
   beforeChild: DOMNode,
 ): void {
-  return notBuilt('src/ink/dom.ts:169')
+  if (newChild.parentNode) removeChildNode(newChild.parentNode, newChild)
+  const index = parent.childNodes.indexOf(beforeChild)
+  if (index === -1) {
+    appendChildNode(parent, newChild)
+    return
+  }
+  newChild.parentNode = parent
+  parent.childNodes.splice(index, 0, newChild)
+  if (isElement(newChild)) {
+    newChild.dirty = true
+    if (newChild.layoutNode && parent.layoutNode) {
+      parent.layoutNode.insertChild(newChild.layoutNode, layoutIndexFor(parent, index))
+    }
+  }
+  markDirty(parent)
+}
+
+function queuePaintedClears(parent: DOMElement, node: DOMNode, underAbsolute: boolean): void {
+  if (!isElement(node)) return
+  const absolute = underAbsolute || node.style.position === 'absolute'
+  const painted = nodeCache.get(node)
+  if (painted) {
+    addPendingClear(parent, painted.reach ?? painted, absolute)
+    nodeCache.delete(node)
+  } else if (absolute) {
+    addPendingClear(parent, { x: 0, y: 0, width: 0, height: 0 }, true)
+  }
+  for (const child of node.childNodes) queuePaintedClears(parent, child, absolute)
 }
 
 export function removeChildNode(parent: DOMElement, node: DOMNode): void {
-  return notBuilt('src/ink/dom.ts:213')
+  queuePaintedClears(parent, node, false)
+  if (isElement(node)) {
+    setChildReach(parent, node, false)
+    if (node.layoutNode && parent.layoutNode) {
+      parent.layoutNode.removeChild(node.layoutNode)
+      noteChildRemoved(parent)
+    }
+  }
+  node.parentNode = undefined
+  const index = parent.childNodes.indexOf(node)
+  if (index !== -1) parent.childNodes.splice(index, 1)
+  markDirty(parent)
 }
 
 export function setAttribute(
@@ -139,18 +220,27 @@ export function setAttribute(
   key: string,
   value: DOMNodeAttribute,
 ): void {
-  return notBuilt('src/ink/dom.ts:228')
+  if (key === 'children') return
+  if (node.attributes[key] === value) return
+  node.attributes[key] = value
+  markDirty(node)
 }
 
 function shallowStyleEqual(
   a: Record<string, unknown> | undefined,
   b: Record<string, unknown> | undefined,
 ): boolean {
-  return notBuilt('src/ink/dom.ts:239')
+  if (a === b) return true
+  if (a === undefined || b === undefined) return false
+  const keys = Object.keys(a)
+  if (keys.length !== Object.keys(b).length) return false
+  return keys.every(key => a[key] === b[key])
 }
 
 export function setStyle(node: DOMElement, style: Styles): void {
-  return notBuilt('src/ink/dom.ts:254')
+  if (shallowStyleEqual(node.style, style)) return
+  node.style = style
+  markDirty(node)
 }
 
 export function setTextStyles(node: DOMElement, textStyles: TextStyles): void {
@@ -199,9 +289,22 @@ export function scheduleRenderFrom(node?: DOMNode): void {
 }
 
 export function clearLayoutNodeReferences(node: DOMNode): void {
-  return notBuilt('src/ink/dom.ts:307')
+  if (!isElement(node)) return
+  node.layoutNode = undefined
+  for (const child of node.childNodes) clearLayoutNodeReferences(child)
+}
+
+function ownerChainAtRow(node: DOMElement, y: number, parentTop: number, found: string[]): string[] {
+  if (node.style.display === 'none' || !node.layoutNode) return found
+  const top = parentTop + node.layoutNode.getComputedTop()
+  let chain = found
+  if (node.debugOwnerChain && y >= top && y < top + node.layoutNode.getComputedHeight()) chain = node.debugOwnerChain
+  for (const child of node.childNodes) {
+    if (isElement(child)) chain = ownerChainAtRow(child, y, top, chain)
+  }
+  return chain
 }
 
 export function findOwnerChainAtRow(root: DOMElement, y: number): string[] {
-  return notBuilt('src/ink/dom.ts:315')
+  return ownerChainAtRow(root, y, 0, [])
 }
