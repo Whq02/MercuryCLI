@@ -130,7 +130,9 @@ try {
         }
         const bare = health(withoutThePack(join(scratch, 'dist-without-the-pack')), 'bundle-no-pack', { HOME: emptyHome })
         check('with the bash pack gone from beside the bundle, the two rows say the same, and both name the skipped pack as what to mend', same(bare) && (bare.row?.fix ?? '').startsWith('The bash pack is skipped in this install:'), JSON.stringify({ row: bare.row, ready: bare.ready }) + bare.text)
-        const REMEDY = ' · the remedy of the absent pack is chosen by resolveBashPackDir in src/utils/shell/bashPack.ts: the install command for a packaged install whose build carried the pack, the command that makes the pack for a source build'
+        const REMEDY = ' · the remedy of the absent pack is chosen by resolveBashPackDir in src/utils/shell/bashPack.ts: the install command for a packaged install that stands in a versions folder beside its current.txt and whose build carried the pack; the command that makes the pack everywhere else'
+        const bareSays = `${bare.row?.evidence ?? ''} | ${bare.row?.fix ?? ''}`
+        check('…a packaged copy run in place, with no versions folder around it, keeps the command that makes the pack', bare.build.includes('packaged-install') && /\(prepare it: bun run scripts\/vendor\/build-bash\.ts \(needs [^)]+\), then rebuild\)$/.test(bare.row?.fix ?? '') && !bareSays.includes('reinstall Mercury'), bareSays + REMEDY)
         const { mercuryInstallUpdateCommand } = await import('../../src/utils/platform/words.ts')
         const version = (JSON.parse(readFileSync(join(dirname(bundle), 'manifest.json'), 'utf8')) as { version: string }).version
         const versions = join(scratch, 'versions')

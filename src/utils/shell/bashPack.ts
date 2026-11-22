@@ -247,6 +247,7 @@ export type BashPackResolution =
 function restoringInstallCommand(): string | null {
   const identity = describeArtifactIdentity('')
   if (identity.distribution !== 'packaged-install' || identity.entry === null) return null
+  if (!existsSync(path.join(path.dirname(path.dirname(identity.entry)), 'current.txt'))) return null
   try {
     const manifest = JSON.parse(readFileSync(path.join(path.dirname(identity.entry), 'manifest.json'), 'utf8')) as { bash?: { vendored?: boolean } }
     if (manifest.bash?.vendored === false) return null
