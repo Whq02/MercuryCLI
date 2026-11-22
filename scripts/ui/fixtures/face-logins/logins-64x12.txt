@@ -1,11 +1,11 @@
 
-    (>_) MERCURY · logins
+       (>_) MERCURY · logins
 
 
-    signed in
-    ❯ OpenAI — ChatGPT subscription or API…   ChatGPT Plus
-      Anthropic — Claude subscription or…     op@example.com
-    ↓ 21 more
+       signed in
+       ❯ OpenAI — ChatGPT…             ChatGPT Plus
+         Anthropic — Claude…           op@example.com
+       ↓ 21 more
 
-    logins wants at least 64×13 · this window is 64×12
-    ↑↓ move · pgup/pgdn page · ↵ sign in · esc back
+       logins wants at least 64×13 · this window is 64×12
+       ↑↓ move · pgup/pgdn page · ↵ sign in · esc back

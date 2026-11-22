@@ -7,16 +7,16 @@
   empty/esc skips; API key stays
 
   ↑ 7 more
-    Google Gemini — Google sign-in, API key              not signed in
-    GLM (Z.AI) — API key (general or GLM Coding Plan)    not signed in
-    DeepSeek — API key                                   not signed in
-    xAI — Grok subscription sign-in or API key           not signed in
-    Meta — Muse Code sign-in or API key                  not signed in
-  ❯ Mistral — API key                                    not signed in
-    Nous Portal — sign-in or API key                     not signed in
-    MiniMax — API key or M Plan key                      not signed in
-    Together AI — API key                                not signed in
-    Cohere — API key                                     not signed in
+    Google Gemini — Google sign-in, API key      not signed in
+    GLM (Z.AI) — API key (general or GLM…        not signed in
+    DeepSeek — API key                           not signed in
+    xAI — Grok subscription sign-in or API key   not signed in
+    Meta — Muse Code sign-in or API key          not signed in
+  ❯ Mistral — API key                            not signed in
+    Nous Portal — sign-in or API key             not signed in
+    MiniMax — API key or M Plan key              not signed in
+    Together AI — API key                        not signed in
+    Cohere — API key                             not signed in
   ↓ 7 more
 
   Mistral · not signed in

@@ -1,23 +1,23 @@
 
-    (>_) MERCURY · logins
+(>_) MERCURY · logins
 
 
-    signed in
-    ❯ OpenAI — ChatGPT subscription or API key             ChatGPT Plus
-      Anthropic — Claude subscription or Console sign-in…  op@example.com
-      Hugging Face — sign-in or Hub token                  keyed-op …k9f2
-      Kimi (Moonshot) — device-code sign-in or API key     kimi.ai (global)…
-    available
-      OpenRouter — browser sign-in or API key              not signed in
-      Google Gemini — Google sign-in, API key              not signed in
-      GLM (Z.AI) — API key (general or GLM Coding Plan)    not signed in
-      DeepSeek — API key                                   not signed in
-      xAI — Grok subscription sign-in or API key           not signed in
-      Meta — Muse Code sign-in or API key                  not signed in
-      Mistral — API key                                    not signed in
-      Nous Portal — sign-in or API key                     not signed in
-      MiniMax — API key or M Plan key                      not signed in
-    ↓ 9 more
+signed in
+❯ OpenAI — ChatGPT subscription or API key     ChatGPT Plus
+  Anthropic — Claude subscription or Console…  op@example.com
+  Hugging Face — sign-in or Hub token          keyed-op …k9f2
+  Kimi (Moonshot) — device-code sign-in or…    kimi.ai (global) · window reached
+available
+  OpenRouter — browser sign-in or API key      not signed in
+  Google Gemini — Google sign-in, API key      not signed in
+  GLM (Z.AI) — API key (general or GLM…        not signed in
+  DeepSeek — API key                           not signed in
+  xAI — Grok subscription sign-in or API key   not signed in
+  Meta — Muse Code sign-in or API key          not signed in
+  Mistral — API key                            not signed in
+  Nous Portal — sign-in or API key             not signed in
+  MiniMax — API key or M Plan key              not signed in
+↓ 9 more
 
-    OpenAI · ChatGPT Plus
-    ↑↓ move · pgup/pgdn page · ↵ sign in · esc back
+OpenAI · ChatGPT Plus
+↑↓ move · pgup/pgdn page · ↵ sign in · esc back
