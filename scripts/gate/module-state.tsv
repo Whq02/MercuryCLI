@@ -1315,6 +1315,7 @@ src/mneme/journal.ts	closerInstalled	process	module	process-level registration h
 src/mneme/journal.ts	staged	owner	module	session (module, keyed by sessionId, deleted on session close in journalCloser)
 src/mneme/lineageSession.ts	open	owner	module	session (module, cleared in closeLineageSession)
 src/mneme/lineageSession.ts	seen	owner	module	session (module, cleared in closeLineageSession)
+src/mneme/memoryEvidence.ts	HANDOFF_AGE_UNITS	process	module	load-time data; no local writer
 src/mneme/memoryPinIntent.ts	MEMORY_ASK_SCAN	process	module	Load-time lookup with no local writer
 src/mneme/memoryPinIntent.ts	MEMORY_ASK_WORDS	process	module	Load-time definition shared by all callers
 src/mneme/memoryPinIntent.ts	NOT_AN_ASK	process	module	Load-time definition shared by all callers

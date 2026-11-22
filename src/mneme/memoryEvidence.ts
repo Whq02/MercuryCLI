@@ -39,11 +39,10 @@ export function handoffGrade(at?: string | null, now?: number | Date): string {
   return `[${parts.join(' · ')}]`
 }
 
-const HANDOFF_GRADE = handoffGrade()
 export const STRUCTURE_GRADE = '[record metadata]'
 
 export function memoryGrade(input: { id?: string; source?: string; kind?: string; pin?: { asked?: boolean }; pending?: boolean; dir?: string; cited?: number | null }): string {
-  if (input.kind === 'handoff' || input.kind === 'session') return HANDOFF_GRADE
+  if (input.kind === 'handoff' || input.kind === 'session') return handoffGrade()
   if (input.pin && !input.pending) return input.pin.asked ? '[pinned · asked by the owner]' : '[pinned · owner intent unverified]'
   if (input.kind === 'structure') return STRUCTURE_GRADE
   const dir = input.dir ?? mnemeLibraryDir()
