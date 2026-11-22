@@ -1905,7 +1905,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return {
       argv: ['node', BIN, '--resume', SID],
       sends: [{ atTick: 34, minTick: 8, awaitText: '❯', data: String.fromCharCode(3) }],
-      readyText: 'twice to close Mercury',
+      readyText: 'again to close Mercury',
       stableTicks: 2,
       total: 70, cols, rows,
     }

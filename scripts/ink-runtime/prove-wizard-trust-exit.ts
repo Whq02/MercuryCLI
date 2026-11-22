@@ -78,7 +78,7 @@ if (childAt >= 0) {
   } else if (key === 'ctrl-c' || key === 'ctrl-d') {
     const chord = key === 'ctrl-c' ? '\x03' : '\x04'
     input.push(chord)
-    await sees('twice to close Mercury')
+    await sees('again to close Mercury')
     input.push(chord)
   } else {
     input.push(key === 'esc' ? '\x1b' : 'n')

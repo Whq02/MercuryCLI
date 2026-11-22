@@ -70,8 +70,8 @@ try {
   check('the duplicate card hint is gone', !frame.includes('confirm') && !frame.includes('esc exits'), 'the trust card repeats the frame hint; remove the extra hint text from src/components/TrustDialog/TrustDialog.tsx or the footer in src/interactiveHelpers.tsx')
   check('the trust choices remain visible at 80x24', frame.includes('Yes, I trust this folder') && frame.includes('No, exit'), 'the trust choices did not fit 80x24; check the layout of src/components/TrustDialog/TrustDialog.tsx (shortFrame branch)')
   mounted.push('\x03')
-  await sees('press ctrl+c twice to close Mercury')
-  check('the first exit chord still paints its confirmation', mounted.screen().includes('press ctrl+c twice to close Mercury'), 'ctrl+c on the trust step must show the exit-chord notice; see exitState and exitChordNoticeText in src/components/TrustDialog/TrustDialog.tsx')
+  await sees('press ctrl+c again to close Mercury')
+  check('the first exit chord still paints its confirmation', mounted.screen().includes('press ctrl+c again to close Mercury'), 'ctrl+c on the trust step must show the exit-chord notice; see exitState and exitChordNoticeText in src/components/TrustDialog/TrustDialog.tsx')
 } finally {
   mounted.unmount()
   if (stdoutTty) Object.defineProperty(process.stdout, 'isTTY', stdoutTty)

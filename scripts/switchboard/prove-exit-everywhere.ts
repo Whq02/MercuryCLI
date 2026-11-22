@@ -52,7 +52,7 @@ interface Send {
 }
 
 const CTRL_C = '\x03'
-const NOTICE = 'press ctrl+c twice to close Mercury'
+const NOTICE = 'press ctrl+c again to close Mercury'
 const NOTICE_ROW = `  ${NOTICE}`
 
 interface Capture {

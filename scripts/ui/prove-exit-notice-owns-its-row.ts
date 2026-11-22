@@ -35,6 +35,7 @@ enableConfigs()
 
 const BENEATH = 'f'
 const NOTICE = exitChordNoticeText('Ctrl-C')
+check('after one press, ctrl+c says "press ctrl+c again to close Mercury" and ctrl+d says "press ctrl+d again to close Mercury"', NOTICE === 'press ctrl+c again to close Mercury' && exitChordNoticeText('Ctrl-D') === 'press ctrl+d again to close Mercury', JSON.stringify([NOTICE, exitChordNoticeText('Ctrl-D')]))
 const wrap = (node: React.ReactNode): React.ReactNode => h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(KeybindingSetup, null, node))
 
 function Surface({ columns, rows, pending }: { columns: number; rows: number; pending: boolean }): React.ReactNode {

@@ -15,7 +15,7 @@ const VSHOT = join(REPO, 'scripts', 'ui', 'vshot.py')
 const DEAD = 'http://127.0.0.1:1'
 const TICKS_A_SECOND = 5
 const WATCH_S = 30
-const CHORD_NOTICE = 'press ctrl+c twice to close Mercury'
+const CHORD_NOTICE = 'press ctrl+c again to close Mercury'
 const STAYS_S = 12
 
 let failures = 0
