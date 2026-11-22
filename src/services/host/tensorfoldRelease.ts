@@ -8,8 +8,8 @@ const TENSORFOLD_HOST_IMAGE_SOURCE = 'https://hub.docker.com/layers/nvidia/cuda/
 export const TENSORFOLD_RELEASE_PUBLIC_KEY = 'MCowBQYDK2VwAyEA80FFo6a9/NXHNX9zBV3/2tM9AbC//mShbseG74mkkGw='
 export const TENSORFOLD_RELEASE_SIGNED_PREFIX = 'tensorfold-native-checksum-v1\n'
 export const TENSORFOLD_RELEASE_ARCHIVES = {
-  x86_64: { platform: 'linux-x86_64', sha256: 'd17ba88f98d6e8b63141ed931c75db4561ed4ce7ba4ca7fbf8e28d98bbc27187', bytes: 51049863 },
-  aarch64: { platform: 'linux-aarch64', sha256: '91e90c489bef3d217c2d3d51ce34d2a9a160ffc46b36e8b25026016b90f32f04', bytes: 50558363 },
+  x86_64: { platform: 'linux-x86_64', sha256: '928c34949c4b23089fa240765e424e6cc95451568ec295f9729f906964fc17f2', bytes: 56763012 },
+  aarch64: { platform: 'linux-aarch64', sha256: '95e4388aba4af1f41a4f50265fd19f7636fa34007f8392a8723d8b2e1612491c', bytes: 56213123 },
 } as const
 export const TENSORFOLD_HOST_PORT = 8080
 const TENSORFOLD_HOST_VOLUME = '/workspace'

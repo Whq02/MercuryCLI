@@ -33,7 +33,7 @@ export const TENSORFOLD_HOST_WORDS = {
   terminated: (machine: string, spend: number): string => machine + ' terminated · the pod and its disk are gone · ~$' + spend.toFixed(2) + ' in all',
   terminateFailed: (machine: string, detail: string): string => machine + ' · ' + detail + ' · it may still bill · /llmhost → Machines I’m paying for → Terminate',
   gone: 'this pod is no longer recorded · /llmhost → Machines I’m paying for lists what still bills',
-  gated: 'TensorFold pulls public checkpoints only · a gated or private model is not served on a pod yet',
+  gated: 'Mercury sends no token to a TensorFold pod · a gated or private model is not served on a pod yet',
   refused: (gpu: string, evidence: string): string => gpu + ' is not offered · ' + evidence,
   serves: (title: string, window: number): string => title + ' at ' + tensorFoldWindowWords(window) + ' with TensorFold ' + TENSORFOLD_HOST_VERSION + ' for CUDA',
 } as const

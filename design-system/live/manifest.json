@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "generator": "scripts/ui/generate-visual-baseline.ts",
-  "sourceSha": "1c7c67b5a876f95a1007e670d88e1bd30292360f",
-  "buildDigest": "99fae3cd2dfac1d7089193c70b95de8ec21b8046",
+  "sourceSha": "b3729d4e8050fbaa7b068c2079494d07dad37e86",
+  "buildDigest": "8f148b6ef661f66fb501bc24e9b208def66665e7",
   "descoped": [
     "mouse on/off: identical static grids — pointer semantics live in the interaction journeys (S4–S6)",
     "provider screens: covered by the agent-dispatch journey provers, not the static baseline",
@@ -520,8 +520,8 @@
     },
     {
       "id": "frame--60x18--dark--truecolor--full",
-      "sourceSha": "f352fb220a379b622ff21c120bf6bf7963738cdc",
-      "buildDigest": "546bd41cffae3abe7d15c6086df9518bbd06abd6",
+      "sourceSha": "b3729d4e8050fbaa7b068c2079494d07dad37e86",
+      "buildDigest": "8f148b6ef661f66fb501bc24e9b208def66665e7",
       "scenario": "frame",
       "cols": 60,
       "rows": 18,
@@ -532,7 +532,7 @@
       "stateFixture": "frame",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--60x18--dark--truecolor--full.grid.json",
-      "gridDigest": "c18e7794616ebceaa357e57e2e67e457d57a7d3399128f858ef5f3973c838ac4",
+      "gridDigest": "f1f428b6fbf16d9a07e15bed211b89a17a6dbb71f9becb5c6d9b0f7d6b049333",
       "styleDigest": "8a47b2fd5e885df390ac67ede43d89d50c72b7fd2bde5c04bc9a6bfd390afe2e",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -551,14 +551,13 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]",
-        "│ {2,3}(?:idle|—) +(?=│)"
+        "row:gate [✓◓✕·]"
       ]
     },
     {
       "id": "frame--80x24--dark--truecolor--full",
-      "sourceSha": "f352fb220a379b622ff21c120bf6bf7963738cdc",
-      "buildDigest": "546bd41cffae3abe7d15c6086df9518bbd06abd6",
+      "sourceSha": "b3729d4e8050fbaa7b068c2079494d07dad37e86",
+      "buildDigest": "8f148b6ef661f66fb501bc24e9b208def66665e7",
       "scenario": "frame",
       "cols": 80,
       "rows": 24,
@@ -569,8 +568,8 @@
       "stateFixture": "frame",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--80x24--dark--truecolor--full.grid.json",
-      "gridDigest": "5542a7fed8d35dd16ca1f3de7b0b48a231a27858bc75751cd1614f1f0fbdef0c",
-      "styleDigest": "bc12a57d70b9e422c5ba4a7c4a9c4070de8f232d7f0aa75ea3c25e1f18346c99",
+      "gridDigest": "2f00f5f25ecaac099f1b398f1a49a239eff5a003a3699b358be432b78226457b",
+      "styleDigest": "5d683d0da9d6761e83a26465cafa6eb2a5e65d55ca6c8135bc847a82dd3252cb",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -588,14 +587,13 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]",
-        "│ {2,3}(?:idle|—) +(?=│)"
+        "row:gate [✓◓✕·]"
       ]
     },
     {
       "id": "frame--97x30--dark--truecolor--full",
-      "sourceSha": "08b2d67d89a44cd09eb5624d24c55325c7ff8526",
-      "buildDigest": "0634a80919bcd715fd0b260774880befa707bfa4",
+      "sourceSha": "b3729d4e8050fbaa7b068c2079494d07dad37e86",
+      "buildDigest": "8f148b6ef661f66fb501bc24e9b208def66665e7",
       "scenario": "frame",
       "cols": 97,
       "rows": 30,
@@ -606,8 +604,8 @@
       "stateFixture": "frame",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--97x30--dark--truecolor--full.grid.json",
-      "gridDigest": "6f07097be38c4a7aa53cf0c0633ed8b4f224dacf4723fdd7bfdfa5cf5eb016fd",
-      "styleDigest": "361f5b7c3d52fc4149f4277b659a891ed6aa1f86e6aa3c256abbed35884c300f",
+      "gridDigest": "4591e63659a1e8d93d99c5c5b92bf6fa21a6d0dcbdb1f7086ac706c78e28363c",
+      "styleDigest": "2c311c732efd1a73f4acec1e201d99dff1090c322a4368db1a3849e524b2c5ca",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -623,16 +621,15 @@
         "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         "row: {2,}\\S+(?: ⌥ \\S+)? {2}(?:[^·]+ · )?(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
-        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]",
-        "│ {2,3}(?:idle|—) +(?=│)"
+        "row:gate [✓◓✕·]"
       ]
     },
     {
       "id": "frame--99x30--dark--truecolor--full",
-      "sourceSha": "08b2d67d89a44cd09eb5624d24c55325c7ff8526",
-      "buildDigest": "0634a80919bcd715fd0b260774880befa707bfa4",
+      "sourceSha": "b3729d4e8050fbaa7b068c2079494d07dad37e86",
+      "buildDigest": "8f148b6ef661f66fb501bc24e9b208def66665e7",
       "scenario": "frame",
       "cols": 99,
       "rows": 30,
@@ -643,8 +640,8 @@
       "stateFixture": "frame",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--99x30--dark--truecolor--full.grid.json",
-      "gridDigest": "265c2c38308e265c80d23ca6f76ca8e7c41d877351dde9ac175023e980191db7",
-      "styleDigest": "fc02962a5a5a420893e8ab1f7e1aa25e58207f67c8658d2518260f80f5fd07f3",
+      "gridDigest": "86fb8501821adf4192c69fbc1d4d1f75b6910bee3a9f01efb3c7af985e11c3e9",
+      "styleDigest": "51baee193554178818587272088a3c8b6906b811fe5ec527a45635a43325074e",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -660,16 +657,15 @@
         "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         "row: {2,}\\S+(?: ⌥ \\S+)? {2}(?:[^·]+ · )?(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
-        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]",
-        "│ {2,3}(?:idle|—) +(?=│)"
+        "row:gate [✓◓✕·]"
       ]
     },
     {
       "id": "help--120x40--dark--truecolor--full",
-      "sourceSha": "1c7c67b5a876f95a1007e670d88e1bd30292360f",
-      "buildDigest": "99fae3cd2dfac1d7089193c70b95de8ec21b8046",
+      "sourceSha": "b3729d4e8050fbaa7b068c2079494d07dad37e86",
+      "buildDigest": "8f148b6ef661f66fb501bc24e9b208def66665e7",
       "scenario": "help",
       "cols": 120,
       "rows": 40,
@@ -680,8 +676,8 @@
       "stateFixture": "help",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/help--120x40--dark--truecolor--full.grid.json",
-      "gridDigest": "1b6ecf21cb97b59d37010397272f1775d8fbf725ecc1f7bd58aed5c672cac6c6",
-      "styleDigest": "4ec443a6eb3d0e83a7cb2ae344c8ceefd592e4e671af8d87e44993100a6063e8",
+      "gridDigest": "ba7e0c6ec1f430bb3624e528e4616f14268ff6a2f97666315e995b908e665baa",
+      "styleDigest": "ab2fd806a75ed57669492d60f94eb27b35154cd6d688722d49d3629aee1aa8ae",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -1100,8 +1096,8 @@
     },
     {
       "id": "resume-2turn--60x18--dark--truecolor--full",
-      "sourceSha": "f352fb220a379b622ff21c120bf6bf7963738cdc",
-      "buildDigest": "546bd41cffae3abe7d15c6086df9518bbd06abd6",
+      "sourceSha": "b3729d4e8050fbaa7b068c2079494d07dad37e86",
+      "buildDigest": "8f148b6ef661f66fb501bc24e9b208def66665e7",
       "scenario": "resume-2turn",
       "cols": 60,
       "rows": 18,
@@ -1112,7 +1108,7 @@
       "stateFixture": "resume-2turn",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--60x18--dark--truecolor--full.grid.json",
-      "gridDigest": "3711c5e748750c1efd22702b957f9ffea9bd5c10988ed36b6db00ceffcfb1438",
+      "gridDigest": "adf760975b668a7107248e6473914521d3ea959be83c9e834bcd5c437c8c4e78",
       "styleDigest": "8a47b2fd5e885df390ac67ede43d89d50c72b7fd2bde5c04bc9a6bfd390afe2e",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -1131,14 +1127,13 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]",
-        "│ {2,3}(?:idle|—) +(?=│)"
+        "row:gate [✓◓✕·]"
       ]
     },
     {
       "id": "resume-2turn--80x24--dark--truecolor--full",
-      "sourceSha": "f352fb220a379b622ff21c120bf6bf7963738cdc",
-      "buildDigest": "546bd41cffae3abe7d15c6086df9518bbd06abd6",
+      "sourceSha": "b3729d4e8050fbaa7b068c2079494d07dad37e86",
+      "buildDigest": "8f148b6ef661f66fb501bc24e9b208def66665e7",
       "scenario": "resume-2turn",
       "cols": 80,
       "rows": 24,
@@ -1149,8 +1144,8 @@
       "stateFixture": "resume-2turn",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--80x24--dark--truecolor--full.grid.json",
-      "gridDigest": "5542a7fed8d35dd16ca1f3de7b0b48a231a27858bc75751cd1614f1f0fbdef0c",
-      "styleDigest": "bc12a57d70b9e422c5ba4a7c4a9c4070de8f232d7f0aa75ea3c25e1f18346c99",
+      "gridDigest": "2f00f5f25ecaac099f1b398f1a49a239eff5a003a3699b358be432b78226457b",
+      "styleDigest": "5d683d0da9d6761e83a26465cafa6eb2a5e65d55ca6c8135bc847a82dd3252cb",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -1168,14 +1163,13 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]",
-        "│ {2,3}(?:idle|—) +(?=│)"
+        "row:gate [✓◓✕·]"
       ]
     },
     {
       "id": "resume-2turn--97x30--dark--truecolor--full",
-      "sourceSha": "08b2d67d89a44cd09eb5624d24c55325c7ff8526",
-      "buildDigest": "0634a80919bcd715fd0b260774880befa707bfa4",
+      "sourceSha": "b3729d4e8050fbaa7b068c2079494d07dad37e86",
+      "buildDigest": "8f148b6ef661f66fb501bc24e9b208def66665e7",
       "scenario": "resume-2turn",
       "cols": 97,
       "rows": 30,
@@ -1186,8 +1180,8 @@
       "stateFixture": "resume-2turn",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--97x30--dark--truecolor--full.grid.json",
-      "gridDigest": "6f07097be38c4a7aa53cf0c0633ed8b4f224dacf4723fdd7bfdfa5cf5eb016fd",
-      "styleDigest": "361f5b7c3d52fc4149f4277b659a891ed6aa1f86e6aa3c256abbed35884c300f",
+      "gridDigest": "4591e63659a1e8d93d99c5c5b92bf6fa21a6d0dcbdb1f7086ac706c78e28363c",
+      "styleDigest": "2c311c732efd1a73f4acec1e201d99dff1090c322a4368db1a3849e524b2c5ca",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -1203,16 +1197,15 @@
         "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         "row: {2,}\\S+(?: ⌥ \\S+)? {2}(?:[^·]+ · )?(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
-        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]",
-        "│ {2,3}(?:idle|—) +(?=│)"
+        "row:gate [✓◓✕·]"
       ]
     },
     {
       "id": "resume-2turn--99x30--dark--truecolor--full",
-      "sourceSha": "08b2d67d89a44cd09eb5624d24c55325c7ff8526",
-      "buildDigest": "0634a80919bcd715fd0b260774880befa707bfa4",
+      "sourceSha": "b3729d4e8050fbaa7b068c2079494d07dad37e86",
+      "buildDigest": "8f148b6ef661f66fb501bc24e9b208def66665e7",
       "scenario": "resume-2turn",
       "cols": 99,
       "rows": 30,
@@ -1223,8 +1216,8 @@
       "stateFixture": "resume-2turn",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--99x30--dark--truecolor--full.grid.json",
-      "gridDigest": "265c2c38308e265c80d23ca6f76ca8e7c41d877351dde9ac175023e980191db7",
-      "styleDigest": "fc02962a5a5a420893e8ab1f7e1aa25e58207f67c8658d2518260f80f5fd07f3",
+      "gridDigest": "86fb8501821adf4192c69fbc1d4d1f75b6910bee3a9f01efb3c7af985e11c3e9",
+      "styleDigest": "51baee193554178818587272088a3c8b6906b811fe5ec527a45635a43325074e",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -1240,10 +1233,9 @@
         "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         "row: {2,}\\S+(?: ⌥ \\S+)? {2}(?:[^·]+ · )?(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
-        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]",
-        "│ {2,3}(?:idle|—) +(?=│)"
+        "row:gate [✓◓✕·]"
       ]
     },
     {

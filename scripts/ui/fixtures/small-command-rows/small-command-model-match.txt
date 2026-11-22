@@ -28,7 +28,7 @@ VITALS                  │ ❯ /crewmates off                                  
                         │     Model set to Sonnet 5.5 · saved as your default — this session's next message runs it                        │
                         │                                                                                                                  │
                         │ ❯ /model sonnet 5.5                                                                                              │
-                        │   └ sonnet 5.5 → claude-sonnet-5-5 · 06:37 GMT · saved as your default for new sessions — /model claude-opus-5-5 │
+                        │   └ sonnet 5.5 → claude-sonnet-5-5 · 06:37 UTC · saved as your default for new sessions — /model claude-opus-5-5 │
                         │     switches back to Opus 5.5                                                                                    │
                         │                                                                                                                  │
                         │                                                                                                                  │

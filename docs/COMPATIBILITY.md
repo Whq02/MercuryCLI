@@ -202,7 +202,8 @@ Windows archives the addon runs a vectorised maths kernel, about a tenth of a
 second per Recall by meaning (a few hundredths on macOS through Accelerate). The
 macOS and Linux archives bundle GNU bash 5.3, the shell the Bash tool runs
 there (GPL-3.0-or-later, with its licence text and a note naming its source);
-the two Windows archives bundle the `brush` shell engine, and the Windows
+the two Windows archives bundle GNU bash 5.3 (as MSYS2 packages, for machines
+without a bash 5 of their own) and the `brush` shell engine, and the Windows
 recursive-delete safety rule
 enforces parity across drive roots, `Users`, system folders, share roots and
 PowerShell pipelines ([TRUST.md](TRUST.md)).

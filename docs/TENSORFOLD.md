@@ -7,7 +7,7 @@ endpoints, and never changes model weights. On Windows, until a native Windows
 TensorFold binary is installed, Mercury serves the `TENSORFOLD` group on CPU
 through its own `llama.cpp` adapter (`served by Mercury's engine until TensorFold ships for Windows`; see [Windows](#windows)).
 
-Mercury ships three qualified starting points for TensorFold `1.2.9`, each
+Mercury ships three qualified starting points for TensorFold `1.3.3`, each
 trained to a `256k` (`262,144`-token) context window:
 
 - **`Nemotron Lightning`** (`TensorFold/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-MLX-4bit`, served as `local/nemotron-lightning`): ordered first on Macs with under 64 GiB of memory (including 48 GB Macs) and on pre-M5 Apple silicon.
@@ -16,7 +16,7 @@ trained to a `256k` (`262,144`-token) context window:
 
 Any other MLX, NVFP4 or EXL3 safetensors checkpoint in the Hugging Face cache
 (`~/.cache/huggingface/hub`, `$HF_HUB_CACHE` or `$HF_HOME/hub`) whose model
-family TensorFold supports is listed as `on disk` (`note      unqualified by TensorFold`). Choosing `other checkpoint` (`a Hugging Face repository id`) reads a repository from Hugging Face (`Hugging Face · MLX, NVFP4 or EXL3 checkpoints, not GGUF`). GGUF repositories are refused with `GGUF is llama.cpp's format · /localsetup serves it`, and gated repositories are refused with `a gated repository · pull takes no token`.
+family TensorFold supports is listed as `on disk` (`note      unqualified by TensorFold`). Choosing `other checkpoint` (`a Hugging Face repository id`) reads a repository from Hugging Face (`Hugging Face · MLX, NVFP4 or EXL3 checkpoints, not GGUF`). GGUF repositories are refused with `GGUF is llama.cpp's format · /localsetup serves it`, and gated repositories are refused with `a gated repository · Mercury reads it with no token`.
 
 ## Opening `/tensorfold` and what the groups show
 
@@ -96,7 +96,7 @@ installed, the card shows `needs     Homebrew · brew.sh installs it, then /tens
 
 On Linux with an NVIDIA GPU and driver R580 or newer (CUDA 13), `install TensorFold`
 (`release archive · checksum verified`) downloads
-`tensorfold-1.2.9-linux-x86_64.tar.gz` (or `tensorfold-1.2.9-linux-aarch64.tar.gz`)
+`tensorfold-1.3.3-linux-x86_64.tar.gz` (or `tensorfold-1.3.3-linux-aarch64.tar.gz`)
 and its `.sha256` file into `~/.local/share/mercury-host/runtime/tensorfold`,
 checks `sha256sum -c`, extracts the archive with `--strip-components=1`, and
 removes the archive files. If no NVIDIA GPU is found or the driver is older
@@ -105,7 +105,7 @@ than R580, the footer reports `no NVIDIA GPU found` or
 
 When the installed TensorFold is older than the release this build installs
 and is tested with, the panel shows one line with both versions and the
-command that moves to it: `TensorFold 1.2.9 is supported, 1.2.2 is installed · brew upgrade ashhart/tensorfold/tensorfold`
+command that moves to it: `TensorFold 1.3.3 is supported, 1.2.2 is installed · brew upgrade ashhart/tensorfold/tensorfold`
 on a Mac with Homebrew, the release archive's install commands on Linux.
 Mercury serves the installed engine as it stands and upgrades nothing itself.
 
@@ -270,7 +270,7 @@ rents a cloud CUDA pod for TensorFold:
 
 ```text
 pod       RTX 5090 32 GB · $0.89/h on Runpod or Vast.ai · billing starts when it boots
-serves    Qwen3.8 27B at 128k with TensorFold 1.2.9 for CUDA
+serves    Qwen3.8 27B at 128k with TensorFold 1.3.3 for CUDA
 through   /llmhost rents it, installs TensorFold, pulls, serves, then this session switches · s stops the pod and its billing
 ```
 
@@ -282,14 +282,14 @@ and in `/llmhost`.
   `RTX PRO 6000` (96 GB), `GB10` (128 GB), `A100` (80 GB), `RTX A6000` (48 GB)
   and `RTX 3090` (24 GB), and lists `RTX 4090` (24 GB), `L40S` (48 GB) and `L4`
   (24 GB) as `ships · unqualified by TensorFold`. `H100`, `H200`, `B200`,
-  `B300` and `GB300` are refused before renting (`the 1.2.9 archive holds no sm_90 machine code and no PTX`).
+  `B300` and `GB300` are refused before renting (`the 1.3.3 archive holds no sm_90 machine code and no PTX`).
   On the rented pod, setup checks for NVIDIA driver R580 or newer (CUDA 13.0),
   downloads the release archive into `/workspace/mercury-host/<recipe-id>`,
   verifies both its SHA-256 checksum and its Ed25519 signature, sets
   `HF_HOME=/workspace/huggingface`, runs `tensorfold-native pull` before
   `tensorfold-native serve` (`--host 0.0.0.0 --port 8080 --api-key-file`), and
   opens the local SSH tunnel. Public checkpoints only are pulled on a pod
-  (`TensorFold pulls public checkpoints only · a gated or private model is not served on a pod yet`).
+  (`Mercury sends no token to a TensorFold pod · a gated or private model is not served on a pod yet`).
 - **The key Mercury holds:** When a pod is registered, Mercury generates a
   random 24-byte key in `<config home>/host/tensorfold/<id>.key` (`0600`),
   writes `mercury[inference]: <key>` to `api-key` (`0600`) on the pod (and
@@ -303,7 +303,7 @@ and in `/llmhost`.
   `TENSORFOLD`), and the `TENSORFOLD HOST` heading names the live hosts and
   counts the rest:
   - `setting up`: the card shows `pod       <gpu> · $<price>/h on <Runpod|Vast.ai> · <elapsed> · ~$<spend> so far · s stops the pod and its billing` and the current provisioning step (`now       <step>`).
-  - `serving` (or `current`): ready for turns as `compat/pod-<id>/<model>`. Its card shows `host      <gpu> · TensorFold 1.2.9 · keyed`, `pod       $<price>/h on <Runpod|Vast.ai> · <elapsed> · ~$<spend> so far · s stops the pod and its billing`, `serving   ~<N> tok/s on its last reply` once a turn has completed, and `window    <N>k · set when the pod was rented`.
+  - `serving` (or `current`): ready for turns as `compat/pod-<id>/<model>`. Its card shows `host      <gpu> · TensorFold 1.3.3 · keyed`, `pod       $<price>/h on <Runpod|Vast.ai> · <elapsed> · ~$<spend> so far · s stops the pod and its billing`, `serving   ~<N> tok/s on its last reply` once a turn has completed, and `window    <N>k · set when the pod was rented`.
   - `paused` or `failed`: shows the cause and `next      Resume or Terminate in /llmhost`.
   - `stopping` and `stopped`: pressing `s` (`s stops the pod`) on a billing pod requests the stop at once. If the vendor confirms within the short wait, the row settles to `stopped` (`<machine> stopped · compute billing ended · ~$<spend> so far · the disk bills until you terminate it · t terminates`); if the vendor has not confirmed yet, the row reads `stopping` (`<machine> · stop requested · the row reads stopping until <Vendor> confirms, then compute billing ends · the disk bills until you terminate it · t terminates`) with the spend preserved, and the panel polls and settles it to `stopped` (or removes it if the vendor reports it gone) once confirmed. Stopping the pod from `/llmhost` also forgets its live `TENSORFOLD HOST` server entry so the row shows as `stopped`.
   While a pod is `stopped`, its container or volume disk continues to bill at
@@ -546,8 +546,10 @@ replies, so a message that comes early still finds the pieces before it.
 
 The read-ahead starts only when no request of the session is on that engine.
 A new request cancels it, but the engine finishes the prompt chunk already in
-flight before switching. On Qwen3.5 2B that wait is about a tenth of a second;
-an engine with larger chunks can take longer. Mercury reads the engine's
+flight before switching. On Qwen3.5 2B that wait was about a tenth of a second
+up to TensorFold `1.2.9`, and an engine with larger chunks can take longer; from
+`1.2.10` the 2B reads the next turn ahead itself (`"warm_turns": true`), so
+Mercury reads nothing ahead on it. Mercury reads the engine's
 `/health` before each piece and about three times a second while one runs, so
 another session's request can also wait for the next look. Once that request
 is seen, the read-ahead is cancelled and the turn is left as it is. Where an
