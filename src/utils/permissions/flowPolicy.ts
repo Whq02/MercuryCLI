@@ -1,4 +1,5 @@
 import type { Tool, ToolPermissionContext } from '../../Tool.js'
+import type { PermissionUpdate } from '../../types/permissions.js'
 import { logForDebugging } from '../debug.js'
 import { flowAskFor, flowAskSentence, type FlowAsk } from './flowLaw.js'
 import type { PermissionAskDecision, PermissionDecision, PermissionDecisionReason } from './PermissionResult.js'
@@ -40,7 +41,13 @@ function flowFloorOf(tool: Pick<Tool, 'requiresUserInteraction' | 'mcpInfo'>, en
   return null
 }
 
-export async function decideUnderFlow(tool: Tool, input: Record<string, unknown>, engineDecision: PermissionAskDecision, rules: ToolPermissionContext): Promise<FlowVerdict> {
+export async function decideUnderFlow(
+  tool: Tool,
+  input: Record<string, unknown>,
+  engineDecision: PermissionAskDecision,
+  rules: ToolPermissionContext,
+  suggestionsAllowCall?: (suggestions: PermissionUpdate[]) => Promise<boolean>,
+): Promise<FlowVerdict> {
   const floor = flowFloorOf(tool, engineDecision)
   if (floor !== null) return { stage: 'flowFloors', floor, decision: engineDecision }
   let ask: FlowAsk | null = null
@@ -52,6 +59,15 @@ export async function decideUnderFlow(tool: Tool, input: Record<string, unknown>
   }
   if (ask !== null) {
     const message = flowAskSentence(ask)
+    const rawSuggestions = engineDecision.suggestions
+    let keepSuggestions = rawSuggestions !== undefined && rawSuggestions.length > 0
+    if (keepSuggestions && suggestionsAllowCall !== undefined) {
+      try {
+        keepSuggestions = await suggestionsAllowCall(rawSuggestions!)
+      } catch {
+        keepSuggestions = false
+      }
+    }
     return {
       stage: 'flowLaw',
       ask,
@@ -59,7 +75,7 @@ export async function decideUnderFlow(tool: Tool, input: Record<string, unknown>
         behavior: 'ask',
         message,
         decisionReason: { type: 'other', reason: message },
-        ...(engineDecision.suggestions !== undefined ? { suggestions: engineDecision.suggestions } : {}),
+        ...(keepSuggestions ? { suggestions: rawSuggestions } : {}),
         ...(engineDecision.updatedInput !== undefined ? { updatedInput: engineDecision.updatedInput } : {}),
       },
     }

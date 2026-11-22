@@ -44,6 +44,8 @@ const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { render } = await import('../../src/ink.ts')
 const { default: stripAnsi } = await import('strip-ansi')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
+const { parseForSecurity } = await import('../../src/utils/permissions/decision/commandAnalysis.ts')
 
 let failures = 0
 const HINT =
@@ -455,6 +457,89 @@ try {
     fileCrewFrame.includes('△ mercury-scout Count lines in src files'),
     JSON.stringify(fileCrewFrame),
   )
+
+  {
+    const flowState = { toolPermissionContext: ctxFor('flow'), tasks: {}, sessionHooks: new Map() }
+    const flowCtx = {
+      abortController: new AbortController(),
+      getAppState: () => flowState,
+      setAppState() {},
+      options: { tools: [BashTool, FileWriteTool] },
+      messages: [],
+    } as never
+    const flowAssistant = { message: { id: 'flow-item6' } } as never
+
+    const cdRedirect = 'cd ~ && echo x > notes-from-the-test.txt'
+    await parseForSecurity(cdRedirect)
+    const cdAsk = (await decideToolPermissionWithModes(BashTool as never, { command: cdRedirect }, flowCtx, flowAssistant, 'flow-cd-write')).decision
+    check(
+      'flow outside-write compound command: asks and drops ineffective Read+Bash suggestions',
+      cdAsk.behavior === 'ask' && (cdAsk.suggestions === undefined || cdAsk.suggestions.length === 0),
+      JSON.stringify(cdAsk),
+    )
+
+    const cdCard = await drawCard(
+      React.createElement(BashPermissionRequest as never, {
+        toolUseConfirm: {
+          tool: BashTool,
+          input: { command: cdRedirect },
+          toolUseID: 'flow-cd-write',
+          description: 'Run a shell command',
+          cwd: projectDir,
+          assistantMessage: flowAssistant,
+          permissionResult: cdAsk,
+          permissionPromptStartTimeMs: Date.now(),
+          onUserInteraction() {},
+          onAllow() {},
+          onReject() {},
+          onAbort() {},
+          recheckPermission: async () => {},
+          toolUseContext: flowCtx,
+        },
+        toolUseContext: flowCtx,
+        onDone() {},
+        onReject() {},
+        verbose: false,
+      } as never),
+      'flow',
+    )
+    const cdNumbered = cdCard.filter(r => /^(❯ )?\d+\.\s/.test(r)).map(r => r.replace(/^❯ /, ''))
+    check(
+      'flow outside-write compound card: offers Yes and No only and never says allow reading',
+      cdNumbered.length === 2 &&
+        cdNumbered[0] === '1. Yes' &&
+        cdNumbered[1]?.startsWith('2. No, and tell Mercury what to do differently') === true &&
+        !cdCard.some(r => r.includes('allow reading')),
+      JSON.stringify(cdNumbered),
+    )
+
+    const cpOutside = 'cp a.txt ~/outside.txt'
+    await parseForSecurity(cpOutside)
+    const cpAsk = (await decideToolPermissionWithModes(BashTool as never, { command: cpOutside }, flowCtx, flowAssistant, 'flow-cp-write')).decision
+    check(
+      'flow outside-write cp: drops ineffective project-dir Edit suggestion',
+      cpAsk.behavior === 'ask' && (cpAsk.suggestions === undefined || cpAsk.suggestions.length === 0),
+      JSON.stringify(cpAsk),
+    )
+
+    const pushCmd = 'git push origin main'
+    await parseForSecurity(pushCmd)
+    const pushAsk = (await decideToolPermissionWithModes(BashTool as never, { command: pushCmd }, flowCtx, flowAssistant, 'flow-push')).decision
+    check(
+      'flow git push: keeps its effective suggestion because it allows the command next time',
+      pushAsk.behavior === 'ask' && Array.isArray(pushAsk.suggestions) && pushAsk.suggestions.length > 0,
+      JSON.stringify(pushAsk),
+    )
+
+    const sudoCmd = 'sudo -n true'
+    await parseForSecurity(sudoCmd)
+    const sudoAsk = (await decideToolPermissionWithModes(BashTool as never, { command: sudoCmd }, flowCtx, flowAssistant, 'flow-sudo')).decision
+    check(
+      'flow sudo: keeps its effective suggestion because it allows the command next time',
+      sudoAsk.behavior === 'ask' && Array.isArray(sudoAsk.suggestions) && sudoAsk.suggestions.length > 0,
+      JSON.stringify(sudoAsk),
+    )
+  }
 } finally {
   process.chdir(originalCwd)
   rmSync(sandbox, { recursive: true, force: true })
