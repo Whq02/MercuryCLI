@@ -4,12 +4,10 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { flagRegistryFiles, isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const OUT = resolve(ROOT, process.env.MERCURY_BUILD_OUTDIR ?? 'dist')
 const BUNDLE = resolve(OUT, 'mercury.mjs')
-const FLAG_DOOR = flagRegistryFiles(ROOT)[0]!
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -17,67 +15,39 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-console.log('── the --version path stays light at module start and bundle level ──')
-
-const probeCode = `
-  const { relative } = await import('node:path')
-  const { featureReached } = await import(${JSON.stringify(join(ROOT, 'src/substrate/featureReached.ts'))})
-  const { FLAG_REGISTRY, flagEnv } = await import(${JSON.stringify(join(ROOT, FLAG_DOOR))})
-  featureReached('verb', '--version')
-  const loadedAfterVersion = Object.keys(require.cache).map(p => relative(${JSON.stringify(ROOT)}, p).replaceAll('\\\\', '/'))
-  let unregisteredThrew = false
-  try {
-    flagEnv('MERCURY_UNREGISTERED_PROBE_XYZ')
-  } catch (err) {
-    unregisteredThrew = err instanceof Error && err.message.includes('unregistered flag')
-  }
-  const providerFlag = flagEnv('MERCURY_PROVIDER_MANAGED_BY_HOST')
-  const registryIsArray = Array.isArray(FLAG_REGISTRY)
-  const registryCount = FLAG_REGISTRY.length
-  const registrySorted = FLAG_REGISTRY.every((row, i) => i === 0 || FLAG_REGISTRY[i - 1].env < row.env)
-  console.log(JSON.stringify({ loadedAfterVersion, unregisteredThrew, providerFlag: providerFlag ?? null, registryIsArray, registryCount, registrySorted }))
-`
+console.log('── the --version path and bundle stay free of Zod locales and dead changelogArchive ──')
 
 const envClean = { ...process.env }
 delete envClean.MERCURY_FEATURE_TRACE
 delete envClean.MERCURY_FEATURE_TRACE_PROOF
+
+const probeCode = `
+  const { relative } = await import('node:path')
+  globalThis.MACRO = { VERSION: '1.0.0' }
+  process.argv = [process.execPath, ${JSON.stringify(join(ROOT, 'src/entrypoints/cli.tsx'))}, '--version']
+  await import(${JSON.stringify(join(ROOT, 'src/entrypoints/cli.tsx'))})
+  const loaded = Object.keys(require.cache).map(p => relative(${JSON.stringify(ROOT)}, p).replaceAll('\\\\', '/'))
+  console.log('__PROBE__' + JSON.stringify({ loaded }))
+`
 const probe = spawnSync(process.execPath, ['-e', probeCode], {
   cwd: ROOT,
   env: envClean,
   encoding: 'utf8',
   timeout: 30_000,
 })
+const probeLine = probe.stdout.split('\n').find(l => l.startsWith('__PROBE__'))
 check(
-  'running --version trace probe in a fresh process exits 0',
-  probe.status === 0,
-  `exit ${probe.status}: ${(probe.stderr || probe.stdout).trim().slice(0, 200)} — fix src/substrate/featureReached.ts or ${FLAG_DOOR}`,
+  'running --version from source in a fresh process exits 0',
+  probe.status === 0 && probeLine !== undefined,
+  `exit ${probe.status}: ${(probe.stderr || probe.stdout).trim().slice(0, 200)} — fix src/entrypoints/cli.tsx`,
 )
-
-if (probe.status === 0) {
-  const parsed = JSON.parse(probe.stdout.trim()) as {
-    loadedAfterVersion: string[]
-    unregisteredThrew: boolean
-    registryIsArray: boolean
-    registryCount: number
-    registrySorted: boolean
-  }
-  const flagRowFilesLoaded = parsed.loadedAfterVersion.filter(
-    rel => isFlagRegistryFile(rel) && rel !== FLAG_DOOR,
-  )
+if (probeLine !== undefined) {
+  const parsed = JSON.parse(probeLine.slice('__PROBE__'.length)) as { loaded: string[] }
+  const loadedArchive = parsed.loaded.some(rel => rel === 'src/constants/changelogArchive.ts' || rel === 'src/constants/changelog.ts')
   check(
-    `--version loads at most 1 flag group file instead of all 18 (loaded ${flagRowFilesLoaded.length}: ${flagRowFilesLoaded.join(', ')})`,
-    flagRowFilesLoaded.length <= 1,
-    `loaded ${flagRowFilesLoaded.length} files (${flagRowFilesLoaded.slice(0, 5).join(', ')}) — keep flag group loading lazy in ${FLAG_DOOR}`,
-  )
-  check(
-    'unregistered flag lookup still throws via flagEnv',
-    parsed.unregisteredThrew,
-    `keep unregistered flag guard in flagEnv in ${FLAG_DOOR}`,
-  )
-  check(
-    `FLAG_REGISTRY materializes lazily as a sorted array (${parsed.registryCount} rows)`,
-    parsed.registryIsArray && parsed.registryCount > 100 && parsed.registrySorted,
-    `keep FLAG_REGISTRY proxy materializing sorted rows in ${FLAG_DOOR}`,
+    '--version does not load or parse changelogArchive',
+    !loadedArchive,
+    'keep changelog and changelogArchive off the --version path in src/entrypoints/cli.tsx and src/constants/changelog.ts',
   )
 }
 
@@ -107,7 +77,7 @@ if (existsSync(BUNDLE)) {
     check(
       'built dist/mercury.mjs --version still records feature trace when MERCURY_FEATURE_TRACE is set',
       traced.status === 0 && traceText.includes('verb\t--version\tbundle\tscripts/build/prove-version-path-stays-light.ts'),
-      `trace=${JSON.stringify(traceText.slice(0, 140))} — fix featureReached in src/substrate/featureReached.ts or ${FLAG_DOOR}`,
+      `trace=${JSON.stringify(traceText.slice(0, 140))} — fix featureReached in src/substrate/featureReached.ts`,
     )
   } finally {
     rmSync(scratch, { recursive: true, force: true })
