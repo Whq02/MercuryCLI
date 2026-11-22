@@ -16,7 +16,23 @@ export class SessionIdentityOwner {
   private readonly cwdChanged: Unbuilt = unbuilt('src/bootstrap/runtime/session-identity.ts:15')
 
   constructor() {
-    notBuilt('src/bootstrap/runtime/session-identity.ts:17')
+    let resolvedCwd = ''
+    if (
+      typeof process !== 'undefined' &&
+      typeof process.cwd === 'function' &&
+      typeof realpathSync === 'function'
+    ) {
+      const rawCwd = cwd()
+      try {
+        resolvedCwd = realpathSync(rawCwd).normalize('NFC')
+      } catch {
+        resolvedCwd = rawCwd.normalize('NFC')
+      }
+    }
+    this.originalCwd = resolvedCwd
+    this.projectRoot = resolvedCwd
+    this.cwd = resolvedCwd
+    this.sessionId = randomUUID() as SessionId
   }
 
   setOriginalCwd(nextCwd: string): void {

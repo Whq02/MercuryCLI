@@ -84,7 +84,10 @@ export function hasNodeOption(flag: string): boolean {
 }
 
 export function isEnvTruthy(v: string | boolean | undefined): boolean {
-  return notBuilt('src/utils/envUtils.ts:87')
+  if (v === undefined) return false
+  if (typeof v === 'boolean') return v
+  const normalized = v.toLowerCase().trim()
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on'
 }
 
 export function isEnvDefinedFalsy(v: string | boolean | undefined): boolean {
