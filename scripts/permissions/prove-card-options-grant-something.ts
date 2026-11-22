@@ -677,6 +677,65 @@ try {
     }
     void pushSaved
   }
+
+  {
+    const { homedir } = await import('node:os')
+    const words = (node: unknown): string => {
+      if (typeof node === 'string' || typeof node === 'number') return String(node)
+      if (Array.isArray(node)) return node.map(words).join('')
+      if (node !== null && typeof node === 'object' && 'props' in node) return words((node as { props: { children?: unknown } }).props.children)
+      return ''
+    }
+    const projDocs = join(projectDir, 'docs')
+    const outsideDocs = join(outsideDir, 'docs')
+    mkdirSync(projDocs, { recursive: true })
+    mkdirSync(outsideDocs, { recursive: true })
+    const outsideDocsFile = join(outsideDocs, 'SESSIONS.md')
+    const outsideReadOpts = getFilePermissionOptions({
+      filePath: outsideDocsFile,
+      toolPermissionContext: ctxFor('default'),
+      operationType: 'read',
+    }).map(o => words(o.label))
+    check(
+      'outside-read option 2: names full folder path (not ambiguous docs/)',
+      outsideReadOpts[1] === `Yes, allow reading from ${outsideDocs}/ for this session`,
+      JSON.stringify(outsideReadOpts[1]),
+    )
+
+    const outsideWriteOpts = getFilePermissionOptions({
+      filePath: outsideDocsFile,
+      toolPermissionContext: ctxFor('default'),
+      operationType: 'write',
+    }).map(o => words(o.label))
+    check(
+      'outside-write option 2: names full folder path (not ambiguous docs/)',
+      outsideWriteOpts[1] === `Yes, allow all edits in ${outsideDocs}/ for this session (shift+tab)`,
+      JSON.stringify(outsideWriteOpts[1]),
+    )
+
+    const underHomeFile = join(homedir(), 'mercury-outside-probe', 'docs', 'SESSIONS.md')
+    const homeReadOpts = getFilePermissionOptions({
+      filePath: underHomeFile,
+      toolPermissionContext: ctxFor('default'),
+      operationType: 'read',
+    }).map(o => words(o.label))
+    check(
+      'outside-read under home: uses ~ prefix with full folder path',
+      homeReadOpts[1] === 'Yes, allow reading from ~/mercury-outside-probe/docs/ for this session',
+      JSON.stringify(homeReadOpts[1]),
+    )
+
+    const winReadOpts = getFilePermissionOptions({
+      filePath: 'C:\\src\\mrc2-3bdb\\docs\\SESSIONS.md',
+      toolPermissionContext: ctxFor('default'),
+      operationType: 'read',
+    }).map(o => words(o.label))
+    check(
+      'outside-read Windows path: names full C:\\src\\mrc2-3bdb\\docs\\ folder',
+      winReadOpts[1] === 'Yes, allow reading from C:\\src\\mrc2-3bdb\\docs\\ for this session',
+      JSON.stringify(winReadOpts[1]),
+    )
+  }
 } finally {
   process.chdir(originalCwd)
   rmSync(sandbox, { recursive: true, force: true })

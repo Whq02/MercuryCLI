@@ -22,6 +22,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 const { setCwdState, setOriginalCwd } = await import('../../src/bootstrap/state.ts')
 const { getFilePermissionOptions } = await import('../../src/components/permissions/FilePermissionDialog/permissionOptions.tsx')
 const { generateSuggestions } = await import('../../src/utils/permissions/filesystem.ts')
+const { toTildePath } = await import('../../src/utils/path.ts')
 enableConfigs()
 setOriginalCwd(project)
 setCwdState(project)
@@ -56,7 +57,8 @@ try {
   check('and editing, on the host as written, for an edit', JSON.stringify(writeGrant.at(-1)) === JSON.stringify({ type: 'addRules', rules: [{ toolName: 'Edit', ruleContent: 'ssh://deploy@web1:2222/**' }], behavior: 'allow', destination: 'session' }), JSON.stringify(writeGrant))
   check('no rule is offered for the host list or for a path that names no host', generateSuggestions('ssh://', 'read', context).length === 0 && generateSuggestions('ssh:///etc/hosts', 'read', context).length === 0 && generateSuggestions('ssh://', 'write', context).length === 0, JSON.stringify(generateSuggestions('ssh://', 'read', context)))
   check('a local file in the working folder is offered as before', JSON.stringify(labels(join(project, 'a.txt'), 'read')) === JSON.stringify(['Yes', 'Yes, for this session', NO]) && JSON.stringify(labels(join(project, 'a.txt'), 'write')) === JSON.stringify(['Yes', `Yes, allow all edits for this session (${shortcut})`, NO]), `${JSON.stringify(labels(join(project, 'a.txt'), 'read'))} ${JSON.stringify(labels(join(project, 'a.txt'), 'write'))}`)
-  check('a local file outside it is offered its folder, as before', JSON.stringify(labels(join(elsewhere, 'a.txt'), 'read')) === JSON.stringify(['Yes', 'Yes, allow reading from notes/ for this session', NO]) && JSON.stringify(outsideWrite) === JSON.stringify(['Yes', `Yes, allow all edits in notes/ for this session (${shortcut})`, NO]), `${JSON.stringify(labels(join(elsewhere, 'a.txt'), 'read'))} ${JSON.stringify(outsideWrite)}`)
+  const elsewhereDisplay = `${toTildePath(elsewhere)}${process.platform === 'win32' ? '\\' : '/'}`
+  check('a local file outside it is offered its full folder path', JSON.stringify(labels(join(elsewhere, 'a.txt'), 'read')) === JSON.stringify(['Yes', `Yes, allow reading from ${elsewhereDisplay} for this session`, NO]) && JSON.stringify(outsideWrite) === JSON.stringify(['Yes', `Yes, allow all edits in ${elsewhereDisplay} for this session (${shortcut})`, NO]), `${JSON.stringify(labels(join(elsewhere, 'a.txt'), 'read'))} ${JSON.stringify(outsideWrite)}`)
   check('a relative folder named ssh: with one slash is a local path', JSON.stringify(labels('ssh:/web1/etc/hosts', 'read')) === JSON.stringify(['Yes', 'Yes, for this session', NO]), JSON.stringify(labels('ssh:/web1/etc/hosts', 'read')))
 } finally {
   process.chdir(tmpdir())
