@@ -23,7 +23,7 @@ import { modelReply } from './turn/modelReply.js'
 import { noToolReply } from './turn/noToolReply.js'
 import { runToolCalls } from './turn/runToolCalls.js'
 import type { IterationState, RunCtx, SettledDecision, TurnState, TurnStep } from './turn/state.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
+import { notBuilt } from '../pi/holes.js'
 
 export {
   PAUSE_TURN_CONTINUATION_LIMIT,
@@ -37,9 +37,23 @@ export {
 } from './turn/judgements.js'
 export { MAX_TURNS_CLOSING_TEXT } from './turn/afterTools.js'
 
-export type ComposedPrompt = Unbuilt
+export type ComposedPrompt = { systemPrompt: SystemPrompt; userContext: { [k: string]: string }; systemContext: { [k: string]: string } }
 
-export type QueryParams = Unbuilt
+export type QueryParams = {
+  messages: Message[]
+  systemPrompt: SystemPrompt
+  userContext: { [k: string]: string }
+  systemContext: { [k: string]: string }
+  recompose?: () => Promise<ComposedPrompt>
+  canUseTool: CanUseToolFn
+  toolUseContext: ToolUseContext
+  fallbackModel?: string
+  querySource: QuerySource
+  maxOutputTokensOverride?: number
+  maxTurns?: number
+  skipCacheWrite?: boolean
+  deps?: QueryDeps
+}
 
 export async function* runEventCore(
   params: QueryParams,
