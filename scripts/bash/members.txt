@@ -104,3 +104,4 @@ prove-tool-shell-starts-with-no-old-folder.ts
 prove-powershell-prelude-when.ts
 prove-shell-provider-behaviour.ts
 prove-bash-spec-alias-behaviour.ts
+prove-bash-spec-nohup-behaviour.ts
