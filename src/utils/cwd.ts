@@ -1,6 +1,5 @@
 import { getCwdState, getOriginalCwd } from '../bootstrap/state.js'
 import { getOwnerContext, withOwnerContext } from './run/ownerContext.js'
-import { notBuilt } from '../pi/holes.js'
 
 export function runWithCwdOverride<T>(cwd: string, fn: () => T): T {
   return withOwnerContext({ directory: { cwd, shellCwd: null } }, fn)
@@ -39,11 +38,15 @@ export function getStartingCwd(): string {
 }
 
 export function pwd(): string {
-  return notBuilt('src/utils/cwd.ts:40')
+  return getOwnerContext()?.directory?.cwd ?? getCwdState()
 }
 
 export function getCwd(): string {
-  return notBuilt('src/utils/cwd.ts:46')
+  try {
+    return pwd()
+  } catch {
+    return getOriginalCwd()
+  }
 }
 
 export function shellDirectoryLeftByCd(): string | null {
