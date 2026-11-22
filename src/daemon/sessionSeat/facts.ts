@@ -136,7 +136,7 @@ const WORK_POLL_MS = 1000
 function armWorkPoll(short: string, roster: SeatRosterPort, dir?: string): void {
   const seat = seats.get(short)
   if (seat === undefined) return
-  const live = (seat.lastAnswer?.work ?? []).some(workRowRuns)
+  const live = (seat.lastAnswer?.work ?? []).some(workRowRuns) || seat.lastAnswer?.mcp.some(server => server.type === 'pending')
   if (!live) {
     if (seat.workPoll !== null) {
       stopTimeout(seat.workPoll)
