@@ -16,7 +16,7 @@ trained to a `256k` (`262,144`-token) context window:
 
 Any other MLX, NVFP4 or EXL3 safetensors checkpoint in the Hugging Face cache
 (`~/.cache/huggingface/hub`, `$HF_HUB_CACHE` or `$HF_HOME/hub`) whose model
-family TensorFold supports is listed as `on disk` (`note      unqualified by TensorFold`). Choosing `other checkpoint` (`a Hugging Face repository id`) reads a repository from Hugging Face (`Hugging Face · MLX, NVFP4 or EXL3 checkpoints, not GGUF`). GGUF repositories are refused with `GGUF is llama.cpp's format · /localsetup serves it`, and gated repositories are refused with `a gated repository · pull takes no token`.
+family TensorFold supports is listed as `on disk` (`note      unqualified by TensorFold`). Choosing `other checkpoint` (`a Hugging Face repository id`) reads a repository from Hugging Face (`Hugging Face · MLX, NVFP4 or EXL3 checkpoints, not GGUF`). GGUF repositories are refused with `GGUF is llama.cpp's format · /localsetup serves it`, and gated repositories are refused with `a gated repository · Mercury reads it with no token`.
 
 ## Opening `/tensorfold` and what the groups show
 
@@ -289,7 +289,7 @@ and in `/llmhost`.
   `HF_HOME=/workspace/huggingface`, runs `tensorfold-native pull` before
   `tensorfold-native serve` (`--host 0.0.0.0 --port 8080 --api-key-file`), and
   opens the local SSH tunnel. Public checkpoints only are pulled on a pod
-  (`TensorFold pulls public checkpoints only · a gated or private model is not served on a pod yet`).
+  (`Mercury sends no token to a TensorFold pod · a gated or private model is not served on a pod yet`).
 - **The key Mercury holds:** When a pod is registered, Mercury generates a
   random 24-byte key in `<config home>/host/tensorfold/<id>.key` (`0600`),
   writes `mercury[inference]: <key>` to `api-key` (`0600`) on the pod (and

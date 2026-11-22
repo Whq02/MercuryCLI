@@ -167,7 +167,7 @@ export async function readHubRepo(repo: string, io: { fetchImpl?: typeof fetch; 
   let listing: Record<string, unknown> | undefined
   try {
     const response = await fetchImpl(`${base}/api/models/${repo}?blobs=true`, options)
-    if (response.status === 401 || response.status === 403) return { refused: 'a gated repository · pull takes no token' }
+    if (response.status === 401 || response.status === 403) return { refused: 'a gated repository · Mercury reads it with no token' }
     if (response.status === 404) return { refused: 'not on Hugging Face' }
     if (!response.ok) return { refused: `Hugging Face answered ${response.status}` }
     listing = rec(await response.json())

@@ -104,7 +104,7 @@ try {
   check('a refused stop says compute may still bill and points at /llmhost', !refused.ok && refused.words.includes('compute may still bill') && refused.words.includes('/llmhost → Machines I’m paying for → Stop again or Terminate'))
   const gone = await pod.stopTensorFoldPod('no-such-pod', { client })
   check('s on a pod Mercury no longer records says so without touching the vendor', !gone.ok && gone.words === pod.TENSORFOLD_HOST_WORDS.gone && rp.state.stops === 1)
-  check('the gated-model words are on hand for a non-public checkpoint', pod.TENSORFOLD_HOST_WORDS.gated === 'TensorFold pulls public checkpoints only · a gated or private model is not served on a pod yet')
+  check('the gated-model words are on hand for a non-public checkpoint', pod.TENSORFOLD_HOST_WORDS.gated === 'Mercury sends no token to a TensorFold pod · a gated or private model is not served on a pod yet')
   for (const record of hostRecords()) removeHostRecord(record.id)
   console.log('TENSORFOLD POD ROAD GREEN · ' + checks + ' checks · the engine, Runpod and the host are fixtures; nothing was rented')
 } finally {
