@@ -24,13 +24,49 @@ import type { Terminal, Continue } from '../../query/transitions.js'
 import type { BudgetGuard } from '../budget-guard.js'
 import type { createEventMint, RunEvent } from '../events.js'
 import type { QueryParams } from '../turn-machine.js'
-import type { Unbuilt } from '../../pi/holes.js'
 
 export type EventMint = ReturnType<typeof createEventMint>
 
-export type TurnState = Unbuilt
+export type TurnState = {
+  messages: Message[]
+  toolUseContext: ToolUseContext
+  turnCount: number
+  transition: Continue | undefined
+  stopHookActive: boolean | undefined
+  autoCompactTracking: AutoCompactTrackingState | undefined
+  overflowEpisode: OverflowEpisode
+  pendingOverflow: { signal: OverflowSignal; rung: OverflowRung } | undefined
+  maxOutputTokensOverride: number | undefined
+  lastOutputLimitReply?: string
+  chantRecoveryCount?: number
+  cutToolCallRecoveryCount?: number
+  emptyReplyRecoveryCount?: number
+  maxOutputTokensRecoveryCount: number
+  pauseTurnContinuations?: number
+  reasoningOnlyRecoveryCount?: number
+  streamFaultRecoveryCount: number
+  toolCallRefusalRecoveryCount: number
+}
 
-export type RunCtx = Unbuilt
+export type RunCtx = {
+  params: QueryParams
+  querySource: QuerySource
+  fallbackModel: string | undefined
+  skipCacheWrite: boolean | undefined
+  consumedCommandUuids: string[]
+  systemPrompt: SystemPrompt
+  systemContext: { [k: string]: string }
+  userContext: { [k: string]: string }
+  deps: QueryDeps
+  emit: EventMint
+  budgetGuard: BudgetGuard
+  awaitingReply: ReplyMark[]
+  announcedStepNudges: number
+  checkpointSettleWarned: boolean
+  pendingMemoryWrites: RefusedToolCall[]
+  holdMemoryWriteRefusals: (refused: readonly RefusedToolCall[]) => void
+  memoryWriteLostEvent: () => RunEvent | null
+}
 
 export type IterationState = {
   state: TurnState
