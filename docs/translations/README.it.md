@@ -396,7 +396,7 @@ I flag di runtime sono definiti in `src/substrate/flagRegistry.ts`, esposti come
 | Comando | Cosa fa |
 | --- | --- |
 | `/imagesetup` | Configura i modelli locali per immagini e video. |
-| `/llmhost` | Scegli un modello da noleggiare su Runpod, Vast.ai o Lambda, eseguilo sul tuo computer oppure collega un server esistente. |
+| `/llmhost` | Scegli un modello da noleggiare su Runpod, Vast.ai, Lambda, Hugging Face Inference Endpoints, Hyperstack, Verda o DigitalOcean, eseguilo sul tuo computer oppure collega un server esistente. |
 | `/tensorfold` | Esegui un modello locale su TensorFold: installa il motore, scarica un modello, servilo sul tuo computer, condividilo sulla tua rete o noleggia una GPU per eseguirlo, e passa a usarlo, tutto in un'unica schermata. |
 | `/restart` | Sposta questa chat sulla build di Mercury installata; i monitoraggi in esecuzione e le shell in background si fermano. |
 | `/mcp` | Ispeziona i server, accedi, sfoglia gli strumenti e i parametri di ciascun server, riconnetti oppure attiva o disattiva un server per questa chat. |
