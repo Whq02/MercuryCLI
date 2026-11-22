@@ -78,11 +78,14 @@ doors this process read serve and what they lack.
 The family words follow each family's newest row (`opus` means Opus 5.5 and
 `sonnet` means Sonnet 5.5), so a saved `sonnet` runs Sonnet 5.5 while a saved
 `claude-sonnet-5` stays on Sonnet 5, which keeps its own row under the family
-in the picker; Sonnet 5.5 takes the two wire laws Opus 5.5 takes: thinking
-stays on (neither model accepts `disabled`, so a request with thinking off
-carries no thinking parameter and adaptive thinking runs; Sonnet 5.5's
-`between_tools` setting is not sent) and a forced tool choice becomes `auto`,
-the prompt naming the tool.
+in the picker; Sonnet 5.5 takes the two wire laws Opus 5.5 takes: neither
+model accepts `disabled` (on Opus 5.5 a turn with thinking off carries no
+thinking parameter and adaptive thinking runs; on Sonnet 5.5 it carries the
+`between_tools` setting at `low`, `medium` and `high` effort, which turns
+up-front thinking off, and no thinking parameter at `xhigh` and `max`, where
+the API refuses that setting, or on a request that asks for JSON output, so
+adaptive thinking runs there) and a forced tool choice becomes `auto`, the
+prompt naming the tool.
 
 `fable` means Fable 5.2 (`claude-fable-5-2`); `fable52` names that generation
 explicitly and `fable51` still names Fable 5.1. Fable 5.1 and Fable 5 keep
@@ -98,8 +101,10 @@ that model's requests and it re-plans without them. Across a switch Mercury
 carries a model's thinking into the next model's requests where Anthropic's
 table says that model reads it (into Fable 5.2: Haiku 5.5, Sonnet 5.5, Opus
 5, Opus 5.5, Fable 5 and Fable 5.1; into Fable 5.1: Opus 5, Opus 5.5
-and Fable 5; into Opus 5.5: Haiku 5.5, Sonnet 5.5 and Opus 5; into Sonnet
-5.5: Haiku 5.5; a Mythos model as its Fable counterpart) and the system prompt
+and Fable 5; into Fable 5: Opus 5; into Opus 5.5: Haiku 5.5, Sonnet 5.5
+and Opus 5; into Sonnet 5.5: Haiku 5.5; into every Claude model in Mercury's
+list: Opus 4.8, Sonnet 5, Haiku 4.5 and the Opus, Sonnet and Haiku models
+before them; a Mythos model as its Fable counterpart) and the system prompt
 and tools are the ones the thinking was written under. Any other thinking
 stays out and the transcript says so once. Fable 5.2's blocks stay with the
 account that wrote them too: after a switch to another account the provider
