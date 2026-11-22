@@ -69,3 +69,4 @@ prove-line-width-cache-behaviour.ts
 prove-ink-warn-behaviour.ts
 prove-search-highlight-behaviour.ts
 prove-cell-layout-box-behaviour.ts
+prove-cell-layout-flex-behaviour.ts
