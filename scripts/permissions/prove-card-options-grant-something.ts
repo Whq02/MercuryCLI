@@ -43,6 +43,7 @@ const { AppStateProvider } = await import('../../src/state/AppState.tsx')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { render } = await import('../../src/ink.ts')
 const { default: stripAnsi } = await import('strip-ansi')
+const { waitFor } = await import('../lib/settingsPopupHarness.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
 const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
 const { parseForSecurity } = await import('../../src/utils/permissions/decision/commandAnalysis.ts')
@@ -98,7 +99,7 @@ async function drawCard(node: React.ReactElement, mode: 'default' | 'flow'): Pro
     React.createElement(AppStateProvider as never, { initialState } as never, node as never),
     { stdout: stream as never, stdin: stdin as never, patchConsole: false },
   )
-  await new Promise(resolve => setTimeout(resolve, 120))
+  await waitFor(() => stripAnsi(instance.lastFrame()).trim() !== '', 3000)
   const lines = stripAnsi(instance.lastFrame())
     .split('\n')
     .map(line => line.replace(/^[│\s]+|[│\s]+$/g, ''))
