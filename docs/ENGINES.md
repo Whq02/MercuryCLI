@@ -594,8 +594,15 @@ and `/usage` rows name the plan. The family word `qwen` runs Qwen3.8 Max
 wherever it is a row. Requests carry Qwen's own `enable_thinking` switch and
 `preserve_thinking` on the rows that take them, the effort dial as
 `reasoning_effort` in Qwen's vocabulary (`low`, `medium`, `xhigh`) on the Qwen3.8
-rows that document it and all three on a Qwen 4 id of a known tier (`qwen4-max`,
-`-plus`, `-flash`, `-omni-flash`, `-<n>b`) whether or not this build pins it, a
+rows that document it and on a Qwen 4 id of a known tier that this build does
+not pin (`qwen4-plus`, `-flash`, `-omni-flash`, `-<n>b`, a dated or preview
+`qwen4-max-…`), Qwen4 Max (`qwen4-max`) in its own ladder (`low`, `high`,
+`xhigh`, with `high` the default: [its page](https://www.alibabacloud.com/help/en/model-studio/qwen4-max)
+and the Chat Completions page, read **2026-11-22**, say the provider runs
+`minimal` as `low`, `medium` as `high` and `max` as `xhigh` and that `none`
+disables thinking, so no fourth word is offered: a saved `minimal`, `medium` or
+`max` is sent as the word it runs as, a saved `none` as `low`, and the thinking
+switch alone turns thinking off), a
 stated
 `models.<id>.thinkingBudget` as `thinking_budget`
 in place of the effort word, the system prompt in `messages[0]` alone, and tool
