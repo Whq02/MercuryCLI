@@ -53,7 +53,7 @@ export const MISTRAL_DISPLAY_PINS: readonly MistralDisplayPin[] = [
   { ...facts, ...plain, id: 'codestral-2508', aliases: ['codestral-latest'], displayName: 'Codestral', contextWindow: 131_072, images: false,
     observedAt: '2026-10-25', source: 'https://docs.mistral.ai/inference/pricing', costInPerMtok: 0.3, cachedInPerMtok: 0.03, costOutPerMtok: 0.9 },
   { ...facts, id: 'zai-glm-5-3', aliases: [], displayName: 'Z.ai GLM 5.3', observedAt: '2026-10-25', source: 'https://docs.mistral.ai/models/zai-glm-5-3', contextWindow: 1_000_000, images: false, efforts: ['low', 'high', 'max'], costInPerMtok: 1.4, cachedInPerMtok: 0.14, costOutPerMtok: 4.4 },
-  { ...facts, id: 'zai-glm-5-3-flash', aliases: [], displayName: 'Z.ai GLM 5.3 Flash', observedAt: '2026-10-25', source: 'https://docs.mistral.ai/models/zai-glm-5-3-flash', contextWindow: 1_000_000, efforts: [], costInPerMtok: 0.15, cachedInPerMtok: 0.03, costOutPerMtok: 0.5 },
+  { ...facts, id: 'zai-glm-5-3-flash', aliases: [], displayName: 'Z.ai GLM 5.3 Flash', observedAt: '2026-10-25', source: 'https://docs.mistral.ai/models/zai-glm-5-3-flash', contextWindow: 1_000_000, efforts: ['low', 'high', 'max'], costInPerMtok: 0.15, cachedInPerMtok: 0.03, costOutPerMtok: 0.5 },
   { ...facts, id: MISTRAL_HOSTED_DEEPSEEK_IDS[0]!, aliases: [], displayName: 'DeepSeek V4.1 Flash 1017', observedAt: '2026-10-30', source: 'https://docs.mistral.ai/models/deepseek-v4-flash-1017', contextWindow: 1_000_000, images: false, efforts: [], costInPerMtok: 0.3, cachedInPerMtok: 0.007, costOutPerMtok: 1.2 },
 ]
 

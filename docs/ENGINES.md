@@ -236,8 +236,8 @@ Mercury uses Mistral's Chat Completions endpoint at
 `https://api.mistral.ai/v1/chat/completions`, with streaming, function
 tools, JSON-schema output and the vendor's reasoning dial: Mistral Small 4 and
 Medium 3.5 use `reasoning_effort: high` with thinking on and `none` with it off.
-Mistral Large 4 accepts `low`, `medium` and `high`, and Z.ai GLM 5.3 `low`,
-`high` and `max`, each with `low` for thinking-off. Thinking arrives
+Mistral Large 4 accepts `low`, `medium` and `high`, and Z.ai GLM 5.3 and GLM 5.3
+Flash `low`, `high` and `max`, each with `low` for thinking-off. Thinking arrives
 as a chunk inside the reply; a row with no documented dial sends no effort
 word. An explicit output ceiling rides
 `max_tokens`. Thinking is not replayed across turns on this road: Mercury
