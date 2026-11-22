@@ -1,0 +1,116 @@
+#!/usr/bin/env bun
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { Readable, Writable } from 'node:stream'
+
+const SCRATCH = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'small-words-rows-home-'))
+process.env.MERCURY_CONFIG_DIR = SCRATCH
+process.env.MERCURY_OPERATOR = 'sam'
+const ROOT = resolve(import.meta.dir, '..', '..')
+
+let failures = 0
+let checks = 0
+let hint = ''
+const check = (label: string, ok: boolean, detail = ''): void => {
+  checks++
+  if (!ok) failures++
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}${hint}` : ''}`)
+}
+const section = (title: string, where: string): void => {
+  hint = where
+  console.log(`\n${'─'.repeat(76)}\n${title}`)
+}
+
+const React = (await import('react')).default
+const { render } = await import(join(ROOT, 'src/ink.ts'))
+const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
+const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.ts'))
+const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
+enableConfigs()
+const { taskNoticeBlock } = await import(join(ROOT, 'src/utils/messages/noticeRows.ts'))
+const { UserAgentNotificationMessage } = await import(join(ROOT, 'src/components/messages/UserAgentNotificationMessage.tsx'))
+const { UserNoticeMessage } = await import(join(ROOT, 'src/components/messages/UserNoticeMessage.tsx'))
+const { MessageMetaProvider } = await import(join(ROOT, 'src/components/messages/TranscriptNameplate.tsx'))
+const h = React.createElement as (...args: unknown[]) => React.ReactElement
+const strip = (s: string): string => s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')
+const settle = (ms = 120): Promise<void> => new Promise(r => setTimeout(r, ms))
+const STAMP = '2026-06-19T12:00:07.000Z'
+
+async function paint(node: React.ReactElement, band = { columns: 120, rows: 30 }): Promise<string> {
+  let written = ''
+  const stdout = Object.assign(
+    new Writable({
+      write(chunk: Buffer, _enc, cb) {
+        written += chunk.toString()
+        cb()
+      },
+    }),
+    { ...band, isTTY: false },
+  ) as unknown as NodeJS.WriteStream
+  const stdin = Object.assign(new Readable({ read() {} }), { isTTY: true, setRawMode() {}, ref() {}, unref() {} }) as unknown as NodeJS.ReadStream
+  const instance = await render(
+    h(
+      AppStateProvider as never,
+      { initialState: getDefaultAppState() },
+      h(MessageMetaProvider as never, { message: { type: 'attachment', timestamp: STAMP } }, node),
+    ),
+    { stdout, stdin, exitOnCtrlC: false, patchConsole: false },
+  )
+  await settle()
+  instance.unmount?.()
+  await settle(40)
+  return strip(written).replace(/\s+/g, ' ').trim()
+}
+
+section(
+  '§1 background command done row: omit count unless the notice carries the output, other notices keep theirs',
+  'change taskNoticeBlock in src/utils/messages/noticeRows.ts and count handling in src/components/messages/UserNoticeMessage.tsx',
+)
+{
+  const bgNoResult = `<task-notification>
+<task-id>bjta8d78f</task-id>
+<command>sleep 20 && echo bg-done2</command>
+<output-file>/tmp/bjta8d78f.output</output-file>
+<status>completed</status>
+<summary>Background command "sleep 20 && echo bg-done2" completed (exit code 0)</summary>
+</task-notification>`
+  const block = taskNoticeBlock(bgNoResult)
+  check('a background command without <result> marks its count unknown while keeping its expanded lines', block !== null && block.kind === 'task' && block.count === null && block.lines.length === 3, JSON.stringify(block))
+
+  const folded = await paint(h(UserAgentNotificationMessage as never, { param: { type: 'text', text: bgNoResult }, expanded: false }))
+  check('its folded done row shows no line count (· done ›, never · 3 lines ›)', folded.includes('● [Background] sleep 20 && echo bg-done2 · done ›') && !/\b\d+ lines?\b/.test(folded), folded)
+
+  const expanded = await paint(h(UserAgentNotificationMessage as never, { param: { type: 'text', text: bgNoResult }, expanded: true }))
+  check('its expanded done row keeps the details without inventing a count', expanded.includes('● [Background] sleep 20 && echo bg-done2 · done ⌄') && expanded.includes('/tmp/bjta8d78f.output') && !/\b\d+ lines?\b/.test(expanded), expanded)
+
+  const bgWithResult = `<task-notification>
+<task-id>bg2</task-id>
+<command>echo bg-done2</command>
+<output-file>/tmp/bg2.output</output-file>
+<status>completed</status>
+<summary>Background command "echo bg-done2" completed (exit code 0)</summary>
+<result>bg-done2</result>
+</task-notification>`
+  const withResult = await paint(h(UserAgentNotificationMessage as never, { param: { type: 'text', text: bgWithResult }, expanded: false }))
+  check('a background command whose notice already carries <result> shows the output line count', withResult.includes('● [Background] echo bg-done2 · done · 1 line ›'), withResult)
+
+  const crewmateNotice = `<task-notification>
+<task-id>a1</task-id>
+<status>completed</status>
+<summary>Agent "the errand" completed</summary>
+</task-notification>`
+  const crew = await paint(h(UserAgentNotificationMessage as never, { param: { type: 'text', text: crewmateNotice }, expanded: false }))
+  check('a crewmate notice keeps its count', crew.includes('● [Crewmate] the errand · completed · 1 line ›'), crew)
+
+  const plain = await paint(h(UserNoticeMessage as never, { blocks: [{ kind: 'notice', lines: ['first', 'second'] }], fold: true }))
+  check('a plain notice keeps its count', plain.includes('● notice · 2 lines ›'), plain)
+
+  const monitor = await paint(h(UserNoticeMessage as never, { blocks: [{ kind: 'monitor', taskId: 'm1', name: 'watch', lines: ['a', 'b'] }], fold: true }))
+  check('a monitor notice keeps its count', monitor.includes('[Monitor] watch · 2 lines ›'), monitor)
+}
+
+rmSync(SCRATCH, { recursive: true, force: true })
+console.log(`\nprove-small-words-rows: ${checks} checks, ${failures} failed`)
+process.exit(failures === 0 ? 0 : 1)

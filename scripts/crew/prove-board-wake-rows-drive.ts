@@ -223,7 +223,7 @@ check('…nor does one stand once the job has finished', lineOf(job, JOB_NOTED) 
 
 section('§2 a notice that is not a wake keeps its row: the finished job')
 const jobRow = job.find(line => line.includes(`[Background] ${JOB}`)) ?? ''
-check('the finished job paints its own notice row, the clock, the dot, the plate and the fold mark', /\d{2}:\d{2}:\d{2} ● \[Background\] Hold a seat busy · done · \d+ lines? ›/.test(jobRow), jobRow || job.filter(line => line.includes('Background') || line.includes('notice')).join(' | ') + `; the finished job must paint one notice row: clock, dot, [Background] description, done, line count and the fold mark`)
+check('the finished job paints its own notice row, the clock, the dot, the plate and the fold mark', /\d{2}:\d{2}:\d{2} ● \[Background\] Hold a seat busy · done ›/.test(jobRow), jobRow || job.filter(line => line.includes('Background') || line.includes('notice')).join(' | ') + `; the finished job must paint one notice row: clock, dot, [Background] description, done and the fold mark`)
 check('…and it is answered', lineOf(job, JOB_NOTED) > lineOf(job, `[Background] ${JOB}`), job.filter(line => line.includes('Background') || line.includes(JOB_NOTED)).join(' | ') + '; the lead must answer the finished job with its next turn, below the notice row')
 
 section('§3 after the fold: no notice row is left standing above the boundary')

@@ -351,7 +351,7 @@ async function leg(engine: Engine, port: number): Promise<void> {
   }
   check(`${engine}: the transcript painted the model's turn text`, /setting state/.test(marks['text'] ?? cap.text))
   check(`${engine}: the transcript collapsed the turn's bash calls into one group`, /Ran \d+ bash commands/.test(marks['tools'] ?? cap.text), JSON.stringify((flat(marks['tools'] ?? cap.text).match(/Ran \d+ bash commands/) ?? ['no group'])[0]))
-  check(`${engine}: the run_in_background completion surfaced in the transcript as one counted notice row (● [Background] a background call · done · N lines ›)`, /● \[Background\] a background call · done · \d+ lines? ›/.test(flat(marks['background'] ?? cap.text)), JSON.stringify((flat(marks['background'] ?? cap.text).match(/\[Background\].{0,60}/) ?? ['no bg line'])[0]))
+  check(`${engine}: the run_in_background completion surfaced in the transcript as one notice row (● [Background] a background call · done ›)`, /● \[Background\] a background call · done ›/.test(flat(marks['background'] ?? cap.text)), JSON.stringify((flat(marks['background'] ?? cap.text).match(/\[Background\].{0,60}/) ?? ['no bg line'])[0]))
   check(`${engine}: the transcript painted the closing line`, /shell-drive: done/.test(marks['done'] ?? cap.text))
   if (failures > 0 && !keep) for (const [label, frame] of Object.entries(marks)) dump(`${engine} · ${label}`, frame)
   if (failures > 0 || keep) dump(`${engine} · final grid`, cap.text)
