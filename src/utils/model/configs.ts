@@ -7,11 +7,51 @@ export type ModelConfig = {
   source?: string
 }
 
-export const ALL_MODEL_CONFIGS: Unbuilt = unbuilt('src/utils/model/configs.ts:9')
+export const ALL_MODEL_CONFIGS = {
+  haiku35: { firstParty: 'claude-3-5-haiku-20241022', canonical: 'claude-3-5-haiku' },
+  haiku45: { firstParty: 'claude-haiku-4-5-20251001', canonical: 'claude-haiku-4-5' },
+  haiku55: { firstParty: 'claude-haiku-5-5' },
+  sonnet35: { firstParty: 'claude-3-5-sonnet-20241022', canonical: 'claude-3-5-sonnet' },
+  sonnet37: { firstParty: 'claude-3-7-sonnet-20250219', canonical: 'claude-3-7-sonnet' },
+  sonnet40: { firstParty: 'claude-sonnet-4-20250514', canonical: 'claude-sonnet-4' },
+  sonnet45: { firstParty: 'claude-sonnet-4-5-20250929', canonical: 'claude-sonnet-4-5' },
+  sonnet46: { firstParty: 'claude-sonnet-4-6' },
+  sonnet5: { firstParty: 'claude-sonnet-5' },
+  sonnet55: { firstParty: 'claude-sonnet-5-5' },
+  opus40: { firstParty: 'claude-opus-4-20250514', canonical: 'claude-opus-4' },
+  opus41: { firstParty: 'claude-opus-4-1-20250805', canonical: 'claude-opus-4-1' },
+  opus45: { firstParty: 'claude-opus-4-5-20251101', canonical: 'claude-opus-4-5' },
+  opus46: { firstParty: 'claude-opus-4-6' },
+  opus47: { firstParty: 'claude-opus-4-7', canonical: 'claude-opus-4-6' },
+  opus48: { firstParty: 'claude-opus-4-8', canonical: 'claude-opus-4-6' },
+  opus5: { firstParty: 'claude-opus-5' },
+  opus55: { firstParty: 'claude-opus-5-5' },
+  fable5: { firstParty: 'claude-fable-5' },
+  fable51: { firstParty: 'claude-fable-5-1' },
+  fable52: { firstParty: 'claude-fable-5-2' },
+  mythos5: { firstParty: 'claude-mythos-5', canonical: 'claude-fable-5' },
+  mythos51: {
+    firstParty: 'claude-mythos-5-1',
+    canonical: 'claude-fable-5-1',
+    observedAt: '2026-10-25',
+    source: 'https://platform.claude.com/docs/en/models/mythos-5-1/overview',
+  },
+  mythos52: {
+    firstParty: 'claude-mythos-5-2',
+    canonical: 'claude-fable-5-2',
+    observedAt: '2026-11-09',
+    source: 'https://platform.claude.com/docs/en/models/mythos-5-2/overview',
+  },
+} as const satisfies Record<string, ModelConfig>
 
-export type ModelKey = Unbuilt
+export type ModelKey = keyof typeof ALL_MODEL_CONFIGS
 
-export const FAMILY_GENERATIONS: Unbuilt = unbuilt('src/utils/model/configs.ts:104')
+export const FAMILY_GENERATIONS = {
+  fable: ['fable52', 'fable51', 'fable5'],
+  opus: ['opus55', 'opus5', 'opus48', 'opus47', 'opus46'],
+  sonnet: ['sonnet55', 'sonnet5', 'sonnet46'],
+  haiku: ['haiku55', 'haiku45'],
+} as const satisfies Record<string, readonly ModelKey[]>
 
 type ModelFamily = keyof typeof FAMILY_GENERATIONS
 
