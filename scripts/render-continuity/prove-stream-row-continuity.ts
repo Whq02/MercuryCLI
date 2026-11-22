@@ -263,7 +263,7 @@ for (const scene of scenes) {
     keep: true,
   })
   const offsets: string[] = []
-  for (let ms = S(scene.grabFrom); ms <= S(scene.grabTo); ms += S(scene.grabStep)) offsets.push(String(anchoredOffset(run, ms)))
+  for (let ms = S(scene.grabFrom); ms <= S(scene.grabTo); ms += scene.grabStep) offsets.push(String(anchoredOffset(run, ms)))
   offsets.push('-1')
   const grab = spawnSync(
     '/usr/bin/python3',
@@ -300,15 +300,17 @@ for (const scene of scenes) {
 
   const compactLayout = scene.flips !== undefined && timed.every(f => cardRowsOf(f) === null)
   if (scene.flips !== undefined) {
+    const live = timed.filter(f => f.rows.some(r => /esc interrupt/i.test(r)))
     const phases = timed.map(phaseOf).filter((p): p is string => p !== null)
     const runs = phases.filter((p, i) => i === 0 || p !== phases[i - 1])
     const seen = new Set(runs)
     const phaseWords = timed.filter(f => f.rows.some(r => PHASE_WORD_RE.test(r)))
     const verbRows = timed.filter(f => f.rows.some(r => VERB_ROW_RE.test(r)))
+    const stripFrames = live.filter(f => f.rows.some(r => VERB_ROW_RE.test(r) || WRITING_RE.test(r) || TOOL_RE.test(r)))
     checkWithHint(
       `the strip shows only the verb row, the stream row and the tool row across the flip cycle, and never a phase word`,
-      seen.has('tool') && !seen.has('reading') && !seen.has('thinking') && phaseWords.length === 0 && verbRows.length + phases.length >= Math.floor(timed.length * 0.5),
-      `saw ${[...seen].join(',') || 'nothing'}; ${verbRows.length} verb-row frame(s); ${phaseWords.length} frame(s) with a phase word`,
+      seen.has('tool') && !seen.has('reading') && !seen.has('thinking') && phaseWords.length === 0 && live.length >= 10 && stripFrames.length >= Math.floor(live.length * 0.8),
+      `saw ${[...seen].join(',') || 'nothing'}; ${verbRows.length} verb-row frame(s); ${stripFrames.length}/${live.length} live frame(s); ${phaseWords.length} frame(s) with a phase word`,
       'the working strip must show the verb row, stream row or tool row and never a phase word such as thinking or reading; ' + framesHint,
     )
     const states = timed.map(f => (f.rows.some(r => TOOL_RE.test(r)) ? 'tool' : f.rows.some(r => VERB_ROW_RE.test(r) || WRITING_RE.test(r)) ? 'stream' : null)).filter((p): p is string => p !== null)
