@@ -68,8 +68,8 @@ const parse = (text: string): Record<string, unknown> | null => {
 }
 const requests = (): string[] => (existsSync(serverLog) ? readFileSync(serverLog, 'utf8').split('\n').filter(Boolean) : [])
 const versionsPresent = (): string[] => (existsSync(versionsDir) ? readdirSync(versionsDir) : [])
-const CHECKOUT_WORDS = `a source checkout at ${join(ROOT, 'dist')} — rebuild it with \`git pull && bun run build.ts\``
-const REASON = `this Mercury is a source checkout at ${join(ROOT, 'dist')} and no managed install lives under ${versionsDir}; \`mercury update\` manages installs made by \`mercury install\` or the install script`
+const CHECKOUT_WORDS = `a source checkout at ${ROOT} — rebuild it with \`git pull && bun run build.ts\``
+const REASON = `this Mercury is a source checkout at ${ROOT} and no managed install lives under ${versionsDir}; \`mercury update\` manages installs made by \`mercury install\` or the install script`
 
 section('§0 THE BUNDLE UNDER TEST IS A SOURCE CHECKOUT (build.ts + src/ + .git above dist/)')
 {
