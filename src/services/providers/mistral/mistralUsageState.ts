@@ -9,8 +9,8 @@ import { mistralApiBase, mistralKeyHeaders, resolveMistralAdminApiKey, resolveMi
 import { hostEnv } from '../../../utils/hostEnv.js'
 import { nextMicrotask } from '../../../utils/timers.js'
 
-export const MISTRAL_ADMIN_KEY_HINT = 'usage is read with an Admin API key (Enterprise plans, backoffice.mistral.ai) — /logins mistral adds one; the session ledger counts this key’s tokens; console.mistral.ai shows the plan’s included monthly usage'
-export const MISTRAL_ADMIN_KEY_PAGE = 'Optional Admin API key from backoffice.mistral.ai (Enterprise plans) unlocks the organisation usage meter and spend limit.'
+export const MISTRAL_ADMIN_KEY_HINT = 'usage is read with an Admin API key (Enterprise plans, admin.mistral.ai) — /logins mistral adds one; the session ledger counts this key’s tokens; console.mistral.ai shows the plan’s included monthly usage'
+export const MISTRAL_ADMIN_KEY_PAGE = 'Optional Admin API key from admin.mistral.ai (Enterprise plans) unlocks the organisation usage meter and spend limit.'
 
 export interface MistralUsageIo {
   fetchImpl?: typeof fetch
@@ -111,7 +111,7 @@ export function mistralUsageFailureWords(failure: MistralUsageFailure): string {
   const road = failure.endpoint === 'admin' ? 'Admin API key' : 'API key identity read'
   if (failure.kind === 'refused') {
     return failure.endpoint === 'admin'
-      ? `Mistral refused the Admin API key (HTTP ${failure.status}) — an Admin API key comes from backoffice.mistral.ai and names one organisation; /logins mistral replaces it`
+      ? `Mistral refused the Admin API key (HTTP ${failure.status}) — an Admin API key comes from admin.mistral.ai and names one organisation; /logins mistral replaces it`
       : `Mistral refused the API key (HTTP ${failure.status}) — /logins mistral replaces it`
   }
   if (failure.kind === 'invalid') return `Mistral ${road} returned an unrecognised response — no new usage recorded`

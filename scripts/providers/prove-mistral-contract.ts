@@ -29,7 +29,7 @@ const fixture = mistralFixture()
 try {
   check('Mistral is a primary provider, with a signed-out usage and readiness truth', buildProviderSnapshot().providers.some(provider => provider.id === 'mistral') && usageForProvider('mistral').sourceKind === 'none' && !resolveProviderUsability().mistral.usable)
   check('the family word focuses the sign-in and default-provider doors', parseFamilyFocus('mistral') === 'mistral' && parseDefaultProviderWord('mistral') === 'mistral')
-  check('the face names the model-list proof, env precedence and the optional Admin API key', keyLegTitle('mistral') === 'Mistral API key' && keyLegStoreLine('mistral').includes('MISTRAL_API_KEY wins') && keyLegTitle('mistral-admin') === 'Mistral Admin API key (optional)' && keyPromptPaneLines('mistral', null, 8, false).join(' ').includes('console.mistral.ai/api-keys') && keyPromptPaneLines('mistral-admin', null, 0, false).join(' ').includes('backoffice.mistral.ai'))
+  check('the face names the model-list proof, env precedence and the optional Admin API key', keyLegTitle('mistral') === 'Mistral API key' && keyLegStoreLine('mistral').includes('MISTRAL_API_KEY wins') && keyLegTitle('mistral-admin') === 'Mistral Admin API key (optional)' && keyPromptPaneLines('mistral', null, 8, false).join(' ').includes('console.mistral.ai/api-keys') && keyPromptPaneLines('mistral-admin', null, 0, false).join(' ').includes('admin.mistral.ai'))
   check('Mistral aliases and contexts stay recorded; refreshed rates cite docs.mistral.ai/inference/pricing, read 2026-10-25', mistralDisplayPin('mistral-large-4')?.contextWindow === 1_048_576 && mistralDisplayPin('mistral-large-4-0')?.id === 'mistral-large-4' && mistralDisplayPin('mistral-medium-latest')?.id === 'mistral-medium-3-5' && mistralDisplayPin('mistral-large-latest')?.id === 'mistral-large-2512' && mistralDisplayPin('codestral-latest')?.contextWindow === 131_072 && MISTRAL_DISPLAY_PINS.every(pin => pin.observedAt === (['mistral-large-4', 'deepseek-v4-1-flash-1017'].includes(pin.id) ? '2026-10-30' : '2026-10-25')))
   const { buildMistralExtras } = await import('../../src/services/providers/mistral/mistralCallModel.ts')
   check('Mistral GLM preserves max and never sends unsupported none (docs.mistral.ai/studio/conversations/reasoning, read 2026-10-25)', isMistralChatModelId('zai-glm-5-3') && isMistralChatModelId('zai-glm-5-3-flash') && buildMistralExtras({ wireModel: 'zai-glm-5-3', effortValue: 'max', thinkingEnabled: true, maxOutputTokensOverride: undefined }).reasoning_effort === 'max' && buildMistralExtras({ wireModel: 'zai-glm-5-3', effortValue: 'max', thinkingEnabled: false, maxOutputTokensOverride: undefined }).reasoning_effort === 'low')
@@ -66,7 +66,7 @@ try {
   __resetMistralUsageForTest()
   await refreshProviderUsage('mistral', { force: true, reason: 'operator' })
   const refused = usageForProvider('mistral')
-  check('a refused admin key says so with the Backoffice remedy and keeps the identity', refused.readerNote?.includes('refused the Admin API key (HTTP 403)') && refused.readerNote.includes('backoffice.mistral.ai') && refused.figures?.some(figure => figure.key === 'account'))
+  check('a refused admin key says so with the Admin Panel remedy and keeps the identity', refused.readerNote?.includes('refused the Admin API key (HTTP 403)') && refused.readerNote.includes('admin.mistral.ai') && refused.figures?.some(figure => figure.key === 'account'))
   fixture.state.adminStatus = 200
   fixture.state.noMonthlyLimit = true
   __resetMistralUsageForTest()
