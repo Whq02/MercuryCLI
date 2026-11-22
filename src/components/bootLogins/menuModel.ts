@@ -64,7 +64,7 @@ export function loginsMenuModelOf(
     selIdx: pick !== null ? pick.pickSel : opts.selIdx,
     statusRight: opts.statusNote ?? loginsStatusLine(facts),
     legend: loginsLegendOf(selected !== undefined && loginsSwitchableFamily(selected, facts) !== null),
-    moreHint: '… (the trail continues — a taller terminal shows it whole)',
+    moreHint: '… (the trail continues — taller terminal)',
     ...(selected !== undefined ? { detailOverride: loginsDetailLines(selected, facts) } : {}),
     ...(opts.glowWord !== undefined ? { glowWord: opts.glowWord } : {}),
     ...(flowPane ?? {}),

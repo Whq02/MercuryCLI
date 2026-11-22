@@ -80,9 +80,15 @@ export function agentFaceDetailLines(
     `scope: ${getAgentSourceDisplayName(agent.source)}`,
   ];
   if (eff !== null) {
+    const effortLine =
+      eff.effortIntent !== undefined
+        ? `effort: ${eff.effortIntent} → ${eff.effort.label}`
+        : eff.effort.supportsEffort && eff.effort.appliedValue === undefined && eff.effort.label === 'default'
+          ? 'effort: session'
+          : `effort: session → ${eff.effort.label}`;
     lines.push(
       `model: ${eff.modelIntent} → ${eff.model}${eff.modelIntent === 'inherit' ? " (your session's model)" : ''}`,
-      `effort: ${eff.effortIntent !== undefined ? `${eff.effortIntent} → ` : 'session → '}${eff.effort.label}`,
+      effortLine,
     );
     if (availabilityNote !== null) lines.push(`availability: ${availabilityNote} — Logins signs in`);
     if (eff.tools) {

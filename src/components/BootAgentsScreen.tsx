@@ -19,7 +19,7 @@ import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
 import { agentFormRowIds } from './bootAgents/face.js';
 import { toggleRowOf, runDeleteOf, agentEditRun, modelPickRun, editFormRowOf, clearFormRowOf, formPickRun } from './bootAgents/actions.js';
 import { formPromptKeys, confirmKeys, formSnapKeys } from './bootAgents/keys.js';
-import { agentsFaceBase, formFace, modelPickFace, trashFace, listFace } from './bootAgents/menuModel.js';
+import { agentsFaceBase, bootSessionEffort, formFace, modelPickFace, trashFace, listFace } from './bootAgents/menuModel.js';
 import { agentFaceRow } from './bootAgents/rows.js';
 import { useAgentDefinitions } from './bootAgents/useAgentDefinitions.js';
 import { useAgentFormState } from './bootAgents/useAgentFormState.js';
@@ -265,10 +265,11 @@ export function BootAgentsScreen({
   );
   const wordGlow = useGreetingShimmer(rampStops, WORD_W);
 
+  const sessionEffort = bootSessionEffort();
   const menuM = useMemo(() => {
     const base = agentsFaceBase({ counts, mainModel, wordGlow, workspaceDir });
     if (form !== null && formSnap !== null) {
-      return formFace({ base, defs, faceTools, form, formList, formPick, formPrompt, formRowIds, formSnap, mainModel, note, pickList, workspaceDir });
+      return formFace({ base, defs, faceTools, form, formList, formPick, formPrompt, formRowIds, formSnap, mainModel, note, pickList, sessionEffort, workspaceDir });
     }
     if (modelPick !== null) {
       return modelPickFace({ base, modelPick, modelPickList });
@@ -276,8 +277,8 @@ export function BootAgentsScreen({
     if (trash.open) {
       return trashFace({ base, trash, trashList });
     }
-    return listFace({ base, built, confirm, counts, defs, faceTools, list, listRows, mainModel, note });
-  }, [counts, listRows, built, defs, list.selectedRow, list.selectedIndex, list.note, note, confirm, trash, trashList.selectedIndex, trashList.note, form, formSnap, formPrompt, formPick, formRowIds, formList.selectedIndex, pickList.selectedIndex, modelPick, modelPickList.selectedIndex, modelPickList.note, mainModel, faceTools, workspaceDir, wordGlow?.peakCell, wordGlow?.gainLevel]);
+    return listFace({ base, built, confirm, counts, defs, faceTools, list, listRows, mainModel, note, sessionEffort });
+  }, [counts, listRows, built, defs, list.selectedRow, list.selectedIndex, list.note, note, confirm, trash, trashList.selectedIndex, trashList.note, form, formSnap, formPrompt, formPick, formRowIds, formList.selectedIndex, pickList.selectedIndex, modelPick, modelPickList.selectedIndex, modelPickList.note, mainModel, sessionEffort, faceTools, workspaceDir, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useMemo(() => {
     const menu = core.composeBootMenu(columns, rows, menuM) as {

@@ -878,4 +878,141 @@ for (const stop of ['abort', 'dispose'] as const) {
   h.machine.dispose()
 }
 
+t.section('§10 — BOOT AGENTS EFFORT TRUTH (launch flag > saved default > model default; unknown says session alone)')
+{
+  const { agentsFaceBase, formFace, listFace } = await import('../../src/components/bootAgents/menuModel.js')
+  const { agentFaceDetailLines, agentFormRowIds } = await import('../../src/components/bootAgents/face.js')
+  const { buildStudioRows } = await import('../../src/components/agents/studio/studioData.js')
+  const { resolveEffectiveAgentRuntime } = await import('../../src/services/agents/resolver.js')
+  const { _resetBootBirthFactsForTesting, setBootBirthFacts } = await import('../../src/services/switchboard/bootBirthFacts.js')
+  const { resolveEffortTruth, unpinAllLaunchEffort } = await import('../../src/utils/effort.js')
+  const { updateSettingsForSource } = await import('../../src/utils/settings/settings.js')
+
+  const EFFORT_FIX = 'resolve boot session effort from bootBirthFacts().effort ?? getInitialEffortSetting() in src/components/bootAgents/menuModel.ts and src/components/BootAgentsScreen.tsx, and omit unknown figure in src/components/bootAgents/face.ts'
+
+  const crew = {
+    agentType: 'mercury-crew',
+    whenToUse: 'General-purpose worker.',
+    getSystemPrompt: () => 'You are mercury-crew.',
+    source: 'built-in' as const,
+  }
+  const built = buildStudioRows({ activeAgents: [crew], allAgents: [crew] } as never, { tab: 'all', filter: 'all', query: '' })
+  const base = agentsFaceBase({ counts: { active: 1, disabled: 0, issues: 0 }, mainModel: 'claude-sonnet-5-5', wordGlow: null, workspaceDir: cwdDir })
+  const listStub = { selectedRow: built.rows[0]!, selectedIndex: 0, note: null } as never
+  const formStub = { mode: 'create' as const, base: undefined }
+  const formListStub = { selectedIndex: 0, note: null } as never
+  const pickListStub = { selectedIndex: 0, note: null } as never
+  const draftDoc = freshStudioDocument()
+  const formSnapStub = { doc: draftDoc, scope: 'project' as const, view: { kind: 'advanced' as const, cursor: 0, editing: null }, textBuffer: '', note: null, busy: false, recoverOffer: null, conflict: null } as never
+
+  const priorEnvEffort = process.env['MERCURY_EFFORT_LEVEL']
+  delete process.env['MERCURY_EFFORT_LEVEL']
+  try {
+    unpinAllLaunchEffort()
+    updateSettingsForSource('userSettings', { engine: { effort: 'max' } })
+    _resetBootBirthFactsForTesting()
+    setBootBirthFacts({ effort: 'high' })
+
+    const withFlagList = listFace({
+      base,
+      built,
+      confirm: null,
+      counts: { active: 1, disabled: 0, issues: 0 },
+      defs: { activeAgents: [crew], allAgents: [crew] } as never,
+      faceTools: [],
+      list: listStub,
+      listRows: built.rows,
+      mainModel: 'claude-sonnet-5-5',
+      note: null,
+    })
+    const flagEffortLine = (withFlagList.detailOverride ?? []).find(l => l.startsWith('effort:')) ?? ''
+    t.check(
+      'launch --effort high with saved default max: Agents list reads effort: session → high (never medium)',
+      flagEffortLine === 'effort: session → high',
+      flagEffortLine === 'effort: session → high' ? '' : `${EFFORT_FIX} | got=${JSON.stringify(flagEffortLine)}`,
+    )
+
+    const withFlagForm = formFace({
+      base,
+      defs: { activeAgents: [crew], allAgents: [crew] } as never,
+      faceTools: [],
+      form: formStub,
+      formList: formListStub,
+      formPick: null,
+      formPrompt: null,
+      formRowIds: agentFormRowIds('create'),
+      formSnap: formSnapStub,
+      mainModel: 'claude-sonnet-5-5',
+      note: null,
+      pickList: pickListStub,
+      workspaceDir: cwdDir,
+    })
+    const flagRunsLine = (withFlagForm.detailOverride ?? []).find(l => l.startsWith('runs:')) ?? ''
+    t.check(
+      'launch --effort high with saved default max: Agents form reads effort high (never medium)',
+      flagRunsLine.includes('· effort high'),
+      flagRunsLine.includes('· effort high') ? '' : `${EFFORT_FIX} | got=${JSON.stringify(flagRunsLine)}`,
+    )
+
+    setBootBirthFacts({ effort: null })
+    const expectedSaved = resolveEffortTruth('claude-sonnet-5-5', 'max').label
+    const savedList = listFace({
+      base,
+      built,
+      confirm: null,
+      counts: { active: 1, disabled: 0, issues: 0 },
+      defs: { activeAgents: [crew], allAgents: [crew] } as never,
+      faceTools: [],
+      list: listStub,
+      listRows: built.rows,
+      mainModel: 'claude-sonnet-5-5',
+      note: null,
+    })
+    const savedEffortLine = (savedList.detailOverride ?? []).find(l => l.startsWith('effort:')) ?? ''
+    t.check(
+      `no launch flag with saved default max: Agents list resolves via resolveEffortTruth (effort: session → ${expectedSaved})`,
+      savedEffortLine === `effort: session → ${expectedSaved}`,
+      savedEffortLine === `effort: session → ${expectedSaved}` ? '' : `${EFFORT_FIX} | got=${JSON.stringify(savedEffortLine)}`,
+    )
+
+    process.env['MERCURY_EFFORT_LEVEL'] = 'low'
+    const envList = listFace({
+      base,
+      built,
+      confirm: null,
+      counts: { active: 1, disabled: 0, issues: 0 },
+      defs: { activeAgents: [crew], allAgents: [crew] } as never,
+      faceTools: [],
+      list: listStub,
+      listRows: built.rows,
+      mainModel: 'claude-sonnet-5-5',
+      note: null,
+    })
+    const envEffortLine = (envList.detailOverride ?? []).find(l => l.startsWith('effort:')) ?? ''
+    t.check(
+      'MERCURY_EFFORT_LEVEL=low overrides saved default, matching live session resolution',
+      envEffortLine === 'effort: session → low',
+      envEffortLine === 'effort: session → low' ? '' : `${EFFORT_FIX} | got=${JSON.stringify(envEffortLine)}`,
+    )
+    delete process.env['MERCURY_EFFORT_LEVEL']
+
+    updateSettingsForSource('userSettings', { engine: { effort: undefined } })
+    const unknownEff = resolveEffectiveAgentRuntime(crew as never, {
+      parentModel: 'gpt-6.2',
+      sessionEffort: undefined,
+      tools: [],
+    })
+    const unknownLine = agentFaceDetailLines(built.rows[0]!, built.estate, unknownEff).find(l => l.startsWith('effort:')) ?? ''
+    t.check(
+      'when effort cannot be known on the boot menu, line reads effort: session with no figure',
+      unknownLine === 'effort: session',
+      unknownLine === 'effort: session' ? '' : `${EFFORT_FIX} | got=${JSON.stringify(unknownLine)}`,
+    )
+  } finally {
+    _resetBootBirthFactsForTesting()
+    if (priorEnvEffort === undefined) delete process.env['MERCURY_EFFORT_LEVEL']
+    else process.env['MERCURY_EFFORT_LEVEL'] = priorEnvEffort
+  }
+}
+
 t.finish('prove-agent-face')
