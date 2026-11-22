@@ -1,6 +1,6 @@
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
+import type { Unbuilt } from '../../pi/holes.js'
 
-export const SHELL_TYPES: Unbuilt = unbuilt('src/utils/shell/shellProvider.ts:3')
+export const SHELL_TYPES = ['bash', 'powershell'] as const
 
 export type ShellType = Unbuilt
 

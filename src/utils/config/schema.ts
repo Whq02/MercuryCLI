@@ -5,7 +5,7 @@ import type { ImageDimensions } from '../imageResizer.js'
 import { DEFAULT_THEME_SETTING } from '../systemTheme.js'
 import type { ThemeSetting } from '../theme.js'
 import type { EDITOR_MODES } from '../configConstants.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export { EDITOR_MODES } from '../configConstants.js'
 
@@ -33,7 +33,14 @@ type LastSessionFigure =
 
 export type ProjectConfig = Unbuilt
 
-export const DEFAULT_PROJECT_CONFIG: ProjectConfig = unbuilt('src/utils/config/schema.ts:111')
+export const DEFAULT_PROJECT_CONFIG: ProjectConfig = {
+  allowedTools: [],
+  mcpServers: {},
+  hasTrustDialogAccepted: false,
+  projectOnboardingSeenCount: 0,
+  hasExternalIncludesApproved: false,
+  hasExternalIncludesWarningShown: false,
+}
 
 export type AccountInfo = Unbuilt
 
@@ -80,19 +87,41 @@ export type GlobalConfig = BootRecord &
   Bridge
 
 export function createDefaultGlobalConfig(): GlobalConfig {
-  return notBuilt('src/utils/config/schema.ts:279')
+  return {
+    numStartups: 0,
+    theme: DEFAULT_THEME_SETTING,
+    toolOutput: 'compact',
+    editorMode: 'normal',
+    autoCompactEnabled: true,
+    showTurnDuration: true,
+    hasSeenTasksHint: false,
+    hasUsedStash: false,
+    expandedView: 'none',
+    customApiKeyResponses: { approved: [], rejected: [] },
+    tipsHistory: {},
+    showExpandedTasks: false,
+    fileCheckpointingEnabled: true,
+    terminalProgressBarEnabled: true,
+  }
 }
 
-export const DEFAULT_GLOBAL_CONFIG: GlobalConfig = unbuilt('src/utils/config/schema.ts:298')
+export const DEFAULT_GLOBAL_CONFIG: GlobalConfig = createDefaultGlobalConfig()
 
-const keyGuard = <Key extends string>(keys: readonly Key[]): Unbuilt => notBuilt('src/utils/config/schema.ts:300')
+const keyGuard = <Key extends string>(keys: readonly Key[]) => {
+  const known: ReadonlySet<string> = new Set(keys)
+  return (key: string): key is Key => known.has(key)
+}
 
 export const GLOBAL_CONFIG_KEYS: Unbuilt = unbuilt('src/utils/config/schema.ts:305')
 
 export type GlobalConfigKey = Unbuilt
 export const isGlobalConfigKey: Unbuilt = unbuilt('src/utils/config/schema.ts:330')
 
-export const PROJECT_CONFIG_KEYS: Unbuilt = unbuilt('src/utils/config/schema.ts:332')
+export const PROJECT_CONFIG_KEYS = [
+  'allowedTools',
+  'hasTrustDialogAccepted',
+  'hasCompletedProjectOnboarding',
+] as const satisfies readonly (keyof ProjectConfig)[]
 
 export type ProjectConfigKey = Unbuilt
 export const isProjectConfigKey = keyGuard(PROJECT_CONFIG_KEYS)
