@@ -10,7 +10,7 @@ FILES · orchard     │ │                                                    
                     │ │                                                                          │ │
 VITALS              │ │   OpenAI — ChatGPT subscription or API key                               │ │
   · spend —         │ │ ❯ Anthropic — Claude subscription or Console sign-in / API key           │ │
-  · ctx — · —       │ │     ANTHROPIC_API_KEY (env) ……                                           │ │
+  · ctx — · —       │ │     ANTHROPIC_API_KEY (env) …-key                                        │ │
   · health — run…   │ │   OpenRouter — browser sign-in or API key                                │ │
                     │ │   Google Gemini — Google sign-in, API key                                │ │
                     │ │   Hugging Face — sign-in or Hub token                                    │ │
