@@ -1,4 +1,7 @@
 export function lazySchema<T>(factory: () => T): () => T {
-  let cached: T | undefined
-  return () => (cached ??= factory())
+  let built: { value: T } | undefined
+  return () => {
+    built ??= { value: factory() }
+    return built.value
+  }
 }
