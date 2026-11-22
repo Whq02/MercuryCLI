@@ -44,8 +44,7 @@ import { isCohereModelId } from './pins/coherePins.js'
 import { isGroqModelId, groqDisplayPin, groqEffortVocabulary } from './pins/groqPins.js'
 import { isCerebrasModelId, cerebrasDisplayPin, cerebrasEffortVocabulary } from './pins/cerebrasPins.js'
 import { isFireworksModelId, fireworksDisplayPin, fireworksEffortVocabulary } from './pins/fireworksPins.js'
-import { isQwenModelId, qwenDisplayPin } from './pins/qwenPins.js'
-import { QWEN_TEMPLATE_EFFORT_STEPS } from './pins/qwenTemplate.js'
+import { isQwenModelId, qwenDefaultEffort, qwenDisplayPin, qwenEffortSteps } from './pins/qwenPins.js'
 import {
   deepseekDisplayPin,
   DEEPSEEK_EFFORTS,
@@ -440,7 +439,7 @@ function baseEffortVocabularyFor(model: string): EffortVocabularyView {
   if (isQwenModelId(model) || route === 'qwen') {
     const vocabulary = qwenModelFacts(model).efforts
     return vocabulary.length > 0
-      ? { kind: 'provider', source: 'qwen', vocabulary, defaultEffort: 'xhigh', thinkingGated: true, steps: QWEN_TEMPLATE_EFFORT_STEPS }
+      ? { kind: 'provider', source: 'qwen', vocabulary, defaultEffort: qwenDefaultEffort(model), thinkingGated: true, steps: qwenEffortSteps(model) }
       : { kind: 'none', source: 'qwen' }
   }
   if (route === 'openrouter') {

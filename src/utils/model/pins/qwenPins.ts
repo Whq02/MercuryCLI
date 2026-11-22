@@ -1,4 +1,4 @@
-import { QWEN_TEMPLATE_EFFORTS } from './qwenTemplate.js'
+import { QWEN_TEMPLATE_EFFORTS, QWEN_TEMPLATE_EFFORT_STEPS } from './qwenTemplate.js'
 
 export const QWEN_OBSERVED_AT = '2026-10-18'
 
@@ -20,6 +20,8 @@ interface QwenDisplayPin {
   thinking: QwenThinkingDial
   preservesThinking: boolean
   efforts: readonly string[]
+  effortSteps?: Readonly<Record<string, string>>
+  defaultEffort?: string
   images: boolean
   codingPlan?: boolean
   codingPlanOnly?: boolean
@@ -33,7 +35,7 @@ const QWEN_CODING_PLAN_ROUTER_ID = 'qwen-auto'
 
 export const QWEN_DISPLAY_PINS: readonly QwenDisplayPin[] = [
   { ...flagship, id: 'qwen3.8-max', displayName: 'Qwen3.8 Max', efforts: QWEN_TEMPLATE_EFFORTS, costInPerMtok: 2, costOutPerMtok: 6, cachedInPerMtok: 0.25, cacheWritePerMtok: 2.5, codingPlan: true },
-  { ...flagship, id: 'qwen4-max', displayName: 'Qwen4 Max', observedAt: '2026-11-20', source: 'https://www.alibabacloud.com/help/en/model-studio/qwen4-max', efforts: QWEN_TEMPLATE_EFFORTS, costInPerMtok: 1.5, costOutPerMtok: 4.5, cachedInPerMtok: 0.075, cacheWritePerMtok: 1.875 },
+  { ...flagship, id: 'qwen4-max', displayName: 'Qwen4 Max', observedAt: '2026-11-20', source: 'https://www.alibabacloud.com/help/en/model-studio/qwen4-max', efforts: ['low', 'high', 'xhigh'], effortSteps: { none: 'low', minimal: 'low', medium: 'high', max: 'xhigh' }, defaultEffort: 'high', costInPerMtok: 1.5, costOutPerMtok: 4.5, cachedInPerMtok: 0.075, cacheWritePerMtok: 1.875 },
   { ...flagship, id: 'qwen3.7-max', displayName: 'Qwen3.7 Max', images: false, costInPerMtok: 2.5, costOutPerMtok: 7.5, cachedInPerMtok: 0.25, cacheWritePerMtok: 3.125, codingPlan: true },
   { ...flagship, id: 'qwen3.7-plus', displayName: 'Qwen3.7 Plus', observedAt: '2026-10-25', source: 'https://www.alibabacloud.com/help/en/model-studio/model-pricing', costInPerMtok: 0.4, costOutPerMtok: 1.6, cachedInPerMtok: 0.08, cacheWritePerMtok: 0.5, codingPlan: true, longPrompt: [{ aboveInputTokens: 256_000, costInPerMtok: 1.2, costOutPerMtok: 4.8, cachedInPerMtok: 0.24, cacheWritePerMtok: 1.5 }] },
   { ...flagship, id: 'qwen3.8-flash', displayName: 'Qwen3.8 Flash', efforts: QWEN_TEMPLATE_EFFORTS, costInPerMtok: 0.15, costOutPerMtok: 0.47, cachedInPerMtok: 0.016, cacheWritePerMtok: 0.2, codingPlan: true },
@@ -105,4 +107,17 @@ export function qwenEffortVocabulary(id: string): readonly string[] {
   if (pin) return pin.efforts
   const bare = bareId(id)
   return EFFORT_DIAL_RE.test(bare) || QWEN4_RE.test(bare) ? QWEN_TEMPLATE_EFFORTS : []
+}
+
+export function qwenEffortSteps(id: string): Readonly<Record<string, string>> {
+  return qwenDisplayPin(id)?.effortSteps ?? QWEN_TEMPLATE_EFFORT_STEPS
+}
+
+export function qwenDefaultEffort(id: string): string {
+  return qwenDisplayPin(id)?.defaultEffort ?? 'xhigh'
+}
+
+export function qwenWireEffort(id: string, effort: string): string | undefined {
+  const word = qwenEffortSteps(id)[effort] ?? effort
+  return qwenEffortVocabulary(id).includes(word) ? word : undefined
 }
