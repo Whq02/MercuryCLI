@@ -87,7 +87,7 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
   ]
   const groupChat: HelpRow[] = [
     { key: 'esc', text: 'double tap esc to clear input' },
-    { key: 'mode', text: `${cycleModeShortcut} for implement mode` },
+    { key: 'mode', text: `${cycleModeShortcut} to cycle the mode` },
     { key: 'tsc', text: `${transcriptShortcut} for the transcript` },
     { key: 'todos', text: `${tasksShortcut} to toggle tasks` },
     { key: 'nl', text: getNewlineInstructions() },

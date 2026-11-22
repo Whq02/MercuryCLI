@@ -33,6 +33,8 @@ const { taskNoticeBlock } = await import(join(ROOT, 'src/utils/messages/noticeRo
 const { UserAgentNotificationMessage } = await import(join(ROOT, 'src/components/messages/UserAgentNotificationMessage.tsx'))
 const { UserNoticeMessage } = await import(join(ROOT, 'src/components/messages/UserNoticeMessage.tsx'))
 const { MessageMetaProvider } = await import(join(ROOT, 'src/components/messages/TranscriptNameplate.tsx'))
+const { KeybindingSetup } = await import(join(ROOT, 'src/keybindings/KeybindingProviderSetup.tsx'))
+const { PromptInputHelpMenu } = await import(join(ROOT, 'src/components/PromptInput/PromptInputHelpMenu.tsx'))
 const h = React.createElement as (...args: unknown[]) => React.ReactElement
 const strip = (s: string): string => s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')
 const settle = (ms = 120): Promise<void> => new Promise(r => setTimeout(r, ms))
@@ -54,7 +56,11 @@ async function paint(node: React.ReactElement, band = { columns: 120, rows: 30 }
     h(
       AppStateProvider as never,
       { initialState: getDefaultAppState() },
-      h(MessageMetaProvider as never, { message: { type: 'attachment', timestamp: STAMP } }, node),
+      h(
+        KeybindingSetup as never,
+        null,
+        h(MessageMetaProvider as never, { message: { type: 'attachment', timestamp: STAMP } }, node),
+      ),
     ),
     { stdout, stdin, exitOnCtrlC: false, patchConsole: false },
   )
@@ -109,6 +115,15 @@ section(
 
   const monitor = await paint(h(UserNoticeMessage as never, { blocks: [{ kind: 'monitor', taskId: 'm1', name: 'watch', lines: ['a', 'b'] }], fold: true }))
   check('a monitor notice keeps its count', monitor.includes('[Monitor] watch · 2 lines ›'), monitor)
+}
+
+section(
+  '§2 ? shortcuts list: shift + tab cycles the mode',
+  'change the mode row text in PromptInputHelpMenu in src/components/PromptInput/PromptInputHelpMenu.tsx',
+)
+{
+  const help = await paint(h(PromptInputHelpMenu as never, { availableColumns: 120 }), { columns: 120, rows: 30 })
+  check('? shortcuts list names "shift + tab to cycle the mode" and never "for implement mode"', help.includes('shift + tab to cycle the mode') && !help.includes('for implement mode'), help)
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
