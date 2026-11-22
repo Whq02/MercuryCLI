@@ -4,6 +4,7 @@ prove-behaviour-sentences-pinned.ts
 prove-briefing-bytes.ts
 prove-briefing-replay.ts
 prove-cache-prefix.ts
+prove-closing-note-holds-what-was-seen.ts
 prove-composer.ts
 prove-constitution.ts
 prove-first-call-ceiling.ts
