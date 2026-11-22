@@ -37,7 +37,20 @@ const record = lazySchema(() => z.record(z.string(), z.unknown()))
 const applied = lazySchema(() => z.enum(['now', 'turn_end']))
 
 const SCHEMA_KIT: RunnerSchemaKit = {
-  z,
+  z: {
+    array: z.array,
+    boolean: z.boolean,
+    discriminatedUnion: z.discriminatedUnion,
+    enum: z.enum,
+    literal: z.literal,
+    number: z.number,
+    object: z.object,
+    record: z.record,
+    strictObject: z.strictObject,
+    string: z.string,
+    union: z.union,
+    unknown: z.unknown,
+  },
   empty,
   record,
   applied,
