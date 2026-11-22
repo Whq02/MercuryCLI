@@ -1,16 +1,8 @@
-import { dirname } from 'node:path'
-
-import { getFsImplementation } from './fsOperations.js'
-import { passedOver } from './passedOver.js'
-import { notBuilt } from '../pi/holes.js'
-
 export function logForDiagnosticsNoPII(
-  level: 'debug' | 'info' | 'warn' | 'error',
-  event: string,
-  data?: Record<string, unknown>,
-): void {
-  return notBuilt('src/utils/diagLogs.ts:6')
-}
+  _level: 'debug' | 'info' | 'warn' | 'error',
+  _event: string,
+  _data?: Record<string, unknown>,
+): void {}
 
 type TimedRun<T> =
   | { outcome: 'completed'; value: T; duration_ms: number }
@@ -31,5 +23,15 @@ export async function withDiagnosticsTiming<T>(
   fn: () => Promise<T>,
   getData?: (result: T) => Record<string, unknown>,
 ): Promise<T> {
-  return notBuilt('src/utils/diagLogs.ts:47')
+  logForDiagnosticsNoPII('info', `${event}_started`)
+  const run = await timed(async () => {
+    const result = await fn()
+    return { result, data: getData?.(result) ?? {} }
+  })
+  if (run.outcome === 'failed') {
+    logForDiagnosticsNoPII('error', `${event}_failed`, { duration_ms: run.duration_ms })
+    throw run.error
+  }
+  logForDiagnosticsNoPII('info', `${event}_completed`, { duration_ms: run.duration_ms, ...run.value.data })
+  return run.value.result
 }
