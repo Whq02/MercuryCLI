@@ -7,9 +7,12 @@ import type { ContentBlockParam } from './wire.js'
 import type { PastedContent } from '../utils/config.js'
 import type { ImageDimensions } from '../utils/imageResizer.js'
 import type { TextHighlight } from '../utils/textHighlighting.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
-export type InlineGhostText = Unbuilt
+export type InlineGhostText = {
+  text: string
+  fullCommand: string
+  insertPosition: number
+}
 
 type Signal = () => void
 
@@ -35,26 +38,116 @@ type SwitchName =
 
 type RouteVerdict = 'edit' | 'edit-and-consume' | 'consume' | 'yield'
 
-export type BaseTextInputProps = Unbuilt
+type ControlledValue = {
+  value: string
+  onChange: (value: string) => void
+  onSubmit?: (value: string) => void
+  cursorOffset: number
+  onChangeCursorOffset: (offset: number) => void
+}
 
-export type VimMode = Unbuilt
+type InputRouting = {
+  routeInput?: (input: string, key: Key, event: InputEvent, pastePending: boolean) => RouteVerdict
+  pastePendingRef?: MutableRefObject<(() => boolean) | null>
+  inputFilter?: (input: string, key: Key) => string
+  onExitMessage?: (show: boolean, key?: string) => void
+}
 
-export type TextInputState = Unbuilt
+type PasteHandlers = {
+  onImagePaste?: (
+    base64Image: string,
+    mediaType?: string,
+    filename?: string,
+    dimensions?: ImageDimensions,
+    sourcePath?: string,
+    byteLength?: number,
+  ) => void
+  onImageError?: (errorMessage: string) => void
+  onPaste?: (text: string) => void
+  onIsPastingChange?: (isPasting: boolean) => void
+}
 
-export type VimInputState = Unbuilt
+type Appearance = {
+  columns: number
+  placeholder?: string
+  placeholderElement?: ReactNode
+  mask?: string
+  maxVisibleLines?: number
+  argumentHint?: string
+  highlights?: TextHighlight[]
+  inlineGhostText?: InlineGhostText
+  userTextColor?: string
+}
 
-export type PromptInputMode = Unbuilt
+export type BaseTextInputProps = ControlledValue &
+  Partial<Record<SignalName, Signal>> &
+  Partial<Record<SwitchName, boolean>> &
+  InputRouting &
+  PasteHandlers &
+  Appearance
 
-export type QueuePriority = Unbuilt
+export type VimMode = 'INSERT' | 'NORMAL'
 
-export type QueuedCommand = Unbuilt
+export type TextInputState = {
+  onInput: (input: string, key: Key) => void
+  renderedValue: string
+  offset: number
+  setOffset: (offset: number) => void
+  isPasting?: boolean
+} & Record<'cursorLine' | 'cursorColumn' | 'viewportCharOffset' | 'viewportCharEnd', number>
 
-export type BatchedPrompt = Unbuilt
+export type VimInputState = TextInputState & {
+  mode: VimMode
+  setMode: (mode: VimMode) => void
+}
+
+export type PromptInputMode =
+  | 'bash'
+  | 'prompt'
+  | 'task-notification'
+
+export type QueuePriority = 'now' | 'next' | 'later'
+
+type QueuedPayload = {
+  value: string | Array<ContentBlockParam>
+  mode: PromptInputMode
+  schema?: Record<string, unknown>
+  pastedContents?: Record<number, PastedContent>
+  preExpansionValue?: string
+  agentCompletion?: { agentId: string; start: number; end: number }
+}
+
+type QueuedIdentity = Partial<{
+  queueId: string
+  uuid: UUID
+}>
+
+type QueuedRouting = Partial<{
+  priority: QueuePriority
+  agentId: string
+  waitsForTurnEnd: true
+  localCommand: true
+  ridesNextWords: true
+}>
+
+type QueuedSource = Partial<{
+  origin: MessageOrigin
+  sentAt: string
+  workload: string
+  skipSlashCommands: boolean
+  bridgeOrigin: boolean
+  isMeta: boolean
+}>
+
+export type QueuedCommand = QueuedPayload & QueuedIdentity & QueuedRouting & QueuedSource
+
+export type BatchedPrompt = Pick<QueuedCommand, 'value' | 'uuid' | 'origin'>
 
 export function isValidImagePaste(content: PastedContent): boolean {
-  return notBuilt('src/types/textInputTypes.ts:147')
+  return content.type === 'image' && content.content.length > 0
 }
 
 export function getImagePasteIds(pastedContents?: Record<number, PastedContent>): number[] | undefined {
-  return notBuilt('src/types/textInputTypes.ts:154')
+  const ids = Object.values(pastedContents ?? {}).filter(isValidImagePaste).map(content => content.id)
+  return ids.length > 0 ? ids : undefined
 }
