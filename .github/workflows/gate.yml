@@ -139,7 +139,7 @@ jobs:
         with:
           name: dist
       - name: Unpack dist
-        run: tar -xzf dist.tar.gz
+        run: tar -xzf dist.tar.gz && rm dist.tar.gz
       - name: Allow the managed browser's sandbox (unprivileged user namespaces)
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: Run shard suites (the release class)
