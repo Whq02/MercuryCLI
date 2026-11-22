@@ -31,7 +31,6 @@ export type ManualFoldProjection = {
   restoreFiles: boolean
   kept: number
   keptTokens: number
-  headTokens: number
   folds: number
   totalRounds: number
   workingRoundsFolded: number
@@ -47,12 +46,8 @@ export function manualFoldHasNothingToFold(projection: ManualFoldProjection): bo
 
 export function nothingToCompactReason(projection: ManualFoldProjection, refold: boolean): NothingToCompactReason {
   if (refold && projection.workingRoundsFolded < MIN_HEAD_ROUNDS) return 'already-folded'
-  if (!refold && ((projection.totalRounds !== undefined && projection.totalRounds <= MIN_HEAD_ROUNDS) || (projection.kept === 0 && projection.workingRoundsFolded === 0) || (projection.totalRounds === undefined && projection.workingRoundsFolded === 0))) {
-    return 'too-few-messages'
-  }
-  if ((projection.kept ?? 0) > 0 && (projection.keptTokens ?? 0) >= (projection.headTokens ?? 0)) {
-    return 'recent-turns-kept'
-  }
+  if (projection.kept > 0 && projection.keptTokens * 2 >= projection.context) return 'recent-turns-kept'
+  if (!refold && projection.totalRounds <= MIN_HEAD_ROUNDS) return 'too-few-messages'
   return 'would-not-shrink'
 }
 
@@ -122,7 +117,6 @@ export async function projectManualFold(
   const totalRounds = groupMessagesByApiRound(messages).filter(group => group.some(row => row.type === 'assistant')).length
   const workingRoundsFolded = groupMessagesByApiRound(head).filter(group => group.some(row => row.type === 'assistant')).length
   const keptTokens = estimateContextTokens(keep, context.options.engineModel)
-  const headTokens = estimateContextTokens(stripThinkingFromIndex(head, 0), context.options.engineModel)
   const snapshot: Record<string, { content: string; timestamp: number }> = {}
   for (const [path, state] of context.readFileState.entries()) snapshot[path] = { content: state.content, timestamp: state.timestamp }
   const attachments = await assembleAttachments(snapshot, context, keep, 'compact_full', [...context.readFileState.entries()], { userContext: cacheSafeParams.userContext })
@@ -143,5 +137,5 @@ export async function projectManualFold(
     after = meter.measureResult(projectedResult(withoutRestoredFiles(attachments)))
     restoreFiles = false
   }
-  return { context: meter.context, before: meter.before, after, afterWithFiles, restoreFiles, kept: keep.length, keptTokens, headTokens, folds: head.length, totalRounds, workingRoundsFolded }
+  return { context: meter.context, before: meter.before, after, afterWithFiles, restoreFiles, kept: keep.length, keptTokens, folds: head.length, totalRounds, workingRoundsFolded }
 }

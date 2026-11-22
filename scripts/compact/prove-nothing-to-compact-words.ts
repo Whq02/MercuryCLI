@@ -149,7 +149,7 @@ section('2 ten turns where recent turns hold most of 55.9k tokens: names the rec
 {
   const tenTurns = makeMessages(
     10,
-    index => (index === 8 ? 'SESSIONS DOCS '.repeat(6_000) : `Short reply for turn ${index}.`),
+    index => (index === 8 ? 'SESSIONS DOCS '.repeat(9_000) : `Short reply for turn ${index}.`),
     55_900,
   )
   const { rendered, commandError } = await runSlashCompact(tenTurns)

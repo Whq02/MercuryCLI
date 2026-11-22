@@ -241,12 +241,13 @@ export async function trySessionMemoryCompaction(
     if (autoCompactThreshold !== undefined && estimate >= autoCompactThreshold) {
       return null
     }
-    if (trigger === 'manual') {
-      const estimatedBefore = estimateContextTokens(stripThinkingFromIndex(messages, 0))
-      if (estimate >= estimatedBefore) return null
-    }
     result.postCompactTokenCount = estimate
     result.truePostCompactTokenCount = estimate
+    if (trigger === 'manual') {
+      const saved = estimateContextTokens(stripThinkingFromIndex(messages, 0)) - estimate
+      if (saved <= 0) return null
+      if (preTokens > 0) result.truePostCompactTokenCount = Math.max(0, preTokens - saved)
+    }
     return result
   } catch (err) {
     logForDebugging(`sessionMemoryCompact: attempt failed: ${String(err)}`)

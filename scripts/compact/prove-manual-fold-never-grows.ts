@@ -256,7 +256,7 @@ section('2 Windows SUBMIT 352 shape (RequestGauge + high-effort thinking + large
     'refuses before calling the summariser when even without restored files the fold would not shrink below 57.6k',
     result === undefined && threw !== undefined && summaryRequests() === reqsBefore,
     `threw=${threw ?? 'none'} result=${result ? plainOf(result) : 'none'} reqs=${summaryRequests() - reqsBefore}`,
-    'createFoldMeter in src/services/compact/compact/foldMeasure.ts and projectManualFold in src/services/compact/compact/projection.ts must strip thinking from before and bound before by the measured context so a fold that lands over preCompactTokenCount is refused',
+    'createFoldMeter in src/services/compact/compact/foldMeasure.ts must count before with thinking stripped, by the one estimate projectManualFold in src/services/compact/compact/projection.ts counts the fold with, so a fold that would not land smaller is refused before the summariser',
   )
 }
 

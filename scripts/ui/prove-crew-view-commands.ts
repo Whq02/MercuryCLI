@@ -618,7 +618,7 @@ section("§5 the crewmate's own compaction: the flag on its task makes its query
       const { createCompactBoundaryMessage } = await import('../../src/utils/messages/systemMessages.ts')
       return { boundaryMarker: createCompactBoundaryMessage(isAutoCompact ? 'auto' : 'manual', 1234), summaryMessages: [], attachments: [], hookResults: [], preCompactTokenCount: 1234, postCompactTokenCount: 10 }
     },
-    projectManualFold: async () => (nothingToFold ? { before: 960, after: 960, folds: 0, workingRoundsFolded: 0, context: 960 } : { before: 1234, after: 300, folds: 3, workingRoundsFolded: 2, context: 1234 }),
+    projectManualFold: async () => (nothingToFold ? { before: 960, after: 960, folds: 0, kept: 0, keptTokens: 0, totalRounds: 2, workingRoundsFolded: 0, context: 960 } : { before: 1234, after: 300, folds: 3, workingRoundsFolded: 2, context: 1234 }),
   }))
   await stub('../../src/services/compact/sessionMemoryCompact.ts', () => ({
     shouldUseSessionMemoryCompaction: () => false,

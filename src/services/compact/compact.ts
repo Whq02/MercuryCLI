@@ -219,14 +219,17 @@ export async function compactConversation(
     partial = landed.partial
     messagesToKeep = landed.messagesToKeep
     boundary.compactMetadata.ledger = withKeptLedgerRows(ledger, messagesToKeep)
-    const { truePostCompactTokenCount, folded } = landed
-    if (recompactionInfo?.mustShrink === true && truePostCompactTokenCount >= meter.before) {
+    const { folded } = landed
+    const mustShrink = recompactionInfo?.mustShrink === true
+    const saved = meter.before - landed.truePostCompactTokenCount
+    if (mustShrink && saved <= 0) {
       restoreReadState(context, ledgerBeforeFold, nestedBeforeFold)
       logForDebugging(
-        `compact: aborted after summariser — folded context ${truePostCompactTokenCount} >= ${meter.before} (pre ${preCompactTokenCount}); original context kept`,
+        `compact: aborted after summariser — folded context ${landed.truePostCompactTokenCount} >= ${meter.before} (pre ${preCompactTokenCount}); original context kept`,
       )
       throw new Error(nothingToCompactLine(preCompactTokenCount, 'would-not-shrink'))
     }
+    const truePostCompactTokenCount = mustShrink ? Math.max(0, preCompactTokenCount - saved) : landed.truePostCompactTokenCount
     const visibleReads = collectPreservedReadPaths(messagesToKeep ?? [])
     for (const row of partial.attachments) if (row.attachment.type === 'file') visibleReads.add(expandPath(row.attachment.filename))
     for (const path of context.readFileState.keys()) if (!visibleReads.has(expandPath(path))) context.readFileState.delete(path)
