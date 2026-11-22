@@ -593,7 +593,7 @@ async function runTransactionBody(args: {
     {
       decision: decision.behavior === 'allow' ? 'allowed' : 'denied',
       by: deciderOf(decision.decisionReason),
-      ...(decision.behavior !== 'allow' && decision.message ? { reason: decision.message } : {}),
+      ...(decision.behavior !== 'allow' && decision.message !== undefined ? { reason: decision.message } : {}),
     },
     toolUseContext,
     signal,
@@ -867,7 +867,6 @@ async function runAdmittedCall(needs: ToolCallNeeds): Promise<void> {
     settleHookWait()
     durationMs = Date.now() - startedAt
     succeeded = false
-    result = undefined
     const room = resultRoomFor(assistantMessage)
     if (room !== null && room.reserved(toolUseID)) room.settle(toolUseID, 0)
     try {
