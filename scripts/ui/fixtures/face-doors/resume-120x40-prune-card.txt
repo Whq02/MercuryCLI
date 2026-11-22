@@ -15,12 +15,12 @@
    │                                                                │  │ door · nothing is ever deleted             │
    │ moodle                                                         │  │ automatically                              │
    │   moodle groundwork                                  1 day ago │  │                                            │
-   │                                                                │  │ scope: the full history (every project, c… │
-   │ orchard-src                                                    │  │ older than 30 days                         │
-   │   splash ripple study                               2 days ago │  │                                            │
-   │   forty-day spike                                  1 month ago │  │ would delete: 2 transcripts · total 164.1… │
-   │   ninety-day archive                              3 months ago │  │ age range: 3 months ago → 1 month ago      │
-   ╰────────────────────────────────────────────────────────────────╯  │ … (the trail continues — a taller termina… │
+   │                                                                │  │ scope: the full history (every project,    │
+   │ orchard-src                                                    │  │   cleared included)                        │
+   │   splash ripple study                               2 days ago │  │ older than 30 days                         │
+   │   forty-day spike                                  1 month ago │  │                                            │
+   │   ninety-day archive                              3 months ago │  │ would delete: 2 transcripts · total        │
+   ╰────────────────────────────────────────────────────────────────╯  │ … (the trail continues — taller terminal)  │
                                                                        ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮
                                                                        │ SESSIONS                                   │

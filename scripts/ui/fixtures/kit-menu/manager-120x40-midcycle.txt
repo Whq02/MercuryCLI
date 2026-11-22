@@ -20,7 +20,7 @@
    │   review                                                    on │  │                                            │
    │   notes                                                    off │  │ Current value                              │
    │   orchard-tools (extension)                                off │  │ invocable                                  │
-   │   orchard-tools:prune                          off (extension) │  │ … (the trail continues — a taller termina… │
+   │   orchard-tools:prune                          off (extension) │  │ … (the trail continues — taller terminal)  │
    │   orchard-tools:graft                          off (extension) │  ╰────────────────────────────────────────────╯
    │   skills from MCP servers appear once a session connects them  │  ╭────────────────────────────────────────────╮
    ╰────────────────────────────────────────────────────────────────╯  │ NEXT SESSION                               │
