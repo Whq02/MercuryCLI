@@ -24,6 +24,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 
+const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const { getProjectDir, getProjectsDir } = await import('../../src/utils/sessionStorage/paths.ts')
 const verb = (await import('../../src/cli/sessionsVerb.ts')) as { sessionsListCli?: (options: { all?: boolean; limit?: number }, io: unknown) => Promise<number> }
 
@@ -32,14 +33,12 @@ const OTHER_STORE = join(getProjectsDir(), '-other-project')
 mkdirSync(STORE, { recursive: true })
 mkdirSync(OTHER_STORE, { recursive: true })
 const ids = { older: '11111111-1111-4111-8111-111111111111', newer: '22222222-2222-4222-8222-222222222222', elsewhere: '33333333-3333-4333-8333-333333333333' }
-const line = (sessionId: string, stamp: string, words: string): string =>
-  JSON.stringify({ type: 'user', sessionId, uuid: `${sessionId}-u1`, timestamp: stamp, cwd: PROJ, message: { role: 'user', content: words } }) + '\n'
 const sameTick = new Date('2026-10-10T00:00:00.000Z')
 const seed = (store: string, sessionId: string, stamp: string, words: string, title?: string): void => {
   const path = join(store, `${sessionId}.jsonl`)
-  let body = line(sessionId, stamp, words)
-  if (title !== undefined) body += JSON.stringify({ type: 'custom-title', customTitle: title, sessionId }) + '\n'
-  writeFileSync(path, body)
+  const rows: Array<Record<string, unknown>> = [{ type: 'user', sessionId, uuid: `${sessionId}-u1`, parentUuid: null, isSidechain: false, timestamp: stamp, cwd: PROJ, message: { role: 'user', content: words } }]
+  if (title !== undefined) rows.push({ type: 'custom-title', customTitle: title, sessionId })
+  writeFileSync(path, encodeSeedTranscript(rows, sessionId, stamp))
   utimesSync(path, sameTick, sameTick)
 }
 seed(STORE, ids.older, '2026-10-01T00:00:00.000Z', 'fix the login page')
