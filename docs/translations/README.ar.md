@@ -250,7 +250,7 @@ echo 'export PATH="$HOME/.mercury/bin:$PATH"' >> ~/.zshrc
 - **Meta (Muse):** Sign in with Meta (اشتراك Muse Code، أو رمز جهاز في متصفحك)، أو مفتاح Model API بنظام الدفع حسب الاستخدام. يتبادل Sign in with Meta رمز الجهاز مع نقاط نهاية OIDC الخاصة بـ Meta (`https://auth.meta.com/oidc/device/authorization/` و `/oidc/device/token/`) بموجب معرّف العميل العام لـ Muse Code، ويرسل token الحساب الناتج مرة واحدة إلى `https://api.meta.ai/muse-code/key` لإصدار مفتاح API للاشتراك (وكذلك في قراءات `/usage` المحدودة لمستوى الخطة ونوافذ استخدامها)، ولا يرسل مع كل طلب نموذج سوى المفتاح الذي أُصدر إلى `https://api.meta.ai/v1`. أما مفتاح Model API الملصوق أو `MODEL_API_KEY` / `META_API_KEY` فيُحاسَب بنظام الدفع حسب الاستخدام.
 
 - **Qwen:** مفتاح QwenCloud (Token Plan أو الدفع حسب الاستخدام) أو مفتاح Alibaba Cloud Model Studio (الدفع حسب الاستخدام أو Token Plan أو Coding Plan)، يُفحص عبر نقطة النهاية الخاصة به قبل حفظه؛ ويعرض مفتاح الخطة نماذج الخطة، وتأتي Qwen3.8 Max أولًا.
-- **MiniMax:** مفتاح Open Platform أو مفتاح اشتراك M Plan.
+- **MiniMax:** مفتاح Open Platform أو M Plan API key.
 - **Together AI** و **Cohere:** مفتاح API.
 - **Groq** و **Cerebras** و **Fireworks AI:** مفتاح API؛ ويمكن أيضًا أن يأتي مفتاح أي عائلة من أمر يُسمّى في `credentials.keyCommands.<family>`.
 

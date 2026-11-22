@@ -232,7 +232,7 @@ Dùng `/logins` để kết nối một nhà cung cấp. Lệnh này mở cùng 
 - **Meta (Muse):** Sign in with Meta (gói Muse Code, mã thiết bị trong trình duyệt) hoặc khóa Model API trả theo mức sử dụng. Sign in with Meta đổi mã thiết bị lấy token qua các endpoint OIDC của Meta (`https://auth.meta.com/oidc/device/authorization/` và `/oidc/device/token/`) dưới client id công khai của Muse Code, gửi token tài khoản thu được một lần đến `https://api.meta.ai/muse-code/key` để tạo khóa API của gói (và các lần đọc `/usage` có giới hạn để lấy bậc gói và các cửa sổ sử dụng), rồi chỉ gửi khóa đã tạo đó trong mọi yêu cầu mô hình đến `https://api.meta.ai/v1`. Khóa Model API dán vào, hoặc `MODEL_API_KEY` / `META_API_KEY`, được tính phí theo mức sử dụng.
 
 - **Qwen:** khóa QwenCloud (Token Plan hoặc trả theo mức sử dụng) hoặc khóa Alibaba Cloud Model Studio (trả theo mức sử dụng, Token Plan hoặc Coding Plan), được kiểm tra trên endpoint riêng trước khi lưu; khóa của gói sẽ liệt kê các mô hình của gói, với Qwen3.8 Max đứng đầu.
-- **MiniMax:** khóa Open Platform hoặc khóa gói M Plan đăng ký.
+- **MiniMax:** khóa Open Platform hoặc M Plan API key.
 - **Together AI** và **Cohere:** khóa API.
 - **Groq**, **Cerebras** và **Fireworks AI:** khóa API; khóa của bất kỳ họ nào cũng có thể lấy từ một lệnh được đặt tên trong `credentials.keyCommands.<family>`.
 

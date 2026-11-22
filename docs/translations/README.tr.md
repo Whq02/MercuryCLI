@@ -232,7 +232,7 @@ Bir sağlayıcıyı bağlamak için `/logins` komutunu kullanın. Kurulum sıras
 - **Meta (Muse):** Sign in with Meta (bir Muse Code aboneliği, tarayıcınızdaki bir cihaz kodu) veya kullanım-başına-ödeme Model API anahtarı. Sign in with Meta, cihaz kodunu Muse Code'un genel client id'si altında Meta'nın OIDC uç noktalarında (`https://auth.meta.com/oidc/device/authorization/` ve `/oidc/device/token/`) takas eder; ortaya çıkan hesap token'ını aboneliğin API anahtarını üretmek için bir kez `https://api.meta.ai/muse-code/key` adresine gönderir (ayrıca plan düzeyi ve kullanım pencereleri için sınırlı `/usage` okumalarında), ve her model isteğinde yalnızca üretilen anahtarı `https://api.meta.ai/v1` adresine gönderir. Yapıştırılan bir Model API anahtarı ya da `MODEL_API_KEY` / `META_API_KEY`, kullanım-başına-ödeme olarak faturalandırılır.
 
 - **Qwen:** bir QwenCloud anahtarı (Token Plan veya kullanım-başına-ödeme) ya da bir Alibaba Cloud Model Studio anahtarı (kullanım-başına-ödeme, Token Plan veya Coding Plan); kaydedilmeden önce kendi uç noktasında denetlenir. Plan anahtarı, planın modellerini listeler; Qwen3.8 Max en başta.
-- **MiniMax:** bir Open Platform anahtarı veya bir M Plan abonelik anahtarı.
+- **MiniMax:** bir Open Platform anahtarı veya bir M Plan API key.
 - **Together AI** ve **Cohere:** API anahtarı.
 - **Groq**, **Cerebras** ve **Fireworks AI:** API anahtarı; herhangi bir ailenin anahtarı, `credentials.keyCommands.<family>` içinde adı verilen bir komuttan da gelebilir.
 

@@ -232,7 +232,7 @@ Boot Menu 的 Performance 区域包含一项 Motion 设置：`auto`、`full`、`
 - **Meta（Muse）：** 可使用 Sign in with Meta（Muse Code 订阅，在浏览器中输入设备码）登录，或使用按量付费的 Model API 密钥。Sign in with Meta 会在 Muse Code 的公共客户端 ID 下，用设备码向 Meta 的 OIDC 端点（`https://auth.meta.com/oidc/device/authorization/` 与 `/oidc/device/token/`）换取凭据，将得到的账户 token 仅发送一次到 `https://api.meta.ai/muse-code/key`，以生成该订阅的 API 密钥（并在有限的 `/usage` 读取中获取套餐等级和用量窗口）；之后每个模型请求只把生成的密钥发送到 `https://api.meta.ai/v1`。粘贴的 Model API 密钥，或 `MODEL_API_KEY` / `META_API_KEY`，则按量付费计费。
 
 - **Qwen：** 可使用 QwenCloud 密钥（Token Plan 或按量付费），或阿里云 Model Studio 密钥（按量付费、Token Plan 或 Coding Plan）。密钥在保存前会先在其自身的端点上校验；套餐密钥会列出该套餐的模型，并将 Qwen3.8 Max 排在最前。
-- **MiniMax：** Open Platform 密钥或 M Plan 订阅密钥。
+- **MiniMax：** Open Platform 密钥或 M Plan API key。
 - **Together AI** 和 **Cohere：** API 密钥。
 - **Groq**、**Cerebras** 和 **Fireworks AI：** API 密钥；任一服务商系列的密钥也可以来自 `credentials.keyCommands.<family>` 中指定的命令。
 

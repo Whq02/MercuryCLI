@@ -232,7 +232,7 @@ New Session で `Enter` を押すと、既定のモデルを使って現在の�
 - **Meta（Muse）：** Sign in with Meta（Muse Code のサブスクリプション。ブラウザーでデバイスコードを入力します）、または従量課金の Model API キー。Sign in with Meta では、Muse Code の公開クライアント ID を使って、Meta の OIDC エンドポイント（`https://auth.meta.com/oidc/device/authorization/` と `/oidc/device/token/`）でデバイスコードを交換します。得られたアカウントトークンは一度だけ `https://api.meta.ai/muse-code/key` に送られ、サブスクリプションの API キーが発行されます。プランのティアと使用量の期間を取得するため、限定的な `/usage` の読み取りも行われます。その後のモデルへのリクエストでは、発行されたキーだけを `https://api.meta.ai/v1` に送ります。貼り付けた Model API キー、または `MODEL_API_KEY` / `META_API_KEY` は従量課金になります。
 
 - **Qwen：** QwenCloud のキー（Token Plan または従量課金）、または Alibaba Cloud Model Studio のキー（従量課金、Token Plan、Coding Plan）。キーは保存される前に、それぞれのエンドポイントで確認されます。プランのキーの場合は、そのプランのモデルが一覧表示され、Qwen3.8 Max が先頭に来ます。
-- **MiniMax：** Open Platform のキー、または M Plan のサブスクリプションキー。
+- **MiniMax：** Open Platform のキー、または M Plan API key。
 - **Together AI** と **Cohere：** API キー。
 - **Groq**、**Cerebras**、**Fireworks AI：** API キー。どの系列のキーも、`credentials.keyCommands.<family>` で指定したコマンドから取得できます。
 

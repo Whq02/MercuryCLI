@@ -232,7 +232,7 @@ Usa `/logins` per collegare un provider. Apre lo stesso catalogo di accesso usat
 - **Meta (Muse):** Sign in with Meta (un abbonamento Muse Code, con un codice dispositivo nel browser) oppure una chiave Model API a consumo. Sign in with Meta scambia il codice dispositivo con gli endpoint OIDC di Meta (`https://auth.meta.com/oidc/device/authorization/` e `/oidc/device/token/`) sotto l'id client pubblico di Muse Code, invia il token dell'account risultante una sola volta a `https://api.meta.ai/muse-code/key` per generare la chiave API dell'abbonamento (e in letture limitate di `/usage` per il livello del piano e le finestre di utilizzo), e invia solo la chiave generata a ogni richiesta di modello verso `https://api.meta.ai/v1`. Una chiave Model API incollata, oppure `MODEL_API_KEY` / `META_API_KEY`, viene fatturata a consumo.
 
 - **Qwen:** una chiave QwenCloud (Token Plan o a consumo) oppure una chiave Alibaba Cloud Model Studio (a consumo, Token Plan o Coding Plan), verificata sul proprio endpoint prima di essere salvata; una chiave di piano elenca i modelli del piano, con Qwen3.8 Max per primo.
-- **MiniMax:** una chiave Open Platform oppure una chiave di abbonamento M Plan.
+- **MiniMax:** una chiave Open Platform oppure una M Plan API key.
 - **Together AI** e **Cohere:** chiave API.
 - **Groq**, **Cerebras** e **Fireworks AI:** chiave API; la chiave di qualsiasi famiglia può arrivare anche da un comando indicato in `credentials.keyCommands.<family>`.
 

@@ -232,7 +232,7 @@ Agents-এর অধীনে Crewmates সুইচ ঠিক করে নত�
 - **Meta (Muse):** Sign in with Meta (একটি Muse Code সাবস্ক্রিপশন, আপনার ব্রাউজারে একটি device code) অথবা pay-as-you-go Model API key। Sign in with Meta Muse Code-এর public client id-র অধীনে Meta-র OIDC endpoint-এ (`https://auth.meta.com/oidc/device/authorization/` ও `/oidc/device/token/`) device code বিনিময় করে; প্রাপ্ত অ্যাকাউন্ট token একবার `https://api.meta.ai/muse-code/key`-এ পাঠায় সাবস্ক্রিপশনের API key তৈরি করতে (এবং প্ল্যানের স্তর ও ব্যবহারের উইন্ডো জানতে সীমিত `/usage` পাঠে), আর প্রতিটি মডেল অনুরোধে শুধু তৈরি হওয়া key-টি `https://api.meta.ai/v1`-এ পাঠায়। পেস্ট করা Model API key বা `MODEL_API_KEY` / `META_API_KEY` pay-as-you-go হিসেবে বিল হয়।
 
 - **Qwen:** একটি QwenCloud key (Token Plan বা pay-as-you-go) অথবা একটি Alibaba Cloud Model Studio key (pay-as-you-go, Token Plan বা Coding Plan), যা সংরক্ষণের আগে নিজস্ব endpoint-এ যাচাই হয়; প্ল্যানের key প্ল্যানের মডেলগুলো দেখায়, Qwen3.8 Max প্রথমে।
-- **MiniMax:** একটি Open Platform key বা একটি M Plan সাবস্ক্রিপশন key।
+- **MiniMax:** একটি Open Platform key বা একটি M Plan API key।
 - **Together AI** ও **Cohere:** API key।
 - **Groq**, **Cerebras** ও **Fireworks AI:** API key; যেকোনো পরিবারের key `credentials.keyCommands.<family>`-তে নাম দেওয়া একটি কমান্ড থেকেও আসতে পারে।
 

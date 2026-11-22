@@ -232,7 +232,7 @@ Koristite `/logins` da povežete dobavljača. Otvara se isti katalog prijava kao
 - **Meta (Muse):** Sign in with Meta (pretplata Muse Code, kod uređaja u pregledniku) ili Model API ključ s plaćanjem po upotrebi. Sign in with Meta razmjenjuje kod uređaja s Meta OIDC krajnjim tačkama (`https://auth.meta.com/oidc/device/authorization/` i `/oidc/device/token/`) pod javnim identifikatorom klijenta Muse Code, jednom šalje dobijeni token naloga na `https://api.meta.ai/muse-code/key` da kreira API ključ pretplate (i na ograničena čitanja `/usage` za nivo plana i prozore korištenja), a na svaki zahtjev za model prema `https://api.meta.ai/v1` šalje samo kreirani ključ. Nalijepljeni Model API ključ ili `MODEL_API_KEY` / `META_API_KEY` naplaćuju se po upotrebi.
 
 - **Qwen:** ključ QwenCloud (Token Plan ili plaćanje po upotrebi) ili ključ Alibaba Cloud Model Studio (plaćanje po upotrebi, Token Plan ili Coding Plan), provjeren na vlastitoj krajnjoj tački prije pohranjivanja; ključ plana navodi modele tog plana, a Qwen3.8 Max je prvi.
-- **MiniMax:** ključ Open Platform ili ključ pretplate M Plan.
+- **MiniMax:** ključ Open Platform ili M Plan API key.
 - **Together AI** i **Cohere:** API ključ.
 - **Groq**, **Cerebras** i **Fireworks AI:** API ključ; ključ svake porodice može doći i iz naredbe navedene u `credentials.keyCommands.<family>`.
 

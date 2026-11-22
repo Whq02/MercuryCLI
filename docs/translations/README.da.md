@@ -232,7 +232,7 @@ Brug `/logins` til at forbinde en udbyder. Den åbner det samme login-katalog, s
 - **Meta (Muse):** Sign in with Meta (et Muse Code-abonnement, en enhedskode i din browser) eller en Model API-nøgle med betal-efter-forbrug. Sign in with Meta bytter enhedskoden mod Metas OIDC-endpoints (`https://auth.meta.com/oidc/device/authorization/` og `/oidc/device/token/`) under Muse Codes offentlige klient-id, sender det resulterende kontotoken én gang til `https://api.meta.ai/muse-code/key` for at udstede abonnementets API-nøgle (og til afgrænsede `/usage`-læsninger af planens niveau og forbrugsvinduer), og sender kun den udstedte nøgle med hver modelanmodning til `https://api.meta.ai/v1`. En indsat Model API-nøgle eller `MODEL_API_KEY` / `META_API_KEY` faktureres betal-efter-forbrug.
 
 - **Qwen:** en QwenCloud-nøgle (Token Plan eller betal-efter-forbrug) eller en Alibaba Cloud Model Studio-nøgle (betal-efter-forbrug, Token Plan eller Coding Plan), som kontrolleres på sit eget endpoint, før den gemmes; en plan-nøgle lister planens modeller, med Qwen3.8 Max først.
-- **MiniMax:** en Open Platform-nøgle eller en nøgle til et M Plan-abonnement.
+- **MiniMax:** en Open Platform-nøgle eller en M Plan API key.
 - **Together AI** og **Cohere:** API-nøgle.
 - **Groq**, **Cerebras** og **Fireworks AI:** API-nøgle; enhver familienøgle kan også komme fra en kommando, der er angivet i `credentials.keyCommands.<family>`.
 

@@ -232,7 +232,7 @@ New Session에서 `Enter`를 누르면 기본 모델로 현재 폴더에 세션�
 - **Meta (Muse):** Sign in with Meta(Muse Code 구독, 브라우저의 기기 코드) 또는 종량제 Model API 키. Sign in with Meta는 Muse Code의 공개 클라이언트 ID로 Meta의 OIDC 엔드포인트(`https://auth.meta.com/oidc/device/authorization/` 및 `/oidc/device/token/`)에서 기기 코드를 교환합니다. 그 결과 얻은 계정 토큰은 `https://api.meta.ai/muse-code/key`로 한 번만 보내 구독용 API 키를 발급받는 데 쓰고(요금제의 등급과 사용 구간을 읽기 위해 제한된 `/usage` 조회에도 사용합니다), 이후 모든 모델 요청에는 발급된 키만 `https://api.meta.ai/v1`로 보냅니다. 붙여 넣은 Model API 키나 `MODEL_API_KEY` / `META_API_KEY`는 종량제로 과금됩니다.
 
 - **Qwen:** QwenCloud 키(Token Plan 또는 종량제) 또는 Alibaba Cloud Model Studio 키(종량제, Token Plan 또는 Coding Plan). 저장하기 전에 자체 엔드포인트에서 검사하며, 요금제 키이면 그 요금제의 모델 목록이 표시되고 Qwen3.8 Max가 맨 앞에 옵니다.
-- **MiniMax:** Open Platform 키 또는 M Plan 구독 키.
+- **MiniMax:** Open Platform 키 또는 M Plan API key.
 - **Together AI** 및 **Cohere:** API 키.
 - **Groq**, **Cerebras** 및 **Fireworks AI:** API 키이며, 어떤 계열이든 키를 `credentials.keyCommands.<family>`에 지정된 명령에서 가져올 수도 있습니다.
 

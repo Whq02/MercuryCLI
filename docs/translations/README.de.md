@@ -232,7 +232,7 @@ Verwenden Sie `/logins`, um einen Anbieter zu verbinden. Es öffnet denselben An
 - **Meta (Muse):** Sign in with Meta (ein Muse-Code-Abonnement, ein Gerätecode in Ihrem Browser) oder ein Model-API-Schlüssel mit nutzungsabhängiger Abrechnung. Sign in with Meta tauscht den Gerätecode gegen die OIDC-Endpunkte von Meta (`https://auth.meta.com/oidc/device/authorization/` und `/oidc/device/token/`) unter der öffentlichen Client-ID von Muse Code aus, sendet das daraus entstehende Konto-Token einmalig an `https://api.meta.ai/muse-code/key`, um den API-Schlüssel des Abonnements zu erzeugen (und für begrenzte `/usage`-Abfragen zu Tarifstufe und Nutzungsfenstern), und schickt bei jeder Modellanfrage nur den erzeugten Schlüssel an `https://api.meta.ai/v1`. Ein eingefügter Model-API-Schlüssel oder `MODEL_API_KEY` / `META_API_KEY` wird nutzungsabhängig abgerechnet.
 
 - **Qwen:** ein QwenCloud-Schlüssel (Token Plan oder nutzungsabhängige Abrechnung) oder ein Alibaba-Cloud-Model-Studio-Schlüssel (nutzungsabhängige Abrechnung, Token Plan oder Coding Plan), der vor dem Speichern am eigenen Endpunkt geprüft wird; ein Tarif-Schlüssel listet die Modelle seines Tarifs auf, Qwen3.8 Max zuerst.
-- **MiniMax:** ein Open-Platform-Schlüssel oder ein Schlüssel für ein M-Plan-Abonnement.
+- **MiniMax:** ein Open-Platform-Schlüssel oder ein M Plan API key.
 - **Together AI** und **Cohere:** API-Schlüssel.
 - **Groq**, **Cerebras** und **Fireworks AI:** API-Schlüssel; der Schlüssel jeder Familie kann auch aus einem Befehl stammen, der in `credentials.keyCommands.<family>` angegeben ist.
 

@@ -232,7 +232,7 @@ echo 'export PATH="$HOME/.mercury/bin:$PATH"' >> ~/.zshrc
 - **Meta (Muse):** Sign in with Meta (การสมัครสมาชิก Muse Code, device code ในเบราว์เซอร์ของคุณ) หรือคีย์ Model API แบบจ่ายตามการใช้งาน Sign in with Meta แลก device code กับ endpoint OIDC ของ Meta (`https://auth.meta.com/oidc/device/authorization/` และ `/oidc/device/token/`) ภายใต้ public client id ของ Muse Code แล้วส่งโทเคนบัญชีที่ได้ไปยัง `https://api.meta.ai/muse-code/key` เพียงครั้งเดียวเพื่อสร้างคีย์ API ของการสมัครสมาชิก (และอ่าน `/usage` แบบจำกัดเพื่อดูระดับแพ็กเกจและช่วงการใช้งาน) จากนั้นส่งเฉพาะคีย์ที่สร้างขึ้นนั้นในทุกคำขอโมเดลไปยัง `https://api.meta.ai/v1` คีย์ Model API ที่วางเข้ามา หรือ `MODEL_API_KEY` / `META_API_KEY` จะเรียกเก็บเงินแบบจ่ายตามการใช้งาน
 
 - **Qwen:** คีย์ QwenCloud (Token Plan หรือจ่ายตามการใช้งาน) หรือคีย์ Alibaba Cloud Model Studio (จ่ายตามการใช้งาน, Token Plan หรือ Coding Plan) ซึ่งจะถูกตรวจสอบบน endpoint ของตัวเองก่อนจัดเก็บ คีย์ของแพ็กเกจจะแสดงรายการโมเดลของแพ็กเกจ โดย Qwen3.8 Max ขึ้นก่อน
-- **MiniMax:** คีย์ Open Platform หรือคีย์การสมัครสมาชิก M Plan
+- **MiniMax:** คีย์ Open Platform หรือ M Plan API key
 - **Together AI** และ **Cohere:** คีย์ API
 - **Groq**, **Cerebras** และ **Fireworks AI:** คีย์ API; คีย์ของตระกูลใดก็ได้สามารถมาจากคำสั่งที่ระบุไว้ใน `credentials.keyCommands.<family>`
 

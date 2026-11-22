@@ -232,7 +232,7 @@ echo 'export PATH="$HOME/.mercury/bin:$PATH"' >> ~/.zshrc
 - **Meta (Muse):** Sign in with Meta (підписка Muse Code, код пристрою в браузері) або ключ Model API з оплатою за використання. Sign in with Meta обмінює код пристрою через OIDC-кінцеві точки Meta (`https://auth.meta.com/oidc/device/authorization/` і `/oidc/device/token/`) під публічним client id Muse Code, один раз надсилає отриманий токен облікового запису на `https://api.meta.ai/muse-code/key`, щоб випустити API-ключ підписки (а також під час обмежених читань `/usage` для рівня тарифу та вікон використання), і на кожен запит до моделі надсилає на `https://api.meta.ai/v1` лише випущений ключ. Вставлений ключ Model API або `MODEL_API_KEY` / `META_API_KEY` тарифікується за використанням.
 
 - **Qwen:** ключ QwenCloud (Token Plan або оплата за використання) чи ключ Alibaba Cloud Model Studio (оплата за використання, Token Plan або Coding Plan), який перевіряється на власній кінцевій точці перед збереженням; ключ тарифу виводить моделі цього тарифу, першою — Qwen3.8 Max.
-- **MiniMax:** ключ Open Platform або ключ підписки M Plan.
+- **MiniMax:** ключ Open Platform або M Plan API key.
 - **Together AI** і **Cohere:** ключ API.
 - **Groq**, **Cerebras** і **Fireworks AI:** ключ API; ключ будь-якої родини також може надходити з команди, заданої в `credentials.keyCommands.<family>`.
 
