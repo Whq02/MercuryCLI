@@ -27,9 +27,8 @@ import { StatsHandleOwner } from './runtime/stats-handle.js'
 import { UsageLedgerOwner } from './runtime/usage-ledger.js'
 import { resetJevLedger } from '../services/jev/jevLedgerState.js'
 import { passedOver } from '../utils/passedOver.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
-export type InvokedSkillInfo = Unbuilt
+export type InvokedSkillInfo = RuntimeInvokedSkillInfo
 
 let sessionIdentity = new SessionIdentityOwner()
 let usageLedger = new UsageLedgerOwner()
@@ -46,7 +45,7 @@ const scrollGate = new ScrollGateOwner()
 
 
 export function getSessionId(): SessionId {
-  return notBuilt('src/bootstrap/state.ts:47')
+  return sessionIdentity.sessionId
 }
 
 export function regenerateSessionId(): SessionId {
@@ -55,9 +54,9 @@ export function regenerateSessionId(): SessionId {
 
 export function switchSession(
   sessionId: SessionId,
-  projectDir?: string | null,
+  projectDir: string | null = null,
 ): void {
-  return notBuilt('src/bootstrap/state.ts:55')
+  sessionIdentity.switchSession(sessionId, projectDir)
 }
 
 export function onSessionSwitch(
@@ -67,15 +66,15 @@ export function onSessionSwitch(
 }
 
 export function getSessionProjectDir(): string | null {
-  return notBuilt('src/bootstrap/state.ts:68')
+  return sessionIdentity.sessionProjectDir
 }
 
 export function getOriginalCwd(): string {
-  return notBuilt('src/bootstrap/state.ts:72')
+  return sessionIdentity.originalCwd
 }
 
 export function getProjectRoot(): string {
-  return notBuilt('src/bootstrap/state.ts:76')
+  return sessionIdentity.projectRoot
 }
 
 export function setOriginalCwd(nextCwd: string): void {
@@ -87,7 +86,7 @@ export function setProjectRoot(nextCwd: string): void {
 }
 
 export function getCwdState(): string {
-  return notBuilt('src/bootstrap/state.ts:88')
+  return sessionIdentity.cwd
 }
 
 export function setCwdState(nextCwd: string): void {
@@ -101,7 +100,7 @@ export function subscribeCwdState(
 }
 
 export function getPlanSlugCache(): Map<string, string> {
-  return notBuilt('src/bootstrap/state.ts:102')
+  return sessionIdentity.planSlugCache
 }
 
 
@@ -109,7 +108,7 @@ export function addToTotalDurationState(
   duration: number,
   durationWithoutRetries: number,
 ): void {
-  return notBuilt('src/bootstrap/state.ts:107')
+  usageLedger.addToTotalDurationState(duration, durationWithoutRetries)
 }
 
 export function addToTotalCostState(
@@ -117,67 +116,67 @@ export function addToTotalCostState(
   usageRecord: ModelUsage,
   modelName: string,
 ): void {
-  return notBuilt('src/bootstrap/state.ts:114')
+  usageLedger.addToTotalCostState(cost, usageRecord, modelName)
 }
 
 export function getTotalCostUSD(): number {
-  return notBuilt('src/bootstrap/state.ts:122')
+  return usageLedger.totalCostUSD
 }
 
 export function getTotalAPIDuration(): number {
-  return notBuilt('src/bootstrap/state.ts:126')
+  return usageLedger.totalAPIDuration
 }
 
 export function getTotalDuration(): number {
-  return notBuilt('src/bootstrap/state.ts:130')
+  return usageLedger.getTotalDuration()
 }
 
 export function getTotalAPIDurationWithoutRetries(): number {
-  return notBuilt('src/bootstrap/state.ts:134')
+  return usageLedger.totalAPIDurationWithoutRetries
 }
 
 export function getTotalToolDuration(): number {
-  return notBuilt('src/bootstrap/state.ts:138')
+  return usageLedger.totalToolDuration
 }
 
 export function addToTotalLinesChanged(added: number, removed: number): void {
-  return notBuilt('src/bootstrap/state.ts:142')
+  usageLedger.addToTotalLinesChanged(added, removed)
 }
 
 export function getTotalLinesAdded(): number {
-  return notBuilt('src/bootstrap/state.ts:146')
+  return usageLedger.totalLinesAdded
 }
 
 export function getTotalLinesRemoved(): number {
-  return notBuilt('src/bootstrap/state.ts:150')
+  return usageLedger.totalLinesRemoved
 }
 
 export function getTotalInputTokens(): number {
-  return notBuilt('src/bootstrap/state.ts:154')
+  return usageLedger.getTotalInputTokens()
 }
 
 export function getTotalOutputTokens(): number {
-  return notBuilt('src/bootstrap/state.ts:158')
+  return usageLedger.getTotalOutputTokens()
 }
 
 export function getTotalCacheReadInputTokens(): number {
-  return notBuilt('src/bootstrap/state.ts:162')
+  return usageLedger.getTotalCacheReadInputTokens()
 }
 
 export function getTotalCacheCreationInputTokens(): number {
-  return notBuilt('src/bootstrap/state.ts:166')
+  return usageLedger.getTotalCacheCreationInputTokens()
 }
 
 export function getTotalWebSearchRequests(): number {
-  return notBuilt('src/bootstrap/state.ts:170')
+  return usageLedger.getTotalWebSearchRequests()
 }
 
 export function getModelUsage(): { [modelName: string]: ModelUsage } {
-  return notBuilt('src/bootstrap/state.ts:174')
+  return usageLedger.modelUsage
 }
 
 export function getUsageForModel(modelName: string): ModelUsage | undefined {
-  return notBuilt('src/bootstrap/state.ts:178')
+  return usageLedger.modelUsage[modelName]
 }
 
 export function setHasUnknownModelCost(value: boolean = true): void {
@@ -185,7 +184,7 @@ export function setHasUnknownModelCost(value: boolean = true): void {
 }
 
 export function hasUnknownModelCost(): boolean {
-  return notBuilt('src/bootstrap/state.ts:186')
+  return usageLedger.hasUnknownModelCost
 }
 
 export function recordUnpricedTurn(modelName: string): void {
@@ -193,7 +192,7 @@ export function recordUnpricedTurn(modelName: string): void {
 }
 
 export function getUnpricedTurns(): { [modelName: string]: number } {
-  return notBuilt('src/bootstrap/state.ts:194')
+  return usageLedger.unpricedTurns
 }
 
 export function getTotalUnpricedTurns(): number {
@@ -217,7 +216,9 @@ export function getWorkloadUnpricedTurns(): WorkloadUnpricedTurns {
 }
 
 export function resetCostState(): void {
-  return notBuilt('src/bootstrap/state.ts:218')
+  usageLedger.resetCostState()
+  resetJevLedger()
+  apiCapture.promptId = null
 }
 
 export function setCostStateForRestore(restore: {
@@ -233,42 +234,42 @@ export function setCostStateForRestore(restore: {
   workloadUsage?: WorkloadUsage | undefined
   workloadUnpricedTurns?: WorkloadUnpricedTurns | undefined
 }): void {
-  return notBuilt('src/bootstrap/state.ts:224')
+  usageLedger.setCostStateForRestore(restore)
 }
 
 
 export function addToToolDuration(duration: number): void {
-  return notBuilt('src/bootstrap/state.ts:241')
+  usageLedger.addToolDuration(duration)
 }
 
 
 export function updateLastInteractionTime(immediate?: boolean): void {
-  return notBuilt('src/bootstrap/state.ts:246')
+  interactionClock.updateLastInteractionTime(immediate)
 }
 
 export function flushInteractionTime(): void {
-  return notBuilt('src/bootstrap/state.ts:250')
+  interactionClock.flushInteractionTime()
 }
 
 export function getLastInteractionTime(): number {
-  return notBuilt('src/bootstrap/state.ts:254')
+  return interactionClock.getLastInteractionTime()
 }
 
 export function markScrollActivity(): void {
-  return notBuilt('src/bootstrap/state.ts:258')
+  scrollGate.markScrollActivity()
 }
 
 export function getIsScrollDraining(): boolean {
-  return notBuilt('src/bootstrap/state.ts:262')
+  return scrollGate.getIsScrollDraining()
 }
 
 export function waitForScrollIdle(): Promise<void> {
-  return notBuilt('src/bootstrap/state.ts:266')
+  return scrollGate.waitForScrollIdle()
 }
 
 
 export function getEngineModelOverride(): ModelSetting | undefined {
-  return notBuilt('src/bootstrap/state.ts:271')
+  return modelConfig.engineModelOverride
 }
 
 const engineModelOverrideListeners = new Set<(model: ModelSetting | undefined) => void>()
@@ -283,19 +284,26 @@ export function subscribeEngineModelOverride(listener: (model: ModelSetting | un
 export function setEngineModelOverride(
   model: ModelSetting | undefined,
 ): void {
-  return notBuilt('src/bootstrap/state.ts:284')
+  modelConfig.engineModelOverride = model
+  for (const listener of engineModelOverrideListeners) {
+    try {
+      listener(model)
+    } catch (error) {
+      passedOver(error)
+    }
+  }
 }
 
 export function getSdkBetas(): string[] | undefined {
-  return notBuilt('src/bootstrap/state.ts:297')
+  return modelConfig.sdkBetas
 }
 
 export function setSdkBetas(betas: string[] | undefined): void {
-  return notBuilt('src/bootstrap/state.ts:301')
+  modelConfig.sdkBetas = betas
 }
 
 export function getModelStrings(): ModelStrings | null {
-  return notBuilt('src/bootstrap/state.ts:305')
+  return modelConfig.modelStrings
 }
 
 export function setModelStrings(strings: ModelStrings): void {
