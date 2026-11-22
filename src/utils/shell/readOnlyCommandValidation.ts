@@ -1,25 +1,44 @@
 import { sedCommandIsAllowedByAllowlist } from './sedValidation.js'
 import { binaryName } from '../config/derived.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
+import { notBuilt, unbuilt } from '../../pi/holes.js'
 
 type FlagValue = 'none' | 'number' | 'string' | 'char' | '{}' | 'EOF'
 
-type ReadOnlyRule = Unbuilt
-
-type ExternalCommandConfig = Unbuilt
-
-const none: FlagValue = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:29')
-const str: FlagValue = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:30')
-const num: FlagValue = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:31')
-const char: FlagValue = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:32')
-
-type Flags = Unbuilt
-
-function flags(...groups: Flags[]): Flags {
-  return notBuilt('src/utils/shell/readOnlyCommandValidation.ts:36')
+type ReadOnlyRule = {
+  readonly words: readonly string[]
+  readonly attachedNumbers?: true
+  readonly countShorthand?: true
+  readonly dashDashIsAnOperand?: true
+  readonly descendingSort?: true
+  readonly flags?: Flags
+  readonly form?: (command: string) => boolean
+  readonly noNewline?: true
+  readonly readsOnly?: (operands: readonly string[], command: string) => boolean
+  readonly targets?: readonly string[]
+  readonly unixOnly?: true
+  readonly unlisted?: true
+  readonly whole?: RegExp
 }
 
-const statFlags: Flags = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:40')
+type ExternalCommandConfig = {
+  safeFlags: Record<string, FlagValue>
+  regex?: RegExp
+  respectsDoubleDash?: boolean
+  additionalCommandIsDangerousCallback?: (rawCommand: string, args: string[]) => boolean
+}
+
+const none: FlagValue = 'none'
+const str: FlagValue = 'string'
+const num: FlagValue = 'number'
+const char: FlagValue = 'char'
+
+type Flags = Readonly<Record<string, FlagValue>>
+
+function flags(...groups: Flags[]): Flags {
+  return Object.assign({}, ...groups)
+}
+
+const statFlags: Flags = { '--stat': none, '--numstat': none, '--shortstat': none, '--name-only': none, '--name-status': none }
 const colourFlags: Flags = { '--color': none, '--no-color': none }
 const patchFlags: Flags = { '--patch': none, '-p': none, '--no-patch': none, '--no-ext-diff': none, '--no-textconv': none, '-s': none }
 const logDisplayFlags: Flags = { '--oneline': none, '--graph': none, '--decorate': none, '--no-decorate': none, '--date': str, '--relative-date': none }
@@ -257,24 +276,102 @@ const FORM_RULES = new Map<string, ReadOnlyRule>(READ_ONLY_RULES.filter(rule => 
 const LONGEST_RULE = Math.max(...READ_ONLY_RULES.map(rule => rule.words.length))
 
 export function walkedRuleFor(tokens: readonly string[]): ReadOnlyRule | undefined {
-  return notBuilt('src/utils/shell/readOnlyCommandValidation.ts:424')
+  for (let size = Math.min(tokens.length, LONGEST_RULE); size > 0; size--) {
+    const rule = WALKED_RULES.get(tokens.slice(0, size).join(' '))
+    if (rule) return rule
+  }
+  return undefined
 }
 
 export function formRuleFor(word: string): ReadOnlyRule | undefined {
-  return notBuilt('src/utils/shell/readOnlyCommandValidation.ts:432')
+  return FORM_RULES.get(word)
 }
 
-export const LISTED_WORDS: ReadonlySet<string> = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:436')
+export const LISTED_WORDS: ReadonlySet<string> = new Set(READ_ONLY_RULES.filter(rule => !rule.unlisted).map(rule => rule.words[0]!))
+
+function isFlag(token: string): boolean {
+  return /^-[\w-]/.test(token)
+}
+
+function fitsValue(kind: FlagValue, value: string): boolean {
+  switch (kind) {
+    case 'number': return /^\d+$/.test(value)
+    case 'string': return true
+    case 'char': return value.length === 1
+    case '{}': return value === '{}'
+    case 'EOF': return value === 'EOF'
+    case 'none': return false
+  }
+}
 
 export function walkFlags(tokens: readonly string[], startIndex: number, rule: ReadOnlyRule): boolean {
-  return notBuilt('src/utils/shell/readOnlyCommandValidation.ts:459')
+  const table: Flags = rule.flags ?? {}
+  for (let i = startIndex; i < tokens.length; i++) {
+    const token = tokens[i]!
+    if (token === '') continue
+    const flag = isFlag(token)
+    if (rule.targets && (!flag || token === '--')) {
+      return rule.targets.includes(token === '--' ? tokens[i + 1] ?? token : token)
+    }
+    if (token === '--') {
+      if (rule.dashDashIsAnOperand) continue
+      return true
+    }
+    if (!flag) continue
+    const equal = token.indexOf('=')
+    const name = equal < 0 ? token : token.slice(0, equal)
+    const kind = table[name]
+    if (kind === undefined) {
+      if (rule.countShorthand && /^-\d+$/.test(token)) continue
+      if (token.length <= 2 || token.startsWith('--')) return false
+      const first = table[token.slice(0, 2)]
+      if (rule.attachedNumbers && (first === num || first === str) && /^\d+$/.test(token.slice(2))) continue
+      if (equal < 0 && [...name.slice(1)].every(c => table[`-${c}`] === none)) continue
+      return false
+    }
+    if (kind === none) {
+      if (equal >= 0) return false
+      continue
+    }
+    const value = equal < 0 ? tokens[++i] : token.slice(equal + 1)
+    if (value === undefined) return false
+    const descending = rule.descendingSort && name === '--sort' && /^-[A-Za-z]/.test(value)
+    if (!descending && ((equal < 0 && isFlag(value)) || (kind === str && value.startsWith('-')))) return false
+    if (!fitsValue(kind, value)) return false
+  }
+  return true
 }
 
-export const GIT_READ_ONLY_COMMANDS: Record<string, ExternalCommandConfig> = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:545')
-export const DOCKER_READ_ONLY_COMMANDS: Record<string, ExternalCommandConfig> = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:546')
+function externalCommands(command: string): Record<string, ExternalCommandConfig> {
+  const configs: Record<string, ExternalCommandConfig> = {}
+  for (const rule of READ_ONLY_RULES) {
+    if (!rule.flags || rule.words[0] !== command) continue
+    const config: ExternalCommandConfig = { safeFlags: { ...rule.flags } }
+    if (rule.whole) config.regex = rule.whole
+    if (rule.dashDashIsAnOperand) config.respectsDoubleDash = false
+    const { readsOnly } = rule
+    if (readsOnly) config.additionalCommandIsDangerousCallback = (raw, args) => !readsOnly(args, raw)
+    configs[rule.words.join(' ')] = config
+  }
+  return configs
+}
 
-type ValidateOptions = Unbuilt
+export const GIT_READ_ONLY_COMMANDS: Record<string, ExternalCommandConfig> = externalCommands('git')
+export const DOCKER_READ_ONLY_COMMANDS: Record<string, ExternalCommandConfig> = externalCommands('docker')
+
+type ValidateOptions = {
+  commandName?: string
+  rawCommand?: string
+  xargsTargetCommands?: string[]
+}
 
 export function validateFlags(tokens: string[], startIndex: number, config: ExternalCommandConfig, options?: ValidateOptions): boolean {
-  return notBuilt('src/utils/shell/readOnlyCommandValidation.ts:550')
+  const name = options?.commandName
+  return walkFlags(tokens, startIndex, {
+    words: [], flags: config.safeFlags,
+    ...(config.respectsDoubleDash === false ? { dashDashIsAnOperand: true } : {}),
+    ...(name === 'git' ? { countShorthand: true, descendingSort: true } : {}),
+    ...(name === 'grep' ? { attachedNumbers: true } : {}),
+    ...(name === 'xargs' && options?.xargsTargetCommands ? { targets: options.xargsTargetCommands } : {}),
+  })
 }
