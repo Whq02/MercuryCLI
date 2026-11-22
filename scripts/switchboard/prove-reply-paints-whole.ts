@@ -11,6 +11,7 @@ import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { buildRefDist, distBuildTree } from '../lib/refDist.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
+import { historyLines } from '../../src/utils/sessionStorage/historyParts.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -166,9 +167,10 @@ async function capture(tag: string, dist: string, argv: string[], sends: Send[],
 }
 
 type StoreRow = { recordId: string; parentId?: string; kind: string; text: string }
+const storeLines = (transcript: string): string[] => Array.from(historyLines(transcript), bytes => bytes.toString('utf8'))
 function storeRows(transcript: string): StoreRow[] {
   const latest = new Map<string, StoreRow>()
-  for (const line of readFileSync(transcript, 'utf8').split('\n')) {
+  for (const line of storeLines(transcript)) {
     if (!line.trim()) continue
     let row: { recordId: string; parentId?: string; payload?: { kind?: string; content?: unknown } }
     try {
@@ -209,7 +211,7 @@ function paintedRecordIds(): Set<string> {
 }
 function judgeReply(label: string, frame: string[] | undefined, text: string, store: StoreRow[]): void {
   const recorded = replies(store).find(r => r.text === collapse(text))
-  check(`${label}: the store holds the reply whole`, recorded !== undefined, replies(store).map(r => `${r.recordId.slice(0, 8)}:${r.text.slice(0, 40)}…(${r.text.length})`).join(' | '), 'the transcript store did not record this reply whole: read the transcript under projects/ in the scratch config folder and the fixture turn that should have produced it')
+  check(`${label}: the store holds the reply whole`, recorded !== undefined, replies(store).map(r => `${r.recordId.slice(0, 8)}:${r.text.slice(0, 40)}…(${r.text.length})`).join(' | '), 'the transcript store did not record this reply whole: read the transcript under projects/ in the scratch config folder, the parts a compaction sealed in the history folder beside it, and the fixture turn that should have produced it')
   if (frame === undefined) {
     check(`${label}: the frame after the reply landed was captured`, false, 'the capture never reached that mark', 'the journey stopped before this mark: read the vshot log and the frame files in the frames folder named in the header')
     return
@@ -231,7 +233,7 @@ function judgeUserRow(label: string, frame: string[] | undefined, text: string, 
 }
 function judgeChain(label: string, transcript: string | null): void {
   if (transcript === null) return
-  const rows = readFileSync(transcript, 'utf8').split('\n').filter(l => l.trim() !== '').map(l => JSON.parse(l) as { recordId: string; parentId?: string; payload?: { kind?: string } })
+  const rows = storeLines(transcript).filter(l => l.trim() !== '').map(l => JSON.parse(l) as { recordId: string; parentId?: string; payload?: { kind?: string } })
   const chained = rows.filter(r => ['input', 'output', 'attachment', 'notice'].includes(r.payload?.kind ?? ''))
   const roots = chained.filter(r => r.parentId === undefined)
   check(`${label}: the transcript has one root — every row written after the resume chains onto the conversation`, roots.length === 1, `${roots.length} roots: ${roots.map(r => `${r.recordId.slice(0, 8)}:${r.payload?.kind}`).join(', ')}`, 'rows written after a resume must carry a parentId chaining onto the conversation; the listed rows are the roots')
