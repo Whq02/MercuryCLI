@@ -17,7 +17,6 @@ import { ToolRowLead, toolRowStateOf } from '../ToolRowLead.js'
 import { TranscriptNameplate } from '../TranscriptNameplate.js'
 import { OutputLine } from '../../shell/OutputLine.js'
 import { BASH_TOOL_NAME } from '../../../constants/tools/bash.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 export type Fragment = { verb: string; rest: React.ReactNode; family: ToolFamily }
 
@@ -31,8 +30,108 @@ type VerboseGroupArgs = {
   memberResultText: (lookups: MessageLookups, id: string) => string
 }
 
-export function verboseGroupView(arg0: VerboseGroupArgs): React.ReactNode {
-  return notBuilt('src/components/messages/collapsedReadSearch/views.tsx:33')
+export function verboseGroupView({ message, tools, lookups, verbose, shellId, selectedBg, memberResultText }: VerboseGroupArgs): React.ReactNode {
+  const blocks: React.ReactNode[] = []
+  const flat: Array<{ id: string; name: string; input: unknown }> = []
+  for (const member of message.messages) {
+    if (member.type === 'grouped_tool_use') {
+      for (const inner of member.messages) {
+        const first = inner.message.content[0]
+        if (first && first.type === 'tool_use') {
+          flat.push({ id: first.id, name: first.name, input: first.input })
+        }
+      }
+    } else {
+      const first = member.message.content[0]
+      if (first && first.type === 'tool_use') {
+        flat.push({ id: first.id, name: first.name, input: first.input })
+      }
+    }
+  }
+  for (const entry of flat) {
+    const tool = findToolByName(tools, entry.name)
+    if (!tool) continue
+    let target: React.ReactNode | string | null = null
+    try {
+      target = tool.renderToolUseMessage?.(entry.input, { verbose: false }) ?? null
+    } catch (error) {
+      logError(error)
+      target = null
+    }
+    const resolvedMember = lookups.resolvedToolUseIDs.has(entry.id)
+    const erroredMember = lookups.erroredToolUseIDs.has(entry.id)
+    const deniedMember = lookups.deniedToolUseIDs.has(entry.id)
+    let resultNode: React.ReactNode = null
+    if (deniedMember) {
+      resultNode = (
+        <Text dimColor wrap="wrap">
+          {denialLineOf(memberResultText(lookups, entry.id))}
+        </Text>
+      )
+    }
+    if (resolvedMember && !erroredMember) {
+      const raw = (
+        lookups.toolResultByToolUseID.get(entry.id) as
+          | { toolUseResult?: unknown }
+          | undefined
+      )?.toolUseResult
+      if ((raw === undefined || raw === null) && tool.name === BASH_TOOL_NAME) {
+        const text = memberResultText(lookups, entry.id)
+        resultNode = text.trim() ? <OutputLine content={text} verbose={verbose} /> : null
+      } else if (raw !== undefined) {
+        const validated = tool.outputSchema
+          ? tool.outputSchema.safeParse(raw)
+          : { success: true as const, data: raw }
+        if (validated.success) {
+          try {
+            resultNode =
+              tool.renderToolResultMessage?.(validated.data, [], {
+                verbose,
+                tools,
+              }) ?? null
+          } catch (error) {
+            logError(error)
+            resultNode = null
+          }
+        }
+      }
+    }
+    blocks.push(
+      <Box key={entry.id} flexDirection="column">
+        <Box>
+          <Text wrap="truncate-middle">
+            <ToolRowLead
+              family={toolFamilyFor(entry.name)}
+              state={toolRowStateOf({
+                resolved: resolvedMember,
+                errored: erroredMember,
+                denied: deniedMember,
+              })}
+            />
+            <Text bold>{safeUserFacingName(tool, entry.input, entry.name)}</Text>
+            {target ? <Text dimColor> {target}</Text> : null}
+          </Text>
+        </Box>
+        {resultNode ? <Box paddingLeft={2}>{resultNode}</Box> : null}
+        {entry.id === shellId ? <RunningShellBackgroundHint id={entry.id} /> : null}
+      </Box>,
+    )
+  }
+  return (
+    <Box flexDirection="column" backgroundColor={selectedBg}>
+      <Text>
+        <TranscriptNameplate />
+        <Text dimColor>Expanded group ({flat.length} {plural(flat.length, 'call')})</Text>
+      </Text>
+      {blocks}
+      {(message.relevantMemories ?? []).map(memory => (
+        <Box key={memory.path} flexDirection="column" paddingLeft={2}>
+          <Text dimColor>{toTildePath(memory.path)}</Text>
+          <Ansi dimColor>{memory.content}</Ansi>
+        </Box>
+      ))}
+    </Box>
+  )
 }
 
 type CollapsedGroupArgs = {

@@ -1,6 +1,5 @@
 import type { CompactMetadata } from '../../types/message.js'
 import { formatTokens } from '../../utils/format.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export type FoldReceipt = {
   trigger: CompactMetadata['trigger']
@@ -23,7 +22,21 @@ const ROUND_REASONS: Readonly<Record<string, string>> = {
 }
 
 export function foldReceipt(meta: CompactMetadata, landing?: { input: number } | null): FoldReceipt {
-  return notBuilt('src/services/compact/foldReceipt.ts:24')
+  const typed = meta.ledger !== undefined || meta.recentRounds !== undefined || meta.memory !== undefined
+  return {
+    trigger: meta.trigger,
+    before: typeof meta.preTokens === 'number' && meta.preTokens > 0 ? meta.preTokens : null,
+    after: typeof meta.postTokens === 'number' && meta.postTokens >= 0 ? { tokens: meta.postTokens, source: 'estimate' } : null,
+    landing: landing && landing.input > 0 ? { tokens: landing.input, source: 'provider' } : null,
+    rounds: meta.recentRounds ? { kept: meta.recentRounds.kept, requested: meta.recentRounds.requested, reason: meta.recentRounds.reason, folded: meta.recentRounds.folded ?? 0 } : null,
+    operator: meta.ledger?.version === 2 ? { ...meta.ledger.totals.operator } : meta.ledger ? { messages: meta.ledger.operator.length, bytes: meta.ledger.operator.reduce((n, row) => n + row.bytes, 0) } : null,
+    memory: meta.memory
+      ? meta.memory.state === 'committed'
+        ? { state: 'committed', id: meta.memory.pointer.id, reason: null }
+        : { state: meta.memory.state, id: null, reason: meta.memory.reason }
+      : null,
+    prunedBodies: typed ? 0 : null,
+  }
 }
 
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`

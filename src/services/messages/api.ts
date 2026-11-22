@@ -58,7 +58,14 @@ function firstTurnSegment(segment: string): boolean {
 }
 
 function firstUserPrompt(messages: readonly Message[] | undefined): string | undefined {
-  return notBuilt('src/services/messages/api.ts:80')
+  for (const message of messages ?? []) {
+    if (message.type !== 'user' || message.isMeta === true) continue
+    const content = message.message.content
+    if (typeof content === 'string') return content
+    const text = content.filter(block => block.type === 'text').map(block => (block as { text: string }).text).join('\n')
+    if (text !== '') return text
+  }
+  return undefined
 }
 
 export async function firstTurnUserContext(

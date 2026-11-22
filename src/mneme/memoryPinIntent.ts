@@ -1,6 +1,5 @@
 import type { Message } from '../types/message.js'
 import { isOperatorTurn } from '../utils/messages/operatorTurns.js'
-import { notBuilt } from '../pi/holes.js'
 
 export interface PinIntent {
   messageId: string
@@ -9,7 +8,9 @@ export interface PinIntent {
 }
 
 function humanText(message: Message): string | null {
-  return notBuilt('src/mneme/memoryPinIntent.ts:10')
+  if (message.type !== 'user' || !isOperatorTurn(message) || message.isVirtual || (message.origin && message.origin.kind !== 'human')) return null
+  const content = message.message.content
+  return typeof content === 'string' ? content : content.filter(block => block.type === 'text').map(block => block.text).join('\n')
 }
 
 export function latestPinIntent(messages: readonly Message[], agentId?: string): PinIntent | undefined {

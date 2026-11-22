@@ -4,7 +4,6 @@ import { operatorTextOf, steerTextOf } from '../../utils/compact/operatorMessage
 import { getRunSnapshot } from '../run/runCoordinator.js'
 import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import { parseAnchor } from '../changeTransaction/snapshotAnchor.js'
-import { notBuilt } from '../../pi/holes.js'
 
 type LedgerRows = {
   epoch: number
@@ -53,7 +52,85 @@ export function withKeptLedgerRows(ledger: StretchLedger, kept: readonly Message
 export const foldContentWitness = (text: string): string => createHash('sha256').update(text).digest('hex')
 
 export function buildFoldLedger(messages: readonly Message[], owner: OwnerKey, epoch: number): StretchLedger {
-  return notBuilt('src/services/compact/foldLedger.ts:54')
+  const previous = messages.findLast(row => row.type === 'system' && row.subtype === 'compact_boundary' && row.compactMetadata.ledger)
+  const prior = previous?.type === 'system' && previous.subtype === 'compact_boundary' ? previous.compactMetadata.ledger : undefined
+  const earlier = totalsThrough(prior)
+  const seen = new Set<string>(prior?.version === 2 ? prior.keptRecordIds : [])
+  const earlierOperatorIds = new Set<string>(seen)
+  if (prior?.version === 1) {
+    const candidates = new Set<string>(messages.map(row => row.uuid))
+    for (const id of prior.sourceRecordIds) if (candidates.has(id)) seen.add(id)
+    for (const row of prior.operator) earlierOperatorIds.add(row.sourceId)
+  } else {
+    for (const id of prior?.keptSteerIds ?? []) earlierOperatorIds.add(id)
+  }
+  const sourceRecordIds: string[] = []
+  const operator = new Map<string, LedgerRows['operator'][number]>()
+  const tools = new Map<string, LedgerRows['tools'][number]>()
+  const carried = new Map<string, LedgerRows['tools'][number]>()
+  for (const entries of [prior?.tools ?? [], prior?.version === 2 ? prior.carriedTools : []]) {
+    for (const tool of entries) {
+      if (tool.outcome === 'pending' || tool.outcome === 'background') carried.set(tool.id, { ...tool })
+    }
+  }
+  const files = new Map<string, LedgerRows['files'][number]>()
+  for (const row of messages) {
+    if (seen.has(row.uuid)) continue
+    seen.add(row.uuid)
+    sourceRecordIds.push(row.uuid)
+    const text = row.type === 'attachment' ? steerTextOf(row.attachment) : operatorTextOf(row)
+    if (text !== null) {
+      const sourceId = row.type === 'attachment' && row.attachment.type === 'queued_command' ? row.attachment.source_uuid ?? row.uuid : row.uuid
+      if (!earlierOperatorIds.has(sourceId) && !operator.has(sourceId)) operator.set(sourceId, { sourceId, epoch, bytes: Buffer.byteLength(text), sha256: foldContentWitness(text) })
+    }
+    if (row.type === 'assistant' && Array.isArray(row.message.content)) {
+      for (const block of row.message.content) {
+        if (block.type !== 'tool_use') continue
+        if (tools.has(block.id) || carried.has(block.id)) continue
+        const input = (block.input && typeof block.input === 'object' ? block.input : {}) as Record<string, unknown>
+        tools.set(block.id, { id: block.id, sourceId: row.uuid, epoch, name: block.name, argumentDigest: foldContentWitness(JSON.stringify(input)),
+          ...(block.name === 'Bash' && typeof input.command === 'string' ? { command: input.command } : {}),
+          ...(typeof input.file_path === 'string' ? { file: input.file_path } : {}),
+          resultId: null, resultBytes: 0, outcome: 'pending', rc: null,
+        })
+      }
+    }
+    if (row.type !== 'user' || !Array.isArray(row.message.content)) continue
+    const results = row.message.content.filter(block => block.type === 'tool_result')
+    const data = results.length === 1 && row.toolUseResult && typeof row.toolUseResult === 'object' ? row.toolUseResult as Record<string, unknown> : {}
+    for (const result of results) {
+      const tool = tools.get(result.tool_use_id) ?? carried.get(result.tool_use_id)
+      if (!tool) continue
+      tool.resultId = row.uuid
+      tool.resultBytes = Buffer.byteLength(typeof result.content === 'string' ? result.content : JSON.stringify(result.content ?? []))
+      tool.outcome = result.is_error ? 'error' : typeof data.backgroundTaskId === 'string' ? 'background' : 'ok'
+      tool.rc = tool.name === 'Bash' && typeof data.code === 'number' && Number.isInteger(data.code) ? data.code : tool.rc
+      const file = data.file as Record<string, unknown> | undefined
+      if (tool.name === 'Read' && file && typeof file.anchor === 'string' && parseAnchor(file.anchor) && typeof file.filePath === 'string') {
+        files.set(row.uuid, { sourceId: row.uuid, epoch, file: file.filePath, anchor: file.anchor,
+          startLine: typeof file.startLine === 'number' ? file.startLine : null,
+          lines: typeof file.numLines === 'number' ? file.numLines : null,
+          freshness: 'observed-not-rechecked',
+        })
+      }
+    }
+  }
+  const snap = getRunSnapshot(owner)
+  const asks = [...operator.values()]
+  const calls = [...tools.values()]
+  const carriedTools = [...carried.values()]
+  const denied = (rows: LedgerRows['tools']) => rows.filter(tool => tool.outcome === 'error' && tool.file).length
+  return {
+    version: 2, epoch, sourceRecordIds, priorRecords: earlier.records, sourceDigest: foldContentWitness(JSON.stringify({ previous: prior?.sourceDigest, rows: messages.map(row => ({ id: row.uuid, body: row.type === 'assistant' || row.type === 'user' ? row.message.content : row.type === 'attachment' ? row.attachment : null })) })),
+    operator: asks, tools: calls, files: [...files.values()], carriedTools, keptRecordIds: [],
+    totals: {
+      records: earlier.records + sourceRecordIds.length,
+      operator: { messages: earlier.operator.messages + asks.length, bytes: asks.reduce((n, row) => n + row.bytes, earlier.operator.bytes) },
+      tools: earlier.tools + calls.length, files: earlier.files + files.size,
+      deniedFilePaths: earlier.deniedFilePaths + denied(calls) + denied(carriedTools),
+    },
+    run: snap?.substantive ? { objective: snap.objective, deliverables: snap.deliverables.map(d => ({ ...d })), nextAction: snap.nextAction, blocker: snap.blocker, verification: snap.verification, pendingTools: [...snap.pendingTools] } : null,
+  }
 }
 
 const FOLD_INDEX_PAGE = 40

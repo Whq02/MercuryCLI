@@ -35,7 +35,6 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { sessionLaneWall } from '../../tools/MonitorTool/laneWall.js'
 import { startIdleNudge, MAIN_THREAD_AGENT, agentRecipientState, nudgeWords } from '../../services/notices/idleNudge.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export function landAdvisorQuiet(quiet: AdvisorQuiet, ports: RunnerPorts): void {
   const { messages } = ports
@@ -59,7 +58,105 @@ export function advisorRoadOf(ports: RunnerPorts): AdvisorRoad {
 }
 
 export function printDriverPorts(ports: RunnerPorts): TurnDriverPorts {
-  return notBuilt('src/cli/headless/printDriver.ts:60')
+  const { advisorRoad, bootReady, disarmAgentFreshness, enqueueRow, executeTurn, getAppState, idleTimeout, io, isConcourseWorker, isLocalShellTask, isMainThreadCommand, live, liveScope, maxTime, messages, rateLimitListener, settleIdle, stopDrainedNotificationFrames, takeMainThread, writeLine } = ports
+  return {
+    dequeue: takeMainThread,
+    dequeueCommand: command => dequeue(queued => queued === command),
+    peek: () => peek(isMainThreadCommand),
+    notifyLifecycle: notifyCommandLifecycle,
+    enqueueOutput: message => {
+      if (isOutcome(message) && message.status === 'completed' && maxTime !== undefined && Date.now() >= maxTime.at) {
+        io.outbound.enqueue({ ...message, status: 'time_limit', error: { class: 'time_limit', message: OUTCOME_SENTENCES.time_limit({ maxTimeMs: maxTime.limitMs }) } } as RowDraft)
+      } else io.outbound.enqueue(message)
+    },
+    writeDirect: async message => {
+      await writeLine(message)
+    },
+    drainRows: () => drainRows().map(row => ({ ...row, ...(live.currentTurn !== null ? { turn: live.currentTurn } : {}) }) as RowDraft),
+    beforeCycle: () => bootReady,
+    onTurnStart: () => {
+      live.currentTurnId = null
+    },
+    turnIdOf: () => {
+      if (live.currentTurnId === null) live.currentTurnId = randomUUID()
+      return live.currentTurnId
+    },
+    openTurnRow: messageIds => {
+      if (live.currentTurnId === null) live.currentTurnId = randomUUID()
+      return turnStartedRow({ session_id: getSessionId(), turn: live.currentTurn ?? live.turnsRun }, { turnId: live.currentTurnId, messageIds, model: live.activeModel ?? getEngineModel() })
+    },
+    executeTurn: (command, batch, onMessage, initialNotices) =>
+      executeTurn(command, batch, message => {
+        if (message.type === 'block_start') ports.party.blockOpen()
+        else if (message.type === 'text' || message.type === 'reasoning' || message.type === 'tool_call') ports.party.landed()
+        onMessage(message)
+      }, initialNotices),
+    onTurnSettled: command => {
+      logHeadlessProfilerTurn()
+      headlessProfilerStartTurn()
+      if (live.turnReachedModel) void advisorMainTurnSettled(String(getSessionId()), command, messages, advisorRoad)
+    },
+    hasWaitableBackgroundTasks: () =>
+      getRunningTasks(getAppState()).some(task => !(live.inputClosed && isLocalShellTask(task))) || (live.inputClosed && (ports.swarmResumes.hasPending() || crewmateNoticeOwed())),
+    hasHoldableBackgroundAgents: () =>
+      getRunningTasks(getAppState()).some(
+        task => task.type === 'local_agent',
+      ),
+    waitableBackgroundTaskCount: () =>
+      getRunningTasks(getAppState()).filter(task => !(live.inputClosed && isLocalShellTask(task))).length + (live.inputClosed ? ports.swarmResumes.waitingSeats() : 0),
+    onAgentWait: (count, turnId) => {
+      enqueueRow(turnWaitingRow({ session_id: getSessionId(), turn: live.turnsRun }, { turnId, agents: count }))
+    },
+    settleIdle,
+    wakeSettle: () => {},
+    beforeCloseOutput: async () => {
+      if (isConcourseWorker) return
+      const { exitNoteDue } = await import('../../mneme/exitHandoff.js')
+      const ranHere = exitNoteDue()
+      let closeUsage: import('../../utils/api/emptyUsage.js').NonNullableUsage | undefined
+      const beforeNote = ledgerMark()
+      const outcome = await leaveNoteBeforeExit({
+        budgetMs: HANDOFF_ASK_BUDGET_MS,
+        onNotice: text => io.outbound.enqueue(noticeRow(liveScope(), 'warning', text)),
+        onUsage: usage => { closeUsage = usage },
+      })
+      if (ranHere) io.outbound.enqueue(closeRowOf(liveScope(), { closeState: outcome, ...(closeUsage !== undefined ? { usage: closeUsage } : {}), spent: ledgerSpentSince(beforeNote) }))
+    },
+    closeOutput: async () => {
+      const { endBackgroundHooks } = await import('../../utils/hooks/background.js')
+      await endBackgroundHooks().catch(passedOver)
+      skillChangeDetector.dispose()
+      disarmAgentFreshness()
+      stopDrainedNotificationFrames()
+      ports.stopSdkDrain()
+      statusListeners.delete(rateLimitListener)
+      noteRunPhase('flush_exit')
+      logForDebugging(`[run-phases] ${jsonStringify(runPhaseReport(getTotalAPIDuration()))}`)
+      io.outbound.done()
+    },
+    isShuttingDown,
+    idleTimerStop: () => idleTimeout.stop?.(),
+    idleTimerStart: () => idleTimeout.start?.(),
+    onCycleError: (error, turnId) =>
+      outcomeRow(
+        { session_id: getSessionId(), turn: live.currentTurn ?? Math.max(1, live.turnsRun) },
+        {
+          turnId,
+          status: 'failed',
+          steps: 0,
+          wallMs: 0,
+          usage: EMPTY_USAGE,
+          models: {},
+          denials: [],
+          error: { message: errorMessage(error), class: 'internal', detail: getInMemoryErrors().map(entry => withoutStackFrames(entry.error)) },
+        },
+      ),
+    shutdown: code => void gracefulShutdown(code),
+    clock: { sleep: ms => sleep(ms) },
+    queuedMainThread: () => getCommandQueue().filter(isMainThreadCommand),
+    settleWindowMs: Math.max(POLL_INTERVAL_MS, Number.parseInt(flagEnv('MERCURY_SETTLE_WINDOW_MS') ?? '', 10) || 0),
+    wall: () => sessionLaneWall(),
+  }
 }
 
 export function carriersOf(notices: readonly NoticeRecord[]): QueuedCommand[] {

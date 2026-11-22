@@ -606,7 +606,23 @@ export async function sessionAtIndex(index: number): Promise<SessionListing | nu
 export async function findUnresolvedToolUse(
   toolUseId: string,
 ): Promise<AssistantMessage | null> {
-  return notBuilt('src/utils/sessionStorage/logs.ts:808')
+  const callsIt = (message: TranscriptMessage): boolean =>
+    message.type === 'assistant' &&
+    Array.isArray(message.message.content) &&
+    message.message.content.some(block => block.type === 'tool_use' && block.id === toolUseId)
+  const answersIt = (message: TranscriptMessage): boolean =>
+    message.type === 'user' &&
+    Array.isArray(message.message.content) &&
+    message.message.content.some(block => block.type === 'tool_result' && block.tool_use_id === toolUseId)
+  try {
+    const { messages } = await loadTranscriptFile(getTranscriptPath())
+    const rows = [...messages.values()]
+    if (rows.some(answersIt)) return null
+    return (rows.findLast(callsIt) as AssistantMessage | undefined) ?? null
+  } catch (error) {
+    passedOver(error)
+    return null
+  }
 }
 
 function statSessionFiles(

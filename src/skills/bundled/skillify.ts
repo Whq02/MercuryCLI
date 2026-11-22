@@ -8,6 +8,30 @@ import { notBuilt } from '../../pi/holes.js'
 
 const MESSAGE_SEPARATOR = '\n---\n'
 
+function collectUserMessages(messages: Message[]): string {
+  let start = 0
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (isCompactBoundaryMessage(messages[i]!)) {
+      start = i + 1
+      break
+    }
+  }
+  const texts: string[] = []
+  for (const message of messages.slice(start)) {
+    if (message.type !== 'user') continue
+    const content = message.message.content
+    const text =
+      typeof content === 'string'
+        ? content
+        : content
+            .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
+            .map(block => block.text)
+            .join('\n')
+    if (text.trim() !== '') texts.push(text)
+  }
+  return texts.join(MESSAGE_SEPARATOR)
+}
+
 const TEMPLATE = `---
 name: <skill-name>
 description: Use when <triggers and key phrases>. Not for <nearest confusable task>.

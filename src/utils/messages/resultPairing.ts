@@ -68,6 +68,88 @@ export function foldSplitTurnsForWire(
   return notBuilt('src/utils/messages/resultPairing.ts:141')
 }
 
+function repairResultAdjacency(
+  rows: (UserMessage | AssistantMessage)[],
+): (UserMessage | AssistantMessage)[] {
+  const isToolResultBlock = (b: unknown): b is ToolResultBlockParam =>
+    typeof b === 'object' &&
+    b !== null &&
+    'type' in b &&
+    (b as { type: string }).type === 'tool_result'
+
+  const loc = new Map<string, { row: number; block: number }>()
+  rows.forEach((m, ri) => {
+    if (m.type !== 'user' || !Array.isArray(m.message.content)) return
+    m.message.content.forEach((b, bi) => {
+      if (isToolResultBlock(b) && !loc.has(b.tool_use_id)) {
+        loc.set(b.tool_use_id, { row: ri, block: bi })
+      }
+    })
+  })
+
+  const moved = new Set<string>()
+  const prepends = new Map<number, ToolResultBlockParam[]>()
+  const inserts = new Map<number, ToolResultBlockParam[]>()
+  rows.forEach((m, ri) => {
+    if (m.type !== 'assistant') return
+    const useIds = clientCallItemsOf(m.message.content).map(item => item.call_id)
+    if (useIds.length === 0) return
+    const next = rows[ri + 1]
+    const nextIsUser = next?.type === 'user' && Array.isArray(next.message.content)
+    const inNext = new Set<string>()
+    if (nextIsUser) {
+      for (const b of next.message.content as ContentBlockParam[]) {
+        if (isToolResultBlock(b)) inNext.add(b.tool_use_id)
+      }
+    }
+    for (const id of useIds) {
+      if (inNext.has(id)) continue
+      const found = loc.get(id)
+      if (!found || found.row <= ri + 1) continue
+      const key = `${found.row}:${found.block}`
+      if (moved.has(key)) continue
+      moved.add(key)
+      const donor = rows[found.row] as UserMessage
+      const block = (donor.message.content as ContentBlockParam[])[
+        found.block
+      ] as ToolResultBlockParam
+      if (nextIsUser) {
+        const list = prepends.get(ri + 1) ?? []
+        list.push(block)
+        prepends.set(ri + 1, list)
+      } else {
+        const list = inserts.get(ri) ?? []
+        list.push(block)
+        inserts.set(ri, list)
+      }
+    }
+  })
+  if (moved.size === 0) return rows
+
+  const out: (UserMessage | AssistantMessage)[] = []
+  rows.forEach((m, ri) => {
+    if (m.type === 'user' && Array.isArray(m.message.content)) {
+      const kept = m.message.content.filter(
+        (_, bi) => !moved.has(`${ri}:${bi}`),
+      )
+      const pre = prepends.get(ri) ?? []
+      const content = [...pre, ...kept]
+      if (content.length > 0) {
+        out.push({ ...m, message: { ...m.message, content } })
+      }
+      return
+    }
+    out.push(m)
+    if (m.type === 'assistant') {
+      const pulled = inserts.get(ri)
+      if (pulled && pulled.length > 0) {
+        out.push(createUserMessage({ content: pulled, isMeta: true }))
+      }
+    }
+  })
+  return out
+}
+
 export function orderToolResultsByUse(
   rows: (UserMessage | AssistantMessage)[],
 ): (UserMessage | AssistantMessage)[] {

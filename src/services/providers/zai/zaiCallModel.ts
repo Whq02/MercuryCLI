@@ -105,7 +105,6 @@ import {
 } from '../openaicompat/compatChatCallModel.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 function apiErrorMessage(
   content: string,
@@ -211,7 +210,223 @@ type AttemptOutcome =
   | { kind: 'fault'; fault: ZaiFault; retryEligible: boolean; invisibleOnly?: boolean }
 
 export async function* zaiCallModel(params: CallModelParams): CallModelStream {
-  return notBuilt('src/services/providers/zai/zaiCallModel.ts:212')
+  const { messages, systemPrompt, thinkingConfig, tools, signal, options } = params
+  const modelId = normalizeModelStringForAPI(options.model)
+
+  let dispatch = resolveZaiDispatch()
+  if (!dispatch) {
+    const failure = providerKeyCommandFailure('zai')
+    const hint = failure ? `the configured ${failure.message} — no Z.AI API key detected.` : ZAI_FAULT_PROFILE.credentialHint
+    yield apiErrorMessage(
+      `${API_ERROR_MESSAGE_PREFIX}: ${hint} Model '${modelId}' cannot run.`,
+    )
+    return
+  }
+  const planWord = dispatch.planSource === 'stored' ? undefined : zaiKeyPlanUnknownWord(hostEnv())
+  if (planWord !== undefined) {
+    yield apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${planWord}. Model '${modelId}' cannot run.`)
+    return
+  }
+  if (dispatch.planSource === 'assumed') {
+    const learned = await learnZaiKeyPlan(dispatch.key)
+    if (learned.plan !== undefined) dispatch = { ...dispatch, plan: learned.plan, planSource: 'learned' }
+    else logForDebugging(`[zai] the plan of the ${dispatch.source} key could not be read from the models list (${learned.error.message}) — the general base is asked first`)
+  }
+  let apiKey = dispatch.key
+
+  const plan = await planToolPayload({
+    model: modelId,
+    tools,
+    messages,
+    getToolPermissionContext: options.getToolPermissionContext,
+    agents: options.agents,
+    latchKey: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)),
+    hasPendingMcpServers: options.hasPendingMcpServers,
+    source: 'query',
+  })
+  const apiTools = await buildApiShapedTools(plan.roster, options, modelId, plan.conversationKey)
+  const toolDeclarations = new Map<string, ZaiWireMessage>()
+  for (const declaration of plan.admissionDeclarations) {
+    const shaped = await buildApiShapedTools(declaration.tools, options, modelId, plan.conversationKey, tools)
+    if (shaped.length > 0) toolDeclarations.set(declaration.toolUseId, toolDeclarationRowAsText(mapToolsToZai(shaped)))
+  }
+  const wireMessages = renderAdmissionRecordsAsText(messages, plan.wireForm)
+  const retiredScreenshots = retireOlderScreenshots(wireMessages, undefined, undefined, options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)))
+  const retiredMessages =
+    retiredScreenshots.firstEdited === -1
+      ? retiredScreenshots.messages
+      : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
+  const fittedImages = await fitImagesToRequestCap(retiredMessages, { model: modelId, owner: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)) })
+  const wireMessagesForBridge =
+    fittedImages.firstEdited === -1
+      ? fittedImages.messages
+      : stripThinkingFromIndex(fittedImages.messages, fittedImages.firstEdited)
+  const effortContext = { agentId: options.agentId, pinned: options.effortPinned === true }
+  const effortValue = resolveWireRequestedEffort(modelId, options.effortValue, effortContext)
+  const effortTruth = resolveEffortTruth(modelId, options.effortValue, effortContext)
+  const vocabulary = glmEffortsFor(modelId)
+  const wireEffort =
+    effortValue && vocabulary
+      ? glmAcceptsEffort(modelId, effortValue)
+        ? effortValue
+        : nearestSupportedWireEffort(effortValue, [...vocabulary])
+      : undefined
+  const systemText = renderGenericInstructions(resolveBehaviourContract([...systemPrompt]))
+  const zaiOutputFit = fitOutputTokensForRequest({
+    asked: Math.min(options.maxOutputTokensOverride ?? ZAI_MAX_OUTPUT_TOKENS, ZAI_MAX_OUTPUT_TOKENS),
+    messages,
+    model: modelId,
+    fixed: [systemText, apiTools],
+  })
+  if (zaiOutputFit.clamped) logForDebugging(outputFitWords(zaiOutputFit, modelId))
+  const request = buildZaiChatRequest({
+    model: modelId,
+    system: systemText,
+    messages: toBridgeMessages(healWalkableForWire(wireMessagesForBridge)),
+    imagesSupported: imagesSupportedForCompatModel(modelId),
+    tools: apiTools,
+    ...(toolDeclarations.size > 0 ? { toolDeclarations } : {}),
+    maxTokens: zaiOutputFit.tokens,
+    ...(wireEffort ? { reasoningEffort: wireEffort } : {}),
+    thinkingEnabled: glmThinkingLocked(modelId) ? true : thinkingConfig.type !== 'disabled',
+  })
+  const effortOnWire: EffortStampV1 = effortStampOf(effortTruth.requested, zaiEffortWireFact(request, effortTruth.supportsEffort))
+  const withEffort = (message: AssistantMessage): AssistantMessage => ({ ...message, effort: effortOnWire })
+
+  recordPromptState({
+    system: [{ text: systemText }],
+    toolSchemas: apiTools,
+    querySource: options.querySource,
+    model: modelId,
+    agentId: options.agentId,
+    ...(effortValue ? { effortValue } : {}),
+    lane: 'zai',
+    callReference: options.callReference,
+  })
+
+  const turnStartedAtMs = Date.now()
+  let attemptStartedAtMs = turnStartedAtMs
+  let recovery: 'retried' | 'no-new-credential' | undefined
+  let planTrial: { from: ZaiKeyPlanWord; fault: ZaiFault } | undefined
+  const retries = openTurnRetries<ZaiFault>({
+    signal,
+    maxAttempts: ZAI_MAX_ATTEMPTS,
+    backoffMs: attempt => ZAI_RETRY_BACKOFF_MS * attempt,
+    provider: ZAI_FAULT_PROFILE.providerLabel,
+    log: '[zai]',
+    agent: options.agentId !== undefined,
+    singleShot: options.querySource === 'overload_probe',
+    ...(options.onWait !== undefined ? { onWait: options.onWait } : {}),
+  })
+  while (retries.next()) {
+    attemptStartedAtMs = Date.now()
+    const signInRequest = captureSignInRequest('zai', apiKey)
+    let outcome = yield* streamOneZaiAttempt({
+      request,
+      apiKey,
+      requestUrl: zaiChatCompletionsUrl(hostEnv(), dispatch.plan),
+      signal,
+      tools,
+      options,
+      modelId,
+      messages,
+      deferredUnadmitted: plan.isDeferredUnadmitted,
+      effort: effortOnWire,
+      ...(retries.busy !== undefined ? { busy: retries.busy } : {}),
+    })
+    if (outcome.kind === 'done') {
+      observeSignInResponse(signInRequest, 200)
+      if (dispatch.planSource === 'assumed' || dispatch.planSource === 'learned') rememberZaiKeyPlan(dispatch.key, dispatch.plan)
+      zaiLiveProof = { at: Date.now(), model: modelId }
+      recordLaneTurnSettled('zai')
+      try {
+        const { logAPISuccessAndDuration } = await import('../../api/logging.js')
+        logAPISuccessAndDuration({ start: attemptStartedAtMs, startIncludingRetries: turnStartedAtMs })
+      } catch (error) {
+        passedOver(error)
+      }
+      return
+    }
+    if (outcome.kind === 'cancelled') return
+    const refusedClass = (fault: ZaiFault): boolean => {
+      const kind = compatFaultToTypedError(fault)
+      return kind === 'authentication_failed' || kind === 'billing_error'
+    }
+    const otherBaseDiffers = zaiChatCompletionsUrl(hostEnv(), otherZaiKeyPlan(dispatch.plan)) !== zaiChatCompletionsUrl(hostEnv(), dispatch.plan)
+    if (outcome.retryEligible && refusedClass(outcome.fault) && (dispatch.planSource === 'assumed' || dispatch.planSource === 'learned') && planTrial === undefined && otherBaseDiffers) {
+      planTrial = { from: dispatch.plan, fault: outcome.fault }
+      dispatch = { ...dispatch, plan: otherZaiKeyPlan(dispatch.plan), planSource: 'assumed' }
+      logForDebugging(`[zai] the ${planTrial.from} base refused the ${dispatch.source} key (${outcome.fault.code}) — asking the ${dispatch.plan} base once before the fault is reported`)
+      retries.uncounted()
+      continue
+    }
+    if (planTrial !== undefined && refusedClass(outcome.fault)) {
+      dispatch = { ...dispatch, plan: planTrial.from }
+      outcome = { kind: 'fault', fault: planTrial.fault, retryEligible: outcome.retryEligible }
+    }
+    observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
+    const typed = compatFaultToTypedError(outcome.fault)
+    if (
+      typed === 'authentication_failed' &&
+      outcome.retryEligible &&
+      recovery === undefined &&
+      configuredProviderKeyCommand('zai') &&
+      retries.left
+    ) {
+      const fresh = recoverProviderKeyCommand('zai', apiKey)
+      if (fresh) {
+        recovery = 'retried'
+        apiKey = fresh
+        continue
+      }
+      recovery = 'no-new-credential'
+    }
+    const verdict = yield* retries.afterFault(outcome.fault, { typed, retryEligible: outcome.retryEligible, invisibleOnly: outcome.invisibleOnly === true })
+    if (verdict.kind === 'again') continue
+    if (verdict.kind === 'cancelled') return
+    if (verdict.kind === 'outage-spent') {
+      yield withEffort(apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${verdict.line}`, typed, outcome.fault.code))
+      return
+    }
+    const { busy, emptyEnd } = retries
+    if (typed === 'billing_error') {
+      recordLaneBillingRefusal('zai', {
+        detail: outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code,
+        remedy: ZAI_FAULT_PROFILE.billingRemedy,
+      })
+    }
+    const refusedImage = imageRefusalWords(request, outcome.fault)
+    if (refusedImage !== null) {
+      noteImageRefusal(modelId, refusedImage)
+      yield withEffort(apiErrorMessage(
+        `${API_ERROR_MESSAGE_PREFIX}: the model on the ${ZAI_FAULT_PROFILE.providerLabel} route refused the image: ${refusedImage} — the next request carries it as [image]; the Computer tool refuses on this model until /model picks one that receives images`,
+        typed,
+        outcome.fault.code,
+        overflowOf(outcome.fault),
+        null,
+        { blockTypes: ['image'], detail: refusedImage },
+      ))
+      return
+    }
+    const terminalText = compatTerminalFaultText(ZAI_FAULT_PROFILE, outcome.fault, typed)
+    const stayedBusy =
+      busy !== undefined && takesBusyLadder(outcome.fault)
+        ? `${API_ERROR_MESSAGE_PREFIX}: ${ZAI_FAULT_PROFILE.providerLabel} stayed busy through ${busy.ladder.waitsMs.length} ${busy.ladder.waitsMs.length === 1 ? 'retry' : 'retries'} over ${retrySeconds(Date.now() - busy.ladder.startedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
+        : emptyEnd
+          ? `${API_ERROR_MESSAGE_PREFIX}: ${emptyStreamSpentWords(ZAI_FAULT_PROFILE.providerLabel, Date.now() - turnStartedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
+          : terminalText
+    yield withEffort(stampProviderWait(
+      markUnknownModel(apiErrorMessage(
+        stayedBusy,
+        typed,
+        outcome.fault.code,
+        overflowOf(outcome.fault),
+        busy !== undefined ? busyRefusalFact(ZAI_FAULT_PROFILE.providerLabel, busy.ladder, outcome.fault) : null,
+      ), outcome.fault.status),
+      outcome.fault.retryAfterMs,
+    ))
+    return
+  }
 }
 
 async function* streamOneZaiAttempt(ctx: {

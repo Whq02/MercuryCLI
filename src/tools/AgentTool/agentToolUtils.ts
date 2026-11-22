@@ -199,7 +199,10 @@ export function finalResponseOf(messages: readonly Message[]): { messages: Messa
 }
 
 export function stoppedPartWay(response: { messages: readonly Message[]; stopReason: string | null }): boolean {
-  return notBuilt('src/tools/AgentTool/agentToolUtils.ts:299')
+  if (response.stopReason === null || !SETTLED_STOP_REASONS.has(response.stopReason)) return true
+  return response.messages.some(
+    message => message.type === 'assistant' && Array.isArray(message.message.content) && message.message.content.some(block => block.type === 'tool_use'),
+  )
 }
 
 

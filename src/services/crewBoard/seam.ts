@@ -20,7 +20,6 @@ import { wrapInSystemReminder } from '../../utils/messages/text.js'
 import type { BoardSettlement } from './wakeState.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { startMicrotask } from '../../utils/timers.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const requireOptional = createRequire(import.meta.url)
 let implementation: BoardModule | undefined
@@ -375,7 +374,20 @@ export function swarmBoundary(agentId: string | undefined, seen: ReadonlySet<str
 }
 
 function readPackets(messages: readonly Message[]): { packetId: string; eventIds: string[] }[] {
-  return notBuilt('src/services/crewBoard/seam.ts:376')
+  const calls = new Set(messages.flatMap(message => message.type === 'assistant' && Array.isArray(message.message.content) ? message.message.content.flatMap(block => block.type === 'tool_use' && block.name === 'CrewBoard' ? [block.id] : []) : []))
+  const packets: { packetId: string; eventIds: string[] }[] = []
+  for (const message of messages) {
+    if (message.type !== 'user' || !Array.isArray(message.message.content)) continue
+    for (const block of message.message.content) {
+      if (block.type !== 'tool_result' || !calls.has(block.tool_use_id)) continue
+      try {
+        const text = typeof block.content === 'string' ? block.content : (block.content ?? []).flatMap(part => part.type === 'text' ? [part.text] : []).join('')
+        const data: unknown = JSON.parse(text)
+        if (data && typeof data === 'object' && 'packetId' in data && typeof data.packetId === 'string' && 'events' in data && Array.isArray(data.events)) packets.push({ packetId: data.packetId, eventIds: data.events.flatMap(event => event && typeof event === 'object' && typeof event.eventId === 'string' ? [event.eventId] : []) })
+      } catch (error) { passedOver(error) }
+    }
+  }
+  return packets
 }
 
 export function swarmEventIds(messages: readonly Message[]): Set<string> {

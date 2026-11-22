@@ -120,7 +120,57 @@ function joinedResultTexts(results: NormalizedUserMessage[]): string[] {
 }
 
 export function copyTextOf(msg: NavigableMessage): string {
-  return notBuilt('src/components/messageActions.tsx:175')
+  switch (msg.type) {
+    case 'user': {
+      const first = msg.message.content[0]
+      if (!first || first.type !== 'text') return ''
+      return stripSystemReminders(first.text)
+    }
+    case 'assistant': {
+      const first = msg.message.content[0]
+      if (first && first.type === 'text') return first.text
+      const call = toolCallOf(msg)
+      if (call) return primaryInputValue(call.name, call.input) ?? ''
+      return ''
+    }
+    case 'grouped_tool_use':
+      return joinedResultTexts(msg.results).join('\n\n')
+    case 'collapsed_read_search': {
+      const parts: string[] = []
+      for (const member of msg.messages) {
+        if (member.type === 'user') {
+          const text = toolResultText(member)
+          if (text !== '') parts.push(text)
+        } else if (member.type === 'grouped_tool_use') {
+          parts.push(...joinedResultTexts(member.results))
+        }
+      }
+      return parts.join('\n\n')
+    }
+    case 'system': {
+      if ('copyText' in msg && typeof msg.copyText === 'string' && msg.copyText !== '') return msg.copyText
+      if ('content' in msg && typeof msg.content === 'string' && msg.content) {
+        return msg.content
+      }
+      if ('error' in msg && msg.error !== undefined) return String(msg.error)
+      return msg.subtype
+    }
+    case 'turn_receipt':
+      return ''
+    case 'attachment': {
+      const attachment = msg.attachment
+      if (attachment.type === 'queued_command') {
+        if (typeof attachment.prompt === 'string') return attachment.prompt
+        return attachment.prompt
+          .filter(block => block.type === 'text')
+          .map(block => (block as { text: string }).text)
+          .join('\n')
+      }
+      return `[${attachment.type}]`
+    }
+    default:
+      return ''
+  }
 }
 
 

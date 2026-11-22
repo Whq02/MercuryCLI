@@ -155,7 +155,11 @@ function isPromptCommand(command: Command): command is Command & PromptCommand {
 }
 
 export function expansionBodyOf(message: Message): string | null {
-  return notBuilt('src/tools/SkillTool/SkillTool.ts:232')
+  if (message.type !== 'user' || message.isMeta !== true || !Array.isArray(message.message.content)) return null
+  const text = message.message.content
+    .map(block => (block.type === 'text' ? (block as { text: string }).text : ''))
+    .join('\n')
+  return text.trim() === '' ? null : text
 }
 
 function messageCarriesToolActivity(message: Message): boolean {

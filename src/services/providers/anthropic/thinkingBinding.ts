@@ -25,7 +25,6 @@ import { DEAD_THINKING_PLACEHOLDER } from '../../../utils/model/deadThinkingPlac
 import { forgetPersistedDropState, persistedDropState, rememberDropState, withoutCacheControl } from './prefixLedger.js'
 import type { RequestContextPlan } from '../../run/requestContextPlan.js'
 import { passedOver } from '../../../utils/passedOver.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 type PrefixMismatchBehavior = 'drop_block' | 'error'
 
@@ -570,7 +569,23 @@ const isThinkingContent = (block: unknown): boolean => {
 }
 
 export function stripDeadThinking<M extends Message>(messages: M[], marks: ReadonlyMap<string, ReadonlySet<number>>): M[] {
-  return notBuilt('src/services/providers/anthropic/thinkingBinding.ts:571')
+  if (marks.size === 0) return messages
+  let changed = false
+  const result = messages.map(msg => {
+    if (msg.type !== 'assistant') return msg
+    const indices = marks.get(msg.message.id)
+    if (indices === undefined) return msg
+    const content = msg.message.content
+    if (!Array.isArray(content)) return msg
+    const filtered = content.filter((block, index) => !(indices.has(index) && isThinkingContent(block)))
+    if (filtered.length === content.length) return msg
+    changed = true
+    if (filtered.length === 0) {
+      filtered.push({ type: 'text' as const, text: DEAD_THINKING_PLACEHOLDER, citations: [] })
+    }
+    return { ...msg, message: { ...msg.message, content: filtered } } as typeof msg
+  })
+  return changed ? result : messages
 }
 
 

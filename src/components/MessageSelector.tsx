@@ -75,7 +75,27 @@ function isTurnCutRow(message: UserMessage): boolean {
 export function selectableUserMessagesFilter(
   message: Message,
 ): message is UserMessage {
-  return notBuilt('src/components/MessageSelector.tsx:77')
+  if (message.type !== 'user') return false
+  const content = message.message.content
+  if (Array.isArray(content) && content[0]?.type === 'tool_result') return false
+  if (isSyntheticMessage(message) || isTurnCutRow(message)) return false
+  if (message.isMeta) return false
+  if (message.isCompactSummary) return false
+  if (message.isVisibleInTranscriptOnly) return false
+  if (isSaturnOrigin(message.origin) || isAdvisorOrigin(message.origin)) return false
+  const noticeText = typeof content === 'string'
+    ? content
+    : content.every(block => block.type === 'text')
+      ? content.map(block => (block as { text: string }).text).join('\n')
+      : undefined
+  if (noticeText !== undefined) {
+    if (wrappedNoticeBlocks(noticeText) !== null) return false
+    if (COMPLETE_TAG_MARKERS.some(marker => noticeText.includes(marker)) && stripDisplayTagsAllowEmpty(noticeText) === '') return false
+  }
+  const text = messageText(message)
+  if (COMPLETE_TAG_MARKERS.some(marker => text.includes(marker))) return false
+  if (text.includes(CREWMATE_PREFIX)) return false
+  return true
 }
 
 export function messagesAfterAreOnlySynthetic(

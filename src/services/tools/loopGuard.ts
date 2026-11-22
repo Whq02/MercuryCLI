@@ -16,7 +16,6 @@ import { MAIN_LANE, parseOwnerKey, type OwnerKey } from '../../utils/run/ownerKe
 import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const IDENTICAL_CALL_REMINDER_STEPS: readonly number[] = [3, 5, 8]
 const CYCLE_WINDOW = 25
@@ -545,7 +544,12 @@ export async function repeatedResultPointer(owner: OwnerKey, observation: Repeat
 }
 
 export function withResultContent<T extends { message: Message }>(update: T, toolUseID: string, content: string): T {
-  return notBuilt('src/services/tools/loopGuard.ts:546')
+  const message = update.message
+  if (message.type !== 'user' || !Array.isArray(message.message.content)) return update
+  const blocks = message.message.content.map(block =>
+    block.type === 'tool_result' && block.tool_use_id === toolUseID ? { ...block, content } : block,
+  )
+  return { ...update, message: { ...message, message: { ...message.message, content: blocks } } }
 }
 
 export function closeRound(owner: OwnerKey, roundID: string, complete = true): LoopGuardVerdict {

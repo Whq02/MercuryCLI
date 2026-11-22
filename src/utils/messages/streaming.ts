@@ -58,6 +58,15 @@ function publishDelta(event: Extract<StreamEvent['event'], { type: 'content_bloc
   }
 }
 
+function publishSettled(message: Message, append: (message: Message) => void, text?: UpdateText, thinking?: UpdateThinking): void {
+  if (message.type === 'assistant') {
+    const block = message.message.content.find(item => item.type === 'thinking')
+    if (block?.type === 'thinking') thinking?.(() => ({ thinking: block.thinking, isStreaming: false, streamingEndedAt: Date.now() }))
+  }
+  text?.(clearText)
+  append(message)
+}
+
 export function isDroppedLateStreamFrame(message: { type: string }, aborted: boolean): boolean {
   if (!aborted) return false
   return message.type === 'stream_event' || message.type === 'stream_request_start'

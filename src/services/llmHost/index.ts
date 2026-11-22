@@ -21,7 +21,6 @@ import { errorMessage } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
 import { unregisterTensorFoldPod } from '../host/tensorfoldPodKey.js'
 import { hostEnv } from '../../utils/hostEnv.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export interface LlmHostQuestion {
   step: string
@@ -126,7 +125,26 @@ export function registerHostWindow(models: readonly string[], contextWindow: num
 
 
 async function checkLlmHostReply(model: string, signal: AbortSignal): Promise<LlmHostResult> {
-  return notBuilt('src/services/llmHost/index.ts:127')
+  const started = performance.now()
+  let reply = ''
+  let fault: string | undefined
+  let outputTokens: number | undefined
+  let settled = false
+  for await (const event of compatCallModel({
+    messages: [createUserMessage({ content: words.replyPrompt })],
+    systemPrompt: asSystemPrompt([words.replySystem]),
+    thinkingConfig: sessionThinkingConfig(), tools: [], signal,
+    options: { model, querySource: 'main_thread', isNonInteractiveSession: true, agents: [], hasAppendSystemPrompt: false, mcpTools: [], ownerKey: `llmhost:${randomUUID()}`, getToolPermissionContext: async () => getEmptyToolPermissionContext() },
+  })) {
+    if (event.type !== 'assistant') continue
+    const text = event.message.content.filter(block => block.type === 'text').map(block => block.text).join('')
+    if (event.isApiErrorMessage) fault = text
+    else { reply += text; outputTokens = event.message.usage.output_tokens; settled = event.message.stop_reason === 'end_turn' }
+  }
+  const elapsedMs = performance.now() - started
+  if (signal.aborted) return { ok: false, model, registered: true, words: words.stopped }
+  if (fault || !reply.trim() || !settled) return { ok: false, model, reply, elapsedMs, registered: true, words: `${words.failed} · ${fault || words.empty}` }
+  return { ok: true, model, reply, elapsedMs, registered: true, words: hostReplyWords(model, reply, elapsedMs, outputTokens) }
 }
 
 export const runLlmHost: LlmHostRoad = async (ask, emit, signal) => {

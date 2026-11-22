@@ -29,7 +29,26 @@ interface ShellNotice {
 type NoticeText = { text: string; shape: 'attachment' | 'user' }
 
 function noticeTexts(msg: RenderableMessage): NoticeText[] {
-  return notBuilt('src/utils/collapseBackgroundBashNotifications.ts:30')
+  if (msg.type === 'user') {
+    const texts = msg.message.content.filter(block => block.type === 'text')
+    if (texts.length === 0 || msg.message.content[0]?.type !== 'text') return []
+    return texts.map(block => ({ text: (block as { text: string }).text, shape: 'user' as const }))
+  }
+  if (msg.type === 'attachment') {
+    const att = msg.attachment as { type?: string; commandMode?: string; prompt?: unknown }
+    if (att.type !== 'queued_command' || att.commandMode !== 'task-notification') return []
+    const prompt = att.prompt
+    const text =
+      typeof prompt === 'string'
+        ? prompt
+        : Array.isArray(prompt)
+          ? prompt
+              .map(block => ((block as { type?: string }).type === 'text' ? ((block as { text?: string }).text ?? '') : ''))
+              .join('\n')
+          : ''
+    return [{ text, shape: 'attachment' }]
+  }
+  return []
 }
 
 function shellNoticeIn(msg: RenderableMessage, found: NoticeText): ShellNotice | null {

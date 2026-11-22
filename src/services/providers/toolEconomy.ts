@@ -11,7 +11,6 @@ import {
   isToolSearchEnabled,
 } from '../messages/toolSearch.js'
 import { deferralSearchIsServerSide, deferralWireFormFor, supportsToolDeferral, type DeferralWireForm, type DeferralWireVerdict } from './deferralWire.js'
-import { notBuilt } from '../../pi/holes.js'
 
 interface ToolPayloadPlanInput {
   model: string
@@ -383,6 +382,41 @@ export function admissionRecordText(names: readonly string[], form: DeferralWire
   return `Tools admitted to this session:\n${list}\nTheir full schemas are in your tool list from this request on — call them like any other tool.`
 }
 
-export function renderAdmissionRecordsAsText<M extends Message | UserMessage | AssistantMessage>(messages: M[], form?: DeferralWireForm): M[] {
-  return notBuilt('src/services/providers/toolEconomy.ts:385')
+export function renderAdmissionRecordsAsText<M extends Message | UserMessage | AssistantMessage>(messages: M[], form: DeferralWireForm = 'text'): M[] {
+  return messages.map(message => {
+    if (message.type !== 'user') return message
+    const content = (message as UserMessage).message.content
+    if (!Array.isArray(content)) return message
+    const hasRecord = content.some(
+      block =>
+        block.type === 'tool_result' &&
+        Array.isArray((block as { content?: unknown }).content) &&
+        ((block as { content: unknown[] }).content as unknown[]).some(isToolReferenceBlock),
+    )
+    if (!hasRecord) return message
+    const rendered = content.map(block => {
+      if (block.type !== 'tool_result') return block
+      const inner = (block as { content?: unknown }).content
+      if (!Array.isArray(inner)) return block
+      const names: string[] = []
+      const rest: unknown[] = []
+      for (const item of inner as unknown[]) {
+        if (isToolReferenceBlock(item)) {
+          const name = (item as { tool_name?: unknown }).tool_name
+          if (typeof name === 'string') names.push(name)
+        } else {
+          rest.push(item)
+        }
+      }
+      if (names.length === 0) return block
+      return {
+        ...(block as object),
+        content: [{ type: 'text' as const, text: admissionRecordText(names, form) }, ...rest],
+      }
+    })
+    return {
+      ...message,
+      message: { ...(message as UserMessage).message, content: rendered },
+    } as M
+  })
 }

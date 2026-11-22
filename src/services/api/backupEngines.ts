@@ -3,7 +3,6 @@ import { renderModelName } from '../model/model.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import type { CallModelStream } from '../providers/callModelContract.js'
 import { FallbackTriggeredError } from './withRetry.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const UNKNOWN_MODEL_CODES = new Set(['http-404', 'api-NOT_FOUND', 'zai-1211'])
 
@@ -23,7 +22,7 @@ export function failoverCauseOf(error: AssistantMessageError | undefined, code: 
 }
 
 export function markUnknownModel<T extends AssistantMessage>(message: T, status: number | undefined): T {
-  return notBuilt('src/services/api/backupEngines.ts:24')
+  return status === 404 ? { ...message, failover: 'unknown-model' } : message
 }
 
 export function failoverCauseOfMessage(message: AssistantMessage): FailoverCause | undefined {

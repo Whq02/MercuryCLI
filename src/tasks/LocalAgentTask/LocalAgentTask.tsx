@@ -239,7 +239,43 @@ export function pauseAgentTask(
 }
 
 export function usageWindowPauseOf(messages: readonly Message[], model: string | null | undefined): AgentPauseV1 | null {
-  return notBuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:382')
+  let last: Message | undefined
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]!
+    if (message.type !== 'assistant') continue
+    last = message
+    break
+  }
+  if (last === undefined || last.type !== 'assistant' || !isSyntheticApiErrorMessage(last)) return null
+  const asked = typeof last.providerWaitEndsAtMs === 'number' && last.providerWaitEndsAtMs > Date.now() ? last.providerWaitEndsAtMs : undefined
+  if (last.error !== 'rate_limit' && asked === undefined) return null
+  if (last.busyRefusal !== undefined && asked === undefined) return null
+  const family = providerFamilyOfSetting(model ?? null)
+  const window = ((): { resetsAtMs?: number; windowName?: string } => {
+    if (last.error !== 'rate_limit') return {}
+    try {
+      return observedFamilyWindow(family, undefined, { model: model ?? null })
+    } catch (error) {
+      passedOver(error)
+      return {}
+    }
+  })()
+  const who = ((): string => {
+    if (model === undefined || model === null) return family
+    try {
+      return getMarketingNameForModel(model) ?? model
+    } catch {
+      return model
+    }
+  })()
+  const resumesAtMs = asked ?? (window.resetsAtMs !== undefined && window.resetsAtMs > Date.now() ? window.resetsAtMs : undefined)
+  const content = last.message.content
+  const words = (typeof content === 'string' ? content : content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n')).trim()
+  return {
+    why: last.error === 'rate_limit' ? 'usage limit' : 'provider busy',
+    words: words || `the provider refused ${who}'s request`,
+    ...(resumesAtMs !== undefined ? { resumesAtMs } : {}),
+  }
 }
 
 function pauseModelWords(model: string | null | undefined): string {

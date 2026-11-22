@@ -4,7 +4,6 @@ import type { TranscriptMessage } from '../types/logs.js'
 import type { QueueOperationMessage } from '../types/messageQueueTypes.js'
 import type { FileHistorySnapshot } from '../types/fileHistory.js'
 import type { ContentReplacementRecord } from '../utils/toolResultStorage.js'
-import { notBuilt } from '../pi/holes.js'
 
 export type WorktreeBinding = {
   originalCwd: string
@@ -131,7 +130,7 @@ export const STORAGE_ROWS = {
 } as const satisfies Record<StorageRowKind, StorageRowPolicy>
 
 export function storageRowPolicy(kind: string): StorageRowPolicy | undefined {
-  return notBuilt('src/rows/storage.ts:132')
+  return Object.hasOwn(STORAGE_ROWS, kind) ? STORAGE_ROWS[kind as StorageRowKind] : undefined
 }
 
 export const EPHEMERAL_STORAGE_PROGRESS: ReadonlySet<string> = new Set([
