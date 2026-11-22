@@ -98,6 +98,7 @@ export interface SessionFactsV1 extends Omit<SessionFactsAnswerV1, 'permissionMo
   modelSettled?: { from: string; to: string; atMs: number }
   busy: boolean
   turnStartedAt?: number
+  turnOpenedAt?: number
   schedules?: import('../../daemon/saturn.js').SaturnFactsRowV1[]
   heldFireCount?: number
   runnerGeneration?: number

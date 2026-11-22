@@ -320,6 +320,7 @@ export interface WireRosterEntry {
   outcome?: string
   via?: string
   turnStartedAt?: number
+  turnOpenedAt?: number
   model?: string
   effort?: string
   pendingModel?: string

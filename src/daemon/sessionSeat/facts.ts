@@ -12,7 +12,7 @@ import { validateSessionKit, resolveSessionKitOnRecord } from '../sessionKit.js'
 import { spawnSwitchFactsOfRecord } from '../../services/switchboard/spawnSwitches.js'
 import { saturnFactsOf, applyConcourseScheduleOp, SATURN_EDIT_BURST_CAP } from '../saturn.js'
 import { deriveScheduleAccountForModel, scheduleAccountVerdict, readLiveAccountFacts } from '../saturnAccount.js'
-import { type SeatState, liveRecordByShort, seatOf, seatBusy, seatTurnStartedAt, publishActivity, type SeatRosterPort, seats, liveRecordBySession } from './state.js'
+import { type SeatState, liveRecordByShort, seatOf, seatTurnOpen, publishActivity, type SeatRosterPort, seats, liveRecordBySession } from './state.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const FACTS_DEBOUNCE_MS = 250
@@ -59,7 +59,8 @@ export function publishSeatFacts(short: string, dir?: string, roster?: SeatRoste
   const answer = seat.lastAnswer ?? skeletonAnswer(rec)
   const { box: boxAnswer, ...answerRest } = answer
   seat.lastFactsAtMs = Math.max(Date.now(), seat.lastFactsAtMs + 1)
-  const runnerFact = runnerStateFactOf(roster?.list().find(j => j.short === short), Date.now())
+  const entry = roster?.list().find(j => j.short === short)
+  const runnerFact = runnerStateFactOf(entry, Date.now())
   const facts: SessionFactsV1 = {
     schema: 1,
     sessionId: rec.sessionId,
@@ -78,8 +79,9 @@ export function publishSeatFacts(short: string, dir?: string, roster?: SeatRoste
       ? { pendingSpawnSwitches: rec.pendingSpawnSwitches.map(p => ({ kind: p.kind, on: p.on })) }
       : {}),
     ...(seat.lastModelSettle !== null ? { modelSettled: seat.lastModelSettle } : {}),
-    busy: roster !== undefined ? seatBusy(short, roster) : seat.lastBusy,
-    ...(roster !== undefined && seatTurnStartedAt(short, roster) !== undefined ? { turnStartedAt: seatTurnStartedAt(short, roster) } : {}),
+    busy: roster !== undefined ? seatTurnOpen(entry) : seat.lastBusy,
+    ...(entry?.turnStartedAt !== undefined ? { turnStartedAt: entry.turnStartedAt } : {}),
+    ...(entry?.turnOpenedAt !== undefined ? { turnOpenedAt: entry.turnOpenedAt } : {}),
     ...saturnFactsOf(rec, Date.now()),
     ...(boxAnswer !== undefined ? { box: boxAnswer } : {}),
     ...(runnerFact !== undefined ? { runner: runnerFact } : {}),
