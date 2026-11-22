@@ -42,6 +42,12 @@ A successful build writes, under `dist/`:
   the product boots the guard from this bundle when it sits beside
   `mercury.mjs`, and from `mercury.mjs` itself otherwise (the same code, a
   far slower start: the whole product bundle loads for each shell).
+- `crew-board.mjs` — the crew board bundle from
+  `src/services/crewBoard/implementation.ts`.
+- `tensorfold-adapter.mjs` — the TensorFold adapter bundle from
+  `src/entrypoints/tensorfoldAdapter.ts`.
+- `splash.mjs` and `splash-core.mjs` — the enter-screen pair copied from
+  `assets/splash/`.
 - `manifest.json` — the artifact manifest (below). Written only when the
   whole build succeeds; a stale manifest and a stale `verify-artifact.mjs`
   are removed at build start, so absence always means "do not ship".
@@ -116,7 +122,7 @@ prose) and fails on any bare static package import. Bare dynamic imports are
 the sanctioned lazy-degradation seam for optional dependencies that fail at
 call time with their own remedy, pinned to an explicit allowlist
 (`cli-highlight`, `image-processor-napi`, `kerberos`, `plist`,
-`proxy-agent`); a new one forces a conscious decision in `build.ts`.
+`proxy-agent`, `yauzl`); a new one forces a conscious decision in `build.ts`.
 `sharp`'s module-scope loader throws when no prebuilt binding resolves, so
 it is imported lazily everywhere — a missing binding degrades image work at
 call time instead of killing boot.
@@ -189,7 +195,7 @@ against their checked-in lock files before a byte is consumed.
 - **Voice capture pack** (optional at build; BUILT, never fetched). A
   Node-API addon over the platform's own audio layer, compiled from
   `native/voice` (Rust, cpal) by `bun run scripts/vendor/build-voice.ts`
-  (the last link of `bun run setup`) into `vendor/voice/<platform>/`:
+  (a step of `bun run setup`) into `vendor/voice/<platform>/`:
   `mercury_voice.node`, every linked crate's licence text under
   `licenses/`, a `NOTICES.json` crate inventory, and a manifest carrying the
   addon's sha256 and the digest of the Rust sources it was built from. The
@@ -201,12 +207,13 @@ against their checked-in lock files before a byte is consumed.
   and names the build command. No cargo on the machine ⇒ the build script
   skips loudly (exit 0). `--check` = no-cargo validity.
   `MERCURY_BUILD_NO_VENDOR_VOICE=1` forces the degraded arm. The release
-  packager treats `voice-input` as the one publishable degradation: an
-  archive whose packaging host could not build the pack still ships, honest.
+  packager treats `voice-input` (alongside `desktop-driver`) as a publishable
+  degradation: an archive whose packaging host could not build the pack still
+  ships, honest.
 - **Desktop driver pack** (optional at build; BUILT, never fetched). The
   voice pack's sibling for computer use: a Node-API addon over the
   platform's screen and input layers, compiled from `native/desktop` by
-  `bun run scripts/vendor/build-desktop.ts` (the last link of
+  `bun run scripts/vendor/build-desktop.ts` (a step of
   `bun run setup`) into `vendor/desktop/<platform>/` with the same manifest,
   licence records and staleness rules, copied to `dist/vendor/desktop/<platform>/`
   and recorded as the manifest's `desktopDriver`; absent ⇒ degraded
@@ -315,7 +322,7 @@ against their checked-in lock files before a byte is consumed.
 
 ## The NOTICE stamp
 
-Both JS artifacts receive a composed NOTICE head (`src/constants/legalNotice.ts`):
+Both `mercury.mjs` and `verify-artifact.mjs` receive a composed NOTICE head (`src/constants/legalNotice.ts`):
 product identity, the named text slots (absent until written — never
 placeholdered), and the third-party attribution pointer. Stamped
 before the manifest is written so `bundleBytes`/`bundleSha256` describe the
@@ -325,10 +332,12 @@ reproducible-build comparisons are unaffected.
 
 ## The artifact manifest
 
-`dist/manifest.json`, schema 2: `{schema, name, version, buildTime,
-buildTree, bundle, bundleBytes, bundleSha256, node, selfContained, search,
-pythonDebugger, pyright, jsDebug, runtime, typescript, treeSitter,
-imageProcessing, degraded}`. `bun run artifact:smoke` asserts every claim against the real
+`dist/manifest.json`, schema 2: `{schema, jsonQuery, name, version,
+buildTime, buildTree, bundle, bundleBytes, bundleSha256, tensorfoldAdapter,
+target, node, selfContained, search, pythonDebugger, pyright, jsDebug,
+runtime, pythonRuntime, splash, voiceInput, desktopDriver, shellEngine,
+bash, onDeviceTranscriber, semanticEmbedder, typescript, treeSitter,
+imageProcessing, documentLibraries, degraded}`. `bun run artifact:smoke` asserts every claim against the real
 files. The runtime tool catalog does not read it — it probes the real
 binary state live, which agrees by construction since both derive from the
 same vendored files. `bundleSha256` names the exact bundle bytes;
@@ -349,7 +358,7 @@ pure function of its input).
 
 ## Packaging and launchers
 
-`node scripts/release/package.mjs --target <linux-x64|macos-arm64|macos-x64|windows-x64>`
+`node scripts/release/package.mjs --target <linux-x64|linux-arm64|macos-arm64|macos-x64|windows-x64|windows-arm64>`
 assembles one platform archive and then proves the friend path on the spot
 (unpack into a directory with spaces, no repo or bun nearby, `--version` —
 once with no node on PATH, on the vendored runtime alone — `--help`, a
@@ -425,7 +434,7 @@ change (`bun run scripts/distribution/generate-third-party-notices.ts`, or
 
 Pins with a reason visible in the source:
 
-- `zod ~4.5.1` — the source imports the `zod/v4` API surface throughout.
+- `zod ~4.6.7` — the source imports the `zod/v4` API surface throughout.
 - `commander ~15.0.0` (+ `@commander-js/extra-typings`) — the pinned major.
   The `-d2e, --debug-to-stderr` debug flag is a raw argv read
   (`src/utils/debug.ts`), so nothing in the source leans on the parser
