@@ -1,12 +1,16 @@
 import type { ToolUseContext, CompactProgressEvent } from '../../../Tool.js'
 import { APIUserAbortError } from '../../../utils/api/sdkErrors.js'
 import { FOLD_STAMP_THROTTLE_MS, type FoldExit, type FoldStatusV1, type FoldTrigger, beginFoldStatus, foldStatusExit, foldStatusOnEvent } from '../foldStatus.js'
-import { ERROR_MESSAGE_NOT_ENOUGH_MESSAGES, ERROR_MESSAGE_USER_ABORT } from './limits.js'
+import { ERROR_MESSAGE_NOT_ENOUGH_MESSAGES, ERROR_MESSAGE_USER_ABORT, NOTHING_TO_COMPACT_KEY } from './limits.js'
 import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export function notifyCompactionError(context: ToolUseContext, err: unknown): void {
   const message = err instanceof Error ? err.message : String(err)
-  if (message === ERROR_MESSAGE_USER_ABORT || message === ERROR_MESSAGE_NOT_ENOUGH_MESSAGES) return
+  if (
+    message === ERROR_MESSAGE_USER_ABORT ||
+    message === ERROR_MESSAGE_NOT_ENOUGH_MESSAGES ||
+    message.startsWith(NOTHING_TO_COMPACT_KEY)
+  ) return
   context.addNotification?.({
     key: 'compact-error',
     text: `Compaction error: ${message}`,

@@ -164,6 +164,8 @@ async function callUnderFoldStatus(
         isRecompaction: false,
         turnsSincePreviousCompact: -1,
         autoCompactThreshold: getAutoCompactThreshold(context.options.engineModel),
+        restoreFiles: projection?.restoreFiles ?? true,
+        mustShrink: true,
       },
       undefined,
       foldModel.model,

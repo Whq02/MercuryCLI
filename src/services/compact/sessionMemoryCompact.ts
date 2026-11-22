@@ -30,6 +30,7 @@ import {
   createAsyncAgentAttachmentsIfNeeded,
 } from './compact.js'
 import type { ToolUseContext } from '../../Tool.js'
+import { stripThinkingFromIndex } from '../messages/apiFilters.js'
 import { estimateContextTokens, estimateMessageTokens } from './microCompact.js'
 import { getCompactUserSummaryMessage } from './prompt.js'
 
@@ -239,6 +240,11 @@ export async function trySessionMemoryCompaction(
     const estimate = estimateContextTokens(buildPostCompactMessages(result))
     if (autoCompactThreshold !== undefined && estimate >= autoCompactThreshold) {
       return null
+    }
+    if (trigger === 'manual') {
+      const estimatedBefore = estimateContextTokens(stripThinkingFromIndex(messages, 0))
+      const before = preTokens > 0 ? Math.min(estimatedBefore, preTokens) : estimatedBefore
+      if (estimate >= before) return null
     }
     result.postCompactTokenCount = estimate
     result.truePostCompactTokenCount = estimate

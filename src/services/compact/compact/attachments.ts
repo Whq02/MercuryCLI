@@ -1,3 +1,5 @@
+import { closeSync, readSync } from 'node:fs'
+import { parse, relative } from 'node:path'
 import { getInvokedSkillsForAgent } from '../../../bootstrap/state.js'
 import type { ToolUseContext } from '../../../Tool.js'
 import type { AssistantMessage, AttachmentMessage, Message, UserMessage } from '../../../types/message.js'
@@ -6,13 +8,20 @@ import { getPlannedDeferredToolsAttachment, getMcpInstructionsDeltaAttachment } 
 import { generateFileAttachment } from '../../attachments/fileAttachments.js'
 import { createAttachmentMessage } from '../../attachments/orchestrator.js'
 import type { Attachment } from '../../../utils/attachments/types.js'
+import { isFileReadDenied } from '../../../utils/attachments/shared.js'
 import { getUserContextAttachment } from '../../../utils/attachments/userContext.js'
 import { getMemoryPath } from '../../../utils/config/derived.js'
+import { getCwd } from '../../../utils/cwd.js'
 import { logForDebugging } from '../../../utils/debug.js'
+import { getDefaultFileReadingLimits } from '../../../utils/fileReadLimits.js'
+import { isImageFilePath } from '../../../utils/imagePaste.js'
 import { getCommandQueue } from '../../../utils/messageQueueManager.js'
 import { MEMORY_TYPE_VALUES } from '../../../utils/memory/types.js'
 import { expandPath } from '../../../utils/path.js'
 import type { FileState } from '../../../utils/fileStateCache.js'
+import { isRemotePath } from '../../../utils/remoteFiles/target.js'
+import { openRegularFileSync } from '../../../utils/regularFile.js'
+import { isPDFExtension } from '../../pdfUtils.js'
 import { isInstructionFilePath } from '../../../services/instructions/engine.js'
 import { roughTokenCountEstimation } from '../../tokenEstimation.js'
 import { PERSISTED_OUTPUT_TAG, TOOL_RESULT_CLEARED_MESSAGE } from '../../../utils/toolResultStorage.js'
@@ -91,6 +100,60 @@ export function fitFileAttachmentToTokenCeiling<T extends Attachment>(row: T, ma
   return { ...row, truncated: true, content: { ...row.content, file: { ...row.content.file, content: shown.join('\n'), numLines: shown.length } } }
 }
 
+function projectedFileAttachment(
+  path: string,
+  state: { content: string; timestamp: number },
+  toolUseContext: ToolUseContext,
+): Attachment | null {
+  if (isRemotePath(path)) return null
+  if (isFileReadDenied(path, toolUseContext.getAppState().toolPermissionContext)) return null
+  const displayPath = relative(getCwd(), path)
+  const fallback = (): Attachment => {
+    const lines = state.content.split('\n')
+    return {
+      type: 'file',
+      filename: path,
+      displayPath: path,
+      content: { type: 'text', file: { filePath: path, content: state.content, numLines: lines.length, startLine: 1, totalLines: lines.length } },
+    }
+  }
+  if (isImageFilePath(path) || isPDFExtension(parse(path).ext.toLowerCase())) return fallback()
+  let opened: ReturnType<typeof openRegularFileSync>
+  try {
+    opened = openRegularFileSync(path)
+  } catch (error) {
+    passedOver(error)
+    return fallback()
+  }
+  const { fd, stats } = opened
+  try {
+    if (!stats.isFile()) return null
+    const limits = getDefaultFileReadingLimits()
+    if (stats.size > limits.maxSizeBytes) return { type: 'compact_file_reference', filename: path, displayPath }
+    const maxBytes = Math.min(stats.size, limits.maxTokens * 4 + 4_096)
+    const buffer = Buffer.alloc(maxBytes)
+    const bytesRead = maxBytes > 0 ? readSync(fd, buffer, 0, maxBytes, 0) : 0
+    const slice = buffer.subarray(0, bytesRead)
+    if (slice.includes(0)) return fallback()
+    const raw = slice.toString('utf8')
+    const allLines = raw.split('\n')
+    const shown = allLines.slice(0, MAX_LINES_TO_READ)
+    const content = shown.join('\n')
+    if (roughTokenCountEstimation(content) > limits.maxTokens) return { type: 'compact_file_reference', filename: path, displayPath }
+    return {
+      type: 'file',
+      filename: path,
+      displayPath,
+      content: { type: 'text', file: { filePath: path, content, numLines: shown.length, startLine: 1, totalLines: allLines.length } },
+    }
+  } catch (error) {
+    passedOver(error)
+    return fallback()
+  } finally {
+    closeSync(fd)
+  }
+}
+
 export async function createPostCompactFileAttachments(
   readFileState: Record<string, { content: string; timestamp: number }>,
   toolUseContext: ToolUseContext,
@@ -106,13 +169,7 @@ export async function createPostCompactFileAttachments(
     .slice(0, maxFiles)
 
   const generated = project
-    ? candidates.map(([path, state]) => {
-      const lines = state.content.split('\n')
-      return {
-        type: 'file' as const, filename: path, displayPath: path,
-        content: { type: 'text' as const, file: { filePath: path, content: state.content, numLines: lines.length, startLine: 1, totalLines: lines.length } },
-      }
-    })
+    ? candidates.map(([path, state]) => projectedFileAttachment(path, state, toolUseContext))
     : await Promise.all(
       candidates.map(([path]) =>
         generateFileAttachment(path, toolUseContext, 'compact', {
@@ -272,6 +329,19 @@ export function restorePreservedReads(
   return restored
 }
 
+export function restoreReadState(
+  context: ToolUseContext,
+  ledger: Array<[string, FileState]>,
+  nestedMemoryPaths?: readonly string[],
+): void {
+  context.readFileState.clear()
+  for (const [path, state] of ledger) context.readFileState.set(path, state)
+  if (nestedMemoryPaths !== undefined && context.loadedNestedMemoryPaths !== undefined) {
+    context.loadedNestedMemoryPaths.clear()
+    for (const path of nestedMemoryPaths) context.loadedNestedMemoryPaths.add(path)
+  }
+}
+
 export async function assembleAttachments(
   snapshot: Record<string, { content: string; timestamp: number }>,
   context: ToolUseContext,
@@ -279,9 +349,12 @@ export async function assembleAttachments(
   callSite: 'compact_full' | 'compact_partial',
   ledger: Array<[string, FileState]>,
   projection?: { userContext: Record<string, string> },
+  restoreFiles = true,
 ): Promise<AttachmentMessage[]> {
   const [files, asyncAgents] = await Promise.all([
-    createPostCompactFileAttachments(snapshot, context, POST_COMPACT_MAX_FILES_TO_RESTORE, preserved, projection !== undefined),
+    restoreFiles
+      ? createPostCompactFileAttachments(snapshot, context, POST_COMPACT_MAX_FILES_TO_RESTORE, preserved, projection !== undefined)
+      : Promise.resolve([]),
     createAsyncAgentAttachmentsIfNeeded(context),
   ])
   if (projection === undefined) restorePreservedReads(context, ledger, preserved)

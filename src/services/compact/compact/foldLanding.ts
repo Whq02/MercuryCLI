@@ -1,15 +1,15 @@
 import type { CompactMetadata, Message, SystemCompactBoundaryMessage } from '../../../types/message.js'
 import { createAttachmentMessage } from '../../attachments/orchestrator.js'
 import { logForDebugging } from '../../../utils/debug.js'
-import { getTranscriptPath } from '../../../utils/sessionStorage/paths.js'
 import { stripThinkingFromIndex } from '../../messages/apiFilters.js'
 import { roughTokenCountEstimationForMessages } from '../../tokenEstimation.js'
-import { renderFoldLedger, type FoldLedger } from '../foldLedger.js'
-import { getCompactUserSummaryMessage, renderFoldedWork } from '../prompt.js'
+import type { FoldLedger } from '../foldLedger.js'
+import { renderFoldedWork } from '../prompt.js'
 import { foldableResults, foldedResultPlaceholder, withFoldedResults } from '../verbatimTail.js'
 import { selectOperatorMessages } from '../../../utils/compact/operatorMessages.js'
 import { type CompactionResult, buildPostCompactMessages, annotateBoundaryWithPreservedSegment, foldedWorkOf, annotateBoundaryWithWork } from './result.js'
 import { fitPostCompactUnderThreshold, postCompactOverThresholdMessage } from './attachments.js'
+import { composeFoldSummaryText, isRestoredFileAttachment, withoutRestoredFiles } from './foldMeasure.js'
 import type { TailSelector } from './foldTail.js'
 
 interface LandingNeeds {
@@ -21,6 +21,7 @@ interface LandingNeeds {
   memoryText: string
   suppressFollowUpQuestions: boolean
   newestMessageFollows: boolean
+  before: number
   landing: number | undefined
   ceiling: number | undefined
   foldTarget: number | undefined
@@ -29,7 +30,7 @@ interface LandingNeeds {
   landingCount: (rows: Message[]) => number
 }
 
-export function landFold(partial: CompactionResult, messagesToKeep: Message[] | undefined, recentRounds: CompactMetadata['recentRounds'], { messages, boundary, ledger, prose, capsule, memoryText, suppressFollowUpQuestions, newestMessageFollows, landing, ceiling, foldTarget, splitRounds, selectTail, landingCount }: LandingNeeds): { partial: CompactionResult; messagesToKeep: Message[] | undefined; truePostCompactTokenCount: number; folded: Map<string, string> } {
+export function landFold(partial: CompactionResult, messagesToKeep: Message[] | undefined, recentRounds: CompactMetadata['recentRounds'], { messages, boundary, ledger, prose, capsule, memoryText, suppressFollowUpQuestions, newestMessageFollows, before, landing, ceiling, foldTarget, splitRounds, selectTail, landingCount }: LandingNeeds): { partial: CompactionResult; messagesToKeep: Message[] | undefined; truePostCompactTokenCount: number; folded: Map<string, string> } {
   let truePostCompactTokenCount = landingCount(buildPostCompactMessages(partial))
   const room = landing ?? ceiling
   if (room !== undefined && truePostCompactTokenCount >= room) {
@@ -46,6 +47,15 @@ export function landFold(partial: CompactionResult, messagesToKeep: Message[] | 
   const completeFit = room === undefined ? { result: partial, estimate: landingCount(buildPostCompactMessages(partial)) } : fitPostCompactUnderThreshold(partial, room, landingCount)
   partial = completeFit.result
   truePostCompactTokenCount = completeFit.estimate
+  if (truePostCompactTokenCount >= before && partial.attachments.some(isRestoredFileAttachment)) {
+    const withoutFiles = { ...partial, attachments: withoutRestoredFiles(partial.attachments) }
+    const withoutFilesEstimate = landingCount(buildPostCompactMessages(withoutFiles))
+    logForDebugging(
+      `compact: post-compact estimate ${truePostCompactTokenCount} >= before ${before}; omitted restored file attachments → ${withoutFilesEstimate}`,
+    )
+    partial = withoutFiles
+    truePostCompactTokenCount = withoutFilesEstimate
+  }
   const folded = new Map<string, string>()
   const rekeep = (keep: Message[], rounds: NonNullable<CompactMetadata['recentRounds']>): void => {
     messagesToKeep = keep
@@ -53,7 +63,16 @@ export function landFold(partial: CompactionResult, messagesToKeep: Message[] | 
     boundary.compactMetadata.recentRounds = rounds
     const selection = selectOperatorMessages(messages, { keptUuids: new Set(keep.map(row => row.uuid)) })
     const work = renderFoldedWork(foldedWorkOf(messages, keep, boundary.uuid))
-    const summaryText = getCompactUserSummaryMessage([prose, capsule, work, memoryText].filter(part => part !== null).join('\n\n'), suppressFollowUpQuestions, getTranscriptPath(), true, newestMessageFollows) + `\n\n${renderFoldLedger(ledger)}`
+    const summaryText = composeFoldSummaryText({
+      prose,
+      capsule,
+      work,
+      memoryText,
+      ledger,
+      suppressFollowUpQuestions,
+      keptTail: true,
+      newestMessageFollows,
+    })
     partial = { ...partial, messagesToKeep: keep, operatorMessages: selection ? createAttachmentMessage(selection) : undefined, summaryMessages: partial.summaryMessages.map((row, index) => index === 0 ? { ...row, message: { ...row.message, content: summaryText } } : row) }
     annotateBoundaryWithPreservedSegment(boundary, partial.summaryMessages.at(-1)!.uuid, keep)
     annotateBoundaryWithWork(boundary, messages, keep, partial.summaryMessages.at(-1)!.uuid)

@@ -27,6 +27,8 @@ export type RecompactionInfo = {
   previousCompactTurnId?: string
   autoCompactThreshold: number
   querySource?: string
+  restoreFiles?: boolean
+  mustShrink?: boolean
 }
 
 

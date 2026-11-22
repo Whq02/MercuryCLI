@@ -9,9 +9,7 @@ import { logError } from '../../utils/log.js'
 import { createCompactBoundaryMessage, createUserMessage } from '../messages.js'
 import { expandPath } from '../../utils/path.js'
 import { reAppendSessionMetadata } from '../../utils/sessionStorage/logs.js'
-import { getTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import { recordContentReplacement } from '../../utils/sessionStorage/writer.js'
-import { tokenCountWithEstimation } from '../context/tokens.js'
 import { extractDiscoveredToolNames } from '../messages/toolSearch.js'
 import type { OverflowSignal } from '../api/overflowSignal.js'
 import { notifyCompaction } from '../api/promptCacheBreakDetection.js'
@@ -21,10 +19,8 @@ import { advanceContextEpoch, getContextEpoch } from '../run/contextEpochs.js'
 import { buildFoldLedger, renderFoldLedger, withKeptLedgerRows } from './foldLedger.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { buildRunContinuationCapsule } from '../run/runContinuationCapsule.js'
-import { estimateRequestGauge, readRequestGauge } from '../run/requestGauge.js'
 import { getTurnReserveTokens } from '../../utils/compact/autoCompactWindow.js'
-import { estimateContextTokens } from './microCompact.js'
-import { getCompactPrompt, getCompactUserSummaryMessage, renderFoldedWork } from './prompt.js'
+import { getCompactPrompt, renderFoldedWork } from './prompt.js'
 import { computeVerbatimRecentTail, DEFAULT_KEEP_ROUNDS, foldLandingCeiling, foldableResults, foldedResultPlaceholder, isMercuryCompactKeepTailEnabled, withFoldedResults } from './verbatimTail.js'
 import { operatorTextOf, selectOperatorMessages } from '../../utils/compact/operatorMessages.js'
 import { prepareFoldContext } from './foldTransaction.js'
@@ -32,15 +28,17 @@ import { renderFoldMemory, retireFoldToMemory } from './foldRetirement.js'
 import { carryFoldPrefix } from './cacheEpoch.js'
 import { restoreBoundPrefixFromMessages } from '../providers/anthropic/boundPrefixRecord.js'
 import { stripThinkingFromIndex } from '../messages/apiFilters.js'
-import { ERROR_MESSAGE_NOT_ENOUGH_MESSAGES, ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD, DEGRADED_SUMMARY_LENGTH } from './compact/limits.js'
+import { ERROR_MESSAGE_NOT_ENOUGH_MESSAGES, ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD, DEGRADED_SUMMARY_LENGTH, nothingToCompactLine } from './compact/limits.js'
 import { type CompactionResult, type RecompactionInfo, foldDefersNow, buildPostCompactMessages, annotateBoundaryWithPreservedSegment, foldedWorkOf, annotateBoundaryWithWork } from './compact/result.js'
 import { mergeHookInstructions } from './compact/input.js'
-import { collectPreservedReadPaths, obligationsOverThresholdMessage, snapshotAndClearReadState, assembleAttachments } from './compact/attachments.js'
+import { collectPreservedReadPaths, obligationsOverThresholdMessage, restoreReadState, snapshotAndClearReadState, assembleAttachments } from './compact/attachments.js'
 import { compactionBeforeHooks, compactionAfterHooks } from './compact/hooks.js'
 import { notifyCompactionError, restoreAfterCompaction, withEngineModel } from './compact/status.js'
 import { summariseForFold } from './compact/foldSummary.js'
 import { chooseFoldTail } from './compact/foldTail.js'
 import { landFold } from './compact/foldLanding.js'
+import { composeFoldSummaryText, createFoldMeter } from './compact/foldMeasure.js'
+import { isRefold } from './compact/projection.js'
 
 export { POST_COMPACT_MAX_FILES_TO_RESTORE, POST_COMPACT_TOKEN_BUDGET, POST_COMPACT_MAX_TOKENS_PER_FILE, POST_COMPACT_MAX_TOKENS_PER_SKILL, POST_COMPACT_SKILLS_TOKEN_BUDGET, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES, NOTHING_TO_COMPACT_KEY, nothingToCompactLine, ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD, ERROR_MESSAGE_PROMPT_TOO_LONG, ERROR_MESSAGE_USER_ABORT, ERROR_MESSAGE_INCOMPLETE_RESPONSE, ERROR_MESSAGE_NO_SUMMARY, PROSE_SKIPPED_KEY, MODEL_REFUSAL_STOP_KEY } from './compact/limits.js'
 export { malformedHistoryRefusalOf, compactionRefusedForHistoryText, compactionPausedForHistoryText, foldRemedyIsHeadless, FOLD_WINDOW_REFUSAL_KEY, foldWindowRefusalText, CompactionRefusedForHistoryError } from './compact/refusals.js'
@@ -88,7 +86,8 @@ export async function compactConversation(
   const newestMessageFollows = (cacheSafeParams.postFoldCarry ?? []).some(row => operatorTextOf(row) !== null)
   try {
     if (messages.length === 0) throw new Error(ERROR_MESSAGE_NOT_ENOUGH_MESSAGES)
-    const preCompactTokenCount = tokenCountWithEstimation(messages)
+    const meter = createFoldMeter(messages, context.options.engineModel, cacheSafeParams.postFoldCarry)
+    const preCompactTokenCount = meter.context
 
     context.setSDKStatus?.('compacting')
     const before = await compactionBeforeHooks(context, { trigger: boundaryTrigger, ...(customInstructions !== undefined ? { instructions: customInstructions } : {}), tokens: preCompactTokenCount })
@@ -101,12 +100,9 @@ export async function compactConversation(
     const owner = ownerFromToolUseContext(context)
     const capsuleProbe = buildRunContinuationCapsule(owner)
     const ledger = buildFoldLedger(messages, owner, getContextEpoch(owner).epoch + 1)
-    const gauge = readRequestGauge(messages, context.options.engineModel)
+    const gauge = meter.gauge
     landing = ceiling === undefined ? undefined : foldLandingCeiling(ceiling, messages, gauge?.density.ratio ?? 1, gauge?.density.residuals, getTurnReserveTokens(context.options.engineModel))
-    const landingCount = (rows: Message[]): number => {
-      const request = [...rows, ...(cacheSafeParams.postFoldCarry ?? [])]
-      return gauge ? estimateRequestGauge(request, gauge.fixed, gauge.density, context.options.engineModel) : estimateContextTokens(request, context.options.engineModel)
-    }
+    const landingCount = meter.count
     if (ceiling !== undefined) {
       const obligations = selectOperatorMessages(messages)
       const estimate = landingCount([
@@ -125,7 +121,7 @@ export async function compactConversation(
       const marker = createCompactBoundaryMessage(boundaryTrigger, preCompactTokenCount)
       const work = renderFoldedWork(foldedWorkOf(messages, keep, marker.uuid))
       const capsule = buildRunContinuationCapsule(owner, [...context.readFileState.keys()])
-      const text = getCompactUserSummaryMessage([prose, capsule, work, memoryNote].filter(part => part !== null).join('\n\n'), suppressFollowUpQuestions, getTranscriptPath(), true, newestMessageFollows) + `\n\n${renderFoldLedger(ledger)}`
+      const text = composeFoldSummaryText({ prose, capsule, work, memoryText: memoryNote, ledger, suppressFollowUpQuestions, keptTail: true, newestMessageFollows })
       return landingCount([marker, ...(operator ? [createAttachmentMessage(operator)] : []), createUserMessage({ content: text, isCompactSummary: true }), ...stripThinkingFromIndex(resultsFolded ? allFolded(keep) : keep, 0), ...beforeRows]) < limit
     }
     const { splitRounds, response, rawSummary, proseSkipped, proseSkippedReceipt } = await summariseForFold({ messages, context, summaryContext, summaryCacheSafeParams, promptText, gauge, overflow, preCompactTokenCount, landing, ceiling, fitsUnder })
@@ -159,8 +155,9 @@ export async function compactConversation(
     }
 
     const ledgerBeforeFold = [...context.readFileState.entries()]
+    const nestedBeforeFold = context.loadedNestedMemoryPaths ? [...context.loadedNestedMemoryPaths] : undefined
     const snapshot = snapshotAndClearReadState(context)
-    const postCompactFileAttachments = await assembleAttachments(snapshot, context, messagesToKeep ?? [], 'compact_full', ledgerBeforeFold)
+    const postCompactFileAttachments = await assembleAttachments(snapshot, context, messagesToKeep ?? [], 'compact_full', ledgerBeforeFold, undefined, recompactionInfo?.restoreFiles ?? true)
 
     const lastMessage = messages[messages.length - 1] as Message
     const anchor = messagesToKeep !== undefined ? tailPrecedingUuid : lastMessage.uuid
@@ -175,17 +172,19 @@ export async function compactConversation(
     const capsule = buildRunContinuationCapsule(owner, Object.keys(snapshot))
     const degraded = proseSkipped !== undefined || rawSummary.trim().length < DEGRADED_SUMMARY_LENGTH
     const foldedWork = renderFoldedWork(foldedWorkOf(messages, messagesToKeep ?? [], boundary.uuid))
-    const summaryWithCapsule = [prose, capsule, foldedWork, memoryText].filter((part): part is string => part !== null).join('\n\n')
 
     const summaryMessages: UserMessage[] = [
       createUserMessage({
-        content: getCompactUserSummaryMessage(
-          summaryWithCapsule,
+        content: composeFoldSummaryText({
+          prose,
+          capsule,
+          work: foldedWork,
+          memoryText,
+          ledger,
           suppressFollowUpQuestions,
-          getTranscriptPath(),
-           !!messagesToKeep,
+          keptTail: !!messagesToKeep,
           newestMessageFollows,
-        ) + `\n\n${renderFoldLedger(ledger)}`,
+        }),
         isCompactSummary: true,
         isVisibleInTranscriptOnly: true,
       }),
@@ -217,11 +216,18 @@ export async function compactConversation(
     const cacheEpoch = carryFoldPrefix(messages, buildPostCompactMessages(partial), String(rosterOwnerFromToolUseContext(context)), context.options.engineModel, usage, discovered, foldDefersNow(context))
     boundary.compactMetadata.cacheEpoch = cacheEpoch.receipt
     if (cacheEpoch.attachment) partial.attachments.push(cacheEpoch.attachment)
-    const landed = landFold(partial, messagesToKeep, recentRounds, { messages, boundary, ledger, prose, capsule, memoryText, suppressFollowUpQuestions, newestMessageFollows, landing, ceiling, foldTarget, splitRounds, selectTail, landingCount })
+    const landed = landFold(partial, messagesToKeep, recentRounds, { messages, boundary, ledger, prose, capsule, memoryText, suppressFollowUpQuestions, newestMessageFollows, before: meter.before, landing, ceiling, foldTarget, splitRounds, selectTail, landingCount })
     partial = landed.partial
     messagesToKeep = landed.messagesToKeep
     boundary.compactMetadata.ledger = withKeptLedgerRows(ledger, messagesToKeep)
     const { truePostCompactTokenCount, folded } = landed
+    if (recompactionInfo?.mustShrink === true && truePostCompactTokenCount >= meter.before) {
+      restoreReadState(context, ledgerBeforeFold, nestedBeforeFold)
+      logForDebugging(
+        `compact: aborted after summariser — folded context ${truePostCompactTokenCount} >= ${meter.before} (pre ${preCompactTokenCount}); original context kept`,
+      )
+      throw new Error(nothingToCompactLine(preCompactTokenCount, isRefold(messages)))
+    }
     const visibleReads = collectPreservedReadPaths(messagesToKeep ?? [])
     for (const row of partial.attachments) if (row.attachment.type === 'file') visibleReads.add(expandPath(row.attachment.filename))
     for (const path of context.readFileState.keys()) if (!visibleReads.has(expandPath(path))) context.readFileState.delete(path)
