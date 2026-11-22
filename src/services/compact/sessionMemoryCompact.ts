@@ -243,8 +243,7 @@ export async function trySessionMemoryCompaction(
     }
     if (trigger === 'manual') {
       const estimatedBefore = estimateContextTokens(stripThinkingFromIndex(messages, 0))
-      const before = preTokens > 0 ? Math.min(estimatedBefore, preTokens) : estimatedBefore
-      if (estimate >= before) return null
+      if (estimate >= estimatedBefore) return null
     }
     result.postCompactTokenCount = estimate
     result.truePostCompactTokenCount = estimate

@@ -31,7 +31,7 @@ export function createFoldMeter(
       : estimateContextTokens(request, model)
   }
   const estimatedBefore = count(stripThinkingFromIndex(messages, 0))
-  const before = context > 0 ? Math.min(estimatedBefore, context) : estimatedBefore
+  const before = gauge ? Math.min(estimatedBefore, gauge.tokens) : estimatedBefore
   const measureResult = (result: CompactionResult): number => count(buildPostCompactMessages(result))
   return { gauge, context, before, count, measureResult }
 }
