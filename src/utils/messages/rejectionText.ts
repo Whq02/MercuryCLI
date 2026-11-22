@@ -55,13 +55,19 @@ function standsAsInterrupt(text: string): boolean {
   return [INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE].some(marker => text.startsWith(marker) || lines.includes(marker))
 }
 
+function isUserInterruptText(text: string): boolean {
+  return standsAsInterrupt(text) || isInterruptedResultText(text) || text === CANCEL_MESSAGE
+}
+
+export function isUserInterruptResultText(raw: string): boolean {
+  return isUserInterruptText(unwrapToolUseError(raw))
+}
+
 export function isDenialResultText(raw: string): boolean {
   const text = unwrapToolUseError(raw)
   return (
-    standsAsInterrupt(text) ||
-    isInterruptedResultText(text) ||
+    isUserInterruptText(text) ||
     /^Cut off(?: by|:) /.test(text) ||
-    text === CANCEL_MESSAGE ||
     text === REJECT_MESSAGE ||
     text.startsWith(REJECT_MESSAGE_WITH_REASON_PREFIX) ||
     text === SUBAGENT_REJECT_MESSAGE ||

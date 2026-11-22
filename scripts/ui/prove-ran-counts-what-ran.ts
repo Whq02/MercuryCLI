@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
-import { REJECT_MESSAGE, denialLineOf, isDenialResultText } from '../../src/utils/messages/rejectionText.ts'
+import { CANCEL_MESSAGE, INTERRUPT_MESSAGE, REJECT_MESSAGE, denialLineOf, isDenialResultText, isUserInterruptResultText, turnCutOf, turnCutResultText } from '../../src/utils/messages/rejectionText.ts'
 import { buildWardDenial, evaluateWards } from '../../src/utils/wards/wards.ts'
 import { CONFIG_HOME, RUNTIME_CWD, SID, cleanupScenario, encodeFixtureTranscript, scenario } from './renderScenarios.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -38,6 +38,8 @@ const DECLINED_ON_DISK = `<tool_use_error>${REJECT_MESSAGE}</tool_use_error>`
 const DECLINED_LINE = denialLineOf(REJECT_MESSAGE)
 const DECLINED_NEEDLE = 'The operator declined this tool call'
 const WARD_LINE = 'Ward \'no-home-recursive-delete\' blocked this Bash call'
+const SHELL_INTERRUPTED = `Shell command failed\n${INTERRUPT_MESSAGE}\nExited with code 137`
+const TOOL_INTERRUPTED = turnCutResultText(turnCutOf(undefined), 'Bash')
 
 console.log('============================================================')
 console.log(' the transcript counts what ran — "Ran" only for commands that ran')
@@ -46,6 +48,8 @@ console.log('============================================================')
 console.log('\n(A) a ward denial is a DENIAL — the ✕ lead and the refusal line, not an ordinary failure')
 check('the ward text classifies as a denial', isDenialResultText(WARD_ON_DISK), `${WARD_TEXT.slice(0, 80)} — isDenialResultText in src/utils/messages/rejectionText.ts must accept the ward's denial text (the /^Ward '...' blocked this / form) that buildWardDenial in src/utils/wards/wards.ts produces`)
 check('its one line names the ward', denialLineOf(WARD_ON_DISK).startsWith(WARD_LINE), `${denialLineOf(WARD_ON_DISK)} — denialLineOf in src/utils/messages/rejectionText.ts must return the ward's first sentence, which buildWardDenial in src/utils/wards/wards.ts opens with the ward name`)
+check('user interrupts classify as interrupts AND stay stops for isDenialResultText', isUserInterruptResultText(SHELL_INTERRUPTED) && isUserInterruptResultText(TOOL_INTERRUPTED) && isUserInterruptResultText(CANCEL_MESSAGE) && isDenialResultText(SHELL_INTERRUPTED) && isDenialResultText(TOOL_INTERRUPTED), 'isUserInterruptResultText in src/utils/messages/rejectionText.ts must match shell interrupts, Interrupted by user and CANCEL_MESSAGE without changing isDenialResultText')
+check('wards and permission declines are NOT user interrupts', !isUserInterruptResultText(WARD_ON_DISK) && !isUserInterruptResultText(DECLINED_ON_DISK), 'isUserInterruptResultText in src/utils/messages/rejectionText.ts must return false for ward and permission refusals')
 
 type Cell = { c: string }
 type Grid = { grid: Cell[][] }
@@ -124,9 +128,73 @@ function writeMixedSession(): void {
   writeFileSync(join(projects, `${SID}.jsonl`), encodeFixtureTranscript(lines, SID))
 }
 
+function writeInterruptedSession(): void {
+  const base = (extra: Record<string, unknown>) => ({
+    isSidechain: false, entrypoint: 'cli', cwd: RUNTIME_CWD, sessionId: SID,
+    version: '1.0.0-beta.1', gitBranch: 'main', ...extra,
+  })
+  const lines = [
+    base({ parentUuid: null, type: 'user', uuid: '00000000-0000-4000-8000-0000000000h1',
+      message: { role: 'user', content: 'run sleep 30' },
+      timestamp: '2026-06-19T12:00:01.000Z' }),
+    base({ parentUuid: '00000000-0000-4000-8000-0000000000h1', type: 'assistant',
+      uuid: '00000000-0000-4000-8000-0000000000h2', requestId: 'req_int_1',
+      message: { id: 'msg_int_1', type: 'message', role: 'assistant', model: 'claude-opus-4-8',
+        content: [{ type: 'tool_use', id: 'toolu_int_bash1', name: 'Bash', input: { command: 'sleep 30', description: 'Wait 30 seconds' } }],
+        stop_reason: 'tool_use', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+      timestamp: '2026-06-19T12:00:02.000Z' }),
+    base({ parentUuid: '00000000-0000-4000-8000-0000000000h2', type: 'user',
+      uuid: '00000000-0000-4000-8000-0000000000h3',
+      message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_int_bash1', content: SHELL_INTERRUPTED, is_error: true }] },
+      toolUseResult: SHELL_INTERRUPTED,
+      timestamp: '2026-06-19T12:00:03.000Z' }),
+  ]
+  const projects = getProjectDir(RUNTIME_CWD)
+  if (!existsSync(projects)) mkdirSync(projects, { recursive: true })
+  writeFileSync(join(projects, `${SID}.jsonl`), encodeFixtureTranscript(lines, SID))
+}
+
+function writeBlockedAndInterruptedSession(): void {
+  const base = (extra: Record<string, unknown>) => ({
+    isSidechain: false, entrypoint: 'cli', cwd: RUNTIME_CWD, sessionId: SID,
+    version: '1.0.0-beta.1', gitBranch: 'main', ...extra,
+  })
+  const lines = [
+    base({ parentUuid: null, type: 'user', uuid: '00000000-0000-4000-8000-0000000000i1',
+      message: { role: 'user', content: 'four calls: one ran, one ward-blocked, two interrupted' },
+      timestamp: '2026-06-19T12:00:01.000Z' }),
+    base({ parentUuid: '00000000-0000-4000-8000-0000000000i1', type: 'assistant',
+      uuid: '00000000-0000-4000-8000-0000000000i2', requestId: 'req_bi_1',
+      message: { id: 'msg_bi_1', type: 'message', role: 'assistant', model: 'claude-opus-4-8',
+        content: [
+          { type: 'tool_use', id: 'toolu_bi_ok1', name: 'Bash', input: { command: 'echo ok', description: 'Print ok' } },
+          { type: 'tool_use', id: 'toolu_bi_ward1', name: 'Bash', input: { command: HOME_DELETE, description: 'Delete the scratch folder' } },
+          { type: 'tool_use', id: 'toolu_bi_int1', name: 'Bash', input: { command: 'sleep 30', description: 'Wait 30 seconds' } },
+          { type: 'tool_use', id: 'toolu_bi_int2', name: 'Bash', input: { command: 'echo after', description: 'Print after' } },
+        ],
+        stop_reason: 'tool_use', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+      timestamp: '2026-06-19T12:00:02.000Z' }),
+    base({ parentUuid: '00000000-0000-4000-8000-0000000000i2', type: 'user',
+      uuid: '00000000-0000-4000-8000-0000000000i3',
+      message: { role: 'user', content: [
+        { type: 'tool_result', tool_use_id: 'toolu_bi_ok1', content: 'ok' },
+        { type: 'tool_result', tool_use_id: 'toolu_bi_ward1', content: WARD_ON_DISK, is_error: true },
+        { type: 'tool_result', tool_use_id: 'toolu_bi_int1', content: TOOL_INTERRUPTED, is_error: true },
+        { type: 'tool_result', tool_use_id: 'toolu_bi_int2', content: CANCEL_MESSAGE, is_error: true },
+      ] },
+      toolUseResult: TOOL_INTERRUPTED,
+      timestamp: '2026-06-19T12:00:03.000Z' }),
+  ]
+  const projects = getProjectDir(RUNTIME_CWD)
+  if (!existsSync(projects)) mkdirSync(projects, { recursive: true })
+  writeFileSync(join(projects, `${SID}.jsonl`), encodeFixtureTranscript(lines, SID))
+}
+
 function capture(label: string, readyText: string): string[] | null {
-  const cfg = scenario('two-bash-click', 100, 50) as Record<string, unknown>
+  const cfg = scenario('two-bash-click', label === 'blocked-and-interrupted' ? 140 : 100, 50) as Record<string, unknown>
   if (label === 'ward') writeWardSession()
+  else if (label === 'interrupted') writeInterruptedSession()
+  else if (label === 'blocked-and-interrupted') writeBlockedAndInterruptedSession()
   else writeMixedSession()
   const gridPath = `/tmp/ran-count-${label}-${process.pid}.json`
   const cfgPath = `/tmp/ran-count-${label}-cfg-${process.pid}.json`
@@ -170,6 +238,27 @@ if (mixRows) {
   check('the ward\'s line shows', all.includes(WARD_LINE), 'the ward refusal line is missing from the screen: see denialLineOf in src/utils/messages/rejectionText.ts and the folded row in src/components/messages/CollapsedReadSearchContent.tsx')
   check('the decline\'s line shows', all.includes(DECLINED_NEEDLE), `${foldRow} — the declined call's line (REJECT_MESSAGE in src/utils/messages/rejectionText.ts) is missing from the screen`)
   check('no command is counted as ran that did not run', !/[Rr]an [23] bash commands?/.test(all), `${foldRow} — denied calls are still counted as ran: fix bashDenied/bashRan in src/components/messages/CollapsedReadSearchContent.tsx`)
+}
+
+console.log('\n(D) an interrupted bash command — summed up as "Interrupted", never "Blocked"')
+const intRows = capture('interrupted', 'bash command')
+if (intRows) {
+  const all = flat(intRows)
+  const foldRow = intRows.find(row => /bash command/i.test(row)) ?? ''
+  check('the interrupted row says "Interrupted 1 bash command"', /Interrupted 1 bash command/.test(all), `${foldRow} — an interrupted bash call must count as interrupted in src/components/messages/CollapsedReadSearchContent.tsx`)
+  check('the interrupted row does NOT say "Blocked" or "Ran"', !/[Bb]locked \d+ bash command/.test(all) && !/[Rr]an \d+ bash command/.test(all), `${foldRow} — an interrupted bash call must not be counted as blocked or ran in src/components/messages/CollapsedReadSearchContent.tsx`)
+  check('the interrupted row keeps the ✕ lead', foldRow.includes('✕'), `${foldRow} — an interrupted bash row keeps the ✕ lead in src/components/messages/CollapsedReadSearchContent.tsx`)
+  check('the interrupt line rides under the folded row', all.includes(INTERRUPT_MESSAGE), `${foldRow} — the interrupt line must still appear under the folded row`)
+}
+
+console.log('\n(E) one ran, one ward-blocked, two interrupted — three separate counts')
+const biRows = capture('blocked-and-interrupted', 'bash command')
+if (biRows) {
+  const all = flat(biRows)
+  const foldRow = biRows.find(row => /bash command/i.test(row)) ?? ''
+  check('the row counts the 1 ran command', /[Rr]an 1 bash command/.test(all), `${foldRow} — fix bashRan in src/components/messages/CollapsedReadSearchContent.tsx`)
+  check('the row counts the 1 blocked command separately', /[Bb]locked 1 bash command/.test(all), `${foldRow} — fix bashBlocked in src/components/messages/CollapsedReadSearchContent.tsx`)
+  check('the row counts the 2 interrupted commands separately', /[Ii]nterrupted 2 bash commands/.test(all), `${foldRow} — fix bashInterrupted in src/components/messages/CollapsedReadSearchContent.tsx`)
 }
 
 check('the canary survived — no fixture command was ever executed', readFileSync(CANARY, 'utf8') === 'alive' && existsSync(join(PROJECT, 'scratch-dir', 'zzz-test')), 'the fixture command ran or the canary file changed: the proof must only render a recorded transcript, so look at what this script or vshot.py launched, not at src/')
