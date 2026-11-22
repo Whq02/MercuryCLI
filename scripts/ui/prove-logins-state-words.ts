@@ -176,6 +176,61 @@ try {
   )
 
   const core = createSplashCore({ nocolor: true, truecolor: false, accent: 'crimson' })
+  const { mixedFacts } = await import('./face-logins-stills.ts')
+  const bootMenuRef = {
+    entries: [
+      {
+        label: 'Sovereign mode',
+        group: 'trust',
+        summary: 'no permission prompts',
+        valueLabel: 'off',
+        valueIsDefault: true,
+        pinnedVal: null,
+        detail: null,
+      },
+    ],
+    selIdx: 0,
+    summary: { profile: 'default', harness: 'helm' },
+    environment: ENV,
+    statusRight: 'ready',
+    legend: 'esc back',
+  }
+  const frameBoxOf = (lines: string[]): { col: number; width: number } => {
+    const top = lines.find(l => l.includes('╭')) ?? ''
+    const col = top.indexOf('╭')
+    const end = top.lastIndexOf('╮')
+    return { col, width: end >= col && col >= 0 ? end - col + 1 : 0 }
+  }
+  const loginsModel = loginsMenuModelOf(liveFacts, { selIdx: 0, environment: ENV })
+  const frameMismatches: string[] = []
+  for (const [cols, rows] of [[120, 40], [160, 50]] as const) {
+    const bootBox = frameBoxOf((core.composeBootMenu(cols, rows, bootMenuRef) as { lines: string[] }).lines)
+    const loginsBox = frameBoxOf((core.composeBootMenu(cols, rows, loginsModel) as { lines: string[] }).lines)
+    if (bootBox.col !== loginsBox.col || bootBox.width !== loginsBox.width) {
+      frameMismatches.push(`${cols}x${rows}: logins=(col=${loginsBox.col},w=${loginsBox.width}) boot=(col=${bootBox.col},w=${bootBox.width})`)
+    }
+  }
+  check(
+    'Logins frame starts at the same column and width as Boot Menu at 120x40 and 160x50',
+    frameMismatches.length === 0,
+    frameMismatches.join('; '),
+    'keep LEFT_W = Math.min(66, cols - RIGHT_W - 4) in composeBootMenuWide (assets/splash/splash-core.mjs) so Logins keeps the same margins and panel positions as Boot Menu',
+  )
+
+  const narrowMixed = (core.composeBootMenu(80, 24, loginsMenuModelOf(mixedFacts(), { selIdx: 0, environment: ENV })) as { lines: string[] }).lines
+  const narrowZai = (core.composeBootMenu(80, 24, loginsMenuModelOf(zaiFacts, { selIdx: 0, environment: ENV })) as { lines: string[] }).lines
+  const kimiRow80 = narrowMixed.find(l => l.includes('Kimi')) ?? ''
+  const glmRow80 = narrowZai.find(l => l.includes('GLM')) ?? ''
+  check(
+    '80x24 Logins screen keeps long states whole (Kimi window reached and GLM Coding Plan key)',
+    kimiRow80.includes('kimi.ai (global) · window reached') &&
+      glmRow80.includes('GLM Coding Plan key (auth-scoped)') &&
+      narrowMixed.every(l => l.length <= 80) &&
+      narrowZai.every(l => l.length <= 80),
+    `kimi=${JSON.stringify(kimiRow80.trim())} glm=${JSON.stringify(glmRow80.trim())}`,
+    'reserve room for the full state before clamping the label between words in composeBootMenuClassic (assets/splash/splash-core.mjs)',
+  )
+
   for (const cols of [80, 64] as const) {
     const model = loginsMenuModelOf(liveFacts, { selIdx: 0, environment: ENV })
     const composed = (core.composeBootMenu(cols, 40, model) as { lines: string[] }).lines
