@@ -579,7 +579,6 @@ src/constants/apiLimits.ts	GENERIC_IMAGE_LIMITS	process	module	Load-time table w
 src/constants/apiLimits.ts	IMAGE_LIMITS_BY_FAMILY	process	module	Load-time table with no local writer
 src/constants/apiLimits.ts	OPENAI_IMAGE_LIMITS	process	module	Load-time table with no local writer
 src/constants/apiLimits.ts	STRICTEST_IMAGE_MAX_BASE64_BYTES	process	module	Load-time definition shared by all callers
-src/constants/changelog.ts	HISTORICAL_RELEASES	process	module	Load-time table with no local writer
 src/constants/changelog.ts	changelogMemo	process	module	lazy one-time decompression/build of static bundled changelog markdown
 src/constants/changelogArchive.ts	DOC_RELEASE_DELTAS	process	module	Load-time table with no local writer
 src/constants/credentialEnvSpellings.ts	ALL_PROVIDER_CREDENTIAL_ENV_VARS	process	module	load-time data; no local writer

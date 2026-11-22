@@ -24,7 +24,21 @@ type VerbCodecName =
   | 'openaiCatalogue'
 
 export interface RunnerSchemaKit {
-  readonly z: typeof z
+  readonly z: Pick<
+    typeof z,
+    | 'array'
+    | 'boolean'
+    | 'discriminatedUnion'
+    | 'enum'
+    | 'literal'
+    | 'number'
+    | 'object'
+    | 'record'
+    | 'strictObject'
+    | 'string'
+    | 'union'
+    | 'unknown'
+  >
   readonly empty: () => z.ZodObject<Record<never, never>>
   readonly record: () => z.ZodRecord<z.ZodString, z.ZodUnknown>
   readonly applied: () => z.ZodEnum<{ readonly now: 'now'; readonly turn_end: 'turn_end' }>
