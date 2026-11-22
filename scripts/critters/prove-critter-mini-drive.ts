@@ -330,7 +330,7 @@ try {
     const bounds = boxRows(idle, left)
     const at = slotLeft(idle)
     check(`${cols}×${rows}: the idle sprite sits at the slot's left and fills the three inner rows`, bounds.bottom - bounds.top === 4 && idle.slice(bounds.top + 1, bounds.bottom).every(row => row.slice(at, at + 9).every(cell => cell.c === '▀' || cell.c === '▄')), `expected ${at},${bounds.top + 1}`)
-    const busy = await capture(`busy-${cols}x${rows}`, homeFor(`busy-${cols}`), cols, rows, [onReady('hello fixture\r', 'idle')], 'first byte', [], true)
+    const busy = await capture(`busy-${cols}x${rows}`, homeFor(`busy-${cols}`), cols, rows, [onReady('hello fixture\r', 'idle')], 'gives up after', [], true)
     const b = berthOf(busy.grid)
     check(`${cols}×${rows}: work paints beside the sprite`, b.cardLeft > left && b.cells === 27, `card ${b.cardLeft}, art cells ${b.cells}`)
     check(`${cols}×${rows}: the card keeps its column`, b.cardLeft === left + 16, `card ${b.cardLeft}, expected ${left + 16}`)
@@ -340,7 +340,7 @@ try {
   for (const [cols, rows] of [[120, 40], [100, 30]] as const) {
     const legs: Array<[string, string, number, number]> = [['one', verbFor(cols), 3, ONE_LINE_COLS], ['stack', verbFor(cols), 4, cols], ['tall', TALL_VERB, cols === 120 ? 5 : 6, cols]]
     for (const [leg, verb, expectedRows, legCols] of legs) {
-      const shot = await capture(`level-${leg}-${cols}x${rows}`, homeFor(`level-${leg}-${cols}`, verb), legCols, rows, [onReady('hello fixture\r', 'idle')], 'first byte', [], true)
+      const shot = await capture(`level-${leg}-${cols}x${rows}`, homeFor(`level-${leg}-${cols}`, verb), legCols, rows, [onReady('hello fixture\r', 'idle')], 'gives up after', [], true)
       const b = berthOf(shot.grid)
       check(`${legCols}×${rows} ${leg}: the thinking box is ${expectedRows} rows tall with the complete sprite beside it${leg === 'one' ? ' (the clock and the received count share the verb’s line at 130 columns and stack under it at ${cols})' : ''}`, cardRows(b) === expectedRows && b.cells === 27 && b.bottom - b.top - 1 === expectedRows, `card ${b.cardTop}..${b.cardBottom} (${cardRows(b)} rows), box ${b.top}..${b.bottom}, art cells ${b.cells}`)
       check(`${legCols}×${rows} ${leg}: the sprite’s middle is the box’s middle, the lower middle row for an even box (sprite rows ${spriteTop(b)}–${spriteTop(b) + 2})`, b.y === spriteTop(b), `sprite top ${b.y}, expected ${spriteTop(b)}`)
