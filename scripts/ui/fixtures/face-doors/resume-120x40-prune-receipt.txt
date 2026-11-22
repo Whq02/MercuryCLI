@@ -14,8 +14,8 @@
    │   concourse polish                       3 hours ago · cleared │  │ pruned · the operator's own act            │
    │                                                                │  │                                            │
    │ moodle                                                         │  │ deleted 2 transcripts                      │
-   │   moodle groundwork                                  1 day ago │  │ freed 164.1KB · 1 minute ago · by the ope… │
-   │                                                                │  │                                            │
+   │   moodle groundwork                                  1 day ago │  │ freed 164.1KB · 1 minute ago · by the      │
+   │                                                                │  │   operator                                 │
    │ orchard-src                                                    │  │                                            │
    │   splash ripple study                               2 days ago │  │                                            │
    │   forty-day spike                                  1 month ago │  │                                            │

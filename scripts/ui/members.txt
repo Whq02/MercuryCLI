@@ -2,6 +2,7 @@ prove-background-notice-fold.ts
 prove-backspace-burst.ts
 prove-bang-shell-row-live.ts
 prove-boot-compact.ts
+prove-boot-detail-pane-fits.ts
 prove-boot-leaves-no-launcher-without-an-install.ts
 prove-boot-lockup-roundtrip.ts
 prove-boot-spawn-census.ts

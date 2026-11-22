@@ -19,7 +19,7 @@
    │   Kit preset                                        review-kit │  │ op@example.com                             │
    │   Opening mission                 sweep the overnight issues … │  │ preflight: ready                           │
    │   Contract                          no-contract (pre-answered) │  │                                            │
-   │                                                                │  │ … (the trail continues — a taller termina… │
+   │                                                                │  │ … (the trail continues — taller terminal)  │
    │ words                                                          │  ╰────────────────────────────────────────────╯
    │   Title                                          morning sweep │  ╭────────────────────────────────────────────╮
    │   Note                                                       — │  │ SATURN                                     │

@@ -408,6 +408,71 @@ function clipWords(s, w) {
   return cut.trimEnd() + '…'
 }
 
+function splitHardVis(word, w) {
+  const parts = []
+  let cur = ''
+  let n = 0
+  for (const ch of word) {
+    const cw = MARK_RE.test(ch) ? 0 : cpWidth(ch.codePointAt(0))
+    if (cur && n + cw > w) {
+      parts.push(cur)
+      cur = ch
+      n = cw
+    } else {
+      cur += ch
+      n += cw
+    }
+  }
+  if (cur) parts.push(cur)
+  return parts
+}
+
+function wrapDetailLine(raw, maxW, wrapW = maxW) {
+  const s = String(raw)
+  if (!s || vis(s) <= maxW) return [s]
+  const indent = /^ */.exec(s)[0]
+  const body = s.slice(indent.length).trim()
+  if (!body) return [s.slice(0, maxW)]
+  const contIndent = indent.length + 2 < Math.floor(wrapW / 2) ? indent + '  ' : indent
+  const words = body.split(/\s+/).filter(Boolean)
+  const out = []
+  let cur = indent
+  let curW = indent.length
+  let hasWord = false
+  for (const wd of words) {
+    const wdW = vis(wd)
+    if (hasWord && curW + 1 + wdW > wrapW) {
+      out.push(cur)
+      cur = contIndent
+      curW = contIndent.length
+      hasWord = false
+    }
+    if (!hasWord && curW + wdW > wrapW) {
+      const firstAvail = Math.max(1, wrapW - curW)
+      const contAvail = Math.max(1, wrapW - contIndent.length)
+      let rest = wd
+      let lead = cur
+      let avail = firstAvail
+      while (vis(rest) > avail) {
+        const piece = splitHardVis(rest, avail)[0]
+        out.push(lead + piece)
+        rest = rest.slice(piece.length)
+        lead = contIndent
+        avail = contAvail
+      }
+      cur = lead + rest
+      curW = vis(cur)
+      hasWord = rest.length > 0
+      continue
+    }
+    cur += (hasWord ? ' ' : '') + wd
+    curW += (hasWord ? 1 : 0) + wdW
+    hasWord = true
+  }
+  if (hasWord) out.push(cur)
+  return out
+}
+
 function zipCols(a, b, aW, gap) {
   const n = Math.max(a.length, b.length)
   const outL = []
@@ -862,41 +927,50 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   const leftPanel = panelLines('CONTROL PLANE', cShown, LEFT_W)
 
   const textW = RIGHT_W - 5
-  const buildDetailRows = r2 => {
+  const detailLineW = RIGHT_W - 4
+  const fixedRow = fixed => ({ fixed })
+  const wrapRow = (raw, style) => ({ raw, style })
+  const buildDetailItems = r2 => {
     const d2 = r2.detail || null
     const pinned2 = r2.pinnedVal !== null && r2.pinnedVal !== undefined
     const rows2 = []
-    rows2.push(' ' + red + '❯ ' + R + BOLD + ivory + r2.label + R)
-    rows2.push('')
-    rows2.push(' ' + red + 'What it controls' + R)
-    for (const l of wrapWords(d2 ? d2.controls : r2.summary, textW)) rows2.push(' ' + mid + l + R)
-    rows2.push('')
-    rows2.push(' ' + red + 'Current value' + R)
+    rows2.push(fixedRow(' ' + red + '❯ ' + R + BOLD + ivory + r2.label + R))
+    rows2.push(fixedRow(''))
+    rows2.push(fixedRow(' ' + red + 'What it controls' + R))
+    for (const l of wrapWords(d2 ? d2.controls : r2.summary, textW)) rows2.push(fixedRow(' ' + mid + l + R))
+    rows2.push(fixedRow(''))
+    rows2.push(fixedRow(' ' + red + 'Current value' + R))
     rows2.push(
-      ' ' + cream + r2.valueLabel + R + (pinned2 ? faint + ` · env=${r2.pinnedVal} wins` + R : ''),
+      fixedRow(' ' + cream + r2.valueLabel + R + (pinned2 ? faint + ` · env=${r2.pinnedVal} wins` + R : '')),
     )
-    for (const l of r2.detailExtra ?? []) rows2.push(' ' + faint + l + R)
+    for (const raw of r2.detailExtra ?? []) {
+      rows2.push(wrapRow(raw, l => ' ' + faint + l + R))
+    }
     if (d2) {
-      rows2.push('')
-      rows2.push(' ' + red + 'When on' + R)
+      rows2.push(fixedRow(''))
+      rows2.push(fixedRow(' ' + red + 'When on' + R))
       for (const b of d2.on)
         wrapWords(b, textW - 2).forEach((l, j) =>
-          rows2.push(' ' + faint + (j === 0 ? '◦ ' : '  ') + R + mid + l + R),
+          rows2.push(fixedRow(' ' + faint + (j === 0 ? '◦ ' : '  ') + R + mid + l + R)),
         )
-      rows2.push('')
-      rows2.push(' ' + red + 'When off' + R)
+      rows2.push(fixedRow(''))
+      rows2.push(fixedRow(' ' + red + 'When off' + R))
       for (const b of d2.off)
         wrapWords(b, textW - 2).forEach((l, j) =>
-          rows2.push(' ' + faint + (j === 0 ? '◦ ' : '  ') + R + mid + l + R),
+          rows2.push(fixedRow(' ' + faint + (j === 0 ? '◦ ' : '  ') + R + mid + l + R)),
         )
     }
     return rows2
   }
   const detailHead = row ? (m.fitLabels ? clipWords(row.detailLabel ?? row.label, RIGHT_W - 6) : row.label) : ''
-  const dRows = m.detailOverride
-    ? [' ' + red + '❯ ' + R + BOLD + ivory + detailHead + R, '', ...m.detailOverride.map(l => ' ' + mid + l + R)]
+  const dItems = m.detailOverride
+    ? [
+        fixedRow(' ' + red + '❯ ' + R + BOLD + ivory + detailHead + R),
+        fixedRow(''),
+        ...m.detailOverride.map(raw => wrapRow(raw, l => ' ' + mid + l + R)),
+      ]
     : row
-      ? buildDetailRows(row)
+      ? buildDetailItems(row)
       : []
 
   const kv = (k, v, tone) => ' ' + faint + k.padEnd(11) + R + (tone || mid) + v + R
@@ -943,16 +1017,40 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   const chromeRows = (headLines ? 1 + headLines.length : 0) + word.lines.length + 10
   const geometryBudget =
     rowsAvail - chromeRows - summaryPanel.length - envPanel.length - 3
-  const maxDetailRows = Math.max(...m.entries.map(r2 => buildDetailRows(r2).length))
+  const maxDetailRows = Math.max(...m.entries.map(r2 => buildDetailItems(r2).length))
   if (withHead && geometryBudget < maxDetailRows) return null
   const detailBudget = Math.max(
     8,
     leftPanel.length - summaryPanel.length - envPanel.length - 3,
     geometryBudget,
   )
+  const expandDetailRows = (items, budget) => {
+    const overflows = items.length > budget
+    let free = Math.max(0, budget - items.length)
+    const out = []
+    for (const item of items) {
+      if (item.fixed !== undefined) {
+        out.push(item.fixed)
+        continue
+      }
+      const wrapped = wrapDetailLine(item.raw, detailLineW, textW)
+      const extra = wrapped.length - 1
+      if (extra > 0 && (overflows || extra <= free)) {
+        if (!overflows) free -= extra
+        for (const l of wrapped) out.push(item.style(l))
+      } else {
+        out.push(item.style(item.raw))
+      }
+    }
+    return out
+  }
+  const dRows = expandDetailRows(dItems, detailBudget)
+  const hintRaw = m.moreHint ?? '… (the trail continues — taller terminal)'
+  const hintLines = wrapDetailLine(hintRaw, detailLineW, textW).map(l => ' ' + faint + l + R)
+  const hintShown = hintLines.slice(0, Math.max(1, detailBudget))
   const dShown =
     dRows.length > detailBudget
-      ? [...dRows.slice(0, detailBudget - 1), ' ' + faint + (m.moreHint ?? '… (the trail continues — a taller terminal shows it whole)') + R]
+      ? [...dRows.slice(0, Math.max(0, detailBudget - hintShown.length)), ...hintShown]
       : dRows
   const dPadded = [...dShown, ...Array(Math.max(0, detailBudget - dShown.length)).fill('')]
   const detailPanel = panelLines('SETTING DETAIL', dPadded, RIGHT_W)

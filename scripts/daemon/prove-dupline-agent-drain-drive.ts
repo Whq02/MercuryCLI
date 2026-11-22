@@ -2,6 +2,7 @@
 import { spawn } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { captureEngineEntry, resolveCaptureArgv0, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { describeCapturePreflight, preflightCaptureDriver } from '../lib/capturePreflight.ts'
 import { AGENT_DESCRIPTION, AGENT_TURN_ASK, carriersOf, childEnv, CLOCK_TOLERANCE_MS, DIST, exportWorld, inMainFile, isDrainedMainRow, j, LINE, makeTally, MODEL, NODE, QUEUED_PLATE, removeWorld, REPO, SCRATCH_ROOT, seedHome, startFixture, WIN, briefly } from './dupline-world.ts'
@@ -23,7 +24,7 @@ if (!existsSync(DIST)) {
   const out = join(PTY_HOME, 'grid.json')
   const CTRL_O = '\x0f'
   const sends = [
-    { requireAwait: true, minTick: 3, awaitText: 'choose', awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, minTick: 3, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: 'Type a prompt', awaitSettleTicks: 2, data: 'hello there\r' },
     { requireAwait: true, minTick: 5, awaitText: 'heard: hello there', awaitSettleTicks: 3, data: `${AGENT_TURN_ASK}\r`, mark: 'answered' },
     { requireAwait: true, minTick: 5, awaitText: AGENT_DESCRIPTION, awaitSettleTicks: 10, data: `${LINE}\r`, mark: 'sent' },

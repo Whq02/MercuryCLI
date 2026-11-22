@@ -20,7 +20,7 @@
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ MISTRAL_ADMIN_API_KEY wins. Enterprise     │
    │   DeepSeek — API key                             not signed in │  │ plans issue it at                          │
    │   xAI — Grok subscription sign-in or API …       not signed in │  │ backoffice.mistral.ai.                     │
-   │   Meta — Muse Code sign-in or API key            not signed in │  │ … (the trail continues — a taller termina… │
+   │   Meta — Muse Code sign-in or API key            not signed in │  │ … (the trail continues — taller terminal)  │
    │ ❯ Mistral — API key                              not signed in │  ╰────────────────────────────────────────────╯
    │   Nous Portal — sign-in or API key               not signed in │  ╭────────────────────────────────────────────╮
    │   MiniMax — API key or M Plan key                not signed in │  │ LOGINS                                     │

@@ -20,7 +20,7 @@
    │ COMPUTER USE                                                   │  │ dialog, root notice, settings deny rules,  │
    │   Computer use                                    default (on) │  │ and computer-use terminal/focus guards     │
    │   Access type                  default (full · sovereign mode) │  │ still apply. Headless runs (run) and       │
-   │                                                                │  │ … (the trail continues — a taller termina… │
+   │                                                                │  │ … (the trail continues — taller terminal)  │
    │ SAMPLES                                                        │  ╰────────────────────────────────────────────╯
    │   Samples                                        default (off) │  ╭────────────────────────────────────────────╮
    │                                                                │  │ LAUNCH SUMMARY                             │

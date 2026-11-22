@@ -20,7 +20,7 @@
    │   OpenRouter — browser sign-in or API key        not signed in │  │ https://console.developers.google.com/     │
    │ ❯ Google Gemini — Google sign-in, API key        not signed in │  │ auth/overview                              │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ opened in your browser                     │
-   │   DeepSeek — API key                             not signed in │  │ … (the trail continues — a taller termina… │
+   │   DeepSeek — API key                             not signed in │  │ … (the trail continues — taller terminal)  │
    │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯
    │   Meta — Muse Code sign-in or API key            not signed in │  ╭────────────────────────────────────────────╮
    │   Mistral — API key                              not signed in │  │ LOGINS                                     │

@@ -19,7 +19,7 @@
                                                                        │ this repo alone (↑ walks back out)         │
                                                                        │                                            │
                                                                        │ ↵ opens the newest chat there as the       │
-                                                                       │ … (the trail continues — a taller termina… │
+                                                                       │ … (the trail continues — taller terminal)  │
                                                                        ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮
                                                                        │ SESSIONS · PROJECTS                        │

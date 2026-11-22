@@ -19,7 +19,7 @@
    │   Unknown actions are ignored at load;                         │  │                                            │
    │   the file keeps working.                                      │  │ Unknown actions are ignored at load;       │
    │                                                                │  │ the file keeps working.                    │
-   │   → remove the unknown rows, or re-run                         │  │ … (the trail continues — a taller termina… │
+   │   → remove the unknown rows, or re-run                         │  │ … (the trail continues — taller terminal)  │
    │   the keybindings check                                        │  ╰────────────────────────────────────────────╯
    │                                                                │  ╭────────────────────────────────────────────╮
    │   f — apply the safe remedy                                    │  │ CERTIFICATE                                │

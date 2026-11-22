@@ -19,7 +19,7 @@
    │   Keybindings file                                      ▲ warn │  │                                            │
    │                                                                │  │ evidence: last verified 26h ago            │
    │ PROVIDERS                                                      │  │                                            │
-   │ ❯ Anthropic credential                                 ◓ stale │  │ … (the trail continues — a taller termina… │
+   │ ❯ Anthropic credential                                 ◓ stale │  │ … (the trail continues — taller terminal)  │
    │                                                                │  ╰────────────────────────────────────────────╯
    │ ESTATE                                                         │  ╭────────────────────────────────────────────╮
    │   Daemon reachability                                ◌ unknown │  │ CERTIFICATE                                │
