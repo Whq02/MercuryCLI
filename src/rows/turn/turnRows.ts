@@ -4,6 +4,7 @@ import type { QueryParams } from '../../run-core/turn-machine.js'
 import type { Message } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import { createAttachmentMessage } from '../../services/attachments/orchestrator.js'
+import { droppedMentionLine } from '../../services/attachments/fileAttachments.js'
 import { getQueuedCommandAttachments } from '../../services/attachments/queuedCommands.js'
 import { createGetAppStateWithAllowedTools } from '../../services/agents/forkedAgent.js'
 import { isBareMode, isEnvTruthy } from '../../utils/envUtils.js'
@@ -11,7 +12,7 @@ import { fileHistoryMakeSnapshot } from '../../services/changeTransaction/fileHi
 import { headlessProfilerCheckpoint } from '../../utils/headlessProfiler.js'
 import { forgetWardFirings } from '../../guards/wardsGuard.js'
 import { getInMemoryErrors, logError } from '../../utils/log.js'
-import type { HookAttachment } from '../../utils/attachments/types.js'
+import type { DroppedImageAttachment, HookAttachment } from '../../utils/attachments/types.js'
 import { getEngineModel } from '../../services/model/model.js'
 import { getModelUsage } from '../../bootstrap/state.js'
 import { ledgerMark } from '../../utils/ledgerMark.js'
@@ -23,7 +24,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
 import { shouldEnableThinkingByDefault } from '../../utils/thinking.js'
 import { noticeRow, outcomeRow, turnStartedRow, type OutcomeFacts, type RowDraft, type RowScope } from '../project.js'
-import { HOOK_NOTICE_CODES, OUTCOME_SENTENCES, type OutcomeStatus } from '../vocabulary.js'
+import { HOOK_NOTICE_CODES, MENTION_DROPPED_CODE, OUTCOME_SENTENCES, type OutcomeStatus } from '../vocabulary.js'
 import type { RecoveryKind } from '../vocabulary.js'
 import { StepLedger } from './steps.js'
 import { messageRowsOf } from './messageRows.js'
@@ -65,6 +66,11 @@ export async function* turnRows(this: ConversationState, prompt: string | Conten
     const text = hookRow.outcome === 'failed' || hookRow.outcome === 'notice' ? hookRow.words : `hook ${hookRow.name} ${hookRow.outcome === 'block' ? 'blocked' : 'stopped'} ${hookRow.event}: ${hookRow.words}`
     notices.push({ level: 'warning', text })
     return [noticeRow(scope, 'warning', text, HOOK_NOTICE_CODES[hookRow.outcome])]
+  }
+  const droppedMentionRow = (dropped: DroppedImageAttachment): RowDraft => {
+    const text = droppedMentionLine(dropped)
+    notices.push({ level: 'warning', text })
+    return noticeRow(scope, 'warning', text, MENTION_DROPPED_CODE)
   }
   const steps = new StepLedger(scope)
   const toolOutcomes = new Map<string, 'ok' | 'error' | 'aborted'>()
@@ -123,9 +129,9 @@ export async function* turnRows(this: ConversationState, prompt: string | Conten
   })
 
   for (const message of inputResult.messages) {
-    if (!priorUuids.has(message.uuid) && message.type === 'attachment' && message.attachment.type === 'hook') {
-      yield* hookNoticeRows(message.attachment)
-    }
+    if (priorUuids.has(message.uuid) || message.type !== 'attachment') continue
+    if (message.attachment.type === 'hook') yield* hookNoticeRows(message.attachment)
+    else if (message.attachment.type === 'dropped_image_file') yield droppedMentionRow(message.attachment)
   }
   this.mutableMessages.push(...inputResult.messages)
   let turnMessages: Message[] = [...this.mutableMessages]

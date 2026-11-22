@@ -31,7 +31,7 @@ import { ruleSpelling, ruleSourceWords, withheldByRuleWords } from '../../utils/
 import { sessionRow, noticeRow } from '../../rows/project.js'
 import { TOOL_WITHHELD_CODE } from '../../rows/vocabulary.js'
 import { advisorMainRound } from '../../services/advisor/index.js'
-import { turnOpened } from '../../rows/read.js'
+import { mentionDropped, turnOpened } from '../../rows/read.js'
 import { untoldHiddenCharacterLines } from '../../utils/text/hiddenCharacterFindings.js'
 import { GLYPH } from '../../utils/glyphs.js'
 import { holdQueuedWordsForTurnEnd } from '../../utils/messageQueueManager.js'
@@ -296,6 +296,7 @@ export async function runPrintTurn(command: QueuedCommand, batch: QueuedCommand[
           live.currentTurnId = message.turn_id
           if (options.door !== 'wire') for (const line of untoldHiddenCharacterLines()) process.stderr.write(`${GLYPH.warn} ${line}\n`)
         }
+        if (options.door !== 'wire' && mentionDropped(message)) process.stderr.write(`${GLYPH.warn} ${message.text}\n`)
         onMessage(message)
       }
       tellFailedMcpServers()

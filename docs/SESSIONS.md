@@ -392,7 +392,9 @@ up to ten seconds, and a text file too long to carry whole rides clipped to the
 lines that fit; one that cannot be carried (over that limit, unreadable, denied
 by a rule, or still unread after the ten seconds) gets the same row with its
 reason, and the model is told the file was dropped and, where a `Read` would
-succeed, to read it when it needs it.
+succeed, to read it when it needs it. A run with no screen (`mercury run`)
+gives the same line on stderr and in a `notice` row
+(`code: "mention_dropped"`), and lists it in the outcome's `notices`.
 
 The session box at the top of the view holds the critter and, while
 a turn runs, the working row in its own capsule beside it: a slim box of

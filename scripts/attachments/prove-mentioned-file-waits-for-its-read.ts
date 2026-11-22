@@ -36,9 +36,9 @@ const whereToLook: Record<string, string> = {
   B: 'processAtMentionedFiles in src/services/attachments/mentionResolvers.ts must read mentioned files side by side, give each up at the 10 second ceiling, cancel the read and leave a dropped row with the ceiling reason; the wording the model reads is built in src/services/messages/attachmentText.ts',
   C: 'processAtMentionedFiles in src/services/attachments/mentionResolvers.ts must leave a dropped row with the true reason for a file it leaves out; the wording the model reads is built in src/services/messages/attachmentText.ts',
   D: 'processAtMentionedFiles in src/services/attachments/mentionResolvers.ts must keep its earlier behaviour for non-files, small files and interrupted turns',
-  E: 'the attachment row painted by src/components/messages/AttachmentMessage.tsx must show Read <path> or Dropped <path> with the reason of the row it is given',
-  F: 'the request the built bundle sends must carry each mention kind as processAtMentionedFiles in src/services/attachments/mentionResolvers.ts and src/services/messages/attachmentText.ts word it; rebuild dist/mercury.mjs first',
-  G: 'the request the built bundle sends must carry what processAtMentionedFiles in src/services/attachments/mentionResolvers.ts read or gave up on with a slow disk; rebuild dist/mercury.mjs first',
+  E: 'the attachment row painted by src/components/messages/AttachmentMessage.tsx must show Read <path> or Dropped <path> with the reason of the row it is given, and droppedMentionLine in src/services/attachments/fileAttachments.ts must spell the same line for a run with no screen',
+  F: 'the request the built bundle sends must carry each mention kind as processAtMentionedFiles in src/services/attachments/mentionResolvers.ts and src/services/messages/attachmentText.ts word it, and the run must tell its caller of each file left out: droppedMentionLine in src/services/attachments/fileAttachments.ts, yielded as a notice row and kept for the outcome by turnRows in src/rows/turn/turnRows.ts, written to stderr by runPrintTurn in src/cli/headless/printTurn.ts; rebuild dist/mercury.mjs first',
+  G: 'the request the built bundle sends must carry what processAtMentionedFiles in src/services/attachments/mentionResolvers.ts read or gave up on with a slow disk, and the run must tell its caller of each file given up on: droppedMentionLine in src/services/attachments/fileAttachments.ts, yielded as a notice row and kept for the outcome by turnRows in src/rows/turn/turnRows.ts, written to stderr by runPrintTurn in src/cli/headless/printTurn.ts; rebuild dist/mercury.mjs first',
   H: 'the read in src/services/attachments/mentionResolvers.ts must clip a dense mentioned file even when each provider token count is slow; rebuild dist/mercury.mjs first',
   I: 'processAtMentionedFiles in src/services/attachments/mentionResolvers.ts must keep a large mentioned file via its estimate at once when the token count hits a connection error',
 }
@@ -160,6 +160,11 @@ function arena(name: string, url: string): { project: string; env: Record<string
   }
 }
 const wireOf = (request: { body: unknown } | undefined): string => j((request?.body as { messages?: unknown } | undefined)?.messages ?? [])
+type Told = { type?: string; code?: string; text?: string; notices?: Array<{ text?: string }> }
+const toldBy = (ran: Ran): Told[] => ran.stdout.split('\n').filter(line => line.startsWith('{')).map(line => JSON.parse(line) as Told)
+const noticesOf = (ran: Ran): string[] => toldBy(ran).filter(row => row.type === 'notice' && row.code === 'mention_dropped').map(row => row.text ?? '')
+const outcomeNoticesOf = (ran: Ran): string[] => (toldBy(ran).findLast(row => row.type === 'outcome')?.notices ?? []).map(notice => notice.text ?? '')
+const stderrLinesOf = (ran: Ran): string[] => strip(ran.stderr).split('\n').filter(line => line.includes('Dropped ')).map(line => line.slice(line.indexOf('Dropped ')))
 
 try {
   const bootstrap = await import(`${root}/src/bootstrap/state.ts`)
@@ -347,10 +352,12 @@ try {
       await sleep(50)
       return text
     }
+    const { droppedMentionLine } = await import(`${root}/src/services/attachments/fileAttachments.ts`)
     for (const { kind, row } of onScreen) {
       const line = row === undefined ? '(no row to paint)' : await painted(row)
       const wanted = row?.type === 'file' ? `Read ${row.displayPath} (1 line)` : `Dropped ${row?.displayPath} — ${row?.reason}`
       check(`E: ${kind} — the row reads \`${row?.type === 'file' ? 'Read <path> (N lines)' : 'Dropped <path> — <the reason>'}\``, row !== undefined && line.includes(wanted), `painted: ${line}`)
+      if (row !== undefined && row.type !== 'file') check(`E: ${kind} — the line a run with no screen gives its caller is the painted one, word for word`, typeof droppedMentionLine === 'function' && line.includes(droppedMentionLine(row)), `painted: ${line} · told: ${typeof droppedMentionLine === 'function' ? droppedMentionLine(row) : 'no droppedMentionLine'}`)
     }
   }
 
@@ -378,6 +385,10 @@ try {
       check('F: a path the project\'s settings deny — the request names the rule and where it stands, and holds nothing of the file', /secret\.env was mentioned, but it could not be read and was dropped from this turn: Reading [^ ]*secret\.env is denied by the rule Read\(secret\.env\) in the shared project settings\./.test(wire) && !wire.includes('DENIED-FILE-CONTENT'), `${wire.length} chars`)
       check('F: the small file rides whole beside them', wire.includes('SMALL-FILE-CONTENT'))
       check('F: a name that is no file adds nothing — it stands in the prompt\'s own words and nowhere else', wire.split('nobody.txt').length - 1 === wire.split(prompt).length - 1 && wire.includes(prompt), `${wire.split('nobody.txt').length - 1} mentions of the name, ${wire.split(prompt).length - 1} of the prompt`)
+      const told = noticesOf(ran)
+      const leftOut = ['big.log', 'blob.bin', 'secret.env', ...(process.platform === 'win32' ? [] : ['locked.txt'])]
+      check('F: the run tells its caller of each file left out, in the line the chat paints: one notice row a file, `Dropped <path> — <the reason>`, and none for the file that was read or the name that is no file', told.length === leftOut.length && leftOut.every(name => told.some(line => line.startsWith(`Dropped ${name} — `))) && told.some(line => /^Dropped big\.log — The file is [\d.]+MB, over the 256KB limit for a mentioned file\.$/.test(line)) && told.includes(`Dropped blob.bin — ${BINARY}`), j(told))
+      check('F: …the same lines stand in the outcome row, which is what `--format json` prints, and on stderr, which is what a plain run shows', told.length === leftOut.length && j(outcomeNoticesOf(ran).filter(line => line.startsWith('Dropped '))) === j(told) && j(stderrLinesOf(ran)) === j(told), j({ outcome: outcomeNoticesOf(ran), stderr: stderrLinesOf(ran) }))
     } finally {
       if (process.platform !== 'win32') chmodSync(at('locked.txt'), 0o600)
       await fixture.close()
@@ -408,6 +419,9 @@ try {
       check('G: the read that never answered was given up at ten seconds and cancelled', when('cancelled dead-note.txt') - when('begins dead-note.txt') >= 9_500 && when('cancelled dead-note.txt') - when('begins dead-note.txt') < 13_000, j(disk.map(entry => `${entry.at - (disk[0]?.at ?? 0)} ${entry.words}`)))
       check('G: …the request says so for the file, with Read as the way in, and holds nothing of it', wire.includes(`dead-note.txt ${UNREAD}${CEILING}${READ_ADVICE}`) && !wire.includes('DEAD-NOTE-CONTENT'), `${wire.length} chars`)
       check('G: …and for the image, in today\'s dropped-image sentence', wire.includes(`stuck-shot.png ${IMAGE_DROPPED}${CEILING} Attach a smaller copy, or Read it with a crop.`), `${wire.length} chars`)
+      const told = noticesOf(ran)
+      check('G: the run tells its caller of the two it gave up on, each in the line the chat paints with the ceiling\'s reason: a notice row for the file and one for the image, none for the two that were read', j([...told].sort()) === j([`Dropped dead-note.txt — ${CEILING}`, `Dropped stuck-shot.png — ${CEILING}`]), j(told))
+      check('G: …the same two lines stand in the outcome row, which is what `--format json` prints, and on stderr, which is what a plain run shows: the run no longer ends as if both had been sent', ran.exit === 0 && j(outcomeNoticesOf(ran).filter(line => line.startsWith('Dropped '))) === j(told) && j(stderrLinesOf(ran)) === j(told) && told.length === 2, j({ outcome: outcomeNoticesOf(ran), stderr: stderrLinesOf(ran) }))
       check('G: the turn is in flight for the whole wait — its row reaches the reader before the slow read answers, and no request leaves before the last read is given up', turnStarted < when('answers slow-note.txt') && firstWait >= when('cancelled dead-note.txt') - 100, j({ turnStarted: turnStarted - (disk[0]?.at ?? 0), slowAnswers: when('answers slow-note.txt') - (disk[0]?.at ?? 0), givenUp: when('cancelled dead-note.txt') - (disk[0]?.at ?? 0), firstWait: firstWait - (disk[0]?.at ?? 0) }))
     } finally {
       await fixture.close()
