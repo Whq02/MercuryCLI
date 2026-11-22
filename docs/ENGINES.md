@@ -729,8 +729,11 @@ provider's own answer; with an API key and an Opus model, a spent ladder
 ends the turn with the repeated-overload line, or switches to the fallback
 model when one was named at launch). A rate limit that names its own wait
 (`Retry-After`) rides the same ladder with that wait in place of the rung; a
-rate limit without one keeps the single retry. A reply that arrives inside
-the ladder shows one calm grey line above it, naming the provider
+rate limit without one keeps the single retry. With OpenAI, OpenAI-compatible
+and Z.ai providers a rate limit is instead reported at once and retried up to
+`MERCURY_MAX_RETRIES` times, at the provider's stated wait when it gives one.
+A reply that arrives inside the ladder shows one calm grey line above it,
+naming the provider
 (`OpenAI was busy · answered after 2 retries (7 s)`), whose `ctrl+o` expansion
 carries the provider's words and every wait; the debug log carries every
 retry either way. Escape ends a wait at once. A stream the provider cuts
