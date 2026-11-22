@@ -32,11 +32,20 @@ import { errorMessage } from '../../utils/errors.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { getTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import { startTimeout } from '../../utils/timers.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const duplicateUnreadNotified = new WeakSet<RunnerPorts['live']>()
 
-export const taskNotificationPayloads = (command: QueuedCommand): string[] => notBuilt('src/cli/headless/inputDoor.ts:38')
+export const taskNotificationPayloads = (command: QueuedCommand): string[] => {
+  if (command.origin?.kind === 'outside-report') return []
+  const texts =
+    typeof command.value === 'string'
+      ? [command.value]
+      : Array.isArray(command.value)
+        ? command.value.flatMap(block => (block.type === 'text' && typeof block.text === 'string' ? [block.text] : []))
+        : []
+  if (command.mode !== 'task-notification' && !texts.some(text => text.includes('<task-notification>'))) return []
+  return texts.flatMap(text => text.match(/<task-notification>[\s\S]*?<\/task-notification>/g) ?? [text])
+}
 
 const promptContentOf = (content: Extract<ParamsOf<typeof SESSION_VERBS.sendWords.runner.name>, { type: 'prompt' }>['content']): string | ContentBlockParam[] => {
   if (typeof content === 'string') return content

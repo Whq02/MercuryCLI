@@ -31,7 +31,6 @@ import {
   type StudioScopeTab,
   type StudioStatusFilter,
 } from './studioData.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 export type Mode =
   | { kind: 'library' }
@@ -317,6 +316,97 @@ type StudioLibraryArgs = {
   }) => React.ReactNode
 }
 
-export function studioLibraryView(arg0: StudioLibraryArgs): React.ReactNode {
-  return notBuilt('src/components/agents/studio/agentStudioParts.tsx:319')
+export function studioLibraryView({ onExit, changes, footer, mode, setMode, trashSel, runClone, runTestDrive, parentModel, sessionEffort, mergedTools, estateRef, fl, query, tab, filter, accent, TrashView, TestDrivePane, InspectorPane, LibraryPane }: StudioLibraryArgs): React.ReactNode {
+  return (
+    <CommandCenter
+      view="agents"
+      subtitle="agent studio"
+      onClose={() => {
+        onExit(
+          changes.length > 0 ? `Agent changes:\n${changes.join('\n')}` : 'Agent Studio closed',
+          { display: changes.length > 0 ? undefined : 'system' },
+        )
+      }}
+      captureInput={false}
+      footer={footer}
+      bodyOwnsPageKeys={mode.kind === 'library' || mode.kind === 'trash'}
+    >
+      <Box flexDirection="column">
+        {mode.kind === 'delete-confirm' ? (
+          <Box marginTop={1} flexDirection="column">
+            <SectionHeader>Delete agent</SectionHeader>
+            <Text>
+              <Text color={IVORY}>{`delete ${mode.agent.agentType}? `}</Text>
+              <Text color={FAINT}>
+                {`moves the file to the recovery area (press U to restore)`}
+              </Text>
+            </Text>
+            <Text color={FAINT}>{truncateToWidth(`  ${(mode.agent as { filePath?: string }).filePath ?? ''}`, 76)}</Text>
+          </Box>
+        ) : mode.kind === 'trash' ? (
+          <TrashView sel={trashSel} />
+        ) : mode.kind === 'clone' ? (
+          <Box marginTop={1} flexDirection="column">
+            <SectionHeader>{`Clone ${mode.agent.agentType}`}</SectionHeader>
+            <Text color={FAINT}>new identifier (a lossless copy lands in the project scope):</Text>
+            <TextInput
+              value={mode.buffer}
+              onChange={v => setMode({ ...mode, buffer: v })}
+              onSubmit={() => runClone(mode.agent, mode.buffer.trim())}
+              columns={50}
+              cursorOffset={mode.buffer.length}
+              onChangeCursorOffset={() => {}}
+              focus
+              showCursor
+            />
+          </Box>
+        ) : mode.kind === 'testdrive' ? (
+          <TestDrivePane
+            agent={mode.agent}
+            buffer={mode.buffer}
+            onChange={v => setMode({ ...mode, buffer: v })}
+            onSubmit={() => {
+              if (mode.buffer.trim()) runTestDrive(mode.agent, mode.buffer.trim())
+            }}
+            parentModel={parentModel}
+            sessionEffort={sessionEffort}
+            tools={mergedTools}
+          />
+        ) : mode.kind === 'inspect' ? (
+          <InspectorPane
+            row={mode.row}
+            estate={estateRef.current}
+            parentModel={parentModel}
+            sessionEffort={sessionEffort}
+            tools={mergedTools}
+          />
+        ) : (
+          <LibraryPane
+            fl={fl}
+            query={query}
+            tab={tab}
+            filter={filter}
+            accent={accent}
+          />
+        )}
+        {fl.note ? (
+          <Box marginTop={1}>
+            <Text
+              color={
+                fl.note.kind === 'ok'
+                  ? TEAL
+                  : fl.note.kind === 'fail'
+                    ? CRIMSON
+                    : fl.note.kind === 'warn'
+                      ? AMBER
+                      : FAINT
+              }
+            >
+              {truncateToWidth(fl.note.text, 76)}
+            </Text>
+          </Box>
+        ) : null}
+      </Box>
+    </CommandCenter>
+  )
 }

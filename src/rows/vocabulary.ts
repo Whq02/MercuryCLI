@@ -5,7 +5,6 @@ import type { Continue, Terminal } from '../query/transitions.js'
 import type { TurnCutKind } from '../utils/messages/turnCut.js'
 import type { NonNullableUsage } from '../utils/api/emptyUsage.js'
 import { formatLimit } from '../utils/deadline.js'
-import { notBuilt } from '../pi/holes.js'
 
 export const ROWS_SCHEMA = 1
 
@@ -534,7 +533,33 @@ export function usageOf(usage: Pick<NonNullableUsage, 'input_tokens' | 'cache_re
 }
 
 export function statusOfTerminal(terminal: Terminal, cut: TurnCutKind | null): { status: OutcomeStatus; errorClass?: ErrorClass } {
-  return notBuilt('src/rows/vocabulary.ts:535')
+  switch (terminal.reason) {
+    case 'completed':
+    case 'stop_hook_prevented':
+    case 'hook_stopped':
+      return { status: 'completed' }
+    case 'max_turns':
+      return { status: 'turn_limit' }
+    case 'loop_stopped':
+      return { status: 'loop_stopped' }
+    case 'aborted_streaming':
+    case 'aborted_tools':
+      if (cut === 'idle-timeout') return { status: 'failed', errorClass: 'idle_timeout' }
+      if (cut === 'cut') return { status: 'failed', errorClass: 'cut' }
+      return { status: 'interrupted' }
+    case 'model_error':
+      return { status: 'failed', errorClass: 'model' }
+    case 'image_error':
+      return { status: 'failed', errorClass: 'image' }
+    case 'prompt_too_long':
+      return { status: 'failed', errorClass: 'context_overflow' }
+    case 'blocking_limit':
+      return { status: 'failed', errorClass: 'context_limit' }
+    case 'rapid_refill_breaker':
+      return { status: 'failed', errorClass: 'refill_breaker' }
+    case 'tool_calls_refused':
+      return { status: 'failed', errorClass: 'model' }
+  }
 }
 
 export function recoveryKindOf(transition: Continue): RecoveryKind | undefined {

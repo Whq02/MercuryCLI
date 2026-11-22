@@ -13,7 +13,6 @@ import type { MercuryThemeTokens } from '../utils/mercuryTokens.js'
 import { applyNavMotion, decodeNavKey } from './mercury-ui/navSemantics.js'
 import { cockpitBottomSlotReserve, viewportRows } from './mercury-ui/geometry.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
-import { notBuilt } from '../pi/holes.js'
 
 
 type SearchMatch = { file: string; line: number; text: string }
@@ -100,11 +99,164 @@ function HighlightHit({
   )
 }
 
-export function MercuryContentSearch(arg0: {
+export function MercuryContentSearch({
+  onPick,
+  onClose,
+  isActive = true,
+  loadMatches = defaultLoad,
+}: {
   onPick: (insertText: string) => void
   onClose: () => void
   isActive?: boolean
   loadMatches?: SearchLoader
 }): React.ReactNode {
-  return notBuilt('src/components/MercuryContentSearch.tsx:102')
+  const overlayToken = useRegisterOverlay('content-search');
+  const tokens = useMercuryTokens()
+  const accent = tokens.accent
+  const termRows = useTerminalSize().rows
+  const cockpitActive = React.useContext(CockpitActiveContext)
+  const rowCap = viewportRows(termRows, {
+    reserve: cockpitActive ? cockpitBottomSlotReserve(termRows) : HEIGHT_RESERVE,
+    min: MIN_ROWS,
+    cap: MAX_ROWS,
+  })
+  const [query, setQuery] = useState('')
+  const [sel, setSel] = useState(0)
+  const [cursorOffset, setCursorOffset] = useState(0)
+  const [matches, setMatches] = useState<SearchMatch[] | null>(null)
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const genRef = useRef(0)
+  const abortRef = useRef<AbortController | null>(null)
+
+  useLoad(() => {
+    const gen = ++genRef.current
+    abortRef.current?.abort()
+    const q = query.trim()
+    if (q.length < MIN_QUERY) {
+      setMatches([])
+      setSearchError(null)
+      return
+    }
+    const controller = new AbortController()
+    abortRef.current = controller
+    let alive = true
+    setMatches(null)
+    setSearchError(null)
+    void runContentSearch(q, controller.signal, loadMatches).then(outcome => {
+      if (!alive || gen !== genRef.current || outcome === null) return
+      setMatches(outcome.matches)
+      setSearchError(outcome.error)
+    })
+    return () => {
+      alive = false
+      controller.abort()
+    }
+  }, [query, loadMatches])
+
+  const listRows = (matches?.length ?? 0) > rowCap ? Math.max(1, rowCap - 1) : rowCap
+  const shown = useMemo(() => (matches ?? []).slice(0, listRows), [matches, listRows])
+  const searching = matches === null
+  const tooShort = query.trim().length < MIN_QUERY
+  const hitCount = matches?.length ?? 0
+  const footer = tooShort
+    ? 'type ≥2 chars to grep file contents'
+    : searching
+      ? 'searching…'
+      : searchError !== null
+        ? searchError
+        : `${hitCount}${hitCount >= MAX_MATCHES ? '+' : ''} ${hitCount === 1 ? 'hit' : 'hits'} · ↑↓ move · ↵ insert @file#L`
+
+  const pastOpenEvent = useOpenEventGate()
+
+  const clampedSel = Math.min(sel, Math.max(0, shown.length - 1))
+  if (sel !== clampedSel) setSel(clampedSel)
+
+  useInput(
+    (input, key, event) => {
+      if (!isActive) return
+      const action = decodeNavKey(input, key, { orientation: 'vertical' })
+      if (action === 'cancel') {
+        if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return
+        event.stopImmediatePropagation()
+        onClose()
+        return
+      }
+      if (action === 'movePrevious' || action === 'moveNext') {
+        event.stopImmediatePropagation()
+        const target = applyNavMotion(action, clampedSel, shown.length, { orientation: 'vertical' })
+        if (target !== null) setSel(target)
+        return
+      }
+    },
+    { isActive },
+  )
+
+  return (
+    <CommandCenter view="search" elevated onClose={onClose} captureInput={false} footer={footer}>
+      <Box marginTop={1}>
+        <Text color={accent}>{GLYPH.prompt} </Text>
+        {}
+        <TextInput
+          value={query}
+          onChange={q => {
+            setQuery(q.replace(/[\r\n\t]+/g, ' '))
+            setSel(0)
+          }}
+          onSubmit={() => {
+            if (!pastOpenEvent()) return
+            const it = shown[clampedSel]
+            if (it) onPick(`@${it.file}#L${it.line} `)
+          }}
+          focus={isActive}
+          showCursor={true}
+          multiline={false}
+          disableCursorMovementForUpDownKeys={true}
+          disableEscapeDoublePress={true}
+          disablePageKeyCursorMovement={true}
+          inputFilter={input => (pastOpenEvent() ? input : '')}
+          columns={QUERY_WIDTH}
+          cursorOffset={cursorOffset}
+          onChangeCursorOffset={setCursorOffset}
+          placeholder="grep the working tree for…"
+        />
+      </Box>
+
+      {tooShort ? (
+        <Box marginTop={1}>
+          <Text color={tokens.textMuted}>keep typing — content search needs at least 2 characters</Text>
+        </Box>
+      ) : searching ? (
+        <Box marginTop={1}>
+          <Text color={tokens.textMuted}>scanning file contents…</Text>
+        </Box>
+      ) : searchError !== null ? (
+        <Box marginTop={1}>
+          <Text color={tokens.warning}>{searchError}</Text>
+        </Box>
+      ) : shown.length === 0 ? (
+        <Box marginTop={1}>
+          <Text color={tokens.textMuted}>no matches for "{truncateToWidth(query, 30)}" — backspace to widen</Text>
+        </Box>
+      ) : (
+        <Box marginTop={1} flexDirection="column">
+          {shown.map((it, i) => {
+            const here = i === clampedSel
+            const loc = `${truncateToWidth(it.file, FILE_WIDTH)}:${it.line}`
+            const pad = ' '.repeat(Math.max(0, FILE_WIDTH + 6 - displayWidth(loc)))
+            return (
+              <Text key={`${it.file}:${it.line}:${i}`}>
+                <Text color={here ? accent : tokens.textMuted}>{here ? `${GLYPH.prompt} ` : '  '}</Text>
+                <Text color={here ? tokens.textPrimary : tokens.textSecondary}>{loc}</Text>
+                {pad}
+                <HighlightHit text={truncateToWidth(it.text.trimStart(), 40)} query={query.trim()} here={here} tokens={tokens} />
+              </Text>
+            )
+          })}
+          {hitCount > shown.length ? (
+            <Text color={tokens.textMuted}>  +{hitCount - shown.length} more — keep typing to narrow</Text>
+          ) : null}
+        </Box>
+      )}
+    </CommandCenter>
+  )
 }

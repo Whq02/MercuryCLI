@@ -8,7 +8,6 @@ import { getEnumLabel, getEnumLabels, getEnumValues, getMultiSelectLabel, getMul
 import { Dialog } from '../../design-system/Dialog.js'
 import TextInput from '../../TextInput.js'
 import { startTimeout, stopTimeout } from '../../../utils/timers.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 export type FieldValue = string | number | boolean | string[]
 
@@ -324,7 +323,29 @@ export function valueDisplayOf({
   return valueDisplay
 }
 
-export function formDialogView(arg0: {
+export function formDialogView({
+  event,
+  onResponse,
+  fieldFocused,
+  buttonFocused,
+  accordionOpen,
+  footerHint,
+  windowStart,
+  fields,
+  windowEnd,
+  cursor,
+  statusCell,
+  descriptionOf,
+  titleOf,
+  commitText,
+  columns,
+  moveCursor,
+  valueDisplay,
+  accordionWindow,
+  accordionIndex,
+  acceptIndex,
+  declineIndex,
+}: {
   event: ElicitationRequestEvent
   onResponse: ElicitationDialogProps['onResponse']
   fieldFocused: boolean
@@ -347,5 +368,109 @@ export function formDialogView(arg0: {
   acceptIndex: number
   declineIndex: number
 }): React.ReactNode {
-  return notBuilt('src/components/mcp/elicitationDialog/form.tsx:326')
+  return (
+    <Dialog
+      title={`"${event.serverName}"`}
+      subtitle={event.params.message}
+      onCancel={() => onResponse('cancel')}
+      isCancelActive={(!fieldFocused || buttonFocused) && !accordionOpen}
+      inputGuide={() => <Text italic dimColor>{footerHint}</Text>}
+    >
+      <Box flexDirection="column">
+        {windowStart > 0 ? (
+          <Text dimColor>{windowStart} more above</Text>
+        ) : null}
+        {fields.slice(windowStart, windowEnd).map((field, sliceIndex) => {
+          const index = windowStart + sliceIndex
+          const focused = index === cursor
+          const { cell, tone } = statusCell(field, focused)
+          const description = descriptionOf(field)
+          const values =
+            field.kind === 'multi'
+              ? getMultiSelectValues(field.schema)
+              : field.kind === 'enum'
+                ? getEnumValues(field.schema)
+                : []
+          const labels =
+            field.kind === 'multi'
+              ? getMultiSelectLabels(field.schema)
+              : field.kind === 'enum'
+                ? getEnumLabels(field.schema)
+                : []
+          return (
+            <Box key={field.name} flexDirection="column">
+              <Box>
+                <Text color={focused ? (tone ?? 'permission') : undefined}>
+                  {focused ? `${figures.pointer} ` : '  '}
+                </Text>
+                {cell}
+                <Text bold={focused}> {titleOf(field)} </Text>
+                {focused && field.kind === 'text' ? (
+                  <TextInput
+                    value={field.text}
+                    onChange={text => commitText(field, text)}
+                    cursorOffset={field.text.length}
+                    onChangeCursorOffset={() => {}}
+                    columns={Math.max(20, columns - titleOf(field).length - 10)}
+                    onSubmit={() => moveCursor(1)}
+                  />
+                ) : (
+                  valueDisplay(field)
+                )}
+              </Box>
+              {description ? (
+                <Box paddingLeft={4}>
+                  <Text dimColor wrap="wrap">
+                    {description}
+                  </Text>
+                </Box>
+              ) : null}
+              {focused && accordionOpen ? (
+                <Box flexDirection="column" paddingLeft={4}>
+                  <PopupListViewport above={accordionWindow.above} below={accordionWindow.below} rows={accordionWindow.end - accordionWindow.start}>
+                  {values.slice(accordionWindow.start, accordionWindow.end).map((value, sliceOptionIndex) => {
+                    const optionIndex = accordionWindow.start + sliceOptionIndex
+                    const selectedValues = Array.isArray(field.value)
+                      ? field.value
+                      : []
+                    const checked =
+                      field.kind === 'multi'
+                        ? selectedValues.includes(value)
+                        : field.value === value
+                    return (
+                      <Text
+                        key={value}
+                        inverse={optionIndex === accordionIndex}
+                      >
+                        {field.kind === 'multi'
+                          ? checked
+                            ? '[x] '
+                            : '[ ] '
+                          : checked
+                            ? '◉ '
+                            : '○ '}
+                        {labels[optionIndex] ?? value}
+                      </Text>
+                    )
+                  })}
+                  </PopupListViewport>
+                </Box>
+              ) : null}
+              {}
+              <Box paddingLeft={4} height={1}>
+                <Text color="error">{field.error ?? ' '}</Text>
+              </Box>
+            </Box>
+          )
+        })}
+        {windowEnd < fields.length ? (
+          <Text dimColor>{fields.length - windowEnd} more below</Text>
+        ) : null}
+        <Box gap={2} marginTop={1}>
+          <Text inverse={cursor === acceptIndex}> Accept </Text>
+          <Text inverse={cursor === declineIndex}> Decline </Text>
+        </Box>
+      </Box>
+    </Dialog>
+  )
 }
