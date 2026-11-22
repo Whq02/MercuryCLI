@@ -63,6 +63,54 @@ let rotationInProgress = false
 let latestSymlinkRefreshed = false
 let pendingMaintenance: Promise<void> = Promise.resolve()
 
+async function maybeRotateDebugLog(
+  path: string,
+  addedBytes: number,
+  maxBytes: number = MAX_DEBUG_LOG_BYTES,
+): Promise<void> {
+  const fs = getFsImplementation()
+  if (trackedLogSize === null || trackedLogPath !== path) {
+    trackedLogPath = path
+    try {
+      trackedLogSize = fs.statSync(path).size
+    } catch {
+      trackedLogSize = 0
+    }
+  } else {
+    trackedLogSize += addedBytes
+  }
+  if (trackedLogSize <= maxBytes || rotationInProgress) return
+  rotationInProgress = true
+  try {
+    const rotatedPath = path.endsWith('.txt')
+      ? `${path.slice(0, -'.txt'.length)}.1.txt`
+      : `${path}.1`
+    try {
+      await renameWithWin32Retry(path, rotatedPath)
+    } catch (err) {
+      if (!isENOENT(err)) {
+        try {
+          await fs.unlink(rotatedPath)
+        } catch (error) {
+          passedOver(error)
+        }
+        try {
+          await renameWithWin32Retry(path, rotatedPath)
+        } catch {
+          try {
+            await fs.unlink(path)
+          } catch (error) {
+            passedOver(error)
+          }
+        }
+      }
+    }
+    trackedLogSize = 0
+  } finally {
+    rotationInProgress = false
+  }
+}
+
 function refreshLatestSymlink(logPath: string, logDir: string): void {
   if (latestSymlinkRefreshed) return
   latestSymlinkRefreshed = true

@@ -11,7 +11,6 @@ import type {
 import { resolveRequestedInstructionProfile } from '../profile.js'
 import { conventionsForProfile as composeNativeFirst } from '../compositionOrder.js'
 import { passedOver } from '../../../utils/passedOver.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 export const mercuryAdapter: InstructionAdapter = {
   id: 'mercury',
@@ -61,7 +60,51 @@ type FolderSources = {
 }
 
 export function folderSources(start: string): FolderSources {
-  return notBuilt('src/services/instructions/adapters/index.ts:62')
+  const fs = getFsImplementation()
+  let home: string | undefined
+  const above = new Map<string, boolean>()
+  const homeOrAbove = (dir: string): boolean => {
+    let known = above.get(dir)
+    if (known === undefined) {
+      home ??= safeResolvePath(fs, homedir()).resolvedPath
+      known = pathInWorkingPath(home, dir) || home.startsWith(dir.endsWith(sep) ? dir : `${dir}${sep}`)
+      above.set(dir, known)
+    }
+    return known
+  }
+  const standing = new Map<string, boolean>()
+  const stands = (path: string): boolean => {
+    let known = standing.get(path)
+    if (known === undefined) {
+      known = fs.existsSync(path)
+      standing.set(path, known)
+    }
+    return known
+  }
+  const reach = new Map<string, 'none' | 'own' | 'all'>()
+  const reachOf = (convention: InstructionConvention, dir: string): 'none' | 'own' | 'all' => {
+    if (convention.belowHome !== true && convention.entryNames === undefined) return 'all'
+    const key = `${convention.id}\n${dir}`
+    let known = reach.get(key)
+    if (known === undefined) {
+      const personal = convention.belowHome === true && homeOrAbove(dir)
+      const held = (): boolean => convention.entryNames === undefined || convention.entryNames.some(name => stands(join(dir, name)))
+      known = (personal && dir !== start) || !held() ? 'none' : personal ? 'own' : 'all'
+      reach.set(key, known)
+    }
+    return known
+  }
+  const kept = (convention: InstructionConvention, dir: string, paths: () => string[]): string[] => {
+    const reaches = reachOf(convention, dir)
+    if (reaches === 'none') return []
+    return reaches === 'own' ? paths().filter(path => dirname(path) === dir) : paths()
+  }
+  return {
+    reads: (convention, dir) => reachOf(convention, dir) !== 'none',
+    guides: (convention, dir) => kept(convention, dir, () => convention.projectDirFiles(dir)),
+    rules: (convention, dir) => kept(convention, dir, () => convention.projectRulesDirs(dir)),
+    within: (convention, dir, paths) => kept(convention, dir, () => paths),
+  }
 }
 
 export function decidingGuideOf(start: string): string | null {
