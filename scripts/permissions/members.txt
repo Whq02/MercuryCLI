@@ -46,6 +46,7 @@ prove-flow-remembered-yes.ts
 prove-flow-sets-wrapper-rules-aside.ts
 prove-flow-shell-reads-roam.ts
 prove-flow-sovereign-parity.ts
+prove-flow-windows-home.ts
 prove-folder-cannot-preaccept-consent-or-outrun-policy.ts
 prove-git-patch-readers-deny.ts
 prove-glob-permission.ts

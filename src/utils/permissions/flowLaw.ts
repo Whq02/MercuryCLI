@@ -13,7 +13,7 @@ import { POWERSHELL_TOOL_NAME } from '../../constants/tools/powershell.js'
 import { getStartingCwd } from '../cwd.js'
 import { getPathsForPermissionCheck } from '../fsOperations.js'
 import { resolveShellCwd } from '../Shell.js'
-import { UNREAD_PART, layersOf, printedBy, readCommand, wordsAsWritten, type ReadCommand } from './decision/commandAnalysis.js'
+import { UNREAD_PART, layersOf, moveOf, printedBy, readCommand, wordsAsWritten, type ReadCommand } from './decision/commandAnalysis.js'
 import { getMercuryTempDir, getScratchpadDir, matchingRuleForInput, pathInWorkingPath } from './filesystem.js'
 import { allowRulesThatPreAuthorise } from './lateAllowRules.js'
 import { ownGroundCategory } from './ownGround.js'
@@ -22,6 +22,7 @@ import { inlineScriptWriteTargets } from './shellProtectedPaths.js'
 import { oldFolderPlaces, placesCertain } from './shellProtectedPaths/folders.js'
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
+import { readWorldUsesWindowsForms } from '../platform/commandForms.js'
 
 type FlowItem = 1 | 2 | 3 | 4
 export type FlowAsk = { item: FlowItem; subject: string; why: string }
@@ -269,7 +270,10 @@ function grantedByRule(path: string, rules: ToolPermissionContext | undefined): 
 
 function tildePath(path: string): string {
   const home = homedir()
-  return path === home || path.startsWith(`${home}/`) || path.startsWith(`${home}\\`) ? `~${path.slice(home.length)}` : path
+  const prefix = path.slice(0, home.length)
+  const tail = path.slice(home.length)
+  const same = prefix === home || (readWorldUsesWindowsForms() && prefix.replace(/\\/g, '/') === home.replace(/\\/g, '/'))
+  return same && (tail === '' || /^[\\/]/.test(tail)) ? `~${tail}` : path
 }
 
 function operandsOf(args: readonly string[], valued: ReadonlySet<string> = new Set()): string[] {
@@ -724,9 +728,9 @@ function redirectShown(simple: ReadCommand, commands: readonly ReadCommand[], op
   return `${head} ${parts.join(' ')}`
 }
 
-async function scanReading(command: string, cwd: string | null, scan: Scan, parent?: Scan): Promise<void> {
+async function scanReading(command: string, cwd: string | null, scan: Scan, parent?: Scan, windows = false): Promise<void> {
   const home = homedir().replace(/\\/g, '/')
-  const read = await readCommand(command, 'posix', { cwd: cwd?.replace(/\\/g, '/'), home, homesRoot: home.slice(0, Math.max(0, home.lastIndexOf('/'))) || '/', ownNames: [] })
+  const read = await readCommand(command, 'posix', { cwd: cwd?.replace(/\\/g, '/'), home, homesRoot: home.slice(0, Math.max(0, home.lastIndexOf('/'))) || '/', ownNames: [], windows })
   if (read.unread !== undefined && read.unread.text === command) {
     await scanTokens(command, scan)
     if (scan.asks.length > 0) {
@@ -801,6 +805,10 @@ async function scanReading(command: string, cwd: string | null, scan: Scan, pare
         }
       }
     }
+  }
+  if (!windows && scan.asks.length === 0 && readWorldUsesWindowsForms() && /^[A-Za-z]:\//.test(home)) {
+    const entersHome = (word: string): boolean => word === '~' || word.startsWith('~/') || word === home || word.startsWith(`${home}/`)
+    if (read.commands.some(one => moveOf(one)?.operands.some(entersHome))) await scanReading(command, cwd, { ...scan, cwd, aliases: new Map(scan.aliases) }, undefined, true)
   }
   if (parent !== undefined) {
     parent.asks.push(...scan.asks)
