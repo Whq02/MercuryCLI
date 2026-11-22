@@ -10,7 +10,7 @@ import { readSwitch, recordBundledApproval } from './install.js'
 import { contributionsHash, extensionId, readManifest } from './manifest.js'
 import { PROJECT_EXTENSIONS_DIR } from './paths.js'
 import { MERCURY_PROJECT_DIR } from '../utils/projectConfig.js'
-import { readInstalled, readSources, type InstalledRecord, type SourceRecord } from './records.js'
+import { readInstalled, readSources, restoreChannelsSwitches, type InstalledRecord, type SourceRecord } from './records.js'
 import { compareWithCatalogue, readSourceCatalogue } from './sources.js'
 import { hashTree } from './tree.js'
 import type { RosterEntry, RosterSummary, TrustState } from './types.js'
@@ -166,6 +166,7 @@ export function computeRoster(input: RosterInput = {}): RosterResult {
   const installedRead = readInstalled()
   const installed = installedRead.ok ? installedRead.data : {}
   if (!installedRead.ok) problems.push(`installed.json unreadable (${installedRead.error}) — the roster reads empty until it is fixed or removed`)
+  restoreChannelsSwitches(installed)
   const sourcesRead = readSources()
   const sources = sourcesRead.ok ? sourcesRead.data : {}
   if (!sourcesRead.ok) problems.push(`sources.json unreadable (${sourcesRead.error}) — sources read empty until it is fixed or removed`)
