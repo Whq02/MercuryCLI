@@ -38,7 +38,7 @@ import { useGreetingShimmer } from './mercury-ui/useGreetingShimmer.js';
 import { useInteractiveList, type AsyncListNote } from './mercury-ui/useInteractiveList.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
-import { openProjectOf, runRowOf, type BootRow } from './bootSplash/rowActions.js';
+import { continueOpenElsewhere, openProjectOf, runRowOf, type BootRow } from './bootSplash/rowActions.js';
 import { bootSplashCompositionOf, bootSplashFaceView } from './bootSplash/face.js';
 import { armBootSettingsLayerDeepLink, consumeBootSettingsLayerDeepLink } from './bootSplash/settingsLayerDeepLink.js';
 import { passedOver } from '../utils/passedOver.js';
@@ -139,6 +139,14 @@ export function BootSplashScreen(): React.ReactNode {
   const signInEpoch = useSignInEpoch();
 
   const [facts] = useState(() => scanBootCardFacts(getCwd(), getSessionId()));
+  const [continueElsewhere] = useState(() => {
+    try {
+      return continueOpenElsewhere(facts);
+    } catch (error) {
+      passedOver(error)
+      return false;
+    }
+  });
   const [updateLine, setUpdateLine] = useState(() => takeFaceUpdateNotice());
   useTimer(() => {
     if (updateLine === null) return;
@@ -341,8 +349,8 @@ export function BootSplashScreen(): React.ReactNode {
 
   const selectedIndex = selCleared ? -1 : list.selectedIndex;
   const composition = useMemo(() => {
-    return bootSplashCompositionOf({ isCompact, composedRows, selectedIndex, core, columns, rows, modelDefaultDoor, stripHint, wordGlow, rowGlow, bottomRowWithNotice, updateLine, chips, plainWhy, keyMapHint });
-  }, [core, columns, rows, isCompact, plainWhy, stripHint, keyMapHint, modelDefaultDoor, updateLine, selectedIndex, composedRows, chips, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
+    return bootSplashCompositionOf({ isCompact, composedRows, continueElsewhere, selectedIndex, core, columns, rows, modelDefaultDoor, stripHint, wordGlow, rowGlow, bottomRowWithNotice, updateLine, chips, plainWhy, keyMapHint });
+  }, [core, columns, rows, isCompact, plainWhy, stripHint, keyMapHint, modelDefaultDoor, updateLine, selectedIndex, composedRows, continueElsewhere, chips, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
 
 
   return bootSplashFaceView({ settingsOpen, columns, rows, setSettingsOpen, kitOpen, setKitOpen, healthOpen, setHealthOpen, saturnOpen, setSaturnOpen, agentsOpen, loginsOpen, setLoginsOpen, setAgentsOpen, closeLogins, loginsFamily, loginsBack, resumeOpen, setResumeOpen, facts, runningOf, openProject, composition, list, birthReceipt, core, isCompact, keyMapHint, updateLine, bottomRowWithNotice, KEY_MAP_ROW, composedRows, t, modelDefaultOpen, setModelDefaultOpen, setLoginsFamily, setLoginsBack });

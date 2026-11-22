@@ -1,4 +1,4 @@
-import { INPUT_ROW_TYPES, PARTIAL_ROW_TYPES, ROW_TYPES, ROWS_SCHEMA, type OutcomeRow, type Row, type RowType, type StepRow, type TurnRow } from './vocabulary.js'
+import { INPUT_ROW_TYPES, MENTION_DROPPED_CODE, PARTIAL_ROW_TYPES, ROW_TYPES, ROWS_SCHEMA, type NoticeRow, type OutcomeRow, type Row, type RowType, type StepRow, type TurnRow } from './vocabulary.js'
 import { passedOver } from '../utils/passedOver.js'
 
 export type LooseRow = { type: string; seq?: number; session_id?: string; turn?: number; parent_call_id?: string; [key: string]: unknown }
@@ -46,6 +46,7 @@ export const isSessionRow = (row: LooseRow | null | undefined): boolean => row?.
 export const turnOpened = (row: LooseRow | null | undefined): row is TurnRow & LooseRow => row?.type === 'turn' && row.state === 'started'
 export const turnWaiting = (row: LooseRow | null | undefined): row is TurnRow & LooseRow => row?.type === 'turn' && row.state === 'waiting'
 export const mainThreadStep = (row: LooseRow | null | undefined): row is StepRow & LooseRow => row?.type === 'step' && row.parent_call_id === undefined
+export const mentionDropped = (row: LooseRow | null | undefined): row is NoticeRow & LooseRow => row?.type === 'notice' && row.code === MENTION_DROPPED_CODE
 
 export function outcomeErrorText(row: OutcomeRow | LooseRow): string | undefined {
   const error = (row as { error?: { message?: unknown } }).error

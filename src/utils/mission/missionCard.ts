@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../debug.js'
@@ -32,18 +32,22 @@ export interface MissionCard {
   outcome?: MissionOutcome
 }
 
-function missionCardsDir(cwd: string = getOriginalCwd()): string {
-  return join(getProjectDir(cwd), 'missions')
+function missionStore(cwd: string = getOriginalCwd()): string {
+  return getProjectDir(cwd)
 }
 
-function missionCardPath(sessionId: string, cwd?: string): string {
-  return join(missionCardsDir(cwd), `${sanitizePathComponent(sessionId)}.json`)
+function missionCardsDir(store: string): string {
+  return join(store, 'missions')
+}
+
+function missionCardPath(sessionId: string, store: string): string {
+  return join(missionCardsDir(store), `${sanitizePathComponent(sessionId)}.json`)
 }
 
 function persistMissionCard(card: MissionCard, cwd?: string): void {
-  const dir = missionCardsDir(cwd)
-  mkdirSync(dir, { recursive: true })
-  durableAtomicPublishSync(missionCardPath(card.sessionId, cwd), JSON.stringify(card, null, 1))
+  const store = missionStore(cwd)
+  mkdirSync(missionCardsDir(store), { recursive: true })
+  durableAtomicPublishSync(missionCardPath(card.sessionId, store), JSON.stringify(card, null, 1))
 }
 
 type MissionCardWriteResult =
@@ -55,7 +59,7 @@ export function missionCardUnwrittenWords(path: string, error: string): string {
 }
 
 export function writeMissionCard(card: MissionCard, cwd?: string): MissionCardWriteResult {
-  const path = missionCardPath(card.sessionId, cwd)
+  const path = missionCardPath(card.sessionId, missionStore(cwd))
   try {
     persistMissionCard(card, cwd)
     return { ok: true, path }
@@ -77,8 +81,7 @@ export function missionCardUnreadWords(path: string, error: unknown): string {
   return `${path} could not be read (${detail}) — the mission is not shown`
 }
 
-export function inspectMissionCard(sessionId: string, cwd?: string): MissionCardRead {
-  const path = missionCardPath(sessionId, cwd)
+function inspectCard(path: string): MissionCardRead {
   let raw: string
   try {
     raw = readFileSync(path, 'utf8')
@@ -95,6 +98,16 @@ export function inspectMissionCard(sessionId: string, cwd?: string): MissionCard
   } catch (error) {
     return { state: 'unreadable', path, error }
   }
+}
+
+export function inspectMissionCard(sessionId: string, cwd?: string): MissionCardRead {
+  return inspectCard(missionCardPath(sessionId, missionStore(cwd)))
+}
+
+export function missionGoalBeside(transcriptPath: string): string | null {
+  const read = inspectCard(missionCardPath(basename(transcriptPath, '.jsonl'), dirname(transcriptPath)))
+  if (read.state === 'unreadable') passedOver(read.error)
+  return read.state === 'ok' && (missionCardStands(read.card.state) || read.card.state === 'met') ? read.card.goal : null
 }
 
 export function readMissionCard(sessionId: string, cwd?: string): MissionCard | null {
@@ -116,9 +129,9 @@ export function migrateOrphanedMissionCard(conversationId: string, cwd?: string)
       }
       return false
     }
-    const dir = missionCardsDir(cwd)
+    const projectDir = missionStore(cwd)
+    const dir = missionCardsDir(projectDir)
     if (!existsSync(dir)) return false
-    const projectDir = getProjectDir(cwd ?? getOriginalCwd())
     const orphans: MissionCard[] = []
     for (const name of readdirSync(dir)) {
       if (!name.endsWith('.json')) continue

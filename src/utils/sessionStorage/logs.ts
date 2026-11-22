@@ -51,7 +51,8 @@ import {
   getTranscriptPathForSession,
 } from './paths.js'
 import { appendEntryToFile, getProject, getSessionMessages } from './writer.js'
-import { readSessionLabelFacts, sessionFiles, sessionPromptFromWindow, type IndexedSession } from './sessionIndex.js'
+import { promptLabel, readSessionLabelFacts, sessionFiles, sessionPromptFromWindow, type IndexedSession } from './sessionIndex.js'
+import { missionGoalBeside } from '../mission/missionCard.js'
 import { transcriptRows } from './rowGraph.js'
 import type { SessionMetaFields } from './sessionMeta.js'
 import { isBuiltInCommandName } from './builtInCommands.js'
@@ -952,7 +953,9 @@ async function readLiteMetadata(
   buf: Buffer,
   onReadError?: (path: string, error: unknown) => void,
 ): Promise<LiteMetadata> {
-  return readSessionLabelFacts(filePath, fileSize, buf, isBuiltInCommandName, onReadError)
+  const facts = await readSessionLabelFacts(filePath, fileSize, buf, isBuiltInCommandName, onReadError)
+  const goal = missionGoalBeside(filePath)
+  return goal === null ? facts : { ...facts, firstPrompt: promptLabel(goal) }
 }
 
 export function extractFirstPromptFromChunk(chunk: string): string {

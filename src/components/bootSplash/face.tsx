@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import figures from 'figures';
 import { Box } from '../../ink.js';
-import type { createSplashCore, SplashComposeOpts, SplashStripChips } from '../../../assets/splash/splash-core.mjs';
+import { CARD_LABEL_W, type createSplashCore, type SplashComposeOpts, type SplashStripChips } from '../../../assets/splash/splash-core.mjs';
 import { truncateToWidth } from '../../utils/glyphs.js';
 import type { scanBootCardFacts, BootProjectFact } from '../../utils/bootCardFacts.js';
 import type { PlainWorldWhy } from '../../context/surfaceRoute.js';
@@ -23,10 +23,19 @@ import type { useInteractiveList, AsyncListNote } from '../mercury-ui/useInterac
 import type { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
 import type { BootRow } from './rowActions.js';
 
-export function bootSplashCompositionOf({ isCompact, composedRows, selectedIndex, core, columns, rows, modelDefaultDoor, stripHint, wordGlow, rowGlow, bottomRowWithNotice, updateLine, chips, plainWhy, keyMapHint }: { isCompact: boolean; composedRows: BootRow[]; selectedIndex: number; core: ReturnType<typeof createSplashCore>; columns: number; rows: number; modelDefaultDoor: boolean; stripHint: string; wordGlow: ReturnType<typeof useGreetingShimmer>; rowGlow: ReturnType<typeof useGreetingShimmer>; bottomRowWithNotice: (core: ReturnType<typeof createSplashCore>, columns: number, keyMapHint: string, notice: string | null, compact: boolean) => string | null; updateLine: string | null; chips: SplashStripChips; plainWhy: PlainWorldWhy | null; keyMapHint: string }) {
+const OPEN_ELSEWHERE = 'open in another window';
+
+function continueDetail(row: BootRow, elsewhere: boolean, fitsBeside: (detail: string) => boolean): string {
+  const place = row.ctx.startsWith('in ') ? row.ctx : '';
+  if (!elsewhere) return place;
+  const beside = `${place} · ${OPEN_ELSEWHERE}`;
+  return place !== '' && fitsBeside(beside) ? beside : OPEN_ELSEWHERE;
+}
+
+export function bootSplashCompositionOf({ isCompact, composedRows, continueElsewhere, selectedIndex, core, columns, rows, modelDefaultDoor, stripHint, wordGlow, rowGlow, bottomRowWithNotice, updateLine, chips, plainWhy, keyMapHint }: { isCompact: boolean; composedRows: BootRow[]; continueElsewhere: boolean; selectedIndex: number; core: ReturnType<typeof createSplashCore>; columns: number; rows: number; modelDefaultDoor: boolean; stripHint: string; wordGlow: ReturnType<typeof useGreetingShimmer>; rowGlow: ReturnType<typeof useGreetingShimmer>; bottomRowWithNotice: (core: ReturnType<typeof createSplashCore>, columns: number, keyMapHint: string, notice: string | null, compact: boolean) => string | null; updateLine: string | null; chips: SplashStripChips; plainWhy: PlainWorldWhy | null; keyMapHint: string }) {
   if (isCompact) {
     const compact = core.composeCompactFace(columns, rows, {
-      cardRows: composedRows.map(r => ({ label: r.label, ctx: r.key === 'continue' && r.ctx.startsWith('in ') ? r.ctx : '', ...(r.dim ? { dim: true } : {}) })),
+      cardRows: composedRows.map(r => ({ label: r.label, ctx: r.key === 'continue' ? continueDetail(r, continueElsewhere, () => false) : '', ...(r.dim ? { dim: true } : {}) })),
       cardSel: selectedIndex,
       hintSegments: [
         { key: '>_', label: '', tone: 'faint' as const },
@@ -53,7 +62,7 @@ export function bootSplashCompositionOf({ isCompact, composedRows, selectedIndex
     cardRows: composedRows.map(r => ({
       icon: r.icon,
       label: r.label,
-      ctx: r.key === 'continue' && r.ctx.startsWith('in ') ? r.ctx : '',
+      ctx: r.key === 'continue' ? continueDetail(r, continueElsewhere, detail => core.vis(detail) <= Math.min(columns - 2, 84) - CARD_LABEL_W - 11) : '',
       ...(r.dim ? { dim: true } : {}),
     })),
     cardSel: selectedIndex,

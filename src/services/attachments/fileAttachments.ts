@@ -76,6 +76,10 @@ async function validatedRead(input: ReadRequest, context: ToolUseContext, mode: 
 const droppedImage = (filename: string, reason: string): DroppedImageAttachment => ({ type: 'dropped_image_file', filename, displayPath: displayOf(filename), reason })
 const droppedUnread = (filename: string, reason: string, unread: 'retry' | 'refused'): DroppedImageAttachment => ({ ...droppedImage(filename, reason), unread })
 
+export function droppedMentionLine(row: Pick<DroppedImageAttachment, 'displayPath' | 'reason'>): string {
+  return `Dropped ${row.displayPath} — ${row.reason}`
+}
+
 export function mentionPastCeiling(filename: string, seconds: number): DroppedImageAttachment {
   const reason = `Reading it took longer than ${seconds} seconds.`
   return isImageFilePath(filename) ? droppedImage(filename, reason) : droppedUnread(filename, reason, 'retry')

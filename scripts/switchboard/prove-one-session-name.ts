@@ -35,6 +35,11 @@ const { projectIdentity } = await import('../../src/utils/bootCardFacts.ts')
 const { concourseWorkersPath, setConcourseSessionTitle, boardHomedSessionIds } = await import('../../src/daemon/concourseWorkers.ts')
 const { listSessionsAcrossProjectsProgressive, enrichSessionListings } = await import('../../src/utils/sessionStorage.ts')
 const { projectSessionPickerRows } = await import('../../src/components/mercury-ui/screens/sessionPickerModel.ts')
+const { listSessionsImpl } = await import('../../src/utils/listSessionsImpl.ts')
+const { writeMissionCard } = await import('../../src/utils/mission/missionCard.ts')
+const { buildMissionDirective, MISSION_HOLD_HEAD } = await import('../../src/guards/mission.ts')
+const { createSeatReceiptMessage } = await import('../../src/utils/messages/systemMessages.ts')
+const { composeBuildBehindLine } = await import('../../src/tools/MonitorTool/watchReceipts.ts')
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
 import type { SessionListing } from '../../src/types/logs.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
@@ -109,6 +114,47 @@ function seedMultiPromptTranscript(
   utimesSync(file, at, at)
 }
 
+const NOTICE = composeBuildBehindLine('68d369c7535d', '14fca308c142', false)
+
+function seedNoticeFirstTranscript(
+  sessionId: string,
+  opts: { ageMs: number; prompt?: string; mission?: { goal: string; state: 'paused' | 'cleared' } },
+): void {
+  const file = workerTranscriptPath({ sessionId, workspaceId: PROJECT })
+  mkdirSync(dirname(file), { recursive: true })
+  const envelope = { isSidechain: false, entrypoint: 'cli', cwd: PROJECT, sessionId, version: '1.0.12', gitBranch: 'main' }
+  const at = (n: number): string => new Date(NOW - opts.ageMs - (10 - n) * 1000).toISOString()
+  const uuidOf = (n: number): string => `00000000-0000-4000-8000-${sessionId.slice(-8)}${String(n).padStart(4, '0')}`
+  const rows: Record<string, unknown>[] = [{ ...createSeatReceiptMessage(NOTICE, 'warning'), ...envelope, parentUuid: null, uuid: uuidOf(0), timestamp: at(0) }]
+  let parentUuid = uuidOf(0)
+  const turn = (n: number, content: string, stamp: Record<string, unknown>): void => {
+    rows.push({ ...envelope, ...stamp, parentUuid, uuid: uuidOf(n), timestamp: at(n), type: 'user', message: { role: 'user', content } })
+    rows.push({
+      ...envelope,
+      parentUuid: uuidOf(n),
+      uuid: uuidOf(n + 1),
+      timestamp: at(n),
+      type: 'assistant',
+      message: { id: `msg_${n}`, type: 'message', role: 'assistant', model: 'claude-opus-5', content: [{ type: 'text', text: `reply ${n}` }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+    })
+    parentUuid = uuidOf(n + 1)
+  }
+  if (opts.prompt !== undefined) turn(1, opts.prompt, {})
+  if (opts.mission !== undefined) {
+    const directive = buildMissionDirective(opts.mission.goal)
+    const origin = { kind: 'screen-command', command: 'mission' }
+    rows.push({ type: 'queue-operation', operation: 'enqueue', timestamp: at(3), sessionId, content: directive, commandUuid: uuidOf(3), mode: 'prompt', isMeta: true, origin })
+    turn(3, directive, { isMeta: true, origin })
+    turn(5, `${MISSION_HOLD_HEAD} ${opts.mission.goal} — no close yet. Continue.`, { isMeta: true })
+    const written = writeMissionCard({ schema: 1, sessionId, goal: opts.mission.goal, state: opts.mission.state, nextStep: null, iterations: 2, setAt: at(3), updatedAt: at(5) }, PROJECT)
+    if (!written.ok) throw new Error(`the mission card of ${sessionId} was not written: ${written.error}`)
+  }
+  if (opts.prompt !== undefined) rows.push({ type: 'last-prompt', lastPrompt: opts.prompt, sessionId })
+  writeFileSync(file, encodeSeedTranscript(rows as never, sessionId))
+  const when = new Date(NOW - opts.ageMs)
+  utimesSync(file, when, when)
+}
+
 function seedWorkers(records: ConcourseWorkerRecordV1[]): void {
   const path = concourseWorkersPath()
   mkdirSync(dirname(path), { recursive: true })
@@ -142,6 +188,21 @@ seedMultiPromptTranscript(S_THREE_UNHOSTED, [FIRST_A, 'Middle prompt A', 'Run ex
 seedMultiPromptTranscript(S_THREE_PARKED, [FIRST_B, 'Middle prompt B', 'Final prompt B'], { ageMs: 8 * MIN })
 seedMultiPromptTranscript(S_RENAMED_PARKED, [FIRST_C, 'Middle prompt C', 'Yes, please remove ordstats.py'], { ageMs: 6 * MIN })
 seedMultiPromptTranscript(S_RENAMED_TRANSCRIPT, [FIRST_D, 'Middle prompt D', 'Final prompt D'], { ageMs: 4 * MIN, customTitle: 'flow probes u23' })
+
+const S_MISSION_ONLY = sid('05')
+const S_MISSION_AFTER_PROMPT = sid('06')
+const S_MISSION_CLEARED = sid('07')
+const S_NOTICE_ONLY = sid('08')
+
+const GOAL_ONLY = 'relay answers in 1s; never touch the config'
+const GOAL_AFTER_PROMPT = 'every test in test_relay.py passes'
+const FIRST_E = 'Look at the relay module with me'
+const FIRST_F = 'Sketch the retry ladder'
+
+seedNoticeFirstTranscript(S_MISSION_ONLY, { ageMs: 3 * MIN, mission: { goal: GOAL_ONLY, state: 'paused' } })
+seedNoticeFirstTranscript(S_MISSION_AFTER_PROMPT, { ageMs: 2 * MIN, prompt: FIRST_E, mission: { goal: GOAL_AFTER_PROMPT, state: 'paused' } })
+seedNoticeFirstTranscript(S_MISSION_CLEARED, { ageMs: 1 * MIN, prompt: FIRST_F, mission: { goal: 'a goal the operator cleared', state: 'cleared' } })
+seedNoticeFirstTranscript(S_NOTICE_ONLY, { ageMs: 30_000 })
 
 seedWorkers([
   {
@@ -225,6 +286,50 @@ check(
   managerById.get(S_RENAMED_TRANSCRIPT) === 'flow probes u23' && pickerById.get(S_RENAMED_TRANSCRIPT) === 'flow probes u23',
   `manager=${JSON.stringify(managerById.get(S_RENAMED_TRANSCRIPT))} sessions=${JSON.stringify(pickerById.get(S_RENAMED_TRANSCRIPT))}`,
   NAME_HINT,
+)
+
+const MISSION_HINT = 'a session is named by its /rename title, else its mission\'s goal, else the first prompt typed, and never by a notice: headBriefLabel in src/services/concourse/concourseSnapshot.ts, readLiteMetadata in src/utils/sessionStorage/logs.ts and readCandidate in src/utils/listSessionsImpl.ts must each read the goal through missionGoalBeside in src/utils/mission/missionCard.ts, and sessionLabelFacts in src/utils/sessionStorage/sessionIndex.ts must not take a record\'s content for a name'
+const bothNames = (sessionId: string): string => `manager=${JSON.stringify(managerById.get(sessionId))} sessions=${JSON.stringify(pickerById.get(sessionId))}`
+
+check(
+  'a /mission session whose record opens on a build notice and holds no typed prompt is listed under its goal in BOTH Session Manager and /sessions',
+  managerById.get(S_MISSION_ONLY) === GOAL_ONLY && pickerById.get(S_MISSION_ONLY) === GOAL_ONLY,
+  bothNames(S_MISSION_ONLY),
+  MISSION_HINT,
+)
+
+check(
+  'a session with a typed prompt and a standing mission is listed under the mission\'s goal in BOTH',
+  managerById.get(S_MISSION_AFTER_PROMPT) === GOAL_AFTER_PROMPT && pickerById.get(S_MISSION_AFTER_PROMPT) === GOAL_AFTER_PROMPT,
+  bothNames(S_MISSION_AFTER_PROMPT),
+  MISSION_HINT,
+)
+
+check(
+  'a mission the operator cleared no longer names its session: its first prompt does, in BOTH',
+  managerById.get(S_MISSION_CLEARED) === FIRST_F && pickerById.get(S_MISSION_CLEARED) === FIRST_F,
+  bothNames(S_MISSION_CLEARED),
+  MISSION_HINT,
+)
+
+check(
+  'a session whose record holds a build notice and nothing typed is never listed under the notice\'s words',
+  managerById.get(S_NOTICE_ONLY) === undefined && !(pickerById.get(S_NOTICE_ONLY) ?? '').includes('Mercury build'),
+  bothNames(S_NOTICE_ONLY),
+  MISSION_HINT,
+)
+
+const editorById = new Map((await listSessionsImpl({ dir: PROJECT })).map(row => [row.sessionId, row.summary] as const))
+check(
+  'the editor\'s session list (session/list) names each session by the same rule: the first prompt, the mission\'s goal, the rename, and no row for the notice',
+  editorById.get(S_THREE_UNHOSTED) === FIRST_A &&
+    editorById.get(S_RENAMED_TRANSCRIPT) === 'flow probes u23' &&
+    editorById.get(S_MISSION_ONLY) === GOAL_ONLY &&
+    editorById.get(S_MISSION_AFTER_PROMPT) === GOAL_AFTER_PROMPT &&
+    editorById.get(S_MISSION_CLEARED) === FIRST_F &&
+    !editorById.has(S_NOTICE_ONLY),
+  JSON.stringify([S_THREE_UNHOSTED, S_RENAMED_TRANSCRIPT, S_MISSION_ONLY, S_MISSION_AFTER_PROMPT, S_MISSION_CLEARED, S_NOTICE_ONLY].map(id => editorById.get(id) ?? null)),
+  MISSION_HINT,
 )
 
 const { mock } = await import('bun:test')

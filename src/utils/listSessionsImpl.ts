@@ -2,7 +2,8 @@ import { readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { getWorktreePathsPortable } from './getWorktreePathsPortable.js'
-import { sessionFiles, sessionPromptFromWindow } from './sessionStorage/sessionIndex.js'
+import { missionGoalBeside } from './mission/missionCard.js'
+import { promptLabel, sessionFiles, sessionPromptFromWindow } from './sessionStorage/sessionIndex.js'
 import {
   canonicalizePath,
   extractJsonStringField,
@@ -47,7 +48,7 @@ function lineIndicatesSidechain(line: string): boolean {
   return line.includes('"isSidechain":true') || line.includes('"isSidechain": true')
 }
 
-function parseSessionInfoFromLite(sessionId: string, lite: LiteSessionFile, projectPath?: string): SessionInfo | null {
+function parseSessionInfoFromLite(sessionId: string, lite: LiteSessionFile, missionGoal: string | null, projectPath?: string): SessionInfo | null {
   const headLines = lite.head.split('\n')
   const probeLine = (headLines[0] ?? '').includes(MERCURY_HEADER_MARKER) ? (headLines[1] ?? '') : (headLines[0] ?? '')
   if (lineIndicatesSidechain(probeLine)) return null
@@ -69,9 +70,10 @@ function parseSessionInfoFromLite(sessionId: string, lite: LiteSessionFile, proj
 
   const summary =
     customTitle ??
+    (missionGoal === null ? undefined : promptLabel(missionGoal)) ??
+    firstPrompt ??
     extractLastJsonStringField(lite.tail, 'lastPrompt') ??
-    extractLastJsonStringField(lite.tail, 'summary') ??
-    firstPrompt
+    extractLastJsonStringField(lite.tail, 'summary')
   if (!summary) return null
 
   const gitBranch = extractLastJsonStringField(lite.tail, 'gitBranch') ?? extractJsonStringField(lite.head, 'gitBranch')
@@ -114,7 +116,7 @@ function byMtimeThenIdDesc(a: Candidate, b: Candidate): number {
 async function readCandidate(candidate: Candidate, statRan: boolean): Promise<SessionInfo | null> {
   const lite = await readSessionLite(candidate.filePath)
   if (!lite) return null
-  const info = parseSessionInfoFromLite(candidate.sessionId, lite, candidate.projectPath)
+  const info = parseSessionInfoFromLite(candidate.sessionId, lite, missionGoalBeside(candidate.filePath), candidate.projectPath)
   if (!info) return null
   if (statRan && candidate.mtime > 0) info.lastModified = candidate.mtime
   return info

@@ -7,7 +7,6 @@ import {
   extractLastJsonStringField,
   readHeadAndTail,
   scanTailForEndedOnError,
-  unescapeJsonString,
   validateUuid,
 } from '../sessionStoragePortable.js'
 import { getErrnoCode } from '../errors.js'
@@ -120,18 +119,6 @@ function firstField(head: string, field: string): unknown {
   return undefined
 }
 
-function fieldPrefix(text: string, key: string, limit: number): string {
-  for (const marker of [`"${key}":"`, `"${key}": "`]) {
-    const at = text.indexOf(marker)
-    if (at < 0) continue
-    const start = at + marker.length
-    let end = start
-    for (let count = 0; end < text.length && count < limit && text[end] !== '"'; count++) end += text[end] === '\\' ? 2 : 1
-    return Array.from(unescapeJsonString(text.slice(start, end)), ch => ch.charCodeAt(0) < 0x20 ? ' ' : ch).join('').trim()
-  }
-  return ''
-}
-
 function sessionLabelFacts(head: string, tail: string, builtIn: (name: string) => boolean) {
   const first = (field: string) => extractJsonStringField(head, field)
   const last = (field: string) => extractLastJsonStringField(tail, field)
@@ -145,7 +132,7 @@ function sessionLabelFacts(head: string, tail: string, builtIn: (name: string) =
     }
   }
   return {
-    firstPrompt: sessionPromptFromWindow(head, builtIn) || last('lastPrompt') || fieldPrefix(head, 'content', 200) || fieldPrefix(head, 'text', 200) || '',
+    firstPrompt: sessionPromptFromWindow(head, builtIn) || last('lastPrompt') || '',
     gitBranch: last('gitBranch') ?? first('gitBranch'),
     isSidechain: firstField(head, 'isSidechain') === true,
     projectPath: typeof cwd === 'string' && cwd ? cwd : first('cwd'),

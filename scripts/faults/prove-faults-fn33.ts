@@ -370,16 +370,24 @@ async function runSessionFlip(): Promise<void> {
   const sid = '11111111-1111-4111-8111-111111111111'
   const cwd = process.cwd()
   const now = new Date().toISOString()
+  const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
   writeFileSync(
     join(projDir, `${sid}.jsonl`),
-    JSON.stringify({
-      type: 'user',
-      uuid: '22222222-2222-4222-8222-222222222222',
-      sessionId: sid,
-      timestamp: now,
-      cwd,
-      message: { role: 'user', content: 'hello flip proof' },
-    }) + '\n',
+    encodeSeedTranscript(
+      [
+        {
+          type: 'user',
+          isSidechain: false,
+          parentUuid: null,
+          uuid: '22222222-2222-4222-8222-222222222222',
+          sessionId: sid,
+          timestamp: now,
+          cwd,
+          message: { role: 'user', content: 'hello flip proof' },
+        },
+      ],
+      sid,
+    ),
   )
   const outcome = await flipToSession(async () => {
     throw new Error('resume-boom')
