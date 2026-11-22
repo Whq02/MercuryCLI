@@ -9,6 +9,7 @@ import { getMercuryHome } from '../../../utils/envUtils.js'
 import { expandPath, getDirectoryForPath } from '../../../utils/path.js'
 import { toTildePath } from '../../../utils/path.js'
 import {
+  generateSuggestions,
   normalizeCaseForComparison,
   pathInAllowedWorkingPath,
 } from '../../../utils/permissions/filesystem.js'
@@ -113,7 +114,11 @@ export function getFilePermissionOptions({
       value: 'accept-session',
       option: { type: 'accept-session', scope, pattern },
     })
-  } else if (!hostList) {
+  } else if (
+    !hostList &&
+    filePath !== null &&
+    generateSuggestions(filePath, operationType, toolPermissionContext).length > 0
+  ) {
     const inside =
       filePath !== null && !remote && pathInAllowedWorkingPath(filePath, toolPermissionContext)
     const isRead = operationType === 'read'

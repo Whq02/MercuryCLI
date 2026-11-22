@@ -143,12 +143,12 @@ check('an estate grant carries its pattern as one session allow rule for the Edi
 check('the shared request object is still untouched', toolUseConfirm.input === originalInput)
 write.close()
 
-section('§4 A READ WITHOUT A PATH — the session option still exists and the chord grants it with no rules')
+section('§4 A READ WITHOUT A PATH — no empty-grant session option exists and the chord is inert')
 const read = await mount(null, 'read')
-check('a pathless read offers the same three values', j(values()) === j(['accept-once', 'accept-session', 'reject']), j(values()))
+check('a pathless read offers Yes and No only', j(values()) === j(['accept-once', 'reject']), j(values()))
 chord()
 await settle()
-check('the chord grants the session option with no rule suggestions', j(taken()) === j(['onDone', `onAllow(${j({ ...originalInput, parsed: true })}, [], undefined)`]), j(journal))
+check('the chord does nothing when no session option exists', j(taken()) === j([]), j(journal))
 read.close()
 
 section('§5 READ SYMLINKS — the same target and workspace escape row as edits')

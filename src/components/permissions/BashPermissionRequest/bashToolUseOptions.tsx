@@ -13,9 +13,16 @@ function stripRedirections(command: string): string {
 }
 
 function editableCanRepresent(suggestions: PermissionUpdate[]): boolean {
-  return suggestions.every(
-    update =>
-      update.type === 'addRules' && update.rules.every(rule => rule.toolName === BASH_TOOL_NAME),
+  return (
+    suggestions.some(
+      update =>
+        update.type === 'addRules' &&
+        update.rules.some(rule => rule.toolName === BASH_TOOL_NAME && (rule.ruleContent ?? '').trim() !== ''),
+    ) &&
+    suggestions.every(
+      update =>
+        update.type === 'addRules' && update.rules.every(rule => rule.toolName === BASH_TOOL_NAME),
+    )
   )
 }
 

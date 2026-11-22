@@ -129,7 +129,7 @@ export function generateShellSuggestionsLabel(
             if (cleaned !== '') directories.push(cleaned)
           }
         } else if (rule.toolName === shellToolName) {
-          if (rule.ruleContent !== undefined) {
+          if (rule.ruleContent !== undefined && rule.ruleContent.trim() !== '') {
             const prefix = permissionRuleExtractPrefix(rule.ruleContent) ?? rule.ruleContent
             rawCommands.push(commandTransform ? commandTransform(prefix) : prefix)
           }

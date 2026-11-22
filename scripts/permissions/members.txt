@@ -13,6 +13,7 @@ prove-card-grant-words-match-rule.ts
 prove-card-input-identity.ts
 prove-card-keys-wait-for-first-paint.ts
 prove-card-mark-moves-by-keys-only.ts
+prove-card-options-grant-something.ts
 prove-card-owns-the-arrows.ts
 prove-child-environment.ts
 prove-command-content-checks.ts

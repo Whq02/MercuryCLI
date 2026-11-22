@@ -151,7 +151,8 @@ export function ComputerPermissionRequest({
   const mode = useAppState(state => state.toolPermissionContext.mode)
   const bypassAvailable = useAppState(state => state.toolPermissionContext.isBypassPermissionsModeAvailable)
   const sovereignOn = postureBypassesAsks({ mode, isBypassPermissionsModeAvailable: bypassAvailable })
-  const options = (challenge ? COMPUTER_CHALLENGE_CHOICES : clipboard ? computerClipboardChoicesFor(sovereignOn) : computerAskChoicesFor(sovereignOn)).map(choice => ({ label: choice.label, value: choice.value }))
+  const hideSovereign = sovereignOn || isSovereignDisabled()
+  const options = (challenge ? COMPUTER_CHALLENGE_CHOICES : clipboard ? computerClipboardChoicesFor(hideSovereign) : computerAskChoicesFor(hideSovereign)).map(choice => ({ label: choice.label, value: choice.value }))
 
   function handleChange(value: ComputerAskChoice): void {
     const effect = applyComputerAskChoice(value, conversationIdHere(), Date.now(), challenge || clipboard)
