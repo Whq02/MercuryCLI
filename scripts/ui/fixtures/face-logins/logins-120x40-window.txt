@@ -16,11 +16,11 @@
    │                                                 op@example.com │  │ Kimi (Moonshot) — device-code sign-in      │
    │   Hugging Face — sign-in or Hub token           keyed-op …k9f2 │  │ or API key                                 │
    │ ❯ Kimi (Moonshot) — device-code sign-in or API key             │  │                                            │
-   │                              kimi.ai (global) · window reached │  │ state: kimi.ai (global) · window           │
-   │                                                                │  │ reached                                    │
-   │ available                                                      │  │ · Kimi sign-in — kimi.ai (global)          │
-   │   OpenRouter — browser sign-in or API key        not signed in │  │                                            │
-   │   Google Gemini — Google sign-in, API key        not signed in │  │ ready · oauth · window reached             │
+   │                              kimi.ai (global) · window reached │  │ state: kimi.ai (global) · window reached   │
+   │                                                                │  │ · Kimi sign-in — kimi.ai (global)          │
+   │ available                                                      │  │                                            │
+   │   OpenRouter — browser sign-in or API key        not signed in │  │ ready · oauth · window reached             │
+   │   Google Gemini — Google sign-in, API key        not signed in │  │                                            │
    │   GLM (Z.AI) — API key (general or GLM Coding Plan)            │  ╰────────────────────────────────────────────╯
    │                                                  not signed in │  ╭────────────────────────────────────────────╮
    │   DeepSeek — API key                             not signed in │  │ LOGINS                                     │

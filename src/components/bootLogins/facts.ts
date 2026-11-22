@@ -203,7 +203,7 @@ export function loginsDetailLines(arm: LoginsArmV1, facts: LoginsScreenFactsV1):
   const lines: string[] = [familyDisplayName(arm.familyId), ''];
   lines.push(...wrapPlain(arm.row.label, DETAIL_W));
   lines.push('');
-  lines.push(...wrapPlain(`state: ${state.chip}`, DETAIL_W));
+  lines.push(`state: ${state.chip}`);
   const slots = loginsArmSlots(arm, group);
   if (slots.length === 0) {
     lines.push('· no sign-in on this arm yet');
