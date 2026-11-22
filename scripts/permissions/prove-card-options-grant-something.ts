@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { isAbsolute, join, relative, sep } from 'node:path'
 import { PassThrough } from 'node:stream'
 import * as React from 'react'
 
@@ -692,6 +692,8 @@ try {
     mkdirSync(projDocs, { recursive: true })
     mkdirSync(outsideDocs, { recursive: true })
     const outsideDocsFile = join(outsideDocs, 'SESSIONS.md')
+    const fromHome = relative(homedir(), outsideDocs)
+    const outsideShown = fromHome.startsWith('..') || isAbsolute(fromHome) ? `${outsideDocs}${sep}` : `~/${fromHome.split(sep).join('/')}/`
     const outsideReadOpts = getFilePermissionOptions({
       filePath: outsideDocsFile,
       toolPermissionContext: ctxFor('default'),
@@ -699,7 +701,7 @@ try {
     }).map(o => words(o.label))
     check(
       'outside-read option 2: names full folder path (not ambiguous docs/)',
-      outsideReadOpts[1] === `Yes, allow reading from ${outsideDocs}/ for this session`,
+      outsideReadOpts[1] === `Yes, allow reading from ${outsideShown} for this session`,
       JSON.stringify(outsideReadOpts[1]),
     )
 
@@ -710,7 +712,7 @@ try {
     }).map(o => words(o.label))
     check(
       'outside-write option 2: names full folder path (not ambiguous docs/)',
-      outsideWriteOpts[1] === `Yes, allow all edits in ${outsideDocs}/ for this session (shift+tab)`,
+      outsideWriteOpts[1] === `Yes, allow all edits in ${outsideShown} for this session (shift+tab)`,
       JSON.stringify(outsideWriteOpts[1]),
     )
 
