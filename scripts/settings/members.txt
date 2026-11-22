@@ -103,3 +103,4 @@ prove-usage-tensorfold-rows.ts
 prove-watchers-ignore-special-files.ts
 prove-xai-usage-popup.ts
 prove-zen-usage-popup.ts
+prove-extension-only-policy-behaviour.ts
