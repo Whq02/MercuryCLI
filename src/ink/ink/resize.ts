@@ -5,7 +5,6 @@ import { RESIZE_SETTLE_MS } from '../constants.js'
 import { syncOutputSupportedNow, syncOutputCapabilityNow } from '../session/capabilities.js'
 import { writeDiffToTerminal } from '../session/delivery.js'
 import { ENTER_ALT_SCREEN } from '../termio/dec.js'
-import { ERASE_SCREEN } from '../termio/csi.js'
 import { liveSize, buildParkPatch, resetFramesForAltScreen } from './frames.js'
 import type Ink from '../ink.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
@@ -84,7 +83,7 @@ type ApplySettledResizeReads = Pick<
   Ink,
   | 'options' | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'parkPatch'
   | 'scheduler' | 'ledger' | 'currentTree' | 'isPaused' | 'altScreenActive' | 'mouseTracking' | 'displayCursor' | 'wholeFrameDue' | 'resizeSettleTimer'
-  | 'glassOverlay' | 'fittingConsoleBuffer' | 'render'
+  | 'glassOverlay' | 'resizeEraseDue' | 'fittingConsoleBuffer' | 'render'
 >
 
 export function applySettledResize(this: ApplySettledResizeReads): void {
@@ -99,7 +98,7 @@ export function applySettledResize(this: ApplySettledResizeReads): void {
 type ApplySizeReads = Pick<
   Ink,
   | 'options' | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'parkPatch'
-  | 'ledger' | 'isPaused' | 'altScreenActive' | 'mouseTracking' | 'displayCursor' | 'wholeFrameDue' | 'glassOverlay'
+  | 'ledger' | 'isPaused' | 'altScreenActive' | 'mouseTracking' | 'displayCursor' | 'wholeFrameDue' | 'resizeEraseDue' | 'currentTree' | 'glassOverlay'
 >
 
 export function applySize(this: ApplySizeReads, columns: number, rows: number): void {
@@ -108,8 +107,8 @@ export function applySize(this: ApplySizeReads, columns: number, rows: number): 
   this.cachedRows = rows
   this.parkPatch = buildParkPatch.call(this)
   if (this.altScreenActive && !this.isPaused && this.isTTY) {
-    const erase = shrank && hostEnv().TERM_PROGRAM === 'Apple_Terminal' ? ERASE_SCREEN : ''
-    termWrite(this.options.stdout, resizeReassertBytes(this.mouseTracking) + erase)
+    this.resizeEraseDue = shrank && this.currentTree !== null && hostEnv().TERM_PROGRAM === 'Apple_Terminal'
+    termWrite(this.options.stdout, resizeReassertBytes(this.mouseTracking))
     resetFramesForAltScreen.call(this)
     this.wholeFrameDue = true
   }

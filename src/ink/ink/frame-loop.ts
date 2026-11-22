@@ -18,6 +18,7 @@ import { readFrameWire } from '../root/frame-trace.js'
 import { applyOverlayPass } from '../root/overlay-pass.js'
 import { syncOutputSupportedNow, regionScrollTrustedNow } from '../session/capabilities.js'
 import { writeDiffToTerminal } from '../session/delivery.js'
+import { ERASE_SCREEN } from '../termio/csi.js'
 import { COMPOSED_TEE_PATH, safeAppend, WRITE_TEE_PATH, dumpTree, teeBeforeDiff, teeAfterDiff } from './tees.js'
 import { liveSize, resetFramesForAltScreen } from './frames.js'
 import { consoleBufferOutlivesWindow, settleResize, applySize } from './resize.js'
@@ -39,7 +40,7 @@ type OnRenderReads = Pick<
   Ink,
   | 'options' | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'parkPatch'
   | 'pendingAltEntry' | 'lastPoolReset' | 'rootNode' | 'renderer' | 'writer' | 'scheduler' | 'ledger' | 'layoutCounters' | 'currentTree' | 'isUnmounted'
-  | 'isPaused' | 'isRendering' | 'lastRenderTime' | 'altScreenActive' | 'mouseTracking' | 'displayCursor' | 'wholeFrameDue' | 'wholeFrameAt'
+  | 'isPaused' | 'isRendering' | 'lastRenderTime' | 'altScreenActive' | 'mouseTracking' | 'displayCursor' | 'wholeFrameDue' | 'resizeEraseDue' | 'wholeFrameAt'
   | 'resizeSettleTimer' | 'watchdogCommitsRemaining' | 'zeroByteRenderStreak' | 'selection' | 'selectionListeners' | 'glassOverlay' | 'searchQuery'
   | 'searchPositions' | 'cursorDeclaration' | 'frameListeners' | 'treeDumpBudget' | 'resetPools' | 'applySettledResize' | 'calculateLayout'
   | 'scheduleRender' | 'renderFaultStreak' | 'firstFrameStamped' | 'onRender' | 'stampFirstFrame' | 'reassertScreenState' | 'render'
@@ -101,7 +102,7 @@ type RenderFrameReads = Pick<
   Ink,
   | 'options' | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'parkPatch'
   | 'pendingAltEntry' | 'lastPoolReset' | 'rootNode' | 'renderer' | 'writer' | 'scheduler' | 'ledger' | 'layoutCounters' | 'lastRenderTime'
-  | 'altScreenActive' | 'displayCursor' | 'wholeFrameDue' | 'wholeFrameAt' | 'watchdogCommitsRemaining' | 'zeroByteRenderStreak' | 'selection'
+  | 'altScreenActive' | 'displayCursor' | 'wholeFrameDue' | 'resizeEraseDue' | 'wholeFrameAt' | 'watchdogCommitsRemaining' | 'zeroByteRenderStreak' | 'selection'
   | 'selectionListeners' | 'glassOverlay' | 'searchQuery' | 'searchPositions' | 'cursorDeclaration' | 'frameListeners' | 'treeDumpBudget' | 'resetPools'
   | 'firstFrameStamped' | 'onRender' | 'stampFirstFrame' | 'reassertScreenState'
 >
@@ -266,6 +267,8 @@ function renderFrame(this: RenderFrameReads): void {
   })
   this.displayCursor = plan.nextParked
   const finalPatches = [...plan.prelude, ...optimized, ...plan.postlude]
+  if (whole && this.resizeEraseDue) finalPatches.unshift({ type: 'stdout', content: ERASE_SCREEN })
+  this.resizeEraseDue = false
   if (this.pendingAltEntry !== null && this.altScreenActive && hasDiff) {
     finalPatches.unshift({ type: 'stdout', content: this.pendingAltEntry })
     this.pendingAltEntry = null

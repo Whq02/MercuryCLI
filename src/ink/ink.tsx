@@ -102,6 +102,7 @@ export default class Ink {
   readonly arrowKeyOwners = new Set<() => boolean>()
   displayCursor: CursorPoint | null = null
   wholeFrameDue = false
+  resizeEraseDue = false
   wholeFrameAt = -Infinity
   overwriteTimer: ReturnType<typeof setTimeout> | null = null
   resizeSettleTimer: ReturnType<typeof setTimeout> | null = null
@@ -236,7 +237,10 @@ export default class Ink {
   }
   subscribeFrame(listener: () => void): () => void { return subscribeFrame.call(this, listener) }
   get isAltScreenActive(): boolean { return this.altScreenActive }
-  setAltScreenActive(active: boolean, mouseTracking = true): void { setAltScreenActive.call(this, active, mouseTracking) }
+  setAltScreenActive(active: boolean, mouseTracking = true): void {
+    if (!active) this.resizeEraseDue = false
+    setAltScreenActive.call(this, active, mouseTracking)
+  }
   isMouseTrackingEnabled(): boolean { return this.mouseTracking }
   confirmWheelReporting(): void { if (this.altScreenActive && this.mouseTracking) this.wheelReportingConfirmed = true }
   isWheelReportingConfirmed(): boolean { return this.wheelReportingConfirmed }
@@ -263,7 +267,10 @@ export default class Ink {
   overwriteScreen(): void { overwriteScreen.call(this) }
   invalidatePrevFrame(): void { this.ledger.contaminate('overlay-unmount') }
   repaint(): void { repaint.call(this) }
-  pause(): void { pause.call(this) }
+  pause(): void {
+    this.resizeEraseDue = false
+    pause.call(this)
+  }
   resume(): void { resume.call(this) }
   notifySelectionChange = (): void => notifySelectionChange.call(this)
   subscribeToSelectionChange(callback: () => void): () => void { return subscribeToSelectionChange.call(this, callback) }
@@ -330,8 +337,14 @@ export default class Ink {
   }
 
   private onStdinResume = (): void => { this.reassertTerminalModes(false) }
-  unmount = (error?: Error | number | null): void => unmount.call(this, error)
+  unmount = (error?: Error | number | null): void => {
+    this.resizeEraseDue = false
+    unmount.call(this, error)
+  }
   lastFrameText(): string { return this.writer.fullFrameText(this.frontFrame) }
   waitUntilExit(): Promise<void> { return waitUntilExit.call(this) }
-  detachForShutdown(): void { detachForShutdown.call(this) }
+  detachForShutdown(): void {
+    this.resizeEraseDue = false
+    detachForShutdown.call(this)
+  }
 }
