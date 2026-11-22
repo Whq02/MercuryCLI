@@ -23,7 +23,8 @@ const COMPOSER_SIGIL = '❯'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const fix = label.includes('MERCURY_MCP_TIMEOUT_MS') ? 'the timeout reader in src/services/mcp/client/limits.ts'
+  const fix = label.startsWith('the popup reads') ? 'the facts refresh in src/daemon/sessionSeat/facts.ts while the runner reports a pending MCP connection'
+    : label.includes('MERCURY_MCP_TIMEOUT_MS') ? 'the timeout reader in src/services/mcp/client/limits.ts'
     : label.includes('spawn') || label.includes('strict') || label.includes('phantom') || label.includes('connected') ? 'which side connects MCP servers: src/main/mcpConfigs.ts and src/main/runLaunch.ts (--only-mcp and the one session runner that owns the connections), and src/main/interactiveLaunch.ts for the screen, which must spawn none'
     : 'the launch path in src/main/runLaunch.ts and src/main/interactiveLaunch.ts, after a fresh bun run build.ts since this proof runs dist/mercury.mjs'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` (fix ${fix})`}`)
@@ -304,7 +305,7 @@ if (driver.kind !== 'posix-pty') {
     const marker = join(w.dir, 'project.marker')
     mkdirSync(join(w.cwd, '.mercury'))
     writeFileSync(join(w.cwd, '.mercury', 'settings.local.json'), JSON.stringify({ kit: { trustProjectServers: true } }))
-    writeFileSync(join(w.cwd, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers: { project: stubConfig({ name: 'project', args: ['--spawn-marker', marker] }) } }))
+    writeFileSync(join(w.cwd, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers: { project: stubConfig({ name: 'project', args: ['--spawn-marker', marker, '--delay-ms', '5000'] }) } }))
     const r = ptyBoot('i4', [], bootEnv(w.home, { MERCURY_WARM_RUNNER: '1' }), w.cwd, w.dir, {
       sends: [FACE_ENTER, { awaitText: 'Type a prompt', requireAwait: true, minTick: 5, awaitSettleTicks: 8, data: '/mcp\r' }, { awaitText: 'project · connected', requireAwait: true, awaitSettleTicks: 2, data: '\u001b' }, { awaitText: 'Type a prompt', awaitPattern: '^(?![\\s\\S]*Mercury · mcp)', requireAwait: true, awaitSettleTicks: 2, data: '/mcp\r' }],
       ready: null,

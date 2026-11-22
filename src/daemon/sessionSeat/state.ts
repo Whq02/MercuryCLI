@@ -17,6 +17,7 @@ export interface SeatRosterPort {
     turnActive?: boolean
     state?: string
     turnStartedAt?: number
+    turnOpenedAt?: number
     ready?: boolean
     respawns?: number
     maxRespawns?: number
@@ -117,10 +118,6 @@ export function publishActivity(short: string, roster: SeatRosterPort | undefine
     waitingOnAgents: seat.waitingOnAgents,
     ...(lastTurnAt !== undefined ? { lastTurnAt } : {}),
   }, dir)
-}
-
-export function seatTurnStartedAt(short: string, roster: SeatRosterPort): number | undefined {
-  return roster.list().find(j => j.short === short)?.turnStartedAt
 }
 
 export function switchAppliesWhileAgentsHold(turnOpen: boolean, stateWord: SeatState['stateWord']): boolean {
