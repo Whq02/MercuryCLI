@@ -46,6 +46,7 @@ type AskOptions = { signal?: AbortSignal; key: string; recheck?: () => Promise<P
 interface AskChannel {
   askPermission(params: PermissionRequestParams, opts: AskOptions): Promise<AskAnswer>
   parkedAsks(): number
+  recheckPendingPermissionRequests(): Promise<void>
 }
 
 export interface AskHost extends AskChannel {
@@ -91,16 +92,21 @@ export function decisionOfAnswer(
   tool: Tool,
   originalInput: Record<string, unknown>,
   toolUseContext: Pick<ToolUseContext, 'abortController' | 'setAppState'>,
+  onRulesChanged?: () => void,
 ): PermissionDecision {
   if (answer.outcome === 'allow') {
     const updatedInput = answer.input !== undefined ? answer.input : originalInput
     const updates = (answer.rules ?? []) as PermissionUpdate[]
     if (updates.length > 0) {
       persistPermissionUpdates(updates)
+      let changed = false
       toolUseContext.setAppState(previous => {
         const updated = applyPermissionUpdates(previous.toolPermissionContext, updates)
-        return updated === previous.toolPermissionContext ? previous : { ...previous, toolPermissionContext: updated }
+        if (updated === previous.toolPermissionContext) return previous
+        changed = true
+        return { ...previous, toolPermissionContext: updated }
       })
+      if (changed) onRulesChanged?.()
     }
     return {
       behavior: 'allow',
@@ -201,10 +207,14 @@ function createHostCanUseTool(channel: AskChannel): CanUseToolFn {
         if (asked.answer.block === undefined && asked.answer.stop === undefined) {
           if (asked.answer.rules?.length) {
             persistPermissionUpdates(asked.answer.rules)
+            let changed = false
             toolUseContext.setAppState(previous => {
               const updated = applyPermissionUpdates(previous.toolPermissionContext, asked.answer.rules ?? [])
-              return updated === previous.toolPermissionContext ? previous : { ...previous, toolPermissionContext: updated }
+              if (updated === previous.toolPermissionContext) return previous
+              changed = true
+              return { ...previous, toolPermissionContext: updated }
             })
+            if (changed) void channel.recheckPendingPermissionRequests()
           }
           return {
             behavior: 'allow',
@@ -221,7 +231,9 @@ function createHostCanUseTool(channel: AskChannel): CanUseToolFn {
       }
 
       const answer = raceOutcome.source === 'host' ? raceOutcome.answer : await requestPromise
-      return answer.rechecked ?? decisionOfAnswer(answer, tool as Tool, input, toolUseContext)
+      return answer.rechecked ?? decisionOfAnswer(answer, tool as Tool, input, toolUseContext, () => {
+        void channel.recheckPendingPermissionRequests()
+      })
     } catch (error) {
       if (away) return decisionOfAnswer({ outcome: 'deny', message: unansweredAskRefusal(tool.name, askLimit), unanswered: true }, tool as Tool, input, toolUseContext)
       const unanswered = parentSignal.aborted ? unansweredAskCause(parentSignal.reason) : undefined
@@ -307,7 +319,11 @@ export function createRunnerAsks(peer: Peer, capabilities: () => Capabilities): 
     })
   }
 
-  const channel: AskChannel = { askPermission, parkedAsks: () => parked.size }
+  const recheckPendingPermissionRequests = async (): Promise<void> => {
+    await Promise.all([...parked.values()].map(entry => entry.recheck()))
+  }
+
+  const channel: AskChannel = { askPermission, parkedAsks: () => parked.size, recheckPendingPermissionRequests }
 
   return {
     ...channel,
@@ -340,9 +356,6 @@ export function createRunnerAsks(peer: Peer, capabilities: () => Capabilities): 
         settledCount++
       }
       return settledCount
-    },
-    async recheckPendingPermissionRequests() {
-      await Promise.all([...parked.values()].map(entry => entry.recheck()))
     },
     pendingControlRequestCount: () => peer.pendingCount,
     setOnControlRequestSent: cb => {

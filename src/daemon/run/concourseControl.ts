@@ -60,7 +60,7 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
       if (requestId === undefined || requestId === '') {
         return { outcome: 'refused' as const, detail: `${SESSION_VERBS.answerAsk.daemon.action} requires requestId` }
       }
-      return answerPermissionAsk(
+      const answered = answerPermissionAsk(
         requestId,
         allow === true,
         by,
@@ -96,6 +96,11 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
         },
         answer as Parameters<typeof answerPermissionAsk>[4],
       )
+      const rules = (answer as { permissionUpdates?: unknown } | undefined)?.permissionUpdates
+      if (answered.outcome === 'applied' && Array.isArray(rules) && rules.length > 0 && roster !== null && sessionId) {
+        refreshSessionFacts(sessionId, roster)
+      }
+      return answered
     }
     if (action === SESSION_VERBS.parkAll.daemon.action) {
       const all = parkAllConcourseSessions(by, roster ?? undefined, undefined, {

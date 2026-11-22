@@ -23,6 +23,8 @@ interface AsksNeeds {
   permissionMode(): PermissionMode | null
   chainRpc(req: Record<string, unknown>): Promise<Record<string, unknown>>
   deliver(text: string, opts: { extraBlocks?: ContentBlockParam[] }): Promise<SendReceiptV1>
+  recheckAsks?: () => void
+  settleFacts?: () => void
 }
 
 function toolFor(name: string): Tool {
@@ -162,7 +164,10 @@ export class AsksPart {
       onReject: async (feedback, contentBlocks) => {
         await this.answerThroughDaemon(row.requestId, { kind: 'deny', feedback, contentBlocks })
       },
-      recheckPermission: async () => {},
+      recheckPermission: async () => {
+        this.readAsks()
+        this.needs.recheckAsks?.()
+      },
     }
     if (row.description !== undefined) return confirm
     void Promise.resolve(
@@ -201,6 +206,10 @@ export class AsksPart {
       )
       const ok = reply.ok === true && reply.outcome === 'applied'
       if (!ok) return { ok: false, detail: String(reply.detail ?? reply.error ?? 'the ask was already answered') }
+      if (answer.kind === 'allow' && answer.permissionUpdates !== undefined && answer.permissionUpdates.length > 0) {
+        this.needs.recheckAsks?.()
+        this.needs.settleFacts?.()
+      }
       const feedback = answer.kind === 'allow' || answer.kind === 'deny' ? answer.feedback?.trim() : undefined
       const blocks = answer.kind === 'allow' || answer.kind === 'deny' ? answer.contentBlocks : undefined
       if ((answer.kind === 'allow' && feedback) || (blocks !== undefined && blocks.length > 0)) {
