@@ -71,11 +71,19 @@ export function getAssistantMessageContentLength(message: AssistantMessage): num
   return length
 }
 
-export function contextFill(messages: readonly Message[], model?: string): ContextFill {
+function requestFill(messages: readonly Message[], model?: string): ContextFill {
   const request = readRequestGauge(messages, model)
   return request ? { tokens: request.tokens, source: request.source } : messageContextFill(messages, model)
 }
 
+export function contextFill(messages: readonly Message[], model?: string): ContextFill {
+  const fill = requestFill(messages, model)
+  const boundary = fill.source === 'estimate' ? messages.findLast(row => row.type === 'system' && row.subtype === 'compact_boundary') : undefined
+  const fold = boundary?.type === 'system' && boundary.subtype === 'compact_boundary' ? boundary.compactMetadata : undefined
+  if (fold?.postTokens === undefined || fold.postEstimate === undefined || (model !== undefined && model !== fold.postEstimate.model)) return fill
+  return { tokens: Math.max(fold.postTokens, fill.tokens - (fold.postEstimate.tokens - fold.postTokens)), source: 'estimate' }
+}
+
 export function tokenCountWithEstimation(messages: readonly Message[], model?: string): number {
-  return contextFill(messages, model).tokens
+  return requestFill(messages, model).tokens
 }

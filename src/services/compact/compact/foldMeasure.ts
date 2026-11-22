@@ -1,6 +1,6 @@
 import type { AttachmentMessage, Message } from '../../../types/message.js'
 import { getTranscriptPath } from '../../../utils/sessionStorage/paths.js'
-import { tokenCountWithEstimation } from '../../context/tokens.js'
+import { contextFill } from '../../context/tokens.js'
 import { stripThinkingFromIndex } from '../../messages/apiFilters.js'
 import { estimateRequestGauge, readRequestGauge } from '../../run/requestGauge.js'
 import { renderFoldLedger, type FoldLedger } from '../foldLedger.js'
@@ -14,6 +14,7 @@ type FoldMeter = {
   before: number
   count: (rows: Message[]) => number
   measureResult: (result: CompactionResult) => number
+  after: (landed: number) => { tokens: number; estimate: number }
 }
 
 export function createFoldMeter(
@@ -22,7 +23,7 @@ export function createFoldMeter(
   postFoldCarry?: readonly Message[],
 ): FoldMeter {
   const gauge = readRequestGauge(messages, model)
-  const context = tokenCountWithEstimation(messages)
+  const context = contextFill(messages).tokens
   const carry = postFoldCarry ?? []
   const count = (rows: Message[]): number => {
     const request = carry.length > 0 ? [...rows, ...carry] : rows
@@ -30,9 +31,21 @@ export function createFoldMeter(
       ? estimateRequestGauge(request, gauge.fixed, gauge.density, model)
       : estimateContextTokens(request, model)
   }
-  const before = count(withoutSkillsList(stripThinkingFromIndex(messages, 0)))
   const measureResult = (result: CompactionResult): number => count(buildPostCompactMessages(result))
-  return { gauge, context, before, count, measureResult }
+  return { gauge, context, count, measureResult, ...foldSizes(messages, model, context, count) }
+}
+
+export function foldSizes(
+  messages: Message[],
+  model: string | undefined,
+  context: number,
+  count: (rows: Message[]) => number,
+): { before: number; after: (landed: number) => { tokens: number; estimate: number } } {
+  const standing = stripThinkingFromIndex(messages, 0)
+  const whole = count(standing)
+  const before = count(withoutSkillsList(standing))
+  const reading = contextFill(messages, model).source === 'usage' ? context : Math.min(context, whole)
+  return { before, after: landed => ({ tokens: contextAfterFold(reading, before, landed), estimate: landed + whole - before }) }
 }
 
 function withoutSkillsList(rows: Message[]): Message[] {
@@ -45,7 +58,7 @@ function withoutSkillsList(rows: Message[]): Message[] {
   })
 }
 
-export function contextAfterFold(context: number, before: number, after: number): number {
+function contextAfterFold(context: number, before: number, after: number): number {
   const saved = before - after
   return saved < context ? context - saved : Math.floor((context * after) / before)
 }

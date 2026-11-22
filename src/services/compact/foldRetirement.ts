@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { getSessionId } from '../../bootstrap/state.js'
-import { memoryVerbsEnabled, retainItems } from '../../mneme/memoryVerbs.js'
+import { correctMemory, memoryVerbsEnabled, retainItems } from '../../mneme/memoryVerbs.js'
 import { pendingRows } from '../../mneme/mnemeBuffer.js'
 import { recordEntries } from '../../mneme/mnemeContradiction.js'
 import { currentLedger, sessionOrdinal } from '../../mneme/mnemeFootnotes.js'
@@ -106,6 +106,7 @@ export function retireFoldToMemory(input: {
   dir?: string
   sessions?: readonly LedgerEntry[]
   now?: Date
+  wrote?: (id: string) => void
 }): FoldMemoryEnvelope {
   const sessionId = String(getSessionId())
   const sessions = input.sessions ?? currentLedger()
@@ -149,6 +150,7 @@ export function retireFoldToMemory(input: {
     return { ...base, state: 'failed', reason: `the memory write failed: ${error instanceof Error ? error.message : String(error)}` }
   }
   if (outcome === undefined || outcome.status === 'refused') return { ...base, state: 'failed', reason: outcome?.reason ?? 'the memory write returned no outcome' }
+  if (outcome.status === 'stored') input.wrote?.(outcome.id)
   const row = readBackStoredRow(outcome.id, dir)
   if (row === null || row.text !== expected || row.pin) {
     return { ...base, state: 'pending', reason: `written as ${outcome.id} but the stored row read back ${row === null ? 'absent' : row.pin ? 'pinned' : 'with different text'}` }
@@ -156,6 +158,15 @@ export function retireFoldToMemory(input: {
   const pointer = memoryPointerForId(outcome.id, { dir, sessions, now: input.now })
   if (pointer === null) return { ...base, state: 'pending', reason: `written and read back as ${outcome.id} but no pointer resolves for it` }
   return { ...base, state: 'committed', pointer }
+}
+
+export function withdrawFoldMemory(id: string, dir: string = mnemeLibraryDir()): string | null {
+  try {
+    const outcome = correctMemory({ op: 'retract', id, reason: 'the fold that wrote it did not land', session: String(getSessionId()) }, dir)
+    return outcome.ok ? null : outcome.message
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error)
+  }
 }
 
 export function previewFoldMemoryText(input: {

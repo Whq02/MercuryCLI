@@ -16,12 +16,10 @@ import { computeVerbatimRecentTail, foldLandingCeiling, foldableResults, foldedR
 import { operatorTextOf, selectOperatorMessages } from '../../../utils/compact/operatorMessages.js'
 import { stripThinkingFromIndex } from '../../messages/apiFilters.js'
 import { previewFoldMemoryText } from '../foldRetirement.js'
-import type { NothingToCompactReason } from './limits.js'
+import { DEGRADED_SUMMARY_LENGTH, type NothingToCompactReason } from './limits.js'
 import { foldedWorkOf, type CompactionResult } from './result.js'
 import { assembleAttachments } from './attachments.js'
 import { composeFoldSummaryText, createFoldMeter, isRestoredFileAttachment, withoutRestoredFiles } from './foldMeasure.js'
-
-const PROJECTED_SUMMARY_FLOOR_TOKENS = 2_000
 
 export type ManualFoldProjection = {
   context: number
@@ -64,7 +62,7 @@ export async function projectManualFold(
   const landing = ceiling === undefined ? undefined : foldLandingCeiling(ceiling, messages, meter.gauge?.density.ratio ?? 1, meter.gauge?.density.residuals, getTurnReserveTokens(context.options.engineModel))
   const newestMessageFollows = (cacheSafeParams.postFoldCarry ?? []).some(row => operatorTextOf(row) !== null)
   const previousSummaries = messages.filter(row => row.type === 'user' && row.isCompactSummary === true)
-  const standIn = 'summary '.repeat(Math.ceil(Math.max(PROJECTED_SUMMARY_FLOOR_TOKENS, roughTokenCountEstimationForMessages(previousSummaries)) / 2))
+  const standIn = 'summary '.repeat(Math.ceil(Math.max(DEGRADED_SUMMARY_LENGTH / 4, roughTokenCountEstimationForMessages(previousSummaries)) / 2))
   const marker = createCompactBoundaryMessage('manual', meter.context)
   const capsule = buildRunContinuationCapsule(owner, [...context.readFileState.keys()])
   const memoryText = previewFoldMemoryText({

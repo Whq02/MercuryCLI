@@ -64,6 +64,7 @@ export type CompactMetadata = {
   trigger: 'manual' | 'auto' | 'overflow'
   preTokens: number
   postTokens?: number
+  postEstimate?: { model: string; tokens: number }
   overflow?: OverflowSignal
   userContext?: string
   messagesSummarized?: number

@@ -54,7 +54,9 @@ function rounds(count: number): Message[] {
   }
   return rows
 }
-const api = await startFixtureApi(Array.from({ length: 10 }, () => ({ kind: 'text' as const, text: 'The compaction road was rebuilt on the measurement. Row six retires the run state to project memory with a pointer the next epoch can read back.' })))
+const NOT_LANDING = 'Prove the road of a fold that does not land.'
+const tooLong = { kind: 'text' as const, text: 'The fold road was walked step by step and every step was written down. '.repeat(900), whenBody: NOT_LANDING }
+const api = await startFixtureApi([...Array.from({ length: 12 }, () => ({ kind: 'text' as const, text: 'The compaction road was rebuilt on the measurement. Row six retires the run state to project memory with a pointer the next epoch can read back.' })), tooLong, tooLong])
 process.env.ANTHROPIC_BASE_URL = api.url
 const dir = mnemeLibraryDir()
 const owner = makeOwnerKey({ workspace: process.cwd(), sessionId: 'fold-memory-proof', lane: 'main' })
@@ -67,8 +69,10 @@ const context = (overrides: Record<string, unknown> = {}) => ({
   options: { tools: [], mcpClients: [], commands: [], agentDefinitions: { activeAgents: [] }, engineModel: 'claude-opus-4-8', thinkingConfig: { type: 'disabled' }, isNonInteractiveSession: true },
   ...overrides,
 }) as never
-const fold = (messages: Message[], ctx = context()) =>
-  compactConversation(messages, ctx, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: [] }, true)
+const fold = (messages: Message[], ctx = context(), recompaction?: Parameters<typeof compactConversation>[6]) =>
+  compactConversation(messages, ctx, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: [] }, true, undefined, false, recompaction)
+const MUST_SHRINK = { isRecompaction: false, turnsSincePreviousCompact: -1, mustShrink: true }
+const WITHDRAWN = 'compactConversation in src/services/compact/compact.ts must take back the memory row its own retireFoldToMemory call wrote (src/services/compact/foldRetirement.ts) when the fold does not land, and leave a fact an earlier fold wrote where it is'
 const envelopeOf = (result: Awaited<ReturnType<typeof fold>>) => result.boundaryMarker.compactMetadata.memory
 const summaryOf = (result: Awaited<ReturnType<typeof fold>>) => String(result.summaryMessages[0]?.message.content)
 
@@ -154,6 +158,23 @@ try {
   acceptUserRequest(owner, { objective: 'Prove the crewmate road.', rootMessageId: null })
   const crew = envelopeOf(await fold([user('Prove the crewmate road.'), ...rounds(14)], context({ agentId: 'crewmate-1' })))
   check('a crewmate fold writes no project memory and says so', crew?.state === 'failed' && 'reason' in crew && crew.reason.startsWith('a crewmate fold writes no project memory') && pendingRows(dir).length === 1, crew?.state === 'failed' ? crew.reason : crew?.state)
+
+  acceptUserRequest(owner, { objective: 'Prove the road of a fold whose fact is already kept.', rootMessageId: null })
+  const kept = envelopeOf(await fold([user('Prove the road of a fold that lands.'), ...rounds(14)]))
+  check('a landed fold of a new run state writes its fact beside the first', kept?.state === 'committed' && 'pointer' in kept && kept.pointer.id !== id && pendingRows(dir).length === 2, `${kept?.state === 'failed' ? kept.reason : kept?.state} rows=${pendingRows(dir).length}`)
+  assert.ok(kept?.state === 'committed', 'the landed fold of this road must commit its fact; see retireFoldToMemory in src/services/compact/foldRetirement.ts')
+  const summariesBefore = api.messageRequests().length
+  const heldBefore = JSON.stringify(pendingRows(dir))
+  await assert.rejects(fold([user(NOT_LANDING), ...rounds(14)], context(), MUST_SHRINK), /Nothing to compact yet: a summary would not shrink the \S+ tokens\./)
+  check('a fold refused after its summary, whose run state an earlier fold already stored, leaves that earlier fact in memory: both rows as they were', api.messageRequests().length === summariesBefore + 1 && JSON.stringify(pendingRows(dir)) === heldBefore && readBackStoredRow(kept.pointer.id, dir) !== null, `requests=${api.messageRequests().length - summariesBefore} rows=${pendingRows(dir).length} — change: ${WITHDRAWN}`)
+
+  const LONG_SUMMARY = 'whose summary comes back long'
+  acceptUserRequest(owner, { objective: `Prove the road of a fold ${LONG_SUMMARY}.`, rootMessageId: null })
+  await assert.rejects(fold([user(NOT_LANDING), ...rounds(14)], context(), MUST_SHRINK), /Nothing to compact yet: a summary would not shrink the \S+ tokens\./)
+  check('a fold refused after its summary takes back the fact it wrote itself: memory holds the two rows it held before, as they were (red on the base: three rows)', api.messageRequests().length === summariesBefore + 2 && JSON.stringify(pendingRows(dir)) === heldBefore && !pendingRows(dir).some(row => row.text.includes(LONG_SUMMARY)), `requests=${api.messageRequests().length - summariesBefore} rows=${pendingRows(dir).length} — change: ${WITHDRAWN}`)
+  check('the fact a refused fold took back is not offered by Recall', !recallQuery(`fold ${LONG_SUMMARY}`, { dir }).hits.some(hit => hit.preview.includes(LONG_SUMMARY)), `change: ${WITHDRAWN}`)
+  const later = envelopeOf(await fold([user('Prove the road of a fold that lands.'), ...rounds(14)]))
+  check('the same run state, folded later by a fold that lands, stores its fact then and its pointer resolves', later?.state === 'committed' && 'pointer' in later && pendingRows(dir).length === 3 && readBackStoredRow(later.pointer.id, dir)?.text.includes(LONG_SUMMARY) === true && memoryPointerForId(later.pointer.id, { dir }) !== null, `${later?.state === 'failed' ? later.reason : later?.state} rows=${pendingRows(dir).length}`)
 
   const struck = strikePendingRow({ ts: id.slice('pending:'.length), dir })
   check('a struck row makes the advertised pointer resolve to null, so a stale pointer is detectable and never silently claimed', struck.ok && memoryPointerForId(id, { dir }) === null && readBackStoredRow(id, dir) === null)

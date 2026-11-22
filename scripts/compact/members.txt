@@ -24,6 +24,7 @@ prove-fold-at-threshold-unshaped.ts
 prove-fold-breaker-answers.ts
 prove-fold-cache-epoch.ts
 prove-fold-cache-owners.ts
+prove-fold-counts-what-comes-back.ts
 prove-fold-families-census.ts
 prove-fold-family-roads.ts
 prove-fold-heartbeat-relay.ts
@@ -56,6 +57,7 @@ prove-fold-stream-progress.ts
 prove-fold-that-shrinks-goes-through.ts
 prove-fold-thinking-feeds-watchdog.ts
 prove-fold-work-counts.ts
+prove-footer-matches-receipt.ts
 prove-footer-window-owner.ts
 prove-fork-replay-marker.ts
 prove-fork-ttl-follows-parent.ts
@@ -99,6 +101,7 @@ prove-summary-first.ts
 prove-summary-refusal-phrasings.ts
 prove-summary-rejection.ts
 prove-summary-request-roads.ts
+prove-switch-fold-after-size.ts
 prove-switch-then-compact.ts
 prove-switch-window-fold.ts
 prove-ten-complete-rounds.ts
