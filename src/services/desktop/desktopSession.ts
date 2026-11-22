@@ -11,6 +11,7 @@ import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
 import { COMPUTER_TOOL_NAME } from './toolName.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export { COMPUTER_TOOL_NAME }
 
@@ -103,16 +104,7 @@ export function peekCheckedActApp(owner: OwnerKey): DesktopCheckedAct | null {
 }
 
 export function turnKeyOf(context: (Pick<ToolUseContext, 'callChain'> & { messages?: readonly Message[] }) | undefined): string {
-  const chain = readToolCallChain(context)?.key
-  if (typeof chain === 'string' && chain !== '') return `chain:${chain}`
-  const messages = context?.messages ?? []
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i]!
-    if (!isHumanTurn(message)) continue
-    const content = message.message.content
-    if (typeof content === 'string' || !content.some(block => (block as { type?: string }).type === 'tool_result')) return `message:${message.uuid}`
-  }
-  return ''
+  return notBuilt('src/services/desktop/desktopSession.ts:105')
 }
 
 export function noteTurnHome(owner: OwnerKey, turn: string, app: DesktopJudgedApp): DesktopJudgedApp {

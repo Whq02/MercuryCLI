@@ -6,6 +6,7 @@ import { getFocusedSessionConnector } from '../../services/engine-connector/focu
 import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
 import { permissionRuleExtractPrefix } from '../../utils/permissions/shellRuleMatching.js'
 import type { PermissionUpdate } from '../../types/permissions.js'
+import { notBuilt } from '../../pi/holes.js'
 
 type FolderSpelling = 'windows' | 'posix'
 
@@ -84,21 +85,7 @@ function formatPathList(rulePaths: string[], namesOnly = false): React.ReactNode
 }
 
 function formatCommandList(commands: string[]): React.ReactNode | 'similar' {
-  if (commands.join(', ').length > 50) return 'similar'
-  if (commands.length === 1) return <Text bold>{commands[0]}</Text>
-  if (commands.length === 2) {
-    return (
-      <>
-        <Text bold>{commands[0]}</Text> and <Text bold>{commands[1]}</Text>
-      </>
-    )
-  }
-  return (
-    <>
-      <Text bold>{commands.slice(0, -1).join(', ')}</Text>, and{' '}
-      <Text bold>{commands[commands.length - 1]}</Text>
-    </>
-  )
+  return notBuilt('src/components/permissions/shellPermissionHelpers.tsx:86')
 }
 
 function commandsPhrase(commands: string[]): React.ReactNode {
@@ -112,73 +99,7 @@ export function generateShellSuggestionsLabel(
   shellToolName: string,
   commandTransform?: (command: string) => string,
 ): React.ReactNode | null {
-  const readPaths: string[] = []
-  const rawCommands: string[] = []
-  const directories: string[] = []
-
-  for (const update of suggestions) {
-    if (update.type === 'addRules') {
-      for (const rule of update.rules) {
-        if (rule.toolName === 'Read') {
-          if (rule.ruleContent !== undefined) {
-            const cleaned = rule.ruleContent.replace('/**', '')
-            if (cleaned !== '') readPaths.push(cleaned)
-          }
-        } else if (rule.toolName === 'Edit') {
-          if (rule.ruleContent !== undefined) {
-            const cleaned = rule.ruleContent.replace(/\/\*\*$/, '').replace(/^\/\//, '/')
-            if (cleaned !== '') directories.push(cleaned)
-          }
-        } else if (rule.toolName === shellToolName) {
-          if (rule.ruleContent !== undefined && rule.ruleContent.trim() !== '') {
-            const prefix = permissionRuleExtractPrefix(rule.ruleContent) ?? rule.ruleContent
-            rawCommands.push(commandTransform ? commandTransform(prefix) : prefix)
-          }
-        }
-      }
-    }
-  }
-
-  const commands = [...new Set(rawCommands)]
-  const hasPaths = readPaths.length > 0
-  const hasDirs = directories.length > 0
-  const hasCommands = commands.length > 0
-
-  if (!hasPaths && !hasDirs && !hasCommands) return null
-
-  if (hasCommands) {
-    const cwd = <Text bold>{getFocusedSessionConnector().workspace().originalCwd}</Text>
-    if (!hasPaths && !hasDirs) {
-      return (
-        <>
-          Yes, and don&apos;t ask again for {commandsPhrase(commands)} in {cwd}
-        </>
-      )
-    }
-    if (directories.length + readPaths.length === 1 && commands.length === 1) {
-      return (
-        <>
-          Yes, and allow {grantPhrase(directories, readPaths)} plus {commandsPhrase(commands)} in{' '}
-          {cwd}
-        </>
-      )
-    }
-    return (
-      <>
-        Yes, and allow {grantPhrase(directories, readPaths)} and don&apos;t ask again for{' '}
-        {commandsPhrase(commands)} in {cwd}
-      </>
-    )
-  }
-
-  const project = getFocusedSessionConnector().workspace().originalCwd
-  const inProject = [...directories, ...readPaths].every(folder => pathInWorkingPath(displayFolderOfRule(folder), project))
-  return (
-    <>
-      Yes, and allow {grantPhrase(directories, readPaths)}
-      {inProject ? ' in this project' : ''}
-    </>
-  )
+  return notBuilt('src/components/permissions/shellPermissionHelpers.tsx:110')
 }
 
 function grantPhrase(directories: string[], readPaths: string[]): React.ReactNode {

@@ -5,16 +5,7 @@ import { safeParseJSON } from '../../utils/json.js'
 import { extractTextContent } from '../../services/messages.js'
 import { extractConversationText } from '../../services/concourse/sessionTitle.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
-
-const NAME_OUTPUT_FORMAT = {
-  type: 'json_schema' as const,
-  schema: {
-    type: 'object',
-    properties: { name: { type: 'string' } },
-    required: ['name'],
-    additionalProperties: false,
-  },
-}
+import { notBuilt } from '../../pi/holes.js'
 
 const NAME_SYSTEM_PROMPT = [
   'Generate a short kebab-case name for this coding session: 2-4 words, lower-cased, joined by hyphens, capturing the main topic or goal.',
@@ -27,36 +18,5 @@ export async function generateSessionName(
   messages: Message[],
   signal: AbortSignal,
 ): Promise<string | null> {
-  const conversationText = extractConversationText(messages)
-  if (conversationText === '') return null
-  try {
-    const options: Parameters<typeof queryUtility>[0]['options'] = {
-      querySource: 'rename_generate_name',
-      isNonInteractiveSession: false,
-      hasAppendSystemPrompt: false,
-      agents: [],
-      mcpTools: [],
-    }
-    const response = await queryUtility({
-      systemPrompt: asSystemPrompt(NAME_SYSTEM_PROMPT),
-      userPrompt: conversationText,
-      outputFormat: NAME_OUTPUT_FORMAT,
-      signal,
-      options,
-    })
-    const text = extractTextContent(response.message.content, '\n')
-    const parsed = safeParseJSON(text, false)
-    if (
-      parsed !== null &&
-      typeof parsed === 'object' &&
-      'name' in parsed &&
-      typeof (parsed as { name: unknown }).name === 'string'
-    ) {
-      return (parsed as { name: string }).name
-    }
-    return null
-  } catch (thrown) {
-    logForDebugging(`generateSessionName failed: ${String(thrown)}`)
-    throw thrown
-  }
+  return notBuilt('src/commands/rename/generateSessionName.ts:26')
 }

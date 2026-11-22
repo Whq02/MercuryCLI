@@ -5,6 +5,7 @@ import { EVALUATING_BUILTINS, quoteArgv, READ_DATA_FLAGS } from '../permissions/
 import { isKnown, NEWLINE_COMMENT_RE, PROCESS_ENVIRON_RE, SYSTEM_CALL_RE } from '../permissions/decision/commandAnalysis/exactWords.js'
 import { peelWrappers } from '../permissions/decision/commandAnalysis/wrappers.js'
 import type { ParseForSecurityResult, SimpleCommand } from '../permissions/decision/commandAnalysis/reading.js'
+import { notBuilt } from '../../pi/holes.js'
 export { nodeTypeId, parseForSecurityFromAst } from '../permissions/decision/commandAnalysis/exact.js'
 export { WILDCARD_REASON } from '../permissions/decision/commandAnalysis/exactWords.js'
 export { peelWrappers } from '../permissions/decision/commandAnalysis/wrappers.js'
@@ -89,32 +90,7 @@ const fragmentName: SemanticCheck = name =>
     ? `argv starts with the incomplete fragment ${JSON.stringify(name)}`
     : null
 
-const subscriptOperands: SemanticCheck = (name, argv) => {
-  const flags = SUBSCRIPT_FLAGS.get(name)
-  if (flags === undefined) return null
-  for (let i = 1; i < argv.length; i++) {
-    const arg = argv[i] as string
-    const next = argv[i + 1]
-    for (const flag of flags) {
-      const letter = flag[1] as string
-      const reason = `${name} ${flag} with a bracketed name evaluates array subscripts, which can execute code`
-      if (arg === flag && next !== undefined && next.includes('[')) return reason
-      if (
-        arg.length > 2 &&
-        arg.startsWith('-') &&
-        arg[1] !== '-' &&
-        !arg.includes('[') &&
-        arg.slice(1).includes(letter) &&
-        next !== undefined &&
-        next.includes('[')
-      ) {
-        return reason
-      }
-      if (arg.startsWith(flag) && arg.length > 2 && arg.includes('[')) return reason
-    }
-  }
-  return null
-}
+const subscriptOperands: SemanticCheck = (name, argv) => notBuilt('src/utils/bash/ast.ts:92')
 
 const arithmeticComparison: SemanticCheck = (name, argv) => {
   if (name !== '[[') return null
@@ -169,16 +145,7 @@ const newlineComment: SemanticCheck = (_name, _argv, command) => {
   return null
 }
 
-const jqProgram: SemanticCheck = (name, argv) => {
-  if (name !== 'jq') return null
-  for (const arg of argv) {
-    if (SYSTEM_CALL_RE.test(arg)) return 'jq program contains a system() call, which executes arbitrary commands'
-    if (JQ_SHORT_FILE_FLAG_RE.test(arg) || JQ_LONG_FILE_FLAG_RE.test(arg)) {
-      return `jq flag ${JSON.stringify(arg)} enables code execution or arbitrary file reads`
-    }
-  }
-  return null
-}
+const jqProgram: SemanticCheck = (name, argv) => notBuilt('src/utils/bash/ast.ts:172')
 
 const evaluatingBuiltin: SemanticCheck = (name, argv) => {
   if (!EVALUATING_BUILTINS.has(name)) return null
@@ -207,15 +174,7 @@ const evaluatingBuiltin: SemanticCheck = (name, argv) => {
   return `${name} evaluates its arguments as shell code`
 }
 
-const processEnvironment: SemanticCheck = (_name, _argv, command) => {
-  for (const arg of command.argv) {
-    if (PROCESS_ENVIRON_RE.test(arg)) return 'references a process environment file, which may expose secrets'
-  }
-  for (const redirect of command.redirects) {
-    if (PROCESS_ENVIRON_RE.test(redirect.target)) return 'redirects from a process environment file, which may expose secrets'
-  }
-  return null
-}
+const processEnvironment: SemanticCheck = (_name, _argv, command) => notBuilt('src/utils/bash/ast.ts:210')
 
 const SEMANTIC_CHECKS: readonly SemanticCheck[] = [
   emptyName,
@@ -231,27 +190,6 @@ const SEMANTIC_CHECKS: readonly SemanticCheck[] = [
   processEnvironment,
 ]
 
-function commandRefusal(command: SimpleCommand): string | null {
-  const unknownArgument = command.argv.some((value, index) => !isKnown(value) && !(command.argv[0] === 'echo' && index > 0))
-  if (unknownArgument || command.redirects.some(redirect => !isKnown(redirect.target))) {
-    return 'Bash needs approval for this argument or redirect because its value is unknown. Use literal arguments and paths; set the working directory with cwd.'
-  }
-  const peeled = peelWrappers(command.argv)
-  if (!Array.isArray(peeled)) return peeled.failReason
-  const name = peeled[0]
-  if (name === undefined) return null
-  if (name === 'xargs' && peeled.length === 1) return 'bare xargs chooses its command implicitly; spell out the command, or approve'
-  for (const check of SEMANTIC_CHECKS) {
-    const reason = check(name, peeled, command)
-    if (reason !== null) return reason
-  }
-  return null
-}
-
 export function checkSemantics(commands: SimpleCommand[]): SemanticCheckResult {
-  for (const command of commands) {
-    const reason = commandRefusal(command)
-    if (reason !== null) return { ok: false, reason }
-  }
-  return { ok: true }
+  return notBuilt('src/utils/bash/ast.ts:251')
 }

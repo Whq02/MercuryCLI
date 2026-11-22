@@ -2,32 +2,14 @@ import { dirname } from 'node:path'
 
 import { getFsImplementation } from './fsOperations.js'
 import { passedOver } from './passedOver.js'
+import { notBuilt } from '../pi/holes.js'
 
 export function logForDiagnosticsNoPII(
   level: 'debug' | 'info' | 'warn' | 'error',
   event: string,
   data?: Record<string, unknown>,
 ): void {
-  const logFile = undefined as string | undefined
-  if (!logFile) return
-  const line =
-    JSON.stringify({
-      timestamp: new Date().toISOString(),
-      level,
-      event,
-      data: data ?? {},
-    }) + '\n'
-  const fs = getFsImplementation()
-  try {
-    fs.appendFileSync(logFile, line)
-  } catch {
-    try {
-      fs.mkdirSync(dirname(logFile))
-      fs.appendFileSync(logFile, line)
-    } catch (error) {
-      passedOver(error)
-    }
-  }
+  return notBuilt('src/utils/diagLogs.ts:6')
 }
 
 type TimedRun<T> =
@@ -49,15 +31,5 @@ export async function withDiagnosticsTiming<T>(
   fn: () => Promise<T>,
   getData?: (result: T) => Record<string, unknown>,
 ): Promise<T> {
-  logForDiagnosticsNoPII('info', `${event}_started`)
-  const run = await timed(async () => {
-    const result = await fn()
-    return { result, data: getData?.(result) ?? {} }
-  })
-  if (run.outcome === 'failed') {
-    logForDiagnosticsNoPII('error', `${event}_failed`, { duration_ms: run.duration_ms })
-    throw run.error
-  }
-  logForDiagnosticsNoPII('info', `${event}_completed`, { duration_ms: run.duration_ms, ...run.value.data })
-  return run.value.result
+  return notBuilt('src/utils/diagLogs.ts:47')
 }

@@ -1,17 +1,14 @@
 import type { MCPServerConnection } from './mcp/types.js'
 import type { Message } from '../types/message.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 
-type McpInstructionsDelta = {
-  addedNames: string[]
-  addedBlocks: string[]
-  removedNames: string[]
-}
+type McpInstructionsDelta = Unbuilt
 
-type ClientSideInstruction = { serverName: string; block: string }
+type ClientSideInstruction = Unbuilt
 
 export function isMcpInstructionsDeltaEnabled(): boolean {
-  return true
+  return notBuilt('src/utils/mcpInstructionsDelta.ts:13')
 }
 
 type DeltaAttachmentMessage = {
@@ -34,32 +31,5 @@ export function getMcpInstructionsDelta(
   messages: Message[],
   clientSideInstructions: ClientSideInstruction[],
 ): McpInstructionsDelta | null {
-  const announced = new Set<string>()
-  for (const message of messages) {
-    if (!isDeltaAttachment(message)) continue
-    for (const name of message.attachment.addedNames ?? []) announced.add(name)
-    for (const name of message.attachment.removedNames ?? []) announced.delete(name)
-  }
-
-  const blocks = new Map<string, string>()
-  const connectedNames = new Set<string>()
-  for (const client of mcpClients) {
-    if (client.type !== 'connected') continue
-    connectedNames.add(client.name)
-    if (client.instructions) blocks.set(client.name, `## ${client.name}\n${client.instructions}`)
-  }
-  for (const { serverName, block } of clientSideInstructions) {
-    if (!connectedNames.has(serverName)) continue
-    const existing = blocks.get(serverName)
-    blocks.set(serverName, existing ? `${existing}\n\n${block}` : `## ${serverName}\n${block}`)
-  }
-
-  const addedNames = [...blocks.keys()].filter(name => !announced.has(name)).sort((a, b) => a.localeCompare(b))
-  const removedNames = [...announced].filter(name => !connectedNames.has(name)).sort()
-  if (addedNames.length === 0 && removedNames.length === 0) return null
-  return {
-    addedNames,
-    addedBlocks: addedNames.map(name => blocks.get(name) as string),
-    removedNames,
-  }
+  return notBuilt('src/utils/mcpInstructionsDelta.ts:32')
 }

@@ -1,7 +1,7 @@
-
 import { MERCURY_SCOUT_AGENT_TYPE } from '../../constants/tools/agent.js'
 import type { AgentDefinition } from '../../types/agent.js'
 import { SCOUT_TOOLS_DESCRIPTION } from './scoutPolicy.js'
+import { notBuilt } from '../../pi/holes.js'
 
 function describeTools(agent: AgentDefinition): string {
   if (agent.source === 'built-in' && agent.agentType === MERCURY_SCOUT_AGENT_TYPE) return SCOUT_TOOLS_DESCRIPTION
@@ -40,28 +40,11 @@ export function withoutAgentRoster(fullPrompt: string): string {
 
 export async function getPrompt(
   agentDefinitions: readonly AgentDefinition[],
-  isCoordinator = false,
+  isCoordinator?: boolean,
   allowedAgentTypes?: readonly string[],
   offered?: ReadonlySet<string>,
   refusals?: ReadonlyMap<string, string>,
-  swarmOn = false,
+  swarmOn?: boolean,
 ): Promise<string> {
-  void offered
-  const effectiveAgents = allowedAgentTypes
-    ? agentDefinitions.filter(agent => allowedAgentTypes.includes(agent.agentType))
-    : agentDefinitions
-  const listing = effectiveAgents.map(agent => formatAgentLine(agent, refusals?.get(agent.agentType))).join('\n')
-  const sections: string[] = listing ? [`${AGENT_ROSTER_HEAD}\n${listing}`] : []
-  if (isCoordinator) return sections.join('\n\n')
-
-  sections.push(`## Execution
-Launches in one message run concurrently; foreground launches in separate messages run sequentially and wait for the report (returned to you, not directly to the user). Tool access follows the selected agent definition and the session's permissions. Foreground and background launches have the same tool access. With swarm on, a new crewmate is enrolled on the live crew board and told its name, its team and the seats already there; posts arrive as [name] [team] [kind] rows between turns.${swarmOn ? ` ${SEATS_TALK_DIRECTLY}` : ''}`)
-
-  sections.push(`## Worktree cleanup
-The seven-day janitor removes only a clean worktree whose commits are reachable.`)
-
-  sections.push(`## Review mode
-review_receipt confines verification to bun/bash under scripts and bun run typecheck with read-only sources. The report ends with REVIEW: CLEAN or REVIEW: FINDINGS <count>.`)
-
-  return sections.join('\n\n')
+  return notBuilt('src/tools/AgentTool/prompt.ts:41')
 }

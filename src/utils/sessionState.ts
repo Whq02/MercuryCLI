@@ -1,11 +1,10 @@
 import type { PermissionMode } from '../types/permissions.js'
-
-let permissionModeListener: ((mode: PermissionMode) => void) | null = null
+import { notBuilt } from '../pi/holes.js'
 
 export function setPermissionModeChangedListener(listener: ((mode: PermissionMode) => void) | null): void {
-  permissionModeListener = listener
+  return notBuilt('src/utils/sessionState.ts:5')
 }
 
 export function notifyPermissionModeChanged(mode: PermissionMode): void {
-  permissionModeListener?.(mode)
+  return notBuilt('src/utils/sessionState.ts:9')
 }

@@ -8,6 +8,7 @@ import { RESUME_AGENT_TOOL_NAME } from '../../constants/tools/resumeAgent.js'
 import { SKILL_TOOL_NAME } from '../../constants/tools/skill.js'
 import { AGENT_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from '../../constants/tools/agent.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const SCOUT_SHELL_REFUSAL_TAIL = 'Read-only commands do run here, with pipes, 2>&1 and input redirects (< file) — for example wc, grep, head, tail and sort — and Read, Grep and Glob read files.'
 
@@ -83,12 +84,5 @@ function scoutOffersTool(tool: Tool): boolean {
 }
 
 export function restrictScoutTools(tools: Tools): Tools {
-  return tools.filter(scoutOffersTool).map(tool => ({
-    ...tool,
-    async call(...args: Parameters<Tool['call']>) {
-      const refusal = await scoutRefusal(tool, args[0], true)
-      if (refusal !== null) throw new Error(refusal)
-      return tool.call(...args)
-    },
-  }))
+  return notBuilt('src/tools/AgentTool/scoutPolicy.ts:85')
 }

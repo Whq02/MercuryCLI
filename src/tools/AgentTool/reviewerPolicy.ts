@@ -17,6 +17,7 @@ import { sectionHeadings } from '../FileEditTool/sectionEdit.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 import { platformTempRoots } from '../../utils/platform/files.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export const REVIEW_BRIEF = `You are reviewing one committed change for Mercury, on frozen inputs. Find what the author missed, with evidence, and record it where the next reader looks.
 
@@ -226,36 +227,5 @@ function reviewerOffersTool(tool: Tool): boolean {
 }
 
 export function restrictReviewerTools(tools: Tools, receiptPath: string, worktreePath: string): Tools {
-  const receipt = realpathSync(resolve(receiptPath))
-  const worktree = realpathSync(worktreePath)
-  return tools.filter(reviewerOffersTool).map(tool => ({
-    ...tool,
-    async call(...args: Parameters<Tool['call']>) {
-      const refusal = await reviewerRefusal(tool, args[0], receipt, worktree, true)
-      if (refusal !== null) throw new Error(refusal)
-      if (tool.name === FILE_EDIT_TOOL_NAME) args[0] = { ...args[0], file_path: receipt }
-      const verification = tool.name === BASH_TOOL_NAME && typeof args[0].command === 'string'
-        ? await verificationCommand(args[0].command, worktree, receipt) : null
-      if (verification === null) {
-        if (tool.name === BASH_TOOL_NAME && !tool.isReadOnly(args[0]) && !(await hardenedGitRead(tool, args[0]))) throw new Error('Reviewer verification changed after admission; no command ran.')
-        return tool.call(...args)
-      }
-      const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'reviewer-check-')))
-      let background = false
-      try {
-        const command = confinedVerification(verification.command, worktree, receipt, scratch, verification.lockRoot)
-        args[0] = { ...args[0], command }
-        const result = await tool.call(...args)
-        const id = (result.data as { backgroundTaskId?: string })?.backgroundTaskId
-        background = id !== undefined
-        if (id) {
-          const task = args[1].getAppState().tasks[id] as { shellCommand?: { result: Promise<unknown> } } | undefined
-          if (task?.shellCommand) void task.shellCommand.result.finally(() => rmSync(scratch, { recursive: true, force: true })).catch(passedOver)
-        }
-        return result
-      } finally {
-        if (!background) rmSync(scratch, { recursive: true, force: true })
-      }
-    },
-  }))
+  return notBuilt('src/tools/AgentTool/reviewerPolicy.ts:228')
 }

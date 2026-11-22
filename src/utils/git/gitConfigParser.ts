@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { isENOENT } from '../errors.js'
+import { notBuilt } from '../../pi/holes.js'
 
 
 function matchesSectionHeader(line: string, section: string, subsection: string | null): boolean {
@@ -90,38 +91,11 @@ function parseKeyValueLine(line: string, key: string): string | null {
   return parseValueText(line.slice(index))
 }
 
-function parseConfigString(
-  config: string,
-  section: string,
-  subsection: string | null,
-  key: string,
-): string | null {
-  let inMatchingSection = false
-  for (const rawLine of config.split('\n')) {
-    const line = rawLine.trim()
-    if (line === '' || line[0] === '#' || line[0] === ';') continue
-    if (line[0] === '[') {
-      inMatchingSection = matchesSectionHeader(line, section, subsection)
-      continue
-    }
-    if (!inMatchingSection) continue
-    const value = parseKeyValueLine(line, key)
-    if (value !== null) return value
-  }
-  return null
-}
-
 export async function parseGitConfigValue(
   gitDir: string,
   section: string,
   subsection: string | null,
   key: string,
 ): Promise<string | null> {
-  try {
-    const content = await readFile(join(gitDir, 'config'), 'utf8')
-    return parseConfigString(content, section, subsection, key)
-  } catch (error) {
-    if (isENOENT(error)) return null
-    throw error
-  }
+  return notBuilt('src/utils/git/gitConfigParser.ts:114')
 }

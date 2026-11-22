@@ -1,4 +1,3 @@
-
 import React, { createContext, useMemo, useSyncExternalStore } from 'react'
 import {
   getTerminalFocused,
@@ -6,18 +5,13 @@ import {
   subscribeTerminalFocus,
   type TerminalFocusState,
 } from '../session/focus-store.js'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export type { TerminalFocusState }
 
-type TerminalFocusContextProps = {
-  readonly isTerminalFocused: boolean
-  readonly focusState: TerminalFocusState
-}
+type TerminalFocusContextProps = Unbuilt
 
-const TerminalFocusContext = createContext<TerminalFocusContextProps>({
-  isTerminalFocused: true,
-  focusState: 'unknown',
-})
+const TerminalFocusContext: Unbuilt = unbuilt('src/ink/components/TerminalFocusContext.tsx:17')
 
 TerminalFocusContext.displayName = 'InternalTerminalFocusContext'
 

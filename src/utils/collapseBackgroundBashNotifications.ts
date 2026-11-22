@@ -11,6 +11,7 @@ import type {
 } from '../types/message.js'
 import { isFullscreenEnvEnabled } from './fullscreen.js'
 import { extractTag } from './messages/text.js'
+import { notBuilt } from '../pi/holes.js'
 
 export const FOLDED_COUNT_TAG = 'folded'
 
@@ -28,26 +29,7 @@ interface ShellNotice {
 type NoticeText = { text: string; shape: 'attachment' | 'user' }
 
 function noticeTexts(msg: RenderableMessage): NoticeText[] {
-  if (msg.type === 'user') {
-    const texts = msg.message.content.filter(block => block.type === 'text')
-    if (texts.length === 0 || msg.message.content[0]?.type !== 'text') return []
-    return texts.map(block => ({ text: (block as { text: string }).text, shape: 'user' as const }))
-  }
-  if (msg.type === 'attachment') {
-    const att = msg.attachment as { type?: string; commandMode?: string; prompt?: unknown }
-    if (att.type !== 'queued_command' || att.commandMode !== 'task-notification') return []
-    const prompt = att.prompt
-    const text =
-      typeof prompt === 'string'
-        ? prompt
-        : Array.isArray(prompt)
-          ? prompt
-              .map(block => ((block as { type?: string }).type === 'text' ? ((block as { text?: string }).text ?? '') : ''))
-              .join('\n')
-          : ''
-    return [{ text, shape: 'attachment' }]
-  }
-  return []
+  return notBuilt('src/utils/collapseBackgroundBashNotifications.ts:30')
 }
 
 function shellNoticeIn(msg: RenderableMessage, found: NoticeText): ShellNotice | null {
@@ -130,25 +112,5 @@ export function collapseBackgroundBashNotifications(
   messages: RenderableMessage[],
   verbose: boolean,
 ): RenderableMessage[] {
-  if (!isFullscreenEnvEnabled() || verbose) return messages
-
-  const out: RenderableMessage[] = []
-  for (let i = 0; i < messages.length; ) {
-    const first = shellNoticesOf(messages[i]!)
-    if (first.length === 0) {
-      out.push(messages[i]!)
-      i += 1
-      continue
-    }
-    const run = [...first]
-    let end = i + 1
-    for (; end < messages.length; end++) {
-      const next = shellNoticesOf(messages[end]!)
-      if (next.length === 0 || next[0]!.queued !== first[0]!.queued) break
-      run.push(...next)
-    }
-    out.push(run.length === 1 ? first[0]!.message : foldedRow(run))
-    i = end
-  }
-  return out
+  return notBuilt('src/utils/collapseBackgroundBashNotifications.ts:129')
 }

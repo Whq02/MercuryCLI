@@ -21,6 +21,7 @@ import {
 } from '../../utils/permissions/bypassPermissionsKillswitch.js'
 import { resetUserCache } from '../../utils/user.js'
 import { loginFamilyFocusFor } from '../../components/loginFamilyRows.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export function Login({
   onDone,
@@ -76,17 +77,6 @@ function LoginReceipt({ receipt, onDone }: { receipt: string; onDone: () => void
   useInput((_input, key) => { if (key.return || key.escape) onDone() })
   const { compact } = usePopupCompact()
   return <Box flexDirection="column" gap={compact ? 0 : 1}><Text>{receipt}</Text><Text dimColor>press Enter to continue</Text></Box>
-}
-
-function runPostLoginRefresh(context: LocalJSXCommandContext): void {
-  resetCostState()
-  resetUserCache()
-  resetSovereignCheck()
-  void checkAndDisableSovereignIfNeeded(
-    context.getAppState().toolPermissionContext,
-    context.setAppState,
-  ).catch(logError)
-  context.setAppState(prev => ({ ...prev, authVersion: (prev.authVersion ?? 0) + 1 }))
 }
 
 export function parseFamilyFocus(token: string | undefined): LoginFamilyFocus | undefined {
@@ -161,56 +151,5 @@ export async function call(
   context: LocalJSXCommandContext,
   args?: string,
 ): Promise<React.ReactNode> {
-  const tokens = (args ?? '').trim().split(/\s+/).filter(Boolean)
-  const returnToken = tokens.find(token => token.startsWith('--return='))
-  const returnCommand = returnToken?.slice('--return='.length)
-  const chain =
-    returnCommand !== undefined && returnCommand.startsWith('/')
-      ? { nextInput: returnCommand, submitNextInput: true as const }
-      : {}
-  const initialFocus = parseFamilyFocus(tokens.find(token => !token.startsWith('--')))
-  const complete = (success: boolean): void => {
-    void (async () => {
-      if (success) {
-        context.onChangeAPIKey()
-        context.setMessages(prev => stripSignatureBlocks(prev))
-        runPostLoginRefresh(context)
-        const shadow = loginShadowWarning()
-        const receipt = loginSuccessReceipt(getOauthAccountInfo()?.emailAddress)
-        onDone(shadow ? `${receipt}\n${shadow}` : receipt, chain)
-      } else {
-        onDone('/logins closed — no credential changed', chain)
-      }
-    })()
-  }
-  const completeOpenai = (result: { ok: boolean; receipt: string }): void => {
-    context.setAppState(prev => ({ ...prev, authVersion: (prev.authVersion ?? 0) + 1 }))
-    onDone(result.receipt, chain)
-  }
-  const scrollRef = React.createRef<ScrollBoxHandle>()
-  openSettingsPopup({
-    view: 'logins',
-    scrollRef,
-    width: 100,
-    rows: 29,
-    line: '',
-    hint: 'esc or click outside closes',
-    bodyOwnsEscape: true,
-    body: geometry => (
-      <Login
-        geometry={geometry}
-        scrollRef={scrollRef}
-        onDone={success => {
-          closeSettingsPopup()
-          complete(success)
-        }}
-        onOpenaiDone={result => {
-          closeSettingsPopup()
-          completeOpenai(result)
-        }}
-        {...(initialFocus !== undefined ? { initialFocus } : {})}
-      />
-    ),
-  })
-  return null
+  return notBuilt('src/commands/login/login.tsx:159')
 }

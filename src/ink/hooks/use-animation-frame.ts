@@ -1,35 +1,8 @@
-
-import { useContext, useState } from 'react'
-import { useSubscription } from '../../hooks/effects.js'
-import { ClockContext } from '../components/ClockContext.js'
-import { MotionParkContext } from '../components/MotionParkContext.js'
 import type { DOMElement } from '../dom.js'
-import { useTerminalViewport } from './use-terminal-viewport.js'
-
-const DEFAULT_INTERVAL_MS = 16
+import { notBuilt } from '../../pi/holes.js'
 
 export function useAnimationFrame(
-  intervalMs: number | null = DEFAULT_INTERVAL_MS,
+  intervalMs?: number | null,
 ): [ref: (el: DOMElement | null) => void, time: number] {
-  const clock = useContext(ClockContext)
-  const parked = useContext(MotionParkContext)
-  const [viewportRef, { isVisible }] = useTerminalViewport()
-  const [time, setTime] = useState(() => clock?.now() ?? 0)
-
-  const active = isVisible && !parked && intervalMs !== null
-
-  useSubscription(() => {
-    if (!clock || !active) return
-    const interval = intervalMs as number
-    let lastBucket = Math.floor(clock.now() / interval)
-    return clock.subscribe(() => {
-      const now = clock.now()
-      const bucket = Math.floor(now / interval)
-      if (bucket === lastBucket) return
-      lastBucket = bucket
-      setTime(now)
-    }, true)
-  }, [clock, intervalMs, active])
-
-  return [viewportRef, time]
+  return notBuilt('src/ink/hooks/use-animation-frame.ts:11')
 }

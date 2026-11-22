@@ -8,6 +8,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { DESCRIPTION as PROMPT, TASK_STOP_TOOL_NAME } from '../../constants/tools/taskStop.js'
 import { settledStopSentence } from './stopSettlement.js'
 import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 const KILL_SHELL_ALIAS = 'KillShell'
@@ -25,37 +26,7 @@ const inputSchema = lazySchema(() =>
 )
 type InputSchema = ReturnType<typeof inputSchema>
 type Input = z.infer<InputSchema>
-
-const outputSchema = lazySchema(() =>
-  z.object({
-    message: z.string().describe('The human-readable stop outcome'),
-    task_id: z.string().describe('The id of the stopped task'),
-    task_type: z.string().describe('The stopped task\'s type'),
-    command: z.string().optional().describe('The command the task was running'),
-    settled: z.boolean().optional().describe('Whether the process settled within the kill grace'),
-    exit_code: z.number().optional().describe('The process exit code, when it settled — the platform\'s own detail (POSIX 137 for a stop, win32 the code cmd.exe reports under taskkill, 1)'),
-    interrupted: z
-      .boolean()
-      .optional()
-      .describe('The stop\'s provenance: true when the stop itself ended the process, on every platform; false when it had settled on its own first'),
-    processes_ended: z
-      .number()
-      .optional()
-      .describe('How many processes the stop ended — the whole tree, not just the leader'),
-    process_survivors: z
-      .number()
-      .optional()
-      .describe('How many pids outlived the bounded reap, when any did'),
-    already_finished: z
-      .string()
-      .optional()
-      .describe("Present when nothing was stopped because the task had already ended: how it ended (completed · failed · been stopped · timed out · been ended by policy; for a crewmate no longer in the registry, its transcript's end: completed · failed · stopped · cut off …)"),
-    finished_at: z.string().optional().describe('When the already-finished task ended (ISO 8601)'),
-    output_path: z.string().optional().describe("Where the already-finished task's output file is"),
-  }),
-)
-type OutputSchema = ReturnType<typeof outputSchema>
-export type Output = z.infer<OutputSchema>
+export type Output = Unbuilt
 
 function taskIdOf(input: Partial<Input> | undefined): string | undefined {
   return input?.task_id ?? input?.shell_id
@@ -87,18 +58,6 @@ function alreadyFinishedOutput(shell: FinishedShell): Output {
   }
 }
 
-function alreadyFinishedAgentOutput(agent: FinishedAgent, message: string): Output {
-  return {
-    message,
-    task_id: agent.taskId,
-    task_type: 'local_agent',
-    ...(agent.description !== undefined ? { command: agent.description } : {}),
-    already_finished: agent.ended,
-    ...(agent.endedAt !== undefined ? { finished_at: new Date(agent.endedAt).toISOString() } : {}),
-    output_path: agent.outputPath,
-  }
-}
-
 function childStopRefusal(context: ToolUseContext, task: unknown): string | null {
   if (context.agentId === undefined) return null
   return isLocalShellTask(task) && task.agentId === context.agentId
@@ -106,119 +65,4 @@ function childStopRefusal(context: ToolUseContext, task: unknown): string | null
     : 'A crewmate can stop only its own background command.'
 }
 
-export const TaskStopTool = buildTool({
-  name: TASK_STOP_TOOL_NAME,
-  aliases: [KILL_SHELL_ALIAS],
-  searchHint: 'kill or stop a running background task',
-  shouldDefer: true,
-  maxResultSizeChars: 100_000,
-  get inputSchema(): InputSchema {
-    return inputSchema()
-  },
-  get outputSchema(): OutputSchema {
-    return outputSchema()
-  },
-  isConcurrencySafe: () => false,
-  userFacingName: () => 'Stop Task',
-  async description() {
-    return DESCRIPTION
-  },
-  async prompt() {
-    return PROMPT
-  },
-  async validateInput(input: Input, context: ToolUseContext): Promise<ValidationResult> {
-    const taskId = targetIdOf(input, context)
-    if (!taskId) {
-      return { result: false, message: 'Either task_id or shell_id is required.', errorCode: 1 }
-    }
-    const task = context.getAppState().tasks?.[taskId]
-    const refused = childStopRefusal(context, task)
-    if (refused !== null) return { result: false, message: refused, errorCode: 4 }
-    if (!task) {
-      const finished = await finishedTaskOnDisk(taskId)
-      if (finished !== null) return { result: true }
-      return { result: false, message: bareMissWords(taskId), errorCode: 1 }
-    }
-    if (task.status !== 'running') {
-      if (isFinishedShellRow(task) || isFinishedAgentRow(task)) return { result: true }
-      return {
-        result: false,
-        message: `Task ${taskId} is not running (status: ${task.status})`,
-        errorCode: 3,
-      }
-    }
-    return { result: true }
-  },
-  async call(input: Input, context: ToolUseContext) {
-    const taskId = targetIdOf(input, context)
-    if (!taskId) throw new Error('Either task_id or shell_id is required.')
-    const task = context.getAppState().tasks?.[taskId]
-    const refused = childStopRefusal(context, task)
-    if (refused !== null) throw new Error(refused)
-    if (!task) {
-      const finished = await finishedTaskOnDisk(taskId)
-      if (finished?.kind === 'shell') return { data: alreadyFinishedOutput(finished.shell) }
-      if (finished?.kind === 'agent') return { data: alreadyFinishedAgentOutput(finished.agent, `${finished.words}; nothing was stopped`) }
-    } else if (isFinishedShellRow(task)) {
-      return { data: alreadyFinishedOutput(finishedShellFromRow(task)) }
-    } else if (isFinishedAgentRow(task) && !isPausedAgentRow(task)) {
-      const agent = finishedAgentFromRow(task)
-      return { data: alreadyFinishedAgentOutput(agent, finishedAgentWords(agent)) }
-    }
-    const result = await stopTask(taskId, {
-      getAppState: context.getAppState,
-      setAppState: context.setAppState,
-    })
-    if (result.pausedStop !== undefined) {
-      return { data: { message: stoppedWhilePausedWords(result.taskId, result.pausedStop), task_id: result.taskId, task_type: result.taskType, command: result.command } }
-    }
-
-    let settlementClause = ''
-    if (result.settlement) {
-      const ended = result.settlement.processesEnded
-      const survivors = result.settlement.processSurvivors
-      const endedClause =
-        ended !== undefined
-          ? ` The stop ended ${ended} process${ended === 1 ? '' : 'es'}${
-              survivors ? `; ${survivors} did not confirm ending within the reap bound` : ''
-            }.`
-          : ''
-      if (result.settlement.settled) {
-        settlementClause = settledStopSentence(result.settlement) + endedClause
-      } else {
-        settlementClause =
-          ' The kill was issued but the process had not settled within the grace window; it may still be terminating.'
-      }
-    }
-
-    const output: Output = {
-      message: `Stopped task ${result.taskId} (${result.command}).${settlementClause}`,
-      task_id: result.taskId,
-      task_type: result.taskType,
-      command: result.command,
-      ...(result.settlement
-        ? {
-            settled: result.settlement.settled,
-            ...(result.settlement.exitCode !== undefined ? { exit_code: result.settlement.exitCode } : {}),
-            ...(result.settlement.interrupted !== undefined ? { interrupted: result.settlement.interrupted } : {}),
-            ...(result.settlement.processesEnded !== undefined
-              ? { processes_ended: result.settlement.processesEnded }
-              : {}),
-            ...(result.settlement.processSurvivors !== undefined
-              ? { process_survivors: result.settlement.processSurvivors }
-              : {}),
-          }
-        : {}),
-    }
-    return { data: output }
-  },
-  mapToolResultToToolResultBlockParam(output: Output, toolUseID: string) {
-    return {
-      tool_use_id: toolUseID,
-      type: 'tool_result' as const,
-      content: JSON.stringify(output),
-    }
-  },
-  renderToolUseMessage,
-  renderToolResultMessage,
-} satisfies ToolDef<InputSchema, Output>)
+export const TaskStopTool: Unbuilt = unbuilt('src/tools/TaskStopTool/TaskStopTool.ts:109')

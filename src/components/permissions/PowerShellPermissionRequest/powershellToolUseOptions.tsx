@@ -3,6 +3,7 @@ import { POWERSHELL_TOOL_NAME } from '../../../constants/tools/powershell.js'
 import type { PermissionUpdate } from '../../../types/permissions.js'
 import type { OptionWithDescription } from '../../CustomSelect/select.js'
 import { generateShellSuggestionsLabel } from '../shellPermissionHelpers.js'
+import { notBuilt } from '../../../pi/holes.js'
 
 export type PowerShellToolUseOption = 'yes' | 'yes-apply-suggestions' | 'yes-edited-prefix' | 'no'
 
@@ -29,22 +30,11 @@ const onlyPowerShellRules = (suggestions: PermissionUpdate[]): boolean =>
   suggestions.every(update => update.type === 'addRules' && update.rules.every(rule => rule.toolName === POWERSHELL_TOOL_NAME))
 
 function editedPrefixRow(initialValue: string, onChange: (prefix: string) => void): Row {
-  return {
-    type: 'input',
-    label: "Yes, and don't ask again for commands starting with",
-    value: 'yes-edited-prefix',
-    initialValue,
-    onChange,
-    placeholder: 'Get-Process *',
-    showLabelWithValue: true,
-    labelValueSeparator: ': ',
-    resetCursorOnUpdate: true,
-  }
+  return notBuilt('src/components/permissions/PowerShellPermissionRequest/powershellToolUseOptions.tsx:31')
 }
 
 function applySuggestionsRow(suggestions: PermissionUpdate[]): Row | null {
-  const label = generateShellSuggestionsLabel(suggestions, POWERSHELL_TOOL_NAME)
-  return label === null ? null : { label: <Text>{label}</Text>, value: 'yes-apply-suggestions' }
+  return notBuilt('src/components/permissions/PowerShellPermissionRequest/powershellToolUseOptions.tsx:45')
 }
 
 function alwaysAllowRow(
@@ -57,15 +47,7 @@ function alwaysAllowRow(
   return editable ? editedPrefixRow(editablePrefix, onEditablePrefixChange) : applySuggestionsRow(suggestions)
 }
 
-export function powershellToolUseOptions({
-  suggestions,
-  onRejectFeedbackChange,
-  onAcceptFeedbackChange,
-  yesInputMode,
-  noInputMode,
-  editablePrefix,
-  onEditablePrefixChange,
-}: {
+export function powershellToolUseOptions(arg0: {
   suggestions?: PermissionUpdate[]
   onRejectFeedbackChange: (feedback: string) => void
   onAcceptFeedbackChange: (feedback: string) => void
@@ -74,10 +56,5 @@ export function powershellToolUseOptions({
   editablePrefix?: string
   onEditablePrefixChange?: (prefix: string) => void
 }): Row[] {
-  const rows = [
-    amendableRow('yes', yesInputMode, onAcceptFeedbackChange),
-    alwaysAllowRow(suggestions, editablePrefix, onEditablePrefixChange),
-    amendableRow('no', noInputMode, onRejectFeedbackChange),
-  ]
-  return rows.filter((row): row is Row => row !== null)
+  return notBuilt('src/components/permissions/PowerShellPermissionRequest/powershellToolUseOptions.tsx:60')
 }

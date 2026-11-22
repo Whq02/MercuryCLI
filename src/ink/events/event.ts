@@ -1,11 +1,13 @@
+import { notBuilt, unbuilt } from '../../pi/holes.js'
+
 export class Event {
-  private halted = false
+  private halted: boolean = unbuilt('src/ink/events/event.ts:2')
 
   didStopImmediatePropagation(): boolean {
-    return this.halted
+    return notBuilt('src/ink/events/event.ts:4')
   }
 
   stopImmediatePropagation(): void {
-    this.halted = true
+    return notBuilt('src/ink/events/event.ts:8')
   }
 }

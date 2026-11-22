@@ -18,6 +18,7 @@ import { REPEATED_RESULT_TAG } from '../../constants/toolLimits.js'
 import { FILE_READ_TOOL_NAME } from '../../constants/tools/fileRead.js'
 import { FILE_EDIT_TOOL_NAME } from '../../constants/tools/fileEdit.js'
 import { FILE_WRITE_TOOL_NAME } from '../../constants/tools/fileWrite.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 export const TIME_BASED_MC_CLEARED_MESSAGE = '[stale tool result pruned — content cleared]'
 
@@ -26,32 +27,12 @@ type PendingCacheEdits = {
   block: unknown
 }
 
-type MicrocompactResult = {
-  messages: Message[]
-  compactionInfo?: {
-    trigger: string
-    deletedToolIds: string[]
-    baselineCacheDeletedTokens: number | null
-  }
-  pruned?: { cleared: number; tokensSaved: number; clearedIds: string[] }
-  deadMarks?: DeadThinkingMark[]
-}
+type MicrocompactResult = Unbuilt
 
-type MicrocompactTrigger = { pressure: true; supersededOnly?: true; minimumTokensSaved?: number }
-
-
-const estimateToolResultTokens = estimateContentTokens
-const estimateBlockTokens = estimateContentTokens
+type MicrocompactTrigger = Unbuilt
 
 export function estimateMessageTokens(messages: Message[]): number {
-  let total = 0
-  for (const message of messages) {
-    if (message.type !== 'user' && message.type !== 'assistant') continue
-    const content = (message as { message?: { content?: unknown } }).message?.content
-    if (!Array.isArray(content)) continue
-    for (const block of content) total += estimateBlockTokens(block)
-  }
-  return Math.ceil((total * 4) / 3)
+  return notBuilt('src/services/compact/microCompact.ts:46')
 }
 
 export function estimateContextTokens(messages: Message[], model?: string): number {
@@ -118,143 +99,7 @@ export function projectTimeBasedMicrocompact(
   clearedIds: string[]
   deadMarks: DeadThinkingMark[]
 } | null {
-  const fired =
-    trigger?.pressure === true
-      ? { gapMinutes: 0, config: getTimeBasedMCConfig() }
-      : evaluateTimeBasedTrigger(messages, querySource)
-  if (fired === null) return null
-
-  const compactableIds: string[] = []
-  const readPathById = new Map<string, string>()
-  const filePathById = trigger?.supersededOnly === true ? new Map<string, string>() : null
-  for (const message of messages) {
-    if (message.type !== 'assistant') continue
-    const content = (message as { message?: { content?: unknown } }).message?.content
-    if (!Array.isArray(content)) continue
-    for (const block of content) {
-      const record = block as { type?: string; id?: string; name?: string; input?: unknown }
-      if (record.type === 'tool_use' && typeof record.id === 'string' && typeof record.name === 'string') {
-        if (filePathById !== null && (record.name === FILE_READ_TOOL_NAME || record.name === FILE_EDIT_TOOL_NAME || record.name === FILE_WRITE_TOOL_NAME)) {
-          const filePath = (record.input as { file_path?: unknown } | undefined)?.file_path
-          if (typeof filePath === 'string') filePathById.set(record.id, filePath)
-        }
-        if (!isProtectedFromPruning(record.name, record.input)) {
-          compactableIds.push(record.id)
-          if (record.name === FILE_READ_TOOL_NAME) {
-            const filePath = (record.input as { file_path?: unknown } | undefined)?.file_path
-            if (typeof filePath === 'string') readPathById.set(record.id, filePath)
-          }
-        }
-      }
-    }
-  }
-
-  const keepCount = Math.max(1, fired.config.keepRecent)
-  const tokensById = new Map<string, number>()
-  for (const message of messages) {
-    if (message.type !== 'user' || !Array.isArray(message.message.content)) continue
-    for (const block of message.message.content) {
-      if (block.type === 'tool_result') tokensById.set(block.tool_use_id, estimateToolResultTokens(block.content))
-    }
-  }
-  const kept = new Set(compactableIds.slice(Math.max(0, compactableIds.length - keepCount)))
-  let newest = 0
-  for (let index = compactableIds.length - 1; index >= 0; index--) {
-    const id = compactableIds[index]!
-    newest += tokensById.get(id) ?? 0
-    if (newest > PROTECT_NEWEST_TOOL_OUTPUT_TOKENS) break
-    kept.add(id)
-  }
-  const clearSet = new Set(compactableIds.filter(id => !kept.has(id)))
-  if (clearSet.size === 0) return null
-  const minimumSaving = trigger?.pressure === true ? trigger.minimumTokensSaved ?? 0 : PRUNE_MINIMUM_SAVING_TOKENS
-  if (filePathById !== null) {
-    const latestByPath = new Map<string, string>()
-    const supersededIds = new Set<string>()
-    for (const message of messages) {
-      if (message.type !== 'user' || !Array.isArray(message.message.content)) continue
-      if ((message.toolUseResult as { type?: string } | undefined)?.type === 'file_unchanged') continue
-      for (const block of message.message.content) {
-        if (block.type !== 'tool_result' || block.is_error === true || isClearedOrDigested(block.content)) continue
-        if (typeof block.content === 'string' && block.content.startsWith(REPEATED_RESULT_TAG)) continue
-        const path = filePathById.get(block.tool_use_id)
-        if (path === undefined) continue
-        const prior = latestByPath.get(path)
-        if (prior !== undefined) supersededIds.add(prior)
-        latestByPath.set(path, block.tool_use_id)
-      }
-    }
-    for (const id of clearSet) if (!supersededIds.has(id)) clearSet.delete(id)
-    if (clearSet.size === 0) return null
-  }
-
-  if (minimumSaving > 0) {
-    let availableTokens = 0
-    for (const message of messages) {
-      if (message.type !== 'user' || !Array.isArray(message.message.content)) continue
-      for (const block of message.message.content) {
-        if (block.type === 'tool_result' && clearSet.has(block.tool_use_id) && !isClearedOrDigested(block.content)) {
-          availableTokens += estimateToolResultTokens(block.content)
-        }
-      }
-    }
-    if (availableTokens < minimumSaving) return null
-  }
-
-  let tokensSaved = 0
-  let cleared = 0
-  const clearedReadPaths: string[] = []
-  const clearedIds: string[] = []
-  const projected = messages.map(message => {
-    if (message.type !== 'user') return message
-    const content = (message as { message?: { content?: unknown } }).message?.content
-    if (!Array.isArray(content)) return message
-    let touched = false
-    const rebuilt = content.map(rawBlock => {
-      const block = rawBlock as { type?: string; tool_use_id?: string; content?: never }
-      if (
-        block.type === 'tool_result' &&
-        typeof block.tool_use_id === 'string' &&
-        clearSet.has(block.tool_use_id) &&
-        !isClearedOrDigested(block.content) &&
-        !isBelowPlaceholderFloor(estimateToolResultTokens(block.content))
-      ) {
-        touched = true
-        cleared++
-        const digest = digestClearedToolResult(block.content)
-        const reference = persistedReferenceOf(block.content)
-        const replacement = reference === undefined ? digest : `${digest}\n${reference}`
-        tokensSaved += estimateToolResultTokens(block.content) - (trigger?.supersededOnly === true ? estimateToolResultTokens(replacement) : 0)
-        clearedIds.push(block.tool_use_id)
-        const readPath = readPathById.get(block.tool_use_id)
-        if (readPath !== undefined) clearedReadPaths.push(readPath)
-        return { ...block, content: replacement }
-      }
-      return rawBlock
-    })
-    if (!touched) return message
-    return {
-      ...message,
-      message: { ...(message as { message: object }).message, content: rebuilt },
-    } as Message
-  })
-
-  if (tokensSaved === 0 || tokensSaved < minimumSaving) return null
-  const firstCleared = projected.findIndex((message, index) => message !== messages[index])
-  const withValidThinking = firstCleared === -1 ? projected : stripThinkingFromIndex(projected, firstCleared)
-  const deadMarks: DeadThinkingMark[] = []
-  if (firstCleared !== -1) {
-    for (let index = firstCleared; index < projected.length; index++) {
-      const message = projected[index]!
-      if (message.type !== 'assistant') continue
-      const content = message.message.content
-      if (!Array.isArray(content) || typeof message.message.id !== 'string') continue
-      content.forEach((block, blockIndex) => {
-        if (isThinkingBlock(block)) deadMarks.push({ messageId: message.message.id, blockIndex })
-      })
-    }
-  }
-  return { messages: withValidThinking, cleared, tokensSaved, gapMinutes: fired.gapMinutes, clearedReadPaths, clearedIds, deadMarks }
+  return notBuilt('src/services/compact/microCompact.ts:108')
 }
 
 
@@ -316,30 +161,5 @@ export async function microcompactMessages(
   },
   trigger?: MicrocompactTrigger,
 ): Promise<MicrocompactResult> {
-  clearCompactWarningSuppression()
-
-  const projected = projectTimeBasedMicrocompact(messages, querySource, trigger)
-  if (projected !== null) {
-    const config = getTimeBasedMCConfig()
-    logForDebugging(
-      trigger?.pressure === true
-        ? `pressure microcompact (${trigger.minimumTokensSaved !== undefined ? 'context size' : 'context overflow'}): cleared ${projected.cleared} tool results (~${projected.tokensSaved} tokens)`
-        : `time-based microcompact: gap ${Math.round(projected.gapMinutes)}min ≥ ${config.thresholdMinutes}min — cleared ${projected.cleared} tool results (~${projected.tokensSaved} tokens)`,
-    )
-    suppressCompactWarning()
-    resetMicrocompactState()
-    if (invalidate) {
-      for (const clearedPath of projected.clearedReadPaths) {
-        invalidate.readFileState.delete(expandPath(clearedPath))
-        invalidate.readFileState.delete(clearedPath)
-      }
-    }
-    return {
-      messages: projected.messages,
-      pruned: { cleared: projected.cleared, tokensSaved: projected.tokensSaved, clearedIds: projected.clearedIds },
-      deadMarks: projected.deadMarks,
-    }
-  }
-
-  return { messages }
+  return notBuilt('src/services/compact/microCompact.ts:310')
 }

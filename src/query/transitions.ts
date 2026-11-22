@@ -1,31 +1,5 @@
+import type { Unbuilt } from '../pi/holes.js'
 
-export type Terminal =
-  | { reason: 'completed' }
-  | { reason: 'model_error'; error: unknown }
-  | { reason: 'image_error' }
-  | { reason: 'prompt_too_long' }
-  | { reason: 'blocking_limit' }
-  | { reason: 'rapid_refill_breaker' }
-  | { reason: 'max_turns'; turnCount: number }
-  | { reason: 'aborted_streaming' }
-  | { reason: 'aborted_tools' }
-  | { reason: 'stop_hook_prevented' }
-  | { reason: 'hook_stopped' }
-  | { reason: 'loop_stopped'; cycle: string[] }
-  | { reason: 'tool_calls_refused'; tools: string[]; corrections: number }
+export type Terminal = Unbuilt
 
-export type Continue =
-  | { reason: 'next_turn' }
-  | { reason: 'max_output_tokens_recovery'; attempt: number }
-  | { reason: 'stop_hook_blocking' }
-  | { reason: 'stream_fault_recovery'; attempt: number }
-  | { reason: 'tool_call_refusal_recovery'; attempt: number }
-  | { reason: 'cut_tool_call_recovery'; attempt: number; outputTokens: number }
-  | { reason: 'pause_turn_continuation'; attempt: number }
-  | { reason: 'empty_reply_retry'; attempt: number }
-  | { reason: 'reasoning_only_recovery'; attempt: number }
-  | { reason: 'chant_recovery'; attempt: number }
-  | { reason: 'announced_step_nudge'; attempt: number }
-  | { reason: 'checkpoint_settle_guard' }
-  | { reason: 'queued_message'; count: number }
-  | { reason: 'overflow_recovery'; rung: 'prune' | 'fold'; source: 'provider' | 'estimate' }
+export type Continue = Unbuilt

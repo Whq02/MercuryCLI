@@ -46,6 +46,7 @@ import { withDeadline } from '../../../utils/deadline.js'
 import { type Progress, BACKGROUND_TASKS_DISABLED, DEFAULT_AGENT_TYPE, type AgentToolInput, type AgentToolOutput } from './schema.js'
 import { resolveAgentCwd } from './cwd.js'
 import { toolPoolOfTheTable } from '../../toolTable.js'
+import { notBuilt } from '../../../pi/holes.js'
 
 export function mcpServerNamesWithTools(tools: readonly ToolShape[]): string[] {
   const names = new Set<string>()
@@ -60,57 +61,7 @@ async function waitForRequiredMcpServers(
   definition: AgentDefinition,
   context: ToolUseContext,
 ): Promise<void> {
-  const required = definition.requiredMcpServers
-  if (!required || required.length === 0) return
-  const clients = () => context.getAppState().mcp.clients ?? []
-  const matchesRequired = (name: string) =>
-    required.some(pattern =>
-      name.toLowerCase().includes(pattern.toLowerCase()),
-    )
-  const settled = (): boolean => {
-    const current = clients()
-    const pendingRequired = current.some(
-      client => client.type === 'pending' && matchesRequired(client.name),
-    )
-    if (!pendingRequired) return true
-    return current.some(
-      client => client.type === 'failed' && matchesRequired(client.name),
-    )
-  }
-  if (!settled()) {
-    let unsubscribe: (() => void) | undefined
-    try {
-      await withDeadline(
-        new Promise<void>(resolve => {
-          unsubscribe = subscribeMcpClientsChange(() => {
-            if (settled()) resolve()
-          })
-          if (settled()) resolve()
-        }),
-        30_000,
-        () => {},
-        { signal: context.abortController?.signal },
-      )
-    } finally {
-      unsubscribe?.()
-    }
-  }
-  const serversWithTools = mcpServerNamesWithTools(
-    context.getAppState().mcp.tools ?? [],
-  )
-  const missing = required.filter(
-    pattern =>
-      !serversWithTools.some(name =>
-        name.toLowerCase().includes(pattern.toLowerCase()),
-      ),
-  )
-  if (missing.length > 0) {
-    throw new Error(
-      `Crewmate type '${definition.agentType}' requires MCP server(s) matching: ${missing.join(', ')}. ` +
-        `Servers currently exposing tools: ${serversWithTools.length > 0 ? [...new Set(serversWithTools)].join(', ') : 'none'}. ` +
-        'Configure the required server with the /mcp command.',
-    )
-  }
+  return notBuilt('src/tools/AgentTool/agent/call.ts:59')
 }
 
 const CREWMATE_SEAT: MercuryAgentSeat = 'a crewmate'
@@ -420,40 +371,13 @@ function metadataOf(input: AgentToolInput, plan: AgentLaunchPlan, agentDef: Agen
   }
 }
 
-function runAgentParamsOf({ agentDef, promptMessages, context, canUseTool, plan, querySource, structuredOutputSpec, effectiveSystemPromptOverride, modelForRunLoop, input, workerTools, worktreeInfo, launchDirectory, startTime, earlyAgentId, rootSetAppState }: {
+function runAgentParamsOf(arg0: {
   agentDef: AgentDefinition; promptMessages: Message[]; context: ToolUseContext; canUseTool: CanUseToolFn; plan: AgentLaunchPlan; querySource: ReturnType<typeof getQuerySourceForAgent>
   structuredOutputSpec: ReturnType<typeof structuredOutputSpecOf>; effectiveSystemPromptOverride: string[] | undefined; modelForRunLoop: string | undefined; input: AgentToolInput
   workerTools: ReturnType<typeof resolveWorkerTools>; worktreeInfo: Awaited<ReturnType<typeof createAgentWorktree>> | undefined; launchDirectory: string | undefined
   startTime: number; earlyAgentId: AgentId; rootSetAppState: ToolUseContext['setAppState']
 }): RunAgentParams {
-  return {
-    agentDefinition: agentDef,
-    seat: CREWMATE_SEAT,
-    promptMessages,
-    toolUseContext: context,
-    canUseTool,
-    isAsync: plan.shouldRunAsync,
-    querySource,
-    ...(structuredOutputSpec ? { structuredOutputSpec } : {}),
-    override: {
-      ...(effectiveSystemPromptOverride
-        ? { systemPrompt: effectiveSystemPromptOverride }
-        : {}),
-    },
-    ...(modelForRunLoop !== undefined ? { model: modelForRunLoop } : {}),
-    ...(input.effort !== undefined ? { effortOverride: input.effort } : {}),
-    availableTools: workerTools,
-    ...(worktreeInfo ? { worktreePath: worktreeInfo.worktreePath } : {}),
-    ...(worktreeInfo === undefined && launchDirectory !== undefined ? { cwd: launchDirectory } : {}),
-    ...(input.review_receipt !== undefined ? { reviewReceipt: input.review_receipt } : {}),
-    description: input.description,
-    ...(input.name ? { name: input.name } : {}),
-    ...(input.team ? { team: input.team } : {}),
-    ...(input.captain !== undefined ? { captain: input.captain } : {}),
-    launchedAt: startTime,
-    onWait: line => setAgentWaitLine(earlyAgentId, line, rootSetAppState),
-    onPendingAsks: count => setAgentPendingAsks(earlyAgentId, count, rootSetAppState),
-  }
+  return notBuilt('src/tools/AgentTool/agent/call.ts:423')
 }
 
 function agentContextOf(earlyAgentId: AgentId, agentDef: AgentDefinition, parentAssistantMessage: AssistantMessage): SubagentContext {
@@ -515,28 +439,7 @@ function asyncLifecycleOf({ earlyAgentId, input, rootSetAppState, agentDef, plan
 }
 
 function asyncLaunchAnswerOf(options: ToolUseContext['options'], earlyAgentId: AgentId, input: AgentToolInput, plan: AgentLaunchPlan, agentDef: AgentDefinition, modelNote?: string): { data: AgentToolOutput } {
-  const canReadOutputFile = options.tools.some(
-    tool =>
-      toolMatchesName(tool, FILE_READ_TOOL_NAME) ||
-      toolMatchesName(tool, BASH_TOOL_NAME),
-  )
-  return {
-    data: {
-      isAsync: true as const,
-      status: 'async_launched' as const,
-      agentId: earlyAgentId,
-      description: input.description,
-      prompt: input.prompt,
-      outputFile: getTaskOutputPath(earlyAgentId),
-      canReadOutputFile,
-      ...(modelNote ? { modelNote } : {}),
-      ...(input.name ? { agentName: input.name } : {}),
-      ...(input.run_in_background === false && agentDef.background === true
-        ? { backgroundReason: 'agent-type' as const }
-        : {}),
-      runtimeRef: describeAgentRuntimeRef(plan.model),
-    },
-  }
+  return notBuilt('src/tools/AgentTool/agent/call.ts:517')
 }
 
 async function buildDefaultSystemPrompt(
@@ -547,20 +450,5 @@ async function buildDefaultSystemPrompt(
   toolNames: ReadonlySet<string>,
   seat: MercuryAgentSeat,
 ): Promise<{ prompt: string[]; memoryLoadError?: string }> {
-  const ownPrompt = isBuiltInAgent(definition)
-    ? definition.getSystemPrompt({ toolUseContext: context })
-    : definition.getSystemPrompt()
-  const doctrine = buildSubagentMercurySectionsWithOutcome({
-    agentDefinition: definition,
-    toolUseContext: context,
-    toolNames,
-    seat,
-  })
-  const prompt = await enhanceSystemPromptWithEnvDetails(
-    [...doctrine.sections, ownPrompt],
-    childModel,
-    undefined,
-    agentId,
-  )
-  return doctrine.memoryLoadError !== undefined ? { prompt, memoryLoadError: doctrine.memoryLoadError } : { prompt }
+  return notBuilt('src/tools/AgentTool/agent/call.ts:542')
 }

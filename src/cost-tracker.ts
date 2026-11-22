@@ -48,21 +48,9 @@ import { recordUsagePulse } from './utils/cockpit/usageActivity.js'
 const VALUE_COLUMN = 23
 const MODEL_NAME_COLUMN = 21
 
-type StoredCostState = {
-  totalCostUSD: number
-  totalAPIDuration: number
-  totalAPIDurationWithoutRetries: number
-  totalToolDuration: number
-  totalLinesAdded: number
-  totalLinesRemoved: number
-  lastDuration: number | undefined
-  modelUsage: { [modelName: string]: ModelUsage } | undefined
-  unpricedTurns: { [modelName: string]: number } | undefined
-  workloadUsage: WorkloadUsage | undefined
-  workloadUnpricedTurns: WorkloadUnpricedTurns | undefined
-}
+type StoredCostState = Unbuilt
 
-export type LedgerCostBasis = { basis: 'wire-stated' }
+export type LedgerCostBasis = Unbuilt
 
 export function addToTotalSessionCost(
   cost: number,
@@ -70,51 +58,7 @@ export function addToTotalSessionCost(
   model: string,
   pricing?: LedgerCostBasis,
 ): number {
-  const invalidCost = !Number.isFinite(cost) || cost < 0 || !Number.isFinite(getTotalCostUSD() + cost)
-  if (invalidCost) cost = 0
-  usage = { ...usage, input_tokens: usageCount(usage.input_tokens), output_tokens: usageCount(usage.output_tokens), cache_read_input_tokens: usageCount(usage.cache_read_input_tokens), cache_creation_input_tokens: usageCount(usage.cache_creation_input_tokens), server_tool_use: { web_search_requests: usageCount(usage.server_tool_use?.web_search_requests), web_fetch_requests: usageCount(usage.server_tool_use?.web_fetch_requests) } }
-  const record: ModelUsage = getUsageForModel(model) ?? {
-    inputTokens: 0,
-    outputTokens: 0,
-    cacheReadInputTokens: 0,
-    cacheCreationInputTokens: 0,
-    webSearchRequests: 0,
-    costUSD: 0,
-    contextWindow: 0,
-    maxOutputTokens: 0,
-  }
-  record.inputTokens += usage.input_tokens
-  record.outputTokens += usage.output_tokens
-  record.cacheReadInputTokens += usage.cache_read_input_tokens ?? 0
-  record.cacheCreationInputTokens += usage.cache_creation_input_tokens ?? 0
-  record.webSearchRequests += usage.server_tool_use?.web_search_requests ?? 0
-  record.costUSD += cost
-  record.contextWindow = getContextWindowForModel(model, getSdkBetas())
-  record.maxOutputTokens = getModelMaxOutputTokens(model).default
-  record.lastUsedAtMs = Date.now()
-  addToTotalCostState(cost, record, model)
-  const workload = getWorkload()
-  if (invalidCost || (pricing?.basis !== 'wire-stated' && modelPricingBasis(model) === 'unpriced')) {
-    recordUnpricedTurn(model)
-    if (workload !== undefined) recordWorkloadUnpricedTurn(workload, model)
-  }
-  if (workload !== undefined) {
-    addToWorkloadUsageState(
-      workload,
-      {
-        inputTokens: usage.input_tokens,
-        outputTokens: usage.output_tokens,
-        cacheReadInputTokens: usage.cache_read_input_tokens ?? 0,
-        cacheCreationInputTokens: usage.cache_creation_input_tokens ?? 0,
-        webSearchRequests: usage.server_tool_use?.web_search_requests ?? 0,
-        costUSD: cost,
-      },
-      model,
-    )
-  }
-  recordUsagePulse(cost)
-
-  return cost
+  return notBuilt('src/cost-tracker.ts:67')
 }
 
 export function sessionSawUsage(): boolean {
@@ -128,92 +72,19 @@ export function sessionSawUsage(): boolean {
 }
 
 export function saveCurrentSessionCosts(fpsMetrics?: FpsMetrics): void {
-  if (!sessionSawUsage()) return
-  let windowSessionId: string | undefined
-  try {
-    windowSessionId = getSessionId()
-  } catch {
-    windowSessionId = undefined
-  }
-  saveCurrentProjectConfig(currentConfig => ({
-    ...currentConfig,
-    lastCostWindow: {
-      kind: 'session-cumulative',
-      ...(windowSessionId ? { sessionId: windowSessionId } : {}),
-      savedAtMs: Date.now(),
-    },
-    lastCost: getTotalCostUSD(),
-    lastAPIDuration: getTotalAPIDuration(),
-    lastAPIDurationWithoutRetries: getTotalAPIDurationWithoutRetries(),
-    lastToolDuration: getTotalToolDuration(),
-    lastDuration: getTotalDuration(),
-    lastLinesAdded: getTotalLinesAdded(),
-    lastLinesRemoved: getTotalLinesRemoved(),
-    lastTotalInputTokens: getTotalInputTokens(),
-    lastTotalOutputTokens: getTotalOutputTokens(),
-    lastTotalCacheCreationInputTokens: getTotalCacheCreationInputTokens(),
-    lastTotalCacheReadInputTokens: getTotalCacheReadInputTokens(),
-    lastTotalWebSearchRequests: getTotalWebSearchRequests(),
-    lastFpsAverage: fpsMetrics?.averageFps,
-    lastFpsLow1Pct: fpsMetrics?.low1PctFps,
-    lastModelUsage: mapValues(getModelUsage(), usage => ({
-      inputTokens: usage.inputTokens,
-      outputTokens: usage.outputTokens,
-      cacheReadInputTokens: usage.cacheReadInputTokens,
-      cacheCreationInputTokens: usage.cacheCreationInputTokens,
-      webSearchRequests: usage.webSearchRequests,
-      costUSD: usage.costUSD,
-    })),
-    lastUnpricedTurns: { ...getUnpricedTurns() },
-    lastWorkloadUsage: mapValues(getWorkloadUsage(), bucket =>
-      mapValues(bucket, usage => ({
-        inputTokens: usage.inputTokens,
-        outputTokens: usage.outputTokens,
-        cacheReadInputTokens: usage.cacheReadInputTokens,
-        cacheCreationInputTokens: usage.cacheCreationInputTokens,
-        webSearchRequests: usage.webSearchRequests,
-        costUSD: usage.costUSD,
-      })),
-    ),
-    lastWorkloadUnpricedTurns: mapValues(getWorkloadUnpricedTurns(), bucket => ({ ...bucket })),
-    lastSessionId: getSessionId(),
-  }))
+  return notBuilt('src/cost-tracker.ts:130')
 }
 
 export function getStoredSessionCosts(
   sessionId: string,
 ): StoredCostState | undefined {
-  const config = getCurrentProjectConfig()
-  if (config.lastSessionId !== sessionId) {
-    return undefined
-  }
-  return {
-    totalCostUSD: config.lastCost ?? 0,
-    totalAPIDuration: config.lastAPIDuration ?? 0,
-    totalAPIDurationWithoutRetries: config.lastAPIDurationWithoutRetries ?? 0,
-    totalToolDuration: config.lastToolDuration ?? 0,
-    totalLinesAdded: config.lastLinesAdded ?? 0,
-    totalLinesRemoved: config.lastLinesRemoved ?? 0,
-    lastDuration: config.lastDuration,
-    modelUsage: config.lastModelUsage ? withDerivedLimits(config.lastModelUsage) : undefined,
-    unpricedTurns: config.lastUnpricedTurns ? { ...config.lastUnpricedTurns } : undefined,
-    workloadUsage: config.lastWorkloadUsage
-      ? mapValues(config.lastWorkloadUsage, bucket => mapValues(bucket, usage => ({ ...usage })))
-      : undefined,
-    workloadUnpricedTurns: config.lastWorkloadUnpricedTurns
-      ? mapValues(config.lastWorkloadUnpricedTurns, bucket => ({ ...bucket }))
-      : undefined,
-  }
+  return notBuilt('src/cost-tracker.ts:183')
 }
 
 function withDerivedLimits(usage: {
   [modelName: string]: Omit<ModelUsage, 'contextWindow' | 'maxOutputTokens'>
 }): { [modelName: string]: ModelUsage } {
-  return mapValues(usage, (stored, model) => ({
-    ...stored,
-    contextWindow: getContextWindowForModel(model, getSdkBetas()),
-    maxOutputTokens: getModelMaxOutputTokens(model).default,
-  }))
+  return notBuilt('src/cost-tracker.ts:209')
 }
 
 async function transcriptLedgerForSession(
@@ -256,8 +127,6 @@ export async function restoreCostStateForSession(
 }
 
 
-
-
 function labelled(label: string, value: string): string {
   return `${label.padEnd(VALUE_COLUMN)}${value}`
 }
@@ -272,79 +141,8 @@ function usageRowName(model: string): string {
   return parsed !== null && parsed.stem === canonical ? parsed.spelled : canonical
 }
 
-function formatModelUsageRows(): string[] {
-  const byModel = getModelUsage()
-  const models = Object.keys(byModel)
-  if (models.length === 0) {
-    return [labelled('Tokens spent:', '0 input, 0 output, 0 cache read, 0 cache write')]
-  }
-  const byShortName = new Map<
-    string,
-    {
-      inputTokens: number
-      outputTokens: number
-      cacheReadInputTokens: number
-      cacheCreationInputTokens: number
-      webSearchRequests: number
-      costUSD: number
-      unpricedTurns: number
-    }
-  >()
-  const unpriced = getUnpricedTurns()
-  for (const model of models) {
-    const usage = byModel[model]!
-    const shortName = usageRowName(model)
-    const row = byShortName.get(shortName) ?? {
-      inputTokens: 0,
-      outputTokens: 0,
-      cacheReadInputTokens: 0,
-      cacheCreationInputTokens: 0,
-      webSearchRequests: 0,
-      costUSD: 0,
-      unpricedTurns: 0,
-    }
-    row.inputTokens += usage.inputTokens
-    row.outputTokens += usage.outputTokens
-    row.cacheReadInputTokens += usage.cacheReadInputTokens
-    row.cacheCreationInputTokens += usage.cacheCreationInputTokens
-    row.webSearchRequests += usage.webSearchRequests
-    row.costUSD += usage.costUSD
-    row.unpricedTurns += unpriced[model] ?? 0
-    byShortName.set(shortName, row)
-  }
-  const rows = ['Tokens spent by model:']
-  for (const [shortName, row] of byShortName) {
-    const metrics = [
-      `${formatNumber(row.inputTokens)} input`,
-      `${formatNumber(row.outputTokens)} output`,
-      `${formatNumber(row.cacheReadInputTokens)} cache read`,
-      `${formatNumber(row.cacheCreationInputTokens)} cache write`,
-    ]
-    if (row.webSearchRequests > 0) {
-      metrics.push(`${formatNumber(row.webSearchRequests)} web search`)
-    }
-    rows.push(
-      `${`${shortName}:`.padStart(MODEL_NAME_COLUMN)}  ${metrics.join(', ')} (${formatSessionCost(row.costUSD, row.unpricedTurns)})`,
-    )
-  }
-  return rows
-}
-
 export function formatTotalCost(): string {
-  const unknownCaveat = hasUnknownModelCost()
-    ? ' (costs may be inaccurate due to usage of unknown models)'
-    : ''
-  const lines = [
-    labelled('Total cost:', `${formatSessionCost(getTotalCostUSD(), getTotalUnpricedTurns())}${unknownCaveat}`),
-    labelled('Total duration (API):', formatDuration(getTotalAPIDuration())),
-    labelled('Total duration (wall):', formatDuration(getTotalDuration())),
-    labelled(
-      'Total code changes:',
-      `${pluralizeLines(getTotalLinesAdded())} added, ${pluralizeLines(getTotalLinesRemoved())} removed`,
-    ),
-    ...formatModelUsageRows(),
-  ]
-  return chalk.dim(lines.join('\n'))
+  return notBuilt('src/cost-tracker.ts:333')
 }
 
 export {
@@ -378,4 +176,5 @@ import {
   getTotalOutputTokens,
   getTotalWebSearchRequests,
 } from './bootstrap/state.js'
+import { notBuilt, type Unbuilt } from './pi/holes.js'
 export { readUsageHistory, type UsageHistoryReport, type UsageTotals } from './services/usage/usageHistory.js'

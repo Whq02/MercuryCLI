@@ -3,11 +3,12 @@ import { subagentDefaultModel } from '../../utils/agentDefaults.js'
 import { classifyModelRoute } from '../providers/idSpaces.js'
 import { FIRST_PARTY_FAMILY_WORDS, routeOfFamilyWord } from './modelFamilies.js'
 import { getCanonicalName, parseUserSpecifiedModel } from './model.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const INHERIT = 'inherit'
 
 export function getDefaultSubagentModel(): string {
-  return INHERIT
+  return notBuilt('src/services/model/agent.ts:9')
 }
 
 
@@ -36,26 +37,7 @@ export function getAgentModel(
   parentModel: string,
   toolSpecifiedModel?: string,
 ): string {
-  if (toolSpecifiedModel !== undefined && toolSpecifiedModel !== '') {
-    if (wordNamesParentFamily(toolSpecifiedModel, parentModel)) return parentModel
-    return parseUserSpecifiedModel(toolSpecifiedModel)
-  }
-
-  if (agentModel === undefined) {
-    const configured = subagentDefaultModel()
-    if (configured !== undefined) {
-      if (wordNamesParentFamily(configured, parentModel)) return parentModel
-      return parseUserSpecifiedModel(configured)
-    }
-  }
-
-  const declared = agentModel ?? INHERIT
-  if (declared === INHERIT) {
-    return parentModel
-  }
-
-  if (wordNamesParentFamily(declared, parentModel)) return parentModel
-  return parseUserSpecifiedModel(declared)
+  return notBuilt('src/services/model/agent.ts:34')
 }
 
 

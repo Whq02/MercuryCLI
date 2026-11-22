@@ -19,6 +19,7 @@ import { isFullscreenActive } from '../../utils/fullscreen.js'
 import type { ProgressMessage } from '../../types/message.js'
 import type { BashProgress } from '../../types/tools.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
+import { notBuilt } from '../../pi/holes.js'
 
 type BashInput = {
   command?: string
@@ -29,34 +30,14 @@ type BashInput = {
 
 export function renderToolUseMessage(
   input: Partial<BashInput>,
-  { verbose }: { theme?: unknown; verbose: boolean; commands?: unknown },
+  arg1: { theme?: unknown; verbose: boolean; commands?: unknown },
 ): React.ReactNode {
-  const command = input.command
-  if (!command) return null
-
-  if (isSedInPlaceEdit(command)) {
-    const info = parseSedEditCommand(command)
-    if (info) {
-      return <Text>{verbose ? info.filePath : getDisplayPath(info.filePath)}</Text>
-    }
-  }
-
-  if (verbose) return <Text>{command}</Text>
-
-  if (isFullscreenActive()) {
-    const label = extractBashCommentLabel(command)
-    if (label) {
-      const shown = label.length > TOOL_USE_LINE_MAX_CHARS ? `${label.slice(0, TOOL_USE_LINE_MAX_CHARS)}…` : label
-      return <Text>{shown}</Text>
-    }
-  }
-
-  return <Text>{oneLineCommandDisplay(command)}</Text>
+  return notBuilt('src/tools/BashTool/UI.tsx:30')
 }
 
 export function renderToolUseProgressMessage(
   progressMessages: ProgressMessage<BashProgress>[],
-  { verbose }: {
+  arg1: {
     tools?: unknown
     verbose: boolean
     terminalSize?: { columns: number; rows: number }
@@ -64,28 +45,7 @@ export function renderToolUseProgressMessage(
     isTranscriptMode?: boolean
   },
 ): React.ReactNode {
-  const latest = progressMessages[progressMessages.length - 1]?.data
-  if (!latest) {
-    return (
-      <MessageResponse height={1}>
-        <Text color={FAINT} dimColor>
-          running…
-        </Text>
-      </MessageResponse>
-    )
-  }
-  return (
-    <ShellProgressMessage
-      output={latest.output}
-      fullOutput={latest.fullOutput}
-      elapsedTimeSeconds={latest.elapsedTimeSeconds}
-      totalLines={latest.totalLines}
-      totalBytes={latest.totalBytes}
-      timeoutMs={latest.timeoutMs}
-      taskId={latest.taskId}
-      verbose={verbose}
-    />
-  )
+  return notBuilt('src/tools/BashTool/UI.tsx:57')
 }
 
 export function renderToolUseQueuedMessage(): React.ReactNode {
@@ -118,27 +78,6 @@ export function renderToolUseErrorMessage(
   return <FallbackToolUseErrorMessage result={result} verbose={verbose} />
 }
 
-export function BackgroundHint({ onBackground }: { onBackground?: () => void } = {}): React.ReactNode {
-  const store = useAppStateStore()
-  useKeybinding(
-    'task:background',
-    () => {
-      backgroundAll(store.getState, store.setState)
-      onBackground?.()
-    },
-    { context: 'Task' },
-  )
-  const chord = useShortcutDisplay('task:background', 'Task', 'ctrl+b')
-
-  const tmuxDouble = chord === 'ctrl+b' && isInsideTmuxSync()
-
-  return (
-    <Box paddingLeft={5}>
-      <Text color={FAINT} dimColor>
-        (
-        <KeyboardShortcutHint shortcut={chord} action="run in background" parens={false} />
-        {tmuxDouble ? ' — press twice under tmux' : ''})
-      </Text>
-    </Box>
-  )
+export function BackgroundHint(arg0?: { onBackground?: () => void }): React.ReactNode {
+  return notBuilt('src/tools/BashTool/UI.tsx:121')
 }

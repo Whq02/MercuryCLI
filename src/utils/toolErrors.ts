@@ -4,6 +4,7 @@ import { describeInvalidArgTypeError, isAbortError, ShellError } from './errors.
 import { INTERRUPT_MESSAGE } from './messages/rejectionText.js'
 import { OUTPUT_HEAD_SHARE } from './shell/outputLimits.js'
 import { passedOver } from './passedOver.js'
+import { notBuilt } from '../pi/holes.js'
 
 
 const MAX_ERROR_LENGTH = 10_000
@@ -55,27 +56,7 @@ function getErrorParts(error: Error): string[] {
 }
 
 export function formatError(error: unknown): string {
-  if (isAbortError(error)) {
-    const message = error instanceof Error ? error.message : ''
-    return message !== '' ? message : INTERRUPT_MESSAGE
-  }
-  if (!(error instanceof Error)) {
-    return String(error)
-  }
-  const joined = getErrorParts(error)
-    .filter(part => Boolean(part))
-    .join('\n')
-    .trim()
-  if (joined === '') {
-    return 'The command failed and produced no output.'
-  }
-  if (joined.length > MAX_ERROR_LENGTH && !windowedErrors.has(error)) {
-    const kept = cutAroundSpillNotice(joined, MAX_ERROR_LENGTH)
-    if (kept !== null) return kept
-    const removed = joined.length - MAX_ERROR_LENGTH
-    return `${joined.slice(0, ERROR_HEAD)}\n\n… [${removed} characters removed] …\n\n${joined.slice(-ERROR_TAIL)}`
-  }
-  return joined
+  return notBuilt('src/utils/toolErrors.ts:57')
 }
 
 function formatIssuePath(path: ReadonlyArray<PropertyKey>): string {
@@ -205,12 +186,5 @@ export function formatZodValidationError(
   error: z.ZodError,
   inputSchema?: unknown,
 ): string {
-  const mistyped = new Set(error.issues.filter(issue => issue.code === 'invalid_type').map(issue => formatIssuePath(issue.path)))
-  const issues = error.issues.filter(issue => !((issue.code === 'too_small' || issue.code === 'too_big') && mistyped.has(formatIssuePath(issue.path))))
-  const lines = issues.flatMap(issue => formatIssue(issue as IssueLike, inputSchema, toolName))
-  if (lines.length === 0) {
-    return error.message
-  }
-  const noun = lines.length === 1 ? 'issue' : 'issues'
-  return `${toolName} failed (${noun}):\n${lines.join('\n')}`
+  return notBuilt('src/utils/toolErrors.ts:203')
 }

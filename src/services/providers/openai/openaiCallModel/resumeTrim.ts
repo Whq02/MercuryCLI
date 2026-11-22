@@ -12,6 +12,7 @@ import type {
   OpenaiFault,
 } from '../openaiWire.js'
 import { stripThinkingFromIndex } from '../../../messages/apiFilters.js'
+import { notBuilt } from '../../../../pi/holes.js'
 
 export const priorConversation4xx = new Map<string, string>()
 
@@ -22,27 +23,7 @@ export function applyCompactedToolResults(
   messages: Message[],
   replacements: ReadonlyMap<string, string> | undefined,
 ): Message[] {
-  if (!replacements || replacements.size === 0) return messages
-  let firstEdited = -1
-  const mapped = messages.map((m, idx) => {
-    if (m.type !== 'user' || !Array.isArray(m.message.content)) return m
-    let touched = false
-    const nextBlocks = m.message.content.map(rawBlock => {
-      const block = rawBlock as { type?: string; tool_use_id?: string; content?: unknown }
-      if (block.type === 'tool_result' && typeof block.tool_use_id === 'string') {
-        const replacement = replacements.get(block.tool_use_id)
-        if (replacement !== undefined && block.content !== replacement) {
-          touched = true
-          return { ...block, content: replacement }
-        }
-      }
-      return rawBlock
-    })
-    if (!touched) return m
-    if (firstEdited === -1) firstEdited = idx
-    return { ...m, message: { ...(m as { message: object }).message, content: nextBlocks } } as Message
-  })
-  return firstEdited === -1 ? mapped : stripThinkingFromIndex(mapped, firstEdited)
+  return notBuilt('src/services/providers/openai/openaiCallModel/resumeTrim.ts:21')
 }
 
 function hasUnpairedSurrogate(text: string): boolean {

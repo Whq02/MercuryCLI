@@ -13,6 +13,7 @@ import { tokenCountWithEstimation } from '../context/tokens.js'
 import { autoCompactDisabledReason, autoCompactWindowIsInputLimit, COMPACTION_PAUSED_KEY, compactionBreakerText, compactionSettingsText, getAutoCompactThreshold, rapidRefillPauseText, resolveAutoCompactWindow, type AutoCompactTrackingState } from './autoCompact.js'
 import { FOLD_WINDOW_REFUSAL_KEY } from './compact.js'
 import { compactionBreakerAllows } from './compactionPolicy.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export function overflowLadderArmed(querySource: string | undefined): boolean {
   return isTurnOwningQuerySource(querySource)
@@ -157,12 +158,7 @@ const SIZE_WARNING_SILENT_CLASSES: ReadonlySet<string> = new Set(['rate_limit', 
 const UNCLASSIFIED_RATE_LIMIT_FRAME = new RegExp(`^${API_ERROR_MESSAGE_PREFIX} \\(429[,)]`)
 
 export function requestSizeWarningApplies(row: Pick<AssistantMessage, 'error' | 'overflowSignal' | 'providerWaitEndsAtMs' | 'message'>): boolean {
-  if (row.overflowSignal !== undefined) return true
-  if (row.providerWaitEndsAtMs !== undefined) return false
-  if (row.error !== undefined && SIZE_WARNING_SILENT_CLASSES.has(row.error)) return false
-  const content = row.message.content
-  const text = typeof content === 'string' ? content : (content.find(block => block.type === 'text') as { text?: string } | undefined)?.text ?? ''
-  return !UNCLASSIFIED_RATE_LIMIT_FRAME.test(text)
+  return notBuilt('src/services/compact/overflowRecovery.ts:159')
 }
 
 export function overflowRecoveryNotice(

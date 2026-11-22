@@ -3,13 +3,9 @@ import { Box, Text } from '../../ink.js'
 import type { Theme } from '../../utils/theme.js'
 import { STATE_STYLE } from '../mercury-ui/theme.js'
 import type { WorkerBadgeProps } from './WorkerBadge.js'
+import type { Unbuilt } from '../../pi/holes.js'
 
-type Props = {
-  title: string
-  subtitle?: React.ReactNode
-  color?: keyof Theme
-  workerBadge?: WorkerBadgeProps
-}
+type Props = Unbuilt
 
 export function PermissionRequestTitle({
   title,

@@ -1,3 +1,4 @@
+import { notBuilt } from '../pi/holes.js'
 
 type ParkedReader<T> = {
   resolve: (result: IteratorResult<T, undefined>) => void
@@ -14,14 +15,12 @@ export class Stream<T> implements AsyncIterableIterator<T> {
   private parked: ParkedReader<T> | null = null
   private iterated = false
 
-  constructor(private readonly onCancel?: () => void) {}
+  constructor(private readonly onCancel?: () => void) {
+    notBuilt('src/utils/stream.ts:17')
+  }
 
   [Symbol.asyncIterator](): AsyncIterableIterator<T> {
-    if (this.iterated) {
-      throw new Error('Stream can only be iterated once')
-    }
-    this.iterated = true
-    return this
+    return notBuilt('src/utils/stream.ts:19')
   }
 
   async next(): Promise<IteratorResult<T, undefined>> {
@@ -50,22 +49,11 @@ export class Stream<T> implements AsyncIterableIterator<T> {
   }
 
   enqueue(value: T): void {
-    const parked = this.parked
-    if (parked) {
-      this.parked = null
-      parked.resolve({ done: false, value })
-    } else {
-      this.queue.push(value)
-    }
+    return notBuilt('src/utils/stream.ts:52')
   }
 
   done(): void {
-    this.isDone = true
-    const parked = this.parked
-    if (parked) {
-      this.parked = null
-      parked.resolve({ done: true, value: undefined })
-    }
+    return notBuilt('src/utils/stream.ts:62')
   }
 
   error(error: unknown): void {

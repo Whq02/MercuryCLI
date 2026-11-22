@@ -2,6 +2,7 @@ import type { PrimitiveSchemaDefinition } from '../../utils/mcp/sdk.js'
 
 import { looksLikeISO8601, parseNaturalLanguageDateTime } from './dateTimeParser.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 type SchemaLike = {
@@ -25,27 +26,16 @@ export type MultiSelectEnumSchema = PrimitiveSchemaDefinition & {
   items?: { enum?: unknown[]; anyOf?: Array<{ const?: unknown; title?: string }> } | null
 }
 
-type ValidationResult = {
-  value?: string | number | boolean
-  isValid: boolean
-  error?: string
-}
+type ValidationResult = Unbuilt
 
 export function isEnumSchema(schema: PrimitiveSchemaDefinition): boolean {
-  const s = schema as SchemaLike
-  return s.type === 'string' && (s.enum !== undefined || s.oneOf !== undefined)
+  return notBuilt('src/services/mcp/elicitationValidation.ts:34')
 }
 
 export function isMultiSelectEnumSchema(
   schema: PrimitiveSchemaDefinition,
 ): schema is MultiSelectEnumSchema {
-  const s = schema as SchemaLike
-  return (
-    s.type === 'array' &&
-    typeof s.items === 'object' &&
-    s.items !== null &&
-    (s.items.enum !== undefined || s.items.anyOf !== undefined)
-  )
+  return notBuilt('src/services/mcp/elicitationValidation.ts:39')
 }
 
 export function isDateTimeSchema(schema: PrimitiveSchemaDefinition): boolean {
@@ -195,15 +185,5 @@ export async function validateElicitationInputAsync(
   schema: PrimitiveSchemaDefinition,
   signal: AbortSignal,
 ): Promise<ValidationResult> {
-  const syncResult = validateElicitationInput(stringValue, schema)
-  if (syncResult.isValid) return syncResult
-  if (isDateTimeSchema(schema) && !looksLikeISO8601(stringValue)) {
-    const format = (schema as SchemaLike).format === 'date' ? 'date' : 'date-time'
-    const parsed = await parseNaturalLanguageDateTime(stringValue, format, signal)
-    if (parsed.success) {
-      const revalidated = validateElicitationInput(parsed.value, schema)
-      if (revalidated.isValid) return revalidated
-    }
-  }
-  return syncResult
+  return notBuilt('src/services/mcp/elicitationValidation.ts:193')
 }

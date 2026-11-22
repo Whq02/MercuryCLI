@@ -1,23 +1,15 @@
-
-import { getPlatform } from '../utils/platform.js'
-import { actionAffordance, type ActionAffordance } from './atlas.js'
-import { useOptionalKeybindingContext } from './KeybindingContext.js'
+import type { ActionAffordance } from './atlas.js'
 import type { KeybindingContextName } from './types.js'
+import { notBuilt } from '../pi/holes.js'
 
 export function useShortcutDisplay(
   action: string,
   context: KeybindingContextName,
   fallback: string,
 ): string {
-  const keybindings = useOptionalKeybindingContext()
-  if (!keybindings) return fallback
-  return keybindings.getDisplayText(action, context) ?? fallback
+  return notBuilt('src/keybindings/useShortcutDisplay.ts:7')
 }
 
 export function useActionAffordance(action: string, context: KeybindingContextName): ActionAffordance {
-  const keybindings = useOptionalKeybindingContext()
-  if (!keybindings) {
-    return { kind: 'unbound', reason: 'keybindings have not loaded yet' }
-  }
-  return actionAffordance(action, context, keybindings.bindings, getPlatform())
+  return notBuilt('src/keybindings/useShortcutDisplay.ts:17')
 }

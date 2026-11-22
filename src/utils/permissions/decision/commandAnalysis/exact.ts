@@ -3,27 +3,7 @@ import { Walk } from './exactCommands.js'
 import { Refusal, refuse } from './exactWords.js'
 import { preCheckReason } from './preCheck.js'
 import type { ParseForSecurityResult, SimpleCommand } from './reading.js'
-
-const REFUSED_KINDS: readonly string[] = [
-  'command_substitution',
-  'process_substitution',
-  'expansion',
-  'simple_expansion',
-  'brace_expression',
-  'subshell',
-  'compound_statement',
-  'for_statement',
-  'while_statement',
-  'until_statement',
-  'if_statement',
-  'case_statement',
-  'function_definition',
-  'test_command',
-  'ansi_c_string',
-  'translated_string',
-  'herestring_redirect',
-  'heredoc_redirect',
-]
+import { notBuilt } from '../../../../pi/holes.js'
 
 const ABORT_KIND = 'PARSE_ABORT'
 const ABORT_REASON = 'the shell parser did not finish reading this command; split it into simpler commands, or approve'
@@ -44,20 +24,9 @@ function verdictOf(refusal: Refusal): ParseForSecurityResult {
 }
 
 export function parseForSecurityFromAst(command: string, root: Node | typeof PARSE_ABORTED): ParseForSecurityResult {
-  try {
-    return { kind: 'simple', commands: settle(command, root) }
-  } catch (error) {
-    if (error instanceof Refusal) return verdictOf(error)
-    return {
-      kind: 'too-complex',
-      reason: `analysis failed unexpectedly: ${error instanceof Error ? error.message : String(error)}`,
-    }
-  }
+  return notBuilt('src/utils/permissions/decision/commandAnalysis/exact.ts:46')
 }
 
 export function nodeTypeId(nodeType?: string): number {
-  if (!nodeType) return -2
-  if (nodeType === 'ERROR') return -1
-  const index = REFUSED_KINDS.indexOf(nodeType)
-  return index === -1 ? 0 : index + 1
+  return notBuilt('src/utils/permissions/decision/commandAnalysis/exact.ts:58')
 }

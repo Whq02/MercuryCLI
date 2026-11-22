@@ -11,53 +11,20 @@ import { exclusiveCreateNoFollowFlags } from '../utils/platform/files.js'
 import { logForDebugging } from '../utils/debug.js'
 import { baseDirLine } from './baseDirLine.js'
 import { passedOverAs } from '../utils/passedOver.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
-type BundledSkillDefinition = {
-  name: string
-  description: string | (() => string)
-  menuDescription?: string
-  aliases?: string[]
-  whenToUse?: string
-  argumentHint?: string | (() => string)
-  allowedTools?: string[]
-  model?: string
-  effort?: EffortValue
-  disableModelInvocation?: boolean
-  userInvocable?: boolean
-  isEnabled?: () => boolean
-  hooks?: HooksSettings
-  context?: 'inline' | 'fork'
-  agent?: string
-  files?: Record<string, string> | (() => Readonly<Record<string, string>>)
-  getPromptForCommand: (
-    args: string,
-    context: ToolUseContext,
-  ) => Promise<ContentBlockParam[]>
-}
+type BundledSkillDefinition = Unbuilt
 
-const skillFolders = new Map<string, string>()
+const skillFolders: Map<string, string> = unbuilt('src/skills/bundledSkills.ts:38')
 
 export function getBundledSkillExtractDir(skillName: string): string {
-  return skillFolders.get(skillName) ?? join(getBundledSkillsRoot(), skillName)
+  return notBuilt('src/skills/bundledSkills.ts:40')
 }
 
-type SkillFileTarget = { path: string; content: string }
+type SkillFileTarget = Unbuilt
 
 function skillFileTargets(baseDir: string, files: Record<string, string>): SkillFileTarget[] {
-  const targets: SkillFileTarget[] = []
-  for (const [key, content] of Object.entries(files)) {
-    const normalized = normalize(key)
-    if (
-      isAbsolute(normalized) ||
-      normalized.split(sep).includes('..') ||
-      normalized.split('/').includes('..')
-    ) {
-      throw new Error(`bundled skill file path escapes the skill directory: ${key}`)
-    }
-    if (typeof content !== 'string') continue
-    targets.push({ path: join(baseDir, normalized), content })
-  }
-  return targets
+  return notBuilt('src/skills/bundledSkills.ts:46')
 }
 
 function foldersUnder(baseDir: string, targets: readonly SkillFileTarget[]): string[] {
@@ -163,58 +130,9 @@ function extractedSkillDir(definition: BundledSkillDefinition): Promise<string |
 const registry: Command[] = []
 
 export function registerBundledSkill(definition: BundledSkillDefinition): void {
-  const userInvocable = definition.userInvocable !== false
-  const hasFiles = typeof definition.files === 'function' || (definition.files !== undefined && Object.keys(definition.files).length > 0)
-
-  const getPromptForCommand: PromptCommand['getPromptForCommand'] = hasFiles
-    ? async (args, context) => {
-        const baseDir = await extractedSkillDir(definition)
-        const blocks = await definition.getPromptForCommand(args, context)
-        if (baseDir === null) return blocks
-        const [first, ...rest] = blocks
-        if (first !== undefined && first.type === 'text') {
-          return [{ ...first, text: `${baseDirLine(baseDir)}${first.text}` }, ...rest]
-        }
-        return [{ type: 'text', text: baseDirLine(baseDir) }, ...blocks]
-      }
-    : definition.getPromptForCommand
-
-  const command: PromptCommand = {
-    type: 'prompt',
-    name: definition.name,
-    description: '',
-    progressMessage: 'running',
-    contentLength: 0,
-    source: 'bundled',
-    loadedFrom: 'bundled',
-    hasUserSpecifiedDescription: true,
-    allowedTools: definition.allowedTools ?? [],
-    disableModelInvocation: definition.disableModelInvocation ?? false,
-    userInvocable,
-    isHidden: !userInvocable,
-    getPromptForCommand,
-    ...(definition.menuDescription !== undefined ? { menuDescription: definition.menuDescription } : {}),
-    ...(definition.aliases !== undefined ? { aliases: definition.aliases } : {}),
-    ...(definition.whenToUse !== undefined ? { whenToUse: definition.whenToUse } : {}),
-    ...(definition.model !== undefined ? { model: definition.model } : {}),
-    ...(definition.effort !== undefined ? { effort: definition.effort } : {}),
-    ...(definition.isEnabled !== undefined ? { isEnabled: definition.isEnabled } : {}),
-    ...(definition.hooks !== undefined ? { hooks: definition.hooks } : {}),
-    ...(definition.context !== undefined ? { context: definition.context } : {}),
-    ...(definition.agent !== undefined ? { agent: definition.agent } : {}),
-    ...(typeof definition.argumentHint === 'string' ? { argumentHint: definition.argumentHint } : {}),
-  }
-  if (typeof definition.description === 'function') {
-    Object.defineProperty(command, 'description', { get: definition.description, enumerable: true })
-  } else {
-    command.description = definition.description
-  }
-  if (typeof definition.argumentHint === 'function') {
-    Object.defineProperty(command, 'argumentHint', { get: definition.argumentHint, enumerable: true })
-  }
-  registry.push(command)
+  return notBuilt('src/skills/bundledSkills.ts:165')
 }
 
 export function getBundledSkills(): Command[] {
-  return [...registry]
+  return notBuilt('src/skills/bundledSkills.ts:218')
 }

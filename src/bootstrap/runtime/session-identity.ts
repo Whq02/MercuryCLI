@@ -3,69 +3,47 @@ import { cwd } from 'process'
 import type { SessionId } from 'src/types/ids.js'
 import { randomUUID } from 'src/utils/crypto.js'
 import { createSignal } from 'src/utils/signal.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export class SessionIdentityOwner {
   originalCwd: string
   projectRoot: string
   cwd: string
   sessionId: SessionId
-  sessionProjectDir: string | null = null
-  readonly planSlugCache: Map<string, string> = new Map()
-  private readonly sessionSwitched = createSignal<[id: SessionId]>()
-  private readonly cwdChanged = createSignal<[cwd: string]>()
+  sessionProjectDir: string | null = unbuilt('src/bootstrap/runtime/session-identity.ts:12')
+  readonly planSlugCache: Map<string, string> = unbuilt('src/bootstrap/runtime/session-identity.ts:13')
+  private readonly sessionSwitched: Unbuilt = unbuilt('src/bootstrap/runtime/session-identity.ts:14')
+  private readonly cwdChanged: Unbuilt = unbuilt('src/bootstrap/runtime/session-identity.ts:15')
 
   constructor() {
-    let resolvedCwd = ''
-    if (
-      typeof process !== 'undefined' &&
-      typeof process.cwd === 'function' &&
-      typeof realpathSync === 'function'
-    ) {
-      const rawCwd = cwd()
-      try {
-        resolvedCwd = realpathSync(rawCwd).normalize('NFC')
-      } catch {
-        resolvedCwd = rawCwd.normalize('NFC')
-      }
-    }
-    this.originalCwd = resolvedCwd
-    this.projectRoot = resolvedCwd
-    this.cwd = resolvedCwd
-    this.sessionId = randomUUID() as SessionId
+    notBuilt('src/bootstrap/runtime/session-identity.ts:17')
   }
 
   setOriginalCwd(nextCwd: string): void {
-    this.originalCwd = nextCwd.normalize('NFC')
+    return notBuilt('src/bootstrap/runtime/session-identity.ts:37')
   }
 
   setProjectRoot(nextCwd: string): void {
-    this.projectRoot = nextCwd.normalize('NFC')
+    return notBuilt('src/bootstrap/runtime/session-identity.ts:41')
   }
 
   setCwdState(nextCwd: string): void {
-    this.cwd = nextCwd.normalize('NFC')
-    this.cwdChanged.emit(this.cwd)
+    return notBuilt('src/bootstrap/runtime/session-identity.ts:45')
   }
 
-  switchSession(sessionId: SessionId, projectDir: string | null = null): void {
-    this.planSlugCache.delete(this.sessionId)
-    this.sessionId = sessionId
-    this.sessionProjectDir = projectDir
-    this.sessionSwitched.emit(sessionId)
+  switchSession(sessionId: SessionId, projectDir?: string | null): void {
+    return notBuilt('src/bootstrap/runtime/session-identity.ts:50')
   }
 
   regenerateSessionId(): SessionId {
-    this.planSlugCache.delete(this.sessionId)
-    this.sessionId = randomUUID() as SessionId
-    this.sessionProjectDir = null
-    return this.sessionId
+    return notBuilt('src/bootstrap/runtime/session-identity.ts:57')
   }
 
   onSessionSwitch(listener: (id: SessionId) => void): () => void {
-    return this.sessionSwitched.subscribe(listener)
+    return notBuilt('src/bootstrap/runtime/session-identity.ts:64')
   }
 
   onCwdChange(listener: (cwd: string) => void): () => void {
-    return this.cwdChanged.subscribe(listener)
+    return notBuilt('src/bootstrap/runtime/session-identity.ts:68')
   }
 }

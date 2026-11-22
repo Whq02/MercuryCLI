@@ -1,24 +1,7 @@
-import { randomUUID } from 'node:crypto'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
-import { validateUuid } from './uuid.js'
-
-
-type ParsedSessionUrl = {
-  sessionId: string
-  jsonlFile: string | null
-  isJsonlFile: boolean
-}
+type ParsedSessionUrl = Unbuilt
 
 export function parseSessionIdentifier(resumeIdentifier: string): ParsedSessionUrl | null {
-  if (/\.jsonl$/i.test(resumeIdentifier)) {
-    return {
-      sessionId: randomUUID(),
-      jsonlFile: resumeIdentifier,
-      isJsonlFile: true,
-    }
-  }
-  if (validateUuid(resumeIdentifier)) {
-    return { sessionId: resumeIdentifier, jsonlFile: null, isJsonlFile: false }
-  }
-  return null
+  return notBuilt('src/utils/sessionUrl.ts:12')
 }

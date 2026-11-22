@@ -1,6 +1,5 @@
-
-const sessionEnvVars = new Map<string, string>()
+import { notBuilt } from '../pi/holes.js'
 
 export function getSessionEnvVars(): ReadonlyMap<string, string> {
-  return sessionEnvVars
+  return notBuilt('src/utils/sessionEnvVars.ts:4')
 }

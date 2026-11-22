@@ -5,17 +5,12 @@ import { getCwd } from './utils/cwd.js'
 import { memoizeByCwd } from './utils/cwdMemo.js'
 import { getFsImplementation } from './utils/fsOperations.js'
 import { passedOver } from './utils/passedOver.js'
+import { notBuilt, unbuilt, type Unbuilt } from './pi/holes.js'
 
 const ONBOARDING_SEEN_COUNT_LIMIT = 4
 const ONBOARDING_MEMO_CAP = 50
 
-export type Step = {
-  key: string
-  text: string
-  isComplete: boolean
-  isCompletable: boolean
-  isEnabled: boolean
-}
+export type Step = Unbuilt
 
 function isWorkingDirectoryEmpty(): boolean {
   const fs = getFsImplementation()
@@ -28,66 +23,17 @@ function isWorkingDirectoryEmpty(): boolean {
 }
 
 export function getSteps(): Step[] {
-  const emptyDir = isWorkingDirectoryEmpty()
-  const steps: Step[] = []
-
-  steps.push({
-    key: 'workspace',
-    text: 'Ask me to build a fresh app here, or to clone a repository you already work in',
-    isComplete: false,
-    isCompletable: true,
-    isEnabled: emptyDir,
-  })
-
-  steps.push({
-    key: 'mercurymd',
-    text: 'Run /orient to create a MERCURY.md file with standing orders for this project',
-    isComplete: composedGuideFilesAt(getCwd()).length > 0,
-    isCompletable: true,
-    isEnabled: !emptyDir,
-  })
-
-  return steps
-}
-
-function isProjectOnboardingComplete(): boolean {
-  return getSteps()
-    .filter(step => step.isCompletable && step.isEnabled)
-    .every(step => step.isComplete)
+  return notBuilt('src/projectOnboardingState.ts:30')
 }
 
 export function maybeMarkProjectOnboardingComplete(): void {
-  const config = getCurrentProjectConfig()
-  if (config.hasCompletedProjectOnboarding) {
-    return
-  }
-  if (isProjectOnboardingComplete()) {
-    saveCurrentProjectConfig(currentConfig => ({
-      ...currentConfig,
-      hasCompletedProjectOnboarding: true,
-    }))
-  }
+  return notBuilt('src/projectOnboardingState.ts:59')
 }
 
-export const shouldShowProjectOnboarding = memoizeByCwd((): boolean => {
-  const config = getCurrentProjectConfig()
-  if (config.hasCompletedProjectOnboarding) {
-    return false
-  }
-  if ((config.projectOnboardingSeenCount ?? 0) >= ONBOARDING_SEEN_COUNT_LIMIT) {
-    return false
-  }
-  if (flagEnv('MERCURY_DEMO')) {
-    return false
-  }
-  return !isProjectOnboardingComplete()
-}, ONBOARDING_MEMO_CAP)
+export const shouldShowProjectOnboarding: Unbuilt = unbuilt('src/projectOnboardingState.ts:72')
 
 export function incrementProjectOnboardingSeenCount(): void {
-  saveCurrentProjectConfig(currentConfig => ({
-    ...currentConfig,
-    projectOnboardingSeenCount: (currentConfig.projectOnboardingSeenCount ?? 0) + 1,
-  }))
+  return notBuilt('src/projectOnboardingState.ts:86')
 }
 
 export const projectOnboardingHint = memoizeByCwd((): string | undefined => {

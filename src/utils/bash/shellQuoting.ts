@@ -1,3 +1,5 @@
+import { notBuilt } from '../../pi/holes.js'
+
 const DIGIT_SHIFT_RE = /\d\s*<<\s*\d/
 const ARITH_TEST_SHIFT_RE = /\[\[\s*\d+\s*<<\s*\d+\s*\]\]/
 
@@ -26,16 +28,11 @@ function posixSingleQuote(text: string): string {
 }
 
 export function hasStdinRedirect(command: string): boolean {
-  return /(?:^|[\s;&|])<(?![<(])\s*\S/.test(command)
+  return notBuilt('src/utils/bash/shellQuoting.ts:28')
 }
 
-const HERE_STRING_RE = /(?:^|[\s;&|])<<<\s*\S/
-
 export function shouldAddStdinRedirect(command: string): boolean {
-  if (containsHeredoc(command)) return false
-  if (HERE_STRING_RE.test(command)) return false
-  if (hasStdinRedirect(command)) return false
-  return true
+  return notBuilt('src/utils/bash/shellQuoting.ts:34')
 }
 
 export function quoteShellCommand(command: string, addStdinRedirect = true): string {

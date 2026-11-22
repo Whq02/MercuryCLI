@@ -1,157 +1,29 @@
-
 import React, { createContext, useCallback, useContext, useMemo } from 'react'
 import { useLayoutClaim } from '../hooks/effects.js'
 import type { Key } from '../ink/events/input-event.js'
 import { getPlatform } from '../utils/platform.js'
 import { getBindingDisplayText, resolveKeyWithChordState, type ChordResolveResult } from './resolver.js'
 import type { KeybindingContextName, ParsedBinding, ParsedKeystroke } from './types.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
-type KeybindingHandler = () => void
+export type HandlerRegistry = Unbuilt
 
-type HandlerRegistration = {
-  action: string
-  context: KeybindingContextName
-  handler: KeybindingHandler
-}
+export type KeybindingContextValue = Unbuilt
 
-export type HandlerRegistry = Map<string, Set<HandlerRegistration>>
+type KeybindingProviderProps = Unbuilt
 
-export type KeybindingContextValue = {
-  resolve: (input: string, key: Key, activeContexts: KeybindingContextName[]) => ChordResolveResult
-  setPendingChord: (pending: ParsedKeystroke[] | null) => void
-  getDisplayText: (action: string, context: KeybindingContextName) => string | undefined
-  bindings: ParsedBinding[]
-  pendingChord: ParsedKeystroke[] | null
-  activeContexts: Set<KeybindingContextName>
-  registerActiveContext: (context: KeybindingContextName) => void
-  unregisterActiveContext: (context: KeybindingContextName) => void
-  registerHandler: (registration: HandlerRegistration) => () => void
-  invokeAction: (action: string) => boolean
-}
-
-const KeybindingContext = createContext<KeybindingContextValue | null>(null)
-
-type KeybindingProviderProps = {
-  bindings: ParsedBinding[]
-  pendingChordRef: React.MutableRefObject<ParsedKeystroke[] | null>
-  pendingChord: ParsedKeystroke[] | null
-  setPendingChord: (pending: ParsedKeystroke[] | null) => void
-  activeContexts: Set<KeybindingContextName>
-  registerActiveContext: (context: KeybindingContextName) => void
-  unregisterActiveContext: (context: KeybindingContextName) => void
-  handlerRegistryRef: React.MutableRefObject<HandlerRegistry>
-  children: React.ReactNode
-}
-
-export function KeybindingProvider({
-  bindings,
-  pendingChordRef,
-  pendingChord,
-  setPendingChord,
-  activeContexts,
-  registerActiveContext,
-  unregisterActiveContext,
-  handlerRegistryRef,
-  children,
-}: KeybindingProviderProps): React.ReactNode {
-  const resolve = useCallback(
-    (input: string, key: Key, contexts: KeybindingContextName[]) =>
-      resolveKeyWithChordState(input, key, contexts, bindings, pendingChordRef.current),
-    [bindings, pendingChordRef],
-  )
-
-  const getDisplayText = useCallback(
-    (action: string, context: KeybindingContextName) =>
-      getBindingDisplayText(action, context, bindings, getPlatform()),
-    [bindings],
-  )
-
-  const registerHandler = useCallback(
-    (registration: HandlerRegistration) => {
-      const registry = handlerRegistryRef.current
-      const { action } = registration
-      let set = registry.get(action)
-      if (!set) {
-        set = new Set()
-        registry.set(action, set)
-      }
-      set.add(registration)
-      return () => {
-        const current = registry.get(action)
-        if (!current) return
-        current.delete(registration)
-        if (current.size === 0) registry.delete(action)
-      }
-    },
-    [handlerRegistryRef],
-  )
-
-  const invokeAction = useCallback(
-    (action: string): boolean => {
-      const set = handlerRegistryRef.current.get(action)
-      if (!set || set.size === 0) return false
-      for (const registration of set) {
-        if (activeContexts.has(registration.context)) {
-          registration.handler()
-          return true
-        }
-      }
-      return false
-    },
-    [handlerRegistryRef, activeContexts],
-  )
-
-  const value = useMemo<KeybindingContextValue>(
-    () => ({
-      resolve,
-      setPendingChord,
-      getDisplayText,
-      bindings,
-      pendingChord,
-      activeContexts,
-      registerActiveContext,
-      unregisterActiveContext,
-      registerHandler,
-      invokeAction,
-    }),
-    [
-      resolve,
-      setPendingChord,
-      getDisplayText,
-      bindings,
-      pendingChord,
-      activeContexts,
-      registerActiveContext,
-      unregisterActiveContext,
-      registerHandler,
-      invokeAction,
-    ],
-  )
-
-  return <KeybindingContext.Provider value={value}>{children}</KeybindingContext.Provider>
+export function KeybindingProvider(arg0: KeybindingProviderProps): React.ReactNode {
+  return notBuilt('src/keybindings/KeybindingContext.tsx:46')
 }
 
 export function useKeybindingContext(): KeybindingContextValue {
-  const value = useContext(KeybindingContext)
-  if (!value) {
-    throw new Error('useKeybindingContext must be used inside a KeybindingProvider')
-  }
-  return value
+  return notBuilt('src/keybindings/KeybindingContext.tsx:134')
 }
 
 export function useOptionalKeybindingContext(): KeybindingContextValue | null {
-  return useContext(KeybindingContext)
+  return notBuilt('src/keybindings/KeybindingContext.tsx:142')
 }
 
-export function useRegisterKeybindingContext(context: KeybindingContextName, isActive = true): void {
-  const value = useContext(KeybindingContext)
-  const register = value?.registerActiveContext
-  const unregister = value?.unregisterActiveContext
-  useLayoutClaim(() => {
-    if (!isActive || !register || !unregister) return
-    register(context)
-    return () => {
-      unregister(context)
-    }
-  }, [context, isActive, register, unregister])
+export function useRegisterKeybindingContext(context: KeybindingContextName, isActive?: boolean): void {
+  return notBuilt('src/keybindings/KeybindingContext.tsx:146')
 }

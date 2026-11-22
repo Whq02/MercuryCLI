@@ -1,4 +1,3 @@
-
 import chalk from 'chalk'
 import React, { useContext, useRef, useState } from 'react'
 import { useMeasure } from '../hooks/effects.js'
@@ -15,6 +14,7 @@ import type { BaseTextInputProps } from '../types/textInputTypes.js'
 import { getTheme } from '../utils/theme.js'
 import { color } from '../utils/color.js'
 import { useTheme } from './design-system/ThemeProvider.js'
+import { notBuilt } from '../pi/holes.js'
 
 type Props = BaseTextInputProps & {
   selectionRange?: () => { start: number; end: number } | null | undefined
@@ -25,90 +25,5 @@ type Props = BaseTextInputProps & {
 }
 
 export default function TextInput(props: Props): React.ReactNode {
-  const [themeName] = useTheme()
-  const terminalFocused = useTerminalFocus()
-  const [accessibility] = useState(
-    () => resolveTerminalExperience().accessibility.effective,
-  )
-  useClipboardImageHint(terminalFocused, Boolean(props.onImagePaste))
-
-  const [, caretPhaseOn] = useBlink(
-    props.focus !== false &&
-      props.showCursor !== false &&
-      terminalFocused &&
-      !accessibility,
-  )
-  const invert =
-    !terminalFocused || accessibility || !caretPhaseOn
-      ? (text: string): string => text
-      : (text: string): string => chalk.inverse(text)
-  const highlight = props.selectionHighlight
-  const selectionPaint =
-    highlight && highlight.end > highlight.start
-      ? {
-          start: highlight.start,
-          end: highlight.end,
-          paint: (text: string): string => {
-            const toned = colorize(text, getTheme(themeName).selectionBg, 'background')
-            return toned === text ? chalk.inverse(text) : toned
-          },
-        }
-      : null
-
-  const fit = useContext(PopupFormContext)
-  const fieldRef = useRef<DOMElement | null>(null)
-  const [fieldWidth, setFieldWidth] = useState(props.columns)
-  useMeasure(() => {
-    if (!fit || !fieldRef.current) return
-    const width = Math.max(1, Math.floor(measureElement(fieldRef.current).width))
-    if (width !== fieldWidth) setFieldWidth(width)
-  })
-  const columns = fit ? Math.max(1, Math.min(props.columns, fieldWidth)) : props.columns
-  const inputState = useTextInput({
-    value: props.value,
-    onChange: props.onChange,
-    externalOffset: props.cursorOffset,
-    onOffsetChange: props.onChangeCursorOffset,
-    columns,
-    onSubmit: props.onSubmit,
-    onExit: props.onExit,
-    onEscape: props.onEscape,
-    onExitMessage: props.onExitMessage,
-    onHistoryUp: props.onHistoryUp,
-    onHistoryDown: props.onHistoryDown,
-    onHistoryReset: props.onHistoryReset,
-    onClearInput: props.onClearInput,
-    cursorChar: props.showCursor === false ? '' : ' ',
-    mask: props.mask,
-    invert,
-    dim: (text: string): string => chalk.dim(text),
-    maxVisibleLines: props.maxVisibleLines,
-    viewportStartRef: props.viewportStartRef,
-    inlineGhostText: props.inlineGhostText,
-    multiline: props.multiline,
-    disableCursorMovementForUpDownKeys: props.disableCursorMovementForUpDownKeys,
-    disableEscapeDoublePress: props.disableEscapeDoublePress,
-    disablePageKeyCursorMovement: props.disablePageKeyCursorMovement,
-    suppressEnterSubmit: props.suppressEnterSubmit,
-    inputFilter: props.inputFilter,
-    selectionRange: props.selectionRange,
-    onBeforeRangeEdit: props.onBeforeRangeEdit,
-    onSelectionConsumed: props.onSelectionConsumed,
-    selectionPaint,
-    focus: props.focus,
-    highlightPastedText: props.highlightPastedText,
-    themeText: color('text', themeName),
-    onImagePaste: props.onImagePaste,
-  })
-
-  const field = (
-    <BaseTextInput
-      {...props}
-      columns={columns}
-      inputState={inputState}
-      terminalFocus={terminalFocused}
-      invert={invert}
-    />
-  )
-  return fit ? <Box ref={fieldRef} flexGrow={1} flexShrink={1} minWidth={0}>{field}</Box> : field
+  return notBuilt('src/components/TextInput.tsx:27')
 }

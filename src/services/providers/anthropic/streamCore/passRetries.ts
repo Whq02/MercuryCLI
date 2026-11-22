@@ -34,118 +34,12 @@ import { isFirstByteTimeout } from './nonStreaming.js'
 import type { CallState, StreamPass } from './state.js'
 import type { wireParamsFor } from './wireParams.js'
 import { noteMessageEffortRefusal } from '../messageEffort.js'
+import { notBuilt, type Unbuilt } from '../../../../pi/holes.js'
 
-type PassRetryInputs = {
-  messages: Message[]
-  thinkingConfig: ThinkingConfig
-  signal: AbortSignal
-  options: Options
-  paramsFromContext: ReturnType<typeof wireParamsFor>
-  captureModelRequest: (params: BetaMessageStreamParams) => void
-  rosterOwnerKey: string
-  heldWaitDoor: ((wait: HeldBusyRetryWait) => void) | undefined
-}
+type PassRetryInputs = Unbuilt
 
-export function streamPassRetries(call: CallState, pass: StreamPass, { messages, thinkingConfig, signal, options, paramsFromContext, captureModelRequest, rosterOwnerKey, heldWaitDoor }: PassRetryInputs) {
-  const { firstByte } = pass
-  const generator = withRetry(
-    () =>
-      getAnthropicClient({
-        maxRetries: 0,
-        fetchOverride: options.fetchOverride,
-        source: options.querySource,
-      }),
-    async (anthropic, attempt, context) => {
-      if (attempt > 1 || anthropicLimitVerdict().status === 'rejected') await refreshProviderUsage('anthropic', { force: true, reason: 'operator' })
-      call.start = Date.now()
-
-      const params = paramsFromContext(context)
-      captureModelRequest(params)
-
-      recordPromptState({
-        system: params.system,
-        toolSchemas: params.tools,
-        querySource: options.querySource,
-        model: options.model,
-        agentId: options.agentId,
-        betas: params.betas ?? [],
-        effortValue: params.output_config?.effort as string | undefined,
-        lane: 'anthropic',
-        callReference: options.callReference,
-      })
-
-      call.maxOutputTokens = params.max_tokens
-
-      const promptTokens = estimateRequestTokens({ system: params.system, tools: params.tools, messages: params.messages })
-      const cold = coldPrefixOf(messages, options.model)
-      const wait: Extract<RequestWaitV1, { kind: 'first-byte' }> = {
-        kind: 'first-byte',
-        cold,
-        promptTokens,
-        model: getPublicModelDisplayName(context.model) ?? context.model,
-        budgetMs: firstByteBudgetMs({ cold, promptTokens, idleMs: streamIdleTimeoutMsForRoute('anthropic') }),
-        sinceMs: Date.now(),
-        attempt,
-      }
-      firstByte.wait = wait
-      pass.transportSawByte = false
-      options.onWait?.(wait)
-
-      if (!options.agentId) {
-        headlessProfilerCheckpoint('api_request_sent')
-        noteRunPhase('dispatch')
-      }
-
-      call.clientRequestId = isFirstPartyAnthropicBaseUrl() ? randomUUID() : undefined
-
-      const dispatch = () =>
-        anthropic.beta.messages
-          .create(
-            { ...params, stream: true },
-            {
-              signal,
-              timeout: wait.budgetMs,
-              fetchOptions: streamActivityFetchOptions(() => {
-                pass.transportSawByte = true
-                pass.noteTransportActivity?.()
-              }),
-              ...(call.clientRequestId && {
-                headers: { [CLIENT_REQUEST_ID_HEADER]: call.clientRequestId },
-              }),
-            },
-          )
-          .withResponse()
-      let result: Awaited<ReturnType<typeof dispatch>>
-      try {
-        result = await dispatch()
-      } catch (sent) {
-        if (!signal.aborted && isFirstByteTimeout(sent)) {
-          const requestDeadline = (sent as { requestDeadline?: unknown }).requestDeadline === true
-          const elapsedMs = Math.max(0, Date.now() - wait.sinceMs)
-          const line = firstByteTimeoutLine(wait, requestDeadline ? wait.budgetMs : Math.min(wait.budgetMs, elapsedMs))
-          logForDebugging(`first-byte budget fired: ${line}`, { level: 'warn' })
-          throw new APIConnectionTimeoutError({ message: line, requestDeadline })
-        }
-        noteMessageEffortRefusal(params.messages, sent)
-        throw sent
-      }
-      options.onWait?.(null)
-      call.streamRequestId = result.request_id
-      call.streamResponse = result.response
-      if (isTurnOwningQuerySource(options.querySource)) noteRequestOnWire(rosterOwnerKey)
-      return result.data
-    },
-    {
-      model: options.model,
-      fallbackModel: options.fallbackModel,
-      thinkingConfig,
-      signal,
-      querySource: options.querySource,
-      ...(heldWaitDoor !== undefined ? { onHeldWait: heldWaitDoor } : {}),
-      healClientContract: true,
-    },
-  )
-  return generator
+export function streamPassRetries(call: CallState, pass: StreamPass, arg2: PassRetryInputs): Unbuilt {
+  return notBuilt('src/services/providers/anthropic/streamCore/passRetries.ts:49')
 }
 
 export function retryWaitOf(notice: SystemAPIErrorMessage): RequestWaitV1 {

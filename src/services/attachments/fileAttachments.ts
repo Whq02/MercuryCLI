@@ -26,8 +26,9 @@ import { matchingRuleForInput } from '../../utils/permissions/filesystem.js'
 import { isFileReadDenied } from '../../utils/attachments/shared.js'
 import type { AlreadyReadFileAttachment, Attachment, CompactFileReferenceAttachment, DroppedImageAttachment, FileAttachment, PDFReferenceAttachment } from '../../utils/attachments/types.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-type FileRow = FileAttachment | CompactFileReferenceAttachment | PDFReferenceAttachment | AlreadyReadFileAttachment | DroppedImageAttachment
+type FileRow = Unbuilt
 type ReadWindow = { offset?: number; limit?: number }
 type ReadRequest = ReadWindow & { file_path: string }
 type ReadMode = 'compact' | 'at-mention'
@@ -36,7 +37,7 @@ const modes = {
   'at-mention': { checkSize: true, referencePDF: true, reuseRead: true, oversizedReference: false },
 } as const
 const displayOf = (filename: string): string => relative(getCwd(), filename)
-const pdfPath = (filename: string): boolean => isPDFExtension(parse(filename).ext.toLowerCase())
+const pdfPath = (filename: string): boolean => notBuilt('src/services/attachments/fileAttachments.ts:39')
 
 async function fileRow(input: ReadRequest, context: ToolUseContext, clipped = false): Promise<FileAttachment> {
   const answer = await FileReadTool.call(input, context)
@@ -122,55 +123,12 @@ async function tooLargeToMention(filename: string): Promise<FileRow | null | fal
   }
 }
 
-async function reusableRead(filename: string, recorded: FileState, offset?: number): Promise<AlreadyReadFileAttachment | null> {
-  try {
-    if (await getFileModificationTimeAsync(filename) !== recorded.timestamp) return null
-    const lines = countCharInString(recorded.content, '\n') + 1
-    return {
-      type: 'already_read_file', filename, displayPath: displayOf(filename),
-      content: { type: 'text', file: { filePath: filename, content: recorded.content, numLines: lines, startLine: offset ?? 1, totalLines: lines } },
-    }
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
-}
-
 export async function generateFileAttachment(filename: string, context: ToolUseContext, mode: ReadMode, options?: ReadWindow): Promise<FileRow | null> {
-  const { offset, limit } = options ?? {}
-  const plan = modes[mode]
-  if (isRemotePath(filename)) return null
-  if (isFileReadDenied(filename, context.getAppState().toolPermissionContext)) return null
-  if (plan.checkSize) {
-    const tooLarge = await tooLargeToMention(filename)
-    if (tooLarge !== false) return tooLarge
-  }
-  if (plan.referencePDF) {
-    const reference = await tryGetPDFReference(filename)
-    if (reference) return reference
-  }
-  const recorded = context.readFileState.get(filename)
-  if (recorded && plan.reuseRead) {
-    const held = await reusableRead(filename, recorded, offset)
-    if (held) return held
-  }
-  return validatedRead({ file_path: filename, offset, limit }, context, mode)
+  return notBuilt('src/services/attachments/fileAttachments.ts:139')
 }
 
 export async function tryGetPDFReference(filename: string): Promise<PDFReferenceAttachment | null> {
-  if (!pdfPath(filename)) return null
-  try {
-    const info = await getFsImplementation().stat(filename)
-    if (!info.isFile()) return null
-    const fileSize = info.size
-    const pageCount = (await getPDFPageCount(filename)) ?? Math.ceil(fileSize / 102400)
-    return pageCount > PDF_AT_MENTION_INLINE_THRESHOLD
-      ? { type: 'pdf_reference', filename, pageCount, fileSize, displayPath: displayOf(filename) }
-      : null
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
+  return notBuilt('src/services/attachments/fileAttachments.ts:160')
 }
 
 async function changedContent(filename: string, previous: string, output: ReadOutput, startLine = 1): Promise<Attachment[]> {

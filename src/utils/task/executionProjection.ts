@@ -1,34 +1,16 @@
-
 import type { TaskState } from '../../tasks/types.js'
 import type { TaskStatus, TaskType } from '../../Task.js'
 import type { ExecutionKind, ExecutionState } from '../primitives/execution.js'
 import { projectExternalState } from '../primitives/externalProjection.js'
 import { processMainOwner } from '../run/resolveOwner.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export function taskExecutionKind(type: TaskType): ExecutionKind {
-  switch (type) {
-    case 'local_bash':
-    case 'monitor_mcp':
-      return 'background-job'
-    case 'local_agent':
-    case 'remote_agent':
-      return 'agent'
-  }
+  return notBuilt('src/utils/task/executionProjection.ts:8')
 }
 
 export function taskExecutionState(status: TaskStatus): ExecutionState {
-  switch (status) {
-    case 'pending':
-      return 'queued'
-    case 'running':
-      return 'running'
-    case 'completed':
-      return 'succeeded'
-    case 'failed':
-      return 'failed'
-    case 'killed':
-      return 'stopped'
-  }
+  return notBuilt('src/utils/task/executionProjection.ts:19')
 }
 
 export function projectTaskExecution(task: TaskState): void {

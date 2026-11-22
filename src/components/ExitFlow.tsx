@@ -1,10 +1,10 @@
-
 import React, { useRef, useState } from 'react'
 import { usePublish } from '../hooks/effects.js'
 import { ExitHandoff, noteAskedAtExit } from './ExitHandoff.js'
 import { WorktreeExitDialog } from './WorktreeExitDialog.js'
 import { gracefulShutdown } from '../utils/gracefulShutdown.js'
 import { farewellWithTesterDoor } from '../commands/feedback/testerDoor.js'
+import { notBuilt } from '../pi/holes.js'
 
 const FAREWELLS = [
   'See you next time.',
@@ -25,52 +25,12 @@ function exitNow(message?: string): void {
   })
 }
 
-export function ExitFlow({
-  onDone,
-  onCancel,
-  showWorktree,
-}: {
+export function ExitFlow(arg0: {
   onDone: (message?: string) => void
   onCancel?: () => void
   showWorktree: boolean
 }): React.ReactNode {
-  const firedRef = useRef(false)
-  const [note, setNote] = useState<{ message?: string } | null>(null)
-
-  const leave = (message?: string): void => {
-    if (firedRef.current) return
-    firedRef.current = true
-    if (noteAskedAtExit()) {
-      setNote({ message })
-      return
-    }
-    onDone(message)
-    exitNow(message)
-  }
-
-  usePublish(() => {
-    if (showWorktree) return
-    leave()
-  }, [showWorktree])
-
-  if (note !== null) {
-    return (
-      <ExitHandoff
-        onSettled={receipt => {
-          const finalLine =
-            receipt.detail !== undefined && receipt.detail !== ''
-              ? `${farewell(note.message)}\n${receipt.detail}`
-              : note.message
-          onDone(finalLine)
-          exitNow(finalLine)
-        }}
-      />
-    )
-  }
-
-  if (!showWorktree) return null
-
-  return <WorktreeExitDialog onDone={result => leave(result)} onCancel={onCancel} />
+  return notBuilt('src/components/ExitFlow.tsx:28')
 }
 
 export default ExitFlow

@@ -12,24 +12,13 @@ import {
   WINDOWS_REGISTRY_VALUE_NAME,
 } from './constants.js'
 import { passedOver } from '../../passedOver.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../../pi/holes.js'
 
 
-export type RawReadResult = {
-  plistStdouts: Array<{ stdout: string; label: string }> | null
-  hklmStdout: string | null
-  hkcuStdout: string | null
-}
+export type RawReadResult = Unbuilt
 
 function runSubprocess(command: string, args: string[]): Promise<string | null> {
-  return new Promise(resolve => {
-    execFile(command, args, { windowsHide: true, timeout: MDM_SUBPROCESS_TIMEOUT_MS, env: { ...subprocessEnv() } }, (error, stdout) => {
-      if (error) {
-        resolve(null)
-        return
-      }
-      resolve(stdout)
-    })
-  })
+  return notBuilt('src/utils/settings/mdm/rawRead.ts:23')
 }
 
 async function readMacOSPlists(): Promise<Array<{ stdout: string; label: string }>> {
@@ -64,26 +53,17 @@ async function readWindowsRegistry(): Promise<{ hklmStdout: string | null; hkcuS
 }
 
 export async function fireRawRead(): Promise<RawReadResult> {
-  if (process.platform === 'darwin') {
-    return { plistStdouts: await readMacOSPlists(), hklmStdout: null, hkcuStdout: null }
-  }
-  if (process.platform === 'win32') {
-    const { hklmStdout, hkcuStdout } = await readWindowsRegistry()
-    return { plistStdouts: null, hklmStdout, hkcuStdout }
-  }
-  return { plistStdouts: null, hklmStdout: null, hkcuStdout: null }
+  return notBuilt('src/utils/settings/mdm/rawRead.ts:66')
 }
 
-let startupRawRead: Promise<RawReadResult> | null = null
+let startupRawRead: Promise<RawReadResult> | null = unbuilt('src/utils/settings/mdm/rawRead.ts:77')
 
 export function startMdmRawRead(): void {
-  if (startupRawRead === null) {
-    startupRawRead = fireRawRead()
-  }
+  return notBuilt('src/utils/settings/mdm/rawRead.ts:79')
 }
 
 export function getMdmRawReadPromise(): Promise<RawReadResult> | null {
-  return startupRawRead
+  return notBuilt('src/utils/settings/mdm/rawRead.ts:85')
 }
 
 export function _setMdmRawReadForProofs(result: RawReadResult | Promise<RawReadResult>): void {

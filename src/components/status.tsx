@@ -16,6 +16,7 @@ import {
 import { activeWalletEntry, walletEntries, type WalletEntry } from '../services/wallet/wallet.js'
 import { resolveProviderUsability } from '../services/providers/providerUsability.js'
 import { hostEnv } from '../utils/hostEnv.js'
+import { notBuilt } from '../pi/holes.js'
 
 
 type Property = {
@@ -111,53 +112,9 @@ export function buildProviderAccountBlocks(
 }
 
 export function buildAccountProperties(): Property[] {
-  const account = getAccountInformation()
-  if (!account) return []
-  const properties: Property[] = []
-  if (account.subscription) {
-    properties.push({ label: 'Login method', value: <Text>{account.subscription} Account</Text> })
-  }
-  if (account.tokenSource) {
-    properties.push({ label: 'Auth token', value: <Text>{account.tokenSource}</Text> })
-  }
-  if (account.apiKeySource) {
-    properties.push({ label: 'API key', value: <Text>{account.apiKeySource}</Text> })
-  }
-  const isDemo = Boolean(flagEnv('MERCURY_DEMO'))
-  if (account.organization && !isDemo) {
-    properties.push({ label: 'Organization', value: <Text>{account.organization}</Text> })
-  }
-  if (account.email && !isDemo) {
-    properties.push({ label: 'Email', value: <Text>{account.email}</Text> })
-  }
-  return properties
+  return notBuilt('src/components/status.tsx:113')
 }
 
 export function buildAPIProviderProperties(): Property[] {
-  const properties: Property[] = []
-  if (hostEnv().ANTHROPIC_BASE_URL) {
-    properties.push({ label: 'Anthropic base URL', value: <Text>{hostEnv().ANTHROPIC_BASE_URL!}</Text> })
-  }
-  const proxyUrl = getProxyUrl()
-  if (proxyUrl) {
-    properties.push({ label: 'Proxy', value: <Text>{proxyUrl}</Text> })
-  }
-  if (hostEnv().NODE_EXTRA_CA_CERTS) {
-    properties.push({ label: 'Additional CA cert(s)', value: <Text>{extraCaCertsStatusLine() ?? hostEnv().NODE_EXTRA_CA_CERTS!}</Text> })
-  }
-  const mtlsConfig = getMTLSConfig()
-  const mtlsErrors = new Map(getMTLSReadErrors().map(failure => [failure.variable, failure]))
-  const certErr = mtlsErrors.get('MERCURY_CLIENT_CERT')
-  if (certErr !== undefined) {
-    properties.push({ label: 'mTLS client cert', value: <Text>{mtlsReadFailureSentence(certErr)}</Text> })
-  } else if (mtlsConfig?.cert && flagEnv('MERCURY_CLIENT_CERT')) {
-    properties.push({ label: 'mTLS client cert', value: <Text>{flagEnv('MERCURY_CLIENT_CERT')}</Text> })
-  }
-  const keyErr = mtlsErrors.get('MERCURY_CLIENT_KEY')
-  if (keyErr !== undefined) {
-    properties.push({ label: 'mTLS client key', value: <Text>{mtlsReadFailureSentence(keyErr)}</Text> })
-  } else if (mtlsConfig?.key && flagEnv('MERCURY_CLIENT_KEY')) {
-    properties.push({ label: 'mTLS client key', value: <Text>{flagEnv('MERCURY_CLIENT_KEY')}</Text> })
-  }
-  return properties
+  return notBuilt('src/components/status.tsx:136')
 }

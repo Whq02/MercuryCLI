@@ -9,92 +9,38 @@ import { isEnvDefinedFalsy, isEnvTruthy } from './envUtils.js'
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { passedOver } from './passedOver.js'
 import { hostEnv } from './hostEnv.js'
-
-
-
-function tmuxControlModeHeuristic(): boolean {
-  if (!hostEnv().TMUX) return false
-  if (hostEnv().TERM_PROGRAM !== 'iTerm.app') return false
-  const term = hostEnv().TERM ?? ''
-  return !term.startsWith('screen') && !term.startsWith('tmux')
-}
-
-let controlModeCache: boolean | undefined
-let controlModeLogged = false
-
-function isTmuxControlMode(): boolean {
-  if (controlModeCache !== undefined) return controlModeCache
-  controlModeCache = tmuxControlModeHeuristic()
-  if (controlModeCache) return true
-  if (!hostEnv().TMUX) return controlModeCache
-  if (hostEnv().TERM_PROGRAM !== undefined) return controlModeCache
-  try {
-    const probe = spawnSync('tmux', ['display-message', '-p', '#{client_control_mode}'], {
-      windowsHide: true,
-      encoding: 'utf8',
-      timeout: 2000,
-      env: { ...subprocessEnv() },
-    })
-    if (probe.error || probe.status !== 0) return controlModeCache
-    controlModeCache = (probe.stdout ?? '').trim() === '1'
-  } catch (error) {
-    passedOver(error)
-  }
-  return controlModeCache
-}
+import { notBuilt } from '../pi/holes.js'
 
 
 export function isFullscreenEnvEnabled(): boolean {
-  const raw = flagEnv('MERCURY_FULLSCREEN')
-  if (isEnvDefinedFalsy(raw)) return false
-  if (isEnvTruthy(raw)) return true
-  if (isTmuxControlMode()) {
-    if (!controlModeLogged) {
-      controlModeLogged = true
-      logForDebugging('fullscreen: disabled — tmux control mode detected (set MERCURY_FULLSCREEN=1 to override)')
-    }
-    return false
-  }
-  return true
+  return notBuilt('src/utils/fullscreen.ts:47')
 }
 
 export function isFullscreenActive(): boolean {
-  return getIsInteractive() && isFullscreenEnvEnabled()
+  return notBuilt('src/utils/fullscreen.ts:61')
 }
 
 export function isMouseTrackingEnabled(): boolean {
-  return true
+  return notBuilt('src/utils/fullscreen.ts:65')
 }
 
 export function isMouseClicksDisabled(): boolean {
-  return false
+  return notBuilt('src/utils/fullscreen.ts:69')
 }
 
-let tmuxMouseHintChecked = false
-
 export async function maybeGetTmuxMouseHint(): Promise<string | null> {
-  if (!hostEnv().TMUX) return null
-  if (!isFullscreenActive()) return null
-  if (isTmuxControlMode()) return null
-  if (tmuxMouseHintChecked) return null
-  tmuxMouseHintChecked = true
-  const result = await execFileNoThrow('tmux', ['show', '-Av', 'mouse'], { timeout: 2000, preserveOutputOnError: false })
-  if (result.code !== 0) return null
-  if (result.stdout.trim() === 'on') return null
-  return 'tmux detected: PageUp/PageDown scroll the transcript. Add `set -g mouse on` to ~/.tmux.conf to restore wheel scrolling.'
+  return notBuilt('src/utils/fullscreen.ts:75')
 }
 
 
 export function isDeckPaneEnabled(): boolean {
-  return isEnvTruthy(flagEnv('MERCURY_DECK_PANE')) || isMercurySubstrateProfileOn()
+  return notBuilt('src/utils/fullscreen.ts:88')
 }
 
 export function isDeckPaneActive(): boolean {
-  return isDeckPaneEnabled() && isFullscreenEnvEnabled()
+  return notBuilt('src/utils/fullscreen.ts:92')
 }
 
 export function isHelmHomeEnabled(): boolean {
-  if (!isFullscreenEnvEnabled()) return false
-  if (isEnvDefinedFalsy(flagEnv('MERCURY_HELM_HOME'))) return false
-  return true
+  return notBuilt('src/utils/fullscreen.ts:96')
 }

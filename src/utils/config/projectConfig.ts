@@ -29,6 +29,7 @@ import {
   noteConfigContentionRefusal,
   noteConfigLocklessFallback,
 } from './globalConfig.js'
+import { notBuilt } from '../../pi/holes.js'
 
 type SliceUpdater = (currentConfig: ProjectConfig) => ProjectConfig
 
@@ -62,20 +63,12 @@ function withRecordReplaced(config: GlobalConfig, key: string, updater: SliceUpd
   return next === current ? null : { ...config, projects: { ...config.projects, [key]: next } }
 }
 
-function readProjectSlice(absolutePath: string): ProjectConfig {
-  const slice = recordOf(getGlobalConfig(), absolutePath)
-  if (slice !== DEFAULT_PROJECT_CONFIG && typeof slice.allowedTools === 'string') {
-    slice.allowedTools = (safeParseJSON(slice.allowedTools) as string[]) ?? []
-  }
-  return slice
-}
-
 export function getCurrentProjectConfig(): ProjectConfig {
-  return underTest() ? TEST_PROJECT_CONFIG_FOR_TESTING : readProjectSlice(getProjectPathForConfig())
+  return notBuilt('src/utils/config/projectConfig.ts:73')
 }
 
 export function getProjectConfigForWorkspace(workspaceDir: string): ProjectConfig {
-  return underTest() ? TEST_PROJECT_CONFIG_FOR_TESTING : readProjectSlice(projectConfigKeyForWorkspace(workspaceDir))
+  return notBuilt('src/utils/config/projectConfig.ts:77')
 }
 
 function saveTestProjectSlice(updater: SliceUpdater): void {
@@ -85,57 +78,8 @@ function saveTestProjectSlice(updater: SliceUpdater): void {
 
 const refuse = (why: string): void => logForDebugging(why, { level: 'error' })
 
-function readForLocklessWrite(): GlobalConfig | null {
-  try {
-    return getConfig(getGlobalMercuryFile(), createDefaultGlobalConfig)
-  } catch (error) {
-    if (!(error instanceof ConfigReadError)) throw error
-    refuse(`saveCurrentProjectConfig fallback: refusing the write — ${error.message}`)
-    return null
-  }
-}
-
-function writeSliceWithoutLock(absolutePath: string, updater: SliceUpdater): void {
-  const read = readForLocklessWrite()
-  if (!read) return
-  if (wouldLoseAuthState(read)) {
-    refuse('saveCurrentProjectConfig fallback: the re-read view lost auth state the cache still holds; refusing the write (auth-wipe guard).')
-    return
-  }
-  const config = foldPendingUpdaters(read)
-  const replaced = withRecordReplaced(config, absolutePath, updater)
-  if (!replaced && !hasPendingDeferredGlobalConfigSaves()) return
-  const written = replaced ?? config
-  saveConfig(getGlobalMercuryFile(), written, DEFAULT_GLOBAL_CONFIG)
-  writeThroughGlobalConfigCache(written)
-}
-
-function writeSliceUnderLock(absolutePath: string, updater: SliceUpdater): void {
-  let written: GlobalConfig | null = null
-  const didWrite = saveConfigWithLock(getGlobalMercuryFile(), createDefaultGlobalConfig, current => {
-    written = withRecordReplaced(current, absolutePath, updater)
-    return written ?? current
-  })
-  if (didWrite && written) writeThroughGlobalConfigCache(written)
-}
-
 function writeProjectSlice(absolutePath: string, updater: SliceUpdater): void {
-  try {
-    writeSliceUnderLock(absolutePath, updater)
-    return
-  } catch (error) {
-    if (error instanceof ConfigReadError) {
-      refuse(`saveCurrentProjectConfig: refusing the write — ${error.message}`)
-      return
-    }
-    if ((error as NodeJS.ErrnoException | null)?.code === 'ELOCKED') {
-      noteConfigContentionRefusal('writeProjectSlice')
-      return
-    }
-    refuse(`Failed to save config with lock: ${error}`)
-    noteConfigLocklessFallback()
-  }
-  writeSliceWithoutLock(absolutePath, updater)
+  return notBuilt('src/utils/config/projectConfig.ts:122')
 }
 
 export function saveCurrentProjectConfigDeferred(updater: SliceUpdater): void {
@@ -148,11 +92,7 @@ export function saveCurrentProjectConfigDeferred(updater: SliceUpdater): void {
 }
 
 export function saveCurrentProjectConfig(updater: SliceUpdater): void {
-  if (underTest()) {
-    saveTestProjectSlice(updater)
-    return
-  }
-  writeProjectSlice(getProjectPathForConfig(), updater)
+  return notBuilt('src/utils/config/projectConfig.ts:150')
 }
 
 export function saveProjectConfigForWorkspace(workspaceDir: string, updater: SliceUpdater): void {

@@ -1,15 +1,8 @@
-import type {
-  ContentBlock as BetaContentBlock,
-  ApiMessage as BetaMessage,
-} from '../../../../types/wire.js'
-import type { AnthropicMessageParams as BetaMessageStreamParams } from '../../../../types/anthropicWire.js'
+import type { ApiMessage as BetaMessage } from '../../../../types/wire.js'
 import type { AnthropicStream } from '../anthropicStream.js'
-import type { ThinkingConfig } from 'src/utils/thinking.js'
 import type { PrefixMismatch } from '../prefixLedger.js'
-import type { ConnectorTextBlock } from '../../../../types/connectorText.js'
 import type {
   AssistantMessage,
-  Message,
   StreamEvent,
   SystemAPIErrorMessage,
   SystemStreamCutMessage,
@@ -23,6 +16,7 @@ import type { Options } from '../streamCore.js'
 import type { createCallLedger } from './callLedger.js'
 import type { wireRequestOf } from './requestPlan.js'
 import type { wireParamsFor } from './wireParams.js'
+import type { Unbuilt } from '../../../../pi/holes.js'
 
 export type SignInRefusal = typeof import('../../signInRefusal.js')
 
@@ -57,25 +51,7 @@ export type CallState = {
   settledNormally: boolean
 }
 
-export type QueryCtx = {
-  messages: Message[]
-  thinkingConfig: ThinkingConfig
-  signal: AbortSignal
-  options: Options
-  modelRefusalRequest: { current?: ModelRefusalRequest }
-  captureModelRequest: (params: BetaMessageStreamParams) => void
-  observeSignInResponse: SignInRefusal['observeSignInResponse']
-  rosterOwnerKey: string
-  prefixKey: string
-  turnOwning: boolean
-  messagesForAPI: PlannedRequest['messagesForAPI']
-  startIncludingRetries: number
-  paramsFromContext: ReturnType<typeof wireParamsFor>
-  heldWaitDoor: ((wait: HeldBusyRetryWait) => void) | undefined
-  newMessages: AssistantMessage[]
-  contentBlocks: (BetaContentBlock | ConnectorTextBlock)[]
-  stoppedBlockIndices: Set<number>
-} & ReturnType<typeof createCallLedger>
+export type QueryCtx = Unbuilt
 
 export type StreamPass = {
   noteTransportActivity: (() => void) | null

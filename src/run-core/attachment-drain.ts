@@ -1,7 +1,7 @@
-
 import type { AssistantMessage, ReplyMark } from '../types/message.js'
 import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
 import { isUnattendedRun } from '../utils/cockpit/runtimePosture.js'
+import { notBuilt } from '../pi/holes.js'
 
 type DrainableCommand = {
   uuid?: string
@@ -25,8 +25,7 @@ export function replyMarkOf(row: DrainedRow): ReplyMark | null {
 }
 
 export function isReplyText(message: Pick<AssistantMessage, 'isApiErrorMessage' | 'message'>): boolean {
-  if (message.isApiErrorMessage === true) return false
-  return message.message.content.some(block => block.type === 'text' && block.text.trim() !== '' && block.text !== NO_CONTENT_MESSAGE)
+  return notBuilt('src/run-core/attachment-drain.ts:27')
 }
 
 export function stampReply<M extends Pick<AssistantMessage, 'isApiErrorMessage' | 'message' | 'inReplyTo'>>(message: M, awaiting: ReplyMark[]): M {

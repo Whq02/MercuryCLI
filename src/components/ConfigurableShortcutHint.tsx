@@ -1,17 +1,8 @@
-
 import React from 'react'
-import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 import type { KeybindingContextName } from '../keybindings/types.js'
-import { KeyboardShortcutHint } from './design-system/KeyboardShortcutHint.js'
+import { notBuilt } from '../pi/holes.js'
 
-export function ConfigurableShortcutHint({
-  action,
-  context,
-  fallback,
-  description,
-  parens = false,
-  bold = false,
-}: {
+export function ConfigurableShortcutHint(arg0: {
   action: string
   context: KeybindingContextName
   fallback: string
@@ -19,15 +10,7 @@ export function ConfigurableShortcutHint({
   parens?: boolean
   bold?: boolean
 }): React.ReactNode {
-  const chord = useShortcutDisplay(action, context, fallback)
-  return (
-    <KeyboardShortcutHint
-      shortcut={chord}
-      action={description}
-      parens={parens}
-      bold={bold}
-    />
-  )
+  return notBuilt('src/components/ConfigurableShortcutHint.tsx:7')
 }
 
 export default ConfigurableShortcutHint

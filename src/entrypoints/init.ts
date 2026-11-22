@@ -27,6 +27,7 @@ import { profileCheckpoint } from '../utils/startupProfiler.js'
 import { armScratchpadSweep } from '../utils/scratchpad.js'
 import { passedOver } from '../utils/passedOver.js'
 import { startImmediate } from '../utils/timers.js'
+import { unbuilt } from '../pi/holes.js'
 
 function runArgumentsLeaveBashOut(args: readonly string[]): boolean {
   const toolset = readSessionOptionValues(args, '--toolset')
@@ -37,93 +38,4 @@ function runArgumentsLeaveBashOut(args: readonly string[]): boolean {
   })
 }
 
-export const init: () => Promise<void> = memoize(async (): Promise<void> => {
-  profileCheckpoint('init_function_start')
-  try {
-    enableConfigs()
-    profileCheckpoint('init_configs_enabled')
-
-    applySafeConfigEnvironmentVariables()
-    try {
-      const { checkHasTrustDialogAccepted } = await import('../utils/config/trust.js')
-      if (checkHasTrustDialogAccepted()) applyConfigEnvironmentVariables()
-    } catch (error) {
-      logForDebugging(`init: trusted env application skipped: ${String(error)}`)
-    }
-    profileCheckpoint('init_safe_env_applied')
-    sendPassedOverToDebugLog()
-
-    applyExtraCACertsFromConfig()
-    profileCheckpoint('init_ca_certs_applied')
-
-    setupGracefulShutdown()
-    armScratchpadSweep()
-    profileCheckpoint('init_shutdown_installed')
-
-    if (isSessionRunArgv() && !runArgumentsLeaveBashOut(process.argv.slice(2)) && configEnvironmentIsApplied()) beginLoginFiles()
-
-    void populateOAuthAccountInfoIfNeeded().catch((error: unknown) =>
-      logForDebugging(`init: oauth account populate failed: ${String(error)}`),
-    )
-
-    void restoreGatewayAuth().catch(passedOver)
-
-    void getGithubRepo().catch(passedOver)
-
-    startImmediate(() => {
-      try {
-        ensureLocalSettingsSchema()
-      } catch (error) {
-        passedOver(error)
-      }
-    })
-
-
-    recordFirstStartTime()
-    profileCheckpoint('init_background_dispatch_done')
-
-    configureGlobalMTLS()
-    profileCheckpoint('init_mtls_configured')
-    configureGlobalAgents()
-    profileCheckpoint('init_agents_configured')
-
-
-    armWindowsShellRoad()
-
-    registerCleanup(() => shutdownLspServerManager())
-
-    profileCheckpoint('init_function_end')
-  } catch (error) {
-    if (error instanceof ConfigReadError) {
-      process.stderr.write(
-        `Mercury cannot read its configuration file at ${error.filePath} (${error.code}).\n` +
-          `The file exists, so Mercury will not start on defaults and overwrite your saved account,\n` +
-          `projects and trust grants on the next save. Make the file readable (fix its permissions or close\n` +
-          `the program holding it open), then start Mercury again.\n`,
-      )
-      gracefulShutdownSync(1)
-      return
-    }
-    if (error instanceof ConfigParseError) {
-      if (isSessionMarkedNonInteractive()) {
-        let backupPath: string | null = null
-        try {
-          backupPath = findMostRecentBackup(error.filePath)
-        } catch {
-          backupPath = null
-        }
-        process.stderr.write(
-          `Configuration error in ${(error as { filePath?: string }).filePath ?? 'settings'}: ${error.message}\n` +
-            (backupPath !== null
-              ? `A backup file exists at: ${backupPath}\nYou can restore it by running: cp "${backupPath}" "${error.filePath}"\n`
-              : ''),
-        )
-        gracefulShutdownSync(1)
-        return
-      }
-      const { showInvalidConfigDialog } = await import('../components/InvalidConfigDialog.js')
-      return showInvalidConfigDialog({ error })
-    }
-    throw error
-  }
-})
+export const init: () => Promise<void> = unbuilt('src/entrypoints/init.ts:40')

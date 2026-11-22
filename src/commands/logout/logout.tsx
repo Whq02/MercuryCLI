@@ -15,60 +15,10 @@ import { deleteCredentialStores } from '../../utils/secureStorage/index.js'
 import { clearToolSchemaCache } from '../../utils/toolSchemaCache.js'
 import { resetUserCache } from '../../utils/user.js'
 import { startTimeout } from '../../utils/timers.js'
+import { notBuilt } from '../../pi/holes.js'
 
-function clearAuthRelatedCaches(): void {
-  clearOAuthTokenCache()
-  clearBetasCaches()
-  clearToolSchemaCache()
-  resetUserCache()
-}
-
-export async function performLogout({
-  clearOnboarding = false,
-}: { clearOnboarding?: boolean } = {}): Promise<string[]> {
-  try {
-    const tokens = getClaudeAIOAuthTokens()
-    if (tokens?.refreshToken) {
-      await revokeOAuthToken(tokens.refreshToken)
-    }
-  } catch (error) {
-    logError(error)
-  }
-
-  const storesLeft: string[] = []
-  try {
-    await removeApiKey()
-  } catch (error) {
-    logError(error)
-    storesLeft.push(`Could not sign out: ${error instanceof Error ? error.message : String(error)}`)
-  }
-  for (const where of deleteCredentialStores()) storesLeft.push(`Could not sign out: ${credentialStoreLeftWords(where)}`)
-  clearScopeIdentitySnapshot(getMercuryHome())
-  forgetScopeIdentity()
-
-  const refused = [...signOutEveryEngineCredential(), ...storesLeft]
-
-  try {
-    const { resetLimitsForCredentialSwitch } = await import('../../services/anthropicLimits.js')
-    resetLimitsForCredentialSwitch()
-  } catch (error) {
-    logError(error)
-  }
-
-  clearAuthRelatedCaches()
-  noteCredentialChange()
-
-  saveGlobalConfig(current => {
-    const next = { ...current, oauthAccount: undefined }
-    if (clearOnboarding) {
-      next.hasCompletedOnboarding = false
-      if (next.customApiKeyResponses?.approved) {
-        next.customApiKeyResponses = { ...next.customApiKeyResponses, approved: [] }
-      }
-    }
-    return next
-  })
-  return refused
+export async function performLogout(arg0?: { clearOnboarding?: boolean }): Promise<string[]> {
+  return notBuilt('src/commands/logout/logout.tsx:26')
 }
 
 function signedInSlots(): Map<string, string> {

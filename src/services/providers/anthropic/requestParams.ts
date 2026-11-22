@@ -32,9 +32,8 @@ import { jsonStringify } from '../../../utils/slowOperations.js'
 import { currentLimits } from '../../anthropicLimits.js'
 import { getAnthropicClient } from '../../api/client.js'
 import { CannotRetryError, withRetry } from '../../api/withRetry.js'
-type JsonValue = string | number | boolean | null | JsonObject | JsonArray
-type JsonObject = { [key: string]: JsonValue }
-type JsonArray = JsonValue[]
+import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
+type JsonObject = Unbuilt
 
 function extraObject(name: 'MERCURY_EXTRA_BODY' | 'MERCURY_EXTRA_METADATA', logParseError: boolean): JsonObject {
   const raw = flagEnv(name)
@@ -77,10 +76,7 @@ export function getCacheControl(): {
   type: 'ephemeral'
   ttl?: '1h'
 } {
-  return {
-    type: 'ephemeral',
-    ...(should1hCacheTTL() && { ttl: '1h' }),
-  }
+  return notBuilt('src/services/providers/anthropic/requestParams.ts:76')
 }
 
 export function promptCache1hEligibility(): { eligible: boolean; reason: string | null } {
@@ -122,86 +118,20 @@ export function configureEffortParams(
   extraBodyParams: Record<string, unknown>,
   model: string,
 ): void {
-  if (!modelSupportsEffort(model) || 'effort' in outputConfig) {
-    return
-  }
-
-  if (effortValue === undefined) {
-    return
-  }
-  if (typeof effortValue === 'string' && isFirstPartyWireEffort(effortValue)) {
-    outputConfig.effort = effortValue
-  } else {
-    logForDebugging(
-      `configureEffortParams: effort ${effortValue} has no first-party wire encoding — sending without effort`,
-      { level: 'warn' },
-    )
-  }
+  return notBuilt('src/services/providers/anthropic/requestParams.ts:119')
 }
 
 export function anthropicEffortWireFact(
   params: { output_config?: { effort?: string | undefined } | undefined },
   supported: boolean,
 ): EffortWireFact {
-  const top = params.output_config?.effort
-  if (top !== undefined) return { kind: 'sent', parameter: 'output_config.effort', value: top }
-  return supported ? { kind: 'omitted' } : { kind: 'unsupported' }
+  return notBuilt('src/services/providers/anthropic/requestParams.ts:142')
 }
 
-export function getAPIMetadata() {
-  const extra = extraObject('MERCURY_EXTRA_METADATA', false)
-  const identity = { account_uuid: getOauthAccountInfo()?.accountUuid ?? '', session_id: getSessionId() }
-  return { user_id: jsonStringify({ ...extra, ...identity }) }
-}
-
-type KeyProbeBody = Parameters<Awaited<ReturnType<typeof getAnthropicClient>>['beta']['messages']['create']>[0]
-
-function keyProbeBody(model: string, betas: string[]): KeyProbeBody {
-  const messages: MessageParam[] = [{ role: 'user', content: 'test' }]
-  const { effortValue } = utilityCallFor(model)
-  const effort = typeof effortValue === 'string' && isFirstPartyWireEffort(effortValue) && modelSupportsEffort(model) ? effortValue : undefined
-  const extraBody = getExtraBodyParams()
-  const outputConfig: BetaOutputConfig & Record<string, unknown> = { ...((extraBody.output_config as (BetaOutputConfig & Record<string, unknown>) | undefined) ?? {}) }
-  if (effort !== undefined && !('effort' in outputConfig)) outputConfig.effort = effort
-  const body: KeyProbeBody = { model, max_tokens: 1, messages, metadata: getAPIMetadata() }
-  if (modelSupportsTemperature(model)) body.temperature = 1
-  if (betas.length) body.betas = betas
-  if (!modelThinkingAlwaysOn(model)) body.thinking = { type: 'disabled' }
-  Object.assign(body, extraBody)
-  if (Object.keys(outputConfig).length > 0) body.output_config = outputConfig
-  return body
-}
-
-function keyProbeFailure(caught: unknown): false {
-  const error = caught instanceof CannotRetryError ? caught.originalError : caught
-  logError(error)
-  const invalid = error instanceof Error && error.message.includes(
-    '{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}',
-  )
-  if (invalid) return false
-  throw error
-}
-
-function keyProbeModel(): string {
-  const { model } = utilityCallFor()
-  return normalizeModelStringForAPI(declaredRouteOf(model) === 'anthropic' ? model : getDefaultSonnetModel())
+export function getAPIMetadata(): Unbuilt {
+  return notBuilt('src/services/providers/anthropic/requestParams.ts:151')
 }
 
 export async function verifyApiKey(apiKey: string, isNonInteractiveSession: boolean): Promise<boolean> {
-  if (isNonInteractiveSession) return true
-  try {
-    const model = keyProbeModel()
-    const betas = getModelBetas(model)
-    const createClient = () => getAnthropicClient({ apiKey, maxRetries: 3, source: 'verify_api_key' })
-    const probe = async (anthropic: Awaited<ReturnType<typeof getAnthropicClient>>): Promise<true> => {
-      await anthropic.beta.messages.create(keyProbeBody(model, betas))
-      return true
-    }
-    const attempts = withRetry(createClient, probe, {
-      maxRetries: 2, model, thinkingConfig: { type: 'disabled' }, reconnect: false,
-    })
-    return await returnValue(attempts)
-  } catch (caught) {
-    return keyProbeFailure(caught)
-  }
+  return notBuilt('src/services/providers/anthropic/requestParams.ts:190')
 }

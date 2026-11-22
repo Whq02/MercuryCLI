@@ -13,6 +13,7 @@ import {
   parsePermissionRule,
   type ShellPermissionRule,
 } from './shellRuleMatching.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const TOOL_NAME = 'Bash'
 
@@ -111,14 +112,7 @@ function ruleMatches(
   isCompound: boolean,
   skipCompoundGuard: boolean,
 ): boolean {
-  switch (rule.type) {
-    case 'exact':
-      return candidate === rule.command
-    case 'wildcard':
-      if (mode === 'exact') return false
-      if (isCompound && !skipCompoundGuard) return false
-      return matchWildcardPattern(rule.pattern, candidate)
-  }
+  return notBuilt('src/utils/permissions/bashRuleVerdict.ts:107')
 }
 
 function isCompoundCandidate(candidate: string): boolean {

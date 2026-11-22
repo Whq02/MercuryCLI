@@ -1,6 +1,7 @@
 import type { PermissionUpdate } from '../../types/permissions.js'
 import { isDestructiveCommandVerb } from '../shell/destructiveCommandWarning.js'
 import { precedingBackslashes } from './permissionRuleParser.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 const COMMAND_PREFIX_ARITY: Readonly<Record<string, number>> = {
   git: 2, npm: 2, pnpm: 2, yarn: 2, bun: 2, docker: 2, gh: 2, cargo: 2,
@@ -34,16 +35,11 @@ export function knownShellCommandPrefix(command: string): string | null {
   return words.slice(0, arity).join(' ')
 }
 
-export type ShellPermissionRule =
-  | { type: 'exact'; command: string }
-  | { type: 'wildcard'; pattern: string }
+export type ShellPermissionRule = Unbuilt
 
 
 export function hasWildcards(pattern: string): boolean {
-  for (let i = 0; i < pattern.length; i++) {
-    if (pattern[i] === '*' && precedingBackslashes(pattern, i) % 2 === 0) return true
-  }
-  return false
+  return notBuilt('src/utils/permissions/shellRuleMatching.ts:42')
 }
 
 function countUnescapedWildcards(pattern: string): number {
@@ -74,59 +70,16 @@ const WILDCARD_MARK = '\x00MERCURY_WILD\x00'
 
 const compiledCache = new Map<string, RegExp>()
 
-function compileWildcard(rawPattern: string, caseInsensitive: boolean): RegExp {
-  const cacheKey = `${caseInsensitive ? 'i:' : ''}${rawPattern}`
-  const cached = compiledCache.get(cacheKey)
-  if (cached) return cached
-
-  const pattern = rawPattern.trim()
-  const wildcardCountBeforeCollapse = countUnescapedWildcards(pattern)
-
-  let working = pattern
-    .split('\\\\')
-    .join(LITERAL_BACKSLASH)
-    .split('\\*')
-    .join(LITERAL_STAR)
-    .split('*')
-    .join(WILDCARD_MARK)
-
-  working = working.replace(/[.*+?^${}()|[\]\\]/g, ch => `\\${ch}`)
-
-  const collapsed = new RegExp(`(?:${WILDCARD_MARK})+`, 'g')
-  working = working.replace(collapsed, WILDCARD_MARK)
-
-  const trailingOptional = ` ${WILDCARD_MARK}`
-  let regexBody: string
-  if (working.endsWith(trailingOptional) && wildcardCountBeforeCollapse === 1) {
-    const head = working.slice(0, -trailingOptional.length)
-    regexBody = `${head}(?: [\\s\\S]*)?`
-  } else {
-    regexBody = working.split(WILDCARD_MARK).join('[\\s\\S]*')
-  }
-
-  regexBody = regexBody.split(LITERAL_STAR).join('\\*').split(LITERAL_BACKSLASH).join('\\\\')
-
-  const flags = caseInsensitive ? 'i' : ''
-  const compiled = new RegExp(`^${regexBody}$`, flags)
-  compiledCache.set(cacheKey, compiled)
-  return compiled
-}
-
 export function matchWildcardPattern(
   pattern: string,
   command: string,
-  caseInsensitive = false,
+  caseInsensitive?: boolean,
 ): boolean {
-  return compileWildcard(pattern, caseInsensitive).test(command)
+  return notBuilt('src/utils/permissions/shellRuleMatching.ts:115')
 }
 
 function localAllowUpdate(toolName: string, content: string): PermissionUpdate {
-  return {
-    type: 'addRules',
-    rules: [{ toolName, ruleContent: content }],
-    behavior: 'allow',
-    destination: 'localSettings',
-  } as PermissionUpdate
+  return notBuilt('src/utils/permissions/shellRuleMatching.ts:123')
 }
 
 export function suggestionForExactCommand(toolName: string, command: string): PermissionUpdate[] {

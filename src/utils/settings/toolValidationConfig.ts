@@ -1,10 +1,6 @@
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-type CustomValidationResult = {
-  valid: boolean
-  error?: string
-  suggestion?: string
-  examples?: string[]
-}
+type CustomValidationResult = Unbuilt
 
 type ToolValidationConfig = {
   filePatternTools: ReadonlySet<string>
@@ -13,37 +9,11 @@ type ToolValidationConfig = {
 }
 
 function makeSearchTermValidator(toolName: string): (content: string) => CustomValidationResult {
-  return content => {
-    if (content.includes('*') || content.includes('?')) {
-      return {
-        valid: false,
-        error: `${toolName} rules do not support wildcards`,
-        suggestion: 'Use exact search terms instead',
-        examples: [`${toolName}(weather in tokyo)`, `${toolName}(typescript generics tutorial)`],
-      }
-    }
-    return { valid: true }
-  }
+  return notBuilt('src/utils/settings/toolValidationConfig.ts:15')
 }
 
 function validateWebFetchContent(content: string): CustomValidationResult {
-  if (content.includes('://') || content.startsWith('http')) {
-    return {
-      valid: false,
-      error: 'WebFetch permissions use a domain format, not URLs',
-      suggestion: 'Use the domain:hostname form',
-      examples: ['WebFetch(domain:example.com)', 'WebFetch(domain:docs.example.com)'],
-    }
-  }
-  if (!content.startsWith('domain:')) {
-    return {
-      valid: false,
-      error: 'WebFetch rules require the domain: prefix',
-      suggestion: 'Use the domain:hostname form',
-      examples: ['WebFetch(domain:example.com)', 'WebFetch(domain:*.example.com)'],
-    }
-  }
-  return { valid: true }
+  return notBuilt('src/utils/settings/toolValidationConfig.ts:29')
 }
 
 const TOOL_VALIDATION_CONFIG: ToolValidationConfig = {
@@ -57,11 +27,11 @@ const TOOL_VALIDATION_CONFIG: ToolValidationConfig = {
 }
 
 export function isFilePatternTool(name: string): boolean {
-  return TOOL_VALIDATION_CONFIG.filePatternTools.has(name)
+  return notBuilt('src/utils/settings/toolValidationConfig.ts:59')
 }
 
 export function isBashPrefixTool(name: string): boolean {
-  return TOOL_VALIDATION_CONFIG.bashPrefixTools.has(name)
+  return notBuilt('src/utils/settings/toolValidationConfig.ts:63')
 }
 
 export function getCustomValidation(name: string): ((content: string) => CustomValidationResult) | undefined {

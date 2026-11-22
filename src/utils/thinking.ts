@@ -1,24 +1,14 @@
 import { getInitialSettings } from './settings/settings.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 
 export { modelSupportsAdaptiveThinking, modelSupportsThinking } from './model/capabilities.js'
 
-export type ThinkingConfig =
-  | { type: 'adaptive' }
-  | { type: 'enabled'; budgetTokens: number }
-  | { type: 'disabled' }
+export type ThinkingConfig = Unbuilt
 
 export function shouldEnableThinkingByDefault(): boolean {
-  const envValue = flagEnv('MERCURY_THINKING_BUDGET')
-  if (envValue !== undefined && envValue !== '') {
-    const parsed = parseInt(envValue, 10)
-    return parsed > 0
-  }
-  if (getInitialSettings().engine?.reasoning === false) {
-    return false
-  }
-  return true
+  return notBuilt('src/utils/thinking.ts:12')
 }
 
 let notedThinkingConfig: ThinkingConfig | undefined

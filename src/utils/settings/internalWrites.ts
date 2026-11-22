@@ -1,18 +1,13 @@
-
-const internalWriteMarks = new Map<string, number>()
+import { notBuilt } from '../../pi/holes.js'
 
 export function markInternalWrite(path: string): void {
-  internalWriteMarks.set(path, Date.now())
+  return notBuilt('src/utils/settings/internalWrites.ts:4')
 }
 
 export function consumeInternalWrite(path: string, windowMs: number): boolean {
-  const markedAt = internalWriteMarks.get(path)
-  if (markedAt === undefined) return false
-  if (Date.now() - markedAt > windowMs) return false
-  internalWriteMarks.delete(path)
-  return true
+  return notBuilt('src/utils/settings/internalWrites.ts:8')
 }
 
 export function clearInternalWrites(): void {
-  internalWriteMarks.clear()
+  return notBuilt('src/utils/settings/internalWrites.ts:16')
 }

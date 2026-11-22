@@ -11,6 +11,7 @@ import { isEnvTruthy } from './envUtils.js'
 import { getMTLSAgent, getMTLSConfig, getTLSFetchOptions } from './mtls.js'
 import { passedOver } from './passedOver.js'
 import { hostEnv } from './hostEnv.js'
+import { notBuilt, unbuilt } from '../pi/holes.js'
 
 
 type EnvLike = Record<string, string | undefined>
@@ -97,24 +98,7 @@ type AgentOptions = {
 }
 
 export function buildApiAgentOptions(): AgentOptions {
-  const knobs = resolveTransportKnobs()
-  const mtls = getMTLSConfig()
-  const ca = getCACertificates()
-  return {
-    connect: {
-      timeout: knobs.connectTimeoutMs,
-      ...(mtls?.cert ? { cert: mtls.cert } : {}),
-      ...(mtls?.key ? { key: mtls.key } : {}),
-      ...(mtls?.passphrase ? { passphrase: mtls.passphrase } : {}),
-      ...(ca ? { ca } : {}),
-    },
-    connections: knobs.maxConnections,
-    headersTimeout: knobs.headersTimeoutMs,
-    bodyTimeout: knobs.bodyTimeoutMs,
-    keepAliveTimeout: knobs.keepAliveTimeoutMs,
-    pipelining: 1,
-    allowH2: false,
-  }
+  return notBuilt('src/utils/proxy.ts:99')
 }
 
 let apiDispatcher: Dispatcher | null = null
@@ -140,11 +124,10 @@ export function getApiFetch(): typeof fetch {
 }
 
 
-let keepAliveDisabled = false
+let keepAliveDisabled: boolean = unbuilt('src/utils/proxy.ts:143')
 
 export function disableKeepAlive(): void {
-  keepAliveDisabled = true
-  apiDispatcher = null
+  return notBuilt('src/utils/proxy.ts:145')
 }
 
 export function resetApiConnectionPool(): void {
@@ -167,23 +150,7 @@ export function getProxyFetchOptions(opts?: { forAnthropicAPI?: boolean }): {
   tls?: ReturnType<typeof getTLSFetchOptions>['tls']
   dispatcher?: Dispatcher
 } {
-  const base: { keepalive?: boolean } = {}
-  if (keepAliveDisabled) base.keepalive = false
-
-  const isBun = isBunRuntime()
-
-  if (opts?.forAnthropicAPI === true && isBun) {
-    const socket = flagEnv('MERCURY_API_UNIX_SOCKET')
-    if (socket) return { ...base, unix: socket }
-  }
-
-  const proxyUrl = getProxyUrl()
-  if (proxyUrl) {
-    if (isBun) return { ...base, proxy: proxyUrl, ...getTLSFetchOptions() }
-    return { ...base, dispatcher: getProxyAgent(proxyUrl) }
-  }
-  if (isBun) return { ...base, ...getTLSFetchOptions() }
-  return { ...base, dispatcher: getApiDispatcher() }
+  return notBuilt('src/utils/proxy.ts:163')
 }
 
 
@@ -229,22 +196,7 @@ type ProxyDispatcherOptions = {
 }
 
 export function buildProxyAgentOptions(uri: string): ProxyDispatcherOptions {
-  const knobs = resolveTransportKnobs()
-  const tls = tlsConnectMaterial()
-  const noProxy = noProxyUppercaseFirst()
-  return {
-    httpProxy: uri,
-    httpsProxy: uri,
-    ...(noProxy !== undefined ? { noProxy } : {}),
-    connect: { timeout: knobs.connectTimeoutMs, ...(tls ?? {}) },
-    ...(tls ? { requestTls: tls } : {}),
-    connections: knobs.maxConnections,
-    headersTimeout: knobs.headersTimeoutMs,
-    bodyTimeout: knobs.bodyTimeoutMs,
-    keepAliveTimeout: knobs.keepAliveTimeoutMs,
-    pipelining: 1,
-    allowH2: false,
-  }
+  return notBuilt('src/utils/proxy.ts:231')
 }
 
 let proxyDispatcherCache = new Map<string, Dispatcher>()
@@ -284,15 +236,11 @@ function getTunnelAgent(uri: string): HttpsProxyAgent<string> {
 }
 
 export function getWebSocketProxyAgent(url: string): HttpsProxyAgent<string> | undefined {
-  const proxyUrl = getProxyUrl()
-  if (!proxyUrl || shouldBypassProxy(url)) return undefined
-  return getTunnelAgent(proxyUrl)
+  return notBuilt('src/utils/proxy.ts:286')
 }
 
 export function getWebSocketProxyUrl(url: string): string | undefined {
-  const proxyUrl = getProxyUrl()
-  if (!proxyUrl || shouldBypassProxy(url)) return undefined
-  return proxyUrl
+  return notBuilt('src/utils/proxy.ts:292')
 }
 
 function proxyRouteInterceptor(
@@ -310,33 +258,9 @@ function proxyRouteInterceptor(
 let globalInterceptorId: number | null = null
 
 export function configureGlobalAgents(): void {
-  if (globalInterceptorId !== null) {
-    axios.interceptors.request.eject(globalInterceptorId)
-    globalInterceptorId = null
-  }
-  axios.defaults.proxy = undefined
-  axios.defaults.httpAgent = undefined
-  axios.defaults.httpsAgent = undefined
-
-  const proxyUrl = getProxyUrl()
-  const mtlsAgent = getMTLSAgent()
-  if (proxyUrl) {
-    axios.defaults.proxy = false
-    globalInterceptorId = axios.interceptors.request.use(
-      proxyRouteInterceptor(getTunnelAgent(proxyUrl), mtlsAgent),
-    )
-    setGlobalDispatcher(getProxyAgent(proxyUrl))
-    return
-  }
-  if (mtlsAgent) {
-    axios.defaults.httpsAgent = mtlsAgent
-    const { dispatcher } = getTLSFetchOptions()
-    if (dispatcher) setGlobalDispatcher(dispatcher)
-  }
+  return notBuilt('src/utils/proxy.ts:312')
 }
 
 export function clearProxyCache(): void {
-  proxyDispatcherCache = new Map()
-  tunnelAgentCache = new Map()
-  logForDebugging('proxy: cache cleared')
+  return notBuilt('src/utils/proxy.ts:338')
 }

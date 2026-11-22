@@ -1,3 +1,4 @@
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export type ModelConfig = {
   firstParty: string
@@ -6,107 +7,11 @@ export type ModelConfig = {
   source?: string
 }
 
-export const ALL_MODEL_CONFIGS = {
-  haiku35: {
-    firstParty: 'claude-3-5-haiku-20241022',
-    canonical: 'claude-3-5-haiku',
-  },
-  haiku45: {
-    firstParty: 'claude-haiku-4-5-20251001',
-    canonical: 'claude-haiku-4-5',
-  },
-  haiku55: {
-    firstParty: 'claude-haiku-5-5',
-  },
-  sonnet35: {
-    firstParty: 'claude-3-5-sonnet-20241022',
-    canonical: 'claude-3-5-sonnet',
-  },
-  sonnet37: {
-    firstParty: 'claude-3-7-sonnet-20250219',
-    canonical: 'claude-3-7-sonnet',
-  },
-  sonnet40: {
-    firstParty: 'claude-sonnet-4-20250514',
-    canonical: 'claude-sonnet-4',
-  },
-  sonnet45: {
-    firstParty: 'claude-sonnet-4-5-20250929',
-    canonical: 'claude-sonnet-4-5',
-  },
-  sonnet46: {
-    firstParty: 'claude-sonnet-4-6',
-  },
-  sonnet5: {
-    firstParty: 'claude-sonnet-5',
-  },
-  sonnet55: {
-    firstParty: 'claude-sonnet-5-5',
-  },
-  opus40: {
-    firstParty: 'claude-opus-4-20250514',
-    canonical: 'claude-opus-4',
-  },
-  opus41: {
-    firstParty: 'claude-opus-4-1-20250805',
-    canonical: 'claude-opus-4-1',
-  },
-  opus45: {
-    firstParty: 'claude-opus-4-5-20251101',
-    canonical: 'claude-opus-4-5',
-  },
-  opus46: {
-    firstParty: 'claude-opus-4-6',
-  },
-  opus47: {
-    firstParty: 'claude-opus-4-7',
-    canonical: 'claude-opus-4-6',
-  },
-  opus48: {
-    firstParty: 'claude-opus-4-8',
-    canonical: 'claude-opus-4-6',
-  },
-  opus5: {
-    firstParty: 'claude-opus-5',
-  },
-  opus55: {
-    firstParty: 'claude-opus-5-5',
-  },
-  fable5: {
-    firstParty: 'claude-fable-5',
-  },
-  fable51: {
-    firstParty: 'claude-fable-5-1',
-  },
-  fable52: {
-    firstParty: 'claude-fable-5-2',
-  },
-  mythos5: {
-    firstParty: 'claude-mythos-5',
-    canonical: 'claude-fable-5',
-  },
-  mythos51: {
-    firstParty: 'claude-mythos-5-1',
-    canonical: 'claude-fable-5-1',
-    observedAt: '2026-10-25',
-    source: 'https://platform.claude.com/docs/en/models/mythos-5-1/overview',
-  },
-  mythos52: {
-    firstParty: 'claude-mythos-5-2',
-    canonical: 'claude-fable-5-2',
-    observedAt: '2026-11-09',
-    source: 'https://platform.claude.com/docs/en/models/mythos-5-2/overview',
-  },
-} as const satisfies Record<string, ModelConfig>
+export const ALL_MODEL_CONFIGS: Unbuilt = unbuilt('src/utils/model/configs.ts:9')
 
-export type ModelKey = keyof typeof ALL_MODEL_CONFIGS
+export type ModelKey = Unbuilt
 
-export const FAMILY_GENERATIONS = {
-  fable: ['fable52', 'fable51', 'fable5'],
-  opus: ['opus55', 'opus5', 'opus48', 'opus47', 'opus46'],
-  sonnet: ['sonnet55', 'sonnet5', 'sonnet46'],
-  haiku: ['haiku55', 'haiku45'],
-} as const satisfies Record<string, readonly ModelKey[]>
+export const FAMILY_GENERATIONS: Unbuilt = unbuilt('src/utils/model/configs.ts:104')
 
 type ModelFamily = keyof typeof FAMILY_GENERATIONS
 
@@ -120,9 +25,7 @@ export function previousGenerationKeys(family: ModelFamily): readonly ModelKey[]
 
 type CanonicalModelId = (typeof ALL_MODEL_CONFIGS)[ModelKey]['firstParty']
 
-export const CANONICAL_MODEL_IDS: CanonicalModelId[] = Object.values(ALL_MODEL_CONFIGS).map(
-  config => config.firstParty,
-)
+export const CANONICAL_MODEL_IDS: CanonicalModelId[] = unbuilt('src/utils/model/configs.ts:123')
 
 export const CANONICAL_ID_TO_KEY: Record<string, ModelKey> = Object.fromEntries(
   (Object.entries(ALL_MODEL_CONFIGS) as Array<[ModelKey, ModelConfig]>).map(([key, config]) => [
@@ -159,8 +62,7 @@ export function mirrorTwinOf(id: string): string | undefined {
 }
 
 export function declaredMirrorsNewestFirst(): string[] {
-  const twins: string[] = Object.values(FAMILY_GENERATIONS).flatMap(keys => keys.map(key => ALL_MODEL_CONFIGS[key].firstParty))
-  return twins.flatMap(twin => CANONICAL_MODEL_IDS.filter(id => mirrorTwinOf(id) === twin))
+  return notBuilt('src/utils/model/configs.ts:161')
 }
 
 const FIRST_PARTY_FAMILY_WORDS = [...Object.keys(FAMILY_GENERATIONS), ...Object.keys(MIRROR_FAMILY_WORDS)]
@@ -188,14 +90,7 @@ interface FirstPartyGeneration {
 }
 
 export function parseFirstPartyGeneration(id: string): FirstPartyGeneration | null {
-  const lowered = id.trim().toLowerCase().replace(CONTEXT_ANNOTATION_RE, '')
-  if (lowered.includes('/')) return null
-  const match = FIRST_PARTY_GENERATION_RE.exec(lowered)
-  if (match === null) return null
-  const word = match[1]!
-  const family = (MIRROR_FAMILY_WORDS[word] ?? word) as ModelFamily
-  const generation = match[2]!.replaceAll('.', '-')
-  return { family, generation, stem: `claude-${family}-${generation}`, spelled: `claude-${word}-${generation}` }
+  return notBuilt('src/utils/model/configs.ts:190')
 }
 
 export function familyHeadOf(id: string): ModelKey | null {

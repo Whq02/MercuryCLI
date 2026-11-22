@@ -1,44 +1,35 @@
+import { notBuilt, unbuilt } from '../pi/holes.js'
+
 export class CircularBuffer<T> {
   private readonly capacity: number
-  private items: T[] = []
-  private start = 0
+  private items: T[] = unbuilt('src/utils/CircularBuffer.ts:3')
+  private start: number = unbuilt('src/utils/CircularBuffer.ts:4')
 
   constructor(capacity: number) {
-    this.capacity = capacity
+    notBuilt('src/utils/CircularBuffer.ts:6')
   }
 
   add(item: T): void {
-    if (this.items.length < this.capacity) {
-      this.items.push(item)
-      return
-    }
-    this.items[this.start] = item
-    this.start = (this.start + 1) % this.capacity
+    return notBuilt('src/utils/CircularBuffer.ts:10')
   }
 
   addAll(items: T[]): void {
-    for (const item of items) {
-      this.add(item)
-    }
+    return notBuilt('src/utils/CircularBuffer.ts:19')
   }
 
   getRecent(count: number): T[] {
-    if (count <= 0) return []
-    const all = this.toArray()
-    return all.slice(Math.max(0, all.length - count))
+    return notBuilt('src/utils/CircularBuffer.ts:25')
   }
 
   toArray(): T[] {
-    if (this.start === 0) return this.items.slice()
-    return this.items.slice(this.start).concat(this.items.slice(0, this.start))
+    return notBuilt('src/utils/CircularBuffer.ts:31')
   }
 
   clear(): void {
-    this.items = []
-    this.start = 0
+    return notBuilt('src/utils/CircularBuffer.ts:36')
   }
 
   length(): number {
-    return this.items.length
+    return notBuilt('src/utils/CircularBuffer.ts:41')
   }
 }

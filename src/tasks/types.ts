@@ -1,20 +1,13 @@
 import type { LocalAgentTaskState } from './LocalAgentTask/LocalAgentTask.js'
 import type { LocalShellTaskState } from './LocalShellTask/guards.js'
 import type { MonitorMcpTaskState } from './MonitorMcpTask/MonitorMcpTask.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 
-export type TaskState =
-  | LocalShellTaskState
-  | LocalAgentTaskState
-  | MonitorMcpTaskState
+export type TaskState = Unbuilt
 
-export type BackgroundTaskState =
-  | LocalShellTaskState
-  | LocalAgentTaskState
-  | MonitorMcpTaskState
+export type BackgroundTaskState = Unbuilt
 
 export function isBackgroundTask(task: TaskState): task is BackgroundTaskState {
-  if (task.status !== 'running' && task.status !== 'pending') return false
-  if ('isBackgrounded' in task && task.isBackgrounded === false) return false
-  return true
+  return notBuilt('src/tasks/types.ts:16')
 }

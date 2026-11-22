@@ -12,18 +12,15 @@ import { projectDirectoryIdentity, resolveDirectoryIdentity, resolveProjectStore
 import { setStoreHealth, transcriptStoreHealth } from './sessionStorage/writer/storeHealth.js'
 import { stripGroundNote } from './isolationNote.js'
 import { passedOver } from './passedOver.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
-export const LITE_READ_BUF_SIZE = 65536
-export const MAX_SANITIZED_LENGTH = 200
-export const SKIP_PRECOMPACT_THRESHOLD = 5 * 1024 * 1024
-
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+export const LITE_READ_BUF_SIZE: Unbuilt = unbuilt('src/utils/sessionStoragePortable.ts:17')
+export const MAX_SANITIZED_LENGTH: Unbuilt = unbuilt('src/utils/sessionStoragePortable.ts:18')
+export const SKIP_PRECOMPACT_THRESHOLD: Unbuilt = unbuilt('src/utils/sessionStoragePortable.ts:19')
 
 export function validateUuid(maybeUuid: unknown): UUID | null {
-  if (typeof maybeUuid !== 'string') return null
-  return UUID_PATTERN.test(maybeUuid) ? (maybeUuid as UUID) : null
+  return notBuilt('src/utils/sessionStoragePortable.ts:24')
 }
 
 export function isTranscriptFileName(name: string): boolean {
@@ -54,23 +51,11 @@ function scanQuotedValue(text: string, start: number): string | null {
 }
 
 function fieldPatterns(key: string): [string, string] {
-  return [`"${key}":"`, `"${key}": "`]
+  return notBuilt('src/utils/sessionStoragePortable.ts:56')
 }
 
 export function extractJsonStringField(text: string, key: string): string | undefined {
-  const [tight, spaced] = fieldPatterns(key)
-  let best = -1
-  let valueStart = -1
-  for (const pattern of [tight, spaced]) {
-    const index = text.indexOf(pattern)
-    if (index !== -1 && (best === -1 || index < best)) {
-      best = index
-      valueStart = index + pattern.length
-    }
-  }
-  if (best === -1) return undefined
-  const raw = scanQuotedValue(text, valueStart)
-  return raw === null ? undefined : unescapeJsonString(raw)
+  return notBuilt('src/utils/sessionStoragePortable.ts:60')
 }
 
 export function extractLastJsonStringField(text: string, key: string): string | undefined {
@@ -225,72 +210,16 @@ export async function readHeadAndTail(
   buf: Buffer,
   onReadError?: (path: string, error: unknown) => void,
 ): Promise<{ head: string; tail: string }> {
-  try {
-    const extent = historyHead(filePath)
-    if (extent.before) {
-      const size = extent.before + extent.end - extent.start
-      const window = Math.min(buf.length, LITE_READ_BUF_SIZE)
-      const first = historyRange(extent, 0, Math.min(window, size))
-      const head = decodeWindow(first, first.length, false, first.length < size)
-      const last = size > window ? historyRange(extent, size - window, size) : null
-      return { head, tail: last ? decodeWindow(last, last.length, true, false) : head }
-    }
-    const handle = await open(filePath, 'r')
-    try {
-      const window = Math.min(buf.length, LITE_READ_BUF_SIZE)
-      const headRead = await handle.read(buf, 0, Math.min(window, fileSize), 0)
-      if (headRead.bytesRead === 0) return { head: '', tail: '' }
-      const moreFollows = fileSize > headRead.bytesRead
-      const head = decodeWindow(buf, headRead.bytesRead, false, moreFollows)
-      if (fileSize <= window) return { head, tail: head }
-      const tailRead = await handle.read(buf, 0, window, fileSize - window)
-      const tail = decodeWindow(buf, tailRead.bytesRead, true, false)
-      return { head, tail }
-    } finally {
-      await handle.close()
-    }
-  } catch (error) {
-    passedOver(error)
-    if (!isAbsenceError(error)) onReadError?.(filePath, error)
-    return { head: '', tail: '' }
-  }
+  return notBuilt('src/utils/sessionStoragePortable.ts:222')
 }
 
-export type LiteSessionFile = { mtime: number; size: number; head: string; tail: string }
+export type LiteSessionFile = Unbuilt
 
 export async function readSessionLite(
   filePath: string,
   onReadError?: (path: string, error: unknown) => void,
 ): Promise<LiteSessionFile | null> {
-  try {
-    const handle = await open(filePath, 'r')
-    try {
-      const stats = await handle.stat()
-      const buf = Buffer.allocUnsafe(LITE_READ_BUF_SIZE)
-      const extent = historyHead(filePath)
-      if (extent.before) {
-        const size = extent.before + extent.end - extent.start
-        const { head, tail } = await readHeadAndTail(filePath, size, buf, onReadError)
-        return { mtime: stats.mtimeMs, size, head, tail }
-      }
-      const headRead = await handle.read(buf, 0, Math.min(LITE_READ_BUF_SIZE, stats.size), 0)
-      if (headRead.bytesRead === 0) return null
-      const moreFollows = stats.size > headRead.bytesRead
-      const head = decodeWindow(buf, headRead.bytesRead, false, moreFollows)
-      let tail = head
-      if (stats.size > LITE_READ_BUF_SIZE) {
-        const tailRead = await handle.read(buf, 0, LITE_READ_BUF_SIZE, stats.size - LITE_READ_BUF_SIZE)
-        tail = decodeWindow(buf, tailRead.bytesRead, true, false)
-      }
-      return { mtime: stats.mtimeMs, size: stats.size, head, tail }
-    } finally {
-      await handle.close()
-    }
-  } catch (error) {
-    passedOver(error)
-    if (!isAbsenceError(error)) onReadError?.(filePath, error)
-    return null
-  }
+  return notBuilt('src/utils/sessionStoragePortable.ts:261')
 }
 
 
@@ -299,18 +228,15 @@ export function sanitizePath(name: string): string {
 }
 
 export function capSanitizedName(sanitized: string, original: string): string {
-  if (sanitized.length <= MAX_SANITIZED_LENGTH) return sanitized
-  const bun = (globalThis as { Bun?: { hash?: (input: string) => number | bigint } }).Bun
-  const hash = bun?.hash ? bun.hash(original).toString(36) : Math.abs(djb2Hash(original)).toString(36)
-  return `${sanitized.slice(0, MAX_SANITIZED_LENGTH)}-${hash}`
+  return notBuilt('src/utils/sessionStoragePortable.ts:301')
 }
 
 export function getProjectsDir(): string {
-  return join(getMercuryHome(), 'projects')
+  return notBuilt('src/utils/sessionStoragePortable.ts:308')
 }
 
 export function shortProjectHash(canonical: string): string {
-  return createHash('sha256').update(canonical).digest('hex').slice(0, 8)
+  return notBuilt('src/utils/sessionStoragePortable.ts:312')
 }
 
 export function projectSlug(canonical: string): string {
@@ -395,25 +321,7 @@ export async function findProjectDir(
   projectPath: string,
   onReadError?: (path: string, error: unknown) => void,
 ): Promise<string | undefined> {
-  const canonical = await canonicalizePath(projectPath)
-  const candidate = getProjectDir(canonical)
-  if (await directoryExists(candidate, onReadError)) return candidate
-  const sanitized = sanitizePath(canonical)
-  if (sanitized.length <= MAX_SANITIZED_LENGTH) return undefined
-  const projectsDir = getProjectsDir()
-  try {
-    const { readdir } = await import('node:fs/promises')
-    const prefix = `${sanitized.slice(0, MAX_SANITIZED_LENGTH)}-`
-    const suffix = candidate.slice(candidate.lastIndexOf('-'))
-    for (const entry of await readdir(projectsDir)) {
-      if (entry.startsWith(prefix) && entry.endsWith(suffix)) return join(projectsDir, entry)
-    }
-  } catch (error) {
-    passedOver(error)
-    if (!isAbsenceError(error)) onReadError?.(projectsDir, error)
-    return undefined
-  }
-  return undefined
+  return notBuilt('src/utils/sessionStoragePortable.ts:394')
 }
 
 

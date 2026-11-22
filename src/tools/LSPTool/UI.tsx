@@ -16,6 +16,7 @@ import { extractTag } from '../../services/messages.js'
 import { collapseAndClip } from '../../utils/stringUtils.js'
 import { getSymbolAtPosition } from './symbolContext.js'
 import type { Output } from './LSPTool.js'
+import { notBuilt } from '../../pi/holes.js'
 
 
 type RenderInput = Partial<{
@@ -185,64 +186,11 @@ export function renderToolResultMessage(
   return <LspResultSummary output={output} verbose={revealed} />
 }
 
-function LspResultSummary({
-  output,
-  verbose,
-}: {
+function LspResultSummary(arg0: {
   output: Output
   verbose: boolean
 }): React.ReactNode {
-  const tokens = useMercuryTokens()
-  if (output.resultCount === undefined || output.outcome === 'failed') {
-    const words = verbose ? output.result : collapseAndClip(output.result.split('\n')[0] ?? output.result, LSP_ONE_LINE_MAX)
-    return (
-      <MessageResponse>
-        <Text>
-          <OutcomeBadge output={output} />
-          <Text color={tokens.textMuted}>{words}</Text>
-        </Text>
-      </MessageResponse>
-    )
-  }
-  const count = output.resultCount
-  const isHoverHit = output.operation === 'hover' && count > 0
-  const summary = (
-    <Text>
-      <OutcomeBadge output={output} />
-      {isHoverHit ? (
-        <Text>hover information available</Text>
-      ) : (
-        <Text>
-          Found <Text color={tokens.accent}>{count}</Text> {labelFor(output.operation, count)}
-          {output.fileCount !== undefined && output.fileCount > 1 ? (
-            <Text>
-              {' '}
-              across <Text color={tokens.accent}>{output.fileCount}</Text> files
-            </Text>
-          ) : null}
-        </Text>
-      )}
-      {count > 0 && !verbose ? (
-        <Text color={tokens.textMuted}>
-          {' '}
-          <CtrlOToExpand />
-        </Text>
-      ) : null}
-    </Text>
-  )
-  if (!verbose) {
-    return <MessageResponse>{summary}</MessageResponse>
-  }
-  return (
-    <MessageResponse>
-      <Box flexDirection="column">
-        {summary}
-        <Box paddingLeft={2} flexDirection="column">
-          <Text>{output.result}</Text>
-        </Box>
-      </Box>
-    </MessageResponse>
-  )
+  return notBuilt('src/tools/LSPTool/UI.tsx:188')
 }
 
 export function renderToolUseErrorMessage(

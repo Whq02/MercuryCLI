@@ -1,10 +1,7 @@
-export const API_ERROR_MESSAGE_PREFIX = 'API Error'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
+
+export const API_ERROR_MESSAGE_PREFIX: Unbuilt = unbuilt('src/services/api/errorPrefix.ts:1')
 
 export function startsWithApiErrorPrefix(text: string): boolean {
-  return (
-    text.startsWith(API_ERROR_MESSAGE_PREFIX) ||
-    text.startsWith(`Run /logins. ${API_ERROR_MESSAGE_PREFIX}`) ||
-    text.startsWith(`Please run /logins. ${API_ERROR_MESSAGE_PREFIX}`) ||
-    text.startsWith(`Please run /logins · ${API_ERROR_MESSAGE_PREFIX}`)
-  )
+  return notBuilt('src/services/api/errorPrefix.ts:3')
 }

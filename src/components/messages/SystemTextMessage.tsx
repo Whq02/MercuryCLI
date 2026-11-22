@@ -1,4 +1,3 @@
-
 import { pathToFileURL } from 'node:url'
 import React, { useState } from 'react'
 import { Box, Text } from '../../ink.js'
@@ -28,6 +27,7 @@ import { SystemAPIErrorMessage } from './SystemAPIErrorMessage.js'
 import { UserNoticeMessage } from './UserNoticeMessage.js'
 import { useSelectedMessageBg } from '../messageActions.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 function TurnDurationRow({
   message,
@@ -93,242 +93,13 @@ function TurnDurationRow({
 }
 
 
-export function SystemTextMessage({
-  message,
-  addMargin = false,
-  verbose = false,
-  isTranscriptMode = false,
-}: {
+export function SystemTextMessage(arg0: {
   message: SystemMessage
   addMargin?: boolean
   verbose?: boolean
   isTranscriptMode?: boolean
 }): React.ReactNode {
-  const { columns } = useTerminalSize()
-  const tokens = useMercuryTokens()
-  const selectedBg = useSelectedMessageBg()
-  const [openError, setOpenError] = useState<string | null>(null)
-
-  switch (message.subtype) {
-    case 'turn_duration':
-      return <TurnDurationRow message={message} />
-
-    case 'memory_saved': {
-      const count = message.writtenPaths.length
-      return (
-        <Box
-          flexDirection="column"
-          marginTop={addMargin ? 1 : 0}
-          backgroundColor={selectedBg}
-        >
-          <Text>
-            <Text color="remember">● </Text>
-            <Text dimColor>
-              {message.verb ?? 'Saved'} {count} {plural(count, 'memory')}
-            </Text>
-          </Text>
-          {message.writtenPaths.map(path => {
-            const basename = path.split(/[\\/]/).pop() ?? path
-            return (
-              <InteractiveRow
-                key={path}
-                id={`memory-saved:${message.uuid}:${path}`}
-                directActivate
-                selectionBand={false}
-                onActivate={() => {
-                  setOpenError(null)
-                  void openPath(path, error => {
-                    setOpenError(`${path} could not be opened (${error}) — open it yourself`)
-                  })
-                }}
-              >
-                <Text dimColor>
-                  {'  '}
-                  <Link url={pathToFileURL(path).href} fallback={basename}>
-                    {basename}
-                  </Link>
-                </Text>
-              </InteractiveRow>
-            )
-          })}
-          {openError !== null ? <Text color="warning">{openError}</Text> : null}
-        </Box>
-      )
-    }
-
-    case 'model_transition': {
-      const previous = message.previous ?? 'default'
-      const applied = message.applied ?? 'default'
-      if (message.resolution === 'cancelled-pending') {
-        return (
-          <Text dimColor>
-            Queued model switch cancelled — staying on {previous}.
-          </Text>
-        )
-      }
-      if (message.resolution === 'applied' && message.boundary === 'turn-boundary') {
-        return (
-          <Text dimColor>
-            model switched to{' '}
-            {message.applied === null ? 'default' : renderModelName(message.applied)} for
-            this session
-            {message.crossProvider ? crossProviderNote(message.applied) : ''}
-          </Text>
-        )
-      }
-      const unchanged = message.previous === null && message.applied === null
-      const notes: string[] = []
-      if (message.boundary === 'turn-boundary') notes.push('at turn boundary')
-      if (message.crossProvider) notes.push('cross-provider')
-      return (
-        <Text dimColor>
-          {unchanged
-            ? `Model unchanged (${previous} → ${applied})`
-            : `Model: ${previous} → ${applied}`}
-          {notes.length > 0 ? ` (${notes.join(', ')})` : ''}
-        </Text>
-      )
-    }
-
-    case 'away_summary': {
-      if (message.recapMetadata) {
-        return (
-          <ResumeRecapCard metadata={message.recapMetadata} addMargin={addMargin} />
-        )
-      }
-      return (
-        <Text dimColor>
-          {'※ '}
-          {message.content}
-        </Text>
-      )
-    }
-
-    case 'agents_killed':
-      return (
-        <Text>
-          <Text color="error">● </Text>
-          <Text dimColor>All background crewmates stopped.</Text>
-        </Text>
-      )
-
-    case 'thinking':
-      return null
-
-    case 'bridge_status':
-      return (
-        <Box flexDirection="column">
-          <Text dimColor>
-            Remote control is active — /remote-control ·{' '}
-            <Link url={message.url} fallback={message.url}>
-              {message.url}
-            </Link>
-          </Text>
-          {message.upgradeNudge ? (
-            <MessageResponse height={1}>
-              <Text dimColor>{message.upgradeNudge}</Text>
-            </MessageResponse>
-          ) : null}
-        </Box>
-      )
-
-    case 'scheduled_task_fire':
-      return (
-        <Text dimColor>
-          {'* '}
-          {message.content}
-        </Text>
-      )
-
-    case 'seat_receipt':
-      return (
-        <Text color={message.level === 'warning' ? 'warning' : undefined}>
-          {message.content}
-        </Text>
-      )
-
-    case 'roster_transition':
-      return <Text dimColor>{message.content}</Text>
-
-    case 'advisor_quiet':
-      return <UserNoticeMessage addMargin={addMargin} blocks={[advisorBlockOf(message.origin, message.content)]} />
-
-    case 'stream_cut':
-      return (
-        <Box flexDirection="column">
-          <Text color="subtle">
-            Continued after <Text bold>{message.count}</Text> {plural(message.count, 'stream cut')} · context sent again
-            {verbose ? null : (
-              <>
-                {' '}
-                <CtrlOToExpand />
-              </>
-            )}
-          </Text>
-          {verbose ? <Text dimColor>{message.content}</Text> : null}
-        </Box>
-      )
-
-    case 'busy_recovery':
-      return (
-        <Box flexDirection="column">
-          <Text color="subtle">
-            {message.provider} was busy · answered after <Text bold>{message.retries}</Text> {message.retries === 1 ? 'retry' : 'retries'} ({Math.max(1, Math.round(message.elapsedMs / 1000))} s)
-            {verbose ? null : (
-              <>
-                {' '}
-                <CtrlOToExpand />
-              </>
-            )}
-          </Text>
-          {verbose ? <Text dimColor>{message.content}</Text> : null}
-        </Box>
-      )
-
-    case 'thinking_note':
-      return null
-
-    case 'thinking_dead':
-      return null
-
-    case 'api_error':
-      if (isTransportRetryNotice(message)) return null
-      return <SystemAPIErrorMessage message={message} verbose={verbose} />
-
-    default: {
-      const level = (message as { level?: string }).level ?? 'info'
-      if (level === 'info' && !verbose) return null
-      const content = (message as { content?: unknown }).content
-      if (typeof content !== 'string') return null
-      const glyph =
-        level === 'warning' || level === 'warn'
-          ? GLYPH.warn
-          : level === 'info'
-            ? GLYPH.idle
-            : GLYPH.done
-      return (
-        <Box
-          marginTop={addMargin ? 1 : 0}
-          width={Math.max(20, columns - 4)}
-          backgroundColor={selectedBg}
-        >
-          <Text
-            color={
-              level === 'warning' || level === 'warn'
-                ? tokens.warning
-                : level === 'error'
-                  ? tokens.failureText
-                  : undefined
-            }
-            dimColor={level === 'info'}
-            wrap="wrap"
-          >
-            {glyph} {content.trim()}
-          </Text>
-        </Box>
-      )
-    }
-  }
+  return notBuilt('src/components/messages/SystemTextMessage.tsx:96')
 }
 
 export default SystemTextMessage

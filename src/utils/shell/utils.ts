@@ -18,6 +18,7 @@ import type {
   ImageBlockParam,
   ToolResultBlockParam,
 } from '../../types/wire.js'
+import { notBuilt } from '../../pi/holes.js'
 
 
 const TOOL_USE_SUMMARY_LIMIT = 100
@@ -36,62 +37,23 @@ export async function sayWhatTheShellOwes(context: Pick<ToolUseContext, 'appendS
 }
 
 export function stripEmptyLines(content: string): string {
-  const normalised = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-  const lines = normalised.split('\n')
-  let start = 0
-  let end = lines.length - 1
-  while (start <= end && (lines[start] as string).trim() === '') start++
-  while (end >= start && (lines[end] as string).trim() === '') end--
-  if (start > end) return ''
-  return lines.slice(start, end + 1).join('\n')
+  return notBuilt('src/utils/shell/utils.ts:38')
 }
-
-
-const IMAGE_DATA_URL_RE = /^data:image\/[a-z0-9.+_-]+;base64,/i
-const DATA_URI_RE = /^data:([^;]+);base64,([^\r\n]+)$/
 
 export function isImageOutput(content: string): boolean {
-  return IMAGE_DATA_URL_RE.test(content)
-}
-
-function parseDataUri(s: string): { mediaType: string; data: string } | null {
-  const match = s.trim().match(DATA_URI_RE)
-  if (!match) return null
-  return { mediaType: match[1] as string, data: match[2] as string }
+  return notBuilt('src/utils/shell/utils.ts:53')
 }
 
 export function buildImageToolResult(stdout: string, toolUseID: string): ToolResultBlockParam | null {
-  const parsed = parseDataUri(stdout)
-  if (!parsed) return null
-  const source: Base64ImageSource = {
-    type: 'base64',
-    data: parsed.data,
-    media_type: parsed.mediaType as Base64ImageSource['media_type'],
-  }
-  const image: ImageBlockParam = { type: 'image', source }
-  return { type: 'tool_result', tool_use_id: toolUseID, content: [image] }
+  return notBuilt('src/utils/shell/utils.ts:63')
 }
-
-const MAX_IMAGE_DATA_URI_BYTES = 20 * 1024 * 1024
 
 export async function resizeShellImageOutput(
   stdout: string,
   outputFilePath: string | undefined,
   outputFileSize: number | undefined,
 ): Promise<string | null> {
-  let source = stdout
-  if (outputFilePath !== undefined) {
-    const { stat, readFile } = await import('node:fs/promises')
-    const size = outputFileSize ?? (await stat(outputFilePath)).size
-    if (size > MAX_IMAGE_DATA_URI_BYTES) return null
-    source = await readFile(outputFilePath, 'utf8')
-  }
-  const parsed = parseDataUri(source)
-  if (!parsed) return null
-  const buffer = Buffer.from(parsed.data, 'base64')
-  const subtype = mediaSubtype(parsed.mediaType)
-  const resized = await maybeResizeAndDownsampleImageBuffer(buffer, buffer.byteLength, subtype, { role: 'tool-result' })
-  return imageDataUrl(resized.mediaType, resized.buffer)
+  return notBuilt('src/utils/shell/utils.ts:77')
 }
 
 const imageDataUrl = (subtype: string, bytes: Buffer): string =>

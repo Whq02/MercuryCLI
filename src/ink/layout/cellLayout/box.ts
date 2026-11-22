@@ -1,5 +1,6 @@
 import type { LayoutAlign, LayoutFlexDirection, LayoutGutter, LayoutMeasureFunc } from '../node.js'
 import { type DimValue, type EdgeStore, edgeValue, resolve } from './values.js'
+import { notBuilt } from '../../../pi/holes.js'
 
 type Axis = 'row' | 'column'
 
@@ -20,19 +21,17 @@ type Boxed = {
 }
 
 export function mainAxis(self: Boxed): Axis {
-  return self.flexDirection === 'row' || self.flexDirection === 'row-reverse'
-    ? 'row'
-    : 'column'
+  return notBuilt('src/ink/layout/cellLayout/box.ts:22')
 }
 export function isReverse(self: Boxed): boolean {
-  return self.flexDirection === 'row-reverse' || self.flexDirection === 'column-reverse'
+  return notBuilt('src/ink/layout/cellLayout/box.ts:27')
 }
 
 function edgesH(store: EdgeStore): number {
-  return edgeValue(store, 'left') + edgeValue(store, 'right')
+  return notBuilt('src/ink/layout/cellLayout/box.ts:31')
 }
 function edgesV(store: EdgeStore): number {
-  return edgeValue(store, 'top') + edgeValue(store, 'bottom')
+  return notBuilt('src/ink/layout/cellLayout/box.ts:34')
 }
 
 export function clampW(self: Boxed, v: number, ownerW: number | undefined): number {
@@ -66,15 +65,11 @@ export function padBorderV(self: Boxed): number {
 }
 
 export function resolvedAlign(self: Boxed, parent: Boxed): LayoutAlign {
-  return self.alignSelf === 'auto' ? parent.alignItems : self.alignSelf
+  return notBuilt('src/ink/layout/cellLayout/box.ts:68')
 }
 
 export function hasMeasureFuncInSubtree(self: Boxed): boolean {
-  if (self.measureFunc) return true
-  for (const c of self.children) {
-    if (hasMeasureFuncInSubtree(c)) return true
-  }
-  return false
+  return notBuilt('src/ink/layout/cellLayout/box.ts:72')
 }
 
 export function mainGapOf(self: Boxed, axis: Axis): number {

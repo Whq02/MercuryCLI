@@ -1,134 +1,29 @@
-
 import { extendedKeysSupportedNow } from '../session/capabilities.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-export type ParsedKey = {
-  kind: 'key'
-  fn: boolean
-  name: string | undefined
-  ctrl: boolean
-  meta: boolean
-  shift: boolean
-  option: boolean
-  super: boolean
-  sequence: string | undefined
-  raw: string | undefined
-  code?: string
-  isPasted: boolean
-  x?: number
-  y?: number
-}
+export type ParsedKey = Unbuilt
 
-export const DECRPM_STATUS = {
-  NOT_RECOGNIZED: 0,
-  SET: 1,
-  RESET: 2,
-  PERMANENTLY_SET: 3,
-  PERMANENTLY_RESET: 4,
-} as const
+export const DECRPM_STATUS: Unbuilt = unbuilt('src/ink/input/interpreter.ts:22')
 
-export type TerminalResponse =
-  | { type: 'decrpm'; mode: number; status: number }
-  | { type: 'da1'; params: number[] }
-  | { type: 'da2'; params: number[] }
-  | { type: 'kittyKeyboard'; flags: number }
-  | { type: 'cursorPosition'; row: number; col: number }
-  | { type: 'osc'; code: number; data: string }
-  | { type: 'xtversion'; name: string }
+export type TerminalResponse = Unbuilt
 
-export type ParsedResponse = {
-  kind: 'response'
-  sequence: string
-  response: TerminalResponse
-}
+export type ParsedResponse = Unbuilt
 
-export type ParsedMouse = {
-  kind: 'mouse'
-  button: number
-  action: 'press' | 'release'
-  col: number
-  row: number
-  sequence: string
-}
+export type ParsedMouse = Unbuilt
 
-export type ParsedInput = ParsedKey | ParsedMouse | ParsedResponse
-
-
-const DECRPM_RE = /^\x1b\[\?(\d+);(\d+)\$y$/
-const DA1_RE = /^\x1b\[\?([\d;]*)c$/
-const DA2_RE = /^\x1b\[>([\d;]*)c$/
-const KITTY_FLAGS_RE = /^\x1b\[\?(\d+)u$/
-const CURSOR_POSITION_RE = /^\x1b\[\?(\d+);(\d+)R$/
-const PLAIN_CURSOR_POSITION_RE = /^\x1b\[(\d+);(\d+)R$/
-const cursorWindows = new Set<{ rows: ReadonlySet<number>; until: number }>()
+export type ParsedInput = Unbuilt
 
 export function openPlainCursorWindow(rows: readonly number[], until: number): () => void {
-  const window = { rows: new Set(rows), until }
-  cursorWindows.add(window)
-  return () => { cursorWindows.delete(window) }
-}
-const OSC_RESPONSE_RE = /^\x1b\](\d+);(.*?)(?:\x07|\x1b\\)$/s
-const XTVERSION_RE = /^\x1bP>\|(.*?)(?:\x07|\x1b\\)$/s
-
-function numericParams(params: string): number[] {
-  if (!params) return []
-  return params.split(';').map(p => parseInt(p, 10))
+  return notBuilt('src/ink/input/interpreter.ts:65')
 }
 
 export function interpretResponse(s: string): TerminalResponse | null {
-  if (s.startsWith('\x1b[')) {
-    let m: RegExpExecArray | null
-    if ((m = DECRPM_RE.exec(s))) {
-      return { type: 'decrpm', mode: parseInt(m[1]!, 10), status: parseInt(m[2]!, 10) }
-    }
-    if ((m = DA1_RE.exec(s))) return { type: 'da1', params: numericParams(m[1]!) }
-    if ((m = DA2_RE.exec(s))) return { type: 'da2', params: numericParams(m[1]!) }
-    if ((m = KITTY_FLAGS_RE.exec(s))) {
-      return { type: 'kittyKeyboard', flags: parseInt(m[1]!, 10) }
-    }
-    if ((m = CURSOR_POSITION_RE.exec(s))) {
-      return { type: 'cursorPosition', row: parseInt(m[1]!, 10), col: parseInt(m[2]!, 10) }
-    }
-    if ((m = PLAIN_CURSOR_POSITION_RE.exec(s))) {
-      const row = Number(m[1])
-      const col = Number(m[2])
-      for (const window of cursorWindows) {
-        if (performance.now() >= window.until) {
-          cursorWindows.delete(window)
-        } else if (window.rows.has(row) && Number.isSafeInteger(col) && col > 0) {
-          return { type: 'cursorPosition', row, col }
-        }
-      }
-    }
-    return null
-  }
-  if (s.startsWith('\x1b]')) {
-    const m = OSC_RESPONSE_RE.exec(s)
-    if (m) return { type: 'osc', code: parseInt(m[1]!, 10), data: m[2]! }
-  }
-  if (s.startsWith('\x1bP')) {
-    const m = XTVERSION_RE.exec(s)
-    if (m) return { type: 'xtversion', name: m[1]! }
-  }
-  return null
+  return notBuilt('src/ink/input/interpreter.ts:78')
 }
 
-
-const SGR_MOUSE_RE = /^\x1b\[<(\d+);(\d+);(\d+)([Mm])$/
-
 export function interpretMouse(s: string): ParsedMouse | null {
-  const m = SGR_MOUSE_RE.exec(s)
-  if (!m) return null
-  const button = parseInt(m[1]!, 10)
-  if ((button & 0x40) !== 0) return null
-  return {
-    kind: 'mouse',
-    button,
-    action: m[4] === 'M' ? 'press' : 'release',
-    col: parseInt(m[2]!, 10),
-    row: parseInt(m[3]!, 10),
-    sequence: s,
-  }
+  return notBuilt('src/ink/input/interpreter.ts:119')
 }
 
 
@@ -199,16 +94,6 @@ export const nonAlphanumericKeys = [
   'mouse',
 ]
 
-function decodeModifier(modifier: number): {
-  shift: boolean
-  meta: boolean
-  ctrl: boolean
-  super: boolean
-} {
-  const m = modifier - 1
-  return { shift: !!(m & 1), meta: !!(m & 2), ctrl: !!(m & 4), super: !!(m & 8) }
-}
-
 const KEYPAD_FIRST_CODE = 57399
 const NAMED_KEYCODES: ReadonlyMap<number, string> = new Map<number, string>([
   [9, 'tab'],
@@ -248,43 +133,6 @@ function resolveChordNameFromLayout(
 
 const CSI_U_RE = /^\x1b\[(\d+)(?::(\d*))?(?::(\d*))?(?::\d*)*(?:;(\d+)(?::(\d+))?)?(?:;([\d:]+))?u$/
 const EVENT_TYPED_FUNCTIONAL_RE = /^(\x1b\[[\d;]*);(\d+):(\d+)([~A-Za-z])$/
-const MODIFY_OTHER_KEYS_RE = /^\x1b\[27;(\d+);(\d+)~/
-const META_KEY_CODE_RE = /^(?:\x1b)([a-zA-Z0-9\]\\_^])$/
-const FN_KEY_RE =
-  /^(?:\x1b+)(O|N|\[|\[\[)(?:(\d+)(?:;(\d+))?([~^$])|(?:1;)?(\d+)?([a-zA-Z]))/
-
-function baseKey(s: string): ParsedKey {
-  return {
-    kind: 'key',
-    name: '',
-    fn: false,
-    ctrl: false,
-    meta: false,
-    shift: false,
-    option: false,
-    super: false,
-    sequence: s,
-    raw: s,
-    isPasted: false,
-  }
-}
-
-function modifiedKey(s: string, keycode: number, modifier: number): ParsedKey {
-  const mods = decodeModifier(modifier)
-  return {
-    kind: 'key',
-    name: keycodeToName(keycode, mods.ctrl || mods.meta || mods.super ? 'chord' : 'typed'),
-    fn: false,
-    ctrl: mods.ctrl,
-    meta: mods.meta,
-    shift: mods.shift,
-    option: false,
-    super: mods.super,
-    sequence: s,
-    raw: s,
-    isPasted: false,
-  }
-}
 
 function navKey(s: string, name: string, ctrl: boolean): ParsedKey {
   return {
@@ -303,118 +151,11 @@ function navKey(s: string, name: string, ctrl: boolean): ParsedKey {
 }
 
 export function createPasteKey(content: string): ParsedKey {
-  const key = baseKey(content)
-  return { ...key, isPasted: true }
+  return notBuilt('src/ink/input/interpreter.ts:305')
 }
 
-export function interpretKey(s: string = ''): ParsedKey {
-  let match: RegExpExecArray | null
-
-  if (PLAIN_CURSOR_POSITION_RE.test(s) && !s.startsWith('\x1b[1;')) {
-    return { ...baseKey(s), name: undefined, code: '[R' }
-  }
-
-  if ((match = CSI_U_RE.exec(s))) {
-    if (match[5] === '3') return baseKey(s)
-    const key = modifiedKey(s, parseInt(match[1]!, 10), match[4] ? parseInt(match[4], 10) : 1)
-    if (key.name === undefined && (key.ctrl || key.meta || key.super)) {
-      key.name = resolveChordNameFromLayout(match[3], match[2])
-    }
-    if (match[2] && key.shift && !key.ctrl && !key.meta && !key.super && !match[6]) {
-      const shifted = parseInt(match[2], 10)
-      if (isTypedCodepoint(shifted)) key.name = String.fromCodePoint(shifted)
-    }
-    if (match[6] && !key.ctrl && !key.meta) {
-      const codepoints = match[6].split(':').map(cp => parseInt(cp, 10))
-      if (codepoints.some(cp => !Number.isInteger(cp) || cp < 0 || cp > 0x10ffff)) return baseKey(s)
-      const text = codepoints.map(cp => String.fromCodePoint(cp)).join('')
-      if (text.length > 0) key.name = text
-    }
-    return key
-  }
-  if ((match = EVENT_TYPED_FUNCTIONAL_RE.exec(s))) {
-    if (match[3] === '3') return baseKey(s)
-    return interpretKey(`${match[1]};${match[2]}${match[4]}`)
-  }
-  if ((match = MODIFY_OTHER_KEYS_RE.exec(s))) {
-    return modifiedKey(s, parseInt(match[2]!, 10), parseInt(match[1]!, 10))
-  }
-
-  if ((match = SGR_MOUSE_RE.exec(s))) {
-    const button = parseInt(match[1]!, 10)
-    const x = parseInt(match[2]!, 10)
-    const y = parseInt(match[3]!, 10)
-    if ((button & 0x43) === 0x40) return { ...navKey(s, 'wheelup', false), x, y }
-    if ((button & 0x43) === 0x41) return { ...navKey(s, 'wheeldown', false), x, y }
-    return navKey(s, 'mouse', false)
-  }
-  if (s.length === 6 && s.startsWith('\x1b[M')) {
-    const button = s.charCodeAt(3) - 32
-    const x = s.charCodeAt(4) - 32
-    const y = s.charCodeAt(5) - 32
-    if ((button & 0x43) === 0x40) return { ...navKey(s, 'wheelup', false), x, y }
-    if ((button & 0x43) === 0x41) return { ...navKey(s, 'wheeldown', false), x, y }
-    return navKey(s, 'mouse', false)
-  }
-
-  const key = baseKey(s)
-  key.sequence = key.sequence || s || key.name
-
-  let parts: RegExpExecArray | null
-  const literal = Object.hasOwn(LITERAL_KEYS, s) ? LITERAL_KEYS[s] : undefined
-  if (literal) {
-    Object.assign(key, literal)
-  } else if (s.length === 1) {
-    const code = s.charCodeAt(0)
-    if (code <= 0x1a) {
-      key.name = String.fromCharCode(code + 0x60)
-      key.ctrl = true
-    } else if (code >= 0x30 && code <= 0x39) {
-      key.name = 'number'
-    } else if (code >= 0x41 && code <= 0x5a) {
-      key.name = s.toLowerCase()
-      key.shift = true
-    } else if (code >= 0x61 && code <= 0x7a) {
-      key.name = s
-    }
-  } else if ((parts = META_KEY_CODE_RE.exec(s))) {
-    key.meta = true
-    key.shift = /^[A-Z]$/.test(parts[1]!)
-  } else if ((parts = FN_KEY_RE.exec(s))) {
-    const segs = [...s]
-    if (segs[0] === '\u001b' && segs[1] === '\u001b') {
-      key.option = true
-    }
-    const code = [parts[1], parts[2], parts[4], parts[6]].filter(Boolean).join('')
-    const modifier = ((parts[3] || parts[5] || 1) as number) - 1
-    key.ctrl = !!(modifier & 4)
-    key.meta = !!(modifier & 2)
-    key.super = !!(modifier & 8)
-    key.shift = !!(modifier & 1)
-    key.code = code
-    key.name = code === CSI_P ? csiPName() : KEY_NAME[code]
-    key.shift = SHIFT_CODES.has(code) || key.shift
-    key.ctrl = CTRL_CODES.has(code) || key.ctrl
-  }
-
-  if (key.raw === '\x1Bb') {
-    key.meta = true
-    key.name = 'left'
-  } else if (key.raw === '\x1Bf') {
-    key.meta = true
-    key.name = 'right'
-  }
-
-  switch (s) {
-    case '\u001b[1~': return navKey(s, 'home', false)
-    case '\u001b[4~': return navKey(s, 'end', false)
-    case '\u001b[5~': return navKey(s, 'pageup', false)
-    case '\u001b[6~': return navKey(s, 'pagedown', false)
-    case '\u001b[1;5D': return navKey(s, 'left', true)
-    case '\u001b[1;5C': return navKey(s, 'right', true)
-  }
-
-  return key
+export function interpretKey(s?: string): ParsedKey {
+  return notBuilt('src/ink/input/interpreter.ts:310')
 }
 
 

@@ -8,17 +8,10 @@ import type { FileState } from '../../utils/fileStateCache.js'
 import { logError } from '../../utils/log.js'
 import { pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
 import type { Attachment } from '../../utils/attachments/types.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export async function getNestedMemoryAttachments(toolUseContext: ToolUseContext): Promise<Attachment[]> {
-  const triggers = toolUseContext.nestedMemoryAttachmentTriggers
-  if (!triggers?.size) return []
-  const appState = toolUseContext.getAppState()
-  const loads: Attachment[][] = []
-  for (const touched of triggers) {
-    loads.push(await getNestedMemoryAttachmentsForFile(touched, toolUseContext, appState))
-  }
-  triggers.clear()
-  return loads.flat()
+  return notBuilt('src/services/attachments/nestedMemory.ts:12')
 }
 
 export async function getNestedMemoryAttachmentsForFile(
@@ -26,17 +19,7 @@ export async function getNestedMemoryAttachmentsForFile(
   context: ToolUseContext,
   state: { toolPermissionContext: ToolPermissionContext },
 ): Promise<Attachment[]> {
-  const delivered: Attachment[] = []
-  try {
-    if (pathInAllowedWorkingPath(filePath, state.toolPermissionContext)) {
-      for await (const entries of instructionBatches(filePath)) {
-        delivered.push(...memoryFilesToAttachments(entries, context))
-      }
-    }
-  } catch (failure) {
-    logError(failure)
-  }
-  return delivered
+  return notBuilt('src/services/attachments/nestedMemory.ts:24')
 }
 
 async function* instructionBatches(file: string): AsyncGenerator<InstructionSourceEntry[]> {
@@ -58,15 +41,11 @@ function* ancestors(directory: string, stop?: string): Generator<string> {
 }
 
 export function getDirectoriesToProcess(targetPath: string, originalCwd: string): { nestedDirs: string[]; cwdLevelDirs: string[] } {
-  return {
-    nestedDirs: [...ancestors(dirname(resolve(targetPath)), originalCwd)].filter(directory => directory.startsWith(originalCwd)).reverse(),
-    cwdLevelDirs: [...ancestors(originalCwd)].reverse(),
-  }
+  return notBuilt('src/services/attachments/nestedMemory.ts:60')
 }
 
 function contextRecordOf(entry: InstructionSourceEntry, clipped: boolean): FileState {
-  const content = entry.contentDiffersFromDisk ? entry.rawContent ?? entry.content : entry.content
-  return { content, timestamp: Date.now(), offset: undefined, limit: undefined, isPartialView: clipped || entry.contentDiffersFromDisk }
+  return notBuilt('src/services/attachments/nestedMemory.ts:67')
 }
 
 function clipNestedGuide(entry: InstructionSourceEntry, cap: number): InstructionSourceEntry {

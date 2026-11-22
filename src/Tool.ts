@@ -41,6 +41,7 @@ import type {
 } from './types/tools.js'
 import type { ToolResultBlockParam } from './types/wire.js'
 import type { SystemPrompt } from './utils/systemPromptType.js'
+import { notBuilt, type Unbuilt } from './pi/holes.js'
 
 
 export type {
@@ -53,13 +54,11 @@ export type {
 }
 export type { ToolPermissionRulesBySource }
 
-export type AnyObject = Record<string, unknown>
+export type AnyObject = Unbuilt
 
-export type ToolInputJSONSchema = Record<string, any>
+export type ToolInputJSONSchema = Unbuilt
 
-export type ValidationResult =
-  | { result: true; message?: string; meta?: AnyObject }
-  | { result: false; message: string; errorCode?: number; meta?: AnyObject }
+export type ValidationResult = Unbuilt
 
 export type ToolCallChain = {
   key: string
@@ -84,19 +83,9 @@ export function advanceToolCallChain(
   }
 }
 
-export type ToolTerminalFrame = {
-  jsx: React.ReactNode | null
-  shouldHidePromptInput: boolean
-  shouldContinueAnimation?: true
-  showSpinner?: boolean
-  isLocalJSXCommand?: boolean
-  clearLocalJSX?: boolean
-  clearUnlessLocalJSX?: boolean
-  deferIfLocalJSX?: boolean
-  isImmediate?: boolean
-}
+export type ToolTerminalFrame = Unbuilt
 
-export type SetToolJSXFn = (frame: ToolTerminalFrame | null) => void
+export type SetToolJSXFn = (...args: Unbuilt[]) => Unbuilt
 
 type ReadonlyRulesBySource = {
   readonly [K in PermissionRuleSource]?: readonly string[]
@@ -106,48 +95,19 @@ type ReadonlyRuleReasonsBySource = {
   readonly [K in PermissionRuleSource]?: { readonly [spelling: string]: string }
 }
 
-export type ToolPermissionContext = {
-  readonly mode: InternalPermissionMode
-  readonly baseTools?: readonly string[]
-  readonly alwaysAllowRules: ReadonlyRulesBySource
-  readonly alwaysDenyRules: ReadonlyRulesBySource
-  readonly alwaysAskRules: ReadonlyRulesBySource
-  readonly ruleReasons?: ReadonlyRuleReasonsBySource
-  readonly isBypassPermissionsModeAvailable: boolean
-  readonly isFlowAvailable?: boolean
-  readonly strippedDangerousRules?: ReadonlyRulesBySource
-  readonly shouldAvoidPermissionPrompts?: boolean
-  readonly awaitAutomatedChecksBeforeDialog?: boolean
-}
+export type ToolPermissionContext = Unbuilt
 
 export function getEmptyToolPermissionContext(): ToolPermissionContext {
-  return {
-    mode: 'default',
-    alwaysAllowRules: {},
-    alwaysDenyRules: {},
-    alwaysAskRules: {},
-    isBypassPermissionsModeAvailable: false,
-  }
+  return notBuilt('src/Tool.ts:123')
 }
 
-export type CompactProgressEvent =
-  | { type: 'hooks_start'; hookType: 'pre_compact' | 'post_compact' | 'session_start' }
-  | { type: 'compact_start' }
-  | { type: 'compact_end' }
-  | { type: 'stage'; stage: 'session-memory' | 'micro-compaction' | 'summarising' | 'restoring' }
-  | { type: 'summary_progress'; chars: number }
-  | { type: 'retry'; attempt: number }
+export type CompactProgressEvent = Unbuilt
 
-export type Progress = ToolProgressData | HookProgress
+export type Progress = Unbuilt
 
-export type ToolProgress<P extends ToolProgressData = ToolProgressData> = {
-  toolUseID: string
-  data: P
-}
+export type ToolProgress<P extends ToolProgressData = ToolProgressData> = Unbuilt
 
-export type ToolCallProgress<P extends ToolProgressData = ToolProgressData> = (
-  progress: ToolProgress<P>,
-) => void
+export type ToolCallProgress<P extends ToolProgressData = ToolProgressData> = (...args: Unbuilt[]) => Unbuilt
 
 export type ToolEffectOutcome = 'succeeded' | 'failed' | 'no-change' | 'indeterminate'
 
@@ -167,17 +127,7 @@ export interface ChangeIntentProjection {
   targetVersions?: Array<{ path: string; version: string }>
 }
 
-export type ToolResult<TOutput = unknown> = {
-  data: TOutput
-  effect?: ToolEffect
-  changeIntent?: ChangeIntentProjection
-  newMessages?: Message[]
-  contextModifier?: (context: ToolUseContext) => ToolUseContext
-  mcpMeta?: {
-    _meta?: Record<string, unknown>
-    structuredContent?: Record<string, unknown>
-  }
-}
+export type ToolResult<TOutput = unknown> = Unbuilt
 
 export type McpToolInfo = {
   serverName: string
@@ -188,11 +138,7 @@ export type McpToolInfo = {
 
 export type ToolInterruptBehavior = 'cancel' | 'block'
 
-export type SearchOrReadClassification = {
-  isSearch: boolean
-  isRead: boolean
-  isList?: boolean
-}
+export type SearchOrReadClassification = Unbuilt
 
 type MaybePromise<T> = T | Promise<T>
 
@@ -205,94 +151,13 @@ export type ToolRenderOptions = {
   [key: string]: any
 }
 
-export type AgentDefinitionsState = {
-  activeAgents: AgentDefinition[]
-  allowedAgentTypes?: string[]
-  [key: string]: any
-}
+export type AgentDefinitionsState = Unbuilt
 
-export type ToolSessionOptions = {
-  commands: Command[]
-  debug?: boolean
-  verbose: boolean
-  engineModel: string
-  maxThinkingTokens?: number
-  thinkingConfig?: any
-  tools: Tools
-  refreshTools?: () => Tools
-  mcpClients: MCPServerConnection[]
-  mcpResources?: Record<string, any[]>
-  isNonInteractiveSession: boolean
-  hostHoldsAsks?: boolean
-  runDeadline?: { at: number; limitMs: number }
-  agentDefinitions: AgentDefinitionsState
-  budget?: any
-  customSystemPrompt?: string
-  appendSystemPrompt?: string
-  querySource?: QuerySource
-  [key: string]: any
-}
+export type ToolSessionOptions = Unbuilt
 
-export type ToolTerminalOptions = {
-  setProgressMessage?: (message: string | null) => void
-  setResponseLength: (updater: (prev: number) => number) => void
-  setStreamMode?: (mode: any) => void
-  setInProgressToolUseIDs?: (updater: (prev: Set<string>) => Set<string>) => void
-  addNotification?: (...args: any[]) => void
-  appendSystemMessage?: (
-    message: Exclude<SystemMessage, { subtype: 'local_command' }>,
-  ) => void
-  handleElicitation?: (
-    serverName: string,
-    params: any,
-    elicitSignal?: AbortSignal,
-  ) => Promise<any>
-  onSeatWait?: (words: string | null) => void
-  setToolJSX?: SetToolJSXFn
-  setIsInterruptibleToolRunning?: (running: boolean) => void
-  onCompactProgress?: (event: CompactProgressEvent) => void
-  setSDKStatus?: (status: any) => void
-  openMessageSelector?: () => void
-  setConversationId?: (id: any) => void
-}
+export type ToolTerminalOptions = Unbuilt
 
-export type ToolUseContext = ToolTerminalOptions & ToolCallChainCarrier & {
-  options: ToolSessionOptions
-  startTurn: StartTurn
-  abortController: AbortController
-  readFileState: FileStateCache
-  getAppState: () => AppState
-  setAppState: SetToolAppState
-  setAppStateForTasks?: SetToolAppState
-  messages: Message[]
-  updateFileHistoryState: (updater: (prev: FileHistoryState) => FileHistoryState) => void
-  updateAttributionState: (updater: (prev: any) => any) => void
-  agentId?: AgentId
-  agentType?: string
-  agentKind?: 'crewmate'
-  seatHolder?: string
-  roundHandle?: string
-  owner?: OwnerKey
-  rosterOwner?: OwnerKey
-  toolDecisions?: Map<string, PermissionDecision>
-  fileReadingLimits?: any
-  nestedMemoryAttachmentTriggers?: Set<string>
-  loadedNestedMemoryPaths?: Set<string>
-  dynamicSkillDirTriggers?: Set<string>
-  discoveredSkillNames?: Set<string>
-  preserveToolResults?: boolean
-  alwaysCallCanUseTool?: boolean
-  requireCanUseTool?: boolean
-  contentReplacementState?: ContentReplacementState
-  renderedSystemPrompt?: SystemPrompt
-  globLimits?: { maxResults?: number }
-  toolUseId?: string
-  shellInputId?: string
-  userModifiedInput?: boolean
-  standingRule?: string
-}
-
-type SetToolAppState = (updater: (prevState: AppState) => AppState) => void
+export type ToolUseContext = Unbuilt
 
 interface ToolMembers<TInput, TOutput, TProgress extends ToolProgressData> {
   name: string
@@ -378,56 +243,19 @@ interface ToolMembers<TInput, TOutput, TProgress extends ToolProgressData> {
   userFacingName?(input?: any): string
 }
 
-export interface ToolDef<
-  TSchema extends ZodType = ZodType,
-  TOutput = any,
-  TProgress extends ToolProgressData = ToolProgressData,
-> extends ToolMembers<ZodOutput<TSchema>, TOutput, TProgress> {
-  inputSchema: TSchema
-}
+export type ToolDef<TSchema extends ZodType = ZodType, TOutput = any, TProgress extends ToolProgressData = ToolProgressData> = Unbuilt
 
 
-export type ToolDefaults = {
-  isEnabled(): boolean
-  isConcurrencySafe(input?: any): boolean
-  isReadOnly(input?: any): boolean
-  isDestructive(input?: any): boolean
-  checkPermissions(input?: any, context?: ToolUseContext): Promise<PermissionResult>
-  userFacingName(input?: any): string
-  renderToolUseMessage(input?: any, options?: any): React.ReactNode | string | null
-  renderToolUseProgressMessage(progress?: any, options?: any): React.ReactNode
-  renderToolUseQueuedMessage(input?: any, options?: any): React.ReactNode
-  renderToolUseRejectedMessage(input?: any, options?: any): React.ReactNode
-  renderToolUseErrorMessage(error?: any, options?: any): React.ReactNode
-  renderToolResultMessage(output?: any, progressMessages?: any, options?: any): React.ReactNode
-}
+export type ToolDefaults = Unbuilt
 
 export type Tool<
   TIn = any,
   TOutput = any,
   TProgress extends ToolProgressData = ToolProgressData,
   TInput = ToolInputOf<TIn>,
-> = ToolMembers<TInput, TOutput, TProgress> & {
-  inputSchema: ZodType<TInput, any>
-  isEnabled(): boolean
-  isConcurrencySafe(input: any): boolean
-  isReadOnly(input: any): boolean
-  checkPermissions(input: any, context: ToolUseContext): Promise<PermissionResult>
-  userFacingName(input?: Partial<TInput>): string
-  renderToolUseMessage(input?: any, options?: any): React.ReactNode | string | null
-  renderToolUseRejectedMessage(input?: any, options?: any): React.ReactNode
-  renderToolResultMessage(output?: any, progressMessages?: any, options?: any): React.ReactNode
-  renderToolUseErrorMessage(error?: any, options?: any): React.ReactNode
-  prompt(options?: {
-    getToolPermissionContext?: () => Promise<ToolPermissionContext>
-    tools?: Tools
-    agents?: AgentDefinition[]
-    allowedAgentTypes?: string[]
-    model?: string
-  }): Promise<string>
-}
+> = Unbuilt
 
-export type Tools = readonly Tool[]
+export type Tools = readonly Unbuilt[]
 
 export type CanUseToolFn<
   Input extends Record<string, unknown> = Record<string, unknown>,
@@ -443,48 +271,27 @@ export type CanUseToolFn<
 export type ToolInputOf<T> = T extends ZodType ? ZodOutput<T> : T
 
 export function buildTool<D extends ToolDef<any, any, any>>(def: D): D & ToolDefaults {
-  const tool = {
-    isEnabled: () => true,
-    isConcurrencySafe: () => false,
-    isReadOnly: () => false,
-    isDestructive: () => false,
-    checkPermissions: async (input: any) =>
-      ({ behavior: 'allow', updatedInput: input }) as PermissionResult,
-    userFacingName: () => def.name,
-    renderToolUseMessage: () => null,
-    renderToolUseProgressMessage: () => null,
-    renderToolUseQueuedMessage: () => null,
-    renderToolUseRejectedMessage: () => null,
-    renderToolUseErrorMessage: () => null,
-    renderToolResultMessage: () => null,
-    ...def,
-  }
-  return tool as D & ToolDefaults
+  return notBuilt('src/Tool.ts:445')
 }
 
 export function filterToolProgressMessages(
   progressMessages: ProgressMessage[],
 ): ProgressMessage<ToolProgressData>[] {
-  return progressMessages.filter(
-    message =>
-      (message.data as { type?: string } | undefined)?.type !== 'hook_progress',
-  ) as ProgressMessage<ToolProgressData>[]
+  return notBuilt('src/Tool.ts:465')
 }
 
 export function toolMatchesName(
   tool: { name: string; aliases?: string[] },
   name: string,
 ): boolean {
-  if (tool.name === name) return true
-  return tool.aliases?.includes(name) ?? false
+  return notBuilt('src/Tool.ts:474')
 }
 
 function toolMatchesFoldedName(
   tool: { name: string; aliases?: string[] },
   folded: string,
 ): boolean {
-  if (tool.name.toLowerCase() === folded) return true
-  return tool.aliases?.some(alias => alias.toLowerCase() === folded) ?? false
+  return notBuilt('src/Tool.ts:482')
 }
 
 function findToolByFoldedName(tools: Tools, name: string): Tool | undefined {

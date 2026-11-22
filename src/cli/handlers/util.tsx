@@ -8,40 +8,10 @@ import { KeybindingSetup } from '../../keybindings/KeybindingProviderSetup.js'
 import { AppStateProvider } from '../../state/AppState.js'
 import { isAnthropicAuthEnabled } from '../../utils/auth.js'
 import { logError } from '../../utils/log.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export async function setupTokenHandler(root: Root): Promise<void> {
-  const showExistingCredentialWarning = !isAnthropicAuthEnabled()
-  await new Promise<void>(resolve => {
-    root.render(
-      <AppStateProvider>
-        <KeybindingSetup>
-          <Box flexDirection="column" gap={1}>
-            <Box flexDirection="column">
-              <Crab />
-              <Wordmark version={MERCURY_VERSION} />
-              <Text dimColor>Long-lived token setup</Text>
-            </Box>
-            {showExistingCredentialWarning ? (
-              <Text color="yellow">
-                This session already has credentials (via environment variable
-                or API key helper). This flow mints a separate OAuth token you
-                can use in their place.
-              </Text>
-            ) : null}
-            <ConsoleOAuthFlow
-              mode="setup-token"
-              onDone={() => resolve()}
-              startingMessage={
-                'This creates a long-lived authentication token for your Claude account. The token is valid for one year and requires an active subscription.'
-              }
-            />
-          </Box>
-        </KeybindingSetup>
-      </AppStateProvider>,
-    )
-  })
-  root.unmount()
-  process.exit(0)
+  return notBuilt('src/cli/handlers/util.tsx:12')
 }
 
 export async function healthHandler(root: Root): Promise<void> {

@@ -1,4 +1,4 @@
-
+import { notBuilt } from '../pi/holes.js'
 
 export async function returnValue<A>(gen: AsyncGenerator<unknown, A, unknown>): Promise<A> {
   let next = await gen.next()
@@ -15,37 +15,7 @@ type Tracked<A> = {
 
 export async function* all<A>(
   generators: Array<AsyncGenerator<A, void, unknown>>,
-  concurrencyCap: number = Number.POSITIVE_INFINITY,
+  concurrencyCap?: number,
 ): AsyncGenerator<A, void, unknown> {
-  const waiting = [...generators]
-  const live = new Set<Tracked<A>>()
-
-  const track = (generator: AsyncGenerator<A, void, unknown>): Tracked<A> => {
-    const promise: Tracked<A>['promise'] = generator.next().then(result => ({ tracked, result }))
-    const tracked: Tracked<A> = {
-      generator,
-      promise,
-    }
-    return tracked
-  }
-
-  while (live.size < concurrencyCap && waiting.length > 0) {
-    live.add(track(waiting.shift() as AsyncGenerator<A, void, unknown>))
-  }
-
-  while (live.size > 0) {
-    const { tracked, result } = await Promise.race([...live].map(entry => entry.promise))
-    live.delete(tracked)
-    if (result.done) {
-      if (waiting.length > 0) {
-        live.add(track(waiting.shift() as AsyncGenerator<A, void, unknown>))
-      }
-      continue
-    }
-    tracked.promise = tracked.generator.next().then(next => ({ tracked, result: next }))
-    live.add(tracked)
-    if (result.value !== undefined) {
-      yield result.value
-    }
-  }
+  return notBuilt('src/utils/generators.ts:16')
 }

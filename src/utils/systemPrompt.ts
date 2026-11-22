@@ -1,21 +1,10 @@
-import { MERCURY_CONSTITUTION } from '../prompt/mercuryContract.js'
-import { isWholeRecordedComposition } from '../prompt/recordedComposition.js'
 import type { ToolUseContext } from '../Tool.js'
 import type { AgentDefinition } from '../types/agent.js'
-import { isBuiltInAgent } from '../types/agent.js'
 import type { SystemPrompt } from './systemPromptType.js'
-import { asSystemPrompt } from './systemPromptType.js'
+import { notBuilt } from '../pi/holes.js'
 
 
-
-export function buildEffectiveSystemPrompt({
-  mainThreadAgentDefinition,
-  toolUseContext,
-  customSystemPrompt,
-  defaultSystemPrompt,
-  appendSystemPrompt,
-  overrideSystemPrompt,
-}: {
+export function buildEffectiveSystemPrompt(arg0: {
   mainThreadAgentDefinition: AgentDefinition | undefined
   toolUseContext: Pick<ToolUseContext, 'options'>
   customSystemPrompt: string | undefined
@@ -23,27 +12,5 @@ export function buildEffectiveSystemPrompt({
   appendSystemPrompt: string | undefined
   overrideSystemPrompt?: string
 }): SystemPrompt {
-  if (overrideSystemPrompt !== undefined && overrideSystemPrompt !== '') {
-    return asSystemPrompt([overrideSystemPrompt])
-  }
-  if (isWholeRecordedComposition(defaultSystemPrompt)) return asSystemPrompt(defaultSystemPrompt)
-
-  const agentPrompt = mainThreadAgentDefinition
-    ? isBuiltInAgent(mainThreadAgentDefinition)
-      ? mainThreadAgentDefinition.getSystemPrompt({ toolUseContext })
-      : mainThreadAgentDefinition.getSystemPrompt()
-    : undefined
-
-  const parts: string[] = []
-  if (agentPrompt !== undefined && agentPrompt !== '') {
-    parts.push(MERCURY_CONSTITUTION, agentPrompt)
-  } else if (customSystemPrompt !== undefined) {
-    parts.push(MERCURY_CONSTITUTION, customSystemPrompt)
-  } else {
-    parts.push(...defaultSystemPrompt)
-  }
-  if (appendSystemPrompt !== undefined && appendSystemPrompt !== '') {
-    parts.push(appendSystemPrompt)
-  }
-  return asSystemPrompt(parts)
+  return notBuilt('src/utils/systemPrompt.ts:11')
 }

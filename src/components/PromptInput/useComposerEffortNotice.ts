@@ -3,18 +3,9 @@ import { usePublish } from '../../hooks/effects.js'
 import type { Notification } from '../../context/notifications.js'
 import type { AppState } from '../../state/AppState.js'
 import { composerEffortNotice } from './composerEffortNotice.js'
+import { notBuilt } from '../../pi/holes.js'
 
-export function useComposerEffortNotice({
-  focusedEffectiveModel,
-  engineModel,
-  focusedMainModel,
-  seatEffort,
-  sentEffort,
-  effortValue,
-  bornEffort,
-  addNotification,
-  removeNotification,
-}: {
+export function useComposerEffortNotice(arg0: {
   focusedEffectiveModel: string
   engineModel: AppState['engineModel']
   focusedMainModel: string
@@ -25,35 +16,5 @@ export function useComposerEffortNotice({
   addNotification: (notification: Notification) => void
   removeNotification: (key: string) => void
 }): void {
-  const effortText = composerEffortNotice({
-    model: focusedEffectiveModel !== '' ? focusedEffectiveModel : (engineModel ?? focusedMainModel),
-    seatEffort,
-    sentEffort,
-    effortValue,
-    bornEffort,
-  })
-  const effortBaselineRef = useRef<{ armed: boolean; text: string | undefined }>({
-    armed: false,
-    text: undefined,
-  })
-  usePublish(() => {
-    const baseline = effortBaselineRef.current
-    if (!baseline.armed) {
-      effortBaselineRef.current = { armed: true, text: effortText }
-      return
-    }
-    if (effortText === baseline.text) return
-    effortBaselineRef.current = { armed: true, text: effortText }
-    if (effortText === undefined) {
-      removeNotification('effort-level')
-      return
-    }
-    addNotification({
-      key: 'effort-level',
-      text: effortText,
-      priority: 'high',
-      timeoutMs: 12000,
-      fold: (_accumulator, incoming) => incoming,
-    })
-  }, [effortText, addNotification, removeNotification])
+  return notBuilt('src/components/PromptInput/useComposerEffortNotice.ts:7')
 }

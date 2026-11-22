@@ -1,4 +1,3 @@
-
 import type { Message } from 'src/types/message.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { getApolloModeSections } from '../../prompt/apolloMode.js'
@@ -9,24 +8,19 @@ import { capsuleStateFor } from './capsuleState.js'
 import {
   type Attachment,
 } from './types.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export function getDateChangeAttachments(
   messages: Message[] | undefined,
 ): Attachment[] {
-  return getCapsuleDateChange({}, messages)
+  return notBuilt('src/utils/attachments/modeLifecycles.ts:13')
 }
 
 export function getCapsuleDateChange(
   context: Pick<ToolUseContext, 'owner' | 'agentId'>,
   messages: Message[] | undefined,
 ): Attachment[] {
-  const state = capsuleStateFor(context, messages)
-  const currentDate = getLocalISODate()
-  const lastDate = state.lastDate
-  state.lastDate = currentDate
-  return lastDate !== null && lastDate !== currentDate
-    ? [{ type: 'date_change', newDate: currentDate }]
-    : []
+  return notBuilt('src/utils/attachments/modeLifecycles.ts:19')
 }
 
 
@@ -44,25 +38,5 @@ export function getModePackAttachments(
   messages: Message[] | undefined,
   toolUseContext: ToolUseContext,
 ): Attachment[] {
-  if (toolUseContext.agentId) return []
-  const mode = toolUseContext.getAppState().toolPermissionContext.mode
-  const wanted: 'apollo' | null = mode === 'apollo' ? mode : null
-  const current = latestModePack(messages ?? [])
-  if (wanted === current) return []
-  const out: Attachment[] = []
-  if (current !== null) {
-    const exit = lastModeTransitionFrom(current)
-    out.push({
-      type: 'mode_pack_exit',
-      mode: current,
-      ...(exit !== undefined
-        ? { reason: `${describeModeRoad(exit.road)} moved the session to ${permissionModeTitle(exit.to)}` }
-        : {}),
-    })
-  }
-  if (wanted !== null) {
-    const sections = getApolloModeSections('apollo')
-    if (sections.length > 0) out.push({ type: 'mode_pack', mode: wanted, text: sections.join('\n\n') })
-  }
-  return out
+  return notBuilt('src/utils/attachments/modeLifecycles.ts:43')
 }

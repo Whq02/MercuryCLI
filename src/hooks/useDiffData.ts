@@ -1,4 +1,3 @@
-
 import { useMemo, useRef, useState } from 'react'
 import { useLoad } from './effects.js'
 import type { StructuredPatchHunk } from '../utils/diff.js'
@@ -12,104 +11,14 @@ import {
   type GitDiffStats,
 } from '../utils/gitDiff.js'
 import { logError } from '../utils/log.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 const TRUNCATION_LINE_LIMIT = 400
 
-export type DiffFile = {
-  path: string
-  linesAdded: number
-  linesRemoved: number
-  isBinary: boolean
-  isLargeFile: boolean
-  isTruncated: boolean
-  isUntracked?: boolean
-  isNewFile?: boolean
-}
+export type DiffFile = Unbuilt
 
-export type DiffData = {
-  stats: GitDiffStats | null
-  files: DiffFile[]
-  hunks: Map<string, StructuredPatchHunk[]>
-  loading: boolean
-  error?: string
-}
-
-function classify(
-  result: GitDiffResult,
-  hunks: Map<string, StructuredPatchHunk[]>,
-): DiffFile[] {
-  const files: DiffFile[] = []
-  for (const [path, stats] of result.perFileStats) {
-    const isUntracked = stats.isUntracked === true
-    const fileHunks = hunks.get(path)
-    const isLargeFile =
-      !stats.isBinary && !isUntracked && (fileHunks === undefined || fileHunks.length === 0)
-    const isTruncated =
-      !isLargeFile &&
-      !stats.isBinary &&
-      stats.added + stats.removed > TRUNCATION_LINE_LIMIT
-    files.push({
-      path,
-      linesAdded: stats.added,
-      linesRemoved: stats.removed,
-      isBinary: stats.isBinary,
-      isLargeFile,
-      isTruncated,
-      isUntracked,
-    })
-  }
-  files.sort((a, b) => a.path.localeCompare(b.path))
-  return files
-}
+export type DiffData = Unbuilt
 
 export function useDiffData(spec?: GitDiffSpec): DiffData {
-  const [data, setData] = useState<DiffData>({
-    stats: null,
-    files: [],
-    hunks: new Map(),
-    loading: true,
-  })
-  const specKey = useMemo(() => (spec ? JSON.stringify(spec) : ''), [spec])
-  const specRef = useRef(spec)
-  specRef.current = spec
-
-  useLoad(() => {
-    let dropped = false
-    setData(prev => ({ stats: prev.stats, files: prev.files, hunks: prev.hunks, loading: true }))
-    void (async () => {
-      try {
-        const currentSpec = specRef.current
-        const [result, hunks] = await Promise.all([
-          currentSpec ? fetchGitDiffFor(currentSpec) : fetchGitDiff(),
-          currentSpec ? fetchGitDiffHunksFor(currentSpec) : fetchGitDiffHunks(),
-        ])
-        if (dropped) return
-        if (result === null) {
-          setData({ stats: null, files: [], hunks: new Map(), loading: false })
-          return
-        }
-        setData({
-          stats: result.stats,
-          files: classify(result, hunks),
-          hunks,
-          loading: false,
-        })
-      } catch (error) {
-        logError(error)
-        if (dropped) return
-        setData({
-          stats: null,
-          files: [],
-          hunks: new Map(),
-          loading: false,
-          error: error instanceof Error ? error.message : String(error),
-        })
-      }
-    })()
-    return () => {
-      dropped = true
-    }
-  }, [specKey])
-
-  return data
+  return notBuilt('src/hooks/useDiffData.ts:65')
 }

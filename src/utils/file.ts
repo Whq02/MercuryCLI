@@ -32,27 +32,19 @@ import { isTransientHeldFileCode } from './platform/files.js'
 import { foldPathCase, toNativeSeparators } from './platform/paths.js'
 import { passedOver } from './passedOver.js'
 import { sleepSync } from './timers.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 export { detectFileEncoding, needsPowerShellBom } from './fileEncoding.js'
 
 
-export type File = {
-  filename: string
-  content: string
-}
+export type File = Unbuilt
 
-export const MAX_OUTPUT_SIZE = 0.25 * 1024 * 1024
+export const MAX_OUTPUT_SIZE: Unbuilt = unbuilt('src/utils/file.ts:44')
 
-export const FILE_NOT_FOUND_CWD_NOTE = 'Note: your current working directory is'
+export const FILE_NOT_FOUND_CWD_NOTE: Unbuilt = unbuilt('src/utils/file.ts:46')
 
 export async function pathExists(path: string): Promise<boolean> {
-  try {
-    await getFsImplementation().stat(path)
-    return true
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
+  return notBuilt('src/utils/file.ts:48')
 }
 
 export function readFileSafe(path: string): string | null {
@@ -202,17 +194,9 @@ export function writeTextContent(
   content: string,
   encoding: BufferEncoding,
   endings: LineEndingType,
-  options: { keepBom?: boolean } = {},
+  options?: { keepBom?: boolean },
 ): void {
-  let prepared = content
-  if (endings === 'CRLF') {
-    prepared = prepared.replace(/\r\n/g, '\n').split('\n').join('\r\n')
-  }
-  const wantsBom = options.keepBom === true || (needsPowerShellBom(filePath) && encoding === 'utf8')
-  if (wantsBom && !prepared.startsWith('\uFEFF')) {
-    prepared = `\uFEFF${prepared}`
-  }
-  writeFileAndFlushAtomically(filePath, prepared, { encoding })
+  return notBuilt('src/utils/file.ts:200')
 }
 
 export class AtomicWriteRefusal extends Error {
@@ -300,84 +284,9 @@ function guardedDirectWriteSync(target: string, content: string | Buffer, encodi
 export function writeFileAndFlushAtomically(
   filePath: string,
   content: string | Buffer,
-  options: { encoding?: BufferEncoding; mode?: number } = { encoding: 'utf-8' as BufferEncoding },
+  options?: { encoding?: BufferEncoding; mode?: number },
 ): void {
-  const encoding = options.encoding ?? ('utf-8' as BufferEncoding)
-  let target = filePath
-  try {
-    const linkStat = lstatSync(filePath, { throwIfNoEntry: false })
-    if (linkStat?.isSymbolicLink()) {
-      const linkTarget = readlinkSync(filePath)
-      target = isAbsolute(linkTarget) ? linkTarget : resolve(dirname(filePath), linkTarget)
-      logForDebugging(`atomic write: ${filePath} is a symlink; writing through to ${target}`)
-    }
-  } catch (error) {
-    if (!isENOENT(error)) throw error
-  }
-
-  let existingMode: number | undefined
-  let isNewFile = false
-  try {
-    existingMode = statSync(target).mode
-  } catch (err) {
-    if (!isENOENT(err)) throw err
-    isNewFile = true
-    existingMode = options.mode
-  }
-
-  for (let attempt = 1; ; attempt++) {
-    const temporaryPath = `${target}.tmp.${process.pid}.${Date.now()}.${attempt}`
-    let phase: AtomicWritePhase = 'temp-write'
-    try {
-      logForDebugging(`atomic write: writing ${temporaryPath}`)
-      faultPoint('temp-write', target)
-      writeFileSync(temporaryPath, content, {
-        encoding,
-        flush: true,
-        ...(isNewFile && existingMode !== undefined ? { mode: existingMode } : {}),
-      })
-      if (!isNewFile && existingMode !== undefined) {
-        chmodSync(temporaryPath, existingMode)
-      }
-      phase = 'rename'
-      renameWithWin32RetrySync(temporaryPath, target)
-      logForDebugging(`atomic write: published ${target}`)
-      return
-    } catch (err) {
-      logForDebugging(`atomic write failed for ${target} at ${phase}: ${String(err)}`, { level: 'error' })
-      try {
-        unlinkSync(temporaryPath)
-      } catch (cleanupErr) {
-        if (!isENOENT(cleanupErr)) logForDebugging(`atomic write: temp cleanup failed: ${String(cleanupErr)}`)
-      }
-      const verdict = classifyAtomicWriteFailure(getErrnoCode(err), { isNewFile, phase, attempt })
-      if (verdict === 'retry-atomic') {
-        sleepSyncMs(WIN32_RENAME_RETRY_DELAYS_MS[Math.min(attempt, WIN32_RENAME_RETRY_DELAYS_MS.length) - 1] ?? 50)
-        continue
-      }
-      if (verdict === 'refuse') {
-        const refusal = new AtomicWriteRefusal(phase, target, err)
-        logError(refusal)
-        throw refusal
-      }
-      let oldBytes: Buffer
-      try {
-        oldBytes = readFileSync(target)
-      } catch (readErr) {
-        const refusal = new AtomicWriteRefusal(phase, target, readErr)
-        logError(refusal)
-        throw refusal
-      }
-      logForDebugging(`atomic write: guarded direct write to ${target} (the directory refused a sibling)`)
-      try {
-        guardedDirectWriteSync(target, content, encoding, oldBytes)
-      } catch (directErr) {
-        logError(directErr)
-        throw directErr
-      }
-      return
-    }
-  }
+  return notBuilt('src/utils/file.ts:300')
 }
 
 export function sleepSyncMs(ms: number): void {
@@ -396,17 +305,14 @@ export function detectLineEndings(filePath: string, encoding: BufferEncoding = '
 }
 
 export function convertLeadingTabsToSpaces(content: string): string {
-  if (!content.includes('\t')) return content
-  return content.replace(/^\t+/gm, tabs => '  '.repeat(tabs.length))
+  return notBuilt('src/utils/file.ts:398')
 }
 
 export function getAbsoluteAndRelativePaths(path: string | undefined): {
   absolutePath?: string
   relativePath?: string
 } {
-  if (path === undefined) return { absolutePath: undefined, relativePath: undefined }
-  const absolutePath = expandPath(path)
-  return { absolutePath, relativePath: relative(getCwd(), absolutePath) }
+  return notBuilt('src/utils/file.ts:403')
 }
 
 const ADDRESS_START = /#read\?|(?<=\.(?:tar\.gz|zip|tar|tgz|sqlite3|sqlite|db))(?:::|!\/|!|:)(?=[\s\S])/i
@@ -440,48 +346,15 @@ export function getDisplayPath(filePath: string): string {
 }
 
 export function normalizePathForComparison(filePath: string): string {
-  return foldPathCase(toNativeSeparators(normalize(filePath)))
+  return notBuilt('src/utils/file.ts:442')
 }
 
 export function findSimilarFile(filePath: string): string | undefined {
-  try {
-    const directory = dirname(filePath)
-    const wantedBase = parse(filePath).name
-    for (const entry of readdirSync(directory)) {
-      if (parse(entry).name !== wantedBase) continue
-      if (join(directory, entry) === filePath) continue
-      return entry
-    }
-    return undefined
-  } catch (err) {
-    if (!isENOENT(err)) logError(err)
-    return undefined
-  }
+  return notBuilt('src/utils/file.ts:446')
 }
 
 export async function suggestPathUnderCwd(requestedPath: string): Promise<string | undefined> {
-  try {
-    let resolvedParent: string
-    try {
-      resolvedParent = await realpath(dirname(requestedPath))
-    } catch (error) {
-      passedOver(error)
-      return undefined
-    }
-    const rebuilt = join(resolvedParent, basename(requestedPath))
-    const cwd = getCwd()
-    const cwdParent = dirname(cwd)
-    const parentPrefix = cwdParent.endsWith(sep) ? cwdParent : cwdParent + sep
-    const underParent = rebuilt.startsWith(parentPrefix)
-    const underCwd = rebuilt === cwd || rebuilt.startsWith(cwd + sep)
-    if (!underParent || underCwd) return undefined
-    const relativeToParent = relative(cwdParent, rebuilt)
-    const rerooted = join(cwd, relativeToParent)
-    return (await pathExists(rerooted)) ? rerooted : undefined
-  } catch (error) {
-    passedOver(error)
-    return undefined
-  }
+  return notBuilt('src/utils/file.ts:462')
 }
 
 export function addLineNumbers({ content, startLine }: { content: string; startLine: number }): string {

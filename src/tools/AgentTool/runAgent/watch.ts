@@ -10,6 +10,7 @@ import { reviewerRefusal } from '../reviewerPolicy.js'
 import { scoutRefusal } from '../scoutPolicy.js'
 import type { agentStalledError, declaredRecoveryWaitMs, RecoveryAccountant, RunAgentParams } from '../runAgent.js'
 import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../../utils/timers.js'
+import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
 
 export interface AgentRun {
   eventsSeen: number
@@ -84,76 +85,12 @@ export function touchThroughOf(run: AgentRun) {
   return touchThrough
 }
 
-export function askLivelyOf(run: AgentRun, canUseTool: NonNullable<RunAgentParams['canUseTool']>, { idleLimitMs, reviewReceipt, worktreePath, readOnlyScout, onPendingAsks }: { idleLimitMs: number; reviewReceipt: string | undefined; worktreePath: RunAgentParams['worktreePath']; readOnlyScout: boolean; onPendingAsks: RunAgentParams['onPendingAsks'] }) {
-  const askHeartbeatMs = Math.max(1_000, Math.min(30_000, Math.floor(idleLimitMs / 4)))
-  return (async (...args: Parameters<NonNullable<typeof canUseTool>>) => {
-    if (reviewReceipt !== undefined) {
-      const refusal = await reviewerRefusal(args[0], args[1], reviewReceipt, worktreePath!)
-      if (refusal !== null) return { behavior: 'deny', message: refusal }
-    }
-    if (readOnlyScout) {
-      const refusal = await scoutRefusal(args[0], args[1])
-      if (refusal !== null) return { behavior: 'deny', message: refusal }
-    }
-    run.pendingAsks++
-    onPendingAsks?.(run.pendingAsks)
-    run.watchdog.touch()
-    if (run.askHeartbeat === null) {
-      run.askHeartbeat = startInterval(() => run.watchdog.touch(), askHeartbeatMs)
-      run.askHeartbeat.unref?.()
-    }
-    try {
-      return await canUseTool(...args)
-    } finally {
-      run.pendingAsks--
-      onPendingAsks?.(run.pendingAsks)
-      if (run.pendingAsks === 0 && run.askHeartbeat !== null) {
-        stopInterval(run.askHeartbeat)
-        run.askHeartbeat = null
-      }
-      run.watchdog.touch()
-    }
-  }) as NonNullable<typeof canUseTool>
+export function askLivelyOf(run: AgentRun, canUseTool: NonNullable<RunAgentParams['canUseTool']>, arg2: { idleLimitMs: number; reviewReceipt: string | undefined; worktreePath: RunAgentParams['worktreePath']; readOnlyScout: boolean; onPendingAsks: RunAgentParams['onPendingAsks'] }): Unbuilt {
+  return notBuilt('src/tools/AgentTool/runAgent/watch.ts:87')
 }
 
-export function callModelOf(run: AgentRun, { deps, agentId }: { deps: ReturnType<typeof productionDeps>; agentId: AgentId }) {
-  const callModel: typeof deps.callModel = async function* (request) {
-    let retried = false
-    for (;;) {
-      const requestController = new AbortController()
-      const forwardAbort = (): void => requestController.abort(request.signal.reason)
-      if (request.signal.aborted) forwardAbort()
-      else request.signal.addEventListener('abort', forwardAbort, { once: true })
-      let produced = false
-      let resend = false
-      run.stoppedAfterRetry = false
-      run.retryStalledRequest = error => {
-        if (request.signal.aborted) return false
-        if (retried) run.stoppedAfterRetry = true
-        if (requestController.signal.aborted || produced || retried) return false
-        retried = true
-        resend = true
-        logForDebugging(`runAgent: ${agentId} stalled request — retrying the same request once on ${request.options.model}`, { level: 'warn' })
-        requestController.abort(error)
-        return true
-      }
-      try {
-        for await (const message of deps.callModel({ ...request, signal: requestController.signal })) {
-          if (resend) continue
-          if (message.type === 'assistant' || message.type === 'stream_event') produced = true
-          yield message
-        }
-      } catch (error) {
-        if (!resend || request.signal.aborted) throw error
-      } finally {
-        run.retryStalledRequest = null
-        request.signal.removeEventListener('abort', forwardAbort)
-        requestController.abort()
-      }
-      if (!resend || request.signal.aborted) return
-    }
-  }
-  return callModel
+export function callModelOf(run: AgentRun, arg1: { deps: ReturnType<typeof productionDeps>; agentId: AgentId }): Unbuilt {
+  return notBuilt('src/tools/AgentTool/runAgent/watch.ts:119')
 }
 
 type ObserveNeeds = { recovery: RecoveryBudget; accountant: RecoveryAccountant; onQueryProgress: RunAgentParams['onQueryProgress']; touchThrough: (declaredMs: number) => void; declaredRecoveryWaitMs: typeof declaredRecoveryWaitMs }

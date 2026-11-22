@@ -21,14 +21,9 @@ import { hookProgressMessage, hookRowsOfResult } from '../utils/hooks/rows.js'
 import { extractTextContent, getLastAssistantMessage } from '../services/messages.js'
 import { createUserInterruptionMessage, createUserMessage } from '../utils/messages/factories.js'
 import { createSystemMessage } from '../utils/messages/systemMessages.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
-type StopHookOutcome = {
-  blockingErrors: Message[]
-  preventContinuation: boolean
-}
-
-const MAIN_THREAD_SOURCE = 'main_thread'
-const SDK_SOURCE = 'sdk'
+type StopHookOutcome = Unbuilt
 
 export async function* handleStopHooks(
   messagesForQuery: Message[],
@@ -40,95 +35,5 @@ export async function* handleStopHooks(
   querySource: QuerySource | undefined,
   stopHookActive?: boolean,
 ): AsyncGenerator<Message, StopHookOutcome> {
-  if (querySource === 'side_question') return { blockingErrors: [], preventContinuation: false }
-  const history = [...messagesForQuery, ...assistantMessages]
-  const hookContext: TurnAnswerContext = { messages: history, systemPrompt, userContext, systemContext, toolUseContext, querySource }
-
-  if (querySource === MAIN_THREAD_SOURCE || querySource === SDK_SOURCE) {
-    saveCacheSafeParams(createCacheSafeParams(hookContext))
-  }
-
-  const agentId = toolUseContext.agentId
-
-  if (!isBareMode()) {
-    {
-      const suggestion = require('../services/PromptSuggestion/promptSuggestion.js') as {
-        executePromptSuggestion: (context: TurnAnswerContext) => Promise<void>
-      }
-      void suggestion.executePromptSuggestion(hookContext).catch(error => {
-        logForDebugging(`prompt suggestion failed: ${errorMessage(error)}`)
-      })
-    }
-    if (!agentId) {
-      const mneme = require('../mneme/mnemeMaintenance.js') as {
-        scheduleMnemeMaintenance: (trigger: 'turn-end') => void
-      }
-      mneme.scheduleMnemeMaintenance('turn-end')
-    }
-  }
-
-  const settlementBlocks: Message[] = []
-  const unscored = takeUnscoredVerification(ownerFromToolUseContext(toolUseContext))
-  if (unscored !== undefined) yield createUserMessage({ content: unscored, isMeta: true })
-  const guardKey = agentId ?? String(getSessionId())
-  const holds = await judgeTurnEnd(guardKey, { messages: history }, toolUseContext.abortController.signal)
-  for (const note of takeTurnNotes(guardKey)) yield createSystemMessage(note.text, note.level)
-  for (const hold of holds) {
-    const message = createUserMessage({ content: hold.words, isMeta: true })
-    settlementBlocks.push(message)
-    yield message
-    if (!hold.silent) yield createSystemMessage(`${hold.guard} held the turn: ${hold.words.split('\n')[0]}`, 'info')
-  }
-
-  if (!isBareMode()) {
-    try {
-      for (const row of await settleWriterDiagnosticsAtTurnEnd(toolUseContext)) {
-        const message = createAttachmentMessage(row)
-        yield message
-        if (stopHookActive !== true) settlementBlocks.push(message)
-      }
-    } catch (error) {
-      logForDebugging(`turn-end diagnostics settlement failed: ${errorMessage(error)}`)
-    }
-  }
-
-  try {
-    const signal = toolUseContext.abortController.signal
-    const lastAssistant = getLastAssistantMessage(history)
-    const answer = lastAssistant ? extractTextContent(lastAssistant.message.content, '\n').trim() || undefined : undefined
-    if (!isBareMode() && answer && !signal.aborted && assistantMessages.length > 0) confirmCitedFacts(answer)
-    const turnId = readToolCallChain(toolUseContext)?.key ?? ''
-    const toolUseID = randomUUID()
-    const prepared = await prepareHooks(
-      'turn.answer',
-      { turn_id: turnId, ...(answer !== undefined ? { answer } : {}), again: stopHookActive ?? false },
-      { scope: { sessionId: String(getSessionId()), ...(agentId !== undefined ? { crewmateId: agentId } : {}) }, signal, toolUseContext },
-    )
-    for (const name of prepared.names) yield hookProgressMessage('turn.answer', name, 'running', toolUseID, prepared.names.length)
-    if (prepared.names.length === 0) return { blockingErrors: settlementBlocks, preventContinuation: false }
-    const result = await prepared.run()
-    for (const outcome of result.outcomes) yield hookProgressMessage('turn.answer', outcome.name, 'ran', toolUseID, result.outcomes.length)
-    for (const row of hookRowsOfResult(result)) yield createAttachmentMessage(row)
-    if (signal.aborted) {
-      yield createUserInterruptionMessage({ toolUse: false, reason: signal.reason })
-      return { blockingErrors: [], preventContinuation: true }
-    }
-    if (result.answer.stop !== undefined) return { blockingErrors: [], preventContinuation: true }
-    const blockingErrors: UserMessage[] = []
-    for (const context of result.answer.contexts) {
-      const message = createUserMessage({ content: context, isMeta: true })
-      blockingErrors.push(message)
-      yield message
-    }
-    if (result.answer.block !== undefined) {
-      const message = createUserMessage({ content: result.answer.block, isMeta: true })
-      blockingErrors.push(message)
-      yield message
-      return { blockingErrors: [...settlementBlocks, ...blockingErrors], preventContinuation: false }
-    }
-    return { blockingErrors: settlementBlocks, preventContinuation: false }
-  } catch (error) {
-    yield createSystemMessage(`the turn.answer hooks could not run: ${errorMessage(error)}`, 'warning')
-    return { blockingErrors: settlementBlocks, preventContinuation: false }
-  }
+  return notBuilt('src/query/stopHooks.ts:33')
 }

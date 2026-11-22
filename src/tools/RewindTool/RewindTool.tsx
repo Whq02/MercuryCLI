@@ -4,6 +4,7 @@ import { buildTool, type ToolDef } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { contextOnlyTraits, refusal } from '../CheckpointTool/contextOnlyTool.js'
 import { DESCRIPTION, REWIND_TOOL_NAME, REWIND_TOOL_PROMPT } from './prompt.js'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const HEADER_CHARS = 80
 
@@ -34,32 +35,4 @@ const accepted = (abandoned: number): string =>
 
 const headerOf = (report: string): string => (report.length > HEADER_CHARS ? `${report.slice(0, HEADER_CHARS - 3)}…` : report)
 
-export const RewindTool = buildTool({
-  ...contextOnlyTraits(),
-  name: REWIND_TOOL_NAME,
-  searchHint: 'rewind context to the checkpoint, carry a report back',
-  userFacingName: () => 'Rewind',
-  get inputSchema(): InputSchema {
-    return inputSchema()
-  },
-  get outputSchema(): OutputSchema {
-    return outputSchema()
-  },
-  async description() {
-    return DESCRIPTION
-  },
-  async prompt() {
-    return REWIND_TOOL_PROMPT
-  },
-  getActivityDescription: () => 'Rewinding to the checkpoint',
-  renderToolUseMessage: input => headerOf(input?.report ?? ''),
-  async call({ report }, context) {
-    if (report.trim() === '') throw emptyReport()
-    const messages = context.messages ?? []
-    const active = findActiveCheckpoint(messages)
-    if (active === null) throw noCheckpoint()
-    const abandoned = Math.max(0, messages.length - (active.boundaryIndex + 1))
-    const data: Output = { message: accepted(abandoned), goal: active.goal, abandonedMessages: abandoned }
-    return { data }
-  },
-} satisfies ToolDef<InputSchema, Output>)
+export const RewindTool: Unbuilt = unbuilt('src/tools/RewindTool/RewindTool.tsx:37')

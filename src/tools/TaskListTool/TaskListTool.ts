@@ -4,6 +4,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { getTaskListId, isTaskToolsEnabled, listTasks, TASK_STATUSES } from '../../utils/tasks.js'
 import { TASK_LIST_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const inputSchema = lazySchema(() => z.strictObject({}))
 const taskRow = lazySchema(() => z.object({ id: z.string(), subject: z.string(), status: z.enum(TASK_STATUSES), owner: z.string().optional(), blockedBy: z.string().array() }))
@@ -19,8 +20,7 @@ const NO_TASKS = 'No tasks found'
 const visible = (task: StoredTask): boolean => !task.metadata?._internal
 
 function rowOf(task: StoredTask, completed: ReadonlySet<string>): Row {
-  const owned = task.owner === undefined ? {} : { owner: task.owner }
-  return { id: task.id, subject: task.subject, status: task.status, ...owned, blockedBy: task.blockedBy.filter(id => !completed.has(id)) }
+  return notBuilt('src/tools/TaskListTool/TaskListTool.ts:21')
 }
 
 const hashed = (ids: string[]): string => ids.map(id => `#${id}`).join(', ')
@@ -38,20 +38,4 @@ async function rowsOfCurrentList(): Promise<Output> {
   return { tasks: shown.map(task => rowOf(task, completed)) }
 }
 
-export const TaskListTool = buildTool({
-  name: TASK_LIST_TOOL_NAME,
-  searchHint: 'list all tasks in the task list',
-  shouldDefer: true,
-  maxResultSizeChars: 100_000,
-  get inputSchema(): ReturnType<typeof inputSchema> { return inputSchema() },
-  get outputSchema(): ReturnType<typeof outputSchema> { return outputSchema() },
-  isEnabled: () => isTaskToolsEnabled(),
-  isReadOnly: () => true,
-  isConcurrencySafe: () => true,
-  userFacingName: () => 'TaskList',
-  description: async () => DESCRIPTION,
-  prompt: async () => getPrompt(),
-  call: async () => ({ data: await rowsOfCurrentList() }),
-  mapToolResultToToolResultBlockParam: (output: Output, toolUseID: string) => ({ tool_use_id: toolUseID, type: 'tool_result' as const, content: output.tasks.length === 0 ? NO_TASKS : output.tasks.map(lineOf).join('\n') }),
-  renderToolUseMessage: () => null,
-} satisfies ToolDef<ReturnType<typeof inputSchema>, Output>)
+export const TaskListTool: Unbuilt = unbuilt('src/tools/TaskListTool/TaskListTool.ts:41')

@@ -1,38 +1,14 @@
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
-import { useCallback, useRef } from 'react'
-import { useClaim } from './effects.js'
-import { startTimeout, stopTimeout } from '../utils/timers.js'
+export const DOUBLE_PRESS_TIMEOUT_MS: Unbuilt = unbuilt('src/hooks/useDoublePress.ts:6')
 
-export const DOUBLE_PRESS_TIMEOUT_MS = 800
-
-export const EXIT_CHORD_WINDOW_MS = 3000
+export const EXIT_CHORD_WINDOW_MS: Unbuilt = unbuilt('src/hooks/useDoublePress.ts:8')
 
 export function useDoublePress(
   setPending: (pending: boolean) => void,
   onDoublePress: () => void,
   onFirstPress?: () => void,
-  windowMs: number = DOUBLE_PRESS_TIMEOUT_MS,
+  windowMs?: number,
 ): () => void {
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
-  useClaim(
-    () => () => {
-      if (timerRef.current !== null) stopTimeout(timerRef.current)
-    },
-    [],
-  )
-  return useCallback(() => {
-    if (timerRef.current !== null) {
-      stopTimeout(timerRef.current)
-      timerRef.current = null
-      setPending(false)
-      onDoublePress()
-      return
-    }
-    onFirstPress?.()
-    setPending(true)
-    timerRef.current = startTimeout(() => {
-      timerRef.current = null
-      setPending(false)
-    }, windowMs)
-  }, [setPending, onDoublePress, onFirstPress, windowMs])
+  return notBuilt('src/hooks/useDoublePress.ts:10')
 }

@@ -33,6 +33,7 @@ import { errorMessage, getErrnoCode, isFsInaccessible } from '../../utils/errors
 import { stripSafeWrappers } from '../../utils/permissions/safeWrappers.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { notBuilt } from '../../pi/holes.js'
 
 
 export type PathCommand =
@@ -216,21 +217,7 @@ function extractFdOperands(args: string[]): string[] {
 }
 
 function extractTestOperands(args: string[]): string[] {
-  const operands: string[] = []
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i] as string
-    const next = args[i + 1]
-    if (TEST_FILE_UNARIES.test(arg) && next !== undefined) {
-      operands.push(next)
-      i++
-    } else if (TEST_FILE_BINARIES.has(arg)) {
-      const previous = args[i - 1]
-      if (previous !== undefined) operands.push(previous)
-      if (next !== undefined) operands.push(next)
-      i++
-    }
-  }
-  return operands
+  return notBuilt('src/tools/BashTool/pathValidation.ts:218')
 }
 
 export const PATH_EXTRACTORS: Record<PathCommand, (args: string[]) => string[]> = {
@@ -392,40 +379,7 @@ function extractJqOperands(args: string[]): string[] {
 }
 
 function extractSedOperands(args: string[]): string[] {
-  const operands: string[] = []
-  let scriptSeen = false
-  let optionsEnded = false
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i] as string
-    if (!optionsEnded && arg === '--') {
-      optionsEnded = true
-      continue
-    }
-    if (!optionsEnded && arg.startsWith('-') && arg !== '-') {
-      if (arg === '-f' || arg === '--file') {
-        const next = args[i + 1]
-        scriptSeen = true
-        if (next !== undefined) {
-          operands.push(next)
-          i++
-        }
-        continue
-      }
-      if (arg === '-e' || arg === '--expression') {
-        if (args[i + 1] !== undefined) i++
-        scriptSeen = true
-        continue
-      }
-      if (arg.includes('e') || arg.includes('f')) scriptSeen = true
-      continue
-    }
-    if (!scriptSeen) {
-      scriptSeen = true
-      continue
-    }
-    operands.push(arg)
-  }
-  return operands
+  return notBuilt('src/tools/BashTool/pathValidation.ts:394')
 }
 
 const GIT_PATCH_FLAGS: ReadonlySet<string> = new Set(['-p', '-u', '--patch', '--patch-with-stat', '--patch-with-raw', '--cc', '-c', '-m'])
@@ -665,65 +619,7 @@ function runPathChecker(
   context: ToolPermissionContext,
   compoundCommandHasCd: boolean,
 ): PermissionResult {
-  const operationType = operationTypeOverride ?? COMMAND_OPERATION_TYPE[command]
-
-  if ((command === 'mv' || command === 'cp') && args.some(a => a.startsWith('-'))) {
-    return {
-      behavior: 'ask',
-      message: `This ${command} command uses flags Mercury cannot validate automatically, so it needs manual approval.`,
-      decisionReason: { type: 'other', reason: `${command} with flags requires manual approval` },
-    }
-  }
-  const absoluteMkdir = command === 'mkdir' && args.length === 2 && args[0] === '-p' &&
-    getPlatform() !== 'windows' && posixPath.isAbsolute(args[1]!)
-  if (compoundCommandHasCd && operationType !== 'read' && !absoluteMkdir) {
-    return {
-      behavior: 'ask',
-      message: 'Bash needs approval for a write combined with cd because relative paths can land in a different folder. Set cwd on a separate Bash call and use literal output paths.',
-      decisionReason: { type: 'other', reason: 'A directory change combined with a write cannot be validated' },
-    }
-  }
-  const operands = PATH_EXTRACTORS[command](args)
-  const flowRead = context.mode === 'flow' && operationType === 'read' && command !== 'cd'
-  const readsEnvContent = (operationType === 'read' && !ENV_METADATA_COMMANDS.has(command)) || command === 'cp' || command === 'mv'
-  const sources = command === 'cp' || command === 'mv' ? operands.slice(0, -1) : []
-  const roots: string[] = []
-  let held: PermissionResult | null = null
-  for (const operand of operands) {
-    if (sources.includes(operand)) {
-      const read = validatePath(operand, cwd, context, 'read')
-      if (!read.allowed && read.decisionReason?.type === 'rule') return operandRefusal(command, read, context, 'read')
-    }
-    const check = validatePath(operand, cwd, context, operationType)
-    if (!check.allowed) {
-      if (flowRead && check.decisionReason === undefined) continue
-      const refusal = operandRefusal(command, check, context, operationType)
-      if (refusal.behavior === 'deny') return refusal
-      if (held === null || (operatorSafetyAsk(refusal) && !operatorSafetyAsk(held))) held = refusal
-      continue
-    }
-    const envAsk = readsEnvContent ? envFileReadAsk(check.resolvedPath, context) : null
-    if (envAsk) {
-      held ??= { behavior: 'ask', message: envAsk.message, decisionReason: envAsk.decisionReason }
-      continue
-    }
-    roots.push(check.resolvedPath)
-  }
-  if (held !== null) return held
-  if (operationType === 'read') {
-    const follows = !flowRead && FOLLOWS_LINKS[command]?.(args) === true
-    const denied = ruleMatcherFor(context, 'read', 'deny')
-    const recursive = RECURSIVE_READERS[command]?.(args) === true && denied !== null
-    if (follows || recursive) {
-      const refusal = treeRefusal(command, roots, cwd, context, operationType, follows, denied)
-      if (refusal !== null) return refusal
-    }
-    if (HIDDEN_FILE_READERS[command]?.(args) === true) {
-      const env = envFileBeneath(command, args, roots, context)
-      if (env !== null) return env
-    }
-  }
-  return { behavior: 'passthrough', message: `All ${command} operands are within the allowed directories.` }
+  return notBuilt('src/tools/BashTool/pathValidation.ts:660')
 }
 
 function operatorSafetyAsk(result: PermissionResult): boolean {
@@ -749,39 +645,6 @@ function flagNames(args: string[], grammar: OptionGrammar): Set<string> {
 }
 
 const LS_GRAMMAR: OptionGrammar = { letters: 'ITw', longs: new Set(['--block-size', '--format', '--hide', '--ignore', '--indicator-style', '--quoting-style', '--sort', '--time', '--time-style', '--width', '--tabsize']) }
-
-const FOLLOWS_LINKS: Partial<Record<PathCommand, (args: string[]) => boolean>> = {
-  grep: args => {
-    const flags = flagNames(args, GREP_GRAMMAR)
-    return flags.has('-R') || flags.has('--dereference-recursive')
-  },
-  rg: args => {
-    const flags = flagNames(args, RG_GRAMMAR)
-    return flags.has('-L') || flags.has('--follow')
-  },
-  find: args => args.includes('-L') || args.includes('-follow'),
-  ls: args => {
-    const flags = flagNames(args, LS_GRAMMAR)
-    return (flags.has('-L') || flags.has('--dereference')) && (flags.has('-R') || flags.has('--recursive'))
-  },
-  du: args => {
-    const flags = flagNames(args, DU_GRAMMAR)
-    return flags.has('-L') || flags.has('--dereference')
-  },
-  tree: args => flagNames(args, TREE_GRAMMAR).has('-l'),
-  fd: args => {
-    const flags = flagNames(args, FD_GRAMMAR)
-    return flags.has('-L') || flags.has('--follow')
-  },
-  fdfind: args => {
-    const flags = flagNames(args, FD_GRAMMAR)
-    return flags.has('-L') || flags.has('--follow')
-  },
-  diff: args => {
-    const flags = flagNames(args, DIFF_GRAMMAR)
-    return (flags.has('-r') || flags.has('--recursive')) && !flags.has('--no-dereference')
-  },
-}
 
 const RECURSIVE_READERS: Partial<Record<PathCommand, (args: string[]) => boolean>> = {
   grep: args => {
@@ -1004,18 +867,7 @@ function checkDangerousRemoval(command: PathCommand, args: string[], cwd: string
 }
 
 function attachSuggestions(result: PermissionResult, operationType: FileOperationType): PermissionResult {
-  if (result.behavior !== 'ask' || !('blockedPath' in result) || !result.blockedPath) return result
-  const suggestions: PermissionUpdate[] = []
-  const containingDir = getDirectoryForPath(result.blockedPath)
-  if (operationType === 'read') {
-    const readRule = createReadRuleSuggestion(containingDir)
-    if (readRule) suggestions.push(readRule)
-  }
-  if (operationType === 'write' || operationType === 'create') {
-    const editRule = createEditRuleSuggestion(containingDir, 'localSettings')
-    if (editRule) suggestions.push(editRule)
-  }
-  return { ...result, suggestions }
+  return notBuilt('src/tools/BashTool/pathValidation.ts:1006')
 }
 
 export function checkShellCwd(input: { cwd?: string }, context: ToolPermissionContext): PermissionResult | null {
@@ -1029,36 +881,11 @@ export function checkPathConstraints(
   input: { command: string },
   cwd: string,
   context: ToolPermissionContext,
-  compoundCommandHasCd = false,
+  compoundCommandHasCd?: boolean,
   astRedirects?: Redirect[],
   astCommands?: SimpleCommand[],
 ): PermissionResult {
-  const command = input.command
-
-  if (astCommands === undefined) {
-    const parsed = preparedSecurityParse(command)
-    if (parsed.kind !== 'simple') {
-      const message = parsed.kind === 'too-complex' ? `${parsed.reason}; spell out the paths, or approve` : 'the shell parser has not produced paths to check; retry the command, or approve'
-      return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: false } }
-    }
-    astCommands = parsed.commands
-  }
-  astRedirects ??= astCommands.flatMap(simple => simple.redirects)
-  const redirectionTargets = convertAstRedirects(astRedirects)
-
-  const redirectResult = validateRedirections(redirectionTargets, cwd, context, compoundCommandHasCd)
-  if (redirectResult.behavior !== 'passthrough') return redirectResult
-
-  const inputTargets = convertAstInputRedirects(astRedirects)
-  const inputResult = validateInputRedirections(inputTargets, cwd, context, compoundCommandHasCd)
-  if (inputResult.behavior !== 'passthrough') return inputResult
-
-  for (const simple of astCommands) {
-    const result = validateAstSimpleCommand(simple, cwd, context, compoundCommandHasCd)
-    if (result.behavior !== 'passthrough') return result
-  }
-
-  return { behavior: 'passthrough', message: 'Path validation found no concern.' }
+  return notBuilt('src/tools/BashTool/pathValidation.ts:1028')
 }
 
 function convertAstRedirects(redirects: Redirect[]): string[] {

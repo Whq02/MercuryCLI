@@ -10,23 +10,12 @@ import { logForDebugging } from './debug.js'
 import { reclaimTerminalAfterChild } from './terminalHandback.js'
 import { hostLookupWorld, resolveExecutable, whichSync, type LookupWorld } from './which.js'
 import { hostEnv } from './hostEnv.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
 const EDITOR_CANDIDATES = ['code', 'nano', 'vi']
 
 const WINDOWS_DEFAULT_EDITOR = 'notepad'
-
-const GUI_EDITORS = [
-  'code',
-  'cursor',
-  'windsurf',
-  'codium',
-  'subl',
-  'atom',
-  'gedit',
-  'notepad++',
-  'notepad',
-]
 
 const EDITOR_DISPLAY_NAMES: Record<string, string> = {
   code: 'VS Code',
@@ -75,17 +64,7 @@ export function editorDisplayName(editor: string | null | undefined): string {
 const PLUS_LINE_EDITORS = /\b(vi|vim|nvim|nano|emacs|pico|micro|helix|hx)\b/
 const TERMINAL_EDITORS = /^(?:vi|vim|nvim|nano|emacs|pico|micro|helix|hx|kak)(?![a-z])/
 
-export const getExternalEditor = memoize((): string | undefined => {
-  const visual = hostEnv().VISUAL?.trim()
-  if (visual) return visual
-  const editor = hostEnv().EDITOR?.trim()
-  if (editor) return editor
-  if (process.platform === 'win32') return WINDOWS_DEFAULT_EDITOR
-  for (const candidate of EDITOR_CANDIDATES) {
-    if (whichSync(candidate) !== null) return candidate
-  }
-  return undefined
-})
+export const getExternalEditor: Unbuilt = unbuilt('src/utils/editor.ts:78')
 
 export type EditorVariable = 'VISUAL' | 'EDITOR' | 'default'
 
@@ -142,70 +121,13 @@ export function editorRefusalLine(refusal: EditorRefusal): string {
 }
 
 export function classifyGuiEditor(editor: string): string | undefined {
-  for (const token of editor.split(' ')) {
-    const tokenBase = basename(token)
-    if (TERMINAL_EDITORS.test(editorBaseName(token))) return undefined
-    for (const gui of GUI_EDITORS) {
-      if (tokenBase.includes(gui)) return gui
-    }
-  }
-  return undefined
+  return notBuilt('src/utils/editor.ts:144')
 }
 
 function parseEditorCommand(editor: string, world: LookupWorld): { executable: string; args: string[] } {
   return parseEditorCommandLine(editor, world)
 }
 
-function gotoLineArgs(guiFamily: string, filePath: string, line?: number): string[] {
-  if (line === undefined) return [filePath]
-  if (guiFamily === 'code' || guiFamily === 'cursor' || guiFamily === 'windsurf' || guiFamily === 'codium') {
-    return ['-g', `${filePath}:${line}`]
-  }
-  if (guiFamily === 'subl') {
-    return [`${filePath}:${line}`]
-  }
-  return [filePath]
-}
-
 export function openFileInExternalEditor(filePath: string, line?: number): boolean {
-  const resolved = resolveExternalEditor()
-  if (!resolved.ok) {
-    if (resolved.reason !== 'none') logForDebugging(`editor refused before any spawn: ${editorRefusalLine(resolved)}`, { level: 'warn' })
-    return false
-  }
-  const { editor, executable, args } = resolved
-  const guiFamily = classifyGuiEditor(editor)
-
-  if (guiFamily !== undefined) {
-    const targetArgs = gotoLineArgs(guiFamily, filePath, line)
-    const spec = guiEditorSpawnSpec(editor, executable, args, targetArgs)
-    const child = spec.shell
-      ? spawn(spec.command, { windowsHide: true, shell: true, detached: true, stdio: 'ignore', env: subprocessEnv() })
-      : spawn(spec.file, spec.args, { windowsHide: true, detached: true, stdio: 'ignore', env: subprocessEnv() })
-    child.on('error', err => {
-      logForDebugging(`editor spawn failed: ${String(err)}`, { level: 'error' })
-    })
-    child.unref()
-    return true
-  }
-
-  const instance = instances.get(process.stdout as NodeJS.WriteStream)
-  if (!instance) return false
-  const supportsPlusLine = PLUS_LINE_EDITORS.test(basename(executable))
-  const lineArgs = line !== undefined && supportsPlusLine ? [`+${line}`] : []
-  instance.enterAlternateScreen()
-  try {
-    const spec = terminalEditorSpawnSpec(editor, executable, args, lineArgs, filePath)
-    const result = spec.shell
-      ? spawnSync(spec.command, { shell: true, windowsHide: false, stdio: 'inherit', env: subprocessEnv() })
-      : spawnSync(spec.file, spec.args, { windowsHide: false, stdio: 'inherit', env: subprocessEnv() })
-    if (result.error) {
-      logForDebugging(`terminal editor failed: ${String(result.error)}`, { level: 'error' })
-      return false
-    }
-    return true
-  } finally {
-    reclaimTerminalAfterChild('external editor')
-    instance.exitAlternateScreen()
-  }
+  return notBuilt('src/utils/editor.ts:170')
 }

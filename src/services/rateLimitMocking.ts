@@ -4,20 +4,19 @@ import {
   applyMockHeaders,
   shouldProcessMockLimits,
 } from './mockRateLimits.js'
+import { notBuilt } from '../pi/holes.js'
 
 
 export { shouldProcessMockLimits }
 
 export function processRateLimitHeaders(headers: Headers): Headers {
-  if (!shouldProcessMockLimits()) return headers
-  return applyMockHeaders(headers)
+  return notBuilt('src/services/rateLimitMocking.ts:11')
 }
 
 export function shouldProcessRateLimits(isSubscriber: boolean): boolean {
-  return isSubscriber || shouldProcessMockLimits()
+  return notBuilt('src/services/rateLimitMocking.ts:16')
 }
 
 export function isMockRateLimitError(error: unknown): boolean {
-  if (!shouldProcessMockLimits()) return false
-  return error instanceof APIError && error.status === 429
+  return notBuilt('src/services/rateLimitMocking.ts:20')
 }

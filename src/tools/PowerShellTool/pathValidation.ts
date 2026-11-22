@@ -30,20 +30,13 @@ import { getPlatform } from '../../utils/platform.js'
 import { containsWindowsDevicePath, WINDOWS_DEVICE_PATH_MESSAGE } from '../../utils/permissions/windowsPath.js'
 import { resolveToCanonical } from './readOnlyValidation.js'
 import { COMMON_PARAMETERS } from './commonParameters.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 type OperationType = 'read' | 'write'
 const STD = ['-path', '-literalpath', '-pspath', '-lp']
 const PS_DASH_RE = /[-–—―]/
 
-type PathConfig = {
-  operation: OperationType
-  paths: string[]
-  leafOnly?: string[]
-  switches: string[]
-  values: string[]
-  positionalSkip?: number
-  optionalWrite?: boolean
-}
+type PathConfig = Unbuilt
 
 const IWR_SWITCHES = '-allowinsecureredirect -allowunencryptedauthentication -disablekeepalive -nobodyprogress -passthru -preservefileauthorizationmetadata -resume -skipcertificatecheck -skipheadervalidation -skiphttperrorcheck -usebasicparsing -usedefaultcredentials'.split(' ')
 const IWR_VALUES = '-uri -method -body -contenttype -headers -maximumredirection -maximumretrycount -proxy -proxycredential -retryintervalsec -sessionvariable -timeoutsec -token -transferencoding -useragent -websession -credential -authentication -certificate -certificatethumbprint -form -httpversion'.split(' ')
@@ -108,80 +101,7 @@ function isComplexColonValue(value: string): boolean {
 type ExtractResult = { paths: string[]; operation: OperationType; unvalidatable: boolean; optionalWrite: boolean; hasConfig: boolean }
 
 function extractPaths(element: ParsedCommandElement): ExtractResult {
-  const canonical = resolveToCanonical(element.name)
-  const config = PATH_CONFIG[canonical]
-  if (!config || typeof config !== 'object' || !('operation' in config)) {
-    return { paths: [], operation: 'read', unvalidatable: false, optionalWrite: false, hasConfig: false }
-  }
-  const known = new Set<string>([...config.paths, ...(config.leafOnly ?? []), ...config.switches, ...config.values, ...COMMON_PARAMETERS])
-  const matchesKnown = (name: string): string | null => {
-    const lower = name.toLowerCase()
-    for (const k of known) {
-      if (lower === k) return k
-      if (lower.length > 1 && k.startsWith(lower)) return k
-    }
-    return null
-  }
-  const isPathParam = (k: string): boolean => config.paths.includes(k)
-  const isLeafParam = (k: string): boolean => (config.leafOnly ?? []).includes(k)
-  const isSwitch = (k: string): boolean => config.switches.includes(k)
-  const isValueParam = (k: string): boolean => config.values.includes(k) || COMMON_PARAMETERS.has(k)
-
-  const paths: string[] = []
-  let unvalidatable = false
-  const types = element.elementTypes
-  const safeType = (i: number): boolean => {
-    const type = argumentTypeAt(element, i)
-    return !types || type === 'StringConstant' || type === 'Parameter'
-  }
-  let positionalSeen = 0
-  const skip = config.positionalSkip ?? 0
-
-  for (let i = 0; i < element.args.length; i++) {
-    const raw = element.args[i] as string
-    const isParam = types ? argumentTypeAt(element, i) === 'Parameter' : isPowerShellParameter(raw)
-    if (isParam) {
-      const norm = normDash(raw)
-      const colon = norm.indexOf(':', 1)
-      const pname = (colon === -1 ? norm : norm.slice(0, colon)).toLowerCase()
-      const matched = matchesKnown(pname)
-      if (matched && isPathParam(matched)) {
-        const value = colon !== -1 ? norm.slice(colon + 1) : element.args[i + 1]
-        if (colon !== -1) {
-          if (!isComplexColonValue(value as string)) paths.push(value as string)
-          else unvalidatable = true
-        } else if (value !== undefined && !isPowerShellParameter(value)) {
-          if (safeType(i + 1)) paths.push(value)
-          else unvalidatable = true
-          i++
-        }
-      } else if (matched && isLeafParam(matched)) {
-        const value = colon !== -1 ? norm.slice(colon + 1) : element.args[i + 1]
-        if (value !== undefined) {
-          const v = value as string
-          if (v.includes('/') || v.includes('\\') || v === '.' || v === '..') unvalidatable = true
-          else paths.push(v)
-          if (colon === -1) i++
-        }
-      } else if (matched && isSwitch(matched)) {
-      } else if (matched && isValueParam(matched)) {
-        const value = colon !== -1 ? norm.slice(colon + 1) : element.args[i + 1]
-        if (colon === -1 && value !== undefined) {
-          if (!safeType(i + 1)) unvalidatable = true
-          i++
-        } else if (colon !== -1 && isComplexColonValue(value as string)) unvalidatable = true
-      } else {
-        unvalidatable = true
-        if (colon !== -1 && !isComplexColonValue(norm.slice(colon + 1))) paths.push(norm.slice(colon + 1))
-      }
-    } else {
-      if (positionalSeen < skip) { positionalSeen++; continue }
-      positionalSeen++
-      if (safeType(i)) paths.push(raw)
-      else unvalidatable = true
-    }
-  }
-  return { paths, operation: config.operation, unvalidatable, optionalWrite: config.optionalWrite === true, hasConfig: true }
+  return notBuilt('src/tools/PowerShellTool/pathValidation.ts:110')
 }
 
 function normDash(arg: string): string {
@@ -226,27 +146,7 @@ function resolveAndDecide(rawPath: string, cwd: string, context: ToolPermissionC
 }
 
 function decideResolved(resolved: string, context: ToolPermissionContext, operation: OperationType): ResolveResult {
-  const permType = operation === 'read' ? 'read' : 'edit'
-  const deny = matchDeny(resolved, context, permType)
-  if (deny) return { allowed: false, resolvedPath: resolved, reason: { type: 'rule', rule: deny } }
-  if (operation !== 'read') {
-    const editable = checkEditableInternalPath(resolved, {})
-    if (editable.behavior === 'allow') return { allowed: true, resolvedPath: resolved, reason: editable.decisionReason }
-    const safety = checkPathSafetyForAutoEdit(resolved)
-    if (!safety.safe) return { allowed: false, resolvedPath: resolved, reason: { type: 'safetyCheck', reason: safety.message, operatorOnly: safety.operatorOnly } }
-  }
-  const inside = pathInAllowedWorkingPath(resolved, context)
-  if (inside) {
-    if (operation === 'read') return { allowed: true, resolvedPath: resolved }
-    if (context.mode === 'implement') return { allowed: true, resolvedPath: resolved }
-  }
-  if (operation === 'read') {
-    const readable = checkReadableInternalPath(resolved, {})
-    if (readable.behavior === 'allow') return { allowed: true, resolvedPath: resolved, reason: readable.decisionReason }
-  }
-  const allow = matchingRuleForInput(resolved, context, permType, 'allow')
-  if (allow) return { allowed: true, resolvedPath: resolved, reason: { type: 'rule', rule: allow } }
-  return { allowed: false, resolvedPath: resolved }
+  return notBuilt('src/tools/PowerShellTool/pathValidation.ts:228')
 }
 
 function matchDeny(path: string, context: ToolPermissionContext, permType: 'read' | 'edit'): PermissionRule | null {
@@ -285,58 +185,22 @@ export function isDangerousRemovalRawPath(path: string): boolean {
 }
 
 export function dangerousRemovalDeny(path: string): PermissionResult {
-  return {
-    behavior: 'deny',
-    message: `Remove-Item of "${path}" is refused: this location is under blanket protection against deletion and cannot be approved.`,
-    decisionReason: other(`Dangerous removal of a protected path: ${path}`),
-  }
+  return notBuilt('src/tools/PowerShellTool/pathValidation.ts:287')
 }
 
 
 export function checkPowerShellCwd(cwd: string, context: ToolPermissionContext): PermissionResult | null {
-  const decision = resolveAndDecide(`"${cwd}"`, getShellCwd(), context, 'read')
-  if (decision.allowed) return null
-  if (decision.reason?.type === 'rule') return { behavior: 'deny', message: pathMessage('set-location', decision, context), decisionReason: decision.reason }
-  return askForPath('set-location', decision, 'read', context)
+  return notBuilt('src/tools/PowerShellTool/pathValidation.ts:296')
 }
 
 export function checkPathConstraints(
   input: { command: string },
   parsed: ParsedPowerShellCommand,
   context: ToolPermissionContext,
-  compoundCommandHasCd = false,
-  cwd = getShellCwd(),
+  compoundCommandHasCd?: boolean,
+  cwd?: Unbuilt,
 ): PermissionResult {
-  if (!parsed.valid) return { behavior: 'passthrough', message: 'Paths cannot be validated on an unparseable command.' }
-  let firstAsk: PermissionResult | null = null
-  const seedAsk = (result: PermissionResult): void => {
-    if (result.behavior === 'ask' && firstAsk === null) firstAsk = result
-  }
-
-  for (const statement of getPipelineSegments(parsed)) {
-    if (compoundCommandHasCd) {
-      seedAsk({ behavior: 'ask', message: 'This compound changes the working directory (Set-Location / Push-Location / Pop-Location / New-PSDrive), so relative paths cannot be validated against the original working directory.', decisionReason: other('A compound directory change makes relative paths unresolvable.') })
-    }
-    for (const command of statement.commands) {
-      const verdict = checkOneCommand(command, cwd, context)
-      if (verdict?.behavior === 'deny') return verdict
-      if (verdict) seedAsk(verdict)
-    }
-    for (const nested of statement.nestedCommands) {
-      const verdict = checkOneCommandNested(nested, cwd, context)
-      if (verdict?.behavior === 'deny') return verdict
-      if (verdict) seedAsk(verdict)
-    }
-    for (const redirect of [...statement.redirections]) {
-      if (redirect.isMerging || !redirect.target || redirect.target.toLowerCase() === '$null') continue
-      const decision = resolveAndDecide(redirect.target, cwd, context, 'write')
-      if (!decision.allowed) {
-        if (decision.reason?.type === 'rule') return { behavior: 'deny', message: redirMessage(decision, context), decisionReason: decision.reason }
-        seedAsk({ behavior: 'ask', message: redirMessage(decision, context), blockedPath: decision.resolvedPath, decisionReason: decision.reason, suggestions: decision.resolvedPath ? [editGrant(decision.resolvedPath)] : [] })
-      }
-    }
-  }
-  return firstAsk ?? { behavior: 'passthrough', message: 'Path validation found no concern.' }
+  return notBuilt('src/tools/PowerShellTool/pathValidation.ts:303')
 }
 
 function checkOneCommand(command: ParsedCommandElement, cwd: string, context: ToolPermissionContext): PermissionResult | null {
@@ -370,18 +234,7 @@ function checkOneCommandNested(command: ParsedCommandElement, cwd: string, conte
 }
 
 function askForPath(canonical: string, decision: ResolveResult, operation: OperationType, context: ToolPermissionContext): PermissionResult {
-  const suggestions: PermissionUpdate[] = []
-  if (decision.resolvedPath) {
-    const dir = getDirectoryForPath(decision.resolvedPath)
-    if (operation === 'read') {
-      const rule = createReadRuleSuggestion(dir)
-      if (rule) suggestions.push(rule)
-    } else {
-      suggestions.push(editGrant(decision.resolvedPath))
-      suggestions.push({ type: 'setMode', destination: 'session', mode: 'implement' })
-    }
-  }
-  return { behavior: 'ask', message: pathMessage(canonical, decision, context), blockedPath: decision.resolvedPath, decisionReason: decision.reason, suggestions }
+  return notBuilt('src/tools/PowerShellTool/pathValidation.ts:372')
 }
 
 function editGrant(resolvedPath: string): PermissionUpdate {

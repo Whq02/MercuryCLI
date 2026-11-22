@@ -1,49 +1,31 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
 import type { RateLimitType } from './anthropicLimits.js'
 import { FIRST_WARNING_PCT } from './providers/usageTiers.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
-type MockHeaderKey =
-  | 'status' | 'reset' | 'claim' | 'fallback' | 'fallback-percentage' | 'retry-after'
-  | `overage-${'status' | 'reset' | 'disabled-reason'}`
-  | `${'5h' | '7d'}-${'utilization' | 'reset' | 'surpassed-threshold'}`
+type MockHeaderKey = Unbuilt
 
-type MockScenario =
-  | 'normal' | 'approaching-weekly-limit' | 'out-of-credits'
-  | 'org-spend-cap-hit' | 'extra-usage-required' | 'clear'
-  | `${'session' | 'weekly'}-limit-reached`
-  | `overage-${'active' | 'warning' | 'exhausted'}`
-  | `${'org' | 'member' | 'seat-tier'}-zero-credit-limit`
-  | `${'opus' | 'sonnet'}-${'limit' | 'warning'}`
+type MockScenario = Unbuilt
 
-type MockHeaders = Record<string, string | undefined>
-
-type ExceededLimit = { type: RateLimitType; resetsAt: number }
+type MockHeaders = Unbuilt
 
 type ScenarioPool = { utilization: number; resets_at: string }
 
 type ScenarioPools = Partial<Record<'seven_day_opus' | 'seven_day_sonnet', ScenarioPool>>
 
 
-let mockHeaders: MockHeaders = {}
-let enabled = false
+let mockHeaders: MockHeaders = unbuilt('src/services/mockRateLimits.ts:28')
+let scenarioPools: ScenarioPools = unbuilt('src/services/mockRateLimits.ts:32')
 
-let exceededLimits: ExceededLimit[] = []
-let scenarioPools: ScenarioPools = {}
-const mockSubscriptionType: string | null = null
-
-const HEADER_PREFIX = 'anthropic-ratelimit-unified-'
+const HEADER_PREFIX: Unbuilt = unbuilt('src/services/mockRateLimits.ts:35')
 
 function isArmed(): boolean {
   return flagEnv('MERCURY_MOCK_LIMITS') !== undefined
 }
 
-function headerNameFor(key: MockHeaderKey): string {
-  return key === 'retry-after' ? 'retry-after' : `${HEADER_PREFIX}${key}`
-}
-
 function nowSeconds(): number {
-  return Math.floor(Date.now() / 1000)
+  return notBuilt('src/services/mockRateLimits.ts:45')
 }
 
 function hoursFromNowEpoch(hours: number): number {
@@ -59,81 +41,8 @@ function foldScenarioPools(): void {
   foldUtilizationFromEndpoint(mockUtilizationPayload() ?? {})
 }
 
-
-function deriveRetryAfter(): void {
-  const status = mockHeaders[`${HEADER_PREFIX}status`]
-  const overage = mockHeaders[`${HEADER_PREFIX}overage-status`]
-  const reset = mockHeaders[`${HEADER_PREFIX}reset`]
-  if (status === 'rejected' && (overage === undefined || overage === 'rejected') && reset !== undefined) {
-    const seconds = Math.max(0, Math.floor(Number(reset) - nowSeconds()))
-    mockHeaders['retry-after'] = String(seconds)
-  } else {
-    delete mockHeaders['retry-after']
-  }
-}
-
-function deriveRepresentativeClaim(): void {
-  if (exceededLimits.length === 0) {
-    delete mockHeaders[`${HEADER_PREFIX}representative-claim`]
-    delete mockHeaders[`${HEADER_PREFIX}reset`]
-    delete mockHeaders['retry-after']
-    return
-  }
-  let furthest = exceededLimits[0] as ExceededLimit
-  for (const entry of exceededLimits) {
-    if (entry.resetsAt > furthest.resetsAt) furthest = entry
-  }
-  mockHeaders[`${HEADER_PREFIX}representative-claim`] = furthest.type
-  mockHeaders[`${HEADER_PREFIX}reset`] = String(furthest.resetsAt)
-  deriveRetryAfter()
-}
-
-
-const CLAIM_DERIVED_TYPES = new Set<string>([
-  'five_hour',
-  'seven_day',
-  'seven_day_opus',
-  'seven_day_sonnet',
-])
-
 export function setMockHeader(key: MockHeaderKey, value: string | undefined): void {
-  if (!isArmed()) return
-  enabled = true
-  const headerName = headerNameFor(key)
-  if (value === undefined || value === 'clear') {
-    if (key === 'status' || key === 'overage-status') {
-      delete mockHeaders[headerName]
-      deriveRetryAfter()
-      return
-    }
-    if (key === 'claim') {
-      delete mockHeaders[headerName]
-      exceededLimits = []
-      return
-    }
-    delete mockHeaders[headerName]
-    return
-  }
-  if (key === 'reset' || key === 'overage-reset') {
-    const numeric = Number(value)
-    mockHeaders[headerName] = Number.isNaN(numeric) ? value : String(hoursFromNowEpoch(numeric))
-    return
-  }
-  if (key === 'claim') {
-    if (CLAIM_DERIVED_TYPES.has(value)) {
-      const hours = value === 'five_hour' ? 5 : 7 * 24
-      exceededLimits = exceededLimits.filter(entry => entry.type !== value)
-      exceededLimits.push({ type: value as RateLimitType, resetsAt: hoursFromNowEpoch(hours) })
-      deriveRepresentativeClaim()
-      return
-    }
-    mockHeaders[headerName] = value
-    return
-  }
-  mockHeaders[headerName] = value
-  if (key === 'status' || key === 'overage-status') {
-    deriveRetryAfter()
-  }
+  return notBuilt('src/services/mockRateLimits.ts:99')
 }
 
 const WARNING_HEADER_KEYS = [
@@ -158,18 +67,7 @@ export function setMockEarlyWarning(
   utilization: number,
   hoursFromNow?: number,
 ): void {
-  if (!isArmed()) return
-  enabled = true
-  for (const key of WARNING_HEADER_KEYS) {
-    delete mockHeaders[`${HEADER_PREFIX}${key}`]
-  }
-  const hours = hoursFromNow ?? (abbrev === '5h' ? 4 : 5 * 24)
-  mockHeaders[`${HEADER_PREFIX}${abbrev}-utilization`] = String(utilization)
-  mockHeaders[`${HEADER_PREFIX}${abbrev}-reset`] = String(hoursFromNowEpoch(hours))
-  mockHeaders[`${HEADER_PREFIX}${abbrev}-surpassed-threshold`] = String(utilization)
-  if (mockHeaders[`${HEADER_PREFIX}status`] === undefined) {
-    mockHeaders[`${HEADER_PREFIX}status`] = 'allowed'
-  }
+  return notBuilt('src/services/mockRateLimits.ts:156')
 }
 
 
@@ -200,129 +98,15 @@ const SCENARIO_DESCRIPTIONS: Record<MockScenario, string> = {
 }
 
 export function getScenarioDescription(scenario: MockScenario): string {
-  return SCENARIO_DESCRIPTIONS[scenario] ?? 'Unknown scenario'
-}
-
-function setOverageScenario(overageStatus: 'allowed' | 'allowed_warning' | 'rejected'): void {
-  if (exceededLimits.length === 0) {
-    exceededLimits.push({ type: 'five_hour', resetsAt: hoursFromNowEpoch(5) })
-  }
-  deriveRepresentativeClaim()
-  mockHeaders[`${HEADER_PREFIX}status`] = 'rejected'
-  mockHeaders[`${HEADER_PREFIX}overage-status`] = overageStatus
-  mockHeaders[`${HEADER_PREFIX}overage-reset`] = String(nextMonthEpoch())
+  return notBuilt('src/services/mockRateLimits.ts:202')
 }
 
 export function setMockRateLimitScenario(scenario: MockScenario): void {
-  if (!isArmed()) return
-  const hadPools = Object.keys(scenarioPools).length > 0
-  scenarioPools = {}
-  if (scenario === 'clear') {
-    mockHeaders = {}
-    enabled = false
-    if (hadPools) foldScenarioPools()
-    return
-  }
-  enabled = true
-  mockHeaders = {}
-  if (scenario !== 'overage-active' && scenario !== 'overage-warning' && scenario !== 'overage-exhausted') {
-    exceededLimits = []
-  }
-  switch (scenario) {
-    case 'normal':
-      mockHeaders[`${HEADER_PREFIX}status`] = 'allowed'
-      mockHeaders[`${HEADER_PREFIX}reset`] = String(hoursFromNowEpoch(5))
-      break
-    case 'session-limit-reached':
-      exceededLimits.push({ type: 'five_hour', resetsAt: hoursFromNowEpoch(5) })
-      deriveRepresentativeClaim()
-      mockHeaders[`${HEADER_PREFIX}status`] = 'rejected'
-      break
-    case 'approaching-weekly-limit':
-      mockHeaders[`${HEADER_PREFIX}status`] = 'allowed_warning'
-      mockHeaders[`${HEADER_PREFIX}reset`] = String(hoursFromNowEpoch(7 * 24))
-      mockHeaders[`${HEADER_PREFIX}representative-claim`] = 'seven_day'
-      setMockEarlyWarning('7d', FIRST_WARNING_PCT / 100, 7 * 24)
-      break
-    case 'weekly-limit-reached':
-      exceededLimits.push({ type: 'seven_day', resetsAt: hoursFromNowEpoch(7 * 24) })
-      deriveRepresentativeClaim()
-      mockHeaders[`${HEADER_PREFIX}status`] = 'rejected'
-      break
-    case 'overage-active':
-      setOverageScenario('allowed')
-      break
-    case 'overage-warning':
-      setOverageScenario('allowed_warning')
-      break
-    case 'overage-exhausted':
-      setOverageScenario('rejected')
-      break
-    case 'out-of-credits':
-      setOverageScenario('rejected')
-      mockHeaders[`${HEADER_PREFIX}overage-disabled-reason`] = 'out_of_credits'
-      break
-    case 'org-zero-credit-limit':
-      setOverageScenario('rejected')
-      mockHeaders[`${HEADER_PREFIX}overage-disabled-reason`] = 'org_service_zero_credit_limit'
-      break
-    case 'org-spend-cap-hit':
-      setOverageScenario('rejected')
-      mockHeaders[`${HEADER_PREFIX}overage-disabled-reason`] = 'org_level_disabled_until'
-      break
-    case 'member-zero-credit-limit':
-      setOverageScenario('rejected')
-      mockHeaders[`${HEADER_PREFIX}overage-disabled-reason`] = 'member_zero_credit_limit'
-      break
-    case 'seat-tier-zero-credit-limit':
-      setOverageScenario('rejected')
-      mockHeaders[`${HEADER_PREFIX}overage-disabled-reason`] = 'seat_tier_zero_credit_limit'
-      break
-    case 'opus-limit':
-      exceededLimits.push({ type: 'seven_day_opus', resetsAt: hoursFromNowEpoch(7 * 24) })
-      deriveRepresentativeClaim()
-      mockHeaders[`${HEADER_PREFIX}status`] = 'rejected'
-      break
-    case 'opus-warning':
-      mockHeaders[`${HEADER_PREFIX}status`] = 'allowed_warning'
-      mockHeaders[`${HEADER_PREFIX}reset`] = String(hoursFromNowEpoch(7 * 24))
-      mockHeaders[`${HEADER_PREFIX}representative-claim`] = 'seven_day_opus'
-      scenarioPools.seven_day_opus = weeklyPool(FIRST_WARNING_PCT)
-      break
-    case 'sonnet-limit':
-      exceededLimits.push({ type: 'seven_day_sonnet', resetsAt: hoursFromNowEpoch(7 * 24) })
-      deriveRepresentativeClaim()
-      mockHeaders[`${HEADER_PREFIX}status`] = 'rejected'
-      break
-    case 'sonnet-warning':
-      mockHeaders[`${HEADER_PREFIX}status`] = 'allowed_warning'
-      mockHeaders[`${HEADER_PREFIX}reset`] = String(hoursFromNowEpoch(7 * 24))
-      mockHeaders[`${HEADER_PREFIX}representative-claim`] = 'seven_day_sonnet'
-      scenarioPools.seven_day_sonnet = weeklyPool(FIRST_WARNING_PCT)
-      break
-  }
-  if (hadPools || Object.keys(scenarioPools).length > 0) foldScenarioPools()
+  return notBuilt('src/services/mockRateLimits.ts:216')
 }
 
 export function getCurrentMockScenario(): MockScenario | null {
-  if (!enabled) return null
-  const status = mockHeaders[`${HEADER_PREFIX}status`]
-  const claim = mockHeaders[`${HEADER_PREFIX}representative-claim`]
-  const overage = mockHeaders[`${HEADER_PREFIX}overage-status`]
-  if (claim === 'seven_day_opus') {
-    return status === 'rejected' ? 'opus-limit' : 'opus-warning'
-  }
-  if (claim === 'seven_day_sonnet') {
-    return status === 'rejected' ? 'sonnet-limit' : 'sonnet-warning'
-  }
-  if (overage === 'rejected') return 'overage-exhausted'
-  if (overage === 'allowed_warning') return 'overage-warning'
-  if (overage === 'allowed') return 'overage-active'
-  if (status === 'rejected' && claim === 'five_hour') return 'session-limit-reached'
-  if (status === 'rejected' && claim === 'seven_day') return 'weekly-limit-reached'
-  if (status === 'allowed_warning' && claim === 'seven_day') return 'approaching-weekly-limit'
-  if (status === 'allowed') return 'normal'
-  return null
+  return notBuilt('src/services/mockRateLimits.ts:307')
 }
 
 
@@ -335,53 +119,19 @@ function titleCaseHeader(key: string): string {
 }
 
 export function getMockStatus(): string {
-  const activeHeaders = Object.entries(mockHeaders).filter(([, value]) => value !== undefined)
-  if (!enabled || (activeHeaders.length === 0 && mockSubscriptionType === null)) {
-    return 'No mock rate limits active — real limits are in use'
-  }
-  const lines: string[] = ['Mock rate limits:']
-  lines.push(
-    `  Subscription: ${mockSubscriptionType ?? 'max'} ${mockSubscriptionType !== null ? '(explicitly set)' : '(default)'}`,
-  )
-  for (const [key, value] of activeHeaders) {
-    let rendered = value as string
-    if (key.includes('reset')) {
-      const epoch = Number(value)
-      if (!Number.isNaN(epoch)) {
-        rendered = `${value} (${new Date(epoch * 1000).toLocaleString()})`
-      }
-    }
-    lines.push(`  ${titleCaseHeader(key)}: ${rendered}`)
-  }
-  for (const [claim, pool] of Object.entries(scenarioPools)) {
-    lines.push(`  Weekly pool ${claim}: ${pool.utilization}% — resets ${new Date(pool.resets_at).toLocaleString()}`)
-  }
-  if (exceededLimits.length > 0) {
-    lines.push('  Exceeded limits:')
-    for (const entry of exceededLimits) {
-      lines.push(`    ${entry.type} — resets ${new Date(entry.resetsAt * 1000).toLocaleString()}`)
-    }
-  }
-  return lines.join('\n')
+  return notBuilt('src/services/mockRateLimits.ts:337')
 }
 
 export function getMockHeaders(): MockHeaders | null {
-  if (!shouldProcessMockLimits()) return null
-  return mockHeaders
+  return notBuilt('src/services/mockRateLimits.ts:368')
 }
 
 export function shouldProcessMockLimits(): boolean {
-  if (!isArmed()) return false
-  return enabled
+  return notBuilt('src/services/mockRateLimits.ts:373')
 }
 
 export function applyMockHeaders(headers: Headers): Headers {
-  if (!shouldProcessMockLimits()) return headers
-  const merged = new Headers(headers)
-  for (const [key, value] of Object.entries(mockHeaders)) {
-    if (value !== undefined) merged.set(key, value)
-  }
-  return merged
+  return notBuilt('src/services/mockRateLimits.ts:378')
 }
 
 

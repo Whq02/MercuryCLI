@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { Box, Text } from '../../ink.js'
 import type { Attachment } from '../../utils/attachments/types.js'
@@ -12,6 +11,7 @@ import type { NullRenderingAttachmentType } from './nullRenderingAttachments.js'
 import { UserImageMessage } from './UserImageMessage.js'
 import { UserTextMessage } from './UserTextMessage.js'
 import { useSelectedMessageBg } from '../messageActions.js'
+import { notBuilt } from '../../pi/holes.js'
 
 function AttachmentLine({
   children,
@@ -67,226 +67,13 @@ function HookOutputBlock({
   )
 }
 
-export function AttachmentMessage({
-  addMargin = false,
-  attachment,
-  verbose = false,
-  isTranscriptMode = false,
-}: {
+export function AttachmentMessage(arg0: {
   addMargin?: boolean
   attachment: Attachment
   verbose?: boolean
   isTranscriptMode?: boolean
 }): React.ReactNode {
-  const selectedBg = useSelectedMessageBg()
-  if (attachment.type === 'skill_discovery') return null
-
-  switch (attachment.type) {
-    case 'directory':
-      return (
-        <AttachmentLine>
-          Listed directory{' '}
-          <Text bold>
-            {attachment.displayPath.endsWith('/')
-              ? attachment.displayPath
-              : `${attachment.displayPath}/`}
-          </Text>
-        </AttachmentLine>
-      )
-
-    case 'file':
-    case 'already_read_file': {
-      const content = attachment.content
-      if (content.type === 'notebook') {
-        return (
-          <AttachmentLine>
-            Read <Text bold>{attachment.displayPath}</Text> (
-            {content.file.cells.length} {plural(content.file.cells.length, 'cell')})
-          </AttachmentLine>
-        )
-      }
-      if (attachment.type === 'already_read_file') {
-        return (
-          <AttachmentLine>
-            Re-read <Text bold>{attachment.displayPath}</Text> (unchanged)
-          </AttachmentLine>
-        )
-      }
-      if (content.type === 'text') {
-        return (
-          <AttachmentLine>
-            Read <Text bold>{attachment.displayPath}</Text> (
-            {content.file.numLines}
-            {attachment.truncated ? '+' : ''} {plural(content.file.numLines, 'line')})
-          </AttachmentLine>
-        )
-      }
-      const size =
-        content.type === 'pdf' ? content.file.originalSize : undefined
-      return (
-        <AttachmentLine>
-          Read <Text bold>{attachment.displayPath}</Text>
-          {size !== undefined ? ` (${formatFileSize(size)})` : ''}
-        </AttachmentLine>
-      )
-    }
-
-    case 'compact_file_reference':
-      return (
-        <AttachmentLine>
-          Referenced <Text bold>{attachment.displayPath}</Text>
-        </AttachmentLine>
-      )
-
-    case 'pdf_reference':
-      return (
-        <AttachmentLine>
-          Referenced PDF <Text bold>{attachment.displayPath}</Text> (
-          {attachment.pageCount} {plural(attachment.pageCount, 'page')})
-        </AttachmentLine>
-      )
-
-    case 'dropped_image_file':
-      return (
-        <MessageResponse>
-          <Text dimColor wrap="wrap">
-            Dropped <Text bold>{attachment.displayPath}</Text> — {attachment.reason}
-          </Text>
-        </MessageResponse>
-      )
-
-    case 'nested_memory':
-      return (
-        <AttachmentLine>
-          Loaded instruction file <Text bold>{attachment.displayPath}</Text>
-        </AttachmentLine>
-      )
-
-    case 'dynamic_skill':
-      return (
-        <AttachmentLine>
-          Loaded {attachment.skillNames.length}{' '}
-          {plural(attachment.skillNames.length, 'skill')} from{' '}
-          <Text bold>{attachment.displayPath}</Text>
-        </AttachmentLine>
-      )
-
-    case 'skill_listing':
-      if (attachment.isInitial) return null
-      return (
-        <AttachmentLine>
-          {attachment.skillCount} {plural(attachment.skillCount, 'skill')}{' '}
-          available
-        </AttachmentLine>
-      )
-
-    case 'queued_command': {
-      if ((attachment.boardEventIds !== undefined || attachment.isMeta === true) && !isTranscriptMode) return null
-      const prompt = attachment.prompt
-      const text =
-        typeof prompt === 'string'
-          ? prompt
-          : prompt
-              .filter(block => block.type === 'text')
-              .map(block => (block as { text: string }).text)
-              .join('\n')
-      return (
-        <Box
-          flexDirection="column"
-          marginTop={addMargin ? 1 : 0}
-          backgroundColor={selectedBg}
-        >
-          <UserTextMessage
-            addMargin={false}
-            param={{ type: 'text', text }}
-            verbose={verbose}
-            isTranscriptMode={isTranscriptMode}
-            notice={attachment.commandMode === 'task-notification'}
-            noticeSentAt={attachment.commandMode === 'task-notification' ? attachment.sentAt : undefined}
-            noticeDeliveredAt={attachment.commandMode === 'task-notification' ? attachment.deliveredAt : undefined}
-            origin={attachment.origin}
-          />
-          {(attachment.imagePasteIds ?? []).map(id => (
-            <UserImageMessage key={id} imageId={id} />
-          ))}
-        </Box>
-      )
-    }
-
-    case 'invoked_skills': {
-      if (attachment.skills.length === 0) return null
-      return (
-        <AttachmentLine>
-          Restored {plural(attachment.skills.length, 'skill')}{' '}
-          {attachment.skills.map(skill => skill.name).join(', ')}
-        </AttachmentLine>
-      )
-    }
-
-    case 'diagnostics':
-      return <DiagnosticsDisplay attachment={attachment} verbose={verbose} />
-
-    case 'mcp_resource':
-      return (
-        <AttachmentLine>
-          Read MCP resource <Text bold>{attachment.name}</Text> from{' '}
-          {attachment.server}
-        </AttachmentLine>
-      )
-
-    case 'command_permissions':
-      return null
-
-    case 'hook': {
-      const lead = `hook ${attachment.name}`
-      switch (attachment.outcome) {
-        case 'block':
-          return (
-            <Box flexDirection="column">
-              <Text color="error">
-                {lead} blocked {attachment.event}: {attachment.words.split('\n')[0]}
-              </Text>
-              {attachment.words.includes('\n') ? <HookOutputBlock output={attachment.words.split('\n').slice(1).join('\n')} hookName={attachment.name} hookEvent={attachment.event} verbose={verbose} /> : null}
-            </Box>
-          )
-        case 'stop':
-          return (
-            <Text color="warning">
-              {lead} stopped the turn: {attachment.words}
-            </Text>
-          )
-        case 'failed':
-          return <Text color="error">{attachment.words}</Text>
-        case 'notice':
-          return (
-            <AttachmentLine>
-              {attachment.words} · {lead}
-            </AttachmentLine>
-          )
-        case 'context':
-        case 'text': {
-          if (!isTranscriptMode && !verbose) return null
-          return <HookOutputBlock output={attachment.words} hookName={attachment.name} hookEvent={attachment.event} verbose={verbose} />
-        }
-      }
-      return null
-    }
-
-    case 'bypassed_ask':
-      return (
-        <MessageResponse>
-          <Text dimColor wrap="wrap">
-            allowed by {permissionModeTitle(attachment.mode).toLowerCase()}
-          </Text>
-        </MessageResponse>
-      )
-
-    default: {
-      const nullRendering: NullRenderingAttachmentType = attachment.type
-      void nullRendering
-      return null
-    }
-  }
+  return notBuilt('src/components/messages/AttachmentMessage.tsx:70')
 }
 
 export default AttachmentMessage

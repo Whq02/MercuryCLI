@@ -21,6 +21,7 @@ import {
   logAutonomousLoopActivation,
   readLoopFile,
 } from '../../services/loopFire.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const DEFAULT_INTERVAL = '10m'
 
@@ -181,17 +182,5 @@ export function loopPromptForInput(args: string): string {
 }
 
 export function registerLoopSkill(): void {
-  registerBundledSkill({
-    name: 'loop',
-    aliases: ['proactive'],
-    description: () =>
-      isDynamicLoopEnabled()
-        ? 'Use when work should re-run on a cadence (polling a build, watching a queue, periodic upkeep, e.g. /loop 10m /health); without an interval the model paces itself between ticks. Not for one-shot future runs (use schedule).'
-        : `Use when work should re-run on a cadence (polling a build, watching a queue, periodic upkeep, e.g. /loop 10m /health); default interval ${DEFAULT_INTERVAL}. Not for one-shot future runs (use schedule).`,
-    menuDescription: 'Run a prompt on a schedule',
-    argumentHint: () =>
-      isLoopDefaultPromptEnabled() ? '[interval] [prompt or /slash-command]' : '[interval] <prompt or /slash-command>',
-    isEnabled: () => isSaturnSchedulingEnabled(),
-    getPromptForCommand: async args => [{ type: 'text', text: loopPromptForInput(args) }],
-  })
+  return notBuilt('src/skills/bundled/loop.ts:183')
 }

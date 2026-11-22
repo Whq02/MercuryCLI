@@ -1,4 +1,3 @@
-
 import { errorMessage } from '../../utils/errors.js'
 import { type UUID } from 'crypto'
 import { type ToolPermissionContext } from 'src/Tool.js'
@@ -14,6 +13,7 @@ import { PERMISSION_MODES, type PermissionMode as InternalPermissionMode } from 
 import { fileCheckpointSource, fileHistoryCanRestore, fileHistoryEnabled, fileHistoryRestore, type RestoreDriftOracle } from 'src/services/changeTransaction/fileHistory.js'
 import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from 'src/utils/permissions/modeTransitions.js'
 import { isSovereignDisabled, transitionPermissionMode } from 'src/utils/permissions/permissionSetup.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 type RewindFilesResult = {
   can_rewind?: boolean
@@ -33,42 +33,11 @@ export async function handleRewindFiles(
   dryRun: boolean,
   drift?: RestoreDriftOracle,
 ): Promise<RewindFilesResult> {
-  if (!fileHistoryEnabled()) {
-    return { can_rewind: false, error: 'File rewinding is not enabled.' }
-  }
-  if (!fileHistoryCanRestore(appState.fileHistory, userMessageId)) {
-    return {
-      can_rewind: false,
-      error: 'No file checkpoint found for this message.',
-    }
-  }
-  let restored: Awaited<ReturnType<typeof fileHistoryRestore>>
-  try {
-    restored = await fileHistoryRestore(appState.fileHistory, userMessageId, {
-      dryRun,
-      ownerKey: `rewind:${String(userMessageId)}`,
-      ...(drift !== undefined ? { drift } : {}),
-    })
-  } catch (error) {
-    return { can_rewind: false, error: `Failed to rewind: ${errorMessage(error)}` }
-  }
-  if (!restored.ok) {
-    return { can_rewind: false, error: `Failed to rewind: ${restored.detail}` }
-  }
-  if (dryRun) {
-    return { can_rewind: true, files_changed: restored.changed, insertions: restored.insertions, deletions: restored.deletions }
-  }
-  return { can_rewind: true }
+  return notBuilt('src/cli/headless/controlHandlers.ts:29')
 }
 
 
-interface RewindSessionContext {
-  messages: Message[]
-  getAppState: () => AppState
-  setAppState?: (updater: (prev: AppState) => AppState) => void
-  drift: RestoreDriftOracle
-  turnActive: boolean
-}
+type RewindSessionContext = Unbuilt
 
 function refusedRewind(mode: SessionRewindOutcomeV1['mode'], refusal: RewindRefusalKind, detail: string): SessionRewindOutcomeV1 {
   return { outcome: 'refused', mode, refusal, detail }
@@ -86,97 +55,12 @@ export async function handleRewindSession(
   request: ParamsOf<typeof SESSION_VERBS.rewind.runner.name>,
   ctx: RewindSessionContext,
 ): Promise<SessionRewindOutcomeV1> {
-  const { mode } = request
-  const uuid = request.user_message_id
-  const dryRun = request.dry_run === true
-  if (ctx.turnActive) {
-    return refusedRewind(mode, 'turn-active', 'a turn is running in this session — press esc to stop it, then /rewind again')
-  }
-  const turnIndex = ctx.messages.findIndex(m => isOperatorTurn(m, uuid))
-  if (turnIndex === -1) {
-    return refusedRewind(mode, 'not-found', "that point is not in this session's conversation")
-  }
-  const wantsCode = mode === 'code' || mode === 'both'
-  const wantsConversation = mode === 'conversation' || mode === 'both'
-  if (wantsConversation) {
-    const boundary = findLastCompactBoundaryIndex(ctx.messages)
-    if (boundary !== -1 && turnIndex <= boundary) {
-      return refusedRewind(mode, 'before-compaction', 'that point lies before the last compaction fold — its summary cannot be unpicked; pick a later point or /clear')
-    }
-  }
-  const receipt: SessionRewindOutcomeV1 = { outcome: 'applied', mode, ...(dryRun ? { dryRun: true } : {}) }
-  if (wantsCode) {
-    if (!fileHistoryEnabled()) {
-      const why = fileCheckpointSource() === 'headless' ? 'a hosted run asks for them with file_checkpoints on initialize' : 'Settings › File checkpointing'
-      return refusedRewind(mode, 'capture-off', `file checkpoints are off for this session (${why}) — the conversation can still be restored`)
-    }
-    const state = ctx.getAppState()
-    if (!fileHistoryCanRestore(state.fileHistory, uuid as UUID)) {
-      return refusedRewind(mode, 'no-checkpoint', 'no saved files at this point — the checkpoint store holds nothing for it')
-    }
-    let restored: Awaited<ReturnType<typeof fileHistoryRestore>>
-    try {
-      restored = await fileHistoryRestore(state.fileHistory, uuid as UUID, {
-        dryRun,
-        ownerKey: `rewind:${uuid}`,
-        drift: ctx.drift,
-        ...(ctx.setAppState === undefined ? {} : { updateState: (update: (prev: AppState['fileHistory']) => AppState['fileHistory']) => ctx.setAppState!(prev => ({ ...prev, fileHistory: update(prev.fileHistory) })) }),
-      })
-    } catch (error) {
-      return refusedRewind(mode, 'restore-failed', `the restore threw before any file was written: ${errorMessage(error)}`)
-    }
-    if (!restored.ok) return refusedRewind(mode, restored.kind, restored.detail)
-    receipt.code = { filesChanged: restored.changed, insertions: restored.insertions, deletions: restored.deletions }
-    if (!wantsConversation && restored.changed.length === 0) {
-      return { ...receipt, outcome: 'noop', detail: 'the files already match this point — nothing to restore' }
-    }
-  }
-  if (wantsConversation) {
-    const removed = ctx.messages.length - turnIndex
-    if (dryRun) {
-      receipt.conversation = { turnUuid: uuid, removed }
-      return receipt
-    }
-    const record = createOperatorRewindRecordMessage({ turnUuid: uuid, removed })
-    ctx.messages.push(record)
-    try {
-      await recordTranscript([record], uuid as UUID, ctx.messages)
-      await flushSessionStorage()
-    } catch (error) {
-      const landed = receipt.code !== undefined ? `the files were restored (${receipt.code.filesChanged.length}); ` : ''
-      return { ...receipt, outcome: 'refused', refusal: 'restore-failed', detail: `${landed}the conversation boundary could not be written to the transcript: ${errorMessage(error)}` }
-    }
-    receipt.conversation = { turnUuid: uuid, removed }
-  }
-  return receipt
+  return notBuilt('src/cli/headless/controlHandlers.ts:85')
 }
 
 
 export async function handleFileRestoreSession(request: ParamsOf<typeof SESSION_VERBS.fileRestore.runner.name>, ctx: RewindSessionContext): Promise<SessionRewindOutcomeV1> {
-  if (ctx.turnActive) return refusedRewind('code', 'turn-active', 'a turn is running in this session — press esc to stop it, then /rewind again')
-  if (!fileHistoryEnabled()) return refusedRewind('code', 'capture-off', 'file checkpoints are off for this session')
-  const state = ctx.getAppState().fileHistory
-  const undo = request.action === 'undo'
-  if (undo && state.rewindUndo?.messageId !== request.user_message_id) {
-    return refusedRewind('code', 'no-checkpoint', 'there is no rewind to undo before this prompt')
-  }
-  if (!undo && !ctx.messages.some(message => isOperatorTurn(message, request.user_message_id))) {
-    return refusedRewind('code', 'not-found', "that point is not in this session's conversation")
-  }
-  try {
-    const result = await fileHistoryRestore(state, request.user_message_id as UUID, {
-      dryRun: request.dry_run === true,
-      ownerKey: `rewind:${request.user_message_id}`,
-      drift: ctx.drift,
-      undo,
-      ...(request.action === 'restore' ? { filePath: request.file_path } : {}),
-      ...(ctx.setAppState === undefined ? {} : { updateState: (update: (prev: AppState['fileHistory']) => AppState['fileHistory']) => ctx.setAppState!(prev => ({ ...prev, fileHistory: update(prev.fileHistory) })) }),
-    })
-    if (!result.ok) return refusedRewind('code', result.kind, result.detail)
-    return { outcome: result.changed.length === 0 ? 'noop' : 'applied', mode: 'code', ...(result.dryRun ? { dryRun: true } : {}), code: { filesChanged: result.changed, insertions: result.insertions, deletions: result.deletions } }
-  } catch (error) {
-    return refusedRewind('code', 'restore-failed', `the restore failed: ${errorMessage(error)}`)
-  }
+  return notBuilt('src/cli/headless/controlHandlers.ts:155')
 }
 export function resolvePermissionModeTransition(
   mode: InternalPermissionMode,
@@ -195,28 +79,5 @@ function decidePermissionModeTransition(
   mode: InternalPermissionMode,
   toolPermissionContext: ToolPermissionContext,
 ): { ok: true; context: ToolPermissionContext } | { ok: false; error: string } {
-  if (!(PERMISSION_MODES as readonly string[]).includes(mode)) {
-    return { ok: false, error: `'${String(mode)}' is not a permission mode; the modes are ${PERMISSION_MODES.join(', ')}` }
-  }
-  if (mode === 'sovereign') {
-    if (isSovereignDisabled()) {
-      return {
-        ok: false,
-        error: 'Cannot set permission mode to sovereign because it is disabled by settings or configuration',
-      }
-    }
-    if (!toolPermissionContext.isBypassPermissionsModeAvailable) {
-      return {
-        ok: false,
-        error: 'Cannot set permission mode to sovereign because the session was not launched with --sovereign',
-      }
-    }
-  }
-  return {
-    ok: true,
-    context: {
-      ...transitionPermissionMode(toolPermissionContext.mode, mode, toolPermissionContext),
-      mode,
-    },
-  }
+  return notBuilt('src/cli/headless/controlHandlers.ts:194')
 }

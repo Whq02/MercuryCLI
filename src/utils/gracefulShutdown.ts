@@ -15,6 +15,7 @@ import { profileReport } from './startupProfiler.js'
 import { pollUntil, withDeadline } from './deadline.js'
 import { passedOver } from './passedOver.js'
 import { startInterval, startTimeout, stopInterval, stopTimeout } from './timers.js'
+import { notBuilt } from '../pi/holes.js'
 
 
 export type GracefulShutdownOptions = {
@@ -70,57 +71,15 @@ const FALLBACK_EXIT_ALT_SCREEN = '\x1b[?1049l'
 const FALLBACK_SHOW_CURSOR = '\x1b[?25h'
 
 function runTerminalRestoration(): void {
-  if (terminalIsGone()) return
-  if (restorationModule) {
-    restorationModule.cleanupTerminalModes()
-    return
-  }
-  if (!process.stdout.isTTY) return
-  const restoration = resolveRestorationSync()
-  if (restoration) {
-    restoration.cleanupTerminalModes()
-    return
-  }
-  try {
-    writeSync(1, FALLBACK_CLOSE_SYNC_UPDATE)
-    writeSync(1, FALLBACK_EXIT_ALT_SCREEN)
-    writeSync(1, FALLBACK_SHOW_CURSOR)
-  } catch (error) {
-    passedOver(error)
-  }
+  return notBuilt('src/utils/gracefulShutdown.ts:72')
 }
 
 function runResumeHint(): void {
-  if (terminalIsGone()) return
-  const restoration =
-    restorationModule ?? (process.stdout.isTTY ? resolveRestorationSync() : undefined)
-  restoration?.printResumeHint()
+  return notBuilt('src/utils/gracefulShutdown.ts:93')
 }
 
-
-let failsafeTimer: ReturnType<typeof setTimeout> | undefined
-
 function forceExit(exitCode: number): void {
-  if (failsafeTimer) {
-    stopTimeout(failsafeTimer)
-    failsafeTimer = undefined
-  }
-  if (!terminalIsGone()) {
-    try {
-      const restoration =
-        restorationModule ?? (process.stdout.isTTY ? resolveRestorationSync() : undefined)
-      restoration?.drainStdinForExit()
-    } catch (error) { passedOver(error) }
-  }
-  try {
-    process.exit(exitCode)
-  } catch (err) {
-    if (process.env.NODE_ENV === 'test') throw err
-    process.kill(process.pid, 'SIGKILL')
-  }
-  if (process.env.NODE_ENV !== 'test') {
-    throw new Error('forceExit: process.exit returned control')
-  }
+  return notBuilt('src/utils/gracefulShutdown.ts:103')
 }
 
 
@@ -278,165 +237,7 @@ function truncate(text: string, max: number): string {
 
 let handlersInstalled = false
 
-export const setupGracefulShutdown = (): void => {
-  if (handlersInstalled) return
-  handlersInstalled = true
-
-  onExit(() => {})
-
-  if (!isDaemonSubcommand()) {
-    process.on('SIGINT', () => {
-      if (runModeOwnsSignals()) return
-      logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGINT' })
-      writePreflightSignal(130)
-      gracefulShutdownSync(130)
-    })
-    process.on('SIGTERM', () => {
-      if (runModeOwnsSignals()) return
-      logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGTERM' })
-      writePreflightSignal(143)
-      gracefulShutdownSync(143)
-    })
-    process.on('SIGHUP', () => {
-      markTerminalGone()
-      if (runModeOwnsSignals()) return
-      logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGHUP' })
-      writePreflightSignal(TERMINAL_GONE_EXIT_CODE)
-      gracefulShutdownSync(TERMINAL_GONE_EXIT_CODE)
-    })
-    process.on('SIGBREAK', () => {
-      logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGBREAK' })
-      gracefulShutdownSync(149)
-    })
-    if (process.platform !== 'win32') {
-      if (process.stdin.isTTY) {
-        const orphanCheck = startInterval(() => {
-          if (getIsScrollDraining()) return
-          if (!process.stdout.writable || !process.stdin.readable) {
-            stopInterval(orphanCheck)
-            markTerminalGone()
-            logForDiagnosticsNoPII('warn', 'orphan_detected', {
-              stdoutWritable: Boolean(process.stdout.writable),
-              stdinReadable: Boolean(process.stdin.readable),
-            })
-            gracefulShutdownSync(129)
-          }
-        }, ORPHAN_CHECK_INTERVAL_MS)
-        orphanCheck.unref()
-      }
-    }
-  }
-
-  registerProcessOutputErrorHandlers()
-  observeStdoutPressure()
-  if (process.stdin.isTTY && !isDaemonSubcommand()) {
-    registerProcessInputErrorHandler(code => {
-      markTerminalGone()
-      logForDebugging(terminalGoneReadLine(code), { level: 'warn' })
-      logForDiagnosticsNoPII('warn', 'orphan_detected', {
-        stdoutWritable: Boolean(process.stdout.writable),
-        stdinReadable: false,
-        stdinReadError: code,
-      })
-      gracefulShutdownSync(TERMINAL_GONE_EXIT_CODE)
-    }, (code, syscall) => {
-      logForDebugging(editorHandoverStdinFaultLine(code, syscall), { level: 'warn' })
-      logForDiagnosticsNoPII('warn', 'stdin_fault_after_editor', { stdoutWritable: Boolean(process.stdout.writable), stdinError: code, syscall })
-    })
-  }
-
-  process.on('uncaughtException', (err: unknown) => {
-    if (isModuleLoadFailure(err) && !isShuttingDown()) {
-      failLoud(err, 'uncaught-exception')
-      return
-    }
-    if (breaker.tripped) return
-    const error = err instanceof Error ? err : undefined
-    const name = error?.name ?? 'Error'
-    const message = truncate(String(error?.message ?? err), 2000)
-    logForDebugging(`uncaughtException: ${name}: ${message}`)
-    logForDiagnosticsNoPII('error', 'uncaught_exception', { name })
-    const tripped = recordUncaughtAndCheckBreaker(Date.now())
-    if (breaker.ring.length < BREAKER_RING_CAPACITY || tripped) {
-      breaker.ring.push({ name, message: truncate(message, 200) })
-    }
-    if (!persistedUncaughtOnce) {
-      persistedUncaughtOnce = true
-      try {
-        const crashMod = require('./crashReport.js') as typeof import('./crashReport.js')
-        crashMod.persistCrashReport(err, undefined, 'uncaught-exception')
-      } catch (error) {
-        passedOver(error)
-      }
-    }
-    if (tripped) {
-      runTerminalRestoration()
-      try {
-        for (const record of breaker.ring) {
-          process.stderr.write(`${record.name}: ${record.message}\n`)
-        }
-        process.stderr.write(
-          `Crash loop detected: ${breaker.count} uncaught exceptions within ${BREAKER_WINDOW_MS}ms; exiting.\n`,
-        )
-      } catch (error) {
-        passedOver(error)
-      }
-      try {
-        const crashMod = require('./crashReport.js') as typeof import('./crashReport.js')
-        crashMod.persistCrashReport(err, undefined, 'uncaught-exception')
-      } catch (error) {
-        passedOver(error)
-      }
-      if (isShuttingDown()) forceExit(1)
-      else void crashShutdown(1)
-    }
-  })
-
-  process.on('unhandledRejection', (reason: unknown) => {
-    if (isModuleLoadFailure(reason) && !isShuttingDown()) {
-      failLoud(reason, 'unhandled-rejection')
-      return
-    }
-    if (isShuttingDown() && isPeerGoneWriteError(reason)) {
-      const code = (reason as NodeJS.ErrnoException).code
-      logForDebugging(`unhandledRejection during shutdown: a peer's pipe closed (${code}) — the shutdown ends its peers; no crash record`)
-      logForDiagnosticsNoPII('info', 'shutdown_peer_gone_write', { code })
-      return
-    }
-    if (!persistedRejectionOnce && reason instanceof Error) {
-      persistedRejectionOnce = true
-      try {
-        const crashMod = require('./crashReport.js') as typeof import('./crashReport.js')
-        crashMod.persistCrashReport(reason, undefined, 'unhandled-rejection')
-      } catch (error) {
-        passedOver(error)
-      }
-    }
-    if (reason instanceof Error) {
-      logForDebugging(
-        `unhandledRejection: ${reason.name}: ${truncate(reason.message, 2000)}\n${truncate(reason.stack ?? '', 4000)}`,
-      )
-      logForDiagnosticsNoPII('error', 'unhandled_rejection', { kind: 'error', name: reason.name })
-    } else if (typeof reason === 'string') {
-      logForDebugging(`unhandledRejection: ${truncate(reason, 2000)}`)
-      logForDiagnosticsNoPII('error', 'unhandled_rejection', { kind: 'string' })
-    } else {
-      logForDebugging('unhandledRejection: unknown reason')
-      logForDiagnosticsNoPII('error', 'unhandled_rejection', { kind: 'unknown' })
-    }
-  })
-
-  if (process.stdout.isTTY) {
-    const prefetch = startTimeout(() => {
-      void import('./shutdownRestoration.js')
-        .then(mod => {
-          restorationModule = mod
-        })
-        .catch(passedOver)
-    }, RESTORATION_PREFETCH_DELAY_MS)
-    prefetch.unref()
-  }
-}
+export const setupGracefulShutdown = (): void => notBuilt('src/utils/gracefulShutdown.ts:281')
 
 
 let shutdownInProgress = false
@@ -455,161 +256,18 @@ function leaveWatchesToProcessEnd(): void {
 }
 
 export async function gracefulShutdown(
-  exitCode: number = 0,
-  reason: SessionEndReason = 'closed',
+  exitCode?: number,
+  reason?: SessionEndReason,
   options?: GracefulShutdownOptions,
 ): Promise<void> {
-  if (shutdownInProgress) return
-  shutdownInProgress = true
-  leaveWatchesToProcessEnd()
-
-  if (!restorationModule && process.stdout.isTTY) {
-    try {
-      restorationModule = await import('./shutdownRestoration.js')
-    } catch (err) {
-      logForDebugging(`gracefulShutdown: restoration module import failed: ${String(err)}`)
-    }
-  }
-
-  failsafeTimer = startTimeout(() => {
-    try {
-      runTerminalRestoration()
-      runResumeHint()
-    } catch (error) {
-      passedOver(error)
-    } finally {
-      forceExit(exitCode)
-    }
-  }, Math.max(FAILSAFE_FLOOR_MS, SESSION_END_HOOK_BUDGET_MS + FAILSAFE_HOOK_MARGIN_MS))
-  failsafeTimer.unref()
-
-  process.exitCode = exitCode
-
-  if (restorationModule) await (await import('../ink/instances.js')).default.get(process.stdout)?.awaitTerminalQueries()
-  runTerminalRestoration()
-  runResumeHint()
-
-  const cleanupRun = runCleanupFunctions()
-  try {
-    await withDeadline(cleanupRun, CLEANUP_TIMEOUT_MS, () => {
-      throw new Error('cleanup timed out')
-    })
-  } catch (err) {
-    logForDebugging(`gracefulShutdown: a cleanup failed or passed its ${CLEANUP_TIMEOUT_MS}ms limit (ignored): ${err instanceof SyntaxError ? 'a record it read is not valid JSON' : String(err)}`)
-  }
-
-  try {
-    const { closeLineageSession } = await import('../mneme/lineageSession.js')
-    await closeLineageSession(reason, SESSION_END_HOOK_BUDGET_MS)
-  } catch (err) {
-    logForDebugging(`gracefulShutdown: the lineage close failed (ignored): ${String(err)}`)
-  }
-
-  try {
-    const { fireHooks } = await import('./hooks/fire.js')
-    const hookBudgetMs = SESSION_END_HOOK_BUDGET_MS
-    const { getSessionId } = await import('../bootstrap/state.js')
-    const ended = await fireHooks('session.end', { reason }, { scope: { sessionId: String(getSessionId()) }, signal: AbortSignal.timeout(hookBudgetMs), budgetMs: hookBudgetMs })
-    for (const outcome of ended.outcomes) {
-      if (outcome.state.kind === 'failed') process.stderr.write(`${outcome.state.line}\n`)
-    }
-  } catch (error) {
-    logForDebugging(`gracefulShutdown: session.end hooks failed (ignored): ${String(error)}`)
-  } finally {
-    try {
-      const { endBackgroundHooks } = await import('./hooks/background.js')
-      await endBackgroundHooks()
-    } catch (error) {
-      logForDebugging(`gracefulShutdown: ending background hooks failed (ignored): ${String(error)}`)
-    }
-  }
-
-  try {
-    profileReport()
-  } catch (error) {
-    passedOver(error)
-  }
-
-  if (options?.finalMessage !== undefined && !terminalIsGone()) {
-    try {
-      process.stderr.write(`${options.finalMessage}\n`)
-    } catch (error) {
-      passedOver(error)
-    }
-  }
-
-  try {
-    const { drainExitCliffSeams } = await import('./exitCliffDrain.js')
-    await drainExitCliffSeams()
-  } catch (err) {
-    logForDebugging(`gracefulShutdown: exit-cliff drain failed (ignored): ${String(err)}`)
-  }
-
-  if (failsafeTimer) {
-    stopTimeout(failsafeTimer)
-    failsafeTimer = undefined
-  }
-  const stdoutDrain = await drainPipedStdoutForExit()
-  if (!stdoutDrain.drained && exitCode === 0) exitCode = 1
-
-  await quiesceCleanupBeforeExit(cleanupRun)
-
-  forceExit(typeof process.exitCode === 'number' && process.exitCode !== 0 ? process.exitCode : exitCode)
+  return notBuilt('src/utils/gracefulShutdown.ts:457')
 }
 
 export const CRASH_SHUTDOWN_BUDGET_MS = 1500
 const CRASH_CLEANUP_CAP_MS = 700
 
 export async function crashShutdown(exitCode: number): Promise<void> {
-  if (shutdownInProgress) return
-  shutdownInProgress = true
-  leaveWatchesToProcessEnd()
-
-  if (!restorationModule && process.stdout.isTTY) {
-    try {
-      restorationModule = await import('./shutdownRestoration.js')
-    } catch (err) {
-      logForDebugging(`crashShutdown: restoration module import failed: ${String(err)}`)
-    }
-  }
-
-  const cap = startTimeout(() => {
-    try {
-      runTerminalRestoration()
-      runResumeHint()
-    } catch (error) {
-      passedOver(error)
-    } finally {
-      forceExit(exitCode)
-    }
-  }, CRASH_SHUTDOWN_BUDGET_MS)
-  cap.unref()
-
-  process.exitCode = exitCode
-
-  runTerminalRestoration()
-  runResumeHint()
-
-  const cleanupRun = runCleanupFunctions()
-  try {
-    await withDeadline(cleanupRun, CRASH_CLEANUP_CAP_MS, () => {
-      throw new Error('crash cleanup timed out')
-    })
-  } catch (err) {
-    logForDebugging(`crashShutdown: a cleanup failed or passed its ${CRASH_CLEANUP_CAP_MS}ms limit (ignored): ${err instanceof SyntaxError ? 'a record it read is not valid JSON' : String(err)}`)
-  }
-
-  try {
-    const { drainExitCliffSeams } = await import('./exitCliffDrain.js')
-    await drainExitCliffSeams()
-  } catch (err) {
-    logForDebugging(`crashShutdown: exit-cliff drain failed (ignored): ${String(err)}`)
-  }
-
-  await drainPipedStdoutForExit()
-  await quiesceCleanupBeforeExit(cleanupRun)
-  stopTimeout(cap)
-  forceExit(exitCode)
+  return notBuilt('src/utils/gracefulShutdown.ts:563')
 }
 
 export const EXIT_QUIESCENCE_MS = 400

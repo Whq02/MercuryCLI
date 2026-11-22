@@ -2,6 +2,7 @@ import { getAgentSourceDisplayName } from '../../components/agents/utils.js'
 import { getAgentDefinitionsWithOverrides } from '../../tools/AgentTool/loadAgentsDir.js'
 import type { AgentDefinition, AgentSource } from '../../types/agent.js'
 import { getCwd } from '../../utils/cwd.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const SOURCE_GROUP_ORDER = [
   'built-in',
@@ -50,66 +51,5 @@ export function renderAgentLine(entry: RenderableAgent): string {
 }
 
 export async function agentsHandler(): Promise<void> {
-  const cwd = getCwd()
-  const definitions = await getAgentDefinitionsWithOverrides(cwd)
-  const diagnostics = await getAgentDefinitionsWithOverrides(cwd)
-  const failedFiles = diagnostics.failedFiles ?? []
-
-  const activeByType = new Map<string, AgentDefinition>()
-  for (const agent of definitions.activeAgents) {
-    activeByType.set(agent.agentType, agent)
-  }
-
-  const byGroup = new Map<AgentSource, RenderableAgent[]>()
-  for (const agent of definitions.allAgents) {
-    const winner = activeByType.get(agent.agentType)
-    const shadowedBy =
-      winner && winner !== agent
-        ? winner.source === agent.source
-          ? ((winner as { filePath?: string }).filePath ??
-            (winner.filename !== undefined ? `${winner.filename}.md` : getAgentSourceDisplayName(winner.source)))
-          : getAgentSourceDisplayName(winner.source)
-        : undefined
-    const group = agent.source
-    const bucket = byGroup.get(group) ?? []
-    bucket.push({ definition: agent, shadowedBy })
-    byGroup.set(group, bucket)
-  }
-
-  const lines: string[] = []
-  const groupOrder: AgentSource[] = [
-    ...SOURCE_GROUP_ORDER.filter(group => byGroup.has(group)),
-    ...[...byGroup.keys()].filter(
-      group => !(SOURCE_GROUP_ORDER as readonly AgentSource[]).includes(group),
-    ),
-  ]
-  for (const group of groupOrder) {
-    const bucket = byGroup.get(group)
-    if (!bucket || bucket.length === 0) continue
-    lines.push(`${getAgentSourceDisplayName(group)}:`)
-    for (const entry of [...bucket].sort((a, b) =>
-      a.definition.agentType.localeCompare(b.definition.agentType),
-    )) {
-      lines.push(`  ${renderAgentLine(entry)}`)
-    }
-    lines.push('')
-  }
-
-  if (failedFiles.length > 0) {
-    lines.push('Invalid agent definition files:')
-    for (const failed of failedFiles) {
-      lines.push(`  ${failed.path}: ${failed.error}`)
-    }
-    lines.push('')
-  }
-
-  if (lines.length === 0) {
-    console.log('No agents found')
-    return
-  }
-
-  const activeCount = definitions.activeAgents.length
-  console.log(`${activeCount} active agent${activeCount === 1 ? '' : 's'}`)
-  console.log('')
-  console.log(lines.join('\n').trimEnd())
+  return notBuilt('src/cli/handlers/agents.ts:52')
 }

@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { Text } from '../../ink.js'
 import type { TaskState } from '../../tasks/types.js'
@@ -6,6 +5,7 @@ import type { LocalShellTaskState } from '../../tasks/LocalShellTask/guards.js'
 import type { LocalAgentTaskState } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { truncateToWidth } from '../../utils/glyphs.js'
 import { ShellProgress, TaskStatusText } from './ShellProgress.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const DEFAULT_ACTIVITY_WIDTH = 40
 
@@ -50,24 +50,9 @@ function AgentLine({
   )
 }
 
-export function BackgroundTask({
-  task,
-  maxActivityWidth = DEFAULT_ACTIVITY_WIDTH,
-}: {
+export function BackgroundTask(arg0: {
   task: TaskState
   maxActivityWidth?: number
 }): React.ReactNode {
-  switch (task.type) {
-    case 'local_bash':
-      return <ShellLine shell={task} width={maxActivityWidth} />
-    case 'local_agent':
-      return <AgentLine task={task} width={maxActivityWidth} />
-    default:
-      return (
-        <AgentLine
-          task={task as TaskState & { description: string }}
-          width={maxActivityWidth}
-        />
-      )
-  }
+  return notBuilt('src/components/tasks/BackgroundTask.tsx:53')
 }

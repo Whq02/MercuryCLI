@@ -8,6 +8,7 @@ import { Agent, type Dispatcher } from 'undici'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { getCACertificates } from './caCerts.js'
 import { logForDebugging } from './debug.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
 type MTLSConfig = { cert?: string; key?: string; passphrase?: string }
@@ -41,72 +42,27 @@ function readMaterial(variable: MTLSVariable): string | undefined {
   }
 }
 
-export const getMTLSConfig = memoize((): MTLSConfig | undefined => {
-  const cert = readMaterial('MERCURY_CLIENT_CERT')
-  const key = readMaterial('MERCURY_CLIENT_KEY')
-  const passphrase = flagEnv('MERCURY_CLIENT_KEY_PASSPHRASE') || undefined
-  if (cert === undefined && key === undefined && passphrase === undefined) return undefined
-  const config: MTLSConfig = {}
-  if (cert !== undefined) config.cert = cert
-  if (key !== undefined) config.key = key
-  if (passphrase !== undefined) config.passphrase = passphrase
-  return config
-})
+export const getMTLSConfig: Unbuilt = unbuilt('src/utils/mtls.ts:44')
 
 export function getMTLSReadErrors(): MTLSReadError[] {
   getMTLSConfig()
   return [...mtlsReadErrors.values()]
 }
 
-export const getMTLSAgent = memoize((): HttpsAgent | undefined => {
-  const config = getMTLSConfig()
-  const ca = getCACertificates()
-  if (!config && !ca) return undefined
-  return new HttpsAgent({ ...config, ...(ca ? { ca } : {}), keepAlive: true })
-})
+export const getMTLSAgent: Unbuilt = unbuilt('src/utils/mtls.ts:61')
 
 export function getWebSocketTLSOptions(): tls.SecureContextOptions | undefined {
-  const config = getMTLSConfig()
-  const ca = getCACertificates()
-  if (!config && !ca) return undefined
-  return { ...config, ...(ca ? { ca } : {}) }
+  return notBuilt('src/utils/mtls.ts:68')
 }
 
 export function getTLSFetchOptions(): { tls?: TLSConfig; dispatcher?: Dispatcher } {
-  const config = getMTLSConfig()
-  const ca = getCACertificates()
-  if (!config && !ca) return {}
-  const tlsConfig: TLSConfig = { ...config, ...(ca ? { ca } : {}) }
-  if (typeof (globalThis as { Bun?: unknown }).Bun !== 'undefined') return { tls: tlsConfig }
-  const dispatcher = new Agent({
-    connect: {
-      cert: tlsConfig.cert,
-      key: tlsConfig.key,
-      passphrase: tlsConfig.passphrase,
-      ...(tlsConfig.ca ? { ca: tlsConfig.ca } : {}),
-    },
-    pipelining: 1,
-    allowH2: false,
-  })
-  return { dispatcher }
+  return notBuilt('src/utils/mtls.ts:75')
 }
 
 export function clearMTLSCache(): void {
-  getMTLSConfig.cache.clear?.()
-  getMTLSAgent.cache.clear?.()
-  mtlsReadErrors.clear()
-  mtlsReportedStartup.clear()
-  logForDebugging('mtls: caches cleared')
+  return notBuilt('src/utils/mtls.ts:94')
 }
 
 export function configureGlobalMTLS(): void {
-  const config = getMTLSConfig()
-  for (const failure of mtlsReadErrors.values()) {
-    const key = `${failure.variable}:${failure.path}:${failure.error}`
-    if (mtlsReportedStartup.has(key)) continue
-    mtlsReportedStartup.add(key)
-    process.stderr.write(`${mtlsReadFailureSentence(failure)}\n`)
-  }
-  if (!config) return
-  logForDebugging('mtls: client certificate configured; NODE_EXTRA_CA_CERTS (if set) is appended to the trust store by the runtime')
+  return notBuilt('src/utils/mtls.ts:102')
 }

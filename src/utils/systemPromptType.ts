@@ -1,8 +1,7 @@
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
-export type SystemPrompt = readonly string[] & {
-  readonly __brand: 'SystemPrompt'
-}
+export type SystemPrompt = Unbuilt
 
 export function asSystemPrompt(value: readonly string[]): SystemPrompt {
-  return value as SystemPrompt
+  return notBuilt('src/utils/systemPromptType.ts:6')
 }

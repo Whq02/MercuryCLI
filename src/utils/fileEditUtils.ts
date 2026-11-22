@@ -18,13 +18,13 @@ import {
   straightenQuotes,
 } from './curlyQuotes.js'
 import { plainTypography } from './typography.js'
+import { notBuilt } from '../pi/holes.js'
 
 export type FileEdit = {
   old_string: string
   new_string: string
   replace_all: boolean
 }
-
 
 
 export { LEFT_DOUBLE_CURLY_QUOTE, LEFT_SINGLE_CURLY_QUOTE, RIGHT_DOUBLE_CURLY_QUOTE, RIGHT_SINGLE_CURLY_QUOTE }
@@ -162,52 +162,7 @@ function locateByCharacters(fileContent: string, searchString: string): ActualMa
 }
 
 function locateByLines(fileContent: string, searchString: string): ActualMatchOutcome {
-  const terminated = searchString.endsWith('\n')
-  const body = terminated ? searchString.slice(0, -1) : searchString
-  if (body.trim() === '') return { kind: 'none' }
-  const searchLines = body.split('\n')
-  const fileLines = fileContent.split('\n')
-  const lastWindowStart = fileLines.length - searchLines.length - (terminated ? 1 : 0)
-  if (lastWindowStart < 0) return { kind: 'none' }
-  const offsets: number[] = new Array(fileLines.length)
-  let offset = 0
-  for (let i = 0; i < fileLines.length; i++) {
-    offsets[i] = offset
-    offset += (fileLines[i] as string).length + 1
-  }
-  const plainFile = fileLines.map(line => plainTypography(line))
-  const plainSearch = searchLines.map(line => plainTypography(line))
-  const roads: Array<[ForgivingRoad, (line: string) => string]> = [
-    ['whitespace', line => line.trimEnd()],
-    ['indentation', line => line.trim()],
-  ]
-  for (const [road, fold] of roads) {
-    const folded = plainFile.map(fold)
-    const wanted = plainSearch.map(fold)
-    const windows: number[] = []
-    for (let start = 0; start <= lastWindowStart; start++) {
-      let drift = 0
-      for (let k = 0; k < wanted.length; k++) {
-        if (folded[start + k] !== wanted[k]) {
-          drift++
-          if (drift > FORGIVENESS_CONTENT_DRIFT_LIMIT) break
-        }
-      }
-      if (drift <= FORGIVENESS_CONTENT_DRIFT_LIMIT) windows.push(start)
-    }
-    if (windows.length === 0) continue
-    const sliceAt = (start: number): string => {
-      const last = start + searchLines.length - 1
-      const end = (offsets[last] as number) + (fileLines[last] as string).length + (terminated ? 1 : 0)
-      return fileContent.slice(offsets[start] as number, end)
-    }
-    const actual = sliceAt(windows[0] as number)
-    if (windows.some(start => sliceAt(start) !== actual)) {
-      return { kind: 'ambiguous', road, count: windows.length, matches: windows.map(start => ({ start: start + 1, end: start + searchLines.length })) }
-    }
-    return foundAt(fileContent, actual, offsets[windows[0] as number] as number, road, searchString)
-  }
-  return { kind: 'none' }
+  return notBuilt('src/utils/fileEditUtils.ts:164')
 }
 
 function locateByEscapes(fileContent: string, searchString: string): ActualMatchOutcome | null {
@@ -268,31 +223,7 @@ function reindentLine(line: string, indents: Map<string, string>): string {
 }
 
 function respellWhitespace(oldString: string, actualOldString: string, newString: string): string {
-  if (newString === '') return newString
-  const oldLines = oldString.split('\n')
-  const actualLines = actualOldString.split('\n')
-  const indents = new Map<string, string>()
-  for (let i = 0; i < oldLines.length; i++) {
-    const typed = oldLines[i] as string
-    if (typed.trim() === '') continue
-    const key = leadingWhitespace(typed)
-    if (!indents.has(key)) indents.set(key, leadingWhitespace(actualLines[i] ?? ''))
-  }
-  const out: string[] = []
-  let at = 0
-  for (const part of diffArrays(oldLines, newString.split('\n'))) {
-    if (part.removed) {
-      at += part.value.length
-      continue
-    }
-    if (part.added) {
-      for (const line of part.value) out.push(reindentLine(line, indents))
-      continue
-    }
-    for (let k = 0; k < part.value.length; k++) out.push(actualLines[at + k] ?? (part.value[k] as string))
-    at += part.value.length
-  }
-  return out.join('\n')
+  return notBuilt('src/utils/fileEditUtils.ts:270')
 }
 
 function isOpeningPosition(text: string, index: number): boolean {
@@ -417,75 +348,22 @@ function stripTrailingNewlines(s: string): string {
   return s.replace(/\n+$/, '')
 }
 
-export function getPatchForEdits({
-  filePath,
-  fileContents,
-  edits,
-}: {
+export function getPatchForEdits(arg0: {
   filePath: string
   fileContents: string
   edits: Array<{ old_string: string; new_string: string; replace_all?: boolean }>
 }): { patch: StructuredPatchHunk[]; updatedFile: string } {
-  if (
-    fileContents === '' &&
-    edits.length === 1 &&
-    edits[0]!.old_string === '' &&
-    edits[0]!.new_string === ''
-  ) {
-    return { patch: [], updatedFile: '' }
-  }
-
-  let updatedFile = fileContents
-  const appliedReplacements: string[] = []
-  for (const edit of edits) {
-    const strippedOld = stripTrailingNewlines(edit.old_string)
-    for (const replacement of appliedReplacements) {
-      if (replacement.includes(strippedOld)) {
-        throw new Error(
-          'Cannot edit text that was introduced by a previous edit in the same batch. Apply the edits in a single change instead.',
-        )
-      }
-    }
-    const before = updatedFile
-    if (edit.old_string === '') {
-      updatedFile = edit.new_string
-    } else {
-      updatedFile = applyEditToFile(updatedFile, edit.old_string, edit.new_string, edit.replace_all)
-    }
-    if (updatedFile === before) {
-      throw new Error('The text to replace does not appear in the file — the edit was not applied.')
-    }
-    appliedReplacements.push(edit.new_string)
-  }
-  if (updatedFile === fileContents) {
-    throw new Error('The edit left the file byte-identical — nothing was applied.')
-  }
-  const patch = getPatchFromContents({
-    filePath,
-    oldContent: convertLeadingTabsToSpaces(fileContents),
-    newContent: convertLeadingTabsToSpaces(updatedFile),
-  })
-  return { patch, updatedFile }
+  return notBuilt('src/utils/fileEditUtils.ts:420')
 }
 
-export function getPatchForEdit({
-  filePath,
-  fileContents,
-  oldString,
-  newString,
-  replaceAll,
-}: {
+export function getPatchForEdit(arg0: {
   filePath: string
   fileContents: string
   oldString: string
   newString: string
   replaceAll?: boolean
 }): { patch: StructuredPatchHunk[]; updatedFile: string } {
-  return getPatchForEdits({
-    filePath,
-    fileContents,
-    edits: [{ old_string: oldString, new_string: newString, replace_all: replaceAll }],
-  })
+  return notBuilt('src/utils/fileEditUtils.ts:471')
 }
 
 
@@ -493,39 +371,8 @@ const TWO_FILE_SNIPPET_CONTEXT_LINES = 8
 const TWO_FILE_SNIPPET_MAX_BYTES = 8192
 const HUNK_SEPARATOR = '...'
 
-export function getSnippetForTwoFileDiff(a: string, b: string, startLine = 1): string {
-  const patch = structuredPatch('a', 'b', a, b, undefined, undefined, {
-    context: TWO_FILE_SNIPPET_CONTEXT_LINES,
-    timeout: DIFF_TIMEOUT_MS,
-  } as Parameters<typeof structuredPatch>[6])
-  if (!patch) return ''
-
-  const parts: string[] = []
-  for (const hunk of patch.hunks) {
-    const kept = hunk.lines
-      .filter(line => !line.startsWith('-') && !line.startsWith('\\'))
-      .map(line => line.slice(1))
-    if (kept.length === 0) continue
-    parts.push(addLineNumbers({ content: kept.join('\n'), startLine: hunk.oldStart + startLine - 1 }))
-  }
-  const full = parts.join(`\n${HUNK_SEPARATOR}\n`)
-  if (Buffer.byteLength(full, 'utf8') <= TWO_FILE_SNIPPET_MAX_BYTES) return full
-
-  const allLines = full.split('\n')
-  let kept = ''
-  let keptLineCount = 0
-  for (const line of allLines) {
-    const candidate = kept === '' ? line : `${kept}\n${line}`
-    if (Buffer.byteLength(candidate, 'utf8') > TWO_FILE_SNIPPET_MAX_BYTES) break
-    kept = candidate
-    keptLineCount++
-  }
-  if (kept === '') {
-    kept = Buffer.from(full, 'utf8').subarray(0, TWO_FILE_SNIPPET_MAX_BYTES).toString('utf8')
-    keptLineCount = kept.split('\n').length
-  }
-  const dropped = allLines.length - keptLineCount
-  return `${kept}\n\n[${dropped} ${plural(dropped, 'line')} truncated]`
+export function getSnippetForTwoFileDiff(a: string, b: string, startLine?: number): string {
+  return notBuilt('src/utils/fileEditUtils.ts:496')
 }
 
 
@@ -598,26 +445,7 @@ export function normalizeFileEditInput<T extends FileEditsInput>(input: T): T {
 
 
 function editsLiterallyEqual(edits1: FileEdit[], edits2: FileEdit[]): boolean {
-  if (edits1.length !== edits2.length) return false
-  return edits1.every((edit, index) => {
-    const other = edits2[index]!
-    return (
-      edit.old_string === other.old_string &&
-      edit.new_string === other.new_string &&
-      edit.replace_all === other.replace_all
-    )
-  })
-}
-
-function applyAll(edits: FileEdit[], originalContent: string): string {
-  let content = originalContent
-  for (const edit of edits) {
-    content =
-      edit.old_string === ''
-        ? edit.new_string
-        : applyEditToFile(content, edit.old_string, edit.new_string, edit.replace_all)
-  }
-  return content
+  return notBuilt('src/utils/fileEditUtils.ts:600')
 }
 
 function areFileEditsEquivalent(
@@ -625,22 +453,7 @@ function areFileEditsEquivalent(
   edits2: FileEdit[],
   originalContent: string,
 ): boolean {
-  if (editsLiterallyEqual(edits1, edits2)) return true
-  let result1: { ok: true; value: string } | { ok: false; message: string }
-  let result2: { ok: true; value: string } | { ok: false; message: string }
-  try {
-    result1 = { ok: true, value: applyAll(edits1, originalContent) }
-  } catch (err) {
-    result1 = { ok: false, message: err instanceof Error ? err.message : String(err) }
-  }
-  try {
-    result2 = { ok: true, value: applyAll(edits2, originalContent) }
-  } catch (err) {
-    result2 = { ok: false, message: err instanceof Error ? err.message : String(err) }
-  }
-  if (result1.ok && result2.ok) return result1.value === result2.value
-  if (!result1.ok && !result2.ok) return result1.message === result2.message
-  return false
+  return notBuilt('src/utils/fileEditUtils.ts:623')
 }
 
 type FileEditsComparable = { file_path: string; edits: FileEdit[] }

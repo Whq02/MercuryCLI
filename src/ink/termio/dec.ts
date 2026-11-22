@@ -1,45 +1,22 @@
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
-import { csi } from './csi.js'
+export const DEC: Unbuilt = unbuilt('src/ink/termio/dec.ts:4')
 
-export const DEC = {
-  ALT_SCREEN_CLEAR: 1049,
-  ALT_SCREEN: 47,
-  CURSOR_VISIBLE: 25,
-  SYNCHRONIZED_UPDATE: 2026,
-  BRACKETED_PASTE: 2004,
-  FOCUS_EVENTS: 1004,
-  ALTERNATE_SCROLL: 1007,
-  MOUSE_NORMAL: 1000,
-  MOUSE_BUTTON: 1002,
-  MOUSE_ANY: 1003,
-  MOUSE_SGR: 1006,
-} as const
+export const BSU: Unbuilt = unbuilt('src/ink/termio/dec.ts:28')
+export const ESU: Unbuilt = unbuilt('src/ink/termio/dec.ts:29')
+export const EBP: Unbuilt = unbuilt('src/ink/termio/dec.ts:30')
+export const DBP: Unbuilt = unbuilt('src/ink/termio/dec.ts:31')
+export const EFE: Unbuilt = unbuilt('src/ink/termio/dec.ts:32')
+export const DFE: Unbuilt = unbuilt('src/ink/termio/dec.ts:33')
+export const SHOW_CURSOR: Unbuilt = unbuilt('src/ink/termio/dec.ts:34')
+export const HIDE_CURSOR: Unbuilt = unbuilt('src/ink/termio/dec.ts:35')
+export const ENTER_ALT_SCREEN: Unbuilt = unbuilt('src/ink/termio/dec.ts:36')
+export const EXIT_ALT_SCREEN: Unbuilt = unbuilt('src/ink/termio/dec.ts:37')
 
-const MOUSE_TRACKING_MODES = [DEC.MOUSE_NORMAL, DEC.MOUSE_BUTTON, DEC.MOUSE_ANY, DEC.MOUSE_SGR] as const
+export const ENABLE_MOUSE_TRACKING: Unbuilt =
+  unbuilt('src/ink/termio/dec.ts:39')
+export const DISABLE_MOUSE_TRACKING: Unbuilt =
+  unbuilt('src/ink/termio/dec.ts:41')
 
-function decset(mode: number): string {
-  return csi(`?${mode}h`)
-}
-
-function decreset(mode: number): string {
-  return csi(`?${mode}l`)
-}
-
-export const BSU = decset(DEC.SYNCHRONIZED_UPDATE)
-export const ESU = decreset(DEC.SYNCHRONIZED_UPDATE)
-export const EBP = decset(DEC.BRACKETED_PASTE)
-export const DBP = decreset(DEC.BRACKETED_PASTE)
-export const EFE = decset(DEC.FOCUS_EVENTS)
-export const DFE = decreset(DEC.FOCUS_EVENTS)
-export const SHOW_CURSOR = decset(DEC.CURSOR_VISIBLE)
-export const HIDE_CURSOR = decreset(DEC.CURSOR_VISIBLE)
-export const ENTER_ALT_SCREEN = decset(DEC.ALT_SCREEN_CLEAR)
-export const EXIT_ALT_SCREEN = decreset(DEC.ALT_SCREEN_CLEAR)
-
-export const ENABLE_MOUSE_TRACKING =
-  MOUSE_TRACKING_MODES.map(decset).join('')
-export const DISABLE_MOUSE_TRACKING =
-  MOUSE_TRACKING_MODES.map(decreset).reverse().join('')
-
-export const ENABLE_ALTERNATE_SCROLL = decset(DEC.ALTERNATE_SCROLL)
-export const DISABLE_ALTERNATE_SCROLL = decreset(DEC.ALTERNATE_SCROLL)
+export const ENABLE_ALTERNATE_SCROLL: Unbuilt = unbuilt('src/ink/termio/dec.ts:44')
+export const DISABLE_ALTERNATE_SCROLL: Unbuilt = unbuilt('src/ink/termio/dec.ts:45')

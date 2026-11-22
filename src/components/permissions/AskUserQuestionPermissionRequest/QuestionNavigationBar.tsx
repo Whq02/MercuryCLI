@@ -6,13 +6,9 @@ import { stringWidth } from '../../../ink/stringWidth.js'
 import { Box, Text } from '../../../ink.js'
 import type { Question } from '../../../tools/AskUserQuestionTool/AskUserQuestionTool.js'
 import { truncateToWidth } from '../../../utils/format.js'
+import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
 
-type Props = {
-  questions: Question[]
-  currentQuestionIndex: number
-  answers: Record<string, string>
-  hideSubmitTab?: boolean
-}
+type Props = Unbuilt
 
 const CHIP_OVERHEAD = 4
 
@@ -37,51 +33,6 @@ function chipTexts(
   )
 }
 
-export function QuestionNavigationBar({
-  questions,
-  currentQuestionIndex,
-  answers,
-  hideSubmitTab = false,
-}: Props): React.ReactNode {
-  const { columns } = useTerminalSize()
-
-  const submitText = hideSubmitTab ? '' : ` ${GLYPH.check} Submit `
-  const fixedWidth = stringWidth('← ') + stringWidth(' →') + stringWidth(submitText)
-  const texts = chipTexts(questions, currentQuestionIndex, columns - fixedWidth)
-  const hideArrows = questions.length === 1 && hideSubmitTab
-  const onSubmitTab = currentQuestionIndex === questions.length
-
-  return (
-    <Box flexDirection="row" marginBottom={1}>
-      {!hideArrows && <Text color={currentQuestionIndex === 0 ? 'inactive' : undefined}>← </Text>}
-      {questions.map((q, i) => {
-        const isSelected = i === currentQuestionIndex
-        const checkbox = q?.question && answers[q.question] ? figures.checkboxOn : figures.checkboxOff
-        const label = ` ${checkbox} ${texts[i] || q?.header || `Q${i + 1}`} `
-        return (
-          <Box key={q?.question || `question-${i}`}>
-            {isSelected ? (
-              <Text backgroundColor="permission" color="inverseText">
-                {label}
-              </Text>
-            ) : (
-              <Text>{label}</Text>
-            )}
-          </Box>
-        )
-      })}
-      {!hideSubmitTab && (
-        <Box key="submit">
-          {onSubmitTab ? (
-            <Text backgroundColor="permission" color="inverseText">
-              {` ${GLYPH.check} Submit `}
-            </Text>
-          ) : (
-            <Text>{` ${GLYPH.check} Submit `}</Text>
-          )}
-        </Box>
-      )}
-      {!hideArrows && <Text color={onSubmitTab ? 'inactive' : undefined}> →</Text>}
-    </Box>
-  )
+export function QuestionNavigationBar(arg0: Props): React.ReactNode {
+  return notBuilt('src/components/permissions/AskUserQuestionPermissionRequest/QuestionNavigationBar.tsx:40')
 }

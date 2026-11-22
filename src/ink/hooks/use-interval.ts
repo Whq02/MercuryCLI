@@ -1,41 +1,9 @@
-
-import { useContext, useRef, useState } from 'react'
-import { useClaim, useSubscription } from '../../hooks/effects.js'
-import { ClockContext } from '../components/ClockContext.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export function useAnimationTimer(intervalMs: number): number {
-  const clock = useContext(ClockContext)
-  const [time, setTime] = useState(() => clock?.now() ?? 0)
-
-  useSubscription(() => {
-    if (!clock) return
-    let anchor = clock.now()
-    return clock.subscribe(() => {
-      const now = clock.now()
-      if (now - anchor >= intervalMs) {
-        anchor = now
-        setTime(now)
-      }
-    }, false)
-  }, [clock, intervalMs])
-
-  return time
+  return notBuilt('src/ink/hooks/use-interval.ts:6')
 }
 
 export function useInterval(callback: () => void, intervalMs: number | null): void {
-  const clock = useContext(ClockContext)
-  const callbackRef = useRef(callback)
-  callbackRef.current = callback
-
-  useClaim(() => {
-    if (!clock || intervalMs === null) return
-    let anchor = clock.now()
-    return clock.subscribe(() => {
-      const now = clock.now()
-      if (now - anchor >= intervalMs) {
-        anchor = now
-        callbackRef.current()
-      }
-    }, false)
-  }, [clock, intervalMs])
+  return notBuilt('src/ink/hooks/use-interval.ts:25')
 }

@@ -45,29 +45,14 @@ import { isLocalShellTask } from './guards.js'
 import { killTask } from './killShellTasks.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { pollUntil } from '../../utils/deadline.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-export const BACKGROUND_BASH_SUMMARY_PREFIX = 'Background command '
+export const BACKGROUND_BASH_SUMMARY_PREFIX: Unbuilt = unbuilt('src/tasks/LocalShellTask/LocalShellTask.tsx:50')
 
 const WATCHDOG_POLL_INTERVAL_MS = 5000
 const WATCHDOG_STALL_THRESHOLD_MS = 45_000
 const WATCHDOG_TAIL_BYTES = 1024
-
-function looksLikePrompt(tail: string): boolean {
-  const lines = tail.trimEnd().split('\n')
-  const lastLine = (lines[lines.length - 1] ?? '').trim()
-  if (lastLine === '') return false
-  const lower = lastLine.toLowerCase()
-  if (lower.includes('(y/n)') || lower.includes('[y/n]') || lower.includes('(yes/no)')) {
-    return true
-  }
-  if (/^(do you|would you|shall i|are you sure|ready to)\b.*\?$/i.test(lastLine)) {
-    return true
-  }
-  if (lower.includes('press any key') || lower.includes('press enter')) return true
-  if (lower.includes('continue?') || lower.includes('overwrite?')) return true
-  return false
-}
 
 
 export function keepTagClosed(text: string, tag: string): string {
@@ -75,14 +60,7 @@ export function keepTagClosed(text: string, tag: string): string {
 }
 
 export function shellNotificationText(facts: { taskId: string; toolUseId: string | undefined; command: string; outputPath: string; status: string; summary: string }): string {
-  const toolUseIdLine = facts.toolUseId ? `\n<${TOOL_USE_ID_TAG}>${facts.toolUseId}</${TOOL_USE_ID_TAG}>` : ''
-  return `<${TASK_NOTIFICATION_TAG}>
-<${TASK_ID_TAG}>${facts.taskId}</${TASK_ID_TAG}>${toolUseIdLine}
-<command>${keepTagClosed(facts.command, 'command')}</command>
-<${OUTPUT_FILE_TAG}>${facts.outputPath}</${OUTPUT_FILE_TAG}>
-<${STATUS_TAG}>${facts.status}</${STATUS_TAG}>
-<${SUMMARY_TAG}>${keepTagClosed(facts.summary, SUMMARY_TAG)}</${SUMMARY_TAG}>
-</${TASK_NOTIFICATION_TAG}>`
+  return notBuilt('src/tasks/LocalShellTask/LocalShellTask.tsx:77')
 }
 
 function enqueueShellNotification(
@@ -96,30 +74,7 @@ function enqueueShellNotification(
   agentId: string | undefined,
   _kind: BashTaskKind | undefined,
 ): void {
-  let shouldEnqueue = false
-  updateTaskState<LocalShellTaskState>(taskId, setAppState, task => {
-    if (task.notified) return task
-    shouldEnqueue = true
-    return { ...task, notified: true }
-  })
-  if (!shouldEnqueue) return
-
-  abortSpeculation(setAppState)
-
-  const codePart = exitCode !== undefined ? ` (exit code ${exitCode})` : ''
-  const summary =
-    status === 'completed'
-      ? `${BACKGROUND_BASH_SUMMARY_PREFIX}"${description}" completed${codePart}`
-      : status === 'failed'
-        ? `${BACKGROUND_BASH_SUMMARY_PREFIX}"${description}" ended${codePart}`
-        : `${BACKGROUND_BASH_SUMMARY_PREFIX}"${description}" was stopped`
-
-  enqueuePendingNotification({
-    value: shellNotificationText({ taskId, toolUseId, command, outputPath: getTaskOutputPath(taskId), status, summary }),
-    mode: 'task-notification',
-    priority: 'next',
-    agentId: agentId as AgentId | undefined,
-  })
+  return notBuilt('src/tasks/LocalShellTask/LocalShellTask.tsx:88')
 }
 
 
@@ -129,72 +84,7 @@ function armStallWatchdog(args: {
   toolUseId: string | undefined
   agentId: string | undefined
 }): () => void {
-  const outputPath = getTaskOutputPath(args.taskId)
-  const controller = new AbortController()
-  let lastSize = 0
-  let lastGrowthAt = Date.now()
-
-  void pollUntil<true, void, void>(
-    async () => {
-      let size = lastSize
-      try {
-        size = (await fs.promises.stat(outputPath)).size
-      } catch (error) {
-        passedOver(error)
-        return undefined
-      }
-      if (size > lastSize) {
-        lastSize = size
-        lastGrowthAt = Date.now()
-        return undefined
-      }
-      if (Date.now() - lastGrowthAt < WATCHDOG_STALL_THRESHOLD_MS) return undefined
-      let tail: { content: string }
-      try {
-        tail = await tailFile(outputPath, WATCHDOG_TAIL_BYTES)
-      } catch (error) {
-        passedOver(error)
-        return undefined
-      }
-      if (!looksLikePrompt(tail.content)) {
-        lastGrowthAt = Date.now()
-        return undefined
-      }
-      if (controller.signal.aborted) return true
-      const lastOutput = tail.content.trimEnd()
-      const summary =
-        `${BACKGROUND_BASH_SUMMARY_PREFIX}"${args.description}" seems to be blocked ` +
-        `waiting for keyboard input`
-      const toolUseIdLine = args.toolUseId
-        ? `\n<${TOOL_USE_ID_TAG}>${args.toolUseId}</${TOOL_USE_ID_TAG}>`
-        : ''
-      const message = `<${TASK_NOTIFICATION_TAG}>
-<${TASK_ID_TAG}>${args.taskId}</${TASK_ID_TAG}>${toolUseIdLine}
-<${OUTPUT_FILE_TAG}>${outputPath}</${OUTPUT_FILE_TAG}>
-<${SUMMARY_TAG}>${keepTagClosed(
-        `${summary}. Last output:\n${lastOutput}\n` +
-          `To proceed: stop the task, then launch the command again with its answers ` +
-          `piped into standard input, or with whatever non-interactive option it offers.`,
-        SUMMARY_TAG,
-      )}</${SUMMARY_TAG}>
-</${TASK_NOTIFICATION_TAG}>`
-      enqueuePendingNotification({
-        value: message,
-        mode: 'task-notification',
-        priority: 'next',
-        agentId: args.agentId as AgentId | undefined,
-      })
-      return true
-    },
-    WATCHDOG_POLL_INTERVAL_MS,
-    Infinity,
-    () => {},
-    { signal: controller.signal, onAbort: () => {}, unref: true },
-  )
-
-  return () => {
-    controller.abort()
-  }
+  return notBuilt('src/tasks/LocalShellTask/LocalShellTask.tsx:126')
 }
 
 
@@ -345,125 +235,7 @@ export async function spawnShellTask(
   input: LocalShellSpawnInput & { shellCommand: ShellCommand; startTime?: number },
   context: TaskContext,
 ): Promise<TaskHandle> {
-  const { shellCommand } = input
-  const setAppState = context.setAppState
-  const taskId = shellCommand.taskOutput.taskId
-
-  const unregister = registerCleanup(async () => {
-    await killTask(taskId, setAppState)
-  })
-
-  const state: LocalShellTaskState = {
-    ...createTaskStateBase({ task_id: taskId, task_type: 'local_bash', description: input.description, call_id: input.toolUseId }),
-    ...(input.startTime !== undefined ? { startTime: input.startTime } : {}),
-    type: 'local_bash',
-    status: 'running',
-    command: input.command,
-    shellCommand,
-    unregisterCleanup: unregister,
-    completionStatusSentInAttachment: false,
-    lastReportedTotalLines: 0,
-    isBackgrounded: true,
-    agentId: input.agentId as AgentId | undefined,
-    ...(input.kind !== undefined ? { kind: input.kind } : {}),
-    verifyCwd: getCwd(),
-  }
-  registerTask(state, setAppState)
-  const launch: ShellLaunchFacts = {
-    command: input.command,
-    description: input.description,
-    agentId: input.agentId,
-    cwd: state.verifyCwd,
-    startTime: state.startTime,
-    toolUseId: input.toolUseId,
-    kind: input.kind,
-  }
-
-  const accepted = shellCommand.background(taskId)
-  if (!accepted) {
-    let result: { stdout: string; stderr: string; code: number; interrupted: boolean }
-    try {
-      result = await shellCommand.result
-    } catch (error) {
-      logError(error)
-      result = { stdout: '', stderr: '', code: 1, interrupted: false }
-    }
-    let startTime = launch.startTime
-    let launchCwd: string | undefined = launch.cwd
-    updateTaskState<LocalShellTaskState>(taskId, setAppState, task => {
-      startTime = task.startTime
-      launchCwd = task.verifyCwd
-      return {
-        ...task,
-        status: result.code === 0 ? 'completed' : 'failed',
-        result: { code: result.code, interrupted: result.interrupted },
-        notified: true,
-        shellCommand: null,
-        unregisterCleanup: undefined,
-        endTime: Date.now(),
-      }
-    })
-    const outcome = shellOutcomeState({
-      code: result.code,
-      interrupted: result.interrupted,
-      wasKilled: false,
-      stderr: result.stderr,
-    })
-    void recordTaskOutcome(getSessionId(), {
-      taskId,
-      taskType: 'local_bash',
-      ...(input.kind !== undefined ? { kind: input.kind } : {}),
-      command: input.command,
-      description: input.description,
-      spawn: 'confirmed',
-      state: outcome.state,
-      ...(outcome.terminationReason !== undefined
-        ? { terminationReason: outcome.terminationReason }
-        : {}),
-      exitCode: result.code,
-      interrupted: result.interrupted,
-      startTime,
-      endTime: Date.now(),
-      ...(input.agentId !== undefined ? { agentId: input.agentId } : {}),
-      ...(launchCwd !== undefined ? { cwd: launchCwd } : {}),
-      output: { artifactPath: artifactPathFor(taskId, input.toolUseId) },
-    })
-    unregister()
-    return { taskId, cleanup: () => {}, accepted: false }
-  }
-
-  const cancelWatchdog =
-    input.kind === 'monitor'
-      ? undefined
-      : armStallWatchdog({
-          taskId,
-          description: input.description,
-          toolUseId: input.toolUseId,
-          agentId: input.agentId,
-        })
-
-  void recordTaskLaunch(getSessionId(), {
-    taskId,
-    kind: input.kind === 'monitor' ? 'monitor' : 'shell',
-    toolUseId: input.toolUseId ?? '',
-    description: input.description,
-    command: input.command,
-    persistent: input.persistent === true,
-    outputPath: input.kind === 'monitor' ? null : getTaskOutputPath(taskId),
-    pid: typeof shellCommand.pid === 'number' ? shellCommand.pid : null,
-    armedAt: state.startTime,
-  })
-
-  void settleShellTask({
-    taskId,
-    shellCommand,
-    setAppState,
-    cancelWatchdog,
-    runCleanupAfterUpdate: false,
-    launch,
-  })
-
-  return { taskId, cleanup: unregister, accepted: true }
+  return notBuilt('src/tasks/LocalShellTask/LocalShellTask.tsx:344')
 }
 
 export function registerForeground(
@@ -471,50 +243,15 @@ export function registerForeground(
   setAppState: SetAppState,
   toolUseId?: string,
 ): string {
-  const { shellCommand } = input
-  const taskId = shellCommand.taskOutput.taskId
-  const unregister = registerCleanup(async () => {
-    await killTask(taskId, setAppState)
-  })
-  const state: LocalShellTaskState = {
-    ...createTaskStateBase({ task_id: taskId, task_type: 'local_bash', description: input.description, call_id: toolUseId ?? input.toolUseId }),
-    type: 'local_bash',
-    status: 'running',
-    command: input.command,
-    shellCommand,
-    unregisterCleanup: unregister,
-    completionStatusSentInAttachment: false,
-    lastReportedTotalLines: 0,
-    isBackgrounded: false,
-    agentId: input.agentId as AgentId | undefined,
-    verifyCwd: getCwd(),
-  }
-  registerTask(state, setAppState)
-  return taskId
+  return notBuilt('src/tasks/LocalShellTask/LocalShellTask.tsx:469')
 }
 
 export function unregisterForeground(taskId: string, setAppState: SetAppState): void {
-  let cleanupToRun: (() => void) | undefined
-  setAppState(prevState => {
-    const task = prevState.tasks?.[taskId]
-    if (!task || !isLocalShellTask(task)) return prevState
-    if (task.isBackgrounded) return prevState
-    cleanupToRun = task.unregisterCleanup
-    const tasks = { ...prevState.tasks }
-    delete tasks[taskId]
-    return { ...prevState, tasks }
-  })
-  try {
-    cleanupToRun?.()
-  } catch (error) {
-    logError(error)
-  }
+  return notBuilt('src/tasks/LocalShellTask/LocalShellTask.tsx:496')
 }
 
 export function markTaskNotified(taskId: string, setAppState: SetAppState): void {
-  updateTaskState<LocalShellTaskState>(taskId, setAppState, task =>
-    task.notified ? task : { ...task, notified: true },
-  )
+  return notBuilt('src/tasks/LocalShellTask/LocalShellTask.tsx:514')
 }
 
 function backgroundRegisteredTask(
@@ -573,68 +310,12 @@ export function backgroundExistingForegroundTask(
   toolUseId?: string,
   launch?: ShellLaunchFacts,
 ): boolean {
-  if (!shellCommand.background(taskId)) return false
-
-  updateTaskState<LocalShellTaskState>(taskId, setAppState, task =>
-    task.isBackgrounded ? task : { ...task, isBackgrounded: true },
-  )
-
-  const cancelWatchdog = armStallWatchdog({
-    taskId,
-    description,
-    toolUseId,
-    agentId: undefined,
-  })
-  void recordTaskLaunch(getSessionId(), {
-    taskId,
-    kind: launch?.kind === 'monitor' ? 'monitor' : 'shell',
-    toolUseId: toolUseId ?? launch?.toolUseId ?? '',
-    description,
-    command: launch?.command ?? '',
-    persistent: false,
-    outputPath: getTaskOutputPath(taskId),
-    pid: typeof shellCommand.pid === 'number' ? shellCommand.pid : null,
-    armedAt: launch?.startTime ?? Date.now(),
-  })
-  void settleShellTask({
-    taskId,
-    shellCommand,
-    setAppState,
-    cancelWatchdog,
-    runCleanupAfterUpdate: true,
-    launch,
-  })
-  return true
+  return notBuilt('src/tasks/LocalShellTask/LocalShellTask.tsx:568')
 }
 
 export function backgroundAll(getAppState: () => AppState, setAppState: SetAppState): void {
-  const tasks = Object.values(getAppState().tasks ?? {})
-  for (const task of tasks) {
-    if (!isLocalShellTask(task)) continue
-    if (task.isBackgrounded || task.status !== 'running') continue
-    backgroundRegisteredTask(task.id, getAppState, setAppState)
-  }
-  for (const task of tasks) {
-    if (!isLocalAgentTask(task)) continue
-    if (task.isBackgrounded || task.status !== 'running') continue
-    backgroundAgentTask(task.id, getAppState, setAppState)
-  }
+  return notBuilt('src/tasks/LocalShellTask/LocalShellTask.tsx:610')
 }
 
 
-export const LocalShellTask: Task = {
-  name: 'LocalShellTask',
-  type: 'local_bash',
-  async kill(taskId, setAppState) {
-    const settlement = await killTask(taskId, setAppState)
-    if (!settlement.settled) {
-      logError(
-        new Error(
-          `shell task ${taskId} did not settle within the kill grace — the process may still be terminating`,
-        ),
-      )
-    }
-    logForDebugging(`killed shell task ${taskId}: ${JSON.stringify(settlement)}`)
-    return settlement
-  },
-}
+export const LocalShellTask: Task = unbuilt('src/tasks/LocalShellTask/LocalShellTask.tsx:625')

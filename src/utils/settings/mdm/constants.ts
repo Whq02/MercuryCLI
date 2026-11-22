@@ -1,35 +1,15 @@
-import { userInfo } from 'node:os'
+import { notBuilt, unbuilt, type Unbuilt } from '../../../pi/holes.js'
 
+export const MACOS_PREFERENCE_DOMAIN: Unbuilt = unbuilt('src/utils/settings/mdm/constants.ts:4')
 
-export const MACOS_PREFERENCE_DOMAIN = 'com.mercury.harness'
+export const WINDOWS_REGISTRY_KEY_PATH_HKLM: Unbuilt = unbuilt('src/utils/settings/mdm/constants.ts:6')
+export const WINDOWS_REGISTRY_KEY_PATH_HKCU: Unbuilt = unbuilt('src/utils/settings/mdm/constants.ts:7')
+export const WINDOWS_REGISTRY_VALUE_NAME: Unbuilt = unbuilt('src/utils/settings/mdm/constants.ts:8')
 
-export const WINDOWS_REGISTRY_KEY_PATH_HKLM = 'HKLM\\SOFTWARE\\Policies\\Mercury'
-export const WINDOWS_REGISTRY_KEY_PATH_HKCU = 'HKCU\\SOFTWARE\\Policies\\Mercury'
-export const WINDOWS_REGISTRY_VALUE_NAME = 'Settings'
-
-export const PLUTIL_PATH = '/usr/bin/plutil'
-export const PLUTIL_ARGS_PREFIX = ['-convert', 'json', '-o', '-', '--']
-export const MDM_SUBPROCESS_TIMEOUT_MS = 5000
-
-const MANAGED_PREFERENCES_ROOT = '/Library/Managed Preferences'
+export const PLUTIL_PATH: Unbuilt = unbuilt('src/utils/settings/mdm/constants.ts:10')
+export const PLUTIL_ARGS_PREFIX: Unbuilt = unbuilt('src/utils/settings/mdm/constants.ts:11')
+export const MDM_SUBPROCESS_TIMEOUT_MS: Unbuilt = unbuilt('src/utils/settings/mdm/constants.ts:12')
 
 export function getMacOSPlistPaths(): Array<{ path: string; label: string }> {
-  let username: string | null = null
-  try {
-    username = userInfo().username || null
-  } catch {
-    username = null
-  }
-  const paths: Array<{ path: string; label: string }> = []
-  if (username !== null) {
-    paths.push({
-      path: `${MANAGED_PREFERENCES_ROOT}/${username}/${MACOS_PREFERENCE_DOMAIN}.plist`,
-      label: `managed preferences (user, ${MACOS_PREFERENCE_DOMAIN})`,
-    })
-  }
-  paths.push({
-    path: `${MANAGED_PREFERENCES_ROOT}/${MACOS_PREFERENCE_DOMAIN}.plist`,
-    label: `managed preferences (device, ${MACOS_PREFERENCE_DOMAIN})`,
-  })
-  return paths
+  return notBuilt('src/utils/settings/mdm/constants.ts:16')
 }

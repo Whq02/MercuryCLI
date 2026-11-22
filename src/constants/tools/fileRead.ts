@@ -1,15 +1,17 @@
-export const FILE_READ_TOOL_NAME = 'Read'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
-export const MAX_LINES_TO_READ = 2000
+export const FILE_READ_TOOL_NAME: Unbuilt = unbuilt('src/constants/tools/fileRead.ts:1')
 
-export const MAX_PDF_PAGES_PER_REQUEST = 20
+export const MAX_LINES_TO_READ: Unbuilt = unbuilt('src/constants/tools/fileRead.ts:3')
 
-export const DESCRIPTION = 'Read the contents of a local file.'
+export const MAX_PDF_PAGES_PER_REQUEST: Unbuilt = unbuilt('src/constants/tools/fileRead.ts:5')
 
-export const LINE_FORMAT_INSTRUCTION =
-  'a line number followed by a tab, then the line content'
+export const DESCRIPTION: Unbuilt = unbuilt('src/constants/tools/fileRead.ts:7')
 
-const STOCK_DIRECTORY_LINE = 'Files only: a directory path is refused.'
+export const LINE_FORMAT_INSTRUCTION: Unbuilt =
+  unbuilt('src/constants/tools/fileRead.ts:9')
+
+const STOCK_DIRECTORY_LINE: Unbuilt = unbuilt('src/constants/tools/fileRead.ts:12')
 
 export const FILE_UNCHANGED_STUB =
   'This file is unchanged since it was last read. The earlier result above remains current — lean on it rather than reading again.'

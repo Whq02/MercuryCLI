@@ -1,3 +1,5 @@
+import type { Unbuilt } from '../../../../pi/holes.js'
+
 export const UNREAD_PART = '\uFFFC'
 
 export type ShellDialect = 'posix' | 'powershell'
@@ -5,36 +7,9 @@ export type Stage = { pipeline: number; stage: number }
 
 export type ReadRedirect = { op: string; target: string }
 
-export type ReadCommand = {
-  argv: string[]
-  env: Array<{ name: string; value: string }>
-  redirects: ReadRedirect[]
-  text: string
-  line: number
-  cwd: string | undefined
-  background: boolean
-  stages: readonly Stage[]
-  input: string | undefined
-  inner: number[][]
-  inputInner: number[]
-  body: string | undefined
-  dialect: ShellDialect
-  around: string | undefined
-  gates?: ReadonlyArray<readonly [number, number]> | undefined
-  maybes?: readonly number[] | undefined
-  substituted?: boolean | undefined
-  called?: 'name' | 'block' | undefined
-  handed?: string | undefined
-}
+export type ReadCommand = Unbuilt
 
-export type Layer = {
-  argv: string[]
-  program: string
-  wrappers: string[]
-  env: Array<{ name: string; value: string }>
-  opaque: string | undefined
-  findRoots: string[] | undefined
-}
+export type Layer = Unbuilt
 
 export type ShellRead = {
   commands: ReadCommand[]
@@ -56,24 +31,11 @@ export type ReadWorld = {
   returnsTo?: string
 }
 
-export type Redirect = {
-  op: '>' | '>>' | '<' | '<<' | '>&' | '>|' | '<&' | '&>' | '&>>' | '<<<'
-  target: string
-  fd?: number
-}
+export type Redirect = Unbuilt
 
-export type SimpleCommand = {
-  argv: string[]
-  envVars: { name: string; value: string }[]
-  redirects: Redirect[]
-  text: string
-  globOperand?: true
-}
+export type SimpleCommand = Unbuilt
 
-export type ParseForSecurityResult =
-  | { kind: 'simple'; commands: SimpleCommand[] }
-  | { kind: 'too-complex'; reason: string; nodeType?: string }
-  | { kind: 'parse-unavailable' }
+export type ParseForSecurityResult = Unbuilt
 
 export type CommandReading = ShellRead & {
   text: string

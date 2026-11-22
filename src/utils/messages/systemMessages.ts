@@ -7,6 +7,7 @@ import { deepestErrorDetail, recentTransportFailure } from '../api/transportEvid
 import { MESSAGE_STAMPER } from '../../rows/project.js'
 import { logForDebugging } from '../debug.js'
 import { formatTokens } from '../format.js'
+import { notBuilt } from '../../pi/holes.js'
 
 type StoredRow = Rows.Message | Rows.NormalizedMessage
 type SystemKind = Rows.SystemMessage['subtype']
@@ -48,13 +49,11 @@ export function isThinkingMessage(row: Rows.Message): boolean {
 }
 
 function callIn(row: Rows.Message | undefined, name: string): ToolUseBlock | undefined {
-  if (row?.type !== 'assistant' || !Array.isArray(row.message.content)) return undefined
-  return row.message.content.find((block): block is ToolUseBlock => block.type === 'tool_use' && block.name === name)
+  return notBuilt('src/utils/messages/systemMessages.ts:50')
 }
 
 function resultIn(row: Rows.Message | undefined, id: string): ToolResultBlockParam | undefined {
-  if (row?.type !== 'user' || !Array.isArray(row.message.content)) return undefined
-  return row.message.content.find((block): block is ToolResultBlockParam => block.type === 'tool_result' && block.tool_use_id === id)
+  return notBuilt('src/utils/messages/systemMessages.ts:55')
 }
 
 function* toolCallingRows(rows: Rows.Message[], name: string): IterableIterator<Rows.Message> {
@@ -87,11 +86,7 @@ export function createCompactBoundaryMessage(
   trigger: Rows.CompactMetadata['trigger'], preTokens: number, lastPreCompactMessageUuid?: UUID,
   userContext?: string, messagesSummarized?: number,
 ): Rows.SystemCompactBoundaryMessage {
-  return systemRow('compact_boundary', {
-    level: 'info', content: 'Conversation compacted',
-    compactMetadata: { trigger, preTokens, userContext, messagesSummarized },
-    ...(lastPreCompactMessageUuid ? { logicalParentUuid: lastPreCompactMessageUuid } : {}),
-  })
+  return notBuilt('src/utils/messages/systemMessages.ts:86')
 }
 
 export function createMicrocompactBoundaryMessage(
@@ -104,42 +99,15 @@ export function createMicrocompactBoundaryMessage(
 
 type ErrorDetail = NonNullable<Rows.SystemAPIErrorMessage['errorDetail']>
 
-function transportDetail(error: unknown, message: string, name: unknown, deep: ReturnType<typeof deepestErrorDetail>): ErrorDetail['transport'] {
-  if (deep.code) return { code: deep.code, ...optional(deep, ['errno']), ...(deep.syscall ? { syscall: deep.syscall } : {}), via: 'cause-chain' }
-  if (name !== 'APIConnectionTimeoutError' && !/request timed out/i.test(message)) return undefined
-  const recent = recentTransportFailure()
-  return recent ? {
-    ...optional(recent, ['errno']),
-    ...(recent.code ? { code: recent.code } : {}),
-    ...(recent.syscall ? { syscall: recent.syscall } : {}),
-    via: 'recent-failure', ageMs: Math.max(0, Date.now() - recent.ts),
-  } : undefined
-}
-
 export function apiErrorDetailOf(error: unknown): ErrorDetail {
-  const value = error as { name?: unknown; message?: unknown; status?: unknown } | null
-  const status = typeof value?.status === 'number' ? value.status : undefined
-  const deep = deepestErrorDetail(error)
-  const words = typeof value?.message === 'string' && value.message ? value.message : String(error ?? 'unknown error')
-  const transport = transportDetail(error, words, value?.name, deep)
-  return {
-    message: words,
-    name: typeof value?.name === 'string' && value.name ? value.name : 'Error',
-    ...optional(deep, ['code']),
-    ...optional({ status, transport }, ['status', 'transport']),
-  }
+  return notBuilt('src/utils/messages/systemMessages.ts:119')
 }
 
 export function createSystemAPIErrorMessage(
   error: APIError | Error, retryInMs: number, retryAttempt: number, maxRetries: number,
   opts?: { recoveryTimeoutMs?: number },
 ): Rows.SystemAPIErrorMessage {
-  const recovery = opts?.recoveryTimeoutMs
-  return systemRow('api_error', {
-    error, cause: error.cause instanceof Error ? error.cause : undefined,
-    errorDetail: apiErrorDetailOf(error), level: 'error', retryInMs, retryAttempt, maxRetries,
-    ...(recovery !== undefined && recovery > 0 ? { recoveryTimeoutMs: recovery } : {}),
-  })
+  return notBuilt('src/utils/messages/systemMessages.ts:133')
 }
 
 export function createStreamCutMessage(input: { count: number; content: string; road?: string; sent?: string; code?: string }): Rows.SystemStreamCutMessage {
@@ -149,15 +117,15 @@ export function createStreamCutMessage(input: { count: number; content: string; 
 export function createBusyRecoveryMessage(input: {
   provider: string; retries: number; elapsedMs: number; content: string; status?: number; code?: string
 }): Rows.SystemBusyRecoveryMessage {
-  return systemRow('busy_recovery', { ...select(input, ['provider', 'retries', 'elapsedMs', 'content']), ...optional(input, ['status', 'code']), level: 'info' })
+  return notBuilt('src/utils/messages/systemMessages.ts:149')
 }
 
-export function createThinkingNoteMessage(content: string, level: Rows.SystemMessageLevel = 'info'): Rows.SystemThinkingNoteMessage {
-  return systemRow('thinking_note', { level, content })
+export function createThinkingNoteMessage(content: string, level?: Rows.SystemMessageLevel): Rows.SystemThinkingNoteMessage {
+  return notBuilt('src/utils/messages/systemMessages.ts:155')
 }
 
 export function createThinkingDeadMessage(dead: Rows.DeadThinkingMark[], content: string): Rows.SystemThinkingDeadMessage {
-  return systemRow('thinking_dead', { level: 'info', content, dead })
+  return notBuilt('src/utils/messages/systemMessages.ts:159')
 }
 
 export function createSeatReceiptMessage(content: string, level: Rows.SystemMessageLevel = 'info', copyText?: string): Rows.SystemSeatReceiptMessage {
@@ -165,15 +133,15 @@ export function createSeatReceiptMessage(content: string, level: Rows.SystemMess
 }
 
 export function createRosterTransitionMessage(toggle: 'subagents', on: boolean, content: string): Rows.SystemRosterTransitionMessage {
-  return systemRow('roster_transition', { content, on, toggle, level: 'info' })
+  return notBuilt('src/utils/messages/systemMessages.ts:167')
 }
 
 export function createModelTransitionMessage(receipt: ModelTransitionReceipt): Rows.SystemModelTransitionMessage {
-  return systemRow('model_transition', select(receipt, ['previous', 'requested', 'applied', 'resolution', 'boundary', 'crossProvider', 'cacheDisposition']))
+  return notBuilt('src/utils/messages/systemMessages.ts:171')
 }
 
 export function createSystemMessage(content: string, level: Rows.SystemMessageLevel, toolUseID?: string, preventContinuation?: boolean): Rows.SystemInformationalMessage {
-  return systemRow('informational', { level, toolUseID, content, ...(preventContinuation ? { preventContinuation } : {}) })
+  return notBuilt('src/utils/messages/systemMessages.ts:175')
 }
 
 export function createCloseUsageMessage(input: { closeState: Rows.SystemCloseUsageMessage['closeState']; noteChars?: number; usage?: import('../api/emptyUsage.js').NonNullableUsage; spent?: import('../ledgerMark.js').LedgerMark }): Rows.SystemCloseUsageMessage {
@@ -197,16 +165,16 @@ export function createMemorySavedMessage(writtenPaths: string[]): Rows.SystemMem
 }
 
 export function createAgentsKilledMessage(): Rows.SystemAgentsKilledMessage {
-  return systemRow('agents_killed', {})
+  return notBuilt('src/utils/messages/systemMessages.ts:199')
 }
 
 export function createTurnDurationMessage(durationMs: number, budget?: { tokens: number; limit: number; nudges: number }, messageCount?: number): Rows.SystemTurnDurationMessage {
-  return systemRow('turn_duration', { durationMs, messageCount, budgetTokens: budget?.tokens, budgetLimit: budget?.limit, budgetNudges: budget?.nudges })
+  return notBuilt('src/utils/messages/systemMessages.ts:203')
 }
 
 export function createApiMetricsMessage(metrics: {
   ttftMs: number; otps: number; isP50?: boolean; hookDurationMs?: number; turnDurationMs?: number;
   toolDurationMs?: number; toolCount?: number; hookCount?: number; configWriteCount?: number
 }): Rows.SystemApiMetricsMessage {
-  return systemRow('api_metrics', select(metrics, ['ttftMs', 'otps', 'isP50', 'hookDurationMs', 'turnDurationMs', 'toolDurationMs', 'toolCount', 'hookCount', 'configWriteCount']))
+  return notBuilt('src/utils/messages/systemMessages.ts:207')
 }

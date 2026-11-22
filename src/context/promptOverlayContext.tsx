@@ -1,4 +1,3 @@
-
 import React, {
   createContext,
   useContext,
@@ -7,55 +6,24 @@ import React, {
 } from 'react'
 import { useClaim } from '../hooks/effects.js'
 import type { SuggestionItem } from '../components/PromptInput/PromptInputFooterSuggestions.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
-type PromptOverlayData = {
-  suggestions: SuggestionItem[]
-  onPick?: (index: number) => void
-  onHover?: (index: number) => void
-  maxColumnWidth?: number
-  maxRows?: number
-}
+type PromptOverlayData = Unbuilt
 
-type Setter<T> = (data: T | null) => void
-
-const DataContext = createContext<PromptOverlayData | null>(null)
-const SetDataContext = createContext<Setter<PromptOverlayData> | null>(null)
-const DialogContext = createContext<ReactNode>(null)
-const SetDialogContext = createContext<Setter<ReactNode> | null>(null)
-
-export function PromptOverlayProvider({
-  children,
-}: {
+export function PromptOverlayProvider(arg0: {
   children: ReactNode
 }): React.ReactNode {
-  const [data, setData] = useState<PromptOverlayData | null>(null)
-  const [dialog, setDialog] = useState<ReactNode>(null)
-  return (
-    <SetDataContext.Provider value={setData}>
-      <SetDialogContext.Provider value={setDialog}>
-        <DataContext.Provider value={data}>
-          <DialogContext.Provider value={dialog}>
-            {children}
-          </DialogContext.Provider>
-        </DataContext.Provider>
-      </SetDialogContext.Provider>
-    </SetDataContext.Provider>
-  )
+  return notBuilt('src/context/promptOverlayContext.tsx:26')
 }
 
 export function usePromptOverlay(): PromptOverlayData | null {
-  return useContext(DataContext)
+  return notBuilt('src/context/promptOverlayContext.tsx:46')
 }
 
 export function usePromptOverlayDialog(): ReactNode {
-  return useContext(DialogContext)
+  return notBuilt('src/context/promptOverlayContext.tsx:50')
 }
 
 export function useSetPromptOverlay(data: PromptOverlayData | null): void {
-  const set = useContext(SetDataContext)
-  useClaim(() => {
-    if (!set) return
-    set(data)
-    return () => set(null)
-  }, [set, data])
+  return notBuilt('src/context/promptOverlayContext.tsx:54')
 }

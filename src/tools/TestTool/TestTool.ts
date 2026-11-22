@@ -1,4 +1,3 @@
-
 import { existsSync, statSync } from 'node:fs'
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { z } from 'zod/v4'
@@ -45,6 +44,7 @@ import {
   userFacingName,
 } from './UI.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const OPS = ['discover', 'run', 'rerunFailed', 'debug', 'report'] as const
 
@@ -687,124 +687,4 @@ export function isPathShapedNode(node: string, cwd: string = getCwd()): boolean 
   return /[\\/]/.test(node) && existsSync(resolve(cwd, node))
 }
 
-export const TestTool = buildTool({
-  name: 'Test',
-  searchHint: 'run, discover, rerun or debug the project\'s tests with recorded, structured results',
-  maxResultSizeChars: 60_000,
-  async description() {
-    return 'Run project tests as structured transactions: discover, run, rerun failures, debug one test'
-  },
-  async prompt() {
-    return `Runs project tests from framework records, returning argv, counts, failures (name, file, line), diagnostics and a record at mercury://test/run/<id> (mercury://test/latest and mercury://test/failures track the newest; overflow output becomes an artifact ref). discover lists node ids or manifest runner profiles; rerunFailed reruns the latest failures; debug stops on one test's first line and leaves the debugger session open; report reads a record. Exit-code/record disagreements appear in verdictNote; matching zero tests returns zero counts (neither pass nor failure).`
-  },
-  userFacingName,
-  shouldDefer: true,
-  straightQuoteInputs: ['path', 'file'],
-  get inputSchema(): SchemaType {
-    return inputSchema()
-  },
-  isConcurrencySafe() {
-    return false
-  },
-  isReadOnly(input: Input) {
-    return input?.op === 'report'
-  },
-  async checkPermissions(input: Input) {
-    if (input.op === 'report') {
-      return { behavior: 'allow' as const, updatedInput: input }
-    }
-    let resolved = ''
-    if (input.op === 'run') {
-      try {
-        const anchor = anchorOf(input)
-        const { profiles } = discoverRunnerProfiles(anchor.from)
-        const lane = input.profile ? undefined : resolveTestLane(anchor.from, input.framework)
-        const profile = input.profile ? profiles.find(p => p.id === input.profile) : lane?.lane === 'runner' ? lane.profile : undefined
-        const where = anchor.outside ? ` (in ${profile ? resolve(profile.root) : anchor.root})` : ''
-        if (lane !== undefined && lane.lane !== 'runner' && lane.lane !== 'python') {
-          resolved = ` (no single test runner at ${anchor.outside ? anchor.root : 'this root'} — the call names the options and runs nothing)`
-        } else if (profile) {
-          if (input.changed) {
-            resolved = ` — will run: ${profile.command.join(' ')} + changed-file focus (targets resolve against the tree at execution)${where}`
-          } else {
-            const extra = input.node
-              ? profile.selection === 'node-pattern'
-                ? ` --test-name-pattern ${input.node}`
-                : ` ${input.node}`
-              : anchor.selection !== undefined
-                ? ` ${input.path}`
-                : ''
-            resolved = ` — will run: ${profile.command.join(' ')}${extra}${where}`
-          }
-        } else if (!input.profile) {
-          resolved = ` (python lane: the shared project interpreter${where})`
-        }
-      } catch (error) {
-        passedOver(error)
-      }
-    }
-    const message = `Test ${input.op}${input.node ? `: ${input.node}` : input.path ? `: ${input.path}` : input.changed ? ': changed files' : ''}${resolved || ' (runs project test code)'}`
-    return { behavior: 'passthrough' as const, message, decisionReason: { type: 'other' as const, reason: message } }
-  },
-  async validateInput(input: Input) {
-    if (input.op === 'debug' && !input.node) {
-      return { result: false as const, message: 'debug requires node (the test id)', errorCode: 1 }
-    }
-    if (input.op === 'run' && input.node !== undefined && isPathShapedNode(input.node)) {
-      return { result: false as const, message: `node is a test id from discover (file::name, or a bare test name), not a path — '${input.node}' names a file or folder: drop node to run the whole profile, or pass it as path`, errorCode: 1 }
-    }
-    return { result: true as const }
-  },
-  async call(input: Input, context: ToolUseContext, _canUseTool, _parentMessage, onProgress) {
-    const startedAt = Date.now()
-    let op: { result: string; outcome: ToolEffectOutcome; record?: TestRunRecord }
-    try {
-      op = await runOp(input, context, onProgress)
-    } catch (err) {
-      op = { result: `${input.op} failed: ${(err as Error).message}`, outcome: 'failed' }
-    }
-    const output: Output = {
-      op: input.op,
-      result: op.result,
-      outcome: op.outcome,
-      ...(op.record ? { record: op.record } : {}),
-    }
-    return {
-      data: output,
-      effect: {
-        outcome: op.record && op.record.exitCode !== null && op.record.counts.failed > 0 && op.record.counts.errored === 0 && !op.record.verdictNote ? 'succeeded' : op.outcome,
-        operation: `test.${input.op}`,
-        changedPaths: [],
-        evidence: op.result.split('\n')[0]?.slice(0, 160) ?? '',
-        startedAt,
-        completedAt: Date.now(),
-        ...(op.record
-          ? {
-              details: {
-                testRun: {
-                  id: op.record.id,
-                  framework: op.record.framework,
-                  counts: op.record.counts,
-                  failures: op.record.failures.slice(0, 20),
-                },
-              },
-            }
-          : {}),
-      },
-    }
-  },
-  mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
-    return {
-      tool_use_id: toolUseId,
-      type: 'tool_result' as const,
-      content: output.result,
-    }
-  },
-  renderToolUseMessage,
-  renderToolUseErrorMessage,
-  renderToolUseProgressMessage,
-  renderToolResultMessage,
-  extractSearchText({ result }) {
-    return result
-  },
-})
+export const TestTool: Unbuilt = unbuilt('src/tools/TestTool/TestTool.ts:690')

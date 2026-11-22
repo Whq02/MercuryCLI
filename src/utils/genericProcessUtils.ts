@@ -3,16 +3,11 @@ import { readFileSync } from 'node:fs'
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { passedOver } from './passedOver.js'
 import { ancestorPidsCommand, processStartProbeKind } from './platform/processes.js'
+import { notBuilt } from '../pi/holes.js'
 
 
 export function isProcessRunning(pid: number): boolean {
-  if (pid <= 1) return false
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'EPERM'
-  }
+  return notBuilt('src/utils/genericProcessUtils.ts:8')
 }
 
 export function procStartToken(pid: number): string | undefined {

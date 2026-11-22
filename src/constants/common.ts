@@ -1,8 +1,5 @@
+import { notBuilt } from '../pi/holes.js'
 
 export function getLocalISODate(): string {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return notBuilt('src/constants/common.ts:2')
 }

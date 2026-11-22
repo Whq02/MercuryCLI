@@ -6,17 +6,11 @@ import { toError } from '../../utils/errors.js'
 import { formatFileSize } from '../../utils/format.js'
 import { logError } from '../../utils/log.js'
 import { ensureToolResultsDir, getToolResultsDir } from '../../utils/toolResultStorage.js'
+import { notBuilt } from '../../pi/holes.js'
 
 
 export function getFormatDescription(type: MCPResultType, schema?: unknown): string {
-  switch (type) {
-    case 'toolResult':
-      return 'plain text'
-    case 'structuredContent':
-      return schema === undefined ? 'JSON' : `JSON matching the schema ${JSON.stringify(schema)}`
-    case 'contentArray':
-      return schema === undefined ? 'a JSON array' : `a JSON array matching the schema ${JSON.stringify(schema)}`
-  }
+  return notBuilt('src/services/mcp/mcpOutputStorage.ts:11')
 }
 
 export function getLargeOutputInstructions(
@@ -25,21 +19,7 @@ export function getLargeOutputInstructions(
   formatDescription: string,
   maxReadLength?: number,
 ): string {
-  const truncationClause =
-    maxReadLength !== undefined
-      ? ` When you see a truncation warning of the form "[... output truncated ...]" (the shell output cap is ${maxReadLength.toLocaleString()} characters), reduce the chunk size until you can read everything without truncation — **do not proceed until you have**.`
-      : ' If you encounter truncation warnings, reduce the chunk size until you can read everything without truncation — **do not proceed until you have**.'
-  return (
-    `Error: the MCP tool result (${contentLength.toLocaleString()} characters) exceeds the maximum allowed tokens. ` +
-    `The output has been saved to ${rawOutputPath}.\n\n` +
-    `The saved content is ${formatDescription}.\n\n` +
-    `Use the offset and limit parameters to read portions of the file, search within the file, and use a structured-query tool for structured data.\n\n` +
-    `Requirements for summarisation, analysis or review:\n` +
-    `1. Read the file at ${rawOutputPath} in sequential chunks until 100% of the content has been read.` +
-    `${truncationClause}\n` +
-    `2. Before producing any summary or analysis, explicitly describe what portion of the file you read; ` +
-    `if you did not read everything, **state this explicitly**.`
-  )
+  return notBuilt('src/services/mcp/mcpOutputStorage.ts:22')
 }
 
 const MIME_EXTENSIONS: ReadonlyMap<string, string> = new Map(
@@ -71,25 +51,8 @@ function normalizeMime(mimeType: string | undefined): string {
   return (mimeType.split(';')[0] ?? '').trim().toLowerCase()
 }
 
-function extensionForMimeType(mimeType: string | undefined): string {
-  const type = normalizeMime(mimeType)
-  const listed = MIME_EXTENSIONS.get(type)
-  if (listed !== undefined) return listed
-  if (type.endsWith('+json')) return 'json'
-  if (type.endsWith('+xml')) return 'xml'
-  if (type.startsWith('text/')) return 'txt'
-  return 'bin'
-}
-
 export function isBinaryContentType(contentType: string): boolean {
-  const type = normalizeMime(contentType)
-  if (type === '') return false
-  if (type.startsWith('text/')) return false
-  if (type === 'application/json' || type.endsWith('+json')) return false
-  if (type === 'application/xml' || type.endsWith('+xml')) return false
-  if (type.startsWith('application/javascript')) return false
-  if (type === 'application/x-www-form-urlencoded') return false
-  return true
+  return notBuilt('src/services/mcp/mcpOutputStorage.ts:84')
 }
 
 type PersistBinaryResult = { filepath: string; size: number; ext: string } | { error: string }
@@ -99,22 +62,7 @@ export async function persistBinaryContent(
   mimeType: string | undefined,
   persistId: string,
 ): Promise<PersistBinaryResult> {
-  await ensureToolResultsDir()
-  const ext = extensionForMimeType(mimeType)
-  const filepath = join(getToolResultsDir(), `${persistId}.${ext}`)
-  const failure = await binaryWriteFailure(filepath, bytes)
-  return failure === null ? { filepath, size: bytes.length, ext } : failure
-}
-
-async function binaryWriteFailure(filepath: string, bytes: Buffer): Promise<{ error: string } | null> {
-  try {
-    await writeFile(filepath, bytes)
-    return null
-  } catch (reason) {
-    const failure = toError(reason)
-    logError(failure)
-    return { error: failure.message }
-  }
+  return notBuilt('src/services/mcp/mcpOutputStorage.ts:97')
 }
 
 export function getBinaryBlobSavedMessage(
@@ -123,5 +71,5 @@ export function getBinaryBlobSavedMessage(
   size: number,
   sourceDescription: string,
 ): string {
-  return `${sourceDescription}: binary content (${mimeType || 'unknown type'}, ${formatFileSize(size)}) saved to ${filepath}`
+  return notBuilt('src/services/mcp/mcpOutputStorage.ts:120')
 }

@@ -1,4 +1,3 @@
-
 import { realpathSync } from 'node:fs'
 import * as path from 'node:path'
 import { z } from 'zod/v4'
@@ -32,6 +31,7 @@ import {
   renderToolUseMessage,
   userFacingName,
 } from './UI.js'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
@@ -338,154 +338,4 @@ async function runOp(input: Input, abortSignal?: AbortSignal, trace?: RoadTrace)
   return `road: bridge (127.0.0.1:${port})\n${text}`
 }
 
-export const BlenderTool = buildTool({
-  name: BLENDER_TOOL_NAME,
-  get searchHint() {
-    return 'Blender with no window, or a running one: run Python or a script, render a still, read the scene'
-  },
-  searchKeywords: ['headless', 'background'],
-  maxResultSizeChars: 100_000,
-  async description() {
-    return 'Run Blender in the background with no window when no bridge answers, or drive a running Blender when one does: run Python or a script, render a still, read the scene and its objects, open a .blend, read the render state and the report tail'
-  },
-  async prompt() {
-    return getBlenderToolDescription()
-  },
-  userFacingName,
-  shouldDefer: true,
-  capability: {
-    intents: [
-      'inspect a blender scene: objects, render settings, reports',
-      'open or verify a blend file in blender (bridge or headless -b)',
-      'render a still frame from blender (bridge job or headless -b)',
-      'run python with bpy inside blender (bridge or headless -b)',
-      'check located blender, embedded python, and mercury bridge status',
-    ],
-    units: ['3d-scene'],
-    class: 'mutation',
-    operations: [...blenderBridgeVerbNames(), ...LOCAL_OPS],
-    evidence: ['artifact'],
-    cancellation: 'cooperative',
-    latency: 'interactive',
-    gate: 'MERCURY_BLENDER',
-    conditions: [
-      'a .blend file under the project, or a located Blender (MERCURY_BLENDER_BIN, a blender on PATH, the app bundle, Program Files)',
-      'either a running Blender with the mercury_blender_bridge add-on installed and enabled, or a located Blender binary for the headless -b road (one process per call)',
-    ],
-    proof: 'scripts/blender-bridge/run-all.sh',
-  },
-  get inputSchema(): SchemaType {
-    return inputSchema()
-  },
-  isConcurrencySafe() {
-    return false
-  },
-  isReadOnly(input: Input) {
-    return blenderBridgeVerb(input.op)?.cls === 'read' || input.op === 'blender_status'
-  },
-  async checkPermissions(input: Input, context) {
-    const permission = context?.getAppState?.().toolPermissionContext
-    if (permission !== undefined) {
-      for (const target of readTargets(input)) {
-        const read = checkReadPermissionForTool({ name: BLENDER_TOOL_NAME, getPath: () => target }, input, permission)
-        if (read.behavior === 'deny') return read
-      }
-    }
-    if (LOCAL_MUTATES.has(input.op)) {
-      return {
-        behavior: 'ask' as const,
-        message:
-          input.op === 'blender_bridge_install'
-            ? `Blender mutate: ${input.op} — materializes the mercury_blender_bridge add-on, its token, and any port config.json into the user addon home (enabling it in Blender stays your act)`
-            : `Blender mutate: ${input.op} removes the entire mercury_blender_bridge add-on directory (token and config included) from the user addon home`,
-      }
-    }
-    const spec = blenderBridgeVerb(input.op)
-    if (!spec || spec.cls === 'read') {
-      return { behavior: 'allow' as const, updatedInput: input }
-    }
-    if (spec.cls === 'exec') {
-      if (input.op === 'python_run') {
-        const script = scriptOf(input.args)
-        return {
-          behavior: 'ask' as const,
-          message:
-            (script !== undefined
-              ? `Blender exec: python_run (script ${scriptCallShown(input.args)}) — runs the file INSIDE Blender with full bpy authority `
-              : `Blender exec: python_run (${sourceBytes(input.args)} bytes) — runs Python INSIDE Blender with full bpy authority `) +
-            `(it can modify or delete scene data and write files as you; no sandbox, no preemption — a runaway script blocks Blender). ` +
-            `With no bridge answering, a background Blender with no window is started for this call and ends with it.` +
-            (showEntriesOf(input).length > 0 ? ` Shows: ${showNamed(showEntriesOf(input))}.` : '') +
-            (script !== undefined ? '' : ` first line: ${firstSourceLine(input.args) || '(empty)'}`),
-        }
-      }
-      return {
-        behavior: 'ask' as const,
-        message: `Blender exec: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — starts a render job in Blender; the durable result is the image file at outputPath (render_finished reports the end). With no bridge answering, a background Blender with no window renders it before the call returns, and ends.`,
-      }
-    }
-    return {
-      behavior: 'ask' as const,
-      message: `Blender mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} switches the open .blend (no undo step; refuses with BLEND_DIRTY if there are unsaved changes). With no bridge answering, a background Blender with no window opens the file to check it and ends; nothing stays open.`,
-    }
-  },
-  async validateInput(input: Input) {
-    if (!input.op || input.op.trim().length === 0) {
-      return { result: false as const, message: 'op is required', errorCode: 1 }
-    }
-    if (input.op === 'python_run') {
-      const problem = pythonRunShapeProblem(input.args)
-      if (problem) return { result: false as const, message: problem, errorCode: 2 }
-    }
-    return { result: true as const }
-  },
-  async call(input: Input, context) {
-    let result: string
-    const entries = showEntriesOf(input)
-    const before = entries.length > 0 ? stampShown(entries) : []
-    const trace: RoadTrace = {}
-    try {
-      result = await runOp(input, context?.abortController?.signal, trace)
-    } catch (err) {
-      result = `${input.op} failed: ${(err as Error).message}\nhint: ${blenderBridgeHint(blenderBridgePort())}`
-    }
-    const shown = await shownAfter(input, entries, before, trace, target => {
-      const permission = context?.getAppState?.().toolPermissionContext
-      if (permission === undefined) return undefined
-      const read = checkReadPermissionForTool({ name: BLENDER_TOOL_NAME, getPath: () => target }, input, permission)
-      return read.behavior === 'deny' ? read.message : undefined
-    })
-    const output: Output = { op: input.op, result, ...(shown.length > 0 ? { shown } : {}) }
-    return { data: output }
-  },
-  mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
-    if (output.shown !== undefined && output.shown.length > 0) {
-      return {
-        tool_use_id: toolUseId,
-        type: 'tool_result' as const,
-        content: [
-          { type: 'text' as const, text: output.result },
-          ...output.shown.flatMap(part =>
-            part.kind === 'note'
-              ? [{ type: 'text' as const, text: part.text }]
-              : [
-                  { type: 'text' as const, text: part.caption },
-                  { type: 'image' as const, source: { type: 'base64' as const, media_type: part.mediaType, data: part.base64 } },
-                ],
-          ),
-        ],
-      }
-    }
-    return {
-      tool_use_id: toolUseId,
-      type: 'tool_result' as const,
-      content: output.result,
-    }
-  },
-  renderToolUseMessage,
-  renderToolUseErrorMessage,
-  renderToolResultMessage,
-  extractSearchText({ result }) {
-    return result ?? ''
-  },
-})
+export const BlenderTool: Unbuilt = unbuilt('src/tools/BlenderTool/BlenderTool.ts:341')

@@ -44,8 +44,7 @@ import type { ValidationError, SettingsWithErrors } from './validation.js'
 import { filterInvalidPermissionRules, formatZodError, unknownKeyWarnings } from './validation.js'
 import { forgetHiddenCharacters, recordHiddenCharacters } from '../text/hiddenCharacterFindings.js'
 import { sleepSync } from '../timers.js'
-
-
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 export function settingsMergeCustomizer(objValue: unknown, srcValue: unknown): unknown {
@@ -241,34 +240,11 @@ function compareIssuePaths(a: ReadonlyArray<PropertyKey>, b: ReadonlyArray<Prope
 }
 
 export function parseSettingsFile(filePath: string): { settings: SettingsJson | null; errors: ValidationError[] } {
-  const cached = getCachedParsedFile(filePath)
-  if (cached !== undefined) {
-    return cloneParsed(cached as { settings: SettingsJson | null; errors: ValidationError[] })
-  }
-  const result = parseSettingsFileUncached(filePath)
-  setCachedParsedFile(filePath, result)
-  return cloneParsed(result)
+  return notBuilt('src/utils/settings/settings.ts:243')
 }
 
 export function getSettingsFilePathForSource(source: SettingSource): string | undefined {
-  switch (source) {
-    case 'userSettings':
-      return join(getMercuryHome(), 'settings.json')
-    case 'projectSettings':
-      return (
-        resolveProjectConfigPath(getOriginalCwd(), 'settings.json') ??
-        join(getOriginalCwd(), MERCURY_PROJECT_DIR, 'settings.json')
-      )
-    case 'localSettings':
-      return (
-        resolveProjectConfigPath(getOriginalCwd(), 'settings.local.json') ??
-        join(getOriginalCwd(), MERCURY_PROJECT_DIR, 'settings.local.json')
-      )
-    case 'policySettings':
-      return join(getManagedFilePath(), 'managed-settings.json')
-    case 'flagSettings':
-      return getFlagSettingsPath()
-  }
+  return notBuilt('src/utils/settings/settings.ts:253')
 }
 
 export function getRelativeSettingsFilePathForSource(source: 'projectSettings' | 'localSettings'): string {
@@ -343,78 +319,13 @@ export function getManagedFileSettingsPresence(): { hasBase: boolean; hasDropIns
   return { hasBase, hasDropIns }
 }
 
-function loadPolicyForMerge(): { settings: SettingsJson | null; errors: ValidationError[] } {
-  const collected: ValidationError[] = []
-  const dedupe = (errors: ValidationError[]): ValidationError[] => {
-    const seen = new Set<string>()
-    return errors.filter(error => {
-      const key = `${error.file ?? ''}|${error.path}|${error.message}`
-      if (seen.has(key)) return false
-      seen.add(key)
-      return true
-    })
-  }
-  const mdm = getMdmSettings()
-  collected.push(...mdm.errors)
-  if (Object.keys(mdm.settings).length > 0) {
-    return { settings: mdm.settings, errors: dedupe(collected) }
-  }
-  const file = loadManagedFileSettings()
-  collected.push(...file.errors)
-  if (file.settings !== null) {
-    return { settings: file.settings, errors: dedupe(collected) }
-  }
-  const hkcu = getHkcuSettings()
-  collected.push(...hkcu.errors)
-  if (Object.keys(hkcu.settings).length > 0) {
-    return { settings: hkcu.settings, errors: dedupe(collected) }
-  }
-  return { settings: null, errors: dedupe(collected) }
-}
-
 export function getPolicySettingsOrigin(): 'plist' | 'hklm' | 'file' | 'hkcu' | null {
-  if (Object.keys(getMdmSettings().settings).length > 0) {
-    return process.platform === 'win32' ? 'hklm' : 'plist'
-  }
-  if (loadManagedFileSettings().settings !== null) return 'file'
-  if (Object.keys(getHkcuSettings().settings).length > 0) return 'hkcu'
-  return null
+  return notBuilt('src/utils/settings/settings.ts:375')
 }
 
 
 function readSettingsForSourceUncached(source: SettingSource): SettingsJson | null {
-  if (source === 'policySettings') {
-    const mdm = getMdmSettings()
-    if (Object.keys(mdm.settings).length > 0) return mdm.settings
-    const file = loadManagedFileSettings()
-    if (file.settings !== null) return file.settings
-    const hkcu = getHkcuSettings()
-    if (Object.keys(hkcu.settings).length > 0) return hkcu.settings
-    return null
-  }
-  const filePath = getSettingsFilePathForSource(source)
-  if (filePath === undefined) {
-    if (source === 'flagSettings') {
-      const inline = getFlagSettingsInline()
-      if (inline !== null) {
-        const result = SettingsSchema().safeParse(inline)
-        if (result.success) return result.data as SettingsJson
-      }
-    }
-    return null
-  }
-  const parsed = parseSettingsFile(filePath)
-  let settings = parsed.settings
-  if (source === 'flagSettings') {
-    const inline = getFlagSettingsInline()
-    if (inline !== null) {
-      const result = SettingsSchema().safeParse(inline)
-      if (result.success) {
-        settings = mergeWith(settings ?? {}, result.data, settingsMergeCustomizer) as SettingsJson
-      }
-    }
-  }
-  return settings
+  return notBuilt('src/utils/settings/settings.ts:385')
 }
 
 export function getSettingsForSource(source: SettingSource): SettingsJson | null {
@@ -433,118 +344,21 @@ export function getEnabledSettingsForSource(source: SettingSource): SettingsJson
 let mergedLoadInProgress = false
 
 export function getSettingsWithErrors(): SettingsWithErrors {
-  if (mergedLoadInProgress) {
-    return { settings: {} as SettingsJson, errors: [] }
-  }
-  const cached = getSessionSettingsCache()
-  if (cached !== null) return cached as SettingsWithErrors
-  mergedLoadInProgress = true
-  try {
-    profileCheckpoint('settings_merge_start')
-    const startedAt = Date.now()
-    const filesRead = new Set<string>()
-    const errors: ValidationError[] = []
-    let merged: SettingsJson = {} as SettingsJson
-
-    for (const source of getEnabledSettingSources()) {
-      if (source === 'policySettings') {
-        const policy = loadPolicyForMerge()
-        errors.push(...policy.errors)
-        if (policy.settings !== null) {
-          merged = mergeWith(merged, policy.settings, settingsMergeCustomizer) as SettingsJson
-        }
-        continue
-      }
-      const filePath = getSettingsFilePathForSource(source)
-      if (filePath !== undefined) {
-        const resolved = resolve(filePath)
-        const dedupeKey = foldPathCase(resolved)
-        const firstRead = !filesRead.has(dedupeKey)
-        if (firstRead) filesRead.add(dedupeKey)
-        const parsed = parseSettingsFile(filePath)
-        if (firstRead) errors.push(...parsed.errors)
-        if (parsed.settings !== null && Object.keys(parsed.settings).length > 0) {
-          merged = mergeWith(merged, parsed.settings, settingsMergeCustomizer) as SettingsJson
-        }
-      }
-      if (source === 'flagSettings') {
-        const inline = getFlagSettingsInline()
-        if (inline !== null) {
-          const result = SettingsSchema().safeParse(inline)
-          if (result.success) {
-            merged = mergeWith(merged, result.data, settingsMergeCustomizer) as SettingsJson
-          }
-        }
-      }
-    }
-
-    const value: SettingsWithErrors = { settings: merged, errors }
-    setSessionSettingsCache(value)
-    logForDebugging(
-      `settings merged in ${Date.now() - startedAt}ms (${filesRead.size} files, ${errors.length} errors)`,
-    )
-    return value
-  } finally {
-    mergedLoadInProgress = false
-  }
+  return notBuilt('src/utils/settings/settings.ts:435')
 }
 
 export function getInitialSettings(): SettingsJson {
-  return getSettingsWithErrors().settings
+  return notBuilt('src/utils/settings/settings.ts:492')
 }
 
-export type SettingsWithSources = {
-  effective: SettingsJson
-  sources: Array<{ source: SettingSource; settings: SettingsJson }>
-}
+export type SettingsWithSources = Unbuilt
 
 export function getSettingsWithSources(): SettingsWithSources {
-  resetSettingsCache()
-  const effective = getInitialSettings()
-  const sources: Array<{ source: SettingSource; settings: SettingsJson }> = []
-  for (const source of getEnabledSettingSources()) {
-    const settings = getSettingsForSource(source)
-    if (settings !== null && Object.keys(settings).length > 0) {
-      sources.push({ source, settings })
-    }
-  }
-  return { effective, sources }
+  return notBuilt('src/utils/settings/settings.ts:501')
 }
 
 export function rawSettingsContainsKey(key: string): boolean {
-  const contains = (value: unknown): boolean => {
-    let node = value
-    for (const part of key.split('.')) {
-      if (typeof node !== 'object' || node === null || !Object.hasOwn(node, part)) return false
-      node = (node as Record<string, unknown>)[part]
-    }
-    return true
-  }
-  for (const source of getEnabledSettingSources()) {
-    if (source === 'policySettings') {
-      const policy = getSettingsForSource('policySettings')
-      if (contains(policy)) return true
-      continue
-    }
-    const filePath = getSettingsFilePathForSource(source)
-    if (filePath === undefined) continue
-    let raw: string
-    try {
-      raw = readFileSync(filePath)
-    } catch (error) {
-      if (isENOENT(error)) {
-        logForDebugging(`settings file absent: ${filePath}`)
-        continue
-      }
-      logError(error)
-      return true
-    }
-    if (raw.trim() === '') continue
-    const parsed = safeParseJSON(stripBOM(raw), false)
-    if (parsed === null || typeof parsed !== 'object') return true
-    if (contains(parsed)) return true
-  }
-  return false
+  return notBuilt('src/utils/settings/settings.ts:514')
 }
 
 
@@ -657,90 +471,7 @@ export function updateSettingsForSource(
   source: EditableSettingSource,
   partial: SettingsPatch | ((rawBase: Record<string, unknown>) => SettingsPatch),
 ): { error: Error | null } {
-  if ((source as SettingSource) === 'policySettings' || (source as SettingSource) === 'flagSettings') {
-    return { error: null }
-  }
-  const writePath = getSettingsWriteFilePathForSource(source)
-  if (writePath === undefined) return { error: null }
-  const unlock = acquireSettingsWriteLock(writePath)
-  try {
-    mkdirSync(dirname(writePath), { recursive: true })
-
-    const readPath = getSettingsFilePathForSource(source) ?? writePath
-    let baseSettings: Record<string, unknown>
-    {
-      let raw: string | null = null
-      try {
-        raw = readFileSync(readPath)
-      } catch (readError) {
-        if (!isENOENT(readError)) throw readError
-        raw = null
-      }
-      if (raw === null || raw.trim() === '') {
-        baseSettings = {}
-      } else {
-        let parsedRaw: unknown
-        try {
-          parsedRaw = JSON.parse(stripBOM(raw))
-        } catch {
-          logForDebugging(`settings write refused: ${writePath} is not parseable JSON (a file mid-edit is never overwritten)`, {
-            level: 'error',
-          })
-          return {
-            error: new Error(`Invalid JSON in ${writePath} — refusing to overwrite a file mid-edit`),
-          }
-        }
-        if (typeof parsedRaw === 'object' && parsedRaw !== null && !Array.isArray(parsedRaw)) {
-          baseSettings = parsedRaw as Record<string, unknown>
-        } else {
-          logForDebugging(`settings write refused: ${writePath} does not hold a JSON object (a file mid-edit is never overwritten)`, {
-            level: 'error',
-          })
-          return {
-            error: new Error(`Invalid JSON in ${writePath} — refusing to overwrite a file mid-edit`),
-          }
-        }
-      }
-    }
-    const resolvedPartial =
-      typeof partial === 'function' ? partial(structuredClone(baseSettings)) : partial
-    applyWriteMerge(baseSettings, resolvedPartial as Record<string, unknown>)
-
-    if (source === 'userSettings') {
-      const schemaPath = ensureLocalSettingsSchema()
-      if (schemaPath !== null) {
-        delete baseSettings.$schema
-        const rest = { ...baseSettings }
-        for (const k of Object.keys(baseSettings)) delete (baseSettings as Record<string, unknown>)[k]
-        baseSettings.$schema = schemaPath
-        Object.assign(baseSettings, rest)
-      }
-    }
-
-    markInternalWrite(writePath)
-    durableAtomicPublishSync(writePath, `${jsonStringify(baseSettings, null, 2)}\n`)
-    resetSettingsCache()
-
-    if (source === 'localSettings') {
-      void addFileGlobRuleToGitignore(getRelativeSettingsFilePathForSource('localSettings'))
-    }
-    return { error: null }
-  } catch (error) {
-    logError(error)
-    if (error instanceof DurablePublishError && error.phase === 'rename') {
-      logForDebugging(`Failed to update settings file ${writePath}: ${error.message}`, { level: 'error' })
-      const code = error.fsCode ?? 'write error'
-      return {
-        error: new Error(
-          `Could not save settings: ${writePath} could not be written (${code}); nothing was written. Close what holds the file, then try again.`,
-          { cause: error },
-        ),
-      }
-    }
-    return { error: new Error(`Failed to update settings file ${writePath}: ${errorMessage(error)}`, { cause: error }) }
-  } finally {
-    unlock?.()
-  }
+  return notBuilt('src/utils/settings/settings.ts:656')
 }
 
 export function removeSettingsFileIfEmpty(source: EditableSettingSource): void {

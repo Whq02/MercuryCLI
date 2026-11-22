@@ -16,6 +16,7 @@ import { getInitialSettings, getSettingsForSource } from '../../utils/settings/s
 import type { Tip, TipContext } from './types.js'
 import { getSessionsSinceLastShown } from './tipHistory.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 
 function boundChatChord(action: string, fallback: string): string | null {
@@ -512,37 +513,7 @@ const GENERAL_TIPS: Tip[] = [
   },
 ]
 
-const INTERNAL_TIPS: Tip[] = []
-
-const CATALOGUE: Tip[] = [...GENERAL_TIPS, ...INTERNAL_TIPS]
-
-
-function getCustomTips(): { tips: Tip[]; excludeDefault: boolean } {
-  const override = getInitialSettings().activity?.tips?.words as
-    | { tips?: unknown; excludeDefault?: unknown }
-    | undefined
-  const rawTips = Array.isArray(override?.tips) ? (override?.tips as unknown[]) : []
-  const strings = rawTips.filter((entry): entry is string => typeof entry === 'string')
-  const tips: Tip[] = strings.map((text, index) => ({
-    id: `custom-${index}`,
-    cooldownSessions: 0,
-    content: async () => text,
-    isRelevant: async () => true,
-  }))
-  return { tips, excludeDefault: override?.excludeDefault === true }
-}
-
 
 export async function getRelevantTips(context?: TipContext): Promise<Tip[]> {
-  const { tips: customTips, excludeDefault } = getCustomTips()
-  if (excludeDefault && customTips.length > 0) {
-    return customTips
-  }
-
-  const verdicts = await Promise.all(CATALOGUE.map(tip => tip.isRelevant(context)))
-  const relevant = CATALOGUE.filter((tip, index) => verdicts[index])
-  const afterCooldown = relevant.filter(
-    tip => getSessionsSinceLastShown(tip.id) >= tip.cooldownSessions,
-  )
-  return [...afterCooldown, ...customTips]
+  return notBuilt('src/services/tips/tipRegistry.ts:536')
 }

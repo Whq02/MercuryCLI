@@ -1,4 +1,5 @@
 import { startTimeout, stopTimeout } from './timers.js'
+import { notBuilt } from '../pi/holes.js'
 
 type SleepOptions = {
   throwOnAbort?: boolean
@@ -10,23 +11,6 @@ export function abortedError(signal: AbortSignal | undefined): Error {
   return Object.assign(new Error('The operation was aborted', { cause: signal?.reason }), { code: 'ABORT_ERR', name: 'AbortError' })
 }
 
-export function sleep(ms: number, signal?: AbortSignal, opts: SleepOptions = {}): Promise<void> {
-  const throwOnAbort = opts.throwOnAbort === true || opts.abortError !== undefined
-  const makeError = (): Error => (opts.abortError ? opts.abortError() : abortedError(signal))
-  if (signal?.aborted) {
-    return throwOnAbort ? Promise.reject(makeError()) : Promise.resolve()
-  }
-  return new Promise<void>((resolve, reject) => {
-    const onAbort = (): void => {
-      stopTimeout(timer)
-      if (throwOnAbort) reject(makeError())
-      else resolve()
-    }
-    const timer = startTimeout(() => {
-      signal?.removeEventListener('abort', onAbort)
-      resolve()
-    }, ms)
-    if (opts.unref) timer.unref?.()
-    signal?.addEventListener('abort', onAbort, { once: true })
-  })
+export function sleep(ms: number, signal?: AbortSignal, opts?: SleepOptions): Promise<void> {
+  return notBuilt('src/utils/sleep.ts:13')
 }

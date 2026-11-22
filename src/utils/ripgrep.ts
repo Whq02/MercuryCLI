@@ -19,6 +19,7 @@ import { passedOver } from './passedOver.js'
 import { startTimeout, stopTimeout } from './timers.js'
 import { executableName } from './platform/programs.js'
 import { killSignalForChild, supportsGracefulSigterm } from './platform/processes.js'
+import { notBuilt } from '../pi/holes.js'
 
 
 export type RipgrepMode = 'system' | 'builtin' | 'embedded'
@@ -54,9 +55,8 @@ export class RipgrepTimeoutError extends Error {
   readonly partialResults: string[]
 
   constructor(message: string, partialResults: string[]) {
-    super(message)
-    this.name = 'RipgrepTimeoutError'
-    this.partialResults = partialResults
+    notBuilt('src/utils/ripgrep.ts:56')
+    super(...(notBuilt('src/utils/ripgrep.ts:56') as ConstructorParameters<typeof Error>))
   }
 }
 
@@ -313,78 +313,7 @@ function spawnWithArgv0(
   timeoutMs: number,
   cwd?: string,
 ): Promise<SpawnOutcome> {
-  return new Promise(resolvePromise => {
-    const child = track(
-      spawn(config.rgPath, args, {
-        argv0: config.argv0,
-        windowsHide: true,
-        env: { ...subprocessEnv() },
-        ...(cwd !== undefined ? { cwd } : {}),
-        ...(abortSignal ? { signal: abortSignal } : {}),
-      }),
-      abortSignal,
-    )
-    let stdout = ''
-    let stderr = ''
-    let stdoutLatched = false
-    let stderrLatched = false
-    let settled = false
-    let killedSignal: NodeJS.Signals | null = null
-
-    const settle = (error: SpawnOutcome['error']): void => {
-      if (settled) return
-      settled = true
-      stopTimeout(timeoutTimer)
-      if (escalationTimer) stopTimeout(escalationTimer)
-      resolvePromise({ stdout, stderr, error, signal: killedSignal })
-    }
-
-    let escalationTimer: ReturnType<typeof setTimeout> | null = null
-    const timeoutTimer = startTimeout(() => {
-      if (!supportsGracefulSigterm()) {
-        killedSignal = 'SIGTERM'
-        child.kill()
-        return
-      }
-      killedSignal = 'SIGTERM'
-      child.kill('SIGTERM')
-      escalationTimer = startTimeout(() => {
-        killedSignal = 'SIGKILL'
-        child.kill('SIGKILL')
-      }, KILL_ESCALATION_MS)
-    }, timeoutMs)
-
-    child.stdout?.on('data', (chunk: Buffer) => {
-      if (stdoutLatched) return
-      stdout += chunk.toString('utf8')
-      if (stdout.length > OUTPUT_CAP) {
-        stdout = stdout.slice(0, OUTPUT_CAP)
-        stdoutLatched = true
-      }
-    })
-    child.stderr?.on('data', (chunk: Buffer) => {
-      if (stderrLatched) return
-      stderr += chunk.toString('utf8')
-      if (stderr.length > OUTPUT_CAP) {
-        stderr = stderr.slice(0, OUTPUT_CAP)
-        stderrLatched = true
-      }
-    })
-    child.on('error', err => {
-      settle(err as SpawnOutcome['error'])
-    })
-    child.on('close', (code, signal) => {
-      if (signal) killedSignal = signal
-      if (code === 0 || code === 1) {
-        settle(null)
-        return
-      }
-      const error = new Error(`ripgrep exited with code ${code}${signal ? ` (signal ${signal})` : ''}`) as SpawnOutcome['error'] &
-        Error
-      ;(error as { code?: string | number }).code = code ?? undefined
-      settle(error)
-    })
-  })
+  return notBuilt('src/utils/ripgrep.ts:309')
 }
 
 function spawnExecFile(
@@ -541,54 +470,7 @@ export async function ripGrepStream(
   abortSignal: AbortSignal,
   onLines: (lines: string[]) => void,
 ): Promise<void> {
-  await maybeRepairCodesign()
-  const { config } = resolveRipgrep()
-  return new Promise<void>((resolvePromise, rejectPromise) => {
-    const child = spawn(config.rgPath, [...config.rgArgs, ...args, target], {
-      ...(config.argv0 !== undefined ? { argv0: config.argv0 } : {}),
-      windowsHide: true,
-      signal: abortSignal,
-      env: { ...subprocessEnv() },
-      stdio: ['ignore', 'pipe', 'ignore'],
-    })
-    let carried = ''
-    let settled = false
-    const settle = (err?: Error): void => {
-      if (settled) return
-      settled = true
-      if (err) rejectPromise(err)
-      else resolvePromise()
-    }
-    child.stdout?.on('data', (chunk: Buffer) => {
-      carried += chunk.toString('utf8')
-      const lines: string[] = []
-      for (;;) {
-        const newline = carried.indexOf('\n')
-        if (newline === -1) break
-        let line = carried.slice(0, newline)
-        if (line.endsWith('\r')) line = line.slice(0, -1)
-        lines.push(line)
-        carried = carried.slice(newline + 1)
-      }
-      if (lines.length > 0) onLines(lines)
-    })
-    child.on('error', err => settle(err))
-    child.on('close', code => {
-      if (abortSignal.aborted) {
-        settle()
-        return
-      }
-      if (code === 0 || code === 1) {
-        if (carried !== '') {
-          const remainder = carried.endsWith('\r') ? carried.slice(0, -1) : carried
-          onLines([remainder])
-        }
-        settle()
-        return
-      }
-      settle(new Error(`ripgrep exited with code ${code}`))
-    })
-  })
+  return notBuilt('src/utils/ripgrep.ts:538')
 }
 
 
@@ -632,25 +514,7 @@ const roundedCountMemo = new Map<string, Promise<number | undefined>>()
 export function countFilesRoundedRg(
   dirPath: string,
   abortSignal: AbortSignal,
-  ignorePatterns: string[] = [],
+  ignorePatterns?: string[],
 ): Promise<number | undefined> {
-  const key = `${dirPath}\x00${ignorePatterns.join('\x00')}`
-  const memoised = roundedCountMemo.get(key)
-  if (memoised) return memoised
-  const promise = (async (): Promise<number | undefined> => {
-    try {
-      if (resolve(dirPath) === homedir()) return undefined
-      const args = ['--files', '--hidden']
-      for (const pattern of ignorePatterns) args.push('--glob', `!${pattern}`)
-      const count = await countFilesWithRg(args, dirPath, abortSignal)
-      if (count === 0) return 0
-      const magnitude = Math.pow(10, Math.floor(Math.log10(count)))
-      return Math.round(count / magnitude) * magnitude
-    } catch (err) {
-      if (!(err instanceof Error && err.name === 'AbortError')) logError(err)
-      return undefined
-    }
-  })()
-  roundedCountMemo.set(key, promise)
-  return promise
+  return notBuilt('src/utils/ripgrep.ts:632')
 }

@@ -21,6 +21,7 @@ import { renderCreateResultMessage, renderCreateToolUseMessage } from './UI.js'
 import { createLocalTime, resolveCreateTime } from './createTime.js'
 import { createResultText, scheduleQueued, scheduleRefusal, scheduleUnconfirmed, scheduleWarnings } from './createAnswer.js'
 import { withDeadline } from '../../utils/deadline.js'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
@@ -36,23 +37,7 @@ const inputSchema = lazySchema(() =>
 type InputSchema = ReturnType<typeof inputSchema>
 type Input = z.infer<InputSchema>
 
-const outputSchema = lazySchema(() =>
-  z.object({
-    submitted: z.boolean(),
-    humanSchedule: z.string(),
-    recurring: z.boolean(),
-    title: z.string().optional(),
-    note: z.string(),
-    state: z.enum(['scheduled', 'queued']).optional(),
-    id: z.string().optional(),
-    cron: z.string().optional(),
-    nextFireMs: z.number().optional(),
-    nextFireLocal: z.string().optional(),
-    nextFireUtc: z.string().optional(),
-    timeZone: z.string().optional(),
-    warnings: z.array(z.string()).optional(),
-  }),
-)
+const outputSchema: Unbuilt = unbuilt('src/tools/ScheduleCronTool/CronCreateTool.ts:39')
 type OutputSchema = ReturnType<typeof outputSchema>
 export type CreateOutput = z.infer<OutputSchema>
 const CRON_CREATE_ANSWER_DEADLINE_MS = 10_000
@@ -85,88 +70,4 @@ async function askSchedule(edit: ScheduleOpRequestV1, signal: AbortSignal | unde
   )
 }
 
-export const CronCreateTool = buildTool({
-  name: CRON_CREATE_TOOL_NAME,
-  searchHint: 'schedule a prompt once (after a delay or at a time) or repeating on cron; answers id and fire time',
-  shouldDefer: true,
-  maxResultSizeChars: 100_000,
-  get inputSchema(): InputSchema { return inputSchema() },
-  get outputSchema(): OutputSchema { return outputSchema() },
-  isEnabled: () => cronToolsMountable(),
-  async description() { return buildCronCreateDescription() },
-  async prompt() { return buildCronCreatePrompt() },
-  async validateInput(input: Input): Promise<ValidationResult> {
-    const resolved = resolveCreateTime(input, Date.now())
-    if (typeof resolved === 'string') return refuse(resolved)
-    const prompt = input.prompt.replace(/\r\n/g, '\n').trim()
-    if (!prompt) return refuse('prompt is empty: pass the words to run when the schedule fires. Nothing was scheduled.')
-    if (prompt.length > SATURN_PROMPT_CAP) return refuse(`prompt is ${prompt.length.toLocaleString('en-US')} characters; a schedule holds at most 20,000. Put the long instructions in a file and schedule a short prompt that names the file. Nothing was scheduled.`)
-    if (input.title !== undefined && cleanSaturnTitle(input.title) === null) return refuse(`The title must be ${SATURN_TITLE_SHAPE}: shorten it, or leave title out. Nothing was scheduled.`)
-    const roster = sessionScheduleRoster()
-    if (roster !== null && roster.length >= SATURN_SCHEDULE_CAP) return refuse(`This session already holds ${SATURN_SCHEDULE_CAP} schedules (the cap). Call CronList, remove one with CronDelete, then call CronCreate again. Nothing was scheduled.`)
-    return { result: true }
-  },
-  async call(input: Input, toolUseContext) {
-    const secretReason = saturnSecretProseRefusal('prompt', input.prompt)
-    if (secretReason !== null) throw new Error(`${CRON_CREATE_TOOL_NAME}: ${secretReason}. Nothing was scheduled.`)
-    const titleReason = input.title === undefined ? null : saturnTitleRefusal(input.title)
-    if (titleReason !== null) throw new Error(`${CRON_CREATE_TOOL_NAME}: ${titleReason}. Nothing was scheduled.`)
-    toolUseContext.abortController?.signal.throwIfAborted()
-    const resolved = resolveCreateTime(input, Date.now())
-    if (typeof resolved === 'string') throw new Error(resolved)
-    const { when, recurring, humanSchedule } = resolved
-    if (!scheduleSeatObserved()) throw new Error('CronCreate: nothing was scheduled. This run has no session record on the Mercury daemon, and schedules live on that record (sessions the daemon hosts have one; this run does not). Tell the user. Inside this run, ScheduleWakeup may still arm one wake of 1 to 60 minutes that ends with the run. Nothing was scheduled.')
-    const title = input.title === undefined ? undefined : cleanSaturnTitle(input.title) ?? undefined
-    const edit: ScheduleOpRequestV1 = { op: 'add', schedule: {
-      when,
-      action: { kind: 'fire', prompt: input.prompt, ...(input.onParked !== undefined ? { onParked: input.onParked } : {}) },
-      ...(title !== undefined ? { title } : {}),
-    } }
-    const base = { submitted: true, humanSchedule, recurring, ...(title !== undefined ? { title } : {}) }
-    let older = false
-    if (scheduleEditDoor() !== null) {
-      let answer: ScheduleEditAnswer
-      try {
-        answer = await askSchedule(edit, toolUseContext.abortController?.signal)
-      } catch (error) {
-        if (toolUseContext.abortController?.signal.aborted) throw error
-        if (typeof error === 'object' && error !== null && 'code' in error && error.code === RPC_METHOD_NOT_FOUND) {
-          older = true
-        } else {
-          const reason = error instanceof PeerDeadline ? 'The daemon did not answer within 10 seconds'
-            : error instanceof PeerClosed ? 'The connection to the daemon closed before it answered'
-            : 'The daemon did not return a usable answer'
-          throw new Error(scheduleUnconfirmed(reason, humanSchedule))
-        }
-      }
-      if (!older) {
-        if (answer!.outcome !== 'applied') throw new Error(scheduleRefusal(answer!.detail ?? 'no schedule was applied'))
-        const { schedule_id: id, next_fire_ms: nextFireMs, time_zone: timeZone } = answer!
-        if (!id || !/^[0-9a-f]{8}$/.test(id) || typeof nextFireMs !== 'number' || !Number.isFinite(nextFireMs) || !timeZone) throw new Error(scheduleUnconfirmed('The daemon answered without the schedule id or fire time', humanSchedule))
-        let nextFireLocal: string
-        let warnings: string[]
-        try {
-          nextFireLocal = createLocalTime(nextFireMs, timeZone)
-          warnings = scheduleWarnings(answer!, recurring)
-        } catch {
-          throw new Error(scheduleUnconfirmed('The daemon answered with an unreadable fire time', humanSchedule))
-        }
-        latchScheduleRow({ id, when: humanSchedule, kind: 'fire', nextFireMs, ...(title !== undefined ? { title } : {}) })
-        return { data: {
-          ...base, state: 'scheduled', id, ...(recurring ? { cron: input.cron } : {}),
-          nextFireMs, nextFireLocal, nextFireUtc: new Date(nextFireMs).toISOString(), timeZone,
-          note: `The daemon fires it within 30 seconds after ${recurring ? 'each' : 'that'} time, once the session is idle. Cancel: CronDelete with id "${id}". The user sees it on the /saturn board.`,
-          ...(warnings.length ? { warnings } : {}),
-        } satisfies CreateOutput }
-      }
-    }
-    const submitted = submitSessionScheduleEdit(edit)
-    if (submitted.road === 'refused') throw new Error('CronCreate: nothing was scheduled. 20 schedule edits are already waiting for the daemon; wait a few seconds, then call CronCreate again. Nothing was scheduled.')
-    return { data: { ...base, state: 'queued', note: scheduleQueued(humanSchedule, older) } satisfies CreateOutput }
-  },
-  mapToolResultToToolResultBlockParam(output: CreateOutput, toolUseID: string) {
-    return { tool_use_id: toolUseID, type: 'tool_result' as const, content: createResultText(output) }
-  },
-  renderToolUseMessage: renderCreateToolUseMessage,
-  renderToolResultMessage: renderCreateResultMessage,
-} satisfies ToolDef<InputSchema, CreateOutput>)
+export const CronCreateTool: Unbuilt = unbuilt('src/tools/ScheduleCronTool/CronCreateTool.ts:88')

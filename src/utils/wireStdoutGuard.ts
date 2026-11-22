@@ -2,79 +2,11 @@ import { registerCleanup } from './cleanupRegistry.js'
 import { logForDebugging } from './debug.js'
 import { passedOver } from './passedOver.js'
 import { startMicrotask } from './timers.js'
+import { notBuilt } from '../pi/holes.js'
 
 
 const STDOUT_GUARD_MARKER = '[stdout-guard]'
 
-let installed = false
-let originalWrite: typeof process.stdout.write | null = null
-let lineBuffer = ''
-
-function isParseableJson(line: string): boolean {
-  try {
-    JSON.parse(line)
-    return true
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
-}
-
 export function installWireStdoutGuard(): void {
-  if (installed) return
-  installed = true
-  const realWrite = process.stdout.write.bind(process.stdout)
-  originalWrite = process.stdout.write
-
-  const guardedWrite = (
-    chunk: string | Uint8Array,
-    encodingOrCallback?: BufferEncoding | ((error?: Error | null) => void),
-    maybeCallback?: (error?: Error | null) => void,
-  ): boolean => {
-    const callback = typeof encodingOrCallback === 'function' ? encodingOrCallback : maybeCallback
-    const text = typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8')
-    lineBuffer += text
-
-    const forwarded: string[] = []
-    let newlineIndex = lineBuffer.indexOf('\n')
-    while (newlineIndex !== -1) {
-      const line = lineBuffer.slice(0, newlineIndex)
-      lineBuffer = lineBuffer.slice(newlineIndex + 1)
-      if (line === '' || isParseableJson(line)) {
-        forwarded.push(line)
-      } else {
-        process.stderr.write(`${STDOUT_GUARD_MARKER} ${line}\n`)
-        logForDebugging(`stdout guard diverted a non-JSON line: ${line.slice(0, 200)}`)
-      }
-      newlineIndex = lineBuffer.indexOf('\n')
-    }
-
-    let lastForwardReturn: boolean | null = null
-    for (const [index, line] of forwarded.entries()) {
-      const last = index === forwarded.length - 1
-      lastForwardReturn = last && callback ? realWrite(`${line}\n`, callback) : realWrite(`${line}\n`)
-    }
-    if (callback && forwarded.length === 0) {
-      startMicrotask(() => callback())
-    }
-    return lastForwardReturn ?? true
-  }
-
-  process.stdout.write = guardedWrite as typeof process.stdout.write
-
-  registerCleanup(async () => {
-    if (lineBuffer !== '') {
-      if (isParseableJson(lineBuffer)) {
-        realWrite(`${lineBuffer}\n`)
-      } else {
-        process.stderr.write(`${STDOUT_GUARD_MARKER} ${lineBuffer}\n`)
-      }
-      lineBuffer = ''
-    }
-    if (originalWrite !== null) {
-      process.stdout.write = originalWrite
-      originalWrite = null
-    }
-    installed = false
-  })
+  return notBuilt('src/utils/wireStdoutGuard.ts:23')
 }

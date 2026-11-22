@@ -1,4 +1,3 @@
-
 import * as React from 'react'
 import { z } from 'zod'
 import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
@@ -22,49 +21,11 @@ import {
   DISCUSS_OPTION_LABEL,
   PREVIEW_FEATURE_PROMPT,
 } from './prompt.js'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const RESULT_SIZE_CAP = 100_000
 
-function operatorDeclined(error: unknown): boolean {
-  if (typeof error !== 'string') return false
-  const text = unwrapToolUseError(error)
-  return [REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX, SUBAGENT_REJECT_MESSAGE, SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX].some(words => text.startsWith(words))
-}
-
-
-const questionOptionSchema = z.object({
-  id: z.string().optional().describe('Answer id (default positional)'),
-  label: z.string().describe('1-5 word label'),
-  description: z
-    .string()
-    .describe('Option meaning/implication'),
-  preview: z
-    .string()
-    .optional()
-    .describe('Focused preview (host-format dependent)'),
-})
-
-const questionSchema = z.object({
-  id: z.string().optional().describe('Question id in answer (default positional)'),
-  decisionId: z.string().optional().describe('Interview record key (mercury://interview/<session>/<decisionId>)'),
-  question: z
-    .string()
-    .describe('Question text; phrase for multi-select when applicable'),
-  header: z
-    .string()
-    .max(ASK_USER_QUESTION_TOOL_CHIP_WIDTH)
-    .describe(`Chip label (≤${ASK_USER_QUESTION_TOOL_CHIP_WIDTH} chars)`),
-  options: z
-    .array(questionOptionSchema)
-    .min(2)
-    .max(4)
-    .describe(
-      'Exclusive unless multiSelect; Other free-text answer is supplied automatically',
-    ),
-  multiSelect: semanticBoolean(z.boolean().default(false)).describe(
-    'Allow several answers',
-  ),
-})
+const questionSchema: Unbuilt = unbuilt('src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx:47')
 
 const annotationsSchema = z
   .record(
@@ -93,30 +54,7 @@ const outcomeSchema = z
   ])
   .optional()
 
-const inputSchemaObject = z
-  .object({
-    questions: z.array(questionSchema).min(1).max(4),
-    answers: z.record(z.string(), z.string()).optional(),
-    annotations: annotationsSchema,
-    outcome: outcomeSchema,
-    metadata: z.object({ source: z.string().optional() }).optional(),
-  })
-  .strict()
-  .refine(
-    input => {
-      const texts = input.questions.map(q => q.question)
-      if (new Set(texts).size !== texts.length) return false
-      for (const q of input.questions) {
-        const labels = q.options.map(o => o.label)
-        if (new Set(labels).size !== labels.length) return false
-      }
-      return true
-    },
-    {
-      message:
-        'Question texts must be unique across the call, and option labels must be unique within each question.',
-    },
-  )
+const inputSchemaObject: Unbuilt = unbuilt('src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx:96')
 
 const modelInputSchemaObject = z.strictObject({ questions: inputSchemaObject.shape.questions })
 
@@ -177,159 +115,8 @@ function typedOutcomeText(output: Output): string | null {
   }
 }
 
-function identityResultText(output: Output): string {
-  const lines = output.questions.map((question, index) => {
-    const identifier = question.id ?? `q${index + 1}`
-    const answer = lookupFor(output.answers, question)
-    const annotation = lookupFor(output.annotations, question)
-    let line = `- [${identifier}] ${JSON.stringify(question.question)} -> ${
-      answer !== undefined ? JSON.stringify(answer) : '(unanswered)'
-    }`
-    if (annotation?.notes) {
-      line += `\n  notes: ${JSON.stringify(annotation.notes)}`
-    }
-    if (annotation?.preview) {
-      line += `\n  selected preview:\n${annotation.preview}`
-    }
-    return line
-  })
-  return `User has answered your questions:\n${lines.join('\n')}\nYou can now continue with the user's answers in mind.`
-}
 
-
-export const AskUserQuestionTool = buildTool({
-  name: ASK_USER_QUESTION_TOOL_NAME,
-  inputSchema: inputSchemaObject,
-  get inputJSONSchema() {
-    return zodToJsonSchema(modelInputSchemaObject)
-  },
-  outputSchema: outputSchemaObject,
-  maxResultSizeChars: RESULT_SIZE_CAP,
-  shouldDefer: true,
-  searchHint: "present structured questions and collect the user's answers",
-  searchKeywords: ['ask', 'multiple-choice'],
-  async description() {
-    return DESCRIPTION
-  },
-  async prompt() {
-    const format = getQuestionPreviewFormat()
-    if (format && PREVIEW_FEATURE_PROMPT[format]) {
-      return `${ASK_USER_QUESTION_TOOL_PROMPT}\n\n${PREVIEW_FEATURE_PROMPT[format]}`
-    }
-    return ASK_USER_QUESTION_TOOL_PROMPT
-  },
-  requiresUserInteraction() {
-    return true
-  },
-  isReadOnly() {
-    return true
-  },
-  isConcurrencySafe() {
-    return true
-  },
-  userFacingName() {
-    return ''
-  },
-  async validateInput(input: Input) {
-    if (getQuestionPreviewFormat() !== 'html') return { result: true as const }
-    for (const question of input.questions) {
-      for (const option of question.options) {
-        const preview = option.preview
-        if (!preview) continue
-        const where = `option "${option.label}" of question "${question.question}"`
-        if (/<\s*(html|body)[\s>]|<!doctype/i.test(preview)) {
-          return {
-            result: false as const,
-            message: `Preview for ${where} is a full HTML document — supply a self-contained fragment without <html>, <body>, or a doctype.`,
-            errorCode: 1,
-          }
-        }
-        if (/<\s*(script|style)[\s>]/i.test(preview)) {
-          return {
-            result: false as const,
-            message: `Preview for ${where} contains a <script> or <style> element — use inline style attributes instead.`,
-            errorCode: 1,
-          }
-        }
-        if (!/<[a-z][^>]*>/i.test(preview)) {
-          return {
-            result: false as const,
-            message: `Preview for ${where} contains no HTML element while the HTML preview format is active — wrap the content in an element.`,
-            errorCode: 1,
-          }
-        }
-      }
-    }
-    return { result: true as const }
-  },
-  async checkPermissions(input: Input) {
-    return {
-      behavior: 'ask' as const,
-      message: 'Answer the assistant\'s questions?',
-      updatedInput: input,
-    }
-  },
-  async call(input: Input) {
-    return {
-      data: {
-        questions: input.questions,
-        answers: input.answers ?? {},
-        ...(input.annotations ? { annotations: input.annotations } : {}),
-        ...(input.outcome ? { outcome: input.outcome } : {}),
-      } as Output,
-    }
-  },
-  mapToolResultToToolResultBlockParam(output: Output, toolUseID: string) {
-    const typed = typedOutcomeText(output)
-    if (typed !== null) {
-      return {
-        type: 'tool_result' as const,
-        tool_use_id: toolUseID,
-        content: typed,
-      }
-    }
-    return {
-      type: 'tool_result' as const,
-      tool_use_id: toolUseID,
-      content: identityResultText(output),
-    }
-  },
-  extractSearchText(output: Output): string {
-    return Object.entries(output.answers ?? {})
-      .map(([key, value]) => `${key} ${value}`)
-      .join('\n')
-  },
-  renderToolUseMessage() {
-    return null
-  },
-  renderToolUseProgressMessage() {
-    return null
-  },
-  renderToolResultMessage(output: Output): React.ReactNode {
-    const answers = output.answers ?? {}
-    const discussed = output.outcome?.kind === 'discussion-requested' ? output.outcome.questionId : undefined
-    const byQuestion = new Map<string, string>()
-    for (const q of output.questions) {
-      const answer = discussed !== undefined && (q.id === discussed || q.question === discussed) ? DISCUSS_OPTION_LABEL : lookupFor(answers, q)
-      if (answer !== undefined) byQuestion.set(q.question, answer)
-    }
-    if (discussed !== undefined && ![...byQuestion.values()].includes(DISCUSS_OPTION_LABEL)) byQuestion.set(discussed, DISCUSS_OPTION_LABEL)
-    const matched = new Set(
-      output.questions.flatMap(q => [q.id, q.question]).filter((k): k is string => !!k),
-    )
-    const entries: Array<[string, string]> = [
-      ...byQuestion.entries(),
-      ...Object.entries(answers).filter(([key]) => !matched.has(key)),
-    ]
-    return <AnsweredQuestionsCard entries={entries} />
-  },
-  renderToolUseRejectedMessage(): React.ReactNode {
-    return <Text dimColor>User declined to answer</Text>
-  },
-  renderToolUseErrorMessage(error: unknown): React.ReactNode {
-    return operatorDeclined(error) ? <Text dimColor>User declined to answer</Text> : null
-  },
-})
+export const AskUserQuestionTool: Unbuilt = unbuilt('src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx:200')
 
 function AnsweredQuestionsCard({
   entries,

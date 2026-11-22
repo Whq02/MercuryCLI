@@ -9,7 +9,7 @@ import { parseGitConfigValue } from './gitConfigParser.js'
 import { findGitRoot } from './gitRoot.js'
 import { getErrnoCode, isENOENT } from '../errors.js'
 import { passedOver } from '../passedOver.js'
-
+import { notBuilt } from '../../pi/holes.js'
 
 
 const gitDirCache = new Map<string, string | null>()
@@ -18,145 +18,36 @@ export function clearResolveGitDirCache(): void {
   gitDirCache.clear()
 }
 
-export async function resolveGitDir(startPath: string = getCwd()): Promise<string | null> {
-  const resolvedStart = resolve(startPath)
-  if (gitDirCache.has(resolvedStart)) return gitDirCache.get(resolvedStart) ?? null
-  let result: string | null = null
-  try {
-    const root = findGitRoot(resolvedStart)
-    if (!root) {
-      gitDirCache.set(resolvedStart, null)
-      return null
-    }
-    const dotGitPath = join(root, '.git')
-    const dotGitStat = await stat(dotGitPath)
-    if (dotGitStat.isFile()) {
-      const content = (await readFile(dotGitPath, 'utf8')).trim()
-      if (content.startsWith('gitdir:')) {
-        result = resolve(root, content.slice('gitdir:'.length).trim())
-        gitDirCache.set(resolvedStart, result)
-        return result
-      }
-    }
-    result = dotGitPath
-  } catch (error) {
-    const code = getErrnoCode(error)
-    if (code === 'ENOENT' || code === 'ENOTDIR') {
-      gitDirCache.set(resolvedStart, null)
-      return null
-    }
-    passedOver(error)
-    return null
-  }
-  gitDirCache.set(resolvedStart, result)
-  return result
+export async function resolveGitDir(startPath?: string): Promise<string | null> {
+  return notBuilt('src/utils/git/gitFilesystem.ts:21')
 }
 
 
 function isSafeRefName(name: string): boolean {
-  if (name === '') return false
-  if (name.startsWith('-') || name.startsWith('/')) return false
-  if (name.includes('..')) return false
-  for (const component of name.split('/')) {
-    if (component === '.' || component === '') return false
-  }
-  return /^[A-Za-z0-9/._+@-]+$/.test(name)
-}
-
-function isValidGitSha(s: string): boolean {
-  return /^[0-9a-f]{40}$/.test(s) || /^[0-9a-f]{64}$/.test(s)
+  return notBuilt('src/utils/git/gitFilesystem.ts:56')
 }
 
 
 export async function readGitHead(
   gitDir: string,
 ): Promise<{ type: 'branch'; name: string } | { type: 'detached'; sha: string } | null> {
-  try {
-    const content = (await readFile(join(gitDir, 'HEAD'), 'utf8')).trim()
-    if (content.startsWith('ref:')) {
-      const target = content.slice('ref:'.length).trim()
-      if (target.startsWith('refs/heads/')) {
-        const name = target.slice('refs/heads/'.length)
-        return isSafeRefName(name) ? { type: 'branch', name } : null
-      }
-      if (!isSafeRefName(target)) return null
-      const sha = await resolveRef(gitDir, target)
-      return { type: 'detached', sha: sha ?? '' }
-    }
-    if (!isValidGitSha(content)) return null
-    return { type: 'detached', sha: content }
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
+  return notBuilt('src/utils/git/gitFilesystem.ts:71')
 }
 
 export async function getCommonDir(gitDir: string): Promise<string | null> {
-  try {
-    const content = (await readFile(join(gitDir, 'commondir'), 'utf8')).trim()
-    return resolve(gitDir, content)
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
+  return notBuilt('src/utils/git/gitFilesystem.ts:94')
 }
 
 async function resolveRefInDir(dir: string, ref: string): Promise<string | null> {
-  let looseContent: string | null = null
-  try {
-    looseContent = (await readFile(join(dir, ref), 'utf8')).trim()
-  } catch (error) {
-    if (!isENOENT(error) && getErrnoCode(error) !== 'ENOTDIR') throw error
-    looseContent = null
-  }
-  if (looseContent !== null) {
-    if (looseContent.startsWith('ref:')) {
-      const target = looseContent.slice('ref:'.length).trim()
-      if (!isSafeRefName(target)) return null
-      return resolveRef(dir, target)
-    }
-    return isValidGitSha(looseContent) ? looseContent : null
-  }
-  try {
-    const packed = await readFile(join(dir, 'packed-refs'), 'utf8')
-    for (const line of packed.split('\n')) {
-      if (line.startsWith('#') || line.startsWith('^')) continue
-      const spaceIndex = line.indexOf(' ')
-      if (spaceIndex === -1) continue
-      if (line.slice(spaceIndex + 1) === ref) {
-        const sha = line.slice(0, spaceIndex)
-        return isValidGitSha(sha) ? sha : null
-      }
-    }
-    return null
-  } catch (error) {
-    if (isENOENT(error)) return null
-    throw error
-  }
+  return notBuilt('src/utils/git/gitFilesystem.ts:104')
 }
 
 async function resolveRef(gitDir: string, ref: string): Promise<string | null> {
-  const direct = await resolveRefInDir(gitDir, ref)
-  if (direct !== null) return direct
-  const commonDir = await getCommonDir(gitDir)
-  if (commonDir !== null && commonDir !== gitDir) {
-    return resolveRefInDir(commonDir, ref)
-  }
-  return null
+  return notBuilt('src/utils/git/gitFilesystem.ts:138')
 }
 
 async function readRawSymref(gitDir: string, refPath: string, branchPrefix: string): Promise<string | null> {
-  try {
-    const content = (await readFile(join(gitDir, refPath), 'utf8')).trim()
-    if (!content.startsWith('ref:')) return null
-    const target = content.slice('ref:'.length).trim()
-    if (!target.startsWith(branchPrefix)) return null
-    const name = target.slice(branchPrefix.length)
-    return isSafeRefName(name) ? name : null
-  } catch (error) {
-    if (isENOENT(error) || getErrnoCode(error) === 'ENOTDIR') return null
-    throw error
-  }
+  return notBuilt('src/utils/git/gitFilesystem.ts:148')
 }
 
 
@@ -338,34 +229,7 @@ async function ensureWatcherStarted(): Promise<void> {
 }
 
 async function cachedRead<T>(key: string, compute: () => Promise<T>): Promise<T> {
-  await ensureWatcherStarted()
-  for (;;) {
-    const startGeneration = generation
-    let entry = cacheEntries.get(key)
-    if (entry && !entry.dirty) {
-      if (entry.inflight !== null) return (await entry.inflight) as T
-      return entry.value as T
-    }
-    if (!entry) {
-      entry = { value: undefined, dirty: true, inflight: null }
-      cacheEntries.set(key, entry)
-    }
-    entry.dirty = false
-    const inflight = compute()
-    entry.inflight = inflight
-    let value: T
-    try {
-      value = await inflight
-    } finally {
-      if (entry.inflight === inflight) entry.inflight = null
-    }
-    if (generation !== startGeneration) continue
-    const current = cacheEntries.get(key)
-    if (current && !current.dirty) {
-      current.value = value
-    }
-    return value
-  }
+  return notBuilt('src/utils/git/gitFilesystem.ts:340')
 }
 
 export async function getCachedBranch(): Promise<string> {
@@ -415,18 +279,7 @@ export async function getCachedDefaultBranch(): Promise<string> {
 
 
 export async function readWorktreeHeadSha(worktreePath: string): Promise<string | null> {
-  try {
-    const content = (await readFile(join(worktreePath, '.git'), 'utf8')).trim()
-    if (!content.startsWith('gitdir:')) return null
-    const gitDir = resolve(worktreePath, content.slice('gitdir:'.length).trim())
-    const head = await readGitHead(gitDir)
-    if (head === null) return null
-    if (head.type === 'detached') return head.sha
-    return resolveRef(gitDir, `refs/heads/${head.name}`)
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
+  return notBuilt('src/utils/git/gitFilesystem.ts:417')
 }
 
 const linkedWorktreeCount = async (adminDir: string): Promise<number> => {

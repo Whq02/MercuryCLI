@@ -4,6 +4,7 @@ import type { EventHandlerProps } from '../events/event-handlers.js'
 import { committedRects, type RectIndex } from './rect-index.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 function* parentChain(node: DOMElement | null): Generator<DOMElement> {
   for (let current: DOMElement | undefined = node ?? undefined; current; current = current.parentNode) yield current
@@ -13,19 +14,9 @@ export function hitTest(
   node: DOMElement,
   col: number,
   row: number,
-  rects: RectIndex = committedRects,
+  rects?: RectIndex,
 ): DOMElement | null {
-  const box = rects.get(node)
-  if (!box || col < box.x || row < box.y || col >= box.x + box.width || row >= box.y + box.height) return null
-  let index = node.childNodes.length
-  while (index > 0) {
-    const child = node.childNodes[--index]!
-    if (child.nodeName !== '#text') {
-      const found = hitTest(child, col, row, rects)
-      if (found) return found
-    }
-  }
-  return node
+  return notBuilt('src/ink/geometry/hit.ts:12')
 }
 
 function recordClickHit(target: DOMElement | null, col: number, row: number, cellIsBlank: boolean, rects: RectIndex): void {
@@ -50,34 +41,10 @@ export function dispatchClick(
   root: DOMElement,
   col: number,
   row: number,
-  cellIsBlank = false,
-  rects: RectIndex = committedRects,
+  cellIsBlank?: boolean,
+  rects?: RectIndex,
 ): boolean {
-  const target = hitTest(root, col, row, rects)
-  recordClickHit(target, col, row, cellIsBlank, rects)
-  if (!target) return false
-  if (root.focusManager) {
-    for (const candidate of parentChain(target)) {
-      if (typeof candidate.attributes['tabIndex'] !== 'number') continue
-      root.focusManager.handleClickFocus(candidate)
-      break
-    }
-  }
-  const event = new ClickEvent(col, row, cellIsBlank)
-  let handled = false
-  for (const recipient of parentChain(target)) {
-    const handler = recipient._eventHandlers?.onClick as ((event: ClickEvent) => void) | undefined
-    if (!handler) continue
-    handled = true
-    const box = rects.get(recipient)
-    if (box) {
-      event.localCol = col - box.x
-      event.localRow = row - box.y
-    }
-    handler(event)
-    if (event.didStopImmediatePropagation()) break
-  }
-  return handled
+  return notBuilt('src/ink/geometry/hit.ts:49')
 }
 
 export function dispatchHover(
@@ -85,21 +52,7 @@ export function dispatchHover(
   col: number,
   row: number,
   hovered: Set<DOMElement>,
-  rects: RectIndex = committedRects,
+  rects?: RectIndex,
 ): void {
-  const next = new Set<DOMElement>()
-  for (const candidate of parentChain(hitTest(root, col, row, rects))) {
-    const handlers = candidate._eventHandlers as EventHandlerProps | undefined
-    if (handlers?.onMouseEnter || handlers?.onMouseLeave) next.add(candidate)
-  }
-  for (const previous of hovered) {
-    if (next.has(previous)) continue
-    hovered.delete(previous)
-    if (previous.parentNode) (previous._eventHandlers as EventHandlerProps | undefined)?.onMouseLeave?.()
-  }
-  for (const current of next) {
-    if (hovered.has(current)) continue
-    hovered.add(current)
-    ;(current._eventHandlers as EventHandlerProps | undefined)?.onMouseEnter?.()
-  }
+  return notBuilt('src/ink/geometry/hit.ts:83')
 }

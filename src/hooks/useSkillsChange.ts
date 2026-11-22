@@ -1,4 +1,3 @@
-
 import { useRef } from 'react'
 import { useClaim } from './effects.js'
 import { watch, type FSWatcher } from 'node:fs'
@@ -15,79 +14,11 @@ import { logForDebugging } from '../utils/debug.js'
 import { useSetAppStateMaybe } from '../state/AppState.js'
 import { getSessionId } from '../bootstrap/state.js'
 import { liveSkillRootsOf, pruneSkillSessionHooks } from '../utils/hooks/sessionHooks.js'
+import { notBuilt } from '../pi/holes.js'
 
 export function useSkillsChange(
   cwd: string | undefined,
   onCommandsChange: (commands: Command[]) => void,
 ): void {
-  const onChangeRef = useRef(onCommandsChange)
-  onChangeRef.current = onCommandsChange
-  const maybeSetAppState = useSetAppStateMaybe()
-  const setAppStateRef = useRef(maybeSetAppState)
-  setAppStateRef.current = maybeSetAppState
-
-  useClaim(() => {
-    if (!cwd) return
-
-    let alive = true
-    const rescan = (): void => {
-      try {
-        clearCommandsCache()
-        void getCommands(cwd)
-          .then(commands => {
-            if (!alive) return
-            const setAppState = setAppStateRef.current
-            if (setAppState !== null) pruneSkillSessionHooks(setAppState, getSessionId(), liveSkillRootsOf(commands))
-            onChangeRef.current(commands)
-          })
-          .catch(error => logForDebugging(`skills rescan failed: ${error}`))
-      } catch (error) {
-        logForDebugging(`skills cache clear failed: ${error}`)
-      }
-    }
-
-    const watchers: FSWatcher[] = []
-    const armFor = (dir: string): void => {
-      try {
-        if (existsSync(dir)) {
-          const watcher = watchDirectory(resolveWatchRoot(dir), { recursive: true }, rescan, () => {
-            if (!alive) return
-            rescan()
-            armFor(dir)
-          })
-          watcher.unref?.()
-          watcher.on('error', error =>
-            logForDebugging(`skills watcher error: ${error}`),
-          )
-          watchers.push(watcher)
-          return
-        }
-        let ancestor = dirname(resolve(dir))
-        while (!existsSync(ancestor)) {
-          const parent = dirname(ancestor)
-          if (parent === ancestor) return
-          ancestor = parent
-        }
-        const birth = watch(resolveWatchRoot(ancestor), {}, () => {
-          if (!alive) return
-          birth.close()
-          if (existsSync(dir)) rescan()
-          armFor(dir)
-        })
-        birth.unref?.()
-        birth.on('error', error =>
-          logForDebugging(`skills watcher error: ${error}`),
-        )
-        watchers.push(birth)
-      } catch (error) {
-        logForDebugging(`skills watcher failed for ${dir}: ${error}`)
-      }
-    }
-    for (const dir of projectConfigCandidatePaths(cwd, 'skills')) armFor(dir)
-
-    return () => {
-      alive = false
-      for (const watcher of watchers) watcher.close()
-    }
-  }, [cwd])
+  return notBuilt('src/hooks/useSkillsChange.ts:19')
 }

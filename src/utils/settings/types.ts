@@ -9,15 +9,14 @@ import { lazySchema } from '../lazySchema.js'
 import { PERMISSION_MODES } from '../permissions/PermissionMode.js'
 import { PermissionRuleSchema } from './permissionValidation.js'
 import type { HookEntry } from '../../schemas/hooks.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export { HookEntrySchema, HooksSchema } from '../../schemas/hooks.js'
 export type { HookEntry, HooksSettings } from '../../schemas/hooks.js'
 
 export const CUSTOMIZATION_SURFACES = ['skills', 'agents', 'hooks', 'mcp'] as const
 
-export const EnvironmentVariablesSchema = lazySchema(() =>
-  z.record(z.string(), z.union([z.string(), z.number(), z.boolean()]).transform(value => String(value))),
-)
+export const EnvironmentVariablesSchema: Unbuilt = unbuilt('src/utils/settings/types.ts:18')
 
 const mcpEntryShape = {
   serverName: z.string().regex(/^[A-Za-z0-9_-]+$/, 'serverName may contain only letters, digits, hyphens and underscores').optional(),
@@ -29,11 +28,10 @@ function requireExactlyOneField(
   entry: { serverName?: unknown; serverCommand?: unknown; serverUrl?: unknown },
   ctx: z.RefinementCtx,
 ): void {
-  const present = [entry.serverName, entry.serverCommand, entry.serverUrl].filter(field => field !== undefined).length
-  if (present !== 1) ctx.addIssue({ code: 'custom', message: 'Exactly one of serverName, serverCommand, or serverUrl must be set' })
+  return notBuilt('src/utils/settings/types.ts:28')
 }
 
-export const AllowedMcpServerEntrySchema = lazySchema(() => z.object(mcpEntryShape).superRefine(requireExactlyOneField))
+export const AllowedMcpServerEntrySchema: Unbuilt = unbuilt('src/utils/settings/types.ts:36')
 export const DeniedMcpServerEntrySchema = lazySchema(() => z.object(mcpEntryShape).superRefine(requireExactlyOneField))
 
 const modeLockSchema = () => z.preprocess(
@@ -41,19 +39,7 @@ const modeLockSchema = () => z.preprocess(
   z.boolean(),
 ).optional()
 
-export const PermissionsSchema = lazySchema(() =>
-  z.object({
-    allow: z.array(PermissionRuleSchema()).optional(),
-    deny: z.array(PermissionRuleSchema()).optional(),
-    ask: z.array(PermissionRuleSchema()).optional(),
-    mode: z.enum(PERMISSION_MODES).optional(),
-    disableSovereignMode: modeLockSchema().describe('True closes Sovereign mode for every session that reads this file'),
-    disableFlowMode: modeLockSchema().describe('True closes Flow for every session that reads this file'),
-    reasons: z.record(z.string(), z.string()).optional().describe('The words a refusal or a consent card says for a rule, keyed by the rule spelling as written in allow, deny or ask'),
-    managedOnly: z.boolean().optional(),
-    sovereignConsentSeen: z.boolean().optional().describe('True skips the consent card shown before entering Sovereign mode (honoured from the user, flag and policy sources, never from a file in the folder)'),
-  }).passthrough(),
-)
+export const PermissionsSchema: Unbuilt = unbuilt('src/utils/settings/types.ts:44')
 
 export type ExtensionHookMatcher = {
   hooks: HookEntry[]
@@ -62,31 +48,7 @@ export type ExtensionHookMatcher = {
   extensionId: string
 }
 
-const userConfigValueSchema = (): z.ZodType => z.union([z.string(), z.number(), z.boolean(), z.array(z.string())])
-
-export const ExtensionsSettingsSchema = lazySchema(() =>
-  z.object({
-    enabled: z.record(z.string(), z.boolean()).optional(),
-    wanted: z.array(z.object({ name: z.string(), source: z.string(), ref: z.string().optional() })).optional(),
-    blocked: z.array(z.string()).optional(),
-    options: z.record(z.string(), z.record(z.string(), userConfigValueSchema())).optional(),
-    exclusive: z.preprocess(value => {
-      const surfaces = CUSTOMIZATION_SURFACES as readonly string[]
-      if (Array.isArray(value)) return value.filter(entry => surfaces.includes(entry as string))
-      if (typeof value === 'string') {
-        const folded = value.trim().toLowerCase()
-        if (folded === 'true' || folded === '1') return true
-        if (folded === 'false' || folded === '0' || folded === '') return false
-        if (surfaces.includes(folded)) return [folded]
-        return true
-      }
-      if (value !== undefined && typeof value !== 'boolean') return true
-      return value
-    }, z.union([z.boolean(), z.array(z.enum(CUSTOMIZATION_SURFACES))]))
-      .optional().catch(undefined)
-      .describe("Managed lock restricting customization surfaces to extensions (filesystem sources such as the config home's skills directory are skipped for locked surfaces)"),
-  }),
-)
+export const ExtensionsSettingsSchema: Unbuilt = unbuilt('src/utils/settings/types.ts:67')
 
 export const SettingsSchema = lazySchema(() => {
   const base = z.object({

@@ -4,6 +4,7 @@ import { buildTool, type ToolDef } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { contextOnlyTraits, refusal } from './contextOnlyTool.js'
 import { CHECKPOINT_TOOL_NAME, CHECKPOINT_TOOL_PROMPT, DESCRIPTION } from './prompt.js'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
@@ -29,31 +30,4 @@ const nestedCheckpoint = (goal: string | undefined): Error =>
 const taken = (count: number): string =>
   `Checkpoint taken (${count} messages). Rewind { report } restores this context state; files and git are never touched.`
 
-export const CheckpointTool = buildTool({
-  ...contextOnlyTraits(),
-  name: CHECKPOINT_TOOL_NAME,
-  searchHint: 'mark the conversation state before an exploration, for a later rewind',
-  searchKeywords: ['checkpoint', 'mark', 'context', 'exploration', 'rewindable', 'rewind'],
-  userFacingName: () => 'Checkpoint',
-  get inputSchema(): InputSchema {
-    return inputSchema()
-  },
-  get outputSchema(): OutputSchema {
-    return outputSchema()
-  },
-  async description() {
-    return DESCRIPTION
-  },
-  async prompt() {
-    return CHECKPOINT_TOOL_PROMPT
-  },
-  getActivityDescription: input => (input?.goal ? `Checkpointing: ${input.goal}` : 'Checkpointing'),
-  renderToolUseMessage: input => input?.goal ?? '',
-  async call({ goal }, context) {
-    const messages = context.messages ?? []
-    const active = findActiveCheckpoint(messages)
-    if (active !== null) throw nestedCheckpoint(active.goal)
-    const data: Output = { message: taken(messages.length), goal, messageCount: messages.length, takenAt: new Date().toISOString() }
-    return { data }
-  },
-} satisfies ToolDef<InputSchema, Output>)
+export const CheckpointTool: Unbuilt = unbuilt('src/tools/CheckpointTool/CheckpointTool.tsx:32')

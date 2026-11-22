@@ -24,6 +24,7 @@ import {
 import { sleep } from '../sleep.js'
 import { passedOver } from '../passedOver.js'
 import { sleepSync } from '../timers.js'
+import { notBuilt, unbuilt } from '../../pi/holes.js'
 
 const TEST_GLOBAL_CONFIG_FOR_TESTING: GlobalConfig = {
   ...DEFAULT_GLOBAL_CONFIG,
@@ -140,99 +141,19 @@ export function hasPendingDeferredGlobalConfigSaves(): boolean {
 function saveGlobalConfigOutcome(
   updater: (currentConfig: GlobalConfig) => GlobalConfig,
 ): GlobalConfigSaveRefusal | null {
-  if (isReadOnlyDiagnostic()) return null
-  if (process.env.NODE_ENV === 'test') {
-    const config = updater(TEST_GLOBAL_CONFIG_FOR_TESTING)
-    if (config === TEST_GLOBAL_CONFIG_FOR_TESTING) {
-      return null
-    }
-    Object.assign(TEST_GLOBAL_CONFIG_FOR_TESTING, config)
-    return null
-  }
-
-  let written: GlobalConfig | null = null
-  try {
-    const outcome = saveConfigWithLockOutcome(
-      getGlobalMercuryFile(),
-      createDefaultGlobalConfig,
-      current => {
-        const config = updater(current)
-        if (config === current) {
-          return current
-        }
-        written = config
-        return written
-      },
-    )
-    if (outcome === 'auth-wipe') {
-      return { kind: 'auth-wipe', filePath: getGlobalMercuryFile() }
-    }
-    if (outcome === 'written' && written) {
-      writeThroughGlobalConfigCache(written)
-    }
-    return null
-  } catch (error) {
-    if (error instanceof ConfigReadError) {
-      logForDebugging(
-        `saveGlobalConfig: refusing the write — ${error.message}`,
-        { level: 'error' },
-      )
-      return { kind: 'read', filePath: error.filePath, code: error.code }
-    }
-    if ((error as NodeJS.ErrnoException | null)?.code === 'ELOCKED') {
-      noteConfigContentionRefusal('saveGlobalConfig')
-      return { kind: 'locked', filePath: getGlobalMercuryFile() }
-    }
-    logForDebugging(`Failed to save config with lock: ${error}`, {
-      level: 'error',
-    })
-    noteConfigLocklessFallback()
-    let currentConfig: GlobalConfig
-    try {
-      currentConfig = getConfig(getGlobalMercuryFile(), createDefaultGlobalConfig)
-    } catch (readError) {
-      if (readError instanceof ConfigReadError) {
-        logForDebugging(
-          `saveGlobalConfig fallback: refusing the write — ${readError.message}`,
-          { level: 'error' },
-        )
-        return { kind: 'read', filePath: readError.filePath, code: readError.code }
-      }
-      throw readError
-    }
-    if (wouldLoseAuthState(currentConfig)) {
-      logForDebugging(
-        'saveGlobalConfig fallback: the re-read view lost auth state the cache still holds; refusing the write (auth-wipe guard).',
-        { level: 'error' },
-      )
-      return { kind: 'auth-wipe', filePath: getGlobalMercuryFile() }
-    }
-    const config = updater(foldPendingUpdaters(currentConfig))
-    if (config === currentConfig) {
-      return null
-    }
-    written = config
-    saveConfig(getGlobalMercuryFile(), written, DEFAULT_GLOBAL_CONFIG)
-    writeThroughGlobalConfigCache(written)
-    return null
-  }
+  return notBuilt('src/utils/config/globalConfig.ts:140')
 }
 
 export function saveGlobalConfig(
   updater: (currentConfig: GlobalConfig) => GlobalConfig,
 ): void {
-  saveGlobalConfigOutcome(updater)
+  return notBuilt('src/utils/config/globalConfig.ts:221')
 }
 
-let globalConfigCache: { config: GlobalConfig | null; mtime: number } = {
-  config: null,
-  mtime: 0,
-}
-
-let globalConfigWriteCount = 0
+let globalConfigCache: { config: GlobalConfig | null; mtime: number } = unbuilt('src/utils/config/globalConfig.ts:227')
 
 export function getGlobalConfigWriteCount(): number {
-  return globalConfigWriteCount
+  return notBuilt('src/utils/config/globalConfig.ts:234')
 }
 
 let configLocklessFallbackCount = 0
@@ -362,89 +283,20 @@ export function subscribeGlobalConfigCache(listener: () => void): () => void {
   }
 }
 
-function acceptConfigRefresh(content: string, stamp: number): void {
-  if (stamp <= globalConfigCache.mtime) return
-  const fields = safeParseJSON(stripBOM(content))
-  if (fields === null || typeof fields !== 'object') return
-  const config = foldPendingUpdaters({ ...createDefaultGlobalConfig(), ...(decodeGlobalConfigFields(fields) as Partial<GlobalConfig>) })
-  globalConfigCache = { config, mtime: stamp }
-  notifyGlobalConfigCache()
-}
-
-function configRefreshListener(file: string): (current: { mtimeMs: number }) => void {
-  return current => {
-    if (current.mtimeMs <= globalConfigCache.mtime) return
-    void getFsImplementation().readFile(file, { encoding: 'utf-8' })
-      .then(content => acceptConfigRefresh(content, current.mtimeMs))
-      .catch(passedOver)
-  }
-}
-
-function startGlobalConfigFreshnessWatcher(): void {
-  if (process.env.NODE_ENV === 'test' || freshnessWatcherStarted) return
-  freshnessWatcherStarted = true
-  const path = getGlobalMercuryFile()
-  watchFile(path, { interval: CONFIG_FRESHNESS_POLL_MS, persistent: false }, configRefreshListener(path))
-  registerCleanup(async () => {
-    unwatchFile(path)
-    freshnessWatcherStarted = false
-  })
-}
-
 export function writeThroughGlobalConfigCache(config: GlobalConfig): void {
-  globalConfigCache = { config, mtime: Date.now() }
+  return notBuilt('src/utils/config/globalConfig.ts:394')
 }
 
 export function readGlobalConfigAgain(): void {
-  const file = getGlobalMercuryFile()
-  let stamp: number
-  let content: string
-  try {
-    stamp = getFsImplementation().statSync(file).mtimeMs
-    content = String(getFsImplementation().readFileSync(file, { encoding: 'utf-8' }))
-  } catch (error) {
-    passedOver(error)
-    return
-  }
-  const parsed = safeParseJSON(stripBOM(content))
-  if (parsed === null || typeof parsed !== 'object') return
-  globalConfigCache = {
-    config: foldPendingUpdaters({ ...createDefaultGlobalConfig(), ...(decodeGlobalConfigFields(parsed) as Partial<GlobalConfig>) }),
-    mtime: stamp,
-  }
-  notifyGlobalConfigCache()
+  return notBuilt('src/utils/config/globalConfig.ts:398')
 }
 
 export function getGlobalConfigCacheStamp(): number {
-  return globalConfigCache.mtime
+  return notBuilt('src/utils/config/globalConfig.ts:418')
 }
 
 export function getGlobalConfig(): GlobalConfig {
-  if (process.env.NODE_ENV === 'test') {
-    return TEST_GLOBAL_CONFIG_FOR_TESTING
-  }
-
-  if (globalConfigCache.config) {
-    return globalConfigCache.config
-  }
-
-  try {
-    let stats: { mtimeMs: number; size: number } | null = null
-    try {
-      stats = getFsImplementation().statSync(getGlobalMercuryFile())
-    } catch (error) {
-      passedOver(error)
-    }
-    const config = getConfig(getGlobalMercuryFile(), createDefaultGlobalConfig)
-    globalConfigCache = {
-      config,
-      mtime: stats?.mtimeMs ?? Date.now(),
-    }
-    startGlobalConfigFreshnessWatcher()
-    return config
-  } catch {
-    return getConfig(getGlobalMercuryFile(), createDefaultGlobalConfig)
-  }
+  return notBuilt('src/utils/config/globalConfig.ts:422')
 }
 
 export function saveConfig<A extends object>(
@@ -452,29 +304,7 @@ export function saveConfig<A extends object>(
   config: A,
   defaultConfig: A,
 ): void {
-  const dir = dirname(file)
-  const fs = getFsImplementation()
-  fs.mkdirSync(dir)
-
-  const filteredConfig = pickBy(
-    config,
-    (value: A[keyof A], key: string) =>
-      jsonStringify(value) !== jsonStringify(defaultConfig[key as keyof A]),
-  )
-  writeFileAndFlushAtomically(
-    file,
-    jsonStringify(filteredConfig, null, 2),
-    {
-      encoding: 'utf-8',
-      mode: 0o600,
-    },
-  )
-  if (file === getGlobalMercuryFile()) {
-    globalConfigRefusalSaid = false
-    globalConfigWriteCount++
-    writeThroughGlobalConfigCache(config as GlobalConfig)
-    pendingDeferredUpdaters = []
-  }
+  return notBuilt('src/utils/config/globalConfig.ts:450')
 }
 
 export async function runExclusiveOnFileSync<T>(file: string, section: () => Promise<T>): Promise<T> {
@@ -523,157 +353,27 @@ function prepareConfigBackupHome(disk: ReturnType<typeof getFsImplementation>): 
   return directory
 }
 
-function stampedCopies(disk: ReturnType<typeof getFsImplementation>, directory: string, prefix: string): string[] {
-  return disk.readdirStringSync(directory).filter(name => name.startsWith(prefix)).sort().reverse()
-}
-
-function backupOutgoingConfig(file: string, fs: ReturnType<typeof getFsImplementation>): void {
-  try {
-    const stem = basename(file)
-    const directory = prepareConfigBackupHome(fs)
-    const prefix = `${stem}.backup.`
-    let copies = stampedCopies(fs, directory, prefix)
-    const stamp = copies.length ? Number(copies[0]!.split('.backup.').at(-1)) : 0
-    if (Number.isNaN(stamp) || Date.now() - stamp >= 60000) {
-      fs.copyFileSync(file, join(directory, prefix + Date.now()))
-      copies = stampedCopies(fs, directory, prefix)
-    }
-    copies.slice(5).forEach(name => {
-      try { fs.unlinkSync(join(directory, name)) } catch (error) { passedOver(error) }
-    })
-  } catch (failure) {
-    if (getErrnoCode(failure) !== 'ENOENT') logForDebugging(`Failed to backup config: ${failure}`, { level: 'error' })
-  }
-}
-
-function saveConfigWithLockOutcome<A extends object>(
-  file: string,
-  createDefault: () => A,
-  mergeFn: (current: A) => A,
-  waitForLock = true,
-): 'written' | 'unchanged' | 'auth-wipe' {
-  const defaultConfig = createDefault()
-  const dir = dirname(file)
-  const fs = getFsImplementation()
-
-  fs.mkdirSync(dir)
-
-  backupOutgoingConfig(file, fs)
-
-  let release
-  try {
-    const lockFilePath = `${file}.lock`
-    const startTime = Date.now()
-    const takeLock = (): (() => void) =>
-      lockfile.lockSync(file, {
-        lockfilePath: lockFilePath,
-        realpath: false,
-        onCompromised: (err: Error) => {
-          logForDebugging(`Config lock compromised: ${err}`, { level: 'error' })
-        },
-      })
-    release = (() => {
-      let lastContention: unknown
-      for (let attempt = 0; attempt < 12; attempt++) {
-        try {
-          return takeLock()
-        } catch (err) {
-          if (!waitForLock || (err as NodeJS.ErrnoException | null)?.code !== 'ELOCKED') throw err
-          lastContention = err
-          const backoffMs = Math.min(1000, 15 * 2 ** attempt)
-          sleepSync(backoffMs)
-        }
-      }
-      throw lastContention
-    })()
-    const lockTime = Date.now() - startTime
-    if (lockTime > 100) {
-      logForDebugging(
-        'Lock acquisition took longer than expected - another Mercury instance may be running',
-      )
-    }
-
-    const currentConfig = getConfig(file, createDefault)
-    if (file === getGlobalMercuryFile() && wouldLoseAuthState(currentConfig)) {
-      logForDebugging(
-        'saveConfigWithLock: the re-read view lost auth state the cache still holds; refusing the write (auth-wipe guard).',
-        { level: 'error' },
-      )
-      return 'auth-wipe'
-    }
-
-    const mergedConfig = mergeFn(file === getGlobalMercuryFile()
-      ? foldPendingUpdaters(currentConfig as GlobalConfig) as A
-      : currentConfig)
-
-    if (mergedConfig === currentConfig) {
-      return 'unchanged'
-    }
-
-    const filteredConfig = pickBy(
-      mergedConfig,
-      (value: A[keyof A], key: string) =>
-        jsonStringify(value) !== jsonStringify(defaultConfig[key as keyof A]),
-    )
-
-    writeFileAndFlushAtomically(
-      file,
-      jsonStringify(filteredConfig, null, 2),
-      {
-        encoding: 'utf-8',
-        mode: 0o600,
-      },
-    )
-    if (file === getGlobalMercuryFile()) {
-      globalConfigWriteCount++
-      writeThroughGlobalConfigCache(mergedConfig as GlobalConfig)
-      pendingDeferredUpdaters = []
-    }
-    return 'written'
-  } finally {
-    if (release) {
-      release()
-    }
-  }
-}
-
 export function saveConfigWithLock<A extends object>(
   file: string,
   createDefault: () => A,
   mergeFn: (current: A) => A,
-  waitForLock = true,
+  waitForLock?: boolean,
 ): boolean {
-  return saveConfigWithLockOutcome(file, createDefault, mergeFn, waitForLock) === 'written'
+  return notBuilt('src/utils/config/globalConfig.ts:640')
 }
 
-let configReadingAllowed = false
+let configReadingAllowed: boolean = unbuilt('src/utils/config/globalConfig.ts:649')
 
 export function isConfigReadingAllowed(): boolean {
-  return configReadingAllowed || process.env.NODE_ENV === 'test'
+  return notBuilt('src/utils/config/globalConfig.ts:651')
 }
 
 export function enableConfigs(): void {
-  if (configReadingAllowed) {
-    return
-  }
-
-  const startTime = Date.now()
-  logForDiagnosticsNoPII('info', 'enable_configs_started')
-
-  configReadingAllowed = true
-  getConfig(
-    getGlobalMercuryFile(),
-    createDefaultGlobalConfig,
-    true ,
-  )
-
-  logForDiagnosticsNoPII('info', 'enable_configs_completed', {
-    duration_ms: Date.now() - startTime,
-  })
+  return notBuilt('src/utils/config/globalConfig.ts:655')
 }
 
 export function getConfigBackupDir(): string {
-  return join(getMercuryHome(), 'backups')
+  return notBuilt('src/utils/config/globalConfig.ts:675')
 }
 
 export function restoreConfigFromBackup(file: string, backupPath: string): { quarantinePath: string | null } {
@@ -742,23 +442,7 @@ function decodeConfigRead<A>(file: string, text: string, defaults: () => A): A {
 }
 
 function quarantineConfigRead(file: string, disk: ReturnType<typeof getFsImplementation>): { directory: string; copy?: string; matched: boolean } {
-  const stem = basename(file)
-  const directory = prepareConfigBackupHome(disk)
-  const names = disk.readdirStringSync(directory).filter(name => name.startsWith(`${stem}.corrupted.`))
-  const bytes = disk.readFileSync(file, { encoding: 'utf-8' })
-  const matched = names.some(name => {
-    try { return disk.readFileSync(join(directory, name), { encoding: 'utf-8' }) === bytes } catch (error) { passedOver(error); return false }
-  })
-  if (matched) return { directory, matched }
-  const copy = join(directory, `${stem}.corrupted.${Date.now()}`)
-  try {
-    disk.copyFileSync(file, copy)
-    logForDebugging(`Corrupted config backed up to: ${copy}`, { level: 'error' })
-    return { directory, copy, matched }
-  } catch (error) {
-    logForDebugging(`Failed to back up corrupted config to ${copy}: ${error}`, { level: 'error' })
-    return { directory, matched }
-  }
+  return notBuilt('src/utils/config/globalConfig.ts:744')
 }
 
 function reportConfigCorruption(file: string, error: ConfigParseError, disk: ReturnType<typeof getFsImplementation>): void {

@@ -2,6 +2,7 @@ import { z } from 'zod/v4'
 import { registerBundledSkill } from '../bundledSkills.js'
 import { SettingsSchema } from '../../utils/settings/types.js'
 import { HOOK_EVENTS, HOOK_KINDS, hookEventTable, hookKindsOf, hookMatchValues } from '../../utils/hooks/contract.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const HOOKS_ONLY_MARKER = '[hooks-only]'
 
@@ -91,29 +92,5 @@ function generatedSchemaSection(): string {
 }
 
 export function registerUpdateConfigSkill(): void {
-  registerBundledSkill({
-    name: 'update-config',
-    description:
-      'Use this skill for any change to Mercury settings files: permission rules, environment variables, MCP server enablement, extension settings, and event-driven hooks ("whenever X, do Y"). Not for /config knobs or keybindings.',
-    argumentHint: '<the change: allow X · set X=Y · enable server Y · whenever X do Y>',
-    allowedTools: ['Read'],
-    getPromptForCommand: async args => {
-      const trimmed = args.trim()
-      if (trimmed.startsWith(HOOKS_ONLY_MARKER)) {
-        const task = trimmed.slice(HOOKS_ONLY_MARKER.length).trim()
-        const text = [
-          hooksDocumentation(),
-          HOOK_CONSTRUCTION_FLOW,
-          ...(task ? [`## Task\n\n${task}`] : []),
-        ].join('\n\n')
-        return [{ type: 'text', text }]
-      }
-      const text = [
-        FULL_PROMPT,
-        generatedSchemaSection(),
-        ...(trimmed ? [`## User request\n\n${trimmed}`] : []),
-      ].join('\n\n')
-      return [{ type: 'text', text }]
-    },
-  })
+  return notBuilt('src/skills/bundled/updateConfig.ts:93')
 }

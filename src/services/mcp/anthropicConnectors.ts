@@ -10,6 +10,7 @@ import { isEnvTruthy } from '../../utils/envUtils.js'
 import { clearMcpAuthCache } from './client/needsAuth.js'
 import { normalizeNameForMCP } from '../../utils/mcp/normalization.js'
 import type { ScopedMcpServerConfig } from '../../utils/mcp/types.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 export function anthropicConnectorsArmed(canonical: string | undefined): boolean {
@@ -18,76 +19,8 @@ export function anthropicConnectorsArmed(canonical: string | undefined): boolean
 }
 
 const REQUIRED_SCOPE = 'user:mcp_servers'
-const FETCH_TIMEOUT_MS = 5000
 
-type AnthropicConnectorRow = {
-  type?: string
-  id: string
-  display_name: string
-  url: string
-  created_at?: string
-}
-
-export const fetchAnthropicConnectorsIfEligible = memoize(
-  async (): Promise<Record<string, ScopedMcpServerConfig>> => {
-    const canonical = flagEnv('MERCURY_ANTHROPIC_CONNECTORS')
-    if (!anthropicConnectorsArmed(canonical)) {
-      logForDebugging('claudeai MCP: not armed (opt in with MERCURY_ANTHROPIC_CONNECTORS=1)')
-      return {}
-    }
-    const tokens = getClaudeAIOAuthTokens()
-    const accessToken = tokens?.accessToken
-    if (!accessToken) {
-      logForDebugging('claudeai MCP: no OAuth access token; skipping connector fetch')
-      return {}
-    }
-    const scopes = tokens.scopes ?? []
-    if (!scopes.includes(REQUIRED_SCOPE)) {
-      logForDebugging(`claudeai MCP: token lacks ${REQUIRED_SCOPE} (has: ${scopes.join(', ') || 'none'})`)
-      return {}
-    }
-    try {
-      const base = getOauthConfig().BASE_API_URL
-      const response = await axios.get<{ data?: AnthropicConnectorRow[]; has_more?: boolean; next_page?: string | null }>(
-        `${base}/v1/mcp_servers?limit=1000`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-            'anthropic-beta': 'mcp-servers-2025-12-04',
-            'anthropic-version': '2023-06-01',
-          },
-          timeout: FETCH_TIMEOUT_MS,
-        },
-      )
-      const rows = response.data?.data ?? []
-      const configs: Record<string, ScopedMcpServerConfig> = {}
-      const takenNormalized = new Set<string>()
-      for (const row of rows) {
-        const baseName = `claude.ai ${row.display_name}`
-        let name = baseName
-        let suffix = 2
-        while (takenNormalized.has(normalizeNameForMCP(name))) {
-          name = `${baseName} (${suffix})`
-          suffix++
-        }
-        takenNormalized.add(normalizeNameForMCP(name))
-        configs[name] = {
-          type: 'claudeai-proxy',
-          url: row.url,
-          id: row.id,
-          scope: 'claudeai',
-        } as ScopedMcpServerConfig
-      }
-      logForDebugging(`claudeai MCP: ${Object.keys(configs).length} connector(s) fetched`)
-      return configs
-    } catch (err) {
-      logForDebugging(`claudeai MCP: connector fetch failed: ${String(err)}`)
-      forgetConnectorFetch()
-      return {}
-    }
-  },
-)
+export const fetchAnthropicConnectorsIfEligible: Unbuilt = unbuilt('src/services/mcp/anthropicConnectors.ts:31')
 
 function forgetConnectorFetch(): void {
   fetchAnthropicConnectorsIfEligible.cache?.clear?.()
@@ -99,13 +32,9 @@ export function clearAnthropicConnectorsCache(): void {
 }
 
 export function markAnthropicConnectorConnected(name: string): void {
-  saveGlobalConfig(current => {
-    const list = current.claudeAiMcpEverConnected ?? []
-    if (list.includes(name)) return current
-    return { ...current, claudeAiMcpEverConnected: [...list, name] }
-  })
+  return notBuilt('src/services/mcp/anthropicConnectors.ts:101')
 }
 
 export function hasAnthropicConnectorEverConnected(name: string): boolean {
-  return (getGlobalConfig().claudeAiMcpEverConnected ?? []).includes(name)
+  return notBuilt('src/services/mcp/anthropicConnectors.ts:109')
 }

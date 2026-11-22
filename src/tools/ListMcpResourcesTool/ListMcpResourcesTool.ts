@@ -9,6 +9,7 @@ import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
 import { mcpClientForTools } from '../../services/mcp/client/forTools.js'
 import { getDenyRuleForMcpServer } from '../../utils/permissions/decision/rules.js'
 import { mcpServerDenyDecision } from '../../utils/permissions/ruleReason.js'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 const inputSchema = z.object({
@@ -32,85 +33,4 @@ const outputSchema = z.array(
   }),
 )
 
-export const ListMcpResourcesTool = buildTool({
-  name: LIST_MCP_RESOURCES_TOOL_NAME,
-  searchHint: 'list resources exposed by connected MCP servers',
-  shouldDefer: true,
-  maxResultSizeChars: 100_000,
-  inputSchema,
-  outputSchema,
-  isReadOnly: () => true,
-  isConcurrencySafe: () => true,
-  userFacingName: () => 'listMcpResources',
-  getToolUseSummary(input?: Partial<Input>): string | null {
-    return input?.server ?? 'all servers'
-  },
-  getActivityDescription(input?: Partial<Input>): string {
-    return input?.server ? `Listing resources from ${input.server}` : 'Listing MCP resources'
-  },
-  async description(): Promise<string> {
-    return DESCRIPTION
-  },
-  async prompt(): Promise<string> {
-    return PROMPT
-  },
-  async checkPermissions(input: Input, context: ToolUseContext) {
-    if (input.server !== undefined) {
-      const denied = mcpServerDenyDecision(
-        context.getAppState().toolPermissionContext,
-        LIST_MCP_RESOURCES_TOOL_NAME,
-        input.server,
-      )
-      if (denied) return denied
-    }
-    return { behavior: 'allow' as const, updatedInput: input }
-  },
-  async call(input: Input, context: ToolUseContext) {
-    const permissionContext = context.getAppState().toolPermissionContext
-    const clients = context.options.mcpClients.filter(
-      client => getDenyRuleForMcpServer(permissionContext, client.name) === null,
-    )
-    const selected = input.server
-      ? clients.filter(client => client.name === input.server)
-      : clients
-    if (input.server && selected.length === 0) {
-      throw new Error(
-        `Server "${input.server}" not found. Available servers: ${clients.map(client => client.name).join(', ')}`,
-      )
-    }
-    const perClient = await Promise.all(
-      selected.map(async client => {
-        if (client.type !== 'connected') return []
-        try {
-          const live = await mcpClientForTools().ensureConnectedClient(client)
-          return await mcpClientForTools().fetchResourcesForClient(live)
-        } catch (err) {
-          logMCPError(client.name, err)
-          if (input.server) throw err
-          return []
-        }
-      }),
-    )
-    return { data: perClient.flat() satisfies Output }
-  },
-  mapToolResultToToolResultBlockParam(data: Output, toolUseID: string) {
-    if (data.length === 0) {
-      return {
-        tool_use_id: toolUseID,
-        type: 'tool_result' as const,
-        content:
-          'No resources found. Note that MCP servers may still provide tools even when they expose no resources.',
-      }
-    }
-    return {
-      tool_use_id: toolUseID,
-      type: 'tool_result' as const,
-      content: JSON.stringify(data),
-    }
-  },
-  isResultTruncated(data: Output): boolean {
-    return isOutputLineTruncated(JSON.stringify(data, null, 2))
-  },
-  renderToolUseMessage,
-  renderToolResultMessage,
-})
+export const ListMcpResourcesTool: Unbuilt = unbuilt('src/tools/ListMcpResourcesTool/ListMcpResourcesTool.ts:35')

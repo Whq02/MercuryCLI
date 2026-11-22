@@ -15,23 +15,19 @@ import { consumeNotices, queuedNoticeKeys, recordQueuedNotice, retireNotices } f
 import { passedOver } from '../utils/passedOver.js'
 import { MAIN_LANE, parseOwnerKey, type OwnerKey } from '../utils/run/ownerKey.js'
 import { parseSlashCommand } from '../utils/slashCommandParsing.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
-export type SetAppState = (f: (prev: AppState) => AppState) => void
+export type SetAppState = (...args: Unbuilt[]) => Unbuilt
 
 
-const triedCompact = Symbol('triedCompact')
-const queue: (QueuedCommand & { [triedCompact]?: true })[] = []
-let snapshot: readonly QueuedCommand[] = Object.freeze([])
-const queueChanged = createSignal()
-
-let queueIdSeq = 0
+const triedCompact: Unbuilt = unbuilt('src/input-core/command-queue.ts:22')
+const queue: (QueuedCommand & { [triedCompact]?: true })[] = unbuilt('src/input-core/command-queue.ts:23')
 function mintQueueId(): string {
-  return `q${++queueIdSeq}`
+  return notBuilt('src/input-core/command-queue.ts:28')
 }
 
 function commit(): void {
-  snapshot = Object.freeze([...queue])
-  queueChanged.emit()
+  return notBuilt('src/input-core/command-queue.ts:32')
 }
 
 
@@ -61,64 +57,33 @@ function emitConsumption(kind: QueueConsumptionEvent['kind'], commands: readonly
 }
 
 function logOperation(operation: QueueOperation, content?: string, identity?: Pick<QueuedCommand, 'uuid' | 'mode' | 'isMeta' | 'sentAt' | 'origin' | 'agentCompletion'>): void {
-  const queueOp: QueueOperationMessage = {
-    type: 'queue-operation',
-    operation,
-    timestamp: new Date().toISOString(),
-    sessionId: getSessionId(),
-    ...(content !== undefined && { content }),
-    ...(identity?.uuid !== undefined && { commandUuid: String(identity.uuid) }),
-    ...(identity?.mode !== undefined && { mode: identity.mode }),
-    ...(identity?.isMeta === true && { isMeta: true }),
-    ...(identity?.sentAt !== undefined && { sentAt: identity.sentAt }),
-    ...(identity?.origin !== undefined && { origin: identity.origin }),
-    ...(identity?.agentCompletion !== undefined && { agentCompletion: identity.agentCompletion }),
-  }
-  void recordQueueOperation(queueOp)
+  return notBuilt('src/input-core/command-queue.ts:63')
 }
 
-const PRIORITY_ORDER: Record<QueuePriority, number> = {
-  now: 0,
-  next: 1,
-  later: 2,
-}
+const PRIORITY_ORDER: Record<QueuePriority, number> = unbuilt('src/input-core/command-queue.ts:80')
 
 function bestIndexByPriority(
   filter?: (cmd: QueuedCommand) => boolean,
 ): number {
-  let bestIdx = -1
-  let bestPriority = Infinity
-  for (let i = 0; i < queue.length; i++) {
-    const cmd = queue[i]!
-    if (filter && !filter(cmd)) continue
-    const priority = PRIORITY_ORDER[cmd.priority ?? 'next']
-    if (priority < bestPriority) {
-      bestIdx = i
-      bestPriority = priority
-    }
-  }
-  return bestIdx
+  return notBuilt('src/input-core/command-queue.ts:86')
 }
 
 
-export const subscribeToCommandQueue = queueChanged.subscribe
+export const subscribeToCommandQueue: Unbuilt = unbuilt('src/input-core/command-queue.ts:104')
 
 export function getCommandQueueSnapshot(): readonly QueuedCommand[] {
-  return snapshot
+  return notBuilt('src/input-core/command-queue.ts:106')
 }
 
 
 export function getCommandQueue(): QueuedCommand[] {
-  return [...queue]
+  return notBuilt('src/input-core/command-queue.ts:111')
 }
 
 function getCommandsByMaxPriority(
   maxPriority: QueuePriority,
 ): QueuedCommand[] {
-  const threshold = PRIORITY_ORDER[maxPriority]
-  return queue.filter(
-    cmd => PRIORITY_ORDER[cmd.priority ?? 'next'] <= threshold,
-  )
+  return notBuilt('src/input-core/command-queue.ts:115')
 }
 
 export function getDrainableCommands(sleepBoundary: boolean): QueuedCommand[] {
@@ -169,10 +134,7 @@ let owningSessionId: string | null = null
 const parkedQueues = new Map<string, QueuedCommand[]>()
 
 function compactArgs(cmd: QueuedCommand): string | undefined {
-  if (cmd.localCommand !== true || cmd.agentId !== undefined || cmd.mode !== 'prompt' || cmd.skipSlashCommands || cmd.isMeta) return undefined
-  const line = typeof cmd.value === 'string' ? cmd.value : cmd.value.find(block => block.type === 'text')?.text
-  const parsed = line?.startsWith('/') ? parseSlashCommand(line) : null
-  return parsed?.commandName === 'compact' ? parsed.args.trim() : undefined
+  return notBuilt('src/input-core/command-queue.ts:171')
 }
 
 export function beginQueuedCompact(owner: OwnerKey): { fresh: boolean; instructions?: string; complete: () => void } | undefined {
@@ -259,34 +221,13 @@ export function enqueue(command: QueuedCommand): void {
 }
 
 export function enqueuePendingNotification(command: QueuedCommand): void {
-  const stamped: QueuedCommand = {
-    ...command,
-    priority: command.priority ?? 'later',
-    queueId: mintQueueId(),
-    sentAt: command.sentAt ?? new Date().toISOString(),
-  }
-  queue.push(stamped)
-  commit()
-  recordQueuedNotice(stamped)
-  logOperation(
-    'enqueue',
-    typeof command.value === 'string' ? command.value : undefined,
-    stamped,
-  )
+  return notBuilt('src/input-core/command-queue.ts:261')
 }
 
 export function dequeue(
   filter?: (cmd: QueuedCommand) => boolean,
 ): QueuedCommand | undefined {
-  const idx = bestIndexByPriority(filter)
-  if (idx === -1) return undefined
-  const [dequeued] = queue.splice(idx, 1)
-  commit()
-  logOperation('dequeue', undefined, dequeued)
-  rememberTaken(dequeued ? [dequeued] : [])
-  consumeNotices(queuedNoticeKeys(dequeued ? [dequeued] : []))
-  emitConsumption('dequeued', dequeued ? [dequeued] : [])
-  return dequeued
+  return notBuilt('src/input-core/command-queue.ts:278')
 }
 
 export function dequeueAll(): QueuedCommand[] {
@@ -308,60 +249,12 @@ export function dequeueAll(): QueuedCommand[] {
 export function dequeueAllMatching(
   predicate: (cmd: QueuedCommand) => boolean,
 ): QueuedCommand[] {
-  const matched: QueuedCommand[] = []
-  const remaining: QueuedCommand[] = []
-  for (const cmd of queue) {
-    if (predicate(cmd)) {
-      matched.push(cmd)
-    } else {
-      remaining.push(cmd)
-    }
-  }
-  if (matched.length === 0) {
-    return []
-  }
-  queue.length = 0
-  queue.push(...remaining)
-  commit()
-  for (const cmd of matched) {
-    logOperation('dequeue', undefined, cmd)
-  }
-  rememberTaken(matched)
-  retireNotices(queuedNoticeKeys(matched), 'discarded when its crewmate was stopped')
-  emitConsumption('dequeued', matched)
-  return matched
+  return notBuilt('src/input-core/command-queue.ts:308')
 }
 
 export function remove(commandsToRemove: QueuedCommand[]): void {
-  if (commandsToRemove.length === 0) {
-    return
-  }
-  const before = queue.length
-  const removed: QueuedCommand[] = []
-  for (let i = queue.length - 1; i >= 0; i--) {
-    if (commandsToRemove.includes(queue[i]!)) {
-      removed.unshift(queue.splice(i, 1)[0]!)
-    }
-  }
-  for (const [key, bank] of parkedQueues) {
-    for (let i = bank.length - 1; i >= 0; i--) {
-      if (commandsToRemove.includes(bank[i]!)) {
-        removed.unshift(bank.splice(i, 1)[0]!)
-      }
-    }
-    if (bank.length === 0) parkedQueues.delete(key)
-  }
-  if (queue.length !== before) {
-    commit()
-  }
-  for (const cmd of removed) {
-    logOperation('remove', undefined, cmd)
-  }
-  rememberTaken(removed)
-  consumeNotices(queuedNoticeKeys(removed))
-  emitConsumption('removed', removed)
+  return notBuilt('src/input-core/command-queue.ts:335')
 }
-
 
 
 const TAKEN_MEMORY = 256
@@ -398,22 +291,12 @@ export function popById(uuid: string): PopReceipt {
 }
 
 export function resetCommandQueue(): void {
-  queue.length = 0
-  snapshot = Object.freeze([])
-  drainingNow = new Set()
-  owningSessionId = null
-  parkedQueues.clear()
-  takenUuids.length = 0
-  wordsWaitForTurnEnd = false
+  return notBuilt('src/input-core/command-queue.ts:400')
 }
 
 
 export function isSlashCommand(cmd: QueuedCommand): boolean {
-  return (
-    typeof cmd.value === 'string' &&
-    cmd.value.trim().startsWith('/') &&
-    !cmd.skipSlashCommands
-  )
+  return notBuilt('src/input-core/command-queue.ts:411')
 }
 
 export const RESTART_CARRY_ROW_PREFIX = 'runner restarted '

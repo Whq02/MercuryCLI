@@ -13,6 +13,7 @@ import { validateHuggingfaceModel, validateLocalModel, validateNousModel, valida
 import { validateGeminiModel, validateZaiModel, validateOrcarouterModel, validateDeepseekModel, validateCompatModel } from './validateModel/credentials.js'
 import { validateXaiModel, validateMetaModel, validateMistralModel, validateZenModel, validateMinimaxModel, validateQwenModel, validateTogetherModel, validateCohereModel, validateGroqModel, validateMeliousModel, validateCerebrasModel, validateFireworksModel } from './validateModel/onDemandCatalogues.js'
 import type { ValidateModelResult } from './validateModel/result.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const validatedModels = new Set<string>()
 
@@ -74,92 +75,7 @@ async function validateNonAnthropicModel(
 }
 
 export async function validateModel(model: string): Promise<ValidateModelResult> {
-  const trimmed = model.trim()
-  if (trimmed === '') {
-    return { valid: false, error: 'Model name cannot be empty' }
-  }
-  const lowered = trimmed.toLowerCase()
-  const rawRoute = routeOfFamilyWord(lowered)
-  if ((rawRoute && isProviderDisabled(rawRoute)) || isModelFromDisabledProvider(trimmed)) {
-    return { valid: false, error: `Model not found — ${trimmed}` }
-  }
-  if (!isModelAllowed(trimmed)) {
-    return { valid: false, error: `Model "${trimmed}" is not in the list of available models` }
-  }
-  if (isModelAlias(trimmed.toLowerCase())) return { valid: true }
-  if (trimmed === flagEnv('MERCURY_CUSTOM_MODEL_OPTION')) return { valid: true }
-  if (validatedModels.has(trimmed)) return { valid: true }
-
-  const { declaredRouteOf } = await import(
-    './callModelRouter.js'
-  )
-  const { classifyModelRoute, LIVE_LIST_FAMILIES } = await import('./idSpaces.js')
-  const early = classifyModelRoute(trimmed)
-  if (early.kind === 'unrecognised' && !early.carrierShaped) {
-    const { readCatalogueIfPending } = await import('./catalogueOnDemand.js')
-    await Promise.all(LIVE_LIST_FAMILIES.map(family => readCatalogueIfPending(family)))
-  }
-  const route = declaredRouteOf(trimmed)
-  if (route !== null && route !== 'anthropic') {
-    const verdict = await validateNonAnthropicModel(route, trimmed)
-    if (verdict.valid && !verdict.skipCache) validatedModels.add(trimmed)
-    return { valid: verdict.valid, ...(verdict.error !== undefined ? { error: verdict.error } : {}) }
-  }
-
-  const { homeLaneAdmissionRefusal } = await import(
-    './homeLaneAdmission.js'
-  )
-  const admissionRefusal = homeLaneAdmissionRefusal(trimmed)
-  if (admissionRefusal !== null) return { valid: false, error: admissionRefusal }
-  const { recognizeModelId, unrecognisedModelIdReason } = await import(
-    './idSpaces.js'
-  )
-  const recognition = recognizeModelId(trimmed)
-
-  try {
-    const answer = await queryModelWithoutStreaming({
-      messages: [createUserMessage({ content: 'hi' })],
-      systemPrompt: asSystemPrompt([]),
-      thinkingConfig: { type: 'disabled' },
-      tools: [],
-      signal: new AbortController().signal,
-      options: {
-        getToolPermissionContext: async () => getEmptyToolPermissionContext(),
-        model: trimmed,
-        toolChoice: undefined,
-        isNonInteractiveSession: true,
-        hasAppendSystemPrompt: false,
-        agents: [],
-        querySource: 'model_validation',
-        mcpTools: [],
-        skipCacheWrite: true,
-      },
-    })
-    if (answer.isApiErrorMessage === true) {
-      const said = answer.message.content
-        .map(block => (block.type === 'text' ? block.text : ''))
-        .join(' ')
-        .trim()
-      if (/\b404\b|not found|not served|does not exist/i.test(said)) {
-        return {
-          valid: false,
-          error: `Model not found — ${trimmed} is not served to this account (${said}). The /model picker lists the live catalogues.`,
-        }
-      }
-      return { valid: false, error: `Unable to validate model: ${said}` }
-    }
-    validatedModels.add(trimmed)
-    return { valid: true }
-  } catch (error) {
-    const mapped = mapValidationError(error)
-    if (mapped === 'Model not found' && recognition.kind === 'unrecognised') {
-      return {
-        valid: false,
-        error: `${mapped} — ${unrecognisedModelIdReason(trimmed)}, and the endpoint does not serve it either. The /model picker lists the live catalogues.`,
-      }
-    }
-    return { valid: false, error: mapped }
-  }
+  return notBuilt('src/services/providers/validateModel.ts:76')
 }
 
 function mapValidationError(error: unknown): string {

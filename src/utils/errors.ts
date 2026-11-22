@@ -1,10 +1,11 @@
 import { APIUserAbortError } from './api/sdkErrors.js'
+import { notBuilt } from '../pi/holes.js'
 
 
 class MercuryError extends Error {
   constructor(message?: string) {
-    super(message)
-    this.name = this.constructor.name
+    notBuilt('src/utils/errors.ts:5')
+    super(...(notBuilt('src/utils/errors.ts:5') as ConstructorParameters<typeof Error>))
   }
 }
 
@@ -12,8 +13,8 @@ export class MalformedCommandError extends Error {}
 
 export class AbortError extends Error {
   constructor(message?: string) {
-    super(message)
-    this.name = 'AbortError'
+    notBuilt('src/utils/errors.ts:14')
+    super(...(notBuilt('src/utils/errors.ts:14') as ConstructorParameters<typeof Error>))
   }
 }
 
@@ -23,7 +24,8 @@ export class ConfigParseError extends MercuryError {
     readonly filePath: string,
     readonly defaultConfig: unknown,
   ) {
-    super(message)
+    notBuilt('src/utils/errors.ts:21')
+    super(...(notBuilt('src/utils/errors.ts:21') as ConstructorParameters<typeof MercuryError>))
   }
 }
 
@@ -67,33 +69,29 @@ interface ShellCallValue {
 }
 
 export function shellCallValue(fact: ShellRunFact, text: string): ShellCallValue {
-  return { code: fact.code, stdout: fact.output ?? text, stderr: '' }
+  return notBuilt('src/utils/errors.ts:69')
 }
 
 export class TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS extends Error {
   readonly telemetryMessage: string
 
   constructor(message: string, telemetryMessage?: string) {
-    super(message)
-    this.name = 'TelemetrySafeError'
-    this.telemetryMessage = telemetryMessage ?? message
+    notBuilt('src/utils/errors.ts:76')
+    super(...(notBuilt('src/utils/errors.ts:76') as ConstructorParameters<typeof Error>))
   }
 }
 
 
 export function isAbortError(error: unknown): boolean {
-  if (error instanceof AbortError) return true
-  if (error instanceof APIUserAbortError) return true
-  return error instanceof Error && error.name === 'AbortError'
+  return notBuilt('src/utils/errors.ts:84')
 }
 
 export function hasExactErrorMessage(error: unknown, message: string): boolean {
-  return error instanceof Error && error.message === message
+  return notBuilt('src/utils/errors.ts:90')
 }
 
 export function toError(value: unknown): Error {
-  if (value instanceof Error) return value
-  return new Error(String(value))
+  return notBuilt('src/utils/errors.ts:94')
 }
 
 export function errorMessage(value: unknown): string {
@@ -115,23 +113,15 @@ export function errorMessageWithCause(value: unknown, maxDepth = 3): string {
 
 
 export function getErrnoCode(error: unknown): string | undefined {
-  if (error !== null && typeof error === 'object' && 'code' in error) {
-    const code = (error as { code?: unknown }).code
-    if (typeof code === 'string') return code
-  }
-  return undefined
+  return notBuilt('src/utils/errors.ts:117')
 }
 
 export function isENOENT(error: unknown): boolean {
-  return getErrnoCode(error) === 'ENOENT'
+  return notBuilt('src/utils/errors.ts:125')
 }
 
 export function getErrnoPath(error: unknown): string | undefined {
-  if (error !== null && typeof error === 'object' && 'path' in error) {
-    const path = (error as { path?: unknown }).path
-    if (typeof path === 'string') return path
-  }
-  return undefined
+  return notBuilt('src/utils/errors.ts:129')
 }
 
 const FS_INACCESSIBLE_CODES = new Set(['ENOENT', 'EACCES', 'EPERM', 'ENOTDIR', 'ELOOP'])

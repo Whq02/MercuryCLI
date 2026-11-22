@@ -24,26 +24,11 @@ import {
   toolAlwaysAllowedRule,
 } from './rules.js'
 import { passedOverAs } from '../../passedOver.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../../pi/holes.js'
 
-interface DecisionPorts {
-  isToolKilled(tool: Tool, agentType: string | undefined): boolean
-  resolveToolVerdict(
-    tool: Tool,
-    input: Record<string, unknown>,
-    context: ToolUseContext,
-  ): Promise<PermissionResult>
-}
+type DecisionPorts = Unbuilt
 
-export const defaultDecisionPorts: DecisionPorts = {
-  isToolKilled: (tool, agentType) => isToolKilled(tool, agentType),
-  resolveToolVerdict: async (tool, input, context) => {
-    const parsed = tool.inputSchema.safeParse(input)
-    if (parsed.success) return tool.checkPermissions(parsed.data, context)
-    const verdict = await tool.checkPermissions(input, context)
-    if (verdict?.behavior === 'deny' || verdict?.behavior === 'ask') return verdict
-    throw parsed.error
-  },
-}
+export const defaultDecisionPorts: DecisionPorts = unbuilt('src/utils/permissions/decision/engine.ts:37')
 
 interface DecisionOutcome<D> {
   decision: D
@@ -75,23 +60,16 @@ export function postureBypassesAsks(permissionContext: {
   mode: PermissionMode
   isBypassPermissionsModeAvailable?: boolean
 }): boolean {
-  return modeBypassesPermissions(permissionContext.mode)
+  return notBuilt('src/utils/permissions/decision/engine.ts:74')
 }
 
 export async function decideToolPermission(
   tool: Tool,
   input: Record<string, unknown>,
   context: ToolUseContext,
-  ports: DecisionPorts = defaultDecisionPorts,
+  ports?: DecisionPorts,
 ): Promise<DecisionOutcome<PermissionDecision>> {
-  const { decision, trace } = await runDecisionChain(
-    'full',
-    tool,
-    input,
-    context,
-    ports,
-  )
-  return { decision: decision as PermissionDecision, trace }
+  return notBuilt('src/utils/permissions/decision/engine.ts:81')
 }
 
 export async function decideRuleBasedPermissions(
@@ -122,228 +100,7 @@ async function runDecisionChain(
   context: ToolUseContext,
   ports: DecisionPorts,
 ): Promise<{ decision: PermissionDecision | null; trace: DecisionTrace }> {
-  const appState = context.getAppState()
-  const entryMode = appState.toolPermissionContext.mode
-  const stages: DecisionStageRecord[] = []
-  const pass = (stage: DecisionStageId, note?: string): void => {
-    stages.push(note ? { stage, outcome: 'pass', note } : { stage, outcome: 'pass' })
-  }
-  const decided = (
-    stage: DecisionStageId,
-    decision: PermissionDecision,
-    note?: string,
-  ): { decision: PermissionDecision; trace: DecisionTrace } => {
-    stages.push(
-      note ? { stage, outcome: 'decided', note } : { stage, outcome: 'decided' },
-    )
-    return {
-      decision,
-      trace: { entry, toolName: tool.name, mode: entryMode, stages, decidedBy: stage },
-    }
-  }
-
-  if (entry === 'full') {
-    if (context.abortController.signal.aborted) {
-      throw new AbortError()
-    }
-
-    if (ports.isToolKilled(tool, context.agentType)) {
-      return decided('killSwitch', {
-        behavior: 'deny',
-        decisionReason: {
-          type: 'other',
-          reason: `Capability '${tool.name}' has been switched off for this agent by the operator.`,
-        },
-        message: `Permission to use ${tool.name} has been denied: capability switched off by operator.`,
-      })
-    }
-    pass('killSwitch')
-  }
-
-  const permissionContext = appState.toolPermissionContext
-
-  const denyRule = getDenyRuleForTool(permissionContext, tool)
-  if (denyRule) {
-    const said = withRuleReason(permissionContext, denyRule, () => wholeToolDenyRulesCovering(permissionContext, tool))
-    return decided('toolDenyRule', {
-      behavior: 'deny',
-      decisionReason: { type: 'rule', rule: said },
-      message: refusalWithReason(ruleSentence(`Using ${tool.name}`, 'deny', said), said.ruleValue.reason),
-    })
-  }
-  pass('toolDenyRule')
-
-  const carriedAskRule = getAskRuleForTool(permissionContext, tool)
-  if (carriedAskRule) {
-    pass('toolAskRule', `mode: ${permissionContext.mode} — carried past the tool verdict`)
-  } else {
-    pass('toolAskRule')
-  }
-
-  let toolVerdict: PermissionResult = {
-    behavior: 'passthrough',
-    message: createPermissionRequestMessage(tool.name),
-  }
-  let verdictFailed = false
-  const imports = composedInstructionImportsRead()
-  if (imports !== undefined) await imports
-  try {
-    toolVerdict = await ports.resolveToolVerdict(tool, input, context)
-  } catch (e) {
-    if (e instanceof AbortError || e instanceof APIUserAbortError) {
-      throw e
-    }
-    logError(e)
-    verdictFailed = true
-  }
-  pass(
-    'toolVerdict',
-    verdictFailed
-      ? 'resolution failed — degraded to passthrough'
-      : `verdict: ${toolVerdict?.behavior}`,
-  )
-
-  if (toolVerdict?.behavior === 'deny') {
-    return decided('toolVerdictDeny', toolVerdict)
-  }
-  pass('toolVerdictDeny')
-
-  const latestContext = context.getAppState().toolPermissionContext
-  const shouldBypassPermissions = postureBypassesAsks(latestContext)
-
-  if (entry === 'full') {
-    if (tool.requiresUserInteraction?.() && toolVerdict?.behavior === 'ask' && !(shouldBypassPermissions && asksThePostureAnswers(toolVerdict))) {
-      return decided('userInteractionAsk', toolVerdict)
-    }
-    pass('userInteractionAsk')
-  }
-
-  const roadUnderPosture = (
-    stage: DecisionStageId,
-    road: BypassedAskRoad,
-    reason: PermissionDecisionReason,
-  ): { decision: PermissionDecision; trace: DecisionTrace } | null => {
-    const note = `mode: ${latestContext.mode} — the ask stands down`
-    if (entry === 'ruleSubset') {
-      pass(stage, note)
-      return null
-    }
-    return decided(
-      stage,
-      {
-        behavior: 'allow',
-        updatedInput: getUpdatedInputOrFallback(toolVerdict, input),
-        decisionReason: { type: 'bypassedAsk', mode: latestContext.mode, road, reason },
-      },
-      note,
-    )
-  }
-
-  if (carriedAskRule) {
-    if (shouldBypassPermissions) {
-      const carried = roadUnderPosture('toolAskRuleCarried', 'toolAskRule', { type: 'rule', rule: carriedAskRule })
-      if (carried !== null) return carried
-    } else {
-      return decided('toolAskRuleCarried', {
-        behavior: 'ask',
-        decisionReason: { type: 'rule', rule: carriedAskRule },
-        message: ruleSentence(`Using ${tool.name}`, 'ask', carriedAskRule),
-      })
-    }
-  } else {
-    pass('toolAskRuleCarried')
-  }
-
-  if (
-    toolVerdict?.behavior === 'ask' &&
-    toolVerdict.decisionReason?.type === 'rule' &&
-    toolVerdict.decisionReason.rule.ruleBehavior === 'ask'
-  ) {
-    if (!shouldBypassPermissions) return decided('contentAskRule', toolVerdict)
-    const stoodDown = roadUnderPosture('contentAskRule', 'contentAskRule', toolVerdict.decisionReason)
-    if (stoodDown !== null) return stoodDown
-  } else {
-    pass('contentAskRule')
-  }
-
-  if (tool.mcpInfo?.effectiveMaxPermission === 'ask') {
-    const reason: PermissionDecisionReason = {
-      type: 'other',
-      reason: ORG_ASK_REASON,
-    }
-    if (!shouldBypassPermissions) {
-      return decided('orgAskCeiling', {
-        behavior: 'ask',
-        message: createPermissionRequestMessage(tool.name, reason),
-        decisionReason: reason,
-      })
-    }
-    const stoodDown = roadUnderPosture('orgAskCeiling', 'orgAskCeiling', reason)
-    if (stoodDown !== null) return stoodDown
-  } else {
-    pass('orgAskCeiling')
-  }
-
-  if (
-    toolVerdict?.behavior === 'ask' &&
-    toolVerdict.decisionReason?.type === 'safetyCheck'
-  ) {
-    if (!shouldBypassPermissions) return decided('safetyCheckAsk', toolVerdict)
-    const stoodDown = roadUnderPosture('safetyCheckAsk', 'safetyCheckAsk', toolVerdict.decisionReason)
-    if (stoodDown !== null) return stoodDown
-  } else {
-    pass('safetyCheckAsk')
-  }
-
-  if (entry === 'ruleSubset') {
-    return {
-      decision: null,
-      trace: { entry, toolName: tool.name, mode: entryMode, stages, decidedBy: 'none' },
-    }
-  }
-
-  if (shouldBypassPermissions) {
-    return decided(
-      'bypassPosture',
-      {
-        behavior: 'allow',
-        updatedInput: getUpdatedInputOrFallback(toolVerdict, input),
-        decisionReason: { type: 'mode', mode: latestContext.mode },
-      },
-      `mode: ${latestContext.mode}`,
-    )
-  }
-  pass('bypassPosture')
-
-  const alwaysAllowedRule = toolAlwaysAllowedRule(latestContext, tool)
-  if (alwaysAllowedRule) {
-    return decided('toolAllowRule', {
-      behavior: 'allow',
-      updatedInput: getUpdatedInputOrFallback(toolVerdict, input),
-      decisionReason: { type: 'rule', rule: alwaysAllowedRule },
-    })
-  }
-  pass('toolAllowRule')
-
-  const resolved: PermissionDecision =
-    toolVerdict.behavior === 'passthrough'
-      ? {
-          ...toolVerdict,
-          behavior: 'ask' as const,
-          message: createPermissionRequestMessage(
-            tool.name,
-            toolVerdict.decisionReason,
-          ),
-        }
-      : toolVerdict
-
-  if (resolved.behavior === 'ask' && resolved.suggestions) {
-    logForDebugging(
-      `Permission suggestions for ${tool.name}: ${jsonStringify(resolved.suggestions, null, 2)}`,
-    )
-  }
-
-  return decided('resolution', resolved, `verdict: ${toolVerdict.behavior}`)
+  return notBuilt('src/utils/permissions/decision/engine.ts:118')
 }
 
 function asksThePostureAnswers(verdict: PermissionAskDecision): boolean {

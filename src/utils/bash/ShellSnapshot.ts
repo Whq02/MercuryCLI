@@ -37,6 +37,7 @@ import { quote } from './shellQuote.js'
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
 import { startTimeout, stopTimeout } from '../timers.js'
+import { notBuilt } from '../../pi/holes.js'
 
 
 type VersionedPathParts = {
@@ -151,87 +152,7 @@ function runBounded(
   timeoutMs: number,
   login: boolean,
 ): Promise<BoundedRun> {
-  return new Promise(resolve => {
-    let settled = false
-    let stdout = ''
-    let stderr = ''
-    const ownGroup = loginRunGetsOwnProcessGroup(login)
-    const windowsLogin = loginRunUsesProcessTreeCleanup(login)
-    const askedAt = Date.now()
-    const child = spawn(file, args, { windowsHide: true, env, stdio: ['ignore', 'pipe', 'pipe'], detached: ownGroup })
-    const began = ownGroup ? birthMark(child.pid, askedAt) : null
-    let treeEnded: Promise<unknown> = Promise.resolve()
-    const end = (): void => {
-      if (ownGroup) {
-        strikeProcessGroupNow(child)
-        return
-      }
-      if (windowsLogin) {
-        if (child.exitCode === null && child.signalCode === null) treeEnded = endProcessTree(child, 'SIGKILL').catch((error: unknown) => logForDebugging(`the login run's tree was not ended: ${errorMessage(error)}`))
-        return
-      }
-      try {
-        child.kill(login ? 'SIGKILL' : undefined)
-      } catch (error) {
-        passedOver(error)
-      }
-    }
-    const quit = (): void => {
-      end()
-      process.kill(process.pid, 'SIGQUIT')
-    }
-    if (ownGroup) {
-      process.once('exit', end)
-      process.once('SIGQUIT', quit)
-    }
-    const guard = startTimeout(() => {
-      end()
-      settle({ stdout: '', stderr: '', killed: true, overflowed: false })
-    }, timeoutMs + SNAPSHOT_PATH_PROBE_SETTLE_GRACE_MS)
-    const settle = (result: BoundedRun): void => {
-      if (settled) return
-      settled = true
-      stopTimeout(guard)
-      process.removeListener('exit', end)
-      process.removeListener('SIGQUIT', quit)
-      if (ownGroup) end()
-      const value = login ? { ...result, stdout: result.stdout.split('\0', 1)[0] ?? '', exported: exportedBy(stdout, env), began } : result
-      if (windowsLogin) {
-        if (result.killed || result.overflowed) resolve(value)
-        void treeEnded.then(() => endGroupOfTheLoginRunOnWindows(file, stdout)).then(() => resolve(value))
-        return
-      }
-      resolve(value)
-    }
-    const read = (stream: NodeJS.ReadableStream, keep: (chunk: string) => void): void => {
-      stream.setEncoding('utf8')
-      stream.on('data', (chunk: string) => {
-        keep(chunk)
-        if (stdout.length + stderr.length <= SNAPSHOT_OUTPUT_LIMIT) return
-        end()
-        settle({ stdout, stderr, killed: false, overflowed: true })
-      })
-    }
-    read(child.stdout, chunk => {
-      stdout += chunk
-    })
-    read(child.stderr, chunk => {
-      stderr += chunk
-    })
-    child.once('error', error => settle({ stdout, stderr, killed: false, overflowed: false, unstarted: errorMessage(error) }))
-    const ended = (code: number | null, signal: NodeJS.Signals | null): void =>
-      settle({ ...(code === null ? {} : { exitCode: code }), ...(signal === null ? {} : { signal }), stdout, stderr, killed: false, overflowed: false })
-    if (!login) {
-      child.once('close', ended)
-      return
-    }
-    child.once('exit', (code, signal) => {
-      end()
-      const closed = new AbortController()
-      child.once('close', () => closed.abort())
-      void sleep(SNAPSHOT_PATH_PROBE_SETTLE_GRACE_MS, closed.signal).then(() => ended(code, signal))
-    })
-  })
+  return notBuilt('src/utils/bash/ShellSnapshot.ts:147')
 }
 
 const defaultSnapshotPathExecutor: SnapshotPathExecutor = (file, args, timeoutMs) =>
@@ -241,21 +162,7 @@ export async function resolveSnapshotPathValue(
   shellPath: string,
   options?: { platform?: string; exec?: SnapshotPathExecutor; probeTimeoutMs?: number },
 ): Promise<string> {
-  const processPath = hostEnv().PATH ?? ''
-  if (!snapshotPathNeedsShellProbe(options?.platform)) return processPath
-  if (!isPosixSnapshotShell(shellPath)) return processPath
-  const exec = options?.exec ?? defaultSnapshotPathExecutor
-  const timeoutMs = options?.probeTimeoutMs ?? SNAPSHOT_PATH_PROBE_TIMEOUT_MS
-  try {
-    const result = await exec(shellPath, ['-c', 'echo $PATH'], timeoutMs)
-    const answer = (result.stdout ?? '').trim()
-    if (result.exitCode === 0 && answer !== '' && answer !== '$PATH' && answer.includes('/')) {
-      return answer
-    }
-    return processPath
-  } catch {
-    return processPath
-  }
+  return notBuilt('src/utils/bash/ShellSnapshot.ts:240')
 }
 
 
@@ -315,105 +222,9 @@ function createResilientRgFunction(rgCommand: { rgPath: string; rgArgs: string[]
 }`
 }
 
-type RipgrepShellIntegration = {
-  type: 'alias' | 'function'
-  snippet: string
-}
-
-function createRipgrepShellIntegration(): RipgrepShellIntegration {
-  const rgCommand = ripgrepCommand()
-  if (rgCommand.argv0 !== undefined) {
-    return {
-      type: 'function',
-      snippet: buildArgv0Function('rg', rgCommand.argv0, rgCommand.rgPath, []),
-    }
-  }
-  if (!rgCommand.rgPath.includes('/') && !rgCommand.rgPath.includes('\\')) {
-    const target = quote([rgCommand.rgPath, ...rgCommand.rgArgs])
-    return { type: 'alias', snippet: `alias rg=${quote([target])}` }
-  }
-  return { type: 'function', snippet: createResilientRgFunction(rgCommand) }
-}
-
-function getMercurySnapshotContent(pathValue: string): string {
-  const rgIntegration = createRipgrepShellIntegration()
-
-  const sections: string[] = []
-  sections.push('# Mercury search tools')
-  sections.push(`if ! (unalias rg 2>/dev/null; command -v rg >/dev/null 2>&1); then
-${rgIntegration.snippet}
-fi`)
-  sections.push('# Mercury PATH')
-  sections.push(`export PATH=${quote([pathValue])}`)
-  return sections.join('\n')
-}
-
 
 const MERCURY_CONTENT_DELIMITER = '__MERCURY_SNAPSHOT_CONTENT__'
 const PATH_LEFT_WITHOUT_PROGRAMS = 96
-
-function buildCaptureScript(args: {
-  snapshotFilePath: string
-  configFilePath: string
-  configExists: boolean
-  definitions: boolean
-  readBack: boolean
-  programsNeeded: boolean
-  mercuryContent: string
-}): string {
-  const { snapshotFilePath, configFilePath, configExists, definitions, readBack, programsNeeded, mercuryContent } = args
-  const lines: string[] = []
-
-  lines.push(`SNAPSHOT_FILE=${quote([snapshotFilePath])}`)
-  const groupMark = loginGroupMarkLine(LOGIN_GROUP_MARK)
-  if (groupMark !== undefined) lines.push(groupMark)
-
-  if (configExists) {
-    lines.push(`source ${quote([configFilePath])} < /dev/null`)
-  } else {
-    lines.push('# no user config file to source')
-  }
-  if (readBack) lines.push('trap - DEBUG 2>/dev/null || :')
-
-  lines.push(PRINTS_EXPORTS)
-
-  if (programsNeeded) lines.push(`for __mercury_program in awk sed head cat; do command -v "$__mercury_program" >/dev/null 2>&1 || exit ${PATH_LEFT_WITHOUT_PROGRAMS}; done`)
-  lines.push('echo "# Mercury shell environment snapshot" >| "$SNAPSHOT_FILE"')
-  lines.push(`echo "unalias -a 2>/dev/null || true" >> "$SNAPSHOT_FILE"`)
-
-  if (definitions) {
-    lines.push('echo "# Functions" >> "$SNAPSHOT_FILE"')
-    lines.push(SNAPSHOT_READS_FUNCTIONS)
-    lines.push(`for __mercury_fn in $(declare -F | awk '{print $NF}'); do
-${readBack ? `  ${SNAPSHOT_READS_BACK}\n` : ''}  printf 'eval %q\\n' "$(declare -f -- "$__mercury_fn")" >> "$SNAPSHOT_FILE"
-done`)
-    lines.push('echo "} >/dev/null 2>&1" >> "$SNAPSHOT_FILE"')
-
-    lines.push('echo "# Shell Options" >> "$SNAPSHOT_FILE"')
-    lines.push(...SNAPSHOT_OPTIONS)
-
-    lines.push('echo "# Aliases" >> "$SNAPSHOT_FILE"')
-    const winptyFilter = snapshotAliasPipelineFilter()
-    lines.push(
-      readBack
-        ? `${SNAPSHOT_READS_BACK_ALIASES}${winptyFilter} | head -n 1000 >> "$SNAPSHOT_FILE"`
-        : `( set +o posix 2>/dev/null; alias )${winptyFilter} | sed 's/^alias /alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"`,
-    )
-  } else {
-    lines.push(SNAPSHOT_KEEPS_ALIASES)
-  }
-
-  lines.push(`cat >> "$SNAPSHOT_FILE" <<'${MERCURY_CONTENT_DELIMITER}'
-${mercuryContent}
-${MERCURY_CONTENT_DELIMITER}`)
-
-  lines.push(`if [ ! -f "$SNAPSHOT_FILE" ]; then
-  echo "snapshot file was not created" >&2
-  exit 1
-fi`)
-
-  return lines.join('\n')
-}
 
 
 const LOGIN_FILES = 'the files bash reads at login (~/.bash_profile, ~/.bash_login or ~/.profile, and ~/.bashrc)'
@@ -529,140 +340,5 @@ export async function createAndSaveSnapshot(
   shell: Pick<ShellRecord, 'path' | 'origin'>,
   options?: { keptNowhere?: boolean },
 ): Promise<string | undefined> {
-  const shellPath = shell.path
-  const bashOfThisMachine = isHostPosixBash(shell.origin)
-  const nothing = (absence: LoginFilesAbsence): undefined => {
-    if (bashOfThisMachine) noteLoginFiles(absence)
-    return undefined
-  }
-  let scratch: string | undefined
-  let readByZsh: Promise<void> | undefined
-  try {
-    const fs = getFsImplementation()
-    const mercuryHome = getMercuryHome()
-    let snapshotsDir = join(mercuryHome, 'shell-snapshots')
-    if (options?.keptNowhere) {
-      snapshotsDir = await mkdtemp(join(tmpdir(), 'mercury-login-run-'))
-      scratch = snapshotsDir
-    } else {
-      const unmade = await fs.mkdir(snapshotsDir).then(() => null, (error: unknown) => errorMessage(error))
-      if (unmade !== null) {
-        const why = `the folder ${snapshotsDir} could not be made (${unmade}), so no login run was tried`
-        logForDebugging(`shell snapshot capture skipped: ${why}`)
-        logError(`shell snapshot creation failed: ${why}`)
-        return nothing({ why, change: `Make ${mercuryHome} a folder Mercury can write in, or name another in MERCURY_CONFIG_DIR, ${THEN_RESTART}.` })
-      }
-    }
-
-    const profile = snapshotProfileOf(shell.origin)
-    const configFilePath = join(homedir(), profile.file)
-
-    const snapshotFilePath = join(
-      snapshotsDir,
-      `snapshot-${profile.kind}-${Date.now()}-${randomSnapshotSuffix()}.sh`,
-    )
-
-    const configExists = await pathExists(configFilePath)
-    const inherited = withRoadPrograms(subprocessEnv(), shell.origin, shellPath)
-    const pathOfTheEngine = shell.origin === 'engine' ? Object.entries(inherited).find(([name]) => name.toUpperCase() === 'PATH')?.[1] : undefined
-    const pathValue = pathOfTheEngine ?? (await resolveSnapshotPathValue(shellPath))
-    const mercuryContent = getMercurySnapshotContent(pathValue)
-    const script = buildCaptureScript({
-      snapshotFilePath,
-      configFilePath,
-      configExists,
-      definitions: bashOfThisMachine || configExists,
-      readBack: shell.origin === 'engine',
-      programsNeeded: bashOfThisMachine,
-      mercuryContent,
-    })
-
-    const captureEnv: NodeJS.ProcessEnv = {
-      ...inherited,
-      ...(bashOfThisMachine ? {} : { SHELL: shellPath }),
-      GIT_EDITOR: 'true',
-      MERCURY: '1',
-    }
-
-    const session = options?.keptNowhere !== true
-    const zsh = zshOfTheUser()
-    if (zsh !== null) readByZsh = exportsReadByZsh(zsh, session)
-    const scriptFile = loginRunScriptFilePath(snapshotFilePath, shell.origin)
-    if (scriptFile !== undefined) await writeFile(scriptFile, script)
-    const handed = scriptFile === undefined ? script : msysSourceLine(windowsPathToPosixPath(scriptFile))
-    const outcome = await runBounded(shellPath, shell.origin === 'engine' ? ['-l', '-c', handed] : ['-c', '-l', handed], captureEnv, SNAPSHOT_CAPTURE_BOUND_MS, true)
-    if (scriptFile !== undefined) await rm(scriptFile, { force: true }).catch((error: unknown) => logForDebugging(`the login run's script file was not removed (${scriptFile}): ${errorMessage(error)}`))
-    await readByZsh
-    const carried = await carriedBy(outcome, carriesBashLoginExports(session, zsh !== null, shell.origin))
-    if (carried !== undefined) carriedFromBash.set(shellPath, carried)
-
-    if (outcome.killed || outcome.exitCode !== 0) {
-      const absence = loginRunLeftNothing(outcome)
-      logForDebugging(
-        [
-          'shell snapshot capture failed',
-          `  ${absence.why} (${shellPath})`,
-          `  config file: ${configFilePath} (exists: ${configExists})`,
-          `  cwd: ${getCwd()}`,
-          `  mercury home: ${mercuryHome}`,
-          '  script:',
-          script,
-          outcome.stdout.length > 0
-            ? `  stdout (${outcome.stdout.length} chars):\n${outcome.stdout}`
-            : '  stdout: none captured',
-          outcome.stderr.length > 0
-            ? `  stderr (${outcome.stderr.length} chars):\n${outcome.stderr}`
-            : '  stderr: none captured',
-        ].join('\n'),
-      )
-      logError(`shell snapshot creation failed: ${absence.why} (${shellPath})`)
-      if (remembersFailedLoginRun(session)) loginRunsThatFailed.add(shellPath)
-      return nothing(absence)
-    }
-
-    try {
-      const stats = await stat(snapshotFilePath)
-      logForDebugging(`shell snapshot created at ${snapshotFilePath} (${stats.size} bytes)`)
-    } catch {
-      logForDebugging(`shell snapshot file missing after capture: ${snapshotFilePath} (${LOGIN_RUN_HANDED_OVER.why}; ${shellPath})`)
-      try {
-        const entries = await fs.readdir(snapshotsDir)
-        logForDebugging(`snapshots directory ${snapshotsDir} holds ${entries.length} entries`)
-      } catch {
-        logForDebugging(`snapshots directory ${snapshotsDir} no longer exists`)
-      }
-      if (remembersFailedLoginRun(session)) loginRunsThatFailed.add(shellPath)
-      return nothing(LOGIN_RUN_HANDED_OVER)
-    }
-
-    if (bashOfThisMachine) noteLoginFiles(null)
-    if (scratch !== undefined) return undefined
-    const path = pathWithLoginEntries(pathValue, loginExports(shellPath))
-    if (path !== pathValue) await appendFile(snapshotFilePath, `export PATH=${quote([path])}\n`)
-    registerCleanup(async () => {
-      try {
-        await getFsImplementation().unlink(snapshotFilePath)
-        logForDebugging(`removed shell snapshot ${snapshotFilePath}`)
-      } catch (cleanupError) {
-        logForDebugging(
-          `failed to remove shell snapshot ${snapshotFilePath}: ${errorMessage(cleanupError)}`,
-        )
-      }
-    })
-    return snapshotFilePath
-  } catch (unexpectedError) {
-    const stack = unexpectedError instanceof Error ? unexpectedError.stack : undefined
-    logForDebugging(
-      `shell snapshot capture threw unexpectedly: ${errorMessage(unexpectedError)}${
-        stack ? `\n${stack}` : ''
-      }`,
-    )
-    logError(`shell snapshot creation failed: ${errorMessage(unexpectedError)}`)
-    return nothing(loginRunLeftNothing({ stdout: '', stderr: '', killed: false, overflowed: false, unstarted: errorMessage(unexpectedError) }))
-  } finally {
-    await readByZsh
-    if (scratch !== undefined) {
-      await rm(scratch, { recursive: true, force: true }).catch((error: unknown) => logForDebugging(`the login run's folder ${scratch} was not removed: ${errorMessage(error)}`))
-    }
-  }
+  return notBuilt('src/utils/bash/ShellSnapshot.ts:528')
 }

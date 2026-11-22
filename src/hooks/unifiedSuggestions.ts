@@ -1,10 +1,10 @@
-
 import Fuse from 'fuse.js'
 import type { AgentDefinition } from '../types/agent.js'
 import { generateFileSuggestions } from './fileSuggestions.js'
 import { truncateToWidth } from '../utils/glyphs.js'
 import { logForDebugging } from '../utils/debug.js'
 import type { SuggestionItem } from '../components/PromptInput/PromptInputFooterSuggestions.js'
+import { notBuilt } from '../pi/holes.js'
 
 const RESULT_CAP = 15
 const DESCRIPTION_WIDTH = 60
@@ -49,103 +49,11 @@ function resourceItems(
   return out
 }
 
-function agentItems(
-  agents: AgentDefinition[],
-  query: string,
-  showOnEmpty: boolean,
-): Array<{ item: SuggestionItem; agentType: string; description: string }> {
-  try {
-    const filtered =
-      query === ''
-        ? showOnEmpty
-          ? agents
-          : []
-        : agents.filter(agent => {
-            const needle = query.toLowerCase()
-            return (
-              agent.agentType.toLowerCase().includes(needle) ||
-              `${agent.agentType} (agent)`.toLowerCase().includes(needle)
-            )
-          })
-    return filtered.map(agent => {
-      const description = truncateToWidth(
-        (agent as { whenToUse?: string }).whenToUse ?? '',
-        DESCRIPTION_WIDTH,
-      )
-      return {
-        item: {
-          id: `agent-${agent.agentType}`,
-          displayText: `${agent.agentType} (agent)`,
-          description,
-          color: (agent as { color?: string }).color,
-        },
-        agentType: agent.agentType,
-        description,
-      }
-    })
-  } catch (error) {
-    logForDebugging(`agent suggestions failed: ${error}`)
-    return []
-  }
-}
-
 export async function generateUnifiedSuggestions(
   query: string,
   mcpResources: Record<string, McpResource[]>,
   agents: AgentDefinition[],
   showOnEmpty?: boolean,
 ): Promise<SuggestionItem[]> {
-  if (query === '' && showOnEmpty !== true) return []
-
-  const files = await generateFileSuggestions(query, showOnEmpty)
-  const resources = resourceItems(mcpResources)
-  const agentEntries = agentItems(agents, query, showOnEmpty === true)
-
-  if (query === '') {
-    return [
-      ...files,
-      ...resources.map(entry => entry.item),
-      ...agentEntries.map(entry => entry.item),
-    ].slice(0, RESULT_CAP)
-  }
-
-  const scored: Scored[] = files.map(item => ({
-    item,
-    score:
-      typeof (item.metadata as { score?: number } | undefined)?.score === 'number'
-        ? ((item.metadata as { score: number }).score)
-        : MID_SCORE,
-  }))
-
-  const resourceFuse = new Fuse(resources, {
-    includeScore: true,
-    threshold: FUZZY_THRESHOLD,
-    keys: [
-      { name: 'name', weight: 3 },
-      { name: 'item.displayText', weight: 2 },
-      { name: 'server', weight: 1 },
-      { name: 'description', weight: 1 },
-    ],
-  })
-  for (const result of resourceFuse.search(query, { limit: RESULT_CAP })) {
-    scored.push({ item: result.item.item, score: result.score ?? MID_SCORE })
-  }
-
-  const agentFuse = new Fuse(agentEntries, {
-    includeScore: true,
-    threshold: FUZZY_THRESHOLD,
-    keys: [
-      { name: 'agentType', weight: 3 },
-      { name: 'item.displayText', weight: 2 },
-      { name: 'description', weight: 1 },
-    ],
-  })
-  for (const result of agentFuse.search(query, { limit: RESULT_CAP })) {
-    scored.push({ item: result.item.item, score: result.score ?? MID_SCORE })
-  }
-
-  return scored
-    .sort((a, b) => a.score - b.score)
-    .slice(0, RESULT_CAP)
-    .map(entry => entry.item)
+  return notBuilt('src/hooks/unifiedSuggestions.ts:92')
 }

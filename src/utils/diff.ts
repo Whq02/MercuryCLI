@@ -2,6 +2,7 @@ import { structuredPatch } from 'diff'
 
 import { addToTotalLinesChanged } from '../bootstrap/state.js'
 import { convertLeadingTabsToSpaces } from './file.js'
+import { notBuilt } from '../pi/holes.js'
 
 const CONTEXT_LINES = 3
 export const DIFF_TIMEOUT_MS = 5_000
@@ -32,21 +33,14 @@ function hunksBetween(filePath: string, before: string, after: string, options: 
   return (patch?.hunks ?? []).map(hunk => ({ ...hunk, lines: hunk.lines.map(restore) }))
 }
 
-export function getPatchFromContents({
-  filePath,
-  oldContent,
-  newContent,
-  ignoreWhitespace,
-  singleHunk,
-}: {
+export function getPatchFromContents(arg0: {
   filePath: string
   oldContent: string
   newContent: string
   ignoreWhitespace?: boolean
   singleHunk?: boolean
 }): StructuredPatchHunk[] {
-  const context = singleHunk ? 100_000 : CONTEXT_LINES
-  return hunksBetween(filePath, prepare(oldContent), prepare(newContent), { context, ignoreWhitespace })
+  return notBuilt('src/utils/diff.ts:35')
 }
 
 type DisplayEdit = { old_string: string; new_string: string; replace_all?: boolean }
@@ -57,20 +51,13 @@ const applyEdit = (text: string, edit: DisplayEdit): string => {
   return edit.replace_all ? text.replaceAll(from, () => to) : text.replace(from, () => to)
 }
 
-export function getPatchForDisplay({
-  filePath,
-  fileContents,
-  edits,
-  ignoreWhitespace,
-}: {
+export function getPatchForDisplay(arg0: {
   filePath: string
   fileContents: string
   edits: DisplayEdit[]
   ignoreWhitespace?: boolean
 }): StructuredPatchHunk[] {
-  const before = prepare(convertLeadingTabsToSpaces(fileContents))
-  const after = edits.reduce(applyEdit, before)
-  return hunksBetween(filePath, before, after, { context: CONTEXT_LINES, ignoreWhitespace })
+  return notBuilt('src/utils/diff.ts:60')
 }
 
 export function adjustHunkLineNumbers(hunks: StructuredPatchHunk[], offset: number): StructuredPatchHunk[] {

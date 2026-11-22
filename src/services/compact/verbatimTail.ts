@@ -4,6 +4,7 @@ import { isMercurySubstrateProfileOn } from '../../utils/config.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { groupMessagesByApiRound } from './grouping.js'
 import { roughTokenCountEstimationForMessages } from '../tokenEstimation.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export const DEFAULT_KEEP_ROUNDS = 10
 export const DEFAULT_TAIL_TOKEN_BUDGET = Infinity
@@ -112,18 +113,5 @@ export function foldableResults(keep: readonly Message[]): FoldableResult[] {
 }
 
 export function withFoldedResults(keep: readonly Message[], replacements: ReadonlyMap<string, string>): Message[] {
-  if (replacements.size === 0) return [...keep]
-  return keep.map(row => {
-    if (row.type !== 'user' || !Array.isArray(row.message.content)) return row
-    if (!row.message.content.some(block => block.type === 'tool_result' && replacements.has(block.tool_use_id))) return row
-    return {
-      ...row,
-      message: {
-        ...row.message,
-        content: row.message.content.map(block =>
-          block.type === 'tool_result' && replacements.has(block.tool_use_id) ? { ...block, content: replacements.get(block.tool_use_id)! } : block,
-        ),
-      },
-    } as Message
-  })
+  return notBuilt('src/services/compact/verbatimTail.ts:114')
 }

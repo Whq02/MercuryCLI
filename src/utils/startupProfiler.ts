@@ -1,74 +1,17 @@
-import { flagEnv } from '../substrate/flagRegistry.js'
-import { getSessionId } from '../bootstrap/state.js'
-import { logForDebugging } from './debug.js'
-import { getMercuryHome } from './envUtils.js'
-import { mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-
-import { formatMs, formatTimelineLine, getPerformance, type MemorySnapshot } from './profilerBase.js'
-import { passedOver } from './passedOver.js'
-
-
-const detailed = flagEnv('MERCURY_PROFILE_STARTUP') === '1'
-const profilingOn = detailed
-
-const TOTAL_PAD = 8
-const DELTA_PAD = 7
-const BANNER = '='.repeat(64)
-
-const memorySnapshots: MemorySnapshot[] = []
-
-let reported = false
+import { notBuilt } from '../pi/holes.js'
 
 export function profileCheckpoint(name: string): void {
-  if (!profilingOn) return
-  getPerformance().mark(name)
-  if (detailed) {
-    const usage = process.memoryUsage()
-    memorySnapshots.push({ rss: usage.rss, heapUsed: usage.heapUsed })
-  }
+  return notBuilt('src/utils/startupProfiler.ts:23')
 }
 
-profileCheckpoint('profiler_initialized')
-
 export function isDetailedProfilingEnabled(): boolean {
-  return detailed
+  return notBuilt('src/utils/startupProfiler.ts:34')
 }
 
 export function getStartupPerfLogPath(): string {
-  return join(getMercuryHome(), 'startup-perf', `${getSessionId()}.txt`)
-}
-
-function buildReport(): string {
-  const marks = getPerformance().getEntriesByType('mark')
-  const lines: string[] = [BANNER, 'STARTUP PROFILING REPORT', BANNER, '']
-  if (marks.length === 0) {
-    lines.push('No checkpoints were recorded.')
-  } else {
-    let previous = 0
-    marks.forEach((mark, index) => {
-      lines.push(formatTimelineLine(mark.startTime, mark.startTime - previous, mark.name, memorySnapshots[index], TOTAL_PAD, DELTA_PAD))
-      previous = mark.startTime
-    })
-    lines.push('')
-    lines.push(`Total startup time: ${formatMs((marks[marks.length - 1] as PerformanceEntry).startTime)}ms`)
-  }
-  lines.push(BANNER)
-  return lines.join('\n')
+  return notBuilt('src/utils/startupProfiler.ts:38')
 }
 
 export function profileReport(): void {
-  if (reported) return
-  reported = true
-  if (!detailed) return
-  const report = buildReport()
-  try {
-    const path = getStartupPerfLogPath()
-    mkdirSync(join(getMercuryHome(), 'startup-perf'), { recursive: true })
-    writeFileSync(path, report, { flush: true })
-  } catch (error) {
-    passedOver(error)
-  }
-  logForDebugging('Startup profiling report:')
-  logForDebugging(report)
+  return notBuilt('src/utils/startupProfiler.ts:60')
 }

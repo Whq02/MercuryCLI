@@ -1,14 +1,6 @@
 import { resolve } from 'node:path'
-import {
-  getCwdState,
-  getProjectRoot,
-} from './bootstrap/state.js'
-import {
-  composeInstructionPrompt,
-  filterInjectedInstructionFiles,
-  getInstructionFiles,
-  onInstructionCacheInvalidated,
-} from './services/instructions/engine.js'
+import { getProjectRoot } from './bootstrap/state.js'
+import { onInstructionCacheInvalidated } from './services/instructions/engine.js'
 import { logForDebugging } from './utils/debug.js'
 import { logForDiagnosticsNoPII } from './utils/diagLogs.js'
 import { isBareMode } from './utils/envUtils.js'
@@ -22,6 +14,7 @@ import { shouldIncludeGitInstructions } from './utils/gitSettings.js'
 import { gitRulesText } from './utils/gitRules.js'
 import { logError } from './utils/log.js'
 import { INSTRUCTIONS_CONTEXT_KEY } from './utils/userContextReminder.js'
+import { unbuilt, type Unbuilt } from './pi/holes.js'
 
 const GIT_STATUS_MAX_LENGTH = 2000
 const CONTEXT_MEMO_CAP = 64
@@ -43,71 +36,7 @@ async function gitOutcome(args: string[]): Promise<{ stdout: string; code: numbe
   return outcome.code === 0 ? { stdout: outcome.stdout.trim(), code: 0 } : { stdout: '', code: outcome.code, ...(outcome.error !== undefined ? { error: outcome.error } : {}) }
 }
 
-export const getGitStatus = memoizeByCwd(async (): Promise<string | null> => {
-  if (process.env.NODE_ENV === 'test') {
-    return null
-  }
-  logForDiagnosticsNoPII('info', 'git_status_started')
-  const startedAt = Date.now()
-  try {
-    const isGitStartedAt = Date.now()
-    const isGit = await getIsGit()
-    logForDiagnosticsNoPII('info', 'git_is_git_check_completed', {
-      is_git: isGit,
-      duration_ms: Date.now() - isGitStartedAt,
-    })
-    if (!isGit) {
-      logForDiagnosticsNoPII('info', 'git_status_skipped_not_git')
-      return null
-    }
-
-    const cwd = getCwd()
-    const branchCwd = resolve(cwd) === resolve(getCwdState()) ? undefined : cwd
-    const commandsStartedAt = Date.now()
-    const [branch, mainBranch, statusOutcome, log, userName] = await Promise.all([
-      getBranch(branchCwd),
-      getDefaultBranch(branchCwd),
-      gitOutcome(['--no-optional-locks', 'status', '--short', ...projectScopePathspec(cwd)]),
-      rawGit(['--no-optional-locks', 'log', '--oneline', '-5']),
-      rawGit(['config', 'user.name']),
-    ])
-    const status = statusOutcome.stdout
-    logForDiagnosticsNoPII('info', 'git_commands_completed', {
-      duration_ms: Date.now() - commandsStartedAt,
-      status_length: status.length,
-      status_code: statusOutcome.code,
-    })
-    if (statusOutcome.code !== 0) logForDebugging(`git status did not run (exit ${statusOutcome.code}${statusOutcome.error ? `: ${statusOutcome.error}` : ''}); the system prompt carries no working-tree status`)
-
-    const truncated = status.length > GIT_STATUS_MAX_LENGTH
-    const statusBody = statusOutcome.code !== 0
-      ? '(not read: the git status command did not run)'
-      : truncated
-        ? `${status.slice(0, GIT_STATUS_MAX_LENGTH)}\n[Status truncated: the output exceeds 2k characters. Run \`git status\` through the shell tool for the complete listing.]`
-        : status
-
-    const block = [
-      "This is the repository's git status as of the start of the conversation or its most recent compaction. It is a point-in-time snapshot and is not refreshed between those points.",
-      `Current branch: ${branch}`,
-      `Main branch (pull requests normally target this): ${mainBranch}`,
-      ...(userName ? [`Git user: ${userName}`] : []),
-      `Status:\n${statusBody || '(clean)'}`,
-      `Recent commits:\n${log}`,
-    ].join('\n\n')
-
-    logForDiagnosticsNoPII('info', 'git_status_completed', {
-      duration_ms: Date.now() - startedAt,
-      truncated,
-    })
-    return block
-  } catch (error) {
-    logForDiagnosticsNoPII('info', 'git_status_failed', {
-      duration_ms: Date.now() - startedAt,
-    })
-    logError(error)
-    return null
-  }
-}, CONTEXT_MEMO_CAP, contextRootDir)
+export const getGitStatus: Unbuilt = unbuilt('src/context.ts:46')
 
 let instructionInvalidationArmed = false
 function armInstructionInvalidation(): void {
@@ -120,28 +49,7 @@ function armInstructionInvalidation(): void {
 }
 
 
-export const getSystemContext = memoizeByCwd(
-  async (): Promise<Record<string, string>> => {
-    armInstructionInvalidation()
-    logForDiagnosticsNoPII('info', 'system_context_started')
-    const startedAt = Date.now()
-    const gitStatus = shouldIncludeGitInstructions()
-      ? await getGitStatus()
-      : null
-    logForDiagnosticsNoPII('info', 'system_context_completed', {
-      duration_ms: Date.now() - startedAt,
-      has_git_status: gitStatus !== null,
-      has_injection: false,
-    })
-    const gitRules = gitStatus ? gitRulesText() : ''
-    return {
-      ...(gitStatus ? { gitStatus } : {}),
-      ...(gitRules ? { gitRules } : {}),
-    }
-  },
-  CONTEXT_MEMO_CAP,
-  contextRootDir,
-)
+export const getSystemContext: Unbuilt = unbuilt('src/context.ts:123')
 
 function localIsoDate(): string {
   const now = new Date()
@@ -150,31 +58,4 @@ function localIsoDate(): string {
   return `${now.getFullYear()}-${month}-${day}`
 }
 
-export const getUserContext = memoizeByCwd(
-  async (): Promise<Record<string, string>> => {
-    armInstructionInvalidation()
-    logForDiagnosticsNoPII('info', 'user_context_started')
-    const startedAt = Date.now()
-    const disabled = isInstructionDiscoveryDisabled()
-    let instructionPrompt: string | null = null
-    if (!disabled) {
-      const files = await getInstructionFiles()
-      const composed = composeInstructionPrompt(
-        filterInjectedInstructionFiles(files),
-      )
-      instructionPrompt = composed || null
-    }
-    const isGit = await getIsGit()
-    logForDiagnosticsNoPII('info', 'user_context_completed', {
-      duration_ms: Date.now() - startedAt,
-      content_length: instructionPrompt?.length ?? 0,
-      disabled,
-    })
-    return {
-      ...(instructionPrompt ? { [INSTRUCTIONS_CONTEXT_KEY]: instructionPrompt } : {}),
-      environment: `Is a git repository: ${isGit ? 'Yes' : 'No'}`,
-      currentDate: `Today's date is ${localIsoDate()}.`,
-    }
-  },
-  CONTEXT_MEMO_CAP,
-)
+export const getUserContext: Unbuilt = unbuilt('src/context.ts:153')

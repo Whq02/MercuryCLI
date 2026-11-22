@@ -3,6 +3,7 @@ import type { TranscriptMessage } from '../../types/logs.js'
 import type { SystemCompactBoundaryMessage } from '../../types/message.js'
 import { logForDebugging } from '../debug.js'
 import { logError } from '../log.js'
+import { notBuilt } from '../../pi/holes.js'
 
 type Segment = NonNullable<SystemCompactBoundaryMessage['compactMetadata']['preservedSegment']>
 type BoundaryRow = TranscriptMessage & SystemCompactBoundaryMessage
@@ -334,37 +335,7 @@ function removeSnippedOf(this: TranscriptRows): void {
 }
 
 function decorateOf(this: TranscriptRows, spine: TranscriptMessage[], seen: Set<UUID>): TranscriptMessage[] {
-  const anchors = new Map<string, UUID>()
-  for (const row of spine) if (row.type === 'assistant' && row.message.id) anchors.set(row.message.id, row.uuid)
-  const inserts = new Map<UUID, TranscriptMessage[]>()
-  const byTime = (a: TranscriptMessage, b: TranscriptMessage): number => a.timestamp.localeCompare(b.timestamp)
-  for (const [messageId, anchor] of anchors) {
-    const group = this.ordered(this.assistants.get(messageId) ?? [])
-    const siblings = group.filter(row => !seen.has(row.uuid)).sort(byTime)
-    const results: TranscriptMessage[] = []
-    for (const member of group) {
-      for (const child of this.ordered(this.children.get(member.uuid) ?? [])) {
-        if (child.type === 'user' && !seen.has(child.uuid) && Array.isArray(child.message.content) && child.message.content.some(block => block.type === 'tool_result')) results.push(child)
-      }
-    }
-    results.sort(byTime)
-    const restored = [...siblings, ...results]
-    if (restored.length) {
-      inserts.set(anchor, restored)
-      for (const row of restored) seen.add(row.uuid)
-    }
-  }
-  const conversation: TranscriptMessage[] = []
-  for (const row of spine) {
-    conversation.push(row)
-    const restored = inserts.get(row.uuid)
-    if (restored) conversation.push(...restored)
-  }
-  const withNotes: TranscriptMessage[] = []
-  for (const row of conversation) {
-    withNotes.push(row, ...this.notesUnder(row.uuid, seen))
-  }
-  return withNotes
+  return notBuilt('src/utils/sessionStorage/rowGraph.ts:336')
 }
 
 function strandedAfterOf(this: TranscriptRows, boundary: BoundaryRow, seen: Set<UUID>): TranscriptMessage[] {

@@ -6,6 +6,7 @@ import { RESULT_ROOM_WRAPPER_TOKENS } from '../../../services/run/resultRoom.js'
 import { MAX_LINES_TO_READ } from '../../../constants/tools/fileRead.js'
 import type { OverCapNote } from './schema.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { notBuilt } from '../../../pi/holes.js'
 
 export { MAX_DISPLAY_LINE_CHARS, cutMark, numberedReadContent, numberedWindow, overCapNextWords, overCapWords, windowSpan } from './windowText.js'
 
@@ -15,11 +16,8 @@ export class MaxFileReadTokenExceededError extends Error {
   readonly next: OverCapNote['next'] | undefined
 
   constructor(tokenCount: number, maxTokens: number, words: string, next?: OverCapNote['next']) {
-    super(`File content (${tokenCount} tokens) exceeds maximum allowed tokens (${maxTokens}): ${words}`)
-    this.name = 'MaxFileReadTokenExceededError'
-    this.tokenCount = tokenCount
-    this.maxTokens = maxTokens
-    this.next = next
+    notBuilt('src/tools/FileReadTool/read/window.ts:17')
+    super(...(notBuilt('src/tools/FileReadTool/read/window.ts:17') as ConstructorParameters<typeof Error>))
   }
 }
 
@@ -34,26 +32,7 @@ export function firstWindowUnderCap(
   limits: FileReadingLimits,
   tokenCount: number,
 ): { shown: ReadFileRangeResult; note: OverCapNote } | null {
-  const estimate = roughTokenCountEstimationForFileType(rendered, ext)
-  const density = estimate > 0 ? Math.max(1, tokenCount / estimate) : 1
-  const first = lineOffset + 1
-  const plan = planReadThrough(
-    rendered,
-    [{ start: first, end: first + shownCount - 1 }],
-    resolvedPath,
-    { maxLines: MAX_LINES_TO_READ, maxTokens: Math.max(1, Math.floor(limits.maxTokens / density) - (limits.room === true ? RESULT_ROOM_WRAPPER_TOKENS : 0)) },
-    first,
-  )
-  const window = plan.windows[0]
-  if (window === undefined || window.start !== first) return null
-  const count = window.end - window.start + 1
-  if (count >= shownCount) return null
-  const remaining = Math.max(1, totalLines - window.end)
-  const content = whole.content.split('\n').slice(0, count).join('\n')
-  return {
-    shown: { ...whole, content, lineCount: count, readBytes: Buffer.byteLength(content) },
-    note: { tokens: tokenCount, maxTokens: limits.maxTokens, next: { offset: window.end + 1, limit: Math.min(count, remaining) }, ...(limits.room === true ? { room: true as const } : {}) },
-  }
+  return notBuilt('src/tools/FileReadTool/read/window.ts:26')
 }
 
 export async function tokensOverCap(content: string, ext: string, maxTokens: number, exact = true): Promise<number | undefined> {

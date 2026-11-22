@@ -9,19 +9,10 @@ import { Divider } from '../design-system/Divider.js';
 import { StructuredDiff } from '../StructuredDiff.js';
 import { displayWidth, truncateToWidth } from '../../utils/glyphs.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
+import type { Unbuilt } from '../../pi/holes.js'
 
 
-type Props = {
-  filePath: string;
-  hunks: StructuredPatchHunk[];
-  hunkIndex?: number;
-  linesAdded?: number;
-  linesRemoved?: number;
-  isLargeFile?: boolean;
-  isBinary?: boolean;
-  isTruncated?: boolean;
-  isUntracked?: boolean;
-};
+type Props = Unbuilt;
 
 function middleTruncatePath(path: string, max: number): string {
   if (displayWidth(path) <= max) return path;

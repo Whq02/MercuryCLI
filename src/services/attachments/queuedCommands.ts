@@ -13,18 +13,10 @@ import type { Attachment } from '../../utils/attachments/types.js'
 import { fitCompletionCommands } from '../agentResults/summaryRoom.js'
 import type { Message } from '../../types/message.js'
 import { swarmBoundary, swarmEventIds, swarmRoad } from '../crewBoard/seam.js'
-
-const imagePastesOf = (pasted: Record<number, PastedContent> | undefined): PastedContent[] =>
-  pasted ? Object.values(pasted).filter(isValidImagePaste) : []
-
-const pastedImageBlock = (paste: PastedContent): ImageBlockParam => ({
-  type: 'image',
-  source: { type: 'base64', media_type: (paste.mediaType || 'image/png') as Base64ImageSource['media_type'], data: paste.content },
-})
+import { notBuilt } from '../../pi/holes.js'
 
 async function buildImageContentBlocks(pastedContents: Record<number, PastedContent> | undefined): Promise<ImageBlockParam[]> {
-  const fitted = await Promise.all(imagePastesOf(pastedContents).map(paste => maybeResizeAndDownsampleImageBlock(pastedImageBlock(paste))))
-  return fitted.map(result => result.block)
+  return notBuilt('src/services/attachments/queuedCommands.ts:25')
 }
 
 function promptWithImages(value: QueuedCommand['value'], images: ImageBlockParam[]): string | ContentBlockParam[] {
@@ -44,17 +36,11 @@ async function queuedRow(command: QueuedCommand): Promise<Attachment> {
 }
 
 export async function getQueuedCommandAttachments(queuedCommands: QueuedCommand[], parent?: { messages: readonly Message[]; model: string }): Promise<Attachment[]> {
-  return Promise.all(fitCompletionCommands(queuedCommands ?? [], parent).flatMap(command =>
-    command.mode === 'prompt' || command.mode === 'task-notification' ? [queuedRow(command)] : [],
-  ))
+  return notBuilt('src/services/attachments/queuedCommands.ts:46')
 }
 
-const coordinatorCommand = (prompt: string): Attachment => ({ type: 'queued_command', prompt, origin: { kind: 'coordinator' }, isMeta: true })
-
 export function getAgentPendingMessageAttachments(toolUseContext: ToolUseContext): Attachment[] {
-  const { agentId, getAppState, setAppStateForTasks, setAppState } = toolUseContext
-  if (!agentId) return []
-  return drainPendingMessages(agentId, getAppState, setAppStateForTasks ?? setAppState).map(coordinatorCommand)
+  return notBuilt('src/services/attachments/queuedCommands.ts:54')
 }
 
 export function isMainChatAdvisorDrain(args: { agentId: string | undefined; querySource: QuerySource | undefined; localSubmission: boolean | undefined }): boolean {

@@ -15,6 +15,7 @@ import { AGENT_RESUME_DOOR, isLocalAgentTask, stopPausedAgentTask } from './Loca
 import { agentPauseRecordPath, clearAgentPauseRecord } from './LocalAgentTask/pauseCarry.js'
 import { isLocalShellTask, type LocalShellTaskState } from './LocalShellTask/guards.js'
 import { findTaskOutcome, type TaskOutcomeEnvelope, type TaskOutcomeState } from './taskOutcomeEnvelope.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 
 export function resolveStopTargetId(raw: string, state: Pick<AppState, 'tasks' | 'agentNameRegistry'>): string {
@@ -25,15 +26,14 @@ export function resolveStopTargetId(raw: string, state: Pick<AppState, 'tasks' |
   return raw
 }
 
-type StopTaskErrorCode = 'not_found' | 'not_running' | 'unsupported_type'
+type StopTaskErrorCode = Unbuilt
 
 export class StopTaskError extends Error {
   code: StopTaskErrorCode
 
   constructor(code: StopTaskErrorCode, message: string) {
-    super(message)
-    this.name = 'StopTaskError'
-    this.code = code
+    notBuilt('src/tasks/stopTask.ts:33')
+    super(...(notBuilt('src/tasks/stopTask.ts:33') as ConstructorParameters<typeof Error>))
   }
 }
 
@@ -204,53 +204,5 @@ export async function stopTask(
   settlement?: TaskKillReceipt
   pausedStop?: PausedAgentStop
 }> {
-  const task = context.getAppState().tasks?.[taskId]
-  if (!task) {
-    throw new StopTaskError('not_found', await taskNotFoundWords(taskId))
-  }
-  if (task.status !== 'running') {
-    const pausedStop = await stopPausedAgent(taskId, context)
-    if (pausedStop !== null) return { taskId, taskType: task.type as TaskType, command: pausedStop.description, pausedStop }
-    throw new StopTaskError(
-      'not_running',
-      `Task ${taskId} is not running (status: ${task.status})`,
-    )
-  }
-  const implementation = getTaskByType(task.type as TaskType)
-  if (!implementation) {
-    throw new StopTaskError(
-      'unsupported_type',
-      `Stopping tasks of type ${task.type} is not supported`,
-    )
-  }
-
-  const killReturn = await implementation.kill(taskId, context.setAppState)
-  const settlement =
-    typeof killReturn === 'object' &&
-    killReturn !== null &&
-    typeof (killReturn as { settled?: unknown }).settled === 'boolean'
-      ? (killReturn as TaskKillReceipt)
-      : undefined
-
-  if (isLocalShellTask(task)) {
-    let flippedHere = false
-    updateTaskState(taskId, context.setAppState, current => {
-      if (current.notified) return current
-      flippedHere = true
-      return { ...current, notified: true }
-    })
-    if (flippedHere) {
-      emitTaskEnded(taskId, 'stopped', {
-        toolUseId: task.toolUseId,
-        summary: task.description,
-      })
-    }
-  }
-
-  return {
-    taskId,
-    taskType: task.type as TaskType,
-    command: isLocalShellTask(task) ? task.command : task.description,
-    settlement,
-  }
+  return notBuilt('src/tasks/stopTask.ts:197')
 }

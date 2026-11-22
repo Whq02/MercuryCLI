@@ -1,41 +1,7 @@
-
-const PROVIDER_MANAGED_EXACT: ReadonlySet<string> = new Set(
-  [
-    'MERCURY_PROVIDER_MANAGED_BY_HOST',
-    'ANTHROPIC_BASE_URL',
-    'ANTHROPIC_API_KEY',
-    'ANTHROPIC_AUTH_TOKEN',
-    'MERCURY_OAUTH_TOKEN',
-    'MERCURY_MODEL',
-  ].map(name => name.toUpperCase()),
-)
+import { notBuilt, unbuilt } from '../pi/holes.js'
 
 export function isProviderManagedEnvVar(key: string): boolean {
-  return PROVIDER_MANAGED_EXACT.has(key.toUpperCase())
+  return notBuilt('src/utils/managedEnvConstants.ts:13')
 }
 
-export const SAFE_ENV_VARS: Set<string> = new Set(
-  [
-    'MERCURY_PROVIDER_HEADERS',
-    'MERCURY_CUSTOM_MODEL_OPTION',
-    'MERCURY_CUSTOM_MODEL_OPTION_DESCRIPTION',
-    'MERCURY_CUSTOM_MODEL_OPTION_NAME',
-    'MERCURY_MODEL',
-    'MERCURY_SHELL_TIMEOUT_MS',
-    'MERCURY_SHELL_MAX_OUTPUT',
-    'MERCURY_SHELL_MAX_TIMEOUT_MS',
-    'MERCURY_API_KEY_HELPER_TTL_MS',
-    'MERCURY_MAX_OUTPUT_TOKENS',
-    'MERCURY_BUG_COMMAND',
-    'MERCURY_COST_WARNINGS',
-    'MERCURY_ERROR_REPORTING',
-    'MERCURY_FEEDBACK_COMMAND',
-    'MERCURY_TOOL_SEARCH',
-    'MERCURY_MCP_OUTPUT_TOKENS',
-    'MERCURY_THINKING_BUDGET',
-    'MERCURY_MCP_TIMEOUT_MS',
-    'MERCURY_MCP_TOOL_TIMEOUT_MS',
-    'MERCURY_TERMINAL_TITLE',
-    'MERCURY_BUILTIN_RIPGREP',
-  ].map(name => name.toUpperCase()),
-)
+export const SAFE_ENV_VARS: Set<string> = unbuilt('src/utils/managedEnvConstants.ts:17')

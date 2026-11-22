@@ -11,6 +11,7 @@ import {
   isSaturnExemptEnabled,
   SATURN_EXEMPT_TOOL,
 } from '../saturnExemptTools.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export { TOOL_SEARCH_TOOL_NAME }
 
@@ -59,30 +60,7 @@ type HistoryMarks = { model: string | undefined; length: number; marks: Readonly
 const marksByHistory = new WeakMap<readonly Message[], HistoryMarks>()
 
 function historyMarks(messages: readonly Message[], model: string | undefined): HistoryMarks {
-  const cached = marksByHistory.get(messages)
-  if (cached !== undefined && cached.model === model && cached.length === messages.length) return cached
-  let marks: Map<string, boolean> | null = null
-  const carried = new Set<string>()
-  let first: string | null = null
-  for (let i = 0; i < messages.length; i++) {
-    const message = messages[i]!
-    if (first === null && (message.type === 'assistant' || (message.type === 'user' && message.isMeta !== true))) first = message.uuid
-    if (message.type === 'system' && (message as { subtype?: string }).subtype === 'compact_boundary') {
-      const names = (message as { compactMetadata?: { preCompactDiscoveredTools?: unknown } }).compactMetadata?.preCompactDiscoveredTools
-      if (Array.isArray(names)) for (const name of names) if (typeof name === 'string') carried.add(name)
-      continue
-    }
-    if (model === undefined || message.type !== 'attachment' || message.attachment.type !== 'bound_prefix') continue
-    const record = message.attachment
-    if (!record.boundKey.endsWith(`|${first ?? 'empty'}|${model}`)) continue
-    marks = new Map(record.roster.flatMap(item => {
-      const family = expandLspFamily(item.name)
-      return family.map(name => [name, record.rosterEnabled && (family.length > 1 && name !== 'LspRead' ? true : item.deferred)] as const)
-    }))
-  }
-  const computed = { model, length: messages.length, marks, carried }
-  marksByHistory.set(messages, computed)
-  return computed
+  return notBuilt('src/tools/ToolSearchTool/prompt.ts:61')
 }
 
 export function isDeferredToolFor(tool: Tool, model: string | undefined, permissionMode?: string, messages: readonly Message[] = []): boolean {

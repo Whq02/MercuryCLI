@@ -1,30 +1,20 @@
+import { ColorDiff, ColorFile, type SyntaxTheme } from 'color-diff-napi'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-import {
-  ColorDiff,
-  ColorFile,
-  getSyntaxTheme as nativeGetSyntaxTheme,
-  type SyntaxTheme,
-} from 'color-diff-napi'
-
-type ColorModuleUnavailableReason = 'env'
+type ColorModuleUnavailableReason = Unbuilt
 
 export function getColorModuleUnavailableReason(): ColorModuleUnavailableReason | null {
-  return null
+  return notBuilt('src/components/StructuredDiff/colorDiff.ts:11')
 }
 
 export function expectColorDiff(): typeof ColorDiff | null {
-  if (getColorModuleUnavailableReason() !== null) return null
-  const prototype = (ColorDiff as { prototype?: Record<string, unknown> }).prototype
-  if (!prototype || typeof prototype['render'] !== 'function') return null
-  return ColorDiff
+  return notBuilt('src/components/StructuredDiff/colorDiff.ts:15')
 }
 
 export function expectColorFile(): typeof ColorFile | null {
-  if (getColorModuleUnavailableReason() !== null) return null
-  return ColorFile
+  return notBuilt('src/components/StructuredDiff/colorDiff.ts:22')
 }
 
 export function getSyntaxTheme(themeName: string): SyntaxTheme | null {
-  if (getColorModuleUnavailableReason() !== null) return null
-  return nativeGetSyntaxTheme(themeName)
+  return notBuilt('src/components/StructuredDiff/colorDiff.ts:27')
 }

@@ -3,6 +3,7 @@ import { realpathSync } from 'node:fs'
 import { getPlatform } from '../platform.js'
 import { which } from '../which.js'
 import { passedOver } from '../passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 type PowerShellEdition = 'core' | 'desktop'
 
@@ -41,20 +42,10 @@ async function findPowerShell(): Promise<string | null> {
   return powershell ?? null
 }
 
-let cachedPowerShellPath: Promise<string | null> | null = null
-
 export function getCachedPowerShellPath(): Promise<string | null> {
-  cachedPowerShellPath ??= findPowerShell()
-  return cachedPowerShellPath
-}
-
-function editionFromPath(path: string): PowerShellEdition {
-  const segments = path.split(/[/\\]/)
-  const name = (segments[segments.length - 1] ?? '').toLowerCase().replace(/\.exe$/, '')
-  return name === 'pwsh' ? 'core' : 'desktop'
+  return notBuilt('src/utils/shell/powershellDetection.ts:46')
 }
 
 export async function getPowerShellEdition(): Promise<PowerShellEdition | null> {
-  const path = await getCachedPowerShellPath()
-  return path ? editionFromPath(path) : null
+  return notBuilt('src/utils/shell/powershellDetection.ts:57')
 }

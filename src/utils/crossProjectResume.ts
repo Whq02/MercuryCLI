@@ -7,6 +7,7 @@ import { quote } from './bash/shellQuote.js'
 import { binaryName } from './config.js'
 import { normalizePathForComparison } from './file.js'
 import { sessionIdOfListing } from './sessionStorage.js'
+import { notBuilt } from '../pi/holes.js'
 
 type CrossProjectResumeResult =
   | { isCrossProject: false }
@@ -18,25 +19,5 @@ export function checkCrossProjectResume(
   showAllProjects: boolean,
   worktreePaths: string[],
 ): CrossProjectResumeResult {
-  if (!showAllProjects) return { isCrossProject: false }
-  const projectPath = (log as { projectPath?: string }).projectPath
-  if (!projectPath) return { isCrossProject: false }
-  if (projectPath === getOriginalCwd()) return { isCrossProject: false }
-  try {
-    if (!existsSync(projectPath)) return { isCrossProject: false }
-  } catch {
-    return { isCrossProject: false }
-  }
-  const target = normalizePathForComparison(projectPath)
-  const inRepoWorktree = worktreePaths.some(worktree => {
-    const root = normalizePathForComparison(worktree)
-    return target === root || target.startsWith(root + sep)
-  })
-  if (inRepoWorktree) return { isCrossProject: true, isSameRepoWorktree: true, projectPath }
-
-  const sessionId = sessionIdOfListing(log)
-  if (!sessionId) return { isCrossProject: false }
-  const quotedPath = quote([projectPath])
-  const command = `cd ${quotedPath} && ${binaryName()} --resume ${sessionId}`
-  return { isCrossProject: true, isSameRepoWorktree: false, projectPath, command }
+  return notBuilt('src/utils/crossProjectResume.ts:16')
 }

@@ -1,4 +1,3 @@
-
 import { useRef } from 'react'
 import { useClaim, useTimer } from './effects.js'
 import { useNotifications } from '../context/notifications.js'
@@ -6,6 +5,7 @@ import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 import { hasImageInClipboard } from '../utils/imagePaste.js'
 import { passedOver } from '../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../utils/timers.js'
+import { notBuilt } from '../pi/holes.js'
 
 const FOCUS_DEBOUNCE_MS = 1000
 const HINT_COOLDOWN_MS = 30_000
@@ -15,44 +15,5 @@ export function useClipboardImageHint(
   isFocused: boolean,
   enabled: boolean,
 ): void {
-  const { addNotification } = useNotifications()
-  const addRef = useRef(addNotification)
-  addRef.current = addNotification
-  const pasteChord = useShortcutDisplay('chat:imagePaste', 'Chat', 'ctrl+v')
-  const chordRef = useRef(pasteChord)
-  chordRef.current = pasteChord
-  const wasFocusedRef = useRef(isFocused)
-  const lastShownRef = useRef(0)
-  const pendingRef = useRef<NodeJS.Timeout | null>(null)
-  const mountedRef = useRef(true)
-  useClaim(
-    () => () => {
-      mountedRef.current = false
-      if (pendingRef.current !== null) stopTimeout(pendingRef.current)
-    },
-    [],
-  )
-
-  useTimer(() => {
-    const was = wasFocusedRef.current
-    wasFocusedRef.current = isFocused
-    if (!enabled || !isFocused || was) return
-    if (pendingRef.current !== null) stopTimeout(pendingRef.current)
-    pendingRef.current = startTimeout(() => {
-      pendingRef.current = null
-      if (Date.now() - lastShownRef.current < HINT_COOLDOWN_MS) return
-      void hasImageInClipboard()
-        .then(has => {
-          if (!mountedRef.current || !has) return
-          lastShownRef.current = Date.now()
-          addRef.current({
-            key: 'clipboard-image-hint',
-            text: `clipboard holds an image — ${chordRef.current} attaches it`,
-            priority: 'immediate',
-            timeoutMs: HINT_TIMEOUT_MS,
-          })
-        })
-        .catch(passedOver)
-    }, FOCUS_DEBOUNCE_MS)
-  }, [isFocused, enabled])
+  return notBuilt('src/hooks/useClipboardImageHint.ts:14')
 }

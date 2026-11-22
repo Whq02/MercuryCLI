@@ -1,4 +1,3 @@
-
 import * as React from 'react'
 import { Box, Text } from '../../../ink.js'
 import {
@@ -20,19 +19,9 @@ import { RowErrorBoundary } from '../../RowErrorBoundary.js'
 import { HookProgressMessage } from '../HookProgressMessage.js'
 import { OutputLine } from '../../shell/OutputLine.js'
 import { BASH_TOOL_NAME } from '../../../constants/tools/bash.js'
+import { notBuilt } from '../../../pi/holes.js'
 
-export function UserToolSuccessMessage({
-  message,
-  lookups,
-  toolUseID,
-  progressMessagesForMessage,
-  style,
-  tool,
-  tools,
-  verbose,
-  width,
-  isTranscriptMode,
-}: {
+export function UserToolSuccessMessage(arg0: {
   message: NormalizedUserMessage
   lookups: MessageLookups
   toolUseID: string
@@ -44,77 +33,5 @@ export function UserToolSuccessMessage({
   width: number | string
   isTranscriptMode?: boolean
 }): React.ReactNode {
-  const [themeName] = useTheme()
-
-  const result = message.toolUseResult
-  if (result === undefined || result === null) {
-    if (tool.name !== BASH_TOOL_NAME) return null
-    const block = message.message.content.find(part => part.type === 'tool_result' && part.tool_use_id === toolUseID)
-    const content = block?.type === 'tool_result' ? block.content : undefined
-    const text = typeof content === 'string' ? content : content?.flatMap(part => part.type === 'text' ? [part.text] : []).join('\n')
-    return text?.trim() ? (
-      <Box flexDirection="column" width={safeUserFacingName(tool, lookups.toolUseByToolUseID.get(toolUseID)?.input) === '' ? undefined : width}>
-        <RowErrorBoundary><OutputLine content={text} verbose={verbose || Boolean(isTranscriptMode)} /></RowErrorBoundary>
-      </Box>
-    ) : null
-  }
-
-  let validated: unknown = result
-  if (tool.outputSchema) {
-    const parsed = tool.outputSchema.safeParse(result)
-    if (!parsed.success) return null
-    validated = parsed.data
-  }
-
-  if (!verbose && !isTranscriptMode) {
-    const blockName =
-      lookups.toolUseByToolUseID.get(toolUseID)?.name ?? tool.name
-    if (summarizeToolResult(blockName, result) !== null) return null
-  }
-
-  const toolUseBlock = lookups.toolUseByToolUseID.get(toolUseID)
-  let rendered: React.ReactNode
-  try {
-    rendered = tool.renderToolResultMessage?.(
-      validated,
-      filterToolProgressMessages(progressMessagesForMessage),
-      {
-        style,
-        theme: getTheme(themeName),
-        tools,
-        verbose,
-        isTranscriptMode,
-        input: toolUseBlock?.input,
-        width,
-      },
-    )
-  } catch (error) {
-    logError(error)
-    rendered = null
-  }
-  if (
-    typeof rendered === 'string' ||
-    typeof rendered === 'number' ||
-    typeof rendered === 'bigint'
-  ) {
-    rendered = String(rendered) === '' ? null : <Text>{String(rendered)}</Text>
-  }
-
-  const unconstrained = safeUserFacingName(tool, toolUseBlock?.input) === ''
-
-  return (
-    <Box flexDirection="column" width={unconstrained ? undefined : width}>
-      {}
-      <RowErrorBoundary>{rendered ?? null}</RowErrorBoundary>
-      <RowErrorBoundary>
-        <HookProgressMessage
-          hookEvent="tool.after"
-          toolUseID={toolUseID}
-          lookups={lookups}
-          progress={progressMessagesForMessage}
-          isTranscriptMode={isTranscriptMode}
-        />
-      </RowErrorBoundary>
-    </Box>
-  )
+  return notBuilt('src/components/messages/UserToolResultMessage/UserToolSuccessMessage.tsx:24')
 }

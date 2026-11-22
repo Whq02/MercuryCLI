@@ -4,44 +4,9 @@ import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { registerCleanup } from '../utils/cleanupRegistry.js'
 import { passedOver } from '../utils/passedOver.js'
 import { startInterval, stopInterval } from '../utils/timers.js'
-
-
-const CAFFEINATE_TIMEOUT_SECONDS = 300
-const RESTART_INTERVAL_MS = 240_000
-
-let referenceCount = 0
-let helper: ChildProcess | null = null
-let restartTimer: NodeJS.Timeout | null = null
-let cleanupRegistered = false
-
-function spawnHelper(): void {
-  if (process.platform !== 'darwin') return
-  if (helper !== null) return
-  if (!cleanupRegistered) {
-    cleanupRegistered = true
-    registerCleanup(async () => {
-      forceStopPreventSleep()
-    })
-  }
-  try {
-    const child = spawn('caffeinate', ['-i', '-t', String(CAFFEINATE_TIMEOUT_SECONDS)], {
-      windowsHide: true,
-      stdio: 'ignore',
-      detached: false,
-      env: { ...subprocessEnv() },
-    })
-    child.unref()
-    child.on('error', () => {
-      if (helper === child) helper = null
-    })
-    child.on('exit', () => {
-      if (helper === child) helper = null
-    })
-    helper = child
-  } catch (error) {
-    passedOver(error)
-  }
-}
+import { notBuilt, unbuilt } from '../pi/holes.js'
+let helper: ChildProcess | null = unbuilt('src/services/preventSleep.ts:13')
+let restartTimer: NodeJS.Timeout | null = unbuilt('src/services/preventSleep.ts:14')
 
 function killHelper(): void {
   if (helper === null) return
@@ -53,18 +18,6 @@ function killHelper(): void {
   helper = null
 }
 
-function armRestartTimer(): void {
-  if (process.platform !== 'darwin') return
-  if (restartTimer !== null) return
-  restartTimer = startInterval(() => {
-    if (referenceCount > 0) {
-      killHelper()
-      spawnHelper()
-    }
-  }, RESTART_INTERVAL_MS)
-  restartTimer.unref()
-}
-
 function disarmRestartTimer(): void {
   if (restartTimer !== null) {
     stopInterval(restartTimer)
@@ -73,23 +26,9 @@ function disarmRestartTimer(): void {
 }
 
 export function startPreventSleep(): void {
-  referenceCount++
-  if (referenceCount === 1) {
-    spawnHelper()
-    armRestartTimer()
-  }
+  return notBuilt('src/services/preventSleep.ts:75')
 }
 
 export function stopPreventSleep(): void {
-  referenceCount = Math.max(0, referenceCount - 1)
-  if (referenceCount === 0) {
-    disarmRestartTimer()
-    killHelper()
-  }
-}
-
-function forceStopPreventSleep(): void {
-  referenceCount = 0
-  disarmRestartTimer()
-  killHelper()
+  return notBuilt('src/services/preventSleep.ts:83')
 }

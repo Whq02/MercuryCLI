@@ -1,4 +1,3 @@
-
 import type { TaskState, BackgroundTaskState } from '../../tasks/types.js'
 import { isBackgroundTask } from '../../tasks/types.js'
 import {
@@ -10,9 +9,10 @@ import {
   deriveAgentLifecycle,
   type AgentLifecycle,
 } from '../../services/agentResults/lifecycle.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 function isTerminalStatus(status: string): boolean {
-  return status === 'completed' || status === 'failed' || status === 'killed'
+  return notBuilt('src/components/tasks/taskStatusUtils.tsx:14')
 }
 
 export function isManageableTask(task: TaskState): task is BackgroundTaskState {
@@ -28,42 +28,21 @@ export function isManageableTask(task: TaskState): task is BackgroundTaskState {
   return false
 }
 
-type TaskStatusFlags = {
-  isIdle?: boolean
-  hasError?: boolean
-  shutdownRequested?: boolean
-}
+type TaskStatusFlags = Unbuilt
 
 export function getTaskStatusIcon(
   status: string,
   flags?: TaskStatusFlags,
 ): string {
-  if (flags?.hasError) return GLYPH.fail
-  if (flags?.shutdownRequested) return GLYPH.warn
-  if (status === 'running') {
-    if (flags?.isIdle) return '…'
-    return GLYPH.inProgress
-  }
-  if (status === 'completed') return GLYPH.check
-  if (status === 'failed') return GLYPH.fail
-  if (status === 'killed') return GLYPH.fail
-  return GLYPH.dot
+  return notBuilt('src/components/tasks/taskStatusUtils.tsx:37')
 }
 
 export function getTaskStatusColor(
   status: string,
   flags?: TaskStatusFlags,
 ): 'success' | 'error' | 'warning' | 'background' {
-  if (flags?.hasError) return 'error'
-  if (flags?.shutdownRequested) return 'warning'
-  if (flags?.isIdle) return 'background'
-  if (status === 'running') return 'background'
-  if (status === 'completed') return 'success'
-  if (status === 'failed') return 'error'
-  if (status === 'killed') return 'warning'
-  return 'background'
+  return notBuilt('src/components/tasks/taskStatusUtils.tsx:53')
 }
-
 
 
 export function agentLifecycleOf(task: TaskState): AgentLifecycle | undefined {

@@ -3,37 +3,10 @@ import { stat, type FileHandle } from 'node:fs/promises'
 import { formatFileSize } from './format.js'
 import { openRegularFile } from './regularFile.js'
 import { passedOverAs } from './passedOver.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 
-export type ReadFileRangeResult = {
-  content: string
-  lineCount: number
-  totalLines: number
-  totalBytes: number
-  readBytes: number
-  mtimeMs: number
-  endsWithNewline: boolean
-  truncatedByBytes?: boolean
-}
-
-function fileTooLargeWords(sizeInBytes: number, maxSizeBytes: number, lineCount: number | undefined): string {
-  const size = formatFileSize(sizeInBytes)
-  const max = formatFileSize(maxSizeBytes)
-  if (lineCount === undefined) {
-    return (
-      `File content (${size}) exceeds the maximum allowed size (${max}). ` +
-      `Use offset and limit to read portions of the file, or search for content instead of reading the whole file.`
-    )
-  }
-  const slices =
-    lineCount > 100
-      ? `Read(offset: 1, limit: 100) reads the first 100 lines, Read(offset: ${lineCount - 99}, limit: 100) the last 100`
-      : `Read(offset: 1, limit: ${lineCount}) reads all of it, each line cut at 2000 characters`
-  return (
-    `File content (${size}, ${lineCount} ${lineCount === 1 ? 'line' : 'lines'}) exceeds the maximum allowed size (${max}) for a Read without a limit. ` +
-    `Pass offset and limit to read a slice — ${slices} — or search for content instead of reading the whole file.`
-  )
-}
+export type ReadFileRangeResult = Unbuilt
 
 export class FileTooLargeError extends Error {
   readonly sizeInBytes: number
@@ -41,11 +14,8 @@ export class FileTooLargeError extends Error {
   readonly lineCount: number | undefined
 
   constructor(sizeInBytes: number, maxSizeBytes: number, lineCount?: number) {
-    super(fileTooLargeWords(sizeInBytes, maxSizeBytes, lineCount))
-    this.name = 'FileTooLargeError'
-    this.sizeInBytes = sizeInBytes
-    this.maxSizeBytes = maxSizeBytes
-    this.lineCount = lineCount
+    notBuilt('src/utils/readFileInRange.ts:43')
+    super(...(notBuilt('src/utils/readFileInRange.ts:43') as ConstructorParameters<typeof Error>))
   }
 }
 
@@ -95,175 +65,11 @@ function fastPath(
 
 export async function readFileInRange(
   filePath: string,
-  offset: number = 0,
+  offset?: number,
   maxLines?: number,
   maxBytes?: number,
   signal?: AbortSignal,
-  options: RangeOptions = {},
+  options?: RangeOptions,
 ): Promise<ReadFileRangeResult> {
-  if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error('Read aborted')
-  const truncateMode = options.truncateOnByteLimit === true
-  const early = await stat(filePath)
-  if (early.isDirectory()) {
-    throw new Error(`EISDIR: illegal operation on a directory, read '${filePath}'`)
-  }
-  const refusedForSize = (size: number): FileTooLargeError | null =>
-    !truncateMode && maxBytes !== undefined && size < FAST_PATH_MAX_BYTES && size > maxBytes ? new FileTooLargeError(size, maxBytes) : null
-  const earlyRefusal = early.isFile() ? refusedForSize(early.size) : null
-  if (earlyRefusal !== null) throw earlyRefusal
-  const { handle, stats } = await openRegularFile(filePath, early)
-  let streamed = false
-  try {
-    if (stats.isDirectory()) {
-      throw new Error(`EISDIR: illegal operation on a directory, read '${filePath}'`)
-    }
-    if (stats.size < FAST_PATH_MAX_BYTES) {
-      const refusal = refusedForSize(stats.size)
-      if (refusal !== null) throw refusal
-      const text = decodeWhole(await handle.readFile(signal ? { signal } : {}))
-      if (truncateMode && maxBytes !== undefined) {
-        return truncateSelect(stripBom(text).split('\n'), offset, maxLines, maxBytes, stats.mtimeMs, stats.size, text.endsWith('\n'))
-      }
-      return fastPath(text, offset, maxLines, stats.mtimeMs, stats.size)
-    }
-    streamed = true
-    return await streamingPath(handle, stats.mtimeMs, offset, maxLines, maxBytes, signal, truncateMode, stats.size)
-  } finally {
-    if (!streamed) await handle.close().catch(passedOverAs(undefined))
-  }
-}
-
-function truncateSelect(
-  lines: string[],
-  offset: number,
-  maxLines: number | undefined,
-  maxBytes: number,
-  mtimeMs: number,
-  totalBytes: number,
-  endsWithNewline: boolean,
-): ReadFileRangeResult {
-  const totalLines = lines.length
-  const end = maxLines === undefined ? totalLines : Math.min(offset + maxLines, totalLines)
-  const selected: string[] = []
-  let used = 0
-  let truncated = false
-  for (let index = offset; index < end; index++) {
-    const line = normalizeLine(lines[index] as string)
-    const cost = Buffer.byteLength(line) + (selected.length > 0 ? 1 : 0)
-    if (used + cost > maxBytes) {
-      truncated = true
-      break
-    }
-    selected.push(line)
-    used += cost
-  }
-  const content = selected.join('\n')
-  return {
-    content,
-    lineCount: selected.length,
-    totalLines,
-    totalBytes,
-    readBytes: Buffer.byteLength(content),
-    mtimeMs,
-    endsWithNewline,
-    ...(truncated ? { truncatedByBytes: true } : {}),
-  }
-}
-
-async function streamingPath(
-  handle: FileHandle,
-  mtimeMs: number,
-  offset: number,
-  maxLines: number | undefined,
-  maxBytes: number | undefined,
-  signal: AbortSignal | undefined,
-  truncateMode: boolean,
-  statSizeBytes?: number,
-): Promise<ReadFileRangeResult> {
-  const lead = Buffer.alloc(2)
-  const { bytesRead: leadRead } = await handle.read(lead, 0, 2, 0)
-  const encoding = encodingForLeadingBytes(leadRead > 0 ? lead[0] : undefined, leadRead > 1 ? lead[1] : undefined)
-  const stream = handle.createReadStream({
-    highWaterMark: STREAM_BUFFER_SIZE,
-    encoding,
-    autoClose: true,
-    ...(signal ? { signal } : {}),
-  } as Parameters<typeof handle.createReadStream>[0])
-
-  const end = maxLines === undefined ? Infinity : offset + maxLines
-  return new Promise<ReadFileRangeResult>((resolve, reject) => {
-    const selected: string[] = []
-    let selectedBytes = 0
-    let lineIndex = 0
-    let carried = ''
-    let first = true
-    let streamedBytes = 0
-    let truncated = false
-    let endsWithNewline = false
-    let budgetLeft = truncateMode && maxBytes !== undefined ? maxBytes : Infinity
-
-    const fail = (err: unknown): void => {
-      stream.destroy(err instanceof Error ? err : new Error(String(err)))
-    }
-
-    const acceptLine = (rawLine: string): void => {
-      if (lineIndex >= offset && lineIndex < end && !truncated) {
-        const line = normalizeLine(rawLine)
-        const cost = Buffer.byteLength(line) + (selected.length > 0 ? 1 : 0)
-        if (cost <= budgetLeft) {
-          selected.push(line)
-          selectedBytes += cost
-          budgetLeft -= cost
-        } else if (truncateMode) {
-          truncated = true
-        }
-      }
-      lineIndex++
-    }
-
-    stream.on('data', (chunk: string | Buffer) => {
-      let text = typeof chunk === 'string' ? chunk : chunk.toString(encoding)
-      streamedBytes += Buffer.byteLength(text)
-      if (!truncateMode && maxBytes !== undefined && streamedBytes > maxBytes) {
-        fail(new FileTooLargeError(statSizeBytes ?? streamedBytes, maxBytes))
-        return
-      }
-      if (first) {
-        text = stripBom(text)
-        first = false
-      }
-      if (text.length > 0) endsWithNewline = text.endsWith('\n')
-      carried += text
-      for (;;) {
-        const newline = carried.indexOf('\n')
-        if (newline === -1) break
-        acceptLine(carried.slice(0, newline))
-        carried = carried.slice(newline + 1)
-      }
-      if (carried.length > 0) {
-        const inRange = lineIndex >= offset && lineIndex < end && !truncated
-        if (!inRange) {
-          carried = ''
-        } else if (truncateMode && Buffer.byteLength(carried) + (selected.length > 0 ? 1 : 0) > budgetLeft) {
-          truncated = true
-          carried = ''
-        }
-      }
-    })
-    stream.on('error', err => reject(err))
-    stream.on('end', () => {
-      acceptLine(carried)
-      const content = selected.join('\n')
-      resolve({
-        content,
-        lineCount: selected.length,
-        totalLines: lineIndex,
-        totalBytes: streamedBytes,
-        readBytes: selectedBytes,
-        mtimeMs,
-        endsWithNewline,
-        ...(truncated ? { truncatedByBytes: true } : {}),
-      })
-    })
-  })
+  return notBuilt('src/utils/readFileInRange.ts:96')
 }

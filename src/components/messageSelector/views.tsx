@@ -9,6 +9,7 @@ import type { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import TextInput from '../TextInput.js'
 import { previewOf } from './preview.js'
 import { describeFiles, statsBetween, type CodeStats } from './stats.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const VISIBLE_ROWS = 7
 export const CURRENT_PROMPT = Symbol('current-prompt')
@@ -131,19 +132,7 @@ export function pickView({
   )
 }
 
-export function summarizeView({
-  tokens,
-  feedback,
-  setFeedback,
-  setPhase,
-  onPreRestore,
-  onSummarize,
-  chosen,
-  close,
-  columns,
-  feedbackCursor,
-  setFeedbackCursor,
-}: {
+export function summarizeView(arg0: {
   tokens: Tokens
   feedback: string
   setFeedback: React.Dispatch<React.SetStateAction<string>>
@@ -160,31 +149,7 @@ export function summarizeView({
   feedbackCursor: number
   setFeedbackCursor: React.Dispatch<React.SetStateAction<number>>
 }): React.ReactNode {
-  return (
-    <Box flexDirection="column" borderStyle="round" borderColor={tokens.borderSubtle} paddingX={1} gap={1}>
-      <Text bold>Summarise from this point</Text>
-      <Text dimColor>
-        Optional extra context for the summary (empty cancels):
-      </Text>
-      <TextInput
-        value={feedback}
-        onChange={setFeedback}
-        onSubmit={value => {
-          const trimmed = value.trim()
-          if (trimmed === '') {
-            setPhase('confirm')
-            return
-          }
-          onPreRestore()
-          void onSummarize(chosen, trimmed, 'from')
-          close()
-        }}
-        columns={Math.max(30, columns - 8)}
-        cursorOffset={feedbackCursor}
-        onChangeCursorOffset={setFeedbackCursor}
-      />
-    </Box>
-  )
+  return notBuilt('src/components/messageSelector/views.tsx:134')
 }
 
 export function confirmOptionsOf({

@@ -1,3 +1,5 @@
+import { notBuilt } from '../../pi/holes.js'
+
 const DOCUMENTATION_ESTATES: Readonly<Record<string, readonly string[]>> = {
   protocols: ['agentskills.io', 'modelcontextprotocol.io'],
   languages: [
@@ -39,20 +41,7 @@ export const PREAPPROVED_HOSTS: ReadonlySet<string> = new Set(Object.values(DOCU
 type Reach = { whole: true } | { prefixes: string[] }
 
 function reachTable(entries: Iterable<string>): ReadonlyMap<string, Reach> {
-  const table = new Map<string, Reach>()
-  for (const entry of entries) {
-    const slash = entry.indexOf('/')
-    const host = slash === -1 ? entry : entry.slice(0, slash)
-    const known = table.get(host)
-    if (slash === -1 || (known && 'whole' in known)) {
-      table.set(host, { whole: true })
-      continue
-    }
-    const prefixes = known ? known.prefixes : []
-    prefixes.push(entry.slice(slash))
-    table.set(host, { prefixes })
-  }
-  return table
+  return notBuilt('src/tools/WebFetchTool/preapproved.ts:41')
 }
 
 const REACH = reachTable(PREAPPROVED_HOSTS)

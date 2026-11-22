@@ -11,9 +11,10 @@ import { currentLimits } from '../anthropicLimits.js'
 import type { AppState } from '../../state/AppState.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import { isSpeculationEnabled, startSpeculation } from './speculation.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-export type PromptVariant = 'user_intent' | 'stated_intent'
+export type PromptVariant = Unbuilt
 
 const ACTIVE_VARIANT: PromptVariant = 'user_intent'
 
@@ -28,16 +29,6 @@ type SuppressReason =
   | 'last_response_error'
   | 'cache_cold'
   | 'empty'
-
-function getSuggestionSuppressReason(appState: AppState): SuppressReason | undefined {
-  if (!appState.promptSuggestionEnabled) return 'disabled'
-  if (appState.pendingWorkerRequest) {
-    return 'pending_permission'
-  }
-  if ((appState.elicitation?.queue?.length ?? 0) > 0) return 'elicitation_active'
-  if (currentLimits.status !== 'allowed') return 'rate_limit'
-  return undefined
-}
 
 function getParentCacheSuppressReason(
   lastAssistantMessage: {
@@ -76,91 +67,7 @@ Examples:
 - "run the linter" finished clean -> looks done, ship it`
 
 
-async function generateSuggestion(
-  abortController: AbortController,
-  promptId: PromptVariant,
-  cacheSafeParams: CacheSafeParams,
-): Promise<{ suggestion: string; requestId?: string } | undefined> {
-  void promptId
-  const instruction = createUserMessage({ content: SUGGESTION_PROMPT, isMeta: true })
-  const result = await runForkedAgent({
-    promptMessages: [instruction],
-    cacheSafeParams,
-    canUseTool: async () => ({
-      behavior: 'deny',
-      message: 'tools are unavailable while generating a suggestion',
-      decisionReason: {
-        type: 'other',
-        reason: 'tools are unavailable while generating a suggestion',
-      },
-    }),
-    querySource: 'prompt_suggestion',
-    forkLabel: 'prompt_suggestion',
-    overrides: { abortController },
-    skipTranscript: true,
-    skipCacheWrite: true,
-  })
-  const messages = (result as { messages?: unknown[] }).messages ?? []
-  let requestId: string | undefined
-  let suggestion: string | undefined
-  for (const raw of messages) {
-    const message = raw as {
-      type?: string
-      requestId?: string
-      message?: { content?: unknown }
-    }
-    if (message.type !== 'assistant') continue
-    if (requestId === undefined && typeof message.requestId === 'string') {
-      requestId = message.requestId
-    }
-    const content = message.message?.content
-    if (typeof content === 'string') {
-      if (content.trim() !== '') {
-        suggestion = content.trim()
-        break
-      }
-      continue
-    }
-    if (Array.isArray(content)) {
-      const text = content
-        .filter(
-          (block): block is { type: 'text'; text: string } =>
-            (block as { type?: string }).type === 'text' &&
-            typeof (block as { text?: unknown }).text === 'string',
-        )
-        .map(block => block.text)
-        .join('')
-        .trim()
-      if (text !== '') {
-        suggestion = text
-        break
-      }
-    }
-  }
-  if (suggestion === undefined) return undefined
-  return { suggestion, ...(requestId === undefined ? {} : { requestId }) }
-}
-
-
-const ALLOWED_SINGLE_WORDS = new Set([
-  'yes',
-  'yeah',
-  'yep',
-  'yea',
-  'yup',
-  'sure',
-  'ok',
-  'okay',
-  'push',
-  'commit',
-  'deploy',
-  'stop',
-  'continue',
-  'check',
-  'exit',
-  'quit',
-  'no',
-])
+const ALLOWED_SINGLE_WORDS: Unbuilt = unbuilt('src/services/PromptSuggestion/promptSuggestion.ts:145')
 
 const EVALUATIVE_TOKENS = [
   'thanks',
@@ -264,114 +171,10 @@ function shouldFilterSuggestion(suggestion: string): boolean {
   return true
 }
 
-
-async function tryGenerateSuggestion(
-  abortController: AbortController,
-  messages: Message[],
-  getAppState: () => AppState,
-  cacheSafeParams: CacheSafeParams,
-): Promise<
-  { suggestion: string; promptId: PromptVariant; generationRequestId: string | null } | undefined
-> {
-  if (abortController.signal.aborted) {
-    logSuggestionSuppressed('aborted')
-    return undefined
-  }
-  const assistantMessages = messages.filter(
-    (message): message is AssistantMessage => message.type === 'assistant',
-  )
-  if (assistantMessages.length < 2) {
-    logSuggestionSuppressed('early_conversation')
-    return undefined
-  }
-  const lastAssistant = assistantMessages[assistantMessages.length - 1]
-  if (lastAssistant.isApiErrorMessage === true) {
-    logSuggestionSuppressed('last_response_error')
-    return undefined
-  }
-  const cacheReason = getParentCacheSuppressReason(lastAssistant)
-  if (cacheReason !== undefined) {
-    logSuggestionSuppressed(cacheReason)
-    return undefined
-  }
-  const stateReason = getSuggestionSuppressReason(getAppState())
-  if (stateReason !== undefined) {
-    logSuggestionSuppressed(stateReason)
-    return undefined
-  }
-
-  const generated = await generateSuggestion(abortController, ACTIVE_VARIANT, cacheSafeParams)
-  if (abortController.signal.aborted) {
-    logSuggestionSuppressed('aborted')
-    return undefined
-  }
-  if (generated === undefined || generated.suggestion === '') {
-    logSuggestionSuppressed('empty')
-    return undefined
-  }
-  if (shouldFilterSuggestion(generated.suggestion)) {
-    return undefined
-  }
-  return {
-    suggestion: generated.suggestion,
-    promptId: ACTIVE_VARIANT,
-    generationRequestId: generated.requestId ?? null,
-  }
-}
-
-
-let inFlightController: AbortController | null = null
-
-function isAbortShapedError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    (error.name === 'AbortError' || error.name === 'APIUserAbortError')
-  )
-}
-
 export async function executePromptSuggestion(context: TurnAnswerContext): Promise<void> {
-  if (context.querySource === undefined || !context.querySource.startsWith('main_thread')) {
-    return
-  }
-  const { getAppState, setAppState } = context.toolUseContext
-  const controller = new AbortController()
-  inFlightController?.abort()
-  inFlightController = controller
-  try {
-    const cacheSafeParams = createCacheSafeParams(context)
-    const result = await tryGenerateSuggestion(
-      controller,
-      context.messages,
-      getAppState,
-      cacheSafeParams,
-    )
-    if (result === undefined) return
-    setAppState(prev => ({
-      ...prev,
-      promptSuggestion: {
-        text: result.suggestion,
-        promptId: result.promptId,
-        generationRequestId: result.generationRequestId,
-        shownAt: 0,
-        acceptedAt: 0,
-      },
-    }))
-    if (isSpeculationEnabled()) {
-      void startSpeculation(result.suggestion, context, setAppState, false, cacheSafeParams)
-    }
-  } catch (error) {
-    if (isAbortShapedError(error)) {
-      logSuggestionSuppressed('aborted')
-      return
-    }
-    logError(error)
-  } finally {
-    if (inFlightController === controller) {
-      inFlightController = null
-    }
-  }
+  return notBuilt('src/services/PromptSuggestion/promptSuggestion.ts:332')
 }
 
 function logSuggestionSuppressed(reason: string): void {
-  logForDebugging(`prompt suggestion suppressed: ${reason}`)
+  return notBuilt('src/services/PromptSuggestion/promptSuggestion.ts:375')
 }

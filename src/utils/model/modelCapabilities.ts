@@ -1,16 +1,7 @@
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-type ModelCapability = {
-  id: string
-  max_input_tokens?: number
-  max_tokens?: number
-}
-
-function isModelCapabilitiesEligible(): boolean {
-  return false
-}
+type ModelCapability = Unbuilt
 
 export function getModelCapability(model: string): ModelCapability | undefined {
-  void model
-  if (!isModelCapabilitiesEligible()) return undefined
-  return undefined
+  return notBuilt('src/utils/model/modelCapabilities.ts:12')
 }

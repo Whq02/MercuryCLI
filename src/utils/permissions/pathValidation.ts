@@ -16,36 +16,19 @@ import {
   pathInAllowedWorkingPath,
 } from './filesystem.js'
 import { hostEnv } from '../hostEnv.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-export type FileOperationType = 'read' | 'write' | 'create'
+export type FileOperationType = Unbuilt
 
-type PathCheckResult = { allowed: boolean; decisionReason?: PermissionDecisionReason }
-type ResolvedPathCheckResult = PathCheckResult & { resolvedPath: string }
-
-const GLOB_METACHARS = /[*?[\]{}]/
+type PathCheckResult = Unbuilt
+type ResolvedPathCheckResult = Unbuilt
 
 export function formatDirectoryList(directories: string[]): string {
-  const quoted = directories.map(dir => `'${dir}'`)
-  if (quoted.length <= 5) return quoted.join(', ')
-  return `${quoted.slice(0, 5).join(', ')} and ${quoted.length - 5} more`
-}
-
-function getGlobBaseDirectory(path: string): string {
-  if (!GLOB_METACHARS.test(path)) return path
-  const firstMeta = path.search(GLOB_METACHARS)
-  const prefix = path.slice(0, firstMeta)
-  const seps = pathSeparatorRegex()
-  let lastSep = -1
-  let match: RegExpExecArray | null
-  while ((match = seps.exec(prefix)) !== null) lastSep = match.index
-  if (lastSep === -1) return '.'
-  const base = prefix.slice(0, lastSep)
-  return base === '' ? '/' : base
+  return notBuilt('src/utils/permissions/pathValidation.ts:27')
 }
 
 export function expandTilde(path: string): string {
-  const home = hostEnv().HOME || hostEnv().USERPROFILE || ''
-  return expandTildeWithHome(path, home)
+  return notBuilt('src/utils/permissions/pathValidation.ts:46')
 }
 
 export function isPathAllowed(
@@ -54,82 +37,11 @@ export function isPathAllowed(
   operationType: FileOperationType,
   precomputedPathsToCheck?: readonly string[],
 ): PathCheckResult {
-  const permType = operationType === 'read' ? 'read' : 'edit'
-  const resolutionSet = precomputedPathsToCheck ?? getResolvedWorkingDirPaths(resolvedPath)
-
-  for (const resolved of resolutionSet) {
-    const rule = matchingRuleForInput(resolved, context, permType, 'deny')
-    if (rule) return { allowed: false, decisionReason: { type: 'rule', rule } }
-  }
-  const steering = operationType !== 'read' && (context.mode === 'default' || context.mode === 'implement' || context.mode === 'flow') && isInstructionEstatePath(resolvedPath, context.mode === 'flow')
-  if (operationType !== 'read') {
-    const internal = checkEditableInternalPath(resolvedPath, undefined)
-    if (!steering && (internal as { behavior: string }).behavior === 'allow') return { allowed: true }
-    const safety = checkPathSafetyForAutoEdit(resolvedPath, resolutionSet, context)
-    if (!safety.safe) {
-      return {
-        allowed: false,
-        decisionReason: {
-          type: 'safetyCheck',
-          reason: safety.message,
-          operatorOnly: safety.operatorOnly,
-        },
-      }
-    }
-  }
-  const inside = pathInAllowedWorkingPath(resolvedPath, context, resolutionSet)
-  if (inside) {
-    if (operationType === 'read') return { allowed: true }
-    if (context.mode === 'implement' && !steering) return { allowed: true }
-  }
-  if (operationType === 'read') {
-    const internal = checkReadableInternalPath(resolvedPath, undefined)
-    if ((internal as { behavior: string }).behavior === 'allow') return { allowed: true }
-  }
-  if (steering) {
-    const grant = instructionEstateGrant(resolutionSet, context)
-    if (grant) return { allowed: true, decisionReason: { type: 'rule', rule: grant } }
-    if (context.mode !== 'flow') return { allowed: false }
-    return { allowed: false, decisionReason: { type: 'safetyCheck', reason: `Permission to write ${resolvedPath} is required: this file steers every later session.`, operatorOnly: true } }
-  }
-  for (const resolved of resolutionSet) {
-    const rule = matchingRuleForInput(resolved, context, permType, 'allow')
-    if (rule) return { allowed: true, decisionReason: { type: 'rule', rule } }
-  }
-  return { allowed: false }
-}
-
-function validateGlobPattern(
-  cleanPath: string,
-  cwd: string,
-  context: ToolPermissionContext,
-  operationType: FileOperationType,
-): ResolvedPathCheckResult {
-  const hasTraversal = cleanPath.includes('..')
-  const target = hasTraversal ? cleanPath : getGlobBaseDirectory(cleanPath)
-  const absolute = isAbsolute(target) ? target : resolvePath(cwd, target)
-  const { resolvedPath, isSymlink, isCanonical } = safeResolvePath(getFsImplementation(), absolute)
-  const precomputed = isCanonical ? getResolvedWorkingDirPaths(isSymlink ? absolute : resolvedPath) : undefined
-  const result = isPathAllowed(resolvedPath, context, operationType, precomputed)
-  return { ...result, resolvedPath }
+  return notBuilt('src/utils/permissions/pathValidation.ts:51')
 }
 
 export function isDangerousRemovalPath(resolvedPath: string): boolean {
-  const collapsed = resolvedPath.replace(/[/\\]+/g, '/').replace(/^\/[?.]\//, '')
-
-  if (collapsed === '*' || collapsed.endsWith('/*')) return true
-  if (collapsed === '/') return true
-
-  const trimmed = collapsed.endsWith('/') && collapsed !== '/' ? collapsed.slice(0, -1) : collapsed
-
-  if (/^[A-Za-z]:$/.test(trimmed) || /^[A-Za-z]:\/?$/.test(collapsed)) return true
-  const homeRaw = preferredHomeEnv(hostEnv())
-  const home = homeRaw.replace(/[/\\]+/g, '/')
-  if (home && samePathCase(trimmed, home, rememberedPlatform())) return true
-  if (/^\/[^/]+$/.test(trimmed)) return true
-  if (/^[A-Za-z]:\/[^/]+$/.test(trimmed)) return true
-
-  return false
+  return notBuilt('src/utils/permissions/pathValidation.ts:117')
 }
 
 export function validatePath(
@@ -138,47 +50,5 @@ export function validatePath(
   context: ToolPermissionContext,
   operationType: FileOperationType,
 ): ResolvedPathCheckResult {
-  let cleaned = path
-  if (/^['"]/.test(cleaned)) cleaned = cleaned.slice(1)
-  if (/['"]$/.test(cleaned)) cleaned = cleaned.slice(0, -1)
-  cleaned = expandTilde(cleaned)
-
-  const remote = checkUncPathPermission(cleaned, context, operationType === 'read' ? 'read' : 'edit')
-  if (remote) return {
-    allowed: remote.behavior === 'allow', resolvedPath: cleaned,
-    decisionReason: remote.behavior === 'ask' && remote.decisionReason?.type === 'rule'
-      ? { type: 'safetyCheck', reason: remote.message, operatorOnly: true } : remote.decisionReason,
-  }
-  if (cleaned.startsWith('~')) {
-    return {
-      allowed: false,
-      resolvedPath: cleaned,
-      decisionReason: { type: 'other', reason: 'tilde expansion variants require manual approval' },
-    }
-  }
-  if (cleaned.includes('$') || cleaned.includes('%') || cleaned.startsWith('=')) {
-    return {
-      allowed: false,
-      resolvedPath: cleaned,
-      decisionReason: { type: 'other', reason: 'shell expansion syntax in paths requires manual approval' },
-    }
-  }
-  if (GLOB_METACHARS.test(cleaned)) {
-    if (operationType === 'read') {
-      return validateGlobPattern(cleaned, cwd, context, operationType)
-    }
-    return {
-      allowed: false,
-      resolvedPath: cleaned,
-      decisionReason: {
-        type: 'other',
-        reason: 'glob patterns are not allowed in write operations; specify an exact file path',
-      },
-    }
-  }
-  const absolute = isAbsolute(cleaned) ? cleaned : resolvePath(cwd, cleaned)
-  const { resolvedPath, isSymlink, isCanonical } = safeResolvePath(getFsImplementation(), absolute)
-  const precomputed = isCanonical ? getResolvedWorkingDirPaths(isSymlink ? absolute : resolvedPath) : undefined
-  const result = isPathAllowed(resolvedPath, context, operationType, precomputed)
-  return { ...result, resolvedPath }
+  return notBuilt('src/utils/permissions/pathValidation.ts:135')
 }

@@ -8,6 +8,7 @@ import { nodeCache } from '../node-cache.js'
 import { termWrite } from '../terminalOut.js'
 import { setClipboard } from '../termio/osc.js'
 import type Ink from '../ink.js'
+import { notBuilt } from '../../pi/holes.js'
 
 function samePoint(a: Point | null, b: Point | null): boolean {
   return a === b || (a !== null && b !== null && a.col === b.col && a.row === b.row)
@@ -75,58 +76,16 @@ function offerTextGesture(this: Pick<Ink, 'rootNode' | 'textGesture'>, col: numb
   return false
 }
 
-function textGestureTookPress(this: Pick<Ink, 'selection' | 'notifySelectionChange'>): void {
-  if (this.selection.anchor === null) return
-  clearSelection(this.selection)
-  this.notifySelectionChange()
-}
-
 export function handleSelectionStart(this: Pick<Ink, 'frontFrame' | 'rootNode' | 'altScreenActive' | 'selection' | 'textGesture' | 'notifySelectionChange'>, col: number, row: number, pressHadAlt: boolean): void {
-  if (!this.altScreenActive) return
-  if (offerTextGesture.call(this, col, row, 1)) {
-    textGestureTookPress.call(this)
-    return
-  }
-  startSelection(this.selection, col, row)
-  this.selection.lastPressHadAlt = pressHadAlt
-  applySelectionClipBand.call(this, col, row)
-  this.notifySelectionChange()
+  return notBuilt('src/ink/ink/selection.ts:84')
 }
 
 export function handleMultiClick(this: Pick<Ink, 'frontFrame' | 'rootNode' | 'altScreenActive' | 'selection' | 'textGesture' | 'notifySelectionChange'>, col: number, row: number, count: 2 | 3): void {
-  if (!this.altScreenActive) return
-  if (offerTextGesture.call(this, col, row, count)) {
-    textGestureTookPress.call(this)
-    return
-  }
-  startSelection(this.selection, col, row)
-  applySelectionClipBand.call(this, col, row)
-  const screen = this.frontFrame.screen
-  if (count === 2) selectWordAt(this.selection, screen, col, row)
-  else selectLineAt(this.selection, screen, row)
-  if (this.selection.focus === null && this.selection.anchor) {
-    this.selection.focus = { ...this.selection.anchor }
-  }
-  this.notifySelectionChange()
+  return notBuilt('src/ink/ink/selection.ts:96')
 }
 
 export function handleSelectionDrag(this: Pick<Ink, 'frontFrame' | 'altScreenActive' | 'selection' | 'textGesture' | 'notifySelectionChange'>, col: number, row: number): void {
-  if (!this.altScreenActive) return
-  if (this.textGesture) {
-    const { handler, rect } = this.textGesture
-    handler({ kind: 'drag', localCol: col - rect.x, localRow: row - rect.y, clickCount: 1 })
-    return
-  }
-  const s = this.selection
-  const anchor = s.anchor
-  const focus = s.focus
-  if (s.anchorSpan) {
-    extendSelection(s, this.frontFrame.screen, col, row)
-  } else {
-    updateSelection(s, col, row)
-  }
-  if (samePoint(s.anchor, anchor) && samePoint(s.focus, focus)) return
-  this.notifySelectionChange()
+  return notBuilt('src/ink/ink/selection.ts:113')
 }
 
 export function handleSelectionRelease(this: Pick<Ink, 'textGesture'>, col: number, row: number): boolean {
@@ -138,64 +97,15 @@ export function handleSelectionRelease(this: Pick<Ink, 'textGesture'>, col: numb
 }
 
 export function moveSelectionFocus(this: Pick<Ink, 'frontFrame' | 'altScreenActive' | 'selection' | 'notifySelectionChange'>, move: FocusMove): void {
-  if (!this.altScreenActive) return
-  const focus = this.selection.focus
-  if (!focus) return
-  const width = this.frontFrame.screen.width
-  const height = this.frontFrame.screen.height
-  let { col, row } = focus
-  switch (move) {
-    case 'left':
-      if (col > 0) col--
-      else if (row > 0) {
-        row--
-        col = width - 1
-      }
-      break
-    case 'right':
-      if (col < width - 1) col++
-      else if (row < height - 1) {
-        row++
-        col = 0
-      }
-      break
-    case 'up':
-      row = Math.max(0, row - 1)
-      break
-    case 'down':
-      row = Math.min(height - 1, row + 1)
-      break
-    case 'lineStart':
-      col = 0
-      break
-    case 'lineEnd':
-      col = width - 1
-      break
-  }
-  if (col === focus.col && row === focus.row) return
-  moveFocus(this.selection, col, row)
-  this.notifySelectionChange()
+  return notBuilt('src/ink/ink/selection.ts:140')
 }
 
 export function copySelectionNoClear(this: Pick<Ink, 'options' | 'frontFrame' | 'selection'>): string {
-  if (!hasSelection(this.selection)) return ''
-  const text = getSelectedText(this.selection, this.frontFrame.screen)
-  if (text) {
-    void setClipboard(text)
-      .then(sequence => {
-        if (sequence) termWrite(this.options.stdout, sequence)
-      })
-      .catch(logError)
-  }
-  return text
+  return notBuilt('src/ink/ink/selection.ts:180')
 }
 
 export function copySelection(this: Pick<Ink, 'selection' | 'notifySelectionChange' | 'copySelectionNoClear'>): string {
-  if (!hasSelection(this.selection)) return ''
-  const text = this.copySelectionNoClear()
-  clearSelection(this.selection)
-  this.notifySelectionChange()
-  return text
+  return notBuilt('src/ink/ink/selection.ts:193')
 }
 
 export function copyText(this: Pick<Ink, 'options'>, text: string): void {
@@ -208,22 +118,9 @@ export function copyText(this: Pick<Ink, 'options'>, text: string): void {
 }
 
 export function clearTextSelection(this: Pick<Ink, 'selection' | 'notifySelectionChange'>): void {
-  if (!hasSelection(this.selection)) return
-  clearSelection(this.selection)
-  this.notifySelectionChange()
+  return notBuilt('src/ink/ink/selection.ts:210')
 }
 
 export function setSelectionBgColor(this: Pick<Ink, 'stylePool'>, color: string): void {
-  const marker = '\0'
-  const painted = colorize(marker, color, 'background')
-  const index = painted.indexOf(marker)
-  if (index <= 0 || index >= painted.length - 1) {
-    this.stylePool.setSelectionBg(null)
-    return
-  }
-  this.stylePool.setSelectionBg({
-    type: 'ansi',
-    code: painted.slice(0, index),
-    endCode: painted.slice(index + 1),
-  })
+  return notBuilt('src/ink/ink/selection.ts:216')
 }

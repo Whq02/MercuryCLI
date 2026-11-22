@@ -1,47 +1,10 @@
 import { createAbortController } from './abortController.js'
 import { startTimeout, stopTimeout } from './timers.js'
+import { notBuilt } from '../pi/holes.js'
 
 export function createCombinedAbortSignal(
   signal: AbortSignal | undefined,
   opts?: { signalB?: AbortSignal; timeoutMs?: number },
 ): { signal: AbortSignal; cleanup: () => void } {
-  const signalB = opts?.signalB
-  const timeoutMs = opts?.timeoutMs
-
-  if (signal?.aborted || signalB?.aborted) {
-    const controller = createAbortController()
-    controller.abort()
-    return { signal: controller.signal, cleanup: () => {} }
-  }
-
-  const controller = createAbortController()
-  let timer: NodeJS.Timeout | undefined
-
-  const clearTimer = (): void => {
-    if (timer !== undefined) {
-      stopTimeout(timer)
-      timer = undefined
-    }
-  }
-
-  const onAbort = (): void => {
-    clearTimer()
-    controller.abort()
-  }
-
-  signal?.addEventListener('abort', onAbort)
-  signalB?.addEventListener('abort', onAbort)
-
-  if (timeoutMs !== undefined) {
-    timer = startTimeout(onAbort, timeoutMs)
-    timer.unref?.()
-  }
-
-  const cleanup = (): void => {
-    clearTimer()
-    signal?.removeEventListener('abort', onAbort)
-    signalB?.removeEventListener('abort', onAbort)
-  }
-
-  return { signal: controller.signal, cleanup }
+  return notBuilt('src/utils/combinedAbortSignal.ts:4')
 }

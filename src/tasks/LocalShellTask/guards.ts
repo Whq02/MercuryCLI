@@ -1,36 +1,11 @@
-import type { TaskStateBase } from '../../Task.js'
-import type { AgentId } from '../../types/ids.js'
-import type { ShellCommand } from '../../utils/ShellCommand.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
+export type BashTaskKind = Unbuilt
 
-export type BashTaskKind = 'bash' | 'monitor'
+export type ShellKillSource = Unbuilt
 
-export type ShellKillSource = 'operator' | 'agent-end'
-
-export type LocalShellTaskState = TaskStateBase & {
-  type: 'local_bash'
-  command: string
-  result?: {
-    code: number
-    interrupted: boolean
-  }
-  completionStatusSentInAttachment: boolean
-  shellCommand: ShellCommand | null
-  unregisterCleanup?: () => void
-  cleanupTimeoutId?: ReturnType<typeof setTimeout>
-  lastReportedTotalLines: number
-  isBackgrounded: boolean
-  agentId?: AgentId
-  killedBy?: ShellKillSource
-  kind?: BashTaskKind
-  verifyCwd?: string
-}
+export type LocalShellTaskState = Unbuilt
 
 export function isLocalShellTask(task: unknown): task is LocalShellTaskState {
-  return (
-    typeof task === 'object' &&
-    task !== null &&
-    'type' in task &&
-    task.type === 'local_bash'
-  )
+  return notBuilt('src/tasks/LocalShellTask/guards.ts:29')
 }

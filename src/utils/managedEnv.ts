@@ -8,6 +8,7 @@ import { isSettingSourceEnabled, type SettingSource } from './settings/constants
 import { getInitialSettings, getSettingsForSource } from './settings/settings.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { hostEnv } from './hostEnv.js'
+import { notBuilt } from '../pi/holes.js'
 
 
 type EnvObject = Record<string, string>
@@ -29,12 +30,7 @@ function filterTunnelProtected(env: EnvObject): EnvObject {
 }
 
 function filterProviderManaged(env: EnvObject): EnvObject {
-  if (!isEnvTruthy(flagEnv('MERCURY_PROVIDER_MANAGED_BY_HOST'))) return env
-  const out: EnvObject = {}
-  for (const [key, value] of Object.entries(env)) {
-    if (!isProviderManagedEnvVar(key)) out[key] = value
-  }
-  return out
+  return notBuilt('src/utils/managedEnv.ts:31')
 }
 
 function applyFiltered(env: EnvObject | undefined): void {
@@ -49,28 +45,12 @@ function applyFiltered(env: EnvObject | undefined): void {
 const TRUSTED_SOURCES_BEFORE_POLICY: readonly SettingSource[] = ['userSettings', 'flagSettings']
 
 export function applySafeConfigEnvironmentVariables(): void {
-  for (const source of TRUSTED_SOURCES_BEFORE_POLICY) {
-    if (!isSettingSourceEnabled(source)) continue
-    applyFiltered(getSettingsForSource(source)?.environment?.values)
-  }
-  applyFiltered(getSettingsForSource('policySettings')?.environment?.values)
-  const merged = getInitialSettings().environment?.values
-  if (merged) {
-    const allowlisted: EnvObject = {}
-    for (const [key, value] of Object.entries(merged)) {
-      if (SAFE_ENV_VARS.has(key.toUpperCase())) allowlisted[key] = value
-    }
-    applyFiltered(allowlisted)
-  }
+  return notBuilt('src/utils/managedEnv.ts:51')
 }
 
 
 export function applyConfigEnvironmentVariables(): void {
-  applyFiltered(getInitialSettings().environment?.values)
-  clearCACertsCache()
-  clearMTLSCache()
-  clearProxyCache()
-  configureGlobalAgents()
+  return notBuilt('src/utils/managedEnv.ts:68')
 }
 
 export function configEnvironmentIsApplied(): boolean {

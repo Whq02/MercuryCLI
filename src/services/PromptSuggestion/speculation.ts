@@ -1,40 +1,15 @@
-import { IDLE_SPECULATION_STATE, type AppState, type SpeculationState } from '../../state/AppState.js'
-import { logForDebugging } from '../../utils/debug.js'
+import type { AppState } from '../../state/AppState.js'
 import type { CacheSafeParams } from '../agents/forkedAgent.js'
-import { logError } from '../../utils/log.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-type SetAppState = (updater: (prev: AppState) => AppState) => void
-
-type ActiveSpeculation = Extract<SpeculationState, { status: 'active' }>
-
-const SPECULATION_ENABLED = false
-
-const CLEARED_SUGGESTION: AppState['promptSuggestion'] = {
-  text: null,
-  promptId: null,
-  shownAt: 0,
-  acceptedAt: 0,
-  generationRequestId: null,
-}
-
-const isActive = (state: unknown): state is ActiveSpeculation =>
-  typeof state === 'object' && state !== null && (state as { status?: unknown }).status === 'active'
-
-function stopQuietly(active: ActiveSpeculation): void {
-  try {
-    active.abort()
-  } catch (error) {
-    logForDebugging(`speculation abort thunk failed: ${String(error)}`)
-  }
-}
+type SetAppState = (...args: Unbuilt[]) => Unbuilt
 
 export function clearPromptSuggestion(prev: AppState): AppState {
-  return prev.promptSuggestion.text === null ? prev : { ...prev, promptSuggestion: CLEARED_SUGGESTION }
+  return notBuilt('src/services/PromptSuggestion/speculation.ts:31')
 }
 
 export function isSpeculationEnabled(): boolean {
-  logForDebugging(`speculation enabled: ${SPECULATION_ENABLED}`)
-  return SPECULATION_ENABLED
+  return notBuilt('src/services/PromptSuggestion/speculation.ts:35')
 }
 
 export async function startSpeculation(
@@ -44,15 +19,11 @@ export async function startSpeculation(
   _isPipelined?: boolean,
   _cacheSafeParams?: CacheSafeParams,
 ): Promise<void> {
-  isSpeculationEnabled()
+  return notBuilt('src/services/PromptSuggestion/speculation.ts:40')
 }
 
 export function abortSpeculation(setAppState: SetAppState): void {
-  setAppState(prev => {
-    if (!isActive(prev.speculation)) return prev
-    stopQuietly(prev.speculation)
-    return { ...prev, speculation: IDLE_SPECULATION_STATE }
-  })
+  return notBuilt('src/services/PromptSuggestion/speculation.ts:50')
 }
 
 export function handleSpeculationAccept(
@@ -62,10 +33,5 @@ export function handleSpeculationAccept(
   _input: string,
   _deps: unknown,
 ): { queryRequired: boolean } {
-  try {
-    if (!isActive(state)) setAppState(clearPromptSuggestion)
-  } catch (error) {
-    logError(error)
-  }
-  return { queryRequired: true }
+  return notBuilt('src/services/PromptSuggestion/speculation.ts:58')
 }

@@ -25,262 +25,45 @@ import { countCharInString, firstLineOf, plural } from '../../utils/stringUtils.
 import { FILE_WRITE_TOOL_NAME } from '../../constants/tools/fileWrite.js'
 import { isSqliteRowTarget } from './structuredTargets.js'
 import type { FileWriteToolInput, Output } from './FileWriteTool.js'
-
-
-const CREATE_PREVIEW_LINES = 10
-const CODE_BLOCK_GUTTER = 6
-const REJECTION_SCAN_CAP_BYTES = 1024 * 1024
-
-function countLines(content: string): number {
-  if (content === '') return 0
-  const newlines = countCharInString(content, '\n')
-  return content.endsWith('\n') ? newlines : newlines + 1
-}
-
-function hasMoreThanPreviewLines(content: string): boolean {
-  let index = -1
-  for (let seen = 0; seen < CREATE_PREVIEW_LINES; seen++) {
-    index = content.indexOf('\n', index + 1)
-    if (index === -1) return false
-  }
-  return index < content.length - 1
-}
+import { notBuilt } from '../../pi/holes.js'
 
 export function userFacingName(input?: Partial<FileWriteToolInput>): string {
-  return FILE_WRITE_TOOL_NAME
+  return notBuilt('src/tools/FileWriteTool/UI.tsx:49')
 }
 
 export function getToolUseSummary(input: Partial<FileWriteToolInput> | undefined): string | null {
-  if (!input?.file_path) return null
-  return truncatePathMiddle(getDisplayPath(input.file_path), TOOL_SUMMARY_MAX_LENGTH)
+  return notBuilt('src/tools/FileWriteTool/UI.tsx:53')
 }
 
 export function renderToolUseMessage(
   input: Partial<FileWriteToolInput>,
-  { verbose }: { verbose: boolean },
+  arg1: { verbose: boolean },
 ): React.ReactNode {
-  if (!input.file_path) return null
-  return (
-    <FilePathLink filePath={input.file_path}>
-      {getDisplayPath(input.file_path)}
-    </FilePathLink>
-  )
+  return notBuilt('src/tools/FileWriteTool/UI.tsx:58')
 }
 
 export function isResultTruncated(output: Output | undefined): boolean {
-  if (!output || output.type !== 'create') return false
-  return hasMoreThanPreviewLines(output.content)
-}
-
-function CreatedFileCard({
-  output,
-  verbose,
-}: {
-  output: Extract<Output, object>
-  verbose: boolean
-}): React.ReactNode {
-  const tokens = useMercuryTokens()
-  const { columns } = useTerminalSize()
-  const lineCount = countLines(output.content)
-  const displayPath = getDisplayPath(output.filePath)
-  if (output.content === '') {
-    return (
-      <Box flexDirection="column">
-        <Text>
-          <ToolCardMarker />
-          Wrote <Text bold>0</Text> lines to {displayPath}
-        </Text>
-        <Text color={tokens.textMuted}>(empty file)</Text>
-      </Box>
-    )
-  }
-  const lines = output.content.split('\n')
-  const shown = verbose ? output.content : lines.slice(0, CREATE_PREVIEW_LINES).join('\n')
-  const hidden = verbose ? 0 : Math.max(0, lineCount - CREATE_PREVIEW_LINES)
-  return (
-    <Box flexDirection="column">
-      <Text>
-        <ToolCardMarker />
-        Wrote <Text bold>{lineCount}</Text> {plural(lineCount, 'line')} to {displayPath}{isSqliteRowTarget(output.filePath) ? ' · not checkpointed' : ''}
-      </Text>
-      <Box width={Math.max(20, columns - CODE_BLOCK_GUTTER)}>
-        <HighlightedCode code={shown} filePath={output.filePath} />
-      </Box>
-      {hidden > 0 ? (
-        <Text color={tokens.textMuted}>
-          +{hidden} more {plural(hidden, 'line')} <CtrlOToExpand />
-        </Text>
-      ) : null}
-    </Box>
-  )
+  return notBuilt('src/tools/FileWriteTool/UI.tsx:70')
 }
 
 export function renderToolResultMessage(
   output: Output,
   _progressMessages: unknown,
-  {
-    verbose: verboseOption,
-    style,
-    isTranscriptMode,
-  }: { verbose: boolean; style?: 'condensed' | 'default'; isTranscriptMode?: boolean },
+  arg2: { verbose: boolean; style?: 'condensed' | 'default'; isTranscriptMode?: boolean },
 ): React.ReactNode {
-  const verbose = verboseOption || isTranscriptMode === true
-  if (output.type === 'delete' || output.type === 'not-found') {
-    return <MessageResponse><Text>{output.type === 'delete' ? 'Deleted one SQLite row' : 'Row not found; nothing was deleted'} — {getDisplayPath(output.filePath)}{output.content === '' ? '' : ` · ${output.content}`}{output.type === 'delete' ? ' · not checkpointed' : ''}</Text></MessageResponse>
-  }
-  if (output.type === 'no-change') {
-    return <NoChangeCard filePath={output.filePath} />
-  }
-  if (output.type === 'update') {
-    return (
-      <FileEditToolUpdatedMessage
-        filePath={output.filePath}
-        structuredPatch={output.structuredPatch}
-        firstLine={firstLineOf(output.content)}
-        fileContent={output.originalFile ?? ''}
-        verbose={verbose}
-        {...(style === 'condensed' ? { style: 'condensed' as const } : {})}
-      />
-    )
-  }
-  if (!verbose && style === 'condensed') {
-    const lineCount = countLines(output.content)
-    return (
-      <MessageResponse>
-        <Text>
-          <ToolCardMarker />
-          Wrote <Text bold>{lineCount}</Text> {plural(lineCount, 'line')} to{' '}
-          {getDisplayPath(output.filePath)}{isSqliteRowTarget(output.filePath) ? ' · not checkpointed' : ''}
-        </Text>
-      </MessageResponse>
-    )
-  }
-  return (
-    <MessageResponse>
-      <CreatedFileCard output={output} verbose={verbose} />
-    </MessageResponse>
-  )
-}
-
-function NoChangeCard({ filePath }: { filePath: string }): React.ReactNode {
-  const tokens = useMercuryTokens()
-  return (
-    <MessageResponse>
-      <Text color={tokens.textMuted}>
-        No changes — {getDisplayPath(filePath)} already matches the provided content
-      </Text>
-    </MessageResponse>
-  )
-}
-
-type RejectionPreviewState =
-  | { state: 'loading' }
-  | { state: 'create' }
-  | { state: 'update'; patch: Output['structuredPatch']; original: string }
-  | { state: 'error' }
-
-function WriteRejectionPreview({
-  input,
-  verbose,
-}: {
-  input: { file_path: string; content: string }
-  verbose: boolean
-}): React.ReactNode {
-  const tokens = useMercuryTokens()
-  const far = isRemotePath(input.file_path)
-  const [preview, setPreview] = React.useState<RejectionPreviewState>({ state: far ? 'create' : 'loading' })
-
-  useLoad(() => {
-    if (far) return
-    let cancelled = false
-    void (async () => {
-      try {
-        const existing = await readFileInRange(
-          input.file_path,
-          0,
-          undefined,
-          REJECTION_SCAN_CAP_BYTES,
-        )
-        if (cancelled) return
-        const patch = getPatchForDisplay({
-          filePath: input.file_path,
-          fileContents: existing.content,
-          edits: [{ old_string: existing.content, new_string: input.content }],
-        })
-        setPreview({ state: 'update', patch, original: existing.content })
-      } catch (err) {
-        if (cancelled) return
-        if (err instanceof FileTooLargeError || (err as { code?: string })?.code === 'ENOENT') {
-          setPreview({ state: 'create' })
-        } else {
-          setPreview({ state: 'error' })
-        }
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [input.file_path, input.content, far])
-
-  if (preview.state === 'error') {
-    return (
-      <MessageResponse>
-        <Text color={tokens.textMuted}>no changes</Text>
-      </MessageResponse>
-    )
-  }
-  if (preview.state === 'update') {
-    return (
-      <FileEditToolUseRejectedMessage
-        file_path={input.file_path}
-        operation="update"
-        patch={preview.patch}
-        firstLine={firstLineOf(input.content)}
-        fileContent={preview.original}
-        style="condensed"
-        verbose={verbose}
-      />
-    )
-  }
-  return (
-    <FileEditToolUseRejectedMessage
-      file_path={input.file_path}
-      operation="write"
-      content={input.content}
-      firstLine={firstLineOf(input.content)}
-      verbose={verbose}
-    />
-  )
+  return notBuilt('src/tools/FileWriteTool/UI.tsx:118')
 }
 
 export function renderToolUseRejectedMessage(
   input?: Partial<FileWriteToolInput>,
   options?: { verbose?: boolean },
 ): React.ReactNode {
-  if (!input?.file_path || input.content === undefined) return null
-  return (
-    <WriteRejectionPreview
-      input={{ file_path: input.file_path, content: input.content }}
-      verbose={options?.verbose ?? false}
-    />
-  )
-}
-
-function ShortErrorLine({ text }: { text: string }): React.ReactNode {
-  const tokens = useMercuryTokens()
-  return (
-    <MessageResponse>
-      <Text color={tokens.warning}>{text}</Text>
-    </MessageResponse>
-  )
+  return notBuilt('src/tools/FileWriteTool/UI.tsx:256')
 }
 
 export function renderToolUseErrorMessage(
   result: ToolResultBlockParam['content'],
-  { verbose }: { verbose: boolean },
+  arg1: { verbose: boolean },
 ): React.ReactNode {
-  if (!verbose && typeof result === 'string' && !isDenialResultText(result)) {
-    return <ShortErrorLine text={toolErrorReason(result, 'Error writing file')} />
-  }
-  return <FallbackToolUseErrorMessage result={result} verbose={verbose} />
+  return notBuilt('src/tools/FileWriteTool/UI.tsx:278')
 }

@@ -1,4 +1,3 @@
-
 import type { UUID } from 'crypto'
 import type { Dirent } from 'fs'
 import { readdir, stat } from 'fs/promises'
@@ -58,6 +57,7 @@ import type { SessionMetaFields } from './sessionMeta.js'
 import { isBuiltInCommandName } from './builtInCommands.js'
 import { errorMessage, getErrnoCode } from '../errors.js'
 import { passedOver } from '../passedOver.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export type SessionReadFailures = {
   count: number
@@ -110,35 +110,7 @@ function createFailureCollector(): FailureCollector {
 export async function loadTranscriptFromFile(
   filePath: string,
 ): Promise<SessionListing> {
-  if (filePath.endsWith('.jsonl')) {
-    const fold = await loadTranscriptFile(filePath)
-    const { messages, summaries, leafUuids } = fold
-
-    if (messages.size === 0) {
-      const head = (await readSessionLite(filePath))?.head ?? ''
-      if (decodeTranscriptBuffer(head).refusal) {
-        throw new Error(TRANSCRIPT_FORMAT_REFUSAL)
-      }
-      throw new Error('No messages found in JSONL file')
-    }
-
-    const leafMessage = findLatestMessage(messages.values(), msg =>
-      leafUuids.has(msg.uuid),
-    )
-    if (!leafMessage) {
-      throw new Error('No valid conversation chain found in JSONL file')
-    }
-
-    const transcript = buildConversationChain(messages, leafMessage)
-    const sessionId = leafMessage.sessionId as UUID
-    return {
-      ...chainLogOption(transcript, transcript.at(-1)!, filePath),
-      summary: summaries.get(leafMessage.uuid),
-      ...resumeFactsOf(fold, sessionId, transcript),
-    }
-  }
-
-  throw new Error(TRANSCRIPT_FORMAT_REFUSAL)
+  return notBuilt('src/utils/sessionStorage/logs.ts:110')
 }
 
 function paintsConversationRow(message: TranscriptMessage): boolean {
@@ -159,83 +131,37 @@ function visibleTurnCount(chain: TranscriptMessage[]): number {
   return chain.filter(paintsConversationRow).length
 }
 
-function chainLogOption(chain: TranscriptMessage[], anchor: TranscriptMessage, fullPath?: string): SessionListing {
-  const first = chain[0]!
-  return {
-    date: anchor.timestamp,
-    messages: removeExtraFields(chain),
-    fullPath,
-    value: 0,
-    created: new Date(first.timestamp),
-    modified: new Date(anchor.timestamp),
-    firstPrompt: extractFirstPrompt(chain),
-    messageCount: visibleTurnCount(chain),
-    isSidechain: first.isSidechain,
-    leafUuid: anchor.uuid,
-    gitBranch: anchor.gitBranch,
-    projectPath: first.cwd,
-  }
-}
-
 function newestPerKey(logs: SessionListing[], keyOf: (log: SessionListing) => string | undefined): SessionListing[] {
-  const newest = new Map<string, SessionListing>()
-  for (const log of logs) {
-    const key = keyOf(log)
-    if (!key) continue
-    const held = newest.get(key)
-    if (!held || log.modified.getTime() > held.modified.getTime()) newest.set(key, log)
-  }
-  return [...newest.values()]
-}
-
-function renumbered(logs: SessionListing[]): SessionListing[] {
-  logs.forEach((log, i) => {
-    log.value = i
-  })
-  return logs
+  return notBuilt('src/utils/sessionStorage/logs.ts:180')
 }
 
 function numbered(logs: SessionListing[]): SessionListing[] {
-  return renumbered(sortSessionListings(logs))
+  return notBuilt('src/utils/sessionStorage/logs.ts:198')
 }
 
 export async function listSessions(limit?: number): Promise<SessionListing[]> {
-  const projectDir = getProjectDir(getOriginalCwd())
-  return sessionFilesLite(projectDir, limit, getOriginalCwd())
+  return notBuilt('src/utils/sessionStorage/logs.ts:202')
 }
 
 export async function saveCustomTitle(
   sessionId: UUID,
   customTitle: string,
   fullPath?: string,
-  source: 'user' | 'auto' = 'user',
-) {
-  customTitle = partiallySanitizeUnicode(customTitle)
-  const resolvedPath = fullPath ?? getTranscriptPathForSession(sessionId)
-  getProject().metadata.write({ type: 'custom-title', customTitle, sessionId }, resolvedPath)
-  invalidateSessionListingMemo()
+  source?: 'user' | 'auto',
+): Promise<Unbuilt> {
+  return notBuilt('src/utils/sessionStorage/logs.ts:207')
 }
 
 export function saveAiGeneratedTitle(sessionId: UUID, aiTitle: string): void {
-  appendEntryToFile(getTranscriptPathForSession(sessionId), {
-    type: 'ai-title',
-    aiTitle: partiallySanitizeUnicode(aiTitle),
-    sessionId,
-  })
+  return notBuilt('src/utils/sessionStorage/logs.ts:219')
 }
 
 export function saveTaskSummary(sessionId: UUID, summary: string): void {
-  appendEntryToFile(getTranscriptPathForSession(sessionId), {
-    type: 'task-summary',
-    summary,
-    sessionId,
-    timestamp: new Date().toISOString(),
-  })
+  return notBuilt('src/utils/sessionStorage/logs.ts:227')
 }
 
-export async function saveTag(sessionId: UUID, tag: string, fullPath?: string) {
-  const resolvedPath = fullPath ?? getTranscriptPathForSession(sessionId)
-  getProject().metadata.write({ type: 'tag', tag, sessionId }, resolvedPath)
+export async function saveTag(sessionId: UUID, tag: string, fullPath?: string): Promise<Unbuilt> {
+  return notBuilt('src/utils/sessionStorage/logs.ts:236')
 }
 
 export async function linkSessionToPR(
@@ -245,8 +171,7 @@ export async function linkSessionToPR(
   prRepository: string,
   fullPath?: string,
 ): Promise<void> {
-  const resolvedPath = fullPath ?? getTranscriptPathForSession(sessionId)
-  getProject().metadata.write({ type: 'pr-link', sessionId, prNumber, prUrl, prRepository, timestamp: new Date().toISOString() }, resolvedPath)
+  return notBuilt('src/utils/sessionStorage/logs.ts:241')
 }
 
 function liveSessionFacts(sessionId: string): SessionMetaFields | undefined {
@@ -254,54 +179,50 @@ function liveSessionFacts(sessionId: string): SessionMetaFields | undefined {
 }
 
 export function getCurrentSessionTag(sessionId: UUID): string | undefined {
-  return liveSessionFacts(sessionId)?.tag
+  return notBuilt('src/utils/sessionStorage/logs.ts:256')
 }
 
 export function getCurrentSessionTitle(
   sessionId: SessionId,
 ): string | undefined {
-  return liveSessionFacts(sessionId)?.customTitle
+  return notBuilt('src/utils/sessionStorage/logs.ts:260')
 }
 
 export function getCurrentSessionAgentColor(): string | undefined {
-  return getProject().metadata.fields.agentColor
+  return notBuilt('src/utils/sessionStorage/logs.ts:266')
 }
 
 export function restoreSessionMetadata(meta: Omit<SessionMetaFields, 'lastPrompt'>): void {
-  getProject().metadata.restore(meta)
+  return notBuilt('src/utils/sessionStorage/logs.ts:270')
 }
 
 export function clearSessionMetadata(): void {
-  getProject().metadata.clear()
+  return notBuilt('src/utils/sessionStorage/logs.ts:274')
 }
 
 export function reAppendSessionMetadata(): void {
-  getProject().metadata.oweBriefs()
-  getProject().reAppendSessionMetadata()
+  return notBuilt('src/utils/sessionStorage/logs.ts:278')
 }
 
 export async function saveAgentName(
   sessionId: UUID,
   agentName: string,
   fullPath?: string,
-  source: 'user' | 'auto' = 'user',
-) {
-  const resolvedPath = fullPath ?? getTranscriptPathForSession(sessionId)
-  getProject().metadata.write({ type: 'agent-name', agentName, sessionId }, resolvedPath)
-  if (sessionId === getSessionId()) void updateSessionName(agentName)
+  source?: 'user' | 'auto',
+): Promise<Unbuilt> {
+  return notBuilt('src/utils/sessionStorage/logs.ts:283')
 }
 
 export async function saveAgentColor(
   sessionId: UUID,
   agentColor: string,
   fullPath?: string,
-) {
-  const resolvedPath = fullPath ?? getTranscriptPathForSession(sessionId)
-  getProject().metadata.write({ type: 'agent-color', agentColor, sessionId }, resolvedPath)
+): Promise<Unbuilt> {
+  return notBuilt('src/utils/sessionStorage/logs.ts:294')
 }
 
 export function saveAgentSetting(agentSetting: string): void {
-  getProject().currentSessionAgentSetting = agentSetting
+  return notBuilt('src/utils/sessionStorage/logs.ts:303')
 }
 
 export function saveSessionBrief(field: 'brief' | 'briefAdd', text: string | null): void {
@@ -335,105 +256,37 @@ export function saveSessionModel(model: string): void {
 export function saveWorktreeState(
   worktreeSession: PersistedWorktreeSession | null,
 ): void {
-  const stripped: PersistedWorktreeSession | null = worktreeSession
-    ? {
-        originalCwd: worktreeSession.originalCwd,
-        worktreePath: worktreeSession.worktreePath,
-        worktreeName: worktreeSession.worktreeName,
-        worktreeBranch: worktreeSession.worktreeBranch,
-        originalBranch: worktreeSession.originalBranch,
-        originalHeadCommit: worktreeSession.originalHeadCommit,
-        sessionId: worktreeSession.sessionId,
-        tmuxSessionName: worktreeSession.tmuxSessionName,
-      }
-    : null
-  getProject().metadata.saveCached('worktree-state', stripped)
+  return notBuilt('src/utils/sessionStorage/logs.ts:335')
 }
 
 export function sessionIdOfListing(log: SessionListing): UUID | undefined {
-  if (log.sessionId) {
-    return log.sessionId as UUID
-  }
-  return log.messages[0]?.sessionId as UUID | undefined
+  return notBuilt('src/utils/sessionStorage/logs.ts:353')
 }
 
 export function isLiteListing(log: SessionListing): boolean {
-  return log.messages.length === 0 && log.sessionId !== undefined
+  return notBuilt('src/utils/sessionStorage/logs.ts:360')
 }
 
 export async function fillSessionListing(log: SessionListing): Promise<SessionListing> {
-  if (!isLiteListing(log)) {
-    return log
-  }
-  const sessionFile = log.fullPath
-  if (!sessionFile) {
-    return log
-  }
-
-  try {
-    const fold = await loadTranscriptFile(sessionFile)
-    const { messages, summaries, leafUuids } = fold
-
-    if (messages.size === 0) {
-      return log
-    }
-
-    const mostRecentLeaf = findLatestMessage(
-      messages.values(),
-      msg =>
-        leafUuids.has(msg.uuid) &&
-        (msg.type === 'user' || msg.type === 'assistant'),
-    )
-    if (!mostRecentLeaf) {
-      return log
-    }
-
-    const transcript = buildConversationChain(messages, mostRecentLeaf)
-    const sessionId = (mostRecentLeaf.sessionId ?? log.sessionId) as UUID
-    return {
-      ...log,
-      messages: removeExtraFields(transcript),
-      firstPrompt: extractFirstPrompt(transcript),
-      messageCount: visibleTurnCount(transcript),
-      summary: mostRecentLeaf
-        ? summaries.get(mostRecentLeaf.uuid)
-        : log.summary,
-      gitBranch: mostRecentLeaf?.gitBranch ?? log.gitBranch,
-      isSidechain: transcript[0]?.isSidechain ?? log.isSidechain,
-      leafUuid: mostRecentLeaf?.uuid ?? log.leafUuid,
-      ...resumeFactsOf(fold, sessionId, transcript),
-    }
-  } catch {
-    return log
-  }
+  return notBuilt('src/utils/sessionStorage/logs.ts:364')
 }
 
 export async function searchSessionsByCustomTitle(
   query: string,
   options?: { limit?: number; exact?: boolean },
 ): Promise<SessionListing[]> {
-  const { limit, exact } = options || {}
-  const allStatLogs = await getStatOnlyLogsForWorktrees(await getWorktreePaths(getOriginalCwd()))
-  const { logs } = await enrichSessionListings(allStatLogs, 0, allStatLogs.length)
-  const wanted = query.toLowerCase().trim()
-  const titled = logs.filter(log => {
-    const title = log.customTitle?.toLowerCase().trim()
-    return Boolean(title) && (exact ? title === wanted : title!.includes(wanted))
-  })
-  const newest = newestPerKey(titled, sessionIdOfListing).sort((a, b) => b.modified.getTime() - a.modified.getTime())
-  return limit ? newest.slice(0, limit) : newest
+  return notBuilt('src/utils/sessionStorage/logs.ts:411')
 }
 
 export function clearSessionMessagesCache(): void {
-  getSessionMessages.cache.clear?.()
+  return notBuilt('src/utils/sessionStorage/logs.ts:427')
 }
 
 export async function doesMessageExistInSession(
   sessionId: UUID,
   messageUuid: UUID,
 ): Promise<boolean> {
-  const messageSet = await getSessionMessages(sessionId)
-  return messageSet.has(messageUuid)
+  return notBuilt('src/utils/sessionStorage/logs.ts:431')
 }
 
 export type ResumeFacts = Pick<
@@ -467,78 +320,32 @@ export function resumeFactsOf(
   sessionId: UUID,
   chain: TranscriptMessage[],
 ): ResumeFacts {
-  return {
-    fileHistorySnapshots: buildFileHistorySnapshotChain(fold.fileHistorySnapshots, chain),
-    attributionSnapshots: buildAttributionSnapshotChain(fold.attributionSnapshots, chain),
-    contentReplacements: fold.contentReplacements.get(sessionId) ?? [],
-    contextCollapseCommits: fold.contextCollapseCommits.filter(e => e.sessionId === sessionId),
-    contextCollapseSnapshot:
-      fold.contextCollapseSnapshot?.sessionId === sessionId ? fold.contextCollapseSnapshot : undefined,
-    agentName: fold.agentNames.get(sessionId),
-    agentColor: fold.agentColors.get(sessionId),
-    agentSetting: fold.agentSettings.get(sessionId),
-    brief: fold.sessionBriefs.get(sessionId),
-    briefAdd: fold.sessionBriefAdds.get(sessionId),
-    customTitle: fold.customTitles.get(sessionId),
-    tag: fold.tags.get(sessionId),
-    mode: fold.modes.get(sessionId) as SessionListing['mode'],
-    advisor: fold.advisorSwitches.get(sessionId),
-    swarm: fold.swarmSwitches.get(sessionId),
-    model: fold.sessionModels.get(sessionId),
-    worktreeSession: fold.worktreeStates.has(sessionId) ? fold.worktreeStates.get(sessionId) : undefined,
-    prNumber: fold.prNumbers.get(sessionId),
-    prUrl: fold.prUrls.get(sessionId),
-    prRepository: fold.prRepositories.get(sessionId),
-    turnEnd: fold.turnEnds.get(sessionId),
-    ...(fold.turnsOpen.has(sessionId) ? { turnOpen: true } : {}),
-  }
+  return notBuilt('src/utils/sessionStorage/logs.ts:465')
 }
 
 export async function lastSession(
   sessionId: UUID,
 ): Promise<SessionListing | null> {
-  const fold = await loadSessionFile(sessionId)
-  const { messages, summaries } = fold
-  if (messages.size === 0) return null
-  const leaf = resumeLeafOf(messages)
-  if (!leaf) return null
-  const chain = buildConversationChain(messages, leaf)
-  return {
-    ...chainLogOption(chain, chain.at(-1)!, getTranscriptPathForSession(sessionId)),
-    summary: summaries.get(leaf.uuid),
-    ...resumeFactsOf(fold, sessionId, chain),
-  }
+  return notBuilt('src/utils/sessionStorage/logs.ts:497')
 }
 
 export function resumeLeafOf(messages: Map<UUID, TranscriptMessage>): TranscriptMessage | undefined {
-  const parents = new Set<UUID>()
-  for (const row of messages.values()) if (!row.isSidechain && row.parentUuid) parents.add(row.parentUuid)
-  return findLatestMessage(messages.values(), m => !m.isSidechain && !parents.has(m.uuid)) ?? findLatestMessage(messages.values(), m => !m.isSidechain)
+  return notBuilt('src/utils/sessionStorage/logs.ts:513')
 }
 
 export async function listProjectSessions(limit?: number): Promise<SessionListing[]> {
-  const rows = await listSessions(limit)
-  return numbered((await enrichSessionListings(rows, 0, rows.length)).logs)
+  return notBuilt('src/utils/sessionStorage/logs.ts:519')
 }
 
 export async function listSessionsAcrossProjects(
   limit?: number,
   options?: { skipIndex?: boolean; initialEnrichCount?: number },
 ): Promise<SessionListing[]> {
-  if (options?.skipIndex) return loadAllProjectsMessageLogsFull(limit)
-  const page = await listSessionsAcrossProjectsProgressive(limit, options?.initialEnrichCount ?? INITIAL_ENRICH_COUNT)
-  return page.logs
+  return notBuilt('src/utils/sessionStorage/logs.ts:524')
 }
 
 async function projectDirectories(projectsDir: string, failed?: (error: unknown) => void): Promise<string[] | null> {
-  try {
-    const dirents = await readdir(projectsDir, { withFileTypes: true })
-    return dirents.filter(dirent => dirent.isDirectory()).map(dirent => join(projectsDir, dirent.name))
-  } catch (error) {
-    passedOver(error)
-    failed?.(error)
-    return null
-  }
+  return notBuilt('src/utils/sessionStorage/logs.ts:533')
 }
 
 async function progressivePage(
@@ -546,20 +353,7 @@ async function progressivePage(
   initialEnrichCount: number,
   priorFailures?: SessionReadFailures,
 ): Promise<SessionPage> {
-  const { logs, nextIndex, readFailures: enrichFailures } = await enrichSessionListings(allStatLogs, 0, initialEnrichCount)
-  const readFailures = mergeSessionReadFailures(priorFailures, enrichFailures)
-  return { logs: renumbered(logs), allStatLogs, nextIndex, ...(readFailures ? { readFailures } : {}) }
-}
-
-async function loadAllProjectsMessageLogsFull(
-  limit?: number,
-): Promise<SessionListing[]> {
-  const projectDirs = await projectDirectories(getProjectsDir())
-  if (!projectDirs) return []
-  const logsPerProject = await mapWithConcurrency(projectDirs, discoveryPoolWidth(), projectDir =>
-    getLogsWithoutIndex(projectDir, limit),
-  )
-  return numbered(newestPerKey(logsPerProject.flat(), log => `${log.sessionId ?? ''}:${log.leafUuid ?? ''}`))
+  return notBuilt('src/utils/sessionStorage/logs.ts:544')
 }
 
 const LISTING_MEMO_TTL_MS = 5_000
@@ -808,23 +602,7 @@ export async function sessionAtIndex(index: number): Promise<SessionListing | nu
 export async function findUnresolvedToolUse(
   toolUseId: string,
 ): Promise<AssistantMessage | null> {
-  const callsIt = (message: TranscriptMessage): boolean =>
-    message.type === 'assistant' &&
-    Array.isArray(message.message.content) &&
-    message.message.content.some(block => block.type === 'tool_use' && block.id === toolUseId)
-  const answersIt = (message: TranscriptMessage): boolean =>
-    message.type === 'user' &&
-    Array.isArray(message.message.content) &&
-    message.message.content.some(block => block.type === 'tool_result' && block.tool_use_id === toolUseId)
-  try {
-    const { messages } = await loadTranscriptFile(getTranscriptPath())
-    const rows = [...messages.values()]
-    if (rows.some(answersIt)) return null
-    return (rows.findLast(callsIt) as AssistantMessage | undefined) ?? null
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
+  return notBuilt('src/utils/sessionStorage/logs.ts:808')
 }
 
 function statSessionFiles(
@@ -863,120 +641,20 @@ export async function transcriptCensus(): Promise<{
   bytes: number
   oldestMtimeMs: number | null
 }> {
-  const projectDirs = await projectDirectories(getProjectsDir())
-  if (!projectDirs) return { count: 0, bytes: 0, oldestMtimeMs: null }
-  const perProject = await mapWithConcurrency(projectDirs, discoveryPoolWidth(), projectDir =>
-    sessionFilesWithMtime(projectDir),
-  )
-  let count = 0
-  let bytes = 0
-  let oldestMtimeMs: number | null = null
-  for (const files of perProject) {
-    for (const info of files.values()) {
-      count++
-      bytes += info.size
-      if (oldestMtimeMs === null || info.mtime < oldestMtimeMs) {
-        oldestMtimeMs = info.mtime
-      }
-    }
-  }
-  return { count, bytes, oldestMtimeMs }
+  return notBuilt('src/utils/sessionStorage/logs.ts:861')
 }
 
-const INITIAL_ENRICH_COUNT = 50
-
-type LiteMetadata = {
-  firstPrompt: string
-  gitBranch?: string
-  isSidechain: boolean
-  projectPath?: string
-  customTitle?: string
-  summary?: string
-  tag?: string
-  agentSetting?: string
-  prNumber?: number
-  prUrl?: string
-  prRepository?: string
-  lastTimestamp?: string
-  endedOnError?: boolean
-}
-
-const byTimestamp = (a: TranscriptMessage, b: TranscriptMessage): number =>
-  a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0
+const INITIAL_ENRICH_COUNT: Unbuilt = unbuilt('src/utils/sessionStorage/logs.ts:886')
 
 export async function listingsOfSessionFile(
   sessionFile: string,
   projectPathOverride?: string,
 ): Promise<SessionListing[]> {
-  const fold = await loadTranscriptFile(sessionFile, { keepAllLeaves: true })
-  const { messages, summaries, leafUuids } = fold
-  if (messages.size === 0) return []
-  const rows = transcriptRows(messages)
-  const logs: SessionListing[] = []
-  for (const leaf of messages.values()) {
-    if (!leafUuids.has(leaf.uuid)) continue
-    const chain = buildConversationChain(messages, leaf)
-    if (chain.length === 0) continue
-    chain.push(...rows.childrenOf(leaf.uuid).filter(row => !leafUuids.has(row.uuid)).sort(byTimestamp))
-    const first = chain[0]!
-    const sessionId = leaf.sessionId as UUID
-    logs.push({
-      ...chainLogOption(chain, leaf, sessionFile),
-      isSidechain: first.isSidechain ?? false,
-      sessionId,
-      summary: summaries.get(leaf.uuid),
-      projectPath: projectPathOverride ?? first.cwd,
-      ...resumeFactsOf(fold, sessionId, chain),
-    })
-  }
-  return logs
-}
-
-async function getLogsWithoutIndex(
-  projectDir: string,
-  limit?: number,
-): Promise<SessionListing[]> {
-  const logs: SessionListing[] = []
-  for (const file of await newestSessionFiles(projectDir, limit)) {
-    try {
-      logs.push(...(await listingsOfSessionFile(file.path)))
-    } catch {
-      logForDebugging(`Failed to load session file: ${file.path}`)
-    }
-  }
-  return logs
-}
-
-async function readLiteMetadata(
-  filePath: string,
-  fileSize: number,
-  buf: Buffer,
-  onReadError?: (path: string, error: unknown) => void,
-): Promise<LiteMetadata> {
-  const facts = await readSessionLabelFacts(filePath, fileSize, buf, isBuiltInCommandName, onReadError)
-  const goal = missionGoalBeside(filePath)
-  return goal === null ? facts : { ...facts, firstPrompt: promptLabel(goal) }
+  return notBuilt('src/utils/sessionStorage/logs.ts:907')
 }
 
 export function extractFirstPromptFromChunk(chunk: string): string {
-  return sessionPromptFromWindow(chunk, isBuiltInCommandName)
-}
-
-function liteLogOption(file: IndexedSession, projectPath?: string): SessionListing {
-  return {
-    date: new Date(file.mtime).toISOString(),
-    messages: [],
-    isLite: true,
-    fullPath: file.path,
-    value: 0,
-    created: new Date(file.ctime),
-    modified: new Date(file.mtime),
-    firstPrompt: '',
-    fileSize: file.size,
-    isSidechain: false,
-    sessionId: file.sessionId,
-    projectPath,
-  }
+  return notBuilt('src/utils/sessionStorage/logs.ts:961')
 }
 
 export async function sessionFilesLite(
@@ -985,8 +663,7 @@ export async function sessionFilesLite(
   projectPath?: string,
   onReadError?: (path: string, error: unknown) => void,
 ): Promise<SessionListing[]> {
-  const files = await newestSessionFiles(projectDir, limit, onReadError)
-  return numbered(files.map(file => liteLogOption(file, projectPath)))
+  return notBuilt('src/utils/sessionStorage/logs.ts:982')
 }
 
 async function enrichLog(
@@ -994,36 +671,7 @@ async function enrichLog(
   readBuf: Buffer,
   onReadError?: (path: string, error: unknown) => void,
 ): Promise<SessionListing | null> {
-  if (!log.isLite || !log.fullPath) return log
-  let failed = false
-  const meta = await readLiteMetadata(log.fullPath, log.fileSize ?? 0, readBuf, (path, error) => {
-    failed = true
-    onReadError?.(path, error)
-  })
-  if (failed) return null
-  const enriched: SessionListing = {
-    ...log,
-    isLite: false,
-    date: meta.lastTimestamp ?? log.date,
-    firstPrompt: meta.firstPrompt || (meta.customTitle ? '' : '(session)'),
-    gitBranch: meta.gitBranch,
-    isSidechain: meta.isSidechain,
-    customTitle: meta.customTitle,
-    summary: meta.summary,
-    tag: meta.tag,
-    agentSetting: meta.agentSetting,
-    prNumber: meta.prNumber,
-    prUrl: meta.prUrl,
-    prRepository: meta.prRepository,
-    endedOnError: meta.endedOnError,
-    projectPath: meta.projectPath ?? log.projectPath,
-  }
-  const hidden = enriched.isSidechain ? 'isSidechain=true' : undefined
-  if (hidden) {
-    logForDebugging(`Session ${log.sessionId} filtered from /sessions: ${hidden}`)
-    return null
-  }
-  return enriched
+  return notBuilt('src/utils/sessionStorage/logs.ts:992')
 }
 
 export async function enrichSessionListings(

@@ -6,45 +6,16 @@ import { generateSettingsJSONSchema } from './schemaOutput.js'
 import type { SettingsJson } from './types.js'
 import { SettingsSchema } from './types.js'
 import { getValidationTip } from './validationTips.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 type FieldPath = string
 
-export type ValidationError = {
-  file?: string
-  path: FieldPath
-  message: string
-  expected?: string
-  invalidValue?: unknown
-  suggestion?: string
-  docLink?: string
-  severity?: 'error' | 'warning' | 'held'
-  kept?: true
-  unknownKeys?: string[]
-  mcpErrorMetadata?: {
-    scope: ConfigScope
-    serverName?: string
-    severity?: 'fatal' | 'warning'
-  }
-}
+export type ValidationError = Unbuilt
 
-export type SettingsWithErrors = {
-  settings: SettingsJson
-  errors: ValidationError[]
-}
+export type SettingsWithErrors = Unbuilt
 
-type IssueLike = {
-  code: string
-  path: Array<PropertyKey>
-  message: string
-  expected?: string
-  values?: unknown[]
-  keys?: string[]
-  minimum?: number | bigint
-  maximum?: number | bigint
-  received?: unknown
-  errors?: IssueLike[][]
-}
+type IssueLike = Unbuilt
 
 function unionAlternatives(issue: IssueLike): { values: unknown[]; shapes: string[] } | null {
   if (issue.code !== 'invalid_union' || !Array.isArray(issue.errors)) return null
@@ -59,111 +30,8 @@ function unionAlternatives(issue: IssueLike): { values: unknown[]; shapes: strin
   return values.length === 0 && shapes.length === 0 ? null : { values, shapes }
 }
 
-function receivedTypeName(issue: IssueLike): string {
-  const fromMessage = issue.message.match(/received (\w+)/)
-  if (fromMessage) return fromMessage[1] as string
-  const value = issue.received
-  if (value === null) return 'null'
-  if (value === undefined) return 'undefined'
-  if (Array.isArray(value)) return 'array'
-  return typeof value
-}
-
 export function formatZodError(error: Pick<z.ZodError, 'issues'>, filePath: string): ValidationError[] {
-  const records: ValidationError[] = []
-  for (const rawIssue of error.issues) {
-    const issue: IssueLike = rawIssue
-    const path = issue.path.join('.')
-
-    const tipContext = {
-      path,
-      code: issue.code,
-      ...(issue.code === 'invalid_value' && issue.values
-        ? { enumValues: issue.values.map(String), expected: issue.values.map(String).join('|') }
-        : {}),
-      ...(issue.code === 'invalid_type'
-        ? { expected: issue.expected, received: receivedTypeName(issue) }
-        : {}),
-      ...(issue.code === 'too_small' ? { expected: String(issue.minimum ?? '') } : {}),
-      ...(issue.code === 'custom' && issue.received !== undefined
-        ? { received: issue.received, value: issue.received }
-        : {}),
-      message: issue.message,
-    }
-    const tip = getValidationTip(tipContext)
-
-    let message: string
-    let expected: string | undefined
-    let invalidValue: unknown
-    let unknownKeys: string[] | undefined
-
-    switch (issue.code) {
-      case 'invalid_value': {
-        const quoted = (issue.values ?? []).map(value => `"${String(value)}"`).join(', ')
-        message = `Invalid value; accepted values are: ${quoted}`
-        expected = quoted
-        break
-      }
-      case 'invalid_type': {
-        const received = receivedTypeName(issue)
-        if (issue.expected === 'object' && path === '' && received === 'null') {
-          message = 'The settings file contains malformed JSON (or is empty)'
-        } else {
-          message = `Expected ${issue.expected ?? 'a different type'}, received ${received}`
-        }
-        invalidValue = received
-        break
-      }
-      case 'unrecognized_keys': {
-        const keys = issue.keys ?? []
-        message = `Unrecognized ${keys.length === 1 ? 'field' : 'fields'}: ${keys.join(', ')}`
-        unknownKeys = [...keys]
-        break
-      }
-      case 'too_small': {
-        message = `Value must be at least ${issue.minimum ?? 0}`
-        expected = String(issue.minimum ?? 0)
-        break
-      }
-      case 'too_big': {
-        message = path.startsWith('swarm.') ? `Value must be at most ${issue.maximum ?? 0}` : issue.message
-        if (path.startsWith('swarm.')) expected = String(issue.maximum ?? 0)
-        break
-      }
-      case 'custom': {
-        message = issue.message
-        if (issue.received !== undefined) invalidValue = issue.received
-        break
-      }
-      case 'invalid_union': {
-        const alternatives = unionAlternatives(issue)
-        if (alternatives === null) {
-          message = issue.message
-          break
-        }
-        const quoted = alternatives.values.map(value => `"${String(value)}"`).join(', ')
-        const shapes = alternatives.shapes.map(shape => `an ${shape}`).join(' or ')
-        message = quoted !== '' ? `Invalid value; accepted values are: ${quoted}${shapes !== '' ? `, or ${shapes}` : ''}` : `Invalid value; expected ${shapes}`
-        expected = [quoted, shapes].filter(Boolean).join(' | ')
-        break
-      }
-      default: {
-        message = issue.message
-      }
-    }
-
-    records.push({
-      file: filePath,
-      path,
-      message,
-      ...(expected !== undefined ? { expected } : {}),
-      ...(invalidValue !== undefined ? { invalidValue } : {}),
-      ...(unknownKeys !== undefined ? { unknownKeys } : {}),
-      ...(tip?.suggestion !== undefined ? { suggestion: tip.suggestion } : {}),
-      ...(tip?.docLink !== undefined ? { docLink: tip.docLink } : {}),
-    })
-  }
-  return records
+  return notBuilt('src/utils/settings/validation.ts:72')
 }
 
 export function settingsFaultLine(error: ValidationError): string {
@@ -206,66 +74,9 @@ export function unknownKeyWarnings(data: unknown, filePath: string): ValidationE
 export function validateSettingsFileContent(
   content: string,
 ): { isValid: true } | { isValid: false; error: string; fullSchema: string } {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(content)
-  } catch (parseError) {
-    return {
-      isValid: false,
-      error: `The settings file is not valid JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
-      fullSchema: generateSettingsJSONSchema(),
-    }
-  }
-  const result = editTimeSettingsSchema().safeParse(parsed)
-  if (result.success) return { isValid: true }
-  const lines = formatZodError(result.error, '').map(record => `  - ${record.path || '(root)'}: ${record.message}`)
-  return {
-    isValid: false,
-    error: `Settings validation failed:\n${lines.join('\n')}`,
-    fullSchema: generateSettingsJSONSchema(),
-  }
+  return notBuilt('src/utils/settings/validation.ts:206')
 }
 
 export function filterInvalidPermissionRules(data: unknown, filePath: string): ValidationError[] {
-  const warnings: ValidationError[] = []
-  if (typeof data !== 'object' || data === null) return warnings
-  const guardrails = (data as { guardrails?: unknown }).guardrails
-  if (typeof guardrails !== 'object' || guardrails === null) return warnings
-  for (const key of ['allow', 'deny', 'ask'] as const) {
-    const rules = (guardrails as Record<string, unknown>)[key]
-    if (!Array.isArray(rules)) continue
-    const kept: unknown[] = []
-    for (const rule of rules) {
-      if (typeof rule !== 'string') {
-        warnings.push({
-          file: filePath,
-          path: `guardrails.${key}`,
-          message: `Removed a non-string value from guardrails.${key}`,
-          invalidValue: rule,
-          severity: 'warning',
-        })
-        continue
-      }
-      const result = validatePermissionRule(rule)
-      if (!result.valid) {
-        const stays = key !== 'allow' && result.advisory === true
-        let message = stays ? `Permission rule "${rule}"` : `Skipped invalid permission rule "${rule}"`
-        if (result.error) message += `: ${result.error}`
-        if (stays && result.readAs !== undefined) message += `: read as ${result.readAs}`
-        else if (result.suggestion) message += `. ${result.suggestion}`
-        warnings.push({
-          file: filePath,
-          path: `guardrails.${key}`,
-          message,
-          invalidValue: rule,
-          severity: stays || key === 'allow' ? 'warning' : 'error',
-          ...(stays ? { kept: true as const } : {}),
-        })
-        if (!stays) continue
-      }
-      kept.push(rule)
-    }
-    ;(guardrails as Record<string, unknown>)[key] = kept
-  }
-  return warnings
+  return notBuilt('src/utils/settings/validation.ts:229')
 }

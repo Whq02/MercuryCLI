@@ -8,15 +8,10 @@ import { stripDisplayTags, stripDisplayTagsAllowEmpty } from './displayTags.js'
 import { toError } from './errors.js'
 import { isEssentialTrafficOnly } from './privacyLevel.js'
 import { passedOver } from './passedOver.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
-type ErrorLogSink = {
-  logError: (error: Error) => void
-  logMCPError: (serverName: string, error: unknown) => void
-  logMCPDebug: (serverName: string, message: string) => void
-  getErrorsPath: () => string
-  getMCPLogsPath: (serverName: string) => string
-}
+type ErrorLogSink = Unbuilt
 
 type QueuedEvent =
   | { kind: 'error'; error: Error }
@@ -25,29 +20,16 @@ type QueuedEvent =
 
 const IN_MEMORY_ERROR_CAP = 100
 
-let sink: ErrorLogSink | null = null
-const queue: QueuedEvent[] = []
-const inMemoryErrors: { error: string; timestamp: string }[] = []
+let sink: ErrorLogSink | null = unbuilt('src/utils/log.ts:28')
+const queue: QueuedEvent[] = unbuilt('src/utils/log.ts:29')
+const inMemoryErrors: { error: string; timestamp: string }[] = unbuilt('src/utils/log.ts:30')
 
 export function attachErrorLogSink(newSink: ErrorLogSink): void {
-  if (sink) return
-  sink = newSink
-  const pending = queue.splice(0, queue.length)
-  for (const event of pending) dispatch(newSink, event)
+  return notBuilt('src/utils/log.ts:32')
 }
 
 function dispatch(target: ErrorLogSink, event: QueuedEvent): void {
-  switch (event.kind) {
-    case 'error':
-      target.logError(event.error)
-      return
-    case 'mcpError':
-      target.logMCPError(event.serverName, event.error)
-      return
-    case 'mcpDebug':
-      target.logMCPDebug(event.serverName, event.message)
-      return
-  }
+  return notBuilt('src/utils/log.ts:39')
 }
 
 function queueOrDispatch(event: QueuedEvent): void {
@@ -102,23 +84,12 @@ function isAutonomousPrompt(firstPrompt: string | undefined): boolean {
 }
 
 export function getLogDisplayTitle(log: SessionListing, defaultTitle?: string): string {
-  const autonomous = isAutonomousPrompt(log.firstPrompt)
-  const strippedPrompt = log.firstPrompt ? stripDisplayTagsAllowEmpty(log.firstPrompt) : ''
-  let title: string
-  if (log.agentName) title = log.agentName
-  else if (log.customTitle) title = log.customTitle
-  else if (log.summary) title = log.summary
-  else if (strippedPrompt.trim() !== '' && !autonomous) title = strippedPrompt
-  else if (defaultTitle) title = defaultTitle
-  else if (autonomous) title = 'Autonomous session'
-  else if (log.sessionId) title = log.sessionId.slice(0, 8)
-  else title = ''
-  return stripDisplayTags(title).trim()
+  return notBuilt('src/utils/log.ts:104')
 }
 
 
 export function dateToFilename(date: Date): string {
-  return date.toISOString().replace(/[:.]/g, '-')
+  return notBuilt('src/utils/log.ts:120')
 }
 
 

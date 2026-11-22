@@ -1,6 +1,7 @@
 import { registerBundledSkill } from '../bundledSkills.js'
 import { gunzipSync } from 'node:zlib'
 import { bundledDocPages } from './mercuryDocsPages.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export const MERCURY_DOCS_SKILL_NAME = 'mercury-docs'
 export const MERCURY_DOCS_SITE = 'https://mercury-cli.ai/'
@@ -88,13 +89,5 @@ export function mercuryDocsPrompt(question: string): string {
 }
 
 export function registerMercuryDocsSkill(): void {
-  registerBundledSkill({
-    name: MERCURY_DOCS_SKILL_NAME,
-    description:
-      'Use when the user asks how to use Mercury itself (commands, scheduling, providers, hosting, headless runs, voice, restart): answered from the documentation that ships with this install, never from memory, even when a skill that does the thing exists.',
-    argumentHint: '<question about using Mercury>',
-    allowedTools: ['Read', 'Grep', 'Glob'],
-    files: mercuryDocPages,
-    getPromptForCommand: async args => [{ type: 'text', text: mercuryDocsPrompt(args) }],
-  })
+  return notBuilt('src/skills/bundled/mercuryDocs.ts:90')
 }

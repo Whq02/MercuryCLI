@@ -1,4 +1,3 @@
-
 import {
   EFFORT_HIGH,
   EFFORT_LOW,
@@ -13,6 +12,7 @@ import {
   type EffortLevel,
   type EffortValue,
 } from '../utils/effort.js'
+import { notBuilt } from '../pi/holes.js'
 
 const SYMBOLS: Record<EffortLevel, string> = {
   low: EFFORT_LOW,
@@ -23,15 +23,12 @@ const SYMBOLS: Record<EffortLevel, string> = {
 }
 
 export function effortLevelToSymbol(level: EffortLevel): string {
-  return SYMBOLS[level] ?? EFFORT_HIGH
+  return notBuilt('src/components/EffortIndicator.ts:25')
 }
 
 export function getEffortNotificationText(
   effortValue: EffortValue | undefined,
   model: string,
 ): string | undefined {
-  if (!modelSupportsEffort(model)) return undefined
-  const label = getDisplayedEffortLabel(model, effortValue)
-  const symbol = SYMBOLS[getDisplayedEffortLevel(model, effortValue)] ?? EFFORT_HIGH
-  return `${symbol} effort: ${label} · /effort to change`
+  return notBuilt('src/components/EffortIndicator.ts:29')
 }

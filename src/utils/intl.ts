@@ -1,31 +1,15 @@
-
-let graphemeSegmenter: Intl.Segmenter | null = null
-let wordSegmenter: Intl.Segmenter | null = null
-const relativeTimeFormats = new Map<string, Intl.RelativeTimeFormat>()
-let timeZone: string | null = null
+import { notBuilt } from '../pi/holes.js'
 
 export function getGraphemeSegmenter(): Intl.Segmenter {
-  if (!graphemeSegmenter) graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
-  return graphemeSegmenter
+  return notBuilt('src/utils/intl.ts:7')
 }
 
 export function getWordSegmenter(): Intl.Segmenter {
-  if (!wordSegmenter) wordSegmenter = new Intl.Segmenter(undefined, { granularity: 'word' })
-  return wordSegmenter
+  return notBuilt('src/utils/intl.ts:12')
 }
 
 export function wordStartBefore(text: string, at: number): number {
-  if (at <= 0) return 0
-  let candidate = 0
-  for (const seg of getWordSegmenter().segment(text)) {
-    if (!seg.isWordLike) continue
-    const start = seg.index
-    const end = seg.index + seg.segment.length
-    if (at > start && at <= end) return start
-    if (start < at) candidate = start
-    else break
-  }
-  return candidate
+  return notBuilt('src/utils/intl.ts:17')
 }
 
 export function wordStartAfter(text: string, at: number): number {
@@ -67,32 +51,20 @@ export function sliceTailAtGrapheme(text: string, maxUnits: number): string {
 }
 
 export function firstGrapheme(text: string): string {
-  if (text === '') return ''
-  for (const segment of getGraphemeSegmenter().segment(text)) return segment.segment
-  return ''
+  return notBuilt('src/utils/intl.ts:69')
 }
 
 export function lastGrapheme(text: string): string {
-  if (text === '') return ''
-  let last = ''
-  for (const segment of getGraphemeSegmenter().segment(text)) last = segment.segment
-  return last
+  return notBuilt('src/utils/intl.ts:75')
 }
 
 export function getRelativeTimeFormat(
   style: 'long' | 'short' | 'narrow',
   numeric: 'always' | 'auto',
 ): Intl.RelativeTimeFormat {
-  const key = `${style}:${numeric}`
-  let format = relativeTimeFormats.get(key)
-  if (!format) {
-    format = new Intl.RelativeTimeFormat('en', { style, numeric })
-    relativeTimeFormats.set(key, format)
-  }
-  return format
+  return notBuilt('src/utils/intl.ts:82')
 }
 
 export function getTimeZone(): string {
-  if (timeZone === null) timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-  return timeZone
+  return notBuilt('src/utils/intl.ts:95')
 }

@@ -1,25 +1,17 @@
-import { getFsImplementation } from '../../utils/fsOperations.js'
-import { isFsInaccessible } from '../../utils/errors.js'
-import { getSessionMemoryPath } from '../../utils/permissions/filesystem.js'
-
-let lastSummarizedMessageId: string | undefined = undefined
+import { notBuilt } from '../../pi/holes.js'
 
 export function getLastSummarizedMessageId(): string | undefined {
-  return lastSummarizedMessageId
+  return notBuilt('src/services/SessionMemory/sessionMemoryUtils.ts:7')
 }
 
 export function setLastSummarizedMessageId(id: string | undefined): void {
-  lastSummarizedMessageId = id
+  return notBuilt('src/services/SessionMemory/sessionMemoryUtils.ts:11')
 }
 
-export async function waitForSessionMemoryExtraction(): Promise<void> {}
+export async function waitForSessionMemoryExtraction(): Promise<void> {
+  return notBuilt('src/services/SessionMemory/sessionMemoryUtils.ts:15')
+}
 
 export async function getSessionMemoryContent(): Promise<string | null> {
-  const fs = getFsImplementation()
-  try {
-    return fs.readFileSync(getSessionMemoryPath(), { encoding: 'utf-8' })
-  } catch (error) {
-    if (isFsInaccessible(error)) return null
-    throw error
-  }
+  return notBuilt('src/services/SessionMemory/sessionMemoryUtils.ts:17')
 }

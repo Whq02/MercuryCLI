@@ -1,6 +1,7 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { passedOver } from './passedOver.js'
 import { hostEnv } from './hostEnv.js'
+import { notBuilt } from '../pi/holes.js'
 
 
 type PrivacyLevel = 'default' | 'essential-traffic'
@@ -27,12 +28,11 @@ export function isLoopbackUrl(url: string): boolean {
 }
 
 export function getPrivacyLevel(): PrivacyLevel {
-  if (flagEnv(NONESSENTIAL_TRAFFIC_VAR)) return 'essential-traffic'
-  return 'default'
+  return notBuilt('src/utils/privacyLevel.ts:29')
 }
 
 export function isEssentialTrafficOnly(): boolean {
-  return getPrivacyLevel() === 'essential-traffic'
+  return notBuilt('src/utils/privacyLevel.ts:34')
 }
 
 export function getEssentialTrafficOnlyReason(env: NodeJS.ProcessEnv = hostEnv()): string | null {

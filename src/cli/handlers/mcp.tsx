@@ -40,6 +40,7 @@ import { errorMessage } from '../../utils/errors.js'
 import { gracefulShutdown } from '../../utils/gracefulShutdown.js'
 import { safeParseJSONC } from '../../utils/json.js'
 import { withDeadline } from '../../utils/deadline.js'
+import { notBuilt } from '../../pi/holes.js'
 
 type ProbeOutcome =
   | 'connected'
@@ -110,26 +111,7 @@ function scopeConfigFileLabel(scope: CliScope): string {
 export async function mcpServeHandler(options: {
   debug?: boolean
 }): Promise<void> {
-  const cwd = process.cwd()
-  try {
-    await stat(cwd)
-  } catch (error) {
-    const code = (error as { code?: string }).code
-    if (code === 'ENOENT' || code === 'EACCES' || code === 'EPERM') {
-      return cliError(`The working directory is not accessible: ${cwd}`)
-    }
-    throw error
-  }
-  try {
-    const { setup } = await import('../../setup.js')
-    await setup(cwd, 'default', false, false, undefined, false)
-    const { startMCPServer } = await import('../../entrypoints/mcp.js')
-    await startMCPServer(cwd, options.debug ?? false)
-  } catch (error) {
-    return cliError(
-      `Failed to start the MCP server: ${error instanceof Error ? error.message : String(error)}`,
-    )
-  }
+  return notBuilt('src/cli/handlers/mcp.tsx:110')
 }
 
 
@@ -144,170 +126,17 @@ export async function mcpRemoveHandler(
   name: string,
   options: { scope?: string },
 ): Promise<void> {
-  try {
-    const existing = getMcpConfigByName(name)
-    const cleanSecureStorage = (config: McpServerConfig | null): Promise<void> | null => {
-      if (!config) return null
-      if (config.type === 'sse' || config.type === 'http') {
-        refuseUnreadTokenStore(name, config)
-        const revoked = revokeServerTokens(name, config)
-        clearServerTokensFromLocalStorage(name, config)
-        clearMcpClientConfig(name, config)
-        return revoked
-      }
-      return null
-    }
-    const removeFrom = async (scope: CliScope): Promise<void> => {
-      const cleaned: { revoked: Promise<void> | null } = { revoked: null }
-      try {
-        await removeMcpConfig(name, scope, () => {
-          cleaned.revoked = cleanSecureStorage(existing as McpServerConfig | null)
-        })
-      } catch (error) {
-        if (cleaned.revoked !== null) await revocationAnswered(name, cleaned.revoked)
-        throw error
-      }
-      process.stdout.write(`Removed MCP server ${name} from ${scope} scope\n`)
-      if (cleaned.revoked !== null) await revocationAnswered(name, cleaned.revoked)
-      return cliOk(`Modified: ${scopeConfigFileLabel(scope)}`)
-    }
-    if (options.scope !== undefined) {
-      await removeFrom(normalizeScope(options.scope, 'local'))
-      return
-    }
-    const holders: CliScope[] = []
-    const local = getMcpConfigsByScope('local')
-    const project = getMcpConfigsByScope('project')
-    const user = getMcpConfigsByScope('user')
-    if (Object.hasOwn(local.servers, name)) holders.push('local')
-    if (Object.hasOwn(project.servers, name)) holders.push('project')
-    if (Object.hasOwn(user.servers, name)) holders.push('user')
-    if (holders.length === 0) {
-      return cliError(`No MCP server named ${name} is configured`)
-    }
-    if (holders.length === 1) {
-      await removeFrom(holders[0]!)
-      return
-    }
-    console.error(`MCP server ${name} exists in multiple scopes:`)
-    for (const scope of holders) {
-      console.error(`  ${scope} (${scopeConfigFileLabel(scope)})`)
-    }
-    console.error('Remove it from a specific scope with:')
-    for (const scope of holders) {
-      console.error(`  ${binaryName()} mcp remove ${name} --scope ${scope}`)
-    }
-    return cliError()
-  } catch (error) {
-    return cliError(error instanceof Error ? error.message : String(error))
-  }
+  return notBuilt('src/cli/handlers/mcp.tsx:143')
 }
 
 
 export async function mcpListHandler(): Promise<void> {
-  const { servers: configs, errors: notices } = await getMercuryMcpConfigs()
-  let printedFault = false
-  for (const notice of notices) {
-    if (notice.kind === 'config-fault') {
-      process.stderr.write(`${notice.message}\n`)
-      printedFault = true
-    } else if (notice.kind === 'document-bounded') {
-      process.stdout.write(`${notice.message}\n`)
-    }
-  }
-  const names = Object.keys(configs)
-  const skippedForTrust = mcpServersSkippedForTrustLine()
-  if (skippedForTrust !== null) process.stdout.write(`${skippedForTrust}\n`)
-  const skippedForApproval = mcpServersSkippedForApprovalLines()
-  for (const { line } of skippedForApproval) process.stdout.write(`${line}\n`)
-  if (names.length === 0) {
-    if (!printedFault && skippedForTrust === null && skippedForApproval.length === 0) process.stdout.write(`No MCP servers configured. Add one with: ${binaryName()} mcp add\n`)
-    await gracefulShutdown(0)
-    return
-  }
-  process.stdout.write('Checking MCP server health…\n')
-  const outcomes = await pMap(
-    names,
-    async name => probeServer(name, configs[name] as ScopedMcpServerConfig),
-    { concurrency: getMcpServerConnectionBatchSize() },
-  )
-  names.forEach((name, index) => {
-    const config = configs[name] as ScopedMcpServerConfig
-    const written = mcpConfigAsWritten(config)
-    const status = renderStatus(outcomes[index]!)
-    if (config.type === 'sse' || config.type === 'http') {
-      process.stdout.write(`${name}: ${describeUrlRedacted(written.url ?? '')} (${config.type.toUpperCase()}) — ${status}\n`)
-    } else if (config.type === 'claudeai-proxy') {
-      process.stdout.write(`${name}: ${describeUrlRedacted(written.url ?? '')} — ${status}\n`)
-    } else if (config.type === 'stdio' || config.type === undefined) {
-      process.stdout.write(`${name}: ${written.command ?? ''} ${written.args.join(' ')} — ${status}\n`)
-    } else {
-      const target = written.url === undefined ? '' : ` ${describeUrlRedacted(written.url)}`
-      process.stdout.write(`${name}:${target} (${String(config.type)}) — ${status}\n`)
-    }
-  })
-  await gracefulShutdown(0)
+  return notBuilt('src/cli/handlers/mcp.tsx:207')
 }
 
 
 export async function mcpGetHandler(name: string): Promise<void> {
-  const config = getMcpConfigByName(name)
-  if (!config) {
-    return cliError(`No MCP server named ${name} is configured`)
-  }
-  const skipped = mcpServerSkippedForTrustLine(name, config) ?? mcpServerSkippedForApprovalLine(name, config)
-  if (skipped !== null) {
-    process.stdout.write(`${skipped}\n`)
-    await gracefulShutdown(0)
-    return
-  }
-  const outcome = await probeServer(name, config)
-  const written = mcpConfigAsWritten(config)
-  process.stdout.write(`${name}:\n`)
-  process.stdout.write(`  Scope: ${config.scope ?? 'local'}\n`)
-  process.stdout.write(`  Status: ${renderStatus(outcome)}\n`)
-  if (config.type === 'sse' || config.type === 'http') {
-    process.stdout.write(`  Type: ${config.type}\n`)
-    process.stdout.write(`  URL: ${describeUrlRedacted(written.url ?? '')}\n`)
-    if (config.headers && Object.keys(config.headers).length > 0) {
-      process.stdout.write('  Headers:\n')
-      for (const line of describeHeadersRedacted(config.headers).split(', ')) {
-        process.stdout.write(`    ${line}\n`)
-      }
-    }
-    if (config.oauth?.clientId || config.oauth?.callbackPort !== undefined) {
-      const summary: string[] = []
-      if (config.oauth.clientId) {
-        summary.push('client_id configured')
-        const hasSecret = Boolean(getMcpClientConfig(name, config)?.clientSecret)
-        if (hasSecret) summary.push('client_secret configured')
-      }
-      if (config.oauth.callbackPort !== undefined) {
-        summary.push(`callback port ${config.oauth.callbackPort}`)
-      }
-      process.stdout.write(`  OAuth: ${summary.join(', ')}\n`)
-    }
-  } else if (config.type === 'stdio' || config.type === undefined) {
-    process.stdout.write('  Type: stdio\n')
-    process.stdout.write(`  Command: ${written.command ?? ''}\n`)
-    process.stdout.write(`  Args: ${written.args.join(' ')}\n`)
-    if (config.env && Object.keys(config.env).length > 0) {
-      process.stdout.write('  Environment:\n')
-      for (const line of describeEnvRedacted(config.env)) {
-        process.stdout.write(`    ${line}\n`)
-      }
-    }
-  } else {
-    process.stdout.write(`  Type: ${String(config.type)}\n`)
-    if (written.url !== undefined) {
-      process.stdout.write(`  URL: ${describeUrlRedacted(written.url)}\n`)
-    }
-  }
-  process.stdout.write('\n')
-  process.stdout.write(
-    `Remove this server with: ${binaryName()} mcp remove ${name} --scope ${config.scope ?? 'local'}\n`,
-  )
-  await gracefulShutdown(0)
+  return notBuilt('src/cli/handlers/mcp.tsx:253')
 }
 
 
@@ -316,44 +145,10 @@ export async function mcpAddJsonHandler(
   json: string,
   options: { scope?: string; clientSecret?: true },
 ): Promise<void> {
-  try {
-    const scope = normalizeScope(options.scope, 'local')
-    const parsed = safeParseJSONC(json)
-    if (!parsed || typeof parsed !== 'object') {
-      return cliError(`Invalid JSON for MCP server ${name}`)
-    }
-    const validated = McpServerConfigSchema().safeParse(parsed)
-    let clientSecret: string | undefined
-    if (
-      options.clientSecret &&
-      validated.success &&
-      (validated.data.type === 'sse' || validated.data.type === 'http') &&
-      validated.data.oauth?.clientId
-    ) {
-      clientSecret = await readClientSecret()
-    }
-    if (!validated.success) {
-      cliError(`mcp import ${name}: the config does not match the server schema — ${describeMcpConfigIssues(validated.error.issues, parsed)}`)
-      return
-    }
-    await addMcpConfig(name, parsed, scope)
-    const transport = validated.success ? (validated.data.type ?? 'stdio') : 'stdio'
-    if (clientSecret !== undefined && validated.success) {
-      saveMcpClientSecret(name, validated.data, clientSecret)
-    }
-    return cliOk(`Added ${transport} MCP server ${name} to ${scope} scope`)
-  } catch (error) {
-    return cliError(error instanceof Error ? error.message : String(error))
-  }
+  return notBuilt('src/cli/handlers/mcp.tsx:314')
 }
 
 
 export async function mcpResetChoicesHandler(): Promise<void> {
-  const { error } = updateSettingsForSource('localSettings', {
-    kit: { projectOn: [], projectOff: [], trustProjectServers: false },
-  })
-  if (error) return cliError(error.message)
-  return cliOk(
-    'All project-scoped MCP server approvals and rejections were reset. You will be asked to approve them again on the next start.',
-  )
+  return notBuilt('src/cli/handlers/mcp.tsx:351')
 }

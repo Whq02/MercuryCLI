@@ -13,64 +13,10 @@ import {
   permissionRuleValueToString,
 } from '../../../utils/permissions/permissionRuleParser.js'
 import type { PermissionBehavior, PermissionRuleValue } from '../../../types/permissions.js'
+import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
 
-type PermissionRuleInputProps = {
-  onCancel: () => void
-  onSubmit: (ruleValue: PermissionRuleValue, ruleBehavior: PermissionBehavior) => void
-  ruleBehavior: PermissionBehavior
-}
+type PermissionRuleInputProps = Unbuilt
 
-export function PermissionRuleInput({
-  onCancel,
-  onSubmit,
-  ruleBehavior,
-}: PermissionRuleInputProps): React.ReactNode {
-  const [value, setValue] = useState('')
-  const { columns } = useTerminalSize()
-  const pendingExit = useExitOnCtrlCDWithKeybindings()
-
-  useKeybinding('confirm:no', () => onCancel(), { context: 'Settings' })
-
-  const exampleTool = permissionRuleValueToString({ toolName: WebFetchTool.name })
-  const exampleBash = permissionRuleValueToString({
-    toolName: BASH_TOOL_NAME,
-    ruleContent: 'ls *',
-  })
-
-  function handleSubmit(submitted: string): void {
-    if (submitted.trim() === '') return
-    onSubmit(permissionRuleValueFromString(submitted), ruleBehavior)
-  }
-
-  return (
-    <Box
-      flexDirection="column"
-      borderStyle="round"
-      borderColor="permission"
-      paddingX={1}
-    >
-      <Text bold color="permission">
-        Add {ruleBehavior} permission rule
-      </Text>
-      <Text dimColor>
-        A rule is a tool name, optionally followed by a specifier in
-        parentheses — for example <Text bold>{exampleTool}</Text> or{' '}
-        <Text bold>{exampleBash}</Text>
-      </Text>
-      <TextInput
-        value={value}
-        onChange={setValue}
-        onSubmit={handleSubmit}
-        columns={columns - 6}
-        cursorOffset={value.length}
-        onChangeCursorOffset={() => {}}
-        showCursor
-      />
-      <Text color="subtle">
-        {pendingExit.pending
-          ? exitChordNoticeText(pendingExit.keyName)
-          : 'enter submit · esc cancel'}
-      </Text>
-    </Box>
-  )
+export function PermissionRuleInput(arg0: PermissionRuleInputProps): React.ReactNode {
+  return notBuilt('src/components/permissions/rules/PermissionRuleInput.tsx:23')
 }

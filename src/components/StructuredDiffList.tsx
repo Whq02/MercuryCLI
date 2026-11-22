@@ -1,18 +1,11 @@
-
 import React from 'react'
 import { Box, Text } from '../ink.js'
 import { NoSelect } from '../ink/components/NoSelect.js'
 import type { StructuredPatchHunk } from '../utils/diff.js'
 import { StructuredDiff } from './StructuredDiff.js'
+import { notBuilt } from '../pi/holes.js'
 
-export function StructuredDiffList({
-  hunks,
-  dim,
-  width,
-  filePath,
-  firstLine,
-  fileContent,
-}: {
+export function StructuredDiffList(arg0: {
   hunks: StructuredPatchHunk[]
   dim: boolean
   width: number
@@ -20,27 +13,7 @@ export function StructuredDiffList({
   firstLine: string | null
   fileContent?: string
 }): React.ReactNode {
-  return (
-    <Box flexDirection="column">
-      {hunks.map((hunk, index) => (
-        <Box key={hunk.newStart} flexDirection="column">
-          {index > 0 ? (
-            <NoSelect>
-              <Text dimColor>...</Text>
-            </NoSelect>
-          ) : null}
-          <StructuredDiff
-            patch={hunk}
-            dim={dim}
-            width={width}
-            filePath={filePath}
-            firstLine={firstLine}
-            fileContent={fileContent}
-          />
-        </Box>
-      ))}
-    </Box>
-  )
+  return notBuilt('src/components/StructuredDiffList.tsx:8')
 }
 
 export default StructuredDiffList

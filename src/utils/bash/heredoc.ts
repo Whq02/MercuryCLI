@@ -1,18 +1,7 @@
 import { randomBytes } from 'node:crypto'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-type HeredocInfo = {
-  fullText: string
-  delimiter: string
-  operatorStartIndex: number
-  operatorEndIndex: number
-  contentStartIndex: number
-  contentEndIndex: number
-}
-
-type HeredocExtractionResult = {
-  processedCommand: string
-  heredocs: Map<string, HeredocInfo>
-}
+type HeredocExtractionResult = Unbuilt
 
 const DELIMITER_TERMINATORS: ReadonlySet<string> = new Set([
   ' ',
@@ -46,39 +35,7 @@ function makeSalt(): string {
 type ScanState = { quote: 'plain' | 'single' | 'double'; comment: boolean }
 
 function advanceScan(text: string, from: number, to: number, state: ScanState): void {
-  for (let i = from; i < to; i++) {
-    const ch = text[i]
-    if (ch === '\n') {
-      state.comment = false
-    }
-    if (state.quote === 'single') {
-      if (ch === "'") state.quote = 'plain'
-      continue
-    }
-    if (state.quote === 'double') {
-      if (ch === '\\') {
-        i++
-        continue
-      }
-      if (ch === '"') state.quote = 'plain'
-      continue
-    }
-    if (ch === '\\') {
-      i++
-      continue
-    }
-    if (ch === "'") {
-      state.quote = 'single'
-      continue
-    }
-    if (ch === '"') {
-      state.quote = 'double'
-      continue
-    }
-    if (ch === '#') {
-      state.comment = true
-    }
-  }
+  return notBuilt('src/utils/bash/heredoc.ts:48')
 }
 
 function countOccurrences(text: string, token: string): number {
@@ -101,108 +58,13 @@ function precedingBackslashCount(text: string, i: number): number {
   return count
 }
 
-type Candidate = {
-  operatorStartIndex: number
-  operatorEndIndex: number
-  delimiter: string
-  dashForm: boolean
-  literalBody: boolean
-  bodyStartIndex: number
-  bodyEndIndex: number
-  contentEndIndex: number
-  skipped: boolean
-}
+type Candidate = Unbuilt
 
 export function extractHeredocs(
   command: string,
   options?: { quotedOnly?: boolean },
 ): HeredocExtractionResult {
-  const empty: HeredocExtractionResult = { processedCommand: command, heredocs: new Map() }
-
-  if (!command.includes('<<')) return empty
-  if (command.includes("$'") || command.includes('$"')) return empty
-
-  const firstHeredoc = command.indexOf('<<')
-  const beforeFirst = command.slice(0, firstHeredoc)
-  if (beforeFirst.includes('`')) return empty
-  if (countOccurrences(beforeFirst, '((') > countOccurrences(beforeFirst, '))')) return empty
-
-  const quotedOnly = options?.quotedOnly === true
-  const scan: ScanState = { quote: 'plain', comment: false }
-  let scanIndex = 0
-  const candidates: Candidate[] = []
-
-  for (let i = 0; i + 1 < command.length; i++) {
-    if (!(command[i] === '<' && command[i + 1] === '<')) continue
-    if (command[i - 1] === '<' || command[i + 2] === '<') continue
-
-    advanceScan(command, scanIndex, i, scan)
-    scanIndex = i
-
-    if (scan.quote !== 'plain' || scan.comment) continue
-    if (precedingBackslashCount(command, i) % 2 === 1) continue
-    if (candidates.some(c => c.skipped && i >= c.bodyStartIndex && i < c.contentEndIndex)) continue
-
-    const parsed = parseCandidateAt(command, i)
-    if (parsed === null) continue
-
-    if (quotedOnly && !parsed.literalBody) {
-      candidates.push({ ...parsed, skipped: true })
-      continue
-    }
-    candidates.push(parsed)
-  }
-
-  const survivors = candidates.filter(c => !c.skipped)
-  if (survivors.length === 0) return empty
-
-  const filtered = survivors.filter(
-    c =>
-      !survivors.some(
-        other =>
-          other !== c &&
-          c.operatorStartIndex > other.bodyStartIndex &&
-          c.operatorStartIndex < other.contentEndIndex,
-      ),
-  )
-  if (filtered.length === 0) return empty
-
-  const bodyStarts = new Set<number>()
-  for (const c of filtered) {
-    if (bodyStarts.has(c.bodyStartIndex)) return empty
-    bodyStarts.add(c.bodyStartIndex)
-  }
-
-  const salt = makeSalt()
-  const ordered = [...filtered].sort((a, b) => a.operatorStartIndex - b.operatorStartIndex)
-  const placeholders = new Map<Candidate, string>()
-  ordered.forEach((c, index) => {
-    placeholders.set(c, `__MERCURY_HEREDOC_${salt}_${index}__`)
-  })
-
-  const heredocs = new Map<string, HeredocInfo>()
-  let processed = command
-  const byBodyEndDesc = [...filtered].sort((a, b) => b.contentEndIndex - a.contentEndIndex)
-  for (const c of byBodyEndDesc) {
-    const placeholder = placeholders.get(c) as string
-    const operatorText = command.slice(c.operatorStartIndex, c.operatorEndIndex)
-    const restorationText = operatorText + command.slice(c.bodyStartIndex, c.contentEndIndex)
-    heredocs.set(placeholder, {
-      fullText: restorationText,
-      delimiter: c.delimiter,
-      operatorStartIndex: c.operatorStartIndex,
-      operatorEndIndex: c.operatorEndIndex,
-      contentStartIndex: c.bodyStartIndex,
-      contentEndIndex: c.contentEndIndex,
-    })
-    processed =
-      processed.slice(0, c.operatorStartIndex) +
-      placeholder +
-      processed.slice(c.operatorEndIndex, c.bodyStartIndex) +
-      processed.slice(c.contentEndIndex)
-  }
-
-  return { processedCommand: processed, heredocs }
+  return notBuilt('src/utils/bash/heredoc.ts:116')
 }
 
 function parseCandidateAt(command: string, opIndex: number): Candidate | null {

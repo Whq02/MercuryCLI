@@ -2,6 +2,7 @@ import { deflateSync } from 'node:zlib'
 
 import { stringWidth } from '../ink/stringWidth.js'
 import { DEFAULT_BG, parseAnsi, type AnsiColor, type ParsedLine } from './ansiSpans.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 
 const CELL_WIDTH = 24
@@ -141,38 +142,7 @@ const STROKE_GLYPHS: Record<string, StrokeGlyph> = {
 const STROKE_RADIUS = 1.5
 
 function rasterizeStrokes(polylines: StrokeGlyph): Uint8Array {
-  const cell = new Uint8Array(CELL_BYTES)
-  const mapX = (x: number): number => 2 + (x * 20) / 6
-  const mapY = (y: number): number => 6 + y * 3
-  for (const polyline of polylines) {
-    for (let s = 0; s + 3 < polyline.length; s += 2) {
-      const x1 = mapX(polyline[s] as number)
-      const y1 = mapY(polyline[s + 1] as number)
-      const x2 = mapX(polyline[s + 2] as number)
-      const y2 = mapY(polyline[s + 3] as number)
-      const length = Math.hypot(x2 - x1, y2 - y1)
-      const steps = Math.max(1, Math.ceil(length / 0.3))
-      for (let i = 0; i <= steps; i++) {
-        const cx = x1 + ((x2 - x1) * i) / steps
-        const cy = y1 + ((y2 - y1) * i) / steps
-        const minX = Math.max(0, Math.floor(cx - STROKE_RADIUS - 1))
-        const maxX = Math.min(CELL_WIDTH - 1, Math.ceil(cx + STROKE_RADIUS + 1))
-        const minY = Math.max(0, Math.floor(cy - STROKE_RADIUS - 1))
-        const maxY = Math.min(CELL_HEIGHT - 1, Math.ceil(cy + STROKE_RADIUS + 1))
-        for (let py = minY; py <= maxY; py++) {
-          for (let px = minX; px <= maxX; px++) {
-            const dist = Math.hypot(px + 0.5 - cx, py + 0.5 - cy)
-            const coverage = Math.max(0, Math.min(1, STROKE_RADIUS + 0.5 - dist))
-            if (coverage <= 0) continue
-            const alpha = Math.round(coverage * 255)
-            const index = py * CELL_WIDTH + px
-            if (alpha > (cell[index] as number)) cell[index] = alpha
-          }
-        }
-      }
-    }
-  }
-  return cell
+  return notBuilt('src/utils/ansiToPng.ts:143')
 }
 
 let fontCache: Map<number, Uint8Array> | null = null
@@ -189,26 +159,6 @@ function getFont(): Map<number, Uint8Array> {
 
 let fallbackGlyphCache: Uint8Array | null = null
 
-function getFallbackGlyph(): Uint8Array {
-  if (!fallbackGlyphCache) {
-    const cell = new Uint8Array(CELL_BYTES)
-    const top = 2
-    const bottom = CELL_HEIGHT - 5
-    const left = 1
-    const right = CELL_WIDTH - 2
-    for (let y = top; y <= bottom; y++) {
-      for (let x = left; x <= right; x++) {
-        const onBorder = y === top || y === bottom || x === left || x === right
-        if (onBorder && (x + y) % 2 === 0) {
-          cell[y * CELL_WIDTH + x] = 255
-        }
-      }
-    }
-    fallbackGlyphCache = cell
-  }
-  return fallbackGlyphCache
-}
-
 const SHADE_BLEND: Record<string, number> = {
   '░': 0.25,
   '▒': 0.5,
@@ -217,205 +167,12 @@ const SHADE_BLEND: Record<string, number> = {
 }
 
 
-const CRC_TABLE: Uint32Array = (() => {
-  const table = new Uint32Array(256)
-  for (let n = 0; n < 256; n++) {
-    let c = n
-    for (let k = 0; k < 8; k++) {
-      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
-    }
-    table[n] = c >>> 0
-  }
-  return table
-})()
-
-function crc32(bytes: Uint8Array): number {
-  let crc = 0xffffffff
-  for (let i = 0; i < bytes.length; i++) {
-    crc = (CRC_TABLE[(crc ^ (bytes[i] as number)) & 0xff] as number) ^ (crc >>> 8)
-  }
-  return (crc ^ 0xffffffff) >>> 0
-}
-
-function pngChunk(type: string, data: Uint8Array): Buffer {
-  const chunk = Buffer.alloc(12 + data.length)
-  chunk.writeUInt32BE(data.length, 0)
-  chunk.write(type, 4, 'ascii')
-  chunk.set(data, 8)
-  const crc = crc32(chunk.subarray(4, 8 + data.length))
-  chunk.writeUInt32BE(crc, 8 + data.length)
-  return chunk
-}
-
-function encodePng(pixels: Buffer, width: number, height: number): Buffer {
-  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
-  const ihdr = Buffer.alloc(13)
-  ihdr.writeUInt32BE(width, 0)
-  ihdr.writeUInt32BE(height, 4)
-  ihdr[8] = 8
-  ihdr[9] = 6
-  ihdr[10] = 0
-  ihdr[11] = 0
-  ihdr[12] = 0
-  const raw = Buffer.alloc(height * (1 + width * 4))
-  for (let y = 0; y < height; y++) {
-    const rowStart = y * (1 + width * 4)
-    raw[rowStart] = 0
-    pixels.copy(raw, rowStart + 1, y * width * 4, (y + 1) * width * 4)
-  }
-  return Buffer.concat([
-    signature,
-    pngChunk('IHDR', ihdr),
-    pngChunk('IDAT', deflateSync(raw)),
-    pngChunk('IEND', new Uint8Array(0)),
-  ])
-}
-
-
-type AnsiToPngOptions = {
-  scale?: number
-  paddingX?: number
-  paddingY?: number
-  borderRadius?: number
-  background?: AnsiColor
-}
+type AnsiToPngOptions = Unbuilt
 
 function isBlankLine(line: ParsedLine): boolean {
   return line.every(span => /^\s*$/.test(span.text))
 }
 
-export function ansiToPng(ansiText: string, options: AnsiToPngOptions = {}): Buffer {
-  const {
-    scale = 1,
-    paddingX = 48,
-    paddingY = 48,
-    borderRadius = 16,
-    background: backgroundColor = DEFAULT_BG,
-  } = options
-
-  const lines = parseAnsi(ansiText)
-  while (lines.length > 0 && isBlankLine(lines[lines.length - 1] as ParsedLine)) {
-    lines.pop()
-  }
-  if (lines.length === 0) {
-    lines.push([{ text: '', color: { r: 229, g: 229, b: 229 }, bold: false }])
-  }
-
-  let columns = 1
-  for (const line of lines) {
-    let cells = 0
-    for (const span of line) for (const char of span.text) cells += stringWidth(char)
-    if (cells > columns) columns = cells
-  }
-  const rows = lines.length
-
-  const width = (columns * CELL_WIDTH + 2 * paddingX) * scale
-  const height = (rows * CELL_HEIGHT + 2 * paddingY) * scale
-  const pixels = Buffer.alloc(width * height * 4)
-
-  for (let i = 0; i < width * height; i++) {
-    pixels[i * 4] = backgroundColor.r
-    pixels[i * 4 + 1] = backgroundColor.g
-    pixels[i * 4 + 2] = backgroundColor.b
-    pixels[i * 4 + 3] = 255
-  }
-
-  const radius = borderRadius * scale
-  if (radius > 0) {
-    const corners: Array<[number, number, number, number]> = [
-      [0, 0, radius, radius],
-      [width - radius, 0, width - radius, radius],
-      [0, height - radius, radius, height - radius],
-      [width - radius, height - radius, width - radius, height - radius],
-    ]
-    for (const [originX, originY, centreX, centreY] of corners) {
-      for (let y = 0; y < radius; y++) {
-        for (let x = 0; x < radius; x++) {
-          const px = originX + x
-          const py = originY + y
-          const dx = px + 0.5 - centreX
-          const dy = py + 0.5 - centreY
-          if (dx * dx + dy * dy > radius * radius) {
-            pixels[(py * width + px) * 4 + 3] = 0
-          }
-        }
-      }
-    }
-  }
-
-  const font = getFont()
-  const fallback = getFallbackGlyph()
-
-  const blitGlyph = (
-    cell: Uint8Array,
-    cellX: number,
-    cellY: number,
-    color: AnsiColor,
-    bold: boolean,
-  ): void => {
-    for (let gy = 0; gy < CELL_HEIGHT; gy++) {
-      for (let gx = 0; gx < CELL_WIDTH; gx++) {
-        const rawAlpha = cell[gy * CELL_WIDTH + gx] as number
-        if (rawAlpha === 0) continue
-        const alpha = bold ? Math.min(255, Math.round(rawAlpha * 1.4)) : rawAlpha
-        for (let sy = 0; sy < scale; sy++) {
-          for (let sx = 0; sx < scale; sx++) {
-            const px = (cellX + gx) * scale + sx
-            const py = (cellY + gy) * scale + sy
-            if (px < 0 || px >= width || py < 0 || py >= height) continue
-            const offset = (py * width + px) * 4
-            pixels[offset] = (color.r * alpha + (pixels[offset] as number) * (256 - alpha)) >> 8
-            pixels[offset + 1] =
-              (color.g * alpha + (pixels[offset + 1] as number) * (256 - alpha)) >> 8
-            pixels[offset + 2] =
-              (color.b * alpha + (pixels[offset + 2] as number) * (256 - alpha)) >> 8
-          }
-        }
-      }
-    }
-  }
-
-  const fillShadeCell = (cellX: number, cellY: number, color: AnsiColor, blend: number): void => {
-    const r = Math.round(color.r * blend + backgroundColor.r * (1 - blend))
-    const g = Math.round(color.g * blend + backgroundColor.g * (1 - blend))
-    const b = Math.round(color.b * blend + backgroundColor.b * (1 - blend))
-    for (let gy = 0; gy < CELL_HEIGHT; gy++) {
-      for (let gx = 0; gx < CELL_WIDTH; gx++) {
-        for (let sy = 0; sy < scale; sy++) {
-          for (let sx = 0; sx < scale; sx++) {
-            const px = (cellX + gx) * scale + sx
-            const py = (cellY + gy) * scale + sy
-            if (px < 0 || px >= width || py < 0 || py >= height) continue
-            const offset = (py * width + px) * 4
-            pixels[offset] = r
-            pixels[offset + 1] = g
-            pixels[offset + 2] = b
-          }
-        }
-      }
-    }
-  }
-
-  for (let row = 0; row < rows; row++) {
-    const line = lines[row] as ParsedLine
-    let column = 0
-    for (const span of line) {
-      for (const char of span.text) {
-        const cellWidth = stringWidth(char)
-        if (cellWidth === 0) continue
-        const cellX = paddingX + column * CELL_WIDTH
-        const cellY = paddingY + row * CELL_HEIGHT
-        const shade = SHADE_BLEND[char]
-        if (shade !== undefined) {
-          fillShadeCell(cellX, cellY, span.color, shade)
-        } else {
-          const glyph = font.get(char.codePointAt(0) as number)
-          blitGlyph(glyph ?? fallback, cellX, cellY, span.color, span.bold)
-        }
-        column += cellWidth
-      }
-    }
-  }
-
-  return encodePng(pixels, width, height)
+export function ansiToPng(ansiText: string, options?: AnsiToPngOptions): Buffer {
+  return notBuilt('src/utils/ansiToPng.ts:287')
 }

@@ -42,6 +42,7 @@ import { errorMessage } from '../../utils/errors.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import type { ModelSwitchReceiptV1 } from '../../services/engine-connector/types.js'
 import { persistModelChoice } from './persistModelChoice.js'
+import { notBuilt } from '../../pi/holes.js'
 
 function renderModelLabel(setting: ModelSetting): string {
   if (setting === null) return renderDefaultModelLabel()
@@ -53,24 +54,7 @@ function effortParenthetical(
   override: ModelSetting,
   effortValue: EffortValue | undefined,
 ): string {
-  if (effortValue === undefined) return ''
-  const requested = String(effortValue)
-  const liveSetting = override ?? base
-  const normalised =
-    liveSetting === null ? getDefaultEngineModel() : parseUserSpecifiedModel(liveSetting)
-  if (normalised) {
-    const truth = resolveEffortTruth(normalised, effortValue)
-    if (!truth.supportsEffort) {
-      return ` (effort: ${requested} — not sent; ${renderModelName(normalised)} takes no effort setting)`
-    }
-    if (truth.wire === undefined) {
-      return ` (effort: ${requested} — not sent; the provider default applies)`
-    }
-    if (truth.label !== requested) {
-      return ` (effort: ${requested} — runs at ${truth.label})`
-    }
-  }
-  return ` (effort: ${requested})`
+  return notBuilt('src/commands/model/model.tsx:51')
 }
 
 function focusedSwitchSentence(receipt: ModelSwitchReceiptV1, target: ModelSetting, saved: string): string {
@@ -118,220 +102,7 @@ function ModelReadout({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Reac
 }
 
 export function previewDaemonModelSelection(target: ModelSetting): { plan: TransitionPlan } | { reason: string } | null {
-  const focusedForPlan = getFocusedSessionConnector()
-  if (focusedForPlan.carrier !== 'daemon') return null
-  const sessionFacts = focusedForPlan.modelFacts()
-  if (sessionFacts.effectiveSource === 'ambient') {
-    return { reason: "The model switch was refused: the session's own model facts could not be resolved (no live facts and no recorded model on its admission record) — the preview will not be built from another session's state. Retry once the session reports its facts." }
-  }
-  const sessionMessages = [...focusedForPlan.records()]
-  return { plan: previewForSelection(sessionMessages, sessionFacts.effective, target) }
-}
-function ModelSet({
-  target,
-  raw,
-  words,
-  messages,
-  onDone,
-}: {
-  target: ModelSetting
-  raw: string
-  words?: string
-  messages: Message[]
-  onDone: LocalJSXCommandOnDone
-}): React.ReactNode {
-  const base = useAppState(state => state.engineModel)
-  const override = useAppState(state => state.engineModelForSession)
-  const pendingSwitch = useAppState(state => state.pendingModelSwitch)
-  const turnRunning = useAppState(state => state.foregroundTurnActive)
-  const setAppState = useSetAppState()
-  const [held, setHeld] = useState<{ plan: TransitionPlan; refreshed: boolean } | null>(null)
-  const ranRef = useRef(false)
-
-  const settlementMessage = (
-    landed: SettledSelection,
-    plan: TransitionPlan | null,
-    saved: string,
-  ): string => {
-    const label = renderModelLabel(target)
-    if (landed.kind === 'no-op') {
-      return saved === '' ? `Already on ${label} — nothing to change.` : `Already on ${label}${saved}.`
-    }
-    if (landed.kind === 'cancelled-pending') {
-      return `Already on ${label} — cancelled the previously queued model switch${saved}.`
-    }
-    const lossNote = plan ? transitionPlanSummary(plan) : ''
-    if (landed.kind === 'queued') {
-      const cross = landed.crossProvider ? crossProviderNote(target) : ''
-      return `Model switch queued: ${label}${saved} — takes effect when the current turn settles, the running turn keeps its model.${cross}${lossNote}`
-    }
-    const cross = landed.receipt.crossProvider ? crossProviderNote(target) : ''
-    return `Model set to ${label}${saved}${cross}${lossNote}`
-  }
-
-  const applyNow = async (plan: TransitionPlan | null, seated?: (state: SeatReceiptState) => void): Promise<void> => {
-    const focused = getFocusedSessionConnector()
-    if (focused.carrier === 'daemon') {
-      const factsBefore = focused.modelFacts()
-      const choice = persistModelChoice(target)
-      const receipt = await focused.setModel(target, words !== undefined && words !== target ? words : undefined, choice.replacedDefault ?? undefined)
-      if (receipt.state === 'refused') choice.restore()
-      const moved = receipt.state === 'applied' || receipt.state === 'queued'
-      const doorCross =
-        moved && providerFamilyOfSetting(factsBefore.effective) !== providerFamilyOfSetting(target)
-          ? crossProviderNote(target)
-          : ''
-      const lossNote = plan && receipt.state !== 'no-op' && receipt.state !== 'refused' ? transitionPlanSummary(plan) : ''
-      const saved = receipt.state === 'refused' ? '' : choice.sentence
-      onDone(`${focusedSwitchSentence(receipt, target, saved)}${doorCross}${lossNote}`)
-      seated?.(receipt.state)
-      return
-    }
-    let landed = {
-      kind: 'no-op',
-      patch: null,
-      receipt: null,
-    } as SettledSelection
-    setAppState(prev => {
-      landed = settleModelSelection(prev, target, {
-        turnActive: prev.foregroundTurnActive || prev.pendingModelSwitch !== null,
-      })
-      return landed.patch ? { ...prev, ...landed.patch } : prev
-    })
-    onDone(settlementMessage(landed, plan, persistModelChoice(target).sentence))
-  }
-
-  useLoad(() => {
-    if (ranRef.current) return
-    ranRef.current = true
-    void (async () => {
-      const lowered = raw.trim().toLowerCase()
-      const disabledBare = BARE_FAMILY_WORDS.find(entry => entry.word === lowered && isProviderDisabled(entry.route))
-      if (disabledBare !== undefined || (target !== null && isModelFromDisabledProvider(target))) {
-        onDone(`Model ${raw} not found.`, { display: 'system' })
-        return
-      }
-      if (target !== null && !isModelAllowed(target)) {
-        onDone(
-          `${raw} isn't available: your organization restricts model selection.`,
-          { display: 'system' },
-        )
-        return
-      }
-      if (target !== null) {
-        if (
-          lowered.includes('opus') &&
-          lowered.includes('[1m]') &&
-          !checkOpus1mAccess() &&
-          !isOpus1mMergeEnabled()
-        ) {
-          onDone(
-            `The 1M-context ${renderModelName(target)} model isn't available for this account. Run /model to pick a different model.`,
-            { display: 'system' },
-          )
-          return
-        }
-        if (
-          (lowered.includes('sonnet[1m]') || lowered.includes('sonnet-4-6[1m]')) &&
-          !checkSonnet1mAccess()
-        ) {
-          onDone(
-            `The 1M-context ${renderModelName(target)} model isn't available for this account. Run /model to pick a different model.`,
-            { display: 'system' },
-          )
-          return
-        }
-        if (!isModelAlias(lowered)) {
-          try {
-            const verdict = await validateModel(raw)
-            if (!verdict.valid) {
-              onDone(verdict.error ?? `Model ${raw} not found.`, { display: 'system' })
-              return
-            }
-          } catch (thrown) {
-            onDone(`Model validation failed: ${errorMessage(thrown)}`, {
-              display: 'system',
-            })
-            return
-          }
-        }
-      }
-      const daemonPreview = previewDaemonModelSelection(target)
-      if (daemonPreview !== null) {
-        if ('reason' in daemonPreview) {
-          onDone(daemonPreview.reason, { display: 'system' })
-          return
-        }
-        const { plan } = daemonPreview
-        if (plan.needsChoice) {
-          setHeld({ plan, refreshed: false })
-          return
-        }
-        void applyNow(plan)
-        return
-      }
-      const probe = settleModelSelection(
-        {
-          engineModel: base,
-          engineModelForSession: override,
-          pendingModelSwitch: pendingSwitch,
-        },
-        target,
-        {
-          turnActive: turnRunning || pendingSwitch !== null,
-        },
-      )
-      if (probe.kind === 'queued' || probe.kind === 'applied') {
-        const plan = previewForSelection(messages, override ?? base, target)
-        if (plan.needsChoice) {
-          setHeld({ plan, refreshed: false })
-          return
-        }
-        void applyNow(plan)
-        return
-      }
-      void applyNow(null)
-    })()
-  }, [])
-
-  if (held) {
-    const heldIsDaemon = getFocusedSessionConnector().carrier === 'daemon'
-    const effective = override ?? base
-    const fromModel = heldIsDaemon ? held.plan.from : effective
-    return (
-      <TransitionPreviewCard
-        plan={held.plan}
-        fromLabel={renderModelLabel(fromModel)}
-        toLabel={renderModelLabel(target)}
-        refreshed={held.refreshed}
-        targetUsability={usabilityForRoute(held.plan.targetRoute)}
-        onConfirm={() => {
-          const confirmMessages =
-            getFocusedSessionConnector().carrier === 'daemon'
-              ? [...getFocusedSessionConnector().records()]
-              : messages
-          const verdict = reconfirmTransitionPlan(held.plan, confirmMessages)
-          if (!verdict.ok) {
-            setHeld({ plan: verdict.freshPlan, refreshed: true })
-            return
-          }
-          setHeld(null)
-          if (held.plan.window?.fits === false) {
-            seatWithFold(getFocusedSessionConnector(), held.plan.targetRoute, seated => void applyNow(held.plan, seated), requestCommandDispatch)
-            return
-          }
-          void applyNow(held.plan)
-        }}
-        onCancel={() => {
-          setHeld(null)
-          onDone(
-            `Kept ${renderModelLabel(fromModel)} — the model switch was cancelled at the preview.`,
-          )
-        }}
-      />
-    )
-  }
-  return null
+  return notBuilt('src/commands/model/model.tsx:120')
 }
 
 export async function call(
@@ -340,26 +111,5 @@ export async function call(
   args?: string,
   typed?: string,
 ): Promise<React.ReactNode | undefined> {
-  const trimmed = (args ?? '').trim()
-  if (!trimmed) return undefined
-  const lowered = trimmed.toLowerCase()
-  if (COMMON_INFO_ARGS.includes(lowered)) {
-    return <ModelReadout onDone={onDone} />
-  }
-  if (COMMON_HELP_ARGS.includes(lowered)) {
-    onDone(
-      'Run /model with no argument to open the model selection menu, or /model <modelName> to set the model directly.',
-      { display: 'system' },
-    )
-    return undefined
-  }
-  return (
-    <ModelSet
-      target={trimmed === 'default' ? null : trimmed}
-      raw={trimmed}
-      {...(typed !== undefined && typed.trim() !== '' ? { words: typed.trim() } : {})}
-      messages={context.messages ?? []}
-      onDone={onDone}
-    />
-  )
+  return notBuilt('src/commands/model/model.tsx:337')
 }

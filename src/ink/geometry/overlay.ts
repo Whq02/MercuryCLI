@@ -2,6 +2,7 @@ import type { Screen, StylePool } from '../cell-grid.js'
 import { cellAtIndex, CellWidth, setCellStyleId } from '../cell-grid.js'
 import type { Rectangle } from '../layout/geometry.js'
 import { selectionBounds, type SelectionState } from './selection-model.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export class OverlayRecord {
   private readonly cells: number[] = []
@@ -78,26 +79,5 @@ export function applySelectionOverlay(
   stylePool: StylePool,
   record?: OverlayRecord,
 ): void {
-  const b = selectionBounds(selection)
-  if (!b) return
-  const { start, end } = b
-  const width = screen.width
-  const noSelect = screen.noSelect
-  const clipLo = selection.clipLo ?? 0
-  const clipHi = selection.clipHi ?? width - 1
-  const clipTop = selection.clipTop ?? 0
-  const clipBottom = selection.clipBottom ?? screen.height - 1
-  const firstRow = Math.max(start.row, clipTop)
-  const lastRow = Math.min(end.row, clipBottom)
-  for (let row = firstRow; row <= lastRow && row < screen.height; row++) {
-    const colStart = Math.max(row === start.row ? start.col : 0, clipLo)
-    const colEnd = Math.min(row === end.row ? Math.min(end.col, width - 1) : width - 1, clipHi)
-    const rowOff = row * width
-    for (let col = colStart; col <= colEnd; col++) {
-      const idx = rowOff + col
-      if (noSelect[idx] === 1) continue
-      const cell = cellAtIndex(screen, idx)
-      restyleCell(screen, col, row, stylePool.withSelectionBg(cell.styleId), record)
-    }
-  }
+  return notBuilt('src/ink/geometry/overlay.ts:75')
 }

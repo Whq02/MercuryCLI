@@ -18,6 +18,7 @@ import { familyDefaultsModel } from './model/configs.js'
 import { getInitialSettings } from './settings/settings.js'
 import { sessionThinkingEnabled } from './thinking.js'
 import { hostEnv } from './hostEnv.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
 export type { EffortLevel }
@@ -38,21 +39,11 @@ const ALIASES: Record<string, EffortLevel> = {
 }
 
 export function isEffortLevel(v: string): v is EffortLevel {
-  return (EFFORT_LEVELS as readonly string[]).includes(v)
-}
-
-function isValidNumericEffort(v: number): boolean {
-  return Number.isInteger(v)
+  return notBuilt('src/utils/effort.ts:40')
 }
 
 export function parseEffortValue(v: unknown): EffortValue | undefined {
-  if (v === undefined || v === null || v === '') return undefined
-  if (typeof v === 'number' && isValidNumericEffort(v)) return v
-  const text = String(v).trim().toLowerCase()
-  const level = normalizeEffortLevelString(text)
-  if (level !== undefined) return level
-  const numeric = parseInt(text, 10)
-  return isValidNumericEffort(numeric) ? numeric : undefined
+  return notBuilt('src/utils/effort.ts:48')
 }
 
 export function normalizeEffortLevelString(input: string): EffortLevel | undefined {
@@ -76,7 +67,7 @@ export function toPersistableEffort(v: EffortValue | undefined): EffortLevel | u
 }
 
 export function getInitialEffortSetting(): EffortLevel | undefined {
-  return toPersistableEffort(getInitialSettings().engine?.effort as EffortValue | undefined)
+  return notBuilt('src/utils/effort.ts:78')
 }
 
 export function resolvePickerEffortPersistence(
@@ -85,9 +76,7 @@ export function resolvePickerEffortPersistence(
   priorPersisted: EffortLevel | undefined,
   toggledInPicker: boolean,
 ): EffortLevel | undefined {
-  const explicit = priorPersisted !== undefined || toggledInPicker
-  if (explicit || picked !== modelDefault) return picked
-  return undefined
+  return notBuilt('src/utils/effort.ts:82')
 }
 
 export function getEffortEnvOverride(): EffortLevel | null | undefined {
@@ -169,20 +158,15 @@ export function selectableEffortLevelsForLadder(model: string): readonly EffortL
 }
 
 function stepDown(model: string, value: EffortValue): EffortValue {
-  if (typeof value !== 'string' || !isEffortLevel(value)) return value
-  for (let rank = EFFORT_LEVELS.indexOf(value); rank >= 0; rank--) {
-    const level = EFFORT_LEVELS[rank] as EffortLevel
-    if (modelOffersEffortLevel(model, level)) return level
-  }
-  return value
+  return notBuilt('src/utils/effort.ts:171')
 }
 
 export function resolveEffortTruth(
   model: string,
   appStateEffortValue: EffortValue | undefined,
-  context: EffortTruthContext = {},
+  context?: EffortTruthContext,
 ): EffortResolution {
-  return resolveEffortTruthWithEnv(model, appStateEffortValue, getEffortEnvOverride(), context)
+  return notBuilt('src/utils/effort.ts:180')
 }
 
 export function resolveStampedEffortTruth(
@@ -445,14 +429,11 @@ export function getDisplayedEffortLevel(model: string, appStateEffort: EffortVal
 }
 
 export function getDisplayedEffortLabel(model: string, appStateEffort: EffortValue | undefined): string {
-  return resolveEffortTruth(model, appStateEffort).label
+  return notBuilt('src/utils/effort.ts:447')
 }
 
 export function getEffortSuffix(model: string, effortValue: EffortValue | undefined): string {
-  if (effortValue === undefined) return ''
-  const resolution = resolveEffortTruth(model, effortValue)
-  if (resolution.wire === undefined) return ''
-  return ` with ${resolution.label} effort`
+  return notBuilt('src/utils/effort.ts:451')
 }
 
 export function cycleSelectableEffort(
@@ -460,24 +441,7 @@ export function cycleSelectableEffort(
   current: EffortLevel | undefined,
   direction: 'left' | 'right',
 ): EffortLevel {
-  const stops = selectableEffortLevels(model)
-  if (stops.length === 0) return current ?? FIRST_PARTY_DEFAULT_LEVEL
-  let index = current !== undefined ? stops.indexOf(current) : -1
-  if (index === -1 && current !== undefined) {
-    const currentRank = EFFORT_LEVELS.indexOf(current)
-    for (let i = stops.length - 1; i >= 0; i--) {
-      if (EFFORT_LEVELS.indexOf(stops[i] as EffortLevel) <= currentRank) {
-        index = i
-        break
-      }
-    }
-  }
-  if (index === -1) {
-    const defaultIndex = stops.indexOf(FIRST_PARTY_DEFAULT_LEVEL)
-    index = defaultIndex === -1 ? 0 : defaultIndex
-  }
-  const next = direction === 'right' ? (index + 1) % stops.length : (index - 1 + stops.length) % stops.length
-  return stops[next] as EffortLevel
+  return notBuilt('src/utils/effort.ts:458')
 }
 
 export function convertEffortValueToLevel(v: EffortValue): EffortLevel {
@@ -506,41 +470,16 @@ export function effortFamiliesLabel(supports: (modelId: string) => boolean): str
 }
 
 export function getEffortLevelDescription(level: EffortLevel): string {
-  switch (level) {
-    case 'low':
-      return 'Fastest and lightest — the smallest amount of work that answers.'
-    case 'medium':
-      return 'The middle road — a normal implementation plus the tests that go with it.'
-    case 'high':
-      return 'Thorough — implementation with substantial test coverage and written documentation.'
-    case 'xhigh':
-      return `Extra depth of reasoning — the right pick for difficult coding and long agentic runs · ${effortFamiliesLabel(modelSupportsXHighEffort)}`
-    case 'max':
-      return `The model's fullest capability and deepest reasoning · ${effortFamiliesLabel(modelSupportsMaxEffort)}`
-  }
+  return notBuilt('src/utils/effort.ts:508')
 }
 
 export function getEffortValueDescription(value: EffortValue, model?: string): string {
-  if (typeof value === 'number') return getEffortLevelDescription('medium')
-  const base = getEffortLevelDescription(value)
-  if (value === 'high' && model !== undefined && model.toLowerCase().includes('opus')) {
-    return `${base} This tier burns fastest; medium handles most tasks.`
-  }
-  return base
+  return notBuilt('src/utils/effort.ts:523')
 }
 
-type OpusDefaultEffortConfig = {
-  enabled: boolean
-  dialogTitle: string
-  dialogDescription: string
-}
+type OpusDefaultEffortConfig = Unbuilt
 
-const DEFAULT_OPUS_EFFORT_CONFIG: OpusDefaultEffortConfig = {
-  enabled: true,
-  dialogTitle: 'Medium effort is recommended for Opus',
-  dialogDescription:
-    'Effort determines how long Mercury thinks. Medium is recommended for most tasks to balance speed, intelligence and rate limits.',
-}
+const DEFAULT_OPUS_EFFORT_CONFIG: OpusDefaultEffortConfig = unbuilt('src/utils/effort.ts:538')
 
 function getOpusDefaultEffortConfig(): OpusDefaultEffortConfig {
   return { ...DEFAULT_OPUS_EFFORT_CONFIG }
@@ -606,22 +545,7 @@ export function getLaunchDefaultEffort(model: string): EffortLevel {
 }
 
 export function getDefaultEffortForModel(model: string): EffortValue | undefined {
-  const gptDefault = gptModelDefaultEffort(model)
-  if (gptDefault !== undefined) return gptDefault
-  {
-    const view = gptEffortVocabularyView(model)
-    if (view.state !== 'not-gpt') return undefined
-    if (isGlmModelId(model)) return undefined
-  }
-  if (isLaunchEffortPinned(model)) return getLaunchDefaultEffort(model)
-  if (model.toLowerCase().includes('opus-4-6')) {
-    if (isProSubscriber()) return 'medium'
-    if ((isMaxSubscriber() || isCrewSubscriber() || isEnterpriseSubscriber()) && getOpusDefaultEffortConfig().enabled) {
-      return 'medium'
-    }
-  }
-  if (modelSupportsEffort(model)) return 'medium'
-  return undefined
+  return notBuilt('src/utils/effort.ts:608')
 }
 
 export function isTurnOwningQuerySource(querySource: string | undefined): boolean {

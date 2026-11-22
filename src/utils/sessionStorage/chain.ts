@@ -20,54 +20,28 @@ import { stripTerminalControls } from '../stringUtils.js'
 import { transcriptRows } from './rowGraph.js'
 import { isBuiltInCommandName } from './builtInCommands.js'
 import { transcriptProjector } from './transcriptProjector.js'
-
-const SKIP_FIRST_PROMPT_PATTERN =
-  /^(?:\s*<[a-z][\w-]*[\s>]|\[Request (?:interrupted by user|cut off)[^\]]*\])/
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 export function extractFirstPrompt(transcript: TranscriptMessage[]): string {
-  const textContent = getFirstMeaningfulUserMessageTextContent(transcript)
-  if (!textContent) return 'No prompt'
-  const flat = stripTerminalControls(textContent).replace(/\n/g, ' ').trim()
-  return flat.length > 200 ? flat.slice(0, 200).trim() + '…' : flat
+  return notBuilt('src/utils/sessionStorage/chain.ts:27')
 }
 
 export function getFirstMeaningfulUserMessageTextContent<T extends Message>(
   transcript: T[],
 ): string | undefined {
-  for (const msg of transcript) {
-    if (msg.type !== 'user' || msg.isMeta || msg.isCompactSummary) continue
-    const content = msg.message?.content
-    if (!content) continue
-    const texts = typeof content === 'string'
-      ? [content]
-      : Array.isArray(content) ? content.flatMap(block => block.type === 'text' && block.text ? [block.text] : []) : []
-    for (const text of texts) {
-      if (!text) continue
-      const command = extractTag(text, COMMAND_NAME_TAG)
-      if (command) {
-        if (isBuiltInCommandName(command.replace(/^\//, ''))) continue
-        const args = extractTag(text, 'command-args')?.trim()
-        if (!args) continue
-        return `${command} ${args}`
-      }
-      const shell = extractTag(text, 'bash-input')
-      if (shell) return `! ${shell}`
-      if (!SKIP_FIRST_PROMPT_PATTERN.test(text)) return text
-    }
-  }
-  return undefined
+  return notBuilt('src/utils/sessionStorage/chain.ts:34')
 }
 
 export function removeExtraFields(
   transcript: TranscriptMessage[],
 ): SerializedMessage[] {
-  return transcript.map(({ isSidechain, parentUuid, ...message }) => message)
+  return notBuilt('src/utils/sessionStorage/chain.ts:61')
 }
 
 export function applyPreservedSegmentRelinks(
   messages: Map<UUID, TranscriptMessage>,
 ): void {
-  transcriptRows(messages).relinkPreserved()
+  return notBuilt('src/utils/sessionStorage/chain.ts:67')
 }
 
 export function applySnipRemovals(messages: Map<UUID, TranscriptMessage>): void {
@@ -78,118 +52,61 @@ function* accepted<T>(rows: Iterable<T>, accepts: (row: T) => boolean): Generato
   for (const row of rows) if (accepts(row)) yield row
 }
 
-function lastHighestBy<T>(rows: Iterable<T>, score: (row: T) => number): T | undefined {
-  let best: T | undefined
-  let bestScore = -Infinity
-  for (const row of rows) {
-    const rowScore = score(row)
-    if (rowScore >= bestScore) {
-      best = row
-      bestScore = rowScore
-    }
-  }
-  return best
-}
-
 const stampOf = (row: { timestamp: string }): number => Date.parse(row.timestamp)
 
 export function findLatestMessage<T extends { timestamp: string }>(
   messages: Iterable<T>,
   predicate: (m: T) => boolean,
 ): T | undefined {
-  return lastHighestBy(accepted(messages, predicate), stampOf)
+  return notBuilt('src/utils/sessionStorage/chain.ts:96')
 }
 
 export function buildConversationChain(
   messages: Map<UUID, TranscriptMessage>,
   leafMessage: TranscriptMessage,
 ): TranscriptMessage[] {
-  return transcriptRows(messages).chain(leafMessage)
+  return notBuilt('src/utils/sessionStorage/chain.ts:103')
 }
 
 export function buildScreenConversation(
   messages: Map<UUID, TranscriptMessage>,
 ): TranscriptMessage[] {
-  return transcriptRows(messages).screenConversation()
+  return notBuilt('src/utils/sessionStorage/chain.ts:110')
 }
 
 export function checkResumeConsistency(chain: Message[]): void {
-  for (let i = chain.length - 1; i >= 0; i--) {
-    const row = chain[i]!
-    if (row.type !== 'system' || row.subtype !== 'turn_duration') continue
-    if (row.messageCount === undefined) return
-    const drift = i - row.messageCount
-    if (drift !== 0) {
-      logForDebugging(
-        `resume round-trip drift: turn_duration checkpoint expected ${row.messageCount} prior message(s), chain has ${i} (drift ${drift > 0 ? '+' : ''}${drift})`,
-        { level: 'warn' },
-      )
-    }
-    return
-  }
+  return notBuilt('src/utils/sessionStorage/chain.ts:116')
 }
 
 export function buildFileHistorySnapshotChain(
   fileHistorySnapshots: Map<UUID, FileHistorySnapshotEntry>,
   conversation: TranscriptMessage[],
 ): FileHistorySnapshot[] {
-  const snapshots: FileHistorySnapshot[] = []
-  const slots = new Map<string, number>()
-  for (const row of conversation) {
-    const entry = fileHistorySnapshots.get(row.uuid)
-    if (!entry) continue
-    const slot = entry.isSnapshotUpdate ? slots.get(entry.snapshot.messageId) : undefined
-    if (slot !== undefined) snapshots[slot] = entry.snapshot
-    else {
-      slots.set(entry.snapshot.messageId, snapshots.length)
-      snapshots.push(entry.snapshot)
-    }
-  }
-  return snapshots
+  return notBuilt('src/utils/sessionStorage/chain.ts:132')
 }
 
 export function buildAttributionSnapshotChain(
   attributionSnapshots: Map<UUID, AttributionSnapshotEntry>,
   _conversation: TranscriptMessage[],
 ): AttributionSnapshotEntry[] {
-  return Array.from(attributionSnapshots.values())
+  return notBuilt('src/utils/sessionStorage/chain.ts:151')
 }
 
 export function cleanForTranscript(
   messages: Message[],
-  allMessages: readonly Message[] = messages,
+  allMessages?: readonly Message[],
 ): Transcript {
-  return transformMessagesForExternalTranscript(messages.filter(isTranscribable) as Transcript)
-    .map(message => transcriptProjector().projectForTranscript(message, allMessages))
+  return notBuilt('src/utils/sessionStorage/chain.ts:158')
 }
 
-export type Transcript = (
-  | UserMessage
-  | AssistantMessage
-  | AttachmentMessage
-  | SystemMessage
-)[]
+export type Transcript = Unbuilt[]
 
 export function writtenChainTail(messages: Message[], parentUuid?: UUID | null): UUID | undefined {
   return cleanForTranscript(messages).at(-1)?.uuid ?? parentUuid ?? undefined
 }
 
 export function isTranscribable(m: Message): boolean {
-  if (m.type === 'progress') return false
-  if (m.type !== 'attachment') return true
-  const att = m.attachment
-  switch (att.type) {
-    case 'hook':
-      return att.outcome !== 'text'
-    case 'bypassed_ask':
-    case 'bound_prefix':
-    case 'dead_thinking':
-    case 'dropped_thinking':
-    case 'images_left_out':
-      return true
-    default:
-      return Boolean((att as { capsuleReceipt?: unknown }).capsuleReceipt) || transcriptProjector().hasApiAttachment(att)
-  }
+  return notBuilt('src/utils/sessionStorage/chain.ts:177')
 }
 
 function transformMessagesForExternalTranscript(messages: Transcript): Transcript {

@@ -14,45 +14,32 @@ import { formatFileSize } from './format.js'
 import { logError } from './log.js'
 import { getProjectDir } from './sessionStorage/paths.js'
 import { passedOver } from './passedOver.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
-export const TOOL_RESULTS_SUBDIR = 'tool-results'
-export const PERSISTED_OUTPUT_TAG = '<persisted-output>'
-export const PERSISTED_OUTPUT_CLOSING_TAG = '</persisted-output>'
-export const TOOL_RESULT_CLEARED_MESSAGE = '[stale tool result pruned — content cleared]'
+export const TOOL_RESULTS_SUBDIR: Unbuilt = unbuilt('src/utils/toolResultStorage.ts:19')
+export const PERSISTED_OUTPUT_TAG: Unbuilt = unbuilt('src/utils/toolResultStorage.ts:20')
+export const PERSISTED_OUTPUT_CLOSING_TAG: Unbuilt = unbuilt('src/utils/toolResultStorage.ts:21')
+export const TOOL_RESULT_CLEARED_MESSAGE: Unbuilt = unbuilt('src/utils/toolResultStorage.ts:22')
 
-export const PREVIEW_SIZE_CHARS = 2000
-export const PREVIEW_MAX_LINE_CHARS = 400
+export const PREVIEW_SIZE_CHARS: Unbuilt = unbuilt('src/utils/toolResultStorage.ts:24')
+export const PREVIEW_MAX_LINE_CHARS: Unbuilt = unbuilt('src/utils/toolResultStorage.ts:25')
 
-type PersistedToolResult = {
-  filepath: string
-  originalSize: number
-  isJson: boolean
-  preview: string
-  hasMore: boolean
-}
+type PersistedToolResult = Unbuilt
 
-type PersistToolResultError = { error: string }
+type PersistToolResultError = Unbuilt
 
 function isPersistError(
   result: PersistedToolResult | PersistToolResultError,
 ): result is PersistToolResultError {
-  return 'error' in result
+  return notBuilt('src/utils/toolResultStorage.ts:37')
 }
 
-export type ToolResultReplacementRecord = {
-  kind: 'tool-result'
-  toolUseId: string
-  replacement: string
-}
+export type ToolResultReplacementRecord = Unbuilt
 
-export type ContentReplacementRecord = ToolResultReplacementRecord
+export type ContentReplacementRecord = Unbuilt
 
-export type ContentReplacementState = {
-  seenIds: Set<string>
-  replacements: Map<string, string>
-  budgetChars?: number
-}
+export type ContentReplacementState = Unbuilt
 
 function getPersistenceThreshold(declaredMaxResultSizeChars: number, model?: string): number {
   if (!Number.isFinite(declaredMaxResultSizeChars)) return declaredMaxResultSizeChars
@@ -266,9 +253,7 @@ export async function processToolResultBlock<T>(
   toolUseID: string,
   model?: string,
 ): Promise<ToolResultBlockParam> {
-  const block = tool.mapToolResultToToolResultBlockParam(toolUseResult, toolUseID)
-  const threshold = getPersistenceThreshold((tool as { maxResultSizeChars?: number }).maxResultSizeChars ?? DEFAULT_MAX_RESULT_SIZE_CHARS, model)
-  return applySizePersistence(block, tool.name, threshold)
+  return notBuilt('src/utils/toolResultStorage.ts:263')
 }
 
 export async function processPreMappedToolResultBlock(
@@ -278,191 +263,24 @@ export async function processPreMappedToolResultBlock(
   room?: ResultRoomShare,
   model?: string,
 ): Promise<ToolResultBlockParam> {
-  return applySizePersistence(block, toolName, getPersistenceThreshold(maxResultSizeChars, model), room)
+  return notBuilt('src/utils/toolResultStorage.ts:274')
 }
 
 export function createContentReplacementState(): ContentReplacementState {
-  return { seenIds: new Set(), replacements: new Map() }
+  return notBuilt('src/utils/toolResultStorage.ts:284')
 }
 
 export function cloneContentReplacementState(source: ContentReplacementState): ContentReplacementState {
-  return { ...source, seenIds: new Set(source.seenIds), replacements: new Map(source.replacements) }
-}
-
-type BudgetCandidate = {
-  toolUseId: string
-  content: unknown
-  size: number
-}
-
-function collectCandidates(message: Message): BudgetCandidate[] {
-  if (message.type !== 'user') return []
-  const content = message.message.content
-  if (!Array.isArray(content)) return []
-  const candidates: BudgetCandidate[] = []
-  for (const block of content as Array<{ type?: string; tool_use_id?: string; content?: unknown }>) {
-    if (block.type !== 'tool_result') continue
-    if (typeof block.tool_use_id !== 'string') continue
-    if (block.content === undefined || block.content === null) continue
-    if (typeof block.content === 'string' && block.content.startsWith(TOOL_RESULT_CLEARED_MESSAGE)) continue
-    if (hasImageBlock(block.content)) continue
-    candidates.push({ toolUseId: block.tool_use_id, content: block.content, size: contentSizeOf(block.content) })
-  }
-  return candidates
+  return notBuilt('src/utils/toolResultStorage.ts:288')
 }
 
 export async function enforceToolResultBudget(
   messages: Message[],
   state: ContentReplacementState,
-  skipToolNames: ReadonlySet<string> = new Set(),
+  skipToolNames?: ReadonlySet<string>,
   model?: string,
 ): Promise<{ messages: Message[]; replacements: ToolResultReplacementRecord[] }> {
-  const limit = state.budgetChars ?? resultBudgetsForModel(model).messageChars
-
-  const groups: BudgetCandidate[][] = []
-  let currentGroup: BudgetCandidate[] = []
-  const seenResponseIds = new Set<string>()
-  for (const message of messages) {
-    if (message.type === 'assistant') {
-      const responseId = (message as { message?: { id?: string } }).message?.id
-      if (responseId && !seenResponseIds.has(responseId)) {
-        seenResponseIds.add(responseId)
-        if (currentGroup.length > 0) {
-          groups.push(currentGroup)
-          currentGroup = []
-        }
-      }
-      continue
-    }
-    if (message.type !== 'user') continue
-    currentGroup.push(...collectCandidates(message))
-  }
-  if (currentGroup.length > 0) groups.push(currentGroup)
-
-  let toolNamesById: Map<string, string> | null = null
-  if (skipToolNames.size > 0) {
-    toolNamesById = new Map()
-    for (const message of messages) {
-      if (message.type !== 'assistant') continue
-      const content = message.message.content
-      if (!Array.isArray(content)) continue
-      for (const block of content as Array<{ type?: string; id?: string; name?: string }>) {
-        if (block.type === 'tool_use' && typeof block.id === 'string' && typeof block.name === 'string') {
-          toolNamesById.set(block.id, block.name)
-        }
-      }
-    }
-  }
-
-  const applyById = new Map<string, string>()
-  const newReplacements: ToolResultReplacementRecord[] = []
-  let reappliedCount = 0
-  let overBudgetGroups = 0
-  let shedSize = 0
-
-  for (const group of groups) {
-    const freshCandidates: BudgetCandidate[] = []
-    let frozenSize = 0
-    for (const candidate of group) {
-      const priorReplacement = state.replacements.get(candidate.toolUseId)
-      if (priorReplacement !== undefined) {
-        applyById.set(candidate.toolUseId, priorReplacement)
-        reappliedCount++
-        continue
-      }
-      if (state.seenIds.has(candidate.toolUseId)) {
-        frozenSize += candidate.size
-        continue
-      }
-      freshCandidates.push(candidate)
-    }
-    if (freshCandidates.length === 0) {
-      for (const candidate of group) state.seenIds.add(candidate.toolUseId)
-      continue
-    }
-
-    let eligibleFresh = freshCandidates
-    if (toolNamesById !== null) {
-      eligibleFresh = []
-      for (const candidate of freshCandidates) {
-        const toolName = toolNamesById.get(candidate.toolUseId)
-        if (toolName !== undefined && skipToolNames.has(toolName)) {
-          state.seenIds.add(candidate.toolUseId)
-        } else {
-          eligibleFresh.push(candidate)
-        }
-      }
-    }
-
-    const freshSize = eligibleFresh.reduce((sum, candidate) => sum + candidate.size, 0)
-    if (frozenSize + freshSize <= limit) {
-      for (const candidate of group) state.seenIds.add(candidate.toolUseId)
-      continue
-    }
-    overBudgetGroups++
-
-    const sortedFresh = [...eligibleFresh].sort((a, b) => b.size - a.size)
-    let remainder = frozenSize + freshSize
-    const selected: BudgetCandidate[] = []
-    for (const candidate of sortedFresh) {
-      if (remainder <= limit) break
-      selected.push(candidate)
-      remainder -= candidate.size
-    }
-    const selectedIds = new Set(selected.map(candidate => candidate.toolUseId))
-
-    for (const candidate of group) {
-      if (!selectedIds.has(candidate.toolUseId)) state.seenIds.add(candidate.toolUseId)
-    }
-    for (const candidate of selected) {
-      const persisted = await persistToolResult(
-        candidate.content as string | TextBlockLike[],
-        candidate.toolUseId,
-      )
-      if (isPersistError(persisted)) {
-        state.seenIds.add(candidate.toolUseId)
-        continue
-      }
-      const replacement = buildLargeToolResultMessage(persisted)
-      state.seenIds.add(candidate.toolUseId)
-      state.replacements.set(candidate.toolUseId, replacement)
-      applyById.set(candidate.toolUseId, replacement)
-      newReplacements.push({ kind: 'tool-result', toolUseId: candidate.toolUseId, replacement })
-      shedSize += candidate.size
-    }
-  }
-
-  if (applyById.size === 0) {
-    return { messages, replacements: [] }
-  }
-
-  const rebuilt = messages.map(message => {
-    if (message.type !== 'user') return message
-    const content = message.message.content
-    if (!Array.isArray(content)) return message
-    const affected = (content as Array<{ type?: string; tool_use_id?: string }>).some(
-      block => block.type === 'tool_result' && typeof block.tool_use_id === 'string' && applyById.has(block.tool_use_id),
-    )
-    if (!affected) return message
-    return {
-      ...message,
-      message: {
-        ...message.message,
-        content: (content as Array<{ type?: string; tool_use_id?: string }>).map(block =>
-          block.type === 'tool_result' && typeof block.tool_use_id === 'string' && applyById.has(block.tool_use_id)
-            ? { ...block, content: applyById.get(block.tool_use_id) }
-            : block,
-        ),
-      },
-    } as Message
-  })
-
-  if (newReplacements.length > 0) {
-    logForDebugging(
-      `tool-result budget: persisted ${newReplacements.length} results across ${overBudgetGroups} over-budget messages (~${shedSize} chars shed, ${reappliedCount} re-applied)`,
-    )
-  }
-  return { messages: rebuilt, replacements: newReplacements }
+  return notBuilt('src/utils/toolResultStorage.ts:314')
 }
 
 export async function applyToolResultBudget(
@@ -472,12 +290,7 @@ export async function applyToolResultBudget(
   skipToolNames?: ReadonlySet<string>,
   model?: string,
 ): Promise<Message[]> {
-  if (!state) return messages
-  const result = await enforceToolResultBudget(messages, state, skipToolNames ?? new Set(), model)
-  if (writeToTranscript && result.replacements.length > 0) {
-    await writeToTranscript(result.replacements)
-  }
-  return result.messages
+  return notBuilt('src/utils/toolResultStorage.ts:468')
 }
 
 export function reconstructContentReplacementState(
@@ -485,27 +298,7 @@ export function reconstructContentReplacementState(
   records: ContentReplacementRecord[],
   inheritedReplacements?: Map<string, string>,
 ): ContentReplacementState {
-  const state = createContentReplacementState()
-  const candidateIds = new Set<string>()
-  for (const message of messages) {
-    for (const candidate of collectCandidates(message)) {
-      candidateIds.add(candidate.toolUseId)
-      state.seenIds.add(candidate.toolUseId)
-    }
-  }
-  for (const record of records) {
-    if (record.kind !== 'tool-result') continue
-    if (!candidateIds.has(record.toolUseId)) continue
-    state.replacements.set(record.toolUseId, record.replacement)
-  }
-  if (inheritedReplacements) {
-    for (const [toolUseId, replacement] of inheritedReplacements) {
-      if (candidateIds.has(toolUseId) && !state.replacements.has(toolUseId)) {
-        state.replacements.set(toolUseId, replacement)
-      }
-    }
-  }
-  return state
+  return notBuilt('src/utils/toolResultStorage.ts:483')
 }
 
 export function reconstructForSubagentResume(
@@ -513,9 +306,5 @@ export function reconstructForSubagentResume(
   resumedMessages: Message[],
   sidechainRecords: ContentReplacementRecord[],
 ): ContentReplacementState | undefined {
-  if (!parentState) return undefined
-  return {
-    ...reconstructContentReplacementState(resumedMessages, sidechainRecords, parentState.replacements),
-    budgetChars: parentState.budgetChars,
-  }
+  return notBuilt('src/utils/toolResultStorage.ts:511')
 }

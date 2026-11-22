@@ -31,6 +31,7 @@ import {
   type StudioScopeTab,
   type StudioStatusFilter,
 } from './studioData.js'
+import { notBuilt } from '../../../pi/holes.js'
 
 export type Mode =
   | { kind: 'library' }
@@ -128,67 +129,8 @@ type InspectKeysArgs = {
   cwd: string
 }
 
-export function inspectKeysOf({ mode, setMode, fl, done, cwd }: InspectKeysArgs, input: string, key: InputKey): void {
-  if (mode.kind !== 'inspect') return
-  const row = mode.row
-  const agent = row.agent
-  if (key.escape || key.leftArrow) {
-    setMode({ kind: 'library' })
-    return
-  }
-  if (row.kind === 'invalid') {
-    if (input === 'o' && row.invalid) {
-      void editFileInEditor(row.invalid.path).then(r => {
-        if (r.error) fl.setNote({ text: r.error, kind: 'fail' })
-        else done(`Edited invalid file ${row.invalid!.path} in editor`)
-      })
-    }
-    return
-  }
-  if (!agent) return
-  if (input === 'e') {
-    if (isFileBacked(agent)) {
-      setMode({
-        kind: 'edit',
-        base: { identity: { filePath: agent.filePath, revision: agent.revision }, agent },
-      })
-    }
-    return
-  }
-  if (input === 'd' && !key.ctrl && !key.meta) {
-    if (isFileBacked(agent)) setMode({ kind: 'delete-confirm', agent })
-    return
-  }
-  if (input === 'c' && !key.ctrl && !key.meta) {
-    if (isFileBacked(agent) || agent.source === 'extension') {
-      setMode({ kind: 'clone', agent, buffer: `${agent.agentType}-copy` })
-    }
-    return
-  }
-  if (input === 't') {
-    setMode({ kind: 'testdrive', agent, buffer: '' })
-    return
-  }
-  if (input === 'o') {
-    if (isFileBacked(agent)) {
-      void editFileInEditor(agent.filePath).then(r => {
-        if (r.error) fl.setNote({ text: r.error, kind: 'fail' })
-        else done(`Opened ${agent.agentType} in editor — changes hot-reload`)
-      })
-    }
-    return
-  }
-  if (input === 'x') {
-    if (agent.source === 'built-in') return
-    void setAgentDisabled('user', cwd, agent.agentType, agent.disabled !== true)
-      .then(() => done(`${agent.disabled ? 'Enabled' : 'Disabled'} ${agent.agentType}`))
-      .catch(e => fl.setNote({ text: String(e), kind: 'fail' }))
-    return
-  }
-  if (input === 'm') {
-    setMode({ kind: 'override-model', agent })
-    return
-  }
+export function inspectKeysOf(arg0: InspectKeysArgs, input: string, key: InputKey): void {
+  return notBuilt('src/components/agents/studio/agentStudioParts.tsx:131')
 }
 
 type ModelOverrideArgs = {
@@ -316,97 +258,6 @@ type StudioLibraryArgs = {
   }) => React.ReactNode
 }
 
-export function studioLibraryView({ onExit, changes, footer, mode, setMode, trashSel, runClone, runTestDrive, parentModel, sessionEffort, mergedTools, estateRef, fl, query, tab, filter, accent, TrashView, TestDrivePane, InspectorPane, LibraryPane }: StudioLibraryArgs): React.ReactNode {
-  return (
-    <CommandCenter
-      view="agents"
-      subtitle="agent studio"
-      onClose={() => {
-        onExit(
-          changes.length > 0 ? `Agent changes:\n${changes.join('\n')}` : 'Agent Studio closed',
-          { display: changes.length > 0 ? undefined : 'system' },
-        )
-      }}
-      captureInput={false}
-      footer={footer}
-      bodyOwnsPageKeys={mode.kind === 'library' || mode.kind === 'trash'}
-    >
-      <Box flexDirection="column">
-        {mode.kind === 'delete-confirm' ? (
-          <Box marginTop={1} flexDirection="column">
-            <SectionHeader>Delete agent</SectionHeader>
-            <Text>
-              <Text color={IVORY}>{`delete ${mode.agent.agentType}? `}</Text>
-              <Text color={FAINT}>
-                {`moves the file to the recovery area (press U to restore)`}
-              </Text>
-            </Text>
-            <Text color={FAINT}>{truncateToWidth(`  ${(mode.agent as { filePath?: string }).filePath ?? ''}`, 76)}</Text>
-          </Box>
-        ) : mode.kind === 'trash' ? (
-          <TrashView sel={trashSel} />
-        ) : mode.kind === 'clone' ? (
-          <Box marginTop={1} flexDirection="column">
-            <SectionHeader>{`Clone ${mode.agent.agentType}`}</SectionHeader>
-            <Text color={FAINT}>new identifier (a lossless copy lands in the project scope):</Text>
-            <TextInput
-              value={mode.buffer}
-              onChange={v => setMode({ ...mode, buffer: v })}
-              onSubmit={() => runClone(mode.agent, mode.buffer.trim())}
-              columns={50}
-              cursorOffset={mode.buffer.length}
-              onChangeCursorOffset={() => {}}
-              focus
-              showCursor
-            />
-          </Box>
-        ) : mode.kind === 'testdrive' ? (
-          <TestDrivePane
-            agent={mode.agent}
-            buffer={mode.buffer}
-            onChange={v => setMode({ ...mode, buffer: v })}
-            onSubmit={() => {
-              if (mode.buffer.trim()) runTestDrive(mode.agent, mode.buffer.trim())
-            }}
-            parentModel={parentModel}
-            sessionEffort={sessionEffort}
-            tools={mergedTools}
-          />
-        ) : mode.kind === 'inspect' ? (
-          <InspectorPane
-            row={mode.row}
-            estate={estateRef.current}
-            parentModel={parentModel}
-            sessionEffort={sessionEffort}
-            tools={mergedTools}
-          />
-        ) : (
-          <LibraryPane
-            fl={fl}
-            query={query}
-            tab={tab}
-            filter={filter}
-            accent={accent}
-          />
-        )}
-        {fl.note ? (
-          <Box marginTop={1}>
-            <Text
-              color={
-                fl.note.kind === 'ok'
-                  ? TEAL
-                  : fl.note.kind === 'fail'
-                    ? CRIMSON
-                    : fl.note.kind === 'warn'
-                      ? AMBER
-                      : FAINT
-              }
-            >
-              {truncateToWidth(fl.note.text, 76)}
-            </Text>
-          </Box>
-        ) : null}
-      </Box>
-    </CommandCenter>
-  )
+export function studioLibraryView(arg0: StudioLibraryArgs): React.ReactNode {
+  return notBuilt('src/components/agents/studio/agentStudioParts.tsx:319')
 }

@@ -14,6 +14,7 @@ import { getFsImplementation } from './fsOperations.js'
 import { writeToStderr } from './process.js'
 import { passedOver } from './passedOver.js'
 import { hostEnv } from './hostEnv.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
 type DebugLogLevel = 'verbose' | 'debug' | 'info' | 'warn' | 'error'
@@ -28,21 +29,10 @@ const getMinDebugLogLevel = memoize((): DebugLogLevel => {
 
 let runtimeToggleEnabled = false
 
-export const isDebugMode = memoize((): boolean => {
-  if (runtimeToggleEnabled) return true
-  if (isEnvTruthy(hostEnv().DEBUG)) return true
-  if (process.argv.includes('--debug') || process.argv.includes('-d')) return true
-  if (isDebugToStdErr()) return true
-  if (process.argv.some(arg => arg.startsWith('--debug='))) return true
-  if (getDebugFilePath() !== null) return true
-  return false
-})
+export const isDebugMode: Unbuilt = unbuilt('src/utils/debug.ts:31')
 
 export function enableDebugLogging(): boolean {
-  const wasActive = isDebugMode()
-  runtimeToggleEnabled = true
-  isDebugMode.cache.clear?.()
-  return wasActive
+  return notBuilt('src/utils/debug.ts:41')
 }
 
 const getDebugFilter = memoize((): DebugFilter | null => {
@@ -73,54 +63,6 @@ let rotationInProgress = false
 let latestSymlinkRefreshed = false
 let pendingMaintenance: Promise<void> = Promise.resolve()
 
-async function maybeRotateDebugLog(
-  path: string,
-  addedBytes: number,
-  maxBytes: number = MAX_DEBUG_LOG_BYTES,
-): Promise<void> {
-  const fs = getFsImplementation()
-  if (trackedLogSize === null || trackedLogPath !== path) {
-    trackedLogPath = path
-    try {
-      trackedLogSize = fs.statSync(path).size
-    } catch {
-      trackedLogSize = 0
-    }
-  } else {
-    trackedLogSize += addedBytes
-  }
-  if (trackedLogSize <= maxBytes || rotationInProgress) return
-  rotationInProgress = true
-  try {
-    const rotatedPath = path.endsWith('.txt')
-      ? `${path.slice(0, -'.txt'.length)}.1.txt`
-      : `${path}.1`
-    try {
-      await renameWithWin32Retry(path, rotatedPath)
-    } catch (err) {
-      if (!isENOENT(err)) {
-        try {
-          await fs.unlink(rotatedPath)
-        } catch (error) {
-          passedOver(error)
-        }
-        try {
-          await renameWithWin32Retry(path, rotatedPath)
-        } catch {
-          try {
-            await fs.unlink(path)
-          } catch (error) {
-            passedOver(error)
-          }
-        }
-      }
-    }
-    trackedLogSize = 0
-  } finally {
-    rotationInProgress = false
-  }
-}
-
 function refreshLatestSymlink(logPath: string, logDir: string): void {
   if (latestSymlinkRefreshed) return
   latestSymlinkRefreshed = true
@@ -137,53 +79,12 @@ function refreshLatestSymlink(logPath: string, logDir: string): void {
   }
 }
 
-
-let debugWriter: BufferedWriter | null = null
-let currentLogDirectory: string | null = null
-
-function writeLogLine(content: string): void {
-  if (!isDebugMode()) return
-  const logPath = getDebugLogPath()
-  const logDir = dirname(logPath)
-  const fs = getFsImplementation()
-  if (currentLogDirectory !== logDir) {
-    try {
-      fs.mkdirSync(logDir)
-    } catch (error) {
-      passedOver(error)
-    }
-    currentLogDirectory = logDir
-  }
-  try {
-    fs.appendFileSync(logPath, content)
-  } catch (error) {
-    passedOver(error)
-    return
-  }
-  if (getDebugFilePath() !== null) return
-  pendingMaintenance = maybeRotateDebugLog(logPath, content.length).then(() => {
-    refreshLatestSymlink(logPath, logDir)
-  })
-}
-
 function getWriter(): BufferedWriter {
-  if (debugWriter) return debugWriter
-  debugWriter = createBufferedWriter({
-    writeFn: writeLogLine,
-    flushIntervalMs: 1000,
-    maxBufferSize: 100,
-    immediateMode: isDebugMode(),
-  })
-  registerCleanup(async () => {
-    debugWriter?.dispose()
-    await pendingMaintenance
-  })
-  return debugWriter
+  return notBuilt('src/utils/debug.ts:169')
 }
 
 export async function flushDebugLogs(): Promise<void> {
-  debugWriter?.flush()
-  await pendingMaintenance
+  return notBuilt('src/utils/debug.ts:184')
 }
 
 export function logForDebugging(message: string, opts?: { level: DebugLogLevel }): void {

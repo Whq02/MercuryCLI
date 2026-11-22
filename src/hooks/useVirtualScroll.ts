@@ -1,4 +1,3 @@
-
 import {
   useCallback,
   useDeferredValue,
@@ -13,6 +12,7 @@ import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { useLayoutClaim, useLayoutPublish, useMeasure, useSubscription } from './effects.js'
 import { passedOver } from '../utils/passedOver.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 function pinTrace(entry: Record<string, unknown>): void {
   const path = flagEnv('MERCURY_CONNECTOR_TRACE')
@@ -44,18 +44,7 @@ const MOUNT_COST_CLAMP_MIN_MS = 0.02
 const MOUNT_COST_CLAMP_MAX_MS = 20
 const MOUNT_COST_EMA_WEIGHT = 0.2
 
-type VirtualScrollResult = {
-  range: readonly [number, number]
-  topSpacer: number
-  bottomSpacer: number
-  measureRef: (key: string) => (el: DOMElement | null) => void
-  spacerRef: (el: DOMElement | null) => void
-  offsets: ArrayLike<number>
-  getItemTop: (index: number) => number
-  getItemElement: (index: number) => DOMElement | null
-  getItemHeight: (index: number) => number | undefined
-  scrollToIndex: (index: number) => void
-}
+type VirtualScrollResult = Unbuilt
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
@@ -111,246 +100,7 @@ export function useVirtualScroll(
   itemKeys: readonly string[],
   columns: number,
 ): VirtualScrollResult {
-  const itemCount = itemKeys.length
-  const renderStartMs = performance.now()
-
-  const heightCacheRef = useRef(new Map<string, number>())
-  const elementsRef = useRef(new Map<string, DOMElement>())
-  const refCallbacksRef = useRef(
-    new Map<string, (el: DOMElement | null) => void>(),
-  )
-  const offsetsVersionRef = useRef(0)
-  const offsetsBufferRef = useRef<Float64Array>(new Float64Array(0))
-  const offsetsBuiltVersionRef = useRef(-1)
-  const offsetsBuiltCountRef = useRef(-1)
-  const offsetsBuiltKeysRef = useRef<readonly string[] | null>(null)
-  const listOriginRef = useRef(0)
-  const spacerElementRef = useRef<DOMElement | null>(null)
-  const prevRangeRef = useRef<readonly [number, number] | null>(null)
-  const prevColumnsRef = useRef(columns)
-  const prevItemKeysRef = useRef(itemKeys)
-  const measurementSkipRef = useRef(false)
-  const freezeRendersRef = useRef(0)
-  const prevScrollAtCommitRef = useRef(0)
-  const msPerItemEmaRef = useRef(INITIAL_MS_PER_ITEM)
-  const contentPinRef = useRef<ContentPin | null>(null)
-  const lastWrittenTopRef = useRef<number | null>(null)
-  const keyIndexRef = useRef<{ keys: readonly string[] | null; map: Map<string, number>; indexed: number }>({
-    keys: null,
-    map: new Map(),
-    indexed: 0,
-  })
-  const minChangedIndexRef = useRef(Number.POSITIVE_INFINITY)
-  const reflowHoldRef = useRef(false)
-  const outOfLayoutRef = useRef(false)
-  const laidOutRef = useRef(false)
-  const listCommittingRef = useRef(false)
-  const paintedRef = useRef<PaintedGeometry>({ offsets: new Float64Array(0), keys: null, count: 0, version: -1, origin: 0 })
-  const afterLayoutRef = useRef<() => void>(() => {})
-  const [, forceResolve] = useReducer((n: number) => n + 1, 0)
-
-  const view: VirtualScrollView = {
-    scrollRef, itemKeys, forceResolve, heightCacheRef, elementsRef, refCallbacksRef, offsetsVersionRef, offsetsBufferRef,
-    offsetsBuiltVersionRef, offsetsBuiltCountRef, offsetsBuiltKeysRef, listOriginRef, spacerElementRef, prevColumnsRef, prevItemKeysRef,
-    measurementSkipRef, freezeRendersRef, prevScrollAtCommitRef, msPerItemEmaRef, contentPinRef, lastWrittenTopRef, keyIndexRef,
-    minChangedIndexRef, reflowHoldRef, outOfLayoutRef, laidOutRef, paintedRef,
-  }
-  const tools = virtualScrollTools(view)
-  const { indexByKey, pinWhereTheViewStands, ensureOffsets, recordMountedHeights, renderIfHeightsMovedThePane } = tools
-
-  pinWhereTheViewStands()
-
-  noteNewColumnsAndKeys(view, columns)
-
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => {
-      const box = scrollRef.current
-      if (!box) return () => {}
-      return box.subscribe(onStoreChange)
-    },
-    [scrollRef],
-  )
-  const getScrollSnapshot = useCallback((): number => {
-    const box = scrollRef.current
-    if (!box) return NaN
-    const bin = Math.floor(
-      (box.getScrollTop() + box.getPendingDelta()) / SCROLL_BIN_ROWS,
-    )
-    return box.isSticky() ? ~bin : bin
-  }, [scrollRef])
-  useSyncExternalStore(subscribe, getScrollSnapshot)
-
-  const box = scrollRef.current
-  const viewportHeight = box?.getViewportHeight() ?? 0
-  let scrollTop = box?.getScrollTop() ?? NaN
-  const pendingDelta = box?.getPendingDelta() ?? 0
-  const sticky = box ? box.isSticky() : true
-  const pane: VirtualScrollPane = { box, viewportHeight, pendingDelta, sticky, itemCount }
-  scrollTop = scrollTopHeldByThePin(view, tools, pane, scrollTop)
-
-  const offsets = ensureOffsets()
-  const frozen = freezeRendersRef.current > 0
-  const prevRange = prevRangeRef.current
-  const { start, end, movedDown } = rangeToMount(view, tools, pane, scrollTop, offsets, frozen, prevRange)
-
-  const rangeStart = start
-  const rangeEnd = end
-  const immediateRange = useMemo(
-    (): readonly [number, number] => [rangeStart, rangeEnd],
-    [rangeStart, rangeEnd],
-  )
-  const deferredRange = useDeferredValue(immediateRange)
-  const [effectiveStart, effectiveEnd] = rangeToShow(view, tools, pane, scrollTop, offsets, immediateRange, deferredRange, movedDown)
-
-  const topSpacer = offsets[effectiveStart] ?? 0
-  const bottomSpacer = (offsets[itemCount] ?? 0) - (offsets[effectiveEnd] ?? 0)
-
-  const prevCommittedRangeRef = useRef<readonly [number, number] | null>(null)
-  useLayoutPublish(() => {
-    const prev = prevCommittedRangeRef.current
-    const freshCount = prev
-      ? Math.max(0, prev[0] - effectiveStart) +
-        Math.max(0, effectiveEnd - prev[1])
-      : effectiveEnd - effectiveStart
-    if (freshCount >= MOUNT_COST_SAMPLE_MIN) {
-      const perItem = clampNumber(
-        (performance.now() - renderStartMs) / freshCount,
-        MOUNT_COST_CLAMP_MIN_MS,
-        MOUNT_COST_CLAMP_MAX_MS,
-      )
-      msPerItemEmaRef.current =
-        msPerItemEmaRef.current * (1 - MOUNT_COST_EMA_WEIGHT) +
-        perItem * MOUNT_COST_EMA_WEIGHT
-    }
-    prevCommittedRangeRef.current = [effectiveStart, effectiveEnd]
-  })
-
-  useLayoutPublish(() => {
-    const handle = scrollRef.current
-    if (!handle) return
-    const origin = listOriginRef.current
-    const min = effectiveStart === 0 ? 0 : topSpacer + origin
-    if (sticky || effectiveEnd >= itemCount) {
-      handle.setClampBounds(min, Number.MAX_SAFE_INTEGER)
-      return
-    }
-    const max =
-      Math.max((offsets[effectiveEnd] ?? 0) - viewportHeight, topSpacer) +
-      origin
-    handle.setClampBounds(min, max)
-  })
-
-  useMeasure(() => {
-    measureAfterTheCommit(view, tools, effectiveStart, effectiveEnd)
-  })
-
-  useLayoutClaim(() => {
-    listCommittingRef.current = false
-    afterLayoutRef.current = (): void => {
-      if (listCommittingRef.current || measurementSkipRef.current) return
-      if (freezeRendersRef.current > 0 || reflowHoldRef.current) return
-      recordMountedHeights()
-      renderIfHeightsMovedThePane(effectiveStart, effectiveEnd)
-    }
-    return () => {
-      listCommittingRef.current = true
-    }
-  })
-
-  useSubscription(() => scrollRef.current?.subscribeLayout(() => afterLayoutRef.current()), [scrollRef])
-
-  const measureRef = useCallback(
-    (key: string): ((el: DOMElement | null) => void) => {
-      let callback = refCallbacksRef.current.get(key)
-      if (!callback) {
-        callback = (el: DOMElement | null): void => {
-          if (el) {
-            elementsRef.current.set(key, el)
-            return
-          }
-          const previous = elementsRef.current.get(key)
-          if (previous?.layoutNode && !measurementSkipRef.current) {
-            const height = previous.layoutNode.getComputedHeight()
-            const width = previous.layoutNode.getComputedWidth()
-            if (
-              (height > 0 || width > 0) &&
-              heightCacheRef.current.get(key) !== height
-            ) {
-              heightCacheRef.current.set(key, height)
-              offsetsVersionRef.current += 1
-              const idx = indexByKey(prevItemKeysRef.current, key)
-              minChangedIndexRef.current = Math.min(minChangedIndexRef.current, idx ?? 0)
-            }
-          }
-          elementsRef.current.delete(key)
-        }
-        refCallbacksRef.current.set(key, callback)
-      }
-      return callback
-    },
-    [],
-  )
-
-  const spacerRef = useCallback((el: DOMElement | null): void => {
-    spacerElementRef.current = el
-  }, [])
-
-  const getItemElement = useCallback(
-    (index: number): DOMElement | null => {
-      const key = itemKeys[index]
-      if (key === undefined) return null
-      return elementsRef.current.get(key) ?? null
-    },
-    [itemKeys],
-  )
-
-  const getItemTop = useCallback(
-    (index: number): number => {
-      const key = itemKeys[index]
-      if (key === undefined) return -1
-      const element = elementsRef.current.get(key)
-      const layout = element?.layoutNode
-      if (!layout || layout.getComputedWidth() <= 0) return -1
-      return layout.getComputedTop()
-    },
-    [itemKeys],
-  )
-
-  const getItemHeight = useCallback(
-    (index: number): number | undefined => {
-      const key = itemKeys[index]
-      if (key === undefined) return undefined
-      return heightCacheRef.current.get(key)
-    },
-    [itemKeys],
-  )
-
-  const scrollToIndex = useCallback(
-    (index: number): void => {
-      const handle = scrollRef.current
-      if (!handle) return
-      const keys = prevItemKeysRef.current
-      if (index < 0 || index >= keys.length) return
-      const buffer = ensureOffsets(keys)
-      handle.scrollTo(buffer[index]! + listOriginRef.current)
-    },
-    [scrollRef],
-  )
-
-  prevRangeRef.current = frozen && prevRange ? prevRange : immediateRange
-
-  return {
-    range: [effectiveStart, effectiveEnd],
-    topSpacer,
-    bottomSpacer,
-    measureRef,
-    spacerRef,
-    offsets,
-    getItemTop,
-    getItemElement,
-    getItemHeight,
-    scrollToIndex,
-  }
+  return notBuilt('src/hooks/useVirtualScroll.ts:109')
 }
 
 function virtualScrollTools({
@@ -496,40 +246,6 @@ function virtualScrollTools({
   }
 
   return { indexByKey, pinWhereTheViewStands, ensureOffsets, bestKnownHeight, realHeight, mountedCoversPane, recordMountedHeights, renderIfHeightsMovedThePane }
-}
-
-function noteNewColumnsAndKeys(
-  { itemKeys, heightCacheRef, refCallbacksRef, offsetsVersionRef, prevColumnsRef, prevItemKeysRef, measurementSkipRef, freezeRendersRef, reflowHoldRef }: VirtualScrollView,
-  columns: number,
-): void {
-  if (columns !== prevColumnsRef.current) {
-    const ratio = prevColumnsRef.current / columns
-    prevColumnsRef.current = columns
-    const cache = heightCacheRef.current
-    for (const [key, height] of cache) {
-      cache.set(key, scaleHeightForWidth(height, ratio))
-    }
-    offsetsVersionRef.current += 1
-    measurementSkipRef.current = true
-    freezeRendersRef.current = 2
-    reflowHoldRef.current = true
-  }
-
-  if (itemKeys !== prevItemKeysRef.current) {
-    prevItemKeysRef.current = itemKeys
-    const alive = new Set(itemKeys)
-    let dropped = false
-    for (const key of heightCacheRef.current.keys()) {
-      if (!alive.has(key)) {
-        heightCacheRef.current.delete(key)
-        dropped = true
-      }
-    }
-    for (const key of refCallbacksRef.current.keys()) {
-      if (!alive.has(key)) refCallbacksRef.current.delete(key)
-    }
-    if (dropped) offsetsVersionRef.current += 1
-  }
 }
 
 function scrollTopHeldByThePin(
@@ -775,43 +491,4 @@ function rangeToShow(
     }
   }
   return [effectiveStart, effectiveEnd]
-}
-
-function measureAfterTheCommit(
-  { forceResolve, listOriginRef, spacerElementRef, measurementSkipRef, freezeRendersRef, reflowHoldRef, outOfLayoutRef, laidOutRef }: VirtualScrollView,
-  { recordMountedHeights, renderIfHeightsMovedThePane }: VirtualScrollTools,
-  effectiveStart: number,
-  effectiveEnd: number,
-): void {
-  const spacer = spacerElementRef.current
-  if (spacer?.layoutNode && spacer.layoutNode.getComputedWidth() > 0) {
-    listOriginRef.current = spacer.layoutNode.getComputedTop()
-    laidOutRef.current = true
-    if (outOfLayoutRef.current) {
-      outOfLayoutRef.current = false
-      reflowHoldRef.current = true
-      forceResolve()
-    }
-  } else if (spacer?.layoutNode && laidOutRef.current && !outOfLayoutRef.current) {
-    outOfLayoutRef.current = true
-    reflowHoldRef.current = true
-  }
-  if (freezeRendersRef.current > 0) freezeRendersRef.current -= 1
-  if (measurementSkipRef.current) {
-    measurementSkipRef.current = false
-    if (reflowHoldRef.current) forceResolve()
-    return
-  }
-  recordMountedHeights()
-  const heightsMoved = renderIfHeightsMovedThePane(effectiveStart, effectiveEnd)
-  if (reflowHoldRef.current) {
-    if (freezeRendersRef.current > 0) {
-      forceResolve()
-    } else if (heightsMoved) {
-      forceResolve()
-    } else if (outOfLayoutRef.current) {
-    } else {
-      reflowHoldRef.current = false
-    }
-  }
 }

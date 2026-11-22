@@ -8,38 +8,13 @@ import { extractTextContent } from '../messages.js'
 import { safeParseJSON } from '../../utils/json.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { partiallySanitizeUnicode } from '../../utils/sanitization.js'
+import { notBuilt } from '../../pi/holes.js'
 
 
 const DESCRIPTION_BUDGET = 1000
 
 export function extractConversationText(messages: Message[]): string {
-  const parts: string[] = []
-  for (const message of messages) {
-    if (message.type !== 'user' && message.type !== 'assistant') continue
-    if ((message as { isMeta?: boolean }).isMeta) continue
-    const origin = (message as { origin?: { kind?: string } }).origin
-    if (origin && origin.kind !== 'human') continue
-    const content = message.message.content
-    if (typeof content === 'string') {
-      parts.push(content)
-    } else if (Array.isArray(content)) {
-      const text = extractTextContent(content, '\n')
-      if (text) parts.push(text)
-    }
-  }
-  return parts.join('\n').slice(-DESCRIPTION_BUDGET)
-}
-
-const titleSchema = z.object({ title: z.string() }).strict()
-
-const TITLE_OUTPUT_FORMAT = {
-  type: 'json_schema' as const,
-  schema: {
-    type: 'object',
-    properties: { title: { type: 'string' } },
-    required: ['title'],
-    additionalProperties: false,
-  },
+  return notBuilt('src/services/concourse/sessionTitle.ts:15')
 }
 
 const TITLE_SYSTEM_PROMPT = [
@@ -51,29 +26,5 @@ const TITLE_SYSTEM_PROMPT = [
 ]
 
 export async function generateSessionTitle(description: string, signal: AbortSignal): Promise<string | null> {
-  if (description.trim() === '') return null
-  try {
-    const response = await queryUtility({
-      systemPrompt: asSystemPrompt(TITLE_SYSTEM_PROMPT),
-      userPrompt: description,
-      outputFormat: TITLE_OUTPUT_FORMAT,
-      signal,
-      options: {
-        querySource: 'generate_session_title',
-        isNonInteractiveSession: getIsNonInteractiveSession(),
-        hasAppendSystemPrompt: false,
-        agents: [],
-        mcpTools: [],
-      },
-    })
-    const text = extractTextContent(response.message.content, '\n')
-    const parsed = safeParseJSON(text, false)
-    const validated = titleSchema.safeParse(parsed)
-    if (!validated.success) return null
-    const title = partiallySanitizeUnicode(validated.data.title).trim()
-    return title === '' ? null : title
-  } catch (err) {
-    logForDebugging(`generateSessionTitle failed: ${String(err)}`)
-    return null
-  }
+  return notBuilt('src/services/concourse/sessionTitle.ts:53')
 }

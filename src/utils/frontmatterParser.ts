@@ -2,36 +2,14 @@ import { logForDebugging } from './debug.js'
 import type { HooksSettings } from './settings/types.js'
 import { parseYaml } from './yaml.js'
 import { isRecord as isPlainObject } from './isRecord.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 
-export type FrontmatterShell = 'bash' | 'powershell'
+export type FrontmatterShell = Unbuilt
 
-export type FrontmatterData = {
-  'allowed-tools'?: string | string[] | null
-  description?: string | null
-  type?: string | null
-  'argument-hint'?: string | null
-  'when-to-use'?: string | null
-  version?: string | null
-  'hide-from-slash-command-tool'?: string | null
-  model?: string | null
-  skills?: string | null
-  'user-invocable'?: string | null
-  hooks?: HooksSettings | null
-  effort?: string | number | null
-  context?: 'inline' | 'fork' | null
-  agent?: string | null
-  paths?: string | string[] | null
-  globs?: string | string[] | null
-  shell?: string | null
-  [key: string]: unknown
-}
+export type FrontmatterData = Unbuilt
 
-type ParsedMarkdown = {
-  frontmatter: FrontmatterData
-  content: string
-  parseError?: { message: string }
-}
+type ParsedMarkdown = Unbuilt
 
 export const FRONTMATTER_REGEX = /^\uFEFF?---[ \t]*\r?\n((?:[\s\S]*?\r?\n)??)[ \t]*---[ \t]*\r?\n?(?:[ \t]*\r?\n)?/
 
@@ -59,59 +37,15 @@ function quoteSpecialValues(block: string): string {
 }
 
 export function parseFrontmatter(markdown: string, sourcePath?: string): ParsedMarkdown {
-  const match = FRONTMATTER_REGEX.exec(markdown)
-  if (!match) return { frontmatter: {}, content: markdown }
-  const block = match[1] as string
-  const content = markdown.slice(match[0].length)
-  let parsed: unknown
-  try {
-    parsed = parseYaml(block)
-  } catch (firstError) {
-    try {
-      parsed = parseYaml(quoteSpecialValues(block))
-    } catch (secondError) {
-      const message = secondError instanceof Error ? secondError.message : String(secondError)
-      logForDebugging(
-        `frontmatter: failed to parse${sourcePath ? ` ${sourcePath}` : ''}: ${message}`,
-        { level: 'warn' },
-      )
-      return { frontmatter: {}, content, parseError: { message } }
-    }
-  }
-  if (!isPlainObject(parsed)) return { frontmatter: {}, content }
-  return { frontmatter: parsed as FrontmatterData, content }
+  return notBuilt('src/utils/frontmatterParser.ts:61')
 }
 
 function expandBraces(pattern: string): string[] {
-  const open = pattern.indexOf('{')
-  if (open === -1) return [pattern]
-  const close = pattern.indexOf('}', open)
-  if (close === -1) return [pattern]
-  const prefix = pattern.slice(0, open)
-  const suffix = pattern.slice(close + 1)
-  const alternatives = pattern
-    .slice(open + 1, close)
-    .split(',')
-    .map(alternative => alternative.trim())
-  return alternatives.flatMap(alternative => expandBraces(`${prefix}${alternative}${suffix}`))
+  return notBuilt('src/utils/frontmatterParser.ts:85')
 }
 
 function splitOutsideBraces(input: string): string[] {
-  const parts: string[] = []
-  let depth = 0
-  let current = ''
-  for (const char of input) {
-    if (char === '{') depth++
-    else if (char === '}') depth = Math.max(0, depth - 1)
-    if (char === ',' && depth === 0) {
-      parts.push(current)
-      current = ''
-      continue
-    }
-    current += char
-  }
-  parts.push(current)
-  return parts.map(part => part.trim()).filter(part => part.length > 0)
+  return notBuilt('src/utils/frontmatterParser.ts:99')
 }
 
 export function splitPathInFrontmatter(input: string | string[]): string[] {
@@ -143,20 +77,9 @@ export function coerceDescriptionToString(value: unknown, componentName?: string
 }
 
 export function parseBooleanFrontmatter(value: unknown): boolean {
-  return value === true || value === 'true'
+  return notBuilt('src/utils/frontmatterParser.ts:145')
 }
 
-const SHELL_VALUES: readonly FrontmatterShell[] = ['bash', 'powershell']
-
 export function parseShellFrontmatter(value: unknown, source: string): FrontmatterShell | undefined {
-  if (value === null || value === undefined) return undefined
-  const text = String(value).trim()
-  if (text === '') return undefined
-  const lowered = text.toLowerCase()
-  if ((SHELL_VALUES as readonly string[]).includes(lowered)) return lowered as FrontmatterShell
-  logForDebugging(
-    `frontmatter: unrecognised shell "${text}" in ${source}; valid values are ${SHELL_VALUES.join(', ')}; falling back to bash`,
-    { level: 'warn' },
-  )
-  return undefined
+  return notBuilt('src/utils/frontmatterParser.ts:151')
 }

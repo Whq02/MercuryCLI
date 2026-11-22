@@ -7,6 +7,7 @@ import { renderFoldLedger, type FoldLedger } from '../foldLedger.js'
 import { estimateContextTokens } from '../microCompact.js'
 import { getCompactUserSummaryMessage } from '../prompt.js'
 import { buildPostCompactMessages, type CompactionResult } from './result.js'
+import { notBuilt } from '../../../pi/holes.js'
 
 type FoldMeter = {
   gauge: ReturnType<typeof readRequestGauge>
@@ -49,13 +50,7 @@ export function foldSizes(
 }
 
 function withoutSkillsList(rows: Message[]): Message[] {
-  return rows.flatMap((row): Message[] => {
-    if (row.type !== 'attachment') return [row]
-    const attachment = row.attachment
-    if (attachment.type === 'skill_listing') return []
-    if (attachment.type !== 'context_capsule' || attachment.sections === undefined) return [row]
-    return [{ ...row, attachment: { ...attachment, sections: attachment.sections.filter(section => !section.kinds.includes('skill_listing')) } }]
-  })
+  return notBuilt('src/services/compact/compact/foldMeasure.ts:51')
 }
 
 function contextAfterFold(context: number, before: number, after: number): number {

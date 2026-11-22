@@ -19,44 +19,9 @@ import { ASK_USER_QUESTION_TOOL_NAME } from '../../tools/AskUserQuestionTool/pro
 import type { Message } from '../../types/message.js';
 import type { FocusedInputDialog } from './focusedDialog.js';
 import type { Screen } from './screen.js';
+import { notBuilt } from '../../pi/holes.js'
 
-export function ChatKeys({
-  legacyTranscript,
-  fullscreen,
-  compactWork,
-  screen,
-  setScreen,
-  showAllInTranscript,
-  setShowAllInTranscript,
-  messages,
-  handleEnterTranscript,
-  handleExitTranscript,
-  inVirtualTranscriptMode,
-  inVirtualTranscript,
-  searchBarOpen,
-  helpOpen,
-  isSearchingHistory,
-  messageCursorActive,
-  messageActions,
-  messageActionsDisabled,
-  focusedInputDialog,
-  toolUseConfirmQueue,
-  showMessageSelector,
-  showBashesDialog,
-  vimMode,
-  dialogOwnsKeys,
-  centredModalUp,
-  permissionOverlay,
-  viewStreamMode,
-  seatLive,
-  onSubmit,
-  commands,
-  scrollRef,
-  modalScrollRef,
-  onScroll,
-  onTranscriptScroll,
-  children,
-}: {
+export function ChatKeys(arg0: {
   legacyTranscript: boolean;
   fullscreen: boolean;
   compactWork: CompactWorkControls;
@@ -93,77 +58,5 @@ export function ChatKeys({
   onTranscriptScroll: (sticky: boolean, handle: ScrollBoxHandle) => void;
   children: React.ReactNode;
 }): React.ReactNode {
-  const [remountKey, setRemountKey] = useState(0);
-  const globalKeybindingProps = {
-    compactWork,
-    screen,
-    setScreen,
-    showAllInTranscript,
-    setShowAllInTranscript,
-    messageCount: messages.length,
-    onEnterTranscript: handleEnterTranscript,
-    onExitTranscript: handleExitTranscript,
-    virtualScrollActive: inVirtualTranscriptMode,
-    searchBarOpen,
-  };
-  useHoldsEscape(helpOpen || isSearchingHistory || messageCursorActive);
-  const { internal_eventEmitter } = useStdin();
-  useClaim(() => {
-    const onSuspend = (): void => {
-      if (!fullscreen) {
-        process.stdout.write('\nMercury suspended — `fg` brings it back (ctrl+z suspends, ctrl+_ undoes input)\n');
-      }
-    };
-    const onResume = (): void => setRemountKey(k => k + 1);
-    internal_eventEmitter.on('suspend', onSuspend);
-    internal_eventEmitter.on('resume', onResume);
-    return () => {
-      internal_eventEmitter.removeListener('suspend', onSuspend);
-      internal_eventEmitter.removeListener('resume', onResume);
-    };
-  }, [fullscreen, internal_eventEmitter]);
-  const cancelRequestProps = {
-    compactWork,
-    isInterviewFocused:
-      focusedInputDialog === 'tool-permission' && toolUseConfirmQueue[0]?.tool.name === ASK_USER_QUESTION_TOOL_NAME,
-    isMessageSelectorVisible: showMessageSelector || showBashesDialog !== false,
-    screen,
-    vimMode: isVimModeEnabled() ? vimMode : undefined,
-    isLocalJSXCommand: dialogOwnsKeys,
-    isSearchingHistory,
-    isHelpOpen: helpOpen,
-    isInputDialogFocused: focusedInputDialog !== undefined,
-    streamMode: viewStreamMode,
-    focusedTurnActive: seatLive.inFlight,
-  };
-  const cancelHandler = <CancelRequestHandler {...cancelRequestProps} />;
-  if (legacyTranscript) {
-    return (
-      <>
-        <GlobalKeybindingHandlers {...globalKeybindingProps} />
-        <CommandKeybindingHandlers onSubmit={onSubmit} commands={commands} isActive={!dialogOwnsKeys} />
-        {cancelHandler}
-        {children}
-      </>
-    );
-  }
-  return (
-    <>
-      <GlobalKeybindingHandlers {...globalKeybindingProps} />
-      <CommandKeybindingHandlers onSubmit={onSubmit} commands={commands} isActive={!dialogOwnsKeys} />
-      <ScrollKeybindingHandler
-        scrollRef={scrollRef}
-        isActive={inVirtualTranscript || (fullscreen && (centredModalUp || focusedInputDialog === undefined || focusedInputDialog === 'tool-permission'))}
-        onScroll={inVirtualTranscript ? onTranscriptScroll : (centredModalUp && dialogOwnsKeys) || permissionOverlay !== null ? undefined : onScroll}
-        isModal={inVirtualTranscript ? !searchBarOpen : false}
-        modalScrollRef={modalScrollRef}
-        modalUp={centredModalUp && dialogOwnsKeys}
-      />
-      {fullscreen && messageCursorActive ? (
-        <MessageActionsKeybindings handlers={messageActions.handlers} isActive={!messageActionsDisabled && focusedInputDialog === undefined} />
-      ) : null}
-      {cancelHandler}
-      <SwitchboardAttributionProvider key={remountKey}>{children}</SwitchboardAttributionProvider>
-    </>
-  );
+  return notBuilt('src/screens/chat/ChatKeys.tsx:23')
 }

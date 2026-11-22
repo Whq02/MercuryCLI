@@ -1,6 +1,7 @@
 import { wordListFault, type Node } from '../../../bash/parser.js'
 import type { Redirect, SimpleCommand } from './reading.js'
 import { childOfKind, GLOB_ITEM, heredocBody, IDENTIFIER_RE, integerValued, isKnown, LOOKUP_VARIABLE, NEWLINE_COMMENT_RE, Refusal, refuse, refuseNode, refuseWordListFault, substitutionStatements, UNKNOWN_INTEGER, UNKNOWN_VALUE, WordWalk, type Assignment, type Operand, type Scope } from './exactWords.js'
+import { notBuilt } from '../../../../pi/holes.js'
 
 function appended(existing: string, added: string): string {
   if (!isKnown(existing) || !isKnown(added)) return UNKNOWN_VALUE
@@ -45,22 +46,6 @@ function assign(scope: Scope, assignment: Assignment): void {
 const VARIABLE_WRITERS: ReadonlySet<string> = new Set(['read', 'printf', 'getopts', 'wait'])
 const FOR_LITERAL_ITEMS_CAP = 64
 const SEQ_ARGUMENT_RE = /^-?[0-9]+$/
-
-function sequenceItems(commands: readonly SimpleCommand[]): string[] | null {
-  const [command] = commands
-  if (commands.length !== 1 || command === undefined || command.argv[0] !== 'seq' || command.envVars.length > 0 || command.redirects.length > 0 || command.globOperand) return null
-  const numbers = command.argv.slice(1)
-  if (numbers.length === 0 || numbers.length > 3 || !numbers.every(text => SEQ_ARGUMENT_RE.test(text))) return null
-  const values = numbers.map(Number)
-  const [first, increment, last] = values.length === 1 ? [1, 1, values[0]!] : values.length === 2 ? [values[0]!, 1, values[1]!] : [values[0]!, values[1]!, values[2]!]
-  if (increment === 0) return null
-  const items: string[] = []
-  for (let value = first; increment > 0 ? value <= last : value >= last; value += increment) {
-    if (items.length >= FOR_LITERAL_ITEMS_CAP) return null
-    items.push(String(value))
-  }
-  return items
-}
 
 function commandMayWriteVariables(node: Node): boolean {
   const nameNode = childOfKind(node, 'command_name')
@@ -117,177 +102,19 @@ abstract class CommandWalk extends WordWalk {
   abstract node(node: Node, scope: Scope): void
 
   command(node: Node, scope: Scope): void {
-    refuseWordListFault(wordListFault(node), node.type)
-    const argv: string[] = []
-    const envVars: { name: string; value: string }[] = []
-    const redirects: Redirect[] = []
-    const operand: Operand = { glob: false }
-
-    for (const child of node.children) {
-      switch (child.type) {
-        case 'variable_assignment': {
-          const assignment = this.assignment(child, scope)
-          envVars.push({ name: assignment.name, value: assignment.value })
-          break
-        }
-        case 'command_name': {
-          const inner = child.children.length > 0 ? (child.children[0] as Node) : child
-          argv.push(this.argument(inner, scope))
-          break
-        }
-        case 'word':
-        case 'number':
-        case 'raw_string':
-        case 'string':
-        case 'concatenation':
-        case 'arithmetic_expansion':
-        case 'expansion':
-        case 'simple_expansion':
-          argv.push(this.argument(child, scope, operand))
-          break
-        case 'file_redirect':
-          redirects.push(this.redirect(child, scope))
-          break
-        case 'command_substitution':
-          if (argv[0] === 'rm' && argv.slice(1).some(arg => arg === '--recursive' || /^-[^-]*[rR]/.test(arg))) {
-            refuse('a command substitution feeds a recursive delete; run it with the path spelled out, or approve', child.type)
-          }
-          refuseNode(child)
-        case 'herestring_redirect':
-          for (const part of child.children) {
-            if (part.type === 'file_descriptor') refuseNode(part)
-            if (part.type === '<<<') continue
-            if (NEWLINE_COMMENT_RE.test(this.argument(part, scope))) {
-              refuse('here-string content contains a newline followed by a comment', child.type)
-            }
-          }
-          break
-        default:
-          refuseNode(child)
-      }
-    }
-
-    const text = commandText(node.text, argv)
-    this.commands.push(operand.glob ? { argv, envVars, redirects, text, globOperand: true } : { argv, envVars, redirects, text })
-    for (const name of writtenVariables(argv)) {
-      if (LOOKUP_VARIABLE.test(name) || name === 'IFS' || name === 'PS4') {
-        refuse(`${argv[0]} writes ${name}, changing shell lookup or expansion; use a different variable, or approve`, node.type)
-      }
-      scope.set(name, UNKNOWN_VALUE)
-    }
+    return notBuilt('src/utils/permissions/decision/commandAnalysis/exactCommands.ts:119')
   }
 
   declaration(node: Node, scope: Scope): void {
-    refuseWordListFault(wordListFault(node), node.type)
-    const argv: string[] = []
-
-    for (const child of node.children) {
-      if (argv.length === 0 && DECLARATION_WORDS.has(child.type)) {
-        if (child.text === 'local' || child.text === 'readonly') {
-          refuse(`${child.text} changes whether later variable assignments take effect; use a plain assignment in this command, or approve`, node.type)
-        }
-        argv.push(child.text)
-        continue
-      }
-      switch (child.type) {
-        case 'word':
-        case 'number':
-        case 'raw_string':
-        case 'string':
-        case 'concatenation': {
-          const resolved = this.argument(child, scope)
-          if (SUBSCRIPT_DECLARATIONS.has(argv[0] ?? '')) {
-            if (resolved.startsWith('-')) {
-              const letters = /^-([A-Za-z]*)/.exec(resolved)?.[1] ?? ''
-              if (/[niaA]/.test(letters)) {
-                refuse(`declaration flag ${JSON.stringify(resolved)} creates a nameref, integer or array variable`, node.type)
-              }
-              if (/[luc]/.test(letters)) {
-                refuse(`declaration flag ${JSON.stringify(resolved)} rewrites the case of the values it declares, so a tracked value no longer names what runs; drop the flag, or approve`, node.type)
-              }
-            } else {
-              const bracket = resolved.indexOf('[')
-              const equals = resolved.indexOf('=')
-              if (bracket !== -1 && (equals === -1 || bracket < equals)) {
-                refuse(`declaration operand ${JSON.stringify(resolved)} carries an array subscript`, node.type)
-              }
-            }
-          }
-          if ((resolved.startsWith('-') || resolved.startsWith('+')) && resolved !== '--') {
-            const assigning = argv[0] === 'export' ? /^-[np]+$/.test(resolved) : /^-[xg]+$/.test(resolved)
-            if (!assigning) refuse(`declaration flag ${JSON.stringify(resolved)} can change or prevent assignment; use a plain assignment, or approve`, node.type)
-          }
-          argv.push(resolved)
-          break
-        }
-        case 'variable_assignment': {
-          const assignment = this.assignment(child, scope)
-          assign(scope, assignment)
-          argv.push(`${assignment.name}=${assignment.value}`)
-          break
-        }
-        case 'variable_name':
-          argv.push(child.text)
-          break
-        default:
-          refuseNode(child)
-      }
-    }
-
-    this.commands.push({ argv, envVars: [], redirects: [], text: node.text })
+    return notBuilt('src/utils/permissions/decision/commandAnalysis/exactCommands.ts:180')
   }
 
   unset(node: Node, scope: Scope): void {
-    refuseWordListFault(wordListFault(node), node.type)
-    const argv: string[] = []
-    for (const child of node.children) {
-      if (argv.length === 0 && (child.type === 'unset' || child.type === 'unsetenv')) {
-        argv.push(child.text)
-        continue
-      }
-      switch (child.type) {
-        case 'variable_name':
-          argv.push(child.text)
-          scope.delete(child.text)
-          break
-        case 'word':
-          argv.push(this.argument(child, scope))
-          break
-        default:
-          refuseNode(child)
-      }
-    }
-    this.commands.push({ argv, envVars: [], redirects: [], text: node.text })
+    return notBuilt('src/utils/permissions/decision/commandAnalysis/exactCommands.ts:240')
   }
 
   test(node: Node, scope: Scope): void {
-    const argv: string[] = ['[[']
-    const expression = (expr: Node): void => {
-      switch (expr.type) {
-        case 'binary_expression':
-        case 'unary_expression':
-        case 'parenthesized_expression':
-        case 'negated_command':
-          for (const child of expr.children) expression(child)
-          return
-        case 'test_operator':
-        case 'regex':
-        case 'extglob_pattern':
-          argv.push(expr.text)
-          return
-        default:
-          if (TEST_TOKENS.has(expr.type)) {
-            argv.push(expr.text)
-            return
-          }
-          argv.push(this.argument(expr, scope))
-      }
-    }
-    for (const child of node.children) {
-      if (child.type === '[[' || child.type === ']]' || child.type === '[' || child.type === ']') continue
-      expression(child)
-    }
-    this.commands.push({ argv, envVars: [], redirects: [], text: node.text })
+    return notBuilt('src/utils/permissions/decision/commandAnalysis/exactCommands.ts:263')
   }
 
   redirected(node: Node, scope: Scope): void {
@@ -328,72 +155,7 @@ abstract class FlowWalk extends CommandWalk {
   abstract invalidateAssignments(node: Node, scope: Scope): void
 
   loop(node: Node, scope: Scope): void {
-    let variable: string | null = null
-    let body: Node | null = null
-    let sawIn = false
-    let literal = true
-    const items: string[] = []
-
-    for (const child of node.children) {
-      switch (child.type) {
-        case 'for':
-        case ';':
-        case '\n':
-          break
-        case 'select':
-          literal = false
-          break
-        case 'in':
-          sawIn = true
-          break
-        case 'variable_name':
-          variable = child.text
-          break
-        case 'do_group':
-          body = child
-          break
-        case 'command_substitution': {
-          const before = this.commands.length
-          this.substitution(child, scope)
-          const counted = sequenceItems(this.commands.slice(before))
-          if (counted !== null) items.push(...counted)
-          else literal = false
-          break
-        }
-        default: {
-          const operand: Operand = { glob: false }
-          const value = this.argument(child, scope, operand)
-          if (isKnown(value) && !value.includes('~')) items.push(operand.glob ? GLOB_ITEM + value : value)
-          else literal = false
-          break
-        }
-      }
-    }
-
-    if (variable === null || body === null) refuse('loop is missing its variable or body', node.type)
-    if (variable === 'IFS' || variable === 'PS4') refuse(`loop variable ${variable} cannot be analyzed safely`, node.type)
-    if (LOOKUP_VARIABLE.test(variable)) {
-      refuse(`loop variable ${variable} changes shell lookup, path expansion or startup code; use a different variable, or approve`, node.type)
-    }
-
-    const bound = sawIn && literal && items.length > 0 && items.length <= FOR_LITERAL_ITEMS_CAP
-    const probe = new Map(scope)
-    for (const item of bound ? items : [UNKNOWN_VALUE]) {
-      probe.set(variable, item)
-      this.invalidateAssignments(body, probe)
-    }
-    for (const [name, value] of probe) if (name !== variable && value !== scope.get(name)) scope.set(name, value)
-    scope.set(variable, UNKNOWN_VALUE)
-    if (!bound) {
-      this.body(body, new Map(scope))
-      return
-    }
-    let iteration: Scope = new Map(scope)
-    for (const item of items) {
-      iteration = new Map(iteration)
-      iteration.set(variable, item)
-      this.body(body, iteration)
-    }
+    return notBuilt('src/utils/permissions/decision/commandAnalysis/exactCommands.ts:330')
   }
 
   body(group: Node, scope: Scope): void {
@@ -462,95 +224,11 @@ abstract class FlowWalk extends CommandWalk {
 
 export class Walk extends FlowWalk {
   invalidateAssignments(node: Node, scope: Scope): void {
-    if (node.type === 'subshell' || node.type === 'command_substitution') return
-    if (node.type === 'variable_assignment') {
-      const name = childOfKind(node, 'variable_name')?.text
-      const value = node.children.find(child => child.type !== 'variable_name' && child.type !== '=' && child.type !== '+=')
-      const previous = scope.get(name ?? '')
-      const integer = value !== undefined && (value.type === 'arithmetic_expansion' || (value.type === 'number' && value.children.length === 0)) && (previous === undefined || integerValued(previous))
-      if (name !== undefined) scope.set(name, integer ? UNKNOWN_INTEGER : UNKNOWN_VALUE)
-    }
-    if (node.type === 'unset_command') {
-      for (const child of node.children) {
-        if (child.type === 'variable_name') scope.set(child.text, UNKNOWN_VALUE)
-        else if (child.type !== 'unset' && child.type !== 'unsetenv') for (const name of scope.keys()) scope.set(name, UNKNOWN_VALUE)
-      }
-    }
-    if (node.type === 'for_statement') {
-      const name = childOfKind(node, 'variable_name')?.text
-      if (name !== undefined) scope.set(name, UNKNOWN_VALUE)
-    }
-    if (node.type === 'command' && commandMayWriteVariables(node)) {
-      const changed = new Map(scope)
-      try {
-        new Walk().command(node, changed)
-        for (const [name, value] of changed) {
-          if (value !== scope.get(name)) scope.set(name, UNKNOWN_VALUE)
-        }
-      } catch (error) {
-        if (!(error instanceof Refusal)) throw error
-        for (const name of scope.keys()) scope.set(name, UNKNOWN_VALUE)
-      }
-    }
-    for (const child of node.children) this.invalidateAssignments(child, scope)
+    return notBuilt('src/utils/permissions/decision/commandAnalysis/exactCommands.ts:464')
   }
 
   node(node: Node, scope: Scope): void {
-    switch (node.type) {
-      case 'program':
-        this.statements(node.children, scope)
-        return
-      case 'list':
-        this.chain(node, scope)
-        return
-      case 'pipeline':
-        this.pipeline(node, scope)
-        return
-      case 'comment':
-        return
-      case 'command':
-        this.command(node, scope)
-        return
-      case 'redirected_statement':
-        this.redirected(node, scope)
-        return
-      case 'negated_command':
-        for (const child of node.children) {
-          if (child.type === '!') continue
-          this.node(child, scope)
-          return
-        }
-        return
-      case 'declaration_command':
-        this.declaration(node, scope)
-        return
-      case 'variable_assignment':
-        assign(scope, this.assignment(node, scope))
-        return
-      case 'for_statement':
-        this.loop(node, scope)
-        return
-      case 'if_statement':
-        this.conditional(node, scope)
-        return
-      case 'while_statement':
-        this.whileLoop(node, scope)
-        return
-      case 'subshell':
-        this.subshell(node, scope)
-        return
-      case 'compound_statement':
-        this.statements(node.children.filter(child => child.type !== '{' && child.type !== '}'), scope)
-        return
-      case 'test_command':
-        this.test(node, scope)
-        return
-      case 'unset_command':
-        this.unset(node, scope)
-        return
-      default:
-        refuseNode(node)
-    }
+    return notBuilt('src/utils/permissions/decision/commandAnalysis/exactCommands.ts:498')
   }
 
   statements(children: Node[], scope: Scope): void {
@@ -616,7 +294,7 @@ export class Walk extends FlowWalk {
   }
 
   subshell(node: Node, scope: Scope): void {
-    this.statements(node.children.filter(child => child.type !== '(' && child.type !== ')'), new Map(scope))
+    return notBuilt('src/utils/permissions/decision/commandAnalysis/exactCommands.ts:618')
   }
 
   substitution(node: Node, scope: Scope): void {

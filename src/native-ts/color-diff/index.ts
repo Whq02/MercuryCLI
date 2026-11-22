@@ -4,6 +4,7 @@ import { truecolorActive } from '../../ink/colorize.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import { expandTabs } from '../../ink/tabstops.js'
 import { logError } from '../../utils/log.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 function charWidth(char: string): number {
   return stringWidth(char)
@@ -30,64 +31,14 @@ function detectColorMode(): ColorMode {
 
 
 const CHANNEL_THRESHOLDS = [48, 115, 155, 195, 235]
-const CUBE_LEVELS = [0, 95, 135, 175, 215, 255]
-
-function quantizeChannel(value: number): number {
-  let level = 0
-  for (const threshold of CHANNEL_THRESHOLDS) {
-    if (value >= threshold) level++
-  }
-  return level
-}
 
 function quantizeToAnsi256(r: number, g: number, b: number): number {
-  const qr = quantizeChannel(r)
-  const qg = quantizeChannel(g)
-  const qb = quantizeChannel(b)
-  const cubeIndex = 16 + 36 * qr + 6 * qg + qb
-  const mean = (r + g + b) / 3
-  if (mean < 5) return 16
-  if (mean > 244 && qr === qg && qg === qb) return cubeIndex
-  const greyLevel = Math.min(23, Math.max(0, Math.round((mean - 8) / 10)))
-  const greyValue = 8 + greyLevel * 10
-  const cubeR = CUBE_LEVELS[qr]!
-  const cubeG = CUBE_LEVELS[qg]!
-  const cubeB = CUBE_LEVELS[qb]!
-  const greyDist = (r - greyValue) ** 2 + (g - greyValue) ** 2 + (b - greyValue) ** 2
-  const cubeDist = (r - cubeR) ** 2 + (g - cubeG) ** 2 + (b - cubeB) ** 2
-  return cubeDist <= greyDist ? cubeIndex : 232 + greyLevel
+  return notBuilt('src/native-ts/color-diff/index.ts:43')
 }
+const DIM: Unbuilt = unbuilt('src/native-ts/color-diff/index.ts:87')
+const UNDIM: Unbuilt = unbuilt('src/native-ts/color-diff/index.ts:88')
 
-
-function fgEscape(color: Color, mode: ColorMode): string {
-  if (color.a === 0) {
-    const index = color.r
-    if (index < 8) return `\x1b[${30 + index}m`
-    if (index < 16) return `\x1b[${90 + (index - 8)}m`
-    return `\x1b[38;5;${index}m`
-  }
-  if (color.a === 1) return '\x1b[39m'
-  if (mode === 'truecolor') return `\x1b[38;2;${color.r};${color.g};${color.b}m`
-  return `\x1b[38;5;${quantizeToAnsi256(color.r, color.g, color.b)}m`
-}
-
-function bgEscape(color: Color, mode: ColorMode): string {
-  if (color.a === 0) {
-    const index = color.r
-    if (index < 8) return `\x1b[${40 + index}m`
-    if (index < 16) return `\x1b[${100 + (index - 8)}m`
-    return `\x1b[48;5;${index}m`
-  }
-  if (color.a === 1) return '\x1b[49m'
-  if (mode === 'truecolor') return `\x1b[48;2;${color.r};${color.g};${color.b}m`
-  return `\x1b[48;5;${quantizeToAnsi256(color.r, color.g, color.b)}m`
-}
-
-const RESET = '\x1b[0m'
-const DIM = '\x1b[2m'
-const UNDIM = '\x1b[22m'
-
-type StyledBlock = { text: string; fg: Color; bg: Color }
+type StyledBlock = Unbuilt
 
 function emitBlocks(
   blocks: StyledBlock[],
@@ -95,146 +46,18 @@ function emitBlocks(
   dim: boolean,
   skipBackgrounds: boolean,
 ): string {
-  let out = RESET + (dim ? DIM : '')
-  for (const block of blocks) {
-    out += fgEscape(block.fg, mode)
-    if (!skipBackgrounds) out += bgEscape(block.bg, mode)
-    out += block.text
-  }
-  return out + RESET
+  return notBuilt('src/native-ts/color-diff/index.ts:92')
 }
 
 
-type DiffTheme = {
-  addedLineBg: Color
-  addedWordBg: Color
-  addedDecoration: Color
-  deletedLineBg: Color
-  deletedWordBg: Color
-  deletedDecoration: Color
-  foreground: Color
-  background: Color
-  scopes: Record<string, Color>
-}
-
-const DARK_SCOPES: Record<string, Color> = {
-  keyword: rgb(249, 38, 114),
-  storage: rgb(102, 217, 239),
-  'built_in': rgb(166, 226, 46),
-  type: rgb(166, 226, 46),
-  literal: rgb(190, 132, 255),
-  number: rgb(190, 132, 255),
-  string: rgb(230, 219, 116),
-  title: rgb(166, 226, 46),
-  'title.function': rgb(166, 226, 46),
-  'title.class': rgb(166, 226, 46),
-  'title.class.inherited': rgb(166, 226, 46),
-  params: rgb(253, 151, 31),
-  comment: rgb(117, 113, 94),
-  meta: rgb(117, 113, 94),
-  attr: rgb(166, 226, 46),
-  attribute: rgb(166, 226, 46),
-  variable: rgb(255, 255, 255),
-  'variable.language': rgb(255, 255, 255),
-  property: rgb(255, 255, 255),
-  operator: rgb(249, 38, 114),
-  punctuation: rgb(248, 248, 242),
-  symbol: rgb(190, 132, 255),
-  regexp: rgb(230, 219, 116),
-  subst: rgb(248, 248, 242),
-}
-
-const LIGHT_SCOPES: Record<string, Color> = {
-  keyword: rgb(167, 29, 93),
-  storage: rgb(167, 29, 93),
-  'built_in': rgb(0, 134, 179),
-  type: rgb(0, 134, 179),
-  literal: rgb(0, 134, 179),
-  number: rgb(0, 134, 179),
-  string: rgb(24, 54, 145),
-  title: rgb(121, 93, 163),
-  'title.function': rgb(121, 93, 163),
-  'title.class': rgb(0, 0, 0),
-  'title.class.inherited': rgb(0, 0, 0),
-  params: rgb(0, 134, 179),
-  comment: rgb(150, 152, 150),
-  meta: rgb(150, 152, 150),
-  attr: rgb(0, 134, 179),
-  attribute: rgb(0, 134, 179),
-  variable: rgb(0, 134, 179),
-  'variable.language': rgb(0, 134, 179),
-  property: rgb(0, 134, 179),
-  operator: rgb(167, 29, 93),
-  punctuation: rgb(51, 51, 51),
-  symbol: rgb(0, 134, 179),
-  regexp: rgb(24, 54, 145),
-  subst: rgb(51, 51, 51),
-}
-
-const MERCURY_BRAND_DIFF = {
-  addLine: rgb(8, 38, 32),
-  addWord: rgb(14, 64, 54),
-  deleteLine: rgb(48, 16, 20),
-  deleteWord: rgb(80, 26, 32),
-}
+type DiffTheme = Unbuilt
 
 function buildDiffTheme(themeName: string): DiffTheme {
-  const mode = detectColorMode()
-  const isDarkish = themeName === 'dark' || themeName === 'true-black'
-
-  if (mode === 'truecolor' && isDarkish) {
-    return {
-      addedLineBg: MERCURY_BRAND_DIFF.addLine,
-      addedWordBg: MERCURY_BRAND_DIFF.addWord,
-      addedDecoration: rgb(63, 191, 160),
-      deletedLineBg: MERCURY_BRAND_DIFF.deleteLine,
-      deletedWordBg: MERCURY_BRAND_DIFF.deleteWord,
-      deletedDecoration: rgb(232, 85, 106),
-      foreground: rgb(237, 232, 221),
-      background: TERMINAL_DEFAULT,
-      scopes: DARK_SCOPES,
-    }
-  }
-  if (isDarkish) {
-    return {
-      addedLineBg: paletteIndex(22),
-      addedWordBg: paletteIndex(28),
-      addedDecoration: rgb(80, 200, 80),
-      deletedLineBg: rgb(61, 1, 0),
-      deletedWordBg: rgb(92, 2, 0),
-      deletedDecoration: rgb(220, 90, 90),
-      foreground: rgb(248, 248, 242),
-      background: TERMINAL_DEFAULT,
-      scopes: DARK_SCOPES,
-    }
-  }
-  return {
-    addedLineBg: rgb(220, 255, 220),
-    addedWordBg: rgb(178, 255, 178),
-    addedDecoration: rgb(36, 138, 61),
-    deletedLineBg: rgb(255, 220, 220),
-    deletedWordBg: rgb(255, 199, 199),
-    deletedDecoration: rgb(207, 34, 46),
-    foreground: rgb(51, 51, 51),
-    background: TERMINAL_DEFAULT,
-    scopes: LIGHT_SCOPES,
-  }
+  return notBuilt('src/native-ts/color-diff/index.ts:181')
 }
 
-const STORAGE_KEYWORDS = new Set([
-  'const', 'let', 'var', 'function', 'class', 'type', 'interface', 'enum',
-  'namespace', 'module', 'def', 'fn', 'func', 'struct', 'trait', 'impl',
-])
-
 function colorForScope(scope: string | undefined, text: string, theme: DiffTheme): Color {
-  if (scope === undefined) return theme.foreground
-  if (scope === 'keyword' && STORAGE_KEYWORDS.has(text.trim())) {
-    return theme.scopes['storage'] ?? theme.foreground
-  }
-  const exact = theme.scopes[scope]
-  if (exact) return exact
-  const segment = scope.split('.')[0]!
-  return theme.scopes[segment] ?? theme.foreground
+  return notBuilt('src/native-ts/color-diff/index.ts:229')
 }
 
 
@@ -362,35 +185,7 @@ const WORD_CHAR = /[\p{L}\p{Nd}_]/u
 const WHITESPACE = /\s/
 
 function tokenize(text: string): string[] {
-  const tokens: string[] = []
-  let i = 0
-  while (i < text.length) {
-    const cp = text.codePointAt(i)!
-    const char = String.fromCodePoint(cp)
-    if (WORD_CHAR.test(char)) {
-      let j = i
-      while (j < text.length) {
-        const c = String.fromCodePoint(text.codePointAt(j)!)
-        if (!WORD_CHAR.test(c)) break
-        j += c.length
-      }
-      tokens.push(text.slice(i, j))
-      i = j
-    } else if (WHITESPACE.test(char)) {
-      let j = i
-      while (j < text.length) {
-        const c = String.fromCodePoint(text.codePointAt(j)!)
-        if (!WHITESPACE.test(c)) break
-        j += c.length
-      }
-      tokens.push(text.slice(i, j))
-      i = j
-    } else {
-      tokens.push(char)
-      i += char.length
-    }
-  }
-  return tokens
+  return notBuilt('src/native-ts/color-diff/index.ts:364')
 }
 
 type CharRange = { start: number; end: number }
@@ -469,90 +264,11 @@ function applyBackgrounds(
   lineBg: Color,
   wordBg: Color,
 ): StyledBlock[] {
-  if (marker === null) return blocks
-  const out: StyledBlock[] = []
-  let offset = 0
-  let rangeIndex = 0
-  for (const block of blocks) {
-    const blockStart = offset
-    const blockEnd = offset + block.text.length
-    offset = blockEnd
-    while (rangeIndex < ranges.length && ranges[rangeIndex]!.end <= blockStart) rangeIndex++
-    if (rangeIndex >= ranges.length) {
-      out.push({ ...block, bg: lineBg })
-      continue
-    }
-    let cursor = blockStart
-    let localRange = rangeIndex
-    while (cursor < blockEnd && localRange < ranges.length) {
-      const range = ranges[localRange]!
-      if (range.start > cursor) {
-        const end = Math.min(range.start, blockEnd)
-        out.push({ ...block, text: block.text.slice(cursor - blockStart, end - blockStart), bg: lineBg })
-        cursor = end
-        if (cursor >= blockEnd) break
-      }
-      if (cursor < blockEnd && range.end > cursor) {
-        const end = Math.min(range.end, blockEnd)
-        out.push({ ...block, text: block.text.slice(cursor - blockStart, end - blockStart), bg: wordBg })
-        cursor = end
-      }
-      if (range.end <= cursor) localRange++
-    }
-    if (cursor < blockEnd) {
-      out.push({ ...block, text: block.text.slice(cursor - blockStart), bg: lineBg })
-    }
-  }
-  return out
+  return notBuilt('src/native-ts/color-diff/index.ts:465')
 }
 
 function wrapBlocks(blocks: StyledBlock[], width: number): StyledBlock[][] {
-  const rows: StyledBlock[][] = []
-  let current: StyledBlock[] = []
-  let currentWidth = 0
-  const queue = [...blocks]
-  while (queue.length > 0) {
-    const block = queue.shift()!
-    const blockWidth = stringWidth(block.text)
-    if (currentWidth + blockWidth <= width) {
-      current.push(block)
-      currentWidth += blockWidth
-      continue
-    }
-    let fit = ''
-    let fitWidth = 0
-    for (const char of block.text) {
-      const w = charWidth(char)
-      if (fitWidth + w > width - currentWidth) break
-      fit += char
-      fitWidth += w
-    }
-    if (fit === '') {
-      if (current.length === 0) {
-        const first = [...block.text][0] ?? ''
-        current.push({ ...block, text: first })
-        rows.push(current)
-        current = []
-        currentWidth = 0
-        const rest = block.text.slice(first.length)
-        if (rest !== '') queue.unshift({ ...block, text: rest })
-      } else {
-        rows.push(current)
-        current = []
-        currentWidth = 0
-        queue.unshift(block)
-      }
-      continue
-    }
-    current.push({ ...block, text: fit })
-    rows.push(current)
-    current = []
-    currentWidth = 0
-    const rest = block.text.slice(fit.length)
-    if (rest !== '') queue.unshift({ ...block, text: rest })
-  }
-  rows.push(current)
-  return rows
+  return notBuilt('src/native-ts/color-diff/index.ts:509')
 }
 
 
@@ -659,53 +375,11 @@ export class ColorDiff {
   private filePath: string
 
   constructor(hunk: Hunk, firstLine?: string, filePath?: string, _prefixContent?: string) {
-    this.hunk = hunk
-    this.firstLine = firstLine
-    this.filePath = filePath ?? ''
+    notBuilt('src/native-ts/color-diff/index.ts:661')
   }
 
   render(themeName: string, width: number, dim: boolean): string[] | null {
-    const maxLineNumber = Math.max(
-      Math.max(0, this.hunk.oldStart + this.hunk.oldLines - 1),
-      Math.max(0, this.hunk.newStart + this.hunk.newLines - 1),
-    )
-    const gutterWidth = String(maxLineNumber).length
-
-    let oldCounter = this.hunk.oldStart
-    let newCounter = this.hunk.newStart
-    const lines: RenderLine[] = this.hunk.lines.map(raw => {
-      const first = raw[0]
-      const marker = first === '+' || first === '-' ? first : ' '
-      const code = first === '+' || first === '-' ? raw.slice(1) : raw.startsWith(' ') ? raw.slice(1) : raw
-      if (marker === '+') return { marker, lineNumber: newCounter++, code }
-      if (marker === '-') return { marker, lineNumber: oldCounter++, code }
-      const lineNumber = newCounter
-      oldCounter++
-      newCounter++
-      return { marker, lineNumber, code }
-    })
-
-    const wordRanges = new Map<number, CharRange[]>()
-    if (!dim) {
-      const markers = lines.map(line => (line.marker === ' ' ? ' ' : (line.marker as string)))
-      for (const pair of pairChangedLines(markers)) {
-        const diff = wordDiff(lines[pair.deleted]!.code, lines[pair.added]!.code)
-        wordRanges.set(pair.deleted, diff.removed)
-        wordRanges.set(pair.added, diff.added)
-      }
-    }
-
-    return renderLines(
-      lines,
-      themeName,
-      width,
-      dim,
-      this.filePath,
-      this.firstLine,
-      gutterWidth,
-      true,
-      wordRanges,
-    )
+    return notBuilt('src/native-ts/color-diff/index.ts:667')
   }
 }
 

@@ -18,31 +18,9 @@ import { crewmateCommandReceipt, openCrewmateModelPickerFor } from './crewmateCo
 import type { PromptInputProps } from './PromptInput.js'
 import type { ComposerAttachments } from './useComposerAttachments.js'
 import type { useComposerModelDoors } from './useComposerModelDoors.js'
+import { notBuilt } from '../../pi/holes.js'
 
-export function composerSurface({
-  externalEditorActive,
-  borderStyle,
-  borderColor,
-  overlay,
-  setOverlay,
-  getToolUseContext,
-  messages,
-  engineModel,
-  showCommandPalette,
-  setShowCommandPalette,
-  showFileOpen,
-  setShowFileOpen,
-  showContentSearch,
-  setShowContentSearch,
-  commands,
-  historySearch,
-  commandCrewmateRef,
-  setAppState,
-  addNotification,
-  insertAtomic,
-  doors,
-  appStateStore,
-}: {
+export function composerSurface(arg0: {
   externalEditorActive: boolean
   borderStyle: 'round' | undefined
   borderColor: keyof Theme
@@ -66,119 +44,5 @@ export function composerSurface({
   doors: ReturnType<typeof useComposerModelDoors>
   appStateStore: AppStateStore
 }): React.ReactNode {
-  if (externalEditorActive) {
-    return (
-      <Box
-        borderStyle={borderStyle}
-        borderColor={borderColor as string}
-        borderTop={false}
-        borderLeft={false}
-        borderRight={false}
-        justifyContent="center"
-      >
-        <Text dimColor italic>
-          editing in your external editor — save and close to continue
-        </Text>
-      </Box>
-    )
-  }
-  if (overlay === 'tasks-dialog') {
-    return (
-      <BackgroundTasksDialog
-        onDone={() => setOverlay(null)}
-        toolUseContext={getToolUseContext(messages, [], new AbortController(), engineModel ?? '')}
-      />
-    )
-  }
-  if (showCommandPalette) {
-    return (
-      <MercuryCommandPalette
-        commands={commands}
-        actions={[
-          {
-            kind: 'open', action: 'app:fileOpen', context: 'Global',
-            label: 'open a file',
-            run: () => { setShowCommandPalette(false); setShowFileOpen(true) },
-          },
-          {
-            label: 'search file contents',
-            run: () => { setShowCommandPalette(false); setShowContentSearch(true) },
-            kind: 'open', action: 'app:contentSearch', context: 'Global',
-          },
-          {
-            label: 'reverse history search',
-            kind: 'open',
-            run: () => {
-              setShowCommandPalette(false)
-              historySearch.handleStartSearch()
-            },
-          },
-          {
-            label: 'open the model picker',
-            kind: 'open',
-            action: 'chat:modelPicker',
-            context: 'Chat',
-            run: () => {
-              setShowCommandPalette(false)
-              const crewmate = commandCrewmateRef.current
-              if (crewmate !== null) {
-                void openCrewmateModelPickerFor(crewmate, { setAppState, receipt: crewmateCommandReceipt(addNotification) })
-                return
-              }
-              setOverlay('model-picker')
-            },
-          },
-        ]}
-        onRun={text => {
-          setShowCommandPalette(false)
-          insertAtomic(text)
-        }}
-        onClose={() => setShowCommandPalette(false)}
-      />
-    )
-  }
-  if (showFileOpen) {
-    return (
-      <MercuryFileOpen
-        onPick={text => {
-          setShowFileOpen(false)
-          insertAtomic(text)
-        }}
-        onClose={() => setShowFileOpen(false)}
-      />
-    )
-  }
-  if (showContentSearch) {
-    return (
-      <MercuryContentSearch
-        onPick={text => {
-          setShowContentSearch(false)
-          insertAtomic(text)
-        }}
-        onClose={() => setShowContentSearch(false)}
-      />
-    )
-  }
-  if (doors.surface !== null) return doors.surface
-  if (overlay === 'thinking-toggle') {
-    return (
-      <ThinkingToggle
-        currentValue={(appStateStore.getState().thinkingEnabled ?? true) === true}
-        isMidConversation={messages.some(message => message.type === 'assistant')}
-        onSelect={next => {
-          setAppState(prev => ({ ...prev, thinkingEnabled: next }))
-          setOverlay(null)
-          addNotification({
-            key: 'thinking-toggled-hotkey',
-            text: `Thinking ${next ? 'on' : 'off'}`,
-            color: next ? 'suggestion' : 'subtle',
-            priority: 'high',
-            timeoutMs: 3000,
-          })
-        }}
-        onCancel={() => setOverlay(null)}
-      />
-    )
-  }
-  return null
+  return notBuilt('src/components/PromptInput/composerSurface.tsx:22')
 }

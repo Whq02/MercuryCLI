@@ -1,9 +1,9 @@
-
 import { useCallback, useContext, useRef } from 'react'
 import { useMeasure } from '../../hooks/effects.js'
 import { LiveTerminalSizeContext, TerminalSizeContext } from '../components/TerminalSizeContext.js'
 import { InkInstanceContext } from '../components/InkInstanceContext.js'
 import type { DOMElement } from '../dom.js'
+import { notBuilt } from '../../pi/holes.js'
 
 type ViewportEntry = { isVisible: boolean }
 
@@ -14,47 +14,5 @@ export function useTerminalViewport(): [
   ref: (el: DOMElement | null) => void,
   entry: ViewportEntry,
 ] {
-  const size = useContext(TerminalSizeContext)
-  const liveSize = useContext(LiveTerminalSizeContext)
-  const ink = useContext(InkInstanceContext)
-  const nodeRef = useRef<DOMElement | null>(null)
-  const entryRef = useRef<ViewportEntry>(VISIBLE)
-
-  const ref = useCallback((el: DOMElement | null) => {
-    nodeRef.current = el
-  }, [])
-
-  useMeasure(() => {
-    const node = nodeRef.current
-    const layout = node?.layoutNode
-    if (!node || !layout || !size) return
-
-    let top = layout.getComputedTop()
-    let root: DOMElement = node
-    let ancestor = node.parentNode
-    while (ancestor) {
-      if (ancestor.layoutNode) {
-        top += ancestor.layoutNode.getComputedTop()
-        root = ancestor
-      }
-      const scrollTop = ancestor.scroll?.scrollTop
-      if (scrollTop) top -= scrollTop
-      ancestor = ancestor.parentNode
-    }
-
-    const screenHeight = root.layoutNode?.getComputedHeight() ?? 0
-    const altScreen = ink?.isAltScreenActive === true
-    const viewportHeight = altScreen ? (liveSize ?? size).rows : size.rows
-    const height = layout.getComputedHeight()
-    const overflow = !altScreen && screenHeight > viewportHeight
-    const scrolledOff = overflow ? screenHeight - viewportHeight + 1 : 0
-    const viewportTop = scrolledOff
-    const viewportBottom = scrolledOff + viewportHeight
-    const visible = top + height > viewportTop && top < viewportBottom
-    if (visible !== entryRef.current.isVisible) {
-      entryRef.current = visible ? VISIBLE : HIDDEN
-    }
-  })
-
-  return [ref, entryRef.current]
+  return notBuilt('src/ink/hooks/use-terminal-viewport.ts:13')
 }
