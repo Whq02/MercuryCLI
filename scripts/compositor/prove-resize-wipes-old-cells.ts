@@ -46,7 +46,7 @@ for (const program of ['Apple_Terminal', 'iTerm.app']) {
   const erase = '\x1b[2J'
   const whole = '\x1b[H\x1b[0m'
   const count = bytes.split(erase).length - 1
-  const correct = bytes.split(whole).length === 2 && (program === 'Apple_Terminal' ? count === 1 && bytes.indexOf(erase) < bytes.indexOf(whole) : count === 0)
+  const correct = bytes.split(whole).length === 2 && (program === 'Apple_Terminal' ? count === 1 && bytes.indexOf(erase) !== -1 && bytes.indexOf(whole) !== -1 && bytes.indexOf(erase) < bytes.indexOf(whole) : count === 0)
   if (!correct) {
     console.error(`${program}: ${count} display erases, ${bytes.split(whole).length - 1} whole frames; in src/ink/ink/resize.ts erase the alternate screen once before the settled overwrite on an Apple Terminal shrink only`)
     process.exitCode = 1
