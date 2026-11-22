@@ -8,6 +8,7 @@ prove-composer.ts
 prove-constitution.ts
 prove-first-call-ceiling.ts
 prove-first-request-sizes-reported.ts
+prove-handoff-note-says-its-age.ts
 prove-headless-form.ts
 prove-local-lane-working-directory.ts
 prove-local-prompt-profile.ts

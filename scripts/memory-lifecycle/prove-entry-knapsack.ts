@@ -139,7 +139,7 @@ try {
     const old = roomy.choice.rode.find(c => c.text.startsWith('the quartz certificates are rotated on the first Tuesday'))!
     check('a fresh fact outscores an old one on the same words (the ninety-day recency of the search lane)', fresh.score > old.score, `${fresh.score.toFixed(3)} vs ${old.score.toFixed(3)}`)
     const noteRode = roomy.choice.rode.filter(c => c.kind === 'handoff')
-    const gradedNote = ['The work: the quartz rotation.', 'Decided: rotate on Tuesdays.', 'Still to do: the amber mirror.'].map(line => `${evidence.HANDOFF_GRADE} ${line}`).join('\n')
+    const gradedNote = ['The work: the quartz rotation.', 'Decided: rotate on Tuesdays.', 'Still to do: the amber mirror.'].map(line => `${evidence.handoffGrade(previous[0]!.handoff!.at, T)} ${line}`).join('\n')
     check('the earlier note that overlaps rides word for word under its own heading with its session and time, every line graded as a model-authored note; the last note never does (it rides on the lineage page as today)', noteRode.length === 1 && noteRode[0]!.session === 1 && text.includes(`${knapsack.EARLIER_NOTE_HEADING} (session 1, `) && text.includes(gradedNote) && !text.includes('The work: the quartz lane.'), j(noteRode.map(c => c.session)))
     check('the allowance is respected to the character: every block that rode fits in it, and the pinned characters are not counted against it', roomy.choice.used <= 4000 && roomy.choice.used === roomy.choice.rode.reduce((n, c) => n + c.chars, 0) && roomy.choice.pinnedChars === pinned!.used, `${pinned!.used} beside ${roomy.choice.used}`)
     const byDensity = [...roomy.choice.rode].sort((a, b) => b.density - a.density)

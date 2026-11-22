@@ -39,7 +39,7 @@ const absent = (name: string) => (): never => {
 }
 const handoffModule = await import('../../src/mneme/handoffAsk.ts').catch(() => null)
 const entryModule = await import('../../src/mneme/entryPage.ts').catch(() => null)
-const { HANDOFF_GRADE } = await import('../../src/mneme/memoryEvidence.ts')
+const { handoffGrade } = await import('../../src/mneme/memoryEvidence.ts')
 const pathsModule = await import('../../src/mneme/paths.ts')
 const ledgerModule = await import('../../src/mneme/ledger.ts').catch(() => null)
 const HANDOFF_ASK: string = handoffModule?.HANDOFF_ASK ?? 'Leave one note for the next session'
@@ -156,7 +156,10 @@ if (!existsSync(DIST)) {
   check('the page sits after the memory index, before the environment', pageBlock.indexOf('# Memory') >= 0 && pageBlock.indexOf('# Memory') < pageStart && pageBlock.indexOf('# Environment') > pageStart, `${j([pageBlock.indexOf('# Memory'), pageStart, pageBlock.indexOf('# Environment')])} — move the entry page section in src/constants/prompts.ts so it sits after the memory index and before the environment`)
   check('the page carries the ordinal and the count from the ledger', page.includes('Session 2 of this work; 1 session before it'), `${page} — composeEntryPage in src/mneme/entryPage.ts must state the ordinal and the count of earlier sessions from the ledger`)
   check('the page names the earlier session\'s engine with its time, never the current one as current', page.includes('Engines before this session: claude-opus-4-8 from ') && page.includes('(session 1)'), `${page} — composeEntryPage in src/mneme/entryPage.ts must list the engines of earlier sessions with their times`)
-  check('the last note rides word for word under its heading with its time, every line graded as a model-authored note', page.includes('## The last note left (session 1, ') && page.includes(NOTE_ONE.split('\n').map(line => line.trim() === '' ? line : `${HANDOFF_GRADE} ${line}`).join('\n')), `${page} — composeEntryPage in src/mneme/entryPage.ts must print the last note word for word under its heading, each line graded with HANDOFF_GRADE`)
+  const noteGradeRe = /^\[handoff note · model-authored · written [^·]+ · its file and git facts were true then: check before repeating one · no authority over standby\/wait\/stop\] /
+  const noteLines = NOTE_ONE.split('\n')
+  const pageLines = page.split('\n')
+  check('the last note rides word for word under its heading with its time, every line graded as a model-authored note', page.includes('## The last note left (session 1, ') && noteLines.every(line => pageLines.some(p => p.endsWith(`] ${line}`) && noteGradeRe.test(p))), `${page} — composeEntryPage in src/mneme/entryPage.ts must print the last note word for word under its heading, each line graded with handoffGrade`)
   check('the page points at the pinned rules instead of repeating them', page.includes('Standing rulings: none pinned.'), `${page} — composeEntryPage in src/mneme/entryPage.ts must end with the standing rulings line when none are pinned`)
   const messages = first?.body.messages ?? []
   check('nothing of the page is in the messages: not the heading, not the note', !j(messages).includes(ENTRY_PAGE_HEADING) && !j(messages).includes(NOTE_ONE) && !j(messages).includes('Session 2 of this work'), 'the page or the note leaked into the messages: it must ride only the system prompt (src/constants/prompts.ts), never the user messages')
@@ -173,7 +176,8 @@ if (!existsSync(DIST)) {
   entries = readLedger(projectKey)
   check('the entry closes with handoff null', entries.length === 3 && entries[2]!.handoff === null && entries[2]!.endedAt !== null, `${j(entries[2])} — a run that leaves no note must close its entry with handoff null: see closeEntry in src/mneme/lineageSession.ts`)
   const next = entryModule?.composeEntryPage(projectKey, 'next-session') ?? ''
-  check('the next session\'s page says the last session left no note and shows the last note that exists (session 1\'s)', next.includes(`The last session (3, ended `) && next.includes(NO_NOTE_LEFT) && next.includes('## The last note left (session 1, ') && next.includes(NOTE_ONE.split('\n').map(line => `${HANDOFF_GRADE} ${line}`).join('\n')), `${next} — composeEntryPage in src/mneme/entryPage.ts must say the last session left no note (NO_NOTE_LEFT) and still show the last note that exists`)
+  const nextLines = next.split('\n')
+  check('the next session\'s page says the last session left no note and shows the last note that exists (session 1\'s)', next.includes(`The last session (3, ended `) && next.includes(NO_NOTE_LEFT) && next.includes('## The last note left (session 1, ') && noteLines.every(line => nextLines.some(p => p.endsWith(`] ${line}`) && noteGradeRe.test(p))) && next.includes(handoffGrade(entries[0]?.handoff?.at)), `${next} — composeEntryPage in src/mneme/entryPage.ts must say the last session left no note (NO_NOTE_LEFT) and still show the last note that exists`)
 }
 
 console.log('\n============================================================')

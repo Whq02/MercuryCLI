@@ -13,7 +13,7 @@ import { readPins, readUsage, startTextLimit, usageOf, type UsageRecord } from '
 import { factMemoryState, memoryStatusWords } from './memoryRefs.js'
 import { lineagePath } from './paths.js'
 import type { LedgerEntry } from './types.js'
-import { gradeLines, HANDOFF_GRADE, recordGrade } from './memoryEvidence.js'
+import { gradeLines, handoffGrade, recordGrade } from './memoryEvidence.js'
 
 export const MEMORY_AT_START_HEADING = '# Memory at start'
 export const EARLIER_NOTE_HEADING = '## An earlier note left'
@@ -88,9 +88,9 @@ function factCandidate(entry: MnemeEntry, doc: MnemeTopicDoc, dir: string, usage
   }
 }
 
-function noteCandidate(entry: LedgerEntry, projectKey: string): StartCandidate | null {
+function noteCandidate(entry: LedgerEntry, projectKey: string, now: number): StartCandidate | null {
   if (entry.handoff === null) return null
-  const block = `${EARLIER_NOTE_HEADING} (session ${entry.ordinal}, ${stampLocal(entry.handoff.at)})\n${gradeLines(entry.handoff.text, HANDOFF_GRADE)}`
+  const block = `${EARLIER_NOTE_HEADING} (session ${entry.ordinal}, ${stampLocal(entry.handoff.at)})\n${gradeLines(entry.handoff.text, handoffGrade(entry.handoff.at, now))}`
   return {
     id: `note:${entry.ordinal}`,
     text: entry.handoff.text,
@@ -151,12 +151,12 @@ function libraryCandidates(dir: string, excluded: ReadonlySet<number>, docs?: { 
   return out
 }
 
-function earlierNotes(previous: readonly LedgerEntry[], projectKey: string): StartCandidate[] {
+function earlierNotes(previous: readonly LedgerEntry[], projectKey: string, now: number): StartCandidate[] {
   const newest = [...previous].reverse().find(entry => entry.handoff !== null) ?? null
   const out: StartCandidate[] = []
   for (const entry of previous) {
     if (newest !== null && entry.ordinal === newest.ordinal) continue
-    const candidate = noteCandidate(entry, projectKey)
+    const candidate = noteCandidate(entry, projectKey, now)
     if (candidate !== null) out.push(candidate)
   }
   return out
@@ -306,7 +306,7 @@ export function composeStartPage(input: { task?: StartTask; dir: string; project
   const archives = listArchiveDocs(input.dir)
   const pinned = pinnedNow(input.dir, topics)
   const facts = libraryCandidates(input.dir, pinned.excluded, { topics, archives })
-  const notes = earlierNotes(input.previous, input.projectKey)
+  const notes = earlierNotes(input.previous, input.projectKey, input.now)
   const pending = pendingRows(input.dir).length
   const candidates = [...facts, ...notes].map(candidate => (input.stale?.(candidate) ? markStale(candidate, input.mark?.(candidate) ?? staleMark(input.confirmedAt?.(candidate))) : candidate))
   const choice = chooseAtStart({ task: input.task, candidates, chunks: stateQuery(input.state, input.root), limit: input.limit, pinnedChars: pinned.chars, now: input.now, dir: input.dir })

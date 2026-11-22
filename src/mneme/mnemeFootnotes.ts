@@ -7,7 +7,7 @@ import { readLedger } from './ledger.js'
 import { getMemoryBaseDir, mnemeProjectKey } from './paths.js'
 import { clearMnemeUnread, recordMnemeUnread } from './mnemeUnread.js'
 import type { LedgerEntry } from './types.js'
-import { gradeLines, HANDOFF_GRADE } from './memoryEvidence.js'
+import { gradeLines, handoffGrade } from './memoryEvidence.js'
 import { passedOver } from '../utils/passedOver.js'
 
 export function confirmCitedFacts(text: string, dir: string = mnemeLibraryDir(), now: Date = new Date()): number[] {
@@ -159,7 +159,7 @@ function idList(label: string, ids: readonly string[]): string {
   return ids.length === 0 ? `${label}: none` : `${label} (${ids.length}): ${ids.join(', ')}`
 }
 
-export function renderLedgerEntry(s: LedgerEntry, count: number): string {
+export function renderLedgerEntry(s: LedgerEntry, count: number, now?: number | Date): string {
   const lines: string[] = [`session ${s.ordinal} of ${count} · ${s.sessionId}`]
   lines.push(s.endedAt === null ? `started ${s.startedAt} · still open` : `started ${s.startedAt} · ended ${s.endedAt}${s.outcome ? ` (${s.outcome})` : ''}`)
   if (s.endedAt !== null) {
@@ -167,6 +167,6 @@ export function renderLedgerEntry(s: LedgerEntry, count: number): string {
   }
   lines.push(idList('rulings', s.rulings), idList('retained', s.retained), idList('corrected', s.corrected), idList('files', s.files))
   if (s.handoff === null) lines.push(`handoff: ${NO_NOTE_LEFT}`)
-  else lines.push(`handoff (${s.handoff.at}):`, gradeLines(s.handoff.text, HANDOFF_GRADE))
+  else lines.push(s.handoff.at.trim() ? `handoff (${s.handoff.at}):` : 'handoff:', gradeLines(s.handoff.text, handoffGrade(s.handoff.at, now)))
   return lines.join('\n')
 }
