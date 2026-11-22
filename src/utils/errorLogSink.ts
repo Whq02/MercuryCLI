@@ -9,8 +9,6 @@ import { getErrnoCode } from './errors.js'
 import { getFsImplementation } from './fsOperations.js'
 import { attachErrorLogSink, dateToFilename } from './log.js'
 import { passedOver } from './passedOver.js'
-import { notBuilt } from '../pi/holes.js'
-
 
 const LOG_FILE_NAME = `${dateToFilename(new Date())}.jsonl`
 
@@ -73,7 +71,16 @@ function appendBounded(path: string, content: string): void {
 }
 
 function getWriterFor(path: string): BufferedWriter {
-  return notBuilt('src/utils/errorLogSink.ts:74')
+  const existing = logWriters.get(path)
+  if (existing) return existing
+  const writer = createBufferedWriter({
+    writeFn: content => appendBounded(path, content),
+    flushIntervalMs: 1000,
+    maxBufferSize: 50,
+  })
+  logWriters.set(path, writer)
+  registerCleanup(async () => writer.dispose())
+  return writer
 }
 
 function writeJsonlRecord(path: string, record: Record<string, unknown>): void {
@@ -81,7 +88,9 @@ function writeJsonlRecord(path: string, record: Record<string, unknown>): void {
 }
 
 export function resetErrorLogSinkForTest(): void {
-  return notBuilt('src/utils/errorLogSink.ts:93')
+  for (const writer of logWriters.values()) writer.dispose()
+  logWriters.clear()
+  closedPaths.clear()
 }
 
 function boundedMessage(text: string): string {
@@ -131,5 +140,23 @@ function buildHttpContextPrefix(error: unknown): string {
 }
 
 export function initializeErrorLogSink(): void {
-  return notBuilt('src/utils/errorLogSink.ts:178')
+  attachErrorLogSink({
+    logError(error: unknown) {
+      const message = buildHttpContextPrefix(error) + deriveErrorString(error)
+      logForDebugging(`${error instanceof Error ? error.name : 'Error'}: ${message}`, { level: 'error' })
+      writeJsonlRecord(getErrorsPath(), { timestamp: new Date().toISOString(), message: boundedMessage(message), sessionId: getSessionId() })
+    },
+    logMCPError(server: string, error: unknown) {
+      const text = deriveErrorString(error)
+      logForDebugging(`MCP server "${server}" ${text}`, { level: 'error' })
+      writeJsonlRecord(getMCPLogsPath(server), { error: text, timestamp: new Date().toISOString(), sessionId: getSessionId(), cwd: getFsImplementation().cwd() })
+    },
+    logMCPDebug(server: string, message: string) {
+      logForDebugging(`MCP server "${server}": ${message}`)
+      writeJsonlRecord(getMCPLogsPath(server), { debug: message, timestamp: new Date().toISOString(), sessionId: getSessionId(), cwd: getFsImplementation().cwd() })
+    },
+    getErrorsPath,
+    getMCPLogsPath,
+  })
+  logForDebugging('error log sink attached')
 }
