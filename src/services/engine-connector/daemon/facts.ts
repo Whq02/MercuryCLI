@@ -4,6 +4,7 @@ import { getEngineModel } from '../../model/model.js'
 import type { SpawnSwitchFacts } from '../../switchboard/spawnSwitches.js'
 import { readSessionFacts, sessionFactsPath, type OpenaiCatalogueFactV1, type SessionFactsV1 } from '../seatProjections.js'
 import type { AdvisorFactsV1, EditOutcomeRowV1, McpRosterV1, ModelFactsV1, SeatIdentityV1, SkillsRosterV1, UsageFactsV1, WorkspaceFactsV1 } from '../types.js'
+import type { BoardViewSnapshot } from '../../crewBoard/contracts.js'
 import { emitAll, type Listeners } from './shared.js'
 
 const BOTH_SWITCHES_ON: SpawnSwitchFacts = Object.freeze({
@@ -27,6 +28,7 @@ export class FactsPart {
   private seedUnread = true
   private readonly modelListeners: Listeners = new Set()
   private readonly permissionListeners: Listeners = new Set()
+  private readonly pendingSwarmBoard: BoardViewSnapshot = Object.freeze({ on: true, events: [], snapshot: 0, omitted: 0, peerTurns: 0 })
 
   constructor(private readonly needs: FactsNeeds) {
     this.facts = readSessionFacts(needs.sessionId())
@@ -189,8 +191,12 @@ export class FactsPart {
     return this.facts?.advisor ?? null
   }
 
-  swarmBoard(): import('../../crewBoard/contracts.js').BoardViewSnapshot | null {
+  swarmBoard(): BoardViewSnapshot | null {
     return this.facts?.swarm ?? null
+  }
+
+  pendingSwarm(): BoardViewSnapshot {
+    return this.pendingSwarmBoard
   }
 
   subscribePermissionMode(listener: () => void): () => void {

@@ -65,6 +65,8 @@ import type {
   WorkspaceFactsV1,
 } from './types.js'
 import { bootBirthFacts, type BootBirthFacts } from '../switchboard/bootBirthFacts.js'
+import { swarmMasterEnabled } from '../crewBoard/seam.js'
+import type { BoardViewSnapshot } from '../crewBoard/contracts.js'
 import { seatInitialPermissionMode } from '../../daemon/concourseWorkers.js'
 import { AdmissionPart } from './daemon/admission.js'
 import { AsksPart } from './daemon/asks.js'
@@ -423,8 +425,9 @@ abstract class ConnectorHandOffs {
     return this.factsPart.advisorFacts()
   }
 
-  swarmBoard(): import('../crewBoard/contracts.js').BoardViewSnapshot | null {
-    return this.factsPart.swarmBoard()
+  swarmBoard(): BoardViewSnapshot | null {
+    if (this.factsPart.read() !== null) return this.factsPart.swarmBoard()
+    return swarmMasterEnabled() ? this.factsPart.pendingSwarm() : null
   }
 
   subscribeWork(listener: () => void): () => void {
