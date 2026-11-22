@@ -7,3 +7,4 @@ prove-history-scan-debounce.ts
 prove-typing-survives-rekey.ts
 prove-stash-carries-mode.ts
 prove-edit-sanitises.ts
+prove-input-modes-behaviour.ts
