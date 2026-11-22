@@ -262,13 +262,13 @@ section('§7 the hook road: the real guard lets the search through and refuses t
   const id = await runWithCwdOverride(project, () => registerWardsGuard(store.set as never, 'ward-quoted-text-proof'))
   check('the wards guard registered', id === WARDS_HOOK_ID)
   const judge = async (command: string): Promise<string | true> => {
-    const verdict = await judgeToolCall('ward-quoted-text-proof', {
+    const verdict = await runWithCwdOverride(project, () => judgeToolCall('ward-quoted-text-proof', {
       tool: 'Bash',
       input: { command },
       callId: `quoted-${checks}`,
       messages: [],
       toolRef: { name: 'Bash', shellCommandOf: (value: { command?: unknown }) => (typeof value.command === 'string' ? value.command : undefined) } as never,
-    })
+    }))
     return verdict.refused ? verdict.reason : true
   }
   const search = await judge('grep -rn "rm -rf /Users/m37-other" .')
