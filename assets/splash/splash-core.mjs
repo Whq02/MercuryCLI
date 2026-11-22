@@ -852,7 +852,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   const mid = paint(MIDCREAM)
   const cream = paint(CREAM)
   const RIGHT_W = 46
-  const LEFT_W = m.fitLabels ? Math.min(96, cols - RIGHT_W - 2) : Math.min(66, cols - RIGHT_W - 4)
+  const LEFT_W = Math.min(66, cols - RIGHT_W - 4)
   const row = m.entries[m.selIdx]
   const legendLines = vis(m.legend) <= cols ? [m.legend] : wrapWords(m.legend, Math.max(1, cols))
 
@@ -1094,10 +1094,11 @@ function composeBootMenuClassic(cols, rowsAvail, m) {
   const red = accentFg()
   const ivory = hexFg(IVORY, T256.cream)
   const maxValRaw = m.fitLabels
-    ? Math.max(0, ...m.entries.map(r => (r.pinnedVal !== null && r.pinnedVal !== undefined ? r.valueLabel.length + String(r.pinnedVal).length + 12 : r.valueLabel.length)))
+    ? Math.max(0, ...m.entries.map(r => (r.pinnedVal !== null && r.pinnedVal !== undefined ? vis(r.valueLabel) + vis(` · env=${r.pinnedVal} wins`) : vis(r.valueLabel))))
     : 0
-  const valReserve = maxValRaw === 0 ? 0 : Math.min(20, maxValRaw)
-  const maxLabelW = Math.max(16, cols - 4 - (valReserve > 0 ? valReserve + 2 : 0))
+  const minLabelW = Math.min(36, Math.max(16, Math.floor(cols * 0.45)))
+  const valReserve = maxValRaw === 0 ? 0 : Math.min(Math.max(0, cols - 4 - minLabelW), maxValRaw)
+  const maxLabelW = Math.max(minLabelW, cols - 4 - valReserve)
   const labels = m.fitLabels ? m.entries.map(r => clipWords(r.label, maxLabelW)) : m.entries.map(r => r.label)
   const LW = Math.max(0, ...labels.map(l => l.length))
   const legend = m.legendClassic ?? m.legend

@@ -319,8 +319,13 @@ function focusedArmOf(frame: string, arms: readonly LoginsArmV1[]): { pointerLin
   const pointerLines = frame.split('\n').filter(line => line.includes('❯ '))
   const byValue = new Map<string, LoginsArmV1>()
   for (const line of pointerLines) {
+    const after = line.slice(line.indexOf('❯ ') + 2)
+    const token = (after.split(/\s{2,}|│/)[0] ?? '').trim()
     for (const arm of arms) {
-      if (line.includes(`❯ ${arm.row.label}`)) {
+      if (
+        line.includes(`❯ ${arm.row.label}`) ||
+        (token.endsWith('…') && token.length >= 12 && arm.row.label.startsWith(token.slice(0, -1)))
+      ) {
         byValue.set(arm.row.value, arm)
       }
     }

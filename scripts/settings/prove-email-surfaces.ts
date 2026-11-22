@@ -215,8 +215,13 @@ const inBounds = (frame: string, columns: number, rows: number): boolean =>
 const lineWith = (frame: string, needle: string): string | undefined => frame.split('\n').find(line => line.includes(needle))
 const rosterRow = (frame: string): string => {
   const label = 'Anthropic — Claude subscription'
-  const rows = frame.split('\n').filter(line => line.includes(label))
-  return rows.sort((a, b) => a.indexOf(label) - b.indexOf(label))[0] ?? ''
+  const lines = frame.split('\n')
+  const matches = lines.map((line, index) => ({ line, index })).filter(item => item.line.includes(label))
+  const hit = matches.sort((a, b) => a.line.indexOf(label) - b.line.indexOf(label))[0]
+  if (!hit) return ''
+  const next = lines[hit.index + 1] ?? ''
+  const nextCell = next.includes('│') ? (next.split('│')[1] ?? '') : ''
+  return nextCell.trim() !== '' && !nextCell.includes('—') ? `${hit.line}\n${nextCell}` : hit.line
 }
 const lineAfter = (frame: string, needle: string): string => {
   const lines = frame.split('\n')
@@ -308,7 +313,7 @@ section('§2 a long email clips with each surface\'s own tail marker, never past
     const nextRow = lineAfter(frames.logins, 'Anthropic — Claude subscription')
     const loginsOk = size.columns >= 120
       ? (row.includes(LONG_EMAIL) || nextRow.includes(LONG_EMAIL)) && !frames.logins.includes(`${LONG_EMAIL.slice(0, 25)}…`)
-      : /a-very-long-fixtur[\w-]*…/.test(row) && !row.includes(LONG_EMAIL)
+      : /a-very-long-fixtur\S*…/.test(row) && !row.includes(LONG_EMAIL)
     check(`${stamp} logins: ${size.columns >= 120 ? 'wide tier shows the whole email inside its panel' : 'narrow tier clips the email with an ellipsis'}`, loginsOk, `${row} | ${nextRow}`)
     const popupLine = lineWith(frames.popup, 'Signed in as') ?? ''
     check(`${stamp} usage popup: the identity line is present and never wider than its column`, popupLine.includes('Signed in as ') && (popupLine.includes(LONG_EMAIL) || popupLine.includes('…')), popupLine)
