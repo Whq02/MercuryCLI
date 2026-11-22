@@ -9,10 +9,11 @@ import { noteTerminalWriteHeld } from '../terminalOut.js'
 import { sleepSync } from '../../utils/timers.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-export type Terminal = Unbuilt
+type TerminalStream = Writable & { isTTY?: boolean; fd?: number }
+
+export type Terminal = { stdout: TerminalStream; stderr: TerminalStream }
 
 export type DeliverySyscalls = {
   writeSync: (fd: number, data: Buffer, offset: number) => number
@@ -84,11 +85,72 @@ export function streamTakesWrites(
   return stream.destroyed !== true && stream.writableEnded !== true && stream.writable !== false
 }
 
+function patchBytes(patch: Diff[number]): string {
+  switch (patch.type) {
+    case 'stdout':
+      return patch.content
+    case 'styleStr':
+      return patch.str
+    case 'hyperlink':
+      return link(patch.uri)
+    case 'cursorMove':
+      return cursorMove(patch.x, patch.y)
+    case 'cursorTo':
+      return cursorTo(patch.col)
+    case 'clear':
+      return eraseLines(patch.count)
+    case 'clearTerminal':
+      return getClearTerminalSequence()
+    case 'cursorHide':
+      return HIDE_CURSOR
+    case 'cursorShow':
+      return SHOW_CURSOR
+    case 'carriageReturn':
+      return '\r'
+  }
+}
+
+function teeWrite(text: string, path: string, delivered: boolean, spins?: number): void {
+  const file = hostEnv().INK_WRITE_TEE
+  if (!file) return
+  try {
+    const record = {
+      ts: Date.now(),
+      len: text.length,
+      path,
+      delivered,
+      ...(spins === undefined ? {} : { spins, waitMs: Math.round(spins * SPIN_QUANTUM_MS) }),
+      ...(hostEnv().INK_WRITE_TEE_FULL ? { content: text } : { sample: text.slice(0, 40) }),
+    }
+    appendFileSync(file, `${JSON.stringify(record)}\n`)
+    appendFileSync(`${file}.raw`, text)
+  } catch (error) {
+    passedOver(error)
+  }
+}
+
 export function writeDiffToTerminal(
   terminal: Terminal,
   diff: Diff,
-  skipSyncMarkers?: boolean,
+  skipSyncMarkers = false,
   syscalls?: DeliverySyscalls,
 ): boolean {
-  return notBuilt('src/ink/session/delivery.ts:128')
+  const body = diff.map(patchBytes).join('')
+  if (body === '') return true
+  const text = skipSyncMarkers ? body : BSU + body + ESU
+  const bytes = Buffer.from(text, 'utf8')
+  const delivery: FrameDelivery = { seq: ++deliverySeq, bytes: bytes.length, writtenAt: performance.now(), drainedAt: null }
+  lastDelivery = delivery
+  const { stdout } = terminal
+  if (stdout.isTTY === true && stdout.fd !== undefined) {
+    const delivered = writeAllSync(stdout.fd, bytes, syscalls)
+    delivery.drainedAt = performance.now()
+    teeWrite(text, `fd${stdout.fd}`, delivered, lastWriteSpins)
+    return delivered
+  }
+  stdout.write(text, () => {
+    delivery.drainedAt = performance.now()
+  })
+  teeWrite(text, 'stream', true)
+  return true
 }
