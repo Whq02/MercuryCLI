@@ -78,7 +78,7 @@ export function formatCommandInputTags(commandName: string, args: string): strin
   return parts.join('')
 }
 
-export type ModelSwitchFacts = { previousModel: string; previousDisplay: string; savedAsDefault: boolean; model?: string; words?: string; at?: string }
+export type ModelSwitchFacts = { previousModel: string; previousDisplay: string; savedAsDefault: boolean; replacedDefaultModel?: string; replacedDefaultDisplay?: string; model?: string; words?: string; at?: string }
 
 export function switchClockWords(date: Date, locale?: string): string {
   const clock = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date)
@@ -93,10 +93,22 @@ export function switchClockWords(date: Date, locale?: string): string {
 
 export function modelSwitchStdoutText(resolvedDisplay: string, facts?: ModelSwitchFacts): string {
   if (facts === undefined) return `Model now: ${resolvedDisplay}`
-  const standing = facts.savedAsDefault ? 'saved as your default for new sessions' : 'for this chat only'
+  const replaced =
+    facts.savedAsDefault &&
+    facts.replacedDefaultModel !== undefined &&
+    facts.replacedDefaultModel !== facts.previousModel &&
+    facts.replacedDefaultModel !== facts.model &&
+    facts.replacedDefaultDisplay !== undefined &&
+    facts.replacedDefaultDisplay !== ''
+  const standing = facts.savedAsDefault
+    ? replaced
+      ? `saved as your default for new sessions (it was ${facts.replacedDefaultDisplay})`
+      : 'saved as your default for new sessions'
+    : 'for this chat only'
   const lead = facts.words !== undefined && facts.model !== undefined && facts.words !== facts.model ? `${facts.words} → ${facts.model}` : `Model now: ${resolvedDisplay}`
   const when = facts.at === undefined ? '' : ` · ${facts.at}`
-  return `${lead}${when} · ${standing} — /model ${facts.previousModel} switches back to ${facts.previousDisplay}`
+  const back = replaced ? 'switches this session back to' : 'switches back to'
+  return `${lead}${when} · ${standing} — /model ${facts.previousModel} ${back} ${facts.previousDisplay}`
 }
 
 export function createModelSwitchBreadcrumbs(modelArg: string, resolvedDisplay: string, facts?: ModelSwitchFacts): UserMessage[] {

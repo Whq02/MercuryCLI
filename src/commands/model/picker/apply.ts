@@ -10,7 +10,7 @@ export function applyOnSeat({ onDone, labelOf, flipDoorNote }: PickContext, focu
   const factsBefore = focused.modelFacts()
   const messagesBefore = [...focused.records()]
   const choice = persistModelChoice(value)
-  void focused.setModel(value).then(receipt => {
+  void focused.setModel(value, undefined, choice.replacedDefault ?? undefined).then(receipt => {
     if (receipt.state === 'refused') {
       choice.restore()
       onDone(`The model switch was refused: ${receipt.detail}`)

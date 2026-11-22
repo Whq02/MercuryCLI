@@ -5,7 +5,7 @@ import { useSetAppStateMaybe } from '../../../state/AppState.js'
 import { getEngineModel } from '../../../services/model/model.js'
 import { settleModelSelection } from '../../../services/model/modelTransition.js'
 import { getModelOptions, isCatalogueDoorRow, isProviderActionRow, signInFamilyOfRow } from '../../../services/model/modelOptions.js'
-import { nextBirthModel } from '../../../services/switchboard/bootBirthFacts.js'
+import { nextBirthModel, setNextSessionFacts } from '../../../services/switchboard/bootBirthFacts.js'
 import { type EffortValue, getDisplayedEffortLabel, getEffortEnvOverride, getInitialEffortSetting, modelSupportsEffort, selectableEffortLevels, toPersistableEffort, unpinAllLaunchEffort } from '../../../utils/effort.js'
 import { updateSettingsForSource } from '../../../utils/settings/settings.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
@@ -61,6 +61,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
       return
     }
     unpinAllLaunchEffort()
+    setNextSessionFacts({ effort: null })
     setEffort(mode)
     const override = getEffortEnvOverride()
     setNotice(override !== undefined && override !== persistable
@@ -80,6 +81,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
       return
     }
     noteModelUse(id, door)
+    setNextSessionFacts({ model: null })
     if (setAppState !== null) {
       setAppState(prev => {
         const settled = settleModelSelection(prev, id, {

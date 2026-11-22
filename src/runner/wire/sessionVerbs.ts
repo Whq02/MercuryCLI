@@ -240,7 +240,7 @@ export const SESSION_VERBS = {
   setModel: {
     connector: 'setModel',
     daemon: { op: 'sessionControl', action: 'set-model' },
-    runner: { name: 'session/set_model', from: 'host', kind: 'request', scope: 'session', deadlineMs: 5_000, params: k => k.z.object({ model: k.z.string().optional(), words: k.z.string().optional() }), result: k => k.z.object({ model: k.z.string(), at: k.applied() }) },
+    runner: { name: 'session/set_model', from: 'host', kind: 'request', scope: 'session', deadlineMs: 5_000, params: k => k.z.object({ model: k.z.string().optional(), words: k.z.string().optional(), replaced_default: k.z.string().optional() }), result: k => k.z.object({ model: k.z.string(), at: k.applied() }) },
   },
   setEffort: {
     connector: 'setEffort',

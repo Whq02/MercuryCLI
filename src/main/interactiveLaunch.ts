@@ -320,6 +320,7 @@ async function routeBootJourney({ args, opts, root, appProps, chatProps, inputPr
     const { runnerArgvFromBoot } = await import('../services/switchboard/runnerArgv.js')
     facts.setBootBirthFacts({
       title: args.sessionTitle ?? null,
+      model: typedString(opts.model) !== undefined && args.userSpecifiedModel !== undefined ? args.resolvedInitialModel : null,
       effort: typeof opts.effort === 'string' ? opts.effort : null,
       permissionMode: args.permissionMode,
       bypassConsent: effectiveContext.isBypassPermissionsModeAvailable === true,

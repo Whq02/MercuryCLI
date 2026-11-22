@@ -86,7 +86,7 @@ export function applyModelSelectionOf(
       setOverlay(null)
       const effectiveBefore = focused.modelFacts().effective
       const choice = persist ? persistModelChoice(value) : null
-      void focused.setModel(value).then(receipt => {
+      void focused.setModel(value, undefined, choice?.replacedDefault ?? undefined).then(receipt => {
         settleCapHandoffIntent(receipt.state === 'applied' || receipt.state === 'queued')
         if (receipt.state === 'refused') {
           choice?.restore()

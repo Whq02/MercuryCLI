@@ -203,9 +203,12 @@ export async function runLaunch(args: RunLaunchArgs): Promise<void> {
         })
 
   const config = getGlobalConfig()
-  const effortLevel = (opts.effort as EffortLevel | undefined) ?? getInitialSettings().engine?.effort
   const effortEnv = describeEffortEnvOverride()
   if (effortEnv.state === 'ignored') process.stderr.write(`${effortEnv.sentence}\n`)
+  const effortLevel =
+    (opts.effort as EffortLevel | undefined) ??
+    (effortEnv.state === 'level' ? effortEnv.override : undefined) ??
+    getInitialSettings().engine?.effort
   const initialState: AppState = {
     ...getDefaultAppState(),
     toolPermissionContext: args.toolPermissionContext,

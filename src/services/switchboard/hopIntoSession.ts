@@ -3,7 +3,7 @@ import { basename, dirname } from 'node:path'
 import type { AwayRecapMetadata, LaunchWonV1 } from '../../types/message.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { emitFocusedSessionConnectorChanged, getFocusedSessionConnector, hasFocusedSession, withLanding } from '../engine-connector/focusedConnector.js'
-import { armLandingWords, bootBirthFacts, carriedConsentOf, carriedKitOf, peekWornPresetKit, settleLandingWords, takeWornPresetKit } from './bootBirthFacts.js'
+import { armLandingWords, bootBirthFacts, carriedConsentOf, carriedKitOf, carriedRunnerArgvOf, peekWornPresetKit, resumeLaunchWordsOf, settleLandingWords, takeWornPresetKit } from './bootBirthFacts.js'
 import { createSeatReceiptMessage } from '../../utils/messages/systemMessages.js'
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 import { validateUuid } from '../../utils/sessionStoragePortable.js'
@@ -161,7 +161,7 @@ async function focusResumedSessionLanding(
     const reason = 'no live session record owns this id'
     return { ok: false, reason, admitted: Promise.resolve(false), refusal: Promise.resolve(reason) }
   }
-  const launch: LaunchWords = { ...(opts?.model !== undefined ? { model: opts.model } : {}), ...(opts?.effort !== undefined ? { effort: opts.effort } : {}) }
+  const launch: LaunchWords = resumeLaunchWordsOf(opts)
   const launchGiven = launch.model !== undefined || launch.effort !== undefined
   if (await heldLiveUnderDaemon(sessionId)) {
     const hop = await hopIntoBoardSession(sessionId, opts)
@@ -233,9 +233,10 @@ async function admitResumedSession(
       const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
       const worn = peekWornPresetKit()
       const admit = async (): Promise<Record<string, unknown>> => {
-        const permissionMode = opts?.permissionMode ?? bootBirthFacts().permissionMode ?? undefined
+        const boot = bootBirthFacts()
+        const permissionMode = opts?.permissionMode ?? boot.permissionMode ?? undefined
         return (await daemonControlRpc(
-          { op: 'sessionAdmit', workspaceDir, resumeSessionId: sessionId, isolation: 'shared', by: 'operator', ...launch, ...(permissionMode !== undefined ? { permissionMode } : {}), ...carriedConsentOf(bootBirthFacts()), ...(worn !== null ? { kit: worn.kit } : carriedKitOf(bootBirthFacts())), ...(opts?.restartReason !== undefined ? { restartReason: opts.restartReason } : {}) },
+          { op: 'sessionAdmit', workspaceDir, resumeSessionId: sessionId, isolation: 'shared', by: 'operator', ...launch, ...(permissionMode !== undefined ? { permissionMode } : {}), ...carriedConsentOf(boot), ...(opts?.restartReason === undefined ? carriedRunnerArgvOf(boot) : {}), ...(worn !== null ? { kit: worn.kit } : carriedKitOf(boot)), ...(opts?.restartReason !== undefined ? { restartReason: opts.restartReason } : {}) },
           { timeoutMs: 60_000 },
         )) as Record<string, unknown>
       }

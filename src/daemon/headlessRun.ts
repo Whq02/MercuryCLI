@@ -226,6 +226,7 @@ export function buildRunnerInvocation(
       ? ['--allowed-tools', ...spec.allowedTools]
       : []),
     ...(spec.keyless ? [] : ['--model', model]),
+    ...(spec.effort ? ['--effort', spec.effort] : []),
     '--host-brief-add',
     spec.appendSystemPrompt,
     ...(opts?.respawn ? respawnArgvOf(spec) : identityArgvOf(spec, spec.extraArgv ?? [])),

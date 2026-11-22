@@ -124,6 +124,20 @@ export function carriedConsentOf(record: Pick<BootBirthFacts, 'bypassConsent'>):
   return record.bypassConsent ? { bypassConsent: true } : {}
 }
 
+export function carriedRunnerArgvOf(record: Pick<BootBirthFacts, 'runnerArgv'>): { runnerArgv: string[] } | Record<string, never> {
+  return record.runnerArgv.length > 0 ? { runnerArgv: [...record.runnerArgv] } : {}
+}
+
+export function resumeLaunchWordsOf(
+  opts: { model?: string; effort?: string; restartReason?: 'update' } | undefined,
+  record: Pick<BootBirthFacts, 'model' | 'effort'> = facts,
+): { model?: string; effort?: string } {
+  const carryBoot = opts?.restartReason === undefined
+  const model = opts?.model ?? (carryBoot ? record.model ?? undefined : undefined)
+  const effort = opts?.effort ?? (carryBoot ? record.effort ?? undefined : undefined)
+  return { ...(model !== undefined ? { model } : {}), ...(effort !== undefined ? { effort } : {}) }
+}
+
 export function _resetBootBirthFactsForTesting(): void {
   facts = { title: null, model: null, effort: null, permissionMode: null, runnerArgv: [], kit: null, presetKit: null, bypassConsent: false, landing: null }
 }

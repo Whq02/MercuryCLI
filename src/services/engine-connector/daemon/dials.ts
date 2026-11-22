@@ -37,7 +37,7 @@ interface DialsNeeds {
 export class DialsPart {
   constructor(private readonly needs: DialsNeeds) {}
 
-  async setModel(setting: string | null, words?: string): Promise<ModelSwitchReceiptV1> {
+  async setModel(setting: string | null, words?: string, replacedDefault?: string): Promise<ModelSwitchReceiptV1> {
     const target = setting ?? getEngineModel()
     const current = this.needs.modelFacts()
     if (current.effective === target && current.pendingSwitch === null) return { state: 'no-op' }
@@ -49,7 +49,7 @@ export class DialsPart {
       return { state: 'refused', detail }
     }
     try {
-      const reply = await this.needs.chainRpc(controlFrame('setModel', this.needs.record().sessionId, { model: target, ...(words === undefined ? {} : { words }) }))
+      const reply = await this.needs.chainRpc(controlFrame('setModel', this.needs.record().sessionId, { model: target, ...(words === undefined ? {} : { words }), ...(replacedDefault === undefined ? {} : { replacedDefault }) }))
       if (reply.ok !== true) return refuse(String(reply.error ?? 'the daemon refused the switch'))
       const outcome = reply.outcome
       const detail = typeof reply.detail === 'string' && reply.detail !== '' ? reply.detail : undefined

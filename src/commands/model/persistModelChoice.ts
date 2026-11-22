@@ -1,13 +1,13 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { EffortLevel } from '../../utils/effortLadder.js'
-import type { ModelSetting } from '../../services/model/model.js'
+import { parseUserSpecifiedModel, type ModelSetting } from '../../services/model/model.js'
 import { displayConfigHome, getMercuryHome } from '../../utils/envUtils.js'
 import { compatModelEndpoint } from '../../services/providers/openaicompat/compatAccounts.js'
 import { getInitialSettings, getSettingsWriteFilePathForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
 
 type ModelChoiceOutcome = 'saved' | 'session' | 'overridden' | 'refused' | 'cleared' | 'unchanged'
 
-type PersistedModelChoice = { outcome: ModelChoiceOutcome; sentence: string; restore: () => void }
+type PersistedModelChoice = { outcome: ModelChoiceOutcome; sentence: string; restore: () => void; replacedDefault: string | null }
 
 type PersistedEffortChoice = { outcome: 'saved' | 'refused'; sentence: string }
 
@@ -43,25 +43,29 @@ export function persistModelChoice(setting: ModelSetting): PersistedModelChoice 
         outcome: 'refused',
         sentence: refusedSentence(error instanceof Error ? error : new Error(String(error))),
         restore: unchanged,
+        replacedDefault: null,
       }
     }
-    if (rented) return { outcome: 'session', sentence: '', restore: unchanged }
+    if (rented) return { outcome: 'session', sentence: '', restore: unchanged, replacedDefault: null }
   }
   const stored = getInitialSettings().engine?.model
   const saved: ModelSetting = stored !== undefined && stored !== '' ? stored : null
+  const previousDefault = saved !== null ? parseUserSpecifiedModel(saved) : null
+  const nextDefault = setting !== null ? parseUserSpecifiedModel(setting) : null
+  const replacedDefault = previousDefault !== null && previousDefault !== nextDefault ? previousDefault : null
   if (saved !== setting) {
     const { error } = updateSettingsForSource('userSettings', { engine: { model: setting ?? undefined } })
-    if (error) return { outcome: 'refused', sentence: refusedSentence(error), restore: unchanged }
+    if (error) return { outcome: 'refused', sentence: refusedSentence(error), restore: unchanged, replacedDefault: null }
   }
   const restore = saved === setting ? unchanged : (): void => void updateSettingsForSource('userSettings', { engine: { model: saved ?? undefined } })
   if (setting === null) {
     return saved === null
-      ? { outcome: 'unchanged', sentence: '', restore }
-      : { outcome: 'cleared', sentence: ' · your saved default model is cleared, new sessions start on the family default', restore }
+      ? { outcome: 'unchanged', sentence: '', restore, replacedDefault: null }
+      : { outcome: 'cleared', sentence: ' · your saved default model is cleared, new sessions start on the family default', restore, replacedDefault: null }
   }
   const env = flagEnv('MERCURY_MODEL')
   if (env !== undefined && env !== '' && env !== setting) {
-    return { outcome: 'overridden', sentence: ` · saved as your default, but MERCURY_MODEL=${env} overrides it at boot`, restore }
+    return { outcome: 'overridden', sentence: ` · saved as your default, but MERCURY_MODEL=${env} overrides it at boot`, restore, replacedDefault }
   }
-  return { outcome: 'saved', sentence: ' · saved as your default', restore }
+  return { outcome: 'saved', sentence: ' · saved as your default', restore, replacedDefault }
 }
