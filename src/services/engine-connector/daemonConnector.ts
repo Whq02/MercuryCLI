@@ -82,7 +82,7 @@ import { LivePart } from './daemon/live.js'
 import { WorkPart } from './daemon/work.js'
 import { TranscriptPart } from './daemon/transcript.js'
 import { VerbsPart } from './daemon/verbs.js'
-import { DialsPart } from './daemon/dials.js'
+import { DialsPart, SEAT_VERB_SETTLE_MS } from './daemon/dials.js'
 import { HEARTBEAT_MS, ProjectionFeed } from './projectionFeed.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { installEmptyDetailControlMethods } from './emptyDetailControls.js'
@@ -738,6 +738,14 @@ export class DaemonSessionConnector extends ConnectorOwnWork implements EngineCo
     permissionMode: () => this.permissionMode(),
     chainRpc: req => this.chainRpc(req),
     deliver: (text, opts) => this.deliveryPart.deliver(text, opts),
+    recheckAsks: () => {
+      this.asksFeed.settle(SEAT_VERB_SETTLE_MS)
+      this.asksFeed.recheckSoon()
+    },
+    settleFacts: () => {
+      this.factsFeed.settle(SEAT_VERB_SETTLE_MS)
+      this.factsFeed.recheckSoon()
+    },
   })
   protected readonly asksFeed: ProjectionFeed
 

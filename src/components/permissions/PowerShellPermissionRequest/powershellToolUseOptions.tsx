@@ -21,6 +21,11 @@ function amendableRow(role: AmendableRole, open: boolean | undefined, onChange: 
 }
 
 const onlyPowerShellRules = (suggestions: PermissionUpdate[]): boolean =>
+  suggestions.some(
+    update =>
+      update.type === 'addRules' &&
+      update.rules.some(rule => rule.toolName === POWERSHELL_TOOL_NAME && (rule.ruleContent ?? '').trim() !== ''),
+  ) &&
   suggestions.every(update => update.type === 'addRules' && update.rules.every(rule => rule.toolName === POWERSHELL_TOOL_NAME))
 
 function editedPrefixRow(initialValue: string, onChange: (prefix: string) => void): Row {

@@ -112,7 +112,7 @@ export function SkillPermissionRequest({
   }
 
   return (
-    <PermissionDialog title={`Use skill "${skill}"?`} workerBadge={workerBadge}>
+    <PermissionDialog title={`Use skill "${skill}"?`} crewmate={toolUseConfirm.crewmate} workerBadge={workerBadge}>
       <Box flexDirection="column">
         <Text>Mercury may use instructions, code, or files from this skill.</Text>
         <Text dimColor>{matchedDescription}</Text>

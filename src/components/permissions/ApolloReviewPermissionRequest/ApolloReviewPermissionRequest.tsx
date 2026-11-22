@@ -101,7 +101,7 @@ export function ApolloReviewPermissionRequest({
   }
 
   return (
-    <PermissionDialog title="Apollo pre-flight review" workerBadge={workerBadge}>
+    <PermissionDialog title="Apollo pre-flight review" crewmate={toolUseConfirm.crewmate} workerBadge={workerBadge}>
       <Box flexDirection="column" gap={1}>
         <Box flexDirection="column">
           <ApolloReviewCard

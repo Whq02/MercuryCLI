@@ -34,7 +34,7 @@ export function MemoryRulePermissionRequest({ toolUseConfirm, onDone, onReject, 
     onDone()
   }
   return (
-    <PermissionDialog title="Memory rule" workerBadge={workerBadge}>
+    <PermissionDialog title="Memory rule" crewmate={toolUseConfirm.crewmate} workerBadge={workerBadge}>
       <Box flexDirection="column">
         <ConsentBodyText text={memoryRuleCardText(toolUseConfirm)} />
         <PermissionPrompt options={options} question="Go ahead?" onSelect={answer} onCancel={dismiss} />

@@ -270,10 +270,12 @@ export function SelectInputOption<T>({
         shouldShowUpArrow={shouldShowUpArrow}
         declareCursor={false}
       >
-        <Text dimColor>{prefixText}</Text>
-        {children}
-        {labelBlock}
-        {field}
+        <Box flexDirection="row">
+          <Text dimColor>{prefixText}</Text>
+          {children ? <Box marginRight={1}>{children}</Box> : null}
+          {labelBlock}
+          {field}
+        </Box>
       </SelectOption>
       {option.description !== undefined && option.description !== '' ? (
         <Box paddingLeft={descriptionIndent}>

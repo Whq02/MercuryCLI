@@ -188,7 +188,26 @@ export async function decideToolPermissionWithModes(
 
     let pending: PermissionAskDecision = engineDecision
     if (appState.toolPermissionContext.mode === 'flow') {
-      const verdict = await decideUnderFlow(tool, input, engineDecision, appState.toolPermissionContext)
+      const verdict = await decideUnderFlow(
+        tool,
+        input,
+        engineDecision,
+        appState.toolPermissionContext,
+        async suggestions => {
+          if (suggestions.some(update => update.type === 'setMode')) return false
+          const nextRules = applyPermissionUpdates(appState.toolPermissionContext, suggestions)
+          if (nextRules === appState.toolPermissionContext) return false
+          const probeContext: ToolUseContext = {
+            ...context,
+            getAppState: () => ({ ...appState, toolPermissionContext: nextRules }),
+          }
+          const nextEngine = await decideToolPermission(tool, input, probeContext)
+          if (nextEngine.decision.behavior === 'allow') return true
+          if (nextEngine.decision.behavior !== 'ask') return false
+          const nextFlow = await decideUnderFlow(tool, input, nextEngine.decision, nextRules)
+          return nextFlow.stage === 'flowAllow'
+        },
+      )
       if (verdict.stage === 'flowAllow') {
         recordPass('flowFloors')
         recordPass('flowLaw')

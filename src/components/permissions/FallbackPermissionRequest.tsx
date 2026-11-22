@@ -109,7 +109,7 @@ export function FallbackPermissionRequest({
   const startedCommands = sentOrStarted(tool, toolUseConfirm.input, shown)
 
   return (
-    <PermissionDialog title={title} workerBadge={workerBadge}>
+    <PermissionDialog title={title} crewmate={toolUseConfirm.crewmate} workerBadge={workerBadge}>
       <Box flexDirection="column">
         {body !== undefined ? (
           body
