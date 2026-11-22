@@ -30,12 +30,16 @@ import { ImageResizeError, imagesLeftOutMarked, imagesLeftOutNoticeLine, takeIma
 import { describeInvalidArgTypeError } from '../../utils/errors.js'
 import { findToolByName } from '../../Tool.js'
 import { effortAdjustedReceiptLine, isTurnOwningQuerySource } from '../../utils/effort.js'
-import type { AssistantMessage } from '../../types/message.js'
+import type { AssistantMessage, Message, SystemCompactBoundaryMessage } from '../../types/message.js'
+import type { MCPServerConnection } from '../../utils/mcp/types.js'
+import type { RequestWaitV1 } from '../../services/providers/streamIdleBudget.js'
 import { logError } from '../../utils/log.js'
 import {
   createSystemMessage,
   createThinkingNoteMessage,
   createAssistantAPIErrorMessage,
+  createBusyRecoveryMessage,
+  createUserMessage,
 } from '../../services/messages.js'
 import { StreamChantWatch } from '../../services/tools/chantGuard.js'
 import { prependUserContext, firstTurnUserContext } from '../../services/messages/api.js'
@@ -43,7 +47,7 @@ import { latestUserContextBody } from '../../utils/attachments/userContext.js'
 import { createAttachmentMessage } from '../../services/attachments.js'
 import { reconcileAppliedPlanUsage } from '../../services/run/requestContextPlan.js'
 import { calibrationKeyFor } from '../../services/run/contextCalibration.js'
-import { bindRequestGauge, settleRequestGauge } from '../../services/run/requestGauge.js'
+import { bindRequestGauge, settleRequestGauge, type RequestGaugeView } from '../../services/run/requestGauge.js'
 import { getContextEpoch } from '../../services/run/contextEpochs.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import { streamEndReceiptLine } from '../../services/providers/streamIdleBudget.js'
@@ -63,7 +67,6 @@ import { acquireModelPermit, releaseModelPermitByCall } from '../../services/cap
 import { refreshGovernorCeilings } from '../../services/capacity/composeCeilings.js'
 import type { PrefixVerdict } from '../../services/providers/anthropic/prefixLedger.js'
 import type { EventMint, IterationState, RunCtx } from './state.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const switchReceipts = new Set<string>()
 
@@ -87,7 +90,29 @@ export function* emitSyntheticSettlements(
   outcome: 'error' | 'aborted',
   emit: EventMint,
 ): Generator<RunEvent> {
-  return notBuilt('src/run-core/turn/streamModel.ts:88')
+  for (const assistantMessage of assistantMessages) {
+    for (const block of assistantMessage.message.content) {
+      if (block.type !== 'tool_use') continue
+      yield emit({
+        kind: 'tool_settled',
+        toolUseId: block.id,
+        outcome,
+        synthetic: true,
+        message: createUserMessage({
+          content: [
+            {
+              type: 'tool_result',
+              content: errorMessage,
+              is_error: true,
+              tool_use_id: block.id,
+            },
+          ],
+          toolUseResult: errorMessage,
+          sourceToolAssistantUUID: assistantMessage.uuid,
+        }),
+      })
+    }
+  }
 }
 
 type StreamOutcome =
@@ -147,7 +172,29 @@ export async function* waitForModelPermit(run: RunCtx, iter: IterationState, emi
 }
 
 export function* announceModelCall(iter: IterationState, emit: EventMint, callId: string): Generator<RunEvent, Pick<ModelCall, 'effortValue' | 'callReference'>> {
-  return notBuilt('src/run-core/turn/streamModel.ts:178')
+  const { toolUseContext } = iter
+  const effortValue = iter.appState.effortValue
+  const callReference = buildModelCallReference({
+    model: iter.currentModel,
+    effort: effortValue,
+    maxOutputTokensOverride: iter.maxOutputTokensOverride,
+    tools: toolUseContext.options.tools,
+  })
+  yield emit({
+    kind: 'model_call_started',
+    callId,
+    model: iter.currentModel,
+    effort: effortValue,
+    maxOutputTokensOverride: iter.maxOutputTokensOverride,
+    reference: callReference,
+  })
+  const receipt = modelSwitchReceipt(String(ownerFromToolUseContext(toolUseContext)), iter.messagesForQuery, iter.currentModel)
+  if (receipt !== null && !switchReceipts.has(receipt.key)) {
+    switchReceipts.add(receipt.key)
+    logForDebugging(`preserved thinking: ${receipt.text}`)
+    yield emit({ kind: 'notice', message: createSystemMessage(receipt.text, 'suggestion') })
+  }
+  return { effortValue, callReference }
 }
 
 type ReplySettling = {
@@ -212,7 +259,47 @@ export function* classifyDroppedThinking(run: RunCtx, iter: IterationState, emit
 }
 
 export async function* settleReply(run: RunCtx, iter: IterationState, emit: EventMint, settling: ReplySettling, message: AssistantMessage, yieldMessage: AssistantMessage): AsyncGenerator<RunEvent> {
-  return notBuilt('src/run-core/turn/streamModel.ts:271')
+  const { toolUseContext } = iter
+  settling.projectedReplies.set(message.uuid, yieldMessage)
+  settling.settleGauge(message)
+  const waited = message.busyRecovery
+  if (waited !== undefined && !busyRecoveriesReceipted.has(message.uuid)) {
+    busyRecoveriesReceipted.add(message.uuid)
+    yield emit({
+      kind: 'notice',
+      message: createBusyRecoveryMessage({
+        provider: waited.provider,
+        retries: waited.retries,
+        elapsedMs: waited.elapsedMs,
+        content: waited.detail,
+        ...(waited.status !== undefined ? { status: waited.status } : {}),
+        ...(waited.code !== undefined ? { code: waited.code } : {}),
+      }),
+    })
+  }
+  stampReply(message, iter.replyTo)
+  if (yieldMessage !== message && message.inReplyTo !== undefined) yieldMessage.inReplyTo = message.inReplyTo
+  yield emit({
+    kind: 'assistant_settled',
+    callId: settling.callId,
+    message: yieldMessage,
+    withheld: iter.streamChant !== undefined || isWithheldMaxOutputTokens(message) || (overflowSignalOf(message) !== null && overflowLadderArmed(run.querySource)),
+  })
+  iter.assistantMessages.push(message)
+  yield* classifyDroppedThinking(run, iter, emit, settling, message)
+  if (toolUseContext.rosterOwner === undefined) {
+    const record = await boundPrefixRecordToEmit(String(rosterOwnerFromToolUseContext(toolUseContext)), iter.messagesForQuery, iter.currentModel, {
+      rosterOnly: toolUseContext.agentId !== undefined,
+      context: { userContext: run.userContext, systemContext: run.systemContext },
+    })
+    if (record !== null) yield emit({ kind: 'attachment', message: record })
+  }
+  const calls = message.message.content.filter((block): block is ToolUseBlock => block.type === 'tool_use')
+  for (const block of calls) {
+    iter.toolUseBlocks.push(block)
+    if (!iter.closingTurn) iter.early.offer(block, message, iter.toolUseBlocks.length - 1)
+  }
+  if (calls.length > 0) iter.needsFollowUp = true
 }
 
 export function* streamReceipts(iter: IterationState, emit: EventMint, settleGauge: (message: AssistantMessage) => void): Generator<RunEvent> {
@@ -247,8 +334,139 @@ export function* streamReceipts(iter: IterationState, emit: EventMint, settleGau
   }
 }
 
+function boundGaugeOf(iter: IterationState, sent: readonly Message[]): RequestGaugeView | undefined {
+  const planned = iter.requestPlan.gauge
+  if (planned === undefined) return undefined
+  const owner = ownerFromToolUseContext(iter.toolUseContext)
+  const key = calibrationKeyFor(declaredRouteOf(iter.currentModel) ?? 'unrecognised', iter.currentModel)
+  const bound = bindRequestGauge(sent, key, getContextEpoch(owner).epoch, planned.fixed, planned.rebase)
+  return planned.digest === bound.digest && planned.sourceDigest !== undefined ? { ...bound, sourceDigest: planned.sourceDigest } : bound
+}
+
+function unlandedFoldBoundaryOf(sent: readonly Message[]): string | undefined {
+  const boundary = sent.findLast((row): row is SystemCompactBoundaryMessage => row.type === 'system' && row.subtype === 'compact_boundary')
+  if (boundary === undefined || boundary.compactMetadata.cacheEpoch === undefined) return undefined
+  const landed = sent.some(row => row.type === 'assistant' && row.foldLanding?.boundaryId === boundary.uuid)
+  return landed ? undefined : boundary.uuid
+}
+
 export async function* streamOneCall(run: RunCtx, iter: IterationState, emit: EventMint, call: ModelCall, backups: ReturnType<typeof engineLadderOf>): AsyncGenerator<RunEvent> {
-  return notBuilt('src/run-core/turn/streamModel.ts:358')
+  const { toolUseContext } = iter
+  const { options } = toolUseContext
+  const { callId, streamController } = call
+  const ownerKey = String(rosterOwnerFromToolUseContext(toolUseContext))
+  const sent = latestUserContextBody(iter.messagesForQuery) === null
+    ? prependUserContext(iter.messagesForQuery, await firstTurnUserContext(run.userContext, run.systemContext, options.engineModel, toolUseContext.agentId, iter.messagesForQuery))
+    : iter.messagesForQuery
+
+  const gauge = boundGaugeOf(iter, sent)
+  let foldBoundary = gauge === undefined ? undefined : unlandedFoldBoundaryOf(sent)
+  const settling: ReplySettling = {
+    callId,
+    projectedReplies: new Map(),
+    fixedPrefix: undefined,
+    settleGauge: message => {
+      if (gauge === undefined || message.contextGauge !== undefined) return
+      if (settleRequestGauge(gauge, message) === null) return
+      const usage = foldCacheUsage(message.message.usage)
+      if (foldBoundary !== undefined && usage !== null) {
+        const fixedPrefix = settling.fixedPrefix ?? pendingPrefixVerdict(ownerKey)?.fixedPrefix
+        message.foldLanding = { boundaryId: foldBoundary, usage, ...(fixedPrefix !== undefined ? { fixedPrefix } : {}) }
+        foldBoundary = undefined
+      }
+      const shown = settling.projectedReplies.get(message.uuid)
+      if (shown !== undefined && shown !== message) {
+        shown.contextGauge = message.contextGauge
+        if (message.foldLanding !== undefined) shown.foldLanding = message.foldLanding
+      }
+      if (iter.callOrdinal === 1 && usage !== null) reconcileAppliedPlanUsage(ownerFromToolUseContext(toolUseContext), usage.input)
+    },
+  }
+
+  let presented = !swarmRoad(toolUseContext.agentId)
+  const reachedTheRoad = (): void => {
+    if (presented) return
+    presented = true
+    try {
+      swarmPresented(toolUseContext.agentId, sent, callId)
+    } catch (error) {
+      logForDebugging(`crew board accounting: ${error}`)
+    }
+  }
+
+  let restarted = false
+  if (isTurnOwningQuerySource(run.querySource)) recordSentRequest(ownerKey, sent)
+  const chantWatch = new StreamChantWatch()
+  const stream = run.deps.callModel({
+    messages: sent,
+    systemPrompt: iter.fullSystemPrompt,
+    thinkingConfig: options.thinkingConfig,
+    tools: options.tools,
+    signal: streamController.signal,
+    options: {
+      getToolPermissionContext: async () => toolUseContext.getAppState().toolPermissionContext,
+      model: iter.currentModel,
+      fallbackModel: backups.next(iter.currentModel),
+      querySource: run.querySource,
+      isNonInteractiveSession: options.isNonInteractiveSession,
+      effortValue: call.effortValue,
+      maxOutputTokensOverride: iter.maxOutputTokensOverride,
+      skipCacheWrite: run.skipCacheWrite,
+      callReference: call.callReference,
+      callChain: iter.callChain,
+      agentId: toolUseContext.agentId,
+      ownerKey,
+      agents: options.agentDefinitions.activeAgents,
+      allowedAgentTypes: options.agentDefinitions.allowedAgentTypes,
+      hasAppendSystemPrompt: !!options.appendSystemPrompt,
+      mcpTools: iter.appState.mcp.tools,
+      hasPendingMcpServers: iter.appState.mcp.clients.some((client: MCPServerConnection) => client.type === 'pending'),
+      addNotification: toolUseContext.addNotification,
+      toolChoice: iter.closingTurn ? { type: 'none' } : undefined,
+      onStreamingFallback: () => {
+        restarted = true
+      },
+      onWait: (wait: RequestWaitV1 | null) => toolUseContext.setSDKStatus?.({ wait }),
+      onStreamActivity: (atMs: number) => {
+        reachedTheRoad()
+        toolUseContext.setSDKStatus?.({ streamActivity: atMs })
+      },
+    },
+  })
+
+  const findTool = (name: string): ReturnType<typeof findToolByName> => findToolByName(options.tools, name)
+  function* retractRestartedAttempt(): Generator<RunEvent> {
+    if (!restarted) return
+    restarted = false
+    for (const settled of iter.assistantMessages) {
+      if (settled.inReplyTo !== undefined && settled.inReplyTo.length > 0) iter.replyTo.unshift(...settled.inReplyTo)
+      yield emit({ kind: 'assistant_retracted', message: settled })
+    }
+    iter.needsFollowUp = resetForRetry(iter).needsFollowUp
+  }
+
+  for await (const item of stream) {
+    yield* retractRestartedAttempt()
+    if (item.type === 'assistant') {
+      if (item.isApiErrorMessage !== true) reachedTheRoad()
+      yield* settleReply(run, iter, emit, settling, item, backfillCloneForYield(item, findTool))
+      continue
+    }
+    if (item.type === 'stream_event') {
+      reachedTheRoad()
+      if (iter.streamChant !== undefined) continue
+      const chant = chantWatch.feed(item.event)
+      if (chant !== null) {
+        iter.streamChant = chant
+        streamController.abort('stream-chant')
+        continue
+      }
+    }
+    yield emit({ kind: 'stream_delta', callId, raw: backfillCloneForYield(item, findTool) })
+  }
+  yield* retractRestartedAttempt()
+
+  yield* streamReceipts(iter, emit, settling.settleGauge)
 }
 
 export function* modelCallFailed(iter: IterationState, emit: EventMint, error: unknown): Generator<RunEvent, StreamOutcome> {
