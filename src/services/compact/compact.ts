@@ -37,7 +37,7 @@ import { notifyCompactionError, restoreAfterCompaction, withEngineModel } from '
 import { summariseForFold } from './compact/foldSummary.js'
 import { chooseFoldTail } from './compact/foldTail.js'
 import { landFold } from './compact/foldLanding.js'
-import { composeFoldSummaryText, contextAfterFold, createFoldMeter } from './compact/foldMeasure.js'
+import { composeFoldSummaryText, createFoldMeter } from './compact/foldMeasure.js'
 
 export { POST_COMPACT_MAX_FILES_TO_RESTORE, POST_COMPACT_TOKEN_BUDGET, POST_COMPACT_MAX_TOKENS_PER_FILE, POST_COMPACT_MAX_TOKENS_PER_SKILL, POST_COMPACT_SKILLS_TOKEN_BUDGET, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES, NO_MESSAGES_TO_COMPACT, NOTHING_TO_COMPACT_KEY, isNothingToCompactMessage, nothingToCompactLine, ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD, ERROR_MESSAGE_PROMPT_TOO_LONG, ERROR_MESSAGE_USER_ABORT, ERROR_MESSAGE_INCOMPLETE_RESPONSE, ERROR_MESSAGE_NO_SUMMARY, PROSE_SKIPPED_KEY, MODEL_REFUSAL_STOP_KEY } from './compact/limits.js'
 export { malformedHistoryRefusalOf, compactionRefusedForHistoryText, compactionPausedForHistoryText, foldRemedyIsHeadless, FOLD_WINDOW_REFUSAL_KEY, foldWindowRefusalText, CompactionRefusedForHistoryError } from './compact/refusals.js'
@@ -54,7 +54,7 @@ export { withFoldStatus, withEngineModel } from './compact/status.js'
 export { estimateFixedRequestTokens } from './compact/summariserFit.js'
 export { isRefold, manualFoldHasNothingToFold, nothingToCompactReason, projectManualFold } from './compact/projection.js'
 export type { ManualFoldProjection } from './compact/projection.js'
-export { contextAfterFold } from './compact/foldMeasure.js'
+export { contextAfterFold, measuredByAnotherFamily } from './compact/foldMeasure.js'
 export { partialCompactConversation } from './compact/partial.js'
 
 void notifyCompaction
@@ -229,7 +229,7 @@ export async function compactConversation(
       )
       throw new Error(nothingToCompactLine(preCompactTokenCount, 'would-not-shrink'))
     }
-    const truePostCompactTokenCount = mustShrink ? contextAfterFold(preCompactTokenCount, meter.before, landed.truePostCompactTokenCount) : landed.truePostCompactTokenCount
+    const truePostCompactTokenCount = mustShrink ? meter.after(landed.truePostCompactTokenCount) : landed.truePostCompactTokenCount
     const visibleReads = collectPreservedReadPaths(messagesToKeep ?? [])
     for (const row of partial.attachments) if (row.attachment.type === 'file') visibleReads.add(expandPath(row.attachment.filename))
     for (const path of context.readFileState.keys()) if (!visibleReads.has(expandPath(path))) context.readFileState.delete(path)

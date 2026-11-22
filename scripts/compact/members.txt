@@ -99,6 +99,7 @@ prove-summary-first.ts
 prove-summary-refusal-phrasings.ts
 prove-summary-rejection.ts
 prove-summary-request-roads.ts
+prove-switch-fold-after-size.ts
 prove-switch-then-compact.ts
 prove-switch-window-fold.ts
 prove-ten-complete-rounds.ts

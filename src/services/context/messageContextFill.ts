@@ -108,7 +108,7 @@ export function messageContextFill(messages: readonly Message[], model?: string)
     }
   }
   if (usageIndex === -1) {
-    return { tokens: roughTokenCountEstimationForMessages(messages, model), source: 'estimate' }
+    return { tokens: roughTokenCountEstimationForMessages(fence === null ? messages : messages.slice(fence.boundaryIndex), model), source: 'estimate' }
   }
 
   let anchor = usageIndex

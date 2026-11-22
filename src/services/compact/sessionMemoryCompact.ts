@@ -29,6 +29,7 @@ import {
   type CompactionResult,
   contextAfterFold,
   createAsyncAgentAttachmentsIfNeeded,
+  measuredByAnotherFamily,
 } from './compact.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { stripThinkingFromIndex } from '../messages/apiFilters.js'
@@ -166,7 +167,7 @@ export async function trySessionMemoryCompaction(
   messages: Message[],
   agentId?: string,
   autoCompactThreshold?: number,
-  rosterContext?: Pick<ToolUseContext, 'getAppState' | 'agentId'>,
+  rosterContext?: Pick<ToolUseContext, 'getAppState' | 'agentId' | 'options'>,
   trigger: 'auto' | 'manual' = 'auto',
 ): Promise<CompactionResult | null> {
   try {
@@ -247,7 +248,8 @@ export async function trySessionMemoryCompaction(
     if (trigger === 'manual') {
       const estimatedBefore = estimateContextTokens(stripThinkingFromIndex(messages, 0))
       if (estimate >= estimatedBefore) return null
-      if (preTokens > 0) result.truePostCompactTokenCount = contextAfterFold(preTokens, estimatedBefore, estimate)
+      const foreign = rosterContext !== undefined && measuredByAnotherFamily(messages, rosterContext.options.engineModel)
+      if (preTokens > 0 && !foreign) result.truePostCompactTokenCount = contextAfterFold(preTokens, estimatedBefore, estimate)
     }
     return result
   } catch (err) {

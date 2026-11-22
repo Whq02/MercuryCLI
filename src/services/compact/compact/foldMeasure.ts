@@ -1,6 +1,6 @@
 import type { AttachmentMessage, Message } from '../../../types/message.js'
 import { getTranscriptPath } from '../../../utils/sessionStorage/paths.js'
-import { tokenCountWithEstimation } from '../../context/tokens.js'
+import { contextFill } from '../../context/tokens.js'
 import { stripThinkingFromIndex } from '../../messages/apiFilters.js'
 import { estimateRequestGauge, readRequestGauge } from '../../run/requestGauge.js'
 import { renderFoldLedger, type FoldLedger } from '../foldLedger.js'
@@ -14,6 +14,7 @@ type FoldMeter = {
   before: number
   count: (rows: Message[]) => number
   measureResult: (result: CompactionResult) => number
+  after: (landed: number) => number
 }
 
 export function createFoldMeter(
@@ -22,7 +23,7 @@ export function createFoldMeter(
   postFoldCarry?: readonly Message[],
 ): FoldMeter {
   const gauge = readRequestGauge(messages, model)
-  const context = tokenCountWithEstimation(messages)
+  const context = contextFill(messages).tokens
   const carry = postFoldCarry ?? []
   const count = (rows: Message[]): number => {
     const request = carry.length > 0 ? [...rows, ...carry] : rows
@@ -32,7 +33,13 @@ export function createFoldMeter(
   }
   const before = count(withoutSkillsList(stripThinkingFromIndex(messages, 0)))
   const measureResult = (result: CompactionResult): number => count(buildPostCompactMessages(result))
-  return { gauge, context, before, count, measureResult }
+  const foreign = measuredByAnotherFamily(messages, model)
+  const after = (landed: number): number => (foreign ? landed : contextAfterFold(context, before, landed))
+  return { gauge, context, before, count, measureResult, after }
+}
+
+export function measuredByAnotherFamily(messages: readonly Message[], model: string): boolean {
+  return contextFill(messages).source === 'usage' && contextFill(messages, model).source === 'estimate'
 }
 
 function withoutSkillsList(rows: Message[]): Message[] {
