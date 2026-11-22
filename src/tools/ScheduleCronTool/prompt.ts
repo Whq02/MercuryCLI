@@ -1,17 +1,16 @@
 import { getIsSessionOneShotHeadless } from '../../bootstrap/state.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-export const CRON_CREATE_TOOL_NAME: Unbuilt = unbuilt('src/tools/ScheduleCronTool/prompt.ts:6')
-export const CRON_DELETE_TOOL_NAME: Unbuilt = unbuilt('src/tools/ScheduleCronTool/prompt.ts:7')
-export const CRON_LIST_TOOL_NAME: Unbuilt = unbuilt('src/tools/ScheduleCronTool/prompt.ts:8')
+export const CRON_CREATE_TOOL_NAME = 'CronCreate'
+export const CRON_DELETE_TOOL_NAME = 'CronDelete'
+export const CRON_LIST_TOOL_NAME = 'CronList'
 
-export const SATURN_BOARD_COMMAND: Unbuilt = unbuilt('src/tools/ScheduleCronTool/prompt.ts:10')
+export const SATURN_BOARD_COMMAND = '/saturn'
 
 export function isSaturnSchedulingEnabled(): boolean {
-  return notBuilt('src/tools/ScheduleCronTool/prompt.ts:12')
+  return !isEnvTruthy(flagEnv('MERCURY_SATURN_DISABLE'))
 }
 
 export function cronToolsMountable(): boolean {
