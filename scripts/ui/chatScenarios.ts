@@ -960,7 +960,7 @@ type AsksPart = {
   close: () => Promise<void>
 }
 
-export async function openAsksPart(tag: string, options: { keepHome?: boolean } = {}): Promise<AsksPart> {
+export async function openAsksPart(tag: string, options: { keepHome?: boolean; held?: { mode: PermissionMode; facts: 'live' | 'record' } } = {}): Promise<AsksPart> {
   const home = options.keepHome === true ? null : pinScratchHome(tag)
   const module = await import('../../src/screens/chat/useChatAsks.tsx')
   const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
@@ -969,8 +969,10 @@ export async function openAsksPart(tag: string, options: { keepHome?: boolean } 
   const calls: string[] = []
   const notices: Array<{ key: string; text: string }> = []
   let asks: SessionAskV1[] = []
-  let runnerMode: PermissionMode | null = null
+  let runnerMode: PermissionMode | null = options.held?.mode ?? null
   let modeRefusal: string | null = null
+  const resting = new NoSessionConnector()
+  const held = options.held
   const listeners = { asks: new Set<() => void>(), mode: new Set<() => void>() }
   const hear = (set: Set<() => void>) => (listener: () => void): (() => void) => {
     set.add(listener)
@@ -979,6 +981,7 @@ export async function openAsksPart(tag: string, options: { keepHome?: boolean } 
   slot.setFocusedSessionConnector(
     Object.assign(new NoSessionConnector(), {
       sessionId: () => tag,
+      ...(held === undefined ? {} : { modelFacts: () => ({ ...resting.modelFacts(), effectiveSource: held.facts }) }),
       asks: () => asks,
       subscribeAsks: hear(listeners.asks),
       settleAsk: (askId: string) => {

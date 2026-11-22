@@ -11,6 +11,7 @@ const WHERE: Record<string, string> = {
   '§4': 'fix respondToElicitation and dismissElicitationWaiting in src/screens/chat/useChatAsks.tsx',
   '§5': 'fix useChatAsksCard in src/screens/chat/useChatAsks.tsx',
   '§6': 'fix the mode-change recording in src/utils/permissions/modeTransitions.ts and the AppState relay it is read through',
+  '§7': "fix the mount arm beside adoptRunnerMode in useChatAsks (src/screens/chat/useChatAsks.tsx): the chat's copy takes the focused session's mode at mount only when a live runner holds it (modelFacts().effectiveSource is 'live')",
 }
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
@@ -169,6 +170,21 @@ section('§6 the relay of the app state: a change of mode is recorded once, unde
   check('under a provider mounted bare, as a dialog mounts it, a change nobody announced is one row too, and one telling', modeTransitions().length === 1 && modeTransitions()[0]!.road === 'unnamed' && told.length === 1, `${rows()} · told ${told.join()}`)
   view.unmount()
   setPermissionModeChangedListener(null)
+  clearModeTransitions()
+}
+
+section("§7 the hook mounts onto a session already in focus: a live runner's mode is taken at once, a session still waiting for its runner is left alone")
+{
+  const other = startMode === 'flow' ? 'implement' : 'flow'
+  const live = await openAsksPart('chat-asks-mount-live', { held: { mode: other, facts: 'live' } })
+  check("mounted onto a live runner, the app state holds the runner's mode before any mode event", live.mode() === other, `${startMode} → ${live.mode()}`)
+  check('and the session was told nothing: only the copy moved', !live.calls.some(call => call.startsWith('setPermissionMode')), live.calls.join())
+  await live.close()
+  const waiting = await openAsksPart('chat-asks-mount-waiting', { held: { mode: other, facts: 'record' } })
+  check('mounted onto a session whose runner has not answered yet, the app state keeps the mode the screen started in', waiting.mode() === startMode, waiting.mode())
+  await waiting.setRunnerMode(other)
+  check("and it takes the runner's mode when the runner's own word arrives", waiting.mode() === other, waiting.mode())
+  await waiting.close()
   clearModeTransitions()
 }
 
