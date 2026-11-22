@@ -63,7 +63,7 @@ function drive(label: string, steps: Step[], env: Record<string, string | undefi
   const out = join(dir, 'out.json')
   const cfgPath = join(dir, 'cfg.json')
   writeFileSync(cfgPath, JSON.stringify({ argv: cfg.argv, cwd: cfg.cwd, cols: COLS, rows: ROWS, steps, out }))
-  const childEnv: Record<string, string | undefined> = { ...process.env, TERM: 'xterm-256color', TERM_PROGRAM: 'Apple_Terminal', ...env }
+  const childEnv: Record<string, string | undefined> = { ...process.env, TERM: 'xterm-256color', MERCURY_NO_SYNC_OUTPUT: '1', ...env }
   for (const name of Object.keys(childEnv)) if (childEnv[name] === undefined) delete childEnv[name]
   const run = spawnSync(ptyDriverPython('the screen-loss proof'), [RIG, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env: childEnv as NodeJS.ProcessEnv })
   const snaps = new Map<string, Snap>()
