@@ -19,20 +19,20 @@ arm.
 
 | Family | Id space | Display name |
 | --- | --- | --- |
-| `anthropic` | `claude-*` ids (the mark anywhere in the id, gateway spellings included), the setting aliases (`opus` · `sonnet` · `haiku` · `fable` · `fable51` · `fable52` · `mythos` · `best`), the `ANTHROPIC_*` model env pins and `MERCURY_CUSTOM_MODEL_OPTION`; see [Dispatch](#dispatch) for unrecognised model ids | Anthropic |
+| `anthropic` | `claude-*` ids (the mark anywhere in the id, gateway spellings included), the setting aliases (`opus` · `sonnet` · `haiku` · `fable` · `fable51` · `fable52` · `mythos` · `best`), the model env pins (`MERCURY_MODEL`, `MERCURY_DEFAULT_OPUS_MODEL`, `MERCURY_DEFAULT_SONNET_MODEL`, `MERCURY_DEFAULT_HAIKU_MODEL`, `MERCURY_DEFAULT_FABLE_MODEL`) and `MERCURY_CUSTOM_MODEL_OPTION`; see [Dispatch](#dispatch) for unrecognised model ids | Anthropic |
 | `openai` | `gpt-*`, alias `gpt` | OpenAI |
 | `zai` | `glm-*`, alias `glm` | Z.AI |
 | `moonshot` | `kimi-*`, `moonshot-*`, alias `kimi` | Moonshot |
 | `deepseek` | `deepseek-*`, alias `deepseek` | DeepSeek |
 | `xai` | `grok-*`, alias `grok` | xAI |
-| `meta` | `muse-spark-*`, `muse-wonder-1.0`, alias `muse` (other `muse-*` endpoints refuse here) | Meta |
+| `meta` | `muse-spark-*`, `muse-wonder-*`, alias `muse` (other `muse-*` endpoints refuse here) | Meta |
 | `gemini` | `gemini-*`, `google/<id>` (non-Gemini roster models on a Google sign-in), alias `gemini` | Gemini |
 | `openai-compat` | `compat/<vendor-id>` (qualified; stripped before the wire) | Custom endpoint |
 | `openrouter` | `openrouter/<vendor-slug>` (qualified; stripped because OpenRouter ids are vendor/model slugs, so the namespace disambiguates them) | OpenRouter |
 | `orcarouter` | `orcarouter/<vendor>/<model>` or `orcarouter/<alias>`; named routers use `orcarouter/orcarouter/<name>` | OrcaRouter |
 | `huggingface` | `huggingface/<org>/<model>[:provider\|:policy]` (qualified) | Hugging Face |
 | `local` | `local/<model>` (qualified; the model as the discovered local server lists it) | Local models |
-| `mistral` | `mistral-*`, `ministral-*`, `codestral-*`, `zai-glm-*`, alias `mistral` (the embedding, OCR, moderation and audio ids refuse here) | Mistral |
+| `mistral` | `mistral-*`, `ministral-*`, `codestral-*`, `zai-glm-*`, the hosted id `deepseek-v4-1-flash-1017`, alias `mistral` (the embedding, OCR, moderation and audio ids refuse here) | Mistral |
 | `nous` | `nous/<vendor>/<model>` (qualified; stripped because the Portal's ids are vendor/model slugs, so the namespace disambiguates them; the `~vendor/<name>-latest` alias rows ride the same way) | Nous Portal |
 | `zen` | `zen/<model-id>` (qualified; stripped before the request is sent because the gateway's own ids are bare vendor names such as `glm-5.3` or `gpt-5.5`, so the namespace tells a Zen row from the native family's) | OpenCode Zen |
 | `minimax` | `minimax-*`, alias `minimax` (the text line, `MiniMax-M*`; the video, speech, music and image ids refuse here) | MiniMax |
@@ -78,10 +78,11 @@ doors this process read serve and what they lack.
 The family words follow each family's newest row (`opus` means Opus 5.5 and
 `sonnet` means Sonnet 5.5), so a saved `sonnet` runs Sonnet 5.5 while a saved
 `claude-sonnet-5` stays on Sonnet 5, which keeps its own row under the family
-in the picker; Sonnet 5.5 takes the two wire laws Opus 5.5 takes: thinking is
-always on (a request with thinking off carries no thinking parameter and
-adaptive thinking runs) and a forced tool choice becomes `auto`, the prompt
-naming the tool.
+in the picker; Sonnet 5.5 takes the two wire laws Opus 5.5 takes: thinking
+stays on (neither model accepts `disabled`, so a request with thinking off
+carries no thinking parameter and adaptive thinking runs; Sonnet 5.5's
+`between_tools` setting is not sent) and a forced tool choice becomes `auto`,
+the prompt naming the tool.
 
 `fable` means Fable 5.2 (`claude-fable-5-2`); `fable52` names that generation
 explicitly and `fable51` still names Fable 5.1. Fable 5.1 and Fable 5 keep
@@ -194,7 +195,8 @@ premium. Unrecorded served ids keep their raw names and unknown prices.
 Mercury uses Meta’s OpenAI-compatible Chat Completions endpoint at
 `https://api.meta.ai/v1/chat/completions`, with streaming, function tools,
 JSON-schema output and the model’s documented reasoning effort. `none` is
-not supported; `max` is documented only for Standard Muse Spark 1.3. No
+not supported; `max` is documented for Muse Wonder 1.0 and Standard Muse
+Spark 1.3 and is undocumented for the Contributor variant. No
 reasoning-off flag is sent. Meta also provides Responses and Messages APIs;
 its Chat Completions API does **not** preserve private reasoning across
 turns. Mercury’s Meta road therefore replays the conversation and tool
@@ -209,14 +211,15 @@ Sources: [quickstart](https://dev.meta.ai/docs/quickstart),
 
 Mistral's rows come from the account's live `GET /v1/models` list, read
 through the key: the recorded rows lead in their order (Mistral Large 4,
-`mistral-large-4`, the public preview Mistral calls Le Chonk with a 1,048,576-token
-context; Mistral Medium 3.5, `mistral-medium-3-5`; Mistral Small 4,
+`mistral-large-4`, generally available on Mistral's card of 2026-11-05, with a
+1,048,576-token context; Mistral Medium 3.5, `mistral-medium-3-5`; Mistral Small 4,
 `mistral-small-2603`; Mistral Large 3, `mistral-large-2512`; the three
 Ministral 3 sizes; Codestral, `codestral-2508`; Z.ai GLM 5.3 and GLM 5.3 Flash,
-`zai-glm-5-3` and `zai-glm-5-3-flash`, each with a 1M-token context), and any further chat row
+`zai-glm-5-3` and `zai-glm-5-3-flash`, and DeepSeek V4.1 Flash 1017,
+`deepseek-v4-1-flash-1017`, each with a 1M-token context), and any further chat row
 the list serves follows by creation time. The vendor's aliases
 (`mistral-medium-latest`, `mistral-small-latest`, `mistral-large-latest`,
-which still names Large 3, `codestral-latest`) are listed ids too and
+which now names Large 4, `codestral-latest`) are listed ids too and
 dispatch as the row they name. Connect through `/logins mistral`
 or `MISTRAL_API_KEY`; keys are made at
 [console.mistral.ai/api-keys](https://console.mistral.ai/api-keys), and the
@@ -228,20 +231,23 @@ OCR, moderation, audio) is refused before chat like any unknown input.
 
 Mercury uses Mistral's Chat Completions endpoint at
 `https://api.mistral.ai/v1/chat/completions`, with streaming, function
-tools, JSON-schema output and the vendor's reasoning dial: Mistral models use
-`reasoning_effort: high` with thinking on and `none` with it off. Z.ai GLM 5.3
-accepts `low`, `high` and `max`, with `low` for thinking-off. Thinking arrives
+tools, JSON-schema output and the vendor's reasoning dial: Mistral Small 4 and
+Medium 3.5 use `reasoning_effort: high` with thinking on and `none` with it off.
+Mistral Large 4 accepts `low`, `medium` and `high`, and Z.ai GLM 5.3 `low`,
+`high` and `max`, each with `low` for thinking-off. Thinking arrives
 as a chunk inside the reply; a row with no documented dial sends no effort
 word. An explicit output ceiling rides
 `max_tokens`. Thinking is not replayed across turns on this road: Mercury
 replays the conversation and tool results. Recorded list prices per million
-tokens: Large 4 $1.36 input, $0.14 cached input, $4.18 output (the vendor's
-two-week launch discount is not recorded); Medium 3.5 $1.50 and $7.50; Small 4
+tokens: Large 4 $0.70 input, $0.07 cached input, $2.10 output; Medium 3.5 $1.50 and $7.50; Small 4
 $0.15 and $0.60; Large 3 $0.50 and $1.50; Ministral 3 14B $0.20, 8B $0.15,
 3B $0.10 each way; Codestral $0.30 and $0.90. Cached input for those models
 costs 10% of input. GLM 5.3 is $1.40 input, $0.14 cached and $4.40 output;
-GLM 5.3 Flash is $0.15, $0.03 and $0.50 respectively
-([Mistral pricing](https://docs.mistral.ai/inference/pricing), read 2026-10-25).
+GLM 5.3 Flash is $0.15, $0.03 and $0.50 respectively; DeepSeek V4.1 Flash 1017
+is $0.30, $0.007 and $1.20
+([Mistral pricing](https://docs.mistral.ai/inference/pricing), read 2026-11-22;
+Medium 3.5 and Large 3, deprecated since 2026-10-31, as last listed on
+2026-10-25).
 
 Mistral provides no OAuth to third-party clients: no client registration,
 device flow or token endpoint is documented. Its open-source Vibe CLI signs in
@@ -250,15 +256,15 @@ absent from the public API reference and Mistral's Commercial Terms of Service
 forbid integrating Vibe into other products without written authorisation, so
 Mercury does not use it. A standard key reads the account's identity
 (`GET /v1/users/me`) and no usage, balance or credits endpoint; the plan's
-included monthly usage is read in the console. The organisation meter
+included monthly usage is read in the Admin Panel. The organisation meter
 (month-to-date usage against the monthly spend limit and the rate limits) is
 read through the Admin API with an optional **Admin API key** stored beside the
 inference key (`/logins mistral` prompts for it after the key;
 `MISTRAL_ADMIN_API_KEY`), which Mistral issues on Enterprise
-plans at [backoffice.mistral.ai](https://backoffice.mistral.ai). Sources read
-on **2026-10-09**: the public OpenAPI specification and the model cards in
-[mistralai/platform-docs-public](https://github.com/mistralai/platform-docs-public),
-[reasoning](https://docs.mistral.ai/studio/conversations/reasoning),
+plans in the Admin Panel at [admin.mistral.ai](https://admin.mistral.ai). Sources read
+on **2026-11-22**: [the public OpenAPI specification](https://docs.mistral.ai/openapi.yaml)
+and [the model cards](https://docs.mistral.ai/models),
+[reasoning](https://docs.mistral.ai/inference/conversations/reasoning),
 [the Admin API](https://docs.mistral.ai/admin/admin-api/overview) and its
 [authentication](https://docs.mistral.ai/admin/admin-api/authentication) and
 [usage metrics](https://docs.mistral.ai/admin/admin-api/usage-metrics),
@@ -306,7 +312,7 @@ OAuth device flow: Mercury asks
 code, presenting the Portal client id that Nous's own Hermes agent presents
 (`hermes-cli`, scope `inference:invoke`, read from
 `hermes_cli/auth_constants.py` in the NousResearch/hermes-agent repository
-at its release **0.22.5** as of **2026-10-25**; Mercury re-reads that file
+at its release **0.23.1** as of **2026-11-16**; Mercury re-reads that file
 once a day and presents a newer id or scope when it changes), you approve in
 the browser at the address the Portal names, Mercury polls
 `POST /api/oauth/token` with the device-code grant, keeps the tokens
@@ -330,13 +336,13 @@ itself as another client to reach it.
 
 Zen rows are persisted as `zen/<model-id>` and come from the gateway's live
 `GET /zen/v1/models` list, joined with Mercury's recorded pins (display name,
-context window, output ceiling, prices, effort vocabulary, observed
-**2026-10-09** from the vendor's [Zen page](https://opencode.ai/docs/zen/) and
-its model metadata). The gateway serves each model in one fixed wire shape and
-refuses another: this build carries its **chat-completions** shape (GLM, Kimi,
+context window, output ceiling, prices, effort vocabulary, observed from
+**2026-10-09** to **2026-11-18** on the vendor's [models page](https://opencode.ai/docs/console/models/) and
+its model metadata). The vendor lists each model under one native API, and this
+build sends each row in that shape: its **chat-completions** shape (GLM, Kimi,
 DeepSeek, MiniMax, Mistral Large 4, Qwen3.8 Max, Big Pickle and the free
-models) and its **Responses** shape (GPT, Grok, Muse Spark and Muse Wonder rows); rows the
-gateway serves only in its Anthropic Messages or Gemini shapes are not listed
+models) and its **Responses** shape (GPT, Grok, Muse Spark and Muse Wonder rows); rows
+native to the Anthropic Messages or Gemini APIs are not listed
 on this road, and an id outside the list is refused like any other unlisted
 id. A live-listed id without a pin rides the chat-completions shape under its
 raw name. Free rows are labelled `(free)`.
@@ -366,11 +372,11 @@ MiniMax (platform.minimax.io) serves its M-series text models on an
 OpenAI-compatible Chat Completions endpoint at
 `https://api.minimax.io/v1/chat/completions`. Connect through `/logins minimax`
 or `MINIMAX_API_KEY`; the key is a pay-as-you-go API key
-from the Open Platform's key page or an M Plan Subscription Key from
+from the Open Platform's key page or an M Plan API key from
 `platform.minimax.io/console/plan` (the two are separate keys on the same base).
 The key is checked on the account's `GET /v1/models` list before it is stored,
 and a refused key is never stored. Rows are persisted under the vendor's own
-ids (`MiniMax-M3`, `MiniMax-M2.7`), typed in any case; the bare word `minimax`
+ids (`MiniMax-M3`, `MiniMax-M3.1-Flash`), typed in any case; the bare word `minimax`
 runs the newest text row the account lists. The list keeps the text line only:
 the video (H3), speech, music and image ids never ride this road. Mercury's
 recorded pins (display name, window, prices, thinking dial; observed
@@ -417,7 +423,7 @@ Mercury uses the gateway's Chat Completions endpoint at
 function tools, a `prompt_cache_key` carrying the session id (the vendor's
 routing-stickiness knob for its prefix cache) and the model's documented
 reasoning knobs: the hybrid rows (Kimi K3, GLM 5.2/5.3, DeepSeek V4 Pro,
-MiniMax M3, Qwen 3.6 Plus) take `reasoning: { enabled }` from the session's
+MiniMax M3, Qwen 3.6 Plus, Qwen 3.5 9B) take `reasoning: { enabled }` from the session's
 thinking switch; `openai/gpt-oss-120b` takes `reasoning_effort` (`low` ·
 `medium` · `high`) and DeepSeek V4 Pro `high` · `max`, the lowest rung standing
 in for thinking-off where the model cannot stop. The gateway streams reasoning
@@ -587,7 +593,7 @@ are shown in the QwenCloud or Model Studio console. Sources read **2026-10-18**:
 [regions and endpoints](https://www.alibabacloud.com/help/en/model-studio/regions),
 [Chat Completions](https://www.alibabacloud.com/help/en/model-studio/qwen-api-via-openai-chat-completions),
 [deep thinking](https://www.alibabacloud.com/help/en/model-studio/deep-thinking),
-[models](https://www.alibabacloud.com/help/en/model-studio/getting-started/models),
+[models](https://www.alibabacloud.com/help/en/model-studio/models),
 [text generation models](https://www.alibabacloud.com/help/en/model-studio/text-generation-model)
 and [error codes](https://www.alibabacloud.com/help/en/model-studio/error-code).
 
@@ -603,7 +609,8 @@ An unnamed first chat reads the catalogue within the existing bounded
 allowance; idle boot and explicit model choices remain unchanged.
 
 Each K3-series row's window and reasoning dial are the facts
-platform.kimi.ai states for that id (read 2026-10-25): `kimi-k3.1-pro`,
+platform.kimi.ai states for an API-key id and the Kimi Code models page for a
+sign-in id (read 2026-11-22): `kimi-k3.1-pro`,
 `kimi-k3.1-pro-highspeed` and `kimi-k3` have a 1,048,576-token window, an
 output ceiling raisable to 1,048,576 (131,072 by default) and the dial
 `low` · `high` · `max` (default `max`) with thinking always on; a Kimi
@@ -654,8 +661,9 @@ Every call dispatches on the resolved route to that family's own runtime;
 the default arm is the Anthropic path. Any model id that does not match a known
 provider prefix is refused before Mercury makes a network request (including any
 id containing `/` on the first-party endpoint), naming the id and the declared
-provider families, unless you explicitly pinned that id with an `ANTHROPIC_*`
-model variable or set `ANTHROPIC_BASE_URL` to a custom gateway.
+provider families, unless you explicitly pinned that id with a model
+variable (`MERCURY_MODEL`, a tier pin such as `MERCURY_DEFAULT_OPUS_MODEL`, or
+`MERCURY_CUSTOM_MODEL_OPTION`) or set `ANTHROPIC_BASE_URL` to a custom gateway.
 
 ## The runtimes
 
@@ -663,14 +671,16 @@ Three wire families serve the providers:
 
 - **The Anthropic home lane**: the first-party API, directly or through a
   base-URL proxy.
-- **Native wires**: Z.AI, OpenAI through its Responses API, and Gemini
+- **Native wires**: Z.AI, OpenAI through its Responses API (a shape a Grok
+  subscription sign-in, OpenRouter's Responses models, OpenCode Zen's Responses
+  rows and a custom Responses endpoint ride on their own transports), and Gemini
   through `streamGenerateContent` (used by Sign in with Google, your own OAuth
   client, and Gemini API keys under `x-goog-api-key`, preserving signed
   `thought_signature` parts across tool rounds on every Gemini credential).
 - **The OpenAI-compatible chat wire**: Moonshot/Kimi, DeepSeek, xAI's Grok
-  models, Meta, Mistral, Nous Portal, OpenCode Zen (chat-completions rows),
+  models on an API key, Meta, Mistral, Nous Portal, OpenCode Zen (chat-completions rows),
   MiniMax, Together AI, Cohere, Groq, Melious AI, Cerebras, Fireworks AI, Qwen,
-  custom `compat/` endpoints, OpenRouter,
+  custom `compat/` endpoints, OpenRouter, OrcaRouter,
   Hugging Face (the Hub router, Hub slugs with an optional backend suffix),
   and local servers.
 
@@ -975,7 +985,7 @@ during setup:
 - **xAI (Grok):** sign in with your Grok subscription (SuperGrok / X Premium) or paste an API key through `/logins xai`.
 - **Meta (Muse):** Sign in with Meta (a Muse Code subscription, a device code in your browser) or a pay-as-you-go Model API key.
 - **Qwen:** a QwenCloud key (Token Plan or pay-as-you-go) or an Alibaba Cloud Model Studio key (pay-as-you-go, Token Plan or Coding Plan).
-- **MiniMax:** an Open Platform key or an M Plan subscription key.
+- **MiniMax:** an Open Platform key or an M Plan API key.
 - **Mistral**, **Nous Portal**, **OpenCode Zen**, **Together AI**, **Cohere**, **Groq**, **Cerebras**, **Fireworks AI**, **Melious AI** and **OrcaRouter:** sign in or API key through `/logins`; any family's key can also come from a command named in `credentials.keyCommands.<family>`.
 
 Provider access remains subject to the provider's own terms and availability.
@@ -1020,8 +1030,8 @@ Run `/accounts` to see every connected account and API key across all providers:
   Google AI Plus, both with a fourth thinking level (Extra, the row
   `…-xhigh`). Claude Sonnet 5.5
   and Opus 5.5 require non-trial Pro, Ultra or Enterprise; Sonnet 4.6, Opus
-  4.6 and GPT-OSS-120b leave the roster on November 18, 2026 (the table read
-  on 2026-11-15). A disabled row is
+  4.6 and GPT-OSS-120b leave the roster on November 30, 2026 (the table read
+  on 2026-11-22). A disabled row is
   listed with its
   state (`"withheld from Google AI Pro today — Google's roster names it …
   and answers 404 to the id; antigravity.google/docs/models says which plans
@@ -1058,7 +1068,7 @@ Run `/accounts` to see every connected account and API key across all providers:
   as a token budget (low 1024, medium 8192, high 24576, thoughts included),
   function calling VALIDATED even with no tools, an output ceiling of at
   most 64000 tokens, Google's signed parts replayed as sent and no
-  signature placeholder (that placeholder is Gemini 3's own contract). The
+  signature placeholder (that placeholder is the contract of Gemini 3 and later). The
   tool schemas are reduced per row to what the endpoint accepts: a Gemini
   row gets Google's Schema grammar (`const` becomes a one-member enum, an
   exclusive bound becomes words in the description, keywords outside the
@@ -1073,14 +1083,15 @@ Run `/accounts` to see every connected account and API key across all providers:
   words. A chat goes to that endpoint's `streamGenerateContent` under
   Antigravity's own User-Agent (`antigravity/hub/<version> …`), whose version
   follows Antigravity's update manifest (one bounded read a day, the shipped
-  2.26.0 as the fallback, skipped under traffic-off) because Google gates
+  2.32.1 as the fallback, skipped under traffic-off) because Google gates
   newer models on it; the request wraps the Gemini request with the project
   and a request id, the system instruction tagged as a user part, the tools'
   schemas in the shape the endpoint accepts. What leaves the machine on this
   road: the prompt, the tool schemas and the tool results, under Google's
   Antigravity client id and the account you signed in (sent to Google alone). No
   Cloud project, no client of your own, no API key. On June 18, 2026 Google
-  replaced the unpaid tier's Gemini CLI with Antigravity; a Google AI Pro or
+  moved individual accounts (the free tier, Google AI Pro and Google AI Ultra)
+  from Gemini CLI to Antigravity; a Google AI Pro or
   Ultra plan rides this road, whereas an API key or your own OAuth client bills a
   Cloud project (free Flash ~20 requests/day, Pro 0; billing enables paid
   limits). The token is refreshed single-flight with the project kept; a
@@ -1324,7 +1335,7 @@ it keeps loaded at once, how many requests one loaded model answers at once,
 how long an idle model stays loaded, and the context length a request gets
 when it names none. On Ollama they are `OLLAMA_MAX_LOADED_MODELS`,
 `OLLAMA_NUM_PARALLEL`, `OLLAMA_KEEP_ALIVE` and `OLLAMA_CONTEXT_LENGTH` in the
-server's environment (its FAQ documents 3 per GPU, 1, 5m and 4096 when
+server's environment (its FAQ documents 3 per GPU, 1 outside MLX on Metal, 5m and 4096 when
 unset). `/config` shows them under the Local account row beside the live
 truth: the server and its version, the loaded models with their windows and
 memory from `/api/ps`, the runner's slot count and context from its command
@@ -1697,7 +1708,7 @@ The cost ledger prices every request at its own provider's published rates
 from one pricing owner per family: the first-party tier table; the GPT,
 DeepSeek, xAI, Meta, Mistral, Kimi, GLM, Gemini, OpenCode Zen, MiniMax,
 Together AI, Cohere, Groq, Cerebras, Fireworks AI and Qwen price tables (a
-longer-prompt tier applied per request); the OpenRouter catalogue row when the
+longer-prompt tier applied per request); the OpenRouter and OrcaRouter catalogue rows when the
 wire states no cost of its own, and the Nous Portal catalogue row; the Hugging Face listed floor as a flagged estimate; a recorded zero for
 a local server. A turn on a model with no rate on file lands in the ledger
 with its tokens counted and its cost unrecorded: it is counted as an unpriced
