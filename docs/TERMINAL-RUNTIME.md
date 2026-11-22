@@ -182,7 +182,7 @@ update command that applies (`mercury update` runs Homebrew's upgrade, or `run m
 update to install it` on the versioned layout); `--status` reports how
 Mercury was installed. A source checkout (a bundle built with `bun run
 build.ts` inside its repository) is not managed by the release channel: `--check` and `--status` report
-`` a source checkout at <dist> — rebuild it with `git pull && bun run build.ts` ``,
+`` a source checkout at <checkout> — rebuild it with `git pull && bun run build.ts` ``,
 and `mercury update` and `--rollback` refuse before
 downloading or writing anything. On Windows, the PowerShell installer and `.zip`
 archive create a versioned layout that `mercury update` updates in place. After
