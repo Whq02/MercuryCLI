@@ -402,7 +402,8 @@ the `base_resp` envelope of a 200 body, and typed as the refusal they name.
 
 The meter: the session's spend at the recorded prices (the >512K-token tier of
 `MiniMax-M3` priced at its own rate), and, for an M Plan key, the plan's 5-hour
-and weekly windows per model from `GET /v1/token_plan/remains`. The
+and weekly windows per model from
+`GET https://www.minimax.io/v1/token_plan/remains`. The
 pay-as-you-go balance is shown only on the platform (the API states none);
 `/usage` says so instead of inventing a figure.
 
