@@ -5,7 +5,7 @@ import net from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
-import { inflateRawSync } from 'node:zlib'
+import { deflateRawSync, inflateRawSync } from 'node:zlib'
 import type { JsonSchema } from '../../sdk/src/rows.ts'
 import { METHODS as published } from '../../sdk/src/wire.ts'
 import { DAEMON_VERB_BORN_AT, MERCURY_DAEMON_PROTO, MIN_PROTO } from '../../src/daemon/protocol.ts'
@@ -548,7 +548,7 @@ async function connectorWireRecording(): Promise<ConnectorWireRecordingResult> {
   const workDir = join(scratch, 'work')
   for (const dir of [homeDir, daemonDir, workDir]) mkdirSync(dir, { recursive: true })
 
-  const envKeys = ['MERCURY_CONFIG_DIR', 'MERCURY_DAEMON_DIR', 'MERCURY_HOME', 'MERCURY_LOCAL_PROBE_TARGETS', 'MERCURY_CONNECTOR_TRACE', 'MERCURY_COMPUTER_USE'] as const
+  const envKeys = ['MERCURY_CONFIG_DIR', 'MERCURY_DAEMON_DIR', 'MERCURY_HOME', 'MERCURY_LOCAL_PROBE_TARGETS', 'MERCURY_CONNECTOR_TRACE', 'MERCURY_COMPUTER_USE', 'MERCURY_DESKTOP_DRIVER', 'MERCURY_DESKTOP_FAKE_SCENE', 'MERCURY_DESKTOP_FAKE_LOG'] as const
   const savedEnv = new Map<string, string | undefined>(envKeys.map(k => [k, process.env[k]]))
   const globalRecord = globalThis as Record<string, unknown>
   const hadMacro = 'MACRO' in globalRecord
@@ -558,9 +558,12 @@ async function connectorWireRecording(): Promise<ConnectorWireRecordingResult> {
   process.env.MERCURY_CONFIG_DIR = homeDir
   process.env.MERCURY_DAEMON_DIR = daemonDir
   process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+  process.env.MERCURY_DESKTOP_DRIVER = 'fake'
   delete process.env.MERCURY_HOME
   delete process.env.MERCURY_CONNECTOR_TRACE
   delete process.env.MERCURY_COMPUTER_USE
+  delete process.env.MERCURY_DESKTOP_FAKE_SCENE
+  delete process.env.MERCURY_DESKTOP_FAKE_LOG
   if (!hadMacro) globalRecord.MACRO = { VERSION: '1.0.0' }
   globalRecord.Date = new Proxy(RealDate, {
     construct: (target, args: unknown[]) => (args.length === 0 ? new target(CLOCK_ZERO) : new (target as new (...a: unknown[]) => Date)(...args)),
@@ -576,12 +579,14 @@ async function connectorWireRecording(): Promise<ConnectorWireRecordingResult> {
   const { MERCURY_DAEMON_PROTO, encodeFrame } = await import('../../src/daemon/protocol.ts')
   const { clearControlKeyMemo, controlKeyPath, controlSockPath, daemonStatePath, forgetDaemonProtoForTesting } = await import('../../src/daemon/controlSocket.ts')
   const { _resetDaemonUsableMemoForProofs } = await import('../../src/services/switchboard/ensureDaemon.ts')
+  const { resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
   const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
   const { publishSessionAsks, publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
 
   clearControlKeyMemo()
   forgetDaemonProtoForTesting()
   _resetDaemonUsableMemoForProofs()
+  resetDesktopDriverForTest()
   writeFileSync(controlKeyPath(), FIXED_AUTH_KEY, { mode: 0o600 })
 
   const norm = makeNormalizer()
@@ -718,6 +723,7 @@ async function connectorWireRecording(): Promise<ConnectorWireRecordingResult> {
     clearControlKeyMemo()
     forgetDaemonProtoForTesting()
     _resetDaemonUsableMemoForProofs()
+    resetDesktopDriverForTest()
     bootstrap.setIsInteractive(savedInteractive)
     globalRecord.Date = RealDate
     if (hadMacro) globalRecord.MACRO = savedMacro
@@ -743,10 +749,28 @@ async function verbWiresRecording(input: DaemonWireFixtures): Promise<Record<str
 }
 
 if (import.meta.main) {
-  const stored: { input: string; expected: Record<string, string> } = JSON.parse(readFileSync(new URL('./verb-wires-recording.json', import.meta.url), 'utf8'))
+  const recordingFile = new URL('./verb-wires-recording.json', import.meta.url)
+  const stored: { input: string; expected: Record<string, string> } = JSON.parse(readFileSync(recordingFile, 'utf8'))
   const input = JSON.parse(inflateRawSync(Buffer.from(stored.input, 'base64')).toString('utf8')) as DaemonWireFixtures
   const actual = await verbWiresRecording(input)
   const { expected } = stored
+  if (process.argv.includes('--record')) {
+    const moved: string[] = []
+    const next: Record<string, string> = {}
+    for (const [name, row] of Object.entries(actual)) {
+      const now = Buffer.from(JSON.stringify(row))
+      const kept = expected[name]
+      if (kept !== undefined && inflateRawSync(Buffer.from(kept, 'base64')).equals(now)) next[name] = kept
+      else {
+        next[name] = deflateRawSync(now).toString('base64')
+        moved.push(name)
+      }
+    }
+    const gone = Object.keys(expected).filter(name => !(name in actual))
+    writeFileSync(recordingFile, `${JSON.stringify({ input: stored.input, expected: next }, null, 2)}\n`)
+    console.log(`recorded ${Object.keys(next).length} wire recordings: ${moved.length} moved${moved.length > 0 ? ` (${moved.join(', ')})` : ''}, ${gone.length} gone${gone.length > 0 ? ` (${gone.join(', ')})` : ''}`)
+    process.exit(0)
+  }
   assert.deepEqual(Object.keys(actual), Object.keys(expected), 'the recorded faces and verbs must not change — a wire face or verb was added, removed or renamed; undo it in src/runner/wire/methods.ts, src/daemon/protocol.ts or src/services/engine-connector/daemonConnector.ts, or update scripts/engine-connector/verb-wires-recording.json on purpose')
   for (const [name, row] of Object.entries(actual)) {
     const now = Buffer.from(JSON.stringify(row))
@@ -754,7 +778,7 @@ if (import.meta.main) {
     if (!then.equals(now)) {
       let i = 0
       while (i < Math.min(then.length, now.length) && then[i] === now[i]) i++
-      throw Error(`${name}: wire recording differs at byte ${i}; keep the base frame: undo the change to the frame in src/runner/wire/methods.ts, src/daemon/protocol.ts, src/daemon/controlSocket.ts or src/services/engine-connector/daemonConnector.ts that moved it (recording: scripts/engine-connector/verb-wires-recording.json). Before: ${then.toString('utf8', Math.max(0, i - 30), i + 100)} After: ${now.toString('utf8', Math.max(0, i - 30), i + 100)}`)
+      throw Error(`${name}: wire recording differs at byte ${i}; keep the base frame: undo the change to the frame in src/runner/wire/methods.ts, src/daemon/protocol.ts, src/daemon/controlSocket.ts or src/services/engine-connector/daemonConnector.ts that moved it, or when the change is meant re-take the recording with bun scripts/engine-connector/prove-verb-wires-recording.ts --record (recording: scripts/engine-connector/verb-wires-recording.json). Before: ${then.toString('utf8', Math.max(0, i - 30), i + 100)} After: ${now.toString('utf8', Math.max(0, i - 30), i + 100)}`)
     }
   }
   console.log(`${Object.keys(actual).length} wire recordings match`)
