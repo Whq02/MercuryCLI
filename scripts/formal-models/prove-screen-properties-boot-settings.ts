@@ -517,6 +517,85 @@ try {
       cleanReplay.failed ? String(cleanReplay.errorInstance) : '',
     )
   }
+
+  t.section('§3 — Esc from Logins/Keys, Boot Menu, and Session Manager returns selection to the row you came from')
+  {
+    const remountBootFace = async (): Promise<string> => {
+      const cols = 120
+      const rows = 34
+      stdout.columns = cols
+      stdout.rows = rows
+      runSeq++
+      ink.render(
+        h(
+          ThemeProvider as never,
+          {},
+          h(
+            AppStateProvider as never,
+            {},
+            h(
+              TerminalSizeContext.Provider,
+              { value: { columns: cols, rows } },
+              h(
+                KeybindingSetup as never,
+                {},
+                h(
+                  Box,
+                  { width: cols, height: rows, flexDirection: 'column' },
+                  h(BootSplashScreen, { key: `boot-run-${runSeq}` }),
+                ),
+              ),
+            ),
+          ),
+        ),
+      )
+      return settleFrame()
+    }
+    const hint = 'set initialId to "concourse" when returning from concourse in src/components/BootSplashScreen.tsx'
+    for (const history of ['none', 'cross'] as const) {
+      const { frame: initial } = await mountBootFace({ history, concourseLive: true, compact: false })
+      t.check(`history=${history}: fresh boot selects New Session`, focusedRowLabels(initial)[0] === 'New Session', `got ${JSON.stringify(focusedRowLabels(initial))}`)
+      let frame = await sendKey(KEYS.down)
+      t.check(`history=${history}: down lands on Logins/Keys`, focusedRowLabels(frame)[0] === 'Logins/Keys', `got ${JSON.stringify(focusedRowLabels(frame))}`)
+      await sendKey(KEYS.enter)
+      frame = await sendKey(KEYS.esc)
+      t.check(`history=${history}: Esc from Logins/Keys keeps selection on Logins/Keys`, focusedRowLabels(frame)[0] === 'Logins/Keys', `got ${JSON.stringify(focusedRowLabels(frame))}`)
+
+      frame = await sendKey(KEYS.down)
+      t.check(`history=${history}: down lands on Session Manager (Concourse)`, focusedRowLabels(frame)[0] === 'Session Manager (Concourse)', `got ${JSON.stringify(focusedRowLabels(frame))}`)
+      await sendKey(KEYS.enter)
+      t.check(`history=${history}: Enter opens concourse route`, surfaceRoute.currentSurfaceRoute().kind === 'concourse', `route=${surfaceRoute.currentSurfaceRoute().kind}`)
+      const returned = surfaceRoute.leaveCurrentSurface()
+      frame = await remountBootFace()
+      const backOnConcourse = returned.ok && surfaceRoute.currentSurfaceRoute().kind === 'boot-settings' && focusedRowLabels(frame)[0] === 'Session Manager (Concourse)'
+      t.check(
+        `history=${history}: Esc from Session Manager returns selection to Session Manager (Concourse)`,
+        backOnConcourse,
+        backOnConcourse ? '' : `got ${JSON.stringify(focusedRowLabels(frame))} — ${hint}`,
+      )
+
+      frame = await sendKey(KEYS.down)
+      t.check(`history=${history}: down from Session Manager lands on Boot Menu`, focusedRowLabels(frame)[0] === 'Boot Menu', `got ${JSON.stringify(focusedRowLabels(frame))}`)
+      await sendKey(KEYS.enter)
+      frame = await sendKey(KEYS.esc)
+      t.check(`history=${history}: Esc from Boot Menu keeps selection on Boot Menu`, focusedRowLabels(frame)[0] === 'Boot Menu', `got ${JSON.stringify(focusedRowLabels(frame))}`)
+    }
+    await mountBootFace({ history: 'none', concourseLive: true, compact: false })
+    const prevFullscreen = process.env.MERCURY_FULLSCREEN
+    process.env.MERCURY_FULLSCREEN = '1'
+    surfaceRoute.enterRootChat()
+    surfaceRoute.cycleSurface(1)
+    const cycled = surfaceRoute.cycleSurface(1)
+    if (prevFullscreen === undefined) delete process.env.MERCURY_FULLSCREEN
+    else process.env.MERCURY_FULLSCREEN = prevFullscreen
+    const stripFrame = await remountBootFace()
+    const stripOnNew = cycled.ok && surfaceRoute.currentSurfaceRoute().kind === 'boot-settings' && focusedRowLabels(stripFrame)[0] === 'New Session'
+    t.check(
+      'strip cycle (Shift+Left from chat through concourse) keeps selection on New Session',
+      stripOnNew,
+      stripOnNew ? '' : `cycled=${JSON.stringify(cycled)} route=${surfaceRoute.currentSurfaceRoute().kind} got ${JSON.stringify(focusedRowLabels(stripFrame))} — check tr.verb === "RETURN" in src/components/BootSplashScreen.tsx`,
+    )
+  }
 } finally {
   faultForceNew = false
   surfaceRoute._resetSurfaceRouteForTesting()

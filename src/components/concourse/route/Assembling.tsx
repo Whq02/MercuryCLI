@@ -1,5 +1,5 @@
 import React from 'react';
-import { chatPresent, enterBootSettings, enterRootChat } from '../../../context/surfaceRoute.js';
+import { activeReturnToken, chatPresent, enterBootSettings, enterRootChat, leaveCurrentSurface } from '../../../context/surfaceRoute.js';
 import { Box, Text, useInput, useTheme } from '../../../ink.js';
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js';
 import { resolveMercuryTokens } from '../../../utils/mercuryTokens.js';
@@ -41,7 +41,9 @@ export function ConcourseAssemblingShell({ failing, onRetry }: { failing: boolea
   useInput((input, key, event) => {
     if (key.escape) {
       event.stopImmediatePropagation()
-      if (!enterRootChat().ok) enterBootSettings()
+      if (!enterRootChat().ok && (activeReturnToken()?.to.kind !== 'boot-settings' || !leaveCurrentSurface().ok)) {
+        enterBootSettings()
+      }
       return
     }
     if (key.ctrl && input === 'r') {
