@@ -19,6 +19,42 @@ export const UTF8_OUTPUT_PRELUDE =
 
 const CLEAR_LOCATION_HISTORY_PRELUDE =
   'try { & { for ($i = 0; $i -lt 25; $i++) { Set-Location -LiteralPath . } } } catch {}\n'
+
+const LOCATION_WORD_RE =
+  /(?:^|[^\w-])(?:cd|chdir|sl|set-location|push-location|pushd|pop-location|popd)(?![\w-])/i
+
+const HIDING_WORD_RE =
+  /(?:^|[^\w-])(?:invoke-expression|iex|invoke-command|icm|scriptblock|executioncontext)(?![\w-])/i
+
+const ENCODED_COMMAND_RE =
+  /(?:^|[^\w-])-(?:ec|enc(?:o(?:d(?:e(?:d(?:c(?:o(?:m(?:m(?:a(?:n(?:d)?)?)?)?)?)?)?)?)?)?)?)(?![\w-])/i
+
+const CALL_OPERATOR_RE =
+  /(?<![>&])&(?!&)[ \t]*[$'"({]|(?:^|[\r\n;|({=]|&&|\|\|)[ \t]*&(?!&)[ \t]*\S/
+
+const DOT_SOURCE_RE = /(?:^|[\r\n;|({=&])[ \t]*\.[ \t]+\S/
+
+const SCRIPT_INVOCATION_RE = /(?:^|[\r\n;|({=&])[ \t]*[^\s;|({=&]+\.ps1(?![\w-])/i
+
+function matchesLocationOrHiding(text: string): boolean {
+  return (
+    LOCATION_WORD_RE.test(text) ||
+    HIDING_WORD_RE.test(text) ||
+    ENCODED_COMMAND_RE.test(text) ||
+    CALL_OPERATOR_RE.test(text) ||
+    DOT_SOURCE_RE.test(text) ||
+    SCRIPT_INVOCATION_RE.test(text)
+  )
+}
+
+function needsLocationHistoryClear(command: string): boolean {
+  if (command.includes('\0')) return true
+  const normalized = command.replace(/[\u2013\u2014\u2015]/g, '-')
+  if (matchesLocationOrHiding(normalized)) return true
+  if (normalized.includes('`')) return matchesLocationOrHiding(normalized.replace(/`(?:\r?\n)?/g, ''))
+  return false
+}
+
 function cwdFileName(id: number | string): string {
   return `mercury-cwd-${id}`
 }
@@ -41,7 +77,8 @@ export function createPowerShellProvider(shellPath: string): ShellProvider {
 
     async buildExecCommand(command: string, opts: BuildExecCommandOptions) {
       const cwdFileInShell = posixPath.join(tmpdir(), cwdFileName(opts.id))
-      const assembled = PLAIN_RENDER_PRELUDE + UTF8_OUTPUT_PRELUDE + CLEAR_LOCATION_HISTORY_PRELUDE + command + buildTrailer(cwdFileInShell)
+      const clearPrelude = needsLocationHistoryClear(command) ? CLEAR_LOCATION_HISTORY_PRELUDE : ''
+      const assembled = PLAIN_RENDER_PRELUDE + UTF8_OUTPUT_PRELUDE + clearPrelude + command + buildTrailer(cwdFileInShell)
       return { commandString: assembled, cwdFilePath: cwdFileInShell }
     },
 

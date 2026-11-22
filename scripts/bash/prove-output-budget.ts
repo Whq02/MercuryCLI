@@ -31,7 +31,7 @@ writeFileSync(join(SHIM_DIR, 'pwsh'), [
   'assembled=$4',
   "body=${assembled#*$'\\n'}",
   "body=${body#*$'\\n'}",
-  "body=${body#*$'\\n'}",
+  "case \"$body\" in 'try { & { for ('*) body=${body#*$'\\n'} ;; esac",
   "body=${body%$'\\n; $mc = '*}",
   "record=${assembled##*WriteAllText(\\'}",
   "record=${record%%\\'*}",
