@@ -705,8 +705,8 @@ export function extractQuotaStatusFromHeaders(headers: Headers, startedAtMs: num
 }
 
 function refusedVerdictOf(error: unknown): AnthropicLimits {
-  const carried = (error as { headers?: unknown } | null)?.headers
-  if (!(carried instanceof Headers)) return { ...DEFAULT_LIMITS }
+  const carried = (error as { headers?: Headers } | null)?.headers
+  if (!carried) return { ...DEFAULT_LIMITS }
   const headers = processRateLimitHeaders(carried)
   if (headers.has('anthropic-ratelimit-unified-5h-utilization') || headers.has('anthropic-ratelimit-unified-7d-utilization')) {
     recomputeRawUtilization(headers)
