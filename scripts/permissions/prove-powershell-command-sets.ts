@@ -168,5 +168,12 @@ if (Bun.which('pwsh') === null) {
       equal(result.decisionReason?.type, 'rule')
     })
   }
+  await check('a denied copy destination beats the ask for its source', async () => {
+    const command = 'Copy-Item notes.txt denied/copy.txt'
+    for (const [rules, expected] of [[permission(), 'ask'], [permission([], ['Edit(**/copy.txt)']), 'deny']] as const) {
+      const result = await powershellToolHasPermission({ command }, { getAppState: () => ({ toolPermissionContext: rules }), abortController: new AbortController() } as never)
+      equal(result.behavior, expected, `Keep the first ask and check the remaining paths in checkOneCommand in pathValidation.ts: ${JSON.stringify(result)}`)
+    }
+  })
   equal(failures, 0, `${failures} real PowerShell command-element checks failed`)
 }
