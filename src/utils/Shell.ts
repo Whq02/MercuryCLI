@@ -35,9 +35,11 @@ import { planWindowsBatchInvocation, runWindowsBatchCommand } from './shell/wind
 import { windowsShellRoadActive, withRoadPrograms } from './shell/windowsShellRoad.js'
 import { passedOver } from './passedOver.js'
 import { startImmediate } from './timers.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
+import { notBuilt } from '../pi/holes.js'
 
-export const getShellConfig: Unbuilt = unbuilt('src/utils/Shell.ts:43')
+export const getShellConfig = memoize(async (): Promise<{ provider: ShellProvider }> => ({
+  provider: await createBashShellProvider(await systemShellRecord()),
+}))
 
 const loginFilesAsked = memoize(async (): Promise<void> => {
   await createAndSaveSnapshot(await systemShellRecord(), { keptNowhere: true })
@@ -54,7 +56,19 @@ export async function settleLoginFiles(): Promise<void> {
   }
 }
 
-const PROVIDER_TABLE: Record<ShellType, () => Promise<ShellProvider>> = unbuilt('src/utils/Shell.ts:71')
+const getPsProvider = memoize(async (): Promise<ShellProvider> => {
+  const path = await getCachedPowerShellPath()
+  if (!path) throw new Error('PowerShell is not available on this system')
+  return createPowerShellProvider(path)
+})
+
+const PROVIDER_TABLE: Record<ShellType, () => Promise<ShellProvider>> = {
+  bash: async () => {
+    const fallback = await fallbackEngineBinary()
+    return fallback === null ? (await getShellConfig()).provider : createEngineCommandProvider(fallback)
+  },
+  powershell: getPsProvider,
+}
 
 type SpawnRoad = { provider: ShellProvider; engineBinary: string | null; recordsBash: boolean }
 
@@ -166,7 +180,16 @@ async function shellGoneWords(shellPath: string): Promise<string> {
 
 
 export function setCwd(path: string, base?: string): void {
-  return notBuilt('src/utils/Shell.ts:188')
+  const fs = getFsImplementation()
+  const target = isAbsolute(path) ? path : resolvePath(base ?? fs.cwd(), path)
+  let real: string
+  try {
+    real = fs.realpathSync(target)
+  } catch (error) {
+    if (isENOENT(error)) throw new Error(`Path "${target}" does not exist`)
+    throw error
+  }
+  setCwdState(real)
 }
 
 let shellCwd: string | null = null
@@ -262,7 +285,17 @@ function tellInResult(result: ExecResult, shellType: ShellType, line: string): v
 
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000
 
-type ExecOptions = Unbuilt
+type ExecOptions = {
+  backgroundIntent?: boolean
+  cwd?: string
+  inheritSessionEnv?: boolean
+  onProgress?: (recentLines: string, allLines: string, numLines: number, numBytes: number, incomplete: boolean) => void
+  onStdout?: (chunk: string) => void
+  owner?: string
+  preventCwdChanges?: boolean
+  shouldAutoBackground?: boolean
+  timeout?: number
+}
 
 function openTaskOutputFile(path: string): number {
   return openSync(path, appendNoFollowFlags('w'))
