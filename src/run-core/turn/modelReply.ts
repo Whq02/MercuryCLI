@@ -52,7 +52,7 @@ export async function* modelReply(run: RunCtx, iter: IterationState): AsyncGener
     const limits = getModelMaxOutputTokens(iter.currentModel)
     const decision = decideCutToolCallRecovery({
       recoveryCount: iter.state.cutToolCallRecoveryCount ?? 0,
-      sentCap: iter.maxOutputTokensOverride ?? (route === 'anthropic' ? limits.default : undefined),
+      sentCap: iter.state.maxOutputTokensOverride ?? (route === 'anthropic' ? limits.default : undefined),
       cutAt: cut.cutAt,
       upperLimit: limits.upperLimit,
       room: outputRoomOf(iter.messagesForQuery, iter.currentModel, [iter.fullSystemPrompt, toolUseContext.options.tools]),
