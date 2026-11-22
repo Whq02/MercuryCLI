@@ -3,6 +3,8 @@ import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { getCwd } from '../../utils/cwd.js';
 import { enterConcourse, enterRootChat } from '../../context/surfaceRoute.js';
 import type { scanBootCardFacts, BootProjectFact } from '../../utils/bootCardFacts.js';
+import { isProcessAlive } from '../../utils/ownerWatch.js';
+import { readSessionWorkers, stampedTerminalPid } from '../../daemon/concourseWorkers.js';
 import type { AsyncListNote } from '../mercury-ui/useInteractiveList.js';
 import type { AppState } from '../../state/AppStateStore.js';
 import type { bornSession } from '../../services/switchboard/bornSession.js';
@@ -14,6 +16,20 @@ export type BootRow = {
   ctx: string;
   dim?: boolean;
 };
+
+export function continueOpenElsewhere(facts: ReturnType<typeof scanBootCardFacts>): boolean {
+  const sessionId = (facts.cwdProject ?? facts.recentLast)?.sessionId;
+  if (!sessionId) return false;
+  return Object.values(readSessionWorkers()).some(
+    rec =>
+      rec.sessionId === sessionId &&
+      rec.endedAt === undefined &&
+      [rec.focusedBy, rec.attachedBy].some(by => {
+        const pid = stampedTerminalPid(by);
+        return pid !== undefined && pid !== process.pid && isProcessAlive(pid);
+      }),
+  );
+}
 
 async function groundTrustedProject(dir: string): Promise<void> {
   const { isPathTrusted } = await import('../../utils/config.js');
