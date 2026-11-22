@@ -2,9 +2,12 @@ row	donor	donor_path	our_path	change	reason	batch
 fork	pi	https://github.com/earendil-works/pi	src/pi	tag v1.6.0, commit faac585884ae2c013a6b1400f3e9e77f10b34bac, 2026-11-20	the fork point	0
 change	pi	packages/agent/src/agent-loop.ts	src/pi/loop/agent-loop.ts	comments removed (42)	the tree holds no code comments	0
 change	pi	packages/agent/src/agent-loop.ts	src/pi/loop/agent-loop.ts	the import of @earendil-works/pi-ai reads ./pi-declarations.ts	no pi package is in the tree	0
+change	pi	packages/agent/src/agent-loop.ts	src/pi/loop/agent-loop.ts	runAgentLoop and runAgentLoopContinue hand streamFn on as given; the fallback to getDefaultStreamFn is gone	the stream function is a required argument and the registry behind the fallback is not carried	1
 change	pi	packages/agent/src/agent.ts	src/pi/loop/agent.ts	comments removed (29)	the tree holds no code comments	0
 change	pi	packages/agent/src/agent.ts	src/pi/loop/agent.ts	the import of @earendil-works/pi-ai reads ./pi-declarations.ts	no pi package is in the tree	0
+change	pi	packages/agent/src/agent.ts	src/pi/loop/agent.ts	the constructor takes options.streamFn as given; the fallback to getDefaultStreamFn is gone	the stream function is a required option and the registry behind the fallback is not carried	1
 change	pi	packages/agent/src/stream-fn.ts	src/pi/loop/stream-fn.ts	comments removed (1)	the tree holds no code comments	0
+change	pi	packages/agent/src/stream-fn.ts	src/pi/loop/stream-fn.ts	the file is not carried: setDefaultStreamFn, getDefaultStreamFn and the binding they share are gone	no module-level mutable state; nothing in the tree sets a default stream function	1
 change	pi	packages/agent/src/types.ts	src/pi/loop/types.ts	comments removed (90)	the tree holds no code comments	0
 change	pi	packages/agent/src/types.ts	src/pi/loop/types.ts	the imports of @earendil-works/pi-ai and @earendil-works/pi-schema read ./pi-declarations.ts	no pi package is in the tree	0
 change	pi	packages/ai/src/providers/compat-schema.ts	src/pi/loop/pi-declarations.ts	10 declarations the loop's imports reach; 5 as declare statements with no body or value; export kept on 0; comments removed	the loop compiles on its own until it speaks our messages	0

@@ -13,7 +13,6 @@ import {
 	toToolDeclaration,
 } from "./pi-declarations.ts";
 import { runAgentLoop, runAgentLoopContinue } from "./agent-loop.ts";
-import { getDefaultStreamFn } from "./stream-fn.ts";
 import type {
 	AfterToolCallContext,
 	AfterToolCallResult,
@@ -222,7 +221,7 @@ export class Agent {
 		this._state = createMutableAgentState(runtimeOptions.initialState);
 		this.convertToLlm = runtimeOptions.convertToLlm ?? defaultConvertToLlm;
 		this.transformContext = runtimeOptions.transformContext;
-		this.streamFunction = runtimeOptions.streamFn ?? getDefaultStreamFn();
+		this.streamFunction = options.streamFn;
 		this.getApiKey = runtimeOptions.getApiKey;
 		this.onPayload = runtimeOptions.onPayload;
 		this.onResponse = runtimeOptions.onResponse;

@@ -13,7 +13,6 @@ import {
 	toToolDeclaration,
 	validateToolArguments,
 } from "./pi-declarations.ts";
-import { getDefaultStreamFn } from "./stream-fn.ts";
 import type {
 	AgentContext,
 	AgentEvent,
@@ -109,7 +108,7 @@ export async function runAgentLoop(
 		await emit({ type: "message_end", message });
 	}
 
-	await runLoop(currentContext, newMessages, config, signal, emit, streamFn ?? getDefaultStreamFn());
+	await runLoop(currentContext, newMessages, config, signal, emit, streamFn);
 	return newMessages;
 }
 
@@ -134,7 +133,7 @@ export async function runAgentLoopContinue(
 	await emit({ type: "agent_start" });
 	await emit({ type: "turn_start" });
 
-	await runLoop(currentContext, newMessages, config, signal, emit, streamFn ?? getDefaultStreamFn());
+	await runLoop(currentContext, newMessages, config, signal, emit, streamFn);
 	return newMessages;
 }
 
