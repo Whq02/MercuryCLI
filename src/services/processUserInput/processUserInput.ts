@@ -53,3 +53,9 @@ export async function processUserInput(
 function isImageBlock(block: ContentBlockParam): block is ImageBlockParam {
   return (block as { type?: string }).type === 'image'
 }
+
+async function processUserInputBase(
+  options: ProcessUserInputOptions,
+): Promise<ProcessUserInputBaseResult> {
+  return notBuilt('src/services/processUserInput/processUserInput.ts:185')
+}

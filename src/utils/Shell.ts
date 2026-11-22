@@ -276,3 +276,13 @@ export async function exec(
 ): Promise<ShellCommand> {
   return notBuilt('src/utils/Shell.ts:318')
 }
+
+async function execOnARoad(
+  command: string,
+  abortSignal: AbortSignal,
+  shellType: ShellType,
+  options: ExecOptions,
+  notes: string[],
+): Promise<ShellCommand> {
+  return notBuilt('src/utils/Shell.ts:338')
+}

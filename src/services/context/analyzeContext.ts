@@ -50,6 +50,8 @@ import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export const TOOL_TOKEN_COUNT_OVERHEAD: Unbuilt = unbuilt('src/services/context/analyzeContext.ts:50')
 
+type SystemPromptSectionDetail = Unbuilt
+
 export type ContextData = Unbuilt
 
 const UNKNOWN_NAME = 'unknown'
@@ -125,6 +127,11 @@ export async function countToolDefinitionTokens(
   model?: string,
 ): Promise<number> {
   return notBuilt('src/services/context/analyzeContext.ts:228')
+}
+
+
+function sectionDisplayName(part: string): string {
+  return notBuilt('src/services/context/analyzeContext.ts:346')
 }
 
 async function countMemoryFiles(): Promise<{

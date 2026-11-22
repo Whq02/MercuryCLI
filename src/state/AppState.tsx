@@ -33,6 +33,8 @@ export type {
 
 export const AppStoreContext: Unbuilt = unbuilt('src/state/AppState.tsx:33')
 
+const HasAppStateProviderContext: Unbuilt = unbuilt('src/state/AppState.tsx:35')
+
 export function AppStateProvider(arg0: {
   children: React.ReactNode
   initialState?: AppState

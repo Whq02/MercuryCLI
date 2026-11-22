@@ -19,6 +19,13 @@ export type DiffFile = Unbuilt
 
 export type DiffData = Unbuilt
 
+function classify(
+  result: GitDiffResult,
+  hunks: Map<string, StructuredPatchHunk[]>,
+): DiffFile[] {
+  return notBuilt('src/hooks/useDiffData.ts:37')
+}
+
 export function useDiffData(spec?: GitDiffSpec): DiffData {
   return notBuilt('src/hooks/useDiffData.ts:65')
 }

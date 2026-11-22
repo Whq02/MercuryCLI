@@ -34,6 +34,14 @@ function cancelExpiry(): void {
   }
 }
 
+function armExpiry(entry: Notification, setAppState: SetAppState): void {
+  return notBuilt('src/context/notifications.tsx:75')
+}
+
+function promote(setAppState: SetAppState): void {
+  return notBuilt('src/context/notifications.tsx:91')
+}
+
 export function enqueueNotification(
   setAppState: SetAppState,
   incoming: Notification,

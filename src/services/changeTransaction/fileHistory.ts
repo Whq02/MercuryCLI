@@ -77,12 +77,29 @@ export function fileHistoryEnabled(): boolean {
   return notBuilt('src/services/changeTransaction/fileHistory.ts:77')
 }
 
+
+function toTrackingKey(filePath: string): string {
+  return notBuilt('src/services/changeTransaction/fileHistory.ts:83')
+}
+
 export function maybeExpandFilePath(trackingKey: string): string {
   return notBuilt('src/services/changeTransaction/fileHistory.ts:90')
 }
 
 function backupDirectory(sessionId: string = getSessionId()): string {
   return join(getMercuryHome(), 'file-history', sessionId)
+}
+
+function backupFileName(filePath: string, version: number): string {
+  return notBuilt('src/services/changeTransaction/fileHistory.ts:99')
+}
+
+function backupPath(backupName: string, sessionId?: string): string {
+  return notBuilt('src/services/changeTransaction/fileHistory.ts:103')
+}
+
+async function createBackup(filePath: string, version: number): Promise<FileHistoryBackup> {
+  return notBuilt('src/services/changeTransaction/fileHistory.ts:107')
 }
 
 function latestSnapshot(state: FileHistoryState): FileHistorySnapshot | undefined {
@@ -134,6 +151,10 @@ export interface RestoreDriftOracle {
   get(path: string): RestoreDriftEntry | undefined
   set?(path: string, entry: RestoreDriftEntry): unknown
   delete?(path: string): unknown
+}
+
+async function readBytesOrNull(path: string): Promise<Buffer | null> {
+  return notBuilt('src/services/changeTransaction/fileHistory.ts:317')
 }
 
 function blobMatchesRecord(blobSize: number, record: FileHistoryBackup): boolean {

@@ -43,7 +43,7 @@ import type {
 import { messageText, previewOf } from './messageSelector/preview.js'
 import { findMutatingShellToolUseIds, mutatingShellCountAfter, writtenElsewhereLine, type CodeStats } from './messageSelector/stats.js'
 import { confirmOptionsOf, confirmView, CURRENT_PROMPT, pickView, summarizeView, UNDO_REWIND, type PickEntry } from './messageSelector/views.js'
-import { notBuilt } from '../pi/holes.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 export { statsBetween, writtenElsewhereLine } from './messageSelector/stats.js'
 
@@ -65,6 +65,12 @@ const COMPLETE_TAG_MARKERS = [
   `<${TASK_NOTIFICATION_TAG}>`,
   `<${TICK_TAG}>`,
 ]
+const CREWMATE_PREFIX: Unbuilt = unbuilt('src/components/MessageSelector.tsx:68')
+
+
+function isTurnCutRow(message: UserMessage): boolean {
+  return notBuilt('src/components/MessageSelector.tsx:71')
+}
 
 export function selectableUserMessagesFilter(
   message: Message,

@@ -82,6 +82,10 @@ export function createEmptyAttributionState(): AttributionState {
   return notBuilt('src/utils/commitAttribution.ts:117')
 }
 
+function contributedChars(s: FileAttributionState | undefined): number {
+  return notBuilt('src/utils/commitAttribution.ts:154')
+}
+
 export function trackFileModification(
   state: AttributionState,
   filePath: string,
