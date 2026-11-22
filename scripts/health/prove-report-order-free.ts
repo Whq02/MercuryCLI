@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { mock } from 'bun:test'
 import { spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -31,6 +32,12 @@ if (process.argv[2] === '--child') {
     mkdirSync(changeSetJournalDir(), { recursive: true })
     writeFileSync(join(changeSetJournalDir(), PLANTED), 'not an operation')
   }
+  const sweep = await import('../../src/daemon/processSweepRun.ts')
+  const { readMercuryProcesses } = sweep
+  mock.module('../../src/daemon/processSweepRun.ts', () => ({
+    ...sweep,
+    readMercuryProcesses: () => readMercuryProcesses({ collect: async () => ({ complete: true, observations: [] }) }),
+  }))
   const { HEALTH_SECTIONS } = await import('../../src/services/health/sections.ts')
   const { runHealthReport } = await import('../../src/services/health/healthReport.ts')
   const inOrder = [...HEALTH_SECTIONS]
