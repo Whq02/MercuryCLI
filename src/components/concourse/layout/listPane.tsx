@@ -97,11 +97,12 @@ function boardRowsOf({
     </Box>
   )
   if (sessionRows.length === 0 && filterText.trim().length === 0) {
+    const emptyWrap = geo.listContentRows > 2 ? 'wrap' : 'truncate-end'
     return (
-      <>
+      <Box flexDirection="column" flexShrink={1} overflow="hidden">
         <Box flexShrink={0} height={1} />
         <Box flexShrink={0} paddingX={1}>
-          <Text wrap="truncate-end">
+          <Text wrap={emptyWrap}>
             <Text color={t.textSecondary} bold>
               no sessions yet
             </Text>
@@ -110,9 +111,9 @@ function boardRowsOf({
         </Box>
         {wiring.newSession !== undefined ? (
           <Box flexShrink={0} paddingX={1}>
-            <InteractiveRow id="concourse:board:empty-new" directActivate hoverStyle="row-fill" onActivate={() => wiring.newSession?.()}>
+            <InteractiveRow id="concourse:board:empty-new" directActivate hoverStyle="row-fill" flexGrow={1} onActivate={() => wiring.newSession?.()}>
               {hover => (
-                <Text wrap="truncate-end">
+                <Text wrap={emptyWrap}>
                   <Text color={hover ? t.textPrimary : t.info}>{'▸ '}</Text>
                   <Text color={hover ? t.textPrimary : t.info}>{newSessionDoorWords({ region, filtering })}</Text>
                   {door !== undefined ? (
@@ -124,7 +125,7 @@ function boardRowsOf({
           </Box>
         ) : null}
         {sectionNoticeNodes(sectionNotices, t)}
-      </>
+      </Box>
     )
   }
   if (sessionRows.length === 0) {
