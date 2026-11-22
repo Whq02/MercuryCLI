@@ -36,13 +36,13 @@ const facts = {
 const plain = { reasoning: false, efforts: [] as readonly string[] }
 
 export const MISTRAL_DISPLAY_PINS: readonly MistralDisplayPin[] = [
-  { ...facts, id: 'mistral-large-4', aliases: ['mistral-large-4-0'], displayName: 'Mistral Large 4 (Le Chonk)', contextWindow: 1_048_576, efforts: ['low', 'medium', 'high'],
+  { ...facts, id: 'mistral-large-4', aliases: ['mistral-large-4-0', 'mistral-large-latest'], displayName: 'Mistral Large 4 (Le Chonk)', contextWindow: 1_048_576, efforts: ['low', 'medium', 'high'],
     observedAt: '2026-10-30', source: 'https://docs.mistral.ai/inference/pricing', costInPerMtok: 0.7, cachedInPerMtok: 0.07, costOutPerMtok: 2.1 },
   { ...facts, id: 'mistral-medium-3-5', aliases: ['mistral-medium-latest', 'mistral-medium-3'], displayName: 'Mistral Medium 3.5',
     observedAt: '2026-10-25', source: 'https://docs.mistral.ai/inference/pricing', costInPerMtok: 1.5, cachedInPerMtok: 0.15, costOutPerMtok: 7.5 },
   { ...facts, id: 'mistral-small-2603', aliases: ['mistral-small-latest'], displayName: 'Mistral Small 4',
     observedAt: '2026-10-25', source: 'https://docs.mistral.ai/inference/pricing', costInPerMtok: 0.15, cachedInPerMtok: 0.015, costOutPerMtok: 0.6 },
-  { ...facts, ...plain, id: 'mistral-large-2512', aliases: ['mistral-large-latest'], displayName: 'Mistral Large 3',
+  { ...facts, ...plain, id: 'mistral-large-2512', aliases: [], displayName: 'Mistral Large 3',
     observedAt: '2026-10-25', source: 'https://docs.mistral.ai/inference/pricing', costInPerMtok: 0.5, cachedInPerMtok: 0.05, costOutPerMtok: 1.5 },
   { ...facts, ...plain, id: 'ministral-14b-2512', aliases: ['ministral-14b-latest'], displayName: 'Ministral 3 14B',
     observedAt: '2026-10-25', source: 'https://docs.mistral.ai/inference/pricing', costInPerMtok: 0.2, cachedInPerMtok: 0.02, costOutPerMtok: 0.2 },
