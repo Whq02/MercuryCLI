@@ -1,22 +1,42 @@
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
+import { csi } from './csi.js'
 
-export const DEC: Unbuilt = unbuilt('src/ink/termio/dec.ts:4')
+export const DEC = {
+  ALT_SCREEN_CLEAR: 1049,
+  ALT_SCREEN: 47,
+  CURSOR_VISIBLE: 25,
+  SYNCHRONIZED_UPDATE: 2026,
+  BRACKETED_PASTE: 2004,
+  FOCUS_EVENTS: 1004,
+  ALTERNATE_SCROLL: 1007,
+  MOUSE_NORMAL: 1000,
+  MOUSE_BUTTON: 1002,
+  MOUSE_ANY: 1003,
+  MOUSE_SGR: 1006,
+} as const
 
-export const BSU: Unbuilt = unbuilt('src/ink/termio/dec.ts:28')
-export const ESU: Unbuilt = unbuilt('src/ink/termio/dec.ts:29')
-export const EBP: Unbuilt = unbuilt('src/ink/termio/dec.ts:30')
-export const DBP: Unbuilt = unbuilt('src/ink/termio/dec.ts:31')
-export const EFE: Unbuilt = unbuilt('src/ink/termio/dec.ts:32')
-export const DFE: Unbuilt = unbuilt('src/ink/termio/dec.ts:33')
-export const SHOW_CURSOR: Unbuilt = unbuilt('src/ink/termio/dec.ts:34')
-export const HIDE_CURSOR: Unbuilt = unbuilt('src/ink/termio/dec.ts:35')
-export const ENTER_ALT_SCREEN: Unbuilt = unbuilt('src/ink/termio/dec.ts:36')
-export const EXIT_ALT_SCREEN: Unbuilt = unbuilt('src/ink/termio/dec.ts:37')
+function set(mode: number): string {
+  return csi(`?${mode}h`)
+}
 
-export const ENABLE_MOUSE_TRACKING: Unbuilt =
-  unbuilt('src/ink/termio/dec.ts:39')
-export const DISABLE_MOUSE_TRACKING: Unbuilt =
-  unbuilt('src/ink/termio/dec.ts:41')
+function reset(mode: number): string {
+  return csi(`?${mode}l`)
+}
 
-export const ENABLE_ALTERNATE_SCROLL: Unbuilt = unbuilt('src/ink/termio/dec.ts:44')
-export const DISABLE_ALTERNATE_SCROLL: Unbuilt = unbuilt('src/ink/termio/dec.ts:45')
+export const BSU = set(DEC.SYNCHRONIZED_UPDATE)
+export const ESU = reset(DEC.SYNCHRONIZED_UPDATE)
+export const EBP = set(DEC.BRACKETED_PASTE)
+export const DBP = reset(DEC.BRACKETED_PASTE)
+export const EFE = set(DEC.FOCUS_EVENTS)
+export const DFE = reset(DEC.FOCUS_EVENTS)
+export const SHOW_CURSOR = set(DEC.CURSOR_VISIBLE)
+export const HIDE_CURSOR = reset(DEC.CURSOR_VISIBLE)
+export const ENTER_ALT_SCREEN = set(DEC.ALT_SCREEN_CLEAR)
+export const EXIT_ALT_SCREEN = reset(DEC.ALT_SCREEN_CLEAR)
+
+const MOUSE_TRACKING_MODES = [DEC.MOUSE_NORMAL, DEC.MOUSE_BUTTON, DEC.MOUSE_ANY, DEC.MOUSE_SGR] as const
+
+export const ENABLE_MOUSE_TRACKING = MOUSE_TRACKING_MODES.map(set).join('')
+export const DISABLE_MOUSE_TRACKING = MOUSE_TRACKING_MODES.toReversed().map(reset).join('')
+
+export const ENABLE_ALTERNATE_SCROLL = set(DEC.ALTERNATE_SCROLL)
+export const DISABLE_ALTERNATE_SCROLL = reset(DEC.ALTERNATE_SCROLL)
