@@ -289,10 +289,11 @@ function decidePosix(roots: LayoutRoots, io: PathEntryIo): Decision {
     return content !== null && textNamesDir(content, dir, io.home)
   })
   const noteSpread = zshNote !== undefined ? { note: zshNote } : {}
-  if (naming.length > 0) return { outcome: { state: 'present', dir, targets: naming, line, ...noteSpread } }
+  const unnamed = shell === 'bash' ? targets.filter(target => !naming.includes(target)) : naming.length > 0 ? [] : targets
+  if (unnamed.length === 0) return { outcome: { state: 'present', dir, targets: naming, line, ...noteSpread } }
   const apply = (): PathEntryOutcome => {
     const written: string[] = []
-    for (const target of targets) {
+    for (const target of unnamed) {
       const current = existing.get(target) ?? null
       const lead = current === null || current === '' || current.endsWith('\n') ? '' : '\n'
       try {
@@ -305,7 +306,7 @@ function decidePosix(roots: LayoutRoots, io: PathEntryIo): Decision {
     }
     return { state: 'written', dir, targets: written, line, ...noteSpread }
   }
-  return { outcome: { state: 'would-write', dir, targets, line, ...noteSpread }, apply }
+  return { outcome: { state: 'would-write', dir, targets: unnamed, line, ...noteSpread }, apply }
 }
 
 function decideWin32(roots: LayoutRoots, io: PathEntryIo): Decision {
