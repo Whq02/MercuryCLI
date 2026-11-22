@@ -13,7 +13,7 @@ for (const key of ['MERCURY_HOME', 'MERCURY_AUTH_SCOPE_DIR', 'OPENCODE_API_KEY',
 
 const { resolveModelPricing, calculateUSDCost } = await import('../../src/services/usage/modelCost.js')
 
-const page = 'https://opencode.ai/docs/zen/'
+const page = 'https://opencode.ai/docs/console/models/'
 const written: Array<{ id: string; short: [number, number, number, number]; long: [number, number, number, number] }> = [
   { id: 'gpt-6.2-astra', short: [8, 0.4, 10, 40], long: [16, 0.8, 20, 60] },
   { id: 'gpt-6.2-sol', short: [2, 0.1, 2.5, 10], long: [4, 0.2, 5, 15] },

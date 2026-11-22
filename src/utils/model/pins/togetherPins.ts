@@ -38,11 +38,11 @@ export const TOGETHER_DISPLAY_PINS: readonly TogetherDisplayPin[] = [
   { id: 'nvidia/NVIDIA-Nemotron-3.5-Super-VL', displayName: 'Nemotron 3.5 Super VL', contextWindow: 262_144, costInPerMtok: 0.15, cachedInPerMtok: 0.02, costOutPerMtok: 0.5, thinking: 'none', images: true },
   { id: 'openai/gpt-oss-120b', displayName: 'GPT-OSS 120B', contextWindow: 131_072, costInPerMtok: 0.15, costOutPerMtok: 0.6, thinking: 'effort', efforts: ['low', 'medium', 'high'] },
   { id: 'Prism-ML/Ternary-Bonsai-27B', displayName: 'Ternary Bonsai 27B (free)', contextWindow: 262_144, costInPerMtok: 0, costOutPerMtok: 0, thinking: 'none', free: true, images: true, observedAt: '2026-10-25', source: 'https://www.together.ai/pricing' },
-  { id: 'MiniMaxAI/MiniMax-M3.1-Flash', displayName: 'MiniMax M3.1 Flash', observedAt: '2026-10-25', source: 'https://docs.together.ai/docs/serverless-models', contextWindow: 1_048_576, costInPerMtok: 0.15, cachedInPerMtok: 0.015, costOutPerMtok: 0.6, thinking: 'none', images: true },
-  { id: 'deepseek-ai/DeepSeek-V4.1-Flash-1017', displayName: 'DeepSeek V4.1 Flash 1017', observedAt: '2026-10-25', source: 'https://docs.together.ai/docs/serverless-models', contextWindow: 1_000_000, costInPerMtok: 0.3, cachedInPerMtok: 0.006, costOutPerMtok: 1.2, thinking: 'none', images: true },
-  { id: 'Qwen/Qwen3.5-9B', displayName: 'Qwen3.5 9B', observedAt: '2026-10-25', source: 'https://docs.together.ai/docs/serverless-models', contextWindow: 262_144, costInPerMtok: 0.17, costOutPerMtok: 0.25, thinking: 'toggle', images: true },
+  { id: 'MiniMaxAI/MiniMax-M3.1-Flash', displayName: 'MiniMax M3.1 Flash', observedAt: '2026-10-25', source: 'https://docs.together.ai/docs/serverless/models', contextWindow: 1_048_576, costInPerMtok: 0.15, cachedInPerMtok: 0.015, costOutPerMtok: 0.6, thinking: 'none', images: true },
+  { id: 'deepseek-ai/DeepSeek-V4.1-Flash-1017', displayName: 'DeepSeek V4.1 Flash 1017', observedAt: '2026-10-25', source: 'https://docs.together.ai/docs/serverless/models', contextWindow: 1_000_000, costInPerMtok: 0.3, cachedInPerMtok: 0.006, costOutPerMtok: 1.2, thinking: 'none', images: true },
+  { id: 'Qwen/Qwen3.5-9B', displayName: 'Qwen3.5 9B', observedAt: '2026-10-25', source: 'https://docs.together.ai/docs/serverless/models', contextWindow: 262_144, costInPerMtok: 0.17, costOutPerMtok: 0.25, thinking: 'toggle', images: true },
   { id: 'Qwen/Qwen3.5-397B-A17B', displayName: 'Qwen3.5 397B-A17B', observedAt: '2026-10-25', source: 'https://www.together.ai/pricing', costInPerMtok: 0.6, cachedInPerMtok: 0.35, costOutPerMtok: 3.6, thinking: 'none' },
-  { id: 'together/Tev1-4B-experimental', displayName: 'Tev1 4B Experimental', observedAt: '2026-10-25', source: 'https://docs.together.ai/docs/serverless-models', contextWindow: 32_768, costInPerMtok: 0.042, costOutPerMtok: 0, thinking: 'none' },
+  { id: 'together/Tev1-4B-experimental', displayName: 'Tev1 4B Experimental', observedAt: '2026-10-25', source: 'https://docs.together.ai/docs/serverless/models', contextWindow: 32_768, costInPerMtok: 0.042, costOutPerMtok: 0, thinking: 'none' },
 ]
 
 const TOGETHER_HYBRID_THINKING_MODELS: ReadonlySet<string> = new Set(

@@ -80,7 +80,7 @@ try {
     assert.equal(pin.shape, 'responses')
     assert.equal(zenServedShapeOf(`zen/${row.id}`), 'responses')
     assert.equal(pin.observedAt, '2026-11-17')
-    assert.equal(pin.source, 'https://opencode.ai/docs/zen/')
+    assert.equal(pin.source, 'https://opencode.ai/docs/console/models/')
     assert.deepEqual([pin.costInPerMtok, pin.cachedInPerMtok, pin.cacheWritePerMtok, pin.costOutPerMtok], row.short)
     assert.equal(pin.longContextThreshold, 272_000)
     assert.deepEqual(pin.longContext, row.long)

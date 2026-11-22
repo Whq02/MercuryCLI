@@ -143,7 +143,7 @@ try {
     assert.deepEqual(ZEN_DISPLAY_PINS.filter(pin => pin.limitsSource !== undefined).map(pin => pin.id), zenStated)
     for (const id of zenStated) {
       const pin = zenDisplayPin(`zen/${id}`)!
-      assert.equal(pin.source, 'https://opencode.ai/docs/zen/', id)
+      assert.equal(pin.source, 'https://opencode.ai/docs/console/models/', id)
       assert.equal(pin.limitsSource, `https://raw.githubusercontent.com/sst/models.dev/dev/models/openai/${id}.toml`, id)
       assert.ok((pin.observedAt ?? '') >= '2026-11-17', `${id}: ${pin.observedAt}`)
     }
