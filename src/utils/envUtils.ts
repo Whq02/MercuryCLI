@@ -9,7 +9,6 @@ import { readSessionOption } from './sessionArgs.js'
 import { hostEnv } from './hostEnv.js'
 import { canonicalHomePathSpelling, posixFileModesApply } from './platform/files.js'
 import { getOwnerContext, withOwnerContext } from './run/ownerContext.js'
-import { notBuilt } from '../pi/holes.js'
 
 
 export function defaultMercuryHome(): string {
@@ -80,21 +79,24 @@ export function displayConfigHome(): string {
 }
 
 export function hasNodeOption(flag: string): boolean {
-  return notBuilt('src/utils/envUtils.ts:81')
+  const options = hostEnv().NODE_OPTIONS
+  if (!options) return false
+  return options.split(/\s+/).includes(flag)
 }
 
 export function isEnvTruthy(v: string | boolean | undefined): boolean {
   if (v === undefined) return false
   if (typeof v === 'boolean') return v
-  const normalized = v.toLowerCase().trim()
-  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on'
+  return ['1', 'true', 'yes', 'on'].includes(v.trim().toLowerCase())
 }
 
 export function isEnvDefinedFalsy(v: string | boolean | undefined): boolean {
-  return notBuilt('src/utils/envUtils.ts:94')
+  if (v === undefined) return false
+  if (typeof v === 'boolean') return !v
+  return ['0', 'false', 'no', 'off'].includes(v.trim().toLowerCase())
 }
 
 export function isBareMode(): boolean {
-  return notBuilt('src/utils/envUtils.ts:102')
+  return isEnvTruthy(flagEnv('MERCURY_BARE')) || readSessionOption(process.argv.slice(2), '--lean').present
 }
 
