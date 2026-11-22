@@ -2,6 +2,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir, homedir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { parseFrame } from '../../lib/rows.ts'
 import {
   evaluateMissionCompletion,
@@ -15,7 +16,7 @@ import { seedAll, type SeededRepo } from '../corpus/seed.js'
 import { corpusDigest } from '../corpus/manifest.js'
 import { policyApplicability, policyById, policyDigest, type HelixPolicy } from './policies.js'
 
-const repoRoot = resolve(new URL('../../..', import.meta.url).pathname)
+const repoRoot = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
 
 type HelixRunStatus =
   | 'accepted'

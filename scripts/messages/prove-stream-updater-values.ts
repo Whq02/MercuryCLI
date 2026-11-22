@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert'
 import { resolve } from 'node:path'
-const root = resolve(process.argv[2] ?? new URL('../..', import.meta.url).pathname)
+import { fileURLToPath } from 'node:url'
+const root = resolve(process.argv[2] ?? fileURLToPath(new URL('../..', import.meta.url)))
 const { handleMessageFromStream: handle } = await import(`${root}/src/utils/messages/streaming.ts`)
 const noop = () => {}
 let textUpdate: any

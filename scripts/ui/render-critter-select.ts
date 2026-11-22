@@ -2,6 +2,7 @@
 import { writeFileSync, readFileSync, mkdirSync, existsSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { encodeTranscriptLine } from '../../src/utils/sessionStorage/vnext.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
@@ -11,7 +12,7 @@ const RUNTIME_CWD = join(import.meta.dir, '..', '..')
 const REPO = join(import.meta.dir, '..', '..')
 const CONFIG_HOME = resolveProofHome([RUNTIME_CWD])
 const PROJECTS = join(CONFIG_HOME, 'projects', basename(getProjectDir(RUNTIME_CWD)))
-const VSHOT = new URL('./vshot.py', import.meta.url).pathname
+const VSHOT = fileURLToPath(new URL('./vshot.py', import.meta.url))
 const BIN = join(REPO, 'dist', 'mercury.mjs')
 const SID = '00000000-aaaa-bbbb-cccc-0000000c121e'
 

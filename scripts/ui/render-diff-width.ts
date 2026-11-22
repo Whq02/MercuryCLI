@@ -77,7 +77,7 @@ import { fileURLToPath } from 'node:url'
 import { resolveProofHome } from '../lib/proofHome.ts'
 
 const SELF = fileURLToPath(import.meta.url)
-const VSHOT = new URL('./vshot.py', import.meta.url).pathname
+const VSHOT = fileURLToPath(new URL('./vshot.py', import.meta.url))
 const CONFIG_HOME = resolveProofHome([process.cwd()])
 if (!existsSync(VSHOT)) {
   console.error('vshot.py missing — the render-verify harness (scripts/ui/vshot.py) is required')

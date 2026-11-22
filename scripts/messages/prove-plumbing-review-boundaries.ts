@@ -1,7 +1,8 @@
 import { strict as assert } from 'node:assert'
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
-const root = resolve(process.argv[2] ?? new URL('../..', import.meta.url).pathname)
+const root = resolve(process.argv[2] ?? fileURLToPath(new URL('../..', import.meta.url)))
 const merge = await import(`${root}/src/services/messages/merge.ts`)
 const view = await import(`${root}/src/services/messages/apiView.ts`)
 const cache = await import(`${root}/src/services/providers/anthropic/cacheAndUsage.ts`)

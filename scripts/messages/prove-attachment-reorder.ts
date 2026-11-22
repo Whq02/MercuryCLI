@@ -1,6 +1,7 @@
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const root = resolve(process.argv[2] ?? new URL('../..', import.meta.url).pathname)
+const root = resolve(process.argv[2] ?? fileURLToPath(new URL('../..', import.meta.url)))
 const { reorderAttachmentsForAPI } = await import(`${root}/src/services/messages/apiView.ts`)
 let failures = 0
 const check = (name: string, ok: boolean, detail = '') => {

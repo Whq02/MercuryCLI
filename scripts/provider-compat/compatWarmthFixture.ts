@@ -1,8 +1,9 @@
 import { mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { z } from 'zod/v4'
 
-export const root = resolve(process.env.WARMTH_PROOF_ROOT ?? new URL('../..', import.meta.url).pathname)
+export const root = resolve(process.env.WARMTH_PROOF_ROOT ?? fileURLToPath(new URL('../..', import.meta.url)))
 export const dialects = ['chat-completions', 'responses', 'llamacpp', 'vllm', 'sglang', 'ollama', 'lmstudio'] as const
 type Capture = { path: string; body: any; cached: number; prefill: number; total: number; costMs: number }
 

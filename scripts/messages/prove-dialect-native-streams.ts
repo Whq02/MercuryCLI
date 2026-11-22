@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert'
 import { resolve } from 'node:path'
 import { writeFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { DIALECT_CONVERSATION } from './dialectFixture.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
-const tip = resolve(new URL('../..', import.meta.url).pathname)
+const tip = resolve(fileURLToPath(new URL('../..', import.meta.url)))
 const base = process.argv[2] ? resolve(process.argv[2]) : tip
 const frames = [
   { type: 'response.created', response: { id: 'fixture-response' } },

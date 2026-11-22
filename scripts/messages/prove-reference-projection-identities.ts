@@ -1,7 +1,8 @@
 import { strict as assert } from 'node:assert'
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const root = resolve(process.argv[2] ?? new URL('../..', import.meta.url).pathname)
+const root = resolve(process.argv[2] ?? fileURLToPath(new URL('../..', import.meta.url)))
 const { stripToolReferenceBlocksFromUserMessage: strip, stripUnavailableToolReferencesFromUserMessage: available } = await import(`${root}/src/services/messages/apiView.ts`)
 const { STRIPPED_ADMISSION_RECORD_TEXT } = await import(`${root}/src/constants/tools/toolSearch.ts`)
 const ref = (tool_name?: string) => ({ type: 'tool_reference', ...(tool_name === undefined ? {} : { tool_name }) })

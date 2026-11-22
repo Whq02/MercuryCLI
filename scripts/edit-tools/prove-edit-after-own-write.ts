@@ -5,6 +5,7 @@ import { mock } from 'bun:test'
 import { mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'edit-after-own-write-home-'))
 process.env.MERCURY_BARE = '1'
@@ -18,7 +19,7 @@ delete process.env.MERCURY_EDIT_STALE_RECOVERY
 delete process.env.NODE_ENV
 
 let foreignWriteDuringSave: { path: string; content: string } | null = null
-const managerPath = new URL('../../src/services/lsp/manager.ts', import.meta.url).pathname
+const managerPath = fileURLToPath(new URL('../../src/services/lsp/manager.ts', import.meta.url))
 const realManagerModule = await import(managerPath)
 const fakeManager = {
   getServersForFile: () => [],

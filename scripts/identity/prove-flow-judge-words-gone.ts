@@ -2,6 +2,7 @@
 import { execFileSync } from 'node:child_process'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -125,7 +126,7 @@ section('§5 the spellings the Flow gate and the needs-you feature shed are on n
     J('prove-agent', '-classifier'),
   ]
   const TEXT = /\.(tsx?|mts|cts|[cm]?jsx?|sh|bash|json|jsonl|md|txt|tsv|csv|ya?ml|toml|html|css|ps1|py)$/
-  const SELF = relative(REPO, new URL(import.meta.url).pathname)
+  const SELF = relative(REPO, fileURLToPath(import.meta.url)).replaceAll('\\', '/')
   const tree = execFileSync('git', ['-C', REPO, 'ls-files', '-z', '--', 'src', 'scripts', 'docs'], { encoding: 'utf8', maxBuffer: 1 << 28 })
     .split('\0')
     .filter(rel => rel !== '' && rel !== SELF && TEXT.test(rel))
@@ -146,7 +147,7 @@ section('§5 the spellings the Flow gate and the needs-you feature shed are on n
 section('§6 the dead machinery, the alias maps and the retired words the excision shed are on no file under src, scripts, docs or assets')
 {
   const TEXT = /\.(tsx?|mts|cts|[cm]?jsx?|sh|bash|json|jsonl|md|txt|tsv|csv|ya?ml|toml|html|css|ps1|py)$/
-  const SELF = relative(REPO, new URL(import.meta.url).pathname)
+  const SELF = relative(REPO, fileURLToPath(import.meta.url)).replaceAll('\\', '/')
   const UNKNOWN_COMMAND_LIST = 'scripts/identity/prove-unknown-command-answer.ts'
   const SECURITY_INSTRUCTION = 'src/constants/cyberRiskInstruction.ts'
   const FOREIGN_HOME_LAWS = [J('scripts/accounts/prove-accounts-', 'display.ts'), J('scripts/accounts/prove-auth-scope-', 'isolation.ts'), J('scripts/accounts/prove-account-', 'isolation.ts'), J('scripts/build-identity/prove-config-', 'home.ts')]

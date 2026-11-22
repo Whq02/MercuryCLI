@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'cma-seats-')))
@@ -27,7 +28,7 @@ process.env.MERCURY_CACHE_CLOCK = '0'
 process.chdir(work)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const REPO = join(new URL('.', import.meta.url).pathname, '..', '..')
+const REPO = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..')
 const DIST = join(REPO, 'dist', 'mercury.mjs')
 if (!existsSync(DIST)) {
   console.error('✗ dist/mercury.mjs missing — run `bun run build.ts` first')

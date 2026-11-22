@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const repoRoot = resolve(new URL('../..', import.meta.url).pathname)
+const repoRoot = resolve(fileURLToPath(new URL('../..', import.meta.url)))
 
 let failures = 0
 const RESIDUE_FIX_HINT = 'a FORBIDDEN word in dist/mercury.mjs means a file under src/ reaches the bundle with benchmark text: find the word with grep in src/ and remove it from that file, then rebuild; a missing IS in the bundle line means the repair or nudge text in src/services/api/errors.ts was removed or reworded'

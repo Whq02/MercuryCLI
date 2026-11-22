@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert'
 import { resolve } from 'node:path'
-const root = resolve(process.argv[2] ?? new URL('../..', import.meta.url).pathname)
+import { fileURLToPath } from 'node:url'
+const root = resolve(process.argv[2] ?? fileURLToPath(new URL('../..', import.meta.url)))
 const { getToolUseID } = await import(`${root}/src/services/messages/lookups.ts`)
 for (const type of ['grouped_tool_use', 'collapsed_read_search', 'turn_receipt']) {
   assert.equal(getToolUseID({ type, messages: [], uuid: 'render-row' } as never), undefined, `getToolUseID in src/services/messages/lookups.ts must return undefined for a ${type} row (no case for it in its switch, and no read of message.message); got something else`)

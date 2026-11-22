@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { check, finish, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, ownerOf, resultOf, toolContext, toolUseTurn } from './computerToolKit.ts'
 import type { DesktopDriver } from '../../src/services/desktop/driver.ts'
@@ -62,7 +63,7 @@ check('local settling keeps the whole window at its default half scale', result.
 rows.push({ operation: 'animated-target-settle', medianMs: +elapsed.toFixed(2), minMs: +elapsed.toFixed(2), maxMs: +elapsed.toFixed(2), samples: 1 })
 driver.capture = original
 const { desktopPackDirFor, readDesktopPackManifest } = await import('../../src/services/desktop/pack.ts')
-const packDir = desktopPackDirFor(new URL('../..', import.meta.url).pathname)
+const packDir = desktopPackDirFor(fileURLToPath(new URL('../..', import.meta.url)))
 const manifest = readDesktopPackManifest(packDir)
 if (!manifest) {
   console.log(`  [SKIP] the pack-load rows measure the real desktop pack and this host has none (${packDir}) — the hosted gate builds no desktop pack; the Mac pool and the release road read them`)

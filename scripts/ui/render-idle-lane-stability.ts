@@ -1,10 +1,11 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { railPlan } from '../../src/utils/helmGeometry.js'
 import { CONFIG_HOME, cleanupScenario, scenario } from './renderScenarios.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
-const VSHOT = new URL('./vshot.py', import.meta.url).pathname
+const VSHOT = fileURLToPath(new URL('./vshot.py', import.meta.url))
 const composed = '/tmp/lane-stability-composed.jsonl'
 const yogaTrace = '/tmp/lane-stability-yoga.jsonl'
 const commits = '/tmp/lane-stability-commits.jsonl'

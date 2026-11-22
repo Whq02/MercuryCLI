@@ -16,7 +16,7 @@ import { resolveProofHome } from '../lib/proofHome.ts';
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const SELF = fileURLToPath(import.meta.url);
-const VSHOT = new URL('./vshot.py', import.meta.url).pathname;
+const VSHOT = fileURLToPath(new URL('./vshot.py', import.meta.url));
 const CONFIG_HOME = resolveProofHome([process.cwd()]);
 const NOW = Date.parse('2026-01-01T12:00:00.000Z');
 

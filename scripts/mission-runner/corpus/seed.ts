@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   APEX_FIXTURE_SHA,
   CORPUS_SEED_ROOT,
@@ -119,7 +120,7 @@ if (import.meta.main) {
   const args = process.argv.slice(2)
   const rootAt = args.indexOf('--root')
   const root = rootAt >= 0 ? resolve(args[rootAt + 1]) : CORPUS_SEED_ROOT
-  const repoRoot = resolve(new URL('../../..', import.meta.url).pathname)
+  const repoRoot = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
   const seeded = seedAll(root, repoRoot)
   if (args.includes('--json')) {
     console.log(JSON.stringify(seeded, null, 2))

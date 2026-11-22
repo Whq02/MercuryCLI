@@ -5,6 +5,7 @@ import { execSync, spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 let failures = 0
 const stateFixHint = 'change src/utils/verification/verificationState.ts (classifyVerificationCommand for what mints evidence, observeCompletedToolCall and isMutationToolCall for order, verificationSummary for the state and detail, demandedReadBackPaths for read-back debt); the last two checks also read scripts/outcome-pack/ordering.ts'
@@ -13,7 +14,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${stateFixHint}` : ''}`)
 }
 
-const REPO = join(new URL('.', import.meta.url).pathname, '../..')
+const REPO = join(fileURLToPath(new URL('.', import.meta.url)), '../..')
 const BUN = process.env.BUN ?? join(homedir(), '.bun/bin/bun')
 
 const vs = await import('../../src/utils/verification/verificationState.js')

@@ -2,6 +2,7 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 process.env.FORCE_COLOR = '0'
 const HOME = mkdtempSync(join(tmpdir(), 'image-row-numbers-home-'))
@@ -9,7 +10,7 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_HOME
-const ROOT = join(new URL('.', import.meta.url).pathname, '..', '..')
+const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..')
 process.chdir(ROOT)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')

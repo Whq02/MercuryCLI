@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { fileURLToPath } from 'node:url'
 
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = {
@@ -11,7 +12,7 @@ process.env.NODE_ENV = 'test'
   MERCURY_DEMO: false,
 }
 
-const SELF = new URL(import.meta.url).pathname
+const SELF = fileURLToPath(import.meta.url)
 
 if (process.env.SPECTRAL_RENDER_CHILD) {
   const React = await import('react')
