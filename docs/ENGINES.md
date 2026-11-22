@@ -78,11 +78,13 @@ doors this process read serve and what they lack.
 The family words follow each family's newest row (`opus` means Opus 5.5 and
 `sonnet` means Sonnet 5.5), so a saved `sonnet` runs Sonnet 5.5 while a saved
 `claude-sonnet-5` stays on Sonnet 5, which keeps its own row under the family
-in the picker; Sonnet 5.5 takes the two wire laws Opus 5.5 takes: thinking
-stays on (neither model accepts `disabled`, so a request with thinking off
-carries no thinking parameter and adaptive thinking runs; Sonnet 5.5's
-`between_tools` setting is not sent) and a forced tool choice becomes `auto`,
-the prompt naming the tool.
+in the picker; Sonnet 5.5 takes the two wire laws Opus 5.5 takes: neither
+model accepts `disabled` (on Opus 5.5 a turn with thinking off carries no
+thinking parameter and adaptive thinking runs; on Sonnet 5.5 it carries the
+`between_tools` setting at `low`, `medium` and `high` effort, which turns
+up-front thinking off, and no thinking parameter at `xhigh` and `max`, where
+the API refuses that setting and adaptive thinking runs) and a forced tool
+choice becomes `auto`, the prompt naming the tool.
 
 `fable` means Fable 5.2 (`claude-fable-5-2`); `fable52` names that generation
 explicitly and `fable51` still names Fable 5.1. Fable 5.1 and Fable 5 keep

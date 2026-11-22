@@ -12,7 +12,7 @@ import {
   modelSupportsThinking,
   type ThinkingConfig,
 } from 'src/utils/thinking.js'
-import { foldToolChoiceForModel, getContextWindowForModel, modelSupportsMessageEffort } from 'src/utils/model/capabilities.js'
+import { foldToolChoiceForModel, getContextWindowForModel, modelSupportsMessageEffort, modelThinkingOffIsBetweenTools } from 'src/utils/model/capabilities.js'
 import { ANTHROPIC_IMAGE_LIMITS } from '../../../../constants/apiLimits.js'
 import { getAttributionHeader } from '../../../../constants/system.js'
 import { declareLawfulPrefixChange } from '../../lawfulPrefixChange.js'
@@ -139,7 +139,9 @@ export function wireParamsFor(call: CallState, wire: WireInputs) {
 
     thinking = applyThinkingDisplay(options.model, thinking, betasParams) as typeof thinking
     thinking = applyThinkingBinding(thinking, betasParams) as typeof thinking
-    const effortSteps = modelSupportsMessageEffort(options.model) ? messageEffortSteps(messagesForAPI, outputConfig.effort) : []
+    const betweenTools = !hasThinking && modelThinkingOffIsBetweenTools(options.model, outputConfig.effort)
+    if (betweenTools) thinking = { type: 'between_tools' } satisfies BetaMessageStreamParams['thinking']
+    const effortSteps = !betweenTools && modelSupportsMessageEffort(options.model) ? messageEffortSteps(messagesForAPI, outputConfig.effort) : []
     if (effortSteps.length > 0 && !betasParams.includes(MESSAGE_EFFORT_BETA_HEADER)) betasParams.push(MESSAGE_EFFORT_BETA_HEADER)
     const sendBetas = betasParams.length > 0
 
