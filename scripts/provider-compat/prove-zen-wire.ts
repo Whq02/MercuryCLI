@@ -6,6 +6,7 @@ import { z } from 'zod/v4'
 import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
 import { startZenFixture } from '../providers/lib/zen-fixture.ts'
+process.env.MERCURY_CONFIG_DIR = proofHome
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
