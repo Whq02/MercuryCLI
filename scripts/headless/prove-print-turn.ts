@@ -210,7 +210,7 @@ section('§1 what the turn hands the engine')
 section('§2 the end of the turn: what was held lands, in its order, whatever the turn did')
 {
   const hold = (s: Scene): void => {
-    s.live.heldSeatModel = { requestId: 11, model: 'the-held-model', words: 'the spoken name' }
+    s.live.heldSeatModel = { requestId: 11, model: 'the-held-model', words: 'the spoken name', replacedDefault: 'the-replaced-default' }
     s.live.heldSeatEffort = { requestId: 12, effort: 'low' }
     s.live.deferredModelBreadcrumb = { to: 'to-model', from: 'from-model' }
     s.live.deferredSpawnSwitches = [{ kind: 'subagents', on: false, requestId: 13 }]
@@ -219,7 +219,7 @@ section('§2 the end of the turn: what was held lands, in its order, whatever th
   const s = scene()
   hold(s)
   const ended = await run(s, prompt('held'))
-  check('the turn boundary applies the held verb before the deferred rows flush', ended === 'ended' && order('port:applySeatModel', 'applied:set_model', 'port:applySeatEffort', 'applied:set_effort', 'holdQueuedWordsForTurnEnd', 'port:injectModelSwitchBreadcrumbs') && j(said('port:applySeatModel')[0]?.args) === j(['the-held-model', 'the spoken name']) && j(said('port:injectModelSwitchBreadcrumbs')[0]?.args) === j(['to-model', 'from-model']) && j(said('holdQueuedWordsForTurnEnd')[0]?.args) === j([false]), j(names().filter(name => !name.startsWith('port:party'))))
+  check('the turn boundary applies the held verb before the deferred rows flush', ended === 'ended' && order('port:applySeatModel', 'applied:set_model', 'port:applySeatEffort', 'applied:set_effort', 'holdQueuedWordsForTurnEnd', 'port:injectModelSwitchBreadcrumbs') && j(said('port:applySeatModel')[0]?.args) === j(['the-held-model', 'the spoken name', 'the-replaced-default']) && j(said('port:injectModelSwitchBreadcrumbs')[0]?.args) === j(['to-model', 'from-model']) && j(said('holdQueuedWordsForTurnEnd')[0]?.args) === j([false]), j(names().filter(name => !name.startsWith('port:party'))))
   check("the turn's end lands every held quiet row, after the spawn switches, the same way the model breadcrumb is held", order('port:injectModelSwitchBreadcrumbs', 'port:landSpawnSwitch', 'applied:set_spawn_switch', 'port:landAdvisorQuiet') && j(said('port:landAdvisorQuiet').map(call => call.args[0])) === j([{ id: 'quiet-1' }, { id: 'quiet-2' }]) && j(said('port:landSpawnSwitch')[0]?.args) === j(['subagents', false]) && s.live.deferredAdvisorQuiet.length === 0 && s.live.deferredSpawnSwitches.length === 0 && s.live.deferredModelBreadcrumb === null && s.live.heldSeatModel === null && s.live.heldSeatEffort === null, j(names()))
   check('each held verb is answered to the host with the request that asked it', j(s.out.filter(line => line.method === 'session/applied').map(line => line.params)) === j([{ request_id: 11, verb: 'set_model', model: 'the-held-model' }, { request_id: 12, verb: 'set_effort', effort: 'low' }, { request_id: 13, verb: 'set_spawn_switch', switch: 'subagents', on: false }]), j(s.out.filter(line => line.method === 'session/applied')))
   check('the crew board is read and the installed build compared once the turn is over', order('port:landAdvisorQuiet', 'port:swarmLead.check', 'port:swarmResumes.check', 'port:checkBuildBehind') && j(said('port:checkBuildBehind')[0]?.args) === j([true]) && order('ask', 'port:party.turnEnd'))
