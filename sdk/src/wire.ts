@@ -650,6 +650,7 @@ export interface MethodParams {
   "session/set_model": {
   model?: string
   words?: string
+  replaced_default?: string
 }
   "session/set_effort": {
   effort: string
@@ -1333,6 +1334,9 @@ export const METHODS: Record<MethodName, MethodSchema> = {
           "type": "string"
         },
         "words": {
+          "type": "string"
+        },
+        "replaced_default": {
           "type": "string"
         }
       }
