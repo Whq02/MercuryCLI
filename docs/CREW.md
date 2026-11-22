@@ -45,8 +45,8 @@ each session. With crewmates off, the Crewmate tool is absent from that
 session's roster and every road that would spawn
 one from inside the session (the tool, a skill that forks,
 the fleet tools) answers one receipt:
-"crewmates are off for this session · /crewmates on, or the boot menu's
-Agents section". The concourse itself
+"crewmates are off for this session — /crewmates on, or the boot menu's Agents section".
+The concourse itself
 keeps launching sessions; the switch is per focused session.
 
 Inside a session, `/crewmates on|off` prints its

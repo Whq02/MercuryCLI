@@ -203,8 +203,8 @@ new sessions …`). When `memory.tellEngineSwitch` is `true` in settings, the
 meta line sent to the model includes the switch timestamp with its UTC offset
 and instructs the model to include the time zone when repeating the switch
 time. Selecting an effort level in `/effort` or via `ctrl+e` inside `/model`
-saves it to `<config home>/settings.json` (`Effort set to <level> · saved as
-your default for future sessions`); if writing `settings.json` fails, both
+saves it to `<config home>/settings.json` (`Effort set to <level> — saved as
+your default for future sessions.`); if writing `settings.json` fails, both
 `/model` and the effort picker name the file and the OS reason (`not saved as
 your default: ~/.mercury/settings.json …`).
 `/model` or `/effort` sent while a turn runs answers "applies when this turn
@@ -462,7 +462,7 @@ the composer the key types its letter. `view.backgroundKey: false` in
 settings.json turns the key and both hints off, and esc keeps its meaning
 either way. The row's warnings stay its own: a request wait names what the
 runner waits on and the budget that fires (`"waiting for the first byte from
-Opus 5.5 — within 6m"`); a held turn names what it waits on (`"waiting on 2
+Opus 5.5 — gives up after 6m"`); a held turn names what it waits on (`"waiting on 2
 crewmates · 1 shell"`); an interrupt says the request is torn down. The row
 says the session may be stuck only when the runner's stream has carried no
 event of any kind (the provider's heartbeats included) for longer than its
@@ -474,7 +474,7 @@ may be stuck (the watchdog aborts at 6m)"`); on the quiet routes, whose budget
 is fifteen minutes, the row names what it saw from seven and a half (`"no
 stream events for 8m — the session may be stuck (the watchdog aborts at
 15m)"`). Every wait, warning and reissue line spells a minute or more in
-minutes (`"within 2m"`, `"within 2m of dispatch"`) and anything shorter in
+minutes (`"gives up after 2m"`, `"within 2m of dispatch"`) and anything shorter in
 seconds. A running tool is never called stuck. The chat pane carries no
 clock: every row of the chat carries its own timestamp, and a clock that
 ticks is a repaint a second on an idle screen.
@@ -580,7 +580,7 @@ parks the session; on a parked row a first chord says the next one
 deletes it, and that next chord (or a chord right after parking)
 deletes the board record while keeping the transcript on disk so the home screen and
 `/sessions` still list the chat. A chat that was never messaged has nothing
-to park: on its stopped row the hint reads `"ctrl+x again removes it (the chat
+to park: on its stopped row the hint reads `"⌃x again removes it (the chat
 held no message)"`, the next chord removes it from the board, and when it
 was the only chat the navigation strip returns to its two screens. A door row
 (another project or the repo picker) has nothing to close. All other chats in the project

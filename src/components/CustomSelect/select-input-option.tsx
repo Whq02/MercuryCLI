@@ -270,7 +270,7 @@ export function SelectInputOption<T>({
         shouldShowUpArrow={shouldShowUpArrow}
         declareCursor={false}
       >
-        <Box flexDirection="row">
+        <Box>
           <Text dimColor>{prefixText}</Text>
           {children ? <Box marginRight={1}>{children}</Box> : null}
           {labelBlock}

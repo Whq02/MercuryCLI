@@ -178,6 +178,7 @@ const selected = families.filter(family => only === undefined || only.split(',')
 assert.ok(selected.length, 'no frame family selected')
 let failures = 0
 let environment = 0
+let named = 0
 const results: Array<{ path: string; same: boolean; environment?: boolean; allowed: string | null; detail?: string; error?: string }> = []
 for (const family of selected) {
   assert.ok(family.paths.length, `empty frame family: ${family.id}`)
@@ -201,6 +202,7 @@ for (const family of selected) {
       results.push({ path, same: verdict.same, environment: verdict.environment, allowed: movement, detail: verdict.detail })
       if (verdict.environment) environment++
       else if (!verdict.same && movement === null) failures++
+      else if (!verdict.same) named++
       let first = 0
       while (first < Math.min(actual.length, expected.length) && actual[first] === expected[first]) first++
       const bytes = actual.equals(expected) ? '' : ` — first changed byte ${first}; ${expected.length} -> ${actual.length} bytes`
@@ -214,7 +216,7 @@ for (const family of selected) {
   }
 }
 for (const [path, digest] of hashes) assert.equal(createHash('sha256').update(readFileSync(join(ROOT, path))).digest('hex'), digest, `writer modified committed frame: ${path}`)
-writeFileSync(join(work, 'frames.json'), JSON.stringify({ complete: only === undefined, checked: results.length, currentFrames: currentFrames.length, historical: tracked.filter(path => path.startsWith('scripts/visual-contract/baselines/')), results, failures, environment }, null, 2) + '\n')
+writeFileSync(join(work, 'frames.json'), JSON.stringify({ complete: only === undefined, checked: results.length, currentFrames: currentFrames.length, historical: tracked.filter(path => path.startsWith('scripts/visual-contract/baselines/')), results, failures, environment, named }, null, 2) + '\n')
 if (environment > 0) console.log(`CAPTURE ENVIRONMENT (${environment}; a live grid's session-count footer reads the capture's daemon, a crew screen's or a cockpit frame's clocks and durations read the capture's moment; every other cell identical under the writer's own law)`)
-console.log(`[${failures ? 'FAIL' : 'PASS'}] frame identity: ${results.length}/${currentFrames.length} frames re-rendered, ${failures} failures, ${environment} capture-environment rows; stored bytes untouched; receipts ${work}`)
+console.log(`[${failures ? 'FAIL' : 'PASS'}] frame identity: ${results.length}/${currentFrames.length} frames re-rendered, ${results.filter(result => result.same).length} the same as stored, ${named} DIFFERENT from stored and only named in frames-moved.tsv (re-take each or say why), ${failures} failures, ${environment} capture-environment rows; stored bytes untouched; receipts ${work}`)
 process.exit(failures ? 1 : 0)

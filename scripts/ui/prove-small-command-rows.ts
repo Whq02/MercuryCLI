@@ -66,7 +66,7 @@ try {
     { ...gate, awaitText: 'Cell was declined.', data: '/model sonnet 5.5' },
     { ...gate, awaitText: '❯ /model sonnet 5.5', data: '\r' },
     { ...gate, awaitText: 'saved as your default for new sessions', awaitPattern: '\\A(?![\\s\\S]*Help closed)', data: '', mark: 'model-match' },
-  ], 550, { MERCURY_DESKTOP_DRIVER: 'none', MERCURY_SPLASH: 'off', MERCURY_REDUCED_MOTION: '1', MERCURY_DAEMON_DIR: 'daemon', TMPDIR: '.' }, 'Cell was declined.')
+  ], 550, { MERCURY_DESKTOP_DRIVER: 'none', MERCURY_SPLASH: 'off', MERCURY_REDUCED_MOTION: '1', MERCURY_DAEMON_DIR: 'daemon', TMPDIR: '.', TZ: 'UTC' }, 'Cell was declined.')
   for (const [name, rows] of Object.entries(result.marks)) {
     printFrame(name, rows)
     if (frames) writeFileSync(join(frames, `small-command-${name}.txt`), rows.join('\n') + '\n')

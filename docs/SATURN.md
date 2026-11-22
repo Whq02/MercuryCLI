@@ -25,7 +25,7 @@ Saturn supports two schedule types, and the board shows both:
 `/saturn` opens the board inside the chat, in the chat's own frame, with `Esc`
 returning to the chat. Rows group under the session that owns them,
 with box schedules under their own `box (machine)` section. The legend lists
-the keys: `↑↓ move · a schedule birth… · x delete · n run-now · p
+the keys: `↑↓ move · pgup/pgdn page · a schedule birth… · x delete · n run-now · p
 pause/resume · r refresh · esc back`. A row's trail shows the time expression
 verbatim, the account it will fire on (an identity, never a token), held fires
 with their reasons, and the fired-late or missed receipt tail. Press `a` in
@@ -54,7 +54,7 @@ Pressing `a` opens the new-session schedule form. Its rows:
 - **Kit preset**: the MCPs & Skills preset the new session loads, from the
   saved preset roster ([KIT.md](KIT.md)).
 - **Opening mission**: `audit` and `review` run complete, self-contained
-  missions; `custom…` opens a text field; `none` starts the session idle and
+  missions; `custom…` opens a text field; `born-waiting — no mission` starts the session idle and
   ready for input.
 - **Contract**, **Title**, **Note**: the session contract pre-answered for the
   session, the session's title, and a note for the board.
@@ -70,7 +70,7 @@ is the daemon-home file itself.
 
 One compiler turns time phrases into schedule times: one-shots (`6am`, `18:30`,
 `tomorrow 07:30`, `in 20m`) and recurrences (`every 5 minutes`, `every
-hour at:07`, `every day 09:00`, `weekdays 9am`, `every mon,fri 17:00`), plus
+hour at :07`, `every day 09:00`, `weekdays 9am`, `every mon,fri 17:00`), plus
 raw 5-field cron passed through verbatim. The spelling you typed is stored
 and echoed on every surface as you wrote it; a phrase the compiler
 cannot read is refused with a working example.
