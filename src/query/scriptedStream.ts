@@ -16,7 +16,7 @@ export function scriptedCallModel(
   if (script === ANSWER_TEXT_SCRIPT) return scriptedAnswerText
   if (script === CHATTY_BASH_SCRIPT) return scriptedChattyBash
   if (script === OPENING_TEXT_SCRIPT) return scriptedOpeningText
-  if ((ONE_TOOL_SCRIPTS as readonly string[]).includes(script)) {
+  if (script === WRITE_TOOL_SCRIPT || (ONE_TOOL_SCRIPTS as readonly string[]).includes(script)) {
     return scriptedOneTool(script as OneToolScript)
   }
   if (script !== 'slow-text') return null
@@ -54,7 +54,8 @@ const scriptedHammerBreaker: CallModel = async function* scriptedHammerBreaker(p
 }
 
 export const ONE_TOOL_SCRIPTS = ['tool-read', 'tool-glob', 'tool-bash', 'tool-bash-write'] as const
-type OneToolScript = (typeof ONE_TOOL_SCRIPTS)[number]
+export const WRITE_TOOL_SCRIPT = 'tool-write'
+type OneToolScript = (typeof ONE_TOOL_SCRIPTS)[number] | typeof WRITE_TOOL_SCRIPT
 export const ANSWER_TEXT_SCRIPT = 'answer-text'
 export const CHATTY_BASH_SCRIPT = 'tool-bash-chatty'
 export const CHATTY_BASH_LINES = 6
@@ -62,6 +63,8 @@ const CHATTY_BASH_COMMAND = `i=1; while [ $i -le ${CHATTY_BASH_LINES} ]; do echo
 export const ONE_TOOL_READ_FILE = 'one-tool-read-fixture.md'
 export const ONE_TOOL_SETTLED_TEXT = 'VERDICT-TURN-DONE'
 export const ONE_TOOL_WRITE_WITNESS = 'exit-cliff-write-witness.txt'
+export const WRITE_TOOL_WITNESS = 'one-tool-write-witness.txt'
+export const WRITE_TOOL_CONTENT = 'written by the scripted write tool\n'
 
 const oneToolCalls = new Map<OneToolScript, number>()
 
@@ -83,6 +86,11 @@ function oneToolUse(script: OneToolScript): { name: string; input: Record<string
           command: `printf ran > ${ONE_TOOL_WRITE_WITNESS}`,
           description: 'Write the side-effect witness',
         },
+      }
+    case 'tool-write':
+      return {
+        name: 'Write',
+        input: { file_path: join(getCwd(), WRITE_TOOL_WITNESS), content: WRITE_TOOL_CONTENT },
       }
   }
 }
