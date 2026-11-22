@@ -24,7 +24,6 @@ import {
 import { type JevEvalInput, type JevEvalInputSchema, type JevEvalKind, jevEvalInputSchema } from './jevEvalSchema.js'
 import { JEV_EVAL_DESCRIPTION, JEV_EVAL_PROMPT, JEV_EVAL_SEARCH_HINT } from './prompt.js'
 import { hostEnv } from '../../utils/hostEnv.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 interface JevEvalOutput {
   status: string
@@ -120,4 +119,77 @@ function jevEvalFilePaths(input: Pick<JevEvalInput, 'evidence'>): string[] {
   })
 }
 
-export const JevEvalTool: Unbuilt = unbuilt('src/tools/JevEvalTool/JevEvalTool.ts:122')
+export const JevEvalTool = buildTool({
+  name: JEV_EVAL_TOOL_NAME,
+  searchHint: JEV_EVAL_SEARCH_HINT,
+  shouldDefer: true,
+  maxResultSizeChars: JEV_EVAL_MAX_RESULT_CHARS,
+  capability: {
+    intents: [
+      'rank hypotheses against the evidence with a second opinion',
+      'get a probability on a yes/no judgement',
+      'make a qualitative call after the numbers are measured',
+      'check a proposal against recorded rulings',
+    ],
+    units: ['web-access'],
+    class: 'observation',
+    cancellation: 'cooperative',
+    latency: 'interactive',
+    conditions: ['JEV on: official key in /jev or OpenRouter key in /logins; crewmates on by default, off by choice in /jev'],
+    proof: 'scripts/jev/run-all.sh',
+  },
+  get inputSchema(): JevEvalInputSchema {
+    return jevEvalInputSchema()
+  },
+  isEnabled() {
+    return jevEvalEnabled()
+  },
+  isReadOnly() {
+    return true
+  },
+  isConcurrencySafe() {
+    return true
+  },
+  isOpenWorld() {
+    return true
+  },
+  interruptBehavior() {
+    return 'cancel' as const
+  },
+  async checkPermissions(input, context) {
+    const permissionContext = context.getAppState().toolPermissionContext
+    for (const path of jevEvalFilePaths(input)) {
+      const decision = checkReadPermissionForTool({ name: JEV_EVAL_TOOL_NAME, getPath: () => path }, input, permissionContext)
+      if (decision.behavior !== 'allow') return decision
+    }
+    return { behavior: 'allow', updatedInput: input }
+  },
+  async description() {
+    return JEV_EVAL_DESCRIPTION
+  },
+  async prompt() {
+    return JEV_EVAL_PROMPT
+  },
+  userFacingName() {
+    return JEV_EVAL_TOOL_NAME
+  },
+  getActivityDescription(input) {
+    return typeof input?.goal === 'string' && input.goal !== '' ? `JevEval: ${input.goal}` : 'JevEval'
+  },
+  renderToolUseMessage(input) {
+    return typeof input?.goal === 'string' ? input.goal : ''
+  },
+  renderToolResultMessage(output: JevEvalOutput | undefined) {
+    return typeof output?.text === 'string' ? output.text : ''
+  },
+  mapToolResultToToolResultBlockParam(output: JevEvalOutput, toolUseID: string) {
+    return {
+      tool_use_id: toolUseID,
+      type: 'tool_result' as const,
+      content: output.text,
+    }
+  },
+  async call(input, context) {
+    return { data: await jevEvalCall(input, context.abortController.signal) }
+  },
+} satisfies ToolDef<JevEvalInputSchema, JevEvalOutput>)

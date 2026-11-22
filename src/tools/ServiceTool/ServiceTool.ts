@@ -42,7 +42,6 @@ import {
   renderToolUseErrorMessage,
   renderToolUseMessage,
 } from './UI.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export const SERVICE_TOOL_NAME = 'Service' as const
 
@@ -311,4 +310,124 @@ function startedUnderEnvironment(started: string, env: Record<string, string> | 
   return readings
 }
 
-export const ServiceTool: Unbuilt = unbuilt('src/tools/ServiceTool/ServiceTool.ts:314')
+export const ServiceTool = buildTool({
+  shouldDefer: true,
+  name: SERVICE_TOOL_NAME,
+  shellCommandOf: shellTextOf,
+  searchHint: 'manage long-running project processes, their readiness, logs and input',
+  searchKeywords: ['services', 'start', 'observe', 'wait', 'stop', 'long-lived', 'web servers', 'watch builds', 'local APIs'],
+  maxResultSizeChars: 100_000,
+  strict: true,
+  straightQuoteInputs: ['command', 'cwd'],
+  isEnabled() {
+    return servicesEnabled()
+  },
+  async description() {
+    return 'Run and observe named long-lived project processes with readiness + cursored logs'
+  },
+  async prompt() {
+    return 'Manage named long-running project processes and their readiness, logs and input. Returns current state and cursored output from one ordered stdout/stderr log; wait reports readiness or unmet conditions.'
+  },
+  userFacingName() {
+    return 'Service'
+  },
+  getToolUseSummary(input?: Partial<Input>) {
+    if (!input?.op) return null
+    return `${input.op}${input.name ? ` ${input.name}` : ''}`
+  },
+  isReadOnly(input: Input) {
+    return !MUTATING_OPS.has(input.op)
+  },
+  isConcurrencySafe(input: Input) {
+    return !MUTATING_OPS.has(input.op)
+  },
+  async checkPermissions(input: Input, context: ToolUseContext) {
+    if (input.op === 'start' || input.op === 'restart') {
+      const own = {
+        behavior: 'ask' as const,
+        message: `Service ${input.op}: ${input.name ?? '?'}${input.command ? ` — ${input.command} ${(input.args ?? []).join(' ')}` : ''}`,
+      }
+      const started = input.op === 'start' ? startedCommandText(input.command, input.args) : undefined
+      if (started === undefined) return own
+      const readings = [started, ...startedUnderEnvironment(started, input.env)]
+      return startedCommandVerdict(readings.map(command => (input.cwd === undefined ? { command } : { command, cwd: input.cwd })), context, own)
+    }
+    if (input.op === 'input') {
+      const own = {
+        behavior: 'ask' as const,
+        message: `Service input → ${input.name ?? '?'}: ${input.mode === 'eof' ? '(end of input)' : (input.text?.slice(0, 80) ?? '')}`,
+      }
+      if (input.mode === 'eof' || input.text === undefined || input.text.trim() === '') return own
+      const record = input.name === undefined ? null : readRecord(getOriginalCwd(), input.name)
+      const folder = record?.spec.cwd
+      const shell = record === null || startedProgramIsShell(record.spec.command, record.spec.args)
+      const code = shell ? null : await evalCodePermission(input.text, folder ?? getCwd())
+      if (code !== null) return code
+      const sent = input.name === undefined ? input.text : await serviceInputAsSent(serviceInputKey(getOriginalCwd(), input.name), input.text, runOf(record))
+      const readings = [...new Set([input.text, sent])].flatMap(text => [text, ...startedUnderEnvironment(text, record?.spec.env)])
+      return startedCommandVerdict(readings.map(command => (folder === undefined ? { command } : { command, cwd: folder })), context, own, shell)
+    }
+    return { behavior: 'allow' as const, updatedInput: input }
+  },
+  async validateInput(input: Input) {
+    if (input.op !== 'list' && !input.name) {
+      return { result: false as const, message: `${input.op} requires name`, errorCode: 1 }
+    }
+    if (input.op === 'start' && !input.command) {
+      return { result: false as const, message: 'start requires command', errorCode: 1 }
+    }
+    if (input.op === 'input' && input.text === undefined && input.mode !== 'eof') {
+      return { result: false as const, message: 'input requires text', errorCode: 1 }
+    }
+    return { result: true as const }
+  },
+  get inputSchema(): SchemaType {
+    return inputSchema()
+  },
+  renderToolUseMessage,
+  renderToolUseErrorMessage,
+  renderToolResultMessage,
+  extractSearchText({ result }) {
+    return result
+  },
+  async call(input: Input, context: ToolUseContext) {
+    const startedAt = Date.now()
+    const sessionId = String(getSessionId())
+    let output: Output
+    try {
+      output = await runOp(input, sessionId, ownerFromToolUseContext(context))
+    } catch (err) {
+      output = { op: input.op, result: `${input.op} failed: ${(err as Error).message}` }
+    }
+    const failed =
+      /^(start|wait|stop|restart|input) (failed|needs)/.test(output.result) ||
+      output.state === 'failed' ||
+      output.state === 'absent' ||
+      /did NOT become ready|already .* — stop or restart|no service '/.test(output.result)
+    return {
+      data: output,
+      effect: {
+        outcome: MUTATING_OPS.has(input.op)
+          ? failed
+            ? ('failed' as const)
+            : ('succeeded' as const)
+          : failed
+            ? ('no-change' as const)
+            : ('succeeded' as const),
+        operation: `service.${input.op}`,
+        changedPaths: [],
+        evidence: output.result.split('\n')[0]?.slice(0, 160) ?? '',
+        startedAt,
+        completedAt: Date.now(),
+        ...(output.name ? { details: { name: output.name, state: output.state } } : {}),
+      },
+    }
+  },
+  mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
+    return {
+      tool_use_id: toolUseId,
+      type: 'tool_result' as const,
+      content: output.result,
+    }
+  },
+})

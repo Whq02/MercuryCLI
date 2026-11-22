@@ -6,7 +6,6 @@ import type { FileStateCache } from '../../utils/fileStateCache.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
 import type { ContentReplacementState } from '../../utils/toolResultStorage.js'
 import type { ConversationConfig } from '../turn.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 function conversationOptions(config: ConversationConfig, model: string, thinkingConfig: ThinkingConfig): ToolUseContext['options'] {
   return {
@@ -41,6 +40,37 @@ interface ContextNeeds {
   loadedNestedMemoryPaths: Set<string>
 }
 
-export function contextBuilder(arg0: ContextNeeds): Unbuilt {
-  return notBuilt('src/rows/turn/context.ts:43')
+export function contextBuilder({ config, thinkingConfig, turnId, abortController, readFileState, contentReplacementState, discoveredSkillNames, loadedNestedMemoryPaths }: ContextNeeds) {
+  const buildContext = (messages: Message[], model: string): ToolUseContext => ({
+    options: conversationOptions(config, model, thinkingConfig),
+    startTurn: query,
+    abortController,
+    readFileState,
+    contentReplacementState,
+    getAppState: config.getAppState,
+    setAppState: config.setAppState,
+    messages,
+    setResponseLength: () => {},
+    setInProgressToolUseIDs: () => {},
+    callChain: { key: turnId, hop: 0 },
+    updateFileHistoryState: updater => {
+      config.setAppState(prev => {
+        const next = updater(prev.fileHistory)
+        return next === prev.fileHistory ? prev : { ...prev, fileHistory: next }
+      })
+    },
+    updateAttributionState: updater => {
+      config.setAppState(prev => {
+        const next = updater(prev.attribution)
+        return next === prev.attribution ? prev : { ...prev, attribution: next }
+      })
+    },
+    handleElicitation: config.handleElicitation,
+    setSDKStatus: config.setSDKStatus,
+    discoveredSkillNames,
+    loadedNestedMemoryPaths,
+    nestedMemoryAttachmentTriggers: new Set<string>(),
+    dynamicSkillDirTriggers: new Set<string>(),
+  })
+  return buildContext
 }

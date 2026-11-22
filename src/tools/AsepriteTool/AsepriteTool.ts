@@ -27,7 +27,6 @@ import { ART_OPS, artAsk, artFields, artInputError, isArtOp, isArtRead, runArt, 
 import { getErrnoCode } from '../../utils/errors.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const OPS = ['status', 'info', 'export', 'create', 'run-script', ...ART_OPS] as const
 
@@ -399,4 +398,130 @@ function exportOptionsSummary(input: Input): string {
   return parts.join(', ')
 }
 
-export const AsepriteTool: Unbuilt = unbuilt('src/tools/AsepriteTool/AsepriteTool.ts:402')
+export const AsepriteTool = buildTool({
+  name: ASEPRITE_TOOL_NAME,
+  get searchHint() {
+    return 'Aseprite pixel art batch control: sprite census (layers tags frames slices), export png gif webp, sprite sheet texture atlas with json metadata, tileset, scale resize, new sprite creation, lua scripting, animation frames, ase aseprite files, draw pixel line rectangle ellipse circle flood fill, named parts groups, render back image preview, palette check colours'
+  },
+  capability: {
+    intents: [
+      'inspect an aseprite sprite: layers, tags, frames, size',
+      'export a sprite or animation to png or gif',
+      'build a sprite sheet with json metadata for a game engine',
+      'create a new pixel art sprite file',
+      'run a lua script against a sprite in aseprite',
+      'check which aseprite mercury can drive and its version',
+    ],
+    units: ['pixel-art'],
+    class: 'mutation',
+    operations: [...OPS],
+    evidence: ['artifact'],
+    cancellation: 'kill',
+    latency: 'interactive',
+    gate: 'MERCURY_ASEPRITE',
+    conditions: ['the aseprite binary located (pin > PATH > app bundle > Steam > win32 installer/itch)'],
+    proof: 'scripts/aseprite/run-all.sh',
+  },
+  maxResultSizeChars: 100_000,
+  async description() {
+    return 'Drive the local Aseprite in batch mode: sprite census (layers/tags/frames), PNG/GIF/sprite-sheet exports with the real CLI options, new sprites, batched drawing, render-back images, named parts, palette checks, Lua scripts — never launches the GUI'
+  },
+  async prompt() {
+    return getAsepriteToolDescription()
+  },
+  userFacingName,
+  shouldDefer: true,
+  straightQuoteInputs: ['file', 'output', 'dataOutput'],
+  get inputSchema(): SchemaType {
+    return inputSchema()
+  },
+  isConcurrencySafe(input: Input) {
+    return input.op === 'status' || input.op === 'info' || isArtRead(input.op)
+  },
+  isReadOnly(input: Input) {
+    return input.op === 'status' || input.op === 'info' || isArtRead(input.op)
+  },
+  async checkPermissions(input: Input, context) {
+    if (isArtOp(input.op)) {
+      const error = artInputError(input)
+      if (error) return { behavior: 'deny' as const, message: error, decisionReason: { type: 'other' as const, reason: error } }
+    }
+    const permission = context?.getAppState?.().toolPermissionContext
+    if (permission !== undefined) {
+      for (const target of readTargets(input)) {
+        const read = checkReadPermissionForTool({ name: ASEPRITE_TOOL_NAME, getPath: () => target }, input, permission)
+        if (read.behavior === 'deny') return read
+      }
+    }
+    if (isArtRead(input.op)) return { behavior: 'allow' as const, updatedInput: input }
+    if (isArtOp(input.op)) return { behavior: 'ask' as const, message: artAsk(input) }
+    if (input.op === 'status' || input.op === 'info') {
+      return { behavior: 'allow' as const, updatedInput: input }
+    }
+    if (input.op === 'export') {
+      const opts = exportOptionsSummary(input)
+      return {
+        behavior: 'ask' as const,
+        message: `Aseprite export: ${input.file ?? '(file missing)'} → ${input.output ?? '(output missing)'}${input.dataOutput ? ` + ${input.dataOutput}` : ''}${opts ? ` (${opts})` : ''} — writes the named file(s) inside the working tree; the result verifies the bytes landed`,
+      }
+    }
+    if (input.op === 'create') {
+      return {
+        behavior: 'ask' as const,
+        message: `Aseprite create: ${input.output ?? '(output missing)'} (${input.width ?? '?'}x${input.height ?? '?'} ${input.colorMode ?? 'rgb'}) — writes a new sprite file at the named destination`,
+      }
+    }
+    return {
+      behavior: 'ask' as const,
+      message:
+        `Aseprite exec: run-script (${sourceBytes(input.source)} bytes${input.file ? ` against ${input.file}` : ''}) — runs Lua in Aseprite's batch mode with the app's full script authority ` +
+        `(it can modify sprites and write files as you; no sandbox beyond the bounded deadline). ` +
+        `first line: ${firstSourceLine(input.source) || '(empty)'}`,
+    }
+  },
+  async validateInput(input: Input) {
+    if (isArtOp(input.op)) {
+      const error = artInputError(input)
+      if (error) return { result: false as const, message: error, errorCode: 1 }
+    }
+    if (!input.op || String(input.op).trim().length === 0) {
+      return { result: false as const, message: 'op is required', errorCode: 1 }
+    }
+    return { result: true as const }
+  },
+  async call(input: Input, context) {
+    let result: string
+    try {
+      if (isArtOp(input.op)) {
+        const resolution = resolveAseprite()
+        if (resolution.state === 'ok') return { data: { op: input.op, ...await runArt(input, resolution.location.path, fencePath, context?.abortController?.signal) } }
+        result = `${input.op}: aseprite is unavailable — ${resolution.note}\n${ASEPRITE_INSTALL_REMEDY}`
+      } else result = await runOp(input, context?.getAppState?.().toolPermissionContext, context?.abortController?.signal)
+    } catch (err) {
+      result = `${input.op} failed: ${(err as Error).message}${isArtOp(input.op) ? '' : `\n${ASEPRITE_INSTALL_REMEDY}`}`
+    }
+    const output: Output = { op: input.op, result }
+    return { data: output }
+  },
+  mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
+    if (output.preview) return {
+      tool_use_id: toolUseId,
+      type: 'tool_result' as const,
+      content: [
+        { type: 'text' as const, text: output.result },
+        { type: 'image' as const, source: { type: 'base64' as const, media_type: 'image/png' as const, data: output.preview.base64 } },
+      ],
+    }
+    return {
+      tool_use_id: toolUseId,
+      type: 'tool_result' as const,
+      content: output.result,
+    }
+  },
+  renderToolUseMessage,
+  renderToolUseErrorMessage,
+  renderToolResultMessage,
+  extractSearchText({ result }) {
+    return result ?? ''
+  },
+})

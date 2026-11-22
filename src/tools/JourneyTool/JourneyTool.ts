@@ -17,7 +17,6 @@ import {
   renderToolUseMessage,
   userFacingName,
 } from './UI.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const OPS = ['run', 'status', 'list'] as const
 
@@ -170,4 +169,166 @@ function startedCommandsOf(input: unknown): string | undefined {
   return lines.length === 0 ? undefined : lines.join('\n')
 }
 
-export const JourneyTool: Unbuilt = unbuilt('src/tools/JourneyTool/JourneyTool.ts:173')
+export const JourneyTool = buildTool({
+  name: 'Journey',
+  shellCommandOf: startedCommandsOf,
+  searchHint: 'verify local applications with ordered checks and per-step evidence',
+  searchKeywords: ['run', 'application', 'end to end', 'start services', 'request', 'loopback HTTP', 'assert', 'status', 'body', 'logs', 'files', 'honest verdict'],
+  capability: {
+    intents: [
+      'start and verify a local application',
+      'run an end to end local verification journey',
+      'assert an http response from a local service',
+      'verify a cli command output and exit code',
+      'check service logs for an expected event',
+    ],
+    units: ['application-verification', 'service-management'],
+    class: 'execution',
+    operations: ['run', 'status', 'list'],
+    execution: { kind: 'journey', representation: 'full-execution-owner' },
+    evidence: ['check', 'execution'],
+    resources: ['journey', 'service', 'execution', 'evidence'],
+    cancellation: 'cooperative',
+    latency: 'long-running',
+    gate: 'MERCURY_JOURNEYS',
+    proof: 'scripts/builtin-tools/prove-journeys.ts',
+  },
+  maxResultSizeChars: 40_000,
+  async description() {
+    return 'Declarative local application-journey verification with per-step evidence and an honest verdict'
+  },
+  async prompt() {
+    return 'Run a local application check across services, HTTP, commands, files and diagnostics. Returns per-step evidence, cleanup outcome and a verdict; the first failure skips remaining steps.'
+  },
+  userFacingName,
+  shouldDefer: true,
+  get inputSchema(): SchemaType {
+    return inputSchema()
+  },
+  isEnabled() {
+    return journeysEnabled()
+  },
+  isConcurrencySafe(input: Input) {
+    return input?.op !== 'run'
+  },
+  isReadOnly(input: Input) {
+    return input?.op !== 'run'
+  },
+  interruptBehavior() {
+    return 'cancel' as const
+  },
+  async checkPermissions(input: Input, context: ToolUseContext) {
+    if (input.op !== 'run') {
+      return { behavior: 'allow' as const, updatedInput: input }
+    }
+    const kinds = [...new Set((input.steps ?? []).map(s => s.kind))].join(', ')
+    const message = `Journey run: ${input.objective?.slice(0, 80) ?? ''} (${input.steps?.length ?? 0} step(s): ${kinds} — runs local services/commands, loopback only)`
+    const own = { behavior: 'passthrough' as const, message, decisionReason: { type: 'other' as const, reason: message } }
+    const started = (input.steps ?? []).flatMap(step => {
+      if (step.kind !== 'command.run' && step.kind !== 'service.start') return []
+      const command = startedCommandText(step.command, step.args)
+      if (command === undefined) return []
+      return [step.kind === 'command.run' && step.cwd !== undefined ? { command, cwd: step.cwd } : { command }]
+    })
+    return started.length === 0 ? own : startedCommandVerdict(started, context, own)
+  },
+  async validateInput(input: Input) {
+    if (!journeysEnabled()) {
+      return { result: false as const, message: 'journeys are disabled (MERCURY_JOURNEYS=0)', errorCode: 1 }
+    }
+    if (input.op === 'run') {
+      if (!input.objective || !input.steps?.length) {
+        return { result: false as const, message: 'run requires objective + steps', errorCode: 1 }
+      }
+    }
+    if (input.op === 'status' && !input.id) {
+      return { result: false as const, message: 'status requires id (jy-…)', errorCode: 1 }
+    }
+    return { result: true as const }
+  },
+  async call(input: Input, context: ToolUseContext) {
+    const startedAt = Date.now()
+    const owner = ownerFromToolUseContext(context)
+    let result: string
+    let outcome: ToolEffectOutcome
+    let journeyState: string | undefined
+    try {
+      switch (input.op) {
+        case 'run': {
+          const spec: JourneySpec = {
+            objective: input.objective!,
+            steps: input.steps!,
+            ...(input.cleanup !== undefined && { cleanup: input.cleanup }),
+          }
+          const record = await runJourney(spec, {
+            owner,
+            root: getCwd(),
+            ...(context.abortController !== undefined && { signal: context.abortController.signal }),
+          })
+          journeyState = record.state
+          result = describeRecord(record)
+          outcome =
+            record.state === 'succeeded'
+              ? 'succeeded'
+              : record.state === 'cancelled'
+                ? 'no-change'
+                : 'failed'
+          break
+        }
+        case 'status': {
+          const record = getJourney(owner, input.id!)
+          if (!record) {
+            result = `no journey '${input.id}' in this conversation`
+            outcome = 'failed'
+            break
+          }
+          journeyState = record.state
+          result = describeRecord(record)
+          outcome = 'no-change'
+          break
+        }
+        case 'list': {
+          const rows = listJourneys(owner)
+          result = rows.length
+            ? rows.map(j => `${j.id} [${j.state}] ${j.objective.slice(0, 70)}`).join('\n')
+            : 'no recorded journeys'
+          outcome = 'no-change'
+          break
+        }
+      }
+    } catch (err) {
+      result = `${input.op} failed: ${(err as Error).message}`
+      outcome = 'failed'
+    }
+    const output: Output = {
+      op: input.op,
+      result: result!,
+      outcome: outcome!,
+      ...(journeyState !== undefined && { journeyState }),
+    }
+    return {
+      data: output,
+      effect: {
+        outcome: output.outcome,
+        operation: `journey.${input.op}`,
+        changedPaths: [],
+        evidence: output.result.split('\n')[0]?.slice(0, 160) ?? '',
+        startedAt,
+        completedAt: Date.now(),
+      },
+    }
+  },
+  mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
+    return {
+      tool_use_id: toolUseId,
+      type: 'tool_result' as const,
+      content: output.result,
+    }
+  },
+  renderToolUseMessage,
+  renderToolUseErrorMessage,
+  renderToolResultMessage,
+  extractSearchText({ result }) {
+    return result
+  },
+})

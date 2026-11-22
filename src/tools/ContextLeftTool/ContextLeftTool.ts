@@ -5,7 +5,6 @@ import { type ContextFillView, contextFillView } from '../../services/context/co
 import { lazySchema } from '../../utils/lazySchema.js'
 import { CONTEXT_LEFT_MAX_RESULT_CHARS, CONTEXT_LEFT_TOOL_NAME } from './constants.js'
 import { CONTEXT_LEFT_DESCRIPTION, CONTEXT_LEFT_PROMPT, CONTEXT_LEFT_SEARCH_HINT } from './prompt.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const inputSchema = lazySchema(() => z.strictObject({}))
 type InputSchema = ReturnType<typeof inputSchema>
@@ -99,4 +98,61 @@ export function contextLeftOutput(view: ContextFillView): ContextLeftOutput {
   }
 }
 
-export const ContextLeftTool: Unbuilt = unbuilt('src/tools/ContextLeftTool/ContextLeftTool.ts:101')
+export const ContextLeftTool = buildTool({
+  name: CONTEXT_LEFT_TOOL_NAME,
+  searchHint: CONTEXT_LEFT_SEARCH_HINT,
+  shouldDefer: true,
+  maxResultSizeChars: CONTEXT_LEFT_MAX_RESULT_CHARS,
+  capability: {
+    intents: [
+      'ask how full the context window is',
+      'check the tokens left before the fold',
+      'budget a large read or edit against the context window',
+    ],
+    units: ['resource-inspection'],
+    class: 'observation',
+    cancellation: 'not-applicable',
+    latency: 'fast',
+    proof: 'scripts/tools/prove-context-left-tool.ts',
+  },
+  get inputSchema(): InputSchema {
+    return inputSchema()
+  },
+  isReadOnly() {
+    return true
+  },
+  isConcurrencySafe() {
+    return true
+  },
+  async checkPermissions(input) {
+    return { behavior: 'allow' as const, updatedInput: input }
+  },
+  async description() {
+    return CONTEXT_LEFT_DESCRIPTION
+  },
+  async prompt() {
+    return CONTEXT_LEFT_PROMPT
+  },
+  getActivityDescription() {
+    return 'Measuring the context window'
+  },
+  renderToolUseMessage() {
+    return null
+  },
+  renderToolResultMessage(output: ContextLeftOutput | undefined) {
+    return typeof output?.text === 'string' ? output.text : ''
+  },
+  extractSearchText(output: ContextLeftOutput) {
+    return typeof output?.text === 'string' ? output.text : ''
+  },
+  mapToolResultToToolResultBlockParam(output: ContextLeftOutput, toolUseID: string) {
+    return {
+      tool_use_id: toolUseID,
+      type: 'tool_result' as const,
+      content: output.text,
+    }
+  },
+  async call(_input, context: ToolUseContext) {
+    return { data: contextLeftOutput(contextFillView(context.messages, context.options.engineModel)) }
+  },
+} satisfies ToolDef<InputSchema, ContextLeftOutput>)

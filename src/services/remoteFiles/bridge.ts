@@ -55,7 +55,6 @@ import {
   type RemoteTarget,
 } from '../../utils/remoteFiles/target.js'
 import { passedOverAs } from '../../utils/passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
 
 type ToolType = 'read' | 'edit'
 
@@ -74,7 +73,17 @@ const REMOTE_RULE = /\(\s*ssh:\/\//i
 const READ_RULE_TOOLS: ReadonlySet<string> = new Set(['Glob', 'NotebookRead', 'Read'])
 
 function remoteRulePatterns(rules: ToolPermissionContext): string[] {
-  return notBuilt('src/services/remoteFiles/bridge.ts:75')
+  const patterns: string[] = []
+  for (const bySource of [rules.alwaysAllowRules, rules.alwaysDenyRules, rules.alwaysAskRules]) {
+    for (const list of Object.values(bySource ?? {})) {
+      for (const rule of list ?? []) {
+        if (!REMOTE_RULE.test(rule)) continue
+        const content = permissionRuleValueFromString(rule).ruleContent
+        if (content !== undefined) patterns.push(...expandRuleBraces(content, true))
+      }
+    }
+  }
+  return patterns
 }
 
 async function resolveNames(rules: ToolPermissionContext, authority: RemoteAuthority, signal: AbortSignal | undefined): Promise<void> {
@@ -214,7 +223,12 @@ async function gate(
 }
 
 function narrowedTo(rules: ToolPermissionContext): ToolPermissionContext | null {
-  return notBuilt('src/services/remoteFiles/bridge.ts:225')
+  const narrowing = rules.alwaysAllowRules.toolsNarrowing ?? []
+  const reads = narrowing.some(rule => {
+    const value = permissionRuleValueFromString(rule)
+    return value.ruleContent !== undefined && READ_RULE_TOOLS.has(value.toolName)
+  })
+  return reads ? { ...rules, alwaysAllowRules: { toolsNarrowing: narrowing } } : null
 }
 
 function remoteReadFilter(rules: ToolPermissionContext, here: boolean): (forms: readonly string[]) => boolean {

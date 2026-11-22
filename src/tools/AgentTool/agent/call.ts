@@ -439,7 +439,28 @@ function asyncLifecycleOf({ earlyAgentId, input, rootSetAppState, agentDef, plan
 }
 
 function asyncLaunchAnswerOf(options: ToolUseContext['options'], earlyAgentId: AgentId, input: AgentToolInput, plan: AgentLaunchPlan, agentDef: AgentDefinition, modelNote?: string): { data: AgentToolOutput } {
-  return notBuilt('src/tools/AgentTool/agent/call.ts:517')
+  const canReadOutputFile = options.tools.some(
+    tool =>
+      toolMatchesName(tool, FILE_READ_TOOL_NAME) ||
+      toolMatchesName(tool, BASH_TOOL_NAME),
+  )
+  return {
+    data: {
+      isAsync: true as const,
+      status: 'async_launched' as const,
+      agentId: earlyAgentId,
+      description: input.description,
+      prompt: input.prompt,
+      outputFile: getTaskOutputPath(earlyAgentId),
+      canReadOutputFile,
+      ...(modelNote ? { modelNote } : {}),
+      ...(input.name ? { agentName: input.name } : {}),
+      ...(input.run_in_background === false && agentDef.background === true
+        ? { backgroundReason: 'agent-type' as const }
+        : {}),
+      runtimeRef: describeAgentRuntimeRef(plan.model),
+    },
+  }
 }
 
 async function buildDefaultSystemPrompt(

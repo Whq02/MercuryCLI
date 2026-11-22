@@ -55,7 +55,6 @@ import {
 } from './debug/inspect.js'
 import { disassembleOp, readMemoryOp, setVariableOp, writeMemoryOp } from './debug/memory.js'
 import { customRequestOp, disconnectOp, stepOp } from './debug/control.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 export type { Input, OpResult, Output } from './debug/schema.js'
 
 const INSPECT_OPS = new Set<Input['op']>([
@@ -627,4 +626,178 @@ function textsTheDebuggeeRuns(input: unknown): string[] {
   return texts
 }
 
-export const DebugTool: Unbuilt = unbuilt('src/tools/DebugTool/DebugTool.ts:629')
+export const DebugTool = buildTool({
+  name: DEBUG_TOOL_NAME,
+  keepEmptyInputs: ['lines', 'breakpoints', 'functions', 'dataBreakpoints', 'instructionBreakpoints'],
+  straightQuoteInputs: ['program', 'file', 'expression', 'name', 'value', 'text', 'functions'],
+  searchHint: 'drive a real debugger over DAP: launch or attach, breakpoints, stepping, stacks, variables, memory',
+  get searchKeywords() {
+    return [
+      'debugger', 'DAP', 'launch', 'attach', 'breakpoints', 'conditional', 'hit-count', 'logpoints', 'function breakpoints', 'data breakpoints', 'instruction breakpoints',
+      'stepping', 'stack traces', 'scopes', 'variables', 'evaluate', 'disassemble', 'readMemory', 'writeMemory', 'restart', 'python', 'debugpy', 'native', 'lldb',
+      ...(gdbProbeFromMemo().viable ? ['gdb'] : []),
+      ...(mercuryGodotEnabled() ? ['godot', 'godot editor'] : []),
+    ]
+  },
+  maxResultSizeChars: 100_000,
+  async description() {
+    return 'Drive a real debugger over DAP: breakpoints, stepping, stacks, scopes, variables, evaluate'
+  },
+  wireDescription() {
+    return DEBUG_WIRE_DESCRIPTION
+  },
+  async prompt() {
+    return getDebugToolDescription()
+  },
+  userFacingName,
+  shouldDefer: true,
+  shellCommandOf: (input: unknown) => {
+    const call = input as Partial<Input> | null
+    return call?.op === 'launch' ? startedCommandText(call.program, call.args) : undefined
+  },
+  get inputSchema(): SchemaType {
+    return inputSchema()
+  },
+  isConcurrencySafe() {
+    return false
+  },
+  isReadOnly(input: Input) {
+    return INSPECT_OPS.has(input.op)
+  },
+  async checkPermissions(input: Input, context: ToolUseContext) {
+    const approvalNeeded = (message: string) => ({ behavior: 'passthrough' as const, message, decisionReason: { type: 'other' as const, reason: message } })
+    if (input.op === 'launch') {
+      const own = approvalNeeded(`Debug launch: ${input.program ?? '?'}${input.args?.length ? ` ${input.args.join(' ')}` : ''} (adapter ${input.adapter ?? inferAdapter(input.program ?? '')})`)
+      const started = startedCommandText(input.program, input.args)
+      return started === undefined ? own : startedCommandVerdict([{ command: started }], context, own)
+    }
+    if (input.op === 'attach') {
+      const ownProcess = input.pid === undefined ? null : await runtimeProcessRefusal([['kill', String(input.pid)]])
+      const named = path.basename(input.program ?? '')
+      const ownImage = ownProcess !== null || named === '' ? null : await runtimeProcessRefusal([['killall', named]])
+      if (ownProcess !== null || ownImage !== null) {
+        const message = `Debug attach to ${ownProcess !== null ? `pid ${input.pid}` : input.program} is refused: it is Mercury’s own process or daemon.`
+        return { behavior: 'deny' as const, message, decisionReason: { type: 'other' as const, reason: message } }
+      }
+      const target =
+        input.program ??
+        (input.pid !== undefined
+          ? `pid ${input.pid}`
+          : input.port !== undefined
+            ? `${input.host ?? '127.0.0.1'}:${input.port}`
+            : '?')
+      const adapter =
+        input.adapter ??
+        (input.program ? inferAdapter(input.program) : input.port !== undefined ? 'python' : 'lldb')
+      return approvalNeeded(`Debug attach: ${target} (adapter ${adapter})`)
+    }
+    const own = input.op === 'customRequest' ? approvalNeeded(`Debug custom request: ${input.method ?? '?'}${input.body ? ` ${input.body.slice(0, 120)}` : ''}`) : null
+    let held: PermissionResult | null = null
+    for (const text of textsTheDebuggeeRuns(input.op === 'customRequest' ? customRequestArguments(input.body) : input)) {
+      const floor = await evalCodePermission(text, getCwd())
+      if (floor !== null) return floor
+      const command = debuggerShellCommand(text)
+      if (command === undefined) {
+        const console = /^\s*`?\s*!\s*(?=\S)([\s\S]+)$/.exec(text)?.[1]
+        const refused = console === undefined ? null : await startedCommandVerdict([{ command: console }], context, approvalNeeded(text), false)
+        if (refused?.behavior === 'deny') return refused
+        continue
+      }
+      const verdict = await startedCommandVerdict([{ command }], context, approvalNeeded(`Debug ${input.op} runs a shell command: ${command.slice(0, 120)}`))
+      if (verdict.behavior === 'deny') return verdict
+      held ??= verdict
+    }
+    return held ?? own ?? { behavior: 'allow' as const, updatedInput: input }
+  },
+  async validateInput(input: Input) {
+    if (input.op === 'launch' && !input.program) {
+      return { result: false as const, message: 'launch requires program', errorCode: 1 }
+    }
+    if (input.op === 'attach' && !input.program && input.pid === undefined && input.port === undefined) {
+      return { result: false as const, message: 'attach requires pid, port, or program', errorCode: 1 }
+    }
+    if (input.op === 'customRequest' && !input.method) {
+      return { result: false as const, message: 'customRequest requires method', errorCode: 1 }
+    }
+    if (input.op === 'breakpoints' && (!input.file || (input.lines === undefined && input.breakpoints === undefined))) {
+      return { result: false as const, message: 'breakpoints requires file + lines (or the rich breakpoints array); an empty array clears the file\'s breakpoints', errorCode: 1 }
+    }
+    if (input.op === 'functionBreakpoints' && !input.functions) {
+      return { result: false as const, message: 'functionBreakpoints requires functions (empty array clears)', errorCode: 1 }
+    }
+    if ((input.op === 'disassemble' || input.op === 'readMemory') && !input.memoryReference) {
+      return { result: false as const, message: `${input.op} requires memoryReference (a stack frame's [ip …])`, errorCode: 1 }
+    }
+    if (input.op === 'dataBreakpoints' && !input.dataBreakpoints) {
+      return { result: false as const, message: 'dataBreakpoints requires dataBreakpoints (empty array clears)', errorCode: 1 }
+    }
+    if (input.op === 'instructionBreakpoints' && !input.instructionBreakpoints) {
+      return { result: false as const, message: 'instructionBreakpoints requires instructionBreakpoints (empty array clears)', errorCode: 1 }
+    }
+    if (input.op === 'writeMemory' && (!input.memoryReference || input.data === undefined)) {
+      return { result: false as const, message: 'writeMemory requires memoryReference + data (base64)', errorCode: 1 }
+    }
+    if (input.op === 'evaluate' && !input.expression) {
+      return { result: false as const, message: 'evaluate requires expression', errorCode: 1 }
+    }
+    if (input.op === 'variables' && input.variablesReference === undefined) {
+      return { result: false as const, message: 'variables requires variablesReference', errorCode: 1 }
+    }
+    return { result: true as const }
+  },
+  async call(input: Input, context: ToolUseContext, canUseTool?: CanUseToolFn, assistantMessage?: AssistantMessage) {
+    const owner = ownerFromToolUseContext(context)
+    const startedAt = Date.now()
+    let op: OpResult
+    const signal = context.abortController?.signal
+    const terminalRunner = createDapTerminalRunner(context, canUseTool, assistantMessage)
+    try {
+      if (input.op === 'launch') {
+        const adapter = input.adapter ?? inferAdapter(input.program ?? '')
+        if (!resolveAdapter(adapter)) await provisionDebugAdapter(adapter, DebugTool, input, context, canUseTool, assistantMessage)
+      }
+      const session = getDapSession(owner, input.session ?? 'main')
+      session?.setTerminalRunner(terminalRunner)
+      const run = () => runOp(input, owner, signal, terminalRunner)
+      op = session ? await session.withOperation(signal, run) : await run()
+      throwIfDapAborted(signal)
+    } catch (err) {
+      op = signal?.aborted || err instanceof DapCancelledError
+        ? { result: `${input.op} cancelled; a started debuggee may still be running — op:"status" to inspect, op:"disconnect" to end it`, outcome: 'failed', details: { cancelled: true } }
+        : { result: `${input.op} failed: ${(err as Error).message}`, outcome: 'failed' }
+    }
+    const output: Output = {
+      op: input.op,
+      result: op.result,
+      outcome: op.outcome,
+      ...(op.debuggee ? { debuggee: op.debuggee } : {}),
+    }
+    return {
+      data: output,
+      effect: {
+        outcome: op.outcome,
+        operation: `debug.${input.op}`,
+        changedPaths: [],
+        evidence: op.result.split('\n')[0]?.slice(0, 160) ?? '',
+        startedAt,
+        completedAt: Date.now(),
+        ...(op.details || op.debuggee
+          ? { details: { ...(op.details ?? {}), ...(op.debuggee ? { debuggee: op.debuggee } : {}) } }
+          : {}),
+      },
+    }
+  },
+  mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
+    return {
+      tool_use_id: toolUseId,
+      type: 'tool_result' as const,
+      content: output.result,
+    }
+  },
+  renderToolUseMessage,
+  renderToolUseErrorMessage,
+  renderToolResultMessage,
+  extractSearchText({ result }) {
+    return result ?? ''
+  },
+})

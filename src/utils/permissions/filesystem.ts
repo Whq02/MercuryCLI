@@ -537,7 +537,22 @@ function rulesForToolAndBehavior(
   toolName: string,
   behavior: 'allow' | 'deny' | 'ask',
 ): Map<string, PermissionRule> {
-  return notBuilt('src/utils/permissions/filesystem.ts:576')
+  const map = new Map<string, PermissionRule>()
+  const key = behavior === 'allow' ? 'alwaysAllowRules' : behavior === 'deny' ? 'alwaysDenyRules' : 'alwaysAskRules'
+  const bySource = context[key] ?? {}
+  for (const [source, rules] of Object.entries(bySource)) {
+    for (const ruleString of rules ?? []) {
+      const parsed = permissionRuleValueFromString(ruleString)
+      if (parsed.toolName !== toolName || parsed.ruleContent === undefined) continue
+      const rule = {
+        source: source as PermissionRule['source'],
+        ruleBehavior: behavior,
+        ruleValue: parsed,
+      }
+      for (const pattern of expandRuleBraces(parsed.ruleContent, behavior !== 'allow')) map.set(pattern, rule)
+    }
+  }
+  return map
 }
 
 export function rootForPattern(

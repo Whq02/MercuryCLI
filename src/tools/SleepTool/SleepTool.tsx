@@ -11,7 +11,6 @@ import { DESCRIPTION, SLEEP_TOOL_NAME, SLEEP_TOOL_PROMPT } from './prompt.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { pollUntil } from '../../utils/deadline.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const MAX_SLEEP_SECONDS = 3600
 const MIN_SLEEP_SECONDS = 1
@@ -88,4 +87,146 @@ const outputSchema = lazySchema(() =>
 type OutputSchema = ReturnType<typeof outputSchema>
 type Output = z.infer<OutputSchema>
 
-export const SleepTool: Unbuilt = unbuilt('src/tools/SleepTool/SleepTool.tsx:90')
+export const SleepTool = buildTool({
+  shouldDefer: true,
+  name: SLEEP_TOOL_NAME,
+  searchHint: 'wait for a number of seconds without holding a shell',
+  searchKeywords: ['wait', 'pause', 'rest', 'sleep', 'duration', 'delay'],
+  maxResultSizeChars: 10_000,
+  userFacingName: () => 'Sleep',
+  get inputSchema(): InputSchema {
+    return inputSchema()
+  },
+  get outputSchema(): OutputSchema {
+    return outputSchema()
+  },
+  isConcurrencySafe() {
+    return true
+  },
+  isReadOnly() {
+    return true
+  },
+  async description() {
+    return DESCRIPTION
+  },
+  async prompt() {
+    return SLEEP_TOOL_PROMPT
+  },
+  getActivityDescription(input) {
+    const wait = paintedWait(input?.seconds)
+    return wait === null ? 'Sleeping' : `Sleeping for ${wait}`
+  },
+  renderToolUseMessage(input) {
+    return paintedWait(input?.seconds) ?? ''
+  },
+  renderToolResultMessage(output) {
+    return (
+      <Text color={output.interrupted ? 'warning' : undefined} dimColor={!output.interrupted}>
+        {output.message}
+      </Text>
+    )
+  },
+  mapToolResultToToolResultBlockParam(output, toolUseID) {
+    return {
+      tool_use_id: toolUseID,
+      type: 'tool_result',
+      content: jsonStringify(output),
+    }
+  },
+  async call({ seconds }, { abortController, getAppState, agentId }) {
+    const { flagEnv } = await import('../../substrate/flagRegistry.js')
+    const { NEW_INPUT_REASON, watchForNewInput } = await import('../../utils/newInputWatch.js')
+    if (flagEnv('MERCURY_CONCOURSE_WORKER') === '1' && seconds > 300) {
+      throw new Error(
+        'refused: this background session must not hold its turn open — ending the turn IS idling here; the switchboard wakes it on the next delivery. Use waits under 300s only for real short backoffs.',
+      )
+    }
+    const wait = clampWait('seconds', seconds, MIN_SLEEP_SECONDS, MAX_SLEEP_SECONDS, 's')
+    const ms = wait.value * 1000
+    const start = Date.now()
+    let interrupted = false
+    let armed = countTrackedRunningAgents(getAppState, agentId) > 0
+    let newInput = false
+    await new Promise<void>(resolve => {
+      const signal = abortController.signal
+      const watchAbort = new AbortController()
+      let stopWatch: (() => void) | undefined
+      const cleanup = (): void => {
+        stopTimeout(timer)
+        watchAbort.abort()
+        stopWatch?.()
+        signal.removeEventListener('abort', onAbort)
+      }
+      const onAbort = (): void => {
+        interrupted = true
+        cleanup()
+        resolve()
+      }
+      const onNewInput = (): void => {
+        interrupted = true
+        newInput = true
+        cleanup()
+        resolve()
+      }
+      const timer = startTimeout(() => {
+        cleanup()
+        resolve()
+      }, ms)
+      if (signal.aborted) {
+        interrupted = true
+        cleanup()
+        resolve()
+        return
+      }
+      signal.addEventListener('abort', onAbort)
+      stopWatch = watchForNewInput(agentId, onNewInput)
+      let tick = 0
+      void pollUntil<boolean, boolean, boolean>(
+        () => {
+          if (tick === 0) {
+            tick++
+            return undefined
+          }
+          if (!armed) {
+            if (tick > TRACKED_ARM_GRACE_TICKS) return false
+            armed = countTrackedRunningAgents(getAppState, agentId) > 0
+            if (!armed) {
+              tick++
+              return undefined
+            }
+          }
+          if (countTrackedRunningAgents(getAppState, agentId) === 0) {
+            cleanup()
+            resolve()
+            return true
+          }
+          tick++
+          return undefined
+        },
+        TRACKED_SETTLE_POLL_MS,
+        Infinity,
+        () => false,
+        { signal: watchAbort.signal, onAbort: () => false, unref: true },
+      )
+    })
+    const sleptSeconds = Math.round((Date.now() - start) / 1000)
+    const settledEarly =
+      armed && !interrupted && Date.now() - start < ms - TRACKED_SETTLE_POLL_MS
+    return {
+      data: {
+        message: interrupted
+          ? newInput
+            ? `Sleep interrupted after ${sleptSeconds}s: ${NEW_INPUT_REASON}`
+            : `Sleep interrupted after ${sleptSeconds}s`
+          : settledEarly
+            ? `Returned after ${sleptSeconds}s — the tracked work you were waiting on finished. ` +
+              'Mercury tracks crewmate tasks and your own background commands for you; their completion arrives on its own, so a wait ' +
+              'never needs to run its full duration to poll one.'
+            : `Slept for ${sleptSeconds}s`,
+        slept_seconds: sleptSeconds,
+        interrupted,
+        ...(wait.clause !== null ? { clamped: wait.clause } : {}),
+      },
+    }
+  },
+} satisfies ToolDef<InputSchema, Output>)

@@ -28,7 +28,6 @@ import {
 } from './UI.js'
 import { errorMessage } from '../../utils/errors.js'
 import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const inputSchema = () => {
   return z.strictObject({
@@ -94,7 +93,206 @@ function screenshotImageOf(
   }
 }
 
-const evalToolDef: Unbuilt = unbuilt('src/tools/EvalTool/EvalTool.ts:97')
+const evalToolDef = buildTool({
+  name: EVAL_TOOL_NAME,
+  searchHint: 'run python or javascript in a persistent kernel with tool re-entry and samples',
+  maxResultSizeChars: 80_000,
+  get inputSchema(): InputSchema {
+    return inputSchema()
+  },
+  isEnabled() {
+    if (!evalEnabled()) return false
+    return evalAvailability(getCwd()).some(a => a.available)
+  },
+  isConcurrencySafe() {
+    return false
+  },
+  isReadOnly() {
+    return false
+  },
+  isDestructive() {
+    return false
+  },
+  async checkPermissions(input: EvalToolInput) {
+    const floor = await evalCodePermission(input.code, getCwd())
+    if (floor) return floor
+    const message = `Run a ${input.language} cell${input.title ? ` — ${input.title}` : ''}`
+    return { behavior: 'passthrough' as const, message, decisionReason: { type: 'other' as const, reason: message } }
+  },
+  async preparePermissionMatcher(input: EvalToolInput) {
+    return (rulePattern: string) => rulePattern === '*' || rulePattern === input.language
+  },
+  async description() {
+    return EVAL_DESCRIPTION
+  },
+  async prompt(options) {
+    return buildEvalPrompt(options?.tools)
+  },
+  wireDescription(fullPrompt: string) {
+    const languages = fullPrompt.split('Languages in this session:\n')[1]?.split('\n\n')[0] ?? ''
+    const samples = fullPrompt.includes(SAMPLE_PROMPT_LINES[0]!) ? ' With Samples on in this session, `sample()` in a cell publishes a versioned page to the operator\'s browser, listed under /samples: the road when the operator asks to see a sample, page, mockup or report.' : ''
+    return `Runs one code cell in a retained Python or JavaScript runtime and returns its value, output and errors. State is kept per agent, language and working directory, and reaped after ${EVAL_IDLE_TTL_MS / 60_000} minutes idle; cells in one message run in order. Helpers inside a cell call session tools, launch a crewmate, run a model completion, read and write files and display rich output; their signatures arrive on first use.${samples}
+${languages}`
+  },
+  getActivityDescription(input?: Partial<EvalToolInput>) {
+    return input?.language ? `Running a ${input.language} cell` : 'Running an eval cell'
+  },
+  async call(input: EvalToolInput, context: ToolUseContext, canUseTool, _parent, onProgress) {
+    const toolUseId = context.toolUseId ?? 'eval'
+    const owner = String(ownerFromToolUseContext(context))
+    const cwd = getCwd()
+
+    const cellAbort = new AbortController()
+    const onSessionAbort = (): void => cellAbort.abort()
+    context.abortController.signal.addEventListener('abort', onSessionAbort, { once: true })
+
+    const emit = (data: EvalToolProgress): void => {
+      onProgress?.({ toolUseID: toolUseId, data })
+    }
+    let screenshot: BridgeScreenshot | undefined
+    const bridgeCalls = new Map<string, { started: number; elapsed?: number }>()
+    const serveBridge = makeEvalBridgeServer({
+      owner: ownerFromToolUseContext(context),
+      context,
+      canUseTool,
+      cellAbort,
+      onNested: message => {
+        const now = performance.now()
+        const blocks = message.message.content
+        if (Array.isArray(blocks)) for (const block of blocks) {
+          if (block.type === 'tool_use' && !bridgeCalls.has(block.id)) bridgeCalls.set(block.id, { started: now })
+          if (block.type === 'tool_result') {
+            const call = bridgeCalls.get(block.tool_use_id)
+            if (call && call.elapsed === undefined) call.elapsed = now - call.started
+          }
+        }
+        emit({ type: 'eval_progress', kind: 'nested', message })
+      },
+      onScreenshot: captured => {
+        screenshot = captured
+      },
+    })
+
+    let pendingTail = ''
+    let pendingStream: 'stdout' | 'stderr' = 'stdout'
+    let lastEmit = 0
+    let flushTimer: ReturnType<typeof setTimeout> | null = null
+    let lastOutputLine = ''
+    const flushTail = (): void => {
+      if (!pendingTail) return
+      const tail = pendingTail.slice(-2_000)
+      lastOutputLine = tail.trimEnd().split('\n').at(-1) ?? ''
+      emit({
+        type: 'eval_progress',
+        kind: 'output',
+        stream: pendingStream,
+        tail,
+        language: input.language,
+        ...(input.title ? { title: input.title } : {}),
+      })
+      lastEmit = Date.now()
+      pendingTail = ''
+    }
+    let runningTimer: ReturnType<typeof setInterval> | null = null
+    const onCellStarted = ({ budgetMs }: { budgetMs: number | null }): void => {
+      const startedAt = Date.now()
+      const tick = (): void =>
+        emit({
+          type: 'eval_progress',
+          kind: 'running',
+          elapsedSeconds: Math.floor((Date.now() - startedAt) / 1000),
+          ...(budgetMs !== null ? { budgetMs } : {}),
+          ...(lastOutputLine !== '' ? { tail: lastOutputLine } : {}),
+          language: input.language,
+          ...(input.title ? { title: input.title } : {}),
+        })
+      tick()
+      runningTimer = startInterval(tick, RUNNING_TICK_MS)
+      runningTimer.unref?.()
+    }
+
+    try {
+      const outcome = await evalKernelManager.runCell({
+        owner,
+        cwd,
+        input: {
+          language: input.language,
+          code: input.code,
+          ...(input.title !== undefined ? { title: input.title } : {}),
+          ...(input.timeoutSeconds !== undefined ? { timeoutSeconds: input.timeoutSeconds } : {}),
+          ...(input.reset !== undefined ? { reset: input.reset } : {}),
+        },
+        abortSignal: context.abortController.signal,
+        serveBridge,
+        onCellStarted,
+        onLiveOutput: (stream, chunk) => {
+          pendingStream = stream
+          pendingTail += chunk
+          const now = Date.now()
+          if (now - lastEmit >= PROGRESS_THROTTLE_MS) flushTail()
+          else if (!flushTimer) {
+            flushTimer = startTimeout(() => {
+              flushTimer = null
+              flushTail()
+            }, PROGRESS_THROTTLE_MS)
+            flushTimer.unref?.()
+          }
+        },
+      })
+      flushTail()
+      const data: EvalToolOutput = {
+        ...outcome,
+        bridgeTools: { calls: bridgeCalls.size, elapsedMs: Math.round([...bridgeCalls.values()].reduce((sum, call) => sum + (call.elapsed ?? performance.now() - call.started), 0)) },
+        language: input.language,
+        ...(input.title !== undefined ? { title: input.title } : {}),
+        ...(screenshot !== undefined ? { screenshot } : {}),
+      }
+      return { data }
+    } finally {
+      if (flushTimer) stopTimeout(flushTimer)
+      if (runningTimer) stopInterval(runningTimer)
+      context.abortController.signal.removeEventListener('abort', onSessionAbort)
+      cellAbort.abort()
+    }
+  },
+  mapToolResultToToolResultBlockParam(output: EvalToolOutput, toolUseID) {
+    let text = composeResultText(output)
+    const images = output.displays.filter(
+      d => (d.mime === 'image/png' || d.mime === 'image/jpeg') && d.b64 === true,
+    ).map(image => ({ mediaType: image.mime as 'image/png' | 'image/jpeg', data: image.data }))
+    const screenshot = screenshotImageOf(output.screenshot)
+    if (screenshot !== null) {
+      if (screenshot.ok) images.unshift(screenshot)
+      else text = `${text}\n${screenshot.note}`
+    }
+    if (images.length === 0) {
+      return { tool_use_id: toolUseID, type: 'tool_result', content: text, ...(output.status !== 'ok' ? { is_error: true } : {}) }
+    }
+    return {
+      tool_use_id: toolUseID,
+      type: 'tool_result',
+      ...(output.status !== 'ok' ? { is_error: true } : {}),
+      content: [
+        { type: 'text' as const, text },
+        ...images.map(image => ({
+          type: 'image' as const,
+          source: {
+            type: 'base64' as const,
+            media_type: image.mediaType,
+            data: image.data,
+          },
+        })),
+      ],
+    }
+  },
+  isResultTruncated(output: EvalToolOutput) {
+    return output.stdout.truncated || output.stderr.truncated
+  },
+  renderToolUseMessage: renderEvalToolUseMessage,
+  renderToolUseProgressMessage: renderEvalProgressMessage,
+  renderToolUseRejectedMessage: renderEvalRejectedMessage,
+  renderToolResultMessage: renderEvalResultMessage,
+} satisfies ToolDef<InputSchema, EvalToolOutput, EvalToolProgress>)
 
 Object.defineProperty(evalToolDef, 'inputSchema', {
   get: inputSchema,

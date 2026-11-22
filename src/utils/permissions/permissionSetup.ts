@@ -141,7 +141,15 @@ export function stripDangerousPermissionsForFlow(
 }
 
 export function restoreDangerousPermissions(context: ToolPermissionContext): ToolPermissionContext {
-  return notBuilt('src/utils/permissions/permissionSetup.ts:205')
+  if (!context.strippedDangerousRules) return context
+  const next = cloneContext(context)
+  for (const [source, rules] of Object.entries(context.strippedDangerousRules)) {
+    if (!rules || rules.length === 0) continue
+    const key = source as PermissionRuleSource
+    next.alwaysAllowRules[key] = [...(next.alwaysAllowRules[key] ?? []), ...rules]
+  }
+  next.strippedDangerousRules = {}
+  return next
 }
 
 
@@ -383,9 +391,24 @@ function cloneContext(context: ToolPermissionContext): ClonedContext {
 }
 
 function cloneMap(map?: ReadonlyRuleMap): ToolPermissionRulesBySource {
-  return notBuilt('src/utils/permissions/permissionSetup.ts:569')
+  const out: ToolPermissionRulesBySource = {}
+  for (const [key, value] of Object.entries(map ?? {})) {
+    if (value !== undefined) out[key as PermissionRuleSource] = [...value]
+  }
+  return out
 }
 
 function getAllowRulesFromContext(context: ToolPermissionContext): PermissionRule[] {
-  return notBuilt('src/utils/permissions/permissionSetup.ts:577')
+  const bySource = context.alwaysAllowRules ?? {}
+  const rules: PermissionRule[] = []
+  for (const [source, entries] of Object.entries(bySource)) {
+    for (const entry of entries ?? []) {
+      rules.push({
+        source: source as PermissionRuleSource,
+        ruleBehavior: 'allow',
+        ruleValue: permissionRuleValueFromString(entry),
+      })
+    }
+  }
+  return rules
 }

@@ -32,7 +32,6 @@ import {
   renderToolUseMessage,
   userFacingName,
 } from './UI.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const OPS = ['list', 'inspect', 'debug', 'run', 'test', 'build', 'last'] as const
 
@@ -154,7 +153,8 @@ function ownersOf(request: Resolution): OwnerTool[] {
 }
 
 function ownerBlocked(name: OwnerTool, context: ToolUseContext): boolean {
-  return notBuilt('src/tools/LaunchTool/LaunchTool.ts:155')
+  const permissions = context?.getAppState?.()?.toolPermissionContext
+  return permissions !== undefined && getDenyRuleForTool(permissions, { name }) !== null
 }
 
 function ownerAvailable(name: OwnerTool, context: ToolUseContext): boolean {
@@ -408,5 +408,104 @@ async function runOp(input: Input, context: ToolUseContext, onProgress?: ToolCal
   }
 }
 
-export const LaunchTool: Unbuilt = unbuilt('src/tools/LaunchTool/LaunchTool.ts:411')
+export const LaunchTool = buildTool({
+  name: 'Launch',
+  searchHint: 'list and run the project\'s launch profiles: debug, run, test or build one by id',
+  maxResultSizeChars: 60_000,
+  async description() {
+    return 'Discover launch profiles and run them — debug through Debug, tests through Test'
+  },
+  async prompt() {
+    return `Lists and runs the project's launch profiles: .vscode/launch.json configurations, the detected Python tests and a rerun of their last failures, CMake presets, Godot scenes, package.json, Cargo.toml and go.mod test and build scripts, and Unity and Blender headless recipes (printed, never run). A profile's id (lp-…) follows its content, so a changed source gives a new id. list returns every profile and the skipped launch.json configurations with why; inspect returns a profile's payload, origin, dropped fields and the call it runs as; debug starts it under its debugger in a debugger session that replaces a live session of the same name, with breakpoints from file and lines; run starts it without a debugger, and a program still running after 15 s stays in a debugger session; test runs its tests; build runs its CMake configure and build or the runner's build script; last returns this session's last Launch action. debug and test return the run's own result with the call it ran as.`
+  },
+  userFacingName,
+  shouldDefer: true,
+  straightQuoteInputs: ['file'],
+  get inputSchema(): SchemaType {
+    return inputSchema()
+  },
+  isConcurrencySafe() {
+    return false
+  },
+  isReadOnly(input: Input) {
+    return input?.op === 'list' || input?.op === 'inspect' || input?.op === 'last'
+  },
+  async checkPermissions(input: Input, context: ToolUseContext) {
+    if (input.op === 'list' || input.op === 'inspect' || input.op === 'last') {
+      return { behavior: 'allow' as const, updatedInput: input }
+    }
+    const approvalNeeded = (message: string) => ({ behavior: 'passthrough' as const, message, decisionReason: { type: 'other' as const, reason: message } })
+    const ask = approvalNeeded(`Launch ${input.op}: profile ${input.profile ?? '?'} (executes project code/builds)`)
+    const p = input.profile ? await getLaunchProfile(input.profile) : null
+    if (!p) return ask
+    const request = resolveRequest(p, input)
+    const owners = ownersOf(request)
+    const blocked = owners.find(name => ownerBlocked(name, context))
+    if (blocked) {
+      const message = ownerRefusal(input.op, blocked, true)
+      return { behavior: 'deny' as const, message, decisionReason: { type: 'other' as const, reason: message } }
+    }
+    if ('refuse' in request || owners.some(name => !ownerAvailable(name, context))) {
+      return { behavior: 'allow' as const, updatedInput: input }
+    }
+    if ('route' in request) {
+      const route = request.route
+      const ownerAsk = route.tool === 'Debug'
+        ? await DebugTool.checkPermissions(route.input, context)
+        : await TestTool.checkPermissions(route.input, context)
+      if (ownerAsk.behavior === 'allow') return { behavior: 'allow' as const, updatedInput: input }
+      const taskNote = p.preLaunchTask && !('refused' in p.preLaunchTask) ? ` — runs preLaunchTask '${p.preLaunchTask.label}' first: ${p.preLaunchTask.argv.join(' ')}` : ''
+      return approvalNeeded(`Launch ${input.op} ${p.id} (${p.label})${taskNote} → ${ownerAsk.message}`)
+    }
+    if (p.preLaunchTask && !('refused' in p.preLaunchTask)) {
+      return approvalNeeded(`${ask.message} — runs preLaunchTask '${p.preLaunchTask.label}' first: ${p.preLaunchTask.argv.join(' ')}`)
+    }
+    return ask
+  },
+  async validateInput(input: Input) {
+    if ((input.op === 'inspect' || input.op === 'debug' || input.op === 'run' || input.op === 'test' || input.op === 'build') && !input.profile) {
+      return { result: false as const, message: `${input.op} requires profile (an lp-… id from op:"list")`, errorCode: 1 }
+    }
+    if (input.op === 'debug' && (input.file !== undefined || input.lines !== undefined) && (!input.file || !input.lines?.length)) {
+      return { result: false as const, message: 'debug breakpoints need file and lines together — pass both, or neither to stop at the program\'s first line', errorCode: 1 }
+    }
+    return { result: true as const }
+  },
+  async call(input: Input, context: ToolUseContext, _canUseTool, _parentMessage, onProgress) {
+    const startedAt = Date.now()
+    let op: OpResult
+    try {
+      op = await runOp(input, context, onProgress)
+    } catch (err) {
+      op = { result: `${input.op} failed: ${(err as Error).message}`, outcome: 'failed' }
+    }
+    const output: Output = { op: input.op, result: op.result, outcome: op.outcome, ...(op.route ? { route: op.route } : {}) }
+    return {
+      data: output,
+      effect: {
+        outcome: op.outcome,
+        operation: `launch.${input.op}`,
+        changedPaths: [],
+        evidence: op.result.split('\n')[0]?.slice(0, 160) ?? '',
+        startedAt,
+        completedAt: Date.now(),
+        ...(op.details ? { details: op.details } : {}),
+      },
+    }
+  },
+  mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
+    return {
+      tool_use_id: toolUseId,
+      type: 'tool_result' as const,
+      content: output.result,
+    }
+  },
+  renderToolUseMessage,
+  renderToolUseErrorMessage,
+  renderToolUseProgressMessage,
+  renderToolResultMessage,
+  extractSearchText({ result }) {
+    return result
+  },
+})
 

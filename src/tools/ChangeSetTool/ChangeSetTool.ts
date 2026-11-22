@@ -84,7 +84,6 @@ import {
   userFacingName,
 } from './UI.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export const CHANGESET_TOOL_NAME = 'ChangeSet'
 
@@ -1109,5 +1108,274 @@ function runDiscard(input: Input, context: ToolUseContext): OpResult {
 }
 
 
-export const ChangeSetTool: Unbuilt = unbuilt('src/tools/ChangeSetTool/ChangeSetTool.ts:1112')
+export const ChangeSetTool = buildTool({
+  name: CHANGESET_TOOL_NAME,
+  searchHint:
+    'atomic multi-file edit: anchored hunks across several files, one reviewed change set, preview apply refactor',
+  maxResultSizeChars: 60_000,
+  strict: true,
+  shouldDefer: true,
+  loadInFullOnCloud: true,
+  capability: {
+    intents: [
+      'apply one coordinated change across several files',
+      'atomic multi-file edit with one review',
+      'preview a multi-file change set before applying',
+      'coordinated cross-file refactor with drift refusal',
+    ],
+    units: ['text-mutation'],
+    class: 'mutation',
+    transaction: { kind: 'file', receipts: true },
+    evidence: ['change'],
+    resources: ['file', 'receipt'],
+    cancellation: 'cooperative',
+    latency: 'fast',
+    gate: 'MERCURY_CHANGESET',
+    proof: 'scripts/changesets/run-all.sh',
+  },
+  async description() {
+    return 'Prepare, review, and apply one anchored text change across several existing files'
+  },
+  async prompt() {
+    return `Applies edits, moves and deletions across existing text files atomically: every member is checked against its read anchor before writing and one approval covers the set; a drifted or invalid member refuses the whole set and nothing is written. preview builds a plan (cs-…) without writing; apply writes a plan or changes, verified by reread, naming any unsettled path; status and discard manage a plan. Up to ${CHANGESET_BOUNDS.maxFiles} files; plans live ${Math.round(CHANGESET_BOUNDS.planTtlMs / 60_000)} minutes.${
+      anchorPatchEnabled() ? `\n\n${ANCHOR_PATCH_TEACHING}` : ''
+    }`
+  },
+  userFacingName,
+  getToolUseSummary(input?: Partial<Input>) {
+    if (!input?.op) return null
+    if (Array.isArray(input.changes) && input.changes.length > 0) {
+      return `${input.op} · ${input.changes.length} file${input.changes.length === 1 ? '' : 's'}`
+    }
+    if (typeof input.patch === 'string' && input.patch.length > 0) {
+      const files = new Set(
+        [...input.patch.matchAll(/^file\s+(\S+)\s/gm)].map(m => m[1]),
+      ).size
+      return files > 0 ? `${input.op} · patch (${files} file${files === 1 ? '' : 's'})` : `${input.op} · patch`
+    }
+    return input.plan_id ? `${input.op} · ${input.plan_id}` : input.op
+  },
+  getActivityDescription(input?: Partial<Input>) {
+    if (!input?.op) return 'Change set'
+    return input.op === 'apply' ? 'Applying change set' : `Change set ${input.op}`
+  },
+  get inputSchema(): SchemaType {
+    return inputSchema()
+  },
+  isConcurrencySafe() {
+    return false
+  },
+  isReadOnly(input: Input) {
+    return input.op !== 'apply'
+  },
+  async validateInput(input: Input) {
+    for (const change of input.changes ?? []) {
+      const pathRefusal = controlCharacterPathRefusal(change.file_path) ?? controlCharacterPathRefusal(change.new_path)
+      if (pathRefusal !== null) return { result: false as const, message: pathRefusal, errorCode: 1 }
+    }
+    if (input.op === 'preview') {
+      const hasChanges = input.changes != null && input.changes.length > 0
+      const hasPatch = input.patch != null && input.patch.length > 0
+      if (hasChanges === hasPatch) {
+        return { result: false as const, behavior: 'ask' as const, message: 'preview takes one of changes (one member per file) or patch (the dialect string).', errorCode: 1 }
+      }
+      if (input.plan_id !== undefined) {
+        return { result: false as const, behavior: 'ask' as const, message: 'preview takes changes/patch, not plan_id — plans are minted BY preview.', errorCode: 1 }
+      }
+    }
+    if (input.op === 'apply') {
+      const hasChanges = input.changes != null && input.changes.length > 0
+      const hasPatch = typeof input.patch === 'string' && input.patch.length > 0
+      const hasPlan = typeof input.plan_id === 'string' && input.plan_id.trim().length > 0
+      const given = [hasChanges, hasPatch, hasPlan].filter(Boolean).length
+      if (given !== 1) {
+        const present = [hasChanges && 'changes', hasPatch && 'patch', hasPlan && 'plan_id'].filter(Boolean) as string[]
+        const carried =
+          present.length === 0
+            ? 'this call provided none of them (empty values count as absent)'
+            : `this call provided ${present.join(' and ')}`
+        return {
+          result: false as const,
+          behavior: 'ask' as const,
+          message: `apply takes one of changes (the fast path), patch (the dialect string), or plan_id (a previewed plan); got ${carried}.`,
+          errorCode: 1,
+        }
+      }
+    }
+    if ((input.op === 'status' || input.op === 'discard') && input.patch !== undefined) {
+      return { result: false as const, behavior: 'ask' as const, message: `${input.op} takes plan_id only.`, errorCode: 1 }
+    }
+    if ((input.op === 'status' || input.op === 'discard') && !input.plan_id) {
+      return { result: false as const, behavior: 'ask' as const, message: `${input.op} requires plan_id.`, errorCode: 1 }
+    }
+    if ((input.op === 'status' || input.op === 'discard') && input.changes !== undefined) {
+      return { result: false as const, behavior: 'ask' as const, message: `${input.op} takes plan_id only.`, errorCode: 1 }
+    }
+    return { result: true as const }
+  },
+  async checkPermissions(input: Input, context): Promise<PermissionDecision> {
+    const remotePaths = input.changes?.flatMap(change => (change.new_path !== undefined ? [change.file_path, change.new_path] : [change.file_path])) ?? []
+    if (input.patch) {
+      const parsed = parseAnchorPatch(input.patch)
+      if (parsed.ok) for (const section of parsed.sections) {
+        remotePaths.push(section.path)
+        for (const op of section.ops) if (op.kind === 'move-to') remotePaths.push(op.newPath)
+      }
+    }
+    if (input.plan_id) {
+      const plan = getChangeSetPlan(ownerFromToolUseContext(context), input.plan_id)
+      remotePaths.push(...(plan?.changedPaths ?? []))
+    }
+    for (const path of remotePaths) {
+      const remote = checkUncPathPermission(path, context.getAppState().toolPermissionContext, 'edit')
+      if (remote && remote.behavior !== 'allow') return remote
+    }
+    if (input.op !== 'apply') {
+      return { behavior: 'allow', updatedInput: input }
+    }
+    const permCtx = context.getAppState().toolPermissionContext
+    let paths: string[]
+    if (input.patch !== undefined) {
+      const parsed = parseAnchorPatch(input.patch)
+      if (!parsed.ok) {
+        return { behavior: 'allow', updatedInput: input }
+      }
+      const set = new Set<string>()
+      for (const section of parsed.sections) {
+        set.add(expandPath(section.path))
+        for (const op of section.ops) {
+          if (op.kind === 'move-to') set.add(expandPath(op.newPath))
+        }
+      }
+      paths = [...set]
+    } else if (input.changes !== undefined) {
+      paths = [...new Set(input.changes.flatMap(c => (c.new_path !== undefined ? [expandPath(c.file_path), expandPath(c.new_path)] : [expandPath(c.file_path)])))]
+    } else {
+      const owner = ownerFromToolUseContext(context)
+      const plan = input.plan_id ? getChangeSetPlan(owner, input.plan_id) : undefined
+      paths = plan?.changedPaths ?? []
+    }
+    if (paths.length === 0) {
+      return { behavior: 'allow', updatedInput: input }
+    }
+    let needsAsk = false
+    let safetyAsk: Extract<PermissionDecision, { behavior: 'ask' }> | undefined
+    for (const p of new Set([...paths, ...remotePaths])) {
+      const decision = checkWritePermissionForTool(pathShim, { file_path: p }, permCtx)
+      if (decision.behavior === 'deny') {
+        return {
+          ...decision,
+          message: decision.decisionReason.type === 'rule'
+            ? refusalWithReason(`Editing ${p} is denied by ${ruleWords(decision.decisionReason.rule)} — a denied path refuses the whole change set (zero writes).`, reasonForRule(permCtx, decision.decisionReason.rule))
+            : `${decision.message} A denied path refuses the whole change set (zero writes).`,
+        }
+      }
+      if (decision.behavior !== 'allow') needsAsk = true
+      if (decision.behavior === 'ask' && decision.decisionReason?.type === 'safetyCheck') safetyAsk ??= decision
+    }
+    if (needsAsk) {
+      return {
+        behavior: 'ask',
+        ...(safetyAsk ? { decisionReason: safetyAsk.decisionReason } : {}),
+        message: `Apply this change set (${paths.length} file${paths.length === 1 ? '' : 's'})? One decision covers every path; any denied path means zero writes.${safetyAsk ? ' ' + safetyAsk.message : ''}`,
+      }
+    }
+    return { behavior: 'allow', updatedInput: input }
+  },
+  inputsEquivalent(a: Input, b: Input) {
+    return (
+      a.op === b.op &&
+      a.plan_id === b.plan_id &&
+      a.patch === b.patch &&
+      JSON.stringify(a.changes ?? null) === JSON.stringify(b.changes ?? null)
+    )
+  },
+  async call(input: Input, context: ToolUseContext, _canUseTool, parentMessage) {
+    const startedAt = Date.now()
+    let op: OpResult
+    try {
+      switch (input.op) {
+        case 'preview':
+          op = await runPreview(input, context)
+          break
+        case 'apply':
+          op = await runApply(input, context, parentMessage.uuid)
+          break
+        case 'status':
+          op = runStatus(input, context)
+          break
+        case 'discard':
+          op = runDiscard(input, context)
+          break
+      }
+    } catch (err) {
+      op = {
+        op: input.op,
+        result: `${input.op} failed: ${(err as Error).message}`,
+        outcome: 'failed',
+        effectOperation: input.op === 'apply' ? 'file.changeSet' : `changeset.${input.op}`,
+        changedPaths: [],
+      }
+    }
+    if (input.op === 'apply') {
+      try {
+        const { recordEditOutcome } = await import('../../services/changeTransaction/editOutcomeLedger.js')
+        const { anchorPatchCodeOfResult, changeSetRefusalCodeOfResult } = await import(
+          '../../services/changeTransaction/changeSetPlan.js'
+        )
+        const surface = input.patch !== undefined ? 'anchor-patch' : 'changeset'
+        const outcome =
+          op.outcome === 'succeeded'
+            ? 'applied'
+            : op.outcome === 'no-change'
+              ? 'no-change'
+              : (changeSetRefusalCodeOfResult(op.result) ?? anchorPatchCodeOfResult(op.result) ?? 'failed')
+        recordEditOutcome(
+          ownerFromToolUseContext(context),
+          context.options.engineModel,
+          surface,
+          outcome,
+        )
+      } catch (error) {
+        passedOver(error)
+      }
+    }
+    const output: Output = {
+      op: op.op,
+      result: op.result,
+      outcome: op.outcome,
+      ...(op.planId !== undefined && { planId: op.planId }),
+      ...(op.changeView !== undefined && { changeView: op.changeView }),
+      ...(op.repetitionStop === true && { repetitionStop: true }),
+    }
+    return {
+      data: output,
+      effect: {
+        outcome: op.outcome,
+        operation: op.effectOperation,
+        changedPaths: op.changedPaths,
+        evidence: op.result.split('\n')[0]?.slice(0, 200) ?? '',
+        startedAt,
+        completedAt: Date.now(),
+        ...(op.details !== undefined && { details: op.details }),
+      },
+      ...(op.intent !== undefined && { changeIntent: op.intent }),
+    }
+  },
+  mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
+    return {
+      tool_use_id: toolUseId,
+      type: 'tool_result' as const,
+      content: output.result,
+      ...(output.repetitionStop === true && { is_error: true }),
+    }
+  },
+  renderToolUseMessage,
+  renderToolUseRejectedMessage,
+  renderToolUseErrorMessage,
+  renderToolResultMessage,
+  extractSearchText({ result, changeView }) {
+    return changeView ? `${result ?? ''}\n${changeViewSearchText(changeView)}` : (result ?? '')
+  },
+})
 

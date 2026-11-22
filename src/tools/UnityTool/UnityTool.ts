@@ -17,7 +17,6 @@ import {
   renderToolUseMessage,
   userFacingName,
 } from './UI.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
@@ -150,4 +149,85 @@ async function runOp(input: Input): Promise<string> {
   return text
 }
 
-export const UnityTool: Unbuilt = unbuilt('src/tools/UnityTool/UnityTool.ts:153')
+export const UnityTool = buildTool({
+  name: UNITY_TOOL_NAME,
+  get searchHint() {
+    return 'Unity editor control (the Mercury bridge): play mode, scenes, hierarchy, console, Test Runner runs'
+  },
+  maxResultSizeChars: 100_000,
+  async description() {
+    return 'Drive the running Unity editor: play-mode control, scenes, hierarchy reads, console tail, Test Runner runs'
+  },
+  async prompt() {
+    return getUnityToolDescription()
+  },
+  userFacingName,
+  shouldDefer: true,
+  get inputSchema(): SchemaType {
+    return inputSchema()
+  },
+  isConcurrencySafe() {
+    return false
+  },
+  isReadOnly(input: Input) {
+    return unityBridgeVerb(input.op)?.cls === 'read' || input.op === 'unity_status'
+  },
+  async checkPermissions(input: Input) {
+    if (LOCAL_MUTATES.has(input.op)) {
+      return {
+        behavior: 'ask' as const,
+        message:
+          input.op === 'unity_bridge_install'
+            ? `Unity mutate: ${input.op} — writes the bridge package into Packages/com.mercury.unity-bridge/, the token file, and the port-alignment file`
+            : `Unity mutate: ${input.op} — removes the bridge package, token, and port-alignment file from the project`,
+      }
+    }
+    const spec = unityBridgeVerb(input.op)
+    if (!spec || spec.cls === 'read') {
+      return { behavior: 'allow' as const, updatedInput: input }
+    }
+    if (spec.cls === 'exec') {
+      return {
+        behavior: 'ask' as const,
+        message: `Unity exec: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — ${
+          input.op === 'tests_run'
+            ? 'runs tests in the editor (results land at the .mercury results door)'
+            : 'changes the editor play state (a domain reload drops + reconnects the bridge by design)'
+        }`,
+      }
+    }
+    return {
+      behavior: 'ask' as const,
+      message: `Unity mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} switches the open scene (no undo step; refuses with SCENE_DIRTY if there are unsaved changes)`,
+    }
+  },
+  async validateInput(input: Input) {
+    if (!input.op || input.op.trim().length === 0) {
+      return { result: false as const, message: 'op is required', errorCode: 1 }
+    }
+    return { result: true as const }
+  },
+  async call(input: Input) {
+    let result: string
+    try {
+      result = await runOp(input)
+    } catch (err) {
+      result = `${input.op} failed: ${(err as Error).message}\nhint: ${unityBridgeHint(unityBridgePort())}`
+    }
+    const output: Output = { op: input.op, result }
+    return { data: output }
+  },
+  mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
+    return {
+      tool_use_id: toolUseId,
+      type: 'tool_result' as const,
+      content: output.result,
+    }
+  },
+  renderToolUseMessage,
+  renderToolUseErrorMessage,
+  renderToolResultMessage,
+  extractSearchText({ result }) {
+    return result ?? ''
+  },
+})

@@ -46,7 +46,6 @@ import {
   renderToolUseMessage,
   userFacingName,
 } from './UI.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const OPS = [
   'status',
@@ -603,4 +602,238 @@ export type GitApplyPreview = {
   exclusions: string[]
 }
 
-export const GitTool: Unbuilt = unbuilt('src/tools/GitTool/GitTool.ts:606')
+export const GitTool = buildTool({
+  name: 'Git',
+  searchHint: repoHostDiscoveryEnabled()
+    ? 'inspect repositories and hosted reviews; stage changes and preview commit groups'
+    : 'inspect repositories; stage changes and preview commit groups',
+  searchKeywords: [
+    'status', 'diff', 'hunks', 'conflicts', 'commit', 'plans', 'atomic', 'stale-safe', 'multi-commit',
+    'application', 'repository', 'read', 'file', 'tree', 'exact', 'ref', 'branch', 'compare', 'review', 'record',
+    ...(repoHostDiscoveryEnabled() ? ['pull request', 'PR', 'checks', 'issue', 'context', 'host', 'hosted', 'search', 'paginated', 'workflow run', 'watch'] : []),
+  ],
+  capability: {
+    intents: [
+      'inspect the local git working tree',
+      'split changes into atomic commits',
+      'prepare and apply a commit plan',
+      'stage an exact file or hunk set',
+      'inspect a local git conflict',
+      'resolve a merge conflict',
+      'inspect a commit or merge base',
+      'read a file or tree at an exact ref',
+      'compare two branches or refs',
+      ...(repoHostDiscoveryEnabled()
+        ? [
+            'inspect this repository change on the host',
+            'search code commits prs or issues on the host',
+            'page through a pull request diff',
+            'watch a workflow run until it settles',
+          ]
+        : []),
+    ],
+    units: ['git-inspection', 'git-transactions'],
+    class: 'mutation',
+    operations: [...OPS],
+    transaction: { kind: 'git.commit', receipts: true },
+    evidence: ['change'],
+    resources: ['git'],
+    preview: true,
+    cancellation: 'cooperative',
+    latency: 'fast',
+    gate: 'MERCURY_GIT_GRAPH',
+    conditions: ['a git repository at, above, or directly below the working directory (or the given cwd)'],
+    proof: 'scripts/builtin-tools/prove-git-plans.ts',
+  },
+  maxResultSizeChars: 60_000,
+  async description() {
+    return 'Typed local Git work graph: bounded observation + preview-first atomic commit plans; repository-host PR/checks/issue context and the typed review record. Runs in the session folder or a given cwd: the repository containing that folder, or the one repository directly below it'
+  },
+  async prompt() {
+    return `Inspect local repositories${repoHostDiscoveryEnabled() ? ' and hosted reviews/checks' : ''}; stage exact changes; preview/apply commit groups. Bounded records, stable hunk/plan ids. No fetch, push, history rewrite or worktree-content discard.`
+  },
+  userFacingName,
+  shouldDefer: true,
+  straightQuoteInputs: ['paths', 'files', 'path', 'file', 'cwd'],
+  get inputSchema(): SchemaType {
+    return inputSchema()
+  },
+  isEnabled() {
+    return gitGraphEnabled()
+  },
+  isConcurrencySafe(input: Input) {
+    return !MUTATING_OPS.has(input?.op)
+  },
+  isReadOnly(input: Input) {
+    return !MUTATING_OPS.has(input?.op)
+  },
+  getPath(input: Input) {
+    return namedFolder(input)
+  },
+  backfillObservableInput(input: Input): void {
+    if (input.op === 'resolve' && input.resolutions && !input.resolutionPlanId) {
+      const placed = resolveRepoFolder(folderOf(input))
+      if (placed.state !== 'refused') {
+        const plan = observableResolution(placed.root, input.resolutions)
+        if (!('reason' in plan)) showResolution(input, plan)
+      }
+    }
+    if (input.op !== 'apply' || typeof input.planId !== 'string') return
+    const plan = findPlan(input.planId)
+    if (!plan) return
+    ;(input as Input & { preview?: GitApplyPreview }).preview = {
+      groups: plan.groups.map(group => ({ files: [...group.files], message: group.message, ...(group.hunks ? { hunks: group.hunks } : {}) })),
+      exclusions: [...plan.exclusions],
+    }
+  },
+  async checkPermissions(input: Input, context: ToolUseContext): Promise<ReturnType<typeof checkReadPermissionForTool>> {
+    let resolutionFiles: string[] | undefined
+    if (input.op === 'resolve' && input.resolutions) {
+      const placed = resolveRepoFolder(folderOf(input))
+      if (placed.state !== 'refused') {
+        const plan = resolutionFor(input, placed.root, ownerFromToolUseContext(context))
+        if (!('reason' in plan)) {
+          for (const file of plan.files) {
+            const judged = await repositoryReadDecision(GitTool.name, file.path, input, context.getAppState().toolPermissionContext, placed.root)
+            if (judged?.behavior === 'deny') return judged
+            const refused = editDenial(file.path, placed.root, input, context)
+            if (refused) return refused
+          }
+          showResolution(input, plan)
+          resolutionFiles = plan.files.map(file => file.path)
+        }
+      }
+    }
+    if (typeof input.path === 'string' && input.path !== '' && (input.op === 'fileAtRef' || input.op === 'tree' || input.op === 'resolve')) {
+      const placed = needsRepository(input) ? resolveRepoFolder(folderOf(input)) : null
+      const root = placed !== null && placed.state !== 'refused' ? placed.root : folderOf(input)
+      const judged = await repositoryReadDecision(GitTool.name, input.path, input, context.getAppState().toolPermissionContext, root)
+      if (judged !== null && (judged.behavior === 'deny' || (judged.behavior === 'ask' && input.op !== 'resolve'))) return judged
+      const refused = input.op === 'resolve' ? editDenial(input.path, root, input, context) : null
+      if (refused) return refused
+    }
+    if (!MUTATING_OPS.has(input.op)) {
+      if (namedFolder(input) !== undefined) {
+        return checkReadPermissionForTool(GitTool, input, context.getAppState().toolPermissionContext)
+      }
+      return { behavior: 'allow' as const, updatedInput: input }
+    }
+    const what =
+      input.op === 'apply'
+        ? `apply commit plan ${input.planId ?? ''} (creates local commits; never pushes; pre-commit and commit-msg hooks are not run)`
+        : input.op === 'stage'
+          ? `stage ${input.files?.join(', ') ?? ''}`
+          : input.op === 'restore'
+            ? `unstage ${input.files?.join(', ') ?? ''} (index only, working copy untouched)`
+            : input.resolutions
+              ? `resolve ${input.resolutions.length} conflict ${plural(input.resolutions.length, 'region')}${resolutionFiles?.length ? ` in ${resolutionFiles.join(', ')}` : ''}`
+              : `resolve conflict ${input.path ?? ''}`
+    const where = namedFolder(input) !== undefined ? ` in ${input.cwd}` : ''
+    return { behavior: 'ask' as const, message: `Git ${what}${where}` }
+  },
+  async validateInput(input: Input) {
+    if (!gitGraphEnabled()) {
+      return { result: false as const, message: 'the git work graph is disabled (MERCURY_GIT_GRAPH=0)', errorCode: 1 }
+    }
+    const folder = namedFolder(input)
+    if (folder !== undefined) {
+      let entry
+      try {
+        entry = await stat(folder)
+      } catch (err) {
+        if (!isENOENT(err)) {
+          return {
+            result: false as const,
+            message: err instanceof Error ? err.message : String(err),
+            errorCode: 2,
+          }
+        }
+        return {
+          result: false as const,
+          message: `cwd does not exist: ${input.cwd} (looked at ${folder}; the session folder is ${getCwd()})`,
+          errorCode: 2,
+        }
+      }
+      if (!entry.isDirectory()) {
+        return { result: false as const, message: `cwd is not a folder: ${input.cwd} (${folder})`, errorCode: 2 }
+      }
+    }
+    const named: Array<[string, string | undefined]> = [
+      ['ref', input.ref],
+      ['sha', input.sha],
+      ['refA', input.refA],
+      ['refB', input.refB],
+      ['path', input.path],
+      ...(input.paths ?? []).map(value => ['paths', value] as [string, string]),
+      ...(input.files ?? []).map(value => ['files', value] as [string, string]),
+      ...Object.keys(input.hunks ?? {}).map(value => ['hunks', value] as [string, string]),
+      ...(input.groups ?? []).flatMap(group => group.files.map(value => ['groups.files', value] as [string, string])),
+    ]
+    const dashed = named.find(([, value]) => typeof value === 'string' && value.trimStart().startsWith('-'))
+    if (dashed) return { result: false as const, message: `${dashed[0]} may not begin with a dash`, errorCode: 1 }
+    if (input.op === 'resolve' && input.resolutions && (input.path !== undefined || input.take !== undefined || input.content !== undefined)) {
+      return { result: false as const, message: 'resolve takes region choices or a whole-file path, not both', errorCode: 1 }
+    }
+    if (input.op === 'plan' && !input.groups?.length) {
+      return { result: false as const, message: 'plan requires groups', errorCode: 1 }
+    }
+    if ((input.op === 'apply' || input.op === 'verify') && !input.planId) {
+      return { result: false as const, message: `${input.op} requires planId`, errorCode: 1 }
+    }
+    return { result: true as const }
+  },
+  async call(input: Input, context: ToolUseContext) {
+    const startedAt = Date.now()
+    const folder = folderOf(input)
+    const placed = needsRepository(input) ? resolveRepoFolder(folder) : null
+    let op: { result: string; outcome: ToolEffectOutcome; changedPaths?: string[] }
+    if (placed !== null && placed.state === 'refused') {
+      op = { result: placed.note, outcome: 'failed' }
+    } else {
+      const root = placed !== null ? placed.root : folder
+      try {
+        op = await runOp(input, context, root)
+      } catch (err) {
+        op = { result: `${input.op} failed: ${(err as Error).message}`, outcome: 'failed' }
+      }
+      if (placed !== null && placed.via === 'below') {
+        op = { ...op, result: `${op.result}\nrepository: ${root} — the one git repository directly below ${folder}` }
+      }
+    }
+    const output: Output = { op: input.op, result: op.result, outcome: op.outcome }
+    const operation =
+      input.op === 'apply'
+        ? 'git.commit'
+        : input.op === 'stage'
+          ? 'git.stage'
+          : input.op === 'restore'
+            ? 'git.restore'
+            : input.op === 'resolve'
+              ? 'git.resolve'
+              : `git.${input.op}`
+    return {
+      data: output,
+      effect: {
+        outcome: op.outcome,
+        operation,
+        changedPaths: op.changedPaths ?? [],
+        evidence: op.result.split('\n')[0]?.slice(0, 160) ?? '',
+        startedAt,
+        completedAt: Date.now(),
+      },
+    }
+  },
+  mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
+    return {
+      tool_use_id: toolUseId,
+      type: 'tool_result' as const,
+      content: output.result,
+    }
+  },
+  renderToolUseMessage,
+  renderToolUseErrorMessage,
+  renderToolResultMessage,
+  extractSearchText({ result }) {
+    return result
+  },
+})

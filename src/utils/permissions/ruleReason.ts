@@ -6,7 +6,6 @@ import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
 import { RULE_INHERITS } from '../../constants/tools.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
 import { isCheckoutSourceHeldForTrust } from '../settings/constants.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export type RuleReasonCarrier = {
   readonly ruleReasons?: { readonly [K in PermissionRuleSource]?: { readonly [spelling: string]: string } }
@@ -117,7 +116,13 @@ export function wholeToolDenyRulesCovering(
   context: ToolPermissionContext,
   tool: { name: string; mcpInfo?: { serverName: string; toolName: string } },
 ): PermissionRule[] {
-  return notBuilt('src/utils/permissions/ruleReason.ts:115')
+  const name = getToolNameForPermissionCheck(tool)
+  return getDenyRules(context).filter(rule => {
+    if (rule.ruleValue.ruleContent !== undefined) return false
+    if (rule.ruleValue.toolName === name || RULE_INHERITS[name]?.includes(rule.ruleValue.toolName)) return true
+    if (rule.ruleValue.toolName === BASH_TOOL_NAME && runsItsCommandAsBash(name)) return true
+    return namesWholeServerOfTool(rule.ruleValue.toolName, tool)
+  })
 }
 
 export function mcpServerDenyDecision(

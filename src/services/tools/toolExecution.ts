@@ -432,3 +432,19 @@ async function buildResultUpdate(blockForEmission: ToolResultBlockParam, { assis
       : {}),
   }
 }
+
+function flipMcpClientToNeedsAuth(tool: Tool, context: ToolUseContext): void {
+  const serverName = tool.mcpInfo?.serverName
+  if (!serverName) return
+  context.setAppState(prevState => {
+    const mcp = (prevState as { mcp?: { clients?: Array<{ name: string; type: string }> } }).mcp
+    if (!mcp?.clients) return prevState
+    const index = mcp.clients.findIndex(
+      client => client.name === serverName && client.type === 'connected',
+    )
+    if (index === -1) return prevState
+    const clients = [...mcp.clients]
+    clients[index] = { ...clients[index]!, type: 'needs-auth' }
+    return { ...prevState, mcp: { ...mcp, clients } } as typeof prevState
+  })
+}

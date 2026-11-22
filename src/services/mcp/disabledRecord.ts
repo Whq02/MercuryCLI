@@ -1,5 +1,4 @@
 import type { ProjectConfig } from '../../utils/config/schema.js'
-import { notBuilt } from '../../pi/holes.js'
 
 type McpDisabledRecordSlice = Pick<ProjectConfig, 'disabledMcpServers' | 'enabledMcpServers'>
 
@@ -24,5 +23,18 @@ export function disabledMcpServerNamesIn(slice: McpDisabledRecordSlice): string[
 }
 
 export function withMcpServerEnabled(current: ProjectConfig, name: string, enabled: boolean): ProjectConfig {
-  return notBuilt('src/services/mcp/disabledRecord.ts:25')
+  if (DEFAULT_DISABLED_BUILTIN_SERVERS.has(name)) {
+    const list = current.enabledMcpServers ?? []
+    if (enabled === list.includes(name)) return current
+    return {
+      ...current,
+      enabledMcpServers: enabled ? [...list, name] : list.filter(entry => entry !== name),
+    }
+  }
+  const list = current.disabledMcpServers ?? []
+  if (enabled === !list.includes(name)) return current
+  return {
+    ...current,
+    disabledMcpServers: enabled ? list.filter(entry => entry !== name) : [...list, name],
+  }
 }

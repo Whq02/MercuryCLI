@@ -21,7 +21,6 @@ import {
   WAKEUP_MIN_DELAY_SECONDS,
 } from './prompt.js'
 import { renderWakeupResultMessage, renderWakeupToolUseMessage } from './UI.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
@@ -75,4 +74,75 @@ function buildOneShotCron(fireAtMs: number): string {
   return `${minute} ${hour} ${dom} ${month} *`
 }
 
-export const ScheduleWakeupTool: Unbuilt = unbuilt('src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts:77')
+export const ScheduleWakeupTool = buildTool({
+  name: SCHEDULE_WAKEUP_TOOL_NAME,
+  searchHint: 'schedule your own next wake after a short delay',
+  maxResultSizeChars: 100_000,
+  shouldDefer: true,
+  get inputSchema(): InputSchema {
+    return inputSchema()
+  },
+  get outputSchema(): OutputSchema {
+    return outputSchema()
+  },
+  isEnabled() {
+    return isScheduleWakeupEnabled()
+  },
+  async description() {
+    return SCHEDULE_WAKEUP_DESCRIPTION
+  },
+  async prompt() {
+    return buildScheduleWakeupPrompt()
+  },
+  async call({ delaySeconds, prompt, reason }) {
+    const secretReason = saturnSecretProseRefusal('prompt', prompt)
+    if (secretReason !== null) {
+      throw new Error(`ScheduleWakeup: ${secretReason}`)
+    }
+    const clamped = clampDelaySeconds(delaySeconds)
+    const nowMs = Date.now()
+    const fireAtMs = nextWakeInstantMs(clamped, nowMs)
+    const cron = buildOneShotCron(fireAtMs)
+    const safeReason = reason && detectSecrets(reason).length === 0 ? reason : undefined
+    const fired = applyWakeReason(prompt, safeReason)
+    const humanSchedule = cronToHuman(cron)
+    if (scheduleSeatObserved()) {
+      const submitted = submitSessionScheduleEdit({
+        op: 'add',
+        schedule: {
+          when: { kind: 'at', atMs: fireAtMs, spelling: wakeDelaySpelling(clamped) },
+          action: { kind: 'fire', prompt: fired, onParked: 'wake' },
+          ...(safeReason !== undefined ? { note: safeReason } : {}),
+        },
+      })
+      if (submitted.road === 'refused') {
+        throw new Error(`${SCHEDULE_WAKEUP_TOOL_NAME}: ${submitted.reason}`)
+      }
+      return { data: { delaySeconds: clamped, humanSchedule, road: 'session' as const } }
+    }
+    if (!localWakeAvailable()) {
+      throw new Error(
+        `${SCHEDULE_WAKEUP_TOOL_NAME}: this surface has no wake queue — a one-shot run cannot take a later fire.`,
+      )
+    }
+    const armed = armLocalWake(clamped, fired, {
+      spelling: wakeDelaySpelling(clamped),
+      ...(safeReason !== undefined ? { reason: safeReason } : {}),
+    })
+    if (!armed.ok) throw new Error(`${SCHEDULE_WAKEUP_TOOL_NAME}: ${armed.reason}`)
+    return { data: { delaySeconds: clamped, humanSchedule, road: 'local' as const } }
+  },
+  mapToolResultToToolResultBlockParam(output, toolUseID) {
+    const where =
+      output.road === 'session'
+        ? 'On the session record — the daemon fires it once (the receipt confirms), then it removes itself.'
+        : 'Process-local — it fires once inside this run and dies with it.'
+    return {
+      tool_use_id: toolUseID,
+      type: 'tool_result',
+      content: `Wake armed in ~${output.delaySeconds}s (${output.humanSchedule}). ${where} Call ${SCHEDULE_WAKEUP_TOOL_NAME} again from the fired prompt to continue a self-paced loop.`,
+    }
+  },
+  renderToolUseMessage: renderWakeupToolUseMessage,
+  renderToolResultMessage: renderWakeupResultMessage,
+} satisfies ToolDef<InputSchema, WakeupOutput>)

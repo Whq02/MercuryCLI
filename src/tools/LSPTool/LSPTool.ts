@@ -207,7 +207,60 @@ async function validateInput(name: LspToolName, input: LspInput) {
 const STRAIGHT_QUOTES: Record<LspToolName, string[]> = { LspRead: ['filePath', 'query', 'paths'], LspRename: ['filePath', 'newName'], LspMoveSymbol: ['filePath', 'targetPath'], LspMoveFile: ['filePath', 'newPath'], LspCodeAction: ['filePath'], LspFormat: ['filePath'], LspRequest: ['filePath'] }
 
 function makeLspTool(name: LspToolName): Tool {
-  return notBuilt('src/tools/LSPTool/LSPTool.ts:418')
+  const scoped = (input: LspInput): LspInput => name === 'LspRead' ? readArguments(input) : input
+  const writes = (input?: LspInput): boolean => name === 'LspRequest' || (name !== 'LspRead' && input?.apply === true)
+  const tool: Tool = buildTool({
+    name, isLsp: true, shouldDefer: true,
+    straightQuoteInputs: STRAIGHT_QUOTES[name], maxResultSizeChars: 100_000,
+    inputSchema: lspInputSchema(name), inputJSONSchema: LSP_INPUT_JSON_SCHEMAS[name], outputSchema,
+    searchHint: LSP_SEARCH_HINTS[name],
+    isEnabled: isLspToolMounted,
+    isReadOnly: (input: LspInput) => !writes(input),
+    isConcurrencySafe: (input: LspInput) => !writes(input),
+    userFacingName: () => name,
+    getToolUseSummary: (input?: LspInput) => name === 'LspRead' ? input?.operation ?? null : engineOperation(name, input ?? {}),
+    getActivityDescription: (input?: LspInput) => `Running ${name === 'LspRead' ? input?.operation ?? 'a language-server question' : name}`,
+    getPath: (input?: LspInput) => input?.filePath || getCwd(),
+    description: async () => LSP_DESCRIPTIONS[name],
+    prompt: async () => LSP_DESCRIPTIONS[name],
+    async checkPermissions(input: LspInput, context: ToolUseContext) {
+      const permissionContext = context.getAppState().toolPermissionContext
+      if (writes(input) && !mercuryLspWriteOpsEnabled()) return {
+        behavior: 'deny' as const,
+        message: `${name} writes are disabled (MERCURY_LSP is off).`,
+        decisionReason: { type: 'other' as const, reason: 'Language-service writes disabled by configuration' },
+      }
+      if (writes(input)) return checkWritePermissionForTool(tool, input, permissionContext)
+      const own = scoped(input)
+      const paths = name === 'LspRead' ? [own.filePath, ...(own.paths ?? [])].filter((path): path is string => !!path) : [own.filePath || getCwd()]
+      const checks = await Promise.all((paths.length ? [...new Set(paths)] : [getCwd()]).map(filePath => checkReadPermissionForTool(tool, { filePath }, permissionContext)))
+      const denied = checks.find(check => check.behavior === 'deny')
+      if (denied) return denied
+      const asks = checks.filter(check => check.behavior === 'ask')
+      if (asks.length) return { ...asks[0]!, message: asks.map(check => check.message).join('\n') }
+      return { behavior: 'allow' as const, updatedInput: input }
+    },
+    validateInput: async (input: LspInput) => validateInput(name, scoped(input)),
+    async call(input: LspInput, context: ToolUseContext, canUseTool, parentMessage) {
+      const own = scoped(input)
+      const messageId = parentMessage?.uuid as UUID | undefined
+      const requestWritePermission = typeof canUseTool === 'function' && parentMessage
+        ? async (path: string): Promise<boolean> => {
+            const requested = { ...own, filePath: path }
+            const decision = await canUseTool(tool, requested, context, parentMessage, context.toolUseId ?? 'lsp-write')
+            return decision.behavior === 'allow' && isDeepStrictEqual(decision.updatedInput ?? requested, requested)
+          }
+        : undefined
+      return runWithLspAbortSignal(context.abortController.signal, () => runLspToolCall(name, own, tool, context, messageId, requestWritePermission))
+    },
+    mapToolResultToToolResultBlockParam: (data: Output, toolUseID: string) => ({ tool_use_id: toolUseID, type: 'tool_result' as const, content: data.result }),
+    extractSearchText: (data: Output) => data.changeView ? `${data.result}\n${changeViewSearchText(data.changeView)}` : data.result,
+    renderToolUseMessage: (input: LspInput, options) => renderToolUseMessage({ ...input, operation: engineOperation(name, input) }, options),
+    renderToolResultMessage,
+    renderToolUseRejectedMessage: () => null,
+    renderToolUseErrorMessage: (result, options) => renderToolUseErrorMessage(result, options, name),
+  })
+  return tool
 }
 
 export const LspReadTool = makeLspTool('LspRead')

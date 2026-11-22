@@ -95,7 +95,34 @@ export function decisionOfAnswer(
   toolUseContext: Pick<ToolUseContext, 'abortController' | 'setAppState'>,
   onRulesChanged?: () => void,
 ): PermissionDecision {
-  return notBuilt('src/cli/headless/runnerAsks.ts:90')
+  if (answer.outcome === 'allow') {
+    const updatedInput = answer.input !== undefined ? answer.input : originalInput
+    const updates = (answer.rules ?? []) as PermissionUpdate[]
+    if (updates.length > 0) {
+      persistPermissionUpdates(updates)
+      let changed = false
+      toolUseContext.setAppState(previous => {
+        const updated = applyPermissionUpdates(previous.toolPermissionContext, updates)
+        if (updated === previous.toolPermissionContext) return previous
+        changed = true
+        return { ...previous, toolPermissionContext: updated }
+      })
+      if (changed) onRulesChanged?.()
+    }
+    return {
+      behavior: 'allow',
+      updatedInput,
+      userModified: false,
+      decisionReason: { type: 'permissionPromptTool', permissionPromptToolName: tool.name, toolResult: answer },
+    }
+  }
+  if (answer.stop === true) toolUseContext.abortController.abort()
+  return {
+    behavior: 'deny',
+    message: answer.message ?? 'Permission denied by the host',
+    decisionReason: { type: 'permissionPromptTool', permissionPromptToolName: tool.name, toolResult: answer },
+    ...(answer.unanswered === true ? { unanswered: true } : {}),
+  }
 }
 
 function createHostCanUseTool(channel: AskChannel): CanUseToolFn {

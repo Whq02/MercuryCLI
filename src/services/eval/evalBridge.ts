@@ -29,7 +29,6 @@ import { handleSampleCall } from '../samples/bridge.js'
 import { rekeyScreenshot } from '../desktop/desktopSession.js'
 import { COMPUTER_TOOL_NAME } from '../desktop/toolName.js'
 import { PERSISTED_OUTPUT_CLOSING_TAG, PERSISTED_OUTPUT_TAG, readPersistedToolResult } from '../../utils/toolResultStorage.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const toolPayload = z.object({ name: z.string(), input: z.record(z.string(), z.unknown()).default({}) })
 const agentPayload = z.object({
@@ -164,7 +163,154 @@ function refuseUncompilableSchema(schema: unknown, strict: boolean): BridgeAnswe
 }
 
 export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
-  return notBuilt('src/services/eval/evalBridge.ts:166')
+  const { context, canUseTool, cellAbort } = deps
+
+  const nestedContext: ToolUseContext = {
+    ...context,
+    abortController: cellAbort,
+  }
+
+  const makeWrappedCanUse = (budget: CellBudgetHooks, refused: () => void): CanUseToolFn =>
+    async (tool, input, ctx, message, id, force) => {
+      budget.askBegin()
+      try {
+        const decision = await canUseTool(tool, input, ctx, message, id, force)
+        if (decision.behavior !== 'allow') refused()
+        return decision
+      } finally {
+        budget.askEnd()
+      }
+    }
+
+  async function reenterTool(name: string, input: Record<string, unknown>, budget: CellBudgetHooks, rawFile?: { bytes: boolean }): Promise<BridgeAnswer> {
+    if (toolMatchesName({ name: EVAL_TOOL_NAME }, name)) {
+      return { ok: false, error: 'Eval cannot re-enter itself — run the code in this cell instead' }
+    }
+    const toolUseId = `evalb_${randomUUID()}`
+    const block = { type: 'tool_use' as const, id: toolUseId, name, input }
+    const assistant = createAssistantMessage({ content: [block], isVirtual: true })
+    deps.onNested?.(assistant)
+    const carriesScreenshot = deps.onScreenshot !== undefined && toolMatchesName({ name: COMPUTER_TOOL_NAME }, name)
+    let result: { text: string; isError: boolean } | null = null
+    let screenshot: BridgeScreenshot | null = null
+    let shellRun: ShellRunFact | undefined
+    let shellData: { stdout?: string; stderr?: string; persistedOutputPath?: string } | undefined
+    let permissionDenied = false
+    let rawValue: string | undefined
+    let rawMarker: string | undefined
+    const callContext = rawFile === undefined ? nestedContext : {
+      ...nestedContext,
+      options: {
+        ...nestedContext.options,
+        tools: nestedContext.options.tools.map(tool => !toolMatchesName(tool, 'Read') ? tool : {
+          ...tool,
+          async call(args: { file_path: string }, ctx: ToolUseContext) {
+            const path = expandPath(args.file_path, getCwd())
+            const bytes = await readFile(path, { signal: ctx.abortController.signal })
+            rawValue = bytes.toString(rawFile.bytes ? 'base64' : 'utf8')
+            rawMarker = `${path}: ${bytes.length} bytes read into the cell`
+            if (!rawFile.bytes) ctx.readFileState.set(path, { content: rawValue, timestamp: Math.floor((await stat(path)).mtimeMs), offset: 0, limit: undefined })
+            return { data: { type: 'text', file: { filePath: path, content: rawMarker, numLines: 1, startLine: 1, totalLines: 1 } } }
+          },
+          mapToolResultToToolResultBlockParam(_output: unknown, tool_use_id: string) {
+            return { type: 'tool_result', tool_use_id, content: rawMarker ?? '' }
+          },
+        } as typeof tool),
+      },
+    }
+    for await (const update of runToolUse(block, assistant, makeWrappedCanUse(budget, () => { permissionDenied = true }), callContext)) {
+      const message = (update as { message?: Message }).message
+      if (!message || message.type !== 'user') continue
+      const extracted = extractToolResult(message as UserMessage, toolUseId, carriesScreenshot ? SCREENSHOT_NOTE : IMAGE_NOTE)
+      if (extracted) {
+        result = extracted
+        if (carriesScreenshot) screenshot = screenshotOf(message as UserMessage)
+        shellRun = update.shellRun
+        if (shellRun !== undefined && typeof message.toolUseResult === 'object' && message.toolUseResult !== null) shellData = message.toolUseResult as typeof shellData
+        deps.onNested?.(toNormalizedUser(message as UserMessage))
+      }
+    }
+    if (!result) return { ok: false, error: `the ${name} call produced no result` }
+    if (screenshot !== null) {
+      const carrier = context.toolUseId
+      if (carrier === undefined || carrier === '' || rekeyScreenshot(deps.owner ?? ownerFromToolUseContext(context), toolUseId, carrier)) deps.onScreenshot?.(screenshot)
+    }
+    if (shellRun !== undefined) {
+      const output = shellData?.persistedOutputPath !== undefined ? await readFile(shellData.persistedOutputPath, 'utf8') : shellRun.output
+      return { ok: true, value: shellCallValue({ ...shellRun, ...(output !== undefined ? { output } : {}) }, result.text), code: shellRun.code }
+    }
+    if (result.isError) return { ok: false, error: unwrapToolUseError(result.text) || `the ${name} call failed`, errorKind: cellAbort.signal.aborted ? 'cancelled' : permissionDenied ? 'permission' : 'error' }
+    return { ok: true, value: rawValue !== undefined && result.text === rawMarker ? rawValue : await withPersistedValue(result.text, toolUseId) }
+  }
+
+  return async function serve(frame: BridgeRequestFrame, budget: CellBudgetHooks): Promise<BridgeAnswer> {
+    try {
+      switch (frame.kind) {
+        case 'read_file': {
+          const parsed = z.strictObject({ file_path: z.string(), bytes: z.boolean().default(false) }).parse(frame.payload)
+          return await reenterTool('Read', { file_path: parsed.file_path }, budget, { bytes: parsed.bytes })
+        }
+        case 'sample': {
+          return { ok: true, value: await handleSampleCall(deps.owner ?? ownerFromToolUseContext(context), frame.payload) }
+        }
+        case 'width': {
+          return { ok: true, value: governorCeilings().delegationLanes }
+        }
+        case 'tool': {
+          const parsed = toolPayload.safeParse(frame.payload)
+          if (!parsed.success) return { ok: false, error: `bad tool payload: ${parsed.error.message}` }
+          return await reenterTool(parsed.data.name, parsed.data.input, budget)
+        }
+        case 'agent': {
+          const parsed = agentPayload.safeParse(frame.payload)
+          if (!parsed.success) return { ok: false, error: `bad agent payload: ${parsed.error.message}` }
+          const p = parsed.data
+          const refusedSchema = refuseUncompilableSchema(p.schema, p.strict)
+          if (refusedSchema) return refusedSchema
+          let prompt = p.prompt
+          if (p.schema !== null && p.schema !== undefined) {
+            prompt += `\n\nYour FINAL message must be exactly one JSON value matching this JSON Schema — no prose around it:\n${JSON.stringify(p.schema)}`
+          }
+          const input: Record<string, unknown> = {
+            description: (p.label ?? p.prompt.slice(0, 40)).slice(0, 60),
+            prompt,
+            ...(p.agentType ? { crewmate_type: p.agentType } : {}),
+            ...(p.worktree ? { isolation: 'worktree' } : {}),
+          }
+          const answer = await reenterTool(AGENT_TOOL_NAME, input, budget)
+          if (!answer.ok) return answer
+          return applySchemaToReply(String(answer.value ?? ''), p.schema, p.strict)
+        }
+        case 'completion': {
+          const parsed = completionPayload.safeParse(frame.payload)
+          if (!parsed.success) return { ok: false, error: `bad completion payload: ${parsed.error.message}` }
+          const p = parsed.data
+          const refusedSchema = refuseUncompilableSchema(p.schema,  true)
+          if (refusedSchema) return refusedSchema
+          const call: CompletionCall =
+            p.model !== undefined && p.model !== null
+              ? { model: p.model }
+              : p.tier === 'fast'
+                ? { ...utilityCallFor(context.options.engineModel), effortPinned: true }
+                : { model: context.options.engineModel }
+          let prompt = p.prompt
+          if (p.schema !== null && p.schema !== undefined) {
+            prompt += `\n\nAnswer with exactly one JSON value matching this JSON Schema — no prose around it:\n${JSON.stringify(p.schema)}`
+          }
+          const text = await oneShotCompletion({
+            ...call,
+            prompt,
+            system: p.system ?? undefined,
+            signal: cellAbort.signal,
+          })
+          return applySchemaToReply(text, p.schema,  true)
+        }
+      }
+    } catch (error) {
+      logForDebugging(`eval bridge ${frame.kind} failed: ${String(error)}`)
+      return { ok: false, error: error instanceof Error ? error.message : String(error) }
+    }
+  }
 }
 
 type CompletionCall = {

@@ -3,7 +3,6 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { Tool } from '../Tool.js'
 import type { PermissionResult } from '../types/permissions.js'
-import { notBuilt } from '../pi/holes.js'
 
 type InstallTarget = { root: string; dataDir: string; key: string }
 const installs = new Map<string, InstallTarget>()
@@ -47,5 +46,25 @@ export async function bundledAppInstallPermission(tool: Tool, input: Record<stri
 }
 
 export function withBundledAppInstallConsent(tool: Tool): Tool {
-  return notBuilt('src/extensions/installConsent.ts:48')
+  const target = tool.mcpInfo?.toolName === 'craft_install' ? installs.get(tool.mcpInfo.serverName) : undefined
+  if (!target) return tool
+  const cached = wrapped.get(tool)
+  if (cached) return cached
+  const decorated: Tool = {
+    ...tool,
+    async checkPermissions(input, context) {
+      const original = await tool.checkPermissions(input, context)
+      if (original.behavior === 'deny') return original
+      return await bundledAppInstallPermission(tool, input) ?? original
+    },
+    async call(input, context, canUseTool, parent, onProgress) {
+      const { plan } = await inspectInstall(target)
+      context.abortController.signal.throwIfAborted()
+      const payload = Buffer.from(JSON.stringify({ digest: plan.digest, nonce: randomUUID(), expires: Date.now() + 60000 })).toString('base64url')
+      const signature = createHmac('sha256', target.key).update(payload).digest('hex')
+      return tool.call({ ...input, _mercuryInstallGrant: `${payload}.${signature}` }, context, canUseTool, parent, onProgress)
+    },
+  }
+  wrapped.set(tool, decorated)
+  return decorated
 }

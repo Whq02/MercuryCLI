@@ -6,7 +6,6 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { SessionContractV1 } from '../../daemon/sessionContract.js'
 import { CONTRACT_TOOL_NAME, CONTRACT_TOOL_PROMPT, DESCRIPTION } from '../../constants/tools/contract.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 const inputSchema = lazySchema(() =>
@@ -63,4 +62,164 @@ async function contractVerb(op: 'ack' | 'close'): Promise<{ ok: boolean; detail?
 const NO_CONTRACT =
   'This session has no contract — that is normal and fine (contracts are advisory and opt-in). Work as briefed; the operator can add one any time with /contract.'
 
-export const ContractTool: Unbuilt = unbuilt('src/tools/ContractTool/ContractTool.ts:65')
+export const ContractTool = buildTool({
+  name: CONTRACT_TOOL_NAME,
+  searchHint: 'contract / the session work agreement: read, acknowledge, check in, sufficiency, propose amendment, close against',
+  capability: {
+    intents: [
+      'read and acknowledge the session work agreement',
+      'check work against the session contract',
+      'file the closing contract receipt',
+    ],
+    units: ['task-coordination'],
+    class: 'coordination',
+    operations: ['read', 'acknowledge', 'check-in', 'sufficiency', 'propose-amend', 'close-against'],
+    cancellation: 'not-applicable',
+    latency: 'fast',
+    gate: 'MERCURY_CONCOURSE_WORKER',
+  },
+  maxResultSizeChars: 50_000,
+  userFacingName: () => 'Contract',
+  get inputSchema(): InputSchema {
+    return inputSchema()
+  },
+  get outputSchema(): OutputSchema {
+    return outputSchema()
+  },
+  isEnabled() {
+    return contractToolHosted()
+  },
+  isConcurrencySafe() {
+    return false
+  },
+  isReadOnly() {
+    return false
+  },
+  async description() {
+    return DESCRIPTION
+  },
+  async prompt() {
+    return CONTRACT_TOOL_PROMPT
+  },
+  getActivityDescription(input) {
+    return input?.action ? `Contract: ${input.action}` : 'Contract'
+  },
+  renderToolUseMessage(input) {
+    return input?.action ?? ''
+  },
+  renderToolResultMessage() {
+    return null
+  },
+  mapToolResultToToolResultBlockParam(output, toolUseID) {
+    return {
+      tool_use_id: toolUseID,
+      type: 'tool_result',
+      content: jsonStringify(output),
+    }
+  },
+  async call({ action, restatement, about, proposal, report }) {
+    const { contract, title, found } = await readOwnContract()
+    if (!found) {
+      return { data: { message: 'No session record answers for this run — the contract store is unreadable right now. Continue working; nothing gates on it.' } }
+    }
+    const facts = (c: SessionContractV1): { status: string; text: string; amendments: number } => ({
+      status: c.status,
+      text: c.text,
+      amendments: c.amendments.length,
+    })
+    switch (action) {
+      case 'read': {
+        if (contract === undefined) return { data: { message: NO_CONTRACT } }
+        const owing =
+          contract.status === 'draft' || contract.status === 'amended'
+            ? ' It awaits YOUR acknowledgment: restate it in your own words via { action: "acknowledge", restatement } — the restatement is what makes it stick.'
+            : contract.status === 'closed'
+              ? ' It is closed — kept for the record.'
+              : ''
+        return { data: { message: `The session's contract, fresh from the record.${owing} Advisory always — it encourages, never blocks.`, ...facts(contract) } }
+      }
+      case 'acknowledge': {
+        if (contract === undefined) return { data: { message: NO_CONTRACT } }
+        if ((restatement ?? '').trim().length === 0) {
+          throw new Error('acknowledge requires a non-empty restatement of the contract in your own words.')
+        }
+        const r = await contractVerb('ack')
+        if (!r.ok) return { data: { message: `The acknowledgment did not land — ${r.detail ?? 'the daemon was unreachable'}. The contract stands unchanged; try again or continue (advisory).`, ...facts(contract) } }
+        return { data: { message: `Acknowledged: the agreement is in force and your restatement is recorded in this transcript. Work under it, check-in when unsure, and propose-amend if a clause no longer fits.`, ...facts({ ...contract, status: 'acknowledged' }) } }
+      }
+      case 'check-in': {
+        if (contract === undefined) return { data: { message: `${NO_CONTRACT} Nothing to check against.` } }
+        const move = (about ?? '').trim()
+        if (move.length === 0) throw new Error('check-in needs `about` — say what you are about to do.')
+        return {
+          data: {
+            message: `You are about to: ${move}\n\nHold that against the agreement below — YOU judge whether it is on-contract; nothing is blocked either way. On-contract: continue. Off-contract but needed: propose-amend with the why, or ask the user.`,
+            ...facts(contract),
+          },
+        }
+      }
+      case 'sufficiency': {
+        if (contract === undefined) {
+          return { data: { message: `${NO_CONTRACT} Sufficiency without a contract is your brief and your judgment: if the task in front of you has a material gap, ASK THE USER naming the gap; otherwise CONTINUE.` } }
+        }
+        return {
+          data: {
+            message:
+              'Assess whether this contract is complete enough for the work ahead. Either ask the user by naming the specific gap (propose-amend sends a needs-you) or continue. Do not fill a material gap with a guess.',
+            ...facts(contract),
+          },
+        }
+      }
+      case 'propose-amend': {
+        const clause = (proposal ?? '').trim()
+        if (clause.length === 0) throw new Error('propose-amend needs `proposal` — the clause that does not survive contact, and why.')
+        if (contract === undefined) return { data: { message: `${NO_CONTRACT} Nothing to amend — if the BRIEF has the gap, ask the user directly.` } }
+        const sessionId = getSessionId()
+        const { upsertObligation } = await import('../../services/crew/obligations.js')
+        await upsertObligation({
+          ref: `contract-amend:${sessionId}`,
+          sessionId,
+          question: `"${title}" proposes a contract amendment — ${clause.replace(/\s+/g, ' ').slice(0, 200)}`,
+          owner: 'operator',
+          scope: 'switchboard',
+        })
+        return {
+          data: {
+            message:
+              'Proposed: the operator has a needs-you with your proposal; once they amend, re-acknowledge. Until then the current contract remains advisory: continue work that fits it, or end your turn and ask the user.',
+            ...facts(contract),
+          },
+        }
+      }
+      case 'close-against': {
+        if (contract === undefined) return { data: { message: `${NO_CONTRACT} Nothing to close against — close out with your ordinary summary.` } }
+        const closing = (report ?? '').trim()
+        if (closing.length === 0) throw new Error('close-against needs `report` — what was delivered against the contract’s items, what was not, and why.')
+        const sessionId = getSessionId()
+        const { appendSessionReceipt } = await import('../../services/switchboard/sessionReceipts.js')
+        const { getTranscriptPath } = await import('../../utils/sessionStorage/paths.js')
+        const { dirname } = await import('node:path')
+        appendSessionReceipt(dirname(getTranscriptPath()), sessionId, {
+          at: new Date().toISOString(),
+          by: `worker:${sessionId.slice(0, 8)}`,
+          kind: 'contract-close',
+          summary: closing,
+          details: {
+            status: contract.status,
+            amendments: contract.amendments.length,
+            ...(contract.ackAt !== undefined ? { ackAt: contract.ackAt } : {}),
+          },
+        })
+        const r = await contractVerb('close')
+        return {
+          data: {
+            message: r.ok
+              ? 'The closing report is filed as a receipt beside the transcript and the contract is closed — text and history kept (never deleted).'
+              : `The closing report is filed as a receipt, but the close did not land — ${r.detail ?? 'the daemon was unreachable'}. The contract stays ${contract.status}; close-against again retries the close (the receipt trail is append-only, so the retry files another entry).`,
+            ...facts(contract),
+          },
+        }
+      }
+    }
+  },
+} satisfies ToolDef<InputSchema, Output>)

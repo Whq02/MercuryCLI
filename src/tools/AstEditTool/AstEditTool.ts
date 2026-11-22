@@ -66,7 +66,6 @@ import {
   renderToolUseRejectedMessage,
 } from './UI.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 const ruleSchema = z.strictObject({
@@ -441,5 +440,202 @@ async function astEditCall(input: Input, context: ToolUseContext, parentMessage:
   }
 }
 
-export const AstEditTool: Unbuilt = unbuilt('src/tools/AstEditTool/AstEditTool.ts:443')
+export const AstEditTool = buildTool({
+  shouldDefer: true,
+  name: AST_EDIT_TOOL_NAME,
+  strict: true,
+  keepEmptyInputs: ['rewrite'],
+  straightQuoteInputs: ['pattern', 'path', 'glob'],
+  maxResultSizeChars: 60_000,
+  searchHint: 'structural code rewrite by syntax pattern across files, dry-run diff then apply',
+  capability: {
+    intents: [
+      'rewrite every match of a code pattern',
+      'rewrite a matched pattern in many files',
+      'rename a function or call shape across files',
+      'structural refactor with a dry-run diff',
+      'delete every occurrence of a code construct',
+      'codemod by syntax pattern in python go rust or typescript',
+    ],
+    units: ['structural-mutation', 'text-mutation'],
+    class: 'mutation',
+    transaction: { kind: 'file', receipts: true },
+    evidence: ['change'],
+    resources: ['file', 'receipt'],
+    preview: true,
+    cancellation: 'cooperative',
+    latency: 'fast',
+    gate: 'MERCURY_STRUCTURE_POLYGLOT',
+    conditions: ['the packaged tree-sitter grammar engine (dist/vendor/treesitter beside the bundle, or the workspace package)'],
+    proof: 'scripts/ast-tools/run-all.sh',
+  },
+  inputSchema,
+  outputSchema,
+  isEnabled() {
+    return structurePolyglotEnabled() && resolveGrammarEngineDir().state === 'ok'
+  },
+  isReadOnly(input: Input) {
+    return input?.apply !== true
+  },
+  isConcurrencySafe(input: Input) {
+    return input?.apply !== true
+  },
+  userFacingName: () => 'Structural edit',
+  getToolUseSummary,
+  getActivityDescription(input: Partial<Input> | undefined): string {
+    if (input?.rules?.length) {
+      const count = `${input.rules.length} ${plural(input.rules.length, 'rule')}`
+      return input.apply ? `Rewriting ${count}` : `Planning ${count}`
+    }
+    if (!input?.pattern) return 'Structural edit'
+    return input.apply ? `Rewriting ${input.pattern}` : `Planning a rewrite of ${input.pattern}`
+  },
+  getPath(input: Partial<Input> | undefined): string {
+    return input?.path || getCwd()
+  },
+  async description(): Promise<string> {
+    return getAstEditDescription()
+  },
+  async prompt(): Promise<string> {
+    return getAstEditDescription()
+  },
+  async validateInput(input: Input) {
+    const pathRefusal = controlCharacterPathRefusal(input.path)
+    if (pathRefusal !== null) return { result: false as const, message: pathRefusal, errorCode: 1 }
+    if (input.rules !== undefined) {
+      if (input.rules.length === 0 || input.pattern !== undefined || (input.rewrite !== undefined && input.rewrite !== '')) {
+        return { result: false as const, message: EXCLUSIVE_FORMS_MESSAGE, errorCode: 1 }
+      }
+      for (let i = 0; i < input.rules.length; i++) {
+        if (input.rules[i]!.pattern.trim() === '') {
+          return {
+            result: false as const,
+            message: `Rule ${i}: pattern is empty — give a structural pattern such as "oldName($$$ARGS)".`,
+            errorCode: 1,
+          }
+        }
+      }
+    } else {
+      if (input.pattern === undefined || input.rewrite === undefined) {
+        return { result: false as const, message: EXCLUSIVE_FORMS_MESSAGE, errorCode: 1 }
+      }
+      if (input.pattern.trim() === '') {
+        return { result: false as const, message: 'pattern is empty — give a structural pattern such as "oldName($$$ARGS)".', errorCode: 1 }
+      }
+    }
+    if (input.lang !== undefined && input.lang.trim() !== '') {
+      const resolved = resolveAstLanguage(input.lang)
+      if (!resolved) {
+        return {
+          result: false as const,
+          message: `Unknown language "${input.lang}". Supported languages: ${astLanguageNames().join(', ')}. Omit lang to detect the language per file from its extension.`,
+          errorCode: 2,
+        }
+      }
+      if (!availableAstLanguages().some(l => l.name === resolved.name)) {
+        return {
+          result: false as const,
+          message: `lang "${input.lang}" routes to ${resolved.name}, but this build does not carry the ${resolved.name} grammar: ${GRAMMAR_PACK_REMEDY}. Languages this build carries: ${astLanguageNames().join(', ')}.`,
+          errorCode: 2,
+        }
+      }
+    }
+    if (input.apply === true && (input.plan === undefined || input.plan.trim() === '')) {
+      return {
+        result: false as const,
+        message: 'apply: true needs plan — run the dry run first (the same call without apply), read the diff, then use the plan token it returned as plan.',
+        errorCode: 3,
+      }
+    }
+    if (input.apply !== true && input.plan !== undefined && input.plan.trim() !== '') {
+      return {
+        result: false as const,
+        message: 'plan accompanies apply: true — omit it for a dry run, or use apply: true to write that plan.',
+        errorCode: 4,
+      }
+    }
+    if (input.path !== undefined) {
+      const expanded = expandPath(input.path)
+      if (input.path.startsWith('\\\\') || input.path.startsWith('//')) {
+        return { result: true as const }
+      }
+      try {
+        await stat(expanded)
+      } catch (err) {
+        if (!isENOENT(err)) throw err
+        let suggestion: string | undefined
+        try {
+          suggestion = await suggestPathUnderCwd(expanded)
+        } catch {
+          suggestion = undefined
+        }
+        if (suggestion === undefined) suggestion = findSimilarFile(expanded)
+        return {
+          result: false as const,
+          message: `Path does not exist: ${input.path}. ${FILE_NOT_FOUND_CWD_NOTE} ${getCwd()}.${suggestion ? ` Did you mean ${suggestion}?` : ''}`,
+          errorCode: 5,
+        }
+      }
+    }
+    return { result: true as const }
+  },
+  async checkPermissions(input: Input, context): Promise<PermissionDecision> {
+    const permCtx = context.getAppState().toolPermissionContext
+    if (input.apply !== true) {
+      return checkReadPermissionForTool(AstEditTool, input, permCtx) as PermissionDecision
+    }
+    let planned: { scope: AstScope; plan: AstRewritePlan }
+    try {
+      planned = await planFor(input, context)
+    } catch (error) {
+      logForDebugging(`AstEdit: the rewrite could not be planned for the permission check (${error instanceof Error ? error.message : String(error)}), so the call goes on and its own planning answers`)
+      passedOver(error)
+      return { behavior: 'allow', updatedInput: input } as PermissionDecision
+    }
+    const targets = planned.plan.files
+    if (targets.length === 0 || input.plan?.trim() !== planned.plan.token) {
+      return { behavior: 'allow', updatedInput: input } as PermissionDecision
+    }
+    let needsAsk = false
+    let safetyAsk: Extract<PermissionDecision, { behavior: 'ask' }> | undefined
+    for (const f of targets) {
+      const decision = checkWritePermissionForTool(pathShim, { file_path: f.abs }, permCtx)
+      if (decision.behavior === 'deny') {
+        return {
+          ...decision,
+          message: decision.decisionReason.type === 'rule'
+            ? refusalWithReason(`Editing ${f.rel} is denied by ${ruleWords(decision.decisionReason.rule)} — a denied file refuses the whole structural edit (zero writes).`, reasonForRule(permCtx, decision.decisionReason.rule))
+            : `${decision.message} A denied file refuses the whole structural edit (zero writes).`,
+        } as PermissionDecision
+      }
+      if (decision.behavior !== 'allow') needsAsk = true
+      if (decision.behavior === 'ask' && decision.decisionReason?.type === 'safetyCheck') safetyAsk ??= decision
+    }
+    if (needsAsk) {
+      const shown = targets.slice(0, 3).map(f => f.rel).join(', ')
+      const more = targets.length > 3 ? ` and ${targets.length - 3} more` : ''
+      return {
+        behavior: 'ask',
+        ...(safetyAsk ? { decisionReason: safetyAsk.decisionReason } : {}),
+        message: input.rules
+          ? `Rewrite ${planned.plan.matchCount} ${plural(planned.plan.matchCount, 'match', 'matches')} across ${input.rules.length} ${plural(input.rules.length, 'rule')} in ${targets.length} ${plural(targets.length, 'file')} (${shown}${more})? One decision covers every file; a denied file means zero writes.${safetyAsk ? ' ' + safetyAsk.message : ''}`
+          : `Rewrite ${planned.plan.matchCount} ${plural(planned.plan.matchCount, 'match', 'matches')} of ${JSON.stringify(input.pattern)} in ${targets.length} ${plural(targets.length, 'file')} (${shown}${more})? One decision covers every file; a denied file means zero writes.${safetyAsk ? ' ' + safetyAsk.message : ''}`,
+      } as PermissionDecision
+    }
+    return { behavior: 'allow', updatedInput: input } as PermissionDecision
+  },
+  call(input: Input, context: ToolUseContext, _canUseTool, parentMessage) {
+    return astEditCall(input, context, parentMessage)
+  },
+  mapToolResultToToolResultBlockParam(data: Output, toolUseID: string) {
+    return { tool_use_id: toolUseID, type: 'tool_result' as const, content: data.text }
+  },
+  extractSearchText(data: Output): string {
+    return data.text
+  },
+  renderToolUseMessage,
+  renderToolResultMessage,
+  renderToolUseRejectedMessage,
+  renderToolUseErrorMessage,
+})
 

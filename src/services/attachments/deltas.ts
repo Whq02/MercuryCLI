@@ -29,7 +29,30 @@ export async function getPlannedDeferredToolsAttachment(
   messages: Message[],
   scanContext: DeferredToolsDeltaScanContext,
 ): Promise<Attachment[]> {
-  return notBuilt('src/services/attachments/deltas.ts:27')
+  const model = context.options.engineModel
+  const tools = context.options.tools
+  const plan = await planToolPayloadUnseeded({
+    model,
+    tools,
+    messages,
+    getToolPermissionContext: async () => context.getAppState().toolPermissionContext,
+    agents: context.options.agentDefinitions?.activeAgents ?? [],
+    hasPendingMcpServers: scanContext.hasPendingMcpServers,
+    source: scanContext.querySource,
+    latchKey: String(rosterOwnerFromToolUseContext(context)),
+  })
+  const suffix = conversationRosterKey('', messages, model)
+  const recorded = plan.conversationKey === undefined
+    ? messages.findLast(message => message.type === 'attachment' && message.attachment.type === 'bound_prefix' && message.attachment.boundKey.endsWith(suffix))
+    : undefined
+  if (recorded?.type === 'attachment' && recorded.attachment.type === 'bound_prefix') {
+    return getDeferredToolsDeltaAttachment(tools, model, messages, scanContext, {
+      enabled: recorded.attachment.rosterEnabled,
+      wireForm: plan.wireForm,
+      deferredNames: new Set(tools.filter(tool => isDeferredToolFor(tool, model, undefined, messages)).map(tool => tool.name)),
+    })
+  }
+  return getDeferredToolsDeltaAttachment(tools, model, messages, scanContext, plan)
 }
 
 export function getDeferredToolsDeltaAttachment(

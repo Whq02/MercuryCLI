@@ -18,7 +18,6 @@ import { resolveToolJSX } from '../toolJsxArbitration.js';
 import type { CrashResumeStaged } from './crashResume.js';
 import type { FocusedInputDialog } from './focusedDialog.js';
 import { RECEIPT_TIMEOUT_MS, SWITCH_STATUS_TIMEOUT_MS } from './limits.js';
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 const COST_THRESHOLD_USD = 5;
 
@@ -26,11 +25,58 @@ export type ToolJSXState = Parameters<SetToolJSXFn>[0];
 
 type ElicitationQueue = AppState['elicitation']['queue'];
 
-export function useChatDialogs(arg0: {
+export function useChatDialogs({
+  store,
+  addNotification,
+}: {
   store: AppStateStore;
   addNotification?: ReturnType<typeof useNotifications>['addNotification'];
-}): Unbuilt {
-  return notBuilt('src/screens/chat/useChatDialogs.tsx:28')
+}) {
+  const [toolJSX, setToolJSXState] = useState<ToolJSXState>(null);
+  const setToolJSX: SetToolJSXFn = useCallback(next => {
+    setToolJSXState(prev => resolveToolJSX(prev, next));
+  }, []);
+  const [isExiting, setIsExiting] = useState(false);
+  const [showExitFlow, setShowExitFlow] = useState(false);
+  const [exitCommandJsx, setExitCommandJsx] = useState<React.ReactNode | null>(null);
+  const [showCostThreshold, setShowCostThreshold] = useState(false);
+  const [showBashesDialog, setShowBashesDialog] = useState<string | boolean>(false);
+  const handleExit = useCallback(() => {
+    if (getCurrentWorktreeSession() !== null) {
+      setShowExitFlow(true);
+      return;
+    }
+    setIsExiting(true);
+    void (async () => {
+      try {
+        const module = await import('../../commands/exit/exit.js');
+        const element = await module.call(
+          () => {
+            setExitCommandJsx(null);
+            setIsExiting(false);
+          },
+          { getAppState: () => store.getState() },
+        );
+        if (element === null || element === undefined) {
+          setIsExiting(false);
+          return;
+        }
+        setExitCommandJsx(element);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        logForDebugging(`exit command failed: ${detail}`);
+        setIsExiting(false);
+        addNotification?.({
+          key: 'exit-failed',
+          text: `Could not exit (${detail}) — press ctrl+c to quit.`,
+          priority: 'high',
+          color: 'error' as const,
+          timeoutMs: RECEIPT_TIMEOUT_MS,
+        });
+      }
+    })();
+  }, [store, addNotification]);
+  return { toolJSX, setToolJSX, isExiting, showExitFlow, setShowExitFlow, exitCommandJsx, showCostThreshold, setShowCostThreshold, showBashesDialog, setShowBashesDialog, handleExit };
 }
 
 export function useChatDialogPaints({

@@ -21,6 +21,26 @@ import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 type MessageUpdate = Unbuilt
 
+function addInProgress(context: ToolUseContext, id: string): void {
+  try {
+    context.setInProgressToolUseIDs?.(prev => new Set([...prev, id]))
+  } catch (error) {
+    logError(error)
+  }
+}
+
+function removeInProgress(context: ToolUseContext, id: string): void {
+  try {
+    context.setInProgressToolUseIDs?.(prev => {
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+  } catch (error) {
+    logError(error)
+  }
+}
+
 async function parkBeforeBlock(block: ToolUseBlock, context: ToolUseContext): Promise<void> {
   await parkBeforeTool(context, block.name)
 }

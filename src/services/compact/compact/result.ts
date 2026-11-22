@@ -14,7 +14,11 @@ export type RecompactionInfo = Unbuilt
 
 
 export function foldDefersNow(context: ToolUseContext): (name: string) => boolean {
-  return notBuilt('src/services/compact/compact/result.ts:35')
+  const model = context.options.engineModel
+  return name => {
+    const tool = context.options.tools.find(candidate => candidate.name === name)
+    return tool !== undefined && defersUnderLaw(tool, model)
+  }
 }
 
 export function buildPostCompactMessages(result: CompactionResult): Message[] {
