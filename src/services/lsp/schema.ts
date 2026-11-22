@@ -18,7 +18,7 @@ export const LspServerConfigSchema = lazySchema(() =>
       .describe('Arguments passed to the server.'),
     extensionToLanguage: z
       .record(
-        z.string().regex(/^\..+/, 'extensionToLanguage keys are file extensions and must begin with a dot (for example ".py", not "py")'),
+        z.string().regex(/^\..+$/, 'extensionToLanguage keys are file extensions and must begin with a dot (for example ".py", not "py")'),
         z.string().min(1, 'extensionToLanguage values must be language identifiers'),
       )
       .refine(map => Object.keys(map).length > 0, 'extensionToLanguage must declare at least one file extension')
