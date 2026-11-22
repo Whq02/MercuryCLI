@@ -108,17 +108,23 @@ export function healthCertificateView({
           <FixCard flow={fixFlow} />
         </Box>
       ) : null}
-      <PopupScrollViewport scrollRef={scrollRef}>{scrolls => (
+      <PopupScrollViewport scrollRef={scrollRef}>{scrolls => {
+      const listW = Math.max(1, innerW - (scrolls ? 1 : 0))
+      return (
       <ScrollBox ref={scrollRef} height={layout.listRows} flexShrink={0} flexDirection="column">
         {layout.compact && statusLine !== null ? <Text color={loading ? FAINT : AMBER} wrap="truncate-end">{statusLine}</Text> : null}
         {actions.length > 0 ? (
           <Box flexDirection="column">
             <SectionHeader marginTop={0}>NEXT</SectionHeader>
             {actions.map((a, i) => (
-              <Text key={i} wrap="truncate-end">
-                <Text color={statusColor(a.status)}>{HEALTH_STATUS_META[a.status].glyph} </Text>
-                <Text color={IVORY}>{a.fix}</Text>
-              </Text>
+              <Box key={i} flexDirection="row" width={listW}>
+                <Box flexShrink={0}>
+                  <Text color={statusColor(a.status)}>{HEALTH_STATUS_META[a.status].glyph} </Text>
+                </Box>
+                <Box flexGrow={1} flexShrink={1} minWidth={0}>
+                  <Text color={IVORY} wrap="wrap">{a.fix}</Text>
+                </Box>
+              </Box>
             ))}
           </Box>
         ) : null}
@@ -131,7 +137,7 @@ export function healthCertificateView({
                   check={c}
                   active={selId === c.id}
                   open={openId === c.id}
-                  width={Math.max(1, innerW - (scrolls ? 1 : 0))}
+                  width={listW}
                   rowRef={selId === c.id ? selRowRef : undefined}
                   onSelect={() => selectId(c.id)}
                   onActivate={() => toggleOpen(c.id)}
@@ -140,7 +146,7 @@ export function healthCertificateView({
           </Box>
         ))}
       </ScrollBox>
-      )}</PopupScrollViewport>
+      )}}</PopupScrollViewport>
       {layout.legend ? <Box height={1} /> : null}
       <Box height={1} width={innerW + 1} marginRight={-1}>
         <Text color={tok.textMuted} wrap="truncate-end">{footer}</Text>
