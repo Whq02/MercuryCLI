@@ -1,4 +1,4 @@
-import { mock } from 'bun:test'
+import { mock, spyOn } from 'bun:test'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -1715,6 +1715,29 @@ export async function closeStage(stage: Stage): Promise<void> {
   await releaseScratchHome(stage.home)
 }
 
+async function holdReceiptExpiry(stage: Stage, key: string, show: () => Promise<void>): Promise<() => void> {
+  const timers = await import('../../src/utils/timers.ts')
+  const { RECEIPT_TIMEOUT_MS } = await import('../../src/screens/chat/limits.ts')
+  const start = timers.startTimeout
+  const store = stage.store()
+  let hold: (() => void) | undefined
+  let expire: (() => void) | undefined
+  const tap = spyOn(timers, 'startTimeout').mockImplementation(<A extends unknown[]>(fire: (...args: A) => void, ms?: number, ...args: A) => {
+    const timer = start(fire, ms, ...args)
+    if (ms === RECEIPT_TIMEOUT_MS) hold = () => {
+      timers.stopTimeout(timer)
+      expire = () => fire(...args)
+    }
+    return timer
+  })
+  const stop = store.subscribe(() => {
+    if (!expire && store.getState().notifications.current?.key === key) hold?.()
+  })
+  try { await show() } finally { stop(); tap.mockRestore() }
+  if (!expire || store.getState().notifications.current?.key !== key) throw new Error(`hold the expiry of ${key} when its receipt is shown in scripts/ui/chatScenarios.ts`)
+  return expire
+}
+
 const has = (words: string) => (frame: string): boolean => frame.includes(words)
 const lacks = (words: string) => (frame: string): boolean => !frame.includes(words)
 const PLACEHOLDER = 'Type a prompt'
@@ -2371,8 +2394,10 @@ export const SCENARIOS: Scenario[] = [
       await stage.key(KEY.enter, 'a dialog command with nothing to show says so', has('had nothing to show'))
       await stage.type('/proof-dialog-throws')
       await stage.key(KEY.enter, 'a dialog command that throws is told as failed', has('a planted fault of the dialog'))
-      await stage.type('/proof-dialog-throws-words')
-      await stage.key(KEY.enter, 'a dialog command that throws what is no Error is told as failed', has('that is no Error'))
+      const expireFailure = await holdReceiptExpiry(stage, 'command-proof-dialog-throws-words', async () => {
+        await stage.type('/proof-dialog-throws-words')
+        await stage.key(KEY.enter, 'a dialog command that throws what is no Error is told as failed', has('that is no Error'))
+      })
       await stage.type('/logins')
       await stage.key(KEY.enter, 'the sign-in door mounts', has('a scripted sign-in door'))
       last().done()
@@ -2393,7 +2418,8 @@ export const SCENARIOS: Scenario[] = [
       await stage.type('/proof-dialog five')
       await stage.key(KEY.enter, 'a fifth dialog mounts', has('a scripted dialog (five)'))
       last().done(undefined, { nextInput: '/proof-says from a dialog', submitNextInput: true })
-      await stage.mark('a next line a dialog submits is run', has('the scripted command said from a dialog'))
+      expireFailure()
+      await stage.mark('a next line a dialog submits is run', frame => frame.includes('the scripted command said from a dialog') && frame.includes('effort: medium · /effort to change'))
       await stage.type('/proof-dialog six')
       await stage.key(KEY.enter, 'a sixth dialog mounts', has('a scripted dialog (six)'))
       last().done(undefined, { nextInput: 'words a dialog hands to the composer' })
