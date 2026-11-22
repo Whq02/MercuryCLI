@@ -53,8 +53,15 @@ writeFileSync(deployedEntry, '')
 writeFileSync(join(deployed, 'runtime-manifest.json'), JSON.stringify({ schema: 1 }))
 
 const V_CURRENT = '1.0.11'
+const V_NEWER = '9.9.0'
 const currentFixtures = makeFixtures(fixturesRoot, 'current', [{ version: V_CURRENT }])
+const newerFixtures = makeFixtures(fixturesRoot, 'newer', [{ version: V_NEWER }])
+const emptyFixtures = join(fixturesRoot, 'empty')
+mkdirSync(emptyFixtures, { recursive: true })
+writeFileSync(join(emptyFixtures, 'releases.json'), '[]')
 const serverCurrent = await spawnFixtureReleaseServer({ fixtures: currentFixtures })
+const serverNewer = await spawnFixtureReleaseServer({ fixtures: newerFixtures })
+const serverEmpty = await spawnFixtureReleaseServer({ fixtures: emptyFixtures })
 
 const SELF = fileURLToPath(import.meta.url)
 const runUpdate = (
@@ -122,7 +129,79 @@ section(
   )
 }
 
+section(
+  '§2 update --check adds the "this Mercury:" line whenever the running Mercury is not the managed install',
+  'change the options.check branch in src/cli/update.ts so thisMercury is shown whenever provenance.kind !== "managed"',
+)
+{
+  const managedDir = join(versionsDir, V_CURRENT)
+  mkdirSync(managedDir, { recursive: true })
+  const managedEntry = join(managedDir, 'mercury.mjs')
+  writeFileSync(managedEntry, '')
+  writeFileSync(join(managedDir, 'manifest.json'), JSON.stringify({ version: V_CURRENT }))
+  writeFileSync(join(versionsDir, 'current.txt'), `${V_CURRENT}\n`)
+
+  const checkoutLine = `\n  this Mercury: a source checkout at ${checkout} — rebuild it with \`git pull && bun run build.ts\``
+
+  const checkCurrent = runUpdate(checkoutEntry, { check: true }, serverCurrent.url)
+  check(
+    'source checkout with co-resident managed install: --check (current) names the managed version and adds "this Mercury:"',
+    checkCurrent.code === 0 && checkCurrent.stdout.startsWith(`Mercury is current: ${V_CURRENT}`) && checkCurrent.stdout.includes(checkoutLine),
+    checkCurrent.stdout.slice(0, 400),
+  )
+
+  const checkJson = runUpdate(checkoutEntry, { check: true, json: true }, serverCurrent.url)
+  let parsed: Record<string, unknown> | null = null
+  try {
+    parsed = JSON.parse(checkJson.stdout) as Record<string, unknown>
+  } catch {
+    parsed = null
+  }
+  const prov = parsed?.provenance as Record<string, unknown> | undefined
+  check(
+    '--check --json keeps its fields with activeRoot naming the checkout root',
+    checkJson.code === 0 &&
+      parsed?.mode === 'check' &&
+      parsed?.state === 'current' &&
+      parsed?.installed === V_CURRENT &&
+      typeof parsed?.channelRepo === 'string' &&
+      typeof parsed?.road === 'string' &&
+      prov?.kind === 'development' &&
+      prov?.activeRoot === checkout &&
+      prov?.updateOwner === 'source-build' &&
+      prov?.updateCommand === null &&
+      prov?.npmWrapper === null,
+    checkJson.stdout.slice(0, 400),
+  )
+
+  const checkNewer = runUpdate(checkoutEntry, { check: true }, serverNewer.url)
+  check(
+    'source checkout with co-resident managed install: --check (update-available) adds "this Mercury:" and keeps the channel road',
+    checkNewer.code === 0 &&
+      checkNewer.stdout.includes(`update available: v${V_NEWER} (installed: ${V_CURRENT})`) &&
+      checkNewer.stdout.includes(checkoutLine) &&
+      checkNewer.stdout.trim().endsWith('run `mercury update` to install it'),
+    checkNewer.stdout.slice(0, 400),
+  )
+
+  const checkEmpty = runUpdate(checkoutEntry, { check: true }, serverEmpty.url)
+  check(
+    'source checkout with co-resident managed install: --check (no-releases) adds "this Mercury:"',
+    checkEmpty.code === 0 && checkEmpty.stdout.includes('no releases found') && checkEmpty.stdout.includes(checkoutLine),
+    checkEmpty.stdout.slice(0, 400),
+  )
+
+  const managedCurrent = runUpdate(managedEntry, { check: true }, serverCurrent.url)
+  check(
+    'control: the managed install itself does not add a "this Mercury:" line on --check',
+    managedCurrent.code === 0 && managedCurrent.stdout.startsWith(`Mercury is current: ${V_CURRENT}`) && !managedCurrent.stdout.includes('this Mercury:'),
+    managedCurrent.stdout.slice(0, 400),
+  )
+}
+
 await serverCurrent.close()
+await serverNewer.close()
+await serverEmpty.close()
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(`\nprove-source-checkout-words: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)
