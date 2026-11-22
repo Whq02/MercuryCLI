@@ -83,8 +83,9 @@ model accepts `disabled` (on Opus 5.5 a turn with thinking off carries no
 thinking parameter and adaptive thinking runs; on Sonnet 5.5 it carries the
 `between_tools` setting at `low`, `medium` and `high` effort, which turns
 up-front thinking off, and no thinking parameter at `xhigh` and `max`, where
-the API refuses that setting and adaptive thinking runs) and a forced tool
-choice becomes `auto`, the prompt naming the tool.
+the API refuses that setting, or on a request that asks for JSON output, so
+adaptive thinking runs there) and a forced tool choice becomes `auto`, the
+prompt naming the tool.
 
 `fable` means Fable 5.2 (`claude-fable-5-2`); `fable52` names that generation
 explicitly and `fable51` still names Fable 5.1. Fable 5.1 and Fable 5 keep

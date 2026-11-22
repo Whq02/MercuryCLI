@@ -3,6 +3,7 @@ import { proofHome } from '../lib/hermetic.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import type { Message } from '../../src/types/message.ts'
+import type { JsonOutputFormat } from '../../src/types/wire.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const name of Object.keys(process.env)) {
@@ -49,14 +50,14 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const caps = await import('../../src/utils/model/capabilities.ts')
 const { MESSAGE_EFFORT_BETA_HEADER, THINKING_BINDING_CONTROLS_BETA_HEADER, THINKING_DISPLAY_UPDATES_BETA_HEADER } = await import('../../src/constants/betas.ts')
 
-type Body = { model?: string; thinking?: unknown; output_config?: { effort?: string }; messages?: Array<{ role: string; content: unknown; output_config?: unknown }> }
+type Body = { model?: string; thinking?: unknown; output_config?: { effort?: string; format?: unknown }; messages?: Array<{ role: string; content: unknown; output_config?: unknown }> }
 type Sent = { body: Body; betas: string[]; failed: string | null }
 const j = (value: unknown): string => JSON.stringify(value)
 const SONNET = 'claude-sonnet-5-5'
 const BETWEEN = '{"type":"between_tools"}'
 const MESSAGE_EFFORT = '{"role":"system","content":[],"output_config":{"effort":"low"}}'
 
-async function send(model: string, thinking: 'disabled' | 'adaptive', effort: string | undefined, history?: Message[]): Promise<Sent> {
+async function send(model: string, thinking: 'disabled' | 'adaptive', effort: string | undefined, history?: Message[], outputFormat?: JsonOutputFormat): Promise<Sent> {
   const from = fixture.messageRequests().length
   let failed: string | null = null
   for await (const event of routedCallModel({
@@ -67,7 +68,7 @@ async function send(model: string, thinking: 'disabled' | 'adaptive', effort: st
       model, querySource: 'sdk', isNonInteractiveSession: true,
       getToolPermissionContext: async () => getEmptyToolPermissionContext(),
       agents: [], mcpTools: [], hasAppendSystemPrompt: false, enablePromptCaching: true,
-      effortValue: effort as never, fetchOverride: fixtureFetch,
+      effortValue: effort as never, fetchOverride: fixtureFetch, ...(outputFormat !== undefined ? { outputFormat } : {}),
     },
   })) {
     if (event.type === 'assistant' && event.isApiErrorMessage) failed = j(event.message.content).slice(0, 300)
@@ -91,12 +92,15 @@ try {
   const unsetEffort = unset.body.output_config?.effort
   check('with no effort chosen the setting rides whenever the request-level effort is absent or high and below', (unsetEffort === 'xhigh' || unsetEffort === 'max') ? unset.body.thinking === undefined : bare(unset), shown(unset))
 
-  section('§2 at xhigh and max the API refuses between_tools, so the request keeps no thinking parameter')
+  section('§2 at xhigh and max the API refuses between_tools, so the request keeps no thinking parameter; so does a request with a JSON output format')
   for (const effort of ['xhigh', 'max']) {
     const sent = await send(SONNET, 'disabled', effort)
     check(`${effort}: no thinking parameter, effort ${effort} at the request level`, sent.failed === null && !('thinking' in sent.body) && sent.body.output_config?.effort === effort, shown(sent))
   }
-  check('the one rule says the same, level by level', ['low', 'medium', 'high', undefined, null].every(effort => caps.modelThinkingOffIsBetweenTools(SONNET, effort)) && !caps.modelThinkingOffIsBetweenTools(SONNET, 'xhigh') && !caps.modelThinkingOffIsBetweenTools(SONNET, 'max'))
+  check('the one rule says the same, level by level', ['low', 'medium', 'high', undefined, null].every(effort => caps.modelThinkingOffIsBetweenTools(SONNET, { effort })) && !caps.modelThinkingOffIsBetweenTools(SONNET, { effort: 'xhigh' }) && !caps.modelThinkingOffIsBetweenTools(SONNET, { effort: 'max' }))
+  const format: JsonOutputFormat = { type: 'json_schema', schema: { type: 'object', properties: { title: { type: 'string' } }, required: ['title'], additionalProperties: false } }
+  const titled = await send(SONNET, 'disabled', 'low', undefined, format)
+  check('beside a JSON output format (no live call has confirmed between_tools there) the request keeps no thinking parameter', titled.failed === null && !('thinking' in titled.body) && titled.body.output_config?.effort === 'low' && j(titled.body.output_config?.format) === j(format) && !caps.modelThinkingOffIsBetweenTools(SONNET, { effort: 'low', format }), `${shown(titled)} ${j(titled.body.output_config)}`)
 
   section('§3 thinking on keeps its request: adaptive with the binding and the display')
   const adaptive = await send(SONNET, 'adaptive', 'high')
@@ -107,7 +111,7 @@ try {
     const sent = await send(model, 'disabled', 'high')
     check(`${model}: no thinking parameter`, sent.failed === null && !('thinking' in sent.body), shown(sent))
   }
-  check('a carrier spelling and an undeclared generation never take the setting', !caps.modelThinkingOffIsBetweenTools('openrouter/anthropic/claude-sonnet-5-5', 'high') && !caps.modelThinkingOffIsBetweenTools('claude-sonnet-5-7', 'high') && !caps.modelThinkingOffIsBetweenTools('claude-opus-5-5', 'high'))
+  check('a carrier spelling and an undeclared generation never take the setting', !caps.modelThinkingOffIsBetweenTools('openrouter/anthropic/claude-sonnet-5-5', { effort: 'high' }) && !caps.modelThinkingOffIsBetweenTools('claude-sonnet-5-7', { effort: 'high' }) && !caps.modelThinkingOffIsBetweenTools('claude-opus-5-5', { effort: 'high' }))
   check('thinking stays always on for the row, so the settings row and the side roads read as they did', caps.modelThinkingAlwaysOn(SONNET))
 
   section('§5 between_tools takes no per-message effort and no thinking block beside it')

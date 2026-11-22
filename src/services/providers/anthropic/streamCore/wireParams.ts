@@ -139,7 +139,7 @@ export function wireParamsFor(call: CallState, wire: WireInputs) {
 
     thinking = applyThinkingDisplay(options.model, thinking, betasParams) as typeof thinking
     thinking = applyThinkingBinding(thinking, betasParams) as typeof thinking
-    const betweenTools = !hasThinking && modelThinkingOffIsBetweenTools(options.model, outputConfig.effort)
+    const betweenTools = !hasThinking && modelThinkingOffIsBetweenTools(options.model, outputConfig)
     if (betweenTools) thinking = { type: 'between_tools' } satisfies BetaMessageStreamParams['thinking']
     const effortSteps = !betweenTools && modelSupportsMessageEffort(options.model) ? messageEffortSteps(messagesForAPI, outputConfig.effort) : []
     if (effortSteps.length > 0 && !betasParams.includes(MESSAGE_EFFORT_BETA_HEADER)) betasParams.push(MESSAGE_EFFORT_BETA_HEADER)

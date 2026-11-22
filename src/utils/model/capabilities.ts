@@ -193,8 +193,10 @@ export function modelThinkingAlwaysOn(model: string): boolean {
   return canonical.includes('fable-5') || canonical.includes('mythos-5') || canonical === 'claude-opus-5-5' || canonical === 'claude-sonnet-5-5'
 }
 
-export function modelThinkingOffIsBetweenTools(model: string, effort: string | null | undefined): boolean {
+export function modelThinkingOffIsBetweenTools(model: string, outputConfig: { effort?: string | null; format?: unknown }): boolean {
   if (isCarrierShapedId(model) || getCanonicalName(model) !== 'claude-sonnet-5-5') return false
+  if (outputConfig.format !== undefined && outputConfig.format !== null) return false
+  const { effort } = outputConfig
   return effort === undefined || effort === null || effort === 'low' || effort === 'medium' || effort === 'high'
 }
 
