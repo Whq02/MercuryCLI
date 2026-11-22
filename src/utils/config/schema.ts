@@ -300,27 +300,27 @@ const keyGuard = <Key extends string>(keys: readonly Key[]): ((key: string) => k
 }
 
 export const GLOBAL_CONFIG_KEYS = [
-  'agents',
+  'theme',
+  'toolOutput',
+  'shiftEnterKeyBindingInstalled',
+  'editorMode',
+  'hasUsedBackslashReturn',
   'autoCompactEnabled',
-  'backgroundSessionsLaunchCrewmates',
-  'concourseEnabled',
+  'showTurnDuration',
+  'tipsHistory',
+  'showExpandedTasks',
+  'fileCheckpointingEnabled',
+  'terminalProgressBarEnabled',
   'copyOnSelect',
+  'mouseCapture',
   'defaultCritter',
   'defaultProvider',
-  'editorMode',
-  'fileCheckpointingEnabled',
-  'hasUsedBackslashReturn',
-  'mouseCapture',
+  'concourseEnabled',
+  'backgroundSessionsLaunchCrewmates',
   'permissionExplainerEnabled',
   'prStatusFooterEnabled',
   'remoteControlAtStartup',
-  'shiftEnterKeyBindingInstalled',
-  'showExpandedTasks',
-  'showTurnDuration',
-  'terminalProgressBarEnabled',
-  'theme',
-  'tipsHistory',
-  'toolOutput',
+  'agents',
 ] as const satisfies readonly (keyof GlobalConfig)[]
 
 export type GlobalConfigKey = (typeof GLOBAL_CONFIG_KEYS)[number]
@@ -328,8 +328,8 @@ export const isGlobalConfigKey = keyGuard(GLOBAL_CONFIG_KEYS)
 
 export const PROJECT_CONFIG_KEYS = [
   'allowedTools',
-  'hasCompletedProjectOnboarding',
   'hasTrustDialogAccepted',
+  'hasCompletedProjectOnboarding',
 ] as const satisfies readonly (keyof ProjectConfig)[]
 
 export type ProjectConfigKey = (typeof PROJECT_CONFIG_KEYS)[number]
