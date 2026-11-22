@@ -8,7 +8,6 @@ import { getInitialSettings } from '../../utils/settings/settings.js'
 import { CURSOR_HOME, csi, ERASE_SCREEN } from '../termio/csi.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 import { isLegacyWindowsConsole, isModernWindowsTerminalHost, isWindowsTerminalHost } from '../../utils/platform/terminal.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 export function isSyncOutputForcedOff(): boolean {
@@ -88,20 +87,26 @@ export function shouldHoldFirstPaintForSyncProbe(): boolean {
   return syncProbeOutstanding && !syncOutputSupportedNow()
 }
 
+let xtversionName: string | undefined
+
 export function setXtversionName(name: string): void {
-  return notBuilt('src/ink/session/capabilities.ts:94')
+  xtversionName ??= name
 }
 
 export function isXtermJs(): boolean {
-  return notBuilt('src/ink/session/capabilities.ts:98')
+  if (hostEnv().TERM_PROGRAM === 'vscode') return true
+  return xtversionName?.startsWith('xterm.js') ?? false
 }
+
+const EXTENDED_KEYS_TERMINALS = ['iTerm.app', 'kitty', 'WezTerm', 'ghostty', 'tmux', 'windows-terminal']
 
 export function supportsExtendedKeys(): boolean {
-  return notBuilt('src/ink/session/capabilities.ts:113')
+  return EXTENDED_KEYS_TERMINALS.includes(detectedEnv.terminal ?? '')
 }
 
-let extendedKeysSupported: Unbuilt = unbuilt('src/ink/session/capabilities.ts:117')
-let extendedKeysProved: boolean = unbuilt('src/ink/session/capabilities.ts:118')
+let extendedKeysSupported = supportsExtendedKeys()
+let extendedKeysProved = false
+const extendedKeysListeners = new Set<() => void>()
 
 export function extendedKeysSupportedNow(): boolean {
   return extendedKeysSupported
@@ -112,26 +117,43 @@ export function extendedKeysProvedNow(): boolean {
 }
 
 export function upgradeExtendedKeysSupport(): void {
-  return notBuilt('src/ink/session/capabilities.ts:129')
+  if (extendedKeysSupported && extendedKeysProved) return
+  extendedKeysSupported = true
+  extendedKeysProved = true
+  for (const listener of [...extendedKeysListeners]) listener()
 }
 
 export function subscribeExtendedKeysSupport(listener: () => void): () => void {
-  return notBuilt('src/ink/session/capabilities.ts:136')
+  extendedKeysListeners.add(listener)
+  return () => {
+    extendedKeysListeners.delete(listener)
+  }
 }
 
 
-export type Progress = Unbuilt
+export type Progress = {
+  state: 'completed' | 'error' | 'indeterminate' | 'running'
+  percentage?: number
+}
 
 export function isProgressReportingAvailable(
-  env?: Record<string, string | undefined>,
-  tty?: boolean,
+  env: Record<string, string | undefined> = hostEnv(),
+  tty: boolean = process.stdout.isTTY,
 ): boolean {
-  return notBuilt('src/ink/session/capabilities.ts:149')
+  const setting = getInitialSettings().activity?.progress
+  if (setting !== undefined) return setting
+  if (!tty) return false
+  if (env.WT_SESSION || env.ConEmuANSI || env.ConEmuPID || env.ConEmuTask) return true
+  const version = coerce(env.TERM_PROGRAM_VERSION)?.version
+  if (version === undefined) return false
+  if (env.TERM_PROGRAM === 'ghostty') return gte(version, '1.2.0')
+  if (env.TERM_PROGRAM === 'iTerm.app') return gte(version, '3.6.6')
+  return false
 }
 
 
 export function hasCursorUpViewportYankBug(): boolean {
-  return notBuilt('src/ink/session/capabilities.ts:168')
+  return isWindowsTerminalHost(hostEnv())
 }
 
 export function streamingRevealSuppressed(
