@@ -1,9 +1,17 @@
-import { notBuilt } from '../pi/holes.js'
+import { afterMicrotask } from './timers.js'
+
+const cleanupFunctions = new Set<() => Promise<void>>()
 
 export function registerCleanup(fn: () => Promise<void>): () => void {
-  return notBuilt('src/utils/cleanupRegistry.ts:5')
+  cleanupFunctions.add(fn)
+  return () => {
+    cleanupFunctions.delete(fn)
+  }
 }
 
 export async function runCleanupFunctions(): Promise<void> {
-  return notBuilt('src/utils/cleanupRegistry.ts:12')
+  const outcomes = await Promise.allSettled([...cleanupFunctions].map(fn => afterMicrotask(fn)))
+  for (const outcome of outcomes) {
+    if (outcome.status === 'rejected') throw outcome.reason
+  }
 }
