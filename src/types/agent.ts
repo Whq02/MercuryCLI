@@ -7,24 +7,82 @@ import type { PermissionMode } from '../utils/permissions/PermissionMode.js'
 import type { HooksSettings } from '../utils/settings/types.js'
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js'
 import type { AgentMemoryScope } from '../utils/agentMemory.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
-export type AgentMcpServerSpec = Unbuilt
+export type AgentMcpServerSpec = string | { [name: string]: McpServerConfig }
 
-export type AgentSource = Unbuilt
+export type AgentSource =
+  | 'built-in'
+  | 'extension'
+  | 'userSettings'
+  | 'projectSettings'
+  | 'localSettings'
+  | 'policySettings'
+  | 'flagSettings'
 
-export type BuiltInAgentDefinition = Unbuilt
+type BaseAgentDefinition = {
+  agentType: string
+  whenToUse: string
+  tools?: string[]
+  disallowedTools?: string[]
+  skills?: string[]
+  mcpServers?: AgentMcpServerSpec[]
+  hooks?: HooksSettings
+  color?: AgentColorName
+  model?: string
+  effort?: EffortValue
+  instructionProfile?: InstructionProfile
+  permissionMode?: PermissionMode
+  maxTurns?: number
+  filename?: string
+  baseDir?: string
+  standingRule?: string
+  requiredMcpServers?: string[]
+  background?: boolean
+  initialPrompt?: string
+  memory?: AgentMemoryScope
+  isolation?: 'worktree' | 'remote'
+  omitProjectInstructions?: boolean
+  fixedOutputContract?: boolean
+  operatorOverride?: AgentOverrideProvenance
+  disabled?: boolean
+}
 
-export type CustomAgentDefinition = Unbuilt
+export type BuiltInAgentDefinition = BaseAgentDefinition & {
+  source: 'built-in'
+  baseDir: string
+  callback?: () => void | Promise<void>
+  getSystemPrompt: (params: {
+    toolUseContext: Pick<ToolUseContext, 'options'>
+  }) => string
+}
 
-export type ExtensionAgentDefinition = Unbuilt
+export type CustomAgentDefinition = BaseAgentDefinition & {
+  getSystemPrompt: () => string
+  source: Exclude<AgentSource, 'built-in' | 'extension'>
+  filePath?: string
+  revision?: string
+}
 
-export type AgentDefinition = Unbuilt
+export type ExtensionAgentDefinition = BaseAgentDefinition & {
+  getSystemPrompt: () => string
+  source: 'extension'
+  extensionName?: string
+}
 
-export type AgentDefinitionsResult = Unbuilt
+export type AgentDefinition =
+  | BuiltInAgentDefinition
+  | CustomAgentDefinition
+  | ExtensionAgentDefinition
+
+export type AgentDefinitionsResult = {
+  activeAgents: AgentDefinition[]
+  allAgents: AgentDefinition[]
+  failedFiles?: Array<{ path: string; error: string }>
+  allowedAgentTypes?: string[]
+}
 
 export function isBuiltInAgent(
   def: AgentDefinition,
 ): def is BuiltInAgentDefinition {
-  return notBuilt('src/types/agent.ts:84')
+  return def.source === 'built-in'
 }
