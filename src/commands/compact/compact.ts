@@ -8,10 +8,12 @@ import {
   ERROR_MESSAGE_INCOMPLETE_RESPONSE,
   ERROR_MESSAGE_NOT_ENOUGH_MESSAGES,
   type CompactionResult,
+  isNothingToCompactMessage,
   isRefold,
   manualFoldHasNothingToFold,
-  NOTHING_TO_COMPACT_KEY,
+  NO_MESSAGES_TO_COMPACT,
   nothingToCompactLine,
+  nothingToCompactReason,
   projectManualFold,
   withFoldStatus,
   ERROR_MESSAGE_USER_ABORT,
@@ -115,7 +117,7 @@ async function callUnderFoldStatus(
 ): Promise<LocalCommandResult> {
   const projected = getMessagesAfterCompactBoundary(context.messages)
   if (projected.length === 0) {
-    throw new Error('No messages to compact.')
+    throw new Error(NO_MESSAGES_TO_COMPACT)
   }
   const customInstructions = args.trim()
 
@@ -145,7 +147,7 @@ async function callUnderFoldStatus(
     const projection = await projectManualFold(summaryInput, context, cacheSafeParams, getAutoCompactThreshold(context.options.engineModel))
     if (projection !== null && (refold ? manualFoldHasNothingToFold(projection) : projection.after >= projection.before)) {
       logForDebugging(`compact: refused before the summariser — ${projection.folds} of ${summaryInput.length} messages would fold (${projection.workingRoundsFolded} working rounds), the fold would land at ${projection.after} tokens against ${projection.before} by the same estimate`)
-      throw new Error(nothingToCompactLine(projection.context, refold))
+      throw new Error(nothingToCompactLine(projection.context, nothingToCompactReason(projection, refold)))
     }
     const foldModel = foldModelFor(summaryInput, context.options.engineModel, { forced: false })
     if (foldModel.source === 'history') {
@@ -190,7 +192,7 @@ async function callUnderFoldStatus(
       hasExactErrorMessage(error, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES) ||
       hasExactErrorMessage(error, ERROR_MESSAGE_INCOMPLETE_RESPONSE) ||
       hasExactErrorMessage(error, ERROR_MESSAGE_FOLD_TIMEOUT) ||
-      (error instanceof Error && error.message.startsWith(NOTHING_TO_COMPACT_KEY))
+      (error instanceof Error && isNothingToCompactMessage(error.message))
     ) {
       throw error
     }

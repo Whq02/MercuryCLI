@@ -34,10 +34,11 @@ import {
   type CompactionResult,
   ERROR_MESSAGE_USER_ABORT,
   foldRemedyIsHeadless,
+  isNothingToCompactMessage,
   isRefold,
   manualFoldHasNothingToFold,
-  NOTHING_TO_COMPACT_KEY,
   nothingToCompactLine,
+  nothingToCompactReason,
   projectManualFold,
   type RecompactionInfo,
   withFoldStatus,
@@ -397,7 +398,7 @@ export async function autoCompactIfNeeded(
     const projection = await projectManualFold(messages, toolUseContext, cacheSafeParams, getAutoCompactThreshold(model))
     const refold = isRefold(messages)
     if (projection !== null && (refold ? manualFoldHasNothingToFold(projection) : projection.after >= projection.before)) {
-      const line = nothingToCompactLine(projection.context, refold)
+      const line = nothingToCompactLine(projection.context, nothingToCompactReason(projection, refold))
       if (!askedByOperator) queued?.complete()
       return { ...notCompacted, refusal: askedByOperator ? crewmateCompactNothingWords(askingCrewmateName(toolUseContext), line) : line, declined: true }
     }
@@ -464,7 +465,7 @@ export async function autoCompactIfNeeded(
       return forced ? { ...notCompacted, refusal: ERROR_MESSAGE_USER_ABORT } : notCompacted
     }
     const reason = err instanceof Error ? err.message : String(err)
-    if (asked && reason.startsWith(NOTHING_TO_COMPACT_KEY)) {
+    if (asked && isNothingToCompactMessage(reason)) {
       if (!askedByOperator) queued?.complete()
       return { ...notCompacted, refusal: askedByOperator ? crewmateCompactNothingWords(askingCrewmateName(toolUseContext), reason) : reason, declined: true }
     }

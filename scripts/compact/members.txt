@@ -65,6 +65,7 @@ prove-manual-compact-never-grows.ts
 prove-manual-fold-never-grows.ts
 prove-memory-fold-work.ts
 prove-notice-rows-never-operator.ts
+prove-nothing-to-compact-words.ts
 prove-operator-block-law.ts
 prove-output-fit.ts
 prove-overflow-long-lane-shape.ts

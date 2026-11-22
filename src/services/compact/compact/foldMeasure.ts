@@ -8,7 +8,7 @@ import { estimateContextTokens } from '../microCompact.js'
 import { getCompactUserSummaryMessage } from '../prompt.js'
 import { buildPostCompactMessages, type CompactionResult } from './result.js'
 
-export type FoldMeter = {
+type FoldMeter = {
   gauge: ReturnType<typeof readRequestGauge>
   context: number
   before: number

@@ -10,11 +10,13 @@ import { buildRunContinuationCapsule } from '../../run/runContinuationCapsule.js
 import { roughTokenCountEstimationForMessages } from '../../tokenEstimation.js'
 import { getTurnReserveTokens } from '../../../utils/compact/autoCompactWindow.js'
 import { groupMessagesByApiRound } from '../grouping.js'
+import { estimateContextTokens } from '../microCompact.js'
 import { renderFoldedWork } from '../prompt.js'
 import { computeVerbatimRecentTail, foldLandingCeiling, foldableResults, foldedResultPlaceholder, isMercuryCompactKeepTailEnabled, MIN_HEAD_ROUNDS, withFoldedResults } from '../verbatimTail.js'
 import { operatorTextOf, selectOperatorMessages } from '../../../utils/compact/operatorMessages.js'
 import { stripThinkingFromIndex } from '../../messages/apiFilters.js'
 import { previewFoldMemoryText } from '../foldRetirement.js'
+import type { NothingToCompactReason } from './limits.js'
 import { foldedWorkOf, type CompactionResult } from './result.js'
 import { assembleAttachments } from './attachments.js'
 import { composeFoldSummaryText, createFoldMeter, isRestoredFileAttachment, withoutRestoredFiles } from './foldMeasure.js'
@@ -28,7 +30,10 @@ export type ManualFoldProjection = {
   afterWithFiles: number
   restoreFiles: boolean
   kept: number
+  keptTokens: number
+  headTokens: number
   folds: number
+  totalRounds: number
   workingRoundsFolded: number
 }
 
@@ -38,6 +43,17 @@ export function isRefold(messages: readonly Message[]): boolean {
 
 export function manualFoldHasNothingToFold(projection: ManualFoldProjection): boolean {
   return projection.workingRoundsFolded < MIN_HEAD_ROUNDS || projection.after >= projection.before
+}
+
+export function nothingToCompactReason(projection: ManualFoldProjection, refold: boolean): NothingToCompactReason {
+  if (refold && projection.workingRoundsFolded < MIN_HEAD_ROUNDS) return 'already-folded'
+  if (!refold && ((projection.totalRounds !== undefined && projection.totalRounds <= MIN_HEAD_ROUNDS) || (projection.kept === 0 && projection.workingRoundsFolded === 0) || (projection.totalRounds === undefined && projection.workingRoundsFolded === 0))) {
+    return 'too-few-messages'
+  }
+  if ((projection.kept ?? 0) > 0 && (projection.keptTokens ?? 0) >= (projection.headTokens ?? 0)) {
+    return 'recent-turns-kept'
+  }
+  return 'would-not-shrink'
 }
 
 export async function projectManualFold(
@@ -103,7 +119,10 @@ export async function projectManualFold(
   }
   const keptUuids = new Set(keep.map(row => row.uuid))
   const head = messages.filter(row => !keptUuids.has(row.uuid))
+  const totalRounds = groupMessagesByApiRound(messages).filter(group => group.some(row => row.type === 'assistant')).length
   const workingRoundsFolded = groupMessagesByApiRound(head).filter(group => group.some(row => row.type === 'assistant')).length
+  const keptTokens = estimateContextTokens(keep, context.options.engineModel)
+  const headTokens = estimateContextTokens(stripThinkingFromIndex(head, 0), context.options.engineModel)
   const snapshot: Record<string, { content: string; timestamp: number }> = {}
   for (const [path, state] of context.readFileState.entries()) snapshot[path] = { content: state.content, timestamp: state.timestamp }
   const attachments = await assembleAttachments(snapshot, context, keep, 'compact_full', [...context.readFileState.entries()], { userContext: cacheSafeParams.userContext })
@@ -124,5 +143,5 @@ export async function projectManualFold(
     after = meter.measureResult(projectedResult(withoutRestoredFiles(attachments)))
     restoreFiles = false
   }
-  return { context: meter.context, before: meter.before, after, afterWithFiles, restoreFiles, kept: keep.length, folds: head.length, workingRoundsFolded }
+  return { context: meter.context, before: meter.before, after, afterWithFiles, restoreFiles, kept: keep.length, keptTokens, headTokens, folds: head.length, totalRounds, workingRoundsFolded }
 }

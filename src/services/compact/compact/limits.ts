@@ -7,11 +7,39 @@ export const POST_COMPACT_MAX_TOKENS_PER_SKILL = 5_000
 export const POST_COMPACT_SKILLS_TOKEN_BUDGET = 25_000
 
 export const ERROR_MESSAGE_NOT_ENOUGH_MESSAGES = 'Not enough messages to compact.'
+export const NO_MESSAGES_TO_COMPACT = 'No messages to compact.'
 export const NOTHING_TO_COMPACT_KEY = 'Nothing to compact: '
+const NOTHING_TO_COMPACT_YET_KEY = 'Nothing to compact yet: '
 
-export function nothingToCompactLine(contextTokens: number, refold = true): string {
-  if (!refold) return `${NOTHING_TO_COMPACT_KEY}${formatTokens(contextTokens)} tokens (${ERROR_MESSAGE_NOT_ENOUGH_MESSAGES})`
-  return `${NOTHING_TO_COMPACT_KEY}the last fold already holds this conversation (${formatTokens(contextTokens)} tokens)`
+export type NothingToCompactReason =
+  | 'already-folded'
+  | 'too-few-messages'
+  | 'recent-turns-kept'
+  | 'would-not-shrink'
+
+export function isNothingToCompactMessage(message: string): boolean {
+  return (
+    message.startsWith(NOTHING_TO_COMPACT_KEY) ||
+    message.startsWith(NOTHING_TO_COMPACT_YET_KEY) ||
+    message === NO_MESSAGES_TO_COMPACT ||
+    message === ERROR_MESSAGE_NOT_ENOUGH_MESSAGES
+  )
+}
+
+export function nothingToCompactLine(contextTokens: number, reason: NothingToCompactReason | boolean = 'already-folded'): string {
+  const resolved: NothingToCompactReason =
+    reason === true ? 'already-folded' : reason === false ? 'too-few-messages' : reason
+  const tokens = formatTokens(contextTokens)
+  switch (resolved) {
+    case 'already-folded':
+      return `${NOTHING_TO_COMPACT_KEY}the last fold already holds this conversation (${tokens} tokens)`
+    case 'too-few-messages':
+      return `${NOTHING_TO_COMPACT_YET_KEY}too few messages to fold (${tokens} tokens).`
+    case 'recent-turns-kept':
+      return `${NOTHING_TO_COMPACT_YET_KEY}the recent turns are kept whole and hold most of the ${tokens} tokens.`
+    case 'would-not-shrink':
+      return `${NOTHING_TO_COMPACT_YET_KEY}a summary would not shrink the ${tokens} tokens.`
+  }
 }
 
 export const ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD = 'Compaction cannot bring the context under its threshold'

@@ -664,7 +664,7 @@ section("§5 the crewmate's own compaction: the flag on its task makes its query
   nothingToFold = true
   askAgain()
   const declined = await autoCompactIfNeeded(messages as never, context as never, cacheSafe as never, 'agent:builtin:mercury-crew')
-  check('an asked fold that would save nothing is refused with the main /compact\'s words, the crewmate named, and no summariser call', declined.wasCompacted === false && declined.declined === true && declined.refusal === "Lane local — the crew view's /compact folded nothing: Nothing to compact: 960 tokens (Not enough messages to compact.)" && callsOf('compactConversation').length === 2 && (appState.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID]!.compactRequested === undefined, JSON.stringify({ wasCompacted: declined.wasCompacted, declined: declined.declined, refusal: declined.refusal, calls: callsOf('compactConversation').length }))
+  check('an asked fold that would save nothing is refused with the main /compact\'s words, the crewmate named, and no summariser call', declined.wasCompacted === false && declined.declined === true && declined.refusal === "Lane local — the crew view's /compact folded nothing: Nothing to compact yet: too few messages to fold (960 tokens)." && callsOf('compactConversation').length === 2 && (appState.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID]!.compactRequested === undefined, JSON.stringify({ wasCompacted: declined.wasCompacted, declined: declined.declined, refusal: declined.refusal, calls: callsOf('compactConversation').length }))
   nothingToFold = false
 }
 

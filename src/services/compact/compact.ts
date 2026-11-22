@@ -38,9 +38,8 @@ import { summariseForFold } from './compact/foldSummary.js'
 import { chooseFoldTail } from './compact/foldTail.js'
 import { landFold } from './compact/foldLanding.js'
 import { composeFoldSummaryText, createFoldMeter } from './compact/foldMeasure.js'
-import { isRefold } from './compact/projection.js'
 
-export { POST_COMPACT_MAX_FILES_TO_RESTORE, POST_COMPACT_TOKEN_BUDGET, POST_COMPACT_MAX_TOKENS_PER_FILE, POST_COMPACT_MAX_TOKENS_PER_SKILL, POST_COMPACT_SKILLS_TOKEN_BUDGET, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES, NOTHING_TO_COMPACT_KEY, nothingToCompactLine, ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD, ERROR_MESSAGE_PROMPT_TOO_LONG, ERROR_MESSAGE_USER_ABORT, ERROR_MESSAGE_INCOMPLETE_RESPONSE, ERROR_MESSAGE_NO_SUMMARY, PROSE_SKIPPED_KEY, MODEL_REFUSAL_STOP_KEY } from './compact/limits.js'
+export { POST_COMPACT_MAX_FILES_TO_RESTORE, POST_COMPACT_TOKEN_BUDGET, POST_COMPACT_MAX_TOKENS_PER_FILE, POST_COMPACT_MAX_TOKENS_PER_SKILL, POST_COMPACT_SKILLS_TOKEN_BUDGET, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES, NO_MESSAGES_TO_COMPACT, NOTHING_TO_COMPACT_KEY, isNothingToCompactMessage, nothingToCompactLine, ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD, ERROR_MESSAGE_PROMPT_TOO_LONG, ERROR_MESSAGE_USER_ABORT, ERROR_MESSAGE_INCOMPLETE_RESPONSE, ERROR_MESSAGE_NO_SUMMARY, PROSE_SKIPPED_KEY, MODEL_REFUSAL_STOP_KEY } from './compact/limits.js'
 export { malformedHistoryRefusalOf, compactionRefusedForHistoryText, compactionPausedForHistoryText, foldRemedyIsHeadless, FOLD_WINDOW_REFUSAL_KEY, foldWindowRefusalText, CompactionRefusedForHistoryError } from './compact/refusals.js'
 export { ERROR_MESSAGE_FOLD_TIMEOUT, setFoldBoundsForTests, foldStallMsFor, foldFirstByteAllowanceMs, shouldRideCacheSharingFork, foldFamilyOf } from './compact/foldBound.js'
 export type { FoldBounds, FoldCut } from './compact/foldBound.js'
@@ -53,7 +52,7 @@ export { summaryAnswerFault, summaryRefusedByModel } from './compact/summaryChec
 export { isPartSummaryMessage, splitTextForFold } from './compact/ladder.js'
 export { withFoldStatus, withEngineModel } from './compact/status.js'
 export { estimateFixedRequestTokens } from './compact/summariserFit.js'
-export { isRefold, manualFoldHasNothingToFold, projectManualFold } from './compact/projection.js'
+export { isRefold, manualFoldHasNothingToFold, nothingToCompactReason, projectManualFold } from './compact/projection.js'
 export type { ManualFoldProjection } from './compact/projection.js'
 export { partialCompactConversation } from './compact/partial.js'
 
@@ -226,7 +225,7 @@ export async function compactConversation(
       logForDebugging(
         `compact: aborted after summariser — folded context ${truePostCompactTokenCount} >= ${meter.before} (pre ${preCompactTokenCount}); original context kept`,
       )
-      throw new Error(nothingToCompactLine(preCompactTokenCount, isRefold(messages)))
+      throw new Error(nothingToCompactLine(preCompactTokenCount, 'would-not-shrink'))
     }
     const visibleReads = collectPreservedReadPaths(messagesToKeep ?? [])
     for (const row of partial.attachments) if (row.attachment.type === 'file') visibleReads.add(expandPath(row.attachment.filename))

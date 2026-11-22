@@ -42,6 +42,7 @@ import {
 } from '../messages.js'
 import { parseSlashCommand } from '../../utils/slashCommandParsing.js'
 import { logError } from '../../utils/log.js'
+import { isNothingToCompactMessage } from '../compact/compact/limits.js'
 import { resetMicrocompactState } from '../compact/microCompact.js'
 import { recordSkillUsage } from '../../utils/suggestions/skillUsageTracking.js'
 import { getAgentContext } from '../../utils/agentContext.js'
@@ -763,6 +764,13 @@ async function runLocalCommand(
       resultText: text,
     }
   } catch (error) {
+    if (error instanceof Error && isNothingToCompactMessage(error.message)) {
+      return {
+        messages: [echoed, createCommandInputMessage(stderrWrapped(error.message))],
+        shouldQuery: false,
+        commandError: error.message,
+      }
+    }
     logError(error)
     return {
       messages: [echoed, createCommandInputMessage(stderrWrapped(String(error)))],
