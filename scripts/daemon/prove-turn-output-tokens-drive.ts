@@ -3,6 +3,7 @@ import { createServer, type ServerResponse } from 'node:http'
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { captureEngineEntry, resolveCaptureArgv0, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { describeCapturePreflight, preflightCaptureDriver } from '../lib/capturePreflight.ts'
 import { removeWorld } from './dupline-world.ts'
@@ -251,7 +252,7 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17], [120, 40]] as const) {
     const out = join(home, 'grid.json')
     const config = join(home, 'capture.json')
     const sends = [
-      { requireAwait: true, awaitText: 'choose', awaitSettleTicks: 2, data: '\r' },
+      { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 2, data: 'count the wire\r' },
       { requireAwait: true, awaitText: '↓ ~', awaitSettleTicks: 3, data: '', mark: 'estimate' },
       { requireAwait: true, awaitText: firstLeg, awaitSettleTicks: 12, data: '', mark: 'fact' },

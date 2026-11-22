@@ -2,6 +2,7 @@
 import { spawn } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { captureEngineEntry, resolveCaptureArgv0, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { describeCapturePreflight, preflightCaptureDriver } from '../lib/capturePreflight.ts'
 import { AFTER_RETURN_LINE, AGENT_DESCRIPTION, AGENT_TURN_ASK, CREW_NOTICE, CREW_TURN_ASK, doneText, FIRST_LINE, QUICK_DESCRIPTION, RETURN_LINE, SECOND_LINE } from './dupline-fixture-words.ts'
@@ -24,7 +25,7 @@ if (!existsSync(DIST)) {
   const out = join(PTY_HOME, 'grid.json')
   const CTRL_O = '\x0f'
   const sends = [
-    { requireAwait: true, minTick: 3, awaitText: 'choose', awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, minTick: 3, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: 'Type a prompt', awaitSettleTicks: 2, data: 'hello there\r' },
     { requireAwait: true, minTick: 5, awaitText: 'heard: hello there', awaitSettleTicks: 3, data: `${CREW_TURN_ASK}\r`, mark: 'answered' },
     { requireAwait: true, minTick: 5, awaitText: AGENT_DESCRIPTION, awaitSettleTicks: 15, data: `${FIRST_LINE}\r`, mark: 'sent-1' },
@@ -143,7 +144,7 @@ if (existsSync(DIST) && driver.kind !== 'unavailable' && preflight !== null && p
   const dfx = await startFixture(join(D_HOME, 'wire.jsonl'), 6, 6, 0, release)
   const out = join(D_HOME, 'grid.json')
   const sends = [
-    { requireAwait: true, minTick: 3, awaitText: 'choose', awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, minTick: 3, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: 'Type a prompt', awaitSettleTicks: 2, data: 'hello there\r' },
     { requireAwait: true, minTick: 5, awaitText: 'was completed and its checks pass.', awaitSettleTicks: 5, data: `${AGENT_TURN_ASK}\r`, mark: 'asked' },
     { afterPrevTicks: 150, data: `${RETURN_LINE}\r`, mark: 'sent-1' },
