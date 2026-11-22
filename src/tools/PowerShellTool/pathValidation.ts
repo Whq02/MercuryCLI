@@ -341,17 +341,20 @@ function checkOneCommand(command: ParsedCommandElement, cwd: string, context: To
   if (extracted.operation !== 'read' && !extracted.optionalWrite && extracted.paths.length === 0 && extracted.hasConfig) {
     return { behavior: 'ask', message: `${canonical} has no determinable write target.`, decisionReason: other('A write operation with no target.') }
   }
+  let firstAsk: PermissionResult | null = null
   for (const rawPath of extracted.paths) {
     if (canonical === REMOVAL_CANONICAL && isDangerousRemovalRawPath(rawPath)) return dangerousRemovalDeny(rawPath)
     const decision = resolveAndDecide(rawPath, cwd, context, extracted.operation)
     if (canonical === REMOVAL_CANONICAL && isDangerousRemovalRawPath(decision.resolvedPath)) return dangerousRemovalDeny(decision.resolvedPath)
     if (!decision.allowed) {
       if (decision.reason?.type === 'rule') return { behavior: 'deny', message: pathMessage(canonical, decision, context), decisionReason: decision.reason }
-      return askForPath(canonical, decision, extracted.operation, context)
+      firstAsk ??= askForPath(canonical, decision, extracted.operation, context)
+      continue
     }
     const envAsk = ENV_CONTENT_CMDLETS.has(canonical) ? envFileReadAsk(decision.resolvedPath, context) : null
-    if (envAsk) return { behavior: 'ask', message: envAsk.message, decisionReason: envAsk.decisionReason }
+    if (envAsk) firstAsk ??= { behavior: 'ask', message: envAsk.message, decisionReason: envAsk.decisionReason }
   }
+  if (firstAsk) return firstAsk
   if (extracted.unvalidatable) {
     return { behavior: 'ask', message: `${canonical} has an argument (array literal, sub-expression, or unrecognised parameter) beyond static checking.`, decisionReason: other('An unvalidatable path argument.') }
   }
