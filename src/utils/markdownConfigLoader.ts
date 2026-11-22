@@ -21,8 +21,7 @@ import {
 } from './projectConfig.js'
 import { logForDebugging } from './debug.js'
 import { logError } from './log.js'
-import { passedOver } from './passedOver.js'
-import { notBuilt } from '../pi/holes.js'
+import { passedOver, passedOverAs } from './passedOver.js'
 
 type MarkdownFile = {
   filePath: string
@@ -57,7 +56,14 @@ function toToolStrings(value: unknown): string[] | undefined {
 }
 
 export function parseAgentToolsFromFrontmatter(value: unknown): string[] | undefined {
-  return notBuilt('src/utils/markdownConfigLoader.ts:59')
+  if (value === undefined || value === true) return undefined
+  if (value === null || value === false || value === '') return []
+  const names = typeof value === 'object' && !Array.isArray(value)
+    ? Object.keys(value).filter(key => key.trim() !== '')
+    : toToolStrings(value)
+  if (!names?.length) return []
+  const parsed = parseToolListFromCLI(names)
+  return parsed.includes('*') ? undefined : parsed
 }
 
 export function agentToolsFrontmatterProblem(value: unknown): string | null {
@@ -101,7 +107,32 @@ function isInsideTree(path: string, root: string): boolean {
 }
 
 export function getProjectDirsUpToHome(subdir: string, cwd: string): string[] {
-  return notBuilt('src/utils/markdownConfigLoader.ts:117')
+  let level = resolve(cwd)
+  const home = normalizePathForComparison(resolve(homedir()).normalize('NFC'))
+  let boundary = findGitRoot(cwd)
+  if (boundary !== null) {
+    const outer = findGitRoot(getOriginalCwd())
+    if (outer !== null && normalizePathForComparison(outer) !== normalizePathForComparison(boundary) && isInsideTree(boundary, outer)) {
+      const innerRoot = findCanonicalGitRoot(boundary)
+      const outerRoot = findCanonicalGitRoot(outer)
+      if (innerRoot !== null && outerRoot !== null && normalizePathForComparison(innerRoot) !== normalizePathForComparison(outerRoot)) boundary = outer
+    }
+  }
+  const limit = boundary === null ? null : normalizePathForComparison(boundary)
+  const dirs: string[] = []
+  for (;;) {
+    const key = normalizePathForComparison(level)
+    if (key === home) break
+    for (const name of PROJECT_CONFIG_DIR_NAMES) {
+      const path = join(level, name, subdir)
+      if (configDirExists(path)) dirs.push(path)
+    }
+    if (key === limit) break
+    const parent = dirname(level)
+    if (normalizePathForComparison(parent) === key) break
+    level = parent
+  }
+  return dirs
 }
 
 
@@ -117,7 +148,56 @@ export interface EstateWalk {
 }
 
 export async function walkMarkdownEstate(dir: string): Promise<EstateWalk> {
-  return notBuilt('src/utils/markdownConfigLoader.ts:172')
+  const started = Date.now()
+  const visited = new Set<string>()
+  const files: string[] = []
+  let entries = 0
+  let stopped: string | undefined
+  let depthLimit: string | undefined
+  const skip = (path: string, error: unknown) => logForDebugging(`markdownConfigLoader: skipping unreadable ${path}: ${String(error)}`)
+  async function visit(folder: string, depth: number): Promise<void> {
+    if (stopped) return
+    if (depth > ESTATE_WALK_MAX_DEPTH) {
+      depthLimit ??= `depth ${ESTATE_WALK_MAX_DEPTH} exceeded at ${folder}`
+      return
+    }
+    if (Date.now() - started > ESTATE_WALK_BUDGET_MS) {
+      stopped = `the ${ESTATE_WALK_BUDGET_MS} ms budget was spent at ${folder}`
+      return
+    }
+    let children
+    try {
+      const info = await stat(folder).catch(passedOverAs(null))
+      const id = info && (info.dev !== 0 || info.ino !== 0) ? `${info.dev}:${info.ino}` : await realpath(folder)
+      if (visited.has(id)) return
+      visited.add(id)
+      children = await readdir(folder, { withFileTypes: true })
+    } catch (error) {
+      skip(folder, error)
+      return
+    }
+    for (const entry of children) {
+      if (stopped) return
+      if (++entries > ESTATE_WALK_MAX_ENTRIES) {
+        stopped = `${ESTATE_WALK_MAX_ENTRIES} entries examined, the last under ${folder}`
+        return
+      }
+      const path = join(folder, entry.name)
+      if (entry.isDirectory()) await visit(path, depth + 1)
+      else if (entry.isSymbolicLink()) {
+        try {
+          const target = await stat(path)
+          if (target.isDirectory()) await visit(path, depth + 1)
+          else if (target.isFile() && entry.name.toLowerCase().endsWith('.md')) files.push(path)
+        } catch (error) {
+          skip(path, error)
+        }
+      } else if (entry.name.toLowerCase().endsWith('.md')) files.push(path)
+    }
+  }
+  await visit(dir, 0)
+  const reason = stopped ?? depthLimit
+  return { files: files.sort(), entries, complete: reason === undefined, ...(reason === undefined ? {} : { reason }) }
 }
 
 async function discoverMarkdownFiles(dir: string): Promise<string[]> {
@@ -162,7 +242,27 @@ async function loadDirectory(
 
 
 async function dedupeByIdentity(files: MarkdownFile[]): Promise<MarkdownFile[]> {
-  return notBuilt('src/utils/markdownConfigLoader.ts:282')
+  const seen = new Map<string, MarkdownFile['source']>()
+  const kept: MarkdownFile[] = []
+  for (const file of files) {
+    try {
+      const { dev, ino } = await lstat(file.filePath)
+      if (dev !== 0 || ino !== 0) {
+        const key = `${dev}:${ino}`
+        const first = seen.get(key)
+        if (first !== undefined) {
+          logForDebugging(`markdownConfigLoader: duplicate ${file.filePath} (${file.source}) already provided by ${first}`)
+          continue
+        }
+        seen.set(key, file.source)
+      }
+    } catch (error) {
+      passedOver(error)
+    }
+    kept.push(file)
+  }
+  if (files.length !== kept.length) logForDebugging(`markdownConfigLoader: removed ${files.length - kept.length} duplicate file(s)`)
+  return kept
 }
 
 
