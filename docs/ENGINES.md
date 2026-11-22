@@ -312,7 +312,7 @@ OAuth device flow: Mercury asks
 code, presenting the Portal client id that Nous's own Hermes agent presents
 (`hermes-cli`, scope `inference:invoke`, read from
 `hermes_cli/auth_constants.py` in the NousResearch/hermes-agent repository
-at its release **0.23.1** as of **2026-11-16**; Mercury re-reads that file
+at its release **0.23.3** as of **2026-11-22**; Mercury re-reads that file
 once a day and presents a newer id or scope when it changes), you approve in
 the browser at the address the Portal names, Mercury polls
 `POST /api/oauth/token` with the device-code grant, keeps the tokens
@@ -1083,7 +1083,7 @@ Run `/accounts` to see every connected account and API key across all providers:
   words. A chat goes to that endpoint's `streamGenerateContent` under
   Antigravity's own User-Agent (`antigravity/hub/<version> …`), whose version
   follows Antigravity's update manifest (one bounded read a day, the shipped
-  2.32.1 as the fallback, skipped under traffic-off) because Google gates
+  2.34.0 as the fallback, skipped under traffic-off) because Google gates
   newer models on it; the request wraps the Gemini request with the project
   and a request id, the system instruction tagged as a user part, the tools'
   schemas in the shape the endpoint accepts. What leaves the machine on this
