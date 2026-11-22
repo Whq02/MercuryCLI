@@ -2,18 +2,34 @@ import type { EffortLevel } from '../effortLadder.js'
 import type { McpServerConfig } from '../mcp/types.js'
 import type { BillingType } from '../oauth/types.js'
 import type { ImageDimensions } from '../imageResizer.js'
+import type { CompatProviderSettings } from '../settings/compatProvider.js'
 import { DEFAULT_THEME_SETTING } from '../systemTheme.js'
 import type { ThemeSetting } from '../theme.js'
+import type { VideoProviderSettings } from '../video/types.js'
 import type { EDITOR_MODES } from '../configConstants.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export { EDITOR_MODES } from '../configConstants.js'
 
-export type PastedContent = Unbuilt
+export type PastedContent = {
+  id: number
+  type: 'text' | 'image'
+  content: string
+  contentHash?: string
+  mediaType?: string
+  filename?: string
+  dimensions?: ImageDimensions
+  sourcePath?: string
+}
 
-export type SerializedStructuredHistoryEntry = Unbuilt
+export type SerializedStructuredHistoryEntry = {
+  display: string
+  pastedContents?: Record<number, PastedContent>
+}
 
-export type HistoryEntry = Unbuilt
+export type HistoryEntry = {
+  display: string
+  pastedContents: Record<number, PastedContent>
+}
 
 type LastSessionFigure =
   | 'lastAPIDuration'
@@ -31,7 +47,59 @@ type LastSessionFigure =
   | 'lastFpsAverage'
   | 'lastFpsLow1Pct'
 
-export type ProjectConfig = Unbuilt
+type UsageFigures = {
+  inputTokens: number
+  outputTokens: number
+  cacheReadInputTokens: number
+  cacheCreationInputTokens: number
+  webSearchRequests: number
+  costUSD: number
+}
+
+type SkillStates = Record<string, 'off' | 'invocable'>
+
+type ProjectRecord = {
+  allowedTools: string[]
+  mcpServers?: Record<string, McpServerConfig>
+  enabledMcpServers?: string[]
+  disabledMcpServers?: string[]
+  skillStates?: SkillStates
+  extensionStates?: Record<string, 'off'>
+  hasTrustDialogAccepted?: boolean
+  hasCompletedProjectOnboarding?: boolean
+  projectOnboardingSeenCount: number
+  hasExternalIncludesApproved?: boolean
+  hasExternalIncludesWarningShown?: boolean
+  exampleFiles?: string[]
+  exampleFilesGeneratedAt?: number
+  activeWorktreeSession?: {
+    originalCwd: string
+    worktreePath: string
+    worktreeName: string
+    originalBranch?: string
+    sessionId: string
+  }
+  permissionPosture?: {
+    mode: 'bypass' | 'standard'
+    consentDialog: 'shown-accepted' | 'suppressed-by-standing-consent' | 'not-required'
+    trustDialogAccepted: boolean
+    recordedAtMs: number
+    armedBy?: 'env-standing-consent' | 'cli-flag' | 'session-choice'
+  }
+}
+
+type LastSessionRecord = { [Figure in LastSessionFigure]?: number } & {
+  lastSessionId?: string
+  lastCostWindow?: { kind: 'session-cumulative'; savedAtMs: number; sessionId?: string }
+  lastSessionMetricsWindow?: { kind: 'process-leg'; pid: number; savedAtMs: number }
+  lastModelUsage?: Record<string, UsageFigures>
+  lastUnpricedTurns?: Record<string, number>
+  lastWorkloadUsage?: Record<string, Record<string, UsageFigures>>
+  lastWorkloadUnpricedTurns?: Record<string, Record<string, number>>
+  lastSessionMetrics?: Record<string, number>
+}
+
+export type ProjectConfig = ProjectRecord & LastSessionRecord
 
 export const DEFAULT_PROJECT_CONFIG: ProjectConfig = {
   allowedTools: [],
@@ -42,17 +110,75 @@ export const DEFAULT_PROJECT_CONFIG: ProjectConfig = {
   hasExternalIncludesWarningShown: false,
 }
 
-export type AccountInfo = Unbuilt
+export type AccountInfo = {
+  accountUuid: string
+  emailAddress: string
+  organizationUuid?: string
+  organizationName?: string | null
+  organizationRole?: string | null
+  workspaceRole?: string | null
+  displayName?: string
+  billingType?: BillingType | null
+  accountCreatedAt?: string
+  subscriptionCreatedAt?: string
+}
 
-export type EditorMode = Unbuilt
+export type EditorMode = 'emacs' | (typeof EDITOR_MODES)[number]
 
-type BootRecord = Unbuilt
+type BootRecord = {
+  numStartups: number
+  firstStartTime?: string
+  hasCompletedOnboarding?: boolean
+  lastOnboardingVersion?: string
+  lastReleaseNotesSeen?: string
+  fileCheckpointingEnabled: boolean
+  projects?: Record<string, ProjectConfig>
+  skillUsage?: Record<string, { usageCount: number; lastUsedAt: number }>
+  headlessActivity?: {
+    print: number
+    sdk: number
+    verbs: Record<string, number>
+    lastKind: string
+    lastAt: number
+  }
+}
 
-type Appearance = Unbuilt
+type Appearance = {
+  theme: ThemeSetting
+  toolOutput: 'compact' | 'full'
+  editorMode?: EditorMode
+  motion?: 'auto' | 'full' | 'reduced' | 'off'
+  mouseCapture?: boolean
+  copyOnSelect?: boolean
+  defaultCritter?: string
+  expandedView?: 'none' | 'tasks'
+  showExpandedTasks?: boolean
+  showTurnDuration: boolean
+  prStatusFooterEnabled?: boolean
+  terminalProgressBarEnabled: boolean
+}
 
-type Credentials = Unbuilt
+type Credentials = {
+  primaryApiKey?: string
+  oauthAccount?: AccountInfo
+  anthropicPreferredSource?: 'subscription' | 'api-key'
+  anthropicApiKeyWorkspace?: {
+    keyFingerprint: string
+    workspaceId: string
+  }
+  customApiKeyResponses?: {
+    approved?: string[]
+    rejected?: string[]
+  }
+}
 
-type Servers = Unbuilt
+type Servers = {
+  mcpServers?: Record<string, McpServerConfig>
+  claudeAiMcpEverConnected?: string[]
+  githubRepoPaths?: Record<string, string[]>
+  kitPresets?: Record<string, { mcpOff: string[]; skillStates: SkillStates; extensionsOff: string[] }>
+  duckduckgoScraping?: boolean
+}
 
 type Concourse = {
   concourseEnabled?: boolean
@@ -65,15 +191,76 @@ type Concourse = {
   backgroundSessionsLaunchCrewmates?: boolean
 }
 
-type ModelChoices = Unbuilt
+type ModelChoices = {
+  defaultProvider?: string
+  compatProvider?: CompatProviderSettings
+  videoProvider?: VideoProviderSettings
+  responseProfile?: 'balanced' | 'concise'
+  autoCompactEnabled: boolean
+  autoCompactWindow?: number
+  localModelBatch?: Record<string, number>
+  localModelWindows?: Record<string, 'server' | 'max' | number>
+  agents?: {
+    defaultEffort?: EffortLevel
+    defaultModel?: string
+    maxConcurrent?: number
+  }
+  advisor?: {
+    enabled?: boolean
+    minutes?: number
+  }
+  subModels?: {
+    advisor?: string
+    effort?: { advisor?: string }
+  }
+  helperModel?: {
+    size?: 'off' | '2b' | '4b' | 'session'
+    compaction?: boolean
+  }
+  jev?: {
+    enabled?: boolean
+    subagents?: boolean
+    road?: 'official' | 'openrouter'
+    openrouterAllowanceUsd?: number
+    allowanceUsd?: number
+    pacePerMinute?: number
+    requestCeiling?: number
+  }
+  launchEffortUnpins?: {
+    opus47?: boolean
+    opus48?: boolean
+    fable5?: boolean
+    fable51?: boolean
+    fable52?: boolean
+    opus55?: boolean
+    sonnet55?: boolean
+  }
+}
 
-type Hints = Unbuilt
+type Hints = {
+  tipsHistory: Record<string, number>
+  hasSeenTasksHint?: boolean
+  hasUsedStash?: boolean
+  hasUsedBackslashReturn?: boolean
+  hasAcknowledgedCostThreshold?: boolean
+  permissionExplainerEnabled?: boolean
+}
 
-type TerminalSetup = Unbuilt
+type TerminalSetup = {
+  shiftEnterKeyBindingInstalled?: boolean
+  optionAsMetaKeyInstalled?: boolean
+  appleTerminalSetupInProgress?: boolean
+  appleTerminalBackupPath?: string
+  terminalChecksContinued?: Record<string, true>
+}
 
-type Voice = Unbuilt
+type Voice = {
+  voiceInputEnabled?: boolean
+}
 
-type Bridge = Unbuilt
+type Bridge = {
+  remoteControlAtStartup?: boolean
+}
 
 export type GlobalConfig = BootRecord &
   Appearance &
@@ -107,21 +294,43 @@ export function createDefaultGlobalConfig(): GlobalConfig {
 
 export const DEFAULT_GLOBAL_CONFIG: GlobalConfig = createDefaultGlobalConfig()
 
-const keyGuard = <Key extends string>(keys: readonly Key[]) => {
-  const known: ReadonlySet<string> = new Set(keys)
-  return (key: string): key is Key => known.has(key)
+const keyGuard = <Key extends string>(keys: readonly Key[]): ((key: string) => key is Key) => {
+  const names = new Set<string>(keys)
+  return (key): key is Key => names.has(key)
 }
 
-export const GLOBAL_CONFIG_KEYS: Unbuilt = unbuilt('src/utils/config/schema.ts:305')
+export const GLOBAL_CONFIG_KEYS = [
+  'agents',
+  'autoCompactEnabled',
+  'backgroundSessionsLaunchCrewmates',
+  'concourseEnabled',
+  'copyOnSelect',
+  'defaultCritter',
+  'defaultProvider',
+  'editorMode',
+  'fileCheckpointingEnabled',
+  'hasUsedBackslashReturn',
+  'mouseCapture',
+  'permissionExplainerEnabled',
+  'prStatusFooterEnabled',
+  'remoteControlAtStartup',
+  'shiftEnterKeyBindingInstalled',
+  'showExpandedTasks',
+  'showTurnDuration',
+  'terminalProgressBarEnabled',
+  'theme',
+  'tipsHistory',
+  'toolOutput',
+] as const satisfies readonly (keyof GlobalConfig)[]
 
-export type GlobalConfigKey = Unbuilt
-export const isGlobalConfigKey: Unbuilt = unbuilt('src/utils/config/schema.ts:330')
+export type GlobalConfigKey = (typeof GLOBAL_CONFIG_KEYS)[number]
+export const isGlobalConfigKey = keyGuard(GLOBAL_CONFIG_KEYS)
 
 export const PROJECT_CONFIG_KEYS = [
   'allowedTools',
-  'hasTrustDialogAccepted',
   'hasCompletedProjectOnboarding',
+  'hasTrustDialogAccepted',
 ] as const satisfies readonly (keyof ProjectConfig)[]
 
-export type ProjectConfigKey = Unbuilt
+export type ProjectConfigKey = (typeof PROJECT_CONFIG_KEYS)[number]
 export const isProjectConfigKey = keyGuard(PROJECT_CONFIG_KEYS)
