@@ -1,8 +1,46 @@
 import type { Message } from '../../types/message.js'
 import type { NormalizedMessage } from '../../types/message.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
-export const NULL_RENDERING_ATTACHMENT_TYPES: Unbuilt = unbuilt('src/components/messages/nullRenderingAttachments.ts:5')
+export const NULL_RENDERING_ATTACHMENT_TYPES = [
+  'command_permissions',
+  'agent_mention',
+  'samples_road',
+  'budget_usd',
+  'critical_system_reminder',
+  'edited_image_file',
+  'edited_text_file',
+  'opened_file_in_ide',
+  'open_files_in_ide',
+  'structured_output',
+  'context_efficiency',
+  'deferred_tools_delta',
+  'held_tools',
+  'tool_schema_delta',
+  'agent_roster',
+  'mcp_instructions_delta',
+  'mcp_servers_failed',
+  'harness_map_delta',
+  'context_capsule',
+  'bagel_console',
+  'max_turns_reached',
+  'loop_stopped',
+  'task_reminder',
+  'contract_reminder',
+  'mode_pack',
+  'mode_pack_exit',
+  'output_token_usage',
+  'usage_limit_notice',
+  'mission_status',
+  'verify_plan_reminder',
+  'current_session_memory',
+  'date_change',
+  'user_context',
+  'bound_prefix',
+  'dead_thinking',
+  'dropped_thinking',
+  'images_left_out',
+  'compact_operator_messages',
+] as const
 
 export type NullRenderingAttachmentType =
   (typeof NULL_RENDERING_ATTACHMENT_TYPES)[number]
