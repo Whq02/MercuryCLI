@@ -3,6 +3,7 @@ import { posix, win32 } from 'node:path'
 import { Text } from '../../ink.js'
 import { getPlatform } from '../../utils/platform.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
+import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
 import { permissionRuleExtractPrefix } from '../../utils/permissions/shellRuleMatching.js'
 import type { PermissionUpdate } from '../../types/permissions.js'
 
@@ -170,7 +171,14 @@ export function generateShellSuggestionsLabel(
     )
   }
 
-  return <>Yes, and allow {grantPhrase(directories, readPaths)} in this project</>
+  const project = getFocusedSessionConnector().workspace().originalCwd
+  const inProject = [...directories, ...readPaths].every(folder => pathInWorkingPath(displayFolderOfRule(folder), project))
+  return (
+    <>
+      Yes, and allow {grantPhrase(directories, readPaths)}
+      {inProject ? ' in this project' : ''}
+    </>
+  )
 }
 
 function grantPhrase(directories: string[], readPaths: string[]): React.ReactNode {

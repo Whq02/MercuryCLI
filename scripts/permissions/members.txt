@@ -9,6 +9,7 @@ prove-boot-add-dirs.ts
 prove-bypass-posture-needs-launch-flag.ts
 prove-card-editor-key.ts
 prove-card-folder-spelling.ts
+prove-card-grant-covers-the-ask.ts
 prove-card-grant-words-match-rule.ts
 prove-card-input-identity.ts
 prove-card-keys-wait-for-first-paint.ts

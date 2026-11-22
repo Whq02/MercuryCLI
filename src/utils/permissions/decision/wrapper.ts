@@ -1,4 +1,4 @@
-import type { Tool, ToolUseContext } from '../../../Tool.js'
+import type { Tool, ToolPermissionContext, ToolUseContext } from '../../../Tool.js'
 import type { AssistantMessage } from '../../../types/message.js'
 import { logForDebugging } from '../../debug.js'
 import { toError } from '../../errors.js'
@@ -111,6 +111,34 @@ function underStandingAllowRules(context: ToolUseContext): ToolUseContext {
   }
 }
 
+async function decisionOnceGranted(
+  tool: Tool,
+  input: Record<string, unknown>,
+  context: ToolUseContext,
+  appState: ReturnType<ToolUseContext['getAppState']>,
+  grant: PermissionUpdate[],
+): Promise<{ decision: PermissionDecision; rules: ToolPermissionContext } | null> {
+  const rules = applyPermissionUpdates(appState.toolPermissionContext, grant)
+  if (rules === appState.toolPermissionContext) return null
+  const granted: ToolUseContext = { ...context, getAppState: () => ({ ...appState, toolPermissionContext: rules }) }
+  return { decision: (await decideToolPermission(tool, input, granted)).decision, rules }
+}
+
+async function askWithCoveringGrant(
+  tool: Tool,
+  input: Record<string, unknown>,
+  context: ToolUseContext,
+  appState: ReturnType<ToolUseContext['getAppState']>,
+  asked: PermissionAskDecision,
+): Promise<PermissionAskDecision> {
+  if (tool.shellCommandOf === undefined || asked.suggestions === undefined || asked.suggestions.length === 0) return asked
+  const rules = asked.suggestions.filter(update => update.type !== 'setMode')
+  const granted = await decisionOnceGranted(tool, input, context, appState, rules)
+  if (granted?.decision.behavior === 'allow') return rules.length === asked.suggestions.length ? asked : { ...asked, suggestions: rules }
+  const { suggestions: _fallsShort, ...bare } = asked
+  return bare
+}
+
 interface WrapperPorts {
   runHeadlessHooks(
     tool: Tool,
@@ -195,16 +223,11 @@ export async function decideToolPermissionWithModes(
         appState.toolPermissionContext,
         async suggestions => {
           if (suggestions.some(update => update.type === 'setMode')) return false
-          const nextRules = applyPermissionUpdates(appState.toolPermissionContext, suggestions)
-          if (nextRules === appState.toolPermissionContext) return false
-          const probeContext: ToolUseContext = {
-            ...context,
-            getAppState: () => ({ ...appState, toolPermissionContext: nextRules }),
-          }
-          const nextEngine = await decideToolPermission(tool, input, probeContext)
-          if (nextEngine.decision.behavior === 'allow') return true
-          if (nextEngine.decision.behavior !== 'ask') return false
-          const nextFlow = await decideUnderFlow(tool, input, nextEngine.decision, nextRules)
+          const granted = await decisionOnceGranted(tool, input, context, appState, suggestions)
+          if (granted === null) return false
+          if (granted.decision.behavior === 'allow') return true
+          if (granted.decision.behavior !== 'ask') return false
+          const nextFlow = await decideUnderFlow(tool, input, granted.decision, granted.rules)
           return nextFlow.stage === 'flowAllow'
         },
       )
@@ -216,7 +239,9 @@ export async function decideToolPermissionWithModes(
       }
       const note = verdict.stage === 'flowFloors' ? verdict.floor : `item ${verdict.ask.item}`
       if (verdict.stage === 'flowLaw') recordPass('flowFloors')
-      if (!appState.toolPermissionContext.shouldAvoidPermissionPrompts) return decide(verdict.stage, verdict.decision, note)
+      if (!appState.toolPermissionContext.shouldAvoidPermissionPrompts) {
+        return decide(verdict.stage, verdict.stage === 'flowFloors' ? await askWithCoveringGrant(tool, input, context, appState, verdict.decision) : verdict.decision, note)
+      }
       recordPass(verdict.stage, note)
       pending = verdict.decision
     }
@@ -243,6 +268,7 @@ export async function decideToolPermissionWithModes(
         message: pending === engineDecision ? AUTO_REJECT_MESSAGE(tool.name) : `${pending.message} ${AUTO_REJECT_MESSAGE(tool.name)}`,
       })
     }
+    return passThrough(await askWithCoveringGrant(tool, input, context, appState, engineDecision))
   }
 
   return passThrough(engineDecision)

@@ -34,6 +34,7 @@ await stub('../../src/utils/platform.js', () => ({ getPlatform: () => platform }
 
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
+const { setCwdState } = await import('../../src/bootstrap/state.js')
 const { createEditRuleSuggestion, createReadRuleSuggestion } = await import('../../src/utils/permissions/PermissionUpdate.js')
 const helpers = await import('../../src/components/permissions/shellPermissionHelpers.js')
 const { generateShellSuggestionsLabel } = helpers
@@ -113,22 +114,32 @@ try {
 
   section('§2 the card rendered on a Mac keeps its words: the folder, then the trailing slash')
   {
+    setCwdState('/home/sam/orchard')
     const text = await renderLabel(generateShellSuggestionsLabel([createEditRuleSuggestion(MAC_DIR, 'localSettings')!], 'Bash'))
     check('the single-folder choice reads "Yes, and allow file edits in <folder>/ in this project" (SH-03: the words say what the rule grants)', text === `Yes, and allow file edits in ${MAC_DIR}/ in this project`, text)
     const two = await renderLabel(generateShellSuggestionsLabel([createEditRuleSuggestion(MAC_DIR, 'localSettings')!, createReadRuleSuggestion('/home/sam/orchard/docs')!], 'Bash'))
     check('an edit folder and a read folder read by their names with the trailing slash, each under its own grant (SH-03: the read folder is never promised file edits)', two === 'Yes, and allow file edits in f5/ and reading from docs/ in this project', two)
     const twoEdits = await renderLabel(generateShellSuggestionsLabel([createEditRuleSuggestion(MAC_DIR, 'localSettings')!, createEditRuleSuggestion('/home/sam/orchard/gridgame', 'localSettings')!], 'Bash'))
     check('two edit folders read by their names with the trailing slash under the one grant', twoEdits === 'Yes, and allow file edits in f5/ and gridgame/ in this project', twoEdits)
+    setCwdState('/home/sam/orchard/gridgame')
+    const outside = await renderLabel(generateShellSuggestionsLabel([createEditRuleSuggestion(MAC_DIR, 'localSettings')!], 'Bash'))
+    check('a folder outside the project is named and never called this project', outside === `Yes, and allow file edits in ${MAC_DIR}/`, outside)
+    const oneOutside = await renderLabel(generateShellSuggestionsLabel([createEditRuleSuggestion('/home/sam/orchard/gridgame/art', 'localSettings')!, createReadRuleSuggestion('/home/sam/orchard/docs')!], 'Bash'))
+    check('one folder of two outside the project: neither is called this project', oneOutside === 'Yes, and allow file edits in art/ and reading from docs/', oneOutside)
   }
 
   section("§3 the card rendered on the Windows box: the box's folder spelling, middle-truncated, no trailing separator (the box read …/scratchpad/f5\\)")
   {
     platform = 'windows'
+    setCwdState('C:\\Users\\WHQ')
     const text = await renderLabel(generateShellSuggestionsLabel([createEditRuleSuggestion(BOX_DIR, 'localSettings')!], 'Bash'))
     check('the single-folder choice reads the Windows spelling, truncated in the middle, with no separator after f5', text === `Yes, and allow file edits in ${BOX_DISPLAY} in this project`, text)
     check('no Git Bash spelling (/C/Users) and no trailing backslash on the card', !text.includes('/C/Users') && !/f5\\ in this project/.test(text), text)
     const two = await renderLabel(generateShellSuggestionsLabel([createEditRuleSuggestion(BOX_DIR, 'localSettings')!, createReadRuleSuggestion('C:\\Users\\WHQ\\Desktop\\docs')!], 'Bash'))
     check('an edit folder and a read folder read by their names with no separator, each under its own grant', two === 'Yes, and allow file edits in f5 and reading from docs in this project', two)
+    setCwdState('C:\\src\\fl1012\\u25-m2\\P')
+    const outside = await renderLabel(generateShellSuggestionsLabel([createEditRuleSuggestion('C:\\src\\fl1012\\t22-outside', 'localSettings')!], 'Bash'))
+    check('a folder outside the project is named in the Windows spelling and never called this project', outside === 'Yes, and allow file edits in C:\\src\\fl1012\\t22-outside', outside)
     platform = 'macos'
   }
 } finally {

@@ -42,6 +42,8 @@ const StdinContext = (await import('../../src/ink/components/StdinContext.js')).
 const { Box, EventEmitter, Text, render, flushPendingSyncWork } = await import('../../src/ink.js')
 
 const PROJECT = realpathSync(mkdtempSync(join(tmpdir(), 'card-grant-project-')))
+const { setCwdState } = await import('../../src/bootstrap/state.js')
+setCwdState(PROJECT)
 
 const settle = async (): Promise<void> => {
   for (let index = 0; index < 6; index++) {
@@ -131,7 +133,7 @@ section('§4 an edit folder beside a read folder: each folder is named under the
   const mixed = await renderLabel(generateShellSuggestionsLabel([createEditRuleSuggestion(PROJECT, 'localSettings')!, readRule], 'Bash'))
   check('the edit folder is named under "file edits in"', new RegExp(`allow file edits in ${editName}${sep} `).test(mixed), mixed)
   const [editPart, readPart] = mixed.split(' and reading from ')
-  check('the read folder is named under "reading from", never under file edits', readPart === `${readName}${sep} in this project` && editPart !== undefined && editPart.includes(editName) && !editPart.includes(readName), mixed)
+  check('the read folder is named under "reading from", never under file edits, and a folder outside the project is never called this project', readPart === `${readName}${sep}` && editPart !== undefined && editPart.includes(editName) && !editPart.includes(readName), mixed)
   check('the read folder is never listed as an edit folder', !mixed.includes(`${editName}${sep} and ${readName}${sep}`), mixed)
   const withCommand = await renderLabel(generateShellSuggestionsLabel([readRule, { type: 'addRules', rules: [{ toolName: 'Bash', ruleContent: 'cat *' }], behavior: 'allow', destination: 'localSettings' }], 'Bash'))
   check('one read folder plus one command: the grant is reading, not file edits', /^Yes, and allow reading from .* plus cat commands in /.test(withCommand) && !withCommand.includes('file edits'), withCommand)
