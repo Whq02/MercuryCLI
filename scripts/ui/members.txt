@@ -40,6 +40,7 @@ prove-jobcontrol-host-teardown.ts
 prove-keybindings-editor-safe.ts
 prove-launcher-job-control.ts
 prove-logins-copy-key-stays-out-of-draft.ts
+prove-logins-state-words.ts
 prove-mission-before-seat.ts
 prove-mission-served-drive.ts
 prove-mode-band-first-frame-drive.ts

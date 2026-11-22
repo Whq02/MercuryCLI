@@ -299,13 +299,17 @@ section('§2 a long email clips with each surface\'s own tail marker, never past
 {
   settleFixture({ profile: LONG_EMAIL, receipt: LONG_EMAIL, record: RECORD_EMAIL })
   const words = rosterWords()
-  check('the roster chip clips at its 26 cells with an ellipsis', words.chip === `${LONG_EMAIL.slice(0, 25)}…`, words.chip)
+  check('the roster chip hands the whole email to the composer', words.chip === LONG_EMAIL, words.chip)
   check('the face chip composer hands the whole email to the strip', chipWords() === LONG_EMAIL, chipWords())
   for (const size of SIZES) {
     const stamp = `${size.columns}x${size.rows}`
     const frames = await paintSurfaces(size, 'long')
     const row = rosterRow(frames.logins)
-    check(`${stamp} logins: the row carries the clipped email with the ellipsis, never the whole address`, /a-very-long-fixtur[\w-]*…/.test(row) && !row.includes(LONG_EMAIL), row)
+    const nextRow = lineAfter(frames.logins, 'Anthropic — Claude subscription')
+    const loginsOk = size.columns >= 120
+      ? (row.includes(LONG_EMAIL) || nextRow.includes(LONG_EMAIL)) && !frames.logins.includes(`${LONG_EMAIL.slice(0, 25)}…`)
+      : /a-very-long-fixtur[\w-]*…/.test(row) && !row.includes(LONG_EMAIL)
+    check(`${stamp} logins: ${size.columns >= 120 ? 'wide tier shows the whole email inside its panel' : 'narrow tier clips the email with an ellipsis'}`, loginsOk, `${row} | ${nextRow}`)
     const popupLine = lineWith(frames.popup, 'Signed in as') ?? ''
     check(`${stamp} usage popup: the identity line is present and never wider than its column`, popupLine.includes('Signed in as ') && (popupLine.includes(LONG_EMAIL) || popupLine.includes('…')), popupLine)
     if (size.columns >= 150) {

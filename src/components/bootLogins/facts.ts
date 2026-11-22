@@ -5,10 +5,30 @@ import type { ProviderFamilyPresence } from '../../services/providers/providerUs
 import { providerDisplayName } from '../../services/providers/routeLaw.js';
 import { mostRecentSignInFamily } from '../../services/model/computedDefault.js';
 import { wrapPlain } from '../BootHealthScreen.js';
-import { loginFamilyFocusFor, loginFamilyRows, type LoginFamilyRow } from '../loginFamilyRows.js';
+import { loginFamilyFocusFor, loginFamilyNameOf, loginFamilyRows, type LoginFamilyRow } from '../loginFamilyRows.js';
 
 export const DETAIL_W = 38;
-const CHIP_W = 26;
+
+const UNAVAILABLE_REASON_WORDS: ReadonlyArray<readonly [string, string]> = [
+  ['no-api-key:', 'no key'],
+  ['no-account:', 'not signed in'],
+  ['no-credential:', 'not signed in'],
+  ['no-auth:', 'not signed in'],
+  ['not-configured:', 'not configured'],
+  ['no-server:', 'no server discovered'],
+  ['discovery-pending:', 'not probed yet'],
+  ['disabled:', 'disabled'],
+  ['no-executable:', 'unavailable'],
+];
+
+function unavailableReasonWords(reason: string | undefined): string {
+  if (reason === undefined || reason === '') return 'unavailable';
+  for (const [prefix, words] of UNAVAILABLE_REASON_WORDS) {
+    if (reason.startsWith(prefix)) return words;
+  }
+  if (/^[a-z][a-z0-9-]*:/.test(reason)) return 'unavailable';
+  return reason;
+}
 
 export interface LoginsScreenFactsV1 {
   groups: FamilySlotGroup[];
@@ -86,7 +106,6 @@ export function loginsSwitchableFamily(
   return subscription && key ? 'openai' : null;
 }
 
-const fitChip = (text: string): string => (text.length > CHIP_W ? text.slice(0, CHIP_W - 1) + '…' : text);
 export const clampText = (s: string, w: number): string => (s.length > w ? s.slice(0, w - 1) + '…' : s);
 
 export interface LoginsRowStateV1 {
@@ -114,13 +133,13 @@ export function loginsRowStateOf(arm: LoginsArmV1, facts: LoginsScreenFactsV1): 
   if (!signedIn) {
     chip =
       expiredSlot !== undefined
-        ? fitChip(expiredSlot.identity || expiredSlot.kindLabel)
+        ? expiredSlot.identity || expiredSlot.kindLabel
         : group.family.available === false
-          ? fitChip(group.family.reason ?? 'unavailable')
+          ? unavailableReasonWords(group.family.reason)
           : 'not signed in';
   } else {
     const first = signedInSlots[0]!;
-    chip = fitChip(first.identity || first.kindLabel);
+    chip = first.identity || first.kindLabel;
     if (signedInSlots.length > 1) chip += ` +${signedInSlots.length - 1}`;
   }
   let loud = false;
@@ -151,6 +170,7 @@ export function loginsSortedArms(facts: LoginsScreenFactsV1): LoginsArmV1[] {
 
 export type LoginsEntry = {
   label: string;
+  detailLabel?: string;
   group: string;
   groupTitle: string;
   summary: string;
@@ -165,7 +185,8 @@ export function loginsEntryOf(arm: LoginsArmV1, facts: LoginsScreenFactsV1): Log
   const state = loginsRowStateOf(arm, facts);
   const klass = state.signedIn ? 'signed in' : 'available';
   return {
-    label: clampText(arm.row.label, 40),
+    label: arm.row.label,
+    detailLabel: loginFamilyNameOf(arm.row),
     group: klass,
     groupTitle: klass,
     summary: `${familyDisplayName(arm.familyId)} · ${state.chip}`,
@@ -182,7 +203,7 @@ export function loginsDetailLines(arm: LoginsArmV1, facts: LoginsScreenFactsV1):
   const lines: string[] = [familyDisplayName(arm.familyId), ''];
   lines.push(...wrapPlain(arm.row.label, DETAIL_W));
   lines.push('');
-  lines.push(`state: ${state.chip}`);
+  lines.push(...wrapPlain(`state: ${state.chip}`, DETAIL_W));
   const slots = loginsArmSlots(arm, group);
   if (slots.length === 0) {
     lines.push('· no sign-in on this arm yet');

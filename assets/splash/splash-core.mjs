@@ -380,6 +380,34 @@ function wrapWords(txt, w) {
   return lines
 }
 
+function clipWords(s, w) {
+  const text = String(s)
+  if (vis(text) <= w) return text
+  if (w <= 1) return '…'
+  let cut = ''
+  let width = 0
+  let idx = 0
+  for (; idx < text.length; ) {
+    const cp = text.codePointAt(idx)
+    const ch = String.fromCodePoint(cp)
+    const cw = MARK_RE.test(ch) ? 0 : cpWidth(cp)
+    if (width + cw > w - 1) break
+    cut += ch
+    width += cw
+    idx += ch.length
+  }
+  if (idx < text.length && text[idx] === ' ') {
+    const head = cut.replace(/[\s·—–\/(-]+$/, '')
+    return (head || cut.trimEnd()) + '…'
+  }
+  const lastSpace = cut.lastIndexOf(' ')
+  if (lastSpace > 0) {
+    const head = cut.slice(0, lastSpace).replace(/[\s·—–\/(-]+$/, '')
+    if (head) return head + '…'
+  }
+  return cut.trimEnd() + '…'
+}
+
 function splitHardVis(word, w) {
   const parts = []
   let cur = ''
@@ -804,8 +832,11 @@ function composeBootMenuMicro(cols, rowsAvail, m) {
       const r2 = m.entries[i]
       const isSel = i === sel
       const lead = isSel ? red + '❯ ' + R : '  '
-      const label = (isSel ? ivory : r2.inert ? faint : mid) + r2.label + R
-      const val = faint + ' · ' + (r2.pinnedVal !== null && r2.pinnedVal !== undefined ? `env=${r2.pinnedVal} wins` : r2.valueLabel) + R
+      const rawVal = r2.pinnedVal !== null && r2.pinnedVal !== undefined ? `env=${r2.pinnedVal} wins` : r2.valueLabel
+      const labTxt = m.fitLabels ? clipWords(r2.label, Math.max(1, cols - 2 - (rawVal ? Math.min(16, vis(rawVal) + 3) : 0))) : r2.label
+      const label = (isSel ? ivory : r2.inert ? faint : mid) + labTxt + R
+      const valRem = m.fitLabels ? Math.max(1, cols - 2 - vis(labTxt) - 3) : rawVal.length
+      const val = faint + ' · ' + (m.fitLabels ? clipWords(rawVal, valRem) : rawVal) + R
       entryLines.push({ entry: i, line: lines.length })
       lines.push(clip(lead + label + val))
     }
@@ -821,7 +852,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   const mid = paint(MIDCREAM)
   const cream = paint(CREAM)
   const RIGHT_W = 46
-  const LEFT_W = Math.min(66, cols - RIGHT_W - 4)
+  const LEFT_W = m.fitLabels ? Math.min(96, cols - RIGHT_W - 2) : Math.min(66, cols - RIGHT_W - 4)
   const row = m.entries[m.selIdx]
   const legendLines = vis(m.legend) <= cols ? [m.legend] : wrapWords(m.legend, Math.max(1, cols))
 
@@ -840,12 +871,31 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
     const pinned = r2.pinnedVal !== null && r2.pinnedVal !== undefined
     const valTxt = pinned ? `env=${r2.pinnedVal} wins` : r2.valueLabel
     const valSGR = pinned || r2.inert ? faint : r2.valueIsDefault ? faint : cream
-    const lab = sel ? red + '❯ ' + R + BOLD_UL + ivory + r2.label + R : '  ' + (r2.inert ? faint : mid) + r2.label + R
     const innerW = LEFT_W - 2
-    const gap = Math.max(1, innerW - vis(' ' + lab) - valTxt.length - 1)
-    if (sel) selLine = cRows.length
-    cRowEntry.push(i)
-    cRows.push(' ' + lab + ' '.repeat(gap) + valSGR + valTxt + R)
+    if (m.fitLabels) {
+      const rowBudget = innerW - 1
+      const labelTxt = clipWords(r2.label, Math.max(1, rowBudget - 3))
+      const valShown = valTxt === '' ? '' : clipWords(valTxt, Math.max(1, rowBudget - 3))
+      const lab = sel ? red + '❯ ' + R + BOLD_UL + ivory + labelTxt + R : '  ' + (r2.inert ? faint : mid) + labelTxt + R
+      if (sel) selLine = cRows.length
+      if (valShown === '' || vis(' ' + lab) + 1 + vis(valShown) <= rowBudget) {
+        const gap = valShown === '' ? 0 : Math.max(1, rowBudget - vis(' ' + lab) - vis(valShown))
+        cRowEntry.push(i)
+        cRows.push(valShown === '' ? ' ' + lab : ' ' + lab + ' '.repeat(gap) + valSGR + valShown + R)
+      } else {
+        cRowEntry.push(i)
+        cRows.push(' ' + lab)
+        const valPad = Math.max(3, rowBudget - vis(valShown))
+        cRowEntry.push(-1)
+        cRows.push(' '.repeat(valPad) + valSGR + valShown + R)
+      }
+    } else {
+      const lab = sel ? red + '❯ ' + R + BOLD_UL + ivory + r2.label + R : '  ' + (r2.inert ? faint : mid) + r2.label + R
+      const gap = Math.max(1, innerW - vis(' ' + lab) - valTxt.length - 1)
+      if (sel) selLine = cRows.length
+      cRowEntry.push(i)
+      cRows.push(' ' + lab + ' '.repeat(gap) + valSGR + valTxt + R)
+    }
     if (r2.warn) {
       cRowEntry.push(-1)
       cRows.push(' ' + paint(AMBERC) + '▲ ' + r2.warn + R)
@@ -859,8 +909,12 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   let windowLead = 0
   if (cRows.length > leftInteriorBudget) {
     const visRows = leftInteriorBudget - 2
-    const start = Math.max(0, Math.min(selLine - (visRows >> 1), cRows.length - visRows))
-    const end = start + visRows
+    let start = Math.max(0, Math.min(selLine - (visRows >> 1), cRows.length - visRows))
+    let end = start + visRows
+    if (m.fitLabels && selLine + 1 < cRows.length && cRowEntry[selLine + 1] === -1 && selLine + 1 >= end) {
+      start = Math.min(cRows.length - visRows, start + 1)
+      end = start + visRows
+    }
     cShown = [
       start > 0 ? ' ' + faint + `… ${start} more above` + R : ' ',
       ...cRows.slice(start, end),
@@ -908,9 +962,10 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
     }
     return rows2
   }
+  const detailHead = row ? (m.fitLabels ? clipWords(row.detailLabel ?? row.label, RIGHT_W - 6) : row.label) : ''
   const dItems = m.detailOverride
     ? [
-        fixedRow(' ' + red + '❯ ' + R + BOLD + ivory + (row ? row.label : '') + R),
+        fixedRow(' ' + red + '❯ ' + R + BOLD + ivory + detailHead + R),
         fixedRow(''),
         ...m.detailOverride.map(raw => wrapRow(raw, l => ' ' + mid + l + R)),
       ]
@@ -1038,7 +1093,13 @@ function composeBootMenuClassic(cols, rowsAvail, m) {
   const faint = hexFg(FAINT, T256.faint)
   const red = accentFg()
   const ivory = hexFg(IVORY, T256.cream)
-  const LW = Math.max(...m.entries.map(r => r.label.length))
+  const maxValRaw = m.fitLabels
+    ? Math.max(0, ...m.entries.map(r => (r.pinnedVal !== null && r.pinnedVal !== undefined ? r.valueLabel.length + String(r.pinnedVal).length + 12 : r.valueLabel.length)))
+    : 0
+  const valReserve = maxValRaw === 0 ? 0 : Math.min(20, maxValRaw)
+  const maxLabelW = Math.max(16, cols - 4 - (valReserve > 0 ? valReserve + 2 : 0))
+  const labels = m.fitLabels ? m.entries.map(r => clipWords(r.label, maxLabelW)) : m.entries.map(r => r.label)
+  const LW = Math.max(0, ...labels.map(l => l.length))
   const legend = m.legendClassic ?? m.legend
   const legendLines = vis(legend) <= cols ? [legend] : wrapWords(legend, Math.max(1, cols))
   const listLines = []
@@ -1053,11 +1114,14 @@ function composeBootMenuClassic(cols, rowsAvail, m) {
     }
     const sel = i === m.selIdx
     const pinned = row.pinnedVal !== null && row.pinnedVal !== undefined
+    const labelTxt = labels[i]
+    const valBudget = Math.max(1, cols - 2 - LW - 2)
+    const valShown = m.fitLabels && row.valueLabel ? clipWords(row.valueLabel, valBudget) : row.valueLabel
     let line =
       (sel ? red + '❯ ' + R : '  ') +
-      (sel ? BOLD_UL + ivory + row.label + R : (row.inert ? faint : paint(MIDCREAM)) + row.label + R) +
-      ' '.repeat(Math.max(0, LW - row.label.length)) +
-      '  ' + (row.valueIsDefault ? faint : paint(CREAM)) + row.valueLabel + R
+      (sel ? BOLD_UL + ivory + labelTxt + R : (row.inert ? faint : paint(MIDCREAM)) + labelTxt + R) +
+      ' '.repeat(Math.max(0, LW - labelTxt.length)) +
+      '  ' + (row.valueIsDefault ? faint : paint(CREAM)) + valShown + R
     if (pinned) line += faint + ' · env=' + row.pinnedVal + ' wins' + R
     if (sel) selPos = listLines.length
     listEntry.push(i)
@@ -1109,7 +1173,7 @@ function composeBootMenuClassic(cols, rowsAvail, m) {
   lines.push(...shownList)
   lines.push('')
   const rowsW = cols - 4
-  const clamp = s => (s.length > rowsW ? s.slice(0, rowsW - 1) + '…' : s)
+  const clamp = s => (m.fitLabels ? clipWords(s, rowsW) : s.length > rowsW ? s.slice(0, rowsW - 1) + '…' : s)
   lines.push(
     faint +
       clamp(

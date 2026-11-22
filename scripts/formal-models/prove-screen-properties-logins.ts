@@ -87,7 +87,6 @@ const {
   loginsFamilyCounts,
   loginsSortedArms,
 } = await import('../../src/components/BootLoginsScreen.tsx')
-const { clampText } = await import('../../src/components/bootLogins/facts.ts')
 
 class FakeStdout extends EventEmitter {
   isTTY = true
@@ -321,8 +320,7 @@ function focusedArmOf(frame: string, arms: readonly LoginsArmV1[]): { pointerLin
   const byValue = new Map<string, LoginsArmV1>()
   for (const line of pointerLines) {
     for (const arm of arms) {
-      const clamped = clampText(arm.row.label, 40)
-      if (line.includes(`❯ ${clamped}`)) {
+      if (line.includes(`❯ ${arm.row.label}`)) {
         byValue.set(arm.row.value, arm)
       }
     }
