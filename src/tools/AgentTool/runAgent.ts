@@ -111,11 +111,161 @@ export async function connectAgentMcpServers(
   tools: Tool[]
   cleanup: () => Promise<void>
 }> {
-  return notBuilt('src/tools/AgentTool/runAgent.ts:176')
+  if (!specs || specs.length === 0) {
+    return { clients: [], tools: [], cleanup: async () => {} }
+  }
+  if (
+    isRestrictedToExtensionsOnly('mcp') &&
+    !isSourceAdminTrusted(definition.source) &&
+    !isBuiltInAgent(definition) &&
+    definition.source !== 'extension'
+  ) {
+    logForDebugging(
+      `runAgent: ${definition.agentType} declared MCP servers dropped by the extensions-only policy`,
+    )
+    return { clients: [], tools: [], cleanup: async () => {} }
+  }
+
+  const catalogueByName = new Map<string, MCPServerConnection>()
+  for (const row of parentCatalogue) {
+    if (!catalogueByName.has(row.name)) catalogueByName.set(row.name, row)
+  }
+
+  const dispatchNonce = randomUUID()
+
+  const connected: MCPServerConnection[] = []
+  const dynamicCleanups: Array<() => Promise<void>> = []
+  const tools: Tool[] = []
+  for (const spec of specs) {
+    try {
+      if (typeof spec === 'string') {
+        const row = catalogueByName.get(spec)
+        if (!row) {
+          logForDebugging(
+            `runAgent: MCP server '${spec}' refused — outside the parent session's catalogue (parent-catalogue ∩ grant)`,
+          )
+          continue
+        }
+        if (row.type === 'disabled') {
+          logForDebugging(
+            `runAgent: MCP server '${spec}' refused — disabled in this project's record (parent-catalogue ∩ grant)`,
+          )
+          continue
+        }
+        const client = await connectToServer(spec, row.config)
+        connected.push(client)
+        tools.push(...(await fetchToolsForClient(client)))
+        continue
+      }
+      const keys = Object.keys(spec)
+      if (keys.length !== 1) {
+        logForDebugging(
+          'runAgent: inline MCP spec must have exactly one key — skipped',
+        )
+        continue
+      }
+      const name = keys[0]!
+      const inlineConfig = spec[name]!
+      if (!McpServerConfigSchema().safeParse(inlineConfig).success) {
+        logForDebugging(
+          `runAgent: inline MCP server '${name}' refused — not a server configuration the one validator accepts`,
+        )
+        continue
+      }
+      if (!(name in filterMcpServersByPolicy({ [name]: inlineConfig }).allowed)) {
+        logForDebugging(
+          `runAgent: inline MCP server '${name}' refused — blocked by managed policy (kit.permit/kit.deny)`,
+        )
+        continue
+      }
+      if (doesEnterpriseMcpConfigExist() && !areMcpConfigsAllowedWithEnterpriseMcpConfig({ [name]: inlineConfig })) {
+        logForDebugging(
+          `runAgent: inline MCP server '${name}' refused — an enterprise MCP configuration exists and owns the server set`,
+        )
+        continue
+      }
+      if (catalogueByName.get(name)?.type === 'disabled') {
+        logForDebugging(
+          `runAgent: inline MCP server '${name}' refused — the session's catalogue excludes this name (parent-catalogue ∩ grant)`,
+        )
+        continue
+      }
+      const client = await connectToServer(name, {
+        ...inlineConfig,
+        scope: 'dynamic',
+        inlineDispatchId: dispatchNonce,
+      })
+      connected.push(client)
+      dynamicCleanups.push(async () => {
+        try {
+          const closable = client as { cleanup?: () => Promise<void>; close?: () => Promise<void> }
+          if (typeof closable.cleanup === 'function') await closable.cleanup()
+          else if (typeof closable.close === 'function') await closable.close()
+        } catch (error) {
+          logForDebugging(
+            `runAgent: MCP cleanup error for ${name}: ${errorMessage(error)}`,
+          )
+        }
+      })
+      tools.push(...(await fetchToolsForClient(client)))
+    } catch (error) {
+      logForDebugging(
+        `runAgent: MCP connection failed for an agent-scoped server: ${errorMessage(error)}`,
+      )
+    }
+  }
+  return {
+    clients: connected,
+    tools,
+    cleanup: async () => {
+      for (const cleanupOne of dynamicCleanups) await cleanupOne()
+    },
+  }
 }
 
 function isPromptCommand(command: Command): command is Command & PromptCommand {
   return command.type === 'prompt'
+}
+
+async function buildAgentSystemPrompt(
+  definition: AgentDefinition,
+  toolUseContext: ToolUseContext,
+  resolvedAgentModel: string,
+  enabledToolNames: ReadonlySet<string>,
+  agentId: AgentId,
+  seat: MercuryAgentSeat,
+): Promise<string[]> {
+  let ownPrompt: string
+  try {
+    ownPrompt = isBuiltInAgent(definition)
+      ? definition.getSystemPrompt({ toolUseContext })
+      : definition.getSystemPrompt()
+  } catch (error) {
+    logForDebugging(
+      `runAgent: system prompt build failed for ${definition.agentType}: ${errorMessage(error)}`,
+    )
+    ownPrompt = ''
+  }
+  const doctrine = buildSubagentMercurySectionsWithOutcome({
+    agentDefinition: definition,
+    toolUseContext,
+    toolNames: enabledToolNames,
+    seat,
+  })
+  if (doctrine.memoryLoadError !== undefined) {
+    enqueueAgentReceiptRow({
+      taskId: agentId,
+      description: definition.agentType,
+      status: 'running',
+      summary: subagentMemoryLoadNote(doctrine.memoryLoadError),
+    })
+  }
+  return enhanceSystemPromptWithEnvDetails(
+    [...doctrine.sections, ownPrompt],
+    resolvedAgentModel,
+    enabledToolNames,
+    agentId,
+  )
 }
 
 export const DEFAULT_AGENT_IDLE_MINUTES = 15

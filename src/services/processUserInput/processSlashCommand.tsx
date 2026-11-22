@@ -116,8 +116,37 @@ export function formatCommandLoadingMetadata(fullName: string, args: string): st
   return notBuilt('src/services/processUserInput/processSlashCommand.tsx:115')
 }
 
-export function unavailableCommandLine(real: Command, args?: string): string {
-  return notBuilt('src/services/processUserInput/processSlashCommand.tsx:120')
+export function unavailableCommandLine(real: Command, args = ''): string {
+  const name = getCommandName(real)
+  if (commandOffInPlainWorld(real)) {
+    return `The /${name} command opens a Session Concourse surface — ${concourseOffSentence() ?? 'the Session Concourse is off in this boot'}.`
+  }
+  if (real.name === samples.name && !isCommandEnabled(real)) {
+    return SAMPLES_OFF_SENTENCE
+  }
+  if (getIsNonInteractiveSession()) {
+    if (real.type === 'local-jsx' || commandSeat(real) === 'screen') {
+      const verbs = real.type === 'local-jsx' ? real.headlessVerbs : undefined
+      if (verbs === undefined || verbs.length === 0) {
+        return `The /${name} command is an interactive surface — it needs the foreground session and has no headless form.`
+      }
+      const typed = args.trim().split(/\s+/)[0] ?? ''
+      if (!verbs.includes(typed)) {
+        const offered = verbs.map(verb => `/${name} ${verb}`).join(' · ')
+        return `The /${name} command is interactive in this form — headless it answers only ${offered}.`
+      }
+    }
+    if (real.type === 'local' && real.supportsNonInteractive !== true) {
+      return `The /${name} command is interactive-only — run it in the foreground session.`
+    }
+    if (real.type === 'prompt' && real.disableNonInteractive === true) {
+      return `The /${name} command is not available in a headless run.`
+    }
+  }
+  if (!meetsAvailabilityRequirement(real)) {
+    return `The /${name} command needs an account this session is not signed in with — see /accounts.`
+  }
+  return `The /${name} command exists but is not enabled in this session.`
 }
 
 function stdoutWrapped(text: string): string {
@@ -164,6 +193,115 @@ export async function processSlashCommand(
   return notBuilt('src/services/processUserInput/processSlashCommand.tsx:415')
 }
 
+
+async function runLocalJsxCommand(
+  command: Command & { type: 'local-jsx' },
+  commandName: string,
+  args: string,
+  context: ProcessUserInputContext,
+  setToolJSX: SetToolJSXFn,
+  uuid?: UUID,
+): Promise<ProcessUserInputBaseResult> {
+  const echoed = createUserMessage({
+    content: formatCommandLoadingMetadata(getCommandName(command), args),
+    ...(uuid ? { uuid } : {}),
+  })
+  return new Promise(resolve => {
+    let settled = false
+    const finish = (result: ProcessUserInputBaseResult): void => {
+      if (settled) return
+      settled = true
+      resolve(result)
+    }
+
+    const done: LocalJSXCommandOnDone = (resultText, options): void => {
+      const display = options?.display ?? 'user'
+      const metaMessages = (options?.metaMessages ?? []).map(text =>
+        createUserMessage({ content: text, isMeta: true }),
+      )
+      const forwarded = {
+        shouldQuery: options?.shouldQuery ?? false,
+        ...(options?.nextInput !== undefined ? { nextInput: options.nextInput } : {}),
+        ...(options?.submitNextInput !== undefined
+          ? { submitNextInput: options.submitNextInput }
+          : {}),
+      }
+      if (display === 'skip') {
+        finish({ messages: [], ...forwarded })
+        return
+      }
+      if (display === 'system') {
+        const isDismissal =
+          typeof resultText === 'string' && /closed|dismissed|cancelled/i.test(resultText)
+        if (isFullscreenEnvEnabled() && isDismissal) {
+          finish({ messages: [...metaMessages], ...forwarded })
+          return
+        }
+        finish({
+          messages: [
+            { ...createCommandInputMessage(echoed.message.content as string), uuid: echoed.uuid, timestamp: echoed.timestamp },
+            createCommandInputMessage(stdoutWrapped(resultText ?? NO_CONTENT_MESSAGE)),
+            ...metaMessages,
+          ],
+          ...forwarded,
+          ...(resultText ? { resultText } : {}),
+        })
+        return
+      }
+      finish({
+        messages: [
+          echoed,
+          createUserMessage({
+            content: stdoutWrapped(resultText ?? NO_CONTENT_MESSAGE),
+          }),
+          ...metaMessages,
+        ],
+        ...forwarded,
+        ...(resultText ? { resultText } : {}),
+      })
+    }
+
+    void (async () => {
+      try {
+        markTransitionStart(getCommandName(command) === 'model' ? 'picker-open' : 'screen-switch')
+        const module = await command.load()
+        featureReached('command', command.name)
+        const element = await module.call(done, context, args, commandName)
+        if ((context as { options?: { isNonInteractiveSession?: boolean } }).options
+          ?.isNonInteractiveSession === true && element) {
+          finish({ messages: [], shouldQuery: false })
+          return
+        }
+        if (element === null || element === undefined) {
+          return
+        }
+        if (settled) {
+          return
+        }
+        setToolJSX({
+          jsx: element as React.ReactNode,
+          shouldHidePromptInput: true,
+          showSpinner: false,
+          isLocalJSXCommand: true,
+          isImmediate: command.immediate === true,
+        })
+      } catch (error) {
+        logError(error)
+        setToolJSX({
+          jsx: null,
+          shouldHidePromptInput: false,
+          isLocalJSXCommand: false,
+          clearLocalJSX: true,
+        })
+        finish({
+          messages: [echoed, createCommandInputMessage(stderrWrapped(String(error)))],
+          shouldQuery: false,
+          commandError: String(error),
+        })
+      }
+    })()
+  })
+}
 
 function answerBareUsage(
   command: Command & { type: 'prompt' },

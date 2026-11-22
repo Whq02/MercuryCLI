@@ -5,7 +5,6 @@ import type { Frame, Patch } from '../frame.js'
 import type Ink from '../ink.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export const TREE_DUMP_PATH = hostEnv().INK_TREE_DUMP
 
@@ -32,7 +31,66 @@ export function safeAppend(path: string, line: string): void {
 }
 
 export function teeCommitGeometry(this: Pick<Ink, 'rootNode'>, layoutMs: number): void {
-  return notBuilt('src/ink/ink/tees.ts:33')
+  try {
+    const rectOf = (node: DOMElement) => {
+      const l = node.layoutNode
+      return l
+        ? {
+            x: l.getComputedLeft(),
+            y: l.getComputedTop(),
+            w: l.getComputedWidth(),
+            h: l.getComputedHeight(),
+          }
+        : null
+    }
+    const elements = (node: DOMElement): DOMElement[] =>
+      node.childNodes.filter((c): c is DOMElement => c.nodeName !== '#text')
+    let rowNode: DOMElement | null = null
+    const find = (node: DOMElement, depth: number): void => {
+      if (rowNode || depth > 12) return
+      if (
+        node.style.flexDirection === 'row' &&
+        elements(node).some(c => typeof c.style.width === 'number')
+      ) {
+        rowNode = node
+        return
+      }
+      for (const child of elements(node)) find(child, depth + 1)
+    }
+    find(this.rootNode, 0)
+    let record: Record<string, unknown> = { phase: 'commit', at: Date.now(), layoutMs }
+    if (rowNode) {
+      const row = rowNode as DOMElement
+      const children = elements(row)
+      const flexible = children.find(c => typeof c.style.width !== 'number')
+      let scroll: DOMElement | null = null
+      const findScroll = (node: DOMElement, depth: number): void => {
+        if (scroll || depth > 12) return
+        if (node.scroll?.scrollHeight !== undefined) {
+          scroll = node
+          return
+        }
+        for (const child of elements(node)) findScroll(child, depth + 1)
+      }
+      if (flexible) findScroll(flexible, 0)
+      const scrollNode = scroll as DOMElement | null
+      record = {
+        ...record,
+        row: children.map(rectOf),
+        slot: flexible ? elements(flexible).map(rectOf) : [],
+        scroll: scrollNode
+          ? {
+              top: scrollNode.scroll?.scrollTop,
+              height: scrollNode.scroll?.scrollHeight,
+              viewport: scrollNode.scroll?.scrollViewportHeight,
+            }
+          : null,
+      }
+    }
+    safeAppend(COMMIT_TEE_PATH!, `${JSON.stringify(record)}\n`)
+  } catch (error) {
+    passedOver(error)
+  }
 }
 
 function rowText(screen: Screen, y: number): string {

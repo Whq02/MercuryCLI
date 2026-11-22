@@ -7,7 +7,6 @@ import {
   resolveAgentEstate,
 } from '../../../services/agents/resolver.js'
 import { fuzzySearch } from '../../../utils/fuzzyMatch.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 export type StudioScopeTab =
   | 'all'
@@ -42,7 +41,20 @@ export type StudioRow = {
 }
 
 function scopeOf(agent: AgentDefinition): StudioScopeTab {
-  return notBuilt('src/components/agents/studio/studioData.ts:43')
+  switch (agent.source) {
+    case 'built-in':
+      return 'built-in'
+    case 'extension':
+      return 'extension'
+    case 'userSettings':
+      return 'user'
+    case 'policySettings':
+      return 'managed'
+    case 'projectSettings':
+    case 'localSettings':
+    case 'flagSettings':
+      return 'project'
+  }
 }
 
 export function isFileBacked(

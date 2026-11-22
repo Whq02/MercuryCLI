@@ -17,7 +17,6 @@ import { stripTerminalControls } from '../../utils/stringUtils.js'
 import { reloadExtensions, noteReloaded } from '../../extensions/boot.js'
 import { extensionsStateFrom } from '../../hooks/useExtensions.js'
 import type { LocalCommandResult, LocalJSXCommandContext } from '../../types/command.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export const IMAGE_SETUP_HINT = '↑↓ select · p pull · d default · t test image · esc closes'
 export type ImageSetupIo = {
@@ -30,7 +29,26 @@ export type ImageSetupIo = {
 }
 
 export function imageSetupIo(context: LocalJSXCommandContext): ImageSetupIo {
-  return notBuilt('src/commands/imagesetup/imagesetup.tsx:31')
+  const refresh = async (): Promise<void> => {
+    if (!readMediaSettings().enabled) return
+    const pending = reloadExtensions({ onServersChanged: () => context.setAppState(prev => ({ ...prev, mcp: { ...prev.mcp, extensionReconnectKey: prev.mcp.extensionReconnectKey + 1 } })) })
+    noteReloaded(pending)
+    const result = await pending
+    context.setAppState(prev => ({ ...prev, extensions: extensionsStateFrom(result.set, false, null) }))
+  }
+  return {
+    read: () => readMediaSnapshot(),
+    places: () => [{ id: '', words: 'Local images and video' }, ...mediaHostChoices().map(record => ({ id: record.id, words: hostPaidPodWords({ ...record, cost: record.price, createdAt: record.startedAt }, record) }))],
+    choose: async host => { await saveMediaSettings({ host }); await refresh() },
+    pull: async (args, onProgress, signal, settings) => {
+      await runMediaSetup(args, onProgress, signal, settings)
+      const newlyEnabled = ['pull-model', 'add-model'].includes(args[0] ?? '') && !readMediaSettings().enabled
+      if (newlyEnabled) await saveMediaSettings({ enabled: true })
+      if (newlyEnabled || readMediaSettings().host && args[0] === 'pull-runtime') await refresh()
+    },
+    setDefault: (kind, model) => saveMediaSettings({ [kind === 'image' ? 'imageModel' : 'videoModel']: model }),
+    test: (model, controller, onStart) => generateMediaTestImage(model, context, controller, onStart),
+  }
 }
 
 export function ImageSetupBody({ geometry, io, preview, initialError, initialSource }: { geometry: SettingsPopupGeometry; io: ImageSetupIo; preview?: MediaTestImage; initialError?: string; initialSource?: string }): React.ReactNode {

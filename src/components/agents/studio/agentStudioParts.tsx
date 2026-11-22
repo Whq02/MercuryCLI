@@ -129,8 +129,67 @@ type InspectKeysArgs = {
   cwd: string
 }
 
-export function inspectKeysOf(arg0: InspectKeysArgs, input: string, key: InputKey): void {
-  return notBuilt('src/components/agents/studio/agentStudioParts.tsx:131')
+export function inspectKeysOf({ mode, setMode, fl, done, cwd }: InspectKeysArgs, input: string, key: InputKey): void {
+  if (mode.kind !== 'inspect') return
+  const row = mode.row
+  const agent = row.agent
+  if (key.escape || key.leftArrow) {
+    setMode({ kind: 'library' })
+    return
+  }
+  if (row.kind === 'invalid') {
+    if (input === 'o' && row.invalid) {
+      void editFileInEditor(row.invalid.path).then(r => {
+        if (r.error) fl.setNote({ text: r.error, kind: 'fail' })
+        else done(`Edited invalid file ${row.invalid!.path} in editor`)
+      })
+    }
+    return
+  }
+  if (!agent) return
+  if (input === 'e') {
+    if (isFileBacked(agent)) {
+      setMode({
+        kind: 'edit',
+        base: { identity: { filePath: agent.filePath, revision: agent.revision }, agent },
+      })
+    }
+    return
+  }
+  if (input === 'd' && !key.ctrl && !key.meta) {
+    if (isFileBacked(agent)) setMode({ kind: 'delete-confirm', agent })
+    return
+  }
+  if (input === 'c' && !key.ctrl && !key.meta) {
+    if (isFileBacked(agent) || agent.source === 'extension') {
+      setMode({ kind: 'clone', agent, buffer: `${agent.agentType}-copy` })
+    }
+    return
+  }
+  if (input === 't') {
+    setMode({ kind: 'testdrive', agent, buffer: '' })
+    return
+  }
+  if (input === 'o') {
+    if (isFileBacked(agent)) {
+      void editFileInEditor(agent.filePath).then(r => {
+        if (r.error) fl.setNote({ text: r.error, kind: 'fail' })
+        else done(`Opened ${agent.agentType} in editor — changes hot-reload`)
+      })
+    }
+    return
+  }
+  if (input === 'x') {
+    if (agent.source === 'built-in') return
+    void setAgentDisabled('user', cwd, agent.agentType, agent.disabled !== true)
+      .then(() => done(`${agent.disabled ? 'Enabled' : 'Disabled'} ${agent.agentType}`))
+      .catch(e => fl.setNote({ text: String(e), kind: 'fail' }))
+    return
+  }
+  if (input === 'm') {
+    setMode({ kind: 'override-model', agent })
+    return
+  }
 }
 
 type ModelOverrideArgs = {

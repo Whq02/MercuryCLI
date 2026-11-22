@@ -8,7 +8,6 @@ import { getCwd } from '../../utils/cwd.js'
 import { readMediaCatalogue, type MediaCatalogue } from './catalogue.js'
 import { mediaHostLocation, readMediaHostSnapshot } from './host.js'
 import { mediaConfigModule, mediaRoot, mediaWorkflowModule, readMediaSettings, MEDIA_SERVER_NAME, type MediaConfig, type MediaKind, type MediaSettings } from './settings.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export function mediaGenerationKind(tool: Pick<Tool, 'mcpInfo'>): MediaKind | undefined {
   if (tool.mcpInfo?.serverName !== MEDIA_SERVER_NAME) return undefined
@@ -64,7 +63,24 @@ export async function readMediaGenerationDetails(kind: MediaKind, input: Record<
 
 export type MediaTestImage = { path: string; png: Buffer }
 export async function generateMediaTestImage(model: string, context: LocalJSXCommandContext, controller: AbortController, onStart?: () => void): Promise<MediaTestImage> {
-  return notBuilt('src/services/media/generation.ts:65')
+  const tool = (context.options.refreshTools?.() ?? context.options.tools).find(tool => mediaGenerationKind(tool) === 'image' && tool.mcpInfo?.toolName === 'image_generate')
+  if (!tool || !context.canUseTool) throw new Error('Turn on Local media in /config, then reopen /imagesetup in a session.')
+  const input = { model, prompt: 'A red apple on a wooden table, soft daylight', width: 256, height: 256, wait: true, cwd: getCwd() }
+  const id = randomUUID()
+  const message = createAssistantMessage({ content: [{ type: 'tool_use', id, name: tool.name, input }], isVirtual: true })
+  const callContext = { ...context, abortController: controller, toolUseId: id }
+  const permission = await context.canUseTool(tool, input, callContext, message, id)
+  if (permission.behavior !== 'allow') throw new Error('Image cancelled.')
+  controller.signal.throwIfAborted()
+  onStart?.()
+  const result = await tool.call(permission.updatedInput ?? input, callContext, context.canUseTool, message)
+  const content = result.data as Array<{ type: string; text?: string; data?: string; mimeType?: string }>
+  const image = Array.isArray(content) ? content.find(part => part.type === 'image' && part.mimeType === 'image/png' && typeof part.data === 'string') : undefined
+  const text = Array.isArray(content) ? content.find(part => part.type === 'text')?.text : undefined
+  if (!image?.data) throw new Error(text ?? 'No image returned.')
+  const facts = text ? imageFacts(text) : {}
+  if (!facts.path) throw new Error('Image output path is missing.')
+  return { path: facts.path, png: Buffer.from(image.data, 'base64') }
 }
 
 function imageFacts(text: string): { path?: string } {

@@ -54,6 +54,39 @@ function suggestionIdentifier(command: CommandLike): string {
   return `${name}-${command.type}`
 }
 
+function toSuggestionItem(
+  command: CommandLike,
+  typedQuery: string,
+): CommandSuggestionItem {
+  const name = getCommandName(command)
+  let value: string | undefined
+  if (command.currentValue !== undefined) {
+    try {
+      value = command.currentValue()
+    } catch {
+      value = undefined
+    }
+  }
+  let aliasSuffix = ''
+  if (typedQuery !== '') {
+    const matchedAlias = (command.aliases ?? []).find(
+      alias => alias.toLowerCase().startsWith(typedQuery) && !name.toLowerCase().startsWith(alias.toLowerCase()),
+    )
+    if (matchedAlias !== undefined) aliasSuffix = ` (${matchedAlias})`
+  }
+  let description = formatDescriptionWithSource(command)
+  if (command.type === 'prompt' && command.argNames !== undefined && command.argNames.length > 0) {
+    description += ` (arguments: ${command.argNames.join(', ')})`
+  }
+  return {
+    id: suggestionIdentifier(command),
+    displayText: `/${name}${aliasSuffix}`,
+    ...(value !== undefined && value !== '' ? { value } : {}),
+    description,
+    metadata: command,
+  }
+}
+
 const MAX_RECENTLY_USED = 5
 
 type IndexedCommand = Unbuilt
@@ -86,7 +119,15 @@ export function getBestCommandMatch(
 }
 
 export function isNameAnchoredSuggestion(input: string, suggestion: CommandSuggestionItem): boolean {
-  return notBuilt('src/utils/suggestions/commandSuggestions.ts:266')
+  if (!input.startsWith('/')) return true
+  const fragment = input.slice(1).toLowerCase().trim()
+  if (fragment === '') return true
+  const cmd = suggestion.metadata as CommandLike | undefined
+  if (cmd === undefined || typeof cmd !== 'object' || typeof cmd.type !== 'string') return false
+  const name = getCommandName(cmd).toLowerCase()
+  if (name.startsWith(fragment)) return true
+  if (name.split(/[:_-]/).some(part => part.startsWith(fragment))) return true
+  return (cmd.aliases ?? []).some(alias => alias.toLowerCase().startsWith(fragment))
 }
 
 export function applyCommandSuggestion(

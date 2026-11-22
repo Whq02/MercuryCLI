@@ -471,5 +471,20 @@ async function buildDefaultSystemPrompt(
   toolNames: ReadonlySet<string>,
   seat: MercuryAgentSeat,
 ): Promise<{ prompt: string[]; memoryLoadError?: string }> {
-  return notBuilt('src/tools/AgentTool/agent/call.ts:542')
+  const ownPrompt = isBuiltInAgent(definition)
+    ? definition.getSystemPrompt({ toolUseContext: context })
+    : definition.getSystemPrompt()
+  const doctrine = buildSubagentMercurySectionsWithOutcome({
+    agentDefinition: definition,
+    toolUseContext: context,
+    toolNames,
+    seat,
+  })
+  const prompt = await enhanceSystemPromptWithEnvDetails(
+    [...doctrine.sections, ownPrompt],
+    childModel,
+    undefined,
+    agentId,
+  )
+  return doctrine.memoryLoadError !== undefined ? { prompt, memoryLoadError: doctrine.memoryLoadError } : { prompt }
 }
