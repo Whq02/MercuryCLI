@@ -21,3 +21,6 @@ change	pi	packages/telemetry/src/index.ts	src/pi/loop/pi-declarations.ts	9 decla
 change	pi	packages/telemetry/src/metrics.ts	src/pi/loop/pi-declarations.ts	6 declarations the loop's imports reach; 0 as declare statements with no body or value; export kept on 0; comments removed	the loop compiles on its own until it speaks our messages	0
 change	pi	packages/tui/src/kill-ring.ts	src/pi/edit/kill-ring.ts	comments removed (4)	the tree holds no code comments	1
 change	pi	packages/tui/src/undo-stack.ts	src/pi/edit/undo-stack.ts	comments removed (4)	the tree holds no code comments	1
+change	pi	packages/tui/src/utils.ts	src/pi/edit/word-navigation.ts	3 declarations the import of word navigation reaches (the word segmenter, PUNCTUATION_REGEX, isWhitespaceChar); export kept on 0; comments removed	the rest of pi's utils.ts is not in the tree and word navigation compiles on its own	1
+change	pi	packages/tui/src/word-navigation.ts	src/pi/edit/word-navigation.ts	comments removed (13)	the tree holds no code comments	1
+change	pi	packages/tui/src/word-navigation.ts	src/pi/edit/word-navigation.ts	the import of ./utils.ts is gone: its three declarations stand in this file and the segmenter is made here, not fetched through getWordSegmenter	no pi utils module is in the tree	1
