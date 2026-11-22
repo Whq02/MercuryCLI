@@ -47,7 +47,7 @@ export function readTensorFoldRefusal(stderr: string, context: { window?: number
   if (port) return { kind: 'port', line, host: port[1]!, port: Number(port[2]) }
   if (/is not in the Hugging Face cache/.test(line)) return { kind: 'not-pulled', line }
   if (/this NVIDIA driver/.test(line)) return { kind: 'driver', line }
-  if (/no backend for|no registered Zig family/.test(line)) return { kind: 'family', line }
+  if (/no backend for|no registered Zig family|no TensorFold release serves/.test(line)) return { kind: 'family', line }
   if (/--prompt-cache-gib \S+ would take this server past 70%/.test(line)) return { kind: 'cache-cap', line }
   const memory = /does not fit|more than the .* left under the load limit|remains beside the weights|lower --context|lower --parallel|CUDA memory budget/.test(line)
   if (memory) {
