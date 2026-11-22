@@ -1,4 +1,3 @@
-
 import {
   getGraphemeSegmenter,
   getWordSegmenter,
@@ -7,6 +6,7 @@ import {
 import { stringWidth } from '../ink/stringWidth.js'
 import { wrapAnsi } from '../ink/wrapAnsi.js'
 import { CHIP_PATTERN } from './inputRange.js'
+import { notBuilt } from '../pi/holes.js'
 
 
 const VIM_WORD_CHAR_REGEX = /[\p{L}\p{N}\p{M}_]/u
@@ -132,33 +132,15 @@ export class MeasuredText {
   }
 
   nextOffset(offset: number): number {
-    const starts = this.graphemes()
-    for (let i = 0; i < starts.length; i++) {
-      if (starts[i]! > offset) return starts[i]!
-    }
-    return this.text.length
+    return notBuilt('src/utils/Cursor.ts:134')
   }
 
   prevOffset(offset: number): number {
-    const starts = this.graphemes()
-    let prev = 0
-    for (let i = 0; i < starts.length; i++) {
-      if (starts[i]! >= offset) break
-      prev = starts[i]!
-    }
-    return prev
+    return notBuilt('src/utils/Cursor.ts:142')
   }
 
   snapToGraphemeBoundary(offset: number): number {
-    const clamped = Math.max(0, Math.min(offset, this.text.length))
-    if (clamped === this.text.length) return clamped
-    const starts = this.graphemes()
-    let snapped = 0
-    for (let i = 0; i < starts.length; i++) {
-      if (starts[i]! > clamped) break
-      snapped = starts[i]!
-    }
-    return snapped
+    return notBuilt('src/utils/Cursor.ts:152')
   }
 
 
@@ -256,11 +238,7 @@ export type SelectionPaint = {
 }
 
 function paintSelected(display: string, lineStart: number, selection: SelectionPaint | undefined): string {
-  if (!selection) return display
-  const from = Math.max(0, selection.start - lineStart)
-  const to = Math.min(display.length, selection.end - lineStart)
-  if (to <= from) return display
-  return display.slice(0, from) + selection.paint(display.slice(from, to)) + display.slice(to)
+  return notBuilt('src/utils/Cursor.ts:258')
 }
 
 
@@ -269,268 +247,247 @@ export class Cursor {
   readonly selection: number
   readonly measuredText: MeasuredText
 
-  constructor(measuredText: MeasuredText, offset: number = 0, selection: number = 0) {
-    this.measuredText = measuredText
-    this.offset = Math.max(0, Math.min(offset, measuredText.text.length))
-    this.selection = selection
+  constructor(measuredText: MeasuredText, offset?: number, selection?: number) {
+    notBuilt('src/utils/Cursor.ts:272')
   }
 
   static fromText(
     text: string,
     columns: number,
-    offset: number = 0,
-    selection: number = 0,
+    offset?: number,
+    selection?: number,
   ): Cursor {
-    return new Cursor(new MeasuredText(text, Math.max(1, columns - 1)), offset, selection)
+    return notBuilt('src/utils/Cursor.ts:278')
   }
 
   get text(): string {
-    return this.measuredText.text
+    return notBuilt('src/utils/Cursor.ts:287')
   }
 
 
   equals(other: Cursor): boolean {
-    return this.offset === other.offset && this.measuredText === other.measuredText
+    return notBuilt('src/utils/Cursor.ts:292')
   }
 
   isAtStart(): boolean {
-    return this.offset === 0
+    return notBuilt('src/utils/Cursor.ts:296')
   }
 
   isAtEnd(): boolean {
-    return this.offset === this.text.length
+    return notBuilt('src/utils/Cursor.ts:300')
   }
 
 
   chipEndingAt(offset: number): { start: number; end: number } | null {
-    const m = CHIP_END_RE.exec(this.text.slice(0, offset))
-    if (!m) return null
-    return { start: offset - m[0]!.length, end: offset }
+    return notBuilt('src/utils/Cursor.ts:305')
   }
 
   chipStartingAt(offset: number): { start: number; end: number } | null {
-    const m = CHIP_START_RE.exec(this.text.slice(offset))
-    if (!m) return null
-    return { start: offset, end: offset + m[0]!.length }
+    return notBuilt('src/utils/Cursor.ts:311')
   }
 
   snapOutOfImageRef(offset: number, direction: 'start' | 'end'): number {
-    return snapOutOfImageRefOf.call(this, offset, direction)
+    return notBuilt('src/utils/Cursor.ts:317')
   }
 
 
   atSelf(): Cursor {
-    return this.selection === 0 ? this : new Cursor(this.measuredText, this.offset)
+    return notBuilt('src/utils/Cursor.ts:322')
   }
 
   left(): Cursor {
-    if (this.offset === 0) return this.atSelf()
-    const chip = this.chipEndingAt(this.offset)
-    if (chip) return new Cursor(this.measuredText, chip.start)
-    return new Cursor(this.measuredText, this.measuredText.prevOffset(this.offset))
+    return notBuilt('src/utils/Cursor.ts:326')
   }
 
   right(): Cursor {
-    if (this.isAtEnd()) return this.atSelf()
-    const chip = this.chipStartingAt(this.offset)
-    if (chip) return new Cursor(this.measuredText, chip.end)
-    return new Cursor(this.measuredText, this.measuredText.nextOffset(this.offset))
+    return notBuilt('src/utils/Cursor.ts:333')
   }
 
 
   getPosition(): { line: number; column: number } {
-    return this.measuredText.getPositionFromOffset(this.offset)
+    return notBuilt('src/utils/Cursor.ts:341')
   }
 
   up(): Cursor {
-    return upOf.call(this)
+    return notBuilt('src/utils/Cursor.ts:345')
   }
 
   down(): Cursor {
-    return downOf.call(this)
+    return notBuilt('src/utils/Cursor.ts:349')
   }
 
 
   startOfLine(): Cursor {
-    return startOfLineOf.call(this)
+    return notBuilt('src/utils/Cursor.ts:354')
   }
 
   endOfLine(): Cursor {
-    return endOfLineOf.call(this)
+    return notBuilt('src/utils/Cursor.ts:358')
   }
 
-  firstNonBlankInLine(): Cursor { return firstNonBlankInLineOf.call(this) }
+  firstNonBlankInLine(): Cursor {
+    return notBuilt('src/utils/Cursor.ts:362')
+  }
 
 
   logicalLineStart(offset: number): number {
-    const idx = this.text.lastIndexOf('\n', offset - 1)
-    return idx === -1 ? 0 : idx + 1
+    return notBuilt('src/utils/Cursor.ts:365')
   }
 
   logicalLineEnd(offset: number): number {
-    const idx = this.text.indexOf('\n', offset)
-    return idx === -1 ? this.text.length : idx
+    return notBuilt('src/utils/Cursor.ts:370')
   }
 
   startOfLogicalLine(): Cursor {
-    return new Cursor(this.measuredText, this.logicalLineStart(this.offset))
+    return notBuilt('src/utils/Cursor.ts:375')
   }
 
   endOfLogicalLine(): Cursor {
-    return new Cursor(this.measuredText, this.logicalLineEnd(this.offset))
+    return notBuilt('src/utils/Cursor.ts:379')
   }
 
-  firstNonBlankInLogicalLine(): Cursor { return firstNonBlankInLogicalLineOf.call(this) }
+  firstNonBlankInLogicalLine(): Cursor {
+    return notBuilt('src/utils/Cursor.ts:383')
+  }
 
   upLogicalLine(): Cursor {
-    return upLogicalLineOf.call(this)
+    return notBuilt('src/utils/Cursor.ts:385')
   }
 
   downLogicalLine(): Cursor {
-    return downLogicalLineOf.call(this)
+    return notBuilt('src/utils/Cursor.ts:389')
   }
 
 
   startOfFirstLine(): Cursor {
-    return new Cursor(this.measuredText, 0)
+    return notBuilt('src/utils/Cursor.ts:394')
   }
 
   startOfLastLine(): Cursor {
-    const idx = this.text.lastIndexOf('\n')
-    if (idx === -1) return this.startOfLine()
-    return new Cursor(this.measuredText, idx + 1)
+    return notBuilt('src/utils/Cursor.ts:398')
   }
 
-  goToLine(lineNumber: number): Cursor { return goToLineOf.call(this, lineNumber) }
+  goToLine(lineNumber: number): Cursor {
+    return notBuilt('src/utils/Cursor.ts:404')
+  }
 
 
   wordLikeBoundaries(): WordBoundary[] {
-    return this.measuredText.getWordBoundaries().filter(b => b.isWordLike)
+    return notBuilt('src/utils/Cursor.ts:407')
   }
 
-  nextWord(): Cursor { return nextWordOf.call(this) }
+  nextWord(): Cursor {
+    return notBuilt('src/utils/Cursor.ts:411')
+  }
 
   prevWord(): Cursor {
-    return prevWordOf.call(this)
+    return notBuilt('src/utils/Cursor.ts:413')
   }
 
   lastCharOf(w: WordBoundary): number {
-    return this.measuredText.prevOffset(w.end)
+    return notBuilt('src/utils/Cursor.ts:417')
   }
 
   endOfWord(): Cursor {
-    return endOfWordOf.call(this)
+    return notBuilt('src/utils/Cursor.ts:421')
   }
 
 
   charAt(offset: number): string {
-    if (offset >= this.text.length) return ''
-    return this.text.slice(offset, this.measuredText.nextOffset(offset))
+    return notBuilt('src/utils/Cursor.ts:426')
   }
 
   classOf(ch: string): 'word' | 'space' | 'punct' | 'none' {
-    if (ch === '') return 'none'
-    if (isVimWhitespace(ch)) return 'space'
-    if (isVimWordChar(ch)) return 'word'
-    return 'punct'
+    return notBuilt('src/utils/Cursor.ts:431')
   }
 
   isEmptyLine(offset: number): boolean {
-    return this.text[offset] === '\n' && (offset === 0 || this.text[offset - 1] === '\n')
+    return notBuilt('src/utils/Cursor.ts:438')
   }
 
   nextVimWord(): Cursor {
-    return nextVimWordOf.call(this)
+    return notBuilt('src/utils/Cursor.ts:442')
   }
 
   endOfVimWord(): Cursor {
-    return endOfVimWordOf.call(this)
+    return notBuilt('src/utils/Cursor.ts:446')
   }
 
   prevVimWord(): Cursor {
-    return prevVimWordOf.call(this)
+    return notBuilt('src/utils/Cursor.ts:450')
   }
 
 
   wsAt(cursor: Cursor): boolean {
-    const ch = cursor.charAt(cursor.offset)
-    return ch !== '' && isVimWhitespace(ch)
+    return notBuilt('src/utils/Cursor.ts:455')
   }
 
   nextWORD(): Cursor {
-    return nextWORDOf.call(this)
+    return notBuilt('src/utils/Cursor.ts:460')
   }
 
   endOfWORD(): Cursor {
-    return endOfWORDOf.call(this)
+    return notBuilt('src/utils/Cursor.ts:464')
   }
 
   prevWORD(): Cursor {
-    return prevWORDOf.call(this)
+    return notBuilt('src/utils/Cursor.ts:468')
   }
 
 
-  modifyText(end: Cursor, insertString: string = ''): Cursor {
-    return modifyTextOf.call(this, end, insertString)
+  modifyText(end: Cursor, insertString?: string): Cursor {
+    return notBuilt('src/utils/Cursor.ts:473')
   }
 
   insert(s: string): Cursor {
-    return this.modifyText(this, s)
+    return notBuilt('src/utils/Cursor.ts:477')
   }
 
   del(): Cursor {
-    if (this.isAtEnd()) return this.atSelf()
-    return this.modifyText(new Cursor(this.measuredText, this.measuredText.nextOffset(this.offset)))
+    return notBuilt('src/utils/Cursor.ts:481')
   }
 
   backspace(): Cursor {
-    if (this.offset === 0) return this.atSelf()
-    const target = this.left()
-    return target.modifyText(this)
+    return notBuilt('src/utils/Cursor.ts:486')
   }
 
 
   deleteToLineStart(): { cursor: Cursor; killed: string } {
-    return deleteToLineStartOf.call(this)
+    return notBuilt('src/utils/Cursor.ts:493')
   }
 
   deleteToLineEnd(): { cursor: Cursor; killed: string } {
-    return deleteToLineEndOf.call(this)
+    return notBuilt('src/utils/Cursor.ts:497')
   }
 
   deleteWordBefore(): { cursor: Cursor; killed: string } {
-    return deleteWordBeforeOf.call(this)
+    return notBuilt('src/utils/Cursor.ts:501')
   }
 
   deleteWordAfter(): Cursor {
-    if (this.isAtEnd()) return this.atSelf()
-    const boundary = this.nextWord().offset
-    const end = this.snapOutOfImageRef(boundary, 'end')
-    return this.modifyText(new Cursor(this.measuredText, end))
+    return notBuilt('src/utils/Cursor.ts:505')
   }
 
   deleteTokenBefore(): Cursor | null {
-    return deleteTokenBeforeOf.call(this)
+    return notBuilt('src/utils/Cursor.ts:512')
   }
 
 
-  findCharacter(char: string, type: 'f' | 'F' | 't' | 'T', count: number = 1): number | null {
-    return findCharacterOf.call(this, char, type, count)
+  findCharacter(char: string, type: 'f' | 'F' | 't' | 'T', count?: number): number | null {
+    return notBuilt('src/utils/Cursor.ts:517')
   }
 
 
   getViewportStartLine(maxVisibleLines?: number, previousStart?: number): number {
-    return getViewportStartLineOf.call(this, maxVisibleLines, previousStart)
+    return notBuilt('src/utils/Cursor.ts:522')
   }
 
   getViewportCharOffset(maxVisibleLines?: number, previousStart?: number): number {
-    const start = this.getViewportStartLine(maxVisibleLines, previousStart)
-    if (start === 0) return 0
-    return this.measuredText.getWrappedLines()[start]!.startOffset
+    return notBuilt('src/utils/Cursor.ts:526')
   }
 
   getViewportCharEnd(maxVisibleLines?: number, previousStart?: number): number {
-    return getViewportCharEndOf.call(this, maxVisibleLines, previousStart)
+    return notBuilt('src/utils/Cursor.ts:532')
   }
 
 
@@ -543,11 +500,11 @@ export class Cursor {
     selection?: SelectionPaint,
     viewportStart?: number,
   ): string {
-    return renderOf.call(this, cursorChar, mask, invert, ghostText, maxVisibleLines, selection, viewportStart)
+    return notBuilt('src/utils/Cursor.ts:537')
   }
 
   maskLine(display: string, mask: string, isDocumentLastLine: boolean): string {
-    return maskLineOf.call(this, display, mask, isDocumentLastLine)
+    return notBuilt('src/utils/Cursor.ts:549')
   }
 
   renderCaretLine(
@@ -557,52 +514,11 @@ export class Cursor {
     invert: (s: string) => string,
     ghostText: { text: string; dim: (s: string) => string } | undefined,
     isDocumentLastLine: boolean,
-    lineStart = 0,
+    lineStart?: number,
     selection?: SelectionPaint,
   ): string {
-    return renderCaretLineOf.call(this, display, caretColumn, cursorChar, invert, ghostText, isDocumentLastLine, lineStart, selection)
+    return notBuilt('src/utils/Cursor.ts:553')
   }
-}
-
-function firstNonBlankInLineOf(this: Cursor): Cursor {
-  const { line } = this.getPosition()
-  return new Cursor(
-    this.measuredText,
-    this.measuredText.getOffsetFromPosition({ line, column: 0 }),
-  )
-}
-
-function firstNonBlankInLogicalLineOf(this: Cursor): Cursor {
-  const start = this.logicalLineStart(this.offset)
-  const end = this.logicalLineEnd(this.offset)
-  const line = this.text.slice(start, end)
-  const m = /\S/.exec(line)
-  return new Cursor(this.measuredText, m ? start + m.index : end)
-}
-
-function goToLineOf(this: Cursor, lineNumber: number): Cursor {
-  const lines = this.text.split('\n')
-  const target = Math.max(1, Math.min(lineNumber, lines.length))
-  let offset = 0
-  for (let i = 0; i < target - 1; i++) offset += lines[i]!.length + 1
-  return new Cursor(this.measuredText, offset)
-}
-
-function nextWordOf(this: Cursor): Cursor {
-  if (this.isAtEnd()) return this.atSelf()
-  for (const w of this.wordLikeBoundaries()) {
-    if (w.start > this.offset) return new Cursor(this.measuredText, w.start)
-  }
-  return new Cursor(this.measuredText, this.text.length)
-}
-
-function getViewportCharEndOf(this: Cursor, maxVisibleLines?: number, previousStart?: number): number {
-  if (!maxVisibleLines || maxVisibleLines <= 0) return this.text.length
-  const start = this.getViewportStartLine(maxVisibleLines, previousStart)
-  const lines = this.measuredText.getWrappedLines()
-  const after = start + maxVisibleLines
-  if (after >= lines.length) return this.text.length
-  return lines[after]!.startOffset
 }
 
 function modifyTextOf(this: Cursor, end: Cursor, insertString: string = ''): Cursor {
@@ -1056,76 +972,47 @@ function upLogicalLineOf(this: Cursor): Cursor {
 const KILL_RING_CAPACITY = 10
 
 const killRing: string[] = []
-let lastActionWasKill = false
-let lastActionWasYank = false
-let yankRegion: { start: number; length: number } | null = null
-let ringCursor = 0
 
-export function pushToKillRing(text: string, direction: 'prepend' | 'append' = 'append'): void {
-  if (!text) return
-  if (lastActionWasKill && killRing.length > 0) {
-    killRing[0] = direction === 'prepend' ? text + killRing[0]! : killRing[0]! + text
-  } else {
-    killRing.unshift(text)
-    while (killRing.length > KILL_RING_CAPACITY) killRing.pop()
-  }
-  lastActionWasKill = true
-  lastActionWasYank = false
-  yankRegion = null
-  ringCursor = 0
+export function pushToKillRing(text: string, direction?: 'prepend' | 'append'): void {
+  return notBuilt('src/utils/Cursor.ts:1064')
 }
 
 export function resetKillAccumulation(): void {
-  lastActionWasKill = false
+  return notBuilt('src/utils/Cursor.ts:1078')
 }
 
 export function getLastKill(): string {
-  return killRing[0] ?? ''
+  return notBuilt('src/utils/Cursor.ts:1082')
 }
 
 export function getKillRingItem(index: number): string {
-  const n = killRing.length
-  if (n === 0) return ''
-  return killRing[((index % n) + n) % n] ?? ''
+  return notBuilt('src/utils/Cursor.ts:1086')
 }
 
 export function getKillRingSize(): number {
-  return killRing.length
+  return notBuilt('src/utils/Cursor.ts:1092')
 }
 
 export function clearKillRing(): void {
-  killRing.length = 0
-  lastActionWasKill = false
-  lastActionWasYank = false
-  yankRegion = null
-  ringCursor = 0
+  return notBuilt('src/utils/Cursor.ts:1096')
 }
 
 export function recordYank(start: number, length: number): void {
-  yankRegion = { start, length }
-  lastActionWasYank = true
-  ringCursor = 0
+  return notBuilt('src/utils/Cursor.ts:1104')
 }
 
 export function canYankPop(): boolean {
-  return lastActionWasYank && killRing.length > 1
+  return notBuilt('src/utils/Cursor.ts:1110')
 }
 
 export function yankPop(): { text: string; start: number; length: number } | null {
-  if (!canYankPop() || !yankRegion) return null
-  ringCursor = (ringCursor + 1) % killRing.length
-  return {
-    text: killRing[ringCursor] ?? '',
-    start: yankRegion.start,
-    length: yankRegion.length,
-  }
+  return notBuilt('src/utils/Cursor.ts:1114')
 }
 
 export function updateYankLength(length: number): void {
-  if (yankRegion) yankRegion = { start: yankRegion.start, length }
+  return notBuilt('src/utils/Cursor.ts:1124')
 }
 
 export function resetYankState(): void {
-  lastActionWasYank = false
-  yankRegion = null
+  return notBuilt('src/utils/Cursor.ts:1128')
 }

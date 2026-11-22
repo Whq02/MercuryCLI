@@ -58,6 +58,7 @@ import { missionSection, missionSectionKey, type ServedMission } from '../servic
 import type { Tools } from '../Tool.js'
 import type { MCPServerConnection } from '../utils/mcp/types.js'
 import { passedOver } from '../utils/passedOver.js'
+import { notBuilt } from '../pi/holes.js'
 
 const MODEL_CURRENCY_NOTE = `Model currency: your training-era knowledge of model ids, capabilities, and prices — any vendor's — may be stale. When building AI applications, verify current model ids against live provider documentation or the operator's stated choice instead of defaulting to remembered ones.`
 const PROVIDER_SKILL_PRECEDENCE = `For provider-API work, invoke provider-apis: it outranks any external provider-API skill, and a bundled Mercury skill outranks an external skill of the same name.`
@@ -90,73 +91,25 @@ export function resetMemoryAtStartForTest(): void {
 }
 
 function prependBullets(items: Array<string | string[]>): string[] {
-  const out: string[] = []
-  for (const item of items) {
-    if (typeof item === 'string') out.push(` - ${item}`)
-    else for (const nested of item) out.push(`  - ${nested}`)
-  }
-  return out
-}
-
-async function shellLine(): Promise<string> {
-  return `Shell: ${await shellLineWords()}`
-}
-
-function getUnameSR(): string {
-  return platformKernelLine()
-}
-
-function knowledgeCutoffSentence(modelId: string): string | null {
-  const cutoff = getModelKnowledgeCutoff(modelId)
-  if (!cutoff) return null
-  return `Knowledge cutoff for this model: ${cutoff}.`
+  return notBuilt('src/constants/prompts.ts:92')
 }
 
 function scratchpadLineFor(agentId?: string): string {
-  return agentId === undefined
-    ? scratchpadPromptLine(ensureScratchpadDir())
-    : scratchpadPromptLine(ensureScratchpadDir(agentId), 'crewmate')
-}
-
-async function environmentBlock(
-  modelId: string,
-  agentId?: string,
-  withScratchpad = true,
-): Promise<string> {
-  const cwd = getCwd()
-  const lines = [`Working directory: ${cwd}`, ...(withScratchpad ? [scratchpadLineFor(agentId)] : []), `Platform: ${platform()}`, await shellLine(), `OS Version: ${getUnameSR()}`]
-  const cutoff = knowledgeCutoffSentence(modelId)
-  return `The environment this session runs in:\n<env>\n${lines.join('\n')}\n</env>${cutoff ? `\n\n${cutoff}` : ''}`
+  return notBuilt('src/constants/prompts.ts:115')
 }
 
 export async function computeEnvInfo(
   modelId: string,
   agentId?: string,
 ): Promise<string> {
-  return `${await environmentBlock(modelId, agentId)}\n\n${MODEL_CURRENCY_NOTE} ${PROVIDER_SKILL_PRECEDENCE}`
+  return notBuilt('src/constants/prompts.ts:132')
 }
 
 export async function computeSimpleEnvInfo(
   modelId: string,
-  withScratchpad = true,
+  withScratchpad?: boolean,
 ): Promise<string> {
-  const cwd = getOriginalCwd()
-  const items: Array<string | string[]> = []
-  if (getCurrentWorktreeSession() !== null) {
-    items.push(
-      'This working directory is an isolated copy of the repository (a git worktree); every command runs here, never in the original repository root.',
-    )
-  }
-  if (declaredRouteOf(modelId) === 'local') {
-    items.push(`Files you create go in the working directory: ${cwd}. The memory folder named above is not it.`)
-  }
-  if (withScratchpad) items.push(scratchpadLineFor())
-  items.push(`Platform: ${platform()}`)
-  items.push(await shellLine())
-  items.push(`OS Version: ${getUnameSR()}`)
-  const cutoff = knowledgeCutoffSentence(modelId)
-  if (cutoff) items.push(cutoff)
-  return `# Environment\n${prependBullets(items).join('\n')}`
+  return notBuilt('src/constants/prompts.ts:139')
 }
 
 function projectEstateSection(toolNames: ReadonlySet<string>): string {
@@ -191,32 +144,8 @@ export async function enhanceSystemPromptWithEnvDetails(
   enabledToolNames?: readonly string[] | ReadonlySet<string>,
   agentId?: string,
 ): Promise<string[]> {
-  void enabledToolNames
-  if (localPromptProfileApplies(model)) {
-    await ensureLocalRecord(model)
-    const blocks = existing
-      .filter(block => block !== '')
-      .map(block => (block === MERCURY_CONSTITUTION ? localLaw(model) : block.startsWith('<subagent-doctrine>') ? LOCAL_SUBAGENT_DOCTRINE : block))
-    const localNotes = ['Notes:', ...prependBullets([...LOCAL_CREWMATE_NOTES])].join('\n')
-    return [...blocks, localNotes, await environmentBlock(model, agentId, false), scratchpadLineFor(agentId)]
-  }
-  const notes = [
-    'Notes:',
-    ...prependBullets([
-      BATCHING_INSTRUCTION,
-      `In a crewmate thread the ${BASH_TOOL_NAME} tool's working directory does not survive between calls: pass absolute paths.`,
-      ...(foldIsAutomatic() ? [CREWMATE_FOLD_NOTE] : []),
-      'Name relevant files by absolute path in your final response; quote code only where exact characters matter (a located defect or requested signature), never to retell read code.',
-      'Do not use emoji.',
-      'End sentences before tool calls with a period, never a colon.',
-    ]),
-  ].join('\n')
-  const envBlock = await computeEnvInfo(model, agentId)
-  return [...existing.filter(block => block !== ''), notes, envBlock]
+  return notBuilt('src/constants/prompts.ts:188')
 }
-
-const SUMMARIZE_TOOL_RESULTS_LINE =
-  'Write down important information from tool results in your response — the original tool result may be cleared from context later.'
 
 function memoryAtStartSpec(memoryTask: StartTask | undefined) {
   return keyedSystemPromptSection('memory_at_start', () => memoryAtStartKey(memoryTask), () => memoryAtStartForSession(memoryTask))
@@ -245,14 +174,6 @@ function servedMissionHere(): ServedMission | undefined {
 
 function missionSpec() {
   return keyedSystemPromptSection('mission', () => missionSectionKey(servedMissionHere()), () => missionSection(servedMissionHere()))
-}
-
-function languageSpec() {
-  return systemPromptSection('language', () => {
-    const language = getInitialSettings().voice?.language
-    if (!language) return null
-    return `# Language\nAlways respond in ${language}. Use it for explanations, comments and communications; leave technical terms and code identifiers in their original form.`
-  })
 }
 
 function mcpInstructionsSpec(mcpClients: MCPServerConnection[] | undefined) {
@@ -321,61 +242,6 @@ function localRuntimePostureSection(): string | null {
   return `# Runtime posture (this process, at boot)\n${words}`
 }
 
-async function getLocalSystemPrompt(
-  tools: Tools,
-  model: string,
-  mcpClients: MCPServerConnection[] | undefined,
-  memoryTask: StartTask | undefined,
-): Promise<string[]> {
-  const head = `Working directory: ${getOriginalCwd()}`
-  const layers = promptLayerSet()
-  if (layers === 'whole') return [head, promptReplacementText()]
-  await ensureLocalRecord(model)
-  const [frozenLaw] = await resolveSystemPromptSections([
-    keyedSystemPromptSection('local_law', () => model, () => localLaw(model)),
-  ])
-  const law = layers === 'replace' ? promptReplacementText() : frozenLaw ?? localLaw(model)
-  if (isEnvTruthy(flagEnv('MERCURY_BARE'))) return [`${head}\n\n${law}`]
-
-  const toolNames: ReadonlySet<string> = new Set((tools as ReadonlyArray<{ name: string }>).map(tool => tool.name))
-  noteSessionEngine(model)
-
-  const [frozenHead] = await resolveSystemPromptSections([
-    keyedSystemPromptSection('head', () => model, () => head),
-  ])
-  const dynamicSpecs = [
-    systemPromptSection('local_posture', () => localRuntimePostureSection()),
-    systemPromptSection('local_estate', () => localEstateSection(
-      toolNames.has(RECORD_CONVENTION_TOOL_NAME) ? RECORD_CONVENTION_TOOL_NAME : null,
-      toolNames.has(RETAIN_TOOL_NAME) ? RETAIN_TOOL_NAME : null,
-    )),
-    systemPromptSection('memory', () => loadMemoryPrompt()),
-    languageSpec(),
-    systemPromptSection('summarize_tool_results', () => isUnattendedRun() ? null : SUMMARIZE_TOOL_RESULTS_LINE),
-    keyedSystemPromptSection('local_env', () => model, () => computeSimpleEnvInfo(model, false)),
-    mcpInstructionsSpec(mcpClients),
-    memoryAtStartSpec(localStartTask(memoryTask)),
-    entryPageSpec(),
-    systemPromptSection('local_scratchpad', () => scratchpadLineFor()),
-    missionSpec(),
-  ]
-  const dynamicResolved = await resolveSystemPromptSections(dynamicSpecs)
-  const { modeSections, wrapperSections, antiSycSections } = await closingSections()
-
-  return composeSystemPrompt({
-    staticSections: [frozenHead ?? head, law],
-    dynamicBoundary: [],
-    dynamicSpecs: dynamicSpecs.map(spec => ({
-      name: spec.name,
-      cacheBreak: spec.cacheBreaking,
-    })),
-    dynamicResolved,
-    wrapperSections,
-    modeSections,
-    antiSycSections,
-  })
-}
-
 export async function getSystemPrompt(
   tools: Tools,
   model: string,
@@ -383,80 +249,9 @@ export async function getSystemPrompt(
   permissionMode?: import('../types/permissions.js').InternalPermissionMode,
   memoryTask?: import('../mneme/entryKnapsack.js').StartTask,
 ): Promise<string[]> {
-  if (tools.some(tool => tool.name === BASH_TOOL_NAME)) beginLoginFiles()
-  const recorded = recordedComposition(model)
-  if (recorded !== null) {
-    noteSessionEngine(model)
-    return recorded
-  }
-  if (localPromptProfileApplies(model)) return getLocalSystemPrompt(tools, model, mcpClients, memoryTask)
-  const [constitution] = await resolveSystemPromptSections([
-    systemPromptSection('constitution', () => isUnattendedRun() ? MERCURY_HEADLESS_CONSTITUTION : MERCURY_CONSTITUTION),
-  ])
-  const stockLaw = constitution ?? MERCURY_CONSTITUTION
-  recordCurrentStaticComposition(stockLaw)
-  const layers = promptLayerSet()
-  const head = `Working directory: ${getOriginalCwd()}`
-  if (layers === 'whole') return [head, promptReplacementText()]
-  const law = layers === 'replace' ? promptReplacementText() : stockLaw
-  if (isEnvTruthy(flagEnv('MERCURY_BARE'))) return [`${head}\n\n${law}`]
-
-  const toolNames: ReadonlySet<string> = new Set((tools as ReadonlyArray<{ name: string }>).map(tool => tool.name))
-  noteSessionEngine(model)
-
-  const [frozenHead] = await resolveSystemPromptSections([
-    keyedSystemPromptSection('head', () => model, () => head),
-  ])
-  const staticSections: Array<string | null> = [frozenHead ?? head, law]
-
-  const dynamicSpecs = [
-    systemPromptSection('project_estate', () => projectEstateSection(toolNames)),
-    systemPromptSection('memory', () => loadMemoryPrompt()),
-    memoryAtStartSpec(memoryTask),
-    entryPageSpec(),
-    keyedSystemPromptSection(
-      'env_info_simple',
-      () => model,
-      () => computeSimpleEnvInfo(model),
-    ),
-    systemPromptSection('model_currency', () => getModelCurrencySection()),
-    languageSpec(),
-    mcpInstructionsSpec(mcpClients),
-    keyedSystemPromptSection('frc', () => model, () => null),
-    systemPromptSection('summarize_tool_results', () => stockLaw === MERCURY_HEADLESS_CONSTITUTION ? null : SUMMARIZE_TOOL_RESULTS_LINE),
-    systemPromptSection('runtime_posture', () => getRuntimePostureSection()),
-    systemPromptSection('harness_map', () => getHarnessMapSection()),
-    missionSpec(),
-  ]
-  const dynamicResolved = await resolveSystemPromptSections(dynamicSpecs)
-
-  void permissionMode
-  const { modeSections, wrapperSections, antiSycSections } = await closingSections()
-
-  return composeSystemPrompt({
-    staticSections,
-    dynamicBoundary: [],
-    dynamicSpecs: dynamicSpecs.map(spec => ({
-      name: spec.name,
-      cacheBreak: spec.cacheBreaking,
-    })),
-    dynamicResolved,
-    wrapperSections,
-    modeSections,
-    antiSycSections,
-  })
+  return notBuilt('src/constants/prompts.ts:379')
 }
 
 function buildMcpInstructionsSection(clients: MCPServerConnection[]): string | null {
-  const withInstructions = clients.filter(
-    client =>
-      (client as { instructions?: string }).instructions !== undefined &&
-      (client as { instructions?: string }).instructions !== '',
-  )
-  if (withInstructions.length === 0) return null
-  const blocks = withInstructions.map(
-    client =>
-      `## ${(client as { name: string }).name}\n${(client as { instructions?: string }).instructions}`,
-  )
-  return `# MCP server instructions\n\nEach server below says how its tools and resources are used:\n\n${blocks.join('\n\n')}`
+  return notBuilt('src/constants/prompts.ts:450')
 }

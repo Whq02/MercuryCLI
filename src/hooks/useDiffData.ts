@@ -1,4 +1,3 @@
-
 import { useMemo, useRef, useState } from 'react'
 import { useLoad } from './effects.js'
 import type { StructuredPatchHunk } from '../utils/diff.js'
@@ -12,54 +11,19 @@ import {
   type GitDiffStats,
 } from '../utils/gitDiff.js'
 import { logError } from '../utils/log.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 const TRUNCATION_LINE_LIMIT = 400
 
-export type DiffFile = {
-  path: string
-  linesAdded: number
-  linesRemoved: number
-  isBinary: boolean
-  isLargeFile: boolean
-  isTruncated: boolean
-  isUntracked?: boolean
-  isNewFile?: boolean
-}
+export type DiffFile = Unbuilt
 
-export type DiffData = {
-  stats: GitDiffStats | null
-  files: DiffFile[]
-  hunks: Map<string, StructuredPatchHunk[]>
-  loading: boolean
-  error?: string
-}
+export type DiffData = Unbuilt
 
 function classify(
   result: GitDiffResult,
   hunks: Map<string, StructuredPatchHunk[]>,
 ): DiffFile[] {
-  const files: DiffFile[] = []
-  for (const [path, stats] of result.perFileStats) {
-    const isUntracked = stats.isUntracked === true
-    const fileHunks = hunks.get(path)
-    const isLargeFile =
-      !stats.isBinary && !isUntracked && (fileHunks === undefined || fileHunks.length === 0)
-    const isTruncated =
-      !isLargeFile &&
-      !stats.isBinary &&
-      stats.added + stats.removed > TRUNCATION_LINE_LIMIT
-    files.push({
-      path,
-      linesAdded: stats.added,
-      linesRemoved: stats.removed,
-      isBinary: stats.isBinary,
-      isLargeFile,
-      isTruncated,
-      isUntracked,
-    })
-  }
-  files.sort((a, b) => a.path.localeCompare(b.path))
-  return files
+  return notBuilt('src/hooks/useDiffData.ts:37')
 }
 
 export function useDiffData(spec?: GitDiffSpec): DiffData {

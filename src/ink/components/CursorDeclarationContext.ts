@@ -1,18 +1,9 @@
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
-import { createContext } from 'react'
-import type { DOMElement } from '../dom.js'
+export type CursorDeclaration = Unbuilt
 
-export type CursorDeclaration = {
-  readonly relativeX: number
-  readonly relativeY: number
-  readonly node: DOMElement
-}
+export type CursorDeclarationSetter = (...args: Unbuilt[]) => Unbuilt
 
-export type CursorDeclarationSetter = (
-  declaration: CursorDeclaration | null,
-  clearIfNode?: DOMElement | null,
-) => void
-
-const CursorDeclarationContext = createContext<CursorDeclarationSetter>(() => {})
+const CursorDeclarationContext: Unbuilt = unbuilt('src/ink/components/CursorDeclarationContext.ts:16')
 
 export default CursorDeclarationContext

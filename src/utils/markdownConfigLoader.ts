@@ -1,4 +1,3 @@
-
 import { statSync } from 'node:fs'
 import { lstat, readdir, readFile, realpath, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
@@ -23,6 +22,7 @@ import {
 import { logForDebugging } from './debug.js'
 import { logError } from './log.js'
 import { passedOver } from './passedOver.js'
+import { notBuilt } from '../pi/holes.js'
 
 type MarkdownFile = {
   filePath: string
@@ -57,21 +57,7 @@ function toToolStrings(value: unknown): string[] | undefined {
 }
 
 export function parseAgentToolsFromFrontmatter(value: unknown): string[] | undefined {
-  if (value === undefined) return undefined
-  if (value === null || value === '' || (Array.isArray(value) && value.length === 0)) return []
-  if (value === false) return []
-  if (value === true) return undefined
-  if (typeof value === 'object' && !Array.isArray(value)) {
-    const keys = Object.keys(value as Record<string, unknown>).filter(k => k.trim() !== '')
-    if (keys.length === 0) return []
-    const parsedKeys = parseToolListFromCLI(keys)
-    return parsedKeys.includes('*') ? undefined : parsedKeys
-  }
-  const raw = toToolStrings(value)
-  if (raw === undefined) return []
-  const parsed = parseToolListFromCLI(raw)
-  if (parsed.includes('*')) return undefined
-  return parsed
+  return notBuilt('src/utils/markdownConfigLoader.ts:59')
 }
 
 export function agentToolsFrontmatterProblem(value: unknown): string | null {
@@ -115,46 +101,7 @@ function isInsideTree(path: string, root: string): boolean {
 }
 
 export function getProjectDirsUpToHome(subdir: string, cwd: string): string[] {
-  const home = normalizePathForComparison(resolve(homedir()).normalize('NFC'))
-  const nearestRoot = findGitRoot(cwd)
-
-  let boundary = nearestRoot
-  if (nearestRoot) {
-    const sessionRoot = findGitRoot(getOriginalCwd())
-    if (
-      sessionRoot &&
-      normalizePathForComparison(nearestRoot) !== normalizePathForComparison(sessionRoot)
-    ) {
-      const nearestCanonical = findCanonicalGitRoot(nearestRoot)
-      const sessionCanonical = findCanonicalGitRoot(sessionRoot)
-      if (
-        nearestCanonical &&
-        sessionCanonical &&
-        normalizePathForComparison(nearestCanonical) !==
-          normalizePathForComparison(sessionCanonical) &&
-        isInsideTree(nearestRoot, sessionRoot)
-      ) {
-        boundary = sessionRoot
-      }
-    }
-  }
-
-  const dirs: string[] = []
-  let current = resolve(cwd)
-  while (true) {
-    if (normalizePathForComparison(current) === home) break
-    for (const homeName of PROJECT_CONFIG_DIR_NAMES) {
-      const candidate = join(current, homeName, subdir)
-      if (configDirExists(candidate)) dirs.push(candidate)
-    }
-    if (boundary && normalizePathForComparison(current) === normalizePathForComparison(boundary)) {
-      break
-    }
-    const parent = dirname(current)
-    if (parent === current) break
-    current = parent
-  }
-  return dirs
+  return notBuilt('src/utils/markdownConfigLoader.ts:117')
 }
 
 
@@ -170,72 +117,7 @@ export interface EstateWalk {
 }
 
 export async function walkMarkdownEstate(dir: string): Promise<EstateWalk> {
-  const out: string[] = []
-  const visited = new Set<string>()
-  const startedAt = Date.now()
-  let entries = 0
-  let stopped: string | undefined
-  let pruned: string | undefined
-  const walk = async (current: string, depth: number): Promise<void> => {
-    if (stopped) return
-    if (depth > ESTATE_WALK_MAX_DEPTH) {
-      pruned ??= `depth ${ESTATE_WALK_MAX_DEPTH} exceeded at ${current}`
-      return
-    }
-    if (Date.now() - startedAt > ESTATE_WALK_BUDGET_MS) {
-      stopped = `the ${ESTATE_WALK_BUDGET_MS} ms budget was spent at ${current}`
-      return
-    }
-    let key: string
-    try {
-      const info = await stat(current, { bigint: true })
-      key = `${info.dev}:${info.ino}`
-      if (key === '0:0') {
-        key = await realpath(current)
-      }
-    } catch {
-      try {
-        key = await realpath(current)
-      } catch (error) {
-        logForDebugging(`markdownConfigLoader: skipping unreadable ${current}: ${String(error)}`)
-        return
-      }
-    }
-    if (visited.has(key)) return
-    visited.add(key)
-    let listing
-    try {
-      listing = await readdir(current, { withFileTypes: true })
-    } catch (error) {
-      logForDebugging(`markdownConfigLoader: skipping unreadable ${current}: ${String(error)}`)
-      return
-    }
-    for (const entry of listing) {
-      if (stopped) return
-      if (++entries > ESTATE_WALK_MAX_ENTRIES) {
-        stopped = `${ESTATE_WALK_MAX_ENTRIES} entries examined, the last under ${current}`
-        return
-      }
-      const full = join(current, entry.name)
-      if (entry.isDirectory()) {
-        await walk(full, depth + 1)
-      } else if (entry.isSymbolicLink()) {
-        try {
-          const info = await stat(full)
-          if (info.isDirectory()) await walk(full, depth + 1)
-          else if (info.isFile() && entry.name.toLowerCase().endsWith('.md')) out.push(full)
-        } catch (error) {
-          logForDebugging(`markdownConfigLoader: skipping unreadable ${full}: ${String(error)}`)
-        }
-      } else if (entry.name.toLowerCase().endsWith('.md')) {
-        out.push(full)
-      }
-    }
-  }
-  await walk(dir, 0)
-  out.sort()
-  const reason = stopped ?? pruned
-  return reason ? { files: out, complete: false, reason, entries } : { files: out, complete: true, entries }
+  return notBuilt('src/utils/markdownConfigLoader.ts:172')
 }
 
 async function discoverMarkdownFiles(dir: string): Promise<string[]> {
@@ -280,43 +162,7 @@ async function loadDirectory(
 
 
 async function dedupeByIdentity(files: MarkdownFile[]): Promise<MarkdownFile[]> {
-  const identities = await Promise.all(
-    files.map(async file => {
-      try {
-        const info = await lstat(file.filePath, { bigint: true })
-        if (info.dev === 0n && info.ino === 0n) return null
-        return `${info.dev}:${info.ino}`
-      } catch (error) {
-        passedOver(error)
-        return null
-      }
-    }),
-  )
-  const seen = new Map<string, MarkdownFile>()
-  const out: MarkdownFile[] = []
-  let dropped = 0
-  for (let i = 0; i < files.length; i++) {
-    const identity = identities[i]
-    const file = files[i]!
-    if (identity === null) {
-      out.push(file)
-      continue
-    }
-    const prior = seen.get(identity)
-    if (prior) {
-      dropped++
-      logForDebugging(
-        `markdownConfigLoader: duplicate ${file.filePath} (${file.source}) already provided by ${prior.source}`,
-      )
-      continue
-    }
-    seen.set(identity, file)
-    out.push(file)
-  }
-  if (dropped > 0) {
-    logForDebugging(`markdownConfigLoader: removed ${dropped} duplicate file(s)`)
-  }
-  return out
+  return notBuilt('src/utils/markdownConfigLoader.ts:282')
 }
 
 

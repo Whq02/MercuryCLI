@@ -1,12 +1,5 @@
-import type { Command } from '../../commands.js'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
-const command = {
-  name: 'vim',
-  description: 'Flip the input line between Vim and standard editing',
-  supportsNonInteractive: false,
-  seat: 'screen',
-  type: 'local',
-  load: () => import('./vim.js'),
-} satisfies Command
+const command: Unbuilt = unbuilt('src/commands/vim/index.ts:3')
 
 export default command

@@ -5,6 +5,7 @@ import { buildTool, type ToolDef, type ValidationResult } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { buildCronDeletePrompt, CRON_DELETE_DESCRIPTION, CRON_DELETE_TOOL_NAME, CRON_LIST_TOOL_NAME, cronToolsMountable } from './prompt.js'
 import { renderDeleteResultMessage, renderDeleteToolUseMessage } from './UI.js'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const ID_HINT = 'The schedule id to cancel (eight hex characters)'
 
@@ -40,19 +41,4 @@ function submitRemoval(id: string): DeleteOutput {
   return { id, note: REMOVAL_NOTE }
 }
 
-export const CronDeleteTool = buildTool({
-  name: CRON_DELETE_TOOL_NAME,
-  searchHint: 'cancel a scheduled job by id',
-  shouldDefer: true,
-  maxResultSizeChars: 100_000,
-  get inputSchema(): ReturnType<typeof inputSchema> { return inputSchema() },
-  get outputSchema(): ReturnType<typeof outputSchema> { return outputSchema() },
-  isEnabled: () => cronToolsMountable(),
-  description: async () => CRON_DELETE_DESCRIPTION,
-  prompt: async () => buildCronDeletePrompt(),
-  validateInput: async (input: DeleteInput): Promise<ValidationResult> => validateId(input.id),
-  call: async (input: DeleteInput) => ({ data: submitRemoval(input.id) }),
-  mapToolResultToToolResultBlockParam: (output: DeleteOutput, toolUseID: string) => ({ tool_use_id: toolUseID, type: 'tool_result' as const, content: `Cancel submitted for schedule ${output.id}. ${output.note}` }),
-  renderToolUseMessage: renderDeleteToolUseMessage,
-  renderToolResultMessage: renderDeleteResultMessage,
-} satisfies ToolDef<ReturnType<typeof inputSchema>, DeleteOutput>)
+export const CronDeleteTool: Unbuilt = unbuilt('src/tools/ScheduleCronTool/CronDeleteTool.ts:43')

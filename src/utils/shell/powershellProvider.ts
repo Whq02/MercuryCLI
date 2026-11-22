@@ -6,6 +6,7 @@ import { getSessionEnvVars } from '../sessionEnvVars.js'
 import { getPowerShellEdition } from './powershellDetection.js'
 import type { BuildExecCommandOptions, ShellProvider } from './shellProvider.js'
 import { hostEnv } from '../hostEnv.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export function buildPowerShellArgs(command: string): string[] {
   return ['-NoProfile', '-NonInteractive', '-Command', command]
@@ -70,38 +71,5 @@ function buildTrailer(cwdFileInShell: string): string {
 }
 
 export function createPowerShellProvider(shellPath: string): ShellProvider {
-  return {
-    type: 'powershell',
-    shellPath,
-    detached: childGetsOwnProcessGroup(rememberedPlatform()),
-
-    async buildExecCommand(command: string, opts: BuildExecCommandOptions) {
-      const cwdFileInShell = posixPath.join(tmpdir(), cwdFileName(opts.id))
-      const clearPrelude = needsLocationHistoryClear(command) ? CLEAR_LOCATION_HISTORY_PRELUDE : ''
-      const assembled = PLAIN_RENDER_PRELUDE + UTF8_OUTPUT_PRELUDE + clearPrelude + command + buildTrailer(cwdFileInShell)
-      return { commandString: assembled, cwdFilePath: cwdFileInShell }
-    },
-
-    getSpawnArgs(commandString: string): string[] {
-      return buildPowerShellArgs(commandString)
-    },
-
-    async getEnvironmentOverrides(_command: string): Promise<Record<string, string>> {
-      const overrides: Record<string, string> = {}
-      for (const [key, value] of getSessionEnvVars()) overrides[key] = value
-      if (process.platform === 'win32') {
-        overrides.MSYS2_ARG_CONV_EXCL = '*'
-        overrides.MSYS_NO_PATHCONV = '1'
-        if ((await getPowerShellEdition()) === 'desktop') {
-          const programFiles = hostEnv().ProgramFiles || 'C:\\Program Files'
-          const systemRoot = hostEnv().SystemRoot || 'C:\\Windows'
-          overrides.PSModulePath = [
-            `${programFiles}\\WindowsPowerShell\\Modules`,
-            `${systemRoot}\\system32\\WindowsPowerShell\\v1.0\\Modules`,
-          ].join(';')
-        }
-      }
-      return overrides
-    },
-  }
+  return notBuilt('src/utils/shell/powershellProvider.ts:72')
 }

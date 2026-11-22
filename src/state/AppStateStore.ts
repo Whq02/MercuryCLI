@@ -25,6 +25,7 @@ import type { TurnAnswerContext } from '../query/turnAnswerContext.js'
 import type { Store } from './store.js'
 import type { CrewLedger } from './crewLedger.js'
 import { passedOver } from '../utils/passedOver.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
 type ImmutablePrimitive =
@@ -48,56 +49,23 @@ export type DeepImmutable<T> = unknown extends T
         : { readonly [K in keyof T]: DeepImmutable<T[K]> }
 
 
-export type FooterItem = 'tasks' | 'bagel' | 'bridge'
+export type FooterItem = Unbuilt
 
 
 export type CompletionBoundary =
-  | { type: 'completion'; completedAt: number; outputTokens: number }
-  | { type: 'bash'; command: string; completedAt: number }
-  | { type: 'edit'; toolName: string; filePath: string; completedAt: number }
-  | { type: 'denied_tool'; toolName: string; detail: string; completedAt: number }
+  Unbuilt
 
 export type SpeculationState =
-  | { status: 'idle' }
-  | {
-      status: 'active'
-      id: string
-      abort: () => void
-      startTime: number
-      messagesRef: { current: unknown[] }
-      writtenPathsRef: { current: Set<string> }
-      boundary: CompletionBoundary | null
-      suggestionLength: number
-      toolUseCount: number
-      isPipelined: boolean
-      contextRef: { current: TurnAnswerContext }
-      pipelinedSuggestion?: {
-        text: string
-        promptId: PromptVariant
-        generationRequestId: string | null
-      } | null
-    }
+  Unbuilt
 
-export const IDLE_SPECULATION_STATE: SpeculationState = { status: 'idle' }
+export const IDLE_SPECULATION_STATE: SpeculationState = unbuilt('src/state/AppStateStore.ts:81')
 
-export type SpeculationResult = {
-  messages: Message[]
-  completionBoundary?: CompletionBoundary
-  timeSavedMs: number
-}
+export type SpeculationResult = Unbuilt
 
 
 export type InboxMessageStatus = 'pending' | 'processing' | 'processed' | 'held'
 
-export type InboxMessage = {
-  id: string
-  from: string
-  text: string
-  timestamp: string
-  status: InboxMessageStatus
-  color?: string
-  summary?: string
-}
+export type InboxMessage = Unbuilt
 
 
 export type ExtensionsState = {
@@ -144,81 +112,9 @@ type AppStateImmutableHalf = {
   bridgeFirstRunCallout: boolean
 }
 
+export type AppState = Unbuilt
 
-type AppStateMutableHalf = {
-  tasks: Record<string, TaskState>
-  agentNameRegistry: Map<string, string>
-  foregroundedTaskId?: string
-  viewingAgentTaskId?: string | undefined
-  mainChatTaskId?: string | undefined
-  crewLedger: CrewLedger
-  selectedIPAgentIndex: number
-  viewSelectionMode: 'none' | 'selecting-agent' | 'viewing-agent'
-  standaloneAgentContext?: { name: string; color?: string }
-
-  mcp: {
-    clients: MCPServerConnection[]
-    tools: Tool[]
-    commands: Command[]
-    resources: Record<string, ServerResource[]>
-    extensionReconnectKey: number
-  }
-
-  extensions: ExtensionsState
-
-  notifications: { current: Notification | null; queue: Notification[] }
-  elicitation: { queue: ElicitationRequestEvent[] }
-  inbox: { messages: InboxMessage[] }
-
-  fileHistory: FileHistoryState
-  attribution: AttributionState
-
-  agentDefinitions: { activeAgents: AgentDefinition[]; allAgents: AgentDefinition[] }
-  sessionHooks: SessionHooksState
-
-  remoteAgentTaskSuggestions?: Array<{ summary: string; task: string }>
-  skillImprovement?: {
-    skillName: string
-    updates: Array<{ section: string; change: string; reason: string }>
-  }
-
-  webBrowser?: {
-    active: boolean
-    currentUrl?: string
-    stickyPanelVisible?: boolean
-  }
-
-  speculation: SpeculationState
-  speculationSessionTimeSavedMs: number
-
-  promptSuggestion: {
-    text: string | null
-    promptId: PromptVariant | null
-    shownAt: number
-    acceptedAt: number
-    generationRequestId?: string | null
-  }
-  promptSuggestionEnabled: boolean
-
-  pendingWorkerRequest: { toolName: string; description: string; toolUseId: string } | null
-
-  effortValue: EffortValue | undefined
-
-  authVersion: number
-  initialMessage: {
-    message: UserMessage
-    bashMode?: boolean
-    armedAtLanding?: boolean
-    pastedContents?: Record<number, PastedContent>
-    armedBehind?: Array<{ message: UserMessage; bashMode?: boolean; pastedContents?: Record<number, PastedContent> }>
-  } | null
-  thinkingEnabled: boolean
-  channelPermissionCallbacks?: Record<string, (result: unknown) => void>
-}
-
-export type AppState = DeepImmutable<AppStateImmutableHalf> & AppStateMutableHalf
-
-export type AppStateStore = Store<AppState>
+export type AppStateStore = Unbuilt
 
 function rememberedExpandedView(): AppState['expandedView'] {
   try {
@@ -231,62 +127,6 @@ function rememberedExpandedView(): AppState['expandedView'] {
 }
 
 export function getDefaultAppState(): AppState {
-  return {
-    settings: getInitialSettings(),
-    verbose: false,
-    expandedView: rememberedExpandedView(),
-    footerSelection: null,
-
-    engineModel: null,
-    engineModelForSession: null,
-    pendingModelSwitch: null,
-    lastModelTransition: null,
-    foregroundTurnActive: false,
-
-    toolPermissionContext: getEmptyToolPermissionContext(),
-
-    remoteConnectionStatus: 'connecting',
-    remoteBackgroundTaskCount: 0,
-    remoteControlEnabled: false,
-    bridgeActivated: false,
-    remoteControlOutboundOnly: false,
-    bridgeRegistered: false,
-    bridgeIngressOpen: false,
-    bridgeInErrorBackoff: false,
-    bridgeFirstRunCallout: false,
-
-    tasks: {},
-    agentNameRegistry: new Map(),
-    crewLedger: {},
-    selectedIPAgentIndex: -1,
-    viewSelectionMode: 'none',
-
-    mcp: { clients: [], tools: [], commands: [], resources: {}, extensionReconnectKey: 0 },
-    extensions: { roster: [], health: {}, pending: false, problems: [], lastReloadLine: null },
-
-    notifications: { current: null, queue: [] },
-    elicitation: { queue: [] },
-    inbox: { messages: [] },
-
-    fileHistory: { snapshots: [], trackedFiles: new Set(), snapshotSequence: 0 },
-    attribution: createEmptyAttributionState(),
-
-    agentDefinitions: { activeAgents: [], allAgents: [] },
-    sessionHooks: new Map(),
-
-    speculation: IDLE_SPECULATION_STATE,
-    speculationSessionTimeSavedMs: 0,
-
-    promptSuggestion: { text: null, promptId: null, shownAt: 0, acceptedAt: 0 },
-    promptSuggestionEnabled: false,
-
-    pendingWorkerRequest: null,
-
-    effortValue: undefined,
-
-    authVersion: 0,
-    initialMessage: null,
-    thinkingEnabled: shouldEnableThinkingByDefault(),
-  }
+  return notBuilt('src/state/AppStateStore.ts:233')
 }
 

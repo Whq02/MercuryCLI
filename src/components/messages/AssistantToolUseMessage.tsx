@@ -1,4 +1,3 @@
-
 import React, { useSyncExternalStore } from 'react'
 import { Box, Text } from '../../ink.js'
 import { stringWidth } from '../../ink/stringWidth.js'
@@ -32,6 +31,7 @@ import { HookProgressMessage } from './HookProgressMessage.js'
 import { ToolRowLead, toolRowStateOf } from './ToolRowLead.js'
 import { TranscriptNameplate } from './TranscriptNameplate.js'
 import { useSelectedMessageBg } from '../messageActions.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const EDIT_META_TOOLS = new Set(['Edit', 'Write', 'MultiEdit'])
 const NAME_MIN_COLUMNS = 12
@@ -131,20 +131,7 @@ function editMetaCounts(
 }
 
 
-export function AssistantToolUseMessage({
-  param,
-  addMargin = false,
-  tools,
-  verbose = false,
-  inProgressToolUseIDs,
-  progressMessagesForMessage = [],
-  shouldAnimate = false,
-  shouldShowDot = false,
-  inProgressToolCallCount = 1,
-  lookups,
-  isTranscriptMode = false,
-  startedAtMs = null,
-}: {
+export function AssistantToolUseMessage(arg0: {
   param: ToolUseBlockParam
   addMargin?: boolean
   tools: Tools
@@ -159,212 +146,7 @@ export function AssistantToolUseMessage({
   isTranscriptMode?: boolean
   startedAtMs?: number | null
 }): React.ReactNode {
-  const { columns, rows } = useTerminalSize()
-  const selectedBg = useSelectedMessageBg()
-  useFluxMountMark(`tool-row:${param.id}`)
-
-  if (!tools || tools.length === 0) {
-    logError(new Error('AssistantToolUseMessage rendered with no tools'))
-    return null
-  }
-  const tool = findToolForRender(tools, param.name)
-
-  const resolved = lookups.resolvedToolUseIDs.has(param.id)
-  const inProgress = inProgressToolUseIDs.has(param.id)
-  const queued = !resolved && !inProgress
-  const errored = lookups.erroredToolUseIDs.has(param.id)
-  const denied = lookups.deniedToolUseIDs.has(param.id)
-  const running = inProgress && !resolved
-
-  const userFacingName = safeUserFacingName(tool, param.input, param.name)
-  if (userFacingName === '') return null
-
-  if (tool.isTransparentWrapper?.()) {
-    if (!running) return null
-    return renderProgressBody()
-  }
-
-  const parsedInput = tool.inputSchema?.safeParse
-    ? tool.inputSchema.safeParse(param.input)
-    : { success: true as const, data: param.input }
-  if (!parsedInput.success) return null
-  let useMessage: React.ReactNode | string | null = null
-  try {
-    useMessage =
-      tool.renderToolUseMessage?.(parsedInput.data, {
-        verbose,
-        theme: undefined,
-      }) ?? null
-  } catch (error) {
-    logError(error)
-    useMessage = ''
-  }
-  if (useMessage === null) return null
-
-  const family = toolFamilyFor(param.name)
-  const leadState = toolRowStateOf({ resolved, errored, denied })
-
-  const rawResult = resolved
-    ? (
-        lookups.toolResultByToolUseID.get(param.id) as
-          | { toolUseResult?: unknown }
-          | undefined
-      )?.toolUseResult
-    : undefined
-  const summary =
-    resolved && !errored && !verbose && !isTranscriptMode && rawResult !== undefined
-      ? summarizeToolResult(param.name, rawResult)
-      : null
-  const ROW_HEAD_FLOOR = 2 + NAME_MIN_COLUMNS + 20 + 4
-  const tailFits = (tailCells: number): boolean => columns >= ROW_HEAD_FLOOR + tailCells
-  const summaryInline =
-    summary !== null &&
-    stringWidth(summary) <= INLINE_SUMMARY_MAX_CELLS &&
-    tailFits(1 + stringWidth(summary))
-
-  const editMetaRaw =
-    EDIT_META_TOOLS.has(param.name) &&
-    resolved &&
-    !errored &&
-    !verbose &&
-    !isTranscriptMode &&
-    rawResult !== undefined
-      ? editMetaCounts(rawResult)
-      : null
-  const editMeta =
-    editMetaRaw !== null && tailFits(stringWidth(` · +${editMetaRaw.added}/-${editMetaRaw.removed}`))
-      ? editMetaRaw
-      : null
-
-  let tag: React.ReactNode | string | null = null
-  try {
-    tag = tool.renderToolUseTag?.(parsedInput.data, { verbose }) ?? null
-  } catch (error) {
-    logError(error)
-    tag = null
-  }
-
-  const nameBackground = tool.userFacingNameBackgroundColor?.(
-    parsedInput.data,
-  )
-
-  function renderProgressBody(): React.ReactNode {
-    const toolProgress = filterToolProgressMessages(
-      progressMessagesForMessage,
-    ) as ProgressMessage[]
-    let body: React.ReactNode = null
-    try {
-      body =
-        tool!.renderToolUseProgressMessage?.(toolProgress, {
-          tools,
-          verbose,
-          columns,
-          rows,
-          inProgressToolCallCount,
-          toolUseID: param.id,
-        }) ?? null
-    } catch (error) {
-      logError(error)
-      body = null
-    }
-    const totalBody = React.Children.toArray(body).map((child, position) =>
-      React.isValidElement(child) ? (
-        child
-      ) : (
-        <Text key={`total-${position}`}>{child}</Text>
-      ),
-    )
-    return (
-      <Box flexDirection="column">
-        <HookProgressMessage
-          hookEvent="tool.before"
-          toolUseID={param.id}
-          lookups={lookups}
-          progress={progressMessagesForMessage}
-          isTranscriptMode={isTranscriptMode}
-        />
-        {totalBody}
-      </Box>
-    )
-  }
-
-  let queuedMessage: React.ReactNode = null
-  if (queued) {
-    try {
-      queuedMessage =
-        tool.renderToolUseQueuedMessage?.(parsedInput.data, {
-          verbose,
-        }) ?? null
-    } catch (error) {
-      logError(error)
-      queuedMessage = null
-    }
-  }
-
-  const targetText = typeof useMessage === 'string' ? useMessage : null
-
-  return (
-    <Box
-      flexDirection="column"
-      marginTop={addMargin ? 1 : 0}
-      backgroundColor={selectedBg}
-    >
-      <Box>
-        {}
-        {shouldShowDot ? (
-          <Box flexShrink={0}>
-            <TranscriptNameplate />
-          </Box>
-        ) : null}
-        {}
-        <Text wrap="truncate-middle">
-          <ToolRowLead family={family} state={leadState} />
-          {nameBackground ? (
-            <Text backgroundColor={nameBackground} color="inverseText" bold>
-              {userFacingName}
-            </Text>
-          ) : (
-            <Text bold>
-              {userFacingName.length < NAME_MIN_COLUMNS
-                ? userFacingName.padEnd(NAME_MIN_COLUMNS)
-                : userFacingName}
-            </Text>
-          )}
-          {useMessage !== '' ? (
-            <Text color="subtle" wrap="truncate-middle">
-              {' '}
-              {targetText ?? useMessage}
-            </Text>
-          ) : null}
-          <RunningToolElapsed id={param.id} running={running && shouldAnimate} startedAtMs={startedAtMs} />
-          {editMeta ? (
-            <Text>
-              {' '}
-              <Text color="subtle">· </Text>
-              <Text color="success">+{editMeta.added}</Text>
-              <Text color="error">/-{editMeta.removed}</Text>
-            </Text>
-          ) : null}
-          {summaryInline ? <Text dimColor> {summary}</Text> : null}
-          {tag !== null && tag !== '' ? <Text> {tag}</Text> : null}
-        </Text>
-      </Box>
-      {summary !== null && !summaryInline ? (
-        <MessageResponse height={1}>
-          <Text dimColor wrap="truncate-end">
-            {summary}
-          </Text>
-        </MessageResponse>
-      ) : null}
-      {running ? renderProgressBody() : null}
-      {running && shouldAnimate && !isTranscriptMode && param.name === BASH_TOOL_NAME ? (
-        <RunningShellBackgroundHint id={param.id} />
-      ) : null}
-      {queuedMessage !== null ? (
-        <MessageResponse>{queuedMessage}</MessageResponse>
-      ) : null}
-    </Box>
-  )
+  return notBuilt('src/components/messages/AssistantToolUseMessage.tsx:134')
 }
 
 export default AssistantToolUseMessage

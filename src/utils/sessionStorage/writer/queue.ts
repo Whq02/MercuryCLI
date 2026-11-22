@@ -9,41 +9,28 @@ import { encodeTranscriptLine } from '../vnext.js'
 import { describeTranscriptStoreFailure, setStoreHealth } from './storeHealth.js'
 import { passedOver } from '../../passedOver.js'
 import { startTimeout, stopTimeout } from '../../timers.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../../pi/holes.js'
 
 export class QueuePart {
-  private pendingWriteCount: number = 0
-  private flushResolvers: Array<() => void> = []
-  writeQueues = new Map<
-    string,
-    Array<{ line: string; resolve: () => void; boundary?: MercuryRecord }>
-  >()
-  private flushTimer: ReturnType<typeof setTimeout> | null = null
-  private activeDrain: Promise<void> | null = null
-  private FLUSH_INTERVAL_MS = 100
-  private readonly MAX_CHUNK_BYTES = 100 * 1024 * 1024
-  private fileWriteChain: Promise<unknown> = Promise.resolve()
+  private pendingWriteCount: number = unbuilt('src/utils/sessionStorage/writer/queue.ts:14')
+  private flushResolvers: Array<() => void> = unbuilt('src/utils/sessionStorage/writer/queue.ts:15')
+  writeQueues: Map<string, Array<{ line: string; resolve: () => void; boundary?: MercuryRecord }>> = unbuilt('src/utils/sessionStorage/writer/queue.ts:16')
+  private flushTimer: ReturnType<typeof setTimeout> | null = unbuilt('src/utils/sessionStorage/writer/queue.ts:20')
+  private activeDrain: Promise<void> | null = unbuilt('src/utils/sessionStorage/writer/queue.ts:21')
+  private FLUSH_INTERVAL_MS: number = unbuilt('src/utils/sessionStorage/writer/queue.ts:22')
+  private readonly MAX_CHUNK_BYTES: Unbuilt = unbuilt('src/utils/sessionStorage/writer/queue.ts:23')
+  private fileWriteChain: Promise<unknown> = unbuilt('src/utils/sessionStorage/writer/queue.ts:24')
 
   _resetFlushState(): void {
-    this.pendingWriteCount = 0
-    this.flushResolvers = []
-    if (this.flushTimer) stopTimeout(this.flushTimer)
-    this.flushTimer = null
-    this.activeDrain = null
-    this.fileWriteChain = Promise.resolve()
-    this.writeQueues = new Map()
+    return notBuilt('src/utils/sessionStorage/writer/queue.ts:26')
   }
 
   private settleFlushWaiters(): void {
-    for (const resolve of this.flushResolvers.splice(0)) resolve()
+    return notBuilt('src/utils/sessionStorage/writer/queue.ts:36')
   }
 
   async trackWrite<T>(fn: () => Promise<T>): Promise<T> {
-    this.pendingWriteCount++
-    try {
-      return await fn()
-    } finally {
-      if (--this.pendingWriteCount === 0) this.settleFlushWaiters()
-    }
+    return notBuilt('src/utils/sessionStorage/writer/queue.ts:40')
   }
 
   private insertChainQueue: Promise<unknown> = Promise.resolve()
@@ -76,70 +63,21 @@ export class QueuePart {
     capture?: (item: { line: string; resolve: () => void }) => void,
     record?: MercuryRecord,
   ): Promise<void> {
-    return new Promise<void>(resolve => {
-      let queue = this.writeQueues.get(filePath)
-      if (!queue) {
-        queue = []
-        this.writeQueues.set(filePath, queue)
-      }
-      const item = { line, resolve, ...(record?.payload.kind === 'boundary' && record.payload.boundaryKind === 'compact' ? { boundary: record } : {}) }
-      queue.push(item)
-      capture?.(item)
-      this.scheduleDrain()
-    })
+    return notBuilt('src/utils/sessionStorage/writer/queue.ts:73')
   }
 
-  private drainFailureStreak = 0
+  private drainFailureStreak: number = unbuilt('src/utils/sessionStorage/writer/queue.ts:92')
 
   private scheduleDrain(): void {
-    if (this.flushTimer) {
-      return
-    }
-    const interval = Math.min(this.FLUSH_INTERVAL_MS * 2 ** this.drainFailureStreak, 5_000)
-    this.flushTimer = startTimeout(() => {
-      this.flushTimer = null
-      this.runDrain().catch(passedOver)
-    }, interval)
+    return notBuilt('src/utils/sessionStorage/writer/queue.ts:94')
   }
 
   private runDrain(): Promise<void> {
-    const run = this.drainWriteQueue()
-    this.activeDrain = run
-    return run
-      .then(
-        () => {
-          this.drainFailureStreak = 0
-          setStoreHealth({ failing: false, sentence: null })
-        },
-        err => {
-          if (this.drainFailureStreak === 0) logError(err)
-          this.drainFailureStreak++
-          if (this.drainFailureStreak >= 2) {
-            setStoreHealth({ failing: true, sentence: err instanceof Error ? err.message : String(err) })
-          }
-          throw err
-        },
-      )
-      .finally(() => {
-        if (this.activeDrain === run) this.activeDrain = null
-        if (this.writeQueues.size > 0) {
-          this.scheduleDrain()
-        }
-      })
+    return notBuilt('src/utils/sessionStorage/writer/queue.ts:105')
   }
 
   private async appendToFile(filePath: string, data: string): Promise<void> {
-    try {
-      await fsAppendFile(filePath, data, { mode: 0o600 })
-    } catch {
-      try {
-        await mkdir(dirname(filePath), { recursive: true, mode: 0o700 })
-        await fsAppendFile(filePath, data, { mode: 0o600 })
-      } catch (error) {
-        throw describeTranscriptStoreFailure(filePath, error)
-      }
-    }
-    linkTaskOutputToTranscript(filePath)
+    return notBuilt('src/utils/sessionStorage/writer/queue.ts:131')
   }
 
   private drainWriteQueue(): Promise<void> {
@@ -147,73 +85,11 @@ export class QueuePart {
   }
 
   async _drainWriteQueueInner(): Promise<void> {
-    const failures: Array<{ filePath: string; error: unknown }> = []
-    for (const [filePath, queue] of this.writeQueues) {
-      if (queue.length === 0) {
-        continue
-      }
-      const batch = queue.splice(0)
-
-      let landed = 0
-
-      try {
-        let content = ''
-        let pending = 0
-
-        for (const { line, boundary } of batch) {
-          if (pending > 0 && (boundary || content.length + line.length >= this.MAX_CHUNK_BYTES)) {
-            await this.appendToFile(filePath, content)
-            for (let i = landed; i < landed + pending; i++) {
-              batch[i]!.resolve()
-            }
-            landed += pending
-            pending = 0
-            content = ''
-          }
-
-          if (boundary && await sealHistoryPart(filePath, line, boundary)) {
-            batch[landed++]!.resolve()
-            continue
-          }
-          content += line
-          pending++
-        }
-
-        if (content.length > 0) {
-          await this.appendToFile(filePath, content)
-          for (let i = landed; i < landed + pending; i++) {
-            batch[i]!.resolve()
-          }
-          landed += pending
-        }
-      } catch (err) {
-        queue.unshift(...batch.slice(landed))
-        failures.push({ filePath, error: err })
-      }
-    }
-
-    for (const [filePath, queue] of this.writeQueues) {
-      if (queue.length === 0) {
-        this.writeQueues.delete(filePath)
-      }
-    }
-
-    if (failures.length === 1) throw failures[0]!.error
-    if (failures.length > 1) {
-      const detail = failures
-        .map(({ filePath, error }) => `${basename(filePath)}: ${error instanceof Error ? error.message : String(error)}`)
-        .join('; ')
-      throw new Error(`${failures.length} transcript files could not be written — ${detail}`)
-    }
+    return notBuilt('src/utils/sessionStorage/writer/queue.ts:149')
   }
 
   async flush(): Promise<void> {
-    if (this.flushTimer) stopTimeout(this.flushTimer)
-    this.flushTimer = null
-    const inFlight = this.activeDrain
-    if (inFlight) await inFlight
-    await this.runDrain()
-    if (this.pendingWriteCount > 0) await this.trackedWritesLanded()
+    return notBuilt('src/utils/sessionStorage/writer/queue.ts:210')
   }
 
   private trackedWritesLanded(): Promise<void> {

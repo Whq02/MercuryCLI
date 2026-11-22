@@ -15,6 +15,7 @@ import type { ToolResultBlockParam } from '../../types/wire.js'
 import { buildSubagentLookups } from '../../services/messages.js'
 import { plural } from '../../utils/stringUtils.js'
 import type { Output } from './SkillTool.js'
+import { notBuilt } from '../../pi/holes.js'
 
 
 const VISIBLE_PROGRESS_TAIL = 3
@@ -48,54 +49,12 @@ export function renderToolResultMessage(output: Output): React.ReactNode {
   )
 }
 
-function ProgressRows({
-  progressMessages,
-  tools,
-  verbose,
-}: {
+function ProgressRows(arg0: {
   progressMessages: readonly ProgressMessage<SkillToolProgress>[]
   tools: Tools
   verbose: boolean
 }): React.ReactNode {
-  const rows = progressMessages.filter(row => row.data?.message !== undefined)
-  if (rows.length === 0) {
-    return (
-      <MessageResponse height={1}>
-        <Text dimColor>Initializing skill…</Text>
-      </MessageResponse>
-    )
-  }
-  const visible = verbose ? rows : rows.slice(-VISIBLE_PROGRESS_TAIL)
-  const hidden = rows.length - visible.length
-  const { lookups } = buildSubagentLookups(rows.map(row => row.data))
-  return (
-    <SubAgentProvider>
-      <MessageResponse>
-      <Box flexDirection="column">
-        {hidden > 0 ? <Text dimColor>+{plural(hidden, 'more tool use')}</Text> : null}
-        {visible.map((row, index) => (
-          <Box key={index} height={1} overflow="hidden">
-            <MessageComponent
-              message={row.data.message}
-              tools={tools}
-              commands={[]}
-              verbose={false}
-              addMargin={false}
-              shouldAnimate={false}
-              shouldShowDot={false}
-              isTranscriptMode={false}
-              isStatic={true}
-              inProgressToolUseIDs={EMPTY_SET}
-              progressMessagesForMessage={[]}
-              lookups={lookups}
-              style="condensed"
-            />
-          </Box>
-        ))}
-      </Box>
-      </MessageResponse>
-    </SubAgentProvider>
-  )
+  return notBuilt('src/tools/SkillTool/UI.tsx:51')
 }
 
 export function renderToolUseProgressMessage(

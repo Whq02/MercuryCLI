@@ -1,4 +1,5 @@
 import { asBytes, byteRange, ESC, SEP } from './ansi.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const CSI_PREFIX = `${ESC}[`
 
@@ -41,24 +42,15 @@ const FINAL_LETTERS = {
 export const CSI = asBytes(FINAL_LETTERS)
 
 export function csi(...body: (string | number)[]): string {
-  const final = body.length > 1 ? body.pop() ?? '' : ''
-  return `${CSI_PREFIX}${body.join(SEP)}${final}`
+  return notBuilt('src/ink/termio/csi.ts:43')
 }
 
-export const ERASE_DISPLAY = ['toEnd', 'toStart', 'all', 'scrollback'] as const
-export const ERASE_LINE_REGION = ['toEnd', 'toStart', 'all'] as const
+export const ERASE_DISPLAY: Unbuilt = unbuilt('src/ink/termio/csi.ts:48')
+export const ERASE_LINE_REGION: Unbuilt = unbuilt('src/ink/termio/csi.ts:49')
 
-type CursorStyle = 'block' | 'underline' | 'bar'
+type CursorStyle = Unbuilt
 
-const CURSOR_SHAPES: readonly CursorStyle[] = ['block', 'underline', 'bar']
-
-export const CURSOR_STYLES: ReadonlyArray<{ style: CursorStyle; blinking: boolean }> = [
-  { style: 'block', blinking: true },
-  ...CURSOR_SHAPES.flatMap(style => [
-    { style, blinking: true },
-    { style, blinking: false },
-  ]),
-]
+export const CURSOR_STYLES: ReadonlyArray<{ style: CursorStyle; blinking: boolean }> = unbuilt('src/ink/termio/csi.ts:55')
 
 const counted =
   (final: string) =>
@@ -91,21 +83,19 @@ export const ERASE_SCREEN = csi(2, FINAL_LETTERS.ED)
 export const ERASE_SCROLLBACK = csi(3, FINAL_LETTERS.ED)
 
 export function eraseLines(n: number): string {
-  if (n <= 0) return ''
-  const wholeLines = Array.from({ length: n }, () => ERASE_WHOLE_LINE)
-  return wholeLines.join(cursorUp(1)) + CURSOR_COLUMN_ONE
+  return notBuilt('src/ink/termio/csi.ts:93')
 }
 
 export const setScrollRegion = (top: number, bottom: number): string =>
   csi(top, bottom, FINAL_LETTERS.DECSTBM)
 export const RESET_SCROLL_REGION = csi(FINAL_LETTERS.DECSTBM)
 
-export const PASTE_START = csi('200~')
-export const PASTE_END = csi('201~')
-export const FOCUS_IN = csi('I')
-export const FOCUS_OUT = csi('O')
+export const PASTE_START: Unbuilt = unbuilt('src/ink/termio/csi.ts:103')
+export const PASTE_END: Unbuilt = unbuilt('src/ink/termio/csi.ts:104')
+export const FOCUS_IN: Unbuilt = unbuilt('src/ink/termio/csi.ts:105')
+export const FOCUS_OUT: Unbuilt = unbuilt('src/ink/termio/csi.ts:106')
 
-export const ENABLE_KITTY_KEYBOARD = csi('>5u')
-export const DISABLE_KITTY_KEYBOARD = csi('<u')
-export const ENABLE_MODIFY_OTHER_KEYS = csi('>4;2m')
-export const DISABLE_MODIFY_OTHER_KEYS = csi('>4m')
+export const ENABLE_KITTY_KEYBOARD: Unbuilt = unbuilt('src/ink/termio/csi.ts:108')
+export const DISABLE_KITTY_KEYBOARD: Unbuilt = unbuilt('src/ink/termio/csi.ts:109')
+export const ENABLE_MODIFY_OTHER_KEYS: Unbuilt = unbuilt('src/ink/termio/csi.ts:110')
+export const DISABLE_MODIFY_OTHER_KEYS: Unbuilt = unbuilt('src/ink/termio/csi.ts:111')

@@ -5,30 +5,14 @@ import { logForDebugging } from '../../utils/debug.js'
 import type { Message } from '../../types/message.js'
 import { getEngineModel } from '../model/model.js'
 import { sideQuery } from '../api/sideQuery.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH'
+export type RiskLevel = Unbuilt
 
-export type PermissionExplanation = {
-  riskLevel: RiskLevel
-  explanation: string
-  reasoning: string
-  risk: string
-}
-
-const EXPLAIN_COMMAND_TOOL_NAME = 'explain_command'
+export type PermissionExplanation = Unbuilt
 
 export function isPermissionExplainerEnabled(): boolean {
-  const config = getGlobalConfig() as { permissionExplainerEnabled?: unknown }
-  return config.permissionExplainerEnabled !== false
-}
-
-function explanationSchema() {
-  return z.object({
-    explanation: z.string(),
-    reasoning: z.string(),
-    risk: z.string(),
-    riskLevel: z.enum(['LOW', 'MEDIUM', 'HIGH']),
-  })
+  return notBuilt('src/services/permissions/permissionExplainer.ts:20')
 }
 
 function extractConversationContext(messages: Message[]): string {
@@ -69,82 +53,5 @@ export async function generatePermissionExplanation(args: {
   messages?: Message[]
   signal: AbortSignal
 }): Promise<PermissionExplanation | null> {
-  const { toolName, toolInput, toolDescription, messages, signal } = args
-  if (!isPermissionExplainerEnabled()) return null
-
-  const systemPrompt =
-    'Look at the shell command the agent wants to run and account for it on three axes: what it does, why the caller is running it, and how it could go wrong.'
-
-  const inputText =
-    typeof toolInput === 'string'
-      ? toolInput
-      : (() => {
-          try {
-            return JSON.stringify(toolInput, null, 2)
-          } catch {
-            return String(toolInput)
-          }
-        })()
-
-  const contextSection =
-    messages && messages.length > 0 ? extractConversationContext(messages) : ''
-
-  const userPrompt = [
-    `Tool: ${toolName}`,
-    toolDescription ? `Description: ${toolDescription}` : '',
-    `Input:\n${inputText}`,
-    contextSection ? `Recent conversation context:\n${contextSection}` : '',
-    'Explain this command in context.',
-  ]
-    .filter(Boolean)
-    .join('\n\n')
-
-  const schema = explanationSchema()
-  try {
-    const response = await sideQuery({
-      model: getEngineModel(),
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-      signal,
-      querySource: 'permission_explainer',
-      tools: [
-        {
-          name: EXPLAIN_COMMAND_TOOL_NAME,
-          description: 'Reports an explanation of a shell command.',
-          input_schema: {
-            type: 'object',
-            properties: {
-              explanation: { type: 'string', description: 'What the command does, in 1-2 sentences.' },
-              reasoning: { type: 'string', description: 'Why I am running it, in the first person ("I need to …").' },
-              risk: { type: 'string', description: 'What could go wrong, under 15 words.' },
-              riskLevel: {
-                type: 'string',
-                enum: ['LOW', 'MEDIUM', 'HIGH'],
-                description: 'LOW: safe dev workflows. MEDIUM: recoverable changes. HIGH: dangerous or irreversible.',
-              },
-            },
-            required: ['explanation', 'reasoning', 'risk', 'riskLevel'],
-          },
-        },
-      ],
-      tool_choice: { type: 'tool', name: EXPLAIN_COMMAND_TOOL_NAME },
-    })
-
-    const content = (response as { content?: Array<{ type: string; input?: unknown; name?: string }> }).content
-    const toolUse = content?.find(block => block.type === 'tool_use')
-    if (!toolUse) return null
-    const parsed = schema.safeParse(toolUse.input)
-    if (!parsed.success) return null
-
-    logForDebugging(`permission explainer risk level: ${parsed.data.riskLevel}`)
-    return parsed.data
-  } catch (error) {
-    if (signal.aborted) {
-      logForDebugging('permission explainer aborted')
-      return null
-    }
-    logForDebugging(`permission explainer failed: ${error instanceof Error ? error.message : String(error)}`)
-    logError(error)
-    return null
-  }
+  return notBuilt('src/services/permissions/permissionExplainer.ts:65')
 }

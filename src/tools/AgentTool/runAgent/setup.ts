@@ -19,6 +19,7 @@ import { restrictReviewerTools } from '../reviewerPolicy.js'
 import { restrictScoutTools } from '../scoutPolicy.js'
 import { composeAgentAppState, definitionModeWithinConsent, resolveAgentPromptPosture } from '../agentPermissionPosture.js'
 import type { resolveAgentEffort, RunAgentParams } from '../runAgent.js'
+import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
 
 type PostureNeeds = Pick<RunAgentParams, 'toolUseContext' | 'agentDefinition' | 'isAsync' | 'canShowPermissionPrompts' | 'allowedTools' | 'effortOverride' | 'useExactTools'> & {
   resolveAgentEffort: typeof resolveAgentEffort
@@ -122,62 +123,11 @@ type ChildContextNeeds = Pick<RunAgentParams, 'toolUseContext' | 'thinkingConfig
   agentKind: NonNullable<RunAgentParams['agentKind']>
 }
 
-export function childContextOf({ toolUseContext, posture, thinkingConfigOverride, agentId, agentDefinition, abortController, agentGetAppState, isAsync, tools, resolvedAgentModel, mcp, isFork, querySource, readFileState, contentReplacementState, childContextRef, worktreePath, agentKind, seatHolder, description, onWait, preserveToolUseResults }: ChildContextNeeds) {
-  const parentOptions = toolUseContext.options
-  const isNonInteractiveSession = posture.isNonInteractiveSession
-
-  const thinkingOverride = { thinkingConfig: thinkingConfigOverride ?? parentOptions.thinkingConfig ?? sessionThinkingConfig() }
-
-  const childContext = createSubagentContext(toolUseContext, {
-    agentId,
-    agentType: agentDefinition.agentType,
-    abortController,
-    getAppState: agentGetAppState,
-    shareSetAppState: !isAsync,
-    shareSetResponseLength: true,
-    options: {
-      isNonInteractiveSession,
-      runDeadline: parentOptions.runDeadline,
-      ...(posture.hostHoldsAsks === true ? { hostHoldsAsks: true } : {}),
-      appendSystemPrompt: parentOptions.appendSystemPrompt,
-      tools,
-      commands: [],
-      debug: parentOptions.debug,
-      verbose: parentOptions.verbose,
-      engineModel: resolvedAgentModel,
-      ...thinkingOverride,
-      mcpClients: [...parentOptions.mcpClients, ...mcp.clients],
-      mcpResources: parentOptions.mcpResources,
-      agentDefinitions: parentOptions.agentDefinitions,
-      ...(isFork ? { querySource } : {}),
-    },
-    readFileState,
-    ...(agentDefinition.standingRule
-      ? { standingRule: agentDefinition.standingRule }
-      : {}),
-    ...(contentReplacementState ? { contentReplacementState } : {}),
-  })
-  childContextRef.current = childContext
-  if (worktreePath !== undefined) claimDiagnosticsRoot(processOwnerForLane(agentId), worktreePath)
-  childContext.agentKind = agentKind
-  childContext.seatHolder = seatHolder ?? description ?? agentDefinition.agentType
-  if (onWait !== undefined) childContext.onSeatWait = onWait
-  if (preserveToolUseResults) {
-    ;(childContext as { preserveToolResults?: boolean }).preserveToolResults =
-      true
-  }
-  return { childContext, thinkingOverride }
+export function childContextOf(arg0: ChildContextNeeds): Unbuilt {
+  return notBuilt('src/tools/AgentTool/runAgent/setup.ts:125')
 }
 
-type RecordNeeds = Pick<RunAgentParams, 'model' | 'effortOverride' | 'agentDefinition' | 'worktreePath' | 'cwd' | 'description' | 'name' | 'launchedAt' | 'structuredOutputSpec'> & {
-  latestRecord: Parameters<typeof recordAtRunStart>[0]
-  swarm: boolean
-  swarmWords: ReturnType<typeof swarmBrief> | null
-  thinkingOverride: { thinkingConfig: ThinkingConfig }
-  instructionCapture: { profile: InstructionProfile; digest: string } | undefined
-  resolvedAgentModel: string
-  resolvedEffort: ReturnType<typeof resolveAgentEffort>
-}
+type RecordNeeds = Unbuilt
 
 export function runStartRecordOf({ latestRecord, model, effortOverride, agentDefinition, swarm, worktreePath, cwd, description, name, launchedAt, swarmWords, thinkingOverride, structuredOutputSpec, instructionCapture, resolvedAgentModel, resolvedEffort }: RecordNeeds) {
   return recordAtRunStart(latestRecord, { model, effortOverride }, {

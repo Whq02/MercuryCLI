@@ -21,6 +21,7 @@ import { getSettingsFilePathForSource } from './settings.js'
 import { resetSettingsCache } from './settingsCache.js'
 import { passedOver } from '../passedOver.js'
 import { startInterval, startTimeout, stopInterval, stopTimeout } from '../timers.js'
+import { notBuilt, unbuilt } from '../../pi/holes.js'
 
 
 type TimingOverrides = {
@@ -37,15 +38,13 @@ let internalWriteWindowMs = 5000
 let mdmPollIntervalMs = 30 * 60 * 1000
 let bunPollIntervalMs = 1000
 
-let initialized = false
-let disposed = false
-let watcher: chokidar.FSWatcher | null = null
-let cleanupRegistered = false
-let mdmPollTimer: NodeJS.Timeout | null = null
-let mdmSnapshot: string | null = null
-const pendingDeletions = new Map<string, NodeJS.Timeout>()
-let knownSettingsFiles = new Map<string, SettingSource>()
-let dropInDir: string | null = null
+let initialized: boolean = unbuilt('src/utils/settings/changeDetector.ts:40')
+let disposed: boolean = unbuilt('src/utils/settings/changeDetector.ts:41')
+let watcher: chokidar.FSWatcher | null = unbuilt('src/utils/settings/changeDetector.ts:42')
+let mdmPollTimer: NodeJS.Timeout | null = unbuilt('src/utils/settings/changeDetector.ts:44')
+let mdmSnapshot: string | null = unbuilt('src/utils/settings/changeDetector.ts:45')
+const pendingDeletions: Map<string, NodeJS.Timeout> = unbuilt('src/utils/settings/changeDetector.ts:46')
+let knownSettingsFiles: Map<string, SettingSource> = unbuilt('src/utils/settings/changeDetector.ts:47')
 let watchedRoots = new Set<string>()
 let awaitedParents = new Set<string>()
 const changeSignal = createSignal<[SettingSource]>()
@@ -67,167 +66,12 @@ function normalizeEventPath(eventPath: string): string {
   return resolve(sep === '\\' ? eventPath.replace(/\//g, '\\') : eventPath)
 }
 
-function sourceForPath(eventPath: string): SettingSource | null {
-  const normalized = normalizeEventPath(eventPath)
-  const known = knownSettingsFiles.get(normalized)
-  if (known !== undefined) return known
-  if (dropInDir !== null && normalized.startsWith(dropInDir + sep) && normalized.endsWith('.json')) {
-    return 'policySettings'
-  }
-  return null
-}
-
 function fanOut(source: SettingSource): void {
-  resetSettingsCache()
-  changeSignal.emit(source)
-}
-
-function handleChange(eventPath: string): void {
-  const source = sourceForPath(eventPath)
-  if (source === null) return
-  const normalized = normalizeEventPath(eventPath)
-  const pending = pendingDeletions.get(normalized)
-  if (pending !== undefined) {
-    stopTimeout(pending)
-    pendingDeletions.delete(normalized)
-  }
-  if (consumeInternalWrite(normalized, internalWriteWindowMs)) return
-  fanOut(source)
-}
-
-function handleUnlink(eventPath: string): void {
-  const source = sourceForPath(eventPath)
-  if (source === null) return
-  const normalized = normalizeEventPath(eventPath)
-  if (pendingDeletions.has(normalized)) return
-  const graceMs = stabilityThresholdMs + pollIntervalMs + 250
-  const timer = startTimeout(() => {
-    pendingDeletions.delete(normalized)
-    fanOut(source)
-  }, graceMs)
-  timer.unref?.()
-  pendingDeletions.set(normalized, timer)
-}
-
-function startMdmPolling(): void {
-  mdmSnapshot = JSON.stringify({ mdm: getMdmSettings(), hkcu: getHkcuSettings() })
-  mdmPollTimer = startInterval(() => {
-    if (disposed) return
-    void (async () => {
-      try {
-        const fresh = await refreshMdmSettings()
-        const nextSnapshot = JSON.stringify(fresh)
-        if (nextSnapshot === mdmSnapshot) return
-        mdmSnapshot = nextSnapshot
-        setMdmSettingsCache(fresh.mdm, fresh.hkcu)
-        fanOut('policySettings')
-      } catch (error) {
-        logForDebugging(`MDM poll failed: ${String(error)}`)
-      }
-    })()
-  }, mdmPollIntervalMs)
-  mdmPollTimer.unref?.()
+  return notBuilt('src/utils/settings/changeDetector.ts:80')
 }
 
 async function initialize(): Promise<void> {
-  if (getIsRemoteMode()) return
-  if (initialized || disposed) return
-  initialized = true
-  startMdmPolling()
-  if (!cleanupRegistered) {
-    cleanupRegistered = true
-    registerCleanup(async () => {
-      await dispose()
-    })
-  }
-
-  const files = new Map<string, SettingSource>()
-  const directories = new Set<string>()
-  const awaited = new Set<string>()
-  const targets: Array<[string, SettingSource]> = []
-  for (const dir of projectWatchRoots(getCwd())) {
-    for (const root of projectConfigDirs(dir)) targets.push([join(root, 'mcp.json'), 'projectSettings'])
-  }
-  for (const source of SETTING_SOURCES) {
-    if (source === 'flagSettings') continue
-    const filePath = getSettingsFilePathForSource(source)
-    if (filePath === undefined) continue
-    targets.push([filePath, source])
-  }
-  for (const [filePath, source] of targets) {
-    const normalized = resolve(filePath)
-    files.set(normalized, source)
-    const parent = dirname(normalized)
-    try {
-      if (existsSync(parent)) directories.add(parent)
-      else if (PROJECT_SOURCES.has(source)) {
-        const projectRoot = dirname(parent)
-        if (existsSync(projectRoot)) {
-          awaited.add(normalizeEventPath(parent))
-          directories.add(projectRoot)
-        }
-      }
-    } catch (error) {
-      passedOver(error)
-    }
-  }
-  const dropIn = getManagedSettingsDropInDir()
-  try {
-    if (existsSync(dropIn)) {
-      dropInDir = resolve(dropIn)
-      directories.add(dropIn)
-    }
-  } catch {
-    dropInDir = null
-  }
-  knownSettingsFiles = files
-  awaitedParents = awaited
-  watchedRoots = new Set([...directories].map(d => normalizeEventPath(resolve(d))))
-
-  if (disposed) return
-  if (directories.size === 0) return
-
-  watcher = chokidar.watch([...directories].map(resolveWatchRoot), {
-    persistent: true,
-    ignoreInitial: true,
-    depth: 1,
-    awaitWriteFinish: { stabilityThreshold: stabilityThresholdMs, pollInterval: pollIntervalMs },
-    ignorePermissionErrors: true,
-    atomic: true,
-    ...(typeof Bun !== 'undefined' ? { usePolling: true, interval: bunPollIntervalMs } : {}),
-    ignored: ignoringSpecialFiles((candidatePath: string) => {
-      const normalized = normalizeEventPath(candidatePath)
-      if (normalized.split(sep).includes('.git')) return true
-      if (watchedRoots.has(normalized)) return false
-      if (awaitedParents.has(normalized)) return false
-      if (dropInDir !== null && normalized === dropInDir) return false
-      if (knownSettingsFiles.has(normalized)) return false
-      if (dropInDir !== null && normalized.startsWith(dropInDir + sep) && normalized.endsWith('.json')) {
-        return false
-      }
-      return true
-    }),
-  })
-  watcher.on('change', path => handleChange(path))
-  watcher.on('add', path => handleChange(path))
-  watcher.on('addDir', path => {
-    const normalized = normalizeEventPath(path)
-    if (!awaitedParents.has(normalized)) return
-    awaitedParents.delete(normalized)
-    watchedRoots.add(normalized)
-    watcher?.add(resolveWatchRoot(normalized))
-    const arrivedWith = [...knownSettingsFiles.keys()].filter(file => dirname(file) === normalized && existsSync(file))
-    if (arrivedWith.length === 0) return
-    const settleMs = stabilityThresholdMs + pollIntervalMs
-    const timer = startTimeout(() => {
-      for (const file of arrivedWith) handleChange(file)
-    }, settleMs)
-    timer.unref?.()
-  })
-  watcher.on('unlink', path => handleUnlink(path))
-  watcher.on('error', error => {
-    logError(error)
-  })
+  return notBuilt('src/utils/settings/changeDetector.ts:132')
 }
 
 function subscribe(listener: (source: SettingSource) => void): () => void {
@@ -239,39 +83,11 @@ function notifyChange(source: SettingSource): void {
 }
 
 async function dispose(): Promise<void> {
-  disposed = true
-  if (mdmPollTimer !== null) {
-    stopInterval(mdmPollTimer)
-    mdmPollTimer = null
-  }
-  for (const timer of pendingDeletions.values()) stopTimeout(timer)
-  pendingDeletions.clear()
-  mdmSnapshot = null
-  clearInternalWrites()
-  changeSignal.clear()
-  const closing = watcher?.close() ?? Promise.resolve()
-  watcher = null
-  await closing
+  return notBuilt('src/utils/settings/changeDetector.ts:241')
 }
 
 async function resetForTesting(overrides?: TimingOverrides): Promise<void> {
-  if (mdmPollTimer !== null) {
-    stopInterval(mdmPollTimer)
-    mdmPollTimer = null
-  }
-  for (const timer of pendingDeletions.values()) stopTimeout(timer)
-  pendingDeletions.clear()
-  mdmSnapshot = null
-  initialized = false
-  disposed = false
-  if (overrides?.stabilityThresholdMs !== undefined) stabilityThresholdMs = overrides.stabilityThresholdMs
-  if (overrides?.pollIntervalMs !== undefined) pollIntervalMs = overrides.pollIntervalMs
-  if (overrides?.internalWriteWindowMs !== undefined) internalWriteWindowMs = overrides.internalWriteWindowMs
-  if (overrides?.mdmPollIntervalMs !== undefined) mdmPollIntervalMs = overrides.mdmPollIntervalMs
-  if (overrides?.bunPollIntervalMs !== undefined) bunPollIntervalMs = overrides.bunPollIntervalMs
-  const closing = watcher?.close() ?? Promise.resolve()
-  watcher = null
-  await closing
+  return notBuilt('src/utils/settings/changeDetector.ts:257')
 }
 
 async function reground(): Promise<void> {

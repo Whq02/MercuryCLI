@@ -1,24 +1,14 @@
-import {
-  clearBetaHeaderLatches,
-  getSystemPromptSectionCache,
-  setSystemPromptSectionCacheEntry,
-  clearSystemPromptSectionState,
-} from '../bootstrap/state.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
-type SectionValue = string | null
+type SectionValue = Unbuilt
 
-type SystemPromptSection = {
-  name: string
-  compute: () => SectionValue | Promise<SectionValue>
-  computeKey: (() => string | null) | null
-  cacheBreaking: boolean
-}
+type SystemPromptSection = Unbuilt
 
 export function systemPromptSection(
   name: string,
   compute: () => SectionValue | Promise<SectionValue>,
 ): SystemPromptSection {
-  return { name, compute, computeKey: null, cacheBreaking: false }
+  return notBuilt('src/constants/systemPromptSections.ts:17')
 }
 
 export function keyedSystemPromptSection(
@@ -26,7 +16,7 @@ export function keyedSystemPromptSection(
   computeKey: () => string | null,
   compute: () => SectionValue | Promise<SectionValue>,
 ): SystemPromptSection {
-  return { name, compute, computeKey, cacheBreaking: false }
+  return notBuilt('src/constants/systemPromptSections.ts:24')
 }
 
 export function DANGEROUS_uncachedSystemPromptSection(
@@ -34,44 +24,19 @@ export function DANGEROUS_uncachedSystemPromptSection(
   compute: () => SectionValue | Promise<SectionValue>,
   reason: string,
 ): SystemPromptSection {
-  void reason
-  return { name, compute, computeKey: null, cacheBreaking: true }
+  return notBuilt('src/constants/systemPromptSections.ts:32')
 }
 
 export function resolveSystemPromptSections(
   sections: SystemPromptSection[],
 ): Promise<SectionValue[]> {
-  const cache = getSystemPromptSectionCache()
-  return Promise.all(
-    sections.map(async section => {
-      const key = section.computeKey ? section.computeKey() : null
-      if (!section.cacheBreaking) {
-        const cached = cache.get(section.name)
-        if (cached !== undefined) {
-          if (section.computeKey === null || cached.key === key) return cached.value
-          if (key !== null && cached.byKey?.has(key)) {
-            const kept = cached.byKey.get(key) ?? null
-            setSystemPromptSectionCacheEntry(section.name, kept, key)
-            return kept
-          }
-        }
-      }
-      const value = await section.compute()
-      setSystemPromptSectionCacheEntry(section.name, value, key)
-      return value
-    }),
-  )
+  return notBuilt('src/constants/systemPromptSections.ts:41')
 }
 
-const clearListeners = new Set<() => void>()
-
 export function onSystemPromptSectionsCleared(listener: () => void): () => void {
-  clearListeners.add(listener)
-  return () => { clearListeners.delete(listener) }
+  return notBuilt('src/constants/systemPromptSections.ts:68')
 }
 
 export function clearSystemPromptSections(): void {
-  clearSystemPromptSectionState()
-  clearBetaHeaderLatches()
-  for (const listener of clearListeners) listener()
+  return notBuilt('src/constants/systemPromptSections.ts:73')
 }

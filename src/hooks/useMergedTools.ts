@@ -1,16 +1,10 @@
-
-import { useMemo } from 'react'
 import type { ToolPermissionContext, Tools } from '../Tool.js'
-import { assembleToolPool } from '../tools.js'
-import { mergeAndFilterTools } from '../services/tools/toolPool.js'
+import { notBuilt } from '../pi/holes.js'
 
 export function useMergedTools(
   initialTools: Tools,
   mcpTools: Tools,
   toolPermissionContext: ToolPermissionContext,
 ): Tools {
-  return useMemo(() => {
-    const assembled = assembleToolPool(toolPermissionContext, mcpTools)
-    return mergeAndFilterTools(initialTools, assembled, toolPermissionContext.mode)
-  }, [initialTools, mcpTools, toolPermissionContext])
+  return notBuilt('src/hooks/useMergedTools.ts:7')
 }

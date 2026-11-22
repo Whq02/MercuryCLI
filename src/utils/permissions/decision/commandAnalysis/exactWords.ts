@@ -1,5 +1,6 @@
 import { misreadWordList, type Node, type WordListFault } from '../../../bash/parser.js'
 import type { Redirect } from './reading.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../../../pi/holes.js'
 
 export const WILDCARD_REASON = 'an unquoted wildcard expands to paths at runtime; quote it as text or spell out the paths, or approve'
 
@@ -106,101 +107,10 @@ export const SYSTEM_CALL_RE = /\bsystem\s*\(/
 
 type Reference = { value: string; unknown: boolean }
 
-function reference(node: Node, scope: Scope, insideString: boolean, operand?: Operand): Reference {
-  const nameNode = childOfKind(node, 'variable_name') ?? childOfKind(node, 'special_variable_name')
-  if (!nameNode) refuse('variable reference has no name', node.type)
-  const name = nameNode.text
-
-  if (scope.has(name)) {
-    const tracked = scope.get(name) as string
-    if (tracked.startsWith(GLOB_ITEM)) {
-      if (operand === undefined) refuse(WILDCARD_REASON, node.type)
-      operand.glob = true
-      return { value: tracked.slice(GLOB_ITEM.length), unknown: false }
-    }
-    if (!isKnown(tracked)) {
-      if (node.type === 'expansion') refuseNode(node)
-      if (insideString) return { value: tracked, unknown: true }
-      refuse(`Bash needs approval for $${name} because its value is unknown. Use its literal path or value.`, node.type)
-    }
-    if (!insideString) {
-      if (tracked === '') {
-        refuse(`$${name} is empty and the shell would drop the argument, shifting what actually runs`, node.type)
-      }
-      if (/[ \t\n*?[]/.test(tracked)) {
-        refuse(`value of $${name} would be word-split or glob-expanded into a different argv`, node.type)
-      }
-    }
-    return { value: tracked, unknown: false }
-  }
-
-  if (node.type === 'expansion') refuseNode(node)
-  if (insideString) {
-    if (SHELL_VARIABLES.has(name)) return { value: UNKNOWN_VALUE, unknown: true }
-    if (nameNode.type === 'special_variable_name' && (SPECIAL_VARIABLES.has(name) || /^[0-9]+$/.test(name))) {
-      return { value: UNKNOWN_VALUE, unknown: true }
-    }
-  }
-  refuse(`reference to variable $${name} whose value is not statically known`, node.type)
-}
-
-const ARITHMETIC_INTEGER_RE = /^(?:[0-9]+|0[xX][0-9A-Fa-f]+|[0-9]+#[0-9A-Za-z]+)$/
-const ARITHMETIC_OPERATORS_RE = /^[-+*/%^&|~!<>=?:(),]+$/
-
-function arithmetic(node: Node, scope: Scope): void {
-  for (const child of node.children) {
-    if (child.children.length === 0) {
-      const text = child.text
-      if (text === '$((' || ARITHMETIC_INTEGER_RE.test(text) || ARITHMETIC_OPERATORS_RE.test(text)) continue
-      if (child.type === 'variable_name' && integerValued(scope.get(text))) continue
-      refuse(`arithmetic expression contains a non-literal term ${JSON.stringify(text)}`, node.type)
-    }
-    switch (child.type) {
-      case 'binary_expression':
-      case 'unary_expression':
-      case 'ternary_expression':
-      case 'parenthesized_expression':
-        arithmetic(child, scope)
-        break
-      case 'simple_expansion': {
-        const name = childOfKind(child, 'variable_name')?.text
-        if (name !== undefined && integerValued(scope.get(name))) break
-        refuse(`arithmetic expression contains a non-literal term ${JSON.stringify(child.text)}`, node.type)
-      }
-      default:
-        refuseNode(child)
-    }
-  }
-}
+const ARITHMETIC_INTEGER_RE: Unbuilt = unbuilt('src/utils/permissions/decision/commandAnalysis/exactWords.ts:147')
 
 export function heredocBody(node: Node): string {
-  const delimiter = childOfKind(node, 'heredoc_start')?.text ?? ''
-  const quoted =
-    (delimiter.startsWith("'") && delimiter.endsWith("'")) ||
-    (delimiter.startsWith('"') && delimiter.endsWith('"')) ||
-    delimiter.startsWith('\\')
-  if (!quoted) refuse('heredoc with an unquoted delimiter undergoes shell expansion', node.type)
-
-  let body = ''
-  for (const child of node.children) {
-    switch (child.type) {
-      case '<<':
-      case '<<-':
-      case 'heredoc_start':
-      case 'heredoc_end':
-      case 'file_descriptor':
-        break
-      case 'heredoc_body':
-        for (const bodyChild of child.children) {
-          if (bodyChild.type !== 'heredoc_content') refuseNode(bodyChild)
-        }
-        body = child.text
-        break
-      default:
-        refuseNode(child)
-    }
-  }
-  return body
+  return notBuilt('src/utils/permissions/decision/commandAnalysis/exactWords.ts:176')
 }
 
 export function substitutionStatements(node: Node): Node[] {
@@ -256,214 +166,18 @@ export abstract class WordWalk {
   }
 
   quoted(node: Node, scope: Scope, operand?: Operand): Quoted {
-    let value = ''
-    let sawLiteral = false
-    let sawUnknown = false
-    let cursor: number | null = null
-
-    const children = node.children
-    for (let i = 0; i < children.length; i++) {
-      const child = children[i] as Node
-      if (cursor !== null && child.startIndex > cursor) {
-        value += unescapeQuoted(node.text.slice(cursor - node.startIndex, child.startIndex - node.startIndex))
-        sawLiteral = true
-      }
-      if (child.type === '"') {
-        if (i > 0 && child.text.length > 1) {
-          value += child.text.slice(0, -1)
-          sawLiteral = true
-        }
-        cursor = child.endIndex
-        continue
-      }
-
-      switch (child.type) {
-        case 'string_content':
-          value += unescapeQuoted(child.text)
-          sawLiteral = true
-          break
-        case '$':
-          value += '$'
-          sawLiteral = true
-          break
-        case 'command_substitution': {
-          const heredoc = this.heredocPrinting(child)
-          if (heredoc !== null) {
-            value += heredoc
-            sawLiteral = true
-          } else {
-            this.substitution(child, scope)
-            value += UNKNOWN_SUBSTITUTION
-            sawUnknown = true
-          }
-          break
-        }
-        case 'expansion':
-          if (PIPELINE_STATUS_EXPANSION.test(child.text)) {
-            value += UNKNOWN_VALUE
-            sawUnknown = true
-            break
-          }
-          if (!plainExpansion(child)) refuseNode(child)
-        case 'simple_expansion': {
-          const resolved = reference(child, scope, true, operand)
-          value += resolved.value
-          if (resolved.unknown) sawUnknown = true
-          else sawLiteral = true
-          break
-        }
-        case 'arithmetic_expansion':
-          arithmetic(child, scope)
-          value += UNKNOWN_VALUE
-          sawUnknown = true
-          break
-        default:
-          refuseNode(child)
-      }
-      cursor = child.endIndex
-    }
-
-    if (sawUnknown && !sawLiteral) {
-      refuse('Bash needs approval for this variable-only argument because its value is unknown. Use its literal path or value.', node.type)
-    }
-    if (!sawLiteral && !sawUnknown && node.text.length > 2) {
-      refuse('whitespace-only quoted string cannot be analyzed faithfully', node.type)
-    }
-    return { value, sawLiteral, sawUnknown }
+    return notBuilt('src/utils/permissions/decision/commandAnalysis/exactWords.ts:258')
   }
 
   argument(node: Node | null | undefined, scope: Scope, operand?: Operand): string {
-    if (!node) refuse('missing argument node')
-    switch (node.type) {
-      case 'word':
-        refuseBraceExpansion(node)
-        if (unquotedWildcard(node.text)) {
-          if (operand === undefined) refuse(WILDCARD_REASON, node.type)
-          operand.glob = true
-        }
-        return unescapeWord(node.text)
-      case 'number':
-        if (node.children.length > 0) {
-          const child = node.children[0] as Node
-          refuse(`number carries an embedded expansion (${child.type})`, child.type)
-        }
-        return node.text
-      case 'raw_string':
-        return node.text.slice(1, -1)
-      case 'string':
-        return this.quoted(node, scope, operand).value
-      case 'concatenation': {
-        refuseBraceExpansion(node)
-        let value = ''
-        for (const child of node.children) value += this.argument(child, scope, operand)
-        return value
-      }
-      case 'arithmetic_expansion':
-        arithmetic(node, scope)
-        return UNKNOWN_VALUE
-      case 'expansion':
-        if (!plainExpansion(node)) refuseNode(node)
-        return reference(node, scope, false, operand).value
-      case 'simple_expansion':
-        return reference(node, scope, false, operand).value
-      default:
-        refuseNode(node)
-    }
+    return notBuilt('src/utils/permissions/decision/commandAnalysis/exactWords.ts:335')
   }
 
   redirect(node: Node, scope: Scope): Redirect {
-    let fd: number | undefined
-    let op: Redirect['op'] | undefined
-    let target: string | undefined
-
-    for (const child of node.children) {
-      if (child.type === 'file_descriptor') {
-        fd = Number.parseInt(child.text, 10)
-        continue
-      }
-      if (op === undefined && REDIRECT_OPERATORS.has(child.type)) {
-        op = child.type as Redirect['op']
-        continue
-      }
-      if (target !== undefined) refuse('a redirect is followed by additional words whose argument position is ambiguous; move arguments before the redirect, or approve', node.type)
-      switch (child.type) {
-        case 'word':
-        case 'number':
-          if (child.children.length > 0) refuseNode(child.children[0] as Node)
-          if (/[*?\[\]~]/.test(child.text)) refuse('the redirect target contains an unquoted path expansion; spell out the path, or approve', node.type)
-          refuseBraceExpansion(child)
-          target = unescapeWord(child.text)
-          break
-        case 'raw_string':
-          target = child.text.slice(1, -1)
-          break
-        case 'string':
-          target = this.quoted(child, scope).value
-          break
-        case 'concatenation':
-          target = this.argument(child, scope)
-          break
-        default:
-          refuseNode(child)
-      }
-    }
-
-    if (op === undefined || target === undefined) refuse('unrecognised redirect shape', node.type)
-    return fd === undefined ? { op, target } : { op, target, fd }
+    return notBuilt('src/utils/permissions/decision/commandAnalysis/exactWords.ts:374')
   }
 
   assignment(node: Node, scope: Scope): Assignment {
-    let name: string | undefined
-    let append = false
-    let value = ''
-
-    for (const child of node.children) {
-      switch (child.type) {
-        case 'variable_name':
-          name = child.text
-          break
-        case '=':
-          break
-        case '+=':
-          append = true
-          break
-        case 'command_substitution':
-          this.substitution(child, scope)
-          value = UNKNOWN_SUBSTITUTION
-          break
-        case 'arithmetic_expansion':
-          arithmetic(child, scope)
-          value = UNKNOWN_INTEGER
-          break
-        case 'expansion':
-          if (!plainExpansion(child)) refuseNode(child)
-        case 'simple_expansion':
-          value = reference(child, scope, true).value
-          break
-        default:
-          value = this.argument(child, scope)
-          break
-      }
-    }
-
-    if (name === undefined) refuse('variable assignment has no name', node.type)
-    if (!IDENTIFIER_RE.test(name)) {
-      refuse(`assignment name ${JSON.stringify(name)} is not a valid shell identifier`, node.type)
-    }
-    if (LOOKUP_VARIABLE.test(name)) {
-      refuse(`assignment to ${name} changes shell lookup, path expansion or startup code; run without that assignment, or approve`, node.type)
-    }
-    if (name === 'IFS') refuse('assignment to IFS cannot be analyzed safely', node.type)
-    if (name === 'PS4') {
-      if (append) refuse('appending to PS4 cannot be analyzed safely', node.type)
-      if (!isKnown(value)) refuse('PS4 value derived at runtime cannot be analyzed safely', node.type)
-      if (!PS4_SAFE_RE.test(value.replace(PS4_REFERENCE_RE, ''))) {
-        refuse('PS4 value contains characters outside the safe trace-prefix set', node.type)
-      }
-    }
-    if (value.includes('~')) {
-      refuse('assignment value contains ~, which the shell may expand at assignment time', node.type)
-    }
-    return { name, value, append }
+    return notBuilt('src/utils/permissions/decision/commandAnalysis/exactWords.ts:415')
   }
 }

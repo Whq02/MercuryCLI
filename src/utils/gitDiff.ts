@@ -5,37 +5,14 @@ import { execFileNoThrow, execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { getDefaultBranch, getIsGit, gitExe } from './git.js'
 import { resolveGitDir } from './git/gitFilesystem.js'
 import { getErrnoCode, isENOENT } from './errors.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
-const GIT_TIMEOUT_MS = 5000
-const MAX_FILES_DETAILED = 50
-const MAX_FILE_DIFF_BYTES = 1024 * 1024
-const MAX_LINES_PER_FILE = 400
-const MAX_CHANGED_FILES_FOR_DETAIL = 500
+const GIT_TIMEOUT_MS: Unbuilt = unbuilt('src/utils/gitDiff.ts:10')
 
-export type GitDiffStats = {
-  filesCount: number
-  linesAdded: number
-  linesRemoved: number
-}
+export type GitDiffStats = Unbuilt
 
-type PerFileStats = {
-  added: number
-  removed: number
-  isBinary: boolean
-  isUntracked?: boolean
-}
-
-export type GitDiffResult = {
-  stats: GitDiffStats
-  perFileStats: Map<string, PerFileStats>
-  hunks: Map<string, StructuredPatchHunk[]>
-}
-
-type NumstatResult = {
-  stats: GitDiffStats
-  perFileStats: Map<string, PerFileStats>
-}
+export type GitDiffResult = Unbuilt
 
 export type GitDiffSpec = {
   args: string[]
@@ -56,106 +33,15 @@ async function pathExistsAny(path: string): Promise<boolean> {
 }
 
 async function isTransientState(): Promise<boolean> {
-  const gitDir = await resolveGitDir()
-  if (!gitDir) return false
-  const markers = ['MERGE_HEAD', 'REBASE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD']
-  const present = await Promise.all(markers.map(marker => pathExistsAny(join(gitDir, marker))))
-  return present.some(Boolean)
+  return notBuilt('src/utils/gitDiff.ts:58')
 }
 
 async function isTransientStateIn(cwd: string): Promise<boolean> {
-  const result = await execFileNoThrowWithCwd(gitExe(), ['rev-parse', '--git-dir'], { cwd, preserveOutputOnError: false })
-  if (result.code !== 0) return false
-  const { isAbsolute } = await import('node:path')
-  const answer = result.stdout.trim()
-  const gitDir = isAbsolute(answer) ? answer : join(cwd, answer)
-  const markers = ['MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'rebase-merge', 'rebase-apply']
-  const present = await Promise.all(markers.map(marker => pathExistsAny(join(gitDir, marker))))
-  return present.some(Boolean)
-}
-
-
-function parseGitNumstat(stdout: string): NumstatResult {
-  const perFileStats = new Map<string, PerFileStats>()
-  let filesCount = 0
-  let linesAdded = 0
-  let linesRemoved = 0
-  for (const line of stdout.split('\n')) {
-    if (line.trim() === '') continue
-    const parts = line.split('\t')
-    if (parts.length < 3) continue
-    const addedRaw = parts[0] as string
-    const removedRaw = parts[1] as string
-    const path = parts.slice(2).join('\t')
-    const isBinary = addedRaw === '-' || removedRaw === '-'
-    const added = isBinary ? 0 : parseInt(addedRaw, 10) || 0
-    const removed = isBinary ? 0 : parseInt(removedRaw, 10) || 0
-    filesCount++
-    linesAdded += added
-    linesRemoved += removed
-    if (perFileStats.size < MAX_FILES_DETAILED) {
-      perFileStats.set(path, { added, removed, isBinary })
-    }
-  }
-  return { stats: { filesCount, linesAdded, linesRemoved }, perFileStats }
+  return notBuilt('src/utils/gitDiff.ts:66')
 }
 
 function parseGitDiff(stdout: string): Map<string, StructuredPatchHunk[]> {
-  const result = new Map<string, StructuredPatchHunk[]>()
-  const segments = stdout.split(/^diff --git /m).slice(1)
-  let files = 0
-  for (const segment of segments) {
-    if (files >= MAX_FILES_DETAILED) break
-    if (segment.length > MAX_FILE_DIFF_BYTES) continue
-    const lines = segment.split('\n')
-    const header = /^a\/(.+?) b\/(.+)$/.exec(lines[0] as string)
-    if (!header) continue
-    files++
-    const path = header[2] as string
-    const hunks: StructuredPatchHunk[] = []
-    let open: StructuredPatchHunk | null = null
-    let storedLines = 0
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i] as string
-      const hunkHeader = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(line)
-      if (hunkHeader) {
-        if (open) hunks.push(open)
-        const oldLines = hunkHeader[2] === undefined ? 1 : Number(hunkHeader[2])
-        const newLines = hunkHeader[4] === undefined ? 1 : Number(hunkHeader[4])
-        open = {
-          oldStart: Number(hunkHeader[1]) + (oldLines === 0 ? 1 : 0),
-          oldLines,
-          newStart: Number(hunkHeader[3]) + (newLines === 0 ? 1 : 0),
-          newLines,
-          lines: [],
-        }
-        continue
-      }
-      if (
-        line.startsWith('index ') ||
-        line.startsWith('--- ') ||
-        line.startsWith('+++ ') ||
-        line.startsWith('new file mode') ||
-        line.startsWith('deleted file mode') ||
-        line.startsWith('old mode') ||
-        line.startsWith('new mode') ||
-        line.startsWith('Binary files')
-      ) {
-        continue
-      }
-      if (!open) continue
-      if (line === '' && i === lines.length - 1) continue
-      if (line.startsWith('+') || line.startsWith('-') || line.startsWith(' ') || line === '') {
-        if (storedLines < MAX_LINES_PER_FILE) {
-          open.lines.push((' ' + line).slice(1))
-          storedLines++
-        }
-      }
-    }
-    if (open) hunks.push(open)
-    if (hunks.length > 0) result.set(path, hunks)
-  }
-  return result
+  return notBuilt('src/utils/gitDiff.ts:103')
 }
 
 function parseShortstat(stdout: string): GitDiffStats | null {
@@ -179,39 +65,11 @@ async function listUntracked(cwd?: string): Promise<string[] | null> {
 }
 
 async function fetchDiffCore(spec: GitDiffSpec, checkRepository: boolean): Promise<GitDiffResult | null> {
-  if (checkRepository && !(await getIsGit())) return null
-  if (spec.cwd ? await isTransientStateIn(spec.cwd) : await isTransientState()) return null
-  const run = (args: string[]) =>
-    spec.cwd
-      ? execFileNoThrowWithCwd(gitExe(), args, { cwd: spec.cwd, timeout: GIT_TIMEOUT_MS, preserveOutputOnError: false })
-      : execFileNoThrow(gitExe(), args, { timeout: GIT_TIMEOUT_MS, preserveOutputOnError: false })
-
-  const shortstat = await run(['diff', '--shortstat', ...spec.args])
-  const quick = shortstat.code === 0 ? parseShortstat(shortstat.stdout) : null
-  if (spec.cwd !== undefined && quick === null && shortstat.code !== 0) return null
-  if (quick && quick.filesCount > MAX_CHANGED_FILES_FOR_DETAIL) {
-    return { stats: quick, perFileStats: new Map(), hunks: new Map() }
-  }
-  const numstat = await run(['diff', '--numstat', ...spec.args])
-  if (numstat.code !== 0) return null
-  const parsed = parseGitNumstat(numstat.stdout)
-  const wantUntracked = spec.cwd === undefined ? true : Boolean(spec.includeUntracked)
-  if (wantUntracked && parsed.perFileStats.size < MAX_FILES_DETAILED) {
-    const untracked = await listUntracked(spec.cwd)
-    if (untracked) {
-      const room = MAX_FILES_DETAILED - parsed.perFileStats.size
-      const added = untracked.slice(0, room)
-      for (const path of added) {
-        parsed.perFileStats.set(path, { added: 0, removed: 0, isBinary: false, isUntracked: true })
-      }
-      parsed.stats.filesCount += added.length
-    }
-  }
-  return { stats: parsed.stats, perFileStats: parsed.perFileStats, hunks: new Map() }
+  return notBuilt('src/utils/gitDiff.ts:181')
 }
 
 export async function fetchGitDiff(): Promise<GitDiffResult | null> {
-  return fetchDiffCore({ args: ['HEAD'] }, true)
+  return notBuilt('src/utils/gitDiff.ts:213')
 }
 
 export async function fetchGitDiffFor(spec: GitDiffSpec): Promise<GitDiffResult | null> {

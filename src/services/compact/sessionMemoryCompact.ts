@@ -33,19 +33,12 @@ import {
 import type { ToolUseContext } from '../../Tool.js'
 import { estimateContextTokens, estimateMessageTokens } from './microCompact.js'
 import { getCompactUserSummaryMessage } from './prompt.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-type SessionMemoryCompactConfig = {
-  minTokensToPreserve: number
-  minTextBlockMessages: number
-  maxTokensToPreserve: number
-}
+type SessionMemoryCompactConfig = Unbuilt
 
-const DEFAULT_SM_COMPACT_CONFIG: SessionMemoryCompactConfig = {
-  minTokensToPreserve: 10_000,
-  minTextBlockMessages: 5,
-  maxTokensToPreserve: 40_000,
-}
+const DEFAULT_SM_COMPACT_CONFIG: SessionMemoryCompactConfig = unbuilt('src/services/compact/sessionMemoryCompact.ts:44')
 
 let config: SessionMemoryCompactConfig = { ...DEFAULT_SM_COMPACT_CONFIG }
 
@@ -129,128 +122,13 @@ function adjustIndexToPreserveAPIInvariants(messages: Message[], startIndex: num
   return index
 }
 
-function calculateMessagesToKeepIndex(messages: Message[], lastSummarizedIndex: number): number {
-  if (messages.length === 0) return 0
-  let start = lastSummarizedIndex >= 0 ? lastSummarizedIndex + 1 : messages.length
-
-  let tokens = 0
-  let textMessages = 0
-  for (let i = start; i < messages.length; i++) {
-    tokens += estimateMessageTokens([messages[i] as Message])
-    if (hasTextBlocks(messages[i] as Message)) textMessages++
-  }
-
-  const meetsMax = () => tokens >= config.maxTokensToPreserve
-  const meetsMins = () =>
-    tokens >= config.minTokensToPreserve && textMessages >= config.minTextBlockMessages
-
-  const boundaryIndex = findLastCompactBoundaryIndex(messages)
-  const floor = boundaryIndex >= 0 ? boundaryIndex + 1 : 0
-
-  if (!meetsMax() && !meetsMins()) {
-    while (start > floor) {
-      start--
-      const message = messages[start] as Message
-      tokens += estimateMessageTokens([message])
-      if (hasTextBlocks(message)) textMessages++
-      if (meetsMax() || meetsMins()) break
-    }
-  }
-
-  return adjustIndexToPreserveAPIInvariants(messages, start)
-}
-
 
 export async function trySessionMemoryCompaction(
   messages: Message[],
   agentId?: string,
   autoCompactThreshold?: number,
   rosterContext?: Pick<ToolUseContext, 'getAppState' | 'agentId' | 'options'>,
-  trigger: 'auto' | 'manual' = 'auto',
+  trigger?: 'auto' | 'manual',
 ): Promise<CompactionResult | null> {
-  try {
-    if (!shouldUseSessionMemoryCompaction()) return null
-    const memory = await getSessionMemoryContent()
-    if (memory === null) return null
-    if (await isSessionMemoryEmpty(memory)) return null
-
-    const lastSummarizedId = getLastSummarizedMessageId()
-    let lastSummarizedIndex: number
-    if (lastSummarizedId !== undefined) {
-      lastSummarizedIndex = messages.findIndex(message => message.uuid === lastSummarizedId)
-      if (lastSummarizedIndex === -1) return null
-    } else {
-      lastSummarizedIndex = messages.length - 1
-    }
-
-    await waitForSessionMemoryExtraction()
-
-    const keepIndex = calculateMessagesToKeepIndex(messages, lastSummarizedIndex)
-    const kept = messages.slice(keepIndex).filter(message => !isCompactBoundaryMessage(message))
-
-    const preTokens = tokenCountFromLastAPIResponse(messages)
-    const lastMessage = messages[messages.length - 1]
-    const boundary = createCompactBoundaryMessage(trigger, preTokens, lastMessage?.uuid)
-    const discovered = extractDiscoveredToolNames(messages)
-    if (discovered.size > 0) {
-      boundary.compactMetadata.preCompactDiscoveredTools = [...discovered].sort()
-    }
-
-    const { truncatedContent, wasTruncated } = truncateSessionMemoryForCompact(memory)
-    let summaryText = getCompactUserSummaryMessage(truncatedContent, true, getTranscriptPath(), true)
-    if (wasTruncated) {
-      summaryText += `\n\nThe session memory was truncated for compaction; the full text is on disk at ${getSessionMemoryPath()}.`
-    }
-    const summaryMessage = createUserMessage({
-      content: summaryText,
-      isCompactSummary: true,
-      isVisibleInTranscriptOnly: true,
-    })
-
-    const attachments = []
-    if (rosterContext !== undefined) {
-      attachments.push(...(await createAsyncAgentAttachmentsIfNeeded(rosterContext as ToolUseContext)))
-    }
-
-    annotateBoundaryWithPreservedSegment(boundary, summaryMessage.uuid, kept)
-    annotateBoundaryWithWork(boundary, messages, kept, summaryMessage.uuid)
-
-    const summaryEstimate = estimateContextTokens([summaryMessage])
-    const landed = estimateContextTokens([boundary, summaryMessage, ...kept, ...attachments])
-    if (autoCompactThreshold !== undefined && landed >= autoCompactThreshold) return null
-    const after = await fireHooks(
-      'compaction.after',
-      { method: 'notes', trigger, tokens_before: preTokens, tokens_after: landed },
-      { scope: { sessionId: String(getSessionId()), ...(rosterContext?.agentId !== undefined ? { crewmateId: rosterContext.agentId } : {}) } },
-    )
-    const hookResults: Message[] = hookRowsOfResult(after).map(row => createAttachmentMessage(row))
-    for (const words of after.answer.contexts) hookResults.push(createUserMessage({ content: words, isMeta: true }))
-    const result: CompactionResult = {
-      boundaryMarker: boundary,
-      summaryMessages: [summaryMessage],
-      messagesToKeep: kept,
-      attachments,
-      hookResults,
-      preCompactTokenCount: preTokens,
-      postCompactTokenCount: summaryEstimate,
-      truePostCompactTokenCount: summaryEstimate,
-      compactionUsage: undefined,
-    }
-
-    const estimate = estimateContextTokens(buildPostCompactMessages(result))
-    if (autoCompactThreshold !== undefined && estimate >= autoCompactThreshold) {
-      return null
-    }
-    result.postCompactTokenCount = estimate
-    result.truePostCompactTokenCount = estimate
-    if (trigger === 'manual') {
-      const sizes = foldSizes(messages, rosterContext?.options.engineModel, preTokens, estimateContextTokens)
-      if (estimate >= sizes.before) return null
-      if (preTokens > 0) result.truePostCompactTokenCount = sizes.after(estimate).tokens
-    }
-    return result
-  } catch (err) {
-    logForDebugging(`sessionMemoryCompact: attempt failed: ${String(err)}`)
-    return null
-  }
+  return notBuilt('src/services/compact/sessionMemoryCompact.ts:164')
 }

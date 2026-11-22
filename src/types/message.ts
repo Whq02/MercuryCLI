@@ -1,4 +1,3 @@
-
 import type { ContentBlock, ApiMessage, ApiStreamEvent, ToolUseBlock, ContentBlockParam } from './wire.js'
 import type { APIError } from '../utils/api/sdkErrors.js'
 import type { OverflowSignal } from '../services/api/overflowSignal.js'
@@ -15,742 +14,138 @@ import type {
 } from '../tools/shared/gitOperationTracking.js'
 import type { Progress } from '../Tool.js'
 import type { Attachment } from '../services/attachments.js'
+import { unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
 export type SystemMessageLevel =
-  | 'info'
-  | 'warn'
-  | 'warning'
-  | 'error'
-  | 'suggestion'
+  Unbuilt
 
-export const ASSISTANT_MESSAGE_ERRORS = [
-  'authentication_failed',
-  'billing_error',
-  'rate_limit',
-  'invalid_request',
-  'server_error',
-  'unknown',
-  'max_output_tokens',
-] as const
-export type AssistantMessageError = (typeof ASSISTANT_MESSAGE_ERRORS)[number]
+export const ASSISTANT_MESSAGE_ERRORS: Unbuilt = unbuilt('src/types/message.ts:27')
+export type AssistantMessageError = Unbuilt
 
-export type FailoverCause = 'overloaded' | 'unreachable' | 'sign-in' | 'unknown-model'
+export type FailoverCause = Unbuilt
 
-export type RefusedToolCall = {
-  id: string
-  name: string
-  argumentsRaw: string
-  argumentsLength?: number
-  code: 'unknown-tool' | 'missing-id' | 'invalid-json' | 'not-an-object' | 'schema' | 'duplicate-id' | 'provider-malformed'
-  reason: string
-  offered?: string[]
-}
+export type RefusedToolCall = Unbuilt
 
-export type PartialCompactDirection = 'from' | 'up_to'
+export type PartialCompactDirection = Unbuilt
 
 export type MessageOrigin =
-  | { kind: 'human' }
-  | { kind: 'task-notification' }
-  | { kind: 'build-behind' }
-  | { kind: 'coordinator' }
-  | { kind: 'channel'; server: string }
-  | SaturnOrigin
-  | AdvisorOrigin
-  | ScreenCommandOrigin
-  | import('../utils/messages/outsideReport.js').OutsideReportOrigin
+  Unbuilt
 
-export type CompactMetadata = {
-  trigger: 'manual' | 'auto' | 'overflow'
-  preTokens: number
-  postTokens?: number
-  postEstimate?: { model: string; tokens: number }
-  overflow?: OverflowSignal
-  userContext?: string
-  messagesSummarized?: number
-  ledger?: import('../services/compact/foldLedger.js').FoldLedger
-  memory?: import('../services/compact/foldRetirement.js').FoldMemoryEnvelope
-  cacheEpoch?: import('../services/compact/cacheEpoch.js').FoldCacheEpoch
-  recentRounds?: { requested: number; kept: number; tokens: number; reason: string; folded?: number }
-  requestGauge?: Pick<import('../services/run/requestGauge.js').RequestGaugeAnchor, 'key' | 'epoch' | 'fixed' | 'density'>
-  preservedSegment?: {
-    headUuid: UUID
-    anchorUuid: UUID
-    tailUuid: UUID
-  }
-  preCompactDiscoveredTools?: string[]
-  work?: {
-    receipts: Array<{
-      beforeUuid: string
-      blockIndex?: number
-      anchorUuid: string
-      counts: import('../utils/cockpit/turnReceipt.js').TurnReceiptCounts
-    }>
-    recap: {
-      turns: number
-      toolCounts: Array<[string, number]>
-      files: string[]
-      toolFailures: number
-      failedToolUseIds: string[]
-    }
-  }
-}
+export type CompactMetadata = Unbuilt
+
+export type AssistantMessage = Unbuilt
+
+export type ReplyMark = Unbuilt
 
 
-
-type AssistantAPIMessage = Omit<
-  ApiMessage,
-  'diagnostics' | 'stop_details'
-> &
-  Partial<Pick<ApiMessage, 'diagnostics' | 'stop_details'>>
-
-export type AssistantMessage = {
-  type: 'assistant'
-  uuid: UUID
-  timestamp: string
-  message: AssistantAPIMessage
-  contextGauge?: import('../services/run/requestGauge.js').RequestGaugeAnchor
-  foldLanding?: { boundaryId: string; usage: import('../services/compact/cacheEpoch.js').FoldCacheUsage; fixedPrefix?: { previous: string | null; current: string; unchanged: boolean; bytes: number } }
-  requestId: string | undefined
-  error?: AssistantMessageError
-  errorDetails?: string
-  failover?: FailoverCause
-  providerWaitEndsAtMs?: number
-  overflowSignal?: OverflowSignal
-  mediaRefusal?: MediaRefusal
-  apiError?: 'max_output_tokens'
-  isApiErrorMessage?: boolean
-  isMeta?: boolean
-  isVirtual?: true
-  retracted?: true
-  research?: unknown
-  refusedToolCalls?: RefusedToolCall[]
-  reasoningOnly?: boolean
-  geminiProviderTurn?: {
-    model: string
-    parts: unknown[]
-    calls: Array<{ id: string; name: string; nativeId?: string }>
-    projection: string
-    refused?: Array<{ id: string; reason: string }>
-  }
-  kimiProviderTurn?: { model: string; endpoint: string; projection: string; assistant: unknown }
-  xaiProviderTurn?: { model: string; items: unknown[]; responseId?: string }
-  zenProviderTurn?: { model: string; items: unknown[]; responseId?: string }
-  compatProviderTurn?: { endpoint: string; model: string; items: unknown[]; responseId?: string }
-  openrouterProviderTurn?: {
-    model: string
-    items: unknown[]
-    responseId?: string
-  }
-  apexProviderTurn?: {
-    provider: 'openai'
-    responseId?: string
-    items: unknown[]
-    contractDigest?: string
-    providerUsage?: {
-      inputTokensTotal: number
-      cachedInputTokens: number
-      outputTokens: number
-      cacheWriteInputTokens?: number
-      reasoningOutputTokens?: number
-      anomaly?: 'cached-exceeds-total'
-    }
-  }
-  streamEnd?: StreamEndV1
-  busyRecovery?: BusyRecoveryV1
-  busyRefusal?: BusyRefusalV1
-  effortAdjusted?: EffortAdjustedV1
-  effort?: EffortStampV1
-  thinkingPrefix?: string
-  outputLimit?: number
-  inReplyTo?: ReplyMark[]
-}
-
-export type ReplyMark = { uuid: string; at: string }
+export type UserMessage = Unbuilt
 
 
-export type UserMessage = {
-  type: 'user'
-  uuid: UUID
-  timestamp: string
-  message: {
-    role: 'user'
-    content: string | ContentBlockParam[]
-  }
-  isMeta?: true
-  isVisibleInTranscriptOnly?: true
-  isVirtual?: true
-  queued?: true
-  heldFor?: 'compaction'
-  batchUuids?: string[]
-  isCompactSummary?: true
-  summarizeMetadata?: {
-    messagesSummarized: number
-    userContext?: string
-    direction?: PartialCompactDirection
-    contextReclaimedPct?: number
-    tokensBefore?: number
-    tokensAfter?: number
-    keptMessages?: number
-  }
-  toolUseResult?: unknown
-  mcpMeta?: {
-    _meta?: Record<string, unknown>
-    structuredContent?: Record<string, unknown>
-  }
-  imagePasteIds?: number[]
-  sourceToolAssistantUUID?: UUID
-  sourceToolUseID?: string
-  permissionMode?: import('./permissions.js').PermissionMode
-  replyEffort?: EffortLevel
-  origin?: MessageOrigin
-}
+export type ProgressMessage<P extends Progress = Progress> = Unbuilt
 
 
-export type ProgressMessage<P extends Progress = Progress> = {
-  type: 'progress'
-  uuid: UUID
-  timestamp: string
-  data: P
-  toolUseID: string
-  parentToolUseID: string
-}
+export type AttachmentMessage<A extends Attachment = Attachment> = Unbuilt
+
+export type HookResultMessage = Unbuilt
 
 
-export type AttachmentMessage<A extends Attachment = Attachment> = {
-  type: 'attachment'
-  uuid: UUID
-  timestamp: string
-  attachment: A
-  queued?: true
-  heldFor?: 'compaction'
-}
+export type SystemInformationalMessage = Unbuilt
 
-export type HookResultMessage = AttachmentMessage | ProgressMessage | SystemInformationalMessage
+export type SystemSeatReceiptMessage = Unbuilt
 
+export type SystemRosterTransitionMessage = Unbuilt
 
-export type SystemInformationalMessage = {
-  type: 'system'
-  subtype: 'informational'
-  content: string
-  level: SystemMessageLevel
-  isMeta?: boolean
-  uuid: UUID
-  timestamp: string
-  toolUseID?: string
-  preventContinuation?: boolean
-}
+export type SystemAdvisorQuietMessage = Unbuilt
 
-export type SystemSeatReceiptMessage = {
-  type: 'system'
-  subtype: 'seat_receipt'
-  content: string
-  level: SystemMessageLevel
-  copyText?: string
-  isMeta?: boolean
-  uuid: UUID
-  timestamp: string
-}
+export type SystemStreamCutMessage = Unbuilt
 
-export type SystemRosterTransitionMessage = {
-  type: 'system'
-  subtype: 'roster_transition'
-  toggle: 'subagents' | 'workflows'
-  on: boolean
-  content: string
-  level: SystemMessageLevel
-  isMeta?: boolean
-  uuid: UUID
-  timestamp: string
-}
+export type BusyRefusalV1 = Unbuilt
 
-export type SystemAdvisorQuietMessage = {
-  type: 'system'
-  subtype: 'advisor_quiet'
-  content: string
-  origin: AdvisorOrigin
-  level: SystemMessageLevel
-  isMeta?: boolean
-  uuid: UUID
-  timestamp: string
-}
+export type SystemBusyRecoveryMessage = Unbuilt
 
-export type SystemStreamCutMessage = {
-  type: 'system'
-  subtype: 'stream_cut'
-  content: string
-  count: number
-  road?: string
-  sent?: string
-  code?: string
-  level: SystemMessageLevel
-  isMeta?: boolean
-  uuid: UUID
-  timestamp: string
-}
+export type SystemThinkingNoteMessage = Unbuilt
 
-type BusyRecoveryV1 = {
-  provider: string
-  retries: number
-  elapsedMs: number
-  status?: number
-  code?: string
-  detail: string
-}
+export type DeadThinkingMark = Unbuilt
 
-export type BusyRefusalV1 = {
-  provider: string
-  retries: number
-  elapsedMs: number
-  status?: number
-  code?: string
-}
+export type SystemThinkingDeadMessage = Unbuilt
 
-export type SystemBusyRecoveryMessage = {
-  type: 'system'
-  subtype: 'busy_recovery'
-  content: string
-  provider: string
-  retries: number
-  elapsedMs: number
-  status?: number
-  code?: string
-  level: SystemMessageLevel
-  isMeta?: boolean
-  uuid: UUID
-  timestamp: string
-}
+export type BoundPrefixToolMark = Unbuilt
 
-export type SystemThinkingNoteMessage = {
-  type: 'system'
-  subtype: 'thinking_note'
-  content: string
-  level: SystemMessageLevel
-  isMeta?: boolean
-  uuid: UUID
-  timestamp: string
-}
+export type BoundPrefixSection = Unbuilt
 
-export type DeadThinkingMark = {
-  messageId: string
-  blockIndex: number
-}
-
-export type SystemThinkingDeadMessage = {
-  type: 'system'
-  subtype: 'thinking_dead'
-  dead: DeadThinkingMark[]
-  content: string
-  level: SystemMessageLevel
-  isMeta?: boolean
-  uuid: UUID
-  timestamp: string
-}
-
-export type BoundPrefixToolMark = {
-  name: string
-  deferred: boolean
-  definition?: string
-}
-
-export type BoundPrefixSection = {
-  name: string
-  key: string | null
-  value: string | null
-}
-
-type SystemBridgeStatusMessage = {
-  type: 'system'
-  subtype: 'bridge_status'
-  content: string
-  url: string
-  upgradeNudge?: string
-  isMeta?: boolean
-  uuid: UUID
-  timestamp: string
-}
-
-export type SystemScheduledTaskFireMessage = {
-  type: 'system'
-  subtype: 'scheduled_task_fire'
-  content: string
-  isMeta?: boolean
-  uuid: UUID
-  timestamp: string
-}
+export type SystemScheduledTaskFireMessage = Unbuilt
 
 
-export type SystemTurnDurationMessage = {
-  type: 'system'
-  subtype: 'turn_duration'
-  durationMs: number
-  budgetTokens?: number
-  budgetLimit?: number
-  budgetNudges?: number
-  messageCount?: number
-  uuid: UUID
-  timestamp: string
-  isMeta?: boolean
-}
+export type SystemTurnDurationMessage = Unbuilt
 
-export type SystemModelTransitionMessage = {
-  type: 'system'
-  subtype: 'model_transition'
-  previous: string | null
-  requested: string | null
-  applied: string | null
-  resolution: 'applied' | 'cancelled-pending'
-  boundary: 'idle' | 'turn-boundary'
-  crossProvider: boolean
-  cacheDisposition: string
-  uuid: UUID
-  timestamp: string
-  isMeta?: boolean
-}
+export type SystemModelTransitionMessage = Unbuilt
 
-export type AwayRecapMetadata = {
-  endedOnError?: boolean
-  turns?: number
-  filesTouched?: number
-  toolFailures?: number
-  topTools?: string
-  lastActiveGapMs?: number
-  branch?: string
-  dirtyCount?: number
-  dirtyDelta?: string
-  certVerdict?: string
-  certAgeMs?: number
-  launchWon?: LaunchWonV1
-}
+export type AwayRecapMetadata = Unbuilt
 
-export type LaunchWonV1 = {
-  model?: { launch: string; session: string }
-  effort?: { launch: string; session: string }
-}
+export type LaunchWonV1 = Unbuilt
 
-export type SystemAwaySummaryMessage = {
-  type: 'system'
-  subtype: 'away_summary'
-  content: string
-  recapMetadata?: AwayRecapMetadata
-  uuid: UUID
-  timestamp: string
-  isMeta?: boolean
-}
+export type SystemAwaySummaryMessage = Unbuilt
 
-export type SystemMemorySavedMessage = {
-  type: 'system'
-  subtype: 'memory_saved'
-  writtenPaths: string[]
-  uuid: UUID
-  timestamp: string
-  isMeta?: boolean
-  verb?: string
-}
+export type SystemMemorySavedMessage = Unbuilt
 
-export type SystemAgentsKilledMessage = {
-  type: 'system'
-  subtype: 'agents_killed'
-  uuid: UUID
-  timestamp: string
-  isMeta?: boolean
-}
+export type SystemAgentsKilledMessage = Unbuilt
 
-export type SystemApiMetricsMessage = {
-  type: 'system'
-  subtype: 'api_metrics'
-  ttftMs: number
-  otps: number
-  isP50?: boolean
-  hookDurationMs?: number
-  turnDurationMs?: number
-  toolDurationMs?: number
-  toolCount?: number
-  hookCount?: number
-  configWriteCount?: number
-  uuid: UUID
-  timestamp: string
-  isMeta?: boolean
-}
+export type SystemApiMetricsMessage = Unbuilt
 
-export type SystemCloseUsageMessage = {
-  type: 'system'
-  subtype: 'close_usage'
-  closeState: 'stored' | 'skipped' | 'none'
-  noteChars?: number
-  usage?: import('../utils/api/emptyUsage.js').NonNullableUsage
-  spent?: import('../utils/ledgerMark.js').LedgerMark
-  uuid: UUID
-  timestamp: string
-  isMeta?: boolean
-}
+export type SystemCloseUsageMessage = Unbuilt
 
-export type SystemLocalCommandMessage = {
-  type: 'system'
-  subtype: 'local_command'
-  content: string
-  level: SystemMessageLevel
-  uuid: UUID
-  timestamp: string
-  isMeta?: boolean
-}
+export type SystemLocalCommandMessage = Unbuilt
 
-export type CrewChatKind = 'ask' | 'answer' | 'blocker' | 'result' | 'correction' | 'notice'
-export type CrewChatRole = 'peer' | 'lead' | 'owner' | 'system'
-export type CrewChatChannel = { kind: 'general' } | { kind: 'team' | 'whisper'; target: string }
-export type CrewChatLifecycle = { kind: 'launched' | 'joined' | 'done' } | { kind: 'parked'; event: string }
+export type CrewChatKind = Unbuilt
+export type CrewChatRole = Unbuilt
+export type CrewChatChannel = Unbuilt
+export type CrewChatLifecycle = Unbuilt
 
-export type SystemCrewChatMessage = {
-  type: 'system'
-  subtype: 'crew_chat'
-  content: string
-  level: SystemMessageLevel
-  uuid: UUID
-  timestamp: string
-  isMeta?: boolean
-  seq: number
-  name: string
-  slot?: number
-  team?: string
-  captain?: true
-  authorRole: CrewChatRole
-  kind: CrewChatKind
-  mentions: string[]
-  addresses: string[]
-  channel?: CrewChatChannel
-  lifecycle?: CrewChatLifecycle
-  turnId?: string
-}
+export type SystemCrewChatMessage = Unbuilt
 
-export type SystemCompactBoundaryMessage = {
-  type: 'system'
-  subtype: 'compact_boundary'
-  content: string
-  isMeta?: boolean
-  uuid: UUID
-  timestamp: string
-  level: SystemMessageLevel
-  compactMetadata: CompactMetadata
-  logicalParentUuid?: UUID
-}
+export type SystemCompactBoundaryMessage = Unbuilt
 
-export type SystemMicrocompactBoundaryMessage = {
-  type: 'system'
-  subtype: 'microcompact_boundary'
-  content: string
-  isMeta?: boolean
-  uuid: UUID
-  timestamp: string
-  level: SystemMessageLevel
-  microcompactMetadata: {
-    trigger: 'auto'
-    preTokens: number
-    tokensSaved: number
-    compactedToolIds: string[]
-    clearedAttachmentUUIDs: string[]
-  }
-}
+export type SystemMicrocompactBoundaryMessage = Unbuilt
 
-export type SystemAPIErrorMessage = {
-  type: 'system'
-  subtype: 'api_error'
-  level: SystemMessageLevel
-  cause: Error | undefined
-  error: APIError | Error
-  errorDetail?: {
-    name: string
-    message: string
-    status?: number
-    code?: string
-    transport?: {
-      code?: string
-      errno?: number
-      syscall?: string
-      via: 'cause-chain' | 'recent-failure'
-      ageMs?: number
-    }
-  }
-  retryInMs: number
-  recoveryTimeoutMs?: number
-  retryAttempt: number
-  maxRetries: number
-  uuid: UUID
-  timestamp: string
-}
-
-type SystemFileSnapshotMessage = {
-  type: 'system'
-  subtype: 'file_snapshot'
-  content: string
-  level: SystemMessageLevel
-  isMeta?: boolean
-  uuid: UUID
-  timestamp: string
-  snapshotFiles: Array<{
-    key: string
-    path: string
-    content: string
-  }>
-}
-
-type SystemThinkingMessage = {
-  type: 'system'
-  subtype: 'thinking'
-  content: string
-  level: SystemMessageLevel
-  isMeta?: boolean
-  uuid: UUID
-  timestamp: string
-}
+export type SystemAPIErrorMessage = Unbuilt
 
 export type SystemMessage =
-  | SystemInformationalMessage
-  | SystemSeatReceiptMessage
-  | SystemRosterTransitionMessage
-  | SystemAdvisorQuietMessage
-  | SystemStreamCutMessage
-  | SystemBusyRecoveryMessage
-  | SystemThinkingNoteMessage
-  | SystemThinkingDeadMessage
-  | SystemBridgeStatusMessage
-  | SystemScheduledTaskFireMessage
-  | SystemTurnDurationMessage
-  | SystemModelTransitionMessage
-  | SystemAwaySummaryMessage
-  | SystemMemorySavedMessage
-  | SystemAgentsKilledMessage
-  | SystemApiMetricsMessage
-  | SystemCloseUsageMessage
-  | SystemLocalCommandMessage
-  | SystemCrewChatMessage
-  | SystemCompactBoundaryMessage
-  | SystemMicrocompactBoundaryMessage
-  | SystemAPIErrorMessage
-  | SystemFileSnapshotMessage
-  | SystemThinkingMessage
+  Unbuilt
 
 
 export type Message =
-  | AssistantMessage
-  | UserMessage
-  | ProgressMessage
-  | AttachmentMessage
-  | SystemMessage
+  Unbuilt
 
 
 export type NormalizedAssistantMessage<
   C extends ContentBlock = ContentBlock,
-> = Omit<AssistantMessage, 'message'> & {
-  message: Omit<AssistantAPIMessage, 'content'> & {
-    content: [C]
-    context_management: ApiMessage['context_management']
-  }
-}
+> = Unbuilt
 
-export type NormalizedUserMessage = Omit<UserMessage, 'message'> & {
-  sourceUuid?: string
-  message: {
-    role: 'user'
-    content: ContentBlockParam[]
-  }
-}
+export type NormalizedUserMessage = Unbuilt
 
 export type NormalizedMessage =
-  | NormalizedAssistantMessage
-  | NormalizedUserMessage
-  | ProgressMessage
-  | AttachmentMessage
-  | SystemMessage
+  Unbuilt
 
 
-export type GroupedToolUseMessage = {
-  type: 'grouped_tool_use'
-  toolName: string
-  messages: NormalizedAssistantMessage<ToolUseBlock>[]
-  results: NormalizedUserMessage[]
-  displayMessage: NormalizedAssistantMessage<ToolUseBlock>
-  uuid: string
-  timestamp: string
-  messageId: string
-}
+export type GroupedToolUseMessage = Unbuilt
 
-export type CollapsedReadSearchGroup = {
-  type: 'collapsed_read_search'
-  searchCount: number
-  readCount: number
-  listCount: number
-  memorySearchCount: number
-  memoryReadCount: number
-  memoryWriteCount: number
-  readFilePaths: string[]
-  searchArgs: string[]
-  latestDisplayHint: string | undefined
-  messages: CollapsibleMessage[]
-  displayMessage: CollapsibleMessage
-  uuid: UUID
-  timestamp: string
-  mcpCallCount?: number
-  mcpServerNames?: string[]
-  bashCount?: number
-  gitOpBashCount?: number
-  commits?: { sha: string; kind: CommitKind }[]
-  pushes?: { branch: string }[]
-  branches?: { ref: string; action: BranchAction }[]
-  prs?: { number: number; url?: string; action: PrAction }[]
-  relevantMemories?: { path: string; content: string; mtimeMs: number }[]
-}
+export type CollapsedReadSearchGroup = Unbuilt
 
 export type CollapsibleMessage =
-  | NormalizedAssistantMessage
-  | NormalizedUserMessage
-  | GroupedToolUseMessage
+  Unbuilt
 
-export type TurnReceiptMessage = {
-  type: 'turn_receipt'
-  uuid: string
-  counts: {
-    scratchpadEdits: number
-    fileEdits: number
-    adds: number
-    dels: number
-    reads: number
-    searches: number
-    fetches: number
-    commands: number
-    browser: number
-    agents: number
-    delegatedTokens: number
-    delegatedCostUSD: number
-    delegatedUnpriced: number
-    tools: Record<string, number>
-  }
-  contextDelta?: number
-}
+export type TurnReceiptMessage = Unbuilt
 
 export type RenderableMessage =
-  | NormalizedAssistantMessage
-  | NormalizedUserMessage
-  | AttachmentMessage
-  | SystemMessage
-  | GroupedToolUseMessage
-  | CollapsedReadSearchGroup
-  | TurnReceiptMessage
+  Unbuilt
 
 
-export type StreamEvent = {
-  type: 'stream_event'
-  event: ApiStreamEvent
-  ttftMs?: number
-}
+export type StreamEvent = Unbuilt
 
-export type RequestStartEvent = {
-  type: 'stream_request_start'
-}
+export type RequestStartEvent = Unbuilt
 
-export type TombstoneMessage = {
-  type: 'tombstone'
-  message: AssistantMessage
-}
+export type TombstoneMessage = Unbuilt
 
 export interface ModelTransitionReceipt {
   previous: string | null

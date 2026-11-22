@@ -1,34 +1,23 @@
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-export type TerminalFocusState = 'focused' | 'blurred' | 'unknown'
-
-let state: TerminalFocusState = 'unknown'
-const subscribers = new Set<() => void>()
-
-function notify(): void {
-  for (const cb of subscribers) cb()
-}
+export type TerminalFocusState = Unbuilt
 
 export function setTerminalFocused(v: boolean): void {
-  state = v ? 'focused' : 'blurred'
-  notify()
+  return notBuilt('src/ink/session/focus-store.ts:11')
 }
 
 export function getTerminalFocused(): boolean {
-  return state !== 'blurred'
+  return notBuilt('src/ink/session/focus-store.ts:16')
 }
 
 export function getTerminalFocusState(): TerminalFocusState {
-  return state
+  return notBuilt('src/ink/session/focus-store.ts:20')
 }
 
 export function subscribeTerminalFocus(cb: () => void): () => void {
-  subscribers.add(cb)
-  return () => {
-    subscribers.delete(cb)
-  }
+  return notBuilt('src/ink/session/focus-store.ts:24')
 }
 
 export function resetTerminalFocusState(): void {
-  state = 'unknown'
-  notify()
+  return notBuilt('src/ink/session/focus-store.ts:31')
 }

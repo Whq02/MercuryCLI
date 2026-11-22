@@ -1,12 +1,5 @@
-
 import type { SearchOrReadClassification } from '../../Tool.js'
-
-function normalizeToolName(toolName: string): string {
-  return toolName
-    .replace(/([a-z])([A-Z])/g, '$1_$2')
-    .replace(/-/g, '_')
-    .toLowerCase()
-}
+import { notBuilt } from '../../pi/holes.js'
 
 const SEARCH_TOOL_NAMES: ReadonlySet<string> = new Set([
   'asana_search_tasks', 'asana_typeahead_search', 'brave_local_search', 'brave_web_search',
@@ -142,9 +135,5 @@ export function classifyMcpToolForCollapse(
   _serverName: string,
   toolName: string,
 ): SearchOrReadClassification {
-  const normalized = normalizeToolName(toolName)
-  return {
-    isSearch: SEARCH_TOOL_NAMES.has(normalized),
-    isRead: READ_TOOL_NAMES.has(normalized),
-  }
+  return notBuilt('src/tools/MCPTool/classifyForCollapse.ts:141')
 }

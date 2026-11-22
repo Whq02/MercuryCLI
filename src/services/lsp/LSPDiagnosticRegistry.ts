@@ -7,17 +7,12 @@ import { LRUCache } from 'lru-cache'
 import { logForDebugging } from '../../utils/debug.js'
 import type { Diagnostic, DiagnosticFile } from '../../utils/diagnosticTracking.js'
 import { MAIN_LANE, parseOwnerKey, type OwnerKey } from '../../utils/run/ownerKey.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 type Lane = OwnerKey | null
 
-type PendingLSPDiagnostic = {
-  serverName: string
-  files: DiagnosticFile[]
-  timestamp: number
-  attachmentSent: boolean
-  owner: Lane
-}
+type PendingLSPDiagnostic = Unbuilt
 
 type PublishListener = (event: { serverName: string; files: DiagnosticFile[] }) => void
 
@@ -234,77 +229,12 @@ function diagnosticKey(diagnostic: Diagnostic): string {
   ])
 }
 
-function severityRank(severity: string | undefined): number {
-  switch (severity) {
-    case 'Error':
-      return 1
-    case 'Warning':
-      return 2
-    case 'Info':
-      return 3
-    case 'Hint':
-      return 4
-    default:
-      return 4
-  }
-}
-
-export function registerPendingLSPDiagnostic({
-  serverName,
-  files: published,
-  version,
-}: {
+export function registerPendingLSPDiagnostic(arg0: {
   serverName: string
   files: DiagnosticFile[]
   version?: number
 }): void {
-  const files = published.filter(file => !staleAgainstWriteBaseline(serverName, file.uri, version))
-  if (files.length < published.length) logForDebugging(`LSP diagnostics: ${serverName} published document version ${version} for a file written since — no data until it publishes the written version`)
-  if (files.length === 0) return
-  const byLane = new Map<string, { owner: Lane; files: DiagnosticFile[] }>()
-  let sunk = 0
-  for (const file of files) {
-    const lane = laneForFile(plainPathKey(file.uri))
-    if (lane === 'sunk') {
-      sunk++
-      continue
-    }
-    const group = byLane.get(laneKey(lane))
-    if (group === undefined) byLane.set(laneKey(lane), { owner: lane, files: [file] })
-    else group.files.push(file)
-  }
-  if (sunk > 0) logForDebugging(`LSP diagnostics: ${serverName} published for ${sunk} file${sunk === 1 ? '' : 's'} of a handed-back worktree — dropped`)
-  if (byLane.size > 0) {
-    const uris = new Set(files.map(file => file.uri))
-    for (const [pendingId, entry] of pending) {
-      if (entry.attachmentSent || entry.serverName !== serverName) continue
-      const kept = entry.files.filter(file => !uris.has(file.uri))
-      if (kept.length === entry.files.length) continue
-      if (kept.length === 0) pending.delete(pendingId)
-      else entry.files = kept
-    }
-    for (const { owner, files: laneFiles } of byLane.values()) {
-      const id = randomUUID()
-      pending.set(id, { serverName, files: laneFiles, timestamp: Date.now(), attachmentSent: false, owner })
-      const count = laneFiles.reduce((total, file) => total + file.diagnostics.length, 0)
-      logForDebugging(`LSP diagnostics: registered ${count} from ${serverName} (${id}${owner === null ? '' : `, lane ${owner}`})`)
-    }
-    let evicted = 0
-    while (pending.size > MAX_PENDING_PUBLISHES) {
-      const oldest = pending.keys().next().value
-      if (oldest === undefined) break
-      pending.delete(oldest)
-      evicted++
-    }
-    if (evicted > 0) logForDebugging(`LSP diagnostics: pending table full — dropped ${evicted} oldest publish${evicted === 1 ? '' : 'es'}`)
-  }
-  for (const listener of publishListeners) {
-    try {
-      listener({ serverName, files })
-    } catch (err) {
-      logForDebugging(`LSP diagnostics: publish listener threw: ${String(err)}`)
-    }
-  }
+  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:252')
 }
 
 export function subscribeLSPDiagnosticPublish(cb: PublishListener): () => void {
@@ -513,88 +443,21 @@ function recordDelivered(files: DiagnosticFile[], lane: Lane): void {
 }
 
 export function checkForLSPDiagnostics(owner?: OwnerKey): Array<{ serverName: string; files: DiagnosticFile[] }> {
-  const lane = laneOf(owner)
-  const gatheredIds: string[] = []
-  const gatheredFiles: DiagnosticFile[] = []
-  const serverNames = new Set<string>()
-  for (const [id, entry] of pending) {
-    if (entry.attachmentSent || entry.owner !== lane) continue
-    gatheredIds.push(id)
-    gatheredFiles.push(...entry.files.map(file => introducedSinceWrite(entry.serverName, file)))
-    serverNames.add(entry.serverName)
-  }
-  if (gatheredFiles.length === 0) return []
-
-  const before = gatheredFiles.reduce((total, file) => total + file.diagnostics.length, 0)
-  let deduped: DiagnosticFile[]
-  try {
-    deduped = dedupe(gatheredFiles, lane)
-  } catch (err) {
-    logForDebugging(`LSP diagnostics: dedup failed, delivering undeduplicated: ${String(err)}`)
-    deduped = gatheredFiles
-  }
-  for (const id of gatheredIds) {
-    const entry = pending.get(id)
-    if (entry !== undefined) entry.attachmentSent = true
-    pending.delete(id)
-  }
-  const afterDedup = deduped.reduce((total, file) => total + file.diagnostics.length, 0)
-  if (afterDedup < before) {
-    logForDebugging(`LSP diagnostics: dedup removed ${before - afterDedup}`)
-  }
-
-  let remaining = MAX_TOTAL
-  let truncated = 0
-  const capped: DiagnosticFile[] = []
-  for (const file of deduped) {
-    const sorted = [...file.diagnostics].sort(
-      (a, b) => severityRank(a.severity) - severityRank(b.severity),
-    )
-    const perFile = sorted.slice(0, Math.min(MAX_PER_FILE, remaining))
-    truncated += sorted.length - perFile.length
-    remaining -= perFile.length
-    if (perFile.length > 0) capped.push({ ...file, diagnostics: perFile })
-  }
-  if (truncated > 0) {
-    logForDebugging(
-      `LSP diagnostics: truncated ${truncated} (caps: ${MAX_PER_FILE} per file, ${MAX_TOTAL} total)`,
-    )
-  }
-  recordDelivered(capped, lane)
-  if (capped.length === 0) {
-    logForDebugging('LSP diagnostics: nothing survives dedup/capping')
-    return []
-  }
-  return [{ serverName: [...serverNames].join(', '), files: capped }]
+  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:515')
 }
 
 export function clearDeliveredDiagnosticsForFile(fileUriOrPath: string): void {
-  const plain = foldDriveCase(fileUriOrPath.startsWith('file://') ? fileUriOrPath.slice('file://'.length) : fileUriOrPath)
-  for (const key of [plain, `file://${plain}`]) {
-    if (delivered.has(key)) {
-      delivered.delete(key)
-      logForDebugging(`LSP diagnostics: cleared delivered set for ${key}`)
-    }
-  }
+  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:571')
 }
 
 export function clearAllLSPDiagnostics(): void {
-  logForDebugging(`LSP diagnostics: clearing ${pending.size} pending entries`)
-  pending.clear()
+  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:581')
 }
 
 export function resetAllLSPDiagnosticState(): void {
-  logForDebugging(`LSP diagnostics: reset (${pending.size} pending, ${delivered.size} tracked files)`)
-  pending.clear()
-  delivered.clear()
-  lastReports.clear()
-  writeBaselines.clear()
-  writers.clear()
-  roots.clear()
-  ended.clear()
-  awaitingWrites.clear()
+  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:586')
 }
 
 export function getPendingLSPDiagnosticCount(): number {
-  return pending.size
+  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:598')
 }

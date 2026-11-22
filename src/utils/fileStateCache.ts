@@ -1,101 +1,80 @@
-import { normalize } from 'node:path'
-
 import { LRUCache } from 'lru-cache'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
-import { isRemotePath } from './remoteFiles/target.js'
+export type FileState = Unbuilt
 
-export type FileState = {
-  content: string
-  timestamp: number
-  offset: number | undefined
-  limit: number | undefined
-  isPartialView?: boolean
-  sqliteRowIdentity?: string
-}
+export const READ_FILE_STATE_CACHE_SIZE: Unbuilt = unbuilt('src/utils/fileStateCache.ts:16')
 
-export const READ_FILE_STATE_CACHE_SIZE = 100
-const DEFAULT_MAX_SIZE_BYTES = 25 * 1024 * 1024
-
-type Snapshot = Array<[string, LRUCache.Entry<FileState>]>
-
-const weightOf = ({ content }: FileState): number => Math.max(1, Buffer.byteLength(content))
-
-const keyOf = (path: string): string => (isRemotePath(path) ? path : normalize(path))
-
-const boundedStore = (max: number, maxSize: number): LRUCache<string, FileState> =>
-  new LRUCache<string, FileState>({ max, maxSize, sizeCalculation: weightOf })
+type Snapshot = Unbuilt[]
 
 export class FileStateCache {
   private readonly store: LRUCache<string, FileState>
 
   constructor(maxEntries: number, maxSizeBytes: number) {
-    this.store = boundedStore(maxEntries, maxSizeBytes)
+    notBuilt('src/utils/fileStateCache.ts:31')
   }
 
   get max(): number {
-    return this.store.max
+    return notBuilt('src/utils/fileStateCache.ts:35')
   }
 
   get maxSize(): number {
-    return this.store.maxSize
+    return notBuilt('src/utils/fileStateCache.ts:39')
   }
 
   get size(): number {
-    return this.store.size
+    return notBuilt('src/utils/fileStateCache.ts:43')
   }
 
   get calculatedSize(): number {
-    return this.store.calculatedSize
+    return notBuilt('src/utils/fileStateCache.ts:47')
   }
 
   get(path: string): FileState | undefined {
-    return this.store.get(keyOf(path))
+    return notBuilt('src/utils/fileStateCache.ts:51')
   }
 
   set(path: string, state: FileState): this {
-    this.store.set(keyOf(path), state)
-    return this
+    return notBuilt('src/utils/fileStateCache.ts:55')
   }
 
   has(path: string): boolean {
-    return this.store.has(keyOf(path))
+    return notBuilt('src/utils/fileStateCache.ts:60')
   }
 
   delete(path: string): boolean {
-    return this.store.delete(keyOf(path))
+    return notBuilt('src/utils/fileStateCache.ts:64')
   }
 
   clear(): void {
-    this.store.clear()
+    return notBuilt('src/utils/fileStateCache.ts:68')
   }
 
   keys(): IterableIterator<string> {
-    return this.store.keys()
+    return notBuilt('src/utils/fileStateCache.ts:72')
   }
 
   entries(): IterableIterator<[string, FileState]> {
-    return this.store.entries()
+    return notBuilt('src/utils/fileStateCache.ts:76')
   }
 
   dump(): Snapshot {
-    return this.store.dump()
+    return notBuilt('src/utils/fileStateCache.ts:80')
   }
 
   load(entries: Snapshot): void {
-    this.store.load(entries)
+    return notBuilt('src/utils/fileStateCache.ts:84')
   }
 }
 
-export function createFileStateCacheWithSizeLimit(maxEntries: number, maxSizeBytes: number = DEFAULT_MAX_SIZE_BYTES): FileStateCache {
-  return new FileStateCache(maxEntries, maxSizeBytes)
+export function createFileStateCacheWithSizeLimit(maxEntries: number, maxSizeBytes?: number): FileStateCache {
+  return notBuilt('src/utils/fileStateCache.ts:89')
 }
 
 export function cacheKeys(cache: FileStateCache): string[] {
-  return Array.from(cache.keys())
+  return notBuilt('src/utils/fileStateCache.ts:93')
 }
 
 export function cloneFileStateCache(cache: FileStateCache): FileStateCache {
-  const clone = createFileStateCacheWithSizeLimit(cache.max, cache.maxSize)
-  clone.load(cache.dump())
-  return clone
+  return notBuilt('src/utils/fileStateCache.ts:97')
 }

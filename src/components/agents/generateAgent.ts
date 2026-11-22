@@ -1,4 +1,3 @@
-
 import { routedCallModelSettled } from '../../services/providers/callModelRouter.js'
 import { getEmptyToolPermissionContext } from '../../Tool.js'
 import { AGENT_TOOL_NAME } from '../../constants/tools/agent.js'
@@ -10,12 +9,9 @@ import {
   normalizeMessagesForAPI,
 } from '../../services/messages.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-type GeneratedAgent = {
-  identifier: string
-  whenToUse: string
-  systemPrompt: string
-}
+type GeneratedAgent = Unbuilt
 
 function draftingSystemPrompt(): string[] {
   const sections = [
@@ -91,62 +87,5 @@ export async function generateAgent(
   existingIdentifiers: string[],
   abortSignal: AbortSignal,
 ): Promise<GeneratedAgent> {
-  let request = `Design an agent configuration for this request:\n\n${userPrompt}`
-  if (existingIdentifiers.length > 0) {
-    request += `\n\nThese identifiers are already taken and must not be reused: ${existingIdentifiers.join(', ')}`
-  }
-  request += '\n\nReturn the JSON object only.'
-
-  const userContext = await getUserContext()
-  const messages = prependUserContext(
-    [createUserMessage({ content: request })],
-    userContext,
-  )
-
-  const response = await routedCallModelSettled({
-    messages: normalizeMessagesForAPI(messages),
-    systemPrompt: asSystemPrompt(draftingSystemPrompt()),
-    thinkingConfig: { type: 'disabled' },
-    tools: [],
-    signal: abortSignal,
-    options: {
-      getToolPermissionContext: async () => getEmptyToolPermissionContext(),
-      model,
-      isNonInteractiveSession: false,
-      querySource: 'agent_creation',
-      agents: [],
-      hasAppendSystemPrompt: false,
-      mcpTools: [],
-    },
-  })
-
-  const text = response.message.content
-    .filter(block => block.type === 'text')
-    .map(block => (block as { text: string }).text)
-    .join('\n')
-    .trim()
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(text)
-  } catch {
-    const first = text.indexOf('{')
-    const last = text.lastIndexOf('}')
-    if (first === -1 || last === -1 || last <= first) {
-      throw new Error('No JSON object found in the model response')
-    }
-    parsed = JSON.parse(text.slice(first, last + 1))
-  }
-
-  const record = parsed as Partial<GeneratedAgent>
-  if (!record.identifier || !record.whenToUse || !record.systemPrompt) {
-    throw new Error(
-      'The generated agent configuration is missing identifier, whenToUse or systemPrompt',
-    )
-  }
-  return {
-    identifier: record.identifier,
-    whenToUse: record.whenToUse,
-    systemPrompt: record.systemPrompt,
-  }
+  return notBuilt('src/components/agents/generateAgent.ts:88')
 }

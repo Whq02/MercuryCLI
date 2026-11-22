@@ -1,75 +1,15 @@
-
 import React, { useCallback } from 'react'
 import { Box, Text } from '../ink.js'
 import { Select } from './CustomSelect/index.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
+import { notBuilt } from '../pi/holes.js'
 
-export function ApproveApiKey({
-  customApiKeyTruncated,
-  onDone,
-}: {
+export function ApproveApiKey(arg0: {
   customApiKeyTruncated: string
   onDone: (approved: boolean) => void
 }): React.ReactNode {
-  const tokens = useMercuryTokens()
-
-  const decide = useCallback(
-    (approved: boolean) => {
-      saveGlobalConfig(current => {
-        const responses = current.customApiKeyResponses ?? {
-          approved: [],
-          rejected: [],
-        }
-        const list = approved
-          ? (responses.approved ?? [])
-          : (responses.rejected ?? [])
-        if (list.includes(customApiKeyTruncated)) return current
-        return {
-          ...current,
-          customApiKeyResponses: {
-            approved: approved
-              ? [...(responses.approved ?? []), customApiKeyTruncated]
-              : (responses.approved ?? []),
-            rejected: approved
-              ? (responses.rejected ?? [])
-              : [...(responses.rejected ?? []), customApiKeyTruncated],
-          },
-        }
-      })
-      onDone(approved)
-    },
-    [customApiKeyTruncated, onDone],
-  )
-  void getGlobalConfig
-
-  return (
-    <Box
-      flexDirection="column"
-      borderStyle="round"
-      borderColor={tokens.warning}
-      paddingX={1}
-      gap={1}
-    >
-      <Text bold color={tokens.warning}>
-        An Anthropic API key is set in your environment
-      </Text>
-      <Text>
-        ANTHROPIC_API_KEY: <Text bold>sk-ant-…{customApiKeyTruncated}</Text>
-      </Text>
-      <Text>Use this key for Anthropic usage-based billing?</Text>
-      <Select
-        options={[
-          { label: 'Yes, use it', value: 'yes' },
-          { label: 'No, ignore it', value: 'no' },
-        ]}
-        defaultValue="no"
-        defaultFocusValue="no"
-        onChange={value => decide(value === 'yes')}
-        onCancel={() => decide(false)}
-      />
-    </Box>
-  )
+  return notBuilt('src/components/ApproveApiKey.tsx:8')
 }
 
 export default ApproveApiKey

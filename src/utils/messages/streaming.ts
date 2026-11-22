@@ -2,6 +2,7 @@ import type { ToolUseBlock } from '../../types/wire.js'
 import type { SpinnerMode } from '../../types/spinner.js'
 import type { Message, RequestStartEvent, StreamEvent, TombstoneMessage } from '../../types/message.js'
 import { fluxCount, fluxMark } from '../flux/fluxProbe.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export type StreamingThinking = { thinking: string; isStreaming: boolean; streamingEndedAt?: number }
 export type StreamingToolUseUpdateOpts = { silent?: boolean; flushSilent?: boolean }
@@ -82,29 +83,5 @@ export function handleMessageFromStream(
   onApiMetrics?: (metrics: { ttftMs: number }) => void,
   onStreamingText?: UpdateText,
 ): void {
-  switch (message.type) {
-    case 'tombstone': onTombstone?.(message.message); return
-    case 'stream_request_start': onSetStreamMode('requesting'); return
-    case 'stream_event': break
-    default: publishSettled(message, onMessage, onStreamingText, onStreamingThinking); return
-  }
-  const event = message.event
-  switch (event.type) {
-    case 'content_block_delta': publishDelta(event, onUpdateLength, onStreamingToolUses, onStreamingText); return
-    case 'content_block_stop': onStreamingToolUses(keepTools, { flushSilent: true }); return
-    case 'content_block_start': {
-      onStreamingText?.(clearText)
-      const block = event.content_block
-      const mode = Object.hasOwn(openingModes, block.type) ? openingModes[block.type] : undefined
-      if (mode) onSetStreamMode(mode)
-      if (block.type === 'tool_use') {
-        const index = event.index
-        onStreamingToolUses(current => [...current, { index, contentBlock: block, unparsedToolInput: '' }])
-      }
-      return
-    }
-    case 'message_stop': onSetStreamMode('tool-use'); onStreamingToolUses(clearTools); return
-    case 'message_start': if (message.ttftMs != null) onApiMetrics?.({ ttftMs: message.ttftMs })
-  }
-  onSetStreamMode('responding')
+  return notBuilt('src/utils/messages/streaming.ts:74')
 }

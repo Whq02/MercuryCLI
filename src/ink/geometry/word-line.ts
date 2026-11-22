@@ -2,6 +2,7 @@ import type { Screen } from '../cell-grid.js'
 import { CellWidth, cellAt } from '../cell-grid.js'
 import { clamp } from '../layout/geometry.js'
 import { comparePoints, type Point, type SelectionState } from './selection-model.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const WORD_CHAR = /[\p{L}\p{N}_/.\-+~\\]/u
 
@@ -37,20 +38,7 @@ export function wordBoundsAt(
   col: number,
   row: number,
 ): { lo: number; hi: number } | null {
-  if (row < 0 || row >= screen.height) return null
-  const origin = col > 0 && cellAt(screen, col, row)?.width === CellWidth.SpacerTail ? col - 1 : col
-  if (origin < 0 || origin >= screen.width || screen.noSelect[row * screen.width + origin] === 1) return null
-  const cell = cellAt(screen, origin, row)
-  if (!cell) return null
-  const kind = charClass(cell.char)
-  return { lo: runEdge(screen, row, origin, -1, kind), hi: runEdge(screen, row, origin, 1, kind) }
-}
-
-function beginSpan(s: SelectionState, lo: Point, hi: Point, kind: 'word' | 'line'): void {
-  s.anchor = lo
-  s.focus = hi
-  s.isDragging = true
-  s.anchorSpan = { lo, hi, kind }
+  return notBuilt('src/ink/geometry/word-line.ts:35')
 }
 
 export function selectWordAt(
@@ -59,13 +47,11 @@ export function selectWordAt(
   col: number,
   row: number,
 ): void {
-  const bounds = wordBoundsAt(screen, col, row)
-  if (bounds) beginSpan(s, { col: bounds.lo, row }, { col: bounds.hi, row }, 'word')
+  return notBuilt('src/ink/geometry/word-line.ts:56')
 }
 
 export function selectLineAt(s: SelectionState, screen: Screen, row: number): void {
-  if (row < 0 || row >= screen.height) return
-  beginSpan(s, { col: 0, row }, { col: screen.width - 1, row }, 'line')
+  return notBuilt('src/ink/geometry/word-line.ts:66')
 }
 
 export function extendSelection(
@@ -74,16 +60,5 @@ export function extendSelection(
   col: number,
   row: number,
 ): void {
-  const span = s.anchorSpan
-  if (!s.isDragging || !span) return
-  const targetRow = span.kind === 'line' ? clamp(row, 0, screen.height - 1) : row
-  const bounds = span.kind === 'word'
-    ? wordBoundsAt(screen, col, row) ?? { lo: col, hi: col }
-    : { lo: 0, hi: screen.width - 1 }
-  const first = { col: bounds.lo, row: targetRow }
-  const last = { col: bounds.hi, row: targetRow }
-  const before = comparePoints(last, span.lo) < 0
-  const after = !before && comparePoints(first, span.hi) > 0
-  s.anchor = before ? span.hi : span.lo
-  s.focus = before ? first : after ? last : span.hi
+  return notBuilt('src/ink/geometry/word-line.ts:71')
 }

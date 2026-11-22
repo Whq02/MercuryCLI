@@ -22,9 +22,10 @@ import {
 import type { HeldBusyRetryWait } from '../../busyRetry.js'
 import { nonstreamingFallbackCeilingMs, patienceSeconds } from '../../patience.js'
 import type { Options } from '../streamCore.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../../../pi/holes.js'
 
 export function getNonstreamingFallbackTimeoutMs(): number {
-  return nonstreamingFallbackCeilingMs()
+  return notBuilt('src/services/providers/anthropic/streamCore/nonStreaming.ts:26')
 }
 
 export async function* executeNonStreamingRequest(
@@ -48,56 +49,14 @@ export async function* executeNonStreamingRequest(
   originatingRequestId?: string | null,
   afterSilence?: { idleMs: number; model: string },
 ): AsyncGenerator<SystemAPIErrorMessage, BetaMessage> {
-  const timeout = getNonstreamingFallbackTimeoutMs()
-  const client = () => getAnthropicClient({ maxRetries: 0, fetchOverride: clientOptions.fetchOverride, source: clientOptions.source })
-  const attemptRequest = async (anthropic: Awaited<ReturnType<typeof getAnthropicClient>>, attempt: number, context: RetryContext) => {
-    if (attempt > 1 || anthropicLimitVerdict().status === 'rejected') await refreshProviderUsage('anthropic', { force: true, reason: 'operator' })
-    const started = Date.now()
-    const params = paramsFromContext(context)
-    captureRequest(params)
-    onAttempt(attempt, started, params.max_tokens)
-    const fitted = adjustParamsForNonStreaming(params, MAX_NON_STREAMING_TOKENS)
-    return nonStreamingAnswer(anthropic, fitted, retryOptions.signal, timeout, started, afterSilence)
-  }
-  const retries = withRetry(client, attemptRequest, {
-    model: retryOptions.model, fallbackModel: retryOptions.fallbackModel,
-    thinkingConfig: retryOptions.thinkingConfig, signal: retryOptions.signal,
-    initialConsecutive529Errors: retryOptions.initialConsecutive529Errors, querySource: retryOptions.querySource,
-    ...(retryOptions.onHeldWait !== undefined ? { onHeldWait: retryOptions.onHeldWait } : {}), healClientContract: true,
-  })
-  while (true) {
-    const step = await retries.next()
-    if (step.done) return step.value as BetaMessage
-    if (step.value.type === 'system') yield step.value
-  }
-}
-
-async function nonStreamingAnswer(
-  client: Awaited<ReturnType<typeof getAnthropicClient>>, params: BetaMessageStreamParams,
-  signal: AbortSignal, timeout: number, started: number, silence?: { idleMs: number; model: string },
-) {
-  try {
-    const reply = await client.beta.messages.create(
-      { ...params, model: normalizeModelStringForAPI(params.model) }, { signal, timeout },
-    )
-    clearAnthropicUsageLimit(started)
-    return reply
-  } catch (error) {
-    if (error instanceof APIUserAbortError) throw error
-    logForDiagnosticsNoPII('error', 'cli_nonstreaming_fallback_error')
-    if (silence !== undefined && isFirstByteTimeout(error)) {
-      throw new Error(`the stream went quiet for ${patienceSeconds(silence.idleMs)} and one non-streamed answer got nothing in ${patienceSeconds(timeout)} from ${silence.model} — no keep-alive arrived: a dead connection, or a request the provider parked; the turn was ended`)
-    }
-    throw error
-  }
+  return notBuilt('src/services/providers/anthropic/streamCore/nonStreaming.ts:30')
 }
 
 export function isFirstByteTimeout(error: unknown): boolean {
-  if (error instanceof APIConnectionTimeoutError) return true
-  return error instanceof Error && error.constructor?.name === 'APIConnectionTimeoutError'
+  return notBuilt('src/services/providers/anthropic/streamCore/nonStreaming.ts:95')
 }
 
-export const MAX_NON_STREAMING_TOKENS = 64_000
+export const MAX_NON_STREAMING_TOKENS: Unbuilt = unbuilt('src/services/providers/anthropic/streamCore/nonStreaming.ts:100')
 
 export function adjustParamsForNonStreaming<
   T extends {
@@ -105,12 +64,5 @@ export function adjustParamsForNonStreaming<
     thinking?: BetaMessageStreamParams['thinking']
   },
 >(params: T, maxTokensCap: number): T {
-  const max_tokens = Math.min(params.max_tokens, maxTokensCap)
-  const budgetBelow = (thinking: T['thinking'], ceiling: number): T['thinking'] =>
-    thinking?.type === 'enabled' && thinking.budget_tokens
-      ? { ...thinking, budget_tokens: Math.min(thinking.budget_tokens, ceiling) }
-      : thinking
-  return 'thinking' in params
-    ? { ...params, max_tokens, thinking: budgetBelow(params.thinking, max_tokens - 1) }
-    : { ...params, max_tokens }
+  return notBuilt('src/services/providers/anthropic/streamCore/nonStreaming.ts:102')
 }

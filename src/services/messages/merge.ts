@@ -2,10 +2,11 @@ import type { ContentBlockParam, TextBlockParam, ToolResultBlockParam } from '..
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
 import { contentItemsOf, joinContentAtTextSeam, resultsFirst, storedBlocksOf } from '../../rows/content.js'
 import { isToolReferenceBlock } from './toolSearch.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 type ContentJoin = (left: ContentBlockParam[], right: ContentBlockParam[]) => ContentBlockParam[]
-type ToolResultContentItem = Extract<ToolResultBlockParam['content'], readonly unknown[]>[number]
-const isTextBlock = (block: { type: string }): block is TextBlockParam => block.type === 'text'
+type ToolResultContentItem = Unbuilt
+const isTextBlock = (block: { type: string }): block is TextBlockParam => notBuilt('src/services/messages/merge.ts:8')
 
 function composeUser(left: UserMessage, right: UserMessage, join: ContentJoin): UserMessage {
   const content = join(normalizeUserTextContent(left.message.content), normalizeUserTextContent(right.message.content))
@@ -19,11 +20,7 @@ export function mergeUserMessages(left: UserMessage, right: UserMessage): UserMe
 }
 
 export function mergeUserMessagesAndToolResults(left: UserMessage, right: UserMessage): UserMessage {
-  if (right.queued === true) {
-    const content = [...normalizeUserTextContent(left.message.content), ...normalizeUserTextContent(right.message.content)]
-    return { ...left, message: { ...left.message, content: hoistToolResults(content) } }
-  }
-  return composeUser(left, right, mergeUserContentBlocks)
+  return notBuilt('src/services/messages/merge.ts:21')
 }
 
 export function mergeAssistantMessages(left: AssistantMessage, right: AssistantMessage): AssistantMessage {
@@ -32,24 +29,19 @@ export function mergeAssistantMessages(left: AssistantMessage, right: AssistantM
 }
 
 export function mergeUserContentBlocks(left: ContentBlockParam[], right: ContentBlockParam[]): ContentBlockParam[] {
-  const tail = left.at(-1)
-  const absorb = tail?.type === 'tool_result' && typeof tail.content === 'string' && right.every(isTextBlock)
-  return absorb
-    ? left.slice(0, -1).concat([smooshIntoToolResult(tail, right)!])
-    : [...left, ...right]
+  return notBuilt('src/services/messages/merge.ts:34')
 }
 
 export function isToolResultMessage(row: Message): boolean {
-  return row.type === 'user' && typeof row.message.content !== 'string' &&
-    contentItemsOf(row.message.content).some(block => block.type === 'tool_result')
+  return notBuilt('src/services/messages/merge.ts:42')
 }
 
 function normalizeUserTextContent(content: string | ContentBlockParam[]): ContentBlockParam[] {
-  return typeof content === 'string' ? [{ type: 'text', text: content }] : content
+  return notBuilt('src/services/messages/merge.ts:47')
 }
 
 export function hoistToolResults(content: ContentBlockParam[]): ContentBlockParam[] {
-  return resultsFirst(content) as ContentBlockParam[]
+  return notBuilt('src/services/messages/merge.ts:51')
 }
 
 export function joinTextAtSeam(left: ContentBlockParam[], right: ContentBlockParam[]): ContentBlockParam[] {
@@ -57,22 +49,7 @@ export function joinTextAtSeam(left: ContentBlockParam[], right: ContentBlockPar
 }
 
 export function smooshIntoToolResult(tr: ToolResultBlockParam, blocks: ContentBlockParam[]): ToolResultBlockParam | null {
-  if (blocks.length === 0) return tr
-  const existing = tr.content
-  if (Array.isArray(existing) && existing.some(isToolReferenceBlock)) return null
-  const incoming = tr.is_error ? blocks.filter(isTextBlock) : blocks
-  if (incoming.length === 0) return tr
-  const folded = foldTextRuns([...existingItemsOf(existing), ...incoming])
-  if (!Array.isArray(existing) && incoming.every(isTextBlock)) {
-    return { ...tr, content: folded.map(item => (item as TextBlockParam).text).join('\n\n') }
-  }
-  return { ...tr, content: folded }
-}
-
-function existingItemsOf(content: ToolResultBlockParam['content']): readonly ToolResultContentItem[] {
-  if (content === undefined) return []
-  if (typeof content === 'string') return [{ type: 'text', text: content }]
-  return content
+  return notBuilt('src/services/messages/merge.ts:59')
 }
 
 function foldTextRuns(items: ReadonlyArray<ToolResultContentItem | ContentBlockParam>): ToolResultContentItem[] {

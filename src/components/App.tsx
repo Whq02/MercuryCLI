@@ -1,31 +1,16 @@
-
 import React from 'react'
-import { FpsMetricsProvider } from '../context/fpsMetrics.js'
-import { StatsProvider, type StatsStore } from '../context/stats.js'
-import { AppStateProvider } from '../state/AppState.js'
+import type { StatsStore } from '../context/stats.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { FpsMetrics } from '../utils/fpsTracker.js'
+import { notBuilt } from '../pi/holes.js'
 
-export function App({
-  getFpsMetrics,
-  stats,
-  initialState,
-  children,
-}: {
+export function App(arg0: {
   getFpsMetrics: () => FpsMetrics | undefined
   stats?: StatsStore
   initialState: AppState
   children: React.ReactNode
 }): React.ReactNode {
-  return (
-    <FpsMetricsProvider getFpsMetrics={getFpsMetrics}>
-      <StatsProvider store={stats}>
-        <AppStateProvider initialState={initialState}>
-          {children}
-        </AppStateProvider>
-      </StatsProvider>
-    </FpsMetricsProvider>
-  )
+  return notBuilt('src/components/App.tsx:9')
 }
 
 export default App

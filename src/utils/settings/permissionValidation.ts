@@ -3,16 +3,10 @@ import { z } from 'zod/v4'
 import { lazySchema } from '../lazySchema.js'
 import { expandRuleBraces, RULE_BRACE_BOUND, ruleBracesPastBound, starredBraces } from '../permissions/ruleBraces.js'
 import { getCustomValidation, isBashPrefixTool, isFilePatternTool } from './toolValidationConfig.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-type PermissionRuleValidation = {
-  valid: boolean
-  error?: string
-  suggestion?: string
-  advisory?: boolean
-  readAs?: string
-  examples?: string[]
-}
+type PermissionRuleValidation = Unbuilt
 
 function findUnescaped(rule: string, char: string, from: number = 0): number {
   for (let index = from; index < rule.length; index++) {
@@ -49,137 +43,7 @@ function hasSuspiciousWildcardPlacement(content: string): boolean {
 }
 
 export function validatePermissionRule(rule: string): PermissionRuleValidation {
-  if (rule.trim() === '') {
-    return { valid: false, error: 'A permission rule may not be empty' }
-  }
-
-  const openCount = countUnescaped(rule, '(')
-  const closeCount = countUnescaped(rule, ')')
-  if (openCount !== closeCount) {
-    return {
-      valid: false,
-      error: `Rule "${rule}" has mismatched parentheses`,
-      suggestion: 'Make sure every opening parenthesis has a matching closing one',
-    }
-  }
-
-  const firstOpen = findUnescaped(rule, '(')
-  const toolName = (firstOpen === -1 ? rule : rule.slice(0, firstOpen)).trim()
-
-  if (firstOpen !== -1 && findUnescaped(rule, ')', firstOpen + 1) === firstOpen + 1) {
-    if (toolName === '') {
-      return {
-        valid: false,
-        error: 'The parentheses are empty and no tool was named',
-        suggestion: 'Name a tool, e.g. Bash or Read',
-      }
-    }
-    return { valid: true }
-  }
-
-  let content: string | undefined
-  if (firstOpen !== -1) {
-    const lastClose = rule.lastIndexOf(')')
-    content = rule.slice(firstOpen + 1, lastClose)
-    if (content === '*') content = undefined
-  }
-
-  if (toolName.startsWith('mcp__')) {
-    if (content !== undefined || firstOpen !== -1) {
-      const rest = toolName.slice('mcp__'.length)
-      const separatorIndex = rest.indexOf('__')
-      const server = separatorIndex === -1 ? rest : rest.slice(0, separatorIndex)
-      const tool = separatorIndex === -1 ? undefined : rest.slice(separatorIndex + 2)
-      const examples = [`mcp__${server || 'server'}`, `mcp__${server || 'server'}__*`]
-      if (tool !== undefined && tool !== '*' && tool !== '') {
-        examples.push(`mcp__${server}__${tool}`)
-      }
-      return {
-        valid: false,
-        error: 'MCP rules do not support patterns in parentheses',
-        suggestion: `Use the bare form (mcp__server) or the wildcard form (mcp__server__*)`,
-        examples,
-      }
-    }
-    const rest = toolName.slice('mcp__'.length)
-    const separatorIndex = rest.indexOf('__')
-    const server = separatorIndex === -1 ? rest : rest.slice(0, separatorIndex)
-    const tool = separatorIndex === -1 ? undefined : rest.slice(separatorIndex + 2)
-    if (server === '') {
-      return { valid: false, error: 'MCP rule is missing a server name' }
-    }
-    if (tool !== undefined && tool === '') {
-      return { valid: false, error: 'MCP rule is missing a tool name after the separator' }
-    }
-    return { valid: true }
-  }
-
-  if (toolName === '') {
-    return { valid: false, error: 'The tool name may not be empty' }
-  }
-
-  const firstChar = toolName[0] as string
-  if (firstChar !== firstChar.toUpperCase()) {
-    const capitalized = firstChar.toUpperCase() + toolName.slice(1)
-    return {
-      valid: false,
-      error: `Tool names are capitalized: "${toolName}"`,
-      suggestion: `Did you mean ${content !== undefined ? `${capitalized}(${content})` : capitalized}?`,
-    }
-  }
-
-  if (content !== undefined) {
-    const customValidation = getCustomValidation(toolName)
-    if (customValidation) {
-      const result = customValidation(content)
-      if (!result.valid) return result
-    }
-
-    if (isBashPrefixTool(toolName)) {
-      if (/:\*$/.test(content)) {
-        return {
-          valid: false,
-          error: 'A command rule that ends in a colon before the star is a spelling Mercury does not read',
-          suggestion: `Write a space before the star: ${toolName}(${content.slice(0, -2).trim() || 'npm run'} *)`,
-        }
-      }
-      return { valid: true }
-    }
-
-    if (isFilePatternTool(toolName)) {
-      if (ruleBracesPastBound(content)) {
-        return {
-          valid: false,
-          advisory: true,
-          readAs: starredBraces(content),
-          error: `The braces in "${content}" expand to more than ${RULE_BRACE_BOUND} patterns`,
-          suggestion: 'Write fewer alternatives, or more than one rule',
-        }
-      }
-      if (expandRuleBraces(content).some(pattern => pattern.includes('*') && hasSuspiciousWildcardPlacement(pattern))) {
-        return {
-          valid: false,
-          advisory: true,
-          error: `The wildcard placement in "${content}" may be wrong`,
-          suggestion: 'Wildcards belong at path boundaries',
-          examples: [`${toolName}(*.ts)`, `${toolName}(src/*)`, `${toolName}(src/**)`],
-        }
-      }
-    }
-  }
-
-  return { valid: true }
+  return notBuilt('src/utils/settings/permissionValidation.ts:51')
 }
 
-export const PermissionRuleSchema = lazySchema(() =>
-  z.string().superRefine((rule, ctx) => {
-    const result = validatePermissionRule(rule)
-    if (result.valid) return
-    let message = result.error ?? 'Invalid permission rule'
-    if (result.suggestion) message += `. ${result.suggestion}`
-    if (result.examples && result.examples.length > 0) {
-      message += `. Examples: ${result.examples.join(', ')}`
-    }
-    ctx.addIssue({ code: 'custom', message, received: rule })
-  }),
-)
+export const PermissionRuleSchema: Unbuilt = unbuilt('src/utils/settings/permissionValidation.ts:174')

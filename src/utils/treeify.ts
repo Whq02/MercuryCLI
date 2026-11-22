@@ -1,21 +1,12 @@
 import { color } from './color.js'
 import { DEFAULT_THEME_SETTING } from './systemTheme.js'
 import type { Theme, ThemeName } from './theme.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 
 export type TreeNode = { [key: string]: unknown }
 
-type TreeifyOptions = {
-  showValues?: boolean
-  hideFunctions?: boolean
-  themeName?: ThemeName
-  treeCharColors?: {
-    treeChar?: keyof Theme
-    key?: keyof Theme
-    value?: keyof Theme
-  }
-  useColors?: boolean
-}
+type TreeifyOptions = Unbuilt
 
 const BRANCH_TEE = '├─'
 const BRANCH_LAST = '└─'
@@ -30,63 +21,5 @@ function makePainter(role: keyof Theme | undefined, theme: ThemeName): Painter {
 }
 
 export function treeify(obj: TreeNode, options?: TreeifyOptions): string {
-  const showValues = options?.showValues ?? true
-  const hideFunctions = options?.hideFunctions ?? false
-  const theme = options?.themeName ?? DEFAULT_THEME_SETTING
-  const paintTree = makePainter(options?.treeCharColors?.treeChar, theme)
-  const paintKey = makePainter(options?.treeCharColors?.key, theme)
-  const paintValue = makePainter(options?.treeCharColors?.value, theme)
-
-  const keys = Object.keys(obj)
-  if (keys.length === 0) {
-    return paintValue('(empty)')
-  }
-  if (keys.length === 1) {
-    const only = keys[0] as string
-    const value = obj[only]
-    if (only.trim() === '' && typeof value === 'string') {
-      return `${paintTree(BRANCH_LAST)} ${paintValue(value)}`
-    }
-  }
-
-  const lines: string[] = []
-  const visited = new WeakSet<object>()
-
-  const renderNode = (node: TreeNode, prefix: string): void => {
-    if (visited.has(node)) return
-    visited.add(node)
-    const nodeKeys = Object.keys(node).filter(key => !hideFunctions || typeof node[key] !== 'function')
-    nodeKeys.forEach((key, index) => {
-      const value = node[key]
-      const isLast = index === nodeKeys.length - 1
-      const branch = paintTree(isLast ? BRANCH_LAST : BRANCH_TEE)
-      const isAnonymousKey = key.trim() === ''
-      const keyPart = isAnonymousKey ? '' : ` ${paintKey(key)}`
-      const separator = isAnonymousKey ? ' ' : ': '
-
-      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-        if (visited.has(value as object)) {
-          lines.push(`${prefix}${branch}${keyPart}${separator}${paintValue('[Circular]')}`)
-          return
-        }
-        lines.push(`${prefix}${branch}${keyPart}`)
-        const continuation = isLast ? CONTINUE_SPACE : paintTree(CONTINUE_LINE)
-        renderNode(value as TreeNode, `${prefix}${continuation} `)
-        return
-      }
-      if (Array.isArray(value)) {
-        lines.push(`${prefix}${branch}${keyPart}${separator}${paintValue(`[Array(${value.length})]`)}`)
-        return
-      }
-      if (!showValues) {
-        lines.push(`${prefix}${branch}${keyPart}`)
-        return
-      }
-      const rendered = typeof value === 'function' ? '[Function]' : String(value)
-      lines.push(`${prefix}${branch}${keyPart}${separator}${paintValue(rendered)}`)
-    })
-  }
-
-  renderNode(obj, '')
-  return lines.join('\n')
+  return notBuilt('src/utils/treeify.ts:32')
 }

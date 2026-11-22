@@ -12,45 +12,16 @@ import {
   setOverlayPageKeys,
   subscribeOverlayStack,
 } from './overlayStack.js';
+import { notBuilt } from '../pi/holes.js'
 
 export { isTopOverlayNow } from './overlayStack.js';
-
-const NON_MODAL_OVERLAYS = new Set(['autocomplete']);
 
 export function useRegisterOverlay(
   id: string,
   t0?: boolean,
   opts?: { onFocusReturn?: () => void; ownsPageKeys?: boolean },
 ): number | null {
-  const enabled = t0 === undefined ? true : t0;
-  const [token] = useState(() => reserveOverlayToken());
-  const focusReturnRef = useRef(opts?.onFocusReturn);
-  focusReturnRef.current = opts?.onFocusReturn;
-  const ownsPageKeysRef = useRef(opts?.ownsPageKeys);
-  ownsPageKeysRef.current = opts?.ownsPageKeys;
-
-  useLayoutClaim(() => {
-    if (!enabled) {
-      return;
-    }
-    pushOverlay({
-      id,
-      token,
-      modal: !NON_MODAL_OVERLAYS.has(id),
-      onFocusReturn: () => focusReturnRef.current?.(),
-      ownsPageKeys: ownsPageKeysRef.current,
-    });
-    return () => {
-      popOverlay(token);
-      instances.get(process.stdout)?.invalidatePrevFrame();
-    };
-  }, [id, enabled, token]);
-  const ownsPageKeys = opts?.ownsPageKeys;
-  useLayoutPublish(() => {
-    if (enabled) setOverlayPageKeys(token, ownsPageKeys);
-  }, [enabled, token, ownsPageKeys]);
-
-  return enabled ? token : null;
+  return notBuilt('src/context/overlayContext.tsx:20')
 }
 
 export function useIsOverlayActive(): boolean {

@@ -12,6 +12,7 @@ import { formatNumber } from '../../utils/format.js'
 import { createHyperlink } from '../../utils/hyperlink.js'
 import { getContentSizeEstimate, type MCPToolResult } from '../../services/mcp/mcpValidation.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 
 const LARGE_RESPONSE_TOKEN_THRESHOLD = 10_000
@@ -32,41 +33,7 @@ export function renderToolUseMessage(
 export function renderToolUseProgressMessage(
   progressMessages: ProgressMessage<MCPProgress>[],
 ): React.ReactNode {
-  const latest = progressMessages[progressMessages.length - 1]?.data
-  if (!latest || typeof latest.progress !== 'number') {
-    return (
-      <MessageResponse height={1}>
-        <Text dimColor>Running…</Text>
-      </MessageResponse>
-    )
-  }
-  const { progress, total, progressMessage } = latest
-  if (typeof total === 'number' && total > 0) {
-    const ratio = Math.min(1, Math.max(0, progress / total))
-    return (
-      <MessageResponse>
-        <Box flexDirection="column">
-          {progressMessage ? <Ansi dimColor>{progressMessage}</Ansi> : null}
-          <Box>
-            <ProgressBar width={PROGRESS_BAR_WIDTH} ratio={ratio} />
-            <Text> {Math.round(ratio * 100)}%</Text>
-          </Box>
-        </Box>
-      </MessageResponse>
-    )
-  }
-  if (progressMessage) {
-    return (
-      <MessageResponse height={1}>
-        <Ansi dimColor>{progressMessage}</Ansi>
-      </MessageResponse>
-    )
-  }
-  return (
-    <MessageResponse height={1}>
-      <Text dimColor>{`Processing… (${progress})`}</Text>
-    </MessageResponse>
-  )
+  return notBuilt('src/tools/MCPTool/UI.tsx:32')
 }
 
 
@@ -82,40 +49,6 @@ function candidateText(output: MCPToolResult): string | undefined {
   if (!Array.isArray(output)) return undefined
   const firstText = output.find(block => block.type === 'text') as { text?: unknown } | undefined
   return typeof firstText?.text === 'string' ? firstText.text : undefined
-}
-
-function trySlackSendCompact(
-  output: MCPToolResult,
-  input: unknown,
-): { channel: string; url: string } | null {
-  const text = candidateText(output)
-  if (text === undefined || !text.includes(MESSAGE_LINK_TOKEN)) return null
-  if (text.length > SLACK_PAYLOAD_MAX_CHARS) return null
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(text)
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
-  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return null
-  const record = parsed as Record<string, unknown>
-  if (Object.keys(record).length > SLACK_PAYLOAD_MAX_KEYS) return null
-  const link = record.message_link
-  if (typeof link !== 'string') return null
-  const match = SLACK_PERMALINK.exec(link)
-  if (!match) return null
-
-  const inputRecord =
-    input !== null && typeof input === 'object' ? (input as Record<string, unknown>) : {}
-  const chosen: unknown =
-    inputRecord.channel_id !== undefined && inputRecord.channel_id !== null
-      ? inputRecord.channel_id
-      : inputRecord.channel !== undefined && inputRecord.channel !== null
-        ? inputRecord.channel
-        : match[1]
-  const label = typeof chosen === 'string' && chosen.length > 0 ? chosen : 'slack'
-  return { channel: label.startsWith('#') ? label : `#${label}`, url: link }
 }
 
 function tryCraftStatusCompact(output: MCPToolResult): string | null {
@@ -153,81 +86,10 @@ function ImagePlaceholder(): React.ReactNode {
   )
 }
 
-function ContentBlocks({
-  blocks,
-  verbose,
-}: {
-  blocks: ReadonlyArray<{ type: string; text?: unknown }>
-  verbose: boolean
-}): React.ReactNode {
-  return (
-    <Box flexDirection="column">
-      {blocks.map((block, index) => {
-        if (block.type === 'image') return <ImagePlaceholder key={index} />
-        const text =
-          block.type === 'text' && block.text !== undefined && block.text !== null
-            ? String(block.text)
-            : ''
-        return (
-          <MessageResponse key={index}>
-            <OutputLine content={text} verbose={verbose} />
-          </MessageResponse>
-        )
-      })}
-    </Box>
-  )
-}
-
 export function renderToolResultMessage(
   output: MCPToolResult,
   _progressMessages: unknown,
-  { verbose, input }: { verbose: boolean; input?: unknown },
+  arg2: { verbose: boolean; input?: unknown },
 ): React.ReactNode {
-  if (!verbose) {
-    const craftStatus = tryCraftStatusCompact(output)
-    if (craftStatus !== null) return <MessageResponse><Text>{craftStatus}</Text></MessageResponse>
-    const compact = trySlackSendCompact(output, input)
-    if (compact) {
-      return (
-        <MessageResponse height={1}>
-          <Text>Message sent to {createHyperlink(compact.url, compact.channel)}</Text>
-        </MessageResponse>
-      )
-    }
-  }
-
-  const estimate = getContentSizeEstimate(output)
-  const warning =
-    estimate > LARGE_RESPONSE_TOKEN_THRESHOLD ? (
-      <MessageResponse height={1}>
-        <Text color="warning">
-          {GLYPH.warn} Large MCP response (~{formatNumber(estimate)} tokens) — responses this size eat context fast
-        </Text>
-      </MessageResponse>
-    ) : null
-
-  let body: React.ReactNode
-  if (Array.isArray(output)) {
-    body = <ContentBlocks blocks={output as ReadonlyArray<{ type: string; text?: unknown }>} verbose={verbose} />
-  } else if (!output) {
-    body = (
-      <MessageResponse height={1}>
-        <Text dimColor>(No content)</Text>
-      </MessageResponse>
-    )
-  } else {
-    body = (
-      <MessageResponse>
-        <OutputLine content={output} verbose={verbose} />
-      </MessageResponse>
-    )
-  }
-
-  if (!warning) return body
-  return (
-    <Box flexDirection="column">
-      {warning}
-      {body}
-    </Box>
-  )
+  return notBuilt('src/tools/MCPTool/UI.tsx:181')
 }

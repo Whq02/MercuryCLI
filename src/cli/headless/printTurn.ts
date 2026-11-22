@@ -38,6 +38,7 @@ import { holdQueuedWordsForTurnEnd } from '../../utils/messageQueueManager.js'
 import { logError } from '../../utils/log.js'
 import { SESSION_VERBS } from '../../runner/wire/sessionVerbs.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const DEFAULT_HEADLESS_IDLE_MINUTES = 20
 
@@ -46,33 +47,7 @@ function headlessTurnIdleLimitMs(): number {
 }
 
 export async function registerElicitationHandlersForClient(client: ConnectedMCPServer, serverName: string, ports: RunnerPorts): Promise<void> {
-  const { asks, io } = ports
-  client.client.setRequestHandler(
-    'elicitation/create',
-    (request, ctx) => withElicitationEntered(client.client, async () => {
-      const params = request.params
-      const mode = params.mode === 'url' ? 'url' : 'form'
-      const requestedSchema = params.mode === 'url' ? undefined : params.requestedSchema
-      const url = params.mode === 'url' ? params.url : undefined
-      const elicitationId = params.mode === 'url' ? params.elicitationId : undefined
-      return asks.handleElicitation(
-        serverName,
-        params.message,
-        requestedSchema,
-        ctx.mcpReq.signal,
-        mode,
-        url,
-        elicitationId,
-      )
-    }),
-  )
-  client.client.setNotificationHandler(
-    'notifications/elicitation/complete',
-    async notification => {
-      const elicitationId = notification.params.elicitationId
-      io.outbound.enqueue({ method: SESSION_VERBS.elicitationComplete.runner.name, params: { server: serverName, elicitation_id: elicitationId } })
-    },
-  )
+  return notBuilt('src/cli/headless/printTurn.ts:48')
 }
 
 export function registerPerTurnHandlers(clients: MCPServerConnection[], ports: RunnerPorts): void {

@@ -4,6 +4,7 @@ import { Box, Text } from '../../ink.js'
 import type { CreateOutput } from './CronCreateTool.js'
 import type { DeleteOutput } from './CronDeleteTool.js'
 import type { ListOutput } from './CronListTool.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const HEADER_PROMPT_CHARS = 60
 
@@ -87,21 +88,5 @@ function ScheduleLine({ row }: { row: NonNullable<ListOutput['schedules']>[numbe
 }
 
 export function renderListResultMessage(output: ListOutput): React.ReactNode {
-  const schedules = output.rosterKnown ? output.schedules ?? [] : null
-  if (schedules === null || schedules.length === 0) {
-    return (
-      <MessageResponse height={1}>
-        <Dim>{schedules === null ? 'No roster yet' : 'No schedules'}</Dim>
-      </MessageResponse>
-    )
-  }
-  return (
-    <MessageResponse>
-      <Box flexDirection="column">
-        {schedules.map(row => (
-          <ScheduleLine key={row.id} row={row} />
-        ))}
-      </Box>
-    </MessageResponse>
-  )
+  return notBuilt('src/tools/ScheduleCronTool/UI.tsx:89')
 }

@@ -6,9 +6,7 @@ import { createUserMessage } from '../messages.js'
 import { runForkedAgent, type ForkedAgentParams } from '../agents/forkedAgent.js'
 import { loadSubagentTranscripts } from '../../utils/sessionStorage.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
-
-
-const SUMMARY_INTERVAL_MS = 30_000
+import { notBuilt } from '../../pi/holes.js'
 const MIN_TRANSCRIPT_MESSAGES = 3
 
 type SetAppState = Parameters<typeof updateAgentSummary>[2]
@@ -34,79 +32,5 @@ export function startAgentSummarization(
   cacheSafeParams: ForkedAgentParams['cacheSafeParams'],
   setAppState: SetAppState,
 ): { stop(): void } {
-  let stopped = false
-  let timer: NodeJS.Timeout | null = null
-  let abortController: AbortController | null = null
-  let previousSummary: string | null = null
-
-  async function tick(): Promise<void> {
-    try {
-      if (stopped) return
-      const transcripts = await loadSubagentTranscripts([agentId])
-      const transcript = transcripts[agentId]
-      if (stopped) return
-      if (!transcript || transcript.length < MIN_TRANSCRIPT_MESSAGES) return
-      const contextMessages = filterIncompleteToolCalls(transcript)
-      abortController = new AbortController()
-      const instruction = createUserMessage({
-        content: summaryInstruction(previousSummary),
-        isMeta: true,
-      })
-      const result = await runForkedAgent({
-        promptMessages: [instruction],
-        cacheSafeParams: {
-          ...cacheSafeParams,
-          forkContextMessages: contextMessages,
-        },
-        canUseTool: async () => ({
-          behavior: 'deny',
-          message: 'tools are unavailable to the summariser',
-          decisionReason: { type: 'other', reason: 'tools are unavailable to the summariser' },
-        }),
-        querySource: 'agent_summary',
-        forkLabel: 'agent_summary',
-        overrides: { abortController },
-        skipTranscript: true,
-      })
-      if (stopped) return
-      const messages = (result as { messages?: Message[] }).messages ?? []
-      for (const message of messages) {
-        if (message.type !== 'assistant') continue
-        if ((message as { isApiErrorMessage?: boolean }).isApiErrorMessage) continue
-        const content = message.message.content
-        if (!Array.isArray(content)) continue
-        const first = content[0] as { type?: string; text?: string } | undefined
-        if (first?.type === 'text' && typeof first.text === 'string' && first.text.trim() !== '') {
-          const summary = first.text.trim()
-          previousSummary = summary
-          updateAgentSummary(taskId, summary, setAppState)
-          break
-        }
-      }
-    } catch (err) {
-      if (!stopped && err instanceof Error) {
-        logForDebugging(`agentSummary: tick failed: ${String(err)}`)
-      }
-    } finally {
-      abortController = null
-      if (!stopped) {
-        timer = startTimeout(() => void tick(), SUMMARY_INTERVAL_MS)
-        timer.unref()
-      }
-    }
-  }
-
-  timer = startTimeout(() => void tick(), SUMMARY_INTERVAL_MS)
-  timer.unref()
-
-  return {
-    stop(): void {
-      stopped = true
-      if (timer !== null) {
-        stopTimeout(timer)
-        timer = null
-      }
-      abortController?.abort()
-    },
-  }
+  return notBuilt('src/services/AgentSummary/agentSummary.ts:31')
 }

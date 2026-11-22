@@ -1,4 +1,3 @@
-
 import React, { memo } from 'react'
 import { Box } from '../ink.js'
 import type { Screen } from '../screens/Chat.js'
@@ -24,6 +23,7 @@ import {
 import { MessageActionsSelectedContext } from './messageActions.js'
 import { Message } from './Message.js'
 import { OffscreenFreeze } from './OffscreenFreeze.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 const EMPTY_PROGRESS: ProgressMessage[] = []
 const EMPTY_IDS = new Set<string>()
@@ -40,41 +40,11 @@ function allToolsResolved(
   msg: RenderableMessage,
   resolvedToolUseIDs: Set<string>,
 ): boolean {
-  if (msg.type === 'grouped_tool_use') {
-    return msg.messages.every(member => {
-      const first = member.message.content[0]
-      return first?.type !== 'tool_use' || resolvedToolUseIDs.has(first.id)
-    })
-  }
-  if (msg.type === 'collapsed_read_search') {
-    return msg.messages.every(member =>
-      member.type === 'grouped_tool_use'
-        ? allToolsResolved(member, resolvedToolUseIDs)
-        : allToolsResolved(member as RenderableMessage, resolvedToolUseIDs),
-    )
-  }
-  if (msg.type !== 'assistant') return true
-  const content = msg.message.content
-  if (!Array.isArray(content)) return true
-  return content.every(
-    block => block.type !== 'tool_use' || resolvedToolUseIDs.has(block.id),
-  )
+  return notBuilt('src/components/MessageRow.tsx:39')
 }
 
 function rowToolUseIDs(msg: RenderableMessage): string[] {
-  if (msg.type === 'grouped_tool_use') {
-    return msg.messages.flatMap(member => {
-      const first = member.message.content[0]
-      return first?.type === 'tool_use' ? [first.id] : []
-    })
-  }
-  if (msg.type === 'collapsed_read_search') {
-    return msg.messages.flatMap(member => rowToolUseIDs(member as RenderableMessage))
-  }
-  if (msg.type !== 'assistant') return []
-  const content = msg.message.content
-  if (!Array.isArray(content)) return []
-  return content.flatMap(block => (block.type === 'tool_use' ? [block.id] : []))
+  return notBuilt('src/components/MessageRow.tsx:64')
 }
 
 export function toolStateMoved(
@@ -143,165 +113,10 @@ export function hasContentAfterIndex(
   return false
 }
 
-type MessageRowProps = {
-  message: RenderableMessage
-  isUserContinuation: boolean
-  hasContentAfter: boolean
-  tools: Tools
-  commands?: Command[]
-  verbose: boolean
-  inProgressToolUseIDs: Set<string>
-  streamingToolUseIDs: Set<string>
-  screen: Screen
-  canAnimate: boolean
-  lastThinkingBlockId: string | null
-  latestBashOutputUUID: string | null
-  columns: number
-  isLoading: boolean
-  lookups: MessageLookups
-  conversationId?: string
-  isCursorRow?: boolean
-  cursorExpanded?: boolean
-  clickExpanded?: boolean
-  style?: 'condensed'
-}
+type MessageRowProps = Unbuilt
 
-function MessageRowInner({
-  message,
-  isUserContinuation,
-  hasContentAfter,
-  tools,
-  verbose,
-  inProgressToolUseIDs,
-  streamingToolUseIDs,
-  screen,
-  canAnimate,
-  lastThinkingBlockId,
-  latestBashOutputUUID,
-  columns,
-  isLoading,
-  lookups,
-  isCursorRow = false,
-  cursorExpanded = false,
-  clickExpanded = false,
-  style,
-}: MessageRowProps): React.ReactNode {
-  const isTranscriptMode = screen === 'transcript'
-  const toolUseID =
-    message.type === 'grouped_tool_use' ||
-    message.type === 'collapsed_read_search' ||
-    message.type === 'turn_receipt'
-      ? undefined
-      : (getToolUseID(message as NormalizedMessage) ?? undefined)
-
-  useEphemeralProgressVersion(toolUseID ? [toolUseID] : [])
-
-  const isGroupish =
-    message.type === 'grouped_tool_use' ||
-    message.type === 'collapsed_read_search'
-
-  const progressMessagesForMessage = ((): ProgressMessage[] => {
-    if (isGroupish || !toolUseID) return EMPTY_PROGRESS
-    const recorded = getProgressMessagesFromLookup(
-      message as NormalizedMessage,
-      lookups,
-    )
-    const ephemeral = getEphemeralProgressFrame(toolUseID)
-    return ephemeral ? [...recorded, ephemeral] : recorded
-  })()
-
-  const rowVerbose = verbose || clickExpanded || (isCursorRow && cursorExpanded)
-
-  const shouldAnimate =
-    canAnimate &&
-    (message.type === 'grouped_tool_use'
-      ? message.messages.some(member => {
-          const first = member.message.content[0]
-          return first?.type === 'tool_use' && inProgressToolUseIDs.has(first.id)
-        })
-      : message.type === 'collapsed_read_search'
-        ? message.messages.some(member =>
-            member.type === 'grouped_tool_use'
-              ? member.messages.some(inner => {
-                  const first = inner.message.content[0]
-                  return (
-                    first?.type === 'tool_use' &&
-                    inProgressToolUseIDs.has(first.id)
-                  )
-                })
-              : (() => {
-                  const id = getToolUseID(member as NormalizedMessage)
-                  return id != null && inProgressToolUseIDs.has(id)
-                })(),
-          )
-        : !toolUseID || inProgressToolUseIDs.has(toolUseID))
-
-  const isActiveGroup =
-    message.type === 'collapsed_read_search' &&
-    (shouldAnimate || (isLoading && !hasContentAfter))
-
-  const isLatestShellOutput =
-    latestBashOutputUUID !== null && message.uuid === latestBashOutputUUID
-
-  const isStatic = shouldRenderStatically(
-    message,
-    streamingToolUseIDs,
-    inProgressToolUseIDs,
-    toolUseID
-      ? getSiblingToolUseIDsFromLookup(message as NormalizedMessage, lookups)
-      : message.type === 'grouped_tool_use'
-        ? getSiblingToolUseIDsFromLookup(message.displayMessage, lookups)
-        : EMPTY_IDS,
-    screen,
-    lookups,
-  )
-
-  const body = (
-    <Message
-      message={message}
-      tools={tools}
-      verbose={rowVerbose}
-      addMargin={!isUserContinuation}
-      shouldAnimate={shouldAnimate}
-      shouldShowDot={screen === 'prompt'}
-      isTranscriptMode={isTranscriptMode}
-      isStatic={isStatic}
-      inProgressToolUseIDs={inProgressToolUseIDs}
-      streamingToolUseIDs={streamingToolUseIDs}
-      progressMessagesForMessage={progressMessagesForMessage}
-      lookups={lookups}
-      width={columns}
-      style={style}
-      isLatestShellOutput={isLatestShellOutput}
-      lastThinkingBlockId={lastThinkingBlockId}
-      hasContentAfter={hasContentAfter}
-      isActiveGroup={isActiveGroup}
-    />
-  )
-
-  const railed = isGroupish || toolUseID !== undefined
-  const framed = railed ? (
-    <Box
-      borderStyle="single"
-      borderTop={false}
-      borderRight={false}
-      borderBottom={false}
-      borderDimColor
-      paddingLeft={1}
-    >
-      {body}
-    </Box>
-  ) : (
-    body
-  )
-
-  return (
-    <OffscreenFreeze>
-      <MessageActionsSelectedContext.Provider value={isCursorRow}>
-        {framed}
-      </MessageActionsSelectedContext.Provider>
-    </OffscreenFreeze>
-  )
+function MessageRowInner(arg0: MessageRowProps): React.ReactNode {
+  return notBuilt('src/components/MessageRow.tsx:169')
 }
 
 function shouldRenderStatically(
@@ -368,42 +183,7 @@ export function areMessageRowPropsEqual(
   prev: MessageRowProps,
   next: MessageRowProps,
 ): boolean {
-  if (prev.message !== next.message) return false
-  if (prev.isUserContinuation !== next.isUserContinuation) return false
-  if (prev.canAnimate !== next.canAnimate) return false
-  if (prev.style !== next.style) return false
-  if (prev.tools !== next.tools) return false
-  if (prev.screen !== next.screen) return false
-  if (prev.verbose !== next.verbose) return false
-  if (prev.columns !== next.columns) return false
-  const prevLatest =
-    prev.latestBashOutputUUID !== null &&
-    prev.message.uuid === prev.latestBashOutputUUID
-  const nextLatest =
-    next.latestBashOutputUUID !== null &&
-    next.message.uuid === next.latestBashOutputUUID
-  if (prevLatest !== nextLatest) return false
-  if (
-    prev.lastThinkingBlockId !== next.lastThinkingBlockId &&
-    next.message.type === 'assistant' &&
-    Array.isArray(next.message.message.content) &&
-    next.message.message.content.some(
-      block => block.type === 'thinking' || block.type === 'redacted_thinking',
-    )
-  ) {
-    return false
-  }
-  if (isMessageStreaming(next.message, next.streamingToolUseIDs)) return false
-  if (!allToolsResolved(next.message, next.lookups.resolvedToolUseIDs)) {
-    return false
-  }
-  if (toolStateMoved(prev, next)) return false
-  if (prev.isCursorRow !== next.isCursorRow) return false
-  if (prev.cursorExpanded !== next.cursorExpanded) return false
-  if (prev.clickExpanded !== next.clickExpanded) return false
-  if (prev.isLoading !== next.isLoading && next.message.type === 'collapsed_read_search') return false
-  if (prev.hasContentAfter !== next.hasContentAfter) return false
-  return true
+  return notBuilt('src/components/MessageRow.tsx:367')
 }
 
 export const MessageRow = memo(MessageRowInner, areMessageRowPropsEqual)

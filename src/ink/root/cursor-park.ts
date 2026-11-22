@@ -1,5 +1,6 @@
 import type { Patch } from '../frame.js'
 import { CURSOR_HOME, cursorMove, cursorPosition } from '../termio/csi.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export type CursorPoint = { x: number; y: number }
 
@@ -24,51 +25,5 @@ type CursorPlan = {
 const CURSOR_HOME_PATCH: Patch = Object.freeze({ type: 'stdout' as const, content: CURSOR_HOME })
 
 export function planCursor(input: CursorPlanInput): CursorPlan {
-  const { altScreen, hasDiff, target, parked, prevCursor, frameCursor, rows, cols } = input
-  const prelude: Patch[] = []
-  const postlude: Patch[] = []
-
-  if (altScreen && hasDiff) {
-    prelude.push(CURSOR_HOME_PATCH)
-    postlude.push(input.parkPatch)
-  }
-
-  const targetMoved =
-    target !== null && (parked === null || parked.x !== target.x || parked.y !== target.y)
-  if (!hasDiff && !targetMoved && !(target === null && parked !== null)) {
-    return { prelude, postlude, nextParked: parked }
-  }
-
-  if (parked !== null && !altScreen && hasDiff) {
-    const pdx = prevCursor.x - parked.x
-    const pdy = prevCursor.y - parked.y
-    if (pdx !== 0 || pdy !== 0) {
-      prelude.unshift({ type: 'stdout', content: cursorMove(pdx, pdy) })
-    }
-  }
-
-  if (target !== null) {
-    if (altScreen) {
-      const row = Math.min(Math.max(target.y + 1, 1), rows)
-      const col = Math.min(Math.max(target.x + 1, 1), cols)
-      postlude.push({ type: 'stdout', content: cursorPosition(row, col) })
-    } else {
-      const from = !hasDiff && parked !== null ? parked : frameCursor
-      const dx = target.x - from.x
-      const dy = target.y - from.y
-      if (dx !== 0 || dy !== 0) {
-        postlude.push({ type: 'stdout', content: cursorMove(dx, dy) })
-      }
-    }
-    return { prelude, postlude, nextParked: target }
-  }
-
-  if (parked !== null && !altScreen && !hasDiff) {
-    const rdx = frameCursor.x - parked.x
-    const rdy = frameCursor.y - parked.y
-    if (rdx !== 0 || rdy !== 0) {
-      postlude.push({ type: 'stdout', content: cursorMove(rdx, rdy) })
-    }
-  }
-  return { prelude, postlude, nextParked: null }
+  return notBuilt('src/ink/root/cursor-park.ts:26')
 }

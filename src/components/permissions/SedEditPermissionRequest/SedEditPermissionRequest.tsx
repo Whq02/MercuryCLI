@@ -15,90 +15,10 @@ import { ConsentFileEditDiff } from '../ConsentFileEditDiff.js'
 import { FilePermissionDialog } from '../FilePermissionDialog/FilePermissionDialog.js'
 import type { ToolInput } from '../FilePermissionDialog/permissionOptions.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
+import { notBuilt } from '../../../pi/holes.js'
 
 type LoadedFile = { exists: boolean; content: string; beforeBytes?: string }
 
-export function SedEditPermissionRequest({
-  toolUseConfirm,
-  onDone,
-  onReject,
-  workerBadge,
-  sedEditInfo,
-}: PermissionRequestProps & { sedEditInfo: SedEditInfo }): React.ReactNode {
-  const [loaded, setLoaded] = useState<LoadedFile | null>(null)
-  const [loadError, setLoadError] = useState<unknown>(null)
-
-  useLoad(() => {
-    let cancelled = false
-    void (async () => {
-      try {
-        const encoding = detectEncodingForResolvedPath(sedEditInfo.filePath)
-        const bytes = await fs.readFile(sedEditInfo.filePath)
-        if (!cancelled) setLoaded({ exists: true, content: bytes.toString(encoding).replaceAll('\r\n', '\n'), beforeBytes: bytes.toString('base64') })
-      } catch (error) {
-        if (cancelled) return
-        if (isENOENT(error)) setLoaded({ exists: false, content: '' })
-        else setLoadError(error)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [sedEditInfo.filePath])
-  if (loadError) throw loadError
-
-  const oldContent = loaded?.content ?? ''
-  const newContent = useMemo(
-    () => (loaded === null ? '' : applySedSubstitution(oldContent, sedEditInfo)),
-    [loaded, oldContent, sedEditInfo],
-  )
-  const isNoOp = loaded !== null && newContent !== null && oldContent === newContent
-
-  const parseInput = useCallback(
-    (input: unknown): ToolInput =>
-      newContent === null
-        ? (input as ToolInput)
-        : {
-            ...(input as ToolInput),
-            _simulatedSedEdit: { filePath: sedEditInfo.filePath, newContent, beforeBytes: loaded?.beforeBytes },
-          },
-    [sedEditInfo.filePath, newContent, loaded],
-  )
-
-  return (
-    <FilePermissionDialog<ToolInput>
-      toolUseConfirm={toolUseConfirm}
-      onDone={onDone}
-      onReject={onReject}
-      title="Edit file"
-      subtitle={relative(getFocusedSessionConnector().workspace().cwd, sedEditInfo.filePath)}
-      question={
-        <Text bold>
-          Do you want to edit <Text bold>{basename(sedEditInfo.filePath)}</Text>?
-        </Text>
-      }
-      content={
-        loaded === null ? null : newContent === null ? (
-          <Text dimColor>
-            {`${sedEditInfo.filePath}: this sed pattern could not be previewed — approving runs sed directly`}
-          </Text>
-        ) : isNoOp ? (
-          <Text dimColor>
-            {loaded.exists
-              ? 'The pattern did not match any content'
-              : 'The file does not exist'}
-          </Text>
-        ) : (
-          <ConsentFileEditDiff
-            file_path={sedEditInfo.filePath}
-            edits={[{ old_string: oldContent, new_string: newContent, replace_all: false }]}
-          />
-        )
-      }
-      path={sedEditInfo.filePath}
-      parseInput={parseInput}
-      workerBadge={workerBadge}
-      canApprove={loaded !== null}
-    />
-  )
+export function SedEditPermissionRequest(arg0: PermissionRequestProps & { sedEditInfo: SedEditInfo }): React.ReactNode {
+  return notBuilt('src/components/permissions/SedEditPermissionRequest/SedEditPermissionRequest.tsx:21')
 }

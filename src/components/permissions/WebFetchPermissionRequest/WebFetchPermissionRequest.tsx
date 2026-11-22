@@ -9,6 +9,7 @@ import { PermissionDialog } from '../PermissionDialog.js'
 import { PermissionRuleExplanation } from '../PermissionRuleExplanation.js'
 import { usePermissionRequestLogging } from '../hooks.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
+import { notBuilt } from '../../../pi/holes.js'
 
 type FetchOptionValue = 'yes' | 'yes-dont-ask-domain' | 'no'
 
@@ -23,85 +24,6 @@ function domainRuleContent(input: unknown): string {
   }
 }
 
-export function WebFetchPermissionRequest({
-  toolUseConfirm,
-  onDone,
-  onReject,
-  verbose,
-  workerBadge,
-}: PermissionRequestProps): React.ReactNode {
-  const hostname = new URL((toolUseConfirm.input as { url: string }).url).hostname
-
-  usePermissionRequestLogging(toolUseConfirm)
-
-  const options: { label: React.ReactNode; value: FetchOptionValue }[] = [
-    { label: 'Yes', value: 'yes' },
-  ]
-  if (shouldShowAlwaysAllowOptions()) {
-    options.push({
-      label: (
-        <Text>
-          Yes, and don&apos;t ask again for <Text bold>{hostname}</Text>
-        </Text>
-      ),
-      value: 'yes-dont-ask-domain',
-    })
-  }
-  options.push({
-    label: 'No, and tell Mercury what to do differently (esc)',
-    value: 'no',
-  })
-
-  function handleChange(value: FetchOptionValue): void {
-    switch (value) {
-      case 'yes':
-        toolUseConfirm.onAllow(toolUseConfirm.input, [])
-        onDone()
-        break
-      case 'yes-dont-ask-domain':
-        toolUseConfirm.onAllow(toolUseConfirm.input, [
-          {
-            type: 'addRules',
-            rules: [
-              {
-                toolName: toolUseConfirm.tool.name,
-                ruleContent: domainRuleContent(toolUseConfirm.input),
-              },
-            ],
-            behavior: 'allow',
-            destination: 'localSettings',
-          },
-        ])
-        onDone()
-        break
-      case 'no':
-        toolUseConfirm.onReject()
-        onReject()
-        onDone()
-        break
-    }
-  }
-
-  const useMessage = toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input, {
-    theme: resolveThemeName(),
-    verbose,
-  })
-
-  return (
-    <PermissionDialog title="Fetch" crewmate={toolUseConfirm.crewmate} workerBadge={workerBadge}>
-      <Box flexDirection="column">
-        {typeof useMessage === 'string' ? (
-          <ConsentBodyText text={useMessage} />
-        ) : (
-          <Text>{useMessage}</Text>
-        )}
-        <Text dimColor>{toolUseConfirm.description}</Text>
-        <PermissionRuleExplanation
-          permissionResult={toolUseConfirm.permissionResult}
-        />
-        <Text bold>Do you want to allow Mercury to fetch this content?</Text>
-        <Select scrollMovesFocus={false} options={options} onChange={handleChange} onCancel={() => handleChange('no')} />
-      </Box>
-    </PermissionDialog>
-  )
+export function WebFetchPermissionRequest(arg0: PermissionRequestProps): React.ReactNode {
+  return notBuilt('src/components/permissions/WebFetchPermissionRequest/WebFetchPermissionRequest.tsx:26')
 }

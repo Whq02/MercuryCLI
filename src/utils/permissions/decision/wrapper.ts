@@ -20,7 +20,7 @@ import { decideRuleBasedPermissions, decideToolPermission } from './engine.js'
 import { decideUnderFlow } from '../flowPolicy.js'
 import { allowRulesThatPreAuthorise } from '../lateAllowRules.js'
 import type { DecisionTrace, WrapperStageId, WrapperStageRecord, WrapperTrace } from '../../../types/permissions.js'
-
+import { notBuilt } from '../../../pi/holes.js'
 
 
 function guardHookUpdatedInput(
@@ -54,49 +54,8 @@ async function consultHeadlessPermissionHooks(
   permissionMode: string | undefined,
   suggestions: PermissionUpdate[] | undefined,
 ): Promise<PermissionDecision | null> {
-  try {
-    const asked = await fireHooks(
-      'permission.ask',
-      { tool: tool.name, input, call_id: toolUseID, ...(suggestions !== undefined ? { suggestions } : {}) },
-      { scope: { sessionId: String(getSessionId()), ...(context.agentId !== undefined ? { crewmateId: context.agentId } : {}) }, signal: context.abortController.signal, toolUseContext: context, ...(permissionMode !== undefined ? { permissionMode } : {}) },
-    )
-    const hookNames = asked.outcomes.map(outcome => outcome.name).join(', ')
-    if (asked.answer.stop !== undefined) {
-      logForDebugging(`a permission.ask hook (${hookNames}) ended the turn: ${asked.answer.stop}`)
-      context.abortController.abort()
-      return { behavior: 'deny', message: asked.answer.stop, decisionReason: { type: 'hook', hookName: hookNames, reason: asked.answer.stop } }
-    }
-    if (asked.answer.block !== undefined) {
-      return { behavior: 'deny', message: asked.answer.block, decisionReason: { type: 'hook', hookName: hookNames, reason: asked.answer.block } }
-    }
-    if (asked.answer.permission !== 'allow') return null
-    const finalInput = asked.answer.input ?? input
-    if (asked.answer.input) {
-      const recheck = await decideRuleBasedPermissions(tool, finalInput, context)
-      const override = guardHookUpdatedInput(recheck.decision, tool.name)
-      if (override) {
-        if (override.behavior === 'ask') {
-          return {
-            behavior: 'deny',
-            message: override.message,
-            decisionReason: override.decisionReason ?? { type: 'other', reason: 'ask rule on hook-rewritten input' },
-          }
-        }
-        return override
-      }
-    }
-    if (asked.answer.rules?.length) {
-      persistPermissionUpdates(asked.answer.rules)
-      const rules = asked.answer.rules
-      context.setAppState(prev => ({ ...prev, toolPermissionContext: applyPermissionUpdates(prev.toolPermissionContext, rules) }))
-    }
-    return { behavior: 'allow', updatedInput: finalInput, decisionReason: { type: 'hook', hookName: hookNames } }
-  } catch (error) {
-    logError(new Error('the permission.ask hooks failed in a prompt-less session', { cause: toError(error) }))
-  }
-  return null
+  return notBuilt('src/utils/permissions/decision/wrapper.ts:49')
 }
-
 
 
 function underStandingAllowRules(context: ToolUseContext): ToolUseContext {
@@ -118,10 +77,7 @@ async function decisionOnceGranted(
   appState: ReturnType<ToolUseContext['getAppState']>,
   grant: PermissionUpdate[],
 ): Promise<{ decision: PermissionDecision; rules: ToolPermissionContext } | null> {
-  const rules = applyPermissionUpdates(appState.toolPermissionContext, grant)
-  if (rules === appState.toolPermissionContext) return null
-  const granted: ToolUseContext = { ...context, getAppState: () => ({ ...appState, toolPermissionContext: rules }) }
-  return { decision: (await decideToolPermission(tool, input, granted)).decision, rules }
+  return notBuilt('src/utils/permissions/decision/wrapper.ts:114')
 }
 
 async function askWithCoveringGrant(
@@ -167,109 +123,7 @@ export async function decideToolPermissionWithModes(
   context: ToolUseContext,
   assistantMessage: AssistantMessage,
   toolUseID: string,
-  ports: WrapperPorts = defaultWrapperPorts,
+  ports?: WrapperPorts,
 ): Promise<FullDecisionOutcome> {
-  void assistantMessage
-  const engineOutcome = await decideToolPermission(tool, input, underStandingAllowRules(context))
-  const engineDecision = engineOutcome.decision
-  const engineTrace = engineOutcome.trace
-
-  const stageLog: WrapperStageRecord[] = []
-  const recordPass = (stage: WrapperStageId, note?: string): void => {
-    stageLog.push(
-      note ? { stage, outcome: 'pass', note } : { stage, outcome: 'pass' },
-    )
-  }
-  const decide = (
-    stage: WrapperStageId,
-    decision: PermissionDecision,
-    note?: string,
-  ): FullDecisionOutcome => {
-    stageLog.push(
-      note ? { stage, outcome: 'decided', note } : { stage, outcome: 'decided' },
-    )
-    return { decision, engineTrace, wrapper: { stages: stageLog, decidedBy: stage } }
-  }
-  const passThrough = (decision: PermissionDecision): FullDecisionOutcome => ({
-    decision,
-    engineTrace,
-    wrapper: { stages: stageLog, decidedBy: 'engine' },
-  })
-
-  if (engineDecision.behavior === 'allow') {
-    return passThrough(engineDecision)
-  }
-
-  if (engineDecision.behavior === 'ask') {
-    const appState = context.getAppState()
-
-    if (appState.toolPermissionContext.mode === 'dontAsk') {
-      return decide('dontAskConversion', {
-        behavior: 'deny',
-        decisionReason: {
-          type: 'mode',
-          mode: 'dontAsk',
-        },
-        message: DONT_ASK_REJECT_MESSAGE(tool.name),
-      })
-    }
-
-    let pending: PermissionAskDecision = engineDecision
-    if (appState.toolPermissionContext.mode === 'flow') {
-      const verdict = await decideUnderFlow(
-        tool,
-        input,
-        engineDecision,
-        appState.toolPermissionContext,
-        async suggestions => {
-          if (suggestions.some(update => update.type === 'setMode')) return false
-          const granted = await decisionOnceGranted(tool, input, context, appState, suggestions)
-          if (granted === null) return false
-          if (granted.decision.behavior === 'allow') return true
-          if (granted.decision.behavior !== 'ask') return false
-          const nextFlow = await decideUnderFlow(tool, input, granted.decision, granted.rules)
-          return nextFlow.stage === 'flowAllow'
-        },
-      )
-      if (verdict.stage === 'flowAllow') {
-        recordPass('flowFloors')
-        recordPass('flowLaw')
-        logForDebugging(`Flow allows ${tool.name}: none of the five`)
-        return decide('flowAllow', verdict.decision)
-      }
-      const note = verdict.stage === 'flowFloors' ? verdict.floor : `item ${verdict.ask.item}`
-      if (verdict.stage === 'flowLaw') recordPass('flowFloors')
-      if (!appState.toolPermissionContext.shouldAvoidPermissionPrompts) {
-        return decide(verdict.stage, verdict.stage === 'flowFloors' ? await askWithCoveringGrant(tool, input, context, appState, verdict.decision) : verdict.decision, note)
-      }
-      recordPass(verdict.stage, note)
-      pending = verdict.decision
-    }
-
-    if (appState.toolPermissionContext.shouldAvoidPermissionPrompts) {
-      const hookDecision = await ports.runHeadlessHooks(
-        tool,
-        input,
-        toolUseID,
-        context,
-        appState.toolPermissionContext.mode,
-        pending.suggestions,
-      )
-      if (hookDecision) {
-        return decide('headlessHooks', hookDecision)
-      }
-      recordPass('headlessHooks')
-      return decide('headlessAutoDeny', {
-        behavior: 'deny',
-        decisionReason: {
-          type: 'asyncAgent',
-          reason: 'This session cannot present a permission prompt',
-        },
-        message: pending === engineDecision ? AUTO_REJECT_MESSAGE(tool.name) : `${pending.message} ${AUTO_REJECT_MESSAGE(tool.name)}`,
-      })
-    }
-    return passThrough(await askWithCoveringGrant(tool, input, context, appState, engineDecision))
-  }
-
-  return passThrough(engineDecision)
+  return notBuilt('src/utils/permissions/decision/wrapper.ts:164')
 }

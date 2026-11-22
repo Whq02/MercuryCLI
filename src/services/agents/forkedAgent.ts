@@ -29,84 +29,29 @@ import { closeAgentTranscript } from '../../utils/sessionStorage/writer.js'
 import type { SystemPrompt } from '../../utils/systemPromptType.js'
 import { cloneContentReplacementState, type ContentReplacementState } from '../../utils/toolResultStorage.js'
 import { createAgentId } from '../../utils/uuid.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-export type CacheSafeParams = {
-  systemPrompt: SystemPrompt
-  userContext: { [k: string]: string }
-  systemContext: { [k: string]: string }
-  toolUseContext: ToolUseContext
-  forkContextMessages: Message[]
-  postFoldCarry?: Message[]
-}
+export type CacheSafeParams = Unbuilt
 
-type SubagentContextOverrides = {
-  readFileState?: FileStateCache
-  contentReplacementState?: ContentReplacementState
-  abortController?: AbortController
-  shareAbortController?: boolean
-  getAppState?: () => AppState
-  setAppState?: (f: (prev: AppState) => AppState) => void
-  shareSetAppState?: boolean
-  setResponseLength?: (f: (prev: number) => number) => void
-  setSDKStatus?: ToolUseContext['setSDKStatus']
-  shareSetResponseLength?: boolean
-  options?: ToolUseContext['options']
-  messages?: Message[]
-  agentId?: AgentId
-  agentType?: string
-  standingRule?: string
-  requireCanUseTool?: boolean
-  alwaysCallCanUseTool?: boolean
-}
+type SubagentContextOverrides = Unbuilt
 
-export type ForkedAgentParams = {
-  promptMessages: Message[]
-  cacheSafeParams: CacheSafeParams
-  canUseTool: CanUseToolFn
-  querySource: QuerySource
-  forkLabel: string
-  overrides?: SubagentContextOverrides
-  maxOutputTokens?: number
-  maxTurns?: number
-  onMessage?: (message: Message) => void
-  onStreamEvent?: (event: unknown) => void
-  skipTranscript?: boolean
-  skipCacheWrite?: boolean
-}
+export type ForkedAgentParams = Unbuilt
 
-type ForkedAgentResult = {
-  messages: Message[]
-  totalUsage: NonNullableUsage
-  terminal: Terminal | undefined
-}
+type ForkedAgentResult = Unbuilt
 
-type PreparedForkedContext = {
-  skillContent: string
-  modifiedGetAppState: () => AppState
-  baseAgent: AgentDefinition
-  promptMessages: Message[]
-}
-
-
-let lastCacheSafeParams: CacheSafeParams | null = null
+type PreparedForkedContext = Unbuilt
 
 export function saveCacheSafeParams(params: CacheSafeParams | null): void {
-  lastCacheSafeParams = params
+  return notBuilt('src/services/agents/forkedAgent.ts:94')
 }
 
 export function getLastCacheSafeParams(): CacheSafeParams | null {
-  return lastCacheSafeParams
+  return notBuilt('src/services/agents/forkedAgent.ts:98')
 }
 
 export function createCacheSafeParams(hookContext: TurnAnswerContext): CacheSafeParams {
-  return {
-    systemPrompt: hookContext.systemPrompt,
-    userContext: hookContext.userContext,
-    systemContext: hookContext.systemContext,
-    toolUseContext: hookContext.toolUseContext,
-    forkContextMessages: hookContext.messages,
-  }
+  return notBuilt('src/services/agents/forkedAgent.ts:102')
 }
 
 
@@ -156,8 +101,7 @@ export function createGetAppStateWithAllowedTools(
   baseGetAppState: () => AppState,
   allowedTools: string[],
 ): () => AppState {
-  if (allowedTools.length === 0) return baseGetAppState
-  return () => withAllowedCommandRules(baseGetAppState(), allowedTools)
+  return notBuilt('src/services/agents/forkedAgent.ts:155')
 }
 
 
@@ -166,20 +110,7 @@ export async function prepareForkedCommandContext(
   args: string,
   context: ToolUseContext,
 ): Promise<PreparedForkedContext> {
-  const blocks = await command.getPromptForCommand(args, context)
-  const content = extractTextContent(blocks, '\n')
-  const allowedTools = parseToolListFromCLI(command.allowedTools ?? [])
-  const getAppState = createGetAppStateWithAllowedTools(context.getAppState, allowedTools)
-  const active = context.options.agentDefinitions.activeAgents
-  const agent =
-    (command.agent ? active.find(candidate => candidate.agentType === command.agent) : undefined) ??
-    active.find(candidate => candidate.agentType === MERCURY_CREW_AGENT.agentType) ??
-    active[0]
-  if (!agent) {
-    throw new Error('No agent definition is available to run this forked command.')
-  }
-  const messages: Message[] = [createUserMessage({ content })]
-  return { skillContent: content, modifiedGetAppState: getAppState, baseAgent: agent, promptMessages: messages }
+  return notBuilt('src/services/agents/forkedAgent.ts:164')
 }
 
 export function extractResultText(messages: Message[], defaultText: string = 'Execution completed.'): string {
@@ -190,60 +121,8 @@ export function extractResultText(messages: Message[], defaultText: string = 'Ex
 }
 
 
-export function createSubagentContext(parentContext: ToolUseContext, overrides: SubagentContextOverrides = {}): ToolUseContext {
-  const shareWithParent = overrides.shareAbortController === true
-  const readFileState = cloneFileStateCache(overrides.readFileState ?? parentContext.readFileState)
-  const contentReplacementState =
-    overrides.contentReplacementState ??
-    (parentContext.contentReplacementState ? cloneContentReplacementState(parentContext.contentReplacementState) : undefined)
-  const abortController =
-    overrides.abortController ??
-    (shareWithParent ? parentContext.abortController : createChildAbortController(parentContext.abortController))
-  const getAppState =
-    overrides.getAppState ??
-    (shareWithParent
-      ? parentContext.getAppState
-      : () => {
-          const state = parentContext.getAppState()
-          if (state.toolPermissionContext.shouldAvoidPermissionPrompts) return state
-          return {
-            ...state,
-            toolPermissionContext: { ...state.toolPermissionContext, shouldAvoidPermissionPrompts: true },
-          }
-        })
-  const setAppState = overrides.setAppState ?? (overrides.shareSetAppState ? parentContext.setAppState : () => {})
-
-  return {
-    options: overrides.options ?? parentContext.options,
-    startTurn: parentContext.startTurn,
-    abortController,
-    readFileState,
-    getAppState,
-    setAppState,
-    setAppStateForTasks: parentContext.setAppStateForTasks ?? parentContext.setAppState,
-    nestedMemoryAttachmentTriggers: new Set<string>(),
-    loadedNestedMemoryPaths: new Set<string>(),
-    dynamicSkillDirTriggers: new Set<string>(),
-    discoveredSkillNames: new Set<string>(),
-    toolDecisions: undefined,
-    contentReplacementState,
-    userModifiedInput: parentContext.userModifiedInput,
-    setInProgressToolUseIDs: () => {},
-    setSDKStatus: overrides.setSDKStatus,
-    setResponseLength:
-      overrides.setResponseLength ?? (overrides.shareSetResponseLength ? parentContext.setResponseLength : () => {}),
-    updateFileHistoryState: () => {},
-    updateAttributionState: parentContext.updateAttributionState,
-    messages: overrides.messages ?? parentContext.messages,
-    agentId: overrides.agentId ?? createAgentId(),
-    agentType: overrides.agentType,
-    agentKind: parentContext.agentKind,
-    callChain: advanceToolCallChain(parentContext, randomUUID, 'fork'),
-    fileReadingLimits: parentContext.fileReadingLimits,
-    standingRule: overrides.standingRule,
-    requireCanUseTool: overrides.requireCanUseTool,
-    alwaysCallCanUseTool: overrides.alwaysCallCanUseTool ?? parentContext.alwaysCallCanUseTool,
-  }
+export function createSubagentContext(parentContext: ToolUseContext, overrides?: SubagentContextOverrides): ToolUseContext {
+  return notBuilt('src/services/agents/forkedAgent.ts:193')
 }
 
 
@@ -274,85 +153,5 @@ export function settleForkUsageFold(fold: ForkUsageFold): NonNullableUsage {
 }
 
 export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedAgentResult> {
-  const {
-    promptMessages,
-    cacheSafeParams,
-    canUseTool,
-    querySource,
-    forkLabel: label,
-    overrides,
-    maxOutputTokens,
-    maxTurns,
-    onMessage,
-    onStreamEvent,
-    skipTranscript,
-    skipCacheWrite,
-  } = params
-  const startedAt = Date.now()
-  const context: ToolUseContext = {
-    ...createSubagentContext(cacheSafeParams.toolUseContext, overrides),
-    rosterOwner: rosterOwnerFromToolUseContext(cacheSafeParams.toolUseContext),
-  }
-  const messages: Message[] = [...cacheSafeParams.forkContextMessages, ...promptMessages]
-  const collected: Message[] = []
-  let fold: ForkUsageFold = EMPTY_FORK_USAGE_FOLD
-  const agentId = skipTranscript ? undefined : createAgentId(label)
-  let lastRecordedUuid: UUID | undefined
-  if (!skipTranscript) {
-    try {
-      const replay = cacheSafeParams.forkContextMessages.map(message => ({ ...message, replayOf: message.uuid }))
-      await recordSidechainTranscript([...replay, ...promptMessages], agentId)
-      lastRecordedUuid = writtenChainTail([...replay, ...promptMessages]) as UUID | undefined
-    } catch (err) {
-      logForDebugging(`forkedAgent(${label}): initial transcript record failed: ${String(err)}`)
-    }
-  }
-  let terminal: Terminal | undefined
-  const stream = async function* () {
-    terminal = yield* cacheSafeParams.toolUseContext.startTurn({
-      messages,
-      systemPrompt: cacheSafeParams.systemPrompt,
-      userContext: cacheSafeParams.userContext,
-      systemContext: cacheSafeParams.systemContext,
-      canUseTool,
-      toolUseContext: context,
-      querySource,
-      maxOutputTokensOverride: maxOutputTokens,
-      maxTurns,
-      skipCacheWrite,
-    })
-  }
-  try {
-    for await (const item of settledSidechainMessages(stream())) {
-      if (item.type === 'stream_event') {
-        fold = foldForkUsageEvent(fold, item.event as { type?: string; usage?: unknown; message?: { usage?: unknown } })
-        onStreamEvent?.(item.event)
-        continue
-      }
-      if (item.type === 'stream_request_start') continue
-      const message = item as Message
-      logForDebugging(`forkedAgent(${label}): ${message.type} message`)
-      collected.push(message)
-      onMessage?.(message)
-      if (!skipTranscript && (message.type === 'assistant' || message.type === 'user' || message.type === 'progress')) {
-        try {
-          await recordSidechainTranscript([message], agentId, lastRecordedUuid)
-          lastRecordedUuid = writtenChainTail([message], lastRecordedUuid) as UUID | undefined
-        } catch (err) {
-          logForDebugging(`forkedAgent(${label}): transcript append failed: ${String(err)}`)
-        }
-      }
-    }
-  } finally {
-    context.readFileState.clear()
-    messages.length = 0
-    if (agentId !== undefined) closeAgentTranscript(agentId)
-  }
-  const usage = settleForkUsageFold(fold)
-  const durationMs = Date.now() - startedAt
-  logForDebugging(
-    `forkedAgent(${label}): done in ${durationMs}ms — ${collected.length} message(s) [${collected.map(m => m.type).join(', ')}]; ` +
-      `input=${usage.input_tokens} output=${usage.output_tokens} cache_create=${usage.cache_creation_input_tokens} cache_read=${usage.cache_read_input_tokens}`,
-  )
-  return { messages: collected, totalUsage: usage, terminal }
+  return notBuilt('src/services/agents/forkedAgent.ts:276')
 }

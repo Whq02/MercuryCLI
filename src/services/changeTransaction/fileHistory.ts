@@ -21,11 +21,10 @@ import { stripBOM } from '../../utils/jsonRead.js'
 import { logError } from '../../utils/log.js'
 import { recordFileHistorySnapshot } from '../../utils/sessionStorage.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-type StateUpdater = (updater: (prev: FileHistoryState) => FileHistoryState) => void
-
-const MAX_SNAPSHOTS = 100
+type StateUpdater = (...args: Unbuilt[]) => Unbuilt
 const MAX_FAILURES_LISTED = 10
 
 const RACY_MTIME_WINDOW_MS = 2_000
@@ -75,21 +74,16 @@ export function fileCheckpointSource(): FileCheckpointSource {
 }
 
 export function fileHistoryEnabled(): boolean {
-  const source = fileCheckpointSource()
-  return source === 'interactive' || source === 'seat' || source === 'initialize'
+  return notBuilt('src/services/changeTransaction/fileHistory.ts:77')
 }
 
 
 function toTrackingKey(filePath: string): string {
-  if (!isAbsolute(filePath)) return filePath
-  const originalCwd = getOriginalCwd()
-  if (filePath.startsWith(originalCwd)) return relative(originalCwd, filePath)
-  return filePath
+  return notBuilt('src/services/changeTransaction/fileHistory.ts:83')
 }
 
 export function maybeExpandFilePath(trackingKey: string): string {
-  if (isAbsolute(trackingKey)) return trackingKey
-  return join(getOriginalCwd(), trackingKey)
+  return notBuilt('src/services/changeTransaction/fileHistory.ts:90')
 }
 
 function backupDirectory(sessionId: string = getSessionId()): string {
@@ -97,60 +91,15 @@ function backupDirectory(sessionId: string = getSessionId()): string {
 }
 
 function backupFileName(filePath: string, version: number): string {
-  return `${createHash('sha256').update(filePath).digest('hex').slice(0, 16)}@v${version}`
+  return notBuilt('src/services/changeTransaction/fileHistory.ts:99')
 }
 
 function backupPath(backupName: string, sessionId?: string): string {
-  return join(backupDirectory(sessionId), backupName)
+  return notBuilt('src/services/changeTransaction/fileHistory.ts:103')
 }
 
 async function createBackup(filePath: string, version: number): Promise<FileHistoryBackup> {
-  let sourceStats
-  try {
-    sourceStats = await statCounted(filePath)
-  } catch (err) {
-    if (isENOENT(err)) return { backupFileName: null, version, backupTime: new Date() }
-    throw err
-  }
-  const name = backupFileName(filePath, version)
-  const target = backupPath(name)
-  try {
-    await copyCounted(filePath, target)
-  } catch (err) {
-    if (!isENOENT(err)) throw err
-    await mkdir(backupDirectory(), { recursive: true })
-    await copyCounted(filePath, target)
-  }
-  await chmod(target, sourceStats.mode)
-  return { backupFileName: name, version, backupTime: new Date(), ...sourceHint(sourceStats) }
-}
-
-
-async function checkOriginFileChanged(
-  originalFile: string,
-  backupFileName: string,
-  statsHint?: Awaited<ReturnType<typeof stat>>,
-): Promise<boolean> {
-  const safeStat = async (path: string): Promise<StatResult | null | 'error'> => {
-    try {
-      return await statCounted(path)
-    } catch (err) {
-      return isENOENT(err) ? null : 'error'
-    }
-  }
-  const sourceStats = statsHint ?? (await safeStat(originalFile))
-  const backupStats = await safeStat(backupPath(backupFileName))
-  if (sourceStats === 'error' || backupStats === 'error') return true
-  if ((sourceStats === null) !== (backupStats === null)) return true
-  if (sourceStats === null || backupStats === null) return false
-  if (sourceStats.mode !== backupStats.mode || sourceStats.size !== backupStats.size) return true
-  try {
-    const [source, backup] = await Promise.all([readCounted(originalFile), readCounted(backupPath(backupFileName))])
-    return !source.equals(backup)
-  } catch (error) {
-    passedOver(error)
-    return true
-  }
+  return notBuilt('src/services/changeTransaction/fileHistory.ts:107')
 }
 
 
@@ -206,74 +155,7 @@ export async function fileHistoryTrackEdit(updateState: StateUpdater, filePath: 
 
 
 export async function fileHistoryMakeSnapshot(updateState: StateUpdater, messageId: UUID): Promise<void> {
-  updateState(prev => {
-    if (prev.rewindUndo === undefined) return prev
-    const { rewindUndo: _undo, ...next } = prev
-    return next
-  })
-  try {
-    if (!fileHistoryEnabled()) return
-    const state = captureState(updateState)
-    if (!state) return
-    const previous = latestSnapshot(state)
-    const backups: Record<string, FileHistoryBackup> = {}
-    if (previous) {
-      await Promise.all(
-        [...state.trackedFiles].map(async key => {
-          try {
-            const filePath = maybeExpandFilePath(key)
-            const prior = previous.trackedFileBackups[key]
-            const nextVersion = prior ? prior.version + 1 : 1
-            let fileStats
-            try {
-              fileStats = await statCounted(filePath)
-            } catch (err) {
-              if (!isENOENT(err)) throw err
-              backups[key] = { backupFileName: null, version: nextVersion, backupTime: new Date() }
-              return
-            }
-            if (prior && prior.backupFileName) {
-              if (hintMatches(prior, fileStats)) {
-                backups[key] = prior
-                return
-              }
-              if (!(await checkOriginFileChanged(filePath, prior.backupFileName, fileStats))) {
-                backups[key] = {
-                  backupFileName: prior.backupFileName,
-                  version: prior.version,
-                  backupTime: prior.backupTime,
-                  ...sourceHint(fileStats),
-                }
-                return
-              }
-            }
-            backups[key] = await createBackup(filePath, nextVersion)
-          } catch (err) {
-            logError(err)
-          }
-        }),
-      )
-    }
-    let committed: FileHistorySnapshot | null = null
-    updateState(prev => {
-      const priorSnapshot = latestSnapshot(prev)
-      for (const key of prev.trackedFiles) {
-        if (!(key in backups) && priorSnapshot?.trackedFileBackups[key]) {
-          backups[key] = priorSnapshot.trackedFileBackups[key] as FileHistoryBackup
-        }
-      }
-      const snapshot: FileHistorySnapshot = { messageId, trackedFileBackups: backups, timestamp: new Date() }
-      committed = snapshot
-      const snapshots = [...prev.snapshots, snapshot].slice(-MAX_SNAPSHOTS)
-      return { ...prev, snapshots, snapshotSequence: prev.snapshotSequence + 1 }
-    })
-    if (committed) {
-      const finished = committed as FileHistorySnapshot
-      void recordFileHistorySnapshot(messageId, finished, false)
-    }
-  } catch (err) {
-    logError(err)
-  }
+  return notBuilt('src/services/changeTransaction/fileHistory.ts:208')
 }
 
 
@@ -289,8 +171,7 @@ function resolveTargetBackup(state: FileHistoryState, snapshot: FileHistorySnaps
 
 
 export function fileHistoryCanRestore(state: FileHistoryState, messageId: UUID): boolean {
-  if (!fileHistoryEnabled()) return false
-  return state.snapshots.some(snapshot => snapshot.messageId === messageId)
+  return notBuilt('src/services/changeTransaction/fileHistory.ts:291')
 }
 
 
@@ -315,12 +196,7 @@ export interface RestoreDriftOracle {
 }
 
 async function readBytesOrNull(path: string): Promise<Buffer | null> {
-  try {
-    return await readFile(path)
-  } catch (err) {
-    if (isENOENT(err)) return null
-    throw err
-  }
+  return notBuilt('src/services/changeTransaction/fileHistory.ts:317')
 }
 
 function blobMatchesRecord(blobSize: number, record: FileHistoryBackup): boolean {
@@ -557,83 +433,13 @@ export async function fileHistoryRestore(
 }
 
 
-
 export function fileHistoryRestoreStateFromLog(
   snapshots: FileHistorySnapshot[],
   onUpdateState: (state: FileHistoryState) => void,
 ): void {
-  if (!fileHistoryEnabled()) return
-  const trackedFiles = new Set<string>()
-  const migrated = snapshots.map(snapshot => {
-    const backups: Record<string, FileHistoryBackup> = {}
-    for (const [path, backup] of Object.entries(snapshot.trackedFileBackups)) {
-      const key = toTrackingKey(path)
-      backups[key] = backup
-      trackedFiles.add(key)
-    }
-    return { ...snapshot, trackedFileBackups: backups }
-  })
-  onUpdateState({ snapshots: migrated, trackedFiles, snapshotSequence: migrated.length })
+  return notBuilt('src/services/changeTransaction/fileHistory.ts:561')
 }
 
 export async function copyFileHistoryForResume(log: SessionListing): Promise<void> {
-  try {
-    if (!fileHistoryEnabled()) return
-    const snapshots = log.fileHistorySnapshots as FileHistorySnapshot[] | undefined
-    if (snapshots === undefined) return
-    if (!log.messages || log.messages.length === 0) return
-    const previousSessionId = (log.messages[log.messages.length - 1] as { sessionId?: string } | undefined)?.sessionId
-    if (!previousSessionId) {
-      logError(new Error('copyFileHistoryForResume: no previous session id on the last message'))
-      return
-    }
-    const currentSessionId = getSessionId()
-    if (previousSessionId === currentSessionId) return
-    await mkdir(backupDirectory(currentSessionId), { recursive: true })
-    let failedSnapshots = 0
-    await Promise.all(
-      snapshots.map(async snapshot => {
-        let failed = false
-        await Promise.all(
-          Object.values(snapshot.trackedFileBackups).map(async backup => {
-            if (backup.backupFileName === null) return
-            const from = backupPath(backup.backupFileName, previousSessionId)
-            const to = backupPath(backup.backupFileName, currentSessionId)
-            try {
-              await link(from, to)
-            } catch (err) {
-              const code = (err as { code?: string }).code
-              if (code === 'ENOENT') {
-                failed = true
-                return
-              }
-              if (code !== 'EEXIST') {
-                try {
-                  await copyFile(from, to)
-                } catch {
-                  failed = true
-                  return
-                }
-              }
-            }
-            try {
-              if (!blobMatchesRecord((await stat(to)).size, backup)) failed = true
-            } catch {
-              failed = true
-            }
-          }),
-        )
-        if (failed) {
-          failedSnapshots++
-          return
-        }
-        await recordFileHistorySnapshot(snapshot.messageId, snapshot, false)
-      }),
-    )
-    if (failedSnapshots > 0) {
-      logForDebugging(`copyFileHistoryForResume: ${failedSnapshots} snapshot(s) had missing blobs and were not re-recorded`)
-    }
-  } catch (err) {
-    logError(err)
-  }
+  return notBuilt('src/services/changeTransaction/fileHistory.ts:579')
 }

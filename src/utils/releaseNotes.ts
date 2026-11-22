@@ -4,6 +4,7 @@ import { getMercuryChangelog } from '../constants/changelog.js'
 import { logError } from './log.js'
 import { gt } from './semver.js'
 import { passedOver } from './passedOver.js'
+import { notBuilt } from '../pi/holes.js'
 
 
 function getStoredChangelogFromMemory(): string {
@@ -11,30 +12,11 @@ function getStoredChangelogFromMemory(): string {
 }
 
 export async function getStoredChangelog(): Promise<string> {
-  return getMercuryChangelog()
+  return notBuilt('src/utils/releaseNotes.ts:13')
 }
 
 function parseChangelog(content: string): Record<string, string[]> {
-  try {
-    if (!content) return {}
-    const result: Record<string, string[]> = {}
-    const sections = content.split(/^## /m).slice(1)
-    for (const section of sections) {
-      const lines = section.split('\n')
-      const version = (lines[0] ?? '').split(' - ')[0]?.trim() ?? ''
-      if (version === '') continue
-      const notes = lines
-        .filter(line => line.trim().startsWith('- '))
-        .map(line => line.trim().slice(2).trim())
-        .filter(note => note !== '')
-      if (notes.length === 0) continue
-      result[version] = notes
-    }
-    return result
-  } catch (err) {
-    logError(err)
-    return {}
-  }
+  return notBuilt('src/utils/releaseNotes.ts:17')
 }
 
 const RECENT_NOTES_CAP = 5
@@ -42,43 +24,9 @@ const RECENT_NOTES_CAP = 5
 export function getRecentReleaseNotes(
   currentVersion: string,
   previousVersion: string | null | undefined,
-  changelogContent: string = getStoredChangelogFromMemory(),
+  changelogContent?: string,
 ): string[] {
-  try {
-    const current = coerce(currentVersion)?.version
-    const previous = previousVersion ? coerce(previousVersion)?.version : undefined
-    const epochReset = current !== undefined && previous !== undefined && gt(previous, current)
-    const showNotes =
-      previous === undefined || epochReset || (current !== undefined && gt(current, previous))
-    if (!showNotes) return []
-    const parsed = parseChangelog(changelogContent)
-    const versions = Object.keys(parsed)
-      .filter(version => {
-        if (previous === undefined || epochReset) return true
-        try {
-          return gt(version, previous)
-        } catch (error) {
-          passedOver(error)
-          return false
-        }
-      })
-      .sort((a, b) => {
-        try {
-          return gt(a, b) ? -1 : 1
-        } catch (error) {
-          passedOver(error)
-          return 0
-        }
-      })
-    const notes: string[] = []
-    for (const version of versions) {
-      notes.push(...(parsed[version] ?? []))
-    }
-    return notes.filter(note => note !== '').slice(0, RECENT_NOTES_CAP)
-  } catch (err) {
-    logError(err)
-    return []
-  }
+  return notBuilt('src/utils/releaseNotes.ts:42')
 }
 
 export function getAllReleaseNotes(changelogContent: string = getStoredChangelogFromMemory()): Array<[string, string[]]> {

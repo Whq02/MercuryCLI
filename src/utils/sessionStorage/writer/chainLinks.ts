@@ -11,6 +11,7 @@ import { effortNotOnWire } from '../../effortStamp.js'
 import { getFirstMeaningfulUserMessageTextContent, type Transcript } from '../chain.js'
 import { getEntrypoint, isChainParticipant } from '../paths.js'
 import type { QueuePart } from './queue.js'
+import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
 
 const VERSION = typeof MACRO !== 'undefined' ? MACRO.VERSION : 'unknown'
 
@@ -59,78 +60,11 @@ export class ChainPart {
 
   async insertMessageChain(
     messages: Transcript,
-    isSidechain: boolean = false,
+    isSidechain?: boolean,
     agentId?: string,
     startingParentUuid?: UUID | null,
-    preferLiveLeaf: boolean = false,
-  ) {
-    return this.needs.trackWrite(() => this.needs.serializeInsert(async () => {
-      let parentUuid: UUID | null = startingParentUuid ?? null
-      if (!isSidechain && (preferLiveLeaf || parentUuid === null)) {
-        const leaf = this.project.currentSessionChainLeaf
-        if (leaf !== undefined) parentUuid = leaf
-      }
-
-      if (
-        this.project.sessionFile === null &&
-        messages.some(m => m.type === 'user' || m.type === 'assistant')
-      ) {
-        await this.needs.materializeSessionFile()
-      }
-
-      let gitBranch: string | undefined
-      try {
-        gitBranch = await getBranch()
-      } catch {
-        gitBranch = undefined
-      }
-
-      const sessionId = getSessionId()
-      const slug = getPlanSlugCache().get(sessionId)
-
-      for (const message of messages) {
-        const isCompactBoundary = isCompactBoundaryMessage(message)
-
-        let effectiveParentUuid = parentUuid
-        if (
-          message.type === 'user' &&
-          'sourceToolAssistantUUID' in message &&
-          message.sourceToolAssistantUUID
-        ) {
-          effectiveParentUuid = this.leafDescendsQuietly(parentUuid, message.sourceToolAssistantUUID) ? parentUuid : message.sourceToolAssistantUUID
-        }
-
-        const transcriptMessage: TranscriptMessage = {
-          parentUuid: isCompactBoundary ? null : effectiveParentUuid,
-          logicalParentUuid: isCompactBoundary
-            ? (parentUuid ?? undefined)
-            : undefined,
-          isSidechain,
-          promptId:
-            message.type === 'user' ? (getPromptId() ?? undefined) : undefined,
-          workload: message.type === 'assistant' ? getWorkload() : undefined,
-          agentId,
-          ...(message.type === 'assistant' ? { effort: effortNotOnWire() } : {}),
-          ...message,
-          entrypoint: getEntrypoint(),
-          cwd: getCwd(),
-          sessionId,
-          version: VERSION,
-          gitBranch,
-          slug,
-        }
-        await this.project.appendEntry(transcriptMessage)
-        if (isChainParticipant(message)) {
-          this.noteChainLink(message.uuid as UUID, transcriptMessage.parentUuid, !isCompactBoundary && (message.type === 'attachment' || message.type === 'system'))
-          parentUuid = message.uuid
-          if (!isSidechain) this.project.currentSessionChainLeaf = message.uuid as UUID
-        }
-      }
-
-      if (!isSidechain) {
-        const text = getFirstMeaningfulUserMessageTextContent(messages)
-        if (text) this.project.metadata.cache('lastPrompt', promptLabel(text))
-      }
-    }))
+    preferLiveLeaf?: boolean,
+  ): Promise<Unbuilt> {
+    return notBuilt('src/utils/sessionStorage/writer/chainLinks.ts:60')
   }
 }

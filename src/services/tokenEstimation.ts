@@ -19,11 +19,12 @@ import { is529Error, isRetryableError, isStaleConnectionError } from './api/with
 import { busyRetryScale, nextBusyRetryWithinBudget, openBusyRetryLadder } from './providers/busyRetry.js'
 import { declaredRouteOf } from './providers/routeLaw.js'
 import { withTokenCountVCR } from './vcr.js'
+import { notBuilt, unbuilt } from '../pi/holes.js'
 export { roughTokenCountEstimation, bytesPerTokenForFileType, roughTokenCountEstimationForFileType, estimateContentTokens, roughTokenCountEstimationForMessages, estimateRequestTokens } from './roughTokenEstimation.js'
 
 
 const THINKING_BUDGET_TOKENS = 1024
-const PLACEHOLDER_MESSAGES: MessageParam[] = [{ role: 'user', content: 'hi' }]
+const PLACEHOLDER_MESSAGES: MessageParam[] = unbuilt('src/services/tokenEstimation.ts:26')
 export const COUNT_RETRY_BUDGET_MS = 15_000
 const COUNT_SOURCE = 'count_tokens'
 
@@ -83,16 +84,7 @@ async function countWithBusyRetry<T>(road: string, run: () => Promise<T>): Promi
 }
 
 function hasThinkingBlocks(messages: ReadonlyArray<{ role?: string; content?: unknown }>): boolean {
-  for (const message of messages) {
-    if ((message as { role?: string }).role !== 'assistant') continue
-    const content = (message as { content?: unknown }).content
-    if (!Array.isArray(content)) continue
-    for (const block of content) {
-      const type = (block as { type?: string }).type
-      if (type === 'thinking' || type === 'redacted_thinking') return true
-    }
-  }
-  return false
+  return notBuilt('src/services/tokenEstimation.ts:85')
 }
 
 function apiMessagesFor(messages: Message[]): MessageParam[] {
@@ -117,76 +109,16 @@ export async function countMessagesTokensWithAPI(
   tools: ApiToolUnion[],
   system?: readonly TextBlockParam[],
 ): Promise<number | null> {
-  if (!firstPartyCountApplies()) return null
-  const messages = rawMessages.map(toProductMessage)
-  const carried = system !== undefined && system.length > 0 ? system : undefined
-  return withTokenCountVCR(messages, tools, carried, async () => {
-    try {
-      const model = normalizeModelStringForAPI(getEngineModel())
-      const apiMessages = apiMessagesFor(messages)
-      const body = apiMessages.length === 0 ? PLACEHOLDER_MESSAGES : apiMessages
-      const thinking = hasThinkingBlocks(body)
-      const betas = getModelBetas(model)
-      const client = await getAnthropicClient({ maxRetries: 0, source: COUNT_SOURCE })
-      const response = await countWithBusyRetry(COUNT_SOURCE, () =>
-        client.beta.messages.countTokens(
-          {
-            model,
-            messages: body,
-            tools,
-            ...(carried !== undefined ? { system: carried } : {}),
-            ...(betas.length > 0 ? { betas } : {}),
-            ...(thinking
-              ? {
-                  thinking: modelSupportsAdaptiveThinking(model)
-                    ? { type: 'adaptive' }
-                    : { type: 'enabled', budget_tokens: THINKING_BUDGET_TOKENS },
-                }
-              : {}),
-          },
-          { timeout: COUNT_RETRY_BUDGET_MS },
-        ),
-      )
-      const count = (response as { input_tokens?: unknown }).input_tokens
-      return typeof count === 'number' ? count : null
-    } catch (err) {
-      logError(err)
-      return null
-    }
-  })
+  return notBuilt('src/services/tokenEstimation.ts:115')
 }
 
 export async function countTokensWithAPI(content: string): Promise<number | null> {
-  if (content === '') return 0
-  return countMessagesTokensWithAPI([{ role: 'user', content }], [])
+  return notBuilt('src/services/tokenEstimation.ts:159')
 }
 
 
 function stripToolSearchFields(messages: MessageParam[]): MessageParam[] {
-  return messages.map(message => {
-    const content = message.content
-    if (!Array.isArray(content)) return message
-    const rebuilt = content.map((block): ContentBlockParam => {
-      if (block.type === 'tool_use') {
-        return { type: 'tool_use', id: block.id, name: block.name, input: block.input }
-      }
-      if (block.type === 'tool_result' && Array.isArray(block.content)) {
-        const kept = block.content.filter(
-          inner => !isToolReferenceBlock(inner),
-        )
-        if (kept.length === block.content.length) return block
-        if (kept.length === 0) {
-          return {
-            ...block,
-            content: [{ type: 'text', text: '[tool references removed]' }],
-          }
-        }
-        return { ...block, content: kept }
-      }
-      return block
-    })
-    return { ...message, content: rebuilt }
-  })
+  return notBuilt('src/services/tokenEstimation.ts:165')
 }
 
 export async function countTokensViaHaikuFallback(

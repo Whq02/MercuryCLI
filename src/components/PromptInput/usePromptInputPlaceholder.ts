@@ -1,4 +1,3 @@
-
 import { useMemo } from 'react'
 import { usePublish } from '../../hooks/effects.js'
 import { useAppState } from '../../state/AppState.js'
@@ -7,50 +6,14 @@ import { getExampleCommandFromCache } from '../../utils/exampleCommands.js'
 import { noteProjectOnboardingShown, projectOnboardingHint } from '../../projectOnboardingState.js'
 import { truncateToWidth } from '../../utils/glyphs.js'
 import { crewmatePlaceholder } from '../../utils/cockpit/crewmateWords.js'
+import { notBuilt } from '../../pi/holes.js'
 
-const AGENT_NAME_MAX_COLUMNS = 24
-
-export function usePromptInputPlaceholder({
-  input,
-  submitCount,
-  viewingAgentName,
-  cockpitActive,
-  compact = false,
-}: {
+export function usePromptInputPlaceholder(arg0: {
   input: string
   submitCount: number
   viewingAgentName?: string
   cockpitActive?: boolean
   compact?: boolean
 }): string | undefined {
-  const onboardingHint =
-    input === '' && submitCount === 0 && !viewingAgentName
-      ? projectOnboardingHint()
-      : undefined
-  usePublish(() => {
-    if (onboardingHint !== undefined) noteProjectOnboardingShown()
-  }, [onboardingHint])
-  const suggestionsEnabled = useAppState(
-    (state: AppState) => state.promptSuggestionEnabled,
-  )
-
-  return useMemo(() => {
-    if (input !== '') return undefined
-    if (viewingAgentName) {
-      return crewmatePlaceholder(truncateToWidth(viewingAgentName, AGENT_NAME_MAX_COLUMNS))
-    }
-    if (onboardingHint !== undefined) {
-      return onboardingHint
-    }
-    if (compact && submitCount < 2) {
-      return 'Type a prompt, or start a slash command'
-    }
-    if (cockpitActive && submitCount < 2) {
-      return 'Type a prompt, start a slash command, or Tab to focus the rails'
-    }
-    if (submitCount === 0 && suggestionsEnabled) {
-      return getExampleCommandFromCache()
-    }
-    return undefined
-  }, [input, viewingAgentName, cockpitActive, compact, submitCount, suggestionsEnabled, onboardingHint])
+  return notBuilt('src/components/PromptInput/usePromptInputPlaceholder.ts:13')
 }

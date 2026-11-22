@@ -17,6 +17,7 @@ import {
 } from '../../utils/shell/readOnlyCommandValidation.js'
 import { COMMON_PARAMETERS } from './commonParameters.js'
 import { getPlatform } from '../../utils/platform.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const PS_DASH_RE = /[-–—―]/
 
@@ -37,19 +38,11 @@ const allowAll: CommandConfig = { allowAllFlags: true }
 const PATHEXT = /\.(?:exe|cmd|bat|com)$/i
 
 export function resolveToCanonical(name: string): string {
-  let lower = name.toLowerCase()
-  if (!/[\\/]/.test(lower)) lower = lower.replace(PATHEXT, '')
-  const aliased = (COMMON_ALIASES as Record<string, string | undefined>)[lower]
-  return aliased !== undefined ? aliased.toLowerCase() : lower
+  return notBuilt('src/tools/PowerShellTool/readOnlyValidation.ts:39')
 }
 
 export function isCwdChangingCmdlet(name: string): boolean {
-  const canonical = resolveToCanonical(name)
-  if (canonical === 'set-location' || canonical === 'push-location' || canonical === 'pop-location' || canonical === 'new-psdrive') {
-    return true
-  }
-  if (getPlatform() === 'windows' && (canonical === 'ndr' || canonical === 'mount')) return true
-  return false
+  return notBuilt('src/tools/PowerShellTool/readOnlyValidation.ts:46')
 }
 
 
@@ -148,10 +141,8 @@ const CMDLET_ALLOWLIST: Record<string, CommandConfig> = Object.assign(Object.cre
 })
 
 export function isSafeOutputCommand(name: string): boolean {
-  return resolveToCanonical(name) === 'out-null'
+  return notBuilt('src/tools/PowerShellTool/readOnlyValidation.ts:150')
 }
-
-const PIPELINE_TAIL = new Set(['format-table', 'format-list', 'format-wide', 'format-custom', 'measure-object', 'select-object', 'sort-object', 'group-object', 'where-object', 'out-string', 'out-host'])
 
 const SAFE_EXTERNAL = new Set(['where.exe'])
 
@@ -167,79 +158,12 @@ export function argLeaksValue(_command: string, element?: ParsedCommandElement):
 }
 
 function argumentLeaks(element: ParsedCommandElement, i: number): boolean {
-  const arg = element.args[i] as string
-  const type = argumentTypeAt(element, i)
-  if (type !== 'StringConstant' && type !== 'Parameter') {
-    if (LEAK_METACHARS.test(arg)) return true
-  }
-  if (type === 'Parameter') {
-    const children = element.children?.[i]
-    if (children) {
-      if (children.some(child => child.type !== 'StringConstant')) return true
-    } else {
-      const colon = arg.indexOf(':', 1)
-      if (colon !== -1 && LEAK_METACHARS.test(arg.slice(colon + 1))) return true
-    }
-  }
-  return false
+  return notBuilt('src/tools/PowerShellTool/readOnlyValidation.ts:169')
 }
 
 
 export function isAllowlistedCommand(element: ParsedCommandElement, originalCommand: string): boolean {
-  if (element.nameType === 'application') {
-    const rawFirst = (element.text.trim().split(/\s+/)[0] ?? '').toLowerCase()
-    if (!SAFE_EXTERNAL.has(rawFirst)) return false
-  }
-  const direct = CMDLET_ALLOWLIST[element.name.toLowerCase()]
-  const config = direct ?? CMDLET_ALLOWLIST[resolveToCanonical(element.name)]
-  if (!config) return false
-  if (config.regex && !config.regex.test(originalCommand)) return false
-  if (config.additionalDanger && config.additionalDanger(originalCommand, element)) return false
-  const types = element.elementTypes
-  if (!types) return false
-  for (let i = 0; i < element.args.length; i++) {
-    const arg = element.args[i] as string
-    const type = argumentTypeAt(element, i)
-    if (type !== 'StringConstant' && type !== 'Parameter') {
-      if (LEAK_METACHARS.test(arg)) return false
-    }
-    if (type === 'Parameter') {
-      const children = element.children?.[i]
-      if (children) {
-        if (children.some(child => child.type !== 'StringConstant')) return false
-      } else {
-        const colon = arg.indexOf(':', 1)
-        if (colon !== -1 && LEAK_METACHARS.test(arg.slice(colon + 1))) return false
-      }
-    }
-  }
-  const canonical = resolveToCanonical(element.name)
-  if (canonical === 'git' || canonical === 'gh' || canonical === 'docker' || canonical === 'dotnet') {
-    return isExternalReadOnly(canonical, element.args)
-  }
-  return validatePsFlags(canonical, element, config)
-}
-
-function validatePsFlags(canonical: string, element: ParsedCommandElement, config: CommandConfig): boolean {
-  if (config.allowAllFlags) return true
-  const isCmdlet = canonical.includes('-')
-  const safeFlags = config.safeFlags
-  const types = element.elementTypes
-  for (let i = 0; i < element.args.length; i++) {
-    const arg = element.args[i] as string
-    const isParam = isCmdlet
-      ? (types ? argumentTypeAt(element, i) === 'Parameter' : isPowerShellParameter(arg))
-      : arg.startsWith('-') || (getPlatform() === 'windows' && arg.startsWith('/'))
-    if (!isParam) continue
-    if (!safeFlags || safeFlags.length === 0) return false
-    let name = normaliseDash(arg)
-    const colon = name.indexOf(':', 1)
-    if (colon !== -1) name = name.slice(0, colon)
-    name = name.toLowerCase()
-    if (isCmdlet && COMMON_PARAMETERS.has(name)) continue
-    if (!safeFlags.includes(name)) return false
-  }
-  return true
+  return notBuilt('src/tools/PowerShellTool/readOnlyValidation.ts:188')
 }
 
 function normaliseDash(arg: string): string {
@@ -264,88 +188,24 @@ const GIT_REJECT_GLOBAL = new Set(['-c', '-C', '--exec-path', '--config-env', '-
 const GIT_VALUE_GLOBAL = new Set(['-c', '-C', '--exec-path', '--config-env', '--git-dir', '--work-tree', '--namespace', '--super-prefix', '--shallow-file'])
 
 function gitReadOnly(args: string[]): boolean {
-  if (args.length === 0) return true
-  if (args.some(a => a.includes('$'))) return false
-  let i = 0
-  while (i < args.length) {
-    const arg = args[i] as string
-    if (!arg.startsWith('-')) break
-    const eq = arg.indexOf('=')
-    const flagPart = eq === -1 ? arg : arg.slice(0, eq)
-    if (arg.length > 2 && arg.startsWith('-c') && arg[2] !== '-') return false
-    if (arg.length > 2 && arg.startsWith('-C')) return false
-    if (GIT_REJECT_GLOBAL.has(flagPart)) return false
-    if (eq === -1 && GIT_VALUE_GLOBAL.has(arg)) i += 2
-    else i += 1
-  }
-  if (i >= args.length) return true
-  const tail = args.slice(i)
-  const first = (tail[0] as string).toLowerCase()
-  const twoWord = tail.length >= 2 ? `git ${first} ${(tail[1] as string).toLowerCase()}` : null
-  const config = (twoWord && GIT_READ_ONLY_COMMANDS[twoWord]) || GIT_READ_ONLY_COMMANDS[`git ${first}`]
-  if (!config) return false
-  if (first === 'ls-remote') {
-    for (const arg of tail.slice(1)) {
-      if (arg.startsWith('-')) continue
-      if (arg.includes('://') || arg.includes('@') || arg.includes(':') || arg.includes('$')) return false
-    }
-  }
-  if (config.additionalCommandIsDangerousCallback && config.additionalCommandIsDangerousCallback('', tail)) return false
-  return validateFlags(tail, 0, config, { commandName: 'git' })
+  return notBuilt('src/tools/PowerShellTool/readOnlyValidation.ts:266')
 }
 
 function dockerReadOnly(args: string[]): boolean {
-  if (args.length === 0) return false
-  if (args.some(a => a.includes('$'))) return false
-  const first = (args[0] as string).toLowerCase()
-  const config = DOCKER_READ_ONLY_COMMANDS[`docker ${first}`]
-  if (!config) return false
-  if (config.additionalCommandIsDangerousCallback && config.additionalCommandIsDangerousCallback('', args.slice(1))) return false
-  return validateFlags(args, 1, config, { commandName: 'docker' })
+  return notBuilt('src/tools/PowerShellTool/readOnlyValidation.ts:297')
 }
 
 
 export function isAllowlistedPipelineTail(element: ParsedCommandElement, originalCommand: string): boolean {
-  if (!PIPELINE_TAIL.has(resolveToCanonical(element.name))) return false
-  return isAllowlistedCommand(element, originalCommand)
+  return notBuilt('src/tools/PowerShellTool/readOnlyValidation.ts:308')
 }
 
 export function isProvablySafeStatement(statement: ParsedStatement): boolean {
-  if (statement.statementType !== 'PipelineAst') return false
-  if (statement.commands.length === 0) return false
-  return statement.nestedCommands.length === 0
+  return notBuilt('src/tools/PowerShellTool/readOnlyValidation.ts:313')
 }
 
 export function isReadOnlyCommand(command: string, parsed?: ParsedPowerShellCommand): boolean {
-  if (command.trim() === '') return false
-  if (!parsed || !parsed.valid) return false
-  const flags = deriveSecurityFlags(parsed)
-  if (
-    flags.hasScriptBlocks || flags.hasSubExpressions || flags.hasExpandableStrings ||
-    flags.hasSplatting || flags.hasMemberInvocations || flags.hasAssignments || flags.hasStopParsing
-  ) return false
-
-  const segments = getPipelineSegments(parsed)
-  if (segments.length === 0) return false
-
-  const totalCommands = segments.reduce((sum, s) => sum + s.commands.length, 0)
-  if (totalCommands > 1 && segments.some(s => s.commands.some(c => isCwdChangingCmdlet(c.name)))) return false
-
-  for (const statement of segments) {
-    if (statement.commands.length === 0) return false
-    for (const redirect of statement.redirections) {
-      if (!redirect.isMerging && !isNullRedirectionTarget(redirect.target)) return false
-    }
-    if (statement.nestedCommands.length > 0) return false
-    const [first, ...rest] = statement.commands
-    if (!first || !isAllowlistedCommand(first, command)) return false
-    for (const command_ of rest) {
-      if (command_.nameType === 'application') return false
-      if (isSafeOutputCommand(command_.name) && command_.args.length === 0) continue
-      if (!isAllowlistedCommand(command_, command)) return false
-    }
-  }
-  return true
+  return notBuilt('src/tools/PowerShellTool/readOnlyValidation.ts:319')
 }
 
 

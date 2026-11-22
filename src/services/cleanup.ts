@@ -17,28 +17,16 @@ import { getInitialSettings, rawSettingsContainsKey } from '../utils/settings/se
 import { TOOL_RESULTS_SUBDIR } from '../utils/toolResultStorage.js'
 import { cleanupStaleAgentWorktrees } from './worktree.js'
 import { passedOver } from '../utils/passedOver.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
-const DEFAULT_CLEANUP_PERIOD_DAYS = 30
+const DEFAULT_CLEANUP_PERIOD_DAYS: Unbuilt = unbuilt('src/services/cleanup.ts:22')
 
 export function retentionWindowDays(): number {
   return getInitialSettings().records?.retentionDays ?? DEFAULT_CLEANUP_PERIOD_DAYS
 }
 
-type CleanupResult = {
-  messages: number
-  errors: number
-}
-
-function addCleanupResults(a: CleanupResult, b: CleanupResult): CleanupResult {
-  return { messages: a.messages + b.messages, errors: a.errors + b.errors }
-}
-
-function convertFileNameToDate(filename: string): Date {
-  const segment = filename.split('.')[0] ?? ''
-  const iso = segment.replace(/T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z/, 'T$1:$2:$3.$4Z')
-  return new Date(iso)
-}
+type CleanupResult = Unbuilt
 
 function computeCutoffDate(): Date {
   const cutoff = Date.now() - retentionWindowDays() * 86_400_000
@@ -49,61 +37,6 @@ export function retentionCutoffMs(): number | null {
   const { errors: settingsErrors } = getSettingsWithAllErrors()
   if (settingsErrors.length > 0 && rawSettingsContainsKey('records.retentionDays')) return null
   return computeCutoffDate().getTime()
-}
-
-async function cleanupOldMessageFiles(): Promise<CleanupResult> {
-  const result: CleanupResult = { messages: 0, errors: 0 }
-  const fs = getFsImplementation()
-  const cutoff = computeCutoffDate()
-
-  const errorsDir = CACHE_PATHS.errors()
-  try {
-    const entries = await fs.readdir(errorsDir)
-    for (const entry of entries) {
-      if (!(convertFileNameToDate(entry.name) < cutoff)) continue
-      try {
-        await fs.unlink(join(errorsDir, entry.name))
-        result.messages++
-      } catch (err) {
-        logError(err)
-      }
-    }
-  } catch (err) {
-    if (!isENOENT(err)) logError(err)
-  }
-
-  const cacheBase = CACHE_PATHS.baseLogs()
-  let baseEntries: Awaited<ReturnType<typeof fs.readdir>>
-  try {
-    baseEntries = await fs.readdir(cacheBase)
-  } catch {
-    return result
-  }
-  for (const baseEntry of baseEntries) {
-    if (!baseEntry.name.startsWith('mcp-logs-')) continue
-    const mcpLogDir = join(cacheBase, baseEntry.name)
-    try {
-      const entries = await fs.readdir(mcpLogDir)
-      for (const entry of entries) {
-        if (!(convertFileNameToDate(entry.name) < cutoff)) continue
-        try {
-          await fs.unlink(join(mcpLogDir, entry.name))
-          result.messages++
-        } catch (err) {
-          logError(err)
-        }
-      }
-    } catch (err) {
-      if (!isENOENT(err)) logError(err)
-      continue
-    }
-    try {
-      await fs.rmdir(mcpLogDir)
-    } catch (error) {
-      passedOver(error)
-    }
-  }
-  return result
 }
 
 const SCAN_CHUNK_BYTES = 4 * 1024 * 1024
@@ -151,212 +84,11 @@ export async function collectReferencedBlobDirs(transcriptPath: string, cutoff: 
 }
 
 export async function cleanupOldSessionFiles(): Promise<CleanupResult> {
-  const result: CleanupResult = { messages: 0, errors: 0 }
-  const fs = getFsImplementation()
-  const cutoff = computeCutoffDate()
-  const projectsRoot = getProjectsDir()
-
-  let projectEntries: Awaited<ReturnType<typeof fs.readdir>>
-  try {
-    projectEntries = await fs.readdir(projectsRoot)
-  } catch {
-    return result
-  }
-
-  for (const projectEntry of projectEntries) {
-    if (!projectEntry.isDirectory()) continue
-    const projectDir = join(projectsRoot, projectEntry.name)
-    let entries: Awaited<ReturnType<typeof fs.readdir>>
-    try {
-      entries = await fs.readdir(projectDir)
-    } catch {
-      result.errors++
-      continue
-    }
-
-    for (const entry of entries) {
-      const entryPath = join(projectDir, entry.name)
-      if (entry.isDirectory()) {
-        const sessionDir = entryPath
-        const toolResultsDir = join(sessionDir, TOOL_RESULTS_SUBDIR)
-        let toolResultEntries: Awaited<ReturnType<typeof fs.readdir>> | null = null
-        try {
-          toolResultEntries = await fs.readdir(toolResultsDir)
-        } catch {
-          toolResultEntries = null
-        }
-        if (toolResultEntries === null) {
-          try {
-            await fs.rmdir(sessionDir)
-          } catch (error) {
-            passedOver(error)
-          }
-          continue
-        }
-
-        const transcriptPath = join(projectDir, `${entry.name}.jsonl`)
-        let referenced: Set<string> | null
-        try {
-          referenced = await collectReferencedBlobDirs(transcriptPath, cutoff)
-        } catch (error) {
-          logError(error)
-          result.errors++
-          continue
-        }
-
-        for (const toolResultEntry of toolResultEntries) {
-          const toolResultPath = join(toolResultsDir, toolResultEntry.name)
-          if (toolResultEntry.isDirectory()) {
-            if (referenced?.has(toolResultEntry.name)) continue
-            let blobEntries: Awaited<ReturnType<typeof fs.readdir>>
-            try {
-              blobEntries = await fs.readdir(toolResultPath)
-            } catch (error) {
-              passedOver(error)
-              continue
-            }
-            for (const blobEntry of blobEntries) {
-              if (!blobEntry.isFile()) continue
-              const blobFilePath = join(toolResultPath, blobEntry.name)
-              try {
-                const stats = await fs.stat(blobFilePath)
-                if (stats.mtime < cutoff) {
-                  await fs.unlink(blobFilePath)
-                  result.messages++
-                }
-              } catch {
-                result.errors++
-              }
-            }
-            try {
-              await fs.rmdir(toolResultPath)
-            } catch (error) {
-              passedOver(error)
-            }
-          } else if (toolResultEntry.isFile()) {
-            if (referenced?.has(toolResultEntry.name)) continue
-            try {
-              const stats = await fs.stat(toolResultPath)
-              if (stats.mtime < cutoff) {
-                await fs.unlink(toolResultPath)
-                result.messages++
-              }
-            } catch {
-              result.errors++
-            }
-          }
-        }
-
-        try {
-          await fs.rmdir(toolResultsDir)
-        } catch (error) {
-          passedOver(error)
-        }
-        try {
-          await fs.rmdir(sessionDir)
-        } catch (error) {
-          passedOver(error)
-        }
-      } else if (entry.isFile()) {
-        if (!entry.name.endsWith('.cast')) continue
-        try {
-          const stats = await fs.stat(entryPath)
-          if (stats.mtime < cutoff) {
-            await fs.unlink(entryPath)
-            result.messages++
-          }
-        } catch {
-          result.errors++
-        }
-      }
-    }
-
-    try {
-      await fs.rmdir(projectDir)
-    } catch (error) {
-      passedOver(error)
-    }
-  }
-  return result
+  return notBuilt('src/services/cleanup.ts:153')
 }
 
 export async function recordingsUnderSweep(): Promise<{ count: number; bytes: number }> {
-  const fs = getFsImplementation()
-  const projectsRoot = getProjectsDir()
-  let count = 0
-  let bytes = 0
-  let projectEntries: Awaited<ReturnType<typeof fs.readdir>>
-  try {
-    projectEntries = await fs.readdir(projectsRoot)
-  } catch (error) {
-    if (isENOENT(error)) return { count, bytes }
-    throw error
-  }
-  for (const projectEntry of projectEntries) {
-    if (!projectEntry.isDirectory()) continue
-    const projectDir = join(projectsRoot, projectEntry.name)
-    let entries: Awaited<ReturnType<typeof fs.readdir>>
-    try {
-      entries = await fs.readdir(projectDir)
-    } catch (error) {
-      if (isENOENT(error)) continue
-      throw error
-    }
-    for (const entry of entries) {
-      if (!entry.isFile() || !entry.name.endsWith('.cast')) continue
-      try {
-        const stats = await fs.stat(join(projectDir, entry.name))
-        count++
-        bytes += stats.size
-      } catch (error) {
-        if (!isENOENT(error)) throw error
-      }
-    }
-  }
-  return { count, bytes }
-}
-
-async function cleanupAgedDirectoryTree(root: string, concurrent: boolean): Promise<CleanupResult> {
-  const result: CleanupResult = { messages: 0, errors: 0 }
-  const fs = getFsImplementation()
-  const cutoff = computeCutoffDate()
-  let entries: Awaited<ReturnType<typeof fs.readdir>>
-  try {
-    entries = await fs.readdir(root)
-  } catch (err) {
-    if (!isENOENT(err)) logError(err)
-    return result
-  }
-  const removeOne = async (name: string): Promise<void> => {
-    const dirPath = join(root, name)
-    try {
-      const stats = await fs.stat(dirPath)
-      if (stats.mtime < cutoff) {
-        await fs.rm(dirPath, { recursive: true, force: true })
-        result.messages++
-      }
-    } catch {
-      result.errors++
-    }
-  }
-  const directories = entries.filter(entry => entry.isDirectory())
-  try {
-    if (concurrent) {
-      await Promise.all(directories.map(entry => removeOne(entry.name)))
-    } else {
-      for (const entry of directories) {
-        await removeOne(entry.name)
-      }
-    }
-  } catch (err) {
-    logError(err)
-  }
-  try {
-    await fs.rmdir(root)
-  } catch (error) {
-    passedOver(error)
-  }
-  return result
+  return notBuilt('src/services/cleanup.ts:283')
 }
 
 export const FILE_HISTORY_MAX_BYTES = 500 * 1024 * 1024
@@ -400,59 +132,7 @@ export async function fileHistoryStorage(): Promise<{ bytes: number; limit: numb
 }
 
 export async function cleanupOldFileHistoryBackups(): Promise<CleanupResult> {
-  const result = await cleanupAgedDirectoryTree(join(getMercuryHome(), 'file-history'), true)
-  const fs = getFsImplementation()
-  try {
-    const directories = await fileHistoryDirectories()
-    let bytes = directories.reduce((sum, dir) => sum + dir.bytes, 0)
-    for (const dir of directories) {
-      if (bytes <= FILE_HISTORY_MAX_BYTES) break
-      try {
-        await fs.rm(dir.path, { recursive: true, force: true })
-        bytes -= dir.bytes
-        result.messages++
-      } catch {
-        result.errors++
-      }
-    }
-  } catch {
-    result.errors++
-  }
-  return result
-}
-
-async function cleanupOldSessionEnvDirs(): Promise<CleanupResult> {
-  return cleanupAgedDirectoryTree(join(getMercuryHome(), 'session-env'), false)
-}
-
-async function cleanupOldDebugLogs(): Promise<CleanupResult> {
-  const result: CleanupResult = { messages: 0, errors: 0 }
-  const fs = getFsImplementation()
-  const cutoff = computeCutoffDate()
-  const debugDir = join(getMercuryHome(), 'debug')
-  let entries: Awaited<ReturnType<typeof fs.readdir>>
-  try {
-    entries = await fs.readdir(debugDir)
-  } catch (err) {
-    if (!isENOENT(err)) logError(err)
-    return result
-  }
-  for (const entry of entries) {
-    if (!entry.isFile()) continue
-    if (entry.name === 'latest') continue
-    if (!entry.name.endsWith('.txt')) continue
-    const filePath = join(debugDir, entry.name)
-    try {
-      const stats = await fs.stat(filePath)
-      if (stats.mtime < cutoff) {
-        await fs.unlink(filePath)
-        result.messages++
-      }
-    } catch {
-      result.errors++
-    }
-  }
-  return result
+  return notBuilt('src/services/cleanup.ts:402')
 }
 
 async function recallablePasteHashes(): Promise<Set<string>> {
@@ -462,34 +142,5 @@ async function recallablePasteHashes(): Promise<Set<string>> {
 }
 
 export async function cleanupOldMessageFilesInBackground(): Promise<CleanupResult> {
-  if (retentionCutoffMs() === null) {
-    logForDebugging(
-      'cleanup: skipped — settings have validation errors and records.retentionDays is (or may be) configured',
-    )
-    return { messages: 0, errors: 1 }
-  }
-
-  let result = await cleanupOldMessageFiles()
-  result = addCleanupResults(result, await cleanupOldSessionFiles())
-  result = addCleanupResults(result, await cleanupOldFileHistoryBackups())
-  result = addCleanupResults(result, await cleanupOldSessionEnvDirs())
-  result = addCleanupResults(result, await cleanupOldDebugLogs())
-
-  try {
-    await cleanupOldImageCaches(computeCutoffDate())
-  } catch {
-    result = addCleanupResults(result, { messages: 0, errors: 1 })
-  }
-  try {
-    await cleanupOldPastes(computeCutoffDate(), await recallablePasteHashes())
-  } catch {
-    result = addCleanupResults(result, { messages: 0, errors: 1 })
-  }
-  try {
-    const removed = await cleanupStaleAgentWorktrees(computeCutoffDate())
-    result = addCleanupResults(result, { messages: removed, errors: 0 })
-  } catch {
-    result = addCleanupResults(result, { messages: 0, errors: 1 })
-  }
-  return result
+  return notBuilt('src/services/cleanup.ts:464')
 }

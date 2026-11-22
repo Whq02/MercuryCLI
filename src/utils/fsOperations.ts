@@ -7,42 +7,10 @@ import { slowLogging } from './slowOperations.js'
 import { uncPathRisk } from './permissions/uncPath.js'
 import { isWindowsShareRooted } from './platform/paths.js'
 import { passedOver } from './passedOver.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
-export interface FsOperations {
-  cwd(): string
-  existsSync(path: string): boolean
-  stat(path: string): Promise<fs.Stats>
-  readdir(path: string): Promise<fs.Dirent[]>
-  unlink(path: string): Promise<void>
-  rmdir(path: string): Promise<void>
-  rm(path: string, options?: { recursive?: boolean; force?: boolean }): Promise<void>
-  mkdir(path: string, options?: { mode?: number }): Promise<void>
-  readFile(path: string, options: { encoding: BufferEncoding }): Promise<string>
-  rename(from: string, to: string): Promise<void>
-  statSync(path: string): fs.Stats
-  lstatSync(path: string): fs.Stats
-  readFileSync(path: string, options: { encoding: BufferEncoding }): string
-  readFileBytesSync(path: string): Buffer
-  readSync(path: string, options: { length: number }): { buffer: Buffer; bytesRead: number }
-  appendFileSync(path: string, data: string, options?: { mode?: number }): void
-  copyFileSync(from: string, to: string): void
-  unlinkSync(path: string): void
-  renameSync(from: string, to: string): void
-  linkSync(from: string, to: string): void
-  symlinkSync(target: string, path: string, type?: 'dir' | 'file' | 'junction'): void
-  readlinkSync(path: string): string
-  realpathSync(path: string): string
-  mkdirSync(path: string, options?: { mode?: number }): void
-  readdirSync(path: string): fs.Dirent[]
-  readdirStringSync(path: string): string[]
-  isDirEmptySync(path: string): boolean
-  rmdirSync(path: string): void
-  rmSync(path: string, options?: { recursive?: boolean; force?: boolean }): void
-  createWriteStream(path: string, options?: Parameters<typeof fs.createWriteStream>[1]): fs.WriteStream
-  readFileBytes(path: string, maxBytes?: number): Promise<Buffer>
-  readFileChunks?(path: string, chunkBytes: number, onChunk: (chunk: Buffer) => void): Promise<void>
-}
+export type FsOperations = Unbuilt
 
 function swallowExistingDirectory(err: unknown): void {
   if (getErrnoCode(err) === 'EEXIST') return
@@ -58,114 +26,12 @@ function withSlowLog<T>(label: string, fn: () => T): T {
   }
 }
 
-const NodeFsOperations: FsOperations = {
-  cwd: () => process.cwd(),
-  existsSync: path => withSlowLog(`existsSync ${path}`, () => fs.existsSync(path)),
-  stat: path => fs.promises.stat(path),
-  readdir: path => fs.promises.readdir(path, { withFileTypes: true }),
-  unlink: path => fs.promises.unlink(path),
-  rmdir: path => fs.promises.rmdir(path),
-  rm: (path, options) => fs.promises.rm(path, options),
-  async mkdir(path, options) {
-    try {
-      await fs.promises.mkdir(path, { recursive: true, mode: options?.mode })
-    } catch (err) {
-      swallowExistingDirectory(err)
-    }
-  },
-  readFile: (path, options) => fs.promises.readFile(path, options),
-  rename: (from, to) => fs.promises.rename(from, to),
-  statSync: path => withSlowLog(`statSync ${path}`, () => fs.statSync(path)),
-  lstatSync: path => withSlowLog(`lstatSync ${path}`, () => fs.lstatSync(path)),
-  readFileSync: (path, options) =>
-    withSlowLog(`readFileSync ${path}`, () => fs.readFileSync(path, options)),
-  readFileBytesSync: path => withSlowLog(`readFileBytesSync ${path}`, () => fs.readFileSync(path)),
-  readSync: (path, options) =>
-    withSlowLog(`readSync ${path} (${options.length} bytes)`, () => {
-      const fd = fs.openSync(path, 'r')
-      try {
-        const buffer = Buffer.alloc(options.length)
-        const bytesRead = fs.readSync(fd, buffer, 0, options.length, 0)
-        return { buffer, bytesRead }
-      } finally {
-        fs.closeSync(fd)
-      }
-    }),
-  appendFileSync: (path, data, options) =>
-    withSlowLog(`appendFileSync ${path} (${data.length} chars)`, () => {
-      if (options?.mode !== undefined) {
-        try {
-          fs.writeFileSync(path, data, { flag: 'wx', mode: options.mode })
-          return
-        } catch (err) {
-          if (getErrnoCode(err) !== 'EEXIST') throw err
-        }
-      }
-      fs.appendFileSync(path, data)
-    }),
-  copyFileSync: (from, to) => withSlowLog(`copyFileSync ${from}`, () => fs.copyFileSync(from, to)),
-  unlinkSync: path => withSlowLog(`unlinkSync ${path}`, () => fs.unlinkSync(path)),
-  renameSync: (from, to) => withSlowLog(`renameSync ${from}`, () => fs.renameSync(from, to)),
-  linkSync: (from, to) => withSlowLog(`linkSync ${from}`, () => fs.linkSync(from, to)),
-  symlinkSync: (target, path, type) =>
-    withSlowLog(`symlinkSync ${path}`, () => fs.symlinkSync(target, path, type)),
-  readlinkSync: path => withSlowLog(`readlinkSync ${path}`, () => fs.readlinkSync(path)),
-  realpathSync: path => withSlowLog(`realpathSync ${path}`, () => fs.realpathSync(path).normalize('NFC')),
-  mkdirSync: (path, options) =>
-    withSlowLog(`mkdirSync ${path}`, () => {
-      try {
-        fs.mkdirSync(path, { recursive: true, mode: options?.mode })
-      } catch (err) {
-        swallowExistingDirectory(err)
-      }
-    }),
-  readdirSync: path => withSlowLog(`readdirSync ${path}`, () => fs.readdirSync(path, { withFileTypes: true })),
-  readdirStringSync: path => withSlowLog(`readdirStringSync ${path}`, () => fs.readdirSync(path)),
-  isDirEmptySync(path) {
-    return withSlowLog(`isDirEmptySync ${path}`, () => activeFs.readdirStringSync(path).length === 0)
-  },
-  rmdirSync: path => withSlowLog(`rmdirSync ${path}`, () => fs.rmdirSync(path)),
-  rmSync: (path, options) => withSlowLog(`rmSync ${path}`, () => fs.rmSync(path, options)),
-  createWriteStream: (path, options) => fs.createWriteStream(path, options),
-  async readFileBytes(path, maxBytes) {
-    if (maxBytes === undefined) return fs.promises.readFile(path)
-    const handle = await fs.promises.open(path, 'r')
-    try {
-      const { size } = await handle.stat()
-      const wanted = Math.min(size, maxBytes)
-      const buffer = Buffer.alloc(wanted)
-      let offset = 0
-      while (offset < wanted) {
-        const { bytesRead } = await handle.read(buffer, offset, wanted - offset, offset)
-        if (bytesRead === 0) break
-        offset += bytesRead
-      }
-      return offset === wanted ? buffer : buffer.subarray(0, offset)
-    } finally {
-      await handle.close()
-    }
-  },
-  async readFileChunks(path, chunkBytes, onChunk) {
-    const handle = await fs.promises.open(path, 'r')
-    try {
-      const buffer = Buffer.allocUnsafe(chunkBytes)
-      let position = 0
-      for (;;) {
-        const { bytesRead } = await handle.read(buffer, 0, chunkBytes, position)
-        if (bytesRead === 0) break
-        onChunk(buffer.subarray(0, bytesRead))
-        position += bytesRead
-      }
-    } finally {
-      await handle.close()
-    }
-  },
-}
+const NodeFsOperations: FsOperations = unbuilt('src/utils/fsOperations.ts:61')
 
-let activeFs: FsOperations = NodeFsOperations
+let activeFs: FsOperations = unbuilt('src/utils/fsOperations.ts:165')
 
 export function getFsImplementation(): FsOperations {
-  return activeFs
+  return notBuilt('src/utils/fsOperations.ts:167')
 }
 
 export function setFsImplementation(impl: FsOperations): void {
@@ -181,27 +47,11 @@ export function isUncLikePath(path: string): boolean {
   return uncPathRisk(path).risky || isWindowsShareRooted(path, false)
 }
 
-function isSpecialFile(stats: fs.Stats): boolean {
-  return stats.isFIFO() || stats.isSocket() || stats.isCharacterDevice() || stats.isBlockDevice()
-}
-
 export function safeResolvePath(
   fsImpl: FsOperations,
   filePath: string,
 ): { resolvedPath: string; isSymlink: boolean; isCanonical: boolean } {
-  if (isUncLikePath(filePath)) {
-    return { resolvedPath: filePath, isSymlink: false, isCanonical: false }
-  }
-  try {
-    const stats = fsImpl.lstatSync(filePath)
-    if (isSpecialFile(stats)) {
-      return { resolvedPath: filePath, isSymlink: false, isCanonical: false }
-    }
-    const resolved = fsImpl.realpathSync(filePath)
-    return { resolvedPath: resolved, isSymlink: resolved !== filePath, isCanonical: true }
-  } catch {
-    return { resolvedPath: filePath, isSymlink: false, isCanonical: false }
-  }
+  return notBuilt('src/utils/fsOperations.ts:188')
 }
 
 
@@ -251,83 +101,18 @@ function resolveDeepestExistingAncestorSync(fsImpl: FsOperations, absolutePath: 
 const MAX_SYMLINK_HOPS = 40
 
 export function getPathsForPermissionCheck(inputPath: string, baseDir?: string): string[] {
-  const fsImpl = getFsImplementation()
-  const home = homedir().normalize('NFC')
-  let path = inputPath
-  if (path === '~') path = home
-  else if (path.startsWith('~/')) path = join(home, path.slice(2))
-
-  const results = new Set<string>()
-  results.add(path)
-  if (isUncLikePath(path)) return [...results]
-  if (baseDir !== undefined && !isAbsolute(path)) {
-    path = resolve(baseDir, path)
-    results.add(path)
-  }
-
-  try {
-    const visited = new Set<string>()
-    let current = path
-    let hops = 0
-    for (;;) {
-      if (visited.has(current) || hops >= MAX_SYMLINK_HOPS) break
-      visited.add(current)
-      hops++
-      if (!fsImpl.existsSync(current)) {
-        const next = resolveDeepestExistingAncestorSync(fsImpl, current)
-        if (next && !visited.has(next)) {
-          results.add(next)
-          if (isUncLikePath(next)) return [...results]
-          current = next
-          continue
-        }
-        break
-      }
-      const stats = fsImpl.lstatSync(current)
-      if (isSpecialFile(stats)) break
-      if (!stats.isSymbolicLink()) break
-      const link = fsImpl.readlinkSync(current)
-      const target = isAbsolute(link) ? link : resolve(dirname(current), link)
-      results.add(target)
-      if (isUncLikePath(target)) return [...results]
-      current = target
-    }
-    const { resolvedPath, isSymlink } = safeResolvePath(fsImpl, path)
-    if (isSymlink && resolvedPath !== path) results.add(resolvedPath)
-  } catch (error) {
-    passedOver(error)
-  }
-  return [...results]
+  return notBuilt('src/utils/fsOperations.ts:253')
 }
 
 
-export type ReadFileRangeResult = {
-  content: string
-  bytesRead: number
-  bytesTotal: number
-}
+export type ReadFileRangeResult = Unbuilt
 
 function flatString(buffer: Buffer): string {
-  return buffer.toString('utf8')
+  return notBuilt('src/utils/fsOperations.ts:310')
 }
 
 export async function readFileRange(path: string, offset: number, maxBytes: number): Promise<ReadFileRangeResult | null> {
-  const handle = await fs.promises.open(path, 'r')
-  try {
-    const { size } = await handle.stat()
-    if (size <= offset) return null
-    const wanted = Math.min(size - offset, maxBytes)
-    const buffer = Buffer.alloc(wanted)
-    let read = 0
-    while (read < wanted) {
-      const { bytesRead } = await handle.read(buffer, read, wanted - read, offset + read)
-      if (bytesRead === 0) break
-      read += bytesRead
-    }
-    return { content: flatString(buffer.subarray(0, read)), bytesRead: read, bytesTotal: size }
-  } finally {
-    await handle.close()
-  }
+  return notBuilt('src/utils/fsOperations.ts:314')
 }
 
 export async function tailFile(path: string, maxBytes: number): Promise<ReadFileRangeResult> {

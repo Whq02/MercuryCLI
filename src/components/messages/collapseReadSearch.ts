@@ -34,28 +34,12 @@ import {
   isMemoryDirectory,
   isShellCommandTargetingMemory,
 } from '../../utils/memoryFileDetection.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-type SearchOrReadResult = {
-  isCollapsible: boolean
-  isSearch: boolean
-  isRead: boolean
-  isList: boolean
-  isMemoryWrite: boolean
-  absorbSilently: boolean
-  isBashCommand: boolean
-  mcpServerName?: string
-}
+type SearchOrReadResult = Unbuilt
 
-const NOT_COLLAPSIBLE: SearchOrReadResult = {
-  isCollapsible: false,
-  isSearch: false,
-  isRead: false,
-  isList: false,
-  isMemoryWrite: false,
-  absorbSilently: false,
-  isBashCommand: false,
-}
+const NOT_COLLAPSIBLE: SearchOrReadResult = unbuilt('src/components/messages/collapseReadSearch.ts:50')
 
 function inputPath(toolInput: unknown): string | undefined {
   if (typeof toolInput !== 'object' || toolInput === null) return undefined
@@ -170,58 +154,10 @@ function formatCommandHint(command: string): string {
 }
 
 
-type OpenGroup = {
-  messages: CollapsibleMessage[]
-  toolUseIds: Set<string>
-  searchCount: number
-  listCount: number
-  readOperationCount: number
-  readFilePaths: Set<string>
-  memoryReadPaths: Set<string>
-  memorySearchCount: number
-  memoryWriteCount: number
-  searchArgs: string[]
-  latestDisplayHint: string | undefined
-  mcpCallCount: number
-  mcpServerNames: string[]
-  bashCount: number
-  bashCommandsByToolUseId: Map<string, string>
-  gitOpBashCount: number
-  commits: Array<{ sha: string; kind: CommitKind }>
-  pushes: Array<{ branch: string }>
-  branches: Array<{ ref: string; action: BranchAction }>
-  prs: Array<{ number: number; url?: string; action: PrAction }>
-  relevantMemories: Array<{ path: string; content: string; mtimeMs: number }>
-  deferred: RenderableMessage[]
-  deferredStatusToolUseIds: Set<string>
-}
+type OpenGroup = Unbuilt
 
 function emptyGroup(): OpenGroup {
-  return {
-    messages: [],
-    toolUseIds: new Set(),
-    searchCount: 0,
-    listCount: 0,
-    readOperationCount: 0,
-    readFilePaths: new Set(),
-    memoryReadPaths: new Set(),
-    memorySearchCount: 0,
-    memoryWriteCount: 0,
-    searchArgs: [],
-    latestDisplayHint: undefined,
-    mcpCallCount: 0,
-    mcpServerNames: [],
-    bashCount: 0,
-    bashCommandsByToolUseId: new Map(),
-    gitOpBashCount: 0,
-    commits: [],
-    pushes: [],
-    branches: [],
-    prs: [],
-    relevantMemories: [],
-    deferred: [],
-    deferredStatusToolUseIds: new Set(),
-  }
+  return notBuilt('src/components/messages/collapseReadSearch.ts:199')
 }
 
 const STATUS_UPDATE_TOOLS: ReadonlySet<string> = new Set([
@@ -240,132 +176,11 @@ function absorbToolUse(
   info: SearchOrReadResult,
   described: { toolName: string; firstInput: unknown; members: ToolUseMember[] },
 ): void {
-  const memberCount = described.members.length
-  for (const member of described.members) {
-    group.toolUseIds.add(member.toolUseId)
-  }
-
-  if (info.isMemoryWrite) {
-    group.memoryWriteCount += memberCount
-    return
-  }
-  if (info.absorbSilently) {
-    return
-  }
-  if (info.mcpServerName) {
-    group.mcpCallCount += memberCount
-    if (!group.mcpServerNames.includes(info.mcpServerName)) {
-      group.mcpServerNames.push(info.mcpServerName)
-    }
-    const query = inputField(described.firstInput, 'query')
-    if (query !== undefined) {
-      group.latestDisplayHint = `"${query}"`
-    }
-    return
-  }
-  if (info.isBashCommand) {
-    group.bashCount += memberCount
-    const command = inputField(described.firstInput, 'command')
-    if (command !== undefined) {
-      const label = extractBashCommentLabel(command)
-      group.latestDisplayHint = label !== undefined ? label : formatCommandHint(command)
-      for (const member of described.members) {
-        group.bashCommandsByToolUseId.set(member.toolUseId, command)
-      }
-    }
-    return
-  }
-  if (info.isList) {
-    group.listCount += memberCount
-    const command = inputField(described.firstInput, 'command')
-    if (command !== undefined) {
-      group.latestDisplayHint = formatCommandHint(command)
-    }
-    return
-  }
-  if (info.isSearch) {
-    group.searchCount += memberCount
-    const path = inputField(described.firstInput, 'path')
-    const pattern = inputField(described.firstInput, 'pattern')
-    const command = inputField(described.firstInput, 'command')
-    const targetsMemory =
-      (path !== undefined && (isAutoManagedMemoryFile(path) || isMemoryDirectory(path))) ||
-      (pattern !== undefined && isAutoManagedMemoryPattern(pattern)) ||
-      (command !== undefined && isShellCommandTargetingMemory(command))
-    if (targetsMemory) {
-      group.memorySearchCount += memberCount
-      return
-    }
-    if (pattern !== undefined) {
-      group.searchArgs.push(pattern)
-      group.latestDisplayHint = `"${pattern}"`
-    }
-    return
-  }
-  for (const member of described.members) {
-    const filePath = inputField(member.input, 'file_path')
-    if (filePath !== undefined) {
-      group.readFilePaths.add(filePath)
-      if (isAutoManagedMemoryFile(filePath)) {
-        group.memoryReadPaths.add(filePath)
-      } else {
-        group.latestDisplayHint = getDisplayPath(filePath)
-      }
-    } else {
-      group.readOperationCount += 1
-      const command = inputField(member.input, 'command')
-      if (command !== undefined) {
-        group.latestDisplayHint = formatCommandHint(command)
-      }
-    }
-  }
+  return notBuilt('src/components/messages/collapseReadSearch.ts:238')
 }
 
 function buildCollapsedRow(group: OpenGroup): CollapsedReadSearchGroup {
-  const first = group.messages[0] as CollapsibleMessage
-  const fullscreen = isFullscreenEnvEnabled()
-
-  const totalReadCount =
-    group.readFilePaths.size > 0 ? group.readFilePaths.size : group.readOperationCount
-  const reportedReadCount = Math.max(0, totalReadCount - group.memoryReadPaths.size)
-  const memoryReadCount = group.memoryReadPaths.size + group.relevantMemories.length
-  const reportedSearchCount = Math.max(0, group.searchCount - group.memorySearchCount)
-  const nonMemoryReadPaths = [...group.readFilePaths].filter(
-    path => !group.memoryReadPaths.has(path),
-  )
-
-  const row: CollapsedReadSearchGroup = {
-    type: 'collapsed_read_search',
-    searchCount: reportedSearchCount,
-    readCount: reportedReadCount,
-    listCount: group.listCount,
-    memorySearchCount: group.memorySearchCount,
-    memoryReadCount,
-    memoryWriteCount: group.memoryWriteCount,
-    readFilePaths: nonMemoryReadPaths,
-    searchArgs: group.searchArgs,
-    latestDisplayHint: group.latestDisplayHint,
-    messages: group.messages,
-    displayMessage: first,
-    uuid: `collapsed-${first.uuid}` as UUID,
-    timestamp: first.timestamp,
-  }
-  if (group.mcpCallCount > 0) {
-    row.mcpCallCount = group.mcpCallCount
-    row.mcpServerNames = group.mcpServerNames
-  }
-  if (fullscreen && group.bashCount > 0) {
-    row.bashCount = group.bashCount
-    row.gitOpBashCount = group.gitOpBashCount
-    if (group.commits.length > 0) row.commits = group.commits
-    if (group.pushes.length > 0) row.pushes = group.pushes
-    if (group.branches.length > 0) row.branches = group.branches
-    if (group.prs.length > 0) row.prs = group.prs
-  }
-  if (group.relevantMemories.length > 0) {
-    row.relevantMemories = group.relevantMemories
-  }
-  return row
+  return notBuilt('src/components/messages/collapseReadSearch.ts:324')
 }
 
 function toolUseIdsOfAssistant(message: RenderableMessage): string[] {
@@ -386,37 +201,7 @@ function isSkippable(message: RenderableMessage): boolean {
 }
 
 function scanForGitOperations(group: OpenGroup, message: NormalizedUserMessage): void {
-  if (group.bashCommandsByToolUseId.size === 0) return
-  const result = (message as { toolUseResult?: unknown }).toolUseResult as
-    | { stdout?: string; stderr?: string }
-    | undefined
-  const stdout = result?.stdout ?? ''
-  const stderr = result?.stderr ?? ''
-  if (!stdout && !stderr) return
-  const output = `${stdout}\n${stderr}`
-  for (const block of toolResultBlocks(message)) {
-    const command = group.bashCommandsByToolUseId.get(block.tool_use_id)
-    if (command === undefined) continue
-    const detected = detectGitOperation(command, output)
-    let producedAny = false
-    if (detected.commit) {
-      group.commits.push(detected.commit)
-      producedAny = true
-    }
-    if (detected.push) {
-      group.pushes.push(detected.push)
-      producedAny = true
-    }
-    if (detected.branch) {
-      group.branches.push(detected.branch)
-      producedAny = true
-    }
-    if (detected.pr) {
-      group.prs.push(detected.pr)
-      producedAny = true
-    }
-    if (producedAny) group.gitOpBashCount += 1
-  }
+  return notBuilt('src/components/messages/collapseReadSearch.ts:388')
 }
 
 

@@ -28,21 +28,12 @@ import { lineWidth } from './line-width-cache.js'
 import { terminalTextCells } from './session/terminalTextCells.js'
 import { stringWidth } from './stringWidth.js'
 import { widestLine } from './widest-line.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
-type ClusteredChar = {
-  value: string
-  width: number
-  styleId: number
-  hyperlink: string | undefined
-}
+type ClusteredChar = Unbuilt
 
-type Clip = {
-  x1: number | undefined
-  x2: number | undefined
-  y1: number | undefined
-  y2: number | undefined
-}
+type Clip = Unbuilt
 
 type WriteOp = {
   type: 'write'
@@ -85,344 +76,72 @@ type Operation =
   | ShiftOp
   | ShiftRectOp
 
-function intersectClip(parent: Clip | undefined, child: Clip): Clip {
-  if (!parent) return child
-  return {
-    x1: maxDefined(parent.x1, child.x1),
-    x2: minDefined(parent.x2, child.x2),
-    y1: maxDefined(parent.y1, child.y1),
-    y2: minDefined(parent.y2, child.y2),
-  }
-}
-function maxDefined(a: number | undefined, b: number | undefined): number | undefined {
-  if (a === undefined) return b
-  if (b === undefined) return a
-  return a > b ? a : b
-}
-function minDefined(a: number | undefined, b: number | undefined): number | undefined {
-  if (a === undefined) return b
-  if (b === undefined) return a
-  return a < b ? a : b
-}
+export const lastComposeCounts: Unbuilt = unbuilt('src/ink/compose-buffer.ts:108')
 
-export const lastComposeCounts = { blit: 0, write: 0, fill: 0, clearArea: 0, ops: 0 }
-
-type Options = {
-  width: number
-  height: number
-  stylePool: StylePool
-  screen: Screen
-}
+type Options = Unbuilt
 
 export default class ComposeBuffer {
   width: number
   height: number
   private readonly stylePool: StylePool
   private screen: Screen
-  private readonly operations: Operation[] = []
-  private clusterCache: Map<string, ClusteredChar[]> = new Map()
-  private sliceCache: Map<string, string> = new Map()
-  private fillStyleCache: Map<string, number> = new Map()
+  private readonly operations: Operation[] = unbuilt('src/ink/compose-buffer.ts:122')
+  private clusterCache: Map<string, ClusteredChar[]> = unbuilt('src/ink/compose-buffer.ts:123')
+  private sliceCache: Map<string, string> = unbuilt('src/ink/compose-buffer.ts:124')
+  private fillStyleCache: Map<string, number> = unbuilt('src/ink/compose-buffer.ts:125')
 
   constructor(options: Options) {
-    this.width = options.width
-    this.height = options.height
-    this.stylePool = options.stylePool
-    this.screen = options.screen
-    resetScreen(this.screen, this.width, this.height)
+    notBuilt('src/ink/compose-buffer.ts:127')
   }
 
   reset(width: number, height: number, screen: Screen): void {
-    this.width = width
-    this.height = height
-    this.screen = screen
-    this.operations.length = 0
-    resetScreen(screen, width, height)
-    if (this.clusterCache.size > 16384) this.clusterCache.clear()
-    if (this.sliceCache.size > 16384) this.sliceCache.clear()
-    if (this.fillStyleCache.size > 1024) this.fillStyleCache.clear()
+    return notBuilt('src/ink/compose-buffer.ts:135')
   }
 
   write(x: number, y: number, text: string, softWrap?: boolean[]): void {
-    if (!text) return
-    this.operations.push({ type: 'write', x, y, text, softWrap })
+    return notBuilt('src/ink/compose-buffer.ts:146')
   }
 
   fill(x: number, y: number, width: number, height: number, styledSpace?: string): void {
-    if (width <= 0 || height <= 0) return
-    let styleId = this.stylePool.none
-    if (styledSpace !== undefined) {
-      const cached = this.fillStyleCache.get(styledSpace)
-      if (cached !== undefined) {
-        styleId = cached
-      } else {
-        styleId = clusterStyledLine(styledSpace, this.stylePool)[0]?.styleId ?? this.stylePool.none
-        this.fillStyleCache.set(styledSpace, styleId)
-      }
-    }
-    this.operations.push({ type: 'fill', x, y, width, height, styleId })
+    return notBuilt('src/ink/compose-buffer.ts:151')
   }
 
   clip(clip: Clip): void {
-    this.operations.push({ type: 'clip', clip })
+    return notBuilt('src/ink/compose-buffer.ts:166')
   }
 
   unclip(): void {
-    this.operations.push({ type: 'unclip' })
+    return notBuilt('src/ink/compose-buffer.ts:170')
   }
 
   blit(src: Screen, x: number, y: number, width: number, height: number): void {
-    this.operations.push({ type: 'blit', src, x, y, width, height })
+    return notBuilt('src/ink/compose-buffer.ts:174')
   }
 
   shift(top: number, bottom: number, n: number): void {
-    this.operations.push({ type: 'shift', top, bottom, n })
+    return notBuilt('src/ink/compose-buffer.ts:178')
   }
 
   shiftRect(top: number, bottom: number, x0: number, x1: number, n: number): void {
-    this.operations.push({ type: 'shift-rect', top, bottom, x0, x1, n })
+    return notBuilt('src/ink/compose-buffer.ts:182')
   }
 
   clear(region: Rectangle, fromAbsolute?: boolean): void {
-    this.operations.push({ type: 'clear', region, fromAbsolute })
+    return notBuilt('src/ink/compose-buffer.ts:186')
   }
 
   noSelect(region: Rectangle): void {
-    this.operations.push({ type: 'noSelect', region })
+    return notBuilt('src/ink/compose-buffer.ts:190')
   }
 
   get(): Screen {
-    const screen = this.screen
-    const W = this.width
-    const H = this.height
-    let blitCells = 0
-    let writeCells = 0
-    let fillCells = 0
-    let clearArea = 0
-
-    for (const op of this.operations) {
-      if (op.type !== 'clear') continue
-      const x0 = Math.max(0, op.region.x)
-      const y0 = Math.max(0, op.region.y)
-      const x1 = Math.min(op.region.x + op.region.width, W)
-      const y1 = Math.min(op.region.y + op.region.height, H)
-      if (x0 >= x1 || y0 >= y1) continue
-      const rect = { x: x0, y: y0, width: x1 - x0, height: y1 - y0 }
-      screen.damage = screen.damage ? unionRect(screen.damage, rect) : rect
-      clearArea += rect.width * rect.height
-    }
-
-    const clips: Clip[] = []
-    for (const op of this.operations) {
-      switch (op.type) {
-        case 'clear':
-          continue
-        case 'clip':
-          clips.push(intersectClip(clips.at(-1), op.clip))
-          continue
-        case 'unclip':
-          clips.pop()
-          continue
-        case 'shift':
-          shiftRows(screen, op.top, op.bottom, op.n)
-          continue
-        case 'shift-rect': {
-          shiftRect(screen, op.top, op.bottom, op.x0, op.x1, op.n)
-          const x0 = Math.max(0, op.x0)
-          const x1 = Math.min(op.x1, W)
-          const y0 = Math.max(0, op.top)
-          const y1 = Math.min(op.bottom + 1, H)
-          if (x0 < x1 && y0 < y1) {
-            const rect = { x: x0, y: y0, width: x1 - x0, height: y1 - y0 }
-            screen.damage = screen.damage ? unionRect(screen.damage, rect) : rect
-          }
-          continue
-        }
-        case 'blit': {
-          const clip = clips.at(-1)
-          const x0 = Math.max(op.x, clip?.x1 ?? 0)
-          const y0 = Math.max(op.y, clip?.y1 ?? 0)
-          const x1 = Math.min(op.x + op.width, W, op.src.width, clip?.x2 ?? Infinity)
-          const y1 = Math.min(op.y + op.height, H, op.src.height, clip?.y2 ?? Infinity)
-          if (x0 >= x1 || y0 >= y1) continue
-          blitRegion(screen, op.src, x0, y0, x1, y1)
-          blitCells += (y1 - y0) * (x1 - x0)
-          continue
-        }
-        case 'write': {
-          writeCells += this.applyWrite(op, clips.at(-1))
-          continue
-        }
-        case 'fill': {
-          const clip = clips.at(-1)
-          const x0 = Math.max(op.x, clip?.x1 ?? 0)
-          const y0 = Math.max(op.y, clip?.y1 ?? 0)
-          const x1 = Math.min(op.x + op.width, W, clip?.x2 ?? Infinity)
-          const y1 = Math.min(op.y + op.height, H, clip?.y2 ?? Infinity)
-          if (x0 < x1 && y0 < y1) {
-            fillRegion(screen, x0, y0, x1 - x0, y1 - y0, op.styleId)
-            fillCells += (y1 - y0) * (x1 - x0)
-          }
-          continue
-        }
-        case 'noSelect':
-          continue
-      }
-    }
-
-    for (const op of this.operations) {
-      if (op.type === 'noSelect') {
-        markNoSelectRegion(screen, op.region.x, op.region.y, op.region.width, op.region.height)
-      }
-    }
-
-    const total = blitCells + writeCells
-    if (total > 1000 && writeCells > blitCells) {
-      logForDebugging(
-        `High write ratio: blit=${blitCells}, write=${writeCells} (${((writeCells / total) * 100).toFixed(1)}% writes), screen=${H}x${W}`,
-      )
-    }
-    lastComposeCounts.blit = blitCells
-    lastComposeCounts.write = writeCells
-    lastComposeCounts.fill = fillCells
-    lastComposeCounts.clearArea = clearArea
-    lastComposeCounts.ops = this.operations.length
-    return screen
+    return notBuilt('src/ink/compose-buffer.ts:194')
   }
 
 
   private applyWrite(op: WriteOp, clip: Clip | undefined): number {
-    let { x, y } = op
-    let lines = op.text.split('\n')
-    let swFrom = 0
-    let prevContentEnd = 0
-
-    if (clip) {
-      const clipH = typeof clip.x1 === 'number' && typeof clip.x2 === 'number'
-      const clipV = typeof clip.y1 === 'number' && typeof clip.y2 === 'number'
-
-      if (clipH) {
-        const w = widestLine(op.text)
-        if (x + w <= clip.x1! || x >= clip.x2!) return 0
-      }
-      if (clipV) {
-        if (y + lines.length <= clip.y1! || y >= clip.y2!) return 0
-      }
-
-      if (clipH) {
-        lines = lines.map(line => {
-          const from = x < clip.x1! ? clip.x1! - x : 0
-          const w = lineWidth(line)
-          const to = x + w > clip.x2! ? clip.x2! - x : w
-          return clipLine(this.sliceCache, line, from, to)
-        })
-        if (x < clip.x1!) x = clip.x1!
-      }
-
-      if (clipV) {
-        const from = y < clip.y1! ? clip.y1! - y : 0
-        const to = y + lines.length > clip.y2! ? clip.y2! - y : lines.length
-        if (op.softWrap && from > 0 && op.softWrap[from] === true) {
-          prevContentEnd = -(x + stringWidth(lines[from - 1]!))
-        }
-        lines = lines.slice(from, to)
-        swFrom = from
-        if (y < clip.y1!) y = clip.y1!
-      }
-    }
-
-    const screen = this.screen
-    const swBits = screen.softWrap
-    let written = 0
-    for (let i = 0; i < lines.length; i++) {
-      const lineY = y + i
-      if (lineY >= this.height) break
-      const contentEnd = writeLine(screen, this.width, this.stylePool, this.clusterCache, lines[i]!, x, lineY)
-      written += contentEnd - x
-      if (op.softWrap) {
-        swBits[lineY] = op.softWrap[swFrom + i] === true ? prevContentEnd : 0
-        prevContentEnd = contentEnd
-      }
-    }
-    return written
+    return notBuilt('src/ink/compose-buffer.ts:294')
   }
-}
-
-function clipLine(sliceCache: Map<string, string>, line: string, from: number, to: number): string {
-  const key = `${from} ${to} ${line}`
-  const hit = sliceCache.get(key)
-  if (hit !== undefined) return hit
-  let sliced = sliceAnsi(line, from, to)
-  if (lineWidth(sliced) > to - from) {
-    sliced = sliceAnsi(line, from, to - 1)
-  }
-  sliceCache.set(key, sliced)
-  return sliced
-}
-
-function writeLine(
-  screen: Screen,
-  width: number,
-  stylePool: StylePool,
-  clusterCache: Map<string, ClusteredChar[]>,
-  line: string,
-  x: number,
-  y: number,
-): number {
-  let clusters = clusterCache.get(line)
-  if (!clusters) {
-    clusters = reorderBidi(clusterStyledLine(line, stylePool))
-    clusterCache.set(line, clusters)
-  }
-
-  let cx = x
-
-  for (let i = 0; i < clusters.length; i++) {
-    const cluster = clusters[i]!
-    const cp = cluster.value.codePointAt(0)
-
-    if (cp !== undefined && cp <= 0x1f) {
-      if (cp === 0x09) {
-        const stop = 8 - (cx % 8)
-        for (let s = 0; s < stop && cx < width; s++) {
-          setCellAt(screen, cx, y, {
-            char: ' ',
-            styleId: stylePool.none,
-            width: CellWidth.Narrow,
-            hyperlink: undefined,
-          })
-          cx++
-        }
-      } else if (cp === 0x1b) {
-        i = skipEscapeSequence(clusters, i)
-      }
-      continue
-    }
-
-    const w = cluster.width
-    if (w === 0) continue
-
-    const isWide = w >= 2
-    if (isWide && cx + 2 > width) {
-      setCellAt(screen, cx, y, {
-        char: ' ',
-        styleId: stylePool.none,
-        width: CellWidth.SpacerHead,
-        hyperlink: undefined,
-      })
-      cx++
-      continue
-    }
-
-    setCellAt(screen, cx, y, {
-      char: cluster.value,
-      styleId: cluster.styleId,
-      width: isWide ? CellWidth.Wide : CellWidth.Narrow,
-      hyperlink: cluster.hyperlink,
-    })
-    cx += isWide ? 2 : 1
-  }
-  return cx
 }
 
 

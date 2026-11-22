@@ -10,6 +10,7 @@ import type { PastedContent } from './config/schema.js'
 import { logForDebugging } from './debug.js'
 import { getMercuryHome } from './envUtils.js'
 import { passedOver } from './passedOver.js'
+import { notBuilt } from '../pi/holes.js'
 
 
 const MAX_TRACKED_PATHS = 200
@@ -53,39 +54,15 @@ export function cacheImagePath(content: PastedContent): string | null {
 }
 
 export async function storeImage(content: PastedContent): Promise<string | null> {
-  if (content.type !== 'image') return null
-  const dir = sessionCacheDir()
-  const path = imagePathFor(content, dir)
-  try {
-    await mkdir(dir, { recursive: true })
-    const handle = await open(path, 'w', 0o600)
-    try {
-      await handle.writeFile(Buffer.from(content.content, 'base64'))
-      await handle.sync()
-    } finally {
-      await handle.close()
-    }
-    remember(content.id, path, dir)
-    logForDebugging(`imageStore: stored image ${content.id} at ${path}`)
-    return path
-  } catch (err) {
-    logForDebugging(`imageStore: failed to store image ${content.id}: ${String(err)}`)
-    return null
-  }
+  return notBuilt('src/utils/imageStore.ts:55')
 }
 
 export async function storeImages(pastedContents: Record<number, PastedContent>): Promise<Map<number, string>> {
-  const result = new Map<number, string>()
-  for (const content of Object.values(pastedContents)) {
-    if (content.type !== 'image') continue
-    const path = await storeImage(content)
-    if (path) result.set(content.id, path)
-  }
-  return result
+  return notBuilt('src/utils/imageStore.ts:77')
 }
 
 export function getStoredImagePath(imageId: number): string | null {
-  return storedPaths.get(storedPathKey(imageId)) ?? null
+  return notBuilt('src/utils/imageStore.ts:87')
 }
 
 export function storedImageState(imageId: number): { path: string; present: boolean } | null {

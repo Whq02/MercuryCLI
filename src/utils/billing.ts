@@ -8,6 +8,7 @@ import {
 } from './auth.js'
 import { getGlobalConfig } from './config/globalConfig.js'
 import { passedOver } from './passedOver.js'
+import { notBuilt } from '../pi/holes.js'
 
 function hasResolvableApiKey(): boolean {
   try {
@@ -19,30 +20,9 @@ function hasResolvableApiKey(): boolean {
 }
 
 export function hasConsoleBillingAccess(): boolean {
-  if (!flagEnabled('MERCURY_COST_WARNINGS')) return false
-  if (isClaudeAISubscriber()) return false
-  if (!getAuthTokenSource().hasToken && !hasResolvableApiKey()) return false
-  const account = getGlobalConfig().oauthAccount
-  const organizationRole = account?.organizationRole
-  const workspaceRole = account?.workspaceRole
-  if (!organizationRole || !workspaceRole) return false
-  return (
-    organizationRole === 'admin' ||
-    organizationRole === 'billing' ||
-    workspaceRole === 'workspace_admin' ||
-    workspaceRole === 'workspace_billing'
-  )
+  return notBuilt('src/utils/billing.ts:21')
 }
 
 export function hasClaudeAiBillingAccess(): boolean {
-  if (!isClaudeAISubscriber()) return false
-  const subscriptionType = getSubscriptionType()
-  if (subscriptionType === 'max' || subscriptionType === 'pro') return true
-  const organizationRole = getOauthAccountInfo()?.organizationRole
-  return (
-    organizationRole === 'admin' ||
-    organizationRole === 'billing' ||
-    organizationRole === 'owner' ||
-    organizationRole === 'primary_owner'
-  )
+  return notBuilt('src/utils/billing.ts:37')
 }

@@ -1,32 +1,19 @@
-import {
-  getOwnerContext,
-  withOwnerContext,
-  type AgentContext,
-  type InvocationKind,
-  type SubagentContext,
-} from './run/ownerContext.js'
+import type { AgentContext, InvocationKind, SubagentContext } from './run/ownerContext.js'
+import { notBuilt } from '../pi/holes.js'
 
 export type { SubagentContext, AgentContext }
 
 export function getAgentContext(): AgentContext | undefined {
-  return getOwnerContext()?.agent
+  return notBuilt('src/utils/agentContext.ts:11')
 }
 
 export function runWithAgentContext<T>(context: AgentContext, fn: () => T): T {
-  return withOwnerContext({ agent: context }, fn)
+  return notBuilt('src/utils/agentContext.ts:15')
 }
 
 
 export function consumeInvokingRequestId():
   | { invokingRequestId: string; invocationKind?: InvocationKind }
   | undefined {
-  const context = getAgentContext()
-  if (!context) return undefined
-  if (context.invocationEmitted) return undefined
-  if (context.invokingRequestId === undefined) return undefined
-  context.invocationEmitted = true
-  return {
-    invokingRequestId: context.invokingRequestId,
-    ...(context.invocationKind !== undefined ? { invocationKind: context.invocationKind } : {}),
-  }
+  return notBuilt('src/utils/agentContext.ts:20')
 }

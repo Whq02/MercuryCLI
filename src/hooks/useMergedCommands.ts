@@ -1,17 +1,9 @@
-
-import { useMemo } from 'react'
 import type { Command } from '../commands.js'
+import { notBuilt } from '../pi/holes.js'
 
 export function useMergedCommands(
   initialCommands: Command[],
   mcpCommands: Command[] | undefined,
 ): Command[] {
-  return useMemo(() => {
-    if (!mcpCommands || mcpCommands.length === 0) return initialCommands
-    const seen = new Set(initialCommands.map(command => command.name))
-    return [
-      ...initialCommands,
-      ...mcpCommands.filter(command => !seen.has(command.name)),
-    ]
-  }, [initialCommands, mcpCommands])
+  return notBuilt('src/hooks/useMergedCommands.ts:5')
 }

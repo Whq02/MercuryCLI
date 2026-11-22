@@ -2,83 +2,20 @@ import { parse as shellParse, quote as shellQuoteJoin } from 'shell-quote'
 import type { ParseEntry } from 'shell-quote'
 import { logError } from '../log.js'
 import { jsonStringify } from '../slowOperations.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 type ShellParseResult =
-  | { success: true; tokens: ParseEntry[] }
-  | { success: false; error: string }
-
-type ShellQuoteResult =
-  | { success: true; quoted: string }
-  | { success: false; error: string }
+  Unbuilt
 
 export function tryParseShellCommand(
   cmd: string,
   env?: Record<string, string | undefined> | ((key: string) => string | undefined),
 ): ShellParseResult {
-  try {
-    const raw =
-      typeof env === 'function'
-        ? shellParse(cmd, env)
-        : shellParse(cmd, env)
-    const tokens = raw as ParseEntry[]
-    return { success: true, tokens }
-  } catch (error) {
-    if (error instanceof Error) {
-      logError(error)
-      return { success: false, error: error.message }
-    }
-    return { success: false, error: 'failed to tokenize shell command' }
-  }
-}
-
-function tryQuoteShellArgs(args: unknown[]): ShellQuoteResult {
-  const prepared: string[] = []
-  for (let i = 0; i < args.length; i++) {
-    const value = args[i]
-    if (typeof value === 'string') {
-      prepared.push(value)
-    } else if (typeof value === 'number' || typeof value === 'boolean') {
-      prepared.push(String(value))
-    } else if (value === null) {
-      prepared.push('null')
-    } else if (value === undefined) {
-      prepared.push('undefined')
-    } else {
-      return {
-        success: false,
-        error: `cannot shell-quote argument at index ${i} of type ${typeof value}`,
-      }
-    }
-  }
-  try {
-    return { success: true, quoted: shellQuoteJoin(prepared) }
-  } catch (error) {
-    if (error instanceof Error) logError(error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'failed to quote shell arguments',
-    }
-  }
+  return notBuilt('src/utils/bash/shellQuote.ts:14')
 }
 
 export function quote(args: ReadonlyArray<unknown>): string {
-  const strict = tryQuoteShellArgs([...args])
-  if (strict.success) {
-    return strict.quoted
-  }
-  const remapped = args.map(value => {
-    if (typeof value === 'string') return value
-    if (typeof value === 'number' || typeof value === 'boolean') return String(value)
-    if (value === null) return 'null'
-    if (value === undefined) return 'undefined'
-    return jsonStringify(value)
-  })
-  try {
-    return shellQuoteJoin(remapped)
-  } catch (error) {
-    if (error instanceof Error) logError(error)
-    throw error
-  }
+  return notBuilt('src/utils/bash/shellQuote.ts:64')
 }
 
 function countUnmatchedQuotes(command: string): { doubleQuotes: number; singleQuotes: number } {
@@ -154,37 +91,5 @@ export function hasMalformedTokens(command: string, parsed: ParseEntry[]): boole
 }
 
 export function hasShellQuoteSingleQuoteBug(command: string): boolean {
-  let state: 'plain' | 'single' | 'double' = 'plain'
-  for (let i = 0; i < command.length; i++) {
-    const ch = command[i]
-    if (state === 'single') {
-      if (ch === "'") {
-        let backslashes = 0
-        let j = i - 1
-        while (j >= 0 && command[j] === '\\') {
-          backslashes++
-          j--
-        }
-        if (backslashes > 0) {
-          if (backslashes % 2 === 1) return true
-          if (command.indexOf("'", i + 1) !== -1) return true
-        }
-        state = 'plain'
-      }
-      continue
-    }
-    if (ch === '\\') {
-      i++
-      continue
-    }
-    if (ch === '"') {
-      state = state === 'double' ? 'plain' : 'double'
-      continue
-    }
-    if (ch === "'" && state === 'plain') {
-      state = 'single'
-      continue
-    }
-  }
-  return false
+  return notBuilt('src/utils/bash/shellQuote.ts:156')
 }

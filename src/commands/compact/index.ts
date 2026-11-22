@@ -1,15 +1,5 @@
-import type { Command } from '../../types/command.js'
-import { flagEnabled } from '../../substrate/flagRegistry.js'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
-const compact = {
-  type: 'local',
-  name: 'compact',
-  description: 'Compact the conversation — /compact [instructions for summarization]',
-  argumentHint: '[instructions for summarization]',
-  isEnabled: () => flagEnabled('MERCURY_COMPACT'),
-  supportsNonInteractive: true,
-  scope: 'agent',
-  load: () => import('./compact.js'),
-} satisfies Command
+const compact: Unbuilt = unbuilt('src/commands/compact/index.ts:4')
 
 export default compact

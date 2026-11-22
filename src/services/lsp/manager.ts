@@ -5,49 +5,24 @@ import { resetLspFailureLedger } from './failureLedger.js'
 import { createLSPServerManager, type LSPServerManager, type LSPShutdownResult } from './LSPServerManager.js'
 import { registerLSPNotificationHandlers } from './passiveFeedback.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-type InitState = 'not-started' | 'pending' | 'success' | 'failed'
+type InitState = Unbuilt
 
 let instance: LSPServerManager | undefined
-let initState: InitState = 'not-started'
+let initState: InitState = unbuilt('src/services/lsp/manager.ts:13')
 let initError: Error | undefined
-let initGeneration = 0
+let initGeneration: number = unbuilt('src/services/lsp/manager.ts:15')
 let initPromise: Promise<void> | undefined
 let restartPromise: Promise<LSPShutdownResult | undefined> | undefined
 
 export function initializeLspServerManager(): void {
-  if (isBareMode()) return
-  if (initState === 'pending' || (instance !== undefined && initState !== 'failed')) return
-  if (initState === 'failed') {
-    instance = undefined
-    initError = undefined
-  }
-  const manager = createLSPServerManager()
-  instance = manager
-  initState = 'pending'
-  const generation = ++initGeneration
-  initPromise = manager
-    .initialize()
-    .then(() => {
-      if (generation !== initGeneration) return
-      initState = 'success'
-      logForDebugging('LSP manager initialised')
-      registerLSPNotificationHandlers(manager)
-    })
-    .catch((err: unknown) => {
-      if (generation !== initGeneration) return
-      initState = 'failed'
-      initError = err instanceof Error ? err : new Error(String(err))
-      instance = undefined
-      logError(initError)
-      logForDebugging(`LSP manager initialisation failed: ${initError.message}`)
-    })
+  return notBuilt('src/services/lsp/manager.ts:19')
 }
 
 export function getLspServerManager(): LSPServerManager | undefined {
-  if (initState === 'failed') return undefined
-  return instance
+  return notBuilt('src/services/lsp/manager.ts:48')
 }
 
 export function getInitializationStatus():
@@ -55,27 +30,15 @@ export function getInitializationStatus():
   | { status: 'pending' }
   | { status: 'success' }
   | { status: 'failed'; error: Error } {
-  if (initState === 'failed') {
-    return { status: 'failed', error: initError ?? new Error('LSP initialisation failed') }
-  }
-  return { status: initState }
+  return notBuilt('src/services/lsp/manager.ts:53')
 }
 
 export async function waitForInitialization(): Promise<void> {
-  if (initState !== 'pending') return
-  if (initPromise === undefined) return
-  await initPromise.catch(passedOver)
+  return notBuilt('src/services/lsp/manager.ts:64')
 }
 
 export function isLspConnected(): boolean {
-  if (initState === 'failed') return false
-  if (instance === undefined) return false
-  const servers = instance.getAllServers()
-  if (servers.size === 0) return false
-  for (const server of servers.values()) {
-    if (server.state !== 'error') return true
-  }
-  return false
+  return notBuilt('src/services/lsp/manager.ts:70')
 }
 
 export function isLspToolMounted(): boolean {

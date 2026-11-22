@@ -4,6 +4,7 @@ import { isCompactBoundaryMessage } from '../../utils/messages/systemMessages.js
 import { ASK_USER_QUESTION_TOOL_NAME } from '../../tools/AskUserQuestionTool/prompt.js'
 import type { Message } from '../../types/message.js'
 import { passedOverAs } from '../../utils/passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const MESSAGE_SEPARATOR = '\n---\n'
 
@@ -53,40 +54,5 @@ context: <fork only for self-contained runs needing no mid-process input>
 `
 
 export function registerSkillifySkill(): void {
-  registerBundledSkill({
-    name: 'skillify',
-    description: 'Capture this session\'s repeatable process as a reusable skill',
-    argumentHint: '[what process to capture]',
-    disableModelInvocation: true,
-    allowedTools: ['Read', 'Write', 'Edit', 'Glob', 'Grep', ASK_USER_QUESTION_TOOL_NAME, 'Bash(mkdir *)'],
-    getPromptForCommand: async (args, context) => {
-      const memory = await getSessionMemoryContent().catch(passedOverAs(null))
-      const userMessages = collectUserMessages(context.messages)
-      const described = args.trim()
-        ? `\nThe user describes the process as: ${args.trim()}`
-        : ''
-      const text = `Capture this session's repeatable process as a reusable skill.${described}
-
-<session_memory>
-${memory ?? 'No session memory summary is available — derive the process from the user messages below.'}
-</session_memory>
-
-<user_messages>
-${userMessages || '(no user messages found after the last compaction)'}
-</user_messages>
-
-1. Analyse the session before asking anything: identify the repeatable process, inputs/parameters, ordered steps, per-step success artefacts, user corrections, tools/permissions used, and any crewmates used.
-
-2. Interview the user strictly via ${ASK_USER_QUESTION_TOOL_NAME} (never plain-text questions) in up to four rounds, stopping early for simple processes (omit "needs tweaking" options — freeform is built in):
-   - Round 1: skill name, description, goal, and success criteria.
-   - Round 2: numbered steps, proposed arguments, inline vs \`context: fork\`, and save location (\`.mercury/skills/<name>/SKILL.md\` for the repo or \`~/.mercury/skills/<name>/SKILL.md\` for personal use).
-   - Round 3: per-step artefacts, verification checks, confirmation gates before irreversible actions, parallelizable steps, execution mode (direct by default, crewmate, or human-performed), and hard constraints.
-   - Round 4: trigger phrases, exclusions, and gotchas.
-
-3. Draft \`SKILL.md\` from this template (keep \`description\` <= 250 chars with trigger first; require a \`Success:\` check on every step; keep simple skills concise):
-${TEMPLATE}
-4. Show the complete \`SKILL.md\` in a fenced block and confirm via ${ASK_USER_QUESTION_TOOL_NAME} before writing. Afterwards, report the saved path, invocation syntax, and that the file is directly editable.`
-      return [{ type: 'text', text }]
-    },
-  })
+  return notBuilt('src/skills/bundled/skillify.ts:55')
 }

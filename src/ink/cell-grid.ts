@@ -2,6 +2,7 @@ import { type AnsiCode, ansiCodesToString, diffAnsiCodes } from '@alcalzone/ansi
 import type { Point, Rectangle, Size } from './layout/geometry.js'
 import { BEL, ESC, SEP } from './termio/ansi.js'
 import * as warn from './warn.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 export const enum CellWidth { Narrow = 0, Wide = 1, SpacerTail = 2, SpacerHead = 3 }
 
@@ -37,45 +38,29 @@ interface Interning<Value> {
   get(slot: number): Value
 }
 
-function asciiSlotTable(): Int32Array {
-  const slots = new Int32Array(128).fill(-1)
-  slots[32] = 0
-  return slots
-}
-
 export class CharPool implements Interning<string> {
-  private glyphs: string[] = [' ', '']
-  private slotOf = new Map<string, number>([[' ', 0], ['', 1]])
-  private asciiSlots = asciiSlotTable()
+  private glyphs: string[] = unbuilt('src/ink/cell-grid.ts:47')
+  private slotOf: Map<string, number> = unbuilt('src/ink/cell-grid.ts:48')
+  private asciiSlots: Unbuilt = unbuilt('src/ink/cell-grid.ts:49')
 
   intern(glyph: string): number {
-    if (glyph.length === 1) {
-      const code = glyph.charCodeAt(0)
-      if (code < 128) return this.asciiSlots[code] === -1 ? this.rememberAscii(code, glyph) : this.asciiSlots[code]!
-    }
-    return this.slotOf.get(glyph) ?? this.remember(glyph)
+    return notBuilt('src/ink/cell-grid.ts:51')
   }
 
   private rememberAscii(code: number, glyph: string): number {
-    const slot = this.glyphs.length
-    this.glyphs.push(glyph)
-    this.asciiSlots[code] = slot
-    return slot
+    return notBuilt('src/ink/cell-grid.ts:59')
   }
 
   private remember(glyph: string): number {
-    const slot = this.glyphs.length
-    this.glyphs.push(glyph)
-    this.slotOf.set(glyph, slot)
-    return slot
+    return notBuilt('src/ink/cell-grid.ts:66')
   }
 
   get(slot: number): string {
-    return this.glyphs[slot] ?? ' '
+    return notBuilt('src/ink/cell-grid.ts:73')
   }
 
   size(): number {
-    return this.glyphs.length
+    return notBuilt('src/ink/cell-grid.ts:77')
   }
 }
 
@@ -131,30 +116,22 @@ const rememberPair = (cache: Map<number, string>, from: number, to: number, seri
 }
 
 export class StylePool implements Interning<AnsiCode[]> {
-  private idOfKey = new Map<string, number>()
-  private styles: Array<AnsiCode[]> = []
-  private transitions = new Map<number, string>()
-  readonly none = this.intern([])
-  private inverseOf = new Map<number, number>()
-  private currentMatchOf = new Map<number, number>()
-  private selectionGround: AnsiCode | null = null
-  private selectionBgOf = new Map<number, number>()
-  private recessCfg: RecessTransform | null = null
-  private recessCfgKey = ''
-  private recessOf = new Map<number, number>()
-  private recessIds = new Set<number>()
-  private recessBudgetWarned = false
+  private idOfKey: Map<string, number> = unbuilt('src/ink/cell-grid.ts:134')
+  private styles: Array<AnsiCode[]> = unbuilt('src/ink/cell-grid.ts:135')
+  private transitions: Map<number, string> = unbuilt('src/ink/cell-grid.ts:136')
+  readonly none: Unbuilt = unbuilt('src/ink/cell-grid.ts:137')
+  private inverseOf: Map<number, number> = unbuilt('src/ink/cell-grid.ts:138')
+  private currentMatchOf: Map<number, number> = unbuilt('src/ink/cell-grid.ts:139')
+  private selectionGround: AnsiCode | null = unbuilt('src/ink/cell-grid.ts:140')
+  private selectionBgOf: Map<number, number> = unbuilt('src/ink/cell-grid.ts:141')
+  private recessCfg: RecessTransform | null = unbuilt('src/ink/cell-grid.ts:142')
+  private recessCfgKey: string = unbuilt('src/ink/cell-grid.ts:143')
+  private recessOf: Map<number, number> = unbuilt('src/ink/cell-grid.ts:144')
+  private recessIds: Set<number> = unbuilt('src/ink/cell-grid.ts:145')
+  private recessBudgetWarned: boolean = unbuilt('src/ink/cell-grid.ts:146')
 
   intern(codes: AnsiCode[]): number {
-    const key = codes.length === 0 ? '' : codes.map(code => code.code).join('\0')
-    const known = this.idOfKey.get(key)
-    if (known !== undefined) return known
-    const raw = this.styles.length
-    this.styles.push(codes.length === 0 ? [] : codes)
-    const visible = codes.some(code => VISIBLE_ON_SPACE.has(code.endCode)) ? 1 : 0
-    const styleId = (raw << 1) | visible
-    this.idOfKey.set(key, styleId)
-    return styleId
+    return notBuilt('src/ink/cell-grid.ts:148')
   }
 
   get(styleId: number): AnsiCode[] {
@@ -345,33 +322,11 @@ export function createScreen(width: number, height: number, styles: StylePool, c
 }
 
 export function resetScreen(grid: Screen, width: number, height: number): void {
-  const columns = wholeCells(width, 'resetScreen width')
-  const rows = wholeCells(height, 'resetScreen height')
-  const cellCount = columns * rows
-  if (grid.cells64.length < cellCount) Object.assign(grid, cellPlanes(cellCount))
-  if (grid.softWrap.length < rows) grid.softWrap = new Int32Array(rows)
-  grid.cells64.fill(EMPTY_CELL, 0, cellCount)
-  grid.noSelect.fill(0, 0, cellCount)
-  grid.softWrap.fill(0, 0, rows)
-  grid.width = columns
-  grid.height = rows
-  grid.damage = undefined
+  return notBuilt('src/ink/cell-grid.ts:347')
 }
 
 export function migrateScreenPools(grid: Screen, charPool: CharPool, hyperlinkPool: HyperlinkPool): void {
-  const oldGlyphs = grid.charPool
-  const oldLinks = grid.hyperlinkPool
-  if (oldGlyphs === charPool && oldLinks === hyperlinkPool) return
-  const words = grid.cells
-  const wordCount = (grid.width * grid.height) << 1
-  for (let at = 0; at < wordCount; at += 2) {
-    words[at] = charPool.intern(oldGlyphs.get(words[at]!))
-    const word = words[at + 1]!
-    const linkId = linkOf(word)
-    if (linkId !== 0) words[at + 1] = packWord(word >>> STYLE_OFFSET, hyperlinkPool.intern(oldLinks.get(linkId)), word & WIDTH_BITS)
-  }
-  grid.charPool = charPool
-  grid.hyperlinkPool = hyperlinkPool
+  return notBuilt('src/ink/cell-grid.ts:361')
 }
 
 function touch(grid: Screen, left: number, top: number, right: number, bottom: number): void {
@@ -502,84 +457,11 @@ export function setCellAt(grid: Screen, column: number, row: number, cell: Cell)
 }
 
 export function setCellStyleId(grid: Screen, column: number, row: number, styleId: number): void {
-  if (outside(grid, column, row)) return
-  const at = (row * grid.width + column) << 1
-  const word = grid.cells[at + 1]!
-  const width = word & WIDTH_BITS
-  if (spacer(width)) return
-  grid.cells[at + 1] = packWord(styleId, linkOf(word), width)
-  touch(grid, column, row, column + 1, row + 1)
+  return notBuilt('src/ink/cell-grid.ts:504')
 }
 
 export function blitRegion(into: Screen, from: Screen, regionX: number, regionY: number, maxX: number, maxY: number): void {
-  const left = Math.max(0, regionX)
-  const top = Math.max(0, regionY)
-  if (left >= maxX || top >= maxY) return
-  const columns = maxX - left
-  const fromStride = from.width << 1
-  const intoStride = into.width << 1
-  let touchedLeft = left
-  let touchedRight = maxX
-  into.softWrap.set(from.softWrap.subarray(top, maxY), top)
-  if (left === 0 && maxX === from.width && from.width === into.width) {
-    const firstWord = top * fromStride
-    into.cells.set(from.cells.subarray(firstWord, firstWord + (maxY - top) * fromStride), firstWord)
-    const firstCell = top * from.width
-    into.noSelect.set(from.noSelect.subarray(firstCell, firstCell + (maxY - top) * from.width), firstCell)
-  } else {
-    let fromWord = top * fromStride + (left << 1)
-    let intoWord = top * intoStride + (left << 1)
-    let fromCell = top * from.width + left
-    let intoCell = top * into.width + left
-    const rowWords = columns << 1
-    for (let row = top; row < maxY; row++) {
-      const sameLeftPair =
-        left > 0 &&
-        from.width === into.width &&
-        (from.cells[fromWord + 1]! & WIDTH_BITS) === CellWidth.SpacerTail &&
-        into.cells[intoWord - 2] === from.cells[fromWord - 2] &&
-        into.cells[intoWord - 1] === from.cells[fromWord - 1]
-      if (!sameLeftPair && left > 0 && (into.cells[intoWord + 1]! & WIDTH_BITS) === CellWidth.SpacerTail && (into.cells[intoWord - 1]! & WIDTH_BITS) === CellWidth.Wide) {
-        blankCell(into, intoWord - 2)
-        touchedLeft = left - 1
-      }
-      const intoEndWord = intoWord + rowWords
-      const fromEndWord = fromWord + rowWords
-      const sameRightPair =
-        maxX < into.width &&
-        from.width === into.width &&
-        (from.cells[fromEndWord - 1]! & WIDTH_BITS) === CellWidth.Wide &&
-        into.cells[intoEndWord] === from.cells[fromEndWord] &&
-        into.cells[intoEndWord + 1] === from.cells[fromEndWord + 1]
-      if (!sameRightPair && maxX < into.width && (into.cells[intoEndWord - 1]! & WIDTH_BITS) === CellWidth.Wide && (into.cells[intoEndWord + 1]! & WIDTH_BITS) === CellWidth.SpacerTail) {
-        blankCell(into, intoEndWord)
-        touchedRight = maxX + 1
-      }
-      into.cells.set(from.cells.subarray(fromWord, fromWord + rowWords), intoWord)
-      into.noSelect.set(from.noSelect.subarray(fromCell, fromCell + columns), intoCell)
-      if (!sameLeftPair && (into.cells[intoWord + 1]! & WIDTH_BITS) === CellWidth.SpacerTail) {
-        blankCell(into, intoWord)
-      }
-      fromWord += fromStride
-      intoWord += intoStride
-      fromCell += from.width
-      intoCell += into.width
-    }
-  }
-  if (maxX < into.width) {
-    let headWord = (top * from.width + (maxX - 1)) << 1
-    let tailWord = (top * into.width + maxX) << 1
-    for (let row = top; row < maxY; row++) {
-      if ((from.cells[headWord + 1]! & WIDTH_BITS) === CellWidth.Wide) {
-        into.cells[tailWord] = SPACER_GLYPH
-        into.cells[tailWord + 1] = packWord(into.emptyStyleId, 0, CellWidth.SpacerTail)
-        touchedRight = maxX + 1
-      }
-      headWord += fromStride
-      tailWord += intoStride
-    }
-  }
-  touch(into, touchedLeft, top, touchedRight, maxY)
+  return notBuilt('src/ink/cell-grid.ts:514')
 }
 
 const packedBlankBuffer = new ArrayBuffer(8)
@@ -733,102 +615,10 @@ export function diffEach(prev: Screen, next: Screen, cb: DiffCallback, fromRow =
   return walk(prev, next, region.x, endX, region.y, endY, removedView, addedView, cb)
 }
 
-function equalRun(a: Int32Array, b: Int32Array, firstWord: number, span: number): number {
-  let equal = 0
-  let at = firstWord
-  while (equal < span && a[at] === b[at] && a[at + 1] === b[at + 1]) {
-    equal++
-    at += 2
-  }
-  return equal
-}
-
 function walkSameWidth(prev: Screen, next: Screen, left: number, right: number, top: number, bottom: number, removedView: Cell, addedView: Cell, cb: DiffCallback): boolean {
-  const columns = prev.width
-  const stride = columns << 1
-  const rowEnd = Math.min(right, columns)
-  let rowWord = (top * columns + left) << 1
-  let halted = false
-  rows: for (let row = top; row < bottom; row++, rowWord += stride) {
-    const prevHasRow = row < prev.height
-    const nextHasRow = row < next.height
-    if (prevHasRow && nextHasRow) {
-      let column = left
-      let at = rowWord
-      while (column < rowEnd) {
-        const equal = equalRun(prev.cells, next.cells, at, rowEnd - column)
-        column += equal
-        at += equal << 1
-        if (column >= rowEnd) break
-        decodeInto(prev, at, removedView)
-        decodeInto(next, at, addedView)
-        if (cb(column, row, removedView, addedView)) {
-          halted = true
-          break rows
-        }
-        column++
-        at += 2
-      }
-    } else if (prevHasRow) {
-      let at = rowWord
-      for (let column = left; column < rowEnd; column++, at += 2) {
-        decodeInto(prev, at, removedView)
-        if (cb(column, row, removedView, undefined)) {
-          halted = true
-          break rows
-        }
-      }
-    } else if (nextHasRow) {
-      let at = rowWord
-      for (let column = left; column < rowEnd; column++, at += 2) {
-        if (next.cells[at] === 0 && next.cells[at + 1] === 0) continue
-        decodeInto(next, at, addedView)
-        if (cb(column, row, undefined, addedView)) {
-          halted = true
-          break rows
-        }
-      }
-    }
-  }
-  return halted
+  return notBuilt('src/ink/cell-grid.ts:746')
 }
 
 function walkResize(prev: Screen, next: Screen, left: number, right: number, top: number, bottom: number, removedView: Cell, addedView: Cell, cb: DiffCallback): boolean {
-  const prevStride = prev.width << 1
-  const nextStride = next.width << 1
-  let prevRowWord = (top * prev.width + left) << 1
-  let nextRowWord = (top * next.width + left) << 1
-  let halted = false
-  rows: for (let row = top; row < bottom; row++, prevRowWord += prevStride, nextRowWord += nextStride) {
-    const prevEnd = row < prev.height ? Math.min(right, prev.width) : left
-    const nextEnd = row < next.height ? Math.min(right, next.width) : left
-    const sharedEnd = Math.min(prevEnd, nextEnd)
-    let prevAt = prevRowWord
-    let nextAt = nextRowWord
-    for (let column = left; column < sharedEnd; column++, prevAt += 2, nextAt += 2) {
-      if (prev.cells[prevAt] === next.cells[nextAt] && prev.cells[prevAt + 1] === next.cells[nextAt + 1]) continue
-      decodeInto(prev, prevAt, removedView)
-      decodeInto(next, nextAt, addedView)
-      if (cb(column, row, removedView, addedView)) {
-        halted = true
-        break rows
-      }
-    }
-    for (let column = sharedEnd; column < prevEnd; column++, prevAt += 2) {
-      decodeInto(prev, prevAt, removedView)
-      if (cb(column, row, removedView, undefined)) {
-        halted = true
-        break rows
-      }
-    }
-    for (let column = sharedEnd; column < nextEnd; column++, nextAt += 2) {
-      if (next.cells[nextAt] === 0 && next.cells[nextAt + 1] === 0) continue
-      decodeInto(next, nextAt, addedView)
-      if (cb(column, row, undefined, addedView)) {
-        halted = true
-        break rows
-      }
-    }
-  }
-  return halted
+  return notBuilt('src/ink/cell-grid.ts:796')
 }

@@ -17,6 +17,7 @@ import {
   stripExtendedLengthPrefixForPlatform,
   win32ToPosixPath,
 } from './platform/paths.js'
+import { notBuilt } from '../pi/holes.js'
 
 
 function pathExists(candidate: string): boolean {
@@ -29,65 +30,13 @@ function pathExists(candidate: string): boolean {
 }
 
 function findExecutableCandidates(name: string): string[] {
-  const candidates: string[] = []
-  try {
-    const result = spawnSync('where.exe', [name], {
-      windowsHide: true,
-      encoding: 'utf8',
-      timeout: 5_000,
-      stdio: ['ignore', 'pipe', 'ignore'],
-      env: { ...subprocessEnv() },
-    })
-    if (result.status === 0 && result.stdout) {
-      const cwdLower = process.cwd().toLowerCase()
-      for (const line of result.stdout.split('\r\n')) {
-        if (line === '') continue
-        const resolved = resolve(line)
-        const resolvedLower = resolved.toLowerCase()
-        if (dirname(resolved).toLowerCase() === cwdLower || resolvedLower.startsWith(cwdLower + sep)) {
-          logForDebugging(`windowsPaths: skipping ${resolved} (inside the working directory)`)
-          continue
-        }
-        candidates.push(line)
-      }
-    }
-  } catch (error) {
-    passedOver(error)
-  }
-  if (name === 'git') {
-    for (const classic of [
-      'C:\\Program Files\\Git\\cmd\\git.exe',
-      'C:\\Program Files (x86)\\Git\\cmd\\git.exe',
-    ]) {
-      if (pathExists(classic)) candidates.push(classic)
-    }
-  }
-  return candidates
+  return notBuilt('src/utils/windowsPaths.ts:31')
 }
 
 const GIT_TOOLCHAIN_FOLDERS: ReadonlySet<string> = new Set(['mingw64', 'mingw32', 'ucrt64', 'clang64', 'clangarm64', 'usr'])
 
 export function gitBashCandidatePaths(gitPaths: string[]): string[] {
-  const seen = new Set<string>()
-  const candidates: string[] = []
-  const push = (candidate: string): void => {
-    const key = candidate.toLowerCase()
-    if (seen.has(key)) return
-    seen.add(key)
-    candidates.push(candidate)
-  }
-  for (const gitPath of gitPaths) {
-    push(pathWin32.join(pathWin32.dirname(pathWin32.dirname(gitPath)), 'bin', 'bash.exe'))
-    const holder = pathWin32.dirname(gitPath)
-    const holderName = pathWin32.basename(holder).toLowerCase()
-    const parent = pathWin32.dirname(holder)
-    const parentName = pathWin32.basename(parent).toLowerCase()
-    const installRoot = holderName === 'bin' && GIT_TOOLCHAIN_FOLDERS.has(parentName) ? pathWin32.dirname(parent) : parent
-    push(pathWin32.join(installRoot, 'bin', 'bash.exe'))
-  }
-  push('C:\\Program Files\\Git\\bin\\bash.exe')
-  push('C:\\Program Files (x86)\\Git\\bin\\bash.exe')
-  return candidates
+  return notBuilt('src/utils/windowsPaths.ts:70')
 }
 
 export type GitBashLocation = { path: string } | { absent: true }

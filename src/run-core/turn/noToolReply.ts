@@ -2,43 +2,26 @@ import { projectTimeBasedMicrocompact } from '../../services/compact/microCompac
 import { getIsNonInteractiveSession, getSessionKind } from '../../bootstrap/state.js'
 import {
   FRESH_OVERFLOW_EPISODE,
-  decideOverflowRecovery,
-  measureOverflow,
-  foldAvailability,
-  overflowGapFor,
-  overflowLadderArmed,
-  overflowRecoveryNotice,
-  overflowRefusalText,
   requestSizeWarning,
   requestSizeWarningApplies,
-  foldRemedyIsHeadless,
-  splitCarriedOperatorTail,
 } from '../../services/compact/overflowRecovery.js'
-import { overflowSignalOf } from '../../services/api/overflowSignal.js'
 import type { ToolUseContext } from '../../Tool.js'
-import type {
-  AssistantMessage,
-  Message,
-} from '../../types/message.js'
+import type { AssistantMessage, Message } from '../../types/message.js'
 import {
   EMPTY_REPLY_RECOVERY_NUDGE,
   continuableStreamFaultTextOf,
   endsWithEmptyReplyRecoveryNudge,
   isContinuableStreamFaultMessage,
   REASONING_CUT_MARKER,
-  reasoningOnlyNoticeLine,
-  reasoningOnlyRecoveryNudge,
   streamFaultFactsOf,
   streamFaultNoticeLine,
   streamFaultRecoveryContent,
 } from '../../services/api/errors.js'
-import { toolCallRefusalCorrection } from '../../services/providers/toolCallGate.js'
 import {
   createUserMessage,
   createSystemMessage,
   createCloseUsageMessage,
   createStreamCutMessage,
-  createAssistantAPIErrorMessage,
 } from '../../services/messages.js'
 import {
   CHANT_RECOVERY_LIMIT,
@@ -46,7 +29,6 @@ import {
   chantNudgeText,
   chantStopText,
   decideChantRecovery,
-  detectChant,
 } from '../../services/tools/chantGuard.js'
 import { isLoopGuardStopEnabled, LOOP_GUARD_STOP_SETTING } from '../../services/tools/loopGuard.js'
 import {
@@ -84,6 +66,7 @@ import {
   decideToolCallRefusalRecovery,
 } from './judgements.js'
 import { trimChantedIteration, type EventMint, type IterationState, type NextTurn, type RunCtx, type SettledDecision, type TurnDecision } from './state.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 const OUTPUT_LIMIT_RECOVERY_TEXT =
   'The reply hit the output ceiling. Carry on from exactly where it stopped — no recap, no apology — in smaller pieces.'
@@ -234,247 +217,28 @@ function replyTextOf(messages: readonly AssistantMessage[]): string {
   return parts.join('')
 }
 
-export function readReply(iter: IterationState) {
-  const { state, toolUseContext, assistantMessages, refusedToolCalls } = iter
-  const lastMessage = assistantMessages.at(-1)
-  const chant = iter.streamChant ?? (lastMessage !== undefined && (lastMessage.isApiErrorMessage !== true || isWithheldMaxOutputTokens(lastMessage)) ? detectChant(replyTextOf(assistantMessages)) : null)
-  const reasoningOnly = chant === null ? reasoningOnlyTurnOf(assistantMessages, refusedToolCalls.length) : null
-  const emptyKind = lastMessage === undefined ? undefined : emptyReplyKindOf(lastMessage)
-  const silentAlone =
-    emptyKind !== 'empty' &&
-    emptyKind !== 'cap' &&
-    chant === null &&
-    reasoningOnly === null &&
-    (state.emptyReplyRecoveryCount ?? 0) < EMPTY_REPLY_RECOVERY_LIMIT &&
-    endedWithoutWords(assistantMessages) &&
-    runLeftAlone(toolUseContext)
-  return { lastMessage, chant, reasoningOnly, emptyKind, silentAlone }
+export function readReply(iter: IterationState): Unbuilt {
+  return notBuilt('src/run-core/turn/noToolReply.ts:237')
 }
 
-export type NoToolReading = ReturnType<typeof readReply>
+export type NoToolReading = Unbuilt
 
-export type NoToolRule = (run: RunCtx, iter: IterationState, reply: NoToolReading) => AsyncGenerator<RunEvent, SettledDecision | undefined>
+export type NoToolRule = (...args: Unbuilt[]) => Unbuilt
 
 async function* overflowRecovery(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
-  const { emit, querySource } = run
-  const { state, toolUseContext, messagesForQuery, tracking, overflowEpisode, assistantMessages } = iter
-  const { maxOutputTokensRecoveryCount, maxOutputTokensOverride, streamFaultRecoveryCount, toolCallRefusalRecoveryCount, turnCount } = iter.state
-  const { lastMessage } = reply
-  const overflowStamped = overflowSignalOf(lastMessage)
-  if (overflowStamped !== null && overflowLadderArmed(querySource)) {
-    const foldInput = [
-      ...messagesForQuery,
-      ...assistantMessages.filter(m => m.isApiErrorMessage !== true),
-    ]
-    const overflow = measureOverflow(overflowStamped, foldInput, toolUseContext.options.engineModel)
-    const split = splitCarriedOperatorTail(foldInput)
-    const pruneSaving =
-      projectTimeBasedMicrocompact(foldInput, querySource, { pressure: true, supersededOnly: true })?.tokensSaved ?? 0
-    const decision = decideOverflowRecovery({
-      episode: overflowEpisode,
-      gapTokens: overflowGapFor(overflow),
-      pruneSavingTokens: pruneSaving,
-      pruneAllowed: true,
-      fold: foldAvailability({ tracking, hasHistory: split.hasHistory }),
-    })
-    if (decision.kind === 'recover') {
-      if (decision.rung === 'fold') {
-        yield emit({
-          kind: 'notice',
-          message: createSystemMessage(overflowRecoveryNotice(overflow, 'fold'), 'warning'),
-        })
-      }
-      const next: NextTurn = {
-        messages: foldInput,
-        toolUseContext,
-        autoCompactTracking: tracking,
-        maxOutputTokensRecoveryCount,
-        lastOutputLimitReply: state.lastOutputLimitReply,
-        maxOutputTokensOverride,
-        streamFaultRecoveryCount,
-        toolCallRefusalRecoveryCount,
-        stopHookActive: undefined,
-        turnCount,
-        overflowEpisode: {
-          pruned: overflowEpisode.pruned || decision.rung === 'prune',
-          folded: overflowEpisode.folded || decision.rung === 'fold',
-        },
-        pendingOverflow: { signal: overflow, rung: decision.rung },
-        transition: { reason: 'overflow_recovery', rung: decision.rung, source: overflow.source },
-      }
-      return { kind: 'hand_over', next }
-    }
-    yield emit({
-      kind: 'notice',
-      message: createAssistantAPIErrorMessage({
-        content: overflowRefusalText(overflow, decision.why, {
-          nonInteractive: foldRemedyIsHeadless(toolUseContext.options.isNonInteractiveSession),
-          ...(decision.detail !== undefined ? { detail: decision.detail } : {}),
-        }),
-        error: 'invalid_request',
-        ...(overflow.detail !== undefined ? { errorDetails: overflow.detail } : {}),
-        overflow,
-      }),
-    })
-    const terminal: Terminal = decision.why === 'breaker' && tracking?.rapidRefillPaused === true ? { reason: 'rapid_refill_breaker' } : { reason: 'prompt_too_long' }
-    return { kind: 'end', terminal }
-  }
+  return notBuilt('src/run-core/turn/noToolReply.ts:258')
 }
 
 async function* pauseTurnContinuation(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
-  const { emit, budgetGuard } = run
-  const { maxTurns } = run.params
-  const { state, messagesForQuery, tracking, assistantMessages } = iter
-  const { turnCount } = iter.state
-  const paused = pausedReplyOf(assistantMessages)
-  if (paused !== null) {
-    const pauseTurnContinuations = state.pauseTurnContinuations ?? 0
-    const decision = decidePauseTurnContinuation({ continuations: pauseTurnContinuations })
-    if (decision.kind === 'continue') {
-      const nextTurnCount = turnCount + 1
-      if (maxTurns !== undefined && budgetGuard.maxTurnsExceeded(nextTurnCount, maxTurns)) {
-        yield emit({ kind: 'attachment', message: createAttachmentMessage({ type: 'max_turns_reached', maxTurns, turnCount: nextTurnCount }) })
-        const terminal: Terminal = { reason: 'max_turns', turnCount: nextTurnCount }
-        return { kind: 'end', terminal }
-      }
-      yield emit({
-        kind: 'notice',
-        message: createSystemMessage(`the provider paused the turn mid-work — sending it back to continue (${decision.attempt} of ${PAUSE_TURN_CONTINUATION_LIMIT}); it counts as a turn`, 'suggestion'),
-      })
-      const next: NextTurn = {
-        ...state,
-        messages: [...messagesForQuery, ...assistantMessages.filter(m => m.isApiErrorMessage !== true)],
-        autoCompactTracking: tracking,
-        turnCount: nextTurnCount,
-        pauseTurnContinuations: pauseTurnContinuations + 1,
-        stopHookActive: undefined,
-        pendingOverflow: undefined,
-        transition: { reason: 'pause_turn_continuation', attempt: decision.attempt },
-      }
-      return { kind: 'hand_over', next }
-    }
-    yield emit({
-      kind: 'notice',
-      message: createSystemMessage(`the provider paused the turn ${pauseTurnContinuations} times in a row; the reply stands as it is and the turn ends here`, 'warning'),
-    })
-  }
+  return notBuilt('src/run-core/turn/noToolReply.ts:324')
 }
 
 async function* reasoningOnlyRecovery(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
-  const { emit } = run
-  const { state, toolUseContext, messagesForQuery, tracking, overflowEpisode, assistantMessages } = iter
-  const { maxOutputTokensRecoveryCount, maxOutputTokensOverride, streamFaultRecoveryCount, toolCallRefusalRecoveryCount, turnCount } = iter.state
-  const { lastMessage, reasoningOnly } = reply
-  if (reasoningOnly !== null) {
-    const reasoningOnlyRecoveryCount = state.reasoningOnlyRecoveryCount ?? 0
-    const decision = decideReasoningOnlyRecovery({ recoveryCount: reasoningOnlyRecoveryCount, maxTokens: reasoningOnly.maxTokens })
-    const outputLimit = reasoningOnly.maxTokens
-      ? outputLimitWords(reasoningOnly.reply.outputLimit ?? maxOutputTokensOverride ?? getModelMaxOutputTokens(iter.currentModel).default)
-      : null
-    if (decision.kind === 'continue') {
-      const fewerWords = reasoningOnly.maxTokens && decision.attempt >= REASONING_CUT_RECOVERY_LIMIT
-      const action = reasoningOnly.maxTokens
-        ? fewerWords
-          ? 'continuing, asking for fewer words'
-          : 'continuing'
-        : 'asked it once to say its reply or call the tool it meant'
-      yield emit({
-        kind: 'notice',
-        message: createSystemMessage(reasoningOnlyNoticeLine(outputLimit, decision.attempt > 1, action), 'warning'),
-      })
-      const nudge = createUserMessage({
-        content: reasoningOnlyRecoveryNudge(fewerWords),
-        isMeta: true,
-      })
-      const carried = assistantMessages
-        .filter(m => m.isApiErrorMessage !== true)
-        .map(m => (reasoningOnly.maxTokens && m === reasoningOnly.reply ? withReasoningCutMarker(m) : m))
-      const next: NextTurn = {
-        messages: [...messagesForQuery, ...carried, nudge],
-        toolUseContext,
-        autoCompactTracking: tracking,
-        maxOutputTokensRecoveryCount,
-        lastOutputLimitReply: state.lastOutputLimitReply,
-        maxOutputTokensOverride,
-        streamFaultRecoveryCount,
-        toolCallRefusalRecoveryCount,
-        stopHookActive: undefined,
-        turnCount,
-        overflowEpisode,
-        pendingOverflow: undefined,
-        emptyReplyRecoveryCount: state.emptyReplyRecoveryCount,
-        chantRecoveryCount: state.chantRecoveryCount,
-        reasoningOnlyRecoveryCount: reasoningOnlyRecoveryCount + 1,
-        transition: { reason: 'reasoning_only_recovery', attempt: decision.attempt },
-      }
-      return { kind: 'hand_over', next }
-    }
-    const ending = reasoningOnly.maxTokens
-      ? `the turn ends here after ${reasoningOnlyRecoveryCount} continuations; the next step is yours`
-      : 'the turn ends here'
-    yield emit({
-      kind: 'notice',
-      message: createSystemMessage(reasoningOnlyNoticeLine(outputLimit, true, ending), 'warning'),
-    })
-    if (isWithheldMaxOutputTokens(lastMessage)) {
-      yield emit({ kind: 'withheld_surfaced', message: lastMessage })
-    }
-  }
+  return notBuilt('src/run-core/turn/noToolReply.ts:363')
 }
 
 async function* maxOutputTokensRecovery(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
-  const { emit } = run
-  const { state, toolUseContext, messagesForQuery, tracking, overflowEpisode, assistantMessages, refusedToolCalls } = iter
-  const { maxOutputTokensRecoveryCount, maxOutputTokensOverride, streamFaultRecoveryCount, toolCallRefusalRecoveryCount, turnCount } = iter.state
-  const { lastMessage, chant, reasoningOnly } = reply
-  if (chant === null && reasoningOnly === null && refusedToolCalls.length === 0 && isWithheldMaxOutputTokens(lastMessage)) {
-    const replyText = replyTextOf(assistantMessages)
-    const maxBudgetUsd = toolUseContext.options.maxBudgetUsd as number | undefined
-    const decision = decideMaxOutputTokensRecovery({
-      added: continuationAdded(state.lastOutputLimitReply, replyText),
-      budgetAllows:
-        !toolUseContext.abortController.signal.aborted &&
-        (maxBudgetUsd === undefined || getTotalCostUSD() < maxBudgetUsd),
-      recoveryCount: maxOutputTokensRecoveryCount,
-    })
-
-    if (decision.kind === 'nudge') {
-      const recoveryMessage = createUserMessage({
-        content: OUTPUT_LIMIT_RECOVERY_TEXT,
-        isMeta: true,
-      })
-
-      const next: NextTurn = {
-        messages: [
-          ...messagesForQuery,
-          ...assistantMessages,
-          recoveryMessage,
-        ],
-        toolUseContext,
-        autoCompactTracking: tracking,
-        maxOutputTokensRecoveryCount: maxOutputTokensRecoveryCount + 1,
-        lastOutputLimitReply: replyText,
-        maxOutputTokensOverride,
-        streamFaultRecoveryCount,
-        toolCallRefusalRecoveryCount,
-        stopHookActive: undefined,
-        turnCount,
-        overflowEpisode,
-        pendingOverflow: undefined,
-        transition: {
-          reason: 'max_output_tokens_recovery',
-          attempt: decision.attempt,
-        },
-      }
-      return { kind: 'hand_over', next }
-    }
-
-    yield emit({
-      kind: 'notice',
-      message: createSystemMessage(OUTPUT_LIMIT_STOP_WORDS[decision.why], 'warning'),
-    })
-    yield emit({ kind: 'withheld_surfaced', message: lastMessage })
-  }
+  return notBuilt('src/run-core/turn/noToolReply.ts:425')
 }
 
 async function* streamFaultRecovery(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
@@ -586,59 +350,7 @@ async function* emptyReplyRetry(run: RunCtx, iter: IterationState, reply: NoTool
 }
 
 async function* toolCallRefusalRecovery(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
-  const { emit, holdMemoryWriteRefusals, memoryWriteLostEvent } = run
-  const { state, toolUseContext, messagesForQuery, tracking, overflowEpisode, assistantMessages, allRefusedToolCalls, refusedToolCalls } = iter
-  const { maxOutputTokensRecoveryCount, maxOutputTokensOverride, streamFaultRecoveryCount, toolCallRefusalRecoveryCount, turnCount } = iter.state
-  if (refusedToolCalls.length > 0) {
-    const decision = decideToolCallRefusalRecovery({
-      refusals: refusedToolCalls.length,
-      recoveryCount: toolCallRefusalRecoveryCount,
-    })
-    if (decision.kind === 'continue') {
-      const names = [...new Set(refusedToolCalls.map(r => r.name || 'unnamed'))].join(', ')
-      yield emit({
-        kind: 'notice',
-        message: createSystemMessage(
-          `Tool call refused before execution (${names}) — asking the model to correct it (${decision.attempt}/${TOOL_CALL_REFUSAL_RECOVERY_LIMIT}).`,
-          'warning',
-        ),
-      })
-      holdMemoryWriteRefusals(allRefusedToolCalls)
-      const correction = createUserMessage({
-        content: toolCallRefusalCorrection(refusedToolCalls),
-        isMeta: true,
-      })
-      const next: NextTurn = {
-        messages: [...messagesForQuery, ...assistantMessages, correction],
-        toolUseContext,
-        autoCompactTracking: tracking,
-        maxOutputTokensRecoveryCount,
-        lastOutputLimitReply: state.lastOutputLimitReply,
-        maxOutputTokensOverride,
-        streamFaultRecoveryCount,
-        toolCallRefusalRecoveryCount: toolCallRefusalRecoveryCount + 1,
-        stopHookActive: undefined,
-        turnCount,
-        overflowEpisode,
-        pendingOverflow: undefined,
-        transition: { reason: 'tool_call_refusal_recovery', attempt: decision.attempt },
-      }
-      return { kind: 'hand_over', next }
-    }
-    const tools = [...new Set(refusedToolCalls.map(r => r.name || 'unnamed'))]
-    yield emit({
-      kind: 'notice',
-      message: createSystemMessage(
-        `Tool call refused before execution (${tools.join(', ')}) — the model was asked to correct it ${toolCallRefusalRecoveryCount} times and could not; the turn ends without an answer.`,
-        'error',
-      ),
-    })
-    holdMemoryWriteRefusals(allRefusedToolCalls)
-    const lost = memoryWriteLostEvent()
-    if (lost !== null) yield lost
-    const terminal: Terminal = { reason: 'tool_calls_refused', tools, corrections: toolCallRefusalRecoveryCount }
-    return { kind: 'end', terminal }
-  }
+  return notBuilt('src/run-core/turn/noToolReply.ts:588')
 }
 
 async function* chantRecovery(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {

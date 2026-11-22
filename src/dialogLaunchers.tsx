@@ -1,79 +1,19 @@
-import { featureReached } from './substrate/featureReached.js'
-
-import * as React from 'react'
 import type { Root } from './ink.js'
-import type { AppState } from './state/AppStateStore.js'
-import type { StatsStore } from './context/stats.js'
-import type { FpsMetrics } from './utils/fpsTracker.js'
 import type { ValidationError } from './utils/settings/validation.js'
-import { gracefulShutdownSync } from './utils/gracefulShutdown.js'
-import { SetupScreenHost } from './interactiveHelpers.js'
-import { errorMessage } from './utils/errors.js'
-import { passedOver } from './utils/passedOver.js'
+import { notBuilt, type Unbuilt } from './pi/holes.js'
 
 export async function launchInvalidSettingsDialog(
   root: Root,
-  {
-    settingsErrors,
-    onExit,
-  }: {
+  arg1: {
     settingsErrors: ValidationError[]
     onExit: () => void
   },
 ): Promise<void> {
-  const [
-    { InvalidSettingsDialog },
-    { AppStateProvider },
-    { KeybindingSetup },
-    { removableUnknownKeys, removeUnknownKeys },
-    { addBootNote },
-  ] = await Promise.all([
-    import('./components/InvalidSettingsDialog.js'),
-    import('./state/AppState.js'),
-    import('./keybindings/KeybindingProviderSetup.js'),
-    import('./utils/settings/unknownKeyRemoval.js'),
-    import('./substrate/bootNotes.js'),
-  ])
-  const removals = removableUnknownKeys(settingsErrors)
-  await new Promise<void>(resolve => {
-    const onRemove =
-      removals.length === 0
-        ? undefined
-        : (): void => {
-            const fault = removeUnknownKeys(removals)
-            if (fault !== null) addBootNote('warn', `settings: the unrecognized fields were not removed — ${fault.message}`)
-            resolve()
-          }
-    root.render(
-      <AppStateProvider>
-        <KeybindingSetup>
-          <SetupScreenHost>
-            <InvalidSettingsDialog
-              settingsErrors={settingsErrors}
-              onContinue={() => resolve()}
-              onExit={onExit}
-              onRemove={onRemove}
-            />
-          </SetupScreenHost>
-        </KeybindingSetup>
-      </AppStateProvider>,
-    )
-  })
+  return notBuilt('src/dialogLaunchers.tsx:14')
 }
 
-type ResumeAppProps = {
-  getFpsMetrics: () => FpsMetrics | undefined
-  stats?: StatsStore
-  initialState: AppState
-}
-
-type ResumeScreenProps = React.ComponentProps<
-  typeof import('./screens/ResumeConversation.js').ResumeConversation
->
-type ResumeChooserProps = Pick<
-  ResumeScreenProps,
-  'commands' | 'initialTools' | 'debug' | 'disableSlashCommands' | 'initialSearchQuery' | 'forkSession' | 'filterByPr'
->
+type ResumeAppProps = Unbuilt
+type ResumeChooserProps = Unbuilt
 
 export async function launchResumeChooser(
   root: Root,
@@ -81,36 +21,5 @@ export async function launchResumeChooser(
   worktreePathsPromise: Promise<string[]>,
   resumeProps: ResumeChooserProps,
 ): Promise<void> {
-  let worktreeReadError: string | undefined
-  const [{ ResumeConversation }, { App }, { KeybindingSetup }, worktreePaths] =
-    await Promise.all([
-      import('./screens/ResumeConversation.js'),
-      import('./components/App.js'),
-      import('./keybindings/KeybindingProviderSetup.js'),
-      worktreePathsPromise.catch((error) => {
-        passedOver(error)
-        worktreeReadError = errorMessage(error)
-        return [] as string[]
-      }),
-    ])
-  featureReached('screen', 'ResumeConversation')
-  root.render(
-    <App {...appProps}>
-      <KeybindingSetup>
-        <ResumeConversation
-          commands={resumeProps.commands}
-          worktreePaths={worktreePaths}
-          worktreeReadError={worktreeReadError}
-          initialTools={resumeProps.initialTools}
-          debug={resumeProps.debug}
-          disableSlashCommands={resumeProps.disableSlashCommands}
-          initialSearchQuery={resumeProps.initialSearchQuery}
-          forkSession={resumeProps.forkSession}
-          filterByPr={resumeProps.filterByPr}
-        />
-      </KeybindingSetup>
-    </App>,
-  )
-  await root.waitUntilExit()
-  gracefulShutdownSync(0)
+  return notBuilt('src/dialogLaunchers.tsx:78')
 }

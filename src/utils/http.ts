@@ -1,49 +1,21 @@
-import { flagEnv } from '../substrate/flagRegistry.js'
-import { OAUTH_BETA_HEADER } from '../constants/oauth.js'
-import { anthropicApiKeyHeaders, getAnthropicApiKey, getClaudeAIOAuthTokens, isClaudeAISubscriber } from './auth.js'
-import { getWorkload } from './workloadContext.js'
-
-const hostSegments = (): string[] =>
-  [
-    flagEnv('MERCURY_ENTRYPOINT'),
-    flagEnv('MERCURY_HOST_VERSION') && `host/${flagEnv('MERCURY_HOST_VERSION')}`,
-    flagEnv('MERCURY_HOST_CLIENT_APP') && `host-app/${flagEnv('MERCURY_HOST_CLIENT_APP')}`,
-  ].filter((segment): segment is string => Boolean(segment))
-
-function productIdentity(segments: string[]): string {
-  const suffix = segments.length > 0 ? ` (${segments.join(', ')})` : ''
-  return `mercury/${MACRO.VERSION}${suffix}`
-}
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 export function getProductUserAgent(): string {
-  const workload = getWorkload()
-  return productIdentity(workload ? [...hostSegments(), `workload/${workload}`] : hostSegments())
+  return notBuilt('src/utils/http.ts:18')
 }
 
 export function getUserAgent(): string {
-  return getProductUserAgent()
+  return notBuilt('src/utils/http.ts:23')
 }
 
 export function getMCPUserAgent(): string {
-  return productIdentity(hostSegments())
+  return notBuilt('src/utils/http.ts:27')
 }
 
 export { webUserAgent as getWebFetchUserAgent } from './webUserAgent.js'
 
-type AuthHeaders = {
-  headers: Record<string, string>
-  error?: string
-}
-
-const refused = (error: string): AuthHeaders => ({ headers: {}, error })
+type AuthHeaders = Unbuilt
 
 export function getAuthHeaders(): AuthHeaders {
-  if (!isClaudeAISubscriber()) {
-    const apiKey = getAnthropicApiKey()
-    return apiKey ? { headers: anthropicApiKeyHeaders(apiKey) } : refused('No API key available')
-  }
-  const accessToken = getClaudeAIOAuthTokens()?.accessToken
-  return accessToken
-    ? { headers: { Authorization: `Bearer ${accessToken}`, 'anthropic-beta': OAUTH_BETA_HEADER } }
-    : refused('No OAuth access token available')
+  return notBuilt('src/utils/http.ts:40')
 }

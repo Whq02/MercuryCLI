@@ -9,14 +9,10 @@ import { AppStateProvider } from '../state/AppState.tsx'
 import type { Tools } from '../Tool.js'
 import type { Message } from '../types/message.js'
 import { renderToAnsiString } from '../utils/staticRender.tsx'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 
-type ExportOptions = {
-  columns?: number
-  verbose?: boolean
-  chunkSize?: number
-  onProgress?: (renderedThrough: number) => void
-}
+type ExportOptions = Unbuilt
 
 function MinimalKeybindingProvider({ children }: { children: React.ReactNode }): React.ReactNode {
   const pendingChordRef = React.useRef<ParsedKeystroke[] | null>(null)
@@ -46,62 +42,19 @@ function normalizedUpperBound(messages: Message[]): number {
   return total
 }
 
-async function renderChunk(
-  messages: Message[],
-  tools: Tools,
-  verbose: boolean,
-  range: readonly [number, number],
-  columns: number | undefined,
-): Promise<string> {
-  const tree = (
-    <AppStateProvider>
-      <MinimalKeybindingProvider>
-        <Messages
-          messages={messages}
-          tools={tools}
-          commands={[]}
-          verbose={verbose}
-          toolJSX={null}
-          toolUseConfirmQueue={[]}
-          inProgressToolUseIDs={new Set()}
-          isMessageSelectorVisible={false}
-          conversationId="export"
-          screen="prompt"
-          streamingToolUses={[]}
-          showAllInTranscript={true}
-          isLoading={false}
-          renderRange={range}
-        />
-      </MinimalKeybindingProvider>
-    </AppStateProvider>
-  )
-  return renderToAnsiString(tree, columns)
-}
-
 export async function streamRenderedMessages(
   messages: Message[],
   tools: Tools,
   sink: (chunk: string) => Promise<void> | void,
-  options: ExportOptions = {},
+  options?: ExportOptions,
 ): Promise<void> {
-  const { columns, verbose = false, chunkSize = 40, onProgress } = options
-  const ceiling = chunkSize + normalizedUpperBound(messages)
-  for (let offset = 0; offset < ceiling; offset += chunkSize) {
-    const rendered = await renderChunk(messages, tools, verbose, [offset, offset + chunkSize], columns)
-    if (stripAnsi(rendered).trim() === '') break
-    await sink(rendered)
-    onProgress?.(offset + chunkSize)
-  }
+  return notBuilt('src/components/exportRenderer.tsx:81')
 }
 
 export async function renderMessagesToPlainText(
   messages: Message[],
-  tools: Tools = [],
+  tools?: Tools,
   columns?: number,
 ): Promise<string> {
-  const parts: string[] = []
-  await streamRenderedMessages(messages, tools, chunk => {
-    parts.push(stripAnsi(chunk))
-  }, { columns })
-  return parts.join('')
+  return notBuilt('src/components/exportRenderer.tsx:97')
 }

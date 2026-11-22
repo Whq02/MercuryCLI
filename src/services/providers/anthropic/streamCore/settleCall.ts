@@ -12,54 +12,12 @@ import {
 } from '../../../api/logging.js'
 import { updateUsage } from '../cacheAndUsage.js'
 import type { CallState, QueryCtx } from './state.js'
+import { notBuilt } from '../../../../pi/holes.js'
 
 export function settleAttemptLedger(ctx: QueryCtx, call: CallState): void {
-  const { startIncludingRetries, releaseStreamResources, pricingModel, settleUnpricedAttempt } = ctx
-  stopSessionActivity('api_call')
-  releaseStreamResources()
-
-  settleUnpricedAttempt()
-  if (!call.settledNormally) logAPIDuration({ start: call.start, startIncludingRetries })
-
-  if (call.fallbackMessage) {
-    const fallbackUsage = call.fallbackMessage.message.usage
-    call.usage = updateUsage(EMPTY_USAGE, fallbackUsage)
-    call.stopReason = call.fallbackMessage.message.stop_reason
-    const fallbackCost = calculateUSDCost(
-      pricingModel(),
-      fallbackUsage as NonNullableUsage,
-    )
-    addToTotalSessionCost(
-      fallbackCost,
-      fallbackUsage as NonNullableUsage,
-      pricingModel(),
-    )
-  }
+  return notBuilt('src/services/providers/anthropic/streamCore/settleCall.ts:16')
 }
 
 export function closeSucceededRequest(ctx: QueryCtx, call: CallState): void {
-  const { options, modelRefusalRequest, observeSignInResponse, startIncludingRetries, releaseStreamResources } = ctx
-  if (
-    call.streamRequestId &&
-    !getAgentContext() &&
-    (options.querySource.startsWith('main_thread') ||
-      options.querySource === 'sdk')
-  ) {
-    setLastMainRequestId(call.streamRequestId)
-  }
-
-  observeSignInResponse(call.signInRequest, 200)
-  const successfulRequest = modelRefusalRequest.current
-  if (successfulRequest !== undefined) {
-    clearModelRefusal(successfulRequest.id, successfulRequest.door, successfulRequest.home, successfulRequest.presented)
-  }
-
-  void options.getToolPermissionContext().then(() => {
-    logAPISuccessAndDuration({
-      start: call.start,
-      startIncludingRetries,
-    })
-  })
-
-  releaseStreamResources()
+  return notBuilt('src/services/providers/anthropic/streamCore/settleCall.ts:40')
 }

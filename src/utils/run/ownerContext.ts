@@ -1,20 +1,10 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import type { OwnerKey } from './ownerKey.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 export type InvocationKind = 'spawn' | 'resume'
 
-type InvocationEdge = {
-  invokingRequestId?: string
-  invocationKind?: InvocationKind
-  invocationEmitted?: boolean
-}
-
-export type SubagentContext = InvocationEdge & {
-  agentType: 'subagent'
-  agentId: string
-  subagentName?: string
-  isBuiltIn?: boolean
-}
+export type SubagentContext = Unbuilt
 
 export type AgentContext = SubagentContext
 
@@ -30,21 +20,12 @@ type OwnerDirectoryContext = {
   shellCwd: string | null
 }
 
-type OwnerContext = {
-  agent?: AgentContext
-  directory?: OwnerDirectoryContext
-  workload?: string | undefined
-  authHome?: string
-  fetchSession?: OwnerKey
-  leaseHolder?: LeaseHolder
-}
-
-const ownerContextStorage = new AsyncLocalStorage<OwnerContext>()
+type OwnerContext = Unbuilt
 
 export function getOwnerContext(): OwnerContext | undefined {
-  return ownerContextStorage.getStore()
+  return notBuilt('src/utils/run/ownerContext.ts:44')
 }
 
 export function withOwnerContext<T>(patch: OwnerContext, work: () => T): T {
-  return ownerContextStorage.run({ ...ownerContextStorage.getStore(), ...patch }, work)
+  return notBuilt('src/utils/run/ownerContext.ts:48')
 }

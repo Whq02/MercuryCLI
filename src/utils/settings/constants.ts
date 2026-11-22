@@ -1,5 +1,6 @@
 import { getAllowedSettingSources } from '../../bootstrap/state.js'
 import { untrustedWorkspaceHeadless } from '../config/trust.js'
+import { notBuilt, unbuilt } from '../../pi/holes.js'
 
 export const SETTING_SOURCES = ['userSettings', 'projectSettings', 'localSettings', 'flagSettings', 'policySettings'] as const
 export type SettingSource = (typeof SETTING_SOURCES)[number]
@@ -9,13 +10,7 @@ export const SOURCES: EditableSettingSource[] = ['localSettings', 'projectSettin
 type RuleOrigin = 'cliArg' | 'command' | 'session'
 type LowercaseNameDomain = SettingSource | RuleOrigin | 'toolsNarrowing' | 'mcpServerPolicy'
 
-const labels = new Map<SettingSource, readonly [string, string, string]>([
-  ['userSettings', ['user', 'User', 'user settings']],
-  ['projectSettings', ['project', 'Project', 'shared project settings']],
-  ['localSettings', ['project, gitignored', 'Local', 'project local settings']],
-  ['flagSettings', ['cli flag', 'Flag', 'command line arguments']],
-  ['policySettings', ['managed', 'Managed', 'managed settings']],
-])
+const labels: Map<SettingSource, readonly [string, string, string]> = unbuilt('src/utils/settings/constants.ts:12')
 const originLabels = new Map<LowercaseNameDomain, string>([
   ['cliArg', 'CLI argument'], ['command', 'command configuration'], ['session', 'current session'],
   ['toolsNarrowing', 'tools narrowing'], ['mcpServerPolicy', 'MCP server policy'],
@@ -24,20 +19,13 @@ const providerLabels = new Map<string, string>([['extension', 'Extension'], ['bu
 const flagSources: Record<string, SettingSource> = { user: 'userSettings', project: 'projectSettings', local: 'localSettings' }
 
 export function parseSettingSourcesFlag(flag: string): SettingSource[] {
-  return flag.split(',').flatMap(part => {
-    const word = part.trim()
-    if (!word) return []
-    const source = flagSources[word]
-    if (source !== undefined) return [source]
-    throw new Error(`Unknown setting source "${word}". Valid options are: user, project, local`)
-  })
+  return notBuilt('src/utils/settings/constants.ts:26')
 }
 
-const CHECKOUT_SOURCES: ReadonlySet<SettingSource> = new Set(['projectSettings', 'localSettings'])
+const CHECKOUT_SOURCES: ReadonlySet<SettingSource> = unbuilt('src/utils/settings/constants.ts:36')
 
 export function getLaunchSettingSources(): SettingSource[] {
-  const allowed = getAllowedSettingSources()
-  return SETTING_SOURCES.filter(source => source === 'flagSettings' || source === 'policySettings' || allowed.includes(source))
+  return notBuilt('src/utils/settings/constants.ts:38')
 }
 
 export function isCheckoutSourceHeldForTrust(source: SettingSource): boolean {
@@ -45,12 +33,11 @@ export function isCheckoutSourceHeldForTrust(source: SettingSource): boolean {
 }
 
 export function getEnabledSettingSources(): SettingSource[] {
-  const sources = getLaunchSettingSources()
-  return untrustedWorkspaceHeadless() ? sources.filter(source => !CHECKOUT_SOURCES.has(source)) : sources
+  return notBuilt('src/utils/settings/constants.ts:47')
 }
 
 export function isSettingSourceEnabled(source: SettingSource): boolean {
-  return getEnabledSettingSources().includes(source)
+  return notBuilt('src/utils/settings/constants.ts:52')
 }
 
 export function isSettingSourceAllowedAtLaunch(source: SettingSource): boolean {

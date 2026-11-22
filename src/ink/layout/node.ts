@@ -1,3 +1,5 @@
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
+
 type Pascal<Word extends string> = Word extends `${infer Head}-${infer Tail}`
   ? `${Capitalize<Head>}${Pascal<Tail>}`
   : Capitalize<Word>
@@ -36,10 +38,10 @@ export type LayoutAlign = (typeof ALIGNMENTS)[number]
 export type LayoutJustify = (typeof JUSTIFICATIONS)[number]
 export type LayoutWrap = (typeof WRAPS)[number]
 export type LayoutPositionType = (typeof POSITION_TYPES)[number]
-export type LayoutOverflow = (typeof OVERFLOWS)[number]
-export type LayoutMeasureMode = (typeof MEASURE_MODES)[number]
+export type LayoutOverflow = Unbuilt
+export type LayoutMeasureMode = Unbuilt
 
-export const LayoutEdge = vocabulary(EDGES)
+export const LayoutEdge: Unbuilt = unbuilt('src/ink/layout/node.ts:42')
 export const LayoutGutter = vocabulary(GUTTERS)
 export const LayoutDisplay = vocabulary(DISPLAYS)
 export const LayoutFlexDirection = vocabulary(FLEX_DIRECTIONS)
@@ -97,24 +99,11 @@ type ComputedReads = {
   [Box in 'Border' | 'Padding' as `getComputed${Box}`]: (edge: LayoutEdge) => number
 }
 
-type TreeLinks = {
-  insertChild(child: LayoutNode, index: number): void
-  removeChild(child: LayoutNode): void
-  getChildCount(): number
-  getParent(): LayoutNode | null
-}
+type TreeLinks = Unbuilt
 
-type LayoutPass = {
-  calculateLayout(width?: number, height?: number): void
-  setMeasureFunc(fn: LayoutMeasureFunc): void
-  unsetMeasureFunc(): void
-  markDirty(): void
-}
+type LayoutPass = Unbuilt
 
-type Lifecycle = {
-  free(): void
-  freeRecursive(): void
-}
+type Lifecycle = Unbuilt
 
 export type LayoutNode = TreeLinks &
   LayoutPass &

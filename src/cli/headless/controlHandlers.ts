@@ -1,4 +1,3 @@
-
 import { errorMessage } from '../../utils/errors.js'
 import { type UUID } from 'crypto'
 import { type ToolPermissionContext } from 'src/Tool.js'
@@ -14,6 +13,7 @@ import { PERMISSION_MODES, type PermissionMode as InternalPermissionMode } from 
 import { fileCheckpointSource, fileHistoryCanRestore, fileHistoryEnabled, fileHistoryRestore, type RestoreDriftOracle } from 'src/services/changeTransaction/fileHistory.js'
 import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from 'src/utils/permissions/modeTransitions.js'
 import { isSovereignDisabled, transitionPermissionMode } from 'src/utils/permissions/permissionSetup.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 type RewindFilesResult = {
   can_rewind?: boolean
@@ -33,42 +33,11 @@ export async function handleRewindFiles(
   dryRun: boolean,
   drift?: RestoreDriftOracle,
 ): Promise<RewindFilesResult> {
-  if (!fileHistoryEnabled()) {
-    return { can_rewind: false, error: 'File rewinding is not enabled.' }
-  }
-  if (!fileHistoryCanRestore(appState.fileHistory, userMessageId)) {
-    return {
-      can_rewind: false,
-      error: 'No file checkpoint found for this message.',
-    }
-  }
-  let restored: Awaited<ReturnType<typeof fileHistoryRestore>>
-  try {
-    restored = await fileHistoryRestore(appState.fileHistory, userMessageId, {
-      dryRun,
-      ownerKey: `rewind:${String(userMessageId)}`,
-      ...(drift !== undefined ? { drift } : {}),
-    })
-  } catch (error) {
-    return { can_rewind: false, error: `Failed to rewind: ${errorMessage(error)}` }
-  }
-  if (!restored.ok) {
-    return { can_rewind: false, error: `Failed to rewind: ${restored.detail}` }
-  }
-  if (dryRun) {
-    return { can_rewind: true, files_changed: restored.changed, insertions: restored.insertions, deletions: restored.deletions }
-  }
-  return { can_rewind: true }
+  return notBuilt('src/cli/headless/controlHandlers.ts:29')
 }
 
 
-interface RewindSessionContext {
-  messages: Message[]
-  getAppState: () => AppState
-  setAppState?: (updater: (prev: AppState) => AppState) => void
-  drift: RestoreDriftOracle
-  turnActive: boolean
-}
+type RewindSessionContext = Unbuilt
 
 function refusedRewind(mode: SessionRewindOutcomeV1['mode'], refusal: RewindRefusalKind, detail: string): SessionRewindOutcomeV1 {
   return { outcome: 'refused', mode, refusal, detail }
@@ -195,28 +164,5 @@ function decidePermissionModeTransition(
   mode: InternalPermissionMode,
   toolPermissionContext: ToolPermissionContext,
 ): { ok: true; context: ToolPermissionContext } | { ok: false; error: string } {
-  if (!(PERMISSION_MODES as readonly string[]).includes(mode)) {
-    return { ok: false, error: `'${String(mode)}' is not a permission mode; the modes are ${PERMISSION_MODES.join(', ')}` }
-  }
-  if (mode === 'sovereign') {
-    if (isSovereignDisabled()) {
-      return {
-        ok: false,
-        error: 'Cannot set permission mode to sovereign because it is disabled by settings or configuration',
-      }
-    }
-    if (!toolPermissionContext.isBypassPermissionsModeAvailable) {
-      return {
-        ok: false,
-        error: 'Cannot set permission mode to sovereign because the session was not launched with --sovereign',
-      }
-    }
-  }
-  return {
-    ok: true,
-    context: {
-      ...transitionPermissionMode(toolPermissionContext.mode, mode, toolPermissionContext),
-      mode,
-    },
-  }
+  return notBuilt('src/cli/headless/controlHandlers.ts:194')
 }

@@ -9,6 +9,7 @@ import type { Output, CropBox, LaneResult } from './schema.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { createChildAbortController } from '../../../utils/abortController.js'
 import { withDeadline } from '../../../utils/deadline.js'
+import { notBuilt } from '../../../pi/holes.js'
 
 const IMAGE_TOKEN_BUDGET_DEFAULT = 25000
 const IMAGE_CAPTION_OCR_CEILING_MS = 3_000
@@ -42,108 +43,21 @@ export async function cropImageBuffer(buffer: Buffer, crop: CropBox, filePath: s
 
 export async function readImageWithTokenBudget(
   filePath: string,
-  maxTokens: number = IMAGE_TOKEN_BUDGET_DEFAULT,
+  maxTokens?: number,
   maxBytes?: number,
   crop?: CropBox,
-  scale = 1,
+  scale?: number,
 ): Promise<ImageOutput & { cropped?: { box: CropBox; asked?: CropBox; full: { width: number; height: number } } }> {
-  const file = readRegularFileSync(filePath)
-  if (file.length === 0) {
-    throw new Error(`Empty image file (zero bytes): ${filePath}`)
-  }
-  const cut = crop === undefined ? null : await cropImageBuffer(file, crop, filePath, scale)
-  const buffer = cut === null ? file : cut.buffer
-  const detected = detectImageFormatFromBuffer(buffer)
-  const detectedSubtype = detected.split('/')[1] || 'png'
-  const cutShort = cut !== null && crop !== undefined && (cut.box[2] !== crop[2] || cut.box[3] !== crop[3])
-  const cropped = cut === null || crop === undefined ? {} : { cropped: { box: cut.box, ...(cutShort ? { asked: crop } : {}), full: cut.full } }
-
-  let resized: { buffer: Buffer; mediaType: string; dimensions?: ImageDimensions }
-  try {
-    resized = await maybeResizeAndDownsampleImageBuffer(buffer, buffer.length, detectedSubtype)
-  } catch (err) {
-    if (err instanceof ImageResizeError) throw err
-    logError(err)
-    resized = { buffer, mediaType: detectedSubtype }
-  }
-
-  const base64 = resized.buffer.toString('base64')
-  const estimatedTokens = Math.ceil(base64.length / 8)
-  const overTokenBudget = estimatedTokens > maxTokens
-  const overByteBudget = maxBytes !== undefined && resized.buffer.length > maxBytes
-
-  if (!overTokenBudget && !overByteBudget) {
-    return {
-      type: 'image',
-      file: {
-        base64,
-        type: `image/${resized.mediaType}` as ImageOutput['file']['type'],
-        originalSize: buffer.length,
-        ...(resized.dimensions ? { dimensions: resized.dimensions } : {}),
-      },
-      ...cropped,
-    }
-  }
-
-  try {
-    const compressed = await compressImageBufferWithTokenLimit(resized.buffer, maxTokens, `image/${resized.mediaType}`)
-    return {
-      type: 'image',
-      file: {
-        base64: compressed.base64,
-        type: compressed.mediaType as ImageOutput['file']['type'],
-        originalSize: buffer.length,
-      },
-      ...cropped,
-    }
-  } catch (err) {
-    logError(err)
-  }
-  try {
-    const { getImageProcessor } = await import('../../../utils/imageProcessor/imageProcessor.js')
-    const sharp = await getImageProcessor()
-    const lastResort = await sharp(buffer)
-      .resize(400, 400, { fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: 20 })
-      .toBuffer()
-    return {
-      type: 'image',
-      file: {
-        base64: lastResort.toString('base64'),
-        type: detectImageFormatFromBuffer(lastResort) as ImageOutput['file']['type'],
-        originalSize: buffer.length,
-      },
-      ...cropped,
-    }
-  } catch (err) {
-    logError(err)
-    return {
-      type: 'image',
-      file: {
-        base64,
-        type: `image/${resized.mediaType}` as ImageOutput['file']['type'],
-        originalSize: buffer.length,
-      },
-      ...cropped,
-    }
-  }
+  return notBuilt('src/tools/FileReadTool/read/image.ts:43')
 }
 
 export function imageReadCaptions(
   resolvedPath: string,
   dimensions: ImageDimensions | undefined,
   cropped: { box: CropBox; asked?: CropBox; full: { width: number; height: number } } | undefined,
-  scale = 1,
+  scale?: number,
 ): string[] {
-  const captions: string[] = []
-  if (cropped !== undefined) {
-    captions.push(`This image is the crop [${cropped.box.join(', ')}] of ${resolvedPath}${cropped.asked === undefined ? '' : ` (the box asked for, [${cropped.asked.join(', ')}], passed the image's edge and was cut to it)`}, cut from the ${cropped.full.width}x${cropped.full.height} px original before any downscale${scale === 1 ? '' : ` and scaled by ${scale}`}; the coordinates below are the crop's own.`)
-  }
-  if (dimensions) {
-    const metadataText = createImageMetadataText(dimensions, resolvedPath)
-    if (metadataText) captions.push(metadataText)
-  }
-  return captions
+  return notBuilt('src/tools/FileReadTool/read/image.ts:132')
 }
 
 export async function recogniseImageCaption(bytes: Buffer, parent: AbortController): Promise<string | null> {

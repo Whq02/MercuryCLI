@@ -15,17 +15,10 @@ import { generateTempFilePath } from './tempfile.js'
 import { reclaimTerminalAfterChild } from './terminalHandback.js'
 import { passedOver } from './passedOver.js'
 import { hostEnv } from './hostEnv.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 
-export type EditorResult = {
-  content: string | null
-  error?: string
-}
-
-const WAIT_FLAG_OVERRIDES: Record<string, string> = {
-  code: 'code -w',
-  subl: 'subl --wait',
-}
+export type EditorResult = Unbuilt
 
 let editorSessionActive = false
 
@@ -45,81 +38,7 @@ export async function editFileInEditor(filePath: string): Promise<EditorResult> 
 }
 
 async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
-  const instance = instances.get(process.stdout)
-  if (!instance) {
-    throw new Error('Cannot pause rendering: no renderer instance is attached to stdout')
-  }
-
-  const resolved = resolveExternalEditor()
-  if (!resolved.ok) {
-    if (resolved.reason === 'none') return { content: null }
-    return { content: null, error: editorRefusalLine(resolved) }
-  }
-  const editor = resolved.editor
-
-  try {
-    statSync(filePath)
-  } catch (error) {
-    return { content: null, error: errorMessage(error) }
-  }
-
-  const guiEditorName = classifyGuiEditor(editor)
-  const isTerminalEditor = guiEditorName === undefined
-
-  const editorCommand = WAIT_FLAG_OVERRIDES[editor.trim()] ?? editor
-  const invocation = editorInvocationOf(editor, editorCommand, resolved)
-  const editorExe = invocation.executablePath
-  if (editorExe === '') {
-    return { content: null }
-  }
-
-  try {
-    await instance.awaitTerminalQueries()
-    if (isTerminalEditor) {
-      instance.enterAlternateScreen()
-    } else {
-      instance.pause()
-      instance.suspendStdin()
-    }
-    try {
-      const exitCode = await new Promise<number | null>((resolveExit, rejectExit) => {
-        const spec = promptEditorSpawnSpec(
-          editorExe,
-          invocation.args,
-          filePath,
-          hostEnv().ComSpec || hostEnv().COMSPEC || 'cmd.exe',
-        )
-        const child = spec.shell
-          ? spawn(spec.commandLine, { shell: true, windowsHide: false, stdio: 'inherit', env: subprocessEnv() })
-          : spawn(spec.file, spec.args, {
-              windowsHide: false,
-              windowsVerbatimArguments: spec.windowsVerbatimArguments,
-              stdio: 'inherit',
-              env: { ...subprocessEnv(), ...spec.extraEnv },
-            })
-        child.once('error', rejectExit)
-        child.once('exit', code => resolveExit(code))
-      })
-      if (exitCode !== null && exitCode !== 0) {
-        return {
-          content: null,
-          error: `${editorNamed(resolved.variable, resolved.editor, editorExe)} exited with code ${exitCode}`,
-        }
-      }
-      return { content: readFileSync(filePath, 'utf8') }
-    } finally {
-      reclaimTerminalAfterChild(isTerminalEditor ? 'prompt editor' : 'prompt editor (gui)')
-      if (isTerminalEditor) {
-        instance.exitAlternateScreen()
-      } else {
-        instance.resumeStdin()
-        instance.resume()
-      }
-      simulateConsoleFaultAfterHandback()
-    }
-  } catch (error) {
-    return { content: null, error: errorMessage(error) }
-  }
+  return notBuilt('src/utils/promptEditor.ts:47')
 }
 
 export function editorCommandLine(editorExe: string, args: readonly string[], filePath: string, platform: NodeJS.Platform = process.platform): string {
@@ -162,27 +81,5 @@ export async function editPromptInEditor(
   currentPrompt: string,
   pastedContents?: Record<number, PastedContent>,
 ): Promise<EditorResult> {
-  const textForFile = pastedContents ? expandPastedTextRefs(currentPrompt, pastedContents) : currentPrompt
-  const tempFilePath = generateTempFilePath()
-  writeFileSync(tempFilePath, textForFile, { encoding: 'utf8', flush: true })
-  try {
-    const result = await editFileInEditor(tempFilePath)
-    if (result.content === null) {
-      return result
-    }
-    let content = result.content
-    if (content.endsWith('\n') && !content.endsWith('\n\n')) {
-      content = content.slice(0, -1)
-    }
-    if (pastedContents) {
-      content = collapseUnmodifiedPastes(content, currentPrompt, pastedContents)
-    }
-    return { ...result, content }
-  } finally {
-    try {
-      unlinkSync(tempFilePath)
-    } catch (error) {
-      passedOver(error)
-    }
-  }
+  return notBuilt('src/utils/promptEditor.ts:161')
 }

@@ -1,4 +1,3 @@
-
 import React, { useRef, useState } from 'react'
 import { useClaim, useMeasure } from '../hooks/effects.js'
 import { exitChordNoticeText } from './PromptInput/ExitChordNotice.js'
@@ -31,17 +30,9 @@ import {
   getColorModuleUnavailableReason,
   getSyntaxTheme,
 } from './StructuredDiff/colorDiff.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
-type ThemePickerProps = {
-  onThemeSelect: (setting: ThemeSetting) => void
-  showIntroText?: boolean
-  helpText?: string
-  showHelpTextBelow?: boolean
-  hideEscToCancel?: boolean
-  hideTitle?: boolean
-  skipExitHandling?: boolean
-  onCancel?: () => void
-}
+type ThemePickerProps = Unbuilt
 
 const THEME_LABELS_BY_SETTING: Record<string, string> = THEME_LABELS
 const THEME_DESCRIPTIONS_BY_SETTING: Record<string, string> = {
@@ -74,161 +65,8 @@ const DEMO_PATCH: StructuredPatchHunk = {
 
 const noop = (): void => {}
 
-export function ThemePicker({
-  onThemeSelect,
-  showIntroText = false,
-  helpText,
-  showHelpTextBelow = false,
-  hideEscToCancel = false,
-  hideTitle = false,
-  skipExitHandling = false,
-  onCancel,
-}: ThemePickerProps): React.ReactNode {
-  const savedSetting = useThemeSetting()
-  const [themeName, setThemeSetting] = useTheme()
-  const { setPreviewTheme, cancelPreview } = usePreviewTheme()
-  const { columns } = useTerminalSize()
-  const settings = useSettings()
-  const setAppState = useSetAppState()
-  const app = useApp()
-
-  useRegisterKeybindingContext('ThemePicker')
-  const exitState = useExitOnCtrlCDWithKeybindings(
-    skipExitHandling ? noop : undefined,
-  )
-
-  const cancelPreviewRef = useRef(cancelPreview)
-  cancelPreviewRef.current = cancelPreview
-  useClaim(
-    () => () => {
-      cancelPreviewRef.current()
-    },
-    [],
-  )
-
-  const demoBoxRef = useRef<DOMElement | null>(null)
-  const [measuredDemoWidth, setMeasuredDemoWidth] = useState<number | null>(null)
-  useMeasure(() => {
-    const el = demoBoxRef.current
-    if (!el) return
-    const { width } = measureElement(el)
-    if (typeof width === 'number' && width > 0 && width !== measuredDemoWidth) {
-      setMeasuredDemoWidth(width)
-    }
-  })
-  const demoWidth = measuredDemoWidth ?? columns
-
-  const colorModuleAvailable =
-    getColorModuleUnavailableReason() === null && expectColorDiff() !== null
-  const toggleChord = useShortcutDisplay(
-    'theme:toggleSyntaxHighlighting',
-    'ThemePicker',
-    'ctrl+t',
-  )
-  useKeybinding(
-    'theme:toggleSyntaxHighlighting',
-    () => {
-      const next = !settings.view?.syntaxOff
-      updateSettingsForSource('userSettings', {
-        view: { syntaxOff: next },
-      })
-      setAppState(prev => ({
-        ...prev,
-        settings: { ...prev.settings, view: { ...prev.settings.view, syntaxOff: next } },
-      }))
-    },
-    { context: 'ThemePicker', isActive: colorModuleAvailable },
-  )
-
-  let statusLine: string
-  if (settings.view?.syntaxOff) {
-    statusLine = `Syntax highlighting disabled (${toggleChord} to enable)`
-  } else if (isMonochromeTheme(themeName)) {
-    statusLine = `Syntax highlighting enabled — no colour on Black and white (${toggleChord} to disable)`
-  } else {
-    const syntaxTheme = getSyntaxTheme(themeName)
-    if (syntaxTheme) {
-      const source = syntaxTheme.source ? ` from ${syntaxTheme.source}` : ''
-      statusLine = `Syntax theme: ${syntaxTheme.theme}${source} (${toggleChord} to disable)`
-    } else {
-      statusLine = `Syntax highlighting enabled (${toggleChord} to disable)`
-    }
-  }
-
-  const helpAbove =
-    helpText !== undefined && helpText !== '' && !showHelpTextBelow
-  const helpBelow =
-    helpText !== undefined && helpText !== '' && showHelpTextBelow
-
-  const content = (
-    <Box flexDirection="column">
-      {showIntroText ? (
-        <Text>Welcome — pick how the terminal should look.</Text>
-      ) : !hideTitle ? (
-        <Text bold color="permission">
-          Theme
-        </Text>
-      ) : null}
-      <Text bold>The Mercury appearance:</Text>
-      {helpAbove ? <Text dimColor>{helpText}</Text> : null}
-      <Select
-        options={THEME_OPTIONS}
-        defaultValue={THEME_OPTIONS.some(o => o.value === savedSetting) ? savedSetting : DEFAULT_THEME_SETTING}
-        defaultFocusValue={THEME_OPTIONS.some(o => o.value === savedSetting) ? savedSetting : DEFAULT_THEME_SETTING}
-        visibleOptionCount={THEME_OPTIONS.length}
-        onFocus={value => {
-          setPreviewTheme(value)
-        }}
-        onChange={value => {
-          setThemeSetting(value)
-          onThemeSelect(value)
-        }}
-        onCancel={() => {
-          cancelPreview()
-          if (onCancel) onCancel()
-          else app.exit()
-        }}
-      />
-      {helpBelow && !showIntroText ? (
-        <Box paddingLeft={3}>
-          <Text dimColor>{helpText}</Text>
-        </Box>
-      ) : null}
-      <Box ref={demoBoxRef} flexDirection="column">
-        <Divider char="┄" color="subtle" width={demoWidth} />
-        <StructuredDiff
-          patch={DEMO_PATCH}
-          dim={false}
-          filePath={DEMO_FILE_PATH}
-          firstLine={DEMO_FIRST_LINE}
-          width={demoWidth}
-        />
-        <Divider char="┄" color="subtle" width={demoWidth} />
-      </Box>
-      <Box height={1} />
-      <Text dimColor>{statusLine}</Text>
-    </Box>
-  )
-
-  if (showIntroText) return content
-
-  return (
-    <Box flexDirection="column">
-      {content}
-      <Box marginTop={1}>
-        {exitState.pending ? (
-          <Text dimColor>{exitChordNoticeText(exitState.keyName)}</Text>
-        ) : (
-          <Text dimColor>
-            <Byline>
-              <Text dimColor>↑↓ move · ↵ select</Text>
-              {!hideEscToCancel ? <Text dimColor>esc to cancel</Text> : null}
-            </Byline>
-          </Text>
-        )}
-      </Box>
-    </Box>
-  )
+export function ThemePicker(arg0: ThemePickerProps): React.ReactNode {
+  return notBuilt('src/components/ThemePicker.tsx:77')
 }
 
 export default ThemePicker

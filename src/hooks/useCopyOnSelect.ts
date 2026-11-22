@@ -6,25 +6,13 @@ import { peekOwnInputSelection, subscribeOwnInputSelectionSettled } from '../uti
 import { isCopyOnSelectEnabled } from '../utils/config.js'
 import { isFullscreenActive } from '../utils/fullscreen.js'
 import { getTheme } from '../utils/theme.js'
+import { notBuilt } from '../pi/holes.js'
 
 type Latch = { current: boolean }
 
 const armed = (isActive: boolean): boolean => isActive && isFullscreenActive()
 
 const worthAnnouncing = (text: string): string | null => (text.trim() === '' ? null : text)
-
-function copySettledDrag(selection: SelectionApi, latch: Latch): string | null {
-  const state = selection.getState()
-  const settled = state !== null && selection.hasSelection() && !state.isDragging
-  if (!settled) {
-    latch.current = false
-    return null
-  }
-  if (latch.current || !isCopyOnSelectEnabled()) return null
-  const text = selection.copySelectionNoClear()
-  latch.current = true
-  return worthAnnouncing(text)
-}
 
 function copySettledOwnInput(selection: SelectionApi): string | null {
   if (!isCopyOnSelectEnabled()) return null
@@ -35,27 +23,9 @@ function copySettledOwnInput(selection: SelectionApi): string | null {
 }
 
 export function useCopyOnSelect(selection: SelectionApi, isActive: boolean, onCopied?: (text: string) => void): void {
-  const latestOnCopied = useRef(onCopied)
-  latestOnCopied.current = onCopied
-  const latch = useRef(false)
-  const announce = (text: string | null): void => {
-    if (text !== null) latestOnCopied.current?.(text)
-  }
-
-  useClaim(() => {
-    if (!armed(isActive)) return
-    return selection.subscribe(() => announce(copySettledDrag(selection, latch)))
-  }, [selection, isActive])
-
-  useClaim(() => {
-    if (!armed(isActive)) return
-    return subscribeOwnInputSelectionSettled(() => announce(copySettledOwnInput(selection)))
-  }, [selection, isActive])
+  return notBuilt('src/hooks/useCopyOnSelect.ts:37')
 }
 
 export function useSelectionBgColor(selection: SelectionApi): void {
-  const [themeName] = useTheme()
-  usePublish(() => {
-    selection.setSelectionBgColor(getTheme(themeName).selectionBg)
-  }, [selection, themeName])
+  return notBuilt('src/hooks/useCopyOnSelect.ts:56')
 }

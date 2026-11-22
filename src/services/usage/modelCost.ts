@@ -23,15 +23,10 @@ import { qwenRegionalPrice, qwenResolvedPricing } from '../providers/qwen/qwenPr
 import { getCanonicalName, getDefaultEngineModelSetting, type ModelShortName } from '../model/model.js'
 import { ALL_MODEL_CONFIGS, familyHeadOf } from '../../utils/model/configs.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-export type ModelCosts = {
-  inputTokens: number
-  outputTokens: number
-  promptCacheWriteTokens: number
-  promptCacheReadTokens: number
-  webSearchRequests: number
-}
+export type ModelCosts = Unbuilt
 
 export type PricingBasis = 'recorded' | 'floor' | 'family-estimate' | 'unpriced'
 
@@ -69,17 +64,8 @@ export const COST_OPUS_5_5: ModelCosts = {
   ...tierFromInputOutput(4, 20),
   promptCacheReadTokens: 0.2,
 }
-const COST_SONNET_5_5: ModelCosts = {
-  ...COST_TIER_2_10,
-  promptCacheReadTokens: 0.1,
-}
-const COST_HAIKU_35: ModelCosts = {
-  inputTokens: 0.8,
-  outputTokens: 4,
-  promptCacheWriteTokens: 1,
-  promptCacheReadTokens: 0.08,
-  webSearchRequests: WEB_SEARCH_PER_REQUEST,
-}
+const COST_SONNET_5_5: ModelCosts = unbuilt('src/services/usage/modelCost.ts:72')
+const COST_HAIKU_35: ModelCosts = unbuilt('src/services/usage/modelCost.ts:76')
 const COST_HAIKU_45: ModelCosts = tierFromInputOutput(1, 5)
 const COST_HAIKU_55: ModelCosts = tierFromInputOutput(0.1, 0.5)
 const COST_HAIKU_55_LONG: ModelCosts = tierFromInputOutput(0.5, 2.5)
@@ -360,47 +346,20 @@ export function getModelCosts(model: string, opts?: { promptTokens?: number; sta
 }
 
 export function calculateUSDCost(resolvedModel: string, usage: UsageLike): number {
-  usage = { ...usage, input_tokens: usageCount(usage.input_tokens), output_tokens: usageCount(usage.output_tokens), cache_read_input_tokens: usageCount(usage.cache_read_input_tokens), cache_creation_input_tokens: usageCount(usage.cache_creation_input_tokens), cache_creation: { ephemeral_1h_input_tokens: usageCount(usage.cache_creation?.ephemeral_1h_input_tokens) }, server_tool_use: { web_search_requests: usageCount(usage.server_tool_use?.web_search_requests) } }
-  const cacheCreation = usage.cache_creation_input_tokens ?? 0
-  const promptTokens = usage.input_tokens + (usage.cache_read_input_tokens ?? 0) + cacheCreation
-  const modelCosts = getModelCosts(resolvedModel, { promptTokens, startedAtMs: usage.request_started_at_ms })
-  const reported1h = usage.cache_creation?.ephemeral_1h_input_tokens
-  const oneHour = reported1h !== undefined ? Math.min(reported1h, cacheCreation) : 0
-  const fiveMinute = cacheCreation - oneHour
-  return (
-    (usage.input_tokens * modelCosts.inputTokens) / 1e6 +
-    (usage.output_tokens * modelCosts.outputTokens) / 1e6 +
-    ((usage.cache_read_input_tokens ?? 0) * modelCosts.promptCacheReadTokens) / 1e6 +
-    (fiveMinute * modelCosts.promptCacheWriteTokens) / 1e6 +
-    (oneHour * (operatorModelFacts(resolvedModel)?.prices?.cacheWrite ?? modelCosts.inputTokens * 2)) / 1e6 +
-    (usage.server_tool_use?.web_search_requests ?? 0) * modelCosts.webSearchRequests
-  )
+  return notBuilt('src/services/usage/modelCost.ts:362')
 }
 
 export function calculateCostFromTokens(
   model: string,
   tokens: { inputTokens: number; outputTokens: number; cacheReadInputTokens: number; cacheCreationInputTokens: number },
 ): number {
-  return calculateUSDCost(model, {
-    input_tokens: tokens.inputTokens,
-    output_tokens: tokens.outputTokens,
-    cache_read_input_tokens: tokens.cacheReadInputTokens,
-    cache_creation_input_tokens: tokens.cacheCreationInputTokens,
-  })
-}
-
-function formatPrice(price: number): string {
-  return Number.isInteger(price) ? `$${price}` : `$${price.toFixed(2)}`
+  return notBuilt('src/services/usage/modelCost.ts:380')
 }
 
 export function formatModelPricing(costs: ModelCosts): string {
-  const inThenOut = [costs.inputTokens, costs.outputTokens].map(formatPrice).join('/')
-  return `${inThenOut} per Mtok`
+  return notBuilt('src/services/usage/modelCost.ts:396')
 }
 
 export function getModelPricingString(model: string): string | undefined {
-  if (declaredRouteOf(model) === 'melious') return (require('../providers/melious/meliousCatalogue.js') as typeof import('../providers/melious/meliousCatalogue.js')).meliousPricingString(model)
-  const resolved = resolveModelPricing(model)
-  if (declaredRouteOf(model) === 'qwen' && qwenRegionalPrice(model) !== undefined) return formatModelPricing(resolved.costs)
-  return resolved.basis === 'recorded' || resolved.basis === 'floor' ? formatModelPricing(resolved.costs) : undefined
+  return notBuilt('src/services/usage/modelCost.ts:401')
 }

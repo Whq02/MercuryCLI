@@ -1,3 +1,5 @@
+import type { Unbuilt } from '../pi/holes.js'
+
 export const OPERATORS = { d: 'delete', c: 'change', y: 'yank' } as const
 export const TEXT_OBJ_SCOPES = { i: 'inner', a: 'around' } as const
 export const FIND_KEYS = ['f', 'F', 't', 'T'] as const
@@ -22,38 +24,14 @@ type Counted<Type extends string, Fields = unknown> = { type: Type; count: numbe
 type Pending<Type extends string, Fields = unknown> = Counted<Type, { operator: Operator } & Fields>
 
 export type CommandState =
-  | { type: 'idle' }
-  | Counted<'count'>
-  | Counted<'g'>
-  | Counted<'replace'>
-  | Counted<'find', { findType: FindType }>
-  | Counted<'indent', { direction: IndentDirection }>
-  | Pending<'operator'>
-  | Pending<'operatorG'>
-  | Pending<'operatorCount', { motionCount: number }>
-  | Pending<'operatorFind', { findType: FindType }>
-  | Pending<'operatorTextObj', { scope: TextObjScope }>
+  Unbuilt
 
 type Replayed<Type extends string, Fields = unknown> = Counted<Type, { op: Operator } & Fields>
 
 export type RecordedChange =
-  | { type: 'insert'; text: string }
-  | { type: 'openLine'; direction: 'above' | 'below' }
-  | Counted<'x'>
-  | Counted<'join'>
-  | Counted<'toggleCase'>
-  | Counted<'replace', { char: string }>
-  | Counted<'indent', { dir: IndentDirection }>
-  | Replayed<'operator', { motion: string }>
-  | Replayed<'operatorTextObj', { objType: string; scope: TextObjScope }>
-  | Replayed<'operatorFind', { find: FindType; char: string }>
+  Unbuilt
 
-export type PersistentState = {
-  lastChange: RecordedChange | null
-  lastFind: { type: FindType; char: string } | null
-  register: string
-  registerIsLinewise: boolean
-}
+export type PersistentState = Unbuilt
 
 const emptyRegisterState = (): PersistentState => ({ lastChange: null, lastFind: null, register: '', registerIsLinewise: false })
 

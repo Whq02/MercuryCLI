@@ -15,10 +15,7 @@ import type {
   UserMessage,
   RefusedToolCall,
 } from '../../types/message.js'
-import {
-  trimChantedReplyMessages,
-  type ChantDetection,
-} from '../../services/tools/chantGuard.js'
+import { trimChantedReplyMessages, type ChantDetection } from '../../services/tools/chantGuard.js'
 import type { QuerySource } from '../../constants/querySource.js'
 import type { EarlyStarts } from '../../services/tools/earlyStarts.js'
 import type { RequestContextPlan } from '../../services/run/requestContextPlan.js'
@@ -27,49 +24,13 @@ import type { Terminal, Continue } from '../../query/transitions.js'
 import type { BudgetGuard } from '../budget-guard.js'
 import type { createEventMint, RunEvent } from '../events.js'
 import type { QueryParams } from '../turn-machine.js'
+import type { Unbuilt } from '../../pi/holes.js'
 
 export type EventMint = ReturnType<typeof createEventMint>
 
-export type TurnState = {
-  messages: Message[]
-  toolUseContext: ToolUseContext
-  autoCompactTracking: AutoCompactTrackingState | undefined
-  maxOutputTokensRecoveryCount: number
-  lastOutputLimitReply?: string
-  maxOutputTokensOverride: number | undefined
-  streamFaultRecoveryCount: number
-  toolCallRefusalRecoveryCount: number
-  cutToolCallRecoveryCount?: number
-  pauseTurnContinuations?: number
-  stopHookActive: boolean | undefined
-  turnCount: number
-  transition: Continue | undefined
-  emptyReplyRecoveryCount?: number
-  chantRecoveryCount?: number
-  reasoningOnlyRecoveryCount?: number
-  overflowEpisode: OverflowEpisode
-  pendingOverflow: { signal: OverflowSignal; rung: OverflowRung } | undefined
-}
+export type TurnState = Unbuilt
 
-export type RunCtx = {
-  params: QueryParams
-  systemPrompt: SystemPrompt
-  userContext: { [k: string]: string }
-  systemContext: { [k: string]: string }
-  fallbackModel: string | undefined
-  querySource: QuerySource
-  skipCacheWrite: boolean | undefined
-  deps: QueryDeps
-  budgetGuard: BudgetGuard
-  emit: EventMint
-  consumedCommandUuids: string[]
-  checkpointSettleWarned: boolean
-  announcedStepNudges: number
-  awaitingReply: ReplyMark[]
-  pendingMemoryWrites: RefusedToolCall[]
-  holdMemoryWriteRefusals: (refusals: readonly RefusedToolCall[]) => void
-  memoryWriteLostEvent: () => RunEvent | null
-}
+export type RunCtx = Unbuilt
 
 export type IterationState = {
   state: TurnState

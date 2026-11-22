@@ -4,6 +4,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { getTask, getTaskListId, isTaskToolsEnabled, TASK_STATUSES } from '../../utils/tasks.js'
 import { TASK_GET_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, PROMPT } from './prompt.js'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const inputSchema = lazySchema(() => z.strictObject({ taskId: z.string().describe('The id of the task to retrieve') }))
 const outputSchema = lazySchema(() => z.object({ task: z.object({
@@ -32,20 +33,4 @@ function taskText(task: Output['task']): string {
   ].join('\n')
 }
 
-export const TaskGetTool = buildTool({
-  call: readTask,
-  mapToolResultToToolResultBlockParam: (output: Output, toolUseID: string) => ({ type: 'tool_result' as const, tool_use_id: toolUseID, content: taskText(output.task) }),
-  renderToolUseMessage: () => null,
-  name: TASK_GET_TOOL_NAME,
-  searchHint: 'retrieve a task by id from the task list',
-  shouldDefer: true,
-  maxResultSizeChars: 100_000,
-  get inputSchema() { return inputSchema() },
-  get outputSchema() { return outputSchema() },
-  isEnabled: () => isTaskToolsEnabled(),
-  isReadOnly: () => true,
-  isConcurrencySafe: () => true,
-  userFacingName: () => 'TaskGet',
-  description: async () => DESCRIPTION,
-  prompt: async () => PROMPT,
-} satisfies ToolDef<InputSchema, Output>)
+export const TaskGetTool: Unbuilt = unbuilt('src/tools/TaskGetTool/TaskGetTool.ts:35')

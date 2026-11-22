@@ -1,4 +1,3 @@
-
 import { normalize, join, relative, sep } from 'node:path'
 import { getMemoryBaseDir, isMnemeEnabled } from '../mneme/paths.js'
 import { getCwd } from './cwd.js'
@@ -6,6 +5,7 @@ import { projectConfigDirs } from './projectConfig.js'
 import { projectLocalPath } from './projectLocal/paths.js'
 import { projectHomePath, projectHomeStore } from './projectHomeStores.js'
 import { CORRECT_TOOL_NAME, RECALL_TOOL_NAME, REFLECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../constants/tools/memory.js'
+import { notBuilt } from '../pi/holes.js'
 
 export type AgentMemoryScope = 'user' | 'project' | 'local'
 
@@ -23,25 +23,11 @@ export function withMemoryVerbs(tools: string[] | undefined, memory: AgentMemory
 const AGENT_MEMORY_SUBDIR = 'agent-memory'
 const AGENT_MEMORY_LOCAL_SUBDIR = 'agent-memory-local'
 
-function sanitizeAgentTypeForPath(agentType: string): string {
-  return agentType.replaceAll(':', '-')
-}
-
 export function getAgentMemoryDir(
   agentType: string,
   scope: AgentMemoryScope,
 ): string {
-  const dirName = sanitizeAgentTypeForPath(agentType)
-  switch (scope) {
-    case 'user':
-      return join(getMemoryBaseDir(), AGENT_MEMORY_SUBDIR, dirName) + sep
-    case 'project':
-      return (
-        projectLocalPath(getCwd(), AGENT_MEMORY_SUBDIR, dirName) + sep
-      )
-    case 'local':
-      return projectHomeStore(getCwd(), AGENT_MEMORY_LOCAL_SUBDIR, dirName) + sep
-  }
+  return notBuilt('src/utils/agentMemory.ts:30')
 }
 
 function isUnder(candidate: string, dir: string): boolean {
@@ -75,10 +61,5 @@ export function loadAgentMemoryPrompt(
   agentType: string,
   scope: AgentMemoryScope,
 ): string {
-  void agentType
-  return [
-    '# Memory',
-    'You share this project\'s memory. Retain saves a durable fact for future sessions; Recall searches what is remembered or reads a page; Correct fixes a wrong fact and keeps the old one as history.',
-    SCOPE_GUIDELINES[scope],
-  ].join('\n')
+  return notBuilt('src/utils/agentMemory.ts:74')
 }

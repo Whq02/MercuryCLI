@@ -3,21 +3,12 @@ import { Box, Text, useTheme } from '../../ink.js'
 import { getTheme, type Theme } from '../../utils/theme.js'
 import { STILL_WAITING_MAX_INTENSITY } from './useStalledAnimation.js'
 import { getDefaultCharacters, interpolateColor, parseRGB, toRGBColor } from './utils.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 type Cadence = 'standard' | 'quicksilver'
 
-type Props = {
-  frame: number
-  messageColor: keyof Theme
-  attentionIntensity?: number
-  reducedMotion?: boolean
-  time?: number
-  cadence?: Cadence
-}
-
-const FORWARD = getDefaultCharacters()
-const FRAMES = [...FORWARD, ...[...FORWARD].reverse()]
-const REDUCED_MOTION_DOT = '●'
+type Props = Unbuilt
+const FRAMES: Unbuilt = unbuilt('src/components/Spinner/SpinnerGlyph.tsx:19')
 const REDUCED_MOTION_HALF_BREATH_MS = 1000
 const QUICKSILVER_SWING = [0, 0, 1, 2, 2, 3, 4, 5] as const
 const QUICKSILVER_BAR_ADVANCE = 6
@@ -48,23 +39,6 @@ function Cell({ color, dim = false, children }: { color: string; dim?: boolean; 
   )
 }
 
-export function SpinnerGlyph({
-  frame,
-  messageColor,
-  attentionIntensity = 0,
-  reducedMotion = false,
-  time = 0,
-  cadence = 'standard',
-}: Props): React.ReactNode {
-  const [themeName] = useTheme()
-  if (reducedMotion) {
-    const dim = Math.floor(time / REDUCED_MOTION_HALF_BREATH_MS) % 2 === 1
-    return (
-      <Cell color={messageColor} dim={dim}>
-        {REDUCED_MOTION_DOT}
-      </Cell>
-    )
-  }
-  const color = attentionIntensity > 0 ? attentionColor(getTheme(themeName), messageColor, attentionIntensity) : messageColor
-  return <Cell color={color}>{glyphAt(frame, cadence)}</Cell>
+export function SpinnerGlyph(arg0: Props): React.ReactNode {
+  return notBuilt('src/components/Spinner/SpinnerGlyph.tsx:51')
 }

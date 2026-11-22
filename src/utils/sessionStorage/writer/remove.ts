@@ -19,15 +19,7 @@ import { LITE_READ_BUF_SIZE } from '../../sessionStoragePortable.js'
 import { jsonParse } from '../../slowOperations.js'
 import type { QueuePart } from './queue.js'
 import { passedOver } from '../../passedOver.js'
-
-const MAX_TOMBSTONE_REWRITE_BYTES = 50 * 1024 * 1024
-
-function lineAround(tail: Buffer, matchIdx: number, matchLength: number, bytesRead: number, windowAtFileStart: boolean): { start: number; end: number } | null {
-  const prevNl = tail.lastIndexOf(0x0a, matchIdx)
-  if (prevNl < 0 && !windowAtFileStart) return null
-  const nextNl = tail.indexOf(0x0a, matchIdx + matchLength)
-  return { start: prevNl + 1, end: nextNl >= 0 ? nextNl + 1 : bytesRead }
-}
+import { notBuilt } from '../../../pi/holes.js'
 
 function isMercuryRecord(parsed: Record<string, unknown>): parsed is MercuryRecord {
   return (
@@ -55,67 +47,6 @@ export class RemovePart {
   ) {}
 
   async removeMessageByUuid(targetUuid: UUID): Promise<void> {
-    return this.needs.trackWrite(() =>
-      this.needs.serializeWrite(async () => {
-        if (this.project.sessionFile === null) return
-        await this.needs._drainWriteQueueInner()
-        try {
-          const header = historyHead(this.project.sessionFile)
-          let fileSize = 0
-          const fd = openSync(this.project.sessionFile, 'r+')
-          try {
-            const { size } = fstatSync(fd)
-            fileSize = size
-            if (size === 0) return
-
-            const chunkLen = Math.min(size - header.start, LITE_READ_BUF_SIZE)
-            const tailStart = size - chunkLen
-            const buf = Buffer.allocUnsafe(chunkLen)
-            const bytesRead = readSync(fd, buf, 0, chunkLen, tailStart)
-            const tail = buf.subarray(0, bytesRead)
-
-            const needle = `"uuid":"${targetUuid}"`
-            const matchIdx = tail.lastIndexOf(needle)
-            const line = matchIdx >= 0 ? lineAround(tail, matchIdx, needle.length, bytesRead, tailStart === 0) : null
-            if (line && tailStart + line.start >= header.start) {
-              const { start: lineStart, end: lineEnd } = line
-              const absLineStart = tailStart + lineStart
-              const afterLen = bytesRead - lineEnd
-              ftruncateSync(fd, absLineStart)
-              if (afterLen > 0) writeSync(fd, tail, lineEnd, afterLen, absLineStart)
-              return
-            }
-          } finally {
-            closeSync(fd)
-          }
-
-          if (fileSize > MAX_TOMBSTONE_REWRITE_BYTES) {
-            logForDebugging(
-              `The removed row's bytes stay in the session file: it is ${formatFileSize(fileSize)}, past the rewrite ceiling`,
-              { level: 'warn' },
-            )
-            return
-          }
-          const all = readFileSync(this.project.sessionFile)
-          const content = all.toString('utf8', header.start)
-          const lines = content.split('\n').filter((line: string) => {
-            if (!line.trim()) return true
-            try {
-              return storedLineUuid(jsonParse(line)) !== targetUuid
-            } catch (error) {
-              passedOver(error)
-              return true
-            }
-          })
-          writeFileSync(this.project.sessionFile, all.toString('utf8', 0, header.start) + lines.join('\n'), {
-            encoding: 'utf8',
-          })
-        } catch (error) {
-          const code = getErrnoCode(error)
-          if (code === 'ENOENT' || code === 'ENOTDIR') return
-          throw error
-        }
-      }),
-    )
+    return notBuilt('src/utils/sessionStorage/writer/remove.ts:57')
   }
 }

@@ -1,4 +1,3 @@
-
 export function footerNoticeLine(text: string): string {
   return text
     .split(/\r?\n/)
@@ -38,6 +37,7 @@ import { getFocusedSessionConnector, subscribeThroughFocused } from '../../servi
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 import { startInterval, stopInterval } from '../../utils/timers.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export const FOOTER_TEMPORARY_STATUS_TIMEOUT = 5000
 
@@ -118,147 +118,6 @@ function FaultInjector(): React.ReactNode {
   return null
 }
 
-function NotificationsColumn({
-  apiKeyStatus,
-  debug,
-  verbose,
-  messages,
-  mcpClients,
-  isInputWrapped = false,
-  alignStart = false,
-  compact = false,
-}: {
-  apiKeyStatus: VerificationStatus
-  debug: boolean
-  verbose: boolean
-  messages: Message[]
-  mcpClients?: MCPServerConnection[]
-  isInputWrapped?: boolean
-  alignStart?: boolean
-  compact?: boolean
-}): React.ReactNode {
-  const tokens = useMercuryTokens()
-  const { addNotification, removeNotification } = useNotifications()
-  const current = useAppState(
-    (state: AppState) => state.notifications.current,
-  )
-  const engineModel = useSyncExternalStore(subscribeFocusedModel, getFocusedModel, getFocusedModel)
-  const limits = useAnthropicLimits()
-
-  const helperConfigured = getConfiguredApiKeyHelper() !== undefined
-  const [helperElapsedMs, setHelperElapsedMs] = useState(0)
-  useTimer(() => {
-    if (!helperConfigured) return
-    const timer = startInterval(() => {
-      setHelperElapsedMs(getApiKeyHelperElapsedMs())
-    }, 1000)
-    return () => stopInterval(timer)
-  }, [helperConfigured])
-  const helperSlow = helperConfigured && helperElapsedMs >= SLOW_HELPER_THRESHOLD_MS
-
-  const plan = getSubscriptionType()
-  const overageLine =
-    limits.isUsingOverage &&
-    plan !== 'team' &&
-    plan !== 'enterprise' &&
-    current?.key !== 'limit-reached'
-  const notAuthenticated =
-    apiKeyStatus === 'invalid' || apiKeyStatus === 'missing'
-  const signInEpoch = useSignInEpoch()
-  const catalogueEpoch = useCatalogueEpoch()
-  const walletGate = useMemo((): NotLoggedInGate => {
-    if (!notAuthenticated) return { state: 'ok' }
-    try {
-      return notLoggedInGateDecision(
-        walletEntries(),
-        sessionAccountFamily(engineModel ?? getEngineModel()),
-      )
-    } catch {
-      return { state: 'not-logged-in' }
-    }
-  }, [notAuthenticated, engineModel, signInEpoch, catalogueEpoch])
-  const sessionBlocked = walletGate.state !== 'ok'
-  const tokenUsage = useFocusedContextFill(messages, engineModel).usedTokens ?? 0
-  const showTokenCount = verbose && !sessionBlocked && !compact
-
-  const editorConfigured = hostEnv().VISUAL ?? hostEnv().EDITOR
-  const warningLevel = calculateTokenWarningState(tokenUsage, engineModel ?? '').level
-  const editorHintLive =
-    isInputWrapped &&
-    warningLevel === 'ok' &&
-    !sessionBlocked &&
-    editorConfigured !== undefined &&
-    editorConfigured !== ''
-  const editorChord = useShortcutDisplay('chat:externalEditor', 'Chat', 'ctrl+x ctrl+e')
-  const addRef = useRef(addNotification)
-  addRef.current = addNotification
-  const removeRef = useRef(removeNotification)
-  removeRef.current = removeNotification
-  useClaim(() => {
-    if (!editorHintLive) {
-      removeRef.current('external-editor-hint')
-      return
-    }
-    const editorName = basename(editorConfigured as string) || 'editor'
-    addRef.current({
-      key: 'external-editor-hint',
-      text: `${editorChord} edits in ${editorName}`,
-      priority: 'immediate',
-      timeoutMs: FOOTER_TEMPORARY_STATUS_TIMEOUT,
-    })
-    return () => removeRef.current('external-editor-hint')
-  }, [editorHintLive, editorConfigured, editorChord])
-
-  return (
-    <Box
-      flexDirection="column"
-      flexShrink={0}
-      overflow="hidden"
-      alignItems={alignStart ? 'flex-start' : 'flex-end'}
-    >
-      <FaultInjector />
-      {overageLine ? (
-        <Text dimColor wrap="truncate-end">
-          Anthropic says this account is on extra usage
-        </Text>
-      ) : null}
-      {helperSlow ? (
-        <Text color={tokens.warning} wrap="truncate-end">
-          waiting on credentials.keyCommand{' '}
-          <Text dimColor>
-            ({formatDuration(helperElapsedMs, { mostSignificantOnly: true })})
-          </Text>
-        </Text>
-      ) : null}
-      {walletGate.state === 'not-logged-in' ? (
-        <Text color={tokens.failure} wrap="truncate-end">
-          Not logged in · Run {LOGIN_COMMAND}
-        </Text>
-      ) : null}
-      {walletGate.state === 'provider-missing' ? (
-        <Box flexDirection="column" alignItems={alignStart ? 'flex-start' : 'flex-end'}>
-          {walletGate.steering.split(' · ').map(segment => (
-            <Text key={segment} color={tokens.warning} wrap="truncate-end">
-              {segment}
-            </Text>
-          ))}
-        </Box>
-      ) : null}
-      {debug ? (
-        <Text color={tokens.warning} wrap="truncate-end">
-          debug mode
-        </Text>
-      ) : null}
-      {showTokenCount ? (
-        <Text dimColor wrap="truncate-end">
-          {formatNumber(tokenUsage)} tokens
-        </Text>
-      ) : null}
-      <TokenWarning tokenUsage={tokenUsage} model={engineModel ?? ''} />
-    </Box>
-  )
-}
-
 export function Notifications(props: {
   apiKeyStatus: VerificationStatus
   debug: boolean
@@ -269,9 +128,5 @@ export function Notifications(props: {
   alignStart?: boolean
   compact?: boolean
 }): React.ReactNode {
-  return (
-    <RowErrorBoundary>
-      <NotificationsColumn {...props} />
-    </RowErrorBoundary>
-  )
+  return notBuilt('src/components/PromptInput/Notifications.tsx:262')
 }

@@ -1,4 +1,3 @@
-
 import { useMemo, useRef } from 'react'
 import { useKeybindings } from '../keybindings/useKeybinding.js'
 import { useOptionalKeybindingContext } from '../keybindings/KeybindingContext.js'
@@ -6,14 +5,11 @@ import { useIsModalOverlayActive } from '../context/overlayContext.js'
 import type { PromptInputHelpers } from '../types/promptInputHelpers.js'
 import { findCommand } from '../commands.js'
 import type { Command } from '../commands.js'
+import { unbuilt } from '../pi/holes.js'
 
 const COMMAND_PREFIX = 'command:'
 
-const inertHelpers: PromptInputHelpers = {
-  setCursorOffset: () => {},
-  clearBuffer: () => {},
-  resetHistory: () => {},
-}
+const inertHelpers: PromptInputHelpers = unbuilt('src/hooks/useCommandKeybindings.tsx:12')
 
 export function CommandKeybindingHandlers({
   onSubmit,

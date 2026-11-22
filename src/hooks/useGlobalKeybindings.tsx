@@ -1,4 +1,3 @@
-
 import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
 import { useNotifications } from '../context/notifications.js'
 import { useKeybinding, useKeybindings } from '../keybindings/useKeybinding.js'
@@ -9,19 +8,9 @@ import { useLayoutChrome } from '../context/layoutChromeContext.js'
 import type { CompactWorkControls } from '../components/tasks/CompactWorkSummary.js'
 import instances from '../ink/instances.js'
 import type { Screen } from '../screens/Chat.js'
+import { notBuilt } from '../pi/holes.js'
 
-export function GlobalKeybindingHandlers({
-  screen,
-  setScreen,
-  showAllInTranscript,
-  setShowAllInTranscript,
-  messageCount,
-  onEnterTranscript,
-  onExitTranscript,
-  virtualScrollActive = false,
-  searchBarOpen = false,
-  compactWork,
-}: {
+export function GlobalKeybindingHandlers(arg0: {
   screen: Screen
   setScreen: (screen: Screen) => void
   showAllInTranscript: boolean
@@ -33,103 +22,5 @@ export function GlobalKeybindingHandlers({
   searchBarOpen?: boolean
   compactWork?: CompactWorkControls
 }): null {
-  const setAppState = useSetAppState()
-  const store = useAppStateStore()
-  const { addNotification } = useNotifications()
-  const { isCompact } = useLayoutChrome()
-  void messageCount
-  void showAllInTranscript
-
-  const reportRefusal = (reason: string): void => {
-    addNotification({
-      key: 'surface-route-refused',
-      text: reason,
-      color: 'warning',
-      priority: 'medium',
-      fold: (accumulator, incoming) => ({ ...accumulator, ...incoming }),
-    })
-  }
-
-  useKeybindings(
-    {
-      'app:toggleTasks': () => {
-        if (isCompact) {
-          compactWork?.toggleSummary()
-          return
-        }
-        setAppState(prev => {
-          return {
-            ...prev,
-            expandedView: prev.expandedView === 'tasks' ? ('none' as const) : ('tasks' as const),
-          }
-        })
-        const remembered = store.getState().expandedView
-        if (getGlobalConfig().expandedView !== remembered) {
-          saveGlobalConfig(current => ({ ...current, expandedView: remembered }))
-        }
-      },
-      'app:toggleTranscript': () => {
-        if (screen === 'transcript') {
-          setShowAllInTranscript(false)
-          setScreen('prompt' as Screen)
-          onExitTranscript?.()
-        } else {
-          setShowAllInTranscript(false)
-          setScreen('transcript' as Screen)
-          onEnterTranscript?.()
-        }
-      },
-      'app:redraw': () => {
-        instances.get(process.stdout)?.repaintAltScreen()
-        void store
-      },
-    },
-    { context: 'Global' },
-  )
-
-  const step = (dir: 1 | -1): void => {
-    const outcome = cycleSurface(dir)
-    if (!outcome.ok) reportRefusal(outcome.reason)
-  }
-  useKeybindings(
-    {
-      'app:cycleSurfaceForward': () => step(1),
-      'app:cycleSurfaceBack': () => step(-1),
-      'app:surfaceRight': () => step(-1),
-      'app:surfaceLeft': () => step(1),
-      'app:openSurfaceSwitcher': () => {
-        const outcome = enterConcourse()
-        if (!outcome.ok) reportRefusal(outcome.reason)
-      },
-      'concourse:closeSession': () => {
-        invokeConcourseCloseChord()
-      },
-    },
-    { context: 'Global', routeSafe: true },
-  )
-
-  useKeybinding(
-    'transcript:toggleShowAll',
-    () => {
-      setShowAllInTranscript(!showAllInTranscript)
-    },
-    {
-      context: 'Transcript',
-      isActive: screen === 'transcript' && !virtualScrollActive,
-    },
-  )
-  useKeybinding(
-    'transcript:exit',
-    () => {
-      setShowAllInTranscript(false)
-      setScreen('prompt' as Screen)
-      onExitTranscript?.()
-    },
-    {
-      context: 'Transcript',
-      isActive: screen === 'transcript' && !searchBarOpen,
-    },
-  )
-
-  return null
+  return notBuilt('src/hooks/useGlobalKeybindings.tsx:13')
 }

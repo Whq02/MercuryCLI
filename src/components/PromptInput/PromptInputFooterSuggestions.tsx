@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { Box, Text } from '../../ink.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
@@ -10,18 +9,10 @@ import { collapseWhitespace } from '../../utils/stringUtils.js'
 import { truncatePathMiddle } from '../../utils/truncate.js'
 
 export type SuggestionType =
-  | 'none'
-  | 'command'
-  | 'file'
-  | 'directory'
-  | 'slack-channel'
-  | 'shell'
-  | 'custom-title'
-  | 'agent'
-  | 'channel-target'
-  | 'variable'
+  Unbuilt
 
 import type { SuggestionItem } from '../../types/suggestions.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 export type { SuggestionItem }
 
 const OVERLAY_MAX_ITEMS = 5
@@ -81,54 +72,7 @@ function UnifiedRow({
   )
 }
 
-function OtherRow({
-  item,
-  columns,
-  nameColumn,
-  selected,
-}: {
-  item: SuggestionItem
-  columns: number
-  nameColumn: number
-  selected: boolean
-}): React.ReactNode {
-  const tokens = useMercuryTokens()
-  let name = item.displayText
-  if (displayWidth(name) > nameColumn - 2) {
-    name = truncateToWidth(name, nameColumn - 2)
-  }
-  const padded = name + ' '.repeat(Math.max(0, nameColumn - displayWidth(name)))
-  const value = item.value ? `${truncateToWidth(collapseWhitespace(item.value), 24)}  ` : ''
-  const descriptionBudget = Math.max(
-    0,
-    columns - nameColumn - displayWidth(value) - 4,
-  )
-  const description = item.description
-    ? truncateToWidth(collapseWhitespace(item.description), descriptionBudget)
-    : ''
-  return (
-    <Text
-      wrap="truncate-end"
-      dimColor={!selected}
-      color={selected ? 'suggestion' : item.color}
-      backgroundColor={selected ? tokens.selectionBand : undefined}
-    >
-      {padded}
-      {value !== '' ? <Text color={selected ? undefined : 'suggestion'}>{value}</Text> : null}
-      {description !== '' ? <Text dimColor>{description}</Text> : null}
-    </Text>
-  )
-}
-
-export function PromptInputFooterSuggestions({
-  suggestions,
-  selectedSuggestion,
-  maxColumnWidth,
-  overlay = false,
-  onPick,
-  onHover,
-  maxRows,
-}: {
+export function PromptInputFooterSuggestions(arg0: {
   suggestions: SuggestionItem[]
   selectedSuggestion?: number
   maxColumnWidth?: number
@@ -137,75 +81,7 @@ export function PromptInputFooterSuggestions({
   onHover?: (index: number) => void
   maxRows?: number
 }): React.ReactNode {
-  const { columns, rows } = useTerminalSize()
-  const storeSelection = useSelectedSuggestion()
-  const selected = selectedSuggestion ?? storeSelection
-
-  if (suggestions.length === 0 || maxRows === 0) return null
-
-  const chrome = computeChromeMode(columns, rows)
-  const reserve = chrome === 'deck-strip' ? 14 : 6
-  let maxVisible = overlay
-    ? OVERLAY_MAX_ITEMS
-    : Math.min(6, Math.max(1, rows - reserve))
-  if (maxRows !== undefined) maxVisible = Math.min(maxVisible, maxRows)
-  const overflowing = suggestions.length > maxVisible && maxVisible > 1
-  if (overflowing) {
-    maxVisible = Math.max(1, maxVisible - 1)
-  }
-
-  const anchor = selected >= 0 ? selected : 0
-  const half = Math.floor(maxVisible / 2)
-  const start = Math.max(
-    0,
-    Math.min(anchor - half, suggestions.length - maxVisible),
-  )
-  const visible = suggestions.slice(start, start + maxVisible)
-
-  const isUnified = (item: SuggestionItem): boolean => unifiedGlyph(item.id) !== null
-
-  const derivedWidth =
-    Math.max(0, ...suggestions.map(item => displayWidth(item.displayText))) + 5
-  const nameColumn = Math.min(
-    maxColumnWidth ?? derivedWidth,
-    Math.floor(columns * 0.4),
-  )
-
-  return (
-    <Box flexDirection="column" paddingLeft={1}>
-      {visible.map((item, offset) => {
-        const absolute = start + offset
-        const isSelected = absolute === selected
-        const row = isUnified(item) ? (
-          <UnifiedRow item={item} columns={columns} selected={isSelected} />
-        ) : (
-          <OtherRow
-            item={item}
-            columns={columns}
-            nameColumn={nameColumn}
-            selected={isSelected}
-          />
-        )
-        return (
-          <Box
-            key={item.id}
-            {...(onPick ? { onClick: () => onPick(absolute) } : {})}
-            {...(onHover ? { onMouseEnter: () => onHover(absolute) } : {})}
-          >
-            <Text color="claude">▏</Text>
-            {row}
-          </Box>
-        )
-      })}
-      {overflowing ? (
-        <Text dimColor>
-          {'  '}
-          {Math.min(selected + 1, suggestions.length) || 1} of{' '}
-          {suggestions.length}
-        </Text>
-      ) : null}
-    </Box>
-  )
+  return notBuilt('src/components/PromptInput/PromptInputFooterSuggestions.tsx:123')
 }
 
 export default React.memo(PromptInputFooterSuggestions)

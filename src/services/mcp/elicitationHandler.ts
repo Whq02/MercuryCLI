@@ -5,33 +5,9 @@ import { logForDebugging } from '../../utils/debug.js'
 import { logMCPDebug, logMCPError } from '../../utils/log.js'
 import { urlElicitationVerdict } from '../../utils/mcp/toolPolicy.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-
-type ElicitationWaitingState = {
-  actionLabel: string
-  showCancel?: boolean
-}
-
-type ElicitationParams = {
-  message?: string
-  mode?: string
-  url?: string
-  elicitationId?: string
-  requestedSchema?: Record<string, unknown>
-  [key: string]: unknown
-}
-
-export type ElicitationRequestEvent = {
-  serverName: string
-  requestId: string | number
-  params: ElicitationParams
-  signal: AbortSignal
-  respond: (result: ElicitResult) => void
-  waitingState?: ElicitationWaitingState
-  onWaitingDismiss?: (action: 'dismiss' | 'retry' | 'cancel') => void
-  completed?: boolean
-  riskPosture?: string
-}
+export type ElicitationRequestEvent = Unbuilt
 
 type SetAppState = (updater: (prev: AppState) => AppState) => void
 
@@ -114,98 +90,5 @@ export function registerElicitationHandler(
   serverName: string,
   setAppState: SetAppState,
 ): void {
-  try {
-    client.setRequestHandler('elicitation/create', (request, ctx) => withElicitationEntered(client, async () => {
-      logMCPDebug(serverName, `elicitation request: ${JSON.stringify(request)}`)
-      const params = (request.params ?? {}) as ElicitationParams
-      const isUrlMode = params.mode === 'url'
-      const signal = ctx.mcpReq.signal
-
-      let riskPosture: string | undefined
-      if (isUrlMode) {
-        const verdict = urlElicitationVerdict(serverName)
-        riskPosture = verdict.posture
-        if (verdict.refuse) {
-          logMCPDebug(
-            serverName,
-            `URL elicitation auto-declined by risk policy (${verdict.posture})`,
-          )
-          return { action: 'decline' } satisfies ElicitResult
-        }
-      }
-
-      try {
-        const response = await new Promise<ElicitResult>(resolvePromise => {
-          if (signal.aborted) {
-            resolvePromise({ action: 'cancel' })
-            return
-          }
-          const onAbort = (): void => {
-            resolvePromise({ action: 'cancel' })
-          }
-          signal.addEventListener('abort', onAbort, { once: true })
-          const event: ElicitationRequestEvent = {
-            serverName,
-            requestId: ctx.mcpReq.id as string | number,
-            params,
-            signal,
-            respond: result => {
-              signal.removeEventListener('abort', onAbort)
-              resolvePromise(result)
-            },
-            ...(isUrlMode && params.elicitationId !== undefined
-              ? { waitingState: { actionLabel: 'Skip confirmation' } }
-              : {}),
-            ...(riskPosture !== undefined ? { riskPosture } : {}),
-          }
-          setAppState(prev => {
-            const queue = prev.elicitation?.queue ?? []
-            return {
-              ...prev,
-              elicitation: { ...(prev.elicitation ?? {}), queue: [...queue, event] },
-            } as AppState
-          })
-        })
-
-        logForDebugging(
-          `elicitation response for "${serverName}": ${JSON.stringify(response)}`,
-        )
-        return response
-      } catch (error) {
-        logMCPError(serverName, `elicitation handling failed: ${String(error)}`)
-        return { action: 'cancel' } satisfies ElicitResult
-      }
-    }))
-
-    client.setNotificationHandler('notifications/elicitation/complete', notification => {
-      const elicitationId = (notification.params as { elicitationId?: string } | undefined)
-        ?.elicitationId
-      logForDebugging(
-        `elicitation complete from "${serverName}": ${JSON.stringify(notification.params)}`,
-      )
-      setAppState(prev => {
-        const queue = prev.elicitation?.queue ?? []
-        const index = queue.findIndex(
-          (event: ElicitationRequestEvent) =>
-            event.serverName === serverName &&
-            event.params?.mode === 'url' &&
-            event.params?.elicitationId === elicitationId,
-        )
-        if (index === -1) {
-          logForDebugging(
-            `elicitation completion for unknown elicitation ${elicitationId ?? '(unknown)'} ignored`,
-          )
-          return prev
-        }
-        const updated = [...queue]
-        updated[index] = { ...(queue[index] as ElicitationRequestEvent), completed: true }
-        return {
-          ...prev,
-          elicitation: { ...(prev.elicitation ?? {}), queue: updated },
-        } as AppState
-      })
-    })
-  } catch (error) {
-    passedOver(error)
-  }
+  return notBuilt('src/services/mcp/elicitationHandler.ts:112')
 }

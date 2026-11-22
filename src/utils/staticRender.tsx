@@ -9,6 +9,7 @@ import { render, useApp } from '../ink.js'
 import { chromeModeLive } from '../hooks/useLayoutTier.js'
 import { railPlan } from './helmGeometry.js'
 import { startTimeout, stopTimeout } from './timers.js'
+import { notBuilt } from '../pi/holes.js'
 
 
 function ExitAfterCommit({ children }: { children: React.ReactNode }): React.ReactNode {
@@ -36,32 +37,9 @@ export function staticPrintColumns(): number {
 }
 
 export async function renderToAnsiString(node: React.ReactNode, columns?: number): Promise<string> {
-  const stream = new PassThrough()
-  stream.resume()
-  const target = stream as unknown as NodeJS.WriteStream
-  if (columns !== undefined) {
-    ;(target as { columns?: number }).columns = columns
-  }
-  const stdinStub = Object.assign(new EventEmitter(), {
-    isTTY: true,
-    isRaw: false,
-    setRawMode() { return this },
-    setEncoding() { return this },
-    read() { return null },
-    unref() { return this },
-    ref() { return this },
-    pause() { return this },
-    resume() { return this },
-  }) as unknown as NodeJS.ReadStream
-  const instance = await render(<ExitAfterCommit>{node}</ExitAfterCommit>, {
-    stdout: target,
-    stdin: stdinStub,
-    patchConsole: false,
-  })
-  await instance.waitUntilExit()
-  return instance.lastFrame()
+  return notBuilt('src/utils/staticRender.tsx:38')
 }
 
 export async function renderToString(node: React.ReactNode, columns?: number): Promise<string> {
-  return stripAnsi(await renderToAnsiString(node, columns))
+  return notBuilt('src/utils/staticRender.tsx:65')
 }

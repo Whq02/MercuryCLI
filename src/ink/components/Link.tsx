@@ -1,22 +1,8 @@
-
 import React from 'react'
-import { supportsHyperlinks } from '../session/capabilities.js'
-import Text from './Text.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-export type Props = {
-  readonly children?: React.ReactNode
-  readonly url: string
-  readonly fallback?: React.ReactNode
-}
+export type Props = Unbuilt
 
-export default function Link({ children, url, fallback }: Props): React.ReactNode {
-  const content = children ?? url
-  if (supportsHyperlinks()) {
-    return (
-      <Text>
-        <ink-link href={url}>{content}</ink-link>
-      </Text>
-    )
-  }
-  return <Text>{fallback ?? content}</Text>
+export default function Link(arg0: Props): React.ReactNode {
+  return notBuilt('src/ink/components/Link.tsx:12')
 }

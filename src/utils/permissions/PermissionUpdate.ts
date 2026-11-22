@@ -13,6 +13,7 @@ import { permissionRuleValueFromString, permissionRuleValueToString } from './pe
 import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from './modeTransitions.js'
 import { noteAllowRulesGranted } from './lateAllowRules.js'
 import { passedOver } from '../passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 function ruleMapKey(behavior: PermissionBehavior): 'alwaysAllowRules' | 'alwaysDenyRules' | 'alwaysAskRules' {
   if (behavior === 'allow') return 'alwaysAllowRules'
@@ -24,16 +25,6 @@ function settingsBehaviorKey(behavior: PermissionBehavior): 'allow' | 'deny' | '
   if (behavior === 'allow') return 'allow'
   if (behavior === 'deny') return 'deny'
   return 'ask'
-}
-
-function supportsPersistence(
-  destination: PermissionUpdateDestination,
-): destination is EditableSettingSource {
-  return (
-    destination === 'userSettings' ||
-    destination === 'projectSettings' ||
-    destination === 'localSettings'
-  )
 }
 
 type MutableRulesBySource = {
@@ -79,63 +70,17 @@ function dropReasons(next: MutableContext, destination: PermissionUpdateDestinat
 export function applyPermissionUpdate(
   context: ToolPermissionContext,
   update: PermissionUpdate,
-  road: ModeTransitionRoad = 'permission-answer',
+  road?: ModeTransitionRoad,
 ): ToolPermissionContext {
-  const next = structuredCloneContext(context)
-  switch (update.type) {
-    case 'addRules': {
-      const key = ruleMapKey(update.behavior)
-      const existing = next[key][update.destination] ?? []
-      next[key][update.destination] = [...existing, ...update.rules.map(ruleString)]
-      stampReasons(next, update.destination, update.rules)
-      logUpdate('addRules', update.destination, update.behavior, update.rules.map(ruleString))
-      break
-    }
-    case 'replaceRules': {
-      const key = ruleMapKey(update.behavior)
-      dropReasons(next, update.destination, next[key][update.destination] ?? [])
-      next[key][update.destination] = update.rules.map(ruleString)
-      stampReasons(next, update.destination, update.rules)
-      logUpdate('replaceRules', update.destination, update.behavior, update.rules.map(ruleString))
-      break
-    }
-    case 'removeRules': {
-      const key = ruleMapKey(update.behavior)
-      const toRemove = new Set(update.rules.map(ruleString))
-      const existing = next[key][update.destination] ?? []
-      next[key][update.destination] = existing.filter(entry => !toRemove.has(entry))
-      dropReasons(next, update.destination, toRemove)
-      logUpdate('removeRules', update.destination, update.behavior, [...toRemove])
-      break
-    }
-    case 'setMode':
-      if (next.mode === 'apollo') {
-        holdModeTransition({
-          from: 'apollo',
-          to: update.mode,
-          road,
-          detail: `setMode at the ${update.destination} scope — Apollo Mode leaves only through the review card or the operator's own mode change`,
-        })
-        break
-      }
-      if (next.mode !== update.mode) {
-        recordModeTransition({ from: next.mode, to: update.mode, road, detail: `setMode at the ${update.destination} scope` })
-      }
-      next.mode = update.mode
-      logForDebugging(`permission update setMode → ${update.mode} (${update.destination})`)
-      break
-    default:
-      return context
-  }
-  return next
+  return notBuilt('src/utils/permissions/PermissionUpdate.ts:79')
 }
 
 export function applyPermissionUpdates(
   context: ToolPermissionContext,
   updates: PermissionUpdate[],
-  road: ModeTransitionRoad = 'permission-answer',
+  road?: ModeTransitionRoad,
 ): ToolPermissionContext {
-  return updates.reduce((folded, update) => applyPermissionUpdate(folded, update, road), context)
+  return notBuilt('src/utils/permissions/PermissionUpdate.ts:133')
 }
 
 export type PersistVerdict = { error: Error | null }
@@ -149,102 +94,25 @@ function rawPermissionArray(base: Record<string, unknown>, key: string): string[
 }
 
 export function persistPermissionUpdate(update: PermissionUpdate): PersistVerdict {
-  if (!supportsPersistence(update.destination)) return LANDED
-  const source = update.destination
-  if ((update.type === 'addRules' || update.type === 'replaceRules') && update.behavior === 'allow') noteAllowRulesGranted(source, update.rules.map(ruleString))
-
-  switch (update.type) {
-    case 'addRules': {
-      const behaviorKey = settingsBehaviorKey(update.behavior)
-      const additions = update.rules.map(ruleString)
-      return writePartial(source, base => {
-        const existing = rawPermissionArray(base, behaviorKey)
-        for (const rule of additions) if (!existing.includes(rule)) existing.push(rule)
-        return guardrailsPatch(behaviorKey, existing)
-      })
-    }
-    case 'replaceRules': {
-      const behaviorKey = settingsBehaviorKey(update.behavior)
-      return writePartial(source, guardrailsPatch(behaviorKey, update.rules.map(ruleString)))
-    }
-    case 'removeRules': {
-      const behaviorKey = settingsBehaviorKey(update.behavior)
-      const toRemove = new Set(update.rules.map(ruleString))
-      return writePartial(source, base =>
-        guardrailsPatch(
-          behaviorKey,
-          rawPermissionArray(base, behaviorKey).filter(entry => {
-            try {
-              return !toRemove.has(permissionRuleValueToString(permissionRuleValueFromString(entry)))
-            } catch (error) {
-              passedOver(error)
-              return true
-            }
-          }),
-        ),
-      )
-    }
-    case 'setMode':
-      return writePartial(source, { guardrails: { mode: update.mode } })
-    default:
-      return LANDED
-  }
+  return notBuilt('src/utils/permissions/PermissionUpdate.ts:151')
 }
 
 export function persistPermissionUpdates(updates: PermissionUpdate[]): PersistVerdict {
-  let first: Error | null = null
-  for (const update of updates) {
-    const { error } = persistPermissionUpdate(update)
-    if (error !== null && first === null) first = error
-  }
-  return { error: first }
+  return notBuilt('src/utils/permissions/PermissionUpdate.ts:194')
 }
 
 export function createReadRuleSuggestion(
   dirPath: string,
-  destination: PermissionUpdateDestination = 'session',
+  destination?: PermissionUpdateDestination,
 ): PermissionUpdate | undefined {
-  const posix = dirPath.replace(/\\/g, '/')
-  if (posix === '/') return undefined
-  const drive = /^([A-Za-z]):\/(.*)$/.exec(posix)
-  let anchored: string
-  if (drive) {
-    const rest = (drive[2] as string).replace(/\/+$/, '')
-    if (rest === '') return undefined
-    anchored = `//${(drive[1] as string).toUpperCase()}/${rest}`
-  } else {
-    anchored = posix.startsWith('/') ? `/${posix}` : posix
-  }
-  const content = `${anchored}/**`
-  return {
-    type: 'addRules',
-    rules: [{ toolName: 'Read', ruleContent: content }],
-    behavior: 'allow',
-    destination,
-  } as PermissionUpdate
+  return notBuilt('src/utils/permissions/PermissionUpdate.ts:203')
 }
 
 export function createEditRuleSuggestion(
   dirPath: string,
-  destination: PermissionUpdateDestination = 'session',
+  destination?: PermissionUpdateDestination,
 ): PermissionUpdate | undefined {
-  const posix = dirPath.replace(/\\/g, '/')
-  if (posix === '/') return undefined
-  const drive = /^([A-Za-z]):\/(.*)$/.exec(posix)
-  let anchored: string
-  if (drive) {
-    const rest = (drive[2] as string).replace(/\/+$/, '')
-    if (rest === '') return undefined
-    anchored = `//${(drive[1] as string).toUpperCase()}/${rest}`
-  } else {
-    anchored = posix.startsWith('/') ? `/${posix}` : posix
-  }
-  return {
-    type: 'addRules',
-    rules: [{ toolName: 'Edit', ruleContent: `${anchored}/**` }],
-    behavior: 'allow',
-    destination,
-  } as PermissionUpdate
+  return notBuilt('src/utils/permissions/PermissionUpdate.ts:227')
 }
 
 

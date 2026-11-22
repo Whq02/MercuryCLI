@@ -1,7 +1,7 @@
-
 import { colorize, type ColorType } from '../ink/colorize.js'
 import type { Color } from '../ink/styles.js'
 import { getTheme, type Theme, type ThemeName } from './theme.js'
+import { notBuilt } from '../pi/holes.js'
 
 const RAW_COLOR_PREFIXES = ['rgb(', '#', 'ansi256(', 'ansi:'] as const
 
@@ -21,13 +21,7 @@ export function resolveThemeColor(
 export function color(
   colorKeyOrValue: keyof Theme | (string & {}) | undefined,
   themeName: ThemeName,
-  type: ColorType = 'foreground',
+  type?: ColorType,
 ): (text: string) => string {
-  return (text: string): string => {
-    if (colorKeyOrValue === undefined) return text
-    const resolved = isRawColorValue(colorKeyOrValue)
-      ? colorKeyOrValue
-      : getTheme(themeName)[colorKeyOrValue as keyof Theme]
-    return colorize(text, resolved, type)
-  }
+  return notBuilt('src/utils/color.ts:21')
 }

@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { exitChordNoticeText } from '../PromptInput/ExitChordNotice.js'
 import { Box, Text, useInput } from '../../ink.js'
@@ -15,6 +14,7 @@ import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { renderToolActivity } from './renderToolActivity.js'
 import { agentLifecycleOf, getTaskStatusColor, getTaskStatusIcon } from './taskStatusUtils.js'
 import { GLYPH } from '../../utils/glyphs.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const PROMPT_CAP = 300
 
@@ -25,158 +25,12 @@ function statusWord(status: string): string {
   return status
 }
 
-export function AsyncAgentDetailDialog({
-  agent,
-  onDone,
-  onKillAgent,
-  onBack,
-  onForeground,
-}: {
+export function AsyncAgentDetailDialog(arg0: {
   agent: LocalAgentTaskState
   onDone: () => void
   onKillAgent?: () => void
   onBack?: () => void
   onForeground?: () => void
 }): React.ReactNode {
-  const tokens = useMercuryTokens()
-  const [themeName] = useTheme()
-  const theme = getTheme(themeName)
-  const running = agent.status === 'running' || agent.status === 'pending'
-  const lifecycle = agentLifecycleOf(agent)
-  const elapsed = useElapsedTime(
-    agent.startTime,
-    running,
-    1000,
-    agent.totalPausedMs,
-    agent.endTime,
-  )
-  const exitState = useExitOnCtrlCD(useKeybindings)
-
-  useInput((input, key, event) => {
-    if (key.escape || input === ' ') {
-      event.stopImmediatePropagation()
-      onDone()
-      return
-    }
-    if (key.leftArrow && onBack) {
-      event.stopImmediatePropagation()
-      onBack()
-      return
-    }
-    if (input === 'x' && running && onKillAgent) {
-      event.stopImmediatePropagation()
-      onKillAgent()
-      return
-    }
-    if ((input === 'f' || input === 'm') && onForeground) {
-      event.stopImmediatePropagation()
-      onForeground()
-    }
-  })
-  useKeybinding('confirm:yes', () => onDone(), { context: 'Confirmation' })
-
-  const progress = agent.progress as
-    | {
-        toolUseCount?: number
-        tokenCount?: number
-        totalTokens?: number
-        totalToolUseCount?: number
-        recentActivities?: ToolActivity[]
-      }
-    | undefined
-  const result = agent.result as
-    | { totalTokens?: number; totalToolUseCount?: number }
-    | undefined
-  const tokenCount =
-    result?.totalTokens ?? progress?.totalTokens ?? progress?.tokenCount ?? 0
-  const toolUseCount =
-    result?.totalToolUseCount ??
-    progress?.totalToolUseCount ??
-    progress?.toolUseCount ??
-    0
-  const recent = progress?.recentActivities ?? []
-  const promptShown =
-    agent.prompt.length > PROMPT_CAP
-      ? `${agent.prompt.slice(0, PROMPT_CAP - 3)}…`
-      : agent.prompt
-
-  return (
-    <Box flexDirection="column" tabIndex={-1}>
-      <Text bold>
-        {agent.agentType !== '' ? agent.agentType : 'crewmate'}
-        <Text dimColor>
-          {' · '}
-          {agent.description !== '' ? agent.description : 'background task'}
-        </Text>
-      </Text>
-      <Text dimColor>
-        {!running ? (
-          <Text color={getTaskStatusColor(agent.status)}>
-            {getTaskStatusIcon(agent.status)} {statusWord(agent.status)}
-            {' · '}
-          </Text>
-        ) : null}
-        {elapsed}
-        {tokenCount > 0 ? ` · ${tokenCount} tokens` : ''}
-        {toolUseCount > 0
-          ? ` · ${toolUseCount} tool ${toolUseCount === 1 ? 'use' : 'uses'}`
-          : ''}
-      </Text>
-      {lifecycle !== undefined && lifecycle.state !== 'running' ? (
-        <Text dimColor>
-          {lifecycle.state} {GLYPH.dot} {lifecycle.basis}
-        </Text>
-      ) : null}
-      <Box flexDirection="column" marginTop={1}>
-        <Text dimColor wrap="truncate-end">
-          {promptShown}
-        </Text>
-      </Box>
-      {running && recent.length > 0 ? (
-        <Box flexDirection="column" marginTop={1}>
-          <Text bold>Progress</Text>
-          {[...recent].reverse().map((activity, index) => (
-            <Text
-              key={index}
-              dimColor={index !== 0}
-              wrap="truncate-end"
-            >
-              {index === 0 ? '▸ ' : '  '}
-              {renderToolActivity(activity, getAllBaseTools(), theme)}
-            </Text>
-          ))}
-        </Box>
-      ) : null}
-      {agent.status === 'failed' && agent.error !== undefined ? (
-        <Box marginTop={1}>
-          <Text color={tokens.failure}>{agent.error}</Text>
-        </Box>
-      ) : null}
-      <Box marginTop={1}>
-        {exitState.pending ? (
-          <Text dimColor>{exitChordNoticeText(exitState.keyName)}</Text>
-        ) : (
-          <Text dimColor>
-            <KeyboardShortcutHint shortcut="f" action="foreground" />
-            {' · '}
-            <KeyboardShortcutHint shortcut="m" action="message" />
-            {running && onKillAgent ? (
-              <>
-                {' · '}
-                <KeyboardShortcutHint shortcut="x" action="stop" />
-              </>
-            ) : null}
-            {onBack ? (
-              <>
-                {' · '}
-                <KeyboardShortcutHint shortcut="←" action="back" />
-              </>
-            ) : null}
-            {' · '}
-            <KeyboardShortcutHint shortcut="space" action="close" />
-          </Text>
-        )}
-      </Box>
-    </Box>
-  )
+  return notBuilt('src/components/tasks/AsyncAgentDetailDialog.tsx:28')
 }

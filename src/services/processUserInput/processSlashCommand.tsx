@@ -57,6 +57,7 @@ import type {
   ProcessUserInputContext,
 } from './processUserInput.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const UNKNOWN_COMMAND_PREFIX = 'Unknown skill'
 
@@ -90,7 +91,7 @@ export function unknownCommandLine(name: string, commands: Command[]): string {
 
 
 function looksLikeCommand(commandName: string): boolean {
-  return /^[a-zA-Z0-9:_-]+$/.test(commandName)
+  return notBuilt('src/services/processUserInput/processSlashCommand.tsx:92')
 }
 
 function isExistingPath(slashPrefixed: string): boolean {
@@ -108,13 +109,11 @@ export function formatSkillLoadingMetadata(
   skillName: string,
   progressMessage?: string,
 ): string {
-  void progressMessage
-  return `<${COMMAND_MESSAGE_TAG}>${skillName}</${COMMAND_MESSAGE_TAG}><${COMMAND_NAME_TAG}>${skillName}</${COMMAND_NAME_TAG}><skill-format>skill</skill-format>`
+  return notBuilt('src/services/processUserInput/processSlashCommand.tsx:107')
 }
 
 export function formatCommandLoadingMetadata(fullName: string, args: string): string {
-  const argsTag = args ? `<${COMMAND_ARGS_TAG}>${args}</${COMMAND_ARGS_TAG}>` : ''
-  return `<${COMMAND_MESSAGE_TAG}>${fullName}</${COMMAND_MESSAGE_TAG}><${COMMAND_NAME_TAG}>/${fullName}</${COMMAND_NAME_TAG}>${argsTag}`
+  return notBuilt('src/services/processUserInput/processSlashCommand.tsx:115')
 }
 
 export function unavailableCommandLine(real: Command, args = ''): string {
@@ -169,34 +168,14 @@ function findCommand(commands: Command[], name: string): Command | undefined {
 }
 
 
-
 export async function processPromptSlashCommand(
   commandName: string,
   args: string,
   commands: Command[],
   context: ToolUseContext,
-  imageContentBlocks: ContentBlockParam[] = [],
+  imageContentBlocks?: ContentBlockParam[],
 ): Promise<ProcessUserInputBaseResult & { command: Command }> {
-  const command = findCommand(commands, commandName)
-  if (!command) {
-    throw Object.assign(new Error(`Unknown command: ${commandName}`), {
-      isMalformedCommand: true,
-    })
-  }
-  if (command.type !== 'prompt') {
-    throw new Error(
-      `Command /${commandName} is not a prompt command — use the command directly in the main conversation.`,
-    )
-  }
-  const result = await executePromptCommand(
-    command as Command & { type: 'prompt' },
-    commandName,
-    args,
-    context,
-    imageContentBlocks,
-    [],
-  )
-  return { ...result, command }
+  return notBuilt('src/services/processUserInput/processSlashCommand.tsx:173')
 }
 
 async function executePromptCommand(
@@ -423,160 +402,7 @@ export async function processSlashCommand(
   isAlreadyProcessing?: boolean,
   canUseTool?: CanUseToolFn,
 ): Promise<ProcessUserInputBaseResult> {
-  const caveat = createSyntheticUserCaveatMessage()
-
-  const parsed = parseSlashCommand(inputString)
-  if (!parsed) {
-    return {
-      messages: [createUserMessage({ content: inputString, uuid: (uuid ?? randomUUID()) as UUID }), ...attachmentMessages],
-      shouldQuery: true,
-    }
-  }
-  const { commandName, args } = parsed
-  const commands = context.options.commands
-  const command = findCommand(commands, commandName)
-
-  if (command && !isCommandEnabled(command)) {
-    const line = unavailableCommandLine(command, args)
-    return {
-      messages: [caveat, ...attachmentMessages, createUserMessage({ content: line })],
-      shouldQuery: false,
-      resultText: line,
-      commandRefused: true,
-    }
-  }
-
-  if (!command) {
-    const registered = findCommand([...builtinCommands()], commandName)
-    if (registered) {
-      if (registered.type === 'local' && registered.userPrivate === true && isCommandEnabled(registered)) {
-        if (registered.seat === 'screen' && getIsNonInteractiveSession()) {
-          const line = unavailableCommandLine(registered)
-          return {
-            messages: [],
-            shouldQuery: false,
-            resultText: line,
-            commandRefused: true,
-          }
-        }
-        try {
-          const module = await registered.load()
-          featureReached('command', registered.name)
-          const result = await module.call(args, context)
-          const text = result.type === 'text' ? result.value : ''
-          return { messages: [], shouldQuery: false, ...(text !== '' ? { resultText: text } : {}) }
-        } catch (error) {
-          logError(error)
-          return { messages: [], shouldQuery: false, resultText: `/${commandName} failed — ${String(error)}` }
-        }
-      }
-      const line = unavailableCommandLine(registered)
-      return {
-        messages: [caveat, ...attachmentMessages, createUserMessage({ content: line })],
-        shouldQuery: false,
-        resultText: line,
-        commandRefused: true,
-      }
-    }
-    if (looksLikeCommand(commandName) && !isExistingPath(`/${commandName}`)) {
-      const unknownLine = unknownCommandLine(commandName, commands)
-      const notice = { ...createSystemMessage(unknownLine, 'warning'), ...(uuid ? { uuid } : {}) }
-      return { messages: [notice], shouldQuery: false, resultText: unknownLine, commandRefused: true }
-    }
-    const promptMessage = createUserMessage({
-      content: inputString,
-      uuid: (uuid ?? randomUUID()) as UUID,
-    })
-    return {
-      messages: [promptMessage, ...attachmentMessages],
-      shouldQuery: true,
-    }
-  }
-
-  if (command.userInvocable === false) {
-    const echoed = createUserMessage({
-      content: formatCommandLoadingMetadata(getCommandName(command), args),
-      ...(uuid ? { uuid } : {}),
-    })
-    return {
-      messages: [
-        echoed,
-        createUserMessage({
-          content: `The ${command.name} skill can only be invoked by the assistant. Ask for it by name instead.`,
-        }),
-      ],
-      shouldQuery: false,
-    }
-  }
-
-  try {
-    let result: ProcessUserInputBaseResult
-    switch (command.type) {
-      case 'local-jsx':
-        result = await runLocalJsxCommand(command, commandName, args, context, setToolJSX, uuid)
-        break
-      case 'local':
-        result = await runLocalCommand(command, commandName, args, context, uuid)
-        break
-      default:
-        if (args.trim() === '' && requiresArgument(command)) {
-          result = answerBareUsage(command as Command & { type: 'prompt' }, args, uuid)
-          break
-        }
-        result = await executePromptCommand(
-          command as Command & { type: 'prompt' },
-          commandName,
-          args,
-          context,
-          imageContentBlocks,
-          attachmentMessages,
-          uuid,
-          setToolJSX,
-          canUseTool,
-        )
-        break
-    }
-    void isAlreadyProcessing
-    void canUseTool
-
-    if (result.messages.length === 0) {
-      return {
-        messages: [],
-        shouldQuery: false,
-        ...(result.model !== undefined ? { model: result.model } : {}),
-        ...(result.nextInput !== undefined ? { nextInput: result.nextInput } : {}),
-        ...(result.submitNextInput !== undefined
-          ? { submitNextInput: result.submitNextInput }
-          : {}),
-      }
-    }
-    const second = result.messages[1]
-    const secondIsUnknown =
-      result.messages.length === 2 &&
-      second?.type === 'user' &&
-      typeof (second as UserMessage).message.content === 'string' &&
-      ((second as UserMessage).message.content as string).startsWith(UNKNOWN_COMMAND_PREFIX)
-    if (secondIsUnknown) {
-      return { ...result, messages: [caveat, ...result.messages] }
-    }
-    const allLocalCommand = result.messages.every(
-      m => m.type === 'system' && (m as { subtype?: string }).subtype === 'local_command',
-    )
-    const firstIsCompactBoundary =
-      result.messages[0] !== undefined && isCompactBoundaryMessage(result.messages[0])
-    if (!result.shouldQuery && !allLocalCommand && !firstIsCompactBoundary) {
-      return { ...result, messages: [caveat, ...result.messages] }
-    }
-    return result
-  } catch (error) {
-    if ((error as { isMalformedCommand?: boolean } | null)?.isMalformedCommand === true) {
-      return {
-        messages: [createUserMessage({ content: String((error as Error).message) })],
-        shouldQuery: false,
-      }
-    }
-    throw error
-  }
+  return notBuilt('src/services/processUserInput/processSlashCommand.tsx:415')
 }
 
 

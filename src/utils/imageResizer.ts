@@ -14,27 +14,19 @@ import { formatFileSize } from './format.js'
 import { logError } from './log.js'
 import { conversationEditKey, settleWireEdits, type WireEdit } from './messages/wireEdits.js'
 import { passedOver } from './passedOver.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 
 export class ImageResizeError extends Error {
   constructor(message: string) {
-    super(message)
-    this.name = 'ImageResizeError'
+    notBuilt('src/utils/imageResizer.ts:20')
+    super(...(notBuilt('src/utils/imageResizer.ts:20') as ConstructorParameters<typeof Error>))
   }
 }
 
-export type ImageDimensions = {
-  originalWidth?: number
-  originalHeight?: number
-  displayWidth?: number
-  displayHeight?: number
-}
+export type ImageDimensions = Unbuilt
 
-type ResizeResult = {
-  buffer: Buffer
-  mediaType: string
-  dimensions?: ImageDimensions
-}
+type ResizeResult = Unbuilt
 
 type ImageBlockWithDimensions = { block: ImageBlockParam; dimensions?: ImageDimensions }
 
@@ -141,24 +133,7 @@ async function resolveCaps(options: ResizeOptions | undefined): Promise<Caps> {
 
 
 export function detectImageFormatFromBuffer(buffer: Buffer): DetectedFormat {
-  if (buffer.length < 4) return 'image/png'
-  if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) return 'image/png'
-  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'image/jpeg'
-  if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) return 'image/gif'
-  if (
-    buffer.length >= 12 &&
-    buffer[0] === 0x52 &&
-    buffer[1] === 0x49 &&
-    buffer[2] === 0x46 &&
-    buffer[3] === 0x46 &&
-    buffer[8] === 0x57 &&
-    buffer[9] === 0x45 &&
-    buffer[10] === 0x42 &&
-    buffer[11] === 0x50
-  ) {
-    return 'image/webp'
-  }
-  return 'image/png'
+  return notBuilt('src/utils/imageResizer.ts:143')
 }
 
 export function detectImageFormatFromBase64(base64: string): DetectedFormat {
@@ -252,78 +227,7 @@ export async function maybeResizeAndDownsampleImageBuffer(
   ext: string,
   options?: ResizeOptions,
 ): Promise<ResizeResult> {
-  if (imageBuffer.length === 0) {
-    throw new ImageResizeError('Image resizing failed: the image buffer is empty.')
-  }
-  const caps = await resolveCaps(options)
-  const role: ImageRole = options?.role ?? 'input'
-  const sharp = await getImageProcessor()
-  const sourceSubtype = normalizeSubtype(imageDimensionsFromHeader(imageBuffer)?.format ?? ext)
-  const dims = await readDimensions(sharp, imageBuffer)
-  const fitsBytes = (bytes: number): boolean => bytes <= caps.rawBytes
-
-  if (dims === null) {
-    if (fitsBytes(originalSize)) return { buffer: imageBuffer, mediaType: sourceSubtype }
-    throw new ImageResizeError(
-      `The image is ${formatFileSize(originalSize)} (${formatFileSize(base64LengthOf(originalSize))} as base64), over ${limitWords(caps, role)}, and its format could not be decoded here to shrink it.`,
-    )
-  }
-
-  const { width, height } = dims
-  const target = fitDimensions(width, height, caps)
-  const unchanged: ImageDimensions = { originalWidth: width, originalHeight: height, displayWidth: width, displayHeight: height }
-  if (target === null && fitsBytes(originalSize)) {
-    return { buffer: imageBuffer, mediaType: sourceSubtype, dimensions: unchanged }
-  }
-
-  const failures: string[] = []
-  const tryEncode = async (dimensions: { width: number; height: number } | null, encoding: Encoding): Promise<ResizeResult | null> => {
-    try {
-      const produced = await attempt(sharp, imageBuffer, sourceSubtype, dimensions, encoding)
-      if (!fitsBytes(produced.length)) return null
-      const shown = imageDimensionsFromHeader(produced) ?? dimensions ?? { width, height }
-      return {
-        buffer: produced,
-        mediaType: subtypeOf(produced),
-        dimensions: { originalWidth: width, originalHeight: height, displayWidth: shown.width, displayHeight: shown.height },
-      }
-    } catch (err) {
-      failures.push(err instanceof Error ? err.message : String(err))
-      return null
-    }
-  }
-
-  const javascriptRoad = (await imageProcessorState()).road === 'javascript'
-  const rungs: Array<{ dimensions: { width: number; height: number } | null; encoding: Encoding }> = []
-  const base = target ?? { width, height }
-  if (target !== null) rungs.push({ dimensions: target, encoding: { kind: 'source' } })
-  if (!javascriptRoad) {
-    rungs.push({ dimensions: target, encoding: { kind: 'png', palette: true } })
-    for (const quality of [80, 60, 40]) rungs.push({ dimensions: target, encoding: { kind: 'jpeg', quality } })
-  } else if (target === null) {
-    rungs.push({ dimensions: null, encoding: { kind: 'png', palette: false } })
-  }
-  for (const scale of [0.75, 0.5, 0.35, 0.25, 0.15]) {
-    const step = { width: Math.max(1, Math.floor(base.width * scale)), height: Math.max(1, Math.floor(base.height * scale)) }
-    rungs.push({ dimensions: step, encoding: { kind: 'png', palette: !javascriptRoad } })
-    if (!javascriptRoad) rungs.push({ dimensions: step, encoding: { kind: 'jpeg', quality: 60 } })
-  }
-  const last = { width: Math.max(1, Math.min(base.width, Math.floor(base.width * 0.1))), height: Math.max(1, Math.min(base.height, Math.floor(base.height * 0.1))) }
-  rungs.push({ dimensions: last, encoding: javascriptRoad ? { kind: 'png', palette: false } : { kind: 'jpeg', quality: 30 } })
-
-  for (const rung of rungs) {
-    const result = await tryEncode(rung.dimensions, rung.encoding)
-    if (result !== null) return result
-  }
-
-  const reasons = failures.length > 0 ? ` ${failures[0]}.` : ''
-  const sizeWords = `${width}x${height} px, ${formatFileSize(originalSize)} (${formatFileSize(base64LengthOf(originalSize))} as base64)`
-  if (failures.length === rungs.length) {
-    throw new ImageResizeError(`The image is ${sizeWords}, over ${limitWords(caps, role)}, and it could not be re-encoded here.${reasons}`)
-  }
-  throw new ImageResizeError(
-    `The image is ${sizeWords}; even the smallest encoding tried (${last.width}x${last.height} px ${javascriptRoad ? 'PNG' : 'JPEG'}) is over ${limitWords(caps, role)}.`,
-  )
+  return notBuilt('src/utils/imageResizer.ts:249')
 }
 
 
@@ -331,21 +235,7 @@ export async function maybeResizeAndDownsampleImageBlock(
   imageBlock: ImageBlockParam,
   options?: ResizeOptions,
 ): Promise<ImageBlockWithDimensions> {
-  if (imageBlock.source.type !== 'base64') return { block: imageBlock }
-  const buffer = Buffer.from(imageBlock.source.data, 'base64')
-  const ext = imageBlock.source.media_type?.split('/')[1] || 'png'
-  const result = await maybeResizeAndDownsampleImageBuffer(buffer, buffer.length, ext, options)
-  return {
-    block: {
-      ...imageBlock,
-      source: {
-        type: 'base64',
-        media_type: `image/${result.mediaType}` as Base64ImageSource['media_type'],
-        data: result.buffer.toString('base64'),
-      },
-    },
-    dimensions: result.dimensions,
-  }
+  return notBuilt('src/utils/imageResizer.ts:330')
 }
 
 export async function clampToolResultImageBlocks(
@@ -671,40 +561,7 @@ async function compressImageBuffer(
   maxBytes: number,
   originalMediaType?: string,
 ): Promise<{ base64: string; mediaType: DetectedFormat; originalSize: number }> {
-  const originalSize = imageBuffer.length
-  const detected = detectImageFormatFromBuffer(imageBuffer)
-  if (originalSize <= maxBytes) {
-    return { base64: imageBuffer.toString('base64'), mediaType: detected, originalSize }
-  }
-  const sharp = await getImageProcessor()
-  const format = normalizeSubtype(detected.replace('image/', '') || originalMediaType?.split('/')[1] || 'jpeg')
-  const dims = await readDimensions(sharp, imageBuffer)
-  const width = dims?.width ?? 2000
-  const height = dims?.height ?? 2000
-  const encode = async (target: { width: number; height: number } | null, encoding: Encoding): Promise<Buffer | null> => {
-    try {
-      return await attempt(sharp, imageBuffer, format, target, encoding)
-    } catch (err) {
-      logError(err)
-      return null
-    }
-  }
-  for (const scale of [1, 0.75, 0.5, 0.25]) {
-    const target = { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) }
-    const output = await encode(target, format === 'png' ? { kind: 'png', palette: true } : format === 'webp' ? { kind: 'webp', quality: 80 } : { kind: 'jpeg', quality: 80 })
-    if (output !== null && output.length <= maxBytes) return { base64: output.toString('base64'), mediaType: detectImageFormatFromBuffer(output), originalSize }
-  }
-  for (const [side, encoding] of [
-    [800, { kind: 'png', palette: true } as Encoding],
-    [600, { kind: 'jpeg', quality: 50 } as Encoding],
-    [400, { kind: 'jpeg', quality: 20 } as Encoding],
-  ] as const) {
-    const output = await encode({ width: side, height: side }, encoding)
-    if (output !== null && output.length <= maxBytes) return { base64: output.toString('base64'), mediaType: detectImageFormatFromBuffer(output), originalSize }
-  }
-  throw new ImageResizeError(
-    `Image compression failed: the image is ${formatFileSize(originalSize)} and no encoding tried fit the ${formatFileSize(maxBytes)} read budget (the Read tool's token budget, not a provider limit). Supply a smaller image or a smaller budget.`,
-  )
+  return notBuilt('src/utils/imageResizer.ts:669')
 }
 
 export async function compressImageBufferWithTokenLimit(
@@ -712,9 +569,7 @@ export async function compressImageBufferWithTokenLimit(
   maxTokens: number,
   originalMediaType?: string,
 ): Promise<{ base64: string; mediaType: DetectedFormat; originalSize: number }> {
-  const maxBase64Chars = Math.floor(maxTokens / 0.125)
-  const maxBytes = Math.floor(maxBase64Chars * 0.75)
-  return compressImageBuffer(imageBuffer, maxBytes, originalMediaType)
+  return notBuilt('src/utils/imageResizer.ts:710')
 }
 
 export async function compressImageBlock(imageBlock: ImageBlockParam, maxBytes: number): Promise<ImageBlockParam> {

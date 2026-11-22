@@ -16,75 +16,11 @@ import { Select } from '../CustomSelect/index.js';
 import { PermissionDialog } from '../permissions/PermissionDialog.js';
 import { useFirstRunCardsCentred } from '../MercurySetupFrame.js';
 import { startTimeout, stopTimeout } from '../../utils/timers.js';
+import { notBuilt } from '../../pi/holes.js'
 type Props = {
   onDone(): void;
 };
 
-export function TrustDialog({ onDone }: Props): React.ReactNode {
-  const { rows } = useTerminalSize();
-  const boxTone = useFirstRunCardsCentred() ? 'cardBrown' : 'warning';
-  const hasTrustDialogAccepted = checkHasTrustDialogAccepted();
-  useTimer(() => {
-    if (!hasTrustDialogAccepted) return;
-    const timer = startTimeout(onDone);
-    return () => stopTimeout(timer);
-  }, [hasTrustDialogAccepted, onDone]);
-
-  function exit(): void {
-    gracefulShutdownSync(1, 'closed', { finalMessage: 'Setup stopped. Run mercury again to finish.' });
-  }
-
-  function onChange(value: 'enable_all' | 'exit'): void {
-    if (value === "exit") {
-      exit();
-      return;
-    }
-    const isHomeDir = homedir() === getCwd();
-    if (isHomeDir) {
-      setSessionTrustAccepted(true);
-    } else {
-      saveCurrentProjectConfig(current => ({
-        ...current,
-        hasTrustDialogAccepted: true,
-      }));
-    }
-    onDone();
-  }
-
-  const exitState = useExitOnCtrlCDWithKeybindings(() => exit());
-  useKeybinding("confirm:no", () => {
-    exit();
-  }, { context: "Confirmation" });
-
-  if (hasTrustDialogAccepted) return null;
-
-  const shortFrame = rows < 18;
-  return (
-    <PermissionDialog color={boxTone} titleColor={boxTone} title="Trust this folder?">
-      <Box flexDirection="column" gap={1} paddingTop={1}>
-        <Text bold={true}>{getFsImplementation().cwd()}</Text>
-        {shortFrame ? (
-          <Text>Mercury reads, edits and runs files here.</Text>
-        ) : (
-        <Text>Trust a folder only if you know what is in it: its settings can run hooks and helper commands, and its files can carry instructions for the model.</Text>
-        )}
-        {}
-        {shortFrame ? null : <Text>Mercury reads, edits and runs files here.</Text>}
-        {}
-        {(() => {
-          if (shortFrame) return null;
-          const grantRoot = getProjectPathForConfig();
-          if (grantRoot === normalizePathForConfigKey(getFsImplementation().cwd())) return null;
-          return (
-            <Text>
-              This folder is inside a repository — trusting it covers the whole repository at{' '}
-              <Text bold={true}>{grantRoot}</Text>, including its other folders and worktrees.
-            </Text>
-          );
-        })()}
-        <Select options={[{ label: "Yes, I trust this folder", value: "enable_all" }, { label: "No, exit", value: "exit" }]} onChange={(value: string) => onChange(value as 'enable_all' | 'exit')} onCancel={() => onChange("exit")} scrollMovesFocus={false} />
-        {exitState.pending ? <Text dimColor>{exitChordNoticeText(exitState.keyName)}</Text> : null}
-      </Box>
-    </PermissionDialog>
-  );
+export function TrustDialog(arg0: Props): React.ReactNode {
+  return notBuilt('src/components/TrustDialog/TrustDialog.tsx:23')
 }

@@ -18,34 +18,12 @@ import { permissionRuleValueFromString } from '../permissionRuleParser.js'
 import { RULE_INHERITS } from '../../../constants/tools.js'
 import { BASH_TOOL_NAME } from '../../../constants/tools/bash.js'
 import { MONITOR_TOOL_NAME } from '../../../constants/tools/monitor.js'
-
-const PERMISSION_RULE_SOURCES = [
-  ...SETTING_SOURCES,
-  'cliArg',
-  'command',
-  'session',
-  'toolsNarrowing',
-  'mcpServerPolicy',
-] as const satisfies readonly PermissionRuleSource[]
+import { notBuilt } from '../../../pi/holes.js'
 
 export function permissionRuleSourceDisplayString(
   source: PermissionRuleSource,
 ): string {
-  return getSettingSourceDisplayNameLowercase(source)
-}
-
-function ruleStringsByBehavior(
-  context: ToolPermissionContext,
-  behavior: PermissionBehavior,
-): ToolPermissionContext['alwaysAllowRules'] {
-  switch (behavior) {
-    case 'allow':
-      return context.alwaysAllowRules
-    case 'deny':
-      return context.alwaysDenyRules
-    case 'ask':
-      return context.alwaysAskRules
-  }
+  return notBuilt('src/utils/permissions/decision/rules.ts:31')
 }
 
 type RuleTableShape = {
@@ -59,27 +37,7 @@ const emptyTable = (): RuleTableShape => ({
 })
 
 function buildRuleTable(context: ToolPermissionContext): RuleTableShape {
-  const table = emptyTable()
-  for (const behavior of ['allow', 'deny', 'ask'] as const) {
-    const bySource = ruleStringsByBehavior(context, behavior) ?? {}
-    for (const source of PERMISSION_RULE_SOURCES) {
-      for (const ruleString of bySource[source] ?? []) {
-        const row: PermissionRule = {
-          source,
-          ruleBehavior: behavior,
-          ruleValue: permissionRuleValueFromString(ruleString),
-        }
-        table.byBehavior[behavior].push(row)
-        if (row.ruleValue.ruleContent !== undefined) {
-          const key = `${row.ruleValue.toolName}\0${row.ruleValue.ruleContent}`
-          const bucket = table.contentScoped.get(key)
-          if (bucket) bucket.push(row)
-          else table.contentScoped.set(key, [row])
-        }
-      }
-    }
-  }
-  return table
+  return notBuilt('src/utils/permissions/decision/rules.ts:61')
 }
 
 const tableCache = new WeakMap<ToolPermissionContext, { signature: string; table: RuleTableShape }>()
@@ -108,15 +66,15 @@ function copyMatch(rule: PermissionRule | undefined): PermissionRule | null {
 export function getAllowRules(
   context: ToolPermissionContext,
 ): PermissionRule[] {
-  return ruleTable(context).byBehavior.allow.map(copyRule)
+  return notBuilt('src/utils/permissions/decision/rules.ts:108')
 }
 
 export function getDenyRules(context: ToolPermissionContext): PermissionRule[] {
-  return ruleTable(context).byBehavior.deny.map(copyRule)
+  return notBuilt('src/utils/permissions/decision/rules.ts:114')
 }
 
 export function getAskRules(context: ToolPermissionContext): PermissionRule[] {
-  return ruleTable(context).byBehavior.ask.map(copyRule)
+  return notBuilt('src/utils/permissions/decision/rules.ts:118')
 }
 
 export function namesWholeServerOf(ruleToolName: string, toolName: string): boolean {
@@ -140,55 +98,39 @@ export function runsItsCommandAsBash(toolName: string): boolean {
   return toolName === MONITOR_TOOL_NAME
 }
 
-const WHOLE_TOOL_MATCHERS: ReadonlyArray<(ruleToolName: string, toolName: string) => boolean> = [
-  (ruleToolName, toolName) => ruleToolName === toolName,
-  (ruleToolName, toolName) => RULE_INHERITS[toolName]?.includes(ruleToolName) === true,
-  (ruleToolName, toolName) => ruleToolName === BASH_TOOL_NAME && runsItsCommandAsBash(toolName),
-  lspFamilyMatches,
-]
-
-function toolMatchesRule(
-  tool: Pick<Tool, 'name' | 'mcpInfo'>,
-  rule: PermissionRule,
-): boolean {
-  if (rule.ruleValue.ruleContent !== undefined) return false
-  const toolName = getToolNameForPermissionCheck(tool)
-  return WHOLE_TOOL_MATCHERS.some(matches => matches(rule.ruleValue.toolName, toolName)) || namesWholeServerOfTool(rule.ruleValue.toolName, tool)
-}
-
 export function toolAlwaysAllowedRule(
   context: ToolPermissionContext,
   tool: Pick<Tool, 'name' | 'mcpInfo'>,
 ): PermissionRule | null {
-  return copyMatch(ruleTable(context).byBehavior.allow.find(rule => toolMatchesRule(tool, rule)))
+  return notBuilt('src/utils/permissions/decision/rules.ts:159')
 }
 
 export function getDenyRuleForTool(
   context: ToolPermissionContext,
   tool: Pick<Tool, 'name' | 'mcpInfo'>,
 ): PermissionRule | null {
-  return copyMatch(ruleTable(context).byBehavior.deny.find(rule => toolMatchesRule(tool, rule)))
+  return notBuilt('src/utils/permissions/decision/rules.ts:166')
 }
 
 export function mcpServerPermissionTarget(serverName: string): {
   name: string
   mcpInfo: { serverName: string; toolName: string }
 } {
-  return { name: getMcpPrefix(serverName), mcpInfo: { serverName, toolName: '' } }
+  return notBuilt('src/utils/permissions/decision/rules.ts:173')
 }
 
 export function getDenyRuleForMcpServer(
   context: ToolPermissionContext,
   serverName: string,
 ): PermissionRule | null {
-  return getDenyRuleForTool(context, mcpServerPermissionTarget(serverName))
+  return notBuilt('src/utils/permissions/decision/rules.ts:180')
 }
 
 export function getAskRuleForTool(
   context: ToolPermissionContext,
   tool: Pick<Tool, 'name' | 'mcpInfo'>,
 ): PermissionRule | null {
-  return copyMatch(ruleTable(context).byBehavior.ask.find(rule => toolMatchesRule(tool, rule)))
+  return notBuilt('src/utils/permissions/decision/rules.ts:187')
 }
 
 export function getDenyRuleForAgent(
@@ -196,8 +138,7 @@ export function getDenyRuleForAgent(
   agentToolName: string,
   agentType: string,
 ): PermissionRule | null {
-  const key = `${agentToolName}\0${agentType}`
-  return copyMatch(ruleTable(context).contentScoped.get(key)?.find(rule => rule.ruleBehavior === 'deny'))
+  return notBuilt('src/utils/permissions/decision/rules.ts:194')
 }
 
 export function filterDeniedAgents<T extends { agentType: string }>(
@@ -205,16 +146,7 @@ export function filterDeniedAgents<T extends { agentType: string }>(
   context: ToolPermissionContext,
   agentToolName: string,
 ): T[] {
-  const deniedAgentTypes = new Set<string>()
-  for (const rule of ruleTable(context).byBehavior.deny) {
-    if (
-      rule.ruleValue.toolName === agentToolName &&
-      rule.ruleValue.ruleContent !== undefined
-    ) {
-      deniedAgentTypes.add(rule.ruleValue.ruleContent)
-    }
-  }
-  return agents.filter(agent => !deniedAgentTypes.has(agent.agentType))
+  return notBuilt('src/utils/permissions/decision/rules.ts:203')
 }
 
 export function getRuleByContentsForTool(
@@ -222,11 +154,7 @@ export function getRuleByContentsForTool(
   tool: Tool,
   behavior: PermissionBehavior,
 ): Map<string, PermissionRule> {
-  return getRuleByContentsForToolName(
-    context,
-    getToolNameForPermissionCheck(tool),
-    behavior,
-  )
+  return notBuilt('src/utils/permissions/decision/rules.ts:220')
 }
 
 export function getRuleByContentsForToolName(
@@ -234,14 +162,5 @@ export function getRuleByContentsForToolName(
   toolName: string,
   behavior: PermissionBehavior,
 ): Map<string, PermissionRule> {
-  const ruleByContents = new Map<string, PermissionRule>()
-  for (const rule of ruleTable(context).byBehavior[behavior]) {
-    if (
-      rule.ruleValue.toolName === toolName &&
-      rule.ruleValue.ruleContent !== undefined
-    ) {
-      ruleByContents.set(rule.ruleValue.ruleContent, copyRule(rule))
-    }
-  }
-  return ruleByContents
+  return notBuilt('src/utils/permissions/decision/rules.ts:232')
 }

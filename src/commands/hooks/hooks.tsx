@@ -1,9 +1,3 @@
-import { HooksConfigMenu } from '../../components/hooks/HooksConfigMenu.js';
-import { getTools } from '../../tools.js';
-import type { LocalJSXCommandCall } from '../../types/command.js';
-export const call: LocalJSXCommandCall = async (onDone, context) => {
-  const appState = context.getAppState();
-  const permissionContext = appState.toolPermissionContext;
-  const toolNames = getTools(permissionContext).map(tool => tool.name);
-  return <HooksConfigMenu toolNames={toolNames} onExit={onDone} />;
-};
+import type { LocalJSXCommandCall } from '../../types/command.js'
+import { notBuilt } from '../../pi/holes.js'
+export const call: LocalJSXCommandCall = async (onDone, context) => notBuilt('src/commands/hooks/hooks.tsx:4');

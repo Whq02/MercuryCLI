@@ -2,11 +2,12 @@ import { getSdkBetas } from '../../bootstrap/state.js'
 import { getGlobalConfig } from '../config.js'
 import { getContextWindowForModel, getModelInputCeiling, getModelMaxOutputTokens } from '../model/capabilities.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export const MIN_AUTOCOMPACT_WINDOW = 100_000
 export const MAX_AUTOCOMPACT_WINDOW = 1_000_000
-export const WARNING_THRESHOLD_BUFFER_TOKENS = 20_000
-export const MANUAL_COMPACT_BUFFER_TOKENS = 3_000
+export const WARNING_THRESHOLD_BUFFER_TOKENS: Unbuilt = unbuilt('src/utils/compact/autoCompactWindow.ts:8')
+export const MANUAL_COMPACT_BUFFER_TOKENS: Unbuilt = unbuilt('src/utils/compact/autoCompactWindow.ts:9')
 export const AUTOCOMPACT_BUFFER_TOKENS = 20_000
 
 const SUMMARY_OUTPUT_RESERVE_TOKENS = 20_000
@@ -72,15 +73,7 @@ export function thresholdOverridden(): boolean {
 }
 
 function autoCompactThreshold(model: string, fixedTokens: number): number {
-  const full = getBlockingLimit(model)
-  const oneTurn = Math.ceil(full / SUMMARY_RESERVE_MAX_WINDOW_DIVISOR)
-  const fixedFloor = Math.max(0, Math.ceil(fixedTokens)) + oneTurn
-  const pct = pctOverride()
-  if (pct !== undefined) {
-    const effective = getEffectiveContextWindowSize(model)
-    return Math.min(Math.max(1, Math.floor((effective * pct) / 100)), full)
-  }
-  return Math.max(1, full - getTurnReserveTokens(model), fixedFloor)
+  return notBuilt('src/utils/compact/autoCompactWindow.ts:74')
 }
 
 export function getAutoCompactThresholdWithFixed(model: string, fixedTokens: number): number {
@@ -119,20 +112,5 @@ export function calculateTokenWarningState(
   model: string,
   settingsWindow?: number,
 ): { level: TokenWarningLevel; pctLeft?: number } {
-  const autoCompact = isAutoCompactEnabled()
-  const ceiling = autoCompact
-    ? getAutoCompactThreshold(model)
-    : getEffectiveContextWindowSize(model, settingsWindow)
-  const warningThreshold = Math.max(
-    ceiling - WARNING_THRESHOLD_BUFFER_TOKENS,
-    Math.ceil((ceiling * WARNING_MIN_CEILING_NUMERATOR) / WARNING_MIN_CEILING_DENOMINATOR),
-  )
-  const blockingLimit = getBlockingLimit(model, settingsWindow)
-  const window = getContextWindowForModel(model, getSdkBetas())
-  const pctLeft = window > 0 ? Math.max(0, Math.round(((ceiling - tokenUsage) / window) * 100)) : 0
-  let level: TokenWarningLevel = 'ok'
-  if (tokenUsage >= blockingLimit) level = 'blocked'
-  else if (autoCompact && tokenUsage >= ceiling) level = 'compact'
-  else if (tokenUsage >= warningThreshold) level = 'warn'
-  return { level, pctLeft }
+  return notBuilt('src/utils/compact/autoCompactWindow.ts:117')
 }

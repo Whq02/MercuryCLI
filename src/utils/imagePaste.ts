@@ -1,4 +1,3 @@
-
 import { randomBytes } from 'node:crypto'
 import { copyFile, mkdir, writeFile } from 'node:fs/promises'
 import { basename, extname, isAbsolute, join, resolve } from 'node:path'
@@ -18,17 +17,11 @@ import { escapeForPowershellSingleQuotes } from './powershellLiteral.js'
 import { passedOver } from './passedOver.js'
 import { hostEnv } from './hostEnv.js'
 import { normalizedOsPlatform } from './platform/programs.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
-export const PASTE_THRESHOLD = 800
+export const PASTE_THRESHOLD: Unbuilt = unbuilt('src/utils/imagePaste.ts:22')
 
-const IMAGE_EXTENSION_REGEX = /\.(png|jpe?g|gif|webp)$/i
-
-type ImageWithDimensions = {
-  base64: string
-  mediaType: string
-  dimensions?: ImageDimensions
-  byteLength?: number
-}
+type ImageWithDimensions = Unbuilt
 
 
 type ClipboardPlatform = 'darwin' | 'linux' | 'win32'
@@ -73,75 +66,11 @@ export async function hasImageInClipboard(): Promise<boolean> {
 
 
 async function checkClipboardImage(platform: ClipboardPlatform): Promise<boolean> {
-  const fixture = fixtureClipboardFile()
-  if (fixture !== null) return getFsImplementation().existsSync(fixture)
-  if (platform === 'darwin') {
-    const result = await execFileNoThrow('osascript', ['-e', 'the clipboard as «class PNGf»'])
-    return result.code === 0
-  }
-  if (platform === 'win32') {
-    const result = await execFileNoThrow('powershell', [
-      '-NoProfile',
-      '-Command',
-      '$img = Get-Clipboard -Format Image; if ($null -eq $img) { exit 1 }; exit 0',
-    ])
-    return result.code === 0
-  }
-  const imageMime = /image\/(png|jpe?g|gif|webp|bmp)/i
-  const xTargets = await execFileNoThrow('xclip', ['-selection', 'clipboard', '-t', 'TARGETS', '-o'])
-  if (xTargets.code === 0 && imageMime.test(xTargets.stdout)) return true
-  const wlTypes = await execFileNoThrow('wl-paste', ['--list-types'])
-  return wlTypes.code === 0 && imageMime.test(wlTypes.stdout)
+  return notBuilt('src/utils/imagePaste.ts:75')
 }
 
 async function saveClipboardImage(platform: ClipboardPlatform, path: string): Promise<boolean> {
-  const fixture = fixtureClipboardFile()
-  if (fixture !== null) {
-    try {
-      await copyFile(fixture, path)
-      return true
-    } catch (error) {
-      passedOver(error)
-      return false
-    }
-  }
-  if (platform === 'darwin') {
-    const script = [
-      `set theFile to open for access POSIX file "${path}" with write permission`,
-      'write (the clipboard as «class PNGf») to theFile',
-      'close access theFile',
-    ]
-    const result = await execFileNoThrow('osascript', script.flatMap(line => ['-e', line]))
-    return result.code === 0
-  }
-  if (platform === 'win32') {
-    const result = await execFileNoThrow('powershell', [
-      '-NoProfile',
-      '-Command',
-      `Add-Type -AssemblyName System.Drawing; $img = Get-Clipboard -Format Image; if ($null -eq $img) { exit 1 }; $img.Save('${escapeForPowershellSingleQuotes(path)}', [System.Drawing.Imaging.ImageFormat]::Png); exit 0`,
-    ])
-    return result.code === 0
-  }
-  const attempts: Array<[string, string[]]> = [
-    ['xclip', ['-selection', 'clipboard', '-t', 'image/png', '-o']],
-    ['wl-paste', ['--type', 'image/png']],
-    ['xclip', ['-selection', 'clipboard', '-t', 'image/bmp', '-o']],
-    ['wl-paste', ['--type', 'image/bmp']],
-  ]
-  for (const [tool, args] of attempts) {
-    let stdout: Uint8Array
-    try {
-      const result = await execa(tool, args, { encoding: 'buffer', windowsHide: true, timeout: 2000 })
-      if (result.exitCode !== 0 || result.stdout.length === 0) continue
-      stdout = result.stdout
-    } catch (error) {
-      passedOver(error)
-      continue
-    }
-    await writeFile(path, stdout)
-    return true
-  }
-  return false
+  return notBuilt('src/utils/imagePaste.ts:97')
 }
 
 async function readClipboardPathText(platform: ClipboardPlatform): Promise<string | null> {
@@ -239,47 +168,16 @@ function cleanPath(text: string): string {
 }
 
 export function isImageFilePath(text: string): boolean {
-  return IMAGE_EXTENSION_REGEX.test(cleanPath(text))
+  return notBuilt('src/utils/imagePaste.ts:241')
 }
 
 export function asImageFilePath(text: string): string | null {
-  const cleaned = cleanPath(text)
-  return IMAGE_EXTENSION_REGEX.test(cleaned) ? cleaned : null
+  return notBuilt('src/utils/imagePaste.ts:245')
 }
 
 
 export async function tryReadImageFromPath(
   text: string,
 ): Promise<(ImageWithDimensions & { path: string }) | null> {
-  const cleaned = asImageFilePath(text)
-  if (cleaned === null) return null
-  let readFrom: string | null = null
-  if (isAbsolute(cleaned)) {
-    readFrom = cleaned
-  } else if (getFsImplementation().existsSync(resolve(cleaned))) {
-    readFrom = resolve(cleaned)
-  } else {
-    const clipboardPath = await getImagePathFromClipboard()
-    if (clipboardPath && basename(clipboardPath) === basename(cleaned)) {
-      readFrom = clipboardPath
-    }
-  }
-  if (readFrom === null) return null
-  let raw: Buffer
-  try {
-    raw = await getFsImplementation().readFileBytes(readFrom)
-  } catch (error) {
-    logError(error)
-    return null
-  }
-  if (raw.length === 0) {
-    logForDebugging(`imagePaste: pasted image file is empty: ${readFrom}`)
-    return null
-  }
-  const normalized = await normalizeBmp(raw)
-  const ext = extname(cleaned).slice(1).toLowerCase() || 'png'
-  const resized = await maybeResizeAndDownsampleImageBuffer(normalized, normalized.length, ext)
-  const base64 = resized.buffer.toString('base64')
-  const mediaType = detectImageFormatFromBase64(base64)
-  return { base64, mediaType, dimensions: resized.dimensions, byteLength: resized.buffer.length, path: cleaned }
+  return notBuilt('src/utils/imagePaste.ts:251')
 }

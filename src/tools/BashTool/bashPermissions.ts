@@ -67,6 +67,7 @@ import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
 import { posix as posixPath } from 'node:path'
 import { stripLeadingSafeEnvVars, stripSafeWrappers } from '../../utils/permissions/safeWrappers.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export { matchWildcardPattern, permissionRuleExtractPrefix, readBashRuleVerdict, stripAllLeadingEnvVars, stripSafeWrappers }
 
@@ -84,22 +85,15 @@ type BashInput = {
 
 
 function suggestedCommandPrefix(command: string): string | null {
-  let current = command.trim()
-  for (;;) {
-    const next = stripLeadingSafeEnvVars(current)
-    if (next === current) return knownShellCommandPrefix(current)
-    current = next
-  }
+  return notBuilt('src/tools/BashTool/bashPermissions.ts:86')
 }
 
 export function getSimpleCommandPrefix(command: string): string | null {
-  const prefix = suggestedCommandPrefix(command)
-  return prefix?.includes(' ') ? prefix : null
+  return notBuilt('src/tools/BashTool/bashPermissions.ts:95')
 }
 
 export function getFirstWordPrefix(command: string): string | null {
-  const prefix = suggestedCommandPrefix(command)
-  return prefix !== null && !prefix.includes(' ') ? prefix : null
+  return notBuilt('src/tools/BashTool/bashPermissions.ts:100')
 }
 
 function normalizedWords(command: string): string[][] {
@@ -161,67 +155,14 @@ export function bashToolCheckExactMatchPermission(
   }
 }
 
-function approvalSentence(shown: string, reason: NotReadOnly | undefined): string {
-  const clause = reason === undefined ? '' : `: ${notReadOnlyClause(reason)}`
-  const sentence = `\`${cutPart(shown)}\` requires approval${clause}`
-  return /[.!?]$/.test(sentence) ? sentence : `${sentence}.`
-}
-
 export function bashToolCheckPermission(
   input: BashInput,
   context: ToolPermissionContext,
-  compoundHasCd = false,
+  compoundHasCd?: boolean,
   astCommand?: SimpleCommand,
   shown?: string,
 ): PermissionResult {
-  const exact = bashToolCheckExactMatchPermission(input, context)
-  if (exact.behavior === 'deny') return exact
-  const parsed = astCommand ? { kind: 'simple' as const, commands: [astCommand] } : preparedSecurityParse(input.command)
-  if (parsed.kind !== 'simple') return unprovenAsk(parsed.kind === 'too-complex' ? parsed.reason : 'the shell parser has not produced a tree; retry the command, or approve')
-  const semantic = pinnedCommandAnalysis.checkSemantics(parsed.commands)
-  if (!semantic.ok) return unprovenAsk(semantic.reason)
-  if (parsed.commands.length !== 1) return unprovenAsk('this entry needs one parsed command; split the command, or approve')
-  astCommand = parsed.commands[0]
-  if (exact.behavior === 'ask') return exact
-
-  const command = input.command.trim()
-  const skipCompoundGuard = astCommand !== undefined
-  const deny = matchRules(command, context, 'deny', 'prefix', true)
-  if (deny !== null) {
-    return denyByRule(context, command, deny, () => matchAllRules(command, context, 'deny', 'prefix', true))
-  }
-  const ask = matchRules(command, context, 'ask', 'prefix', true)
-  if (ask !== null) {
-    return askByRule(context, command, ask)
-  }
-  const path = checkPathConstraints(
-    input,
-    resolveShellCwd(input.cwd),
-    context,
-    compoundHasCd,
-    astCommand?.redirects,
-    astCommand ? [astCommand] : undefined,
-  )
-  if (path.behavior !== 'passthrough') return path
-  if (exact.behavior === 'allow') return exact
-  const prefixAllow = matchRules(command, context, 'allow', 'prefix', skipCompoundGuard)
-  if (prefixAllow !== null) {
-    return { behavior: 'allow', updatedInput: input, decisionReason: ruleReason(context, prefixAllow, 'allow') }
-  }
-  const sed = checkSedConstraints(input, context)
-  if (sed.behavior !== 'passthrough') return sed
-  const mode = checkPermissionMode(input, context)
-  if (mode.behavior !== 'passthrough') return mode
-  if (!compoundHasCd && astCommand !== undefined &&
-    isCurrentDirectoryCommand(astCommand, resolveShellCwd(input.cwd))) {
-    return { behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'The directory is already current' } }
-  }
-  const readOnly = checkPreparedReadOnlyConstraints(input, compoundHasCd, astCommand ? { ...astCommand, redirects: [] } : undefined, SHELL_C_MAX_DEPTH)
-  if (readOnly.behavior === 'allow') {
-    return { behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'Read-only command is allowed' } }
-  }
-  const reason = approvalSentence(shown ?? command, readOnly.notReadOnly)
-  return { behavior: 'passthrough', message: reason, decisionReason: { type: 'other', reason }, suggestions: suggestionForExactCommand(TOOL_NAME, command) }
+  return notBuilt('src/tools/BashTool/bashPermissions.ts:170')
 }
 
 async function checkCommandAndSuggestRules(
@@ -238,36 +179,8 @@ async function checkCommandAndSuggestRules(
   return { ...check, suggestions } as PermissionResult
 }
 
-export function rewriteReadOnlyGitCommand(command: string, cwd: string, depth = 0): string {
-  if (depth > SHELL_C_MAX_DEPTH) return command
-  const commands = preparedCommandSpans(command)
-  if (commands === null) return command
-  const spans: Array<{ start: number; end: number; text: string }> = []
-  for (const node of commands) {
-    if (!node.declaration) {
-      const parsed = preparedSecurityParse(node.text)
-      const simple = parsed.kind === 'simple' && parsed.commands.length === 1 ? parsed.commands[0] : undefined
-      if (simple && simple.envVars.length === 0 && simple.globOperand !== true && checkPreparedReadOnlyConstraints({ command: node.text, cwd }, false).behavior === 'allow') {
-        if (simple.argv[0] === 'git') {
-          const text = shellCommandText(['git', ...gitArgs(simple.argv.slice(1), cwd)])
-          if (text !== node.text) spans.push({ start: node.start, end: node.end, text })
-        } else {
-          const script = extractShellCScript(simple)
-          if (script !== null) {
-            const rewritten = rewriteReadOnlyGitCommand(script, cwd, depth + 1)
-            if (rewritten !== script) {
-              const argv = [...simple.argv]
-              argv[2] = rewritten
-              spans.push({ start: node.start, end: node.end, text: shellCommandText(argv) })
-            }
-          }
-        }
-      }
-    }
-  }
-  let rewritten = command
-  for (const span of spans.sort((a, b) => b.start - a.start)) rewritten = rewritten.slice(0, span.start) + span.text + rewritten.slice(span.end)
-  return rewritten
+export function rewriteReadOnlyGitCommand(command: string, cwd: string, depth?: number): string {
+  return notBuilt('src/tools/BashTool/bashPermissions.ts:241')
 }
 
 
@@ -381,41 +294,7 @@ async function decideWithDenyRuleReach(
 type RulesBySource = ToolPermissionContext['alwaysAllowRules']
 
 function contentRulesReadAsBash(context: ToolPermissionContext, toolName: string): { context: ToolPermissionContext; own: Set<string> } {
-  const own = new Set<string>()
-  const carried = (spelling: string): string | null => {
-    const value = permissionRuleValueFromString(spelling)
-    return value.toolName === toolName && value.ruleContent !== undefined ? value.ruleContent : null
-  }
-  const translate = (bySource: RulesBySource): RulesBySource => {
-    const out: Record<string, readonly string[]> = {}
-    for (const [source, spellings] of Object.entries(bySource ?? {})) {
-      const added: string[] = []
-      for (const spelling of spellings ?? []) {
-        const content = carried(spelling)
-        if (content === null) continue
-        own.add(content)
-        added.push(permissionRuleValueToString({ toolName: TOOL_NAME, ruleContent: content }))
-      }
-      out[source] = added.length === 0 ? spellings ?? [] : [...(spellings ?? []), ...added]
-    }
-    return out as RulesBySource
-  }
-  const allow = translate(context.alwaysAllowRules)
-  const deny = translate(context.alwaysDenyRules)
-  const ask = translate(context.alwaysAskRules)
-  if (own.size === 0) return { context, own }
-  const reasons: Record<string, Record<string, string>> = {}
-  for (const [source, bySpelling] of Object.entries(context.ruleReasons ?? {})) {
-    reasons[source] = { ...bySpelling }
-    for (const [spelling, words] of Object.entries(bySpelling ?? {})) {
-      const content = carried(spelling)
-      if (content !== null) reasons[source]![permissionRuleValueToString({ toolName: TOOL_NAME, ruleContent: content })] ??= words
-    }
-  }
-  return {
-    context: { ...context, alwaysAllowRules: allow, alwaysDenyRules: deny, alwaysAskRules: ask, ...(context.ruleReasons !== undefined ? { ruleReasons: reasons as ToolPermissionContext['ruleReasons'] } : {}) },
-    own,
-  }
+  return notBuilt('src/tools/BashTool/bashPermissions.ts:383')
 }
 
 function spelledForTool(result: PermissionResult, context: ToolPermissionContext, toolName: string, own: ReadonlySet<string>): PermissionResult {
@@ -777,92 +656,8 @@ function extractEvalScript(command: SimpleCommand): string | null {
   return command.argv.slice(1).join(' ')
 }
 
-function wrappedCommand(argv: string[]): string[] | null {
-  const [name] = argv
-  if (name === 'sudo' || name === 'doas') return privilegeTarget(argv)
-  if (name === 'busybox') return argv.slice(1)
-  if (name === 'time' && argv[1]?.startsWith('-') && argv[1].slice(1) === 'p') return argv.slice(2)
-  if (name === 'command' || name === 'builtin' || name === 'exec') {
-    let i = 1
-    while (i < argv.length && argv[i]!.startsWith('-')) {
-      const flag = argv[i++]!
-      if (flag === '--') break
-      if (name === 'command' && /^p+$/.test(flag.slice(1))) continue
-      if (name === 'exec' && /^-[cl]+$/.test(flag)) continue
-      if (name === 'exec' && flag === '-a' && argv[i] !== undefined) { i++; continue }
-      if (name === 'exec' && flag.startsWith('-a') && flag.length > 2) continue
-      return null
-    }
-    return argv.slice(i)
-  }
-  if (name === 'xargs') {
-    let i = 1
-    while (i < argv.length && argv[i]!.startsWith('-')) {
-      const flag = argv[i++]!
-      if (flag === '--') break
-      if (/^--(?:null|no-run-if-empty|verbose|interactive|exit)$/.test(flag)) continue
-      if (/^--(?:arg-file|delimiter|eof|replace|max-lines|max-args|max-procs|max-chars)=/.test(flag)) continue
-      if (/^--(?:arg-file|delimiter|eof|replace|max-lines|max-args|max-procs|max-chars)$/.test(flag)) { i++; continue }
-      if (flag.startsWith('--')) return null
-      let valid = flag.length > 1
-      for (let j = 1; j < flag.length; j++) {
-        const letter = flag[j]!
-        if ('0rtpx'.includes(letter)) continue
-        if ('aEdILnPs'.includes(letter)) {
-          if (j === flag.length - 1) i++
-          break
-        }
-        if ('eil'.includes(letter)) break
-        valid = false
-        break
-      }
-      if (!valid) return null
-    }
-    return argv.slice(i)
-  }
-  const peeled = peelWrappers(argv)
-  return Array.isArray(peeled) && peeled !== argv ? peeled : null
-}
-
-function restrictedCommandCandidates(command: SimpleCommand, depth = 0): string[] {
-  const candidates = new Set([command.text.trim(), shellCommandText(command.argv)])
-  const script = depth < SHELL_C_MAX_DEPTH ? extractShellCScript(command) ?? extractEvalScript(command) : null
-  if (script !== null) {
-    candidates.add(script)
-    const inner = preparedSecurityParse(script)
-    if (inner.kind === 'simple') {
-      for (const simple of inner.commands) {
-        for (const candidate of restrictedCommandCandidates(simple, depth + 1)) candidates.add(candidate)
-      }
-    }
-  }
-  const pending = [command.argv]
-  const consider = (argv: string[]): void => {
-    const text = shellCommandText(argv)
-    if (argv.length === 0 || candidates.has(text)) return
-    candidates.add(text)
-    pending.push(argv)
-  }
-  while (pending.length) {
-    const argv = pending.pop()!
-    const wrapped = wrappedCommand(argv)
-    if (wrapped?.length) consider(wrapped)
-    const [name] = argv
-    if (name !== undefined && name.includes('/') && !name.endsWith('/')) consider([posixPath.basename(name), ...argv.slice(1)])
-    if (name === 'git') {
-      const at = gitSubcommandIndex(argv.slice(1))
-      if (at > 0 && at < argv.length - 1) consider(['git', ...argv.slice(1 + at)])
-    }
-    if (argv[0] === 'find') {
-      for (let i = 1; i < argv.length; i++) {
-        if (!['-exec', '-execdir', '-ok', '-okdir'].includes(argv[i]!)) continue
-        const start = ++i
-        while (i < argv.length && argv[i] !== ';' && argv[i] !== '+') i++
-        consider(argv.slice(start, i))
-      }
-    }
-  }
-  return [...candidates]
+function restrictedCommandCandidates(command: SimpleCommand, depth?: number): string[] {
+  return notBuilt('src/tools/BashTool/bashPermissions.ts:827')
 }
 
 function optionValues(args: string[], short: string, longs: readonly string[]): string[] {

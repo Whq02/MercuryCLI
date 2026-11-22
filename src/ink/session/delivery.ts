@@ -9,12 +9,10 @@ import { noteTerminalWriteHeld } from '../terminalOut.js'
 import { sleepSync } from '../../utils/timers.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-export type Terminal = {
-  stdout: Writable
-  stderr: Writable
-}
+export type Terminal = Unbuilt
 
 export type DeliverySyscalls = {
   writeSync: (fd: number, data: Buffer, offset: number) => number
@@ -80,45 +78,6 @@ function writeWhole(fd: number, data: Buffer, syscalls: DeliverySyscalls): boole
   return true
 }
 
-function serializePatches(diff: Diff): string {
-  let out = ''
-  for (const patch of diff) {
-    switch (patch.type) {
-      case 'stdout':
-        out += patch.content
-        break
-      case 'clear':
-        if (patch.count > 0) out += eraseLines(patch.count)
-        break
-      case 'clearTerminal':
-        out += getClearTerminalSequence()
-        break
-      case 'cursorHide':
-        out += HIDE_CURSOR
-        break
-      case 'cursorShow':
-        out += SHOW_CURSOR
-        break
-      case 'cursorMove':
-        out += cursorMove(patch.x, patch.y)
-        break
-      case 'cursorTo':
-        out += cursorTo(patch.col)
-        break
-      case 'carriageReturn':
-        out += '\r'
-        break
-      case 'hyperlink':
-        out += link(patch.uri)
-        break
-      case 'styleStr':
-        out += patch.str
-        break
-    }
-  }
-  return out
-}
-
 export function streamTakesWrites(
   stream: { destroyed?: boolean; writable?: boolean; writableEnded?: boolean },
 ): boolean {
@@ -128,50 +87,8 @@ export function streamTakesWrites(
 export function writeDiffToTerminal(
   terminal: Terminal,
   diff: Diff,
-  skipSyncMarkers = false,
-  syscalls: DeliverySyscalls = defaultSyscalls,
+  skipSyncMarkers?: boolean,
+  syscalls?: DeliverySyscalls,
 ): boolean {
-  if (diff.length === 0) return true
-
-  const body = serializePatches(diff)
-  if (body === '') return true
-
-  const useSync = !skipSyncMarkers
-  const buffer = (useSync ? BSU : '') + body + (useSync ? ESU : '')
-
-  const out = terminal.stdout as Writable & { isTTY?: boolean; fd?: number }
-  const useFd = out.isTTY === true && typeof out.fd === 'number'
-  let delivered = true
-  const record: FrameDelivery = { seq: ++deliverySeq, bytes: Buffer.byteLength(buffer, 'utf8'), writtenAt: performance.now(), drainedAt: null }
-  lastDelivery = record
-  if (useFd) {
-    delivered = writeAllSync(out.fd!, Buffer.from(buffer, 'utf8'), syscalls)
-    record.drainedAt = performance.now()
-  } else {
-    terminal.stdout.write(buffer, () => {
-      record.drainedAt = performance.now()
-    })
-  }
-
-  if (hostEnv().INK_WRITE_TEE) {
-    try {
-      appendFileSync(
-        hostEnv().INK_WRITE_TEE!,
-        JSON.stringify({
-          ts: Date.now(),
-          len: buffer.length,
-          path: useFd ? `fd${out.fd}` : 'stream',
-          delivered,
-          ...(useFd
-            ? { spins: lastWriteSpins, waitMs: Math.round(lastWriteSpins * SPIN_QUANTUM_MS) }
-            : {}),
-          ...(hostEnv().INK_WRITE_TEE_FULL ? { content: buffer } : { sample: buffer.slice(0, 40) }),
-        }) + '\n',
-      )
-      appendFileSync(hostEnv().INK_WRITE_TEE! + '.raw', buffer)
-    } catch (error) {
-      passedOver(error)
-    }
-  }
-  return delivered
+  return notBuilt('src/ink/session/delivery.ts:128')
 }

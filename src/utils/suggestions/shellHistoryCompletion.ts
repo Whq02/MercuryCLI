@@ -1,5 +1,6 @@
 import { getHistory } from '../../history.js'
 import { logForDebugging } from '../debug.js'
+import { notBuilt } from '../../pi/holes.js'
 
 
 type ShellHistoryMatch = {
@@ -13,26 +14,7 @@ const CORPUS_CAP = 50
 let corpusCache: { commands: string[]; cachedAt: number } | null = null
 
 async function getCorpus(): Promise<string[]> {
-  if (corpusCache !== null && Date.now() - corpusCache.cachedAt < CORPUS_TTL_MS) {
-    return corpusCache.commands
-  }
-  const commands: string[] = []
-  const seen = new Set<string>()
-  try {
-    for await (const entry of getHistory()) {
-      if (!entry.display.startsWith('!')) continue
-      const command = entry.display.slice(1).trim()
-      if (command === '' || seen.has(command)) continue
-      seen.add(command)
-      commands.push(command)
-      if (commands.length >= CORPUS_CAP) break
-    }
-  } catch (error) {
-    logForDebugging(`shell history read failed: ${String(error)}`)
-    return []
-  }
-  corpusCache = { commands, cachedAt: Date.now() }
-  return commands
+  return notBuilt('src/utils/suggestions/shellHistoryCompletion.ts:15')
 }
 
 export async function getShellHistoryCompletion(input: string): Promise<ShellHistoryMatch | null> {

@@ -21,6 +21,7 @@ import type { EditableSettingSource, SettingSource } from '../settings/constants
 import type { SettingsJson } from '../settings/types.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
 import { normaliseRuleReasons, ruleSpelling } from './ruleReason.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export const MAX_PERSISTED_ALLOW_RULE_LENGTH = 256
 
@@ -33,29 +34,15 @@ function isEditableSource(source: PermissionRuleSource): source is EditableSetti
 }
 
 export function shouldAllowManagedPermissionRulesOnly(): boolean {
-  return getSettingsForSource('policySettings')?.guardrails?.managedOnly === true
+  return notBuilt('src/utils/permissions/permissionsLoader.ts:35')
 }
 
 export function shouldShowAlwaysAllowOptions(): boolean {
-  return !shouldAllowManagedPermissionRulesOnly()
+  return notBuilt('src/utils/permissions/permissionsLoader.ts:39')
 }
 
 function getPermissionRulesForSource(source: SettingSource): PermissionRule[] {
-  const settings = getSettingsForSource(source)
-  const guardrails = settings?.guardrails
-  if (!guardrails) return []
-  const held = isCheckoutSourceHeldForTrust(source)
-  const reasons = held ? {} : normaliseRuleReasons(guardrails.reasons)
-  const rules: PermissionRule[] = []
-  for (const behavior of BEHAVIORS) {
-    if (held && behavior === 'allow') continue
-    for (const entry of guardrails[behavior] ?? []) {
-      const ruleValue = permissionRuleValueFromString(entry)
-      const reason = reasons[ruleSpelling(ruleValue)]
-      rules.push({ source, ruleBehavior: behavior, ruleValue: reason === undefined ? ruleValue : { ...ruleValue, reason } })
-    }
-  }
-  return rules
+  return notBuilt('src/utils/permissions/permissionsLoader.ts:43')
 }
 
 export function loadAllPermissionRulesFromDisk(): PermissionRule[] {
@@ -93,79 +80,14 @@ function guardrailsArray(settings: SettingsJson, behavior: PermissionBehavior): 
 }
 
 export function addPermissionRulesToSettings(
-  { ruleValues, ruleBehavior }: { ruleValues: PermissionRuleValue[]; ruleBehavior: PermissionBehavior },
+  arg0: { ruleValues: PermissionRuleValue[]; ruleBehavior: PermissionBehavior },
   source: EditableSettingSource,
 ): boolean {
-  if (shouldAllowManagedPermissionRulesOnly()) return false
-  if (ruleValues.length === 0) return true
-
-  try {
-    let serialized = ruleValues.map(permissionRuleValueToString)
-
-    if (ruleBehavior === 'allow') {
-      const kept: string[] = []
-      const dropped: string[] = []
-      for (const rule of serialized) {
-        if (rule.length > MAX_PERSISTED_ALLOW_RULE_LENGTH) dropped.push(rule)
-        else kept.push(rule)
-      }
-      if (dropped.length > 0) {
-        logForDebugging(
-          `dropped ${dropped.length} oversized allow rule(s) from disk (session-only): ${dropped
-            .map(rule => `${rule.slice(0, 40)}… (${rule.length} chars)`)
-            .join('; ')}`,
-        )
-      }
-      if (kept.length === 0) return true
-      serialized = kept
-    }
-
-    const existing = loadSettingsLenient(source)
-    const currentArray = guardrailsArray(existing, ruleBehavior)
-    const normalisedExisting = new Set(
-      currentArray.map(entry => permissionRuleValueToString(permissionRuleValueFromString(entry))),
-    )
-    const additions = serialized.filter(rule => !normalisedExisting.has(rule))
-    if (additions.length === 0) return true
-
-    const guardrails = {
-      ...((existing as { guardrails?: Record<string, unknown> }).guardrails ?? {}),
-      [ruleBehavior]: [...currentArray, ...additions],
-    }
-    const { error } = updateSettingsForSource(source, { ...existing, guardrails } as SettingsJson)
-    if (error) {
-      logError(error)
-      return false
-    }
-    return true
-  } catch (error) {
-    logError(error)
-    return false
-  }
+  return notBuilt('src/utils/permissions/permissionsLoader.ts:95')
 }
 
 export function deletePermissionRuleFromSettings(rule: PermissionRuleFromEditableSettings): boolean {
-  if (!isEditableSource(rule.source)) return false
-  const settings = getSettingsForSource(rule.source) as
-    | { guardrails?: Record<string, string[] | undefined> }
-    | undefined
-  if (!settings?.guardrails) return false
-  const array = settings.guardrails[rule.ruleBehavior]
-  if (!array) return false
-
-  const target = permissionRuleValueToString(rule.ruleValue)
-  const filtered = array.filter(
-    entry => permissionRuleValueToString(permissionRuleValueFromString(entry)) !== target,
-  )
-  if (filtered.length === array.length) return false
-
-  const guardrails = { ...settings.guardrails, [rule.ruleBehavior]: filtered }
-  const { error } = updateSettingsForSource(rule.source, { ...settings, guardrails } as SettingsJson)
-  if (error) {
-    logError(error)
-    return false
-  }
-  return true
+  return notBuilt('src/utils/permissions/permissionsLoader.ts:147')
 }
 
 export { SETTING_SOURCES }

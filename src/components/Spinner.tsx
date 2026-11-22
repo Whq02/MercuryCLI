@@ -1,4 +1,3 @@
-
 import React, {
   useContext,
   useState,
@@ -33,6 +32,7 @@ import { TaskListV2 } from './TaskListV2.js'
 import type { SpinnerMode } from '../types/spinner.js'
 import { useFocusedMission } from './tasks/useFocusedWork.js'
 import { startInterval, stopInterval } from '../utils/timers.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 const WHIMSY_ROTATE_MS = 15_000
 const LONG_TURN_TIP_MS = 30 * 60 * 1000
@@ -42,30 +42,7 @@ const getFocusedSpinnerModel = (): string => getFocusedSessionConnector().modelF
 
 type ThemeKey = keyof Theme
 
-export type SpinnerWithVerbProps = {
-  compact?: boolean
-  compactWarning?: boolean
-  mode: SpinnerMode
-  loadingStartTimeRef: React.RefObject<number>
-  totalPausedMsRef: React.RefObject<number>
-  pauseStartTimeRef: React.RefObject<number | null>
-  spinnerTip?: string | null
-  responseLengthRef: React.RefObject<number>
-  outputTokensRef?: React.RefObject<number | null>
-  liveTurnFactsRef?: React.RefObject<LiveTurnFactsV1>
-  overrideColor?: ThemeKey | null
-  overrideShimmerColor?: ThemeKey | null
-  overrideMessage?: string | null
-  still?: boolean
-  spinnerSuffix?: string | null
-  hookWaitKeys?: readonly string[]
-  verbose: boolean
-  hasActiveTools: boolean
-  activeToolCount: number
-  activeToolLabel?: string | null
-  waitingOnCrewmates?: boolean
-  leaderIsIdle?: boolean
-}
+export type SpinnerWithVerbProps = Unbuilt
 
 export function nextPendingTask<T extends { id: string; status: string; blockedBy?: readonly string[] }>(tasks: readonly T[]): T | undefined {
   const pending = tasks.filter(task => task.status === 'pending')
@@ -79,175 +56,8 @@ export function nextPendingTask<T extends { id: string; status: string; blockedB
   return unblocked ?? pending[0]
 }
 
-export function SpinnerWithVerb({
-  compact = false,
-  compactWarning = false,
-  mode,
-  loadingStartTimeRef,
-  totalPausedMsRef,
-  pauseStartTimeRef,
-  spinnerTip,
-  responseLengthRef,
-  outputTokensRef,
-  liveTurnFactsRef,
-  overrideColor,
-  overrideShimmerColor,
-  overrideMessage,
-  still = false,
-  spinnerSuffix,
-  hookWaitKeys,
-  verbose,
-  hasActiveTools,
-  activeToolCount,
-  activeToolLabel,
-  waitingOnCrewmates = false,
-}: SpinnerWithVerbProps): React.ReactNode {
-  const { columns } = useTerminalSize()
-  const inCockpit = useContext(CockpitActiveContext)
-  const inWorkCapsule = useContext(WorkCapsuleContext)
-  const engineModel = useSyncExternalStore(subscribeFocusedSpinnerModel, getFocusedSpinnerModel, getFocusedSpinnerModel)
-  const reducedMotion =
-    useAppState(state => state.settings.view?.reducedMotion === true) ||
-    isEnvTruthy(flagEnv('MERCURY_REDUCED_MOTION'))
-  const expandedView = useAppState(state => state.expandedView)
-  const appEffort = useAppState(state => state.effortValue)
-  const mission = useFocusedMission()
-
-  const effectiveMode: SpinnerMode = mode
-
-  const [whimsyVerb, setWhimsyVerb] = useState(() => sampleSpinnerVerb())
-  useTimer(() => {
-    const timer = startInterval(
-      () => setWhimsyVerb(sampleSpinnerVerb()),
-      WHIMSY_ROTATE_MS,
-    )
-    return () => stopInterval(timer)
-  }, [])
-
-  let chosenVerb: string
-  if (overrideMessage != null && overrideMessage !== '') {
-    chosenVerb = overrideMessage
-  } else if (hasActiveTools && activeToolLabel) {
-    chosenVerb = activeToolLabel
-  } else if (waitingOnCrewmates) {
-    chosenVerb = WAITING_VERB
-  } else {
-    chosenVerb = whimsyVerb
-  }
-  const effectiveVerb = chosenVerb
-  const message = still || effectiveVerb.endsWith('…') ? effectiveVerb : `${effectiveVerb}…`
-
-  const requesting =
-    effectiveMode !== 'thinking' &&
-    effectiveMode !== 'responding' &&
-    effectiveMode !== 'tool-use' &&
-    effectiveMode !== 'tool-input'
-  const messageColor: ThemeKey =
-    overrideColor ?? (requesting ? 'info' : 'brand')
-  const shimmerColor: ThemeKey =
-    overrideShimmerColor ?? (requesting ? 'infoShimmer' : 'brandShimmer')
-
-  useClaim(() => {
-    const id = `spinner:${effectiveMode}`
-    activityManager.startCLIActivity(id)
-    return () => activityManager.endCLIActivity(id)
-  }, [effectiveMode])
-
-  useNowTick(1000)
-  const now = Date.now()
-  const pausedSoFar =
-    (totalPausedMsRef.current ?? 0) +
-    (pauseStartTimeRef.current !== null ? now - pauseStartTimeRef.current : 0)
-  const elapsedMs = Math.max(
-    0,
-    now - (loadingStartTimeRef.current ?? now) - pausedSoFar,
-  )
-  const pendingNext = nextPendingTask(mission)
-  const spinnerTipsDisabled = useAppState(
-    state => state.settings.activity?.tips?.enabled === false,
-  )
-  const effectiveTip = still
-    ? null
-    : elapsedMs > LONG_TURN_TIP_MS && !spinnerTipsDisabled && !pendingNext
-      ? 'This turn has been running a while — esc interrupts it, not its crewmates.'
-      : (spinnerTip ?? null)
-
-  const ledgerExpanded = expandedView === 'tasks'
-  const tail =
-    ledgerExpanded && mission.length > 0 ? (
-      <TaskListV2 tasks={mission} />
-    ) : pendingNext ? (
-      <Text dimColor wrap="truncate-end">
-        next: {pendingNext.subject}
-      </Text>
-    ) : effectiveTip ? (
-      <Text dimColor wrap="wrap">
-        {effectiveTip}
-      </Text>
-    ) : null
-
-  const otps = useOutputRate(
-    liveTurnFactsRef?.current.replyChars ?? responseLengthRef.current ?? 0,
-    compact && !still && !reducedMotion && pauseStartTimeRef.current === null && liveTurnFactsRef?.current.wait == null && (effectiveMode === 'responding' || effectiveMode === 'tool-input'),
-    now,
-  )
-  if (compact) {
-    if (compactWarning || still) return <Box height={1} width="100%" overflow="hidden"><Text color={compactWarning ? 'warning' : messageColor} wrap="truncate-end">{still ? `${GLYPH.spark} ` : ''}{truncateKeepingTail(message, Math.max(0, columns - (still ? 2 : 0)))}</Text></Box>
-    const liveWords = liveCounterWords(
-      { ...(liveTurnFactsRef?.current ?? turnFactsOfRefs(responseLengthRef.current ?? 0, outputTokensRef?.current ?? null)), phase: liveCounterPhaseOf(effectiveMode), sentAtMs: now - elapsedMs },
-      now,
-    )
-    const detail = liveCounterLine(liveWords, Math.max(0, columns - 5), ' · ', otps)
-    const head = truncateToWidth(message.replace(/\s+/g, ' '), Math.max(0, columns - stringWidth(detail) - (detail ? 5 : 2)))
-    return <Box height={1} width="100%" overflow="hidden"><Text wrap="truncate-end"><Text color={messageColor}>{GLYPH.spark} {head}</Text><Text dimColor>{detail ? `${head ? ' · ' : ''}${detail}` : ''}</Text></Text></Box>
-  }
-  const row = (
-    <SpinnerAnimationRow
-      mode={effectiveMode}
-      reducedMotion={reducedMotion}
-      activeToolCount={activeToolCount}
-      responseLengthRef={responseLengthRef}
-      outputTokensRef={outputTokensRef}
-      liveTurnFactsRef={liveTurnFactsRef}
-      message={message}
-      messageColor={messageColor}
-      shimmerColor={shimmerColor}
-      overrideColor={overrideColor ?? null}
-      loadingStartTimeRef={loadingStartTimeRef}
-      totalPausedMsRef={totalPausedMsRef}
-      pauseStartTimeRef={pauseStartTimeRef}
-      spinnerSuffix={spinnerSuffix}
-      hookWaitKeys={hookWaitKeys}
-      verbose={verbose}
-      columns={columns}
-      effortSuffix={getEffortSuffix(engineModel, appEffort)}
-      inWorkCapsule={inWorkCapsule}
-      still={still}
-    />
-  )
-
-  const inner = (
-    <Box flexDirection="column" width="100%">
-      {row}
-      {tail}
-    </Box>
-  )
-  if (inWorkCapsule) return inner
-  return (
-    <Box flexDirection="column" width="100%">
-      {inCockpit ? (
-        row
-      ) : (
-        <Box>
-          <Text color="claude">▎</Text>
-          <Box flexDirection="column" flexGrow={1}>
-            {row}
-          </Box>
-        </Box>
-      )}
-      {tail}
-    </Box>
-  )
+export function SpinnerWithVerb(arg0: SpinnerWithVerbProps): React.ReactNode {
+  return notBuilt('src/components/Spinner.tsx:82')
 }
 
 

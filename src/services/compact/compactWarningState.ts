@@ -1,35 +1,11 @@
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
-type Listener = () => void
-
-let suppressed = false
-const listeners = new Set<Listener>()
-
-function emit(): void {
-  for (const listener of listeners) listener()
-}
-
-export const compactWarningStore = {
-  subscribe(listener: Listener): () => void {
-    listeners.add(listener)
-    return () => {
-      listeners.delete(listener)
-    }
-  },
-  getSnapshot(): boolean {
-    return suppressed
-  },
-}
+export const compactWarningStore: Unbuilt = unbuilt('src/services/compact/compactWarningState.ts:11')
 
 export function suppressCompactWarning(): void {
-  if (!suppressed) {
-    suppressed = true
-    emit()
-  }
+  return notBuilt('src/services/compact/compactWarningState.ts:23')
 }
 
 export function clearCompactWarningSuppression(): void {
-  if (suppressed) {
-    suppressed = false
-    emit()
-  }
+  return notBuilt('src/services/compact/compactWarningState.ts:30')
 }

@@ -10,36 +10,13 @@ import { renderToolResultMessage, renderToolUseMessage, userFacingName } from '.
 import { mcpClientForTools } from '../../services/mcp/client/forTools.js'
 import { mcpServerDenyDecision } from '../../utils/permissions/ruleReason.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-export const inputSchema = lazySchema(() =>
-  z.strictObject({
-    server: z.string().describe('The name of the MCP server to read the resource from'),
-    uri: z.string().describe('The URI of the resource to read'),
-  }),
-)
-type InputSchema = ReturnType<typeof inputSchema>
-type Input = z.infer<InputSchema>
+export const inputSchema: Unbuilt = unbuilt('src/tools/ReadMcpResourceTool/ReadMcpResourceTool.ts:15')
 
-export const outputSchema = lazySchema(() =>
-  z.object({
-    contents: z
-      .array(
-        z.object({
-          uri: z.string().describe('The resource entry\'s URI'),
-          mimeType: z.string().optional().describe('The entry\'s MIME type'),
-          text: z.string().optional().describe('The entry\'s text content'),
-          blobSavedTo: z
-            .string()
-            .optional()
-            .describe('Path a binary blob was saved to'),
-        }),
-      )
-      .describe('The resource contents returned by the server'),
-  }),
-)
-type OutputSchema = ReturnType<typeof outputSchema>
-export type Output = z.infer<OutputSchema>
+export const outputSchema: Unbuilt = unbuilt('src/tools/ReadMcpResourceTool/ReadMcpResourceTool.ts:24')
+export type Output = Unbuilt
 type OutputEntry = Output['contents'][number]
 
 type ResourceContent = {
@@ -53,110 +30,4 @@ function persistIdFor(index: number): string {
   return `mcp-resource-${Date.now()}-${index}-${randomBytes(4).toString('hex')}`
 }
 
-async function projectEntry(
-  entry: ResourceContent,
-  index: number,
-  serverName: string,
-  uri: string,
-): Promise<OutputEntry> {
-  if (typeof entry.text === 'string') {
-    return { uri: entry.uri, mimeType: entry.mimeType, text: entry.text }
-  }
-  if (typeof entry.blob !== 'string' || entry.blob.length === 0) {
-    return { uri: entry.uri, mimeType: entry.mimeType }
-  }
-  const bytes = Buffer.from(entry.blob, 'base64')
-  const persisted = await persistBinaryContent(bytes, entry.mimeType, persistIdFor(index))
-  if ('error' in persisted) {
-    return {
-      uri: entry.uri,
-      mimeType: entry.mimeType,
-      text: `Binary content could not be saved: ${persisted.error}`,
-    }
-  }
-  return {
-    uri: entry.uri,
-    mimeType: entry.mimeType,
-    blobSavedTo: persisted.filepath,
-    text: getBinaryBlobSavedMessage(
-      persisted.filepath,
-      entry.mimeType,
-      persisted.size,
-      `MCP resource ${uri} from server ${serverName}`,
-    ),
-  }
-}
-
-export const ReadMcpResourceTool = buildTool({
-  name: READ_MCP_RESOURCE_TOOL_NAME,
-  searchHint: 'read one MCP server resource by URI',
-  shouldDefer: true,
-  maxResultSizeChars: 100_000,
-  get inputSchema(): InputSchema {
-    return inputSchema()
-  },
-  get outputSchema(): OutputSchema {
-    return outputSchema()
-  },
-  isReadOnly: () => true,
-  isConcurrencySafe: () => true,
-  userFacingName,
-  async description() {
-    return DESCRIPTION
-  },
-  async prompt() {
-    return PROMPT
-  },
-  async checkPermissions(input: Input, context: ToolUseContext) {
-    const denied = mcpServerDenyDecision(
-      context.getAppState().toolPermissionContext,
-      READ_MCP_RESOURCE_TOOL_NAME,
-      input.server,
-    )
-    if (denied) return denied
-    return { behavior: 'allow' as const, updatedInput: input }
-  },
-  async call({ server, uri }: Input, context: ToolUseContext) {
-    const clients = context.options.mcpClients
-    const client = clients.find(candidate => candidate.name === server)
-    if (!client) {
-      throw new Error(
-        `Server "${server}" not found. Available servers: ${clients.map(candidate => candidate.name).join(', ')}`,
-      )
-    }
-    if (client.type !== 'connected') {
-      throw new Error(`Server "${server}" is not connected`)
-    }
-    if (!client.capabilities?.resources) {
-      throw new Error(`Server "${server}" does not support resources`)
-    }
-    const live = await mcpClientForTools().ensureConnectedClient(client)
-    const result = await live.client.request({ method: 'resources/read', params: { uri } })
-    const contents = await Promise.all(
-      (result.contents as ResourceContent[]).map((entry, index) =>
-        projectEntry(entry, index, server, uri),
-      ),
-    )
-    return { data: { contents } satisfies Output }
-  },
-  mapToolResultToToolResultBlockParam(output: Output, toolUseID: string) {
-    return {
-      tool_use_id: toolUseID,
-      type: 'tool_result' as const,
-      content: JSON.stringify(output),
-    }
-  },
-  extractSearchText(output: Output): string {
-    try {
-      return Array.isArray(output?.contents) ? JSON.stringify(output.contents, null, 2) : ''
-    } catch (error) {
-      passedOver(error)
-      return ''
-    }
-  },
-  isResultTruncated(output: Output): boolean {
-    return isOutputLineTruncated(JSON.stringify(output, null, 2))
-  },
-  renderToolUseMessage,
-  renderToolResultMessage,
-} satisfies ToolDef<InputSchema, Output>)
+export const ReadMcpResourceTool: Unbuilt = unbuilt('src/tools/ReadMcpResourceTool/ReadMcpResourceTool.ts:90')

@@ -1,6 +1,6 @@
-
 import type { DOMElement, DOMNode } from './dom.js'
 import { FocusEvent } from './events/focus-event.js'
+import { notBuilt, unbuilt } from '../pi/holes.js'
 
 const FOCUS_STACK_LIMIT = 32
 
@@ -21,106 +21,59 @@ function rememberFocused(history: DOMElement[], element: DOMElement): void {
 }
 
 export class FocusManager {
-  activeElement: DOMElement | null = null
-  private enabled = true
-  private readonly stack: DOMElement[] = []
+  activeElement: DOMElement | null = unbuilt('src/ink/focus.ts:24')
+  private enabled: boolean = unbuilt('src/ink/focus.ts:25')
+  private readonly stack: DOMElement[] = unbuilt('src/ink/focus.ts:26')
   private readonly dispatchFocusEvent: (
     target: DOMElement,
     event: FocusEvent,
   ) => void
 
   constructor(dispatchFocusEvent: (target: DOMElement, event: FocusEvent) => void) {
-    this.dispatchFocusEvent = dispatchFocusEvent
+    notBuilt('src/ink/focus.ts:32')
   }
 
   focus(node: DOMElement): void {
-    if (!this.enabled || node === this.activeElement) return
-    const previous = this.activeElement
-    if (previous) {
-      rememberFocused(this.stack, previous)
-      this.dispatchFocusEvent(previous, new FocusEvent('blur', node))
-    }
-    this.activeElement = node
-    this.dispatchFocusEvent(node, new FocusEvent('focus', previous))
+    return notBuilt('src/ink/focus.ts:36')
   }
 
   blur(): void {
-    const previous = this.activeElement
-    if (!previous) return
-    this.activeElement = null
-    this.dispatchFocusEvent(previous, new FocusEvent('blur', null))
+    return notBuilt('src/ink/focus.ts:47')
   }
 
   handleNodeRemoved(node: DOMElement, _root: DOMElement): void {
-    for (let i = this.stack.length - 1; i >= 0; i--) {
-      const entry = this.stack[i]!
-      if (entry === node || !isInTree(entry)) this.stack.splice(i, 1)
-    }
-    const active = this.activeElement
-    if (!active) return
-    if (active !== node && isInTree(active)) return
-    this.activeElement = null
-    this.dispatchFocusEvent(active, new FocusEvent('blur', null))
-    while (this.stack.length > 0) {
-      const candidate = this.stack.pop()!
-      if (isInTree(candidate)) {
-        this.activeElement = candidate
-        this.dispatchFocusEvent(candidate, new FocusEvent('focus', active))
-        return
-      }
-    }
+    return notBuilt('src/ink/focus.ts:54')
   }
 
   handleAutoFocus(node: DOMElement): void {
-    this.focus(node)
+    return notBuilt('src/ink/focus.ts:74')
   }
 
   handleClickFocus(node: DOMElement): void {
-    if (typeof node.attributes['tabIndex'] === 'number') this.focus(node)
+    return notBuilt('src/ink/focus.ts:78')
   }
 
   enable(): void {
-    this.enabled = true
+    return notBuilt('src/ink/focus.ts:82')
   }
 
   disable(): void {
-    this.enabled = false
+    return notBuilt('src/ink/focus.ts:86')
   }
 
   private collectTabbable(root: DOMElement): DOMElement[] {
-    const tabbable: DOMElement[] = []
-    const visit = (node: DOMNode): void => {
-      if (!isElement(node)) return
-      const tabIndex = node.attributes['tabIndex']
-      if (typeof tabIndex === 'number' && tabIndex >= 0) tabbable.push(node)
-      for (const child of node.childNodes) visit(child)
-    }
-    visit(root)
-    return tabbable
+    return notBuilt('src/ink/focus.ts:90')
   }
 
   private moveFocus(root: DOMElement, direction: 1 | -1): void {
-    if (!this.enabled) return
-    const tabbable = this.collectTabbable(root)
-    if (tabbable.length === 0) return
-    let index: number
-    if (!this.activeElement) {
-      index = direction === 1 ? 0 : tabbable.length - 1
-    } else {
-      const current = tabbable.indexOf(this.activeElement)
-      index =
-        (((current === -1 ? 0 : current + direction) % tabbable.length) +
-          tabbable.length) %
-        tabbable.length
-    }
-    this.focus(tabbable[index]!)
+    return notBuilt('src/ink/focus.ts:102')
   }
 
   focusNext(root: DOMElement): void {
-    this.moveFocus(root, 1)
+    return notBuilt('src/ink/focus.ts:119')
   }
 
   focusPrevious(root: DOMElement): void {
-    this.moveFocus(root, -1)
+    return notBuilt('src/ink/focus.ts:123')
   }
 }

@@ -24,6 +24,7 @@ import type {
   PermissionRuleValue,
   ToolPermissionRulesBySource,
 } from '../../types/permissions.js'
+import { notBuilt, unbuilt } from '../../pi/holes.js'
 
 
 function contentMatchesDangerousPattern(content: string | undefined, patterns: string[]): boolean {
@@ -60,33 +61,7 @@ function startsProgramsUnread(toolName: string, ruleContent?: string): boolean {
   return toolName === 'Monitor' && isDangerousBashPermission(BASH_TOOL_NAME, ruleContent)
 }
 
-const POWERSHELL_DANGEROUS_NAMES: string[] = [
-  ...CROSS_PLATFORM_CODE_EXEC,
-  'pwsh',
-  'powershell',
-  'cmd',
-  'wsl',
-  'iex',
-  'invoke-expression',
-  'icm',
-  'invoke-command',
-  'start-process',
-  'saps',
-  'start',
-  'start-job',
-  'sajb',
-  'start-threadjob',
-  'register-objectevent',
-  'register-engineevent',
-  'register-wmievent',
-  'register-scheduledjob',
-  'new-pssession',
-  'nsn',
-  'enter-pssession',
-  'etsn',
-  'add-type',
-  'new-object',
-]
+const POWERSHELL_DANGEROUS_NAMES: string[] = unbuilt('src/utils/permissions/permissionSetup.ts:63')
 
 export function isDangerousPowerShellPermission(toolName: string, ruleContent?: string): boolean {
   if (toolName !== POWERSHELL_TOOL_NAME) return false
@@ -123,44 +98,7 @@ export function findDangerousPermissions(
   rules: PermissionRule[],
   cliAllowedTools: string[],
 ): DangerousPermissionInfo[] {
-  const found: DangerousPermissionInfo[] = []
-  for (const rule of rules) {
-    if (rule.ruleBehavior !== 'allow') continue
-    const { toolName, ruleContent } = rule.ruleValue
-    if (
-      isDangerousBashPermission(toolName, ruleContent) ||
-      isDangerousPowerShellPermission(toolName, ruleContent) ||
-      isDangerousTaskPermission(toolName, ruleContent) ||
-      startsProgramsUnread(toolName, ruleContent)
-    ) {
-      found.push({
-        ruleValue: rule.ruleValue,
-        source: rule.source,
-        ruleDisplay: ruleDisplay(rule.ruleValue),
-        sourceDisplay: sourceDisplay(rule.source),
-      })
-    }
-  }
-  for (const spec of cliAllowedTools) {
-    const match = CLI_SPEC_RE.exec(spec.trim())
-    if (!match) continue
-    const toolName = (match[1] ?? '').trim()
-    const ruleContent = match[2]?.trim()
-    if (
-      isDangerousBashPermission(toolName, ruleContent) ||
-      isDangerousPowerShellPermission(toolName, ruleContent) ||
-      isDangerousTaskPermission(toolName, ruleContent) ||
-      startsProgramsUnread(toolName, ruleContent)
-    ) {
-      found.push({
-        ruleValue: { toolName, ruleContent: ruleContent || undefined },
-        source: 'cliArg',
-        ruleDisplay: ruleContent ? `${toolName}(${ruleContent})` : `${toolName}(*)`,
-        sourceDisplay: '--allowed-tools',
-      })
-    }
-  }
-  return found
+  return notBuilt('src/utils/permissions/permissionSetup.ts:122')
 }
 
 
@@ -220,20 +158,7 @@ export function transitionPermissionMode(
   toMode: PermissionMode,
   context: ToolPermissionContext,
 ): ToolPermissionContext {
-  if (fromMode === toMode) return context
-
-  let next = context
-
-  if (fromMode !== 'flow' && toMode === 'flow') {
-    if (!isFlowGateEnabled()) {
-      throw new Error('Flow is not available.')
-    }
-    next = stripDangerousPermissionsForFlow(next)
-  } else if (fromMode === 'flow' && toMode !== 'flow') {
-    next = restoreDangerousPermissions(next)
-  }
-
-  return next
+  return notBuilt('src/utils/permissions/permissionSetup.ts:218')
 }
 
 
@@ -265,27 +190,7 @@ export function setPermissionModeWithGuards(
 }
 
 export function validateModeEntry(mode: PermissionMode, context: ToolPermissionContext): SetPermissionModeResult {
-  const bypassAvailable = (context as { isBypassPermissionsModeAvailable?: boolean }).isBypassPermissionsModeAvailable === true
-
-  if (mode === 'sovereign') {
-    if (isBypassDisabledBySettingsOrPolicy()) {
-      return { ok: false, error: 'Sovereign Mode is disabled by settings or organisation policy.' }
-    }
-    if (!bypassAvailable) {
-      return {
-        ok: false,
-        error: 'Sovereign Mode requires launching with --sovereign.',
-      }
-    }
-  }
-  if (mode === 'flow') {
-    if (!isFlowGateEnabled()) {
-      const reason = getFlowUnavailableReason()
-      const suffix = reason ? ` ${getFlowUnavailableNotification(reason)}` : ''
-      return { ok: false, error: `Flow is not available.${suffix}` }
-    }
-  }
-  return { ok: true, mode }
+  return notBuilt('src/utils/permissions/permissionSetup.ts:267')
 }
 
 
@@ -333,26 +238,7 @@ export function createSovereignDisabledContext(
 
 
 export function parseToolListFromCLI(tools: string[]): string[] {
-  const joined = tools.join(',')
-  const result: string[] = []
-  let current = ''
-  let depth = 0
-  for (const ch of joined) {
-    if (ch === '(') {
-      depth++
-      current += ch
-    } else if (ch === ')') {
-      depth = Math.max(0, depth - 1)
-      current += ch
-    } else if ((ch === ',' || ch === ' ') && depth === 0) {
-      if (current.trim() !== '') result.push(current.trim())
-      current = ''
-    } else {
-      current += ch
-    }
-  }
-  if (current.trim() !== '') result.push(current.trim())
-  return result
+  return notBuilt('src/utils/permissions/permissionSetup.ts:335')
 }
 
 export function initialPermissionModeFromCLI({
@@ -491,65 +377,7 @@ export async function initializeToolPermissionContext(args: {
   dangerousPermissions: DangerousPermissionInfo[]
   overlyBroadBashPermissions: DangerousPermissionInfo[]
 }> {
-  const { loadAllPermissionRulesFromDisk } = await import('./permissionsLoader.js')
-  const { applyPermissionRulesToPermissionContext } = await import('./permissions.js')
-
-  const allowRules = parseToolListFromCLI(args.allowedToolsCli).map(normalizeRuleString)
-  const denyRules = parseToolListFromCLI(args.disallowedToolsCli)
-
-  const bypassAvailable =
-    (args.permissionMode === 'sovereign' || args.allowDangerouslySkipPermissions) &&
-    !isBypassDisabledBySettingsOrPolicy()
-
-  const diskRules = loadAllPermissionRulesFromDisk()
-
-  let dangerousPermissions: DangerousPermissionInfo[] = []
-  if (args.permissionMode === 'flow') {
-    dangerousPermissions = findDangerousPermissions(
-      diskRules,
-      allowRules,
-    )
-  }
-
-  const warnings: string[] = []
-  if (allowRules.includes('LSP')) warnings.push(lspCliNote('--allowed-tools'))
-  if (denyRules.includes('LSP')) warnings.push(lspCliNote('--block-tools'))
-  for (const rule of diskRules) {
-    if (rule.ruleValue.toolName === 'LSP' && rule.ruleValue.ruleContent === undefined) {
-      const note = lspPermissionNote(rule.source)
-      if (!warnings.includes(note)) warnings.push(note)
-    }
-  }
-  for (const source of getEnabledSettingSources()) {
-    const hooks = getSettingsForSource(source)?.events?.hooks
-    for (const [event, entries] of Object.entries(hooks ?? {})) {
-      for (const entry of entries ?? []) {
-        const note = lspHookNote(event, entry.match ?? '', source)
-        if (note && !warnings.includes(note)) warnings.push(note)
-      }
-    }
-  }
-
-  let context: ToolPermissionContext = {
-    mode: args.permissionMode,
-    ...(args.baseToolsCli === undefined ? {} : { baseTools: parseToolListFromCLI(args.baseToolsCli) }),
-    alwaysAllowRules: { cliArg: allowRules },
-    alwaysDenyRules: { cliArg: denyRules },
-    alwaysAskRules: {},
-    isBypassPermissionsModeAvailable: bypassAvailable,
-    isFlowAvailable: isFlowGateEnabled(),
-  }
-
-  context = applyPermissionRulesToPermissionContext(context, diskRules)
-  forgetLateAllowRules()
-  recordModeTransition({ from: null, to: context.mode, road: 'boot' })
-
-  return {
-    toolPermissionContext: context,
-    warnings,
-    dangerousPermissions,
-    overlyBroadBashPermissions: [],
-  }
+  return notBuilt('src/utils/permissions/permissionSetup.ts:482')
 }
 
 function normalizeRuleString(rule: string): string {

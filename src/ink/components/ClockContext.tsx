@@ -1,21 +1,13 @@
-
 import React, { createContext, useState, useSyncExternalStore } from 'react'
 import { usePublish } from '../../hooks/effects.js'
 import { clockPeriodMs, subscribeIdleMotion } from '../../utils/cockpit/motionGovernor.js'
 import { useTerminalFocus } from '../hooks/use-terminal-focus.js'
 import { startInterval, stopInterval } from '../../utils/timers.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-type Clock = {
-  subscribe: (onChange: () => void, keepAlive: boolean) => () => void
-  now: () => number
-  setInterval: (ms: number) => void
-}
+type Clock = Unbuilt
 
-export type ClockTimers = {
-  now: () => number
-  setInterval: (fn: () => void, ms: number) => unknown
-  clearInterval: (timer: unknown) => void
-}
+export type ClockTimers = Unbuilt
 
 const REAL_CLOCK_TIMERS: ClockTimers = {
   now: () => performance.now(),
@@ -25,60 +17,8 @@ const REAL_CLOCK_TIMERS: ClockTimers = {
 
 const FRAME_INTERVAL_MS = 16
 
-export function createClock(intervalMs: number, timers: ClockTimers = REAL_CLOCK_TIMERS): Clock {
-  const subscribers = new Map<() => void, boolean>()
-  let period = intervalMs
-  let timer: unknown = null
-  let startTime: number | null = null
-  let snapshot = 0
-
-  const elapsed = (): number => {
-    if (startTime === null) startTime = timers.now()
-    return timers.now() - startTime
-  }
-
-  const tick = (): void => {
-    snapshot = elapsed()
-    for (const onChange of subscribers.keys()) onChange()
-  }
-
-  const evaluate = (): void => {
-    let keepAlive = false
-    for (const flag of subscribers.values()) {
-      if (flag) {
-        keepAlive = true
-        break
-      }
-    }
-    if (timer !== null) {
-      timers.clearInterval(timer)
-      timer = null
-    }
-    if (keepAlive) {
-      if (startTime === null) startTime = timers.now()
-      timer = timers.setInterval(tick, period)
-    }
-  }
-
-  return {
-    subscribe(onChange, keepAlive) {
-      subscribers.set(onChange, keepAlive)
-      evaluate()
-      return () => {
-        subscribers.delete(onChange)
-        evaluate()
-      }
-    },
-    now() {
-      if (timer !== null && snapshot !== 0) return snapshot
-      return elapsed()
-    },
-    setInterval(ms) {
-      if (ms === period) return
-      period = ms
-      evaluate()
-    },
-  }
+export function createClock(intervalMs: number, timers?: ClockTimers): Clock {
+  return notBuilt('src/ink/components/ClockContext.tsx:28')
 }
 
 export const ClockContext = createContext<Clock | null>(null)

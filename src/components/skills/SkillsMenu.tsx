@@ -23,18 +23,13 @@ import {
 import { plural } from '../../utils/stringUtils.js'
 import { FAINT, IVORY } from '../mercury-ui/theme.js'
 import { CommandCenter, SectionHeader } from '../mercury-ui/components.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-type SkillCommand = CommandBase & PromptCommand
+type SkillCommand = Unbuilt
 
-type SkillSource = SettingSource | 'extension' | 'mcp'
+type SkillSource = Unbuilt
 
-type Props = {
-  onExit: (
-    result?: string,
-    options?: { display?: CommandResultDisplay },
-  ) => void
-  commands: Command[]
-}
+type Props = Unbuilt
 
 const SOURCE_ORDER: SkillSource[] = [
   'projectSettings',
@@ -53,134 +48,8 @@ function isSkillCommand(cmd: Command): cmd is SkillCommand {
   )
 }
 
-function getSourceTitle(source: SkillSource): string {
-  if (source === 'extension') {
-    return 'Extension skills'
-  }
-  if (source === 'mcp') {
-    return 'MCP skills'
-  }
-  return `${capitalize(getSettingSourceName(source))} skills`
-}
-
-function getSourceSubtitle(
-  source: SkillSource,
-  skills: SkillCommand[],
-): string | undefined {
-  if (source === 'mcp') {
-    const servers = [
-      ...new Set(
-        skills
-          .map(s => {
-            const idx = s.name.indexOf(':')
-            return idx > 0 ? s.name.slice(0, idx) : null
-          })
-          .filter((n): n is string => n != null),
-      ),
-    ]
-    return servers.length > 0 ? servers.join(', ') : undefined
-  }
-  return getDisplayPath(getSkillsPath(source, 'skills'))
-}
-
-function useSkillGroups(commands: Command[]): {
-  skills: SkillCommand[]
-  skillsBySource: Record<SkillSource, SkillCommand[]>
-} {
-  const skills = useMemo(() => commands.filter(isSkillCommand), [commands])
-
-  const skillsBySource = useMemo((): Record<SkillSource, SkillCommand[]> => {
-    const groups: Record<SkillSource, SkillCommand[]> = {
-      policySettings: [],
-      userSettings: [],
-      projectSettings: [],
-      localSettings: [],
-      flagSettings: [],
-      extension: [],
-      mcp: [],
-    }
-
-    for (const skill of skills) {
-      const source = skill.source as SkillSource
-      if (source in groups) {
-        groups[source].push(skill)
-      }
-    }
-
-    for (const group of Object.values(groups)) {
-      group.sort((a, b) =>
-        getCommandName(a).localeCompare(getCommandName(b)),
-      )
-    }
-
-    return groups
-  }, [skills])
-
-  return { skills, skillsBySource }
-}
-
-function MercurySkillsMenu({ onExit, commands }: Props): React.ReactNode {
-  const { skills, skillsBySource } = useSkillGroups(commands)
-
-  const handleClose = (): void => {
-    onExit('Skills dialog dismissed', { display: 'system' })
-  }
-
-  const subtitle =
-    skills.length === 0
-      ? 'no skills found'
-      : `${skills.length} ${plural(skills.length, 'skill')}`
-
-  if (skills.length === 0) {
-    return (
-      <CommandCenter view="skills" subtitle={subtitle} onClose={handleClose}>
-        <Box marginTop={1}>
-          <Text color={FAINT}>
-            Create skills in .mercury/skills/ or {displayConfigHome()}/skills/
-          </Text>
-        </Box>
-      </CommandCenter>
-    )
-  }
-
-  return (
-    <CommandCenter view="skills" subtitle={subtitle} onClose={handleClose}>
-      {SOURCE_ORDER.map(source => {
-        const groupSkills = skillsBySource[source]
-        if (groupSkills.length === 0) {
-          return null
-        }
-        const groupSubtitle = getSourceSubtitle(source, groupSkills)
-        return (
-          <Box flexDirection="column" key={source}>
-            <SectionHeader count={groupSkills.length}>
-              {getSourceTitle(source)}
-            </SectionHeader>
-            {groupSubtitle ? (
-              <Text color={FAINT}>{groupSubtitle}</Text>
-            ) : null}
-            {groupSkills.map(skill => {
-              const estimatedTokens = estimateSkillFrontmatterTokens(skill)
-              const tokenDisplay = `~${formatTokens(estimatedTokens)}`
-              const extensionName =
-                skill.source === 'extension'
-                  ? skill.extensionInfo?.manifest.name
-                  : undefined
-              return (
-                <Text key={`${skill.name}-${skill.source}`}>
-                  <Text color={IVORY}>{getCommandName(skill)}</Text>
-                  <Text color={FAINT}>
-                    {extensionName ? ` · ${extensionName}` : ''} · {tokenDisplay}{' '}
-                    tokens
-                  </Text>
-                </Text>
-              )
-            })}
-          </Box>
-        )
-      })}
-    </CommandCenter>
-  )
+function MercurySkillsMenu(arg0: Props): React.ReactNode {
+  return notBuilt('src/components/skills/SkillsMenu.tsx:122')
 }
 
 export function SkillsMenu({ onExit, commands }: Props): React.ReactNode {

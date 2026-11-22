@@ -1,8 +1,8 @@
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
-
-export const INTERRUPT_MESSAGE = '[Request interrupted by user]'
-export const INTERRUPT_MESSAGE_FOR_TOOL_USE =
-  '[Request interrupted by user for tool use]'
+export const INTERRUPT_MESSAGE: Unbuilt = unbuilt('src/utils/messages/turnCut.ts:3')
+export const INTERRUPT_MESSAGE_FOR_TOOL_USE: Unbuilt =
+  unbuilt('src/utils/messages/turnCut.ts:4')
 
 export function interruptedToolsLine(toolNames: readonly string[]): string {
   const names = [...new Set(toolNames)]
@@ -75,17 +75,7 @@ export function isCutResultText(text: string): boolean {
 }
 
 export function turnCutOfText(text: string): TurnCut | null {
-  if (text === INTERRUPT_MESSAGE || text === INTERRUPT_MESSAGE_FOR_TOOL_USE) return { kind: 'operator' }
-  const match = /^\[Request cut off(?: during tool use)?(?: by (.+)|: (.+))\]$/s.exec(text)
-  if (match === null) return null
-  const timeout = match[1]
-  if (timeout !== undefined) {
-    const detail = timeout.startsWith(`${IDLE_TIMEOUT_WORDS}: `) ? timeout.slice(IDLE_TIMEOUT_WORDS.length + 2) : undefined
-    return { kind: 'idle-timeout', ...(detail !== undefined ? { detail } : {}) }
-  }
-  const rest = match[2] ?? ''
-  if (rest === PARENT_STOP_WORDS) return { kind: 'parent-stop' }
-  return { kind: 'cut', detail: rest }
+  return notBuilt('src/utils/messages/turnCut.ts:77')
 }
 
 export function isTurnCutText(text: string): boolean {

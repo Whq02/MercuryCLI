@@ -1,16 +1,9 @@
-
 import type { ToolPermissionContext } from '../../Tool.js'
-import { matchingRuleForInput } from '../permissions/filesystem.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export function isFileReadDenied(
   filePath: string,
   toolPermissionContext: ToolPermissionContext,
 ): boolean {
-  const denyRule = matchingRuleForInput(
-    filePath,
-    toolPermissionContext,
-    'read',
-    'deny',
-  )
-  return denyRule !== null
+  return notBuilt('src/utils/attachments/shared.ts:5')
 }

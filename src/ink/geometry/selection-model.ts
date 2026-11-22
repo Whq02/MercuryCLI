@@ -1,30 +1,16 @@
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
+
 export type Point = { col: number; row: number }
 
 type Geometry = { anchor: Point | null; focus: Point | null; isDragging: boolean }
 type ModeSpan = { anchorSpan: { lo: Point; hi: Point; kind: 'word' | 'line' } | null }
 type ClipBand = { clipLo?: number; clipHi?: number; clipTop?: number; clipBottom?: number }
-type OffscreenLedger = {
-  scrolledOffAbove: string[]
-  scrolledOffBelow: string[]
-  scrolledOffAboveSW: boolean[]
-  scrolledOffBelowSW: boolean[]
-}
-type ClampDebt = { virtualAnchorRow?: number; virtualFocusRow?: number }
+type ClampDebt = Unbuilt
 
-export type SelectionState = Geometry & ModeSpan & ClipBand & OffscreenLedger & ClampDebt & { lastPressHadAlt: boolean }
+export type SelectionState = Unbuilt
 
 export function createSelectionState(): SelectionState {
-  return {
-    anchor: null,
-    focus: null,
-    isDragging: false,
-    anchorSpan: null,
-    scrolledOffAbove: [],
-    scrolledOffBelow: [],
-    scrolledOffAboveSW: [],
-    scrolledOffBelowSW: [],
-    lastPressHadAlt: false,
-  }
+  return notBuilt('src/ink/geometry/selection-model.ts:16')
 }
 
 const NO_DEBT: ClampDebt = { virtualAnchorRow: undefined, virtualFocusRow: undefined }
@@ -38,22 +24,21 @@ const atAnchorBeforeAnyMotion = (s: SelectionState, col: number, row: number): b
   s.focus === null && s.anchor?.col === col && s.anchor.row === row
 
 export function updateSelection(s: SelectionState, col: number, row: number): void {
-  if (!s.isDragging || atAnchorBeforeAnyMotion(s, col, row)) return
-  s.focus = { col, row }
+  return notBuilt('src/ink/geometry/selection-model.ts:40')
 }
 
 export function finishSelection(s: SelectionState): void {
-  s.isDragging = false
+  return notBuilt('src/ink/geometry/selection-model.ts:45')
 }
 
 export function clearSelection(s: SelectionState): void {
-  Object.assign(s, createSelectionState(), NO_DEBT)
+  return notBuilt('src/ink/geometry/selection-model.ts:49')
 }
 
-export type FocusMove = 'left' | 'right' | 'up' | 'down' | 'lineStart' | 'lineEnd'
+export type FocusMove = Unbuilt
 
 export function moveFocus(s: SelectionState, col: number, row: number): void {
-  if (s.focus) Object.assign(s, { anchorSpan: null, focus: { col, row }, virtualFocusRow: undefined })
+  return notBuilt('src/ink/geometry/selection-model.ts:55')
 }
 
 export function comparePoints(a: Point, b: Point): number {
@@ -61,13 +46,11 @@ export function comparePoints(a: Point, b: Point): number {
 }
 
 export function hasSelection(s: SelectionState): boolean {
-  return s.anchor !== null && s.focus !== null
+  return notBuilt('src/ink/geometry/selection-model.ts:63')
 }
 
 export function selectionBounds(s: SelectionState): { start: Point; end: Point } | null {
-  const { anchor, focus } = s
-  if (!anchor || !focus) return null
-  return comparePoints(anchor, focus) <= 0 ? { start: anchor, end: focus } : { start: focus, end: anchor }
+  return notBuilt('src/ink/geometry/selection-model.ts:67')
 }
 
 type Band = [lo: number | undefined, hi: number | undefined]

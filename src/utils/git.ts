@@ -27,6 +27,7 @@ import { gitExe } from './git/gitExe.js'
 import { isENOENT } from './errors.js'
 import { passedOver } from './passedOver.js'
 import { startTimeout, stopTimeout } from './timers.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 export { findGitRoot } from './git/gitRoot.js'
 export { gitExe } from './git/gitExe.js'
@@ -80,12 +81,12 @@ export const getIsGit = memoizeWithLRU(
 )
 
 export async function dirIsInGitRepo(cwd: string): Promise<boolean> {
-  return findGitRoot(cwd) !== null
+  return notBuilt('src/utils/git.ts:82')
 }
 
 
 async function getHead(): Promise<string> {
-  return getCachedHead()
+  return notBuilt('src/utils/git.ts:87')
 }
 
 export async function getBranch(cwd?: string): Promise<string> {
@@ -119,7 +120,6 @@ export function redactGitRemoteCredentials<T extends string | null | undefined>(
   if (url === null || url === undefined) return url
   return (url as string).replace(/:\/\/[^/@]+@/, '://***@') as T
 }
-
 
 
 const PROBE_TIMEOUT_MS = 30_000
@@ -163,20 +163,7 @@ async function probeUpstream(): Promise<{ value: UpstreamFact | null; fault: str
 type UntrackedMode = 'all' | 'normal' | 'no'
 
 async function probeClean(mode: UntrackedMode): Promise<{ value: boolean | null; fault: string | null }> {
-  const args = ['status', '--porcelain', `--untracked-files=${mode}`, ...projectScopePathspec(getCwd())]
-  const r = await runGitProbe(args, { GIT_OPTIONAL_LOCKS: '0' })
-  if (r.fault !== null) return { value: null, fault: r.fault }
-  if (r.status !== 0) return { value: false, fault: null }
-  const meaningful = r.stdout
-    .split('\n')
-    .map(line => line.trimEnd())
-    .filter(line => line !== '')
-    .filter(line => {
-      const path = line.replace(/^..\s+/, '').replace(/^"|"$/g, '')
-      if (path.startsWith(`${MERCURY_PROJECT_DIR}/health/`)) return false
-      return !(mode === 'normal' && path === `${MERCURY_PROJECT_DIR}/`)
-    })
-  return { value: meaningful.length === 0, fault: null }
+  return notBuilt('src/utils/git.ts:165')
 }
 
 export async function getIsClean(options?: {
@@ -187,40 +174,14 @@ export async function getIsClean(options?: {
   return (await probeClean(mode)).value ?? false
 }
 
-type GitFileStatus = {
-  tracked: string[]
-  untracked: string[]
-}
+type GitFileStatus = Unbuilt
 
 export async function getFileStatus(): Promise<GitFileStatus> {
-  const result = await execFileNoThrow(
-    gitExe(),
-    ['-c', 'core.quotePath=false', 'status', '--porcelain', '-z', ...projectScopePathspec(getCwd())],
-    { preserveOutputOnError: false },
-  )
-  const tracked: string[] = []
-  const untracked: string[] = []
-  if (result.code !== 0) return { tracked, untracked }
-  const tokens = result.stdout.split('\0')
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i] as string
-    if (token === '') continue
-    const status = token.slice(0, 2)
-    const path = token.slice(3)
-    if (status[0] === 'R' || status[0] === 'C') {
-      i++
-    }
-    if (status === '??') {
-      untracked.push(path)
-    } else if (path.length > 0) {
-      tracked.push(path)
-    }
-  }
-  return { tracked, untracked }
+  return notBuilt('src/utils/git.ts:195')
 }
 
 async function getWorktreeCount(): Promise<number> {
-  return getWorktreeCountFromFs()
+  return notBuilt('src/utils/git.ts:222')
 }
 
 
@@ -467,15 +428,7 @@ export function gitProbeNote(): string | null {
   return probeNotice
 }
 
-export type GitRepoState = {
-  commitHash: string
-  branchName: string
-  remoteUrl: string | null
-  isHeadOnRemote: boolean
-  isClean: boolean
-  worktreeCount: number
-  unpushedCount: number
-}
+export type GitRepoState = Unbuilt
 
 function sameState(a: GitRepoState, b: GitRepoState): boolean {
   return (
@@ -539,19 +492,7 @@ export function _gitFactsForTesting(): {
 }
 
 export async function getGithubRepo(): Promise<string | null> {
-  const url = await getRemoteUrl()
-  if (!url) {
-    logForDebugging('getGithubRepo: no remote url')
-    return null
-  }
-  const { parseGitRemote } = await import('./detectRepository.js')
-  const parsed = parseGitRemote(url)
-  if (!parsed || parsed.host !== 'github.com') {
-    logForDebugging(`getGithubRepo: not a github.com remote (${redactGitRemoteCredentials(url)})`)
-    return null
-  }
-  logForDebugging(`getGithubRepo: ${parsed.owner}/${parsed.name}`)
-  return `${parsed.owner}/${parsed.name}`
+  return notBuilt('src/utils/git.ts:541')
 }
 
 

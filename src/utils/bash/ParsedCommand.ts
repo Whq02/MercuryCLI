@@ -1,17 +1,11 @@
 import { extractOutputRedirections, pipeSpans } from './commands.js'
 import { parseValidCommandRoot } from '../permissions/decision/commandAnalysis/sequence.js'
 import { analyzeCommand, type TreeSitterAnalysis } from './treeSitterAnalysis.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 type OutputRedirection = { target: string; operator: '>' | '>>' }
 
-interface IParsedCommand {
-  readonly originalCommand: string
-  toString(): string
-  getPipeSegments(): string[]
-  withoutOutputRedirections(): string
-  getOutputRedirections(): OutputRedirection[]
-  getTreeSitterAnalysis(): TreeSitterAnalysis | null
-}
+type IParsedCommand = Unbuilt
 
 class TreeSitterParsedCommand implements IParsedCommand {
   readonly originalCommand: string
@@ -20,38 +14,27 @@ class TreeSitterParsedCommand implements IParsedCommand {
   private readonly redirections: ReturnType<typeof extractOutputRedirections>
 
   constructor(command: string, root: unknown) {
-    this.originalCommand = command
-    this.pipes = pipeSpans(root)
-    this.analysis = analyzeCommand(root, command)
-    this.redirections = extractOutputRedirections(command)
+    notBuilt('src/utils/bash/ParsedCommand.ts:22')
   }
 
   toString(): string {
-    return this.originalCommand
+    return notBuilt('src/utils/bash/ParsedCommand.ts:29')
   }
 
   getPipeSegments(): string[] {
-    if (this.pipes.length === 0) return [this.originalCommand]
-    const segments: string[] = []
-    let start = 0
-    for (const pipe of this.pipes) {
-      segments.push(this.originalCommand.slice(start, pipe.start))
-      start = pipe.end
-    }
-    segments.push(this.originalCommand.slice(start))
-    return segments.map(segment => segment.trim()).filter(Boolean)
+    return notBuilt('src/utils/bash/ParsedCommand.ts:33')
   }
 
   withoutOutputRedirections(): string {
-    return this.redirections.commandWithoutRedirections
+    return notBuilt('src/utils/bash/ParsedCommand.ts:45')
   }
 
   getOutputRedirections(): OutputRedirection[] {
-    return this.redirections.redirections
+    return notBuilt('src/utils/bash/ParsedCommand.ts:49')
   }
 
   getTreeSitterAnalysis(): TreeSitterAnalysis {
-    return this.analysis
+    return notBuilt('src/utils/bash/ParsedCommand.ts:53')
   }
 }
 
@@ -59,10 +42,4 @@ export function buildParsedCommandFromRoot(command: string, root: unknown): IPar
   return new TreeSitterParsedCommand(command, root)
 }
 
-export const ParsedCommand = {
-  async parse(command: string): Promise<IParsedCommand | null> {
-    const root = await parseValidCommandRoot(command)
-    if (!root) return null
-    return buildParsedCommandFromRoot(command, root)
-  },
-}
+export const ParsedCommand: Unbuilt = unbuilt('src/utils/bash/ParsedCommand.ts:62')

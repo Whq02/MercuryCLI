@@ -13,18 +13,9 @@ import { PermissionRequestTitle } from './PermissionRequestTitle.js'
 import { PermissionQueueContext } from './PermissionQueueContext.js'
 import { PopupFrameContext } from '../PopupGutter.js'
 import type { WorkerBadgeProps } from './WorkerBadge.js'
+import type { Unbuilt } from '../../pi/holes.js'
 
-type Props = {
-  title: string
-  subtitle?: React.ReactNode
-  color?: keyof Theme
-  titleColor?: keyof Theme
-  innerPaddingX?: number
-  crewmate?: string
-  workerBadge?: WorkerBadgeProps
-  titleRight?: React.ReactNode
-  children: React.ReactNode
-}
+type Props = Unbuilt
 
 export function PermissionDialog({
   title,

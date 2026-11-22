@@ -16,92 +16,61 @@ import { getErrnoCode } from './errors.js'
 import { createSignal } from './signal.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
 import { passedOver } from './passedOver.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
-export const TASK_STATUSES = ['pending', 'in_progress', 'completed'] as const
+export const TASK_STATUSES: Unbuilt = unbuilt('src/utils/tasks.ts:21')
+export type TaskStatus = Unbuilt
 
-const TaskStatusSchema = lazySchema(() => z.enum(TASK_STATUSES))
-export type TaskStatus = (typeof TASK_STATUSES)[number]
-
-export const TaskSchema = lazySchema(() =>
-  z.object({
-    id: z.string(),
-    subject: z.string(),
-    description: z.string(),
-    activeForm: z.string().optional(),
-    owner: z.string().optional(),
-    status: TaskStatusSchema(),
-    blocks: z.array(z.string()),
-    blockedBy: z.array(z.string()),
-    metadata: z.record(z.string(), z.unknown()).optional(),
-    epoch: z.number().optional(),
-  }),
-)
-export type Task = z.infer<ReturnType<typeof TaskSchema>>
+export const TaskSchema: Unbuilt = unbuilt('src/utils/tasks.ts:26')
+export type Task = Unbuilt
 
 export function isTaskToolsEnabled(): boolean {
-  return isEnvTruthy(flagEnv('MERCURY_TASKS')) || !getIsNonInteractiveSession()
+  return notBuilt('src/utils/tasks.ts:42')
 }
 
 export function getTaskListId(): string {
-  return flagEnv('MERCURY_TASK_LIST_ID') || getSessionId()
+  return notBuilt('src/utils/tasks.ts:46')
 }
 
 export async function listSessionMission(): Promise<Task[]> {
-  const own = getTaskListId()
-  const seen = new Set<string>()
-  const rows: Task[] = []
-  const tasks = await listTasks(own)
-  for (const task of tasks) {
-    if (seen.has(task.id)) continue
-    seen.add(task.id)
-    rows.push(task)
-  }
-  return rows
+  return notBuilt('src/utils/tasks.ts:50')
 }
 
 export function sanitizePathComponent(input: string): string {
-  return input.replace(/[^A-Za-z0-9_-]/g, '-')
+  return notBuilt('src/utils/tasks.ts:63')
 }
 
 
 export function getTasksDir(taskListId: string): string {
-  return join(getMercuryHome(), 'tasks', sanitizePathComponent(taskListId))
+  return notBuilt('src/utils/tasks.ts:68')
 }
 
 export function getTaskPath(taskListId: string, taskId: string): string {
-  return join(getTasksDir(taskListId), `${sanitizePathComponent(taskId)}.json`)
+  return notBuilt('src/utils/tasks.ts:72')
 }
 
 export async function ensureTasksDir(taskListId: string): Promise<void> {
-  await fs.promises.mkdir(getTasksDir(taskListId), { recursive: true })
+  return notBuilt('src/utils/tasks.ts:76')
 }
 
 function highWatermarkPath(taskListId: string): string {
-  return join(getTasksDir(taskListId), '.highwatermark')
+  return notBuilt('src/utils/tasks.ts:80')
 }
 
 function epochPath(taskListId: string): string {
-  return join(getTasksDir(taskListId), '.epoch')
+  return notBuilt('src/utils/tasks.ts:84')
 }
 
 function listLockPath(taskListId: string): string {
-  return join(getTasksDir(taskListId), '.lock')
-}
-
-function taskLockPath(taskListId: string, taskId: string): string {
-  return `${getTaskPath(taskListId, taskId)}.pidlock`
+  return notBuilt('src/utils/tasks.ts:88')
 }
 
 
-const tasksUpdatedSignal = createSignal()
+const tasksUpdatedSignal: Unbuilt = unbuilt('src/utils/tasks.ts:97')
 
 export function notifyTasksUpdated(): void {
-  try {
-    tasksUpdatedSignal.emit()
-  } catch (error) {
-    passedOver(error)
-  }
+  return notBuilt('src/utils/tasks.ts:99')
 }
 
 export const onTasksUpdated = tasksUpdatedSignal.subscribe
@@ -200,39 +169,7 @@ export async function resetTaskList(
   taskListId: string,
   opts?: { onlyIfAllCompleted?: boolean },
 ): Promise<boolean> {
-  await ensureTasksDir(taskListId)
-  const result = await withLock(listLockPath(taskListId), 'tasks-reset', async () => {
-    if (opts?.onlyIfAllCompleted) {
-      const tasks = await listTasks(taskListId)
-      if (tasks.length === 0 || tasks.some(task => task.status !== 'completed')) return false
-    }
-    const highest = await highestNumericIdOnDisk(taskListId)
-    if (highest > (await readHighWatermark(taskListId))) {
-      await publishAtomic(highWatermarkPath(taskListId), jsonStringify(highest))
-    }
-    const epoch = await readTaskEpoch(taskListId)
-    await publishAtomic(
-      epochPath(taskListId),
-      jsonStringify({ epoch: epoch + 1, resetAt: new Date().toISOString() }),
-    )
-    let names: string[] = []
-    try {
-      names = await fs.promises.readdir(getTasksDir(taskListId))
-    } catch {
-      names = []
-    }
-    for (const name of names) {
-      if (!isTaskBodyName(name)) continue
-      try {
-        await fs.promises.unlink(join(getTasksDir(taskListId), name))
-      } catch (error) {
-        passedOver(error)
-      }
-    }
-    return true
-  })
-  if (result) notifyTasksUpdated()
-  return result
+  return notBuilt('src/utils/tasks.ts:199')
 }
 
 export async function sweepDeadEpochTasks(taskListId: string): Promise<number> {
@@ -340,24 +277,7 @@ export async function getTask(taskListId: string, taskId: string, preloadedEpoch
 }
 
 export async function listTasks(taskListId: string): Promise<Task[]> {
-  const ids = await listTaskIdsOnDisk(taskListId)
-  if (ids.length === 0) return []
-  const epoch = await readTaskEpoch(taskListId)
-  const tasks = await Promise.all(ids.map(id => getTask(taskListId, id, epoch)))
-  return tasks.filter((task): task is Task => task !== null)
-}
-
-async function updateTaskUnlocked(
-  taskListId: string,
-  taskId: string,
-  updates: Partial<Omit<Task, 'id'>>,
-): Promise<Task | null> {
-  const existing = await getTask(taskListId, taskId)
-  if (!existing) return null
-  const merged: Task = { ...existing, ...updates, id: existing.id }
-  await publishAtomic(getTaskPath(taskListId, taskId), jsonStringify(merged, null, 2))
-  notifyTasksUpdated()
-  return merged
+  return notBuilt('src/utils/tasks.ts:342')
 }
 
 export async function updateTask(
@@ -365,43 +285,15 @@ export async function updateTask(
   taskId: string,
   updates: Partial<Omit<Task, 'id'>>,
 ): Promise<Task | null> {
-  if ((await getTask(taskListId, taskId)) === null) return null
-  return withLock(taskLockPath(taskListId, taskId), 'tasks-update', () =>
-    updateTaskUnlocked(taskListId, taskId, updates),
-  )
+  return notBuilt('src/utils/tasks.ts:363')
 }
 
 export async function deleteTask(taskListId: string, taskId: string): Promise<boolean> {
-  const numeric = parseInt(taskId, 10)
-  if (!Number.isNaN(numeric) && numeric > (await readHighWatermark(taskListId))) {
-    await publishAtomic(highWatermarkPath(taskListId), jsonStringify(numeric))
-  }
-  try {
-    await fs.promises.unlink(getTaskPath(taskListId, taskId))
-  } catch (error) {
-    if (getErrnoCode(error) === 'ENOENT') return false
-    throw error
-  }
-  for (const task of await listTasks(taskListId)) {
-    const blocks = task.blocks.filter(id => id !== taskId)
-    const blockedBy = task.blockedBy.filter(id => id !== taskId)
-    if (blocks.length === task.blocks.length && blockedBy.length === task.blockedBy.length) continue
-    await updateTask(taskListId, task.id, { blocks, blockedBy })
-  }
-  notifyTasksUpdated()
-  return true
+  return notBuilt('src/utils/tasks.ts:374')
 }
 
 export async function blockTask(taskListId: string, fromTaskId: string, toTaskId: string): Promise<boolean> {
-  const [from, to] = await Promise.all([getTask(taskListId, fromTaskId), getTask(taskListId, toTaskId)])
-  if (!from || !to) return false
-  if (!from.blocks.includes(toTaskId)) {
-    await updateTask(taskListId, fromTaskId, { blocks: [...from.blocks, toTaskId] })
-  }
-  if (!to.blockedBy.includes(fromTaskId)) {
-    await updateTask(taskListId, toTaskId, { blockedBy: [...to.blockedBy, fromTaskId] })
-  }
-  return true
+  return notBuilt('src/utils/tasks.ts:395')
 }
 
 
@@ -420,58 +312,5 @@ export async function claimTask(
   claimantAgentId: string,
   options?: ClaimTaskOptions,
 ): Promise<ClaimTaskResult> {
-  if ((await getTask(taskListId, taskId)) === null) {
-    return { success: false, reason: 'task_not_found' }
-  }
-
-  if (options?.checkAgentBusy) {
-    return await withLock(listLockPath(taskListId), 'tasks-claim', async () => {
-      const tasks = await listTasks(taskListId)
-      const task = tasks.find(candidate => candidate.id === taskId)
-      if (!task) return { success: false, reason: 'task_not_found' } as const
-      if (task.owner && task.owner !== claimantAgentId) {
-        return { success: false, reason: 'already_claimed', task } as const
-      }
-      if (task.status === 'completed') {
-        return { success: false, reason: 'already_resolved', task } as const
-      }
-      const openIds = new Set(tasks.filter(candidate => candidate.status !== 'completed').map(t => t.id))
-      const blockedByTasks = task.blockedBy.filter(id => openIds.has(id))
-      if (blockedByTasks.length > 0) {
-        return { success: false, reason: 'blocked', task, blockedByTasks } as const
-      }
-      const busyWithTasks = tasks
-        .filter(
-          candidate =>
-            candidate.id !== taskId && candidate.owner === claimantAgentId && candidate.status !== 'completed',
-        )
-        .map(candidate => candidate.id)
-      if (busyWithTasks.length > 0) {
-        return { success: false, reason: 'agent_busy', task, busyWithTasks } as const
-      }
-      const claimed = await updateTask(taskListId, taskId, { owner: claimantAgentId })
-      if (!claimed) return { success: false, reason: 'task_not_found' } as const
-      return { success: true, task: claimed } as const
-    })
-  }
-
-  return await withLock(taskLockPath(taskListId, taskId), 'tasks-claim', async () => {
-    const task = await getTask(taskListId, taskId)
-    if (!task) return { success: false, reason: 'task_not_found' } as const
-    if (task.owner && task.owner !== claimantAgentId) {
-      return { success: false, reason: 'already_claimed', task } as const
-    }
-    if (task.status === 'completed') {
-      return { success: false, reason: 'already_resolved', task } as const
-    }
-    const all = await listTasks(taskListId)
-    const openIds = new Set(all.filter(candidate => candidate.status !== 'completed').map(t => t.id))
-    const blockedByTasks = task.blockedBy.filter(id => openIds.has(id))
-    if (blockedByTasks.length > 0) {
-      return { success: false, reason: 'blocked', task, blockedByTasks } as const
-    }
-    const claimed = await updateTaskUnlocked(taskListId, taskId, { owner: claimantAgentId })
-    if (!claimed) return { success: false, reason: 'task_not_found' } as const
-    return { success: true, task: claimed } as const
-  })
+  return notBuilt('src/utils/tasks.ts:417')
 }

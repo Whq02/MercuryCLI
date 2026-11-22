@@ -1,4 +1,3 @@
-
 import React, { memo, useRef, useState } from 'react'
 import { useMeasure } from '../hooks/effects.js'
 import { Ansi, Box, NoSelect, Text, measureElement } from '../ink.js'
@@ -8,76 +7,8 @@ import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import { linkifyCodeUrls } from '../utils/hyperlink.js'
 import { HighlightedCodeFallback } from './HighlightedCode/Fallback.js'
 import { Suspense } from 'react'
+import { unbuilt, type Unbuilt } from '../pi/holes.js'
 
-export const HighlightedCode = memo(function HighlightedCode({
-  code,
-  filePath,
-  width,
-  dim = false,
-}: {
-  code: string
-  filePath: string
-  width?: number
-  dim?: boolean
-}): React.ReactNode {
-  const highlightingDisabled = useAppState(
-    state => state.settings.view?.syntaxOff === true,
-  )
-  const boxRef = useRef<DOMElement | null>(null)
-  const [measured, setMeasured] = useState<number | null>(null)
-
-  useMeasure(() => {
-    if (width !== undefined) return
-    if (boxRef.current) {
-      const { width: measuredWidth } = measureElement(boxRef.current)
-      if (measuredWidth > 0) setMeasured(measuredWidth - 2)
-    }
-  })
-
-  const effectiveWidth = width ?? measured ?? 80
-
-  const body = (
-    <HighlightedCodeFallback
-      code={code}
-      filePath={filePath}
-      dim={dim}
-      skipColoring={highlightingDisabled}
-    />
-  )
-
-  if (!isFullscreenEnvEnabled()) {
-    return (
-      <Box ref={boxRef} width={width} flexDirection="column">
-        {body}
-      </Box>
-    )
-  }
-
-  const lines = code.split('\n')
-  const gutterWidth = String(lines.length).length + 2
-  void effectiveWidth
-  return (
-    <Box ref={boxRef} width={width} flexDirection="column">
-      {lines.map((line, index) => (
-        <Box key={index}>
-          <NoSelect fromLeftEdge flexShrink={0}>
-            <Text dimColor>
-              {String(index + 1).padStart(gutterWidth - 2)}
-              {'  '}
-            </Text>
-          </NoSelect>
-          <Suspense fallback={<Ansi dimColor={dim}>{linkifyCodeUrls(line === '' ? ' ' : line)}</Ansi>}>
-            <HighlightedCodeFallback
-              code={line === '' ? ' ' : line}
-              filePath={filePath}
-              dim={dim}
-              skipColoring={highlightingDisabled}
-            />
-          </Suspense>
-        </Box>
-      ))}
-    </Box>
-  )
-})
+export const HighlightedCode: Unbuilt = unbuilt('src/components/HighlightedCode.tsx:12')
 
 export default HighlightedCode

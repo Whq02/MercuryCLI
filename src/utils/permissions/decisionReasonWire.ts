@@ -5,6 +5,7 @@ import type {
   PermissionResult,
 } from '../../types/permissions.js'
 import { BYPASSED_ASK_ROAD_WORDS } from '../../types/permissions.js'
+import { notBuilt } from '../../pi/holes.js'
 
 interface PermissionResultWireV1 {
   [key: string]: unknown
@@ -39,54 +40,5 @@ export function encodeDecisionReasonForWire(
 }
 
 export function decodeDecisionReasonFromWire(value: unknown): PermissionDecisionReason | undefined {
-  if (!value || typeof value !== 'object') return undefined
-  const v = value as Record<string, unknown>
-  switch (v.type) {
-    case 'rule': {
-      const rule = v.rule as { ruleValue?: { toolName?: unknown } } | undefined
-      return rule && typeof rule === 'object' && typeof rule.ruleValue?.toolName === 'string'
-        ? (value as PermissionDecisionReason)
-        : undefined
-    }
-    case 'mode':
-      return typeof v.mode === 'string' ? (value as PermissionDecisionReason) : undefined
-    case 'hook':
-      return typeof v.hookName === 'string' ? (value as PermissionDecisionReason) : undefined
-    case 'asyncAgent':
-    case 'workingDir':
-    case 'other':
-      return typeof v.reason === 'string' ? (value as PermissionDecisionReason) : undefined
-    case 'guard':
-      return typeof v.reason === 'string' && typeof v.guard === 'string' ? (value as PermissionDecisionReason) : undefined
-    case 'safetyCheck':
-      return typeof v.reason === 'string' && typeof v.operatorOnly === 'boolean'
-        ? (value as PermissionDecisionReason)
-        : undefined
-    case 'permissionPromptTool':
-      return value as PermissionDecisionReason
-    case 'bypassedAsk': {
-      const inner = decodeDecisionReasonFromWire(v.reason)
-      return typeof v.mode === 'string' && typeof v.road === 'string' && BYPASSED_ASK_ROADS.has(v.road) && inner !== undefined
-        ? { type: 'bypassedAsk', mode: v.mode as PermissionMode, road: v.road as BypassedAskRoad, reason: inner }
-        : undefined
-    }
-    case 'subcommandResults': {
-      if (!Array.isArray(v.reasons)) return undefined
-      const reasons = new Map<string, PermissionResult>()
-      for (const entry of v.reasons as unknown[]) {
-        if (!Array.isArray(entry) || entry.length !== 2) continue
-        const [command, result] = entry as [unknown, unknown]
-        if (typeof command !== 'string' || !result || typeof result !== 'object') continue
-        const { decisionReason, ...rest } = result as PermissionResultWireV1
-        const decoded = decodeDecisionReasonFromWire(decisionReason)
-        reasons.set(command, {
-          ...rest,
-          ...(decoded !== undefined ? { decisionReason: decoded } : {}),
-        } as PermissionResult)
-      }
-      return { type: 'subcommandResults', reasons }
-    }
-    default:
-      return undefined
-  }
+  return notBuilt('src/utils/permissions/decisionReasonWire.ts:41')
 }

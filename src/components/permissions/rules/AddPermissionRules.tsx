@@ -13,6 +13,7 @@ import { Select } from '../../CustomSelect/select.js'
 import type { OptionWithDescription } from '../../CustomSelect/select.js'
 import { Dialog } from '../../design-system/Dialog.js'
 import { PermissionRuleDescription } from './PermissionRuleDescription.js'
+import { notBuilt } from '../../../pi/holes.js'
 
 const DESTINATION_LABEL: Record<EditableSettingSource, string> = {
   userSettings: 'User settings',
@@ -42,14 +43,7 @@ function newlyUnreachable(context: ToolPermissionContext, added: PermissionRuleV
   return findings.length > 0 ? findings : undefined
 }
 
-export function AddPermissionRules({
-  onAddRules,
-  onCancel,
-  ruleValues,
-  ruleBehavior,
-  initialContext,
-  setToolPermissionContext,
-}: {
+export function AddPermissionRules(arg0: {
   onAddRules: (rules: PermissionRule[], unreachable?: UnreachableRule[]) => void
   onCancel: () => void
   ruleValues: PermissionRuleValue[]
@@ -57,27 +51,5 @@ export function AddPermissionRules({
   initialContext: ToolPermissionContext
   setToolPermissionContext: (context: ToolPermissionContext) => void
 }): React.ReactNode {
-  const several = ruleValues.length !== 1
-
-  const save = (destination: EditableSettingSource): void => {
-    const update: PermissionUpdate = { type: 'addRules', rules: ruleValues, behavior: ruleBehavior, destination }
-    const updated = applyPermissionUpdate(initialContext, update)
-    persistPermissionUpdate(update)
-    setToolPermissionContext(updated)
-    const created = ruleValues.map(ruleValue => ({ source: destination, ruleBehavior, ruleValue }))
-    onAddRules(created, newlyUnreachable(updated, ruleValues))
-  }
-
-  return (
-    <Dialog title={`Add ${plural(ruleValues.length, 'rule')}`} onCancel={onCancel} color="permission">
-      <Text>Where should {several ? 'these rules' : 'this rule'} be saved?</Text>
-      {ruleValues.map((ruleValue, index) => (
-        <Box key={index} flexDirection="column">
-          <Text bold>{permissionRuleValueToString(ruleValue)}</Text>
-          <PermissionRuleDescription ruleValue={ruleValue} />
-        </Box>
-      ))}
-      <Select options={SOURCES.map(destinationOption)} onChange={save} onCancel={onCancel} />
-    </Dialog>
-  )
+  return notBuilt('src/components/permissions/rules/AddPermissionRules.tsx:45')
 }

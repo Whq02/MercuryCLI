@@ -4,20 +4,9 @@ import { anyModalOverlayActive } from '../../context/overlayStack.js'
 import { currentSurfaceRoute } from '../../context/surfaceRoute.js'
 import type { AppState } from '../../state/AppState.js'
 import type { CompactWorkControls } from '../tasks/CompactWorkSummary.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-export function useComposerCompactFocus({
-  compactWork,
-  summaryVisible,
-  modalOverlayUp,
-  externalEditorActive,
-  isSearchingHistory,
-  helpOpen,
-  exitState,
-  pastePendingRef,
-  isCompact,
-  footerSelection,
-  setAppState,
-}: {
+export function useComposerCompactFocus(arg0: {
   compactWork: CompactWorkControls | undefined
   summaryVisible: boolean
   modalOverlayUp: boolean
@@ -29,18 +18,6 @@ export function useComposerCompactFocus({
   isCompact: boolean
   footerSelection: AppState['footerSelection']
   setAppState: (f: (prev: AppState) => AppState) => void
-}) {
-  const canFocusSummary = (): boolean => summaryVisible && currentSurfaceRoute().kind === 'repl' && !modalOverlayUp && !externalEditorActive && !isSearchingHistory && !helpOpen && !exitState.pending && !anyModalOverlayActive() && !(pastePendingRef.current?.() ?? false)
-  compactWork?.bindToggle(() => {
-    if (compactWork.read() === 'summary') { compactWork.set('composer'); return }
-    if (canFocusSummary()) compactWork.set('summary')
-  })
-  useClaim(() => () => compactWork?.bindToggle(null), [compactWork])
-  useLayoutPublish(() => {
-    if (isCompact && footerSelection !== null) setAppState(prev => ({ ...prev, footerSelection: null }))
-  }, [isCompact, footerSelection, setAppState])
-  useLayoutPublish(() => {
-    if (compactWork?.read() === 'summary' && !canFocusSummary()) compactWork.set('composer')
-  }, [summaryVisible, modalOverlayUp, externalEditorActive, isSearchingHistory, helpOpen, exitState.pending, compactWork])
-  return canFocusSummary
+}): Unbuilt {
+  return notBuilt('src/components/PromptInput/useComposerCompactFocus.ts:8')
 }

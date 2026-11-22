@@ -7,6 +7,7 @@ import { logError } from '../log.js'
 import { contentBlocksOf } from './normalize.js'
 import { createUserMessage } from './factories.js'
 import { SYNTHETIC_TOOL_RESULT_PLACEHOLDER } from './rejectionText.js'
+import { notBuilt } from '../../pi/holes.js'
 
 function resultsAnsweredOnce(
   content: readonly (ContentBlockParam | ContentBlock)[],
@@ -37,34 +38,6 @@ function detachedUser(row: UserMessage, first: boolean): UserMessage | null {
   return { ...row, message: { ...row.message, content } }
 }
 
-function admitAssistant(row: AssistantMessage, known: Set<string>): {
-  row: AssistantMessage; called: Set<string>; repaired: boolean
-} {
-  const before = contentBlocksOf(row.message.content) as ContentBlock[]
-  const serverAnswers = new Set(before.flatMap(block =>
-    'tool_use_id' in block && typeof block.tool_use_id === 'string' ? [block.tool_use_id] : []))
-  const called = new Set<string>()
-  let repaired = false
-  const content: ContentBlock[] = []
-  for (const item of contentItemsOf(before)) {
-    if (item.type === 'tool_call') {
-      const client = item.native === 'tool_use'
-      if (client ? known.has(item.call_id) : !serverAnswers.has(item.call_id)) {
-        repaired = true
-        continue
-      }
-      if (client) {
-        known.add(item.call_id)
-        called.add(item.call_id)
-      }
-    }
-    content.push(item.value as ContentBlock)
-  }
-  const changed = content.length !== before.length || before !== row.message.content
-  if (!content.length) content.push({ type: 'text', text: '[Tool use interrupted]', citations: [] })
-  return { row: changed ? { ...row, message: { ...row.message, content } } : row, called, repaired }
-}
-
 function reconcileResults(called: Set<string>, next: PairingRow | undefined): UserMessage | undefined {
   const following = next?.type === 'user' ? next : undefined
   const ids = following && Array.isArray(following.message.content)
@@ -85,125 +58,14 @@ function reconcileResults(called: Set<string>, next: PairingRow | undefined): Us
     : createUserMessage({ content: NO_CONTENT_MESSAGE, isMeta: true })
 }
 
-function pairingStructure(row: PairingRow, index: number): string {
-  if (row.type === 'assistant') {
-    const client: string[] = []
-    const server: string[] = []
-    for (const item of contentItemsOf(row.message.content)) {
-      if (item.type === 'tool_call') (item.native === 'tool_use' ? client : server).push(item.call_id)
-    }
-    const parts = [`id=${row.message.id}`, `tool_uses=[${client.join(',')}]`]
-    if (server.length) parts.push(`server_tool_uses=[${server.join(',')}]`)
-    return `[${index}] assistant(${parts.join(', ')})`
-  }
-  const body = row.message.content
-  if (Array.isArray(body)) {
-    const ids = body.filter(block => typeof block === 'object' && 'type' in block && block.type === 'tool_result')
-      .map(block => (block as ToolResultBlockParam).tool_use_id)
-    if (ids.length) return `[${index}] user(tool_results=[${ids.join(',')}])`
-  }
-  return `[${index}] ${row.type}`
-}
-
 export function ensureToolResultPairing(messages: PairingRow[]): PairingRow[] {
-  const output: PairingRow[] = []
-  const known = new Set<string>()
-  let repaired = false
-  let cursor = 0
-  while (cursor < messages.length) {
-    const row = messages[cursor++]!
-    if (row.type !== 'assistant') {
-      const accepted = row.type === 'user' && output.at(-1)?.type !== 'assistant'
-        ? detachedUser(row, output.length === 0) : row
-      if (accepted !== row) repaired = true
-      if (accepted) output.push(accepted)
-      continue
-    }
-    const accepted = admitAssistant(row, known)
-    repaired ||= accepted.repaired
-    output.push(accepted.row)
-    const answer = reconcileResults(accepted.called, messages[cursor])
-    if (!answer) continue
-    repaired = true
-    output.push(answer)
-    if (messages[cursor]?.type === 'user') cursor++
-  }
-  if (repaired) {
-    const structure = messages.map(pairingStructure).join('; ')
-    if (getStrictToolResultPairing()) {
-      throw new Error(`The tool calls and their results do not pair up and strict pairing is on, so no placeholder is written into the model's context. Message structure: ${structure}`)
-    }
-    logError(new Error(`Tool results were repaired on the way to the wire (${messages.length} rows in, ${output.length} out). Message structure: ${structure}`))
-  }
-  return output
+  return notBuilt('src/utils/messages/resultPairing.ts:108')
 }
 
 export function foldSplitTurnsForWire(
   messages: (UserMessage | AssistantMessage)[],
 ): (UserMessage | AssistantMessage)[] {
-  const out: (UserMessage | AssistantMessage)[] = []
-  const isAllToolResults = (m: UserMessage): boolean =>
-    Array.isArray(m.message.content) &&
-    m.message.content.length > 0 &&
-    m.message.content.every(
-      block =>
-        typeof block === 'object' &&
-        block !== null &&
-        'type' in block &&
-        block.type === 'tool_result',
-    )
-  for (const msg of messages) {
-    const prev = out.at(-1)
-    if (
-      msg.type === 'assistant' &&
-      prev?.type === 'assistant' &&
-      typeof msg.message.id === 'string' &&
-      msg.message.id !== '' &&
-      prev.message.id === msg.message.id
-    ) {
-      out[out.length - 1] = {
-        ...prev,
-        ...('apexProviderTurn' in msg && msg.apexProviderTurn !== undefined
-          ? { apexProviderTurn: msg.apexProviderTurn }
-          : {}),
-        ...(msg.geminiProviderTurn !== undefined
-          ? { geminiProviderTurn: msg.geminiProviderTurn }
-          : {}),
-        ...(msg.kimiProviderTurn !== undefined ? { kimiProviderTurn: msg.kimiProviderTurn } : {}),
-        ...(msg.xaiProviderTurn !== undefined ? { xaiProviderTurn: msg.xaiProviderTurn } : {}),
-        ...(msg.openrouterProviderTurn !== undefined
-          ? { openrouterProviderTurn: msg.openrouterProviderTurn }
-          : {}),
-        message: {
-          ...prev.message,
-          content: [...storedBlocksOf(prev.message.content), ...storedBlocksOf(msg.message.content)] as ContentBlock[],
-          stop_reason: msg.message.stop_reason ?? prev.message.stop_reason,
-          usage: msg.message.usage ?? prev.message.usage,
-        },
-      }
-      continue
-    }
-    if (
-      msg.type === 'user' &&
-      prev?.type === 'user' &&
-      isAllToolResults(msg) &&
-      isAllToolResults(prev)
-    ) {
-      out[out.length - 1] = {
-        ...prev,
-        message: {
-          ...prev.message,
-          content: [
-            ...(prev.message.content as ContentBlockParam[]),
-            ...(msg.message.content as ContentBlockParam[]),
-          ],
-        },
-      }
-      continue
-    }
-    out.push(msg)
-  }
-  return out
+  return notBuilt('src/utils/messages/resultPairing.ts:141')
 }
 
 
@@ -292,45 +154,12 @@ function repairResultAdjacency(
 export function orderToolResultsByUse(
   rows: (UserMessage | AssistantMessage)[],
 ): (UserMessage | AssistantMessage)[] {
-  const isToolResultBlock = (b: unknown): b is ToolResultBlockParam =>
-    typeof b === 'object' &&
-    b !== null &&
-    'type' in b &&
-    (b as { type: string }).type === 'tool_result'
-  let changed = false
-  const out = rows.map((row, i) => {
-    if (row.type !== 'user' || !Array.isArray(row.message.content)) return row
-    const prev = rows[i - 1]
-    if (!prev || prev.type !== 'assistant') return row
-    const useOrder = new Map<string, number>()
-    for (const item of clientCallItemsOf(prev.message.content)) useOrder.set(item.call_id, useOrder.size)
-    if (useOrder.size === 0) return row
-    const content = row.message.content as ContentBlockParam[]
-    const results = content
-      .map((b, idx) => ({ b, idx }))
-      .filter(({ b }) => isToolResultBlock(b))
-    if (results.length === 0) return row
-    const sorted = results
-      .map(({ b, idx }) => ({
-        b,
-        idx,
-        rank: useOrder.get((b as ToolResultBlockParam).tool_use_id) ?? Number.MAX_SAFE_INTEGER,
-      }))
-      .sort((x, y) => x.rank - y.rank || x.idx - y.idx)
-      .map(({ b }) => b)
-    const others = content.filter(b => !isToolResultBlock(b))
-    const next = [...sorted, ...others]
-    if (next.length === content.length && next.every((b, k) => b === content[k])) return row
-    changed = true
-    return { ...row, message: { ...row.message, content: next } }
-  })
-  return changed ? out : rows
+  return notBuilt('src/utils/messages/resultPairing.ts:292')
 }
 
 export function pairConversationMessages(
   messages: (UserMessage | AssistantMessage)[],
   geometry: 'canonical' | 'split',
 ): (UserMessage | AssistantMessage)[] {
-  const turns = geometry === 'split' ? repairResultAdjacency(foldSplitTurnsForWire(messages)) : messages
-  return orderToolResultsByUse(ensureToolResultPairing(turns))
+  return notBuilt('src/utils/messages/resultPairing.ts:330')
 }

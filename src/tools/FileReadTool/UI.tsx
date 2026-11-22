@@ -22,6 +22,7 @@ import type { Input, Output } from './FileReadTool.js'
 import { resultResolvedNames } from './read/results.js'
 import { FILE_READ_TOOL_NAME } from '../../constants/tools/fileRead.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 
 const TASK_ID_PATTERN = /^[A-Za-z0-9_-]{1,20}$/
@@ -41,39 +42,18 @@ function agentOutputTaskId(filePath: string | undefined): string | null {
 }
 
 export function userFacingName(input?: Partial<Input>): string {
-  if (agentOutputTaskId(input?.file_path) !== null) return 'Read crewmate output'
-  return FILE_READ_TOOL_NAME
+  return notBuilt('src/tools/FileReadTool/UI.tsx:43')
 }
 
 export function getToolUseSummary(input: Partial<Input> | undefined): string | null {
-  if (!input?.file_path) return null
-  const taskId = agentOutputTaskId(input.file_path)
-  if (taskId !== null) return taskId
-  return truncatePathMiddle(getDisplayPath(input.file_path), TOOL_SUMMARY_MAX_LENGTH)
+  return notBuilt('src/tools/FileReadTool/UI.tsx:48')
 }
 
 export function renderToolUseMessage(
   input: Partial<Input>,
-  { verbose }: { verbose: boolean },
+  arg1: { verbose: boolean },
 ): React.ReactNode {
-  if (!input.file_path) return null
-  if (agentOutputTaskId(input.file_path) !== null) return ''
-  const trailers: string[] = []
-  if (input.pages !== undefined) {
-    trailers.push(`pages ${input.pages}`)
-  } else if (verbose && (input.offset !== undefined || input.limit !== undefined)) {
-    const start = input.offset ?? 1
-    trailers.push(
-      input.limit !== undefined ? `lines ${start}-${start + input.limit - 1}` : `from line ${start}`,
-    )
-  }
-  const displayPath = verbose ? input.file_path : getDisplayPath(input.file_path)
-  return (
-    <Text>
-      <FilePathLink filePath={input.file_path}>{displayPath}</FilePathLink>
-      {trailers.length > 0 ? ` · ${trailers.join(' · ')}` : null}
-    </Text>
-  )
+  return notBuilt('src/tools/FileReadTool/UI.tsx:55')
 }
 
 export function renderToolUseTag(input?: Partial<Input>): string | null {
@@ -128,22 +108,11 @@ function ReadResultSummary({ output }: { output: Output }): React.ReactNode {
 }
 
 export function renderToolResultMessage(output: Output): React.ReactNode {
-  return (
-    <MessageResponse height={1}>
-      <ReadResultSummary output={output} />
-    </MessageResponse>
-  )
+  return notBuilt('src/tools/FileReadTool/UI.tsx:130')
 }
 
-function ShortErrorLine({ text }: { text: string }): React.ReactNode {
-  const tokens = useMercuryTokens()
-  return (
-    <MessageResponse>
-      <Text color={tokens.warning}>
-        {GLYPH.warn} {text}
-      </Text>
-    </MessageResponse>
-  )
+function ShortErrorLine(arg0: { text: string }): React.ReactNode {
+  return notBuilt('src/tools/FileReadTool/UI.tsx:138')
 }
 
 export function renderToolUseErrorMessage(

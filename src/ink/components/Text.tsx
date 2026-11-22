@@ -1,19 +1,10 @@
-
 import React from 'react'
 import type { Color, Styles, TextStyles } from '../styles.js'
+import type { Unbuilt } from '../../pi/holes.js'
 
 type WrapMode = NonNullable<Styles['textWrap']>
 
-type BaseProps = {
-  readonly color?: Color
-  readonly backgroundColor?: Color
-  readonly italic?: boolean
-  readonly underline?: boolean
-  readonly strikethrough?: boolean
-  readonly inverse?: boolean
-  readonly wrap?: WrapMode
-  readonly children?: React.ReactNode
-}
+type BaseProps = Unbuilt
 
 export type Props =
   | (BaseProps & { readonly bold?: boolean; readonly dim?: never })

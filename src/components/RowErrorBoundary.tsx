@@ -4,40 +4,27 @@ import { logError } from '../utils/log.js'
 import { crashReportDirDisplay, persistCrashReport } from '../utils/crashReport.js'
 import { FAINT } from './mercuryPalette.js'
 import { GLYPH } from '../utils/glyphs.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
-interface Props {
-  children: React.ReactNode
-  origin?: NonNullable<Parameters<typeof persistCrashReport>[2]>
-}
+type Props = Unbuilt
 
-interface State {
-  hasError: boolean
-}
+type State = Unbuilt
 
 export class RowErrorBoundary extends React.Component<Props, State> {
   constructor(props: Props) {
-    super(props)
-    this.state = { hasError: false }
+    notBuilt('src/components/RowErrorBoundary.tsx:18')
+    super(notBuilt('src/components/RowErrorBoundary.tsx:18'))
   }
 
   static getDerivedStateFromError(): State {
-    return { hasError: true }
+    return notBuilt('src/components/RowErrorBoundary.tsx:23')
   }
 
   override componentDidCatch(error: unknown, errorInfo: React.ErrorInfo): void {
-    logError(error)
-    persistCrashReport(error, errorInfo, this.props.origin ?? 'message-boundary')
+    return notBuilt('src/components/RowErrorBoundary.tsx:27')
   }
 
   override render(): React.ReactNode {
-    if (this.state.hasError) {
-      return (
-        <Text color={FAINT}>
-          {GLYPH.warn} a part of this view could not be rendered · crash report: {crashReportDirDisplay()}
-        </Text>
-      )
-    }
-
-    return this.props.children
+    return notBuilt('src/components/RowErrorBoundary.tsx:32')
   }
 }

@@ -4,14 +4,10 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { createTask, getTaskListId, isTaskToolsEnabled } from '../../utils/tasks.js'
 import { TASK_CREATE_TOOL_NAME } from '../../constants/tools/taskCreate.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
-const inputSchema = lazySchema(() => z.strictObject({
-  subject: z.string().describe('A brief title for the task, in the imperative form'),
-  description: z.string().describe('What needs to be done'),
-  activeForm: z.string().optional().describe('Present-continuous phrase shown in the spinner while the task is in progress'),
-  metadata: z.record(z.string(), z.unknown()).optional().describe('Free-form metadata for the task'),
-}))
-const outputSchema = lazySchema(() => z.object({ task: z.object({ id: z.string(), subject: z.string() }) }))
+const inputSchema: Unbuilt = unbuilt('src/tools/TaskCreateTool/TaskCreateTool.ts:8')
+const outputSchema: Unbuilt = unbuilt('src/tools/TaskCreateTool/TaskCreateTool.ts:14')
 type InputSchema = ReturnType<typeof inputSchema>
 type Input = z.infer<InputSchema>
 type Output = z.infer<ReturnType<typeof outputSchema>>
@@ -31,21 +27,4 @@ async function addTask(input: Input, context: ToolUseContext): Promise<{ data: O
   return { data: { task: { id, subject: input.subject } } }
 }
 
-export const TaskCreateTool = buildTool({
-  call: addTask,
-  renderToolUseMessage: () => null,
-  mapToolResultToToolResultBlockParam: ({ task }: Output, tool_use_id: string) => ({
-    type: 'tool_result' as const, tool_use_id,
-    content: `Task #${task.id} created successfully: ${task.subject}`,
-  }),
-  name: TASK_CREATE_TOOL_NAME,
-  searchHint: 'create a new task in the task list',
-  shouldDefer: true,
-  maxResultSizeChars: 100_000,
-  get inputSchema() { return inputSchema() },
-  get outputSchema() { return outputSchema() },
-  isEnabled: () => isTaskToolsEnabled(),
-  userFacingName: () => 'TaskCreate',
-  description: async () => DESCRIPTION,
-  prompt: async () => getPrompt(),
-} satisfies ToolDef<InputSchema, Output>)
+export const TaskCreateTool: Unbuilt = unbuilt('src/tools/TaskCreateTool/TaskCreateTool.ts:34')

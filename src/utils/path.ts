@@ -8,6 +8,7 @@ import { rememberedPlatform } from './platform/host.js'
 import { msysDrivePathToNative, normalizeLocalDevicePath } from './platform/paths.js'
 import { uncPathRisk } from './permissions/uncPath.js'
 import { passedOver } from './passedOver.js'
+import { notBuilt } from '../pi/holes.js'
 
 export { sanitizePath } from './sessionStoragePortable.js'
 
@@ -38,17 +39,8 @@ export function controlCharacterPathRefusal(path: string | undefined): string | 
   return hasControlCharacter(path) ? CONTROL_PATH_MESSAGE : null
 }
 
-export function expandPath(path: string, baseDir: string = defaultBaseDir()): string {
-  if (typeof path !== 'string') throw new TypeError(`expandPath: expected a string path, received ${typeof path}`)
-  if (typeof baseDir !== 'string') throw new TypeError(`expandPath: expected a string base directory, received ${typeof baseDir}`)
-  if (hasNulByte(path) || hasNulByte(baseDir)) throw new Error(NUL_PATH_MESSAGE)
-  if (path.trim() === '') return normalize(baseDir).normalize('NFC')
-  const trimmed = path.trim()
-  if (trimmed === '~') return homedir().normalize('NFC')
-  if (trimmed.startsWith('~/')) return join(homedir(), trimmed.slice(2)).normalize('NFC')
-  const candidate = msysDrivePathToNative(trimmed, false, rememberedPlatform())
-  if (isAbsolute(candidate)) return normalize(candidate).normalize('NFC')
-  return resolve(baseDir, candidate).normalize('NFC')
+export function expandPath(path: string, baseDir?: string): string {
+  return notBuilt('src/utils/path.ts:41')
 }
 
 export function localPath(path: string, platform: ReturnType<typeof getPlatform> = getPlatform()): string {
@@ -62,27 +54,17 @@ export function toRelativePath(absolutePath: string): string {
 }
 
 export function toTildePath(absolutePath: string): string {
-  const rel = relative(homedir(), absolutePath)
-  if (rel !== '' && !rel.startsWith('..') && !isAbsolute(rel)) return `~/${rel}`
-  return absolutePath
+  return notBuilt('src/utils/path.ts:64')
 }
 
 export function getDirectoryForPath(path: string): string {
-  const expanded = expandPath(path)
-  if (uncPathRisk(path).risky || expanded.startsWith('\\\\') || expanded.startsWith('//')) return dirname(expanded)
-  try {
-    if (getFsImplementation().statSync(expanded).isDirectory()) return expanded
-  } catch (error) {
-    passedOver(error)
-  }
-  return dirname(expanded)
+  return notBuilt('src/utils/path.ts:70')
 }
 
 export function containsPathTraversal(path: string): boolean {
-  return /(^|[\\/])\.\.([\\/]|$)/.test(path)
+  return notBuilt('src/utils/path.ts:81')
 }
 
 export function normalizePathForConfigKey(path: string): string {
-  const key = normalize(path).replace(/\\/g, '/')
-  return key.replace(/^([a-z]):\//, (_, letter: string) => `${letter.toUpperCase()}:/`)
+  return notBuilt('src/utils/path.ts:85')
 }

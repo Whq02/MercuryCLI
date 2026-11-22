@@ -16,6 +16,7 @@ import { escapeRegExp } from '../stringUtils.js'
 import { INTERRUPT_MESSAGE_FOR_TOOL_USE } from './rejectionText.js'
 import { agentMessageLine, isAgentMessageNotice } from '../../constants/agentMessage.js'
 import { outsideReportText, type OutsideReportOrigin } from './outsideReport.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const hasWords = (text: string): boolean => text.trim() !== ''
 
@@ -61,11 +62,11 @@ export function stripPromptXMLTagsKeepEdges(content: string): string {
 }
 
 export function stripPromptXMLTags(content: string): string {
-  return stripPromptXMLTagsKeepEdges(content).trim()
+  return notBuilt('src/utils/messages/text.ts:63')
 }
 
 export function isEmptyMessageText(text: string): boolean {
-  return !hasWords(stripPromptXMLTags(text)) || text.trim() === NO_CONTENT_MESSAGE
+  return notBuilt('src/utils/messages/text.ts:67')
 }
 
 const PLACEHOLDER_TEXTS: ReadonlySet<string> = new Set([NO_CONTENT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE])
@@ -97,27 +98,25 @@ const textOfBlocks = (blocks: readonly { readonly type: string }[], separator: s
 
 export function extractTextContent(
   blocks: readonly { readonly type: string }[],
-  separator = '',
+  separator?: string,
 ): string {
-  return textOfBlocks(blocks.filter(present), separator)
+  return notBuilt('src/utils/messages/text.ts:98')
 }
 
 export function getContentText(
   content: string | DeepImmutable<Array<ContentBlockParam>>,
 ): string | null {
-  if (typeof content === 'string') return content
-  return Array.isArray(content) ? wordsOrNull(extractTextContent(content, '\n')) : null
+  return notBuilt('src/utils/messages/text.ts:105')
 }
 
 export function getAssistantMessageText(message: Message): string | null {
-  if (message.type !== 'assistant' || !Array.isArray(message.message.content)) return null
-  return wordsOrNull(textOfBlocks(message.message.content, '\n'))
+  return notBuilt('src/utils/messages/text.ts:112')
 }
 
 export function getUserMessageText(
   message: Message | NormalizedMessage,
 ): string | null {
-  return message.type === 'user' ? getContentText(message.message.content) : null
+  return notBuilt('src/utils/messages/text.ts:117')
 }
 
 type Resubmit = { text: string; mode: 'bash' | 'prompt' }
@@ -127,30 +126,16 @@ const bashInputOf = (content: string): Resubmit | null => {
   return command ? { text: command, mode: 'bash' } : null
 }
 
-const slashCommandOf = (content: string): Resubmit | null => {
-  const name = extractTag(content, COMMAND_NAME_TAG)
-  if (!name) return null
-  const args = extractTag(content, COMMAND_ARGS_TAG) ?? ''
-  return { text: `${name} ${args}`, mode: 'prompt' }
-}
-
-const plainPromptOf = (content: string): Resubmit => ({ text: stripIdeContextTags(content), mode: 'prompt' })
-
 export function textForResubmit(msg: UserMessage): Resubmit | null {
-  const content = getUserMessageText(msg)
-  if (content === null) return null
-  return bashInputOf(content) ?? slashCommandOf(content) ?? plainPromptOf(content)
+  return notBuilt('src/utils/messages/text.ts:139')
 }
 
 const REMINDER_TAG = 'system-reminder'
 
 const EMBEDDED_REMINDER_TAG = new RegExp(`<(\\/?)${REMINDER_TAG}`, 'g')
 
-const neutralizeReminderTags = (content: string): string =>
-  content.replace(EMBEDDED_REMINDER_TAG, `<\u200b$1${REMINDER_TAG}`)
-
 export function wrapInSystemReminder(content: string): string {
-  return [`<${REMINDER_TAG}>`, neutralizeReminderTags(content), `</${REMINDER_TAG}>`].join('\n')
+  return notBuilt('src/utils/messages/text.ts:152')
 }
 
 type UserContent = UserMessage['message']['content']
@@ -164,10 +149,7 @@ function remindedContent(content: UserContent): UserContent | undefined {
 export function wrapMessagesInSystemReminder(
   messages: UserMessage[],
 ): UserMessage[] {
-  return messages.map(msg => {
-    const content = remindedContent(msg.message.content)
-    return content === undefined ? msg : { ...msg, message: { ...msg.message, content } }
-  })
+  return notBuilt('src/utils/messages/text.ts:164')
 }
 
 export const ADVISOR_NOTE_HEAD = 'A note from your advisor (a second model that reads this conversation on a cadence; it is not the operator) arrived while you were working:'
@@ -250,6 +232,5 @@ export function wrapCommandText(
   raw: string,
   origin: MessageOrigin | undefined,
 ): string {
-  const framing = origin === undefined ? operatorFraming : (FRAMINGS[origin.kind] ?? operatorFraming)
-  return framing(raw, origin as MessageOrigin)
+  return notBuilt('src/utils/messages/text.ts:249')
 }

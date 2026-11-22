@@ -4,6 +4,7 @@ import { BASH_TOOL_NAME } from '../../../constants/tools/bash.js'
 import { extractOutputRedirections } from '../../../utils/bash/commands.js'
 import { generateShellSuggestionsLabel } from '../shellPermissionHelpers.js'
 import type { PermissionDecisionReason, PermissionUpdate } from '../../../types/permissions.js'
+import { notBuilt } from '../../../pi/holes.js'
 
 export type BashToolUseOption = 'yes' | 'yes-apply-suggestions' | 'yes-edited-prefix' | 'no'
 
@@ -37,16 +38,7 @@ function bashRuleCount(suggestions: PermissionUpdate[]): number {
   return count
 }
 
-export function bashToolUseOptions({
-  suggestions,
-  decisionReason,
-  onRejectFeedbackChange,
-  onAcceptFeedbackChange,
-  yesInputMode,
-  noInputMode,
-  editablePrefix,
-  onEditablePrefixChange,
-}: {
+export function bashToolUseOptions(arg0: {
   suggestions?: PermissionUpdate[]
   decisionReason?: PermissionDecisionReason
   onRejectFeedbackChange: (feedback: string) => void
@@ -56,57 +48,5 @@ export function bashToolUseOptions({
   editablePrefix?: string
   onEditablePrefixChange?: (prefix: string) => void
 }): OptionWithDescription<BashToolUseOption>[] {
-  const options: OptionWithDescription<BashToolUseOption>[] = []
-
-  if (yesInputMode) {
-    options.push({
-      type: 'input',
-      label: 'Yes',
-      value: 'yes',
-      onChange: onAcceptFeedbackChange,
-      placeholder: 'tell Mercury what to do next',
-      allowEmptySubmitToCancel: true,
-    })
-  } else {
-    options.push({ label: 'Yes', value: 'yes' })
-  }
-
-  if (suggestions && suggestions.length > 0) {
-    const compound = decisionReason?.type === 'subcommandResults'
-    const editableAllowed =
-      editableCanRepresent(suggestions) && (!compound || bashRuleCount(suggestions) === 1)
-    if (editableAllowed && editablePrefix !== undefined && onEditablePrefixChange) {
-      options.push({
-        type: 'input',
-        label: "Yes, and don't ask again for commands starting with",
-        value: 'yes-edited-prefix',
-        initialValue: editablePrefix,
-        onChange: onEditablePrefixChange,
-        placeholder: 'npm run *',
-        showLabelWithValue: true,
-        labelValueSeparator: ': ',
-        resetCursorOnUpdate: true,
-      })
-    } else {
-      const label = generateShellSuggestionsLabel(suggestions, BASH_TOOL_NAME, stripRedirections)
-      if (label !== null) {
-        options.push({ label: <Text>{label}</Text>, value: 'yes-apply-suggestions' })
-      }
-    }
-  }
-
-  if (noInputMode) {
-    options.push({
-      type: 'input',
-      label: 'No, and tell Mercury what to do differently (esc)',
-      value: 'no',
-      onChange: onRejectFeedbackChange,
-      placeholder: 'tell Mercury what to do differently',
-      allowEmptySubmitToCancel: true,
-    })
-  } else {
-    options.push({ label: 'No, and tell Mercury what to do differently (esc)', value: 'no' })
-  }
-
-  return options
+  return notBuilt('src/components/permissions/BashPermissionRequest/bashToolUseOptions.tsx:40')
 }

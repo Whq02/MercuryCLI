@@ -1,4 +1,3 @@
-
 import { useRef, useSyncExternalStore } from 'react'
 import { useNotifications, type Notification } from '../context/notifications.js'
 import { useIsOverlayActive } from '../context/overlayContext.js'
@@ -33,6 +32,7 @@ import {
   TASK_NOTIFICATION_TAG,
 } from '../constants/xml.js'
 import { interruptCrewmate } from '../components/tasks/crewmateInterrupt.js'
+import { notBuilt } from '../pi/holes.js'
 
 const KILL_CONFIRM_WINDOW_MS = 3000
 const NONE_RUNNING_TIMEOUT_MS = 2000
@@ -78,22 +78,7 @@ function killRunningAgents(
   return true
 }
 
-export function CancelRequestHandler({
-  isElicitationFocused = false,
-  isInterviewFocused = false,
-  onAgentsKilled,
-  isMessageSelectorVisible = false,
-  screen,
-  abortSignal,
-  vimMode,
-  isLocalJSXCommand = false,
-  isSearchingHistory = false,
-  isHelpOpen = false,
-  isInputDialogFocused = false,
-  streamMode,
-  focusedTurnActive,
-  compactWork,
-}: {
+export function CancelRequestHandler(arg0: {
   focusedTurnActive?: boolean
   compactWork?: CompactWorkControls
   isElicitationFocused?: boolean
@@ -109,152 +94,5 @@ export function CancelRequestHandler({
   isInputDialogFocused?: boolean
   streamMode?: string
 }): null {
-  const store = useAppStateStore()
-  const setAppState = useSetAppState()
-  const { addNotification, removeNotification } = useNotifications()
-  const overlayActive = useIsOverlayActive()
-  const killChord = useShortcutDisplay('chat:killAgents', 'Chat', 'ctrl+x ctrl+k')
-  const killPressAtRef = useRef(0)
-  void streamMode
-
-  const taskRunning = focusedTurnActive ?? (abortSignal !== undefined && !abortSignal.aborted)
-  const viewingCrewmate = store.getState().viewingAgentTaskId !== undefined
-
-  const settleAsksAndCancel = (): void => {
-    interruptFocusedTurn()
-  }
-
-  const contextGuardsPass =
-    screen !== 'transcript' &&
-    !isSearchingHistory &&
-    !isMessageSelectorVisible &&
-    !isLocalJSXCommand &&
-    !isHelpOpen &&
-    !overlayActive &&
-    !(vimMode !== undefined && vimMode === 'INSERT' && isVimEnabled())
-
-  function isVimEnabled(): boolean {
-    return vimMode !== undefined
-  }
-
-  const isEscapeActive =
-    contextGuardsPass &&
-    !isElicitationFocused &&
-    !isInterviewFocused &&
-    !viewingCrewmate &&
-    taskRunning
-
-  useKeybinding(
-    'chat:cancel',
-    () => {
-      if (compactWork !== undefined && compactWork.read() !== 'composer') return false
-      if (pendingInput.mode() !== 'prompt' && pendingInput.text() === '') {
-        return false
-      }
-      if (taskRunning) {
-        const press = pressInterrupt('chat')
-        if (!press.fire) {
-          addNotification({
-            key: 'interrupt-arity',
-            text: press.hint,
-            priority: 'immediate',
-            timeoutMs: press.windowMs,
-          })
-          return
-        }
-        settleAsksAndCancel()
-        return
-      }
-      settleAsksAndCancel()
-    },
-    { context: 'Chat', isActive: isEscapeActive },
-  )
-
-  const shellRunning = useFocusedShellRunning()
-  useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
-  const backgroundFocusedShell = (): false | undefined => {
-    if (compactWork !== undefined && compactWork.read() !== 'composer') return false
-    if (pendingInput.text() !== '') return false
-    const focused = getFocusedSessionConnector()
-    if (hasSeatLive(focused)) {
-      void focused.backgroundShell().then(receipt => {
-        const notice = backgroundShellNotice(receipt)
-        if (notice !== null) addNotification(notice)
-      })
-      return
-    }
-    if (requestShellBackground() === 0) return false
-  }
-  useKeybinding(
-    'chat:backgroundShell',
-    backgroundFocusedShell,
-    { context: 'Chat', isActive: isEscapeActive && shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false },
-  )
-  useKeybinding(
-    'task:background',
-    () => {
-      if (!hasSeatLive(getFocusedSessionConnector())) return false
-      return backgroundFocusedShell()
-    },
-    { context: 'Task', isActive: isEscapeActive && shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false },
-  )
-
-  const interruptActive =
-    contextGuardsPass && (taskRunning || viewingCrewmate)
-  useKeybinding(
-    'app:interrupt',
-    () => {
-      if (compactWork?.read() === 'detail') return false
-      if (compactWork?.read() === 'summary') compactWork.set('composer')
-      const freshState = store.getState() as AppState
-      const viewedCrewmate = freshState.viewingAgentTaskId
-      const viewingCrewmateNow = viewedCrewmate !== undefined
-      if (viewedCrewmate !== undefined) {
-        interruptCrewmate(viewedCrewmate, freshState, setAppState)
-        return
-      }
-      if (taskRunning) {
-        settleAsksAndCancel()
-        if (!viewingCrewmateNow && !isInputDialogFocused) return false
-      }
-    },
-    { context: 'Global', isActive: interruptActive },
-  )
-
-  useKeybindings(
-    {
-      'chat:killAgents': () => {
-        const running = Object.values(store.getState().tasks).filter(
-          task => isLocalAgentTask(task) && task.status === 'running',
-        )
-        if (running.length === 0) {
-          addNotification({
-            key: 'kill-agents-none',
-            text: 'no background crewmates are running',
-            priority: 'immediate',
-            timeoutMs: NONE_RUNNING_TIMEOUT_MS,
-          })
-          return
-        }
-        const now = Date.now()
-        if (now - killPressAtRef.current <= KILL_CONFIRM_WINDOW_MS) {
-          killPressAtRef.current = 0
-          removeNotification('kill-agents-confirm')
-          const killed = killRunningAgents(() => store.getState() as AppState, setAppState)
-          if (killed) onAgentsKilled?.()
-          return
-        }
-        killPressAtRef.current = now
-        addNotification({
-          key: 'kill-agents-confirm',
-          text: `press ${killChord} again to stop the background crewmates`,
-          priority: 'immediate',
-          timeoutMs: KILL_CONFIRM_WINDOW_MS,
-        })
-      },
-    },
-    { context: 'Chat' },
-  )
-
-  return null
+  return notBuilt('src/hooks/useCancelRequest.ts:81')
 }

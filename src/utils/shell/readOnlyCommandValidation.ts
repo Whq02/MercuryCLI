@@ -1,43 +1,25 @@
 import { sedCommandIsAllowedByAllowlist } from './sedValidation.js'
 import { binaryName } from '../config/derived.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 type FlagValue = 'none' | 'number' | 'string' | 'char' | '{}' | 'EOF'
 
-type ReadOnlyRule = {
-  readonly words: readonly string[]
-  readonly flags?: Readonly<Record<string, FlagValue>>
-  readonly readsOnly?: (operands: readonly string[], text: string) => boolean
-  readonly form?: (text: string) => boolean
-  readonly whole?: RegExp
-  readonly dashDashIsAnOperand?: true
-  readonly countShorthand?: true
-  readonly attachedNumbers?: true
-  readonly descendingSort?: true
-  readonly noNewline?: true
-  readonly targets?: readonly string[]
-  readonly unixOnly?: true
-  readonly unlisted?: true
-}
+type ReadOnlyRule = Unbuilt
 
-type ExternalCommandConfig = {
-  safeFlags: Record<string, FlagValue>
-  regex?: RegExp
-  additionalCommandIsDangerousCallback?: (rawCommand: string, args: string[]) => boolean
-  respectsDoubleDash?: boolean
-}
+type ExternalCommandConfig = Unbuilt
 
-const none: FlagValue = 'none'
-const str: FlagValue = 'string'
-const num: FlagValue = 'number'
-const char: FlagValue = 'char'
+const none: FlagValue = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:29')
+const str: FlagValue = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:30')
+const num: FlagValue = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:31')
+const char: FlagValue = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:32')
 
-type Flags = Readonly<Record<string, FlagValue>>
+type Flags = Unbuilt
 
 function flags(...groups: Flags[]): Flags {
-  return Object.assign({}, ...groups)
+  return notBuilt('src/utils/shell/readOnlyCommandValidation.ts:36')
 }
 
-const statFlags: Flags = { '--stat': none, '--numstat': none, '--shortstat': none, '--name-only': none, '--name-status': none }
+const statFlags: Flags = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:40')
 const colourFlags: Flags = { '--color': none, '--no-color': none }
 const patchFlags: Flags = { '--patch': none, '-p': none, '--no-patch': none, '--no-ext-diff': none, '--no-textconv': none, '-s': none }
 const logDisplayFlags: Flags = { '--oneline': none, '--graph': none, '--decorate': none, '--no-decorate': none, '--date': str, '--relative-date': none }
@@ -422,140 +404,24 @@ const FORM_RULES = new Map<string, ReadOnlyRule>(READ_ONLY_RULES.filter(rule => 
 const LONGEST_RULE = Math.max(...READ_ONLY_RULES.map(rule => rule.words.length))
 
 export function walkedRuleFor(tokens: readonly string[]): ReadOnlyRule | undefined {
-  for (let length = Math.min(LONGEST_RULE, tokens.length); length >= 1; length--) {
-    const rule = WALKED_RULES.get(tokens.slice(0, length).join(' '))
-    if (rule !== undefined) return rule
-  }
-  return undefined
+  return notBuilt('src/utils/shell/readOnlyCommandValidation.ts:424')
 }
 
 export function formRuleFor(word: string): ReadOnlyRule | undefined {
-  return FORM_RULES.get(word)
+  return notBuilt('src/utils/shell/readOnlyCommandValidation.ts:432')
 }
 
-export const LISTED_WORDS: ReadonlySet<string> = new Set(READ_ONLY_RULES.filter(rule => !rule.unlisted).map(rule => rule.words[0] as string))
-
-function valueFits(value: string, shape: FlagValue): boolean {
-  switch (shape) {
-    case 'number':
-      return /^\d+$/.test(value)
-    case 'string':
-      return true
-    case 'char':
-      return value.length === 1
-    case '{}':
-      return value === '{}'
-    case 'EOF':
-      return value === 'EOF'
-    case 'none':
-      return false
-  }
-}
-
-function isFlag(token: string): boolean {
-  return token.length > 1 && token[0] === '-' && /[A-Za-z0-9_-]/.test(token[1] as string)
-}
+export const LISTED_WORDS: ReadonlySet<string> = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:436')
 
 export function walkFlags(tokens: readonly string[], startIndex: number, rule: ReadOnlyRule): boolean {
-  const table = rule.flags ?? {}
-  let i = startIndex
-  while (i < tokens.length) {
-    const token = tokens[i] as string
-    if (token === '') {
-      i++
-      continue
-    }
-    if (rule.targets !== undefined && (!isFlag(token) || token === '--')) {
-      const target = token === '--' && tokens[i + 1] !== undefined ? (tokens[i + 1] as string) : token
-      return rule.targets.includes(target)
-    }
-    if (token === '--') {
-      if (rule.dashDashIsAnOperand) {
-        i++
-        continue
-      }
-      return true
-    }
-    if (!isFlag(token)) {
-      i++
-      continue
-    }
-    const equals = token.indexOf('=')
-    const name = equals === -1 ? token : token.slice(0, equals)
-    const shape = table[name]
-    if (shape === undefined) {
-      if (rule.countShorthand && /^-\d+$/.test(token)) {
-        i++
-        continue
-      }
-      const short = token.startsWith('-') && !token.startsWith('--') && token.length > 2
-      if (rule.attachedNumbers && short) {
-        const letterShape = table[token.slice(0, 2)]
-        const tail = token.slice(2)
-        if (letterShape !== undefined && /^\d+$/.test(tail) && (letterShape === 'number' || letterShape === 'string')) {
-          if (!valueFits(tail, letterShape)) return false
-          i++
-          continue
-        }
-      }
-      if (short) {
-        const letters = (equals === -1 ? token : name).slice(1)
-        if ([...letters].every(letter => table[`-${letter}`] === 'none')) {
-          i++
-          continue
-        }
-      }
-      return false
-    }
-    if (shape === 'none') {
-      if (equals !== -1) return false
-      i++
-      continue
-    }
-    const descending = (candidate: string): boolean => rule.descendingSort === true && name === '--sort' && /^-[A-Za-z]/.test(candidate)
-    let value: string
-    if (equals !== -1) {
-      value = token.slice(equals + 1)
-      i++
-    } else {
-      const next = tokens[i + 1]
-      if (next === undefined || (isFlag(next) && !descending(next))) return false
-      value = next
-      i += 2
-    }
-    if (shape === 'string' && value.startsWith('-') && !descending(value)) return false
-    if (!valueFits(value, shape)) return false
-  }
-  return true
+  return notBuilt('src/utils/shell/readOnlyCommandValidation.ts:459')
 }
 
-function asConfig(rule: ReadOnlyRule): ExternalCommandConfig {
-  const config: ExternalCommandConfig = { safeFlags: { ...(rule.flags ?? {}) } }
-  if (rule.whole !== undefined) config.regex = rule.whole
-  if (rule.dashDashIsAnOperand) config.respectsDoubleDash = false
-  const readsOnly = rule.readsOnly
-  if (readsOnly !== undefined) config.additionalCommandIsDangerousCallback = (text, operands) => !readsOnly(operands, text)
-  return config
-}
+export const GIT_READ_ONLY_COMMANDS: Record<string, ExternalCommandConfig> = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:545')
+export const DOCKER_READ_ONLY_COMMANDS: Record<string, ExternalCommandConfig> = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:546')
 
-function configsOf(family: string): Record<string, ExternalCommandConfig> {
-  return Object.fromEntries(READ_ONLY_RULES.filter(rule => rule.flags !== undefined && rule.words[0] === family).map(rule => [rule.words.join(' '), asConfig(rule)]))
-}
-
-export const GIT_READ_ONLY_COMMANDS: Record<string, ExternalCommandConfig> = configsOf('git')
-export const DOCKER_READ_ONLY_COMMANDS: Record<string, ExternalCommandConfig> = configsOf('docker')
-
-type ValidateOptions = { commandName?: string; rawCommand?: string; xargsTargetCommands?: string[] }
+type ValidateOptions = Unbuilt
 
 export function validateFlags(tokens: string[], startIndex: number, config: ExternalCommandConfig, options?: ValidateOptions): boolean {
-  const name = options?.commandName
-  const rule: ReadOnlyRule = {
-    words: [],
-    flags: config.safeFlags,
-    ...(config.respectsDoubleDash === false ? { dashDashIsAnOperand: true as const } : {}),
-    ...(name === 'git' ? { countShorthand: true as const, descendingSort: true as const } : {}),
-    ...(name === 'grep' ? { attachedNumbers: true as const } : {}),
-    ...(name === 'xargs' && options?.xargsTargetCommands !== undefined ? { targets: options.xargsTargetCommands } : {}),
-  }
-  return walkFlags(tokens, startIndex, rule)
+  return notBuilt('src/utils/shell/readOnlyCommandValidation.ts:550')
 }

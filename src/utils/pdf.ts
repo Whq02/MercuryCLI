@@ -9,6 +9,7 @@ import { formatFileSize } from './format.js'
 import { getFsImplementation } from './fsOperations.js'
 import { readRegularFile } from './regularFile.js'
 import { passedOverAs } from './passedOver.js'
+import { notBuilt } from '../pi/holes.js'
 
 
 type PDFError = {
@@ -35,29 +36,11 @@ function fail<T>(reason: PDFError['reason'], message: string): PDFResult<T> {
 export async function readPDF(
   filePath: string,
 ): Promise<PDFResult<{ type: 'pdf'; file: { filePath: string; base64: string; originalSize: number } }>> {
-  try {
-    const stats = await stat(filePath)
-    if (stats.size === 0) return fail('empty', `The PDF file is empty: ${filePath}`)
-    if (stats.size > PDF_TARGET_RAW_SIZE) {
-      return fail('too_large', `The PDF file exceeds the ${formatFileSize(PDF_TARGET_RAW_SIZE)} limit for inline reading.`)
-    }
-    const bytes = await readRegularFile(filePath, undefined, stats)
-    if (bytes.subarray(0, PDF_MAGIC.length).toString('ascii') !== PDF_MAGIC) {
-      return fail('corrupted', `The file is not a valid PDF (missing the %PDF- header): ${filePath}`)
-    }
-    return { success: true, data: { type: 'pdf', file: { filePath, base64: bytes.toString('base64'), originalSize: stats.size } } }
-  } catch (err) {
-    return fail('unknown', err instanceof Error ? err.message : String(err))
-  }
+  return notBuilt('src/utils/pdf.ts:35')
 }
 
 export async function getPDFPageCount(filePath: string): Promise<number | null> {
-  const result = await execFileNoThrow('pdfinfo', [filePath], { timeout: PDFINFO_TIMEOUT_MS, useCwd: false })
-  if (result.code !== 0) return null
-  const match = /^Pages:\s+(\d+)/m.exec(result.stdout)
-  if (!match) return null
-  const count = parseInt(match[1] as string, 10)
-  return Number.isFinite(count) ? count : null
+  return notBuilt('src/utils/pdf.ts:54')
 }
 
 let pdftoppmAvailable: Promise<boolean> | null = null
@@ -82,44 +65,7 @@ export async function removePDFPages(outputDir: string): Promise<void> {
 
 export async function extractPDFPages(
   filePath: string,
-  options: { firstPage?: number; lastPage?: number } = {},
+  options?: { firstPage?: number; lastPage?: number },
 ): Promise<PDFResult<PDFExtractPagesResult>> {
-  try {
-    const stats = await stat(filePath)
-    if (stats.size === 0) return fail('empty', `The PDF file is empty: ${filePath}`)
-    if (stats.size > PDF_MAX_EXTRACT_SIZE) {
-      return fail('too_large', `The PDF file exceeds the ${formatFileSize(PDF_MAX_EXTRACT_SIZE)} limit for page extraction.`)
-    }
-    if (!(await isPdftoppmAvailable())) {
-      return fail(
-        'unavailable',
-        'The pdftoppm utility is not installed. Install the poppler tool suite (macOS: `brew install poppler`; Debian/Ubuntu: `sudo apt-get install poppler-utils`) to read large PDFs page by page.',
-      )
-    }
-    const outputDir = pdfPageOutputDir()
-    getFsImplementation().mkdirSync(outputDir)
-    const args = ['-jpeg', '-r', '100']
-    if (options.firstPage) args.push('-f', String(options.firstPage))
-    if (options.lastPage && Number.isFinite(options.lastPage)) args.push('-l', String(options.lastPage))
-    args.push(filePath, join(outputDir, 'page'))
-    const render = await execFileNoThrow('pdftoppm', args, { timeout: PDFTOPPM_RENDER_TIMEOUT_MS, useCwd: false })
-    if (render.code !== 0) {
-      const stderr = render.stderr
-      if (/password/i.test(stderr)) {
-        return fail('password_protected', 'The PDF is password protected. Provide an unprotected copy.')
-      }
-      if (/damaged|corrupt|invalid/i.test(stderr)) return fail('corrupted', `The PDF appears to be corrupted: ${stderr.trim()}`)
-      return fail('unknown', stderr.trim() || 'pdftoppm failed')
-    }
-    const pages = (await readdir(outputDir)).filter(name => name.endsWith('.jpg')).sort()
-    if (pages.length === 0) {
-      return fail('corrupted', 'The PDF renderer produced no page images; the file may be malformed.')
-    }
-    return {
-      success: true,
-      data: { type: 'parts', file: { filePath, originalSize: stats.size, count: pages.length, outputDir } },
-    }
-  } catch (err) {
-    return fail('unknown', err instanceof Error ? err.message : String(err))
-  }
+  return notBuilt('src/utils/pdf.ts:83')
 }

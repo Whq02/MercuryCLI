@@ -15,21 +15,9 @@ import type { WorkerBadgeProps } from '../WorkerBadge.js'
 import type { FileOperationType, ToolInput } from './permissionOptions.js'
 import { useFilePermissionDialog } from './useFilePermissionDialog.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
 
-type FilePermissionDialogProps<T extends ToolInput> = {
-  toolUseConfirm: ToolUseConfirm
-  onDone: () => void
-  onReject: () => void
-  title: string
-  subtitle?: React.ReactNode
-  question?: React.ReactNode
-  content: React.ReactNode
-  operationType?: FileOperationType
-  path: string | null
-  parseInput: (input: unknown) => T
-  workerBadge?: WorkerBadgeProps
-  canApprove?: boolean
-}
+type FilePermissionDialogProps<T extends ToolInput> = Unbuilt
 
 export function resolveSymlinkTarget(path: string | null): string | undefined {
   if (path === null || isRemotePath(path)) return undefined
@@ -47,90 +35,6 @@ export function resolveSymlinkTarget(path: string | null): string | undefined {
   }
 }
 
-export function FilePermissionDialog<T extends ToolInput>({
-  toolUseConfirm,
-  onDone,
-  onReject,
-  title,
-  subtitle,
-  question = 'Do you want to proceed?',
-  content,
-  operationType = 'write',
-  path,
-  parseInput,
-  workerBadge,
-  canApprove = true,
-}: FilePermissionDialogProps<T>): React.ReactNode {
-  const dialog = useFilePermissionDialog<T>({
-    filePath: path,
-    toolUseConfirm,
-    onDone,
-    onReject,
-    parseInput,
-    operationType,
-    canApprove,
-  })
-
-  const parsedInput = useMemo(
-    () => parseInput(toolUseConfirm.input),
-    [parseInput, toolUseConfirm.input],
-  )
-
-  const writtenPath = (toolUseConfirm.input as { file_path?: unknown }).file_path
-  const sqliteRowWrite = operationType === 'write' && typeof writtenPath === 'string' && !writtenPath.endsWith('#delete') && isSqliteRowTarget(writtenPath)
-
-  const symlinkTarget = useMemo(() => resolveSymlinkTarget(path), [path])
-  const symlinkEscapes =
-    symlinkTarget !== undefined && relative(getFocusedSessionConnector().workspace().cwd, symlinkTarget).startsWith('..')
-
-  const focused = dialog.options.find(option => option.value === dialog.focusedOption)
-  const showAmendHint =
-    (focused?.option.type === 'accept-once' && !dialog.yesInputMode) ||
-    (focused?.option.type === 'reject' && !dialog.noInputMode)
-
-  return (
-    <Box flexDirection="column">
-      <PermissionDialog title={title} subtitle={subtitle} crewmate={toolUseConfirm.crewmate} workerBadge={workerBadge}>
-        <Box flexDirection="column">
-          {content}
-          {sqliteRowWrite ? <Text>{SQLITE_ROW_NOT_CHECKPOINTED}</Text> : null}
-          {symlinkTarget !== undefined ? (
-            <Text color="warning">
-              {symlinkEscapes
-                ? `This operation will modify ${symlinkTarget} — outside the working directory via a symlink`
-                : `Symlink target: ${symlinkTarget}`}
-            </Text>
-          ) : null}
-          <PermissionRuleExplanation
-            permissionResult={toolUseConfirm.permissionResult}
-          />
-          {typeof question === 'string' ? <Text bold>{question}</Text> : question}
-          <Select
-            scrollMovesFocus={false}
-            options={dialog.options}
-            onChange={value => {
-              const option = dialog.options.find(candidate => candidate.value === value)
-              if (!option) return
-              const feedback =
-                option.option.type === 'accept-once'
-                  ? dialog.acceptFeedback.trim() || undefined
-                  : option.option.type === 'reject'
-                    ? dialog.rejectFeedback.trim() || undefined
-                    : undefined
-              dialog.onChange(option.option, parsedInput, feedback)
-            }}
-            onCancel={() => dialog.onChange({ type: 'reject' }, parsedInput)}
-            onFocus={dialog.setFocusedOption}
-            onInputModeToggle={dialog.handleInputModeToggle}
-          />
-        </Box>
-      </PermissionDialog>
-      <Box marginTop={1}>
-        <Text color="subtle">
-          {'↑↓ move · pgup/pgdn page · ↵ confirm · esc cancel'}
-          {showAmendHint ? ' · tab amend' : ''}
-        </Text>
-      </Box>
-    </Box>
-  )
+export function FilePermissionDialog<T extends ToolInput>(arg0: FilePermissionDialogProps<T>): React.ReactNode {
+  return notBuilt('src/components/permissions/FilePermissionDialog/FilePermissionDialog.tsx:50')
 }

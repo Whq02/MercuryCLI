@@ -17,6 +17,7 @@ import { widestLine } from './widest-line.js'
 import wrapText, { truncateParts } from './wrap-text.js'
 import { passedOver } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'
+import { notBuilt } from '../pi/holes.js'
 
 
 export type ScrollHint = { delta: number; top: number; bottom: number }
@@ -165,29 +166,6 @@ const SCROLL_BACKLOG_HIGH = 12
 const SCROLL_STEP_MEDIUM = 2
 const SCROLL_STEP_FAST = 3
 const SCROLL_BACKLOG_CAP = 30
-
-function drainAdaptive(node: FrameNode, pending: number, innerHeight: number): number {
-  const direction = pending > 0 ? 1 : -1
-  const backlog = Math.abs(pending)
-  const snap = Math.max(0, backlog - SCROLL_BACKLOG_CAP)
-  const window = backlog - snap
-  const step = window <= SCROLL_SNAP_BELOW ? window : window < SCROLL_BACKLOG_HIGH ? SCROLL_STEP_MEDIUM : SCROLL_STEP_FAST
-  const rowCap = Math.max(1, innerHeight - 1)
-  const travel = Math.min(snap + step, rowCap)
-  const leftover = backlog - travel
-  ;(node.scroll ??= {}).pendingScrollDelta = leftover > 0 ? direction * leftover : undefined
-  return direction * travel
-}
-
-function drainProportional(node: FrameNode, pending: number, innerHeight: number): number {
-  const backlog = Math.abs(pending)
-  const rowCap = Math.max(1, innerHeight - 1)
-  const step = Math.min(rowCap, Math.max(SCROLL_FLOOR_PER_FRAME, (backlog * 3) >> 2))
-  const drained = backlog <= step
-  const travel = drained ? pending : pending > 0 ? step : -step
-  ;(node.scroll ??= {}).pendingScrollDelta = drained ? undefined : pending - travel
-  return travel
-}
 
 const OSC_OPEN = '\u001B]'
 const BELL = '\u0007'
@@ -497,34 +475,7 @@ function ownWithin(own: Own | undefined, clipsAcross: boolean, clipsDown: boolea
 type PaintedExtent = { width: number; height: number }
 
 function reachBeyond(node: FrameNode, x: number, y: number, width: number, height: number, leafPainted?: PaintedExtent): Rectangle | undefined {
-  if (node.nodeName !== 'ink-box') {
-    if (leafPainted === undefined) return undefined
-    const right = Math.max(x + width, x + leafPainted.width)
-    const bottom = Math.max(y + height, y + leafPainted.height)
-    return right > x + width || bottom > y + height ? { x, y, width: right - x, height: bottom - y } : undefined
-  }
-  const clipsAcross = clipping(node.style.overflowX ?? node.style.overflow)
-  const clipsDown = clipping(node.style.overflowY ?? node.style.overflow)
-  if (clipsAcross && clipsDown) return undefined
-  let left = x
-  let top = y
-  let right = x + width
-  let bottom = y + height
-  for (const child of node.childNodes as FrameNode[]) {
-    if (child.style.position === 'absolute') continue
-    const held = nodeCache.get(child)
-    if (held === undefined) continue
-    const painted = held.reach ?? held
-    if (!clipsAcross) {
-      left = Math.min(left, painted.x)
-      right = Math.max(right, painted.x + painted.width)
-    }
-    if (!clipsDown) {
-      top = Math.min(top, painted.y)
-      bottom = Math.max(bottom, painted.y + painted.height)
-    }
-  }
-  return left < x || top < y || right > x + width || bottom > y + height ? { x: left, y: top, width: right - left, height: bottom - top } : undefined
+  return notBuilt('src/ink/compose-walk.ts:499')
 }
 
 const reachMoves = (child: FrameNode): boolean => child.dirty && child.style.position !== 'absolute' && nodeCache.get(child)?.reach !== undefined
@@ -622,54 +573,7 @@ function fillGround(buffer: ComposeBuffer, x: number, y: number, columns: number
 }
 
 function composeBox(node: FrameNode, walk: Walk, placement: Placement, x: number, y: number, width: number, height: number, layoutNode: LayoutNode, hasRemovedChild: boolean): void {
-  const { buffer } = walk
-  const ownRowBg = node.style.fillRowBg
-  const ownGround = node.style.backgroundColor
-  const rowSampler = ownGround !== undefined ? undefined : ((ownRowBg as RowGround | undefined) ?? placement.inheritedRowBg)
-  const boxBackgroundColor = ownGround ?? (rowSampler !== undefined ? undefined : placement.inheritedBackgroundColor)
-  const exclusion = node.style.noSelect
-  if (exclusion) {
-    const boxLeft = Math.floor(x)
-    const fromEdge = exclusion === 'from-left-edge'
-    buffer.noSelect({ x: fromEdge ? 0 : boxLeft, y: Math.floor(y), width: fromEdge ? boxLeft + Math.floor(width) : Math.floor(width), height: Math.floor(height) })
-  }
-  const across = node.style.overflowX ?? node.style.overflow
-  const down = node.style.overflowY ?? node.style.overflow
-  const clipsAcross = clipping(across)
-  const clipsDown = clipping(down)
-  const clips = clipsAcross || clipsDown
-  const clipTop = clipsDown ? y + layoutNode.getComputedBorder(LayoutEdge.Top) : undefined
-  const clipBottom = clipsDown ? y + layoutNode.getComputedHeight() - layoutNode.getComputedBorder(LayoutEdge.Bottom) : undefined
-  if (clips) {
-    const clipLeft = clipsAcross ? x + layoutNode.getComputedBorder(LayoutEdge.Left) : undefined
-    const clipRight = clipsAcross ? x + layoutNode.getComputedWidth() - layoutNode.getComputedBorder(LayoutEdge.Right) : undefined
-    buffer.clip({ x1: clipLeft, x2: clipRight, y1: clipTop, y2: clipBottom })
-  }
-  const prevOwnBg = node.__prevOwnBg
-  const prevUniformBg = node.__prevUniformBg
-  const prevOpaque = node.__prevOpaque
-  const prevOwnRowBg = node.__prevOwnRowBg
-  const prevRowSampler = node.__prevRowSampler
-  const isOpaque = node.style.opaque === true
-  const fillRemoved = (prevOwnBg !== undefined && ownGround === undefined) || (prevOpaque === true && !isOpaque) || (prevOwnRowBg === true && ownRowBg === undefined)
-  node.__prevOwnBg = ownGround
-  node.__prevUniformBg = boxBackgroundColor
-  node.__prevOpaque = isOpaque
-  node.__prevOwnRowBg = ownRowBg !== undefined
-  node.__prevRowSampler = rowSampler !== undefined
-  if (down === 'scroll') {
-    const scrollPlacement = prevOwnBg !== ownGround ? { ...placement, prevScreen: undefined } : placement
-    composeScrollBox(node, walk, scrollPlacement, x, y, width, height, layoutNode, clipTop, clipBottom, hasRemovedChild, boxBackgroundColor, ownWithin(placement.own, clipsAcross, clipsDown, x, y, width, height), rowSampler)
-  } else {
-    const fills = Boolean(ownGround || isOpaque || ownRowBg !== undefined || fillRemoved)
-    if (fills) fillInterior(walk, layoutNode, x, y, width, height, ownGround, rowSampler, placement.inheritedBackgroundColor)
-    const fillHeld = nodeCache.has(node) && !fillRemoved && prevUniformBg === boxBackgroundColor && prevOpaque === isOpaque && rowSampler === undefined && prevRowSampler === false
-    const stood = nodeCache.get(node)
-    const rectHeld = stood !== undefined && stood.x === x && stood.y === y && stood.width === width && stood.height === height
-    composeChildren(node, walk, x, y, hasRemovedChild, rectHeld && (!fills || fillHeld) ? placement.prevScreen : undefined, boxBackgroundColor, rowSampler, ownWithin(placement.own, clipsAcross, clipsDown, x, y, width, height))
-  }
-  if (clips) buffer.unclip()
-  renderBorder(x, y, node, buffer, boxBackgroundColor)
+  return notBuilt('src/ink/compose-walk.ts:624')
 }
 
 function fillInterior(walk: Walk, layoutNode: LayoutNode, x: number, y: number, width: number, height: number, ownBackgroundColor: Color | undefined, rowSampler: RowGround | undefined, inheritedBackgroundColor: Color | undefined): void {
@@ -704,233 +608,6 @@ function joinedRowSpans(spans: RowSpan[]): RowSpan[] {
     else joined.push(span)
   }
   return joined
-}
-
-function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: number, y: number, width: number, height: number, layoutNode: LayoutNode, y1: number | undefined, y2: number | undefined, hasRemovedChild: boolean, boxBackgroundColor: Color | undefined, own: Own, rowSampler?: RowGround): void {
-  const { buffer, signals } = walk
-  const inOuterScroll = walk.scrollDepth > 0
-  if (inOuterScroll) walk.sawInnerScroll = true
-  const prevScreen = inOuterScroll ? undefined : placement.prevScreen
-  const boxCached = nodeCache.get(node)
-  const paddingTop = layoutNode.getComputedPadding(LayoutEdge.Top)
-  const paddingBottom = layoutNode.getComputedPadding(LayoutEdge.Bottom)
-  const innerHeight = Math.max(0, (y2 ?? y + height) - (y1 ?? y) - paddingTop - paddingBottom)
-  const content = node.childNodes.find(c => (c as FrameNode).layoutNode) as FrameNode | undefined
-  const contentYoga = content?.layoutNode
-  const scroll = (node.scroll ??= {})
-  const contentHeight = contentYoga?.getComputedHeight() ?? 0
-  const prevScrollHeight = scroll.scrollHeight ?? contentHeight
-  const prevInnerHeight = scroll.scrollViewportHeight ?? innerHeight
-  scroll.scrollHeight = contentHeight
-  scroll.scrollViewportHeight = innerHeight
-  scroll.scrollViewportTop = (y1 ?? y) + paddingTop
-  const maxScroll = Math.max(0, contentHeight - innerHeight)
-  fluxMark('scroll:compose', contentHeight * 100000 + (scroll.scrollTop ?? 0))
-
-  const contentRoot = node.childNodes[0]
-  const anchorTop = (start: FrameNode): number | undefined => {
-    let el: FrameNode | undefined = start
-    let climbed = 0
-    let hops = 0
-    while (el && el !== node && el !== contentRoot && hops < 100) {
-      const top = el.layoutNode?.getComputedTop()
-      if (top == null) return undefined
-      climbed += top
-      el = el.parentNode ?? undefined
-      hops++
-    }
-    return el === contentRoot && Number.isFinite(climbed) ? climbed : undefined
-  }
-  let anchored = false
-  if (scroll.scrollAnchor) {
-    const seekTop = anchorTop(scroll.scrollAnchor.el)
-    if (seekTop != null) {
-      scroll.scrollTop = seekTop + scroll.scrollAnchor.offset
-      anchored = true
-      scroll.pendingScrollDelta = undefined
-    }
-    scroll.scrollAnchor = undefined
-  }
-
-  const scrollTopBeforeFollow = scroll.scrollTop ?? 0
-  const sticky = scroll.stickyScroll ?? Boolean(node.attributes['stickyScroll'])
-  const lastMaxScroll = Math.max(0, prevScrollHeight - prevInnerHeight)
-  const grew = contentHeight >= prevScrollHeight
-  const restingAtBottom = !anchored && grew && scrollTopBeforeFollow >= lastMaxScroll && scroll.lastStableAtBottom !== false
-  if ((sticky || restingAtBottom) && (scroll.pendingScrollDelta ?? 0) >= 0) {
-    scroll.scrollTop = maxScroll
-    scroll.pendingScrollDelta = undefined
-    if (scroll.stickyScroll === false && scrollTopBeforeFollow >= lastMaxScroll && scroll.lastStableAtBottom !== false) {
-      scroll.stickyScroll = true
-      fluxMark('scroll:restick', innerHeight)
-    }
-  }
-
-  let travel = scroll.scrollTop ?? 0
-  const pending = scroll.pendingScrollDelta
-  const clampMin = scroll.scrollClampMin
-  const clampMax = scroll.scrollClampMax
-  const haveClamp = clampMin !== undefined && clampMax !== undefined
-  const draining = pending !== undefined && pending !== 0
-  if (draining) {
-    const pastClamp = haveClamp && ((pending < 0 && travel < clampMin) || (pending > 0 && travel > clampMax))
-    const drainHeight = pastClamp ? Math.min(4, innerHeight >> 3) : innerHeight
-    travel += hostIsXtermJs() ? drainAdaptive(node, pending, drainHeight) : drainProportional(node, pending, drainHeight)
-  } else if (pending === 0) scroll.pendingScrollDelta = undefined
-  const scrollTop = Math.max(0, Math.min(travel, maxScroll))
-  const shrankPastPosition = contentHeight < prevScrollHeight && travel > maxScroll
-  const clamped = haveClamp ? Math.max(clampMin, Math.min(scrollTop, clampMax)) : scrollTop
-  scroll.scrollTop = shrankPastPosition ? Math.max(0, travel) : scrollTop
-  if (grew && maxScroll > 0) {
-    const nowAtBottom = scrollTop >= maxScroll
-    if (nowAtBottom !== scroll.lastStableAtBottom) fluxMark('scroll:bit', nowAtBottom ? 1 : 0)
-    scroll.lastStableAtBottom = nowAtBottom
-  }
-  if (scrollTop !== travel) scroll.pendingScrollDelta = undefined
-  const clampGap = clamped - scrollTop
-  if (!inOuterScroll && (scroll.pendingScrollDelta !== undefined || (clampGap !== 0 && clampGap !== (scroll.scrollClampGapPrev ?? 0)))) signals.scrollDrainNode = node
-  scroll.scrollClampGapPrev = clampGap
-  const paintTop = clamped
-
-  if (!content || !contentYoga) return
-  const contentVacated = vacatedRects(content)
-  if (contentVacated !== undefined) for (const rect of contentVacated) buffer.clear(floorRect(rect))
-  const childRemoved = consumeChildRemoved(content) || hasRemovedChild || contentVacated !== undefined
-  const contentLeft = x + contentYoga.getComputedLeft()
-  const contentTop = y + contentYoga.getComputedTop() - paintTop
-  const bandTop = paintTop - paddingTop
-  const bandBottom = paintTop + innerHeight + paddingBottom
-
-  const contentWas = nodeCache.get(content)
-  let regionHint: ScrollHint | null = null
-  let rectShift: RectShift | null = null
-  if (!inOuterScroll && contentWas && contentWas.y !== contentTop) {
-    const delta = contentWas.y - contentTop
-    const regionTop = Math.floor(y + contentYoga.getComputedTop() - paddingTop)
-    const regionBottom = regionTop + paddingTop + innerHeight + paddingBottom - 1
-    signals.scrollTranslation = { delta, viewportTop: regionTop, viewportBottom: regionBottom }
-    if (delta > 0) fluxMark('scroll:follow', innerHeight)
-    fluxMark('scroll:xlate', regionTop * 1000 + delta + 500)
-    if (rowSampler === undefined) {
-      const spansFullWidth = Math.floor(x) <= 0 && Math.ceil(x + width) >= buffer.width
-      const stableForShift =
-        boxCached?.x === x &&
-        boxCached.y === y &&
-        boxCached.width === width &&
-        boxCached.height === height &&
-        innerHeight > 0 &&
-        Math.abs(delta) < innerHeight
-      if (stableForShift && spansFullWidth && walk.regionScrollUsable) {
-        regionHint = { top: regionTop, bottom: regionBottom, delta }
-        signals.scrollHint = regionHint
-      } else if (stableForShift) {
-        rectShift = { top: regionTop, bottom: regionBottom, delta, x0: Math.floor(x), x1: Math.floor(x) + Math.floor(width) }
-      } else {
-        signals.markLayoutShift(() => `scroll-no-hint:${node.nodeName}`)
-      }
-    }
-  }
-
-  const contentHeightWas = contentWas?.height ?? contentHeight
-  const heightDelta = contentHeight - contentHeightWas
-  const shiftPlan = regionHint ?? rectShift
-  const contentChildren = content.childNodes as FrameNode[]
-  const newlyHiddenCached = shiftPlan !== null && contentChildren.some(ch => ch.layoutNode?.getDisplay() === LayoutDisplay.None && nodeCache.has(ch))
-  const firstCached = shiftPlan ? contentChildren.find(ch => ch.layoutNode !== undefined && ch.layoutNode.getDisplay() !== LayoutDisplay.None && nodeCache.has(ch)) : undefined
-  let lastCached: FrameNode | undefined
-  if (shiftPlan) {
-    for (let i = contentChildren.length - 1; i >= 0; i--) {
-      const ch = contentChildren[i]!
-      if (ch.layoutNode !== undefined && ch.layoutNode.getDisplay() !== LayoutDisplay.None && nodeCache.has(ch)) {
-        lastCached = ch
-        break
-      }
-    }
-  }
-  const anchorShifted =
-    !newlyHiddenCached &&
-    (firstCached === undefined ||
-      Math.floor(nodeCache.get(firstCached)!.y) - shiftPlan!.delta === Math.floor(contentTop + firstCached.layoutNode!.getComputedTop())) &&
-    (lastCached === undefined ||
-      Math.floor(nodeCache.get(lastCached)!.y) - shiftPlan!.delta === Math.floor(contentTop + lastCached.layoutNode!.getComputedTop()))
-  const viewportOverlapsInvalid = shiftPlan !== null && rectsOverlap(x, shiftPlan.top, width, shiftPlan.bottom - shiftPlan.top + 1, walk.invalidRects)
-  const wasReaching = hasReachingChild(content)
-  if (shiftPlan !== null && content.dirty) {
-    for (const entry of content.childNodes) {
-      if (entry.nodeName === '#text') continue
-      const ch = entry as FrameNode
-      if (ch.dirty && ch.layoutNode) {
-        setChildReach(content, ch, childStillReaches(ch, contentLeft + ch.layoutNode.getComputedLeft(), contentTop + ch.layoutNode.getComputedTop(), buffer.width))
-      }
-    }
-  }
-  const contentHasReach = wasReaching || hasReachingChild(content)
-  const contentHasNestedScroll = inOuterScroll || hasNestedScroll(content)
-  const safeForFastPath = !shiftPlan || (!childRemoved && !viewportOverlapsInvalid && !contentHasReach && !contentHasNestedScroll && anchorShifted && (heightDelta === 0 || (shiftPlan.delta > 0 && heightDelta === shiftPlan.delta)))
-  if (!safeForFastPath) {
-    signals.scrollHint = null
-    if (rectShift) {
-      rectShift = null
-      signals.markLayoutShift(() => `scroll-rect-unsafe:${node.nodeName}`)
-    }
-  }
-
-  const prevSawInner = walk.sawInnerScroll
-  if (!inOuterScroll) walk.sawInnerScroll = false
-  walk.scrollDepth++
-  if ((regionHint || rectShift) && prevScreen && safeForFastPath) {
-    const { top, bottom, delta } = (regionHint ?? rectShift)!
-    const columns = Math.floor(width)
-    buffer.blit(prevScreen, Math.floor(x), top, columns, bottom - top + 1)
-    if (regionHint) buffer.shift(top, bottom, delta)
-    else buffer.shiftRect(top, bottom, rectShift!.x0, rectShift!.x1, delta)
-    shiftScrolledChildrenCache(content, top, bottom + 1, delta)
-    const incomingTop = delta > 0 ? bottom - delta + 1 : top
-    const incomingBottom = delta > 0 ? bottom : top - delta - 1
-    const dirtyChildren = content.dirty ? new Set(content.childNodes.filter(c => (c as FrameNode).dirty)) : null
-    if (dirtyChildren !== null) {
-      repairStableRows(content, walk, dirtyChildren, contentLeft, contentTop, bandTop, bandBottom, incomingTop, incomingBottom, top, bottom + 1, Math.floor(x), columns, boxBackgroundColor)
-    }
-    buffer.clear({ x: Math.floor(x), y: incomingTop, width: columns, height: incomingBottom - incomingTop + 1 })
-    if (boxBackgroundColor && incomingBottom >= incomingTop) fillGround(buffer, Math.floor(x), incomingTop, columns, incomingBottom - incomingTop + 1, boxBackgroundColor)
-    buffer.clip({ x1: undefined, x2: undefined, y1: incomingTop, y2: incomingBottom + 1 })
-    composeScrolledChildren(content, walk, contentLeft, contentTop, childRemoved, undefined, incomingTop - contentTop, incomingBottom + 1 - contentTop, boxBackgroundColor, true)
-    buffer.unclip()
-    const overpainted: RowSpan[] = []
-    for (const rect of walk.prevAbsoluteRects) {
-      if (rect.y >= bottom + 1 || rect.y + rect.height <= top || rect.x >= Math.floor(x) + columns || rect.x + rect.width <= Math.floor(x)) continue
-      const shiftedTop = Math.max(top, Math.floor(rect.y) - delta)
-      const shiftedBottom = Math.min(bottom + 1, Math.floor(rect.y + rect.height) - delta)
-      if (shiftedTop >= shiftedBottom || (shiftedTop >= incomingTop && shiftedBottom <= incomingBottom + 1)) continue
-      overpainted.push({ top: shiftedTop, bottom: shiftedBottom })
-    }
-    for (const span of joinedRowSpans(overpainted)) {
-      fillGround(buffer, Math.floor(x), span.top, columns, span.bottom - span.top, boxBackgroundColor)
-      buffer.clip({ x1: undefined, x2: undefined, y1: span.top, y2: span.bottom })
-      composeScrolledChildren(content, walk, contentLeft, contentTop, childRemoved, undefined, span.top - contentTop, span.bottom - contentTop, boxBackgroundColor, true)
-      buffer.unclip()
-    }
-  } else {
-    const scrolled = contentWas !== undefined && contentWas.y !== contentTop
-    const boxMoved = boxCached !== undefined && (boxCached.x !== x || boxCached.y !== y || boxCached.width !== width || boxCached.height !== height)
-    const childPrevScreen = rowSampler !== undefined || scrolled || boxMoved || contentHasNestedScroll ? undefined : prevScreen
-    if (scrolled && y1 !== undefined && y2 !== undefined) buffer.clear({ x: Math.floor(x), y: Math.floor(y1), width: Math.floor(width), height: Math.floor(y2 - y1) })
-    if (rowSampler !== undefined && y1 !== undefined && y2 !== undefined && Math.floor(width) >= 1) {
-      const viewTop = Math.floor(y1)
-      const viewBottom = Math.floor(y2)
-      for (let row = viewTop; row < viewBottom; row++) fillGround(buffer, Math.floor(x), row, Math.floor(width), 1, rowSampler(row))
-    } else if (boxBackgroundColor && y1 !== undefined && y2 !== undefined && (scrolled || !contentWas || childPrevScreen === undefined || node.style.backgroundColor !== undefined) && Math.floor(width) >= 1 && Math.floor(y2 - y1) >= 1) {
-      fillGround(buffer, Math.floor(x), Math.floor(y1), Math.floor(width), Math.floor(y2 - y1), boxBackgroundColor)
-    }
-    composeScrolledChildren(content, walk, contentLeft, contentTop, childRemoved, childPrevScreen, bandTop, bandBottom, boxBackgroundColor, false, rowSampler, own)
-  }
-  walk.scrollDepth--
-  if (!inOuterScroll) {
-    setHasNestedScroll(content, walk.sawInnerScroll)
-    walk.sawInnerScroll = prevSawInner
-  }
-  nodeCache.set(content, { x: contentLeft, y: contentTop, width: contentYoga.getComputedWidth(), height: contentYoga.getComputedHeight() })
-  settle(content)
 }
 
 function shiftSubtreeCache(root: FrameNode, delta: number): void {

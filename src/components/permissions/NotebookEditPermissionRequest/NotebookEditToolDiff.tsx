@@ -22,6 +22,7 @@ import { getPatchForDisplay } from '../../../utils/diff.js'
 import { parseCellId } from '../../../utils/notebook.js'
 import { safeParseJSON } from '../../../utils/json.js'
 import type { StructuredPatchHunk } from 'diff'
+import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
 
 type NotebookCell = {
   id?: string
@@ -29,14 +30,7 @@ type NotebookCell = {
   source?: string | string[]
 }
 
-type Props = {
-  notebook_path: string
-  cell_id?: string
-  new_source: string
-  cell_type?: string
-  edit_mode?: string
-  verbose: boolean
-}
+type Props = Unbuilt
 
 const FRAME_COLUMNS = 4
 
@@ -45,116 +39,6 @@ function cellSourceText(cell: NotebookCell | undefined): string {
   return typeof cell.source === 'string' ? cell.source : cell.source.join('')
 }
 
-export function NotebookEditToolDiff({
-  notebook_path,
-  cell_id,
-  new_source,
-  cell_type,
-  edit_mode,
-  verbose,
-}: Props): React.ReactNode {
-  const [cells, setCells] = useState<NotebookCell[] | null>(null)
-  useLoad(() => {
-    let cancelled = false
-    void fs
-      .readFile(notebook_path, 'utf8')
-      .then(raw => {
-        if (cancelled) return
-        const parsed = safeParseJSON(raw) as { cells?: NotebookCell[] } | null
-        setCells(Array.isArray(parsed?.cells) ? parsed.cells : null)
-      })
-      .catch(() => {
-        if (!cancelled) setCells(null)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [notebook_path])
-
-  const oldSource = useMemo(() => {
-    if (!cells || !cell_id) return ''
-    const index = parseCellId(cell_id)
-    const cell = cells.find(candidate => candidate.id === cell_id) ??
-      (typeof index === 'number' ? cells[index] : undefined)
-    return cellSourceText(cell)
-  }, [cells, cell_id])
-
-  const mode = edit_mode ?? 'replace'
-
-  const { columns, rows } = useTerminalSize()
-  const [expanded, setExpanded] = useState(false)
-  useKeybinding('confirm:toggleFullPreview', () => setExpanded(prev => !prev), {
-    context: 'Confirmation',
-  })
-  const budget = expanded ? null : consentBodyBudget(rows)
-  const width = Math.max(1, consentContentWidth(columns) - FRAME_COLUMNS)
-
-  const hunks = useMemo(() => {
-    if (mode !== 'replace' || cells === null) return null
-    return getPatchForDisplay({
-      filePath: notebook_path,
-      fileContents: oldSource,
-      edits: [{ old_string: oldSource, new_string: new_source, replace_all: false }],
-    })
-  }, [mode, cells, notebook_path, oldSource, new_source])
-
-  const bounded = useMemo(() => {
-    if (mode === 'replace' && hunks && hunks.length > 0) {
-      const plan = boundHunks(hunks, diffPaintWidth(width, hunks), budget)
-      return { hunks: plan.hunks, body: null, hidden: plan.hiddenLines }
-    }
-    const source = mode === 'delete' ? oldSource : new_source
-    const lines = source.split('\n')
-    const plan = boundLines(lines, filePaintWidth(width, lines.length), budget)
-    return { hunks: null, body: plan.lines.join('\n'), hidden: plan.hiddenLines }
-  }, [mode, hunks, oldSource, new_source, width, budget])
-
-  const displayPath = verbose ? notebook_path : relative(getFocusedSessionConnector().workspace().cwd, notebook_path)
-  const operation =
-    mode === 'insert' ? 'Insert new cell' : mode === 'delete' ? 'Delete cell' : 'Replace cell contents'
-  const highlightPath = cell_type === 'markdown' ? `${notebook_path}.md` : notebook_path
-
-  return (
-    <Box flexDirection="column" borderStyle="round" borderColor="subtle" paddingX={1}>
-      <Text bold>{displayPath}</Text>
-      <Text dimColor>
-        {operation} {cell_id}
-        {cell_type ? ` (${cell_type})` : ''}
-      </Text>
-      {bounded.hunks ? (
-        intersperse(
-          bounded.hunks.map((hunk: StructuredPatchHunk) => (
-            <StructuredDiff
-              key={hunk.newStart}
-              patch={hunk}
-              dim={false}
-              filePath={notebook_path}
-              firstLine={new_source.split('\n')[0] ?? null}
-              fileContent={oldSource}
-              width={width}
-            />
-          )),
-          (index: number) => (
-            <NoSelect fromLeftEdge key={`ellipsis-${index}`}>
-              <Text dimColor>...</Text>
-            </NoSelect>
-          ),
-        )
-      ) : (
-        <HighlightedCode code={bounded.body ?? ''} filePath={highlightPath} />
-      )}
-      {bounded.hidden > 0 ? (
-        <NoSelect fromLeftEdge>
-          <Text dimColor>
-            … +{bounded.hidden} more line{bounded.hidden === 1 ? '' : 's'} · ctrl+f expands (the whole edit applies)
-          </Text>
-        </NoSelect>
-      ) : null}
-      {expanded ? (
-        <NoSelect fromLeftEdge>
-          <Text dimColor>ctrl+f collapses the preview</Text>
-        </NoSelect>
-      ) : null}
-    </Box>
-  )
+export function NotebookEditToolDiff(arg0: Props): React.ReactNode {
+  return notBuilt('src/components/permissions/NotebookEditPermissionRequest/NotebookEditToolDiff.tsx:48')
 }

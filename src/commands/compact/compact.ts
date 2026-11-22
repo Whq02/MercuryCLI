@@ -35,42 +35,9 @@ import { fetchSystemPromptParts } from '../../services/agents/queryContext.js'
 import type { CacheSafeParams } from '../../services/agents/forkedAgent.js'
 import { isAbortError, errorMessage, hasExactErrorMessage } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export { NOTHING_TO_COMPACT_KEY, nothingToCompactLine } from '../../services/compact/compact.js'
-
-const reactiveCompact: typeof import('../../services/compact/reactiveCompact.js') | null = null
-
-async function buildCompactCacheSafeParams(
-  messages: Message[],
-  context: LocalJSXCommandContext,
-): Promise<CacheSafeParams> {
-  const { options } = context
-  const lastSent = getLastCacheSafeParams()
-  if (lastSent !== null) {
-    return { ...lastSent, toolUseContext: context, forkContextMessages: messages }
-  }
-  const { defaultSystemPrompt, userContext, systemContext } = await fetchSystemPromptParts({
-    tools: options.tools,
-    engineModel: options.engineModel,
-    mcpClients: options.mcpClients,
-    customSystemPrompt: options.customSystemPrompt,
-    permissionMode: context.getAppState().toolPermissionContext.mode,
-  })
-  const systemPrompt = buildEffectiveSystemPrompt({
-    mainThreadAgentDefinition: undefined,
-    toolUseContext: context,
-    customSystemPrompt: options.customSystemPrompt,
-    defaultSystemPrompt,
-    appendSystemPrompt: options.appendSystemPrompt,
-  })
-  return {
-    systemPrompt,
-    userContext,
-    systemContext,
-    toolUseContext: context,
-    forkContextMessages: messages,
-  }
-}
 
 function enrichSummaryForLiveDisplay(
   result: CompactionResult,
@@ -104,99 +71,5 @@ export async function call(
   args: string,
   context: LocalJSXCommandContext,
 ): Promise<LocalCommandResult> {
-  return withFoldStatus(context, scoped => callUnderFoldStatus(args, scoped), {
-    trigger: 'manual',
-    sessionMemory: args.trim() === '' && shouldUseSessionMemoryCompaction(),
-    microcompaction: false,
-  })
-}
-
-async function callUnderFoldStatus(
-  args: string,
-  context: LocalJSXCommandContext,
-): Promise<LocalCommandResult> {
-  const projected = getMessagesAfterCompactBoundary(context.messages)
-  if (projected.length === 0) {
-    throw new Error(NO_MESSAGES_TO_COMPACT)
-  }
-  const customInstructions = args.trim()
-
-  try {
-    if (!customInstructions) {
-      if (shouldUseSessionMemoryCompaction()) context.onCompactProgress?.({ type: 'stage', stage: 'session-memory' })
-      const sessionMemoryResult = await trySessionMemoryCompaction(projected, context.agentId, undefined, context, 'manual')
-      if (sessionMemoryResult !== null) {
-        getUserContext.cache?.clear?.()
-        runPostCompactCleanup(undefined, buildPostCompactMessages(sessionMemoryResult))
-        suppressCompactWarning()
-        return {
-          type: 'compact',
-          compactionResult: sessionMemoryResult,
-          displayText: manualCompactDisplayText(context, sessionMemoryResult, projected.length),
-        }
-      }
-    }
-
-    if (reactiveCompact !== null && reactiveCompact.isReactiveOnlyMode()) {
-    }
-
-    const summaryInput = projected
-    await awaitContextWindowSource(context.options.engineModel, { estTokens: tokenCountWithEstimation(summaryInput, context.options.engineModel) })
-    const cacheSafeParams = await buildCompactCacheSafeParams(summaryInput, context)
-    const refold = isRefold(summaryInput)
-    const projection = await projectManualFold(summaryInput, context, cacheSafeParams, getAutoCompactThreshold(context.options.engineModel))
-    if (projection !== null && (refold ? manualFoldHasNothingToFold(projection) : projection.after >= projection.before)) {
-      logForDebugging(`compact: refused before the summariser — ${projection.folds} of ${summaryInput.length} messages would fold (${projection.workingRoundsFolded} working rounds), the fold would land at ${projection.after} tokens against ${projection.before} by the same estimate`)
-      throw new Error(nothingToCompactLine(projection.context, nothingToCompactReason(projection, refold)))
-    }
-    const foldModel = foldModelFor(summaryInput, context.options.engineModel, { forced: false })
-    if (foldModel.source === 'history') {
-      logForDebugging(
-        `compact: the summary is written by ${foldModel.model} — the seated ${context.options.engineModel}'s window does not hold the history (about ${foldModel.count} tokens by Mercury's count)`,
-      )
-    }
-    const result = await compactConversation(
-      summaryInput,
-      context,
-      cacheSafeParams,
-      false,
-      customInstructions || undefined,
-      false,
-      {
-        isRecompaction: false,
-        turnsSincePreviousCompact: -1,
-        autoCompactThreshold: getAutoCompactThreshold(context.options.engineModel),
-        restoreFiles: projection?.restoreFiles ?? true,
-        mustShrink: true,
-      },
-      undefined,
-      foldModel.model,
-    )
-    setLastSummarizedMessageId(undefined)
-    suppressCompactWarning()
-    getUserContext.cache?.clear?.()
-    runPostCompactCleanup(undefined, buildPostCompactMessages(result))
-    if (shouldEnrichForLiveDisplay(context)) {
-      enrichSummaryForLiveDisplay(result, summaryInput.length, customInstructions)
-    }
-    return {
-      type: 'compact',
-      compactionResult: result,
-      displayText: manualCompactDisplayText(context, result, summaryInput.length),
-    }
-  } catch (error) {
-    if (context.abortController.signal.aborted || isAbortError(error)) {
-      throw new APIUserAbortError({ message: ERROR_MESSAGE_USER_ABORT })
-    }
-    if (
-      hasExactErrorMessage(error, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES) ||
-      hasExactErrorMessage(error, ERROR_MESSAGE_INCOMPLETE_RESPONSE) ||
-      hasExactErrorMessage(error, ERROR_MESSAGE_FOLD_TIMEOUT) ||
-      (error instanceof Error && isNothingToCompactMessage(error.message))
-    ) {
-      throw error
-    }
-    logError(error)
-    throw new Error(`Error during compaction: ${errorMessage(error)}`)
-  }
+  return notBuilt('src/commands/compact/compact.ts:103')
 }

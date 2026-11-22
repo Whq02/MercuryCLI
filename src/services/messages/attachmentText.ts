@@ -26,6 +26,7 @@ import { samplesRoadText } from '../../utils/attachments/samplesRoad.js'
 import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
 import { mapResultToBlock } from '../../tools/BashTool/resultBlock.js'
 import { mapToolResultToToolResultBlockParam } from '../../tools/FileReadTool/read/resultBlock.js'
+import { notBuilt } from '../../pi/holes.js'
 
 type Kind = Attachment['type']
 type Of<K extends Kind> = Extract<Attachment, { type: K }>
@@ -35,7 +36,7 @@ type Body = string | ContentBlockParam[]
 const meta = (content: Body): UserMessage => createUserMessage({ isMeta: true, content })
 const reminders = (...bodies: Body[]): UserMessage[] => wrapMessagesInSystemReminder(bodies.map(meta))
 const notice = (body: string): UserMessage[] => [meta(wrapInSystemReminder(body))]
-const text = (body: string): TextBlockParam => ({ type: 'text', text: body })
+const text = (body: string): TextBlockParam => notBuilt('src/services/messages/attachmentText.ts:38')
 
 type ToolWording<Output> = Pick<Tool<AnyObject, Output>, 'name' | 'mapToolResultToToolResultBlockParam'>
 
@@ -70,14 +71,7 @@ function fileRows(file: Of<'file'>): UserMessage[] {
 }
 
 function resourceBlocks(item: unknown): ContentBlockParam[] {
-  if (item === null || typeof item !== 'object') return []
-  if ('text' in item && typeof item.text === 'string') {
-    return [
-      text('Full contents of resource:'), text(item.text),
-      text('These are the complete contents — re-read the resource only if you have reason to believe it changed.'),
-    ]
-  }
-  return 'blob' in item ? [text(`[Binary content: ${'mimeType' in item ? String(item.mimeType) : 'application/octet-stream'}]`)] : []
+  return notBuilt('src/services/messages/attachmentText.ts:72')
 }
 
 function resourceRows(resource: Of<'mcp_resource'>): UserMessage[] {
@@ -86,14 +80,7 @@ function resourceRows(resource: Of<'mcp_resource'>): UserMessage[] {
 }
 
 function queuedRows(queued: Of<'queued_command'>): UserMessage[] {
-  const origin: MessageOrigin | undefined = queued.origin ?? (queued.commandMode === 'task-notification' ? { kind: 'task-notification' } : undefined)
-  const prompt = queued.prompt
-  const blocks = Array.isArray(prompt) ? prompt : undefined
-  const raw = blocks ? blocks.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n') : String(prompt)
-  const wrapped = queued.boardEventIds === undefined ? wrapCommandText(raw, origin) : protectReminder(raw)
-  const content: Body = blocks ? [text(wrapped), ...blocks.filter(block => block.type === 'image')] : wrapped
-  const hide = (origin !== undefined && !isAdvisorOrigin(origin)) || queued.isMeta
-  return wrapMessagesInSystemReminder([createUserMessage({ content, origin, uuid: queued.source_uuid, queued: true, ...(hide ? { isMeta: true } : {}) })])
+  return notBuilt('src/services/messages/attachmentText.ts:88')
 }
 
 const workingSetGuidance = 'These are evidence-ranked STARTING POINTS (exact task names > active work > import adjacency > current changes), not a complete file list — dereference to read, verify before relying, and explore beyond them when the task needs it.'
@@ -146,10 +133,7 @@ function contractRows(contract: Of<'contract_reminder'>): UserMessage[] {
 }
 
 function taskRows(tasks: Of<'task_reminder'>): UserMessage[] {
-  if (!isTaskToolsEnabled()) return []
-  const items = tasks.content.map(task => `#${task.id}. [${task.status}] ${task.subject}`).join('\n')
-  const guidance = `Task list idle: if tracked progress helps here, use ${TASK_CREATE_TOOL_NAME} and ${TASK_UPDATE_TOOL_NAME} (in_progress on start, completed on finish); clean up stale items.\n`
-  return reminders(guidance + (items ? '\n\nCurrent tasks:\n\n' + items : ''))
+  return notBuilt('src/services/messages/attachmentText.ts:148')
 }
 
 function rosterLine(row: Of<'agent_roster'>['rows'][number]): string {
@@ -254,7 +238,5 @@ const renderers: Renderers = {
 }
 
 export function normalizeAttachmentForAPI(attachment: Attachment): UserMessage[] {
-  if (attachment.capsuleReceipt || !Object.hasOwn(renderers, attachment.type)) return []
-  const render = renderers[attachment.type] as (item: Attachment) => UserMessage[]
-  return render(attachment)
+  return notBuilt('src/services/messages/attachmentText.ts:256')
 }

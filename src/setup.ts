@@ -31,41 +31,12 @@ import {
   worktreeBranchName,
   type WorktreeSession,
 } from './services/worktree.js'
+import { notBuilt } from './pi/holes.js'
 
 const TERMINAL_APP = 'Terminal.app'
-const TERMINAL_DEFAULTS_DOMAIN = 'com.apple.Terminal'
-
-async function restoreInterruptedTerminalSetup(): Promise<void> {
-  try {
-    const outcome = await checkAndRestoreTerminalBackup()
-    if (outcome.status === 'restored') {
-      console.log(
-        chalk.yellow(
-          `Detected an interrupted ${TERMINAL_APP} setup from a previous run; your original terminal settings were restored. A terminal restart may be needed for them to take effect.`,
-        ),
-      )
-    } else if (outcome.status === 'failed') {
-      console.error(
-        chalk.red(
-          `An interrupted ${TERMINAL_APP} setup was detected but the settings could not be restored automatically. Restore them manually with: defaults import ${TERMINAL_DEFAULTS_DOMAIN} ${outcome.backupPath}`,
-        ),
-      )
-    }
-  } catch (error) {
-    logError(error)
-  }
-}
 
 function leaveWithRefusal(line: string): never {
-  console.error(chalk.red(line))
-  process.exit(1)
-}
-
-function snapshotHooksForCwd(cwd: string): void {
-  const startedAt = Date.now()
-  captureHooksSnapshot()
-  logForDiagnosticsNoPII('info', 'setup_hooks_captured', { duration_ms: Date.now() - startedAt })
-  initializeFileChangedWatcher(cwd)
+  return notBuilt('src/setup.ts:59')
 }
 
 type WorktreeAsk = { name: string | undefined; prNumber: number | undefined; tmux: boolean; rules?: ToolPermissionContext }
@@ -82,12 +53,7 @@ async function groundAtRepositoryRoot(cwd: string): Promise<string> {
 }
 
 async function carveWorktree(slug: string, tmuxSessionName: string | undefined, prNumber: number | undefined, rules?: ToolPermissionContext): Promise<WorktreeSession> {
-  try {
-    return await createWorktreeForSession(getSessionId(), slug, tmuxSessionName, { ...(prNumber !== undefined ? { prNumber } : {}), ...(rules !== undefined ? { permission: rules } : {}) })
-  } catch (error) {
-    process.stderr.write(chalk.red(`The worktree could not be created: ${error instanceof Error ? error.message : String(error)}\n`))
-    process.exit(1)
-  }
+  return notBuilt('src/setup.ts:84')
 }
 
 async function attachTmux(tmuxSessionName: string, worktreePath: string): Promise<void> {
@@ -141,24 +107,5 @@ export async function setup(
   _messagingSocketPath?: string,
   worktreeRules?: ToolPermissionContext,
 ): Promise<void> {
-  logForDiagnosticsNoPII('info', 'setup_started')
-  if (customSessionId) switchSession(customSessionId as SessionId, consumeSessionHomePin())
-  if (getIsInteractive()) await restoreInterruptedTerminalSetup()
-
-  setCwd(cwd)
-  snapshotHooksForCwd(cwd)
-  if (worktreeEnabled) await enterSessionWorktree(cwd, { name: worktreeName, prNumber: worktreePRNumber, tmux: tmuxEnabled, rules: worktreeRules })
-
-  profileCheckpoint('setup_before_prefetch')
-  logForDiagnosticsNoPII('info', 'setup_prefetch_starting')
-  if (!isBareMode()) warmExtensionsAndCommands()
-  profileCheckpoint('setup_after_prefetch')
-
-  initSinks()
-  if (checkHasTrustDialogAccepted()) prefetchApiKeyFromApiKeyHelperIfSafe(getIsNonInteractiveSession())
-  if (getIsInteractive() && !getIsNonInteractiveSession()) void signInsCheckedAtOpen()
-  if (!isBareMode()) await readActivityWhenNotesAreUnseen()
-
-  const { noteRootSovereign } = await import('./utils/permissions/rootNotice.js')
-  noteRootSovereign(permissionMode)
+  return notBuilt('src/setup.ts:132')
 }

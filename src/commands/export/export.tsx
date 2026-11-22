@@ -11,31 +11,14 @@ import { getFocusedSessionConnector } from '../../services/engine-connector/focu
 import { errorMessage } from '../../utils/errors.js'
 import { transcriptExport, transcriptExportText, truncateExportResults } from './transcript.js'
 import { createSecretRedactor, redactSecretValues, sessionSecretValues } from '../../utils/redactSecrets.js'
+import { notBuilt } from '../../pi/holes.js'
 
-export function extractFirstPrompt(messages: Message[], transform: (text: string) => string = text => text): string {
-  const first = messages.find(message => message.type === 'user') as UserMessage | undefined
-  if (!first) return ''
-  const content = first.message.content
-  let text = ''
-  if (typeof content === 'string') {
-    text = content
-  } else if (Array.isArray(content)) {
-    const block = content.find(b => (b as { type?: string }).type === 'text') as
-      | { text?: string }
-      | undefined
-    text = block?.text ?? ''
-  }
-  const firstLine = transform(text).trim().split('\n', 1)[0] ?? ''
-  return firstLine.length > 50 ? `${firstLine.slice(0, 49)}…` : firstLine
+export function extractFirstPrompt(messages: Message[], transform?: (text: string) => string): string {
+  return notBuilt('src/commands/export/export.tsx:15')
 }
 
 function sanitizeFilename(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s-]/gu, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '')
+  return notBuilt('src/commands/export/export.tsx:32')
 }
 
 function localTimestamp(): string {

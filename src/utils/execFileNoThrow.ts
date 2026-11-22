@@ -4,6 +4,7 @@ import { getCwd } from './cwd.js'
 import { logError } from './log.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { gitArgsAsync, isGitExecutable } from './git/spawnArgs.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
@@ -18,97 +19,22 @@ type ExecOutcome = {
 
 type StdinOption = 'pipe' | 'ignore' | 'inherit'
 
-type OuterOptions = {
-  abortSignal?: AbortSignal
-  timeout?: number
-  preserveOutputOnError?: boolean
-  useCwd?: boolean
-  env?: NodeJS.ProcessEnv
-  stdin?: StdinOption
-  input?: string | Buffer
-}
+type OuterOptions = Unbuilt
 
-type InnerOptions = {
-  abortSignal?: AbortSignal
-  timeout?: number
-  preserveOutputOnError?: boolean
-  cwd?: string
-  env?: NodeJS.ProcessEnv
-  stdin?: StdinOption
-  input?: string | Buffer
-  maxBuffer?: number
-  shell?: boolean | string
-}
+type InnerOptions = Unbuilt
 
 export async function execFileNoThrow(
   file: string,
   args: string[],
-  options: OuterOptions = {},
+  options?: OuterOptions,
 ): Promise<ExecOutcome> {
-  const { timeout = DEFAULT_TIMEOUT_MS, preserveOutputOnError = true, useCwd = true } = options
-  return execFileNoThrowWithCwd(file, args, {
-    abortSignal: options.abortSignal,
-    timeout,
-    preserveOutputOnError,
-    cwd: useCwd ? getCwd() : undefined,
-    env: options.env,
-    stdin: options.stdin,
-    input: options.input,
-  })
+  return notBuilt('src/utils/execFileNoThrow.ts:43')
 }
 
 export async function execFileNoThrowWithCwd(
   file: string,
   args: string[],
-  options: InnerOptions = { maxBuffer: ONE_MEGABYTE },
+  options?: InnerOptions,
 ): Promise<ExecOutcome> {
-  const { timeout = DEFAULT_TIMEOUT_MS, preserveOutputOnError = true } = options
-  try {
-    const execaOptions = {
-      timeout,
-      cancelSignal: options.abortSignal,
-      cwd: options.cwd,
-      env: { ...subprocessEnv(), ...(options.env ?? {}) },
-      extendEnv: false,
-      windowsHide: true,
-      maxBuffer: options.maxBuffer,
-      shell: options.shell,
-      input: options.input,
-      stdin: options.stdin,
-    } as ExecaOptions
-    try {
-      const argv = isGitExecutable(file) ? await gitArgsAsync(args, options.cwd) : args
-      const result = await execa(file, argv, execaOptions)
-      return {
-        stdout: typeof result.stdout === 'string' ? result.stdout : '',
-        stderr: typeof result.stderr === 'string' ? result.stderr : '',
-        code: 0,
-      }
-    } catch (err) {
-      const failure = err as {
-        stdout?: unknown
-        stderr?: unknown
-        exitCode?: number
-        signal?: string
-        shortMessage?: string
-      }
-      const code = typeof failure.exitCode === 'number' ? failure.exitCode : 1
-      if (preserveOutputOnError) {
-        const error =
-          failure.shortMessage ??
-          failure.signal ??
-          String(code)
-        return {
-          stdout: typeof failure.stdout === 'string' ? failure.stdout : '',
-          stderr: typeof failure.stderr === 'string' ? failure.stderr : '',
-          code,
-          error,
-        }
-      }
-      return { stdout: '', stderr: '', code }
-    }
-  } catch (err) {
-    logError(err)
-    return { stdout: '', stderr: '', code: 1 }
-  }
+  return notBuilt('src/utils/execFileNoThrow.ts:60')
 }

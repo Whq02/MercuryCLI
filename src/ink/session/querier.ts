@@ -4,81 +4,48 @@ import type { TerminalResponse } from '../input/input-decoder.js'
 import { csi } from '../termio/csi.js'
 import { osc } from '../termio/osc.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-type TerminalQuery<T extends TerminalResponse = TerminalResponse> = {
-  request: string
-  match: (r: TerminalResponse) => r is T
-  stringReply?: boolean
-}
+type TerminalQuery<T extends TerminalResponse = TerminalResponse> = Unbuilt
 
-type DecrpmResponse = Extract<TerminalResponse, { type: 'decrpm' }>
-type Da1Response = Extract<TerminalResponse, { type: 'da1' }>
-type Da2Response = Extract<TerminalResponse, { type: 'da2' }>
-type KittyResponse = Extract<TerminalResponse, { type: 'kittyKeyboard' }>
-type CursorPosResponse = Extract<TerminalResponse, { type: 'cursorPosition' }>
-type OscResponse = Extract<TerminalResponse, { type: 'osc' }>
-type XtversionResponse = Extract<TerminalResponse, { type: 'xtversion' }>
+type DecrpmResponse = Unbuilt
+type Da1Response = Unbuilt
+type Da2Response = Unbuilt
+type KittyResponse = Unbuilt
+type CursorPosResponse = Unbuilt
+type OscResponse = Unbuilt
+type XtversionResponse = Unbuilt
 
 
 export function decrqm(mode: number): TerminalQuery<DecrpmResponse> {
-  return {
-    request: csi(`?${mode}$p`),
-    match: (r): r is DecrpmResponse => r.type === 'decrpm' && r.mode === mode,
-  }
+  return notBuilt('src/ink/session/querier.ts:23')
 }
 
 export function da1(): TerminalQuery<Da1Response> {
-  return {
-    request: csi('c'),
-    match: (r): r is Da1Response => r.type === 'da1',
-  }
+  return notBuilt('src/ink/session/querier.ts:30')
 }
 
 export function da2(): TerminalQuery<Da2Response> {
-  return {
-    request: csi('>c'),
-    match: (r): r is Da2Response => r.type === 'da2',
-  }
+  return notBuilt('src/ink/session/querier.ts:37')
 }
 
 export function kittyKeyboard(): TerminalQuery<KittyResponse> {
-  return {
-    request: csi('?u'),
-    match: (r): r is KittyResponse => r.type === 'kittyKeyboard',
-  }
+  return notBuilt('src/ink/session/querier.ts:44')
 }
 
 export function cursorPosition(): TerminalQuery<CursorPosResponse> {
-  return {
-    request: csi('?6n'),
-    match: (r): r is CursorPosResponse => r.type === 'cursorPosition',
-  }
+  return notBuilt('src/ink/session/querier.ts:51')
 }
 
 export function oscColor(code: number): TerminalQuery<OscResponse> {
-  return {
-    request: osc(code, '?'),
-    match: (r): r is OscResponse => r.type === 'osc' && r.code === code,
-    stringReply: true,
-  }
+  return notBuilt('src/ink/session/querier.ts:58')
 }
 
 export function xtversion(): TerminalQuery<XtversionResponse> {
-  return {
-    request: csi('>0q'),
-    match: (r): r is XtversionResponse => r.type === 'xtversion',
-    stringReply: true,
-  }
+  return notBuilt('src/ink/session/querier.ts:66')
 }
 
-
-const SENTINEL = csi('c')
-
-type PendingQuery = {
-  match: (r: TerminalResponse) => boolean
-  resolve: (r: TerminalResponse | undefined) => void
-  stringReply: boolean
-}
+type PendingQuery = Unbuilt
 
 type Batch = {
   queries: PendingQuery[]
@@ -126,73 +93,24 @@ export class TerminalQuerier {
     return this.batches.some(batch => batch.sentinel !== null && batch.queries.some(query => query.stringReply))
   }
 
-  whenSettled(deadlineMs: number = terminalQuerySettleMs()): Promise<QuerySettleOutcome> {
-    if (this.settled()) return Promise.resolve('settled')
-    const oldest = this.batches.find(batch => batch.sentinel !== null)!
-    const remaining = deadlineMs - (Date.now() - oldest.flushedAt)
-    if (remaining <= 0) return Promise.resolve('deadline')
-    return new Promise(resolve => {
-      const waiter = (): void => {
-        stopTimeout(timer)
-        resolve('settled')
-      }
-      const timer = startTimeout(() => {
-        this.settleWaiters = this.settleWaiters.filter(w => w !== waiter)
-        resolve('deadline')
-      }, remaining)
-      this.settleWaiters.push(waiter)
-    })
+  whenSettled(deadlineMs?: number): Promise<QuerySettleOutcome> {
+    return notBuilt('src/ink/session/querier.ts:129')
   }
 
   private notifySettled(): void {
-    if (!this.settled()) return
-    const waiters = this.settleWaiters
-    this.settleWaiters = []
-    for (const waiter of waiters) waiter()
+    return notBuilt('src/ink/session/querier.ts:147')
   }
 
   send<T extends TerminalResponse>(query: TerminalQuery<T>): Promise<T | undefined> {
-    return new Promise(resolve => {
-      this.openBatch.queries.push({
-        match: query.match,
-        resolve: r => resolve(r as T | undefined),
-        stringReply: query.stringReply === true,
-      })
-      this.pendingRequests += query.request
-    })
+    return notBuilt('src/ink/session/querier.ts:154')
   }
 
   flush(): Promise<void> {
-    return new Promise(resolve => {
-      const batch = this.openBatch
-      batch.sentinel = resolve
-      batch.flushedAt = Date.now()
-      batch.timer = startTimeout(() => this.closeBatch(batch), 250)
-      batch.timer.unref?.()
-      this.batches.push({ queries: [], sentinel: null, flushedAt: 0 })
-      const bytes = this.pendingRequests + SENTINEL
-      this.pendingRequests = ''
-      termWrite(this.stdout, bytes)
-    })
+    return notBuilt('src/ink/session/querier.ts:165')
   }
 
   onResponse(r: TerminalResponse): void {
-    for (const batch of [...this.batches]) {
-      if (batch.sentinel !== null && Date.now() - batch.flushedAt >= 250) this.closeBatch(batch)
-    }
-    for (const batch of this.batches) {
-      const idx = batch.queries.findIndex(q => q.match(r))
-      if (idx !== -1) {
-        const [q] = batch.queries.splice(idx, 1)
-        q!.resolve(r)
-        return
-      }
-    }
-    if (r.type === 'da1') {
-      const idx = this.batches.findIndex(b => b.sentinel !== null)
-      if (idx === -1) return
-      this.closeBatch(this.batches[idx]!)
-    }
+    return notBuilt('src/ink/session/querier.ts:179')
   }
 
   private closeBatch(batch: Batch): void {

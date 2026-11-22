@@ -1,4 +1,3 @@
-
 import type * as React from 'react'
 import { useCallback } from 'react'
 import { useMount } from '../hooks/effects.js'
@@ -6,29 +5,9 @@ import { useAppStateStore, useSetAppState } from '../state/AppState.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { Theme } from '../utils/theme.js'
 import { startTimeout, stopTimeout } from '../utils/timers.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
-type Priority = 'low' | 'medium' | 'high' | 'immediate'
-
-type BaseNotification = {
-  key: string
-  invalidates?: string[]
-  priority: Priority
-  timeoutMs?: number
-  fold?: (accumulator: Notification, incoming: Notification) => Notification
-}
-
-type TextNotification = BaseNotification & {
-  text: string
-  wayOut?: string
-  detail?: string
-  color?: keyof Theme
-}
-
-type JSXNotification = BaseNotification & {
-  jsx: React.ReactNode
-}
-
-export type Notification = TextNotification | JSXNotification
+export type Notification = Unbuilt
 
 export const NOTICE_SEAM = ' · '
 
@@ -40,30 +19,13 @@ export function splitWayOut(line: string): { text: string; wayOut?: string } {
 
 const DEFAULT_TIMEOUT_MS = 8000
 
-const PRIORITY_RANK: Record<Priority, number> = {
-  immediate: 0,
-  high: 1,
-  medium: 2,
-  low: 3,
-}
-
 export function standsUntilRemoved(entry: Notification): boolean {
   return entry.timeoutMs === Infinity
 }
 
-function getNext(queue: Notification[]): Notification | undefined {
-  if (queue.length === 0) return undefined
-  const transient = queue.filter(entry => !standsUntilRemoved(entry))
-  return (transient.length > 0 ? transient : queue).reduce((best, candidate) =>
-    PRIORITY_RANK[candidate.priority] < PRIORITY_RANK[best.priority]
-      ? candidate
-      : best,
-  )
-}
+type SetAppState = (...args: Unbuilt[]) => Unbuilt
 
-type SetAppState = (updater: (prev: AppState) => AppState) => void
-
-let expiryTimer: NodeJS.Timeout | null = null
+let expiryTimer: NodeJS.Timeout | null = unbuilt('src/context/notifications.tsx:66')
 
 function cancelExpiry(): void {
   if (expiryTimer !== null) {
@@ -73,35 +35,11 @@ function cancelExpiry(): void {
 }
 
 function armExpiry(entry: Notification, setAppState: SetAppState): void {
-  cancelExpiry()
-  if (standsUntilRemoved(entry)) return
-  expiryTimer = startTimeout(() => {
-    expiryTimer = null
-    setAppState(prev => {
-      if (prev.notifications.current?.key !== entry.key) return prev
-      return {
-        ...prev,
-        notifications: { current: null, queue: prev.notifications.queue },
-      }
-    })
-    promote(setAppState)
-  }, entry.timeoutMs ?? DEFAULT_TIMEOUT_MS)
+  return notBuilt('src/context/notifications.tsx:75')
 }
 
 function promote(setAppState: SetAppState): void {
-  setAppState(prev => {
-    if (prev.notifications.current !== null) return prev
-    const next = getNext(prev.notifications.queue as Notification[])
-    if (next === undefined) return prev
-    armExpiry(next, setAppState)
-    return {
-      ...prev,
-      notifications: {
-        current: next,
-        queue: prev.notifications.queue.filter(entry => entry !== next),
-      },
-    }
-  })
+  return notBuilt('src/context/notifications.tsx:91')
 }
 
 export function enqueueNotification(
@@ -188,40 +126,5 @@ export function useNotifications(): {
   addNotification: (notification: Notification) => void
   removeNotification: (key: string) => void
 } {
-  const store = useAppStateStore()
-  const setAppState = useSetAppState()
-
-  const addNotification = useCallback(
-    (incoming: Notification): void => enqueueNotification(setAppState, incoming),
-    [setAppState],
-  )
-
-  const removeNotification = useCallback(
-    (key: string): void => {
-      setAppState(prev => {
-        const { current, queue } = prev.notifications
-        const isCurrent = current?.key === key
-        const inQueue = queue.some(entry => entry.key === key)
-        if (!isCurrent && !inQueue) return prev
-        if (isCurrent) cancelExpiry()
-        return {
-          ...prev,
-          notifications: {
-            current: isCurrent ? null : current,
-            queue: queue.filter(entry => entry.key !== key),
-          },
-        }
-      })
-      promote(setAppState)
-    },
-    [setAppState],
-  )
-
-  useMount(() => {
-    if (store.getState().notifications.queue.length > 0) {
-      promote(setAppState)
-    }
-  })
-
-  return { addNotification, removeNotification }
+  return notBuilt('src/context/notifications.tsx:187')
 }

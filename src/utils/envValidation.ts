@@ -1,11 +1,8 @@
 import { logForDebugging } from './debug.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
+import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
-type EnvVarValidationResult = {
-  effective: number
-  status: 'valid' | 'capped' | 'invalid'
-  message?: string
-}
+type EnvVarValidationResult = Unbuilt
 
 export function validateBoundedIntEnvVar(
   name: string,
@@ -13,21 +10,7 @@ export function validateBoundedIntEnvVar(
   defaultValue: number,
   upperLimit: number,
 ): EnvVarValidationResult {
-  if (value === undefined || value === '') {
-    return { effective: defaultValue, status: 'valid' }
-  }
-  const parsed = Number(value.trim())
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    const message = `invalid value "${value}"; using the default of ${defaultValue}`
-    logForDebugging(`${name} ${message}`)
-    return { effective: defaultValue, status: 'invalid', message }
-  }
-  if (parsed > upperLimit) {
-    const message = `value ${parsed} exceeds the maximum of ${upperLimit}; capping to ${upperLimit}`
-    logForDebugging(`${name} ${message}`)
-    return { effective: upperLimit, status: 'capped', message }
-  }
-  return { effective: parsed, status: 'valid' }
+  return notBuilt('src/utils/envValidation.ts:10')
 }
 
 export function apiTimeoutMsOverride(

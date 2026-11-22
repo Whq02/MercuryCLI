@@ -1,29 +1,16 @@
-
 import type { ToolUseContext } from '../../Tool.js'
 import { getTotalCostUSD } from '../../bootstrap/state.js'
 import { providerLimitWarningFacts } from '../providers/limitWarning.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import type { Attachment } from '../../utils/attachments/types.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export function getCriticalSystemReminderAttachment(
   toolUseContext: ToolUseContext,
-  messages: readonly unknown[] = [],
+  messages?: readonly unknown[],
 ): Attachment[] {
-  const reminder = toolUseContext.standingRule
-  if (!reminder) {
-    return []
-  }
-  if (
-    awarenessAlreadyEmittedThisTurn(
-      messages,
-      'critical_system_reminder',
-      reminder,
-    )
-  ) {
-    return []
-  }
-  return [{ type: 'critical_system_reminder', content: reminder }]
+  return notBuilt('src/services/attachments/sessionContext.ts:9')
 }
 
 function awarenessAlreadyEmittedThisTurn(
@@ -86,33 +73,9 @@ export function getUsageLimitNoticeAttachment(
 }
 
 function usageLimitNoticeAlreadyInTranscript(messages: readonly unknown[], key: string): boolean {
-  const arr = messages as ReadonlyArray<{
-    type?: string
-    attachment?: { type?: string; key?: string }
-  }>
-  for (let i = arr.length - 1; i >= 0; i--) {
-    const m = arr[i]
-    if (m?.type === 'attachment' && m.attachment?.type === 'usage_limit_notice' && m.attachment.key === key) {
-      return true
-    }
-  }
-  return false
+  return notBuilt('src/services/attachments/sessionContext.ts:88')
 }
 
 export function getMaxBudgetUsdAttachment(maxBudgetUsd?: number): Attachment[] {
-  if (maxBudgetUsd === undefined) {
-    return []
-  }
-
-  const usedCost = getTotalCostUSD()
-  const remainingBudget = maxBudgetUsd - usedCost
-
-  return [
-    {
-      type: 'budget_usd',
-      used: usedCost,
-      total: maxBudgetUsd,
-      remaining: remainingBudget,
-    },
-  ]
+  return notBuilt('src/services/attachments/sessionContext.ts:102')
 }

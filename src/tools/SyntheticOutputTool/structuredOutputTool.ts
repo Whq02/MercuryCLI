@@ -1,4 +1,3 @@
-
 import {
   compileJsonSchema,
   formatSchemaIssues,
@@ -11,6 +10,7 @@ import {
   SyntheticOutputTool,
   type Output,
 } from './SyntheticOutputTool.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export const STRUCTURED_OUTPUT_TOOL_NAME = SYNTHETIC_OUTPUT_TOOL_NAME
 
@@ -29,34 +29,5 @@ type SchemaBoundResult = { tool: Tool; error?: undefined } | { error: string; to
 const boundToolCache = new WeakMap<object, SchemaBoundResult>()
 
 export function getSchemaBoundStructuredOutputTool(schema: object): SchemaBoundResult {
-  const cached = boundToolCache.get(schema)
-  if (cached) return cached
-  const built = bindSchema(schema)
-  boundToolCache.set(schema, built)
-  return built
-}
-
-function bindSchema(schema: object): SchemaBoundResult {
-  const compiled = compileJsonSchema(schema)
-  if (!compiled.ok) return { error: compiled.error }
-
-  const tool: Tool = {
-    ...SyntheticOutputTool,
-    inputJSONSchema: schema as ToolInputJSONSchema,
-    async call(input: unknown): Promise<{ data: string; structured_output: Output }> {
-      const issues = compiled.check(input)
-      if (issues.length > 0) {
-        throw new SchemaMismatchError(
-          `Output does not match required schema: ${formatSchemaIssues(issues)}`,
-          `${STRUCTURED_OUTPUT_TOOL_NAME} schema mismatch: ${issueKeywords(issues)}`,
-        )
-      }
-      return {
-        data: 'Structured output provided successfully',
-        structured_output: input as Output,
-      }
-    },
-  }
-
-  return { tool }
+  return notBuilt('src/tools/SyntheticOutputTool/structuredOutputTool.ts:31')
 }

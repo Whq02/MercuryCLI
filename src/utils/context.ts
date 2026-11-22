@@ -1,3 +1,5 @@
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
+
 export {
   MODEL_CONTEXT_WINDOW_DEFAULT,
   has1mContext,
@@ -7,33 +9,20 @@ export {
   getMaxThinkingTokensForModel,
 } from './model/capabilities.js'
 
-export const COMPACT_MAX_OUTPUT_TOKENS = 20_000
+export const COMPACT_MAX_OUTPUT_TOKENS: Unbuilt = unbuilt('src/utils/context.ts:10')
 
-type ContextUsage = {
-  input_tokens: number
-  cache_creation_input_tokens: number
-  cache_read_input_tokens: number
-  output_tokens?: number
-}
+type ContextUsage = Unbuilt
 
 export function contextFillPercent(
   usedTokens: number | null,
   contextWindowSize: number,
 ): { used: number | null; remaining: number | null } {
-  if (usedTokens === null || !(contextWindowSize > 0)) return { used: null, remaining: null }
-  const used = Math.min(100, Math.max(0, Math.round((usedTokens / contextWindowSize) * 100)))
-  return { used, remaining: 100 - used }
+  return notBuilt('src/utils/context.ts:19')
 }
 
 export function calculateContextPercentages(
   currentUsage: ContextUsage | null,
   contextWindowSize: number,
 ): { used: number | null; remaining: number | null } {
-  if (currentUsage === null) return { used: null, remaining: null }
-  const total =
-    currentUsage.input_tokens +
-    currentUsage.cache_creation_input_tokens +
-    currentUsage.cache_read_input_tokens +
-    (currentUsage.output_tokens ?? 0)
-  return contextFillPercent(total, contextWindowSize)
+  return notBuilt('src/utils/context.ts:28')
 }

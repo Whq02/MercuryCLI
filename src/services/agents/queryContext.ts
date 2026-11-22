@@ -14,6 +14,7 @@ import { createAbortController } from '../../utils/abortController.js'
 import { getEngineModel } from '../model/model.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { shouldEnableThinkingByDefault, type ThinkingConfig } from '../../utils/thinking.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 type PromptInputs = {
   tools: Tools; engineModel: string; mcpClients: MCPServerConnection[]
@@ -23,13 +24,7 @@ type PromptInputs = {
 type PromptParts = {
   defaultSystemPrompt: string[]; userContext: Record<string, string>; systemContext: Record<string, string>
 }
-type ForkInputs = {
-  tools: Tools; commands: Command[]; mcpClients: MCPServerConnection[]; messages: Message[]
-  readFileState: FileStateCache; getAppState: () => AppState
-  setAppState: (updater: (prev: AppState) => AppState) => void
-  customSystemPrompt?: string; appendSystemPrompt?: string; thinkingConfig?: ThinkingConfig
-  agents: AgentDefinition[]
-}
+type ForkInputs = Unbuilt
 
 export async function fetchSystemPromptParts(input: PromptInputs): Promise<PromptParts> {
   if (input.customSystemPrompt !== undefined) {
@@ -43,42 +38,6 @@ export async function fetchSystemPromptParts(input: PromptInputs): Promise<Promp
   return { defaultSystemPrompt: prompt, userContext: user, systemContext: system }
 }
 
-function settledForkMessages(messages: Message[]): Message[] {
-  const tail = messages.at(-1)
-  return tail?.type === 'assistant' && tail.message.stop_reason === null ? messages.slice(0, -1) : messages
-}
-
-function forkContext(input: ForkInputs, engineModel: string, messages: Message[], thinkingConfig: ThinkingConfig): ToolUseContext {
-  const options: ToolUseContext['options'] = {
-    commands: input.commands, debug: false, verbose: false, engineModel,
-    tools: input.tools, thinkingConfig, mcpClients: input.mcpClients, mcpResources: {},
-    isNonInteractiveSession: true, agentDefinitions: { activeAgents: input.agents, allAgents: [] },
-    customSystemPrompt: input.customSystemPrompt, appendSystemPrompt: input.appendSystemPrompt,
-  }
-  return {
-    options, abortController: createAbortController(), readFileState: input.readFileState,
-    startTurn: query,
-    getAppState: input.getAppState, setAppState: input.setAppState,
-    setInProgressToolUseIDs: () => {}, setResponseLength: () => {},
-    updateFileHistoryState: () => {}, updateAttributionState: () => {}, messages,
-  }
-}
-
 export async function buildSideQuestionFallbackParams(input: ForkInputs): Promise<CacheSafeParams> {
-  const { tools, commands, mcpClients, messages, readFileState, getAppState, setAppState, customSystemPrompt, appendSystemPrompt, thinkingConfig, agents } = input
-  input = { tools, commands, mcpClients, messages, readFileState, getAppState, setAppState, customSystemPrompt, appendSystemPrompt, thinkingConfig, agents }
-  const engineModel = getEngineModel()
-  const appState = getAppState()
-  const parts = await fetchSystemPromptParts({
-    tools: input.tools, engineModel, mcpClients: input.mcpClients,
-    customSystemPrompt: input.customSystemPrompt, permissionMode: appState.toolPermissionContext.mode,
-  })
-  const selected = input.customSystemPrompt === undefined ? parts.defaultSystemPrompt : [input.customSystemPrompt]
-  const systemPrompt = asSystemPrompt(input.appendSystemPrompt ? [...selected, input.appendSystemPrompt] : selected)
-  const forkContextMessages = settledForkMessages(input.messages)
-  const thinking = input.thinkingConfig ?? { type: shouldEnableThinkingByDefault() ? 'adaptive' : 'disabled' }
-  return {
-    systemPrompt, userContext: parts.userContext, systemContext: parts.systemContext,
-    toolUseContext: forkContext(input, engineModel, forkContextMessages, thinking), forkContextMessages,
-  }
+  return notBuilt('src/services/agents/queryContext.ts:67')
 }

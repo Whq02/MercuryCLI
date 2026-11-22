@@ -55,6 +55,7 @@ import { taskRow } from '../../rows/project.js'
 import { NOTIFICATION_RESULT_CAP_CHARS } from '../../services/agentResults/summaryRoom.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 const DEFAULT_AGENT_TYPE = 'mercury-crew'
@@ -66,30 +67,9 @@ const MAX_RECENT_ACTIVITIES = 5
 const STRUCTURED_OUTPUT_TOOL_NAME = 'StructuredOutput'
 
 
-export type ToolActivity = {
-  toolName: string
-  input: unknown
-  activityDescription?: string
-  isSearch?: boolean
-  isRead?: boolean
-}
+export type ToolActivity = Unbuilt
 
-type AgentProgress = {
-  toolUseCount: number
-  tokenCount: number
-  totalTokens?: number
-  totalToolUseCount?: number
-  lastActivity?: ToolActivity
-  recentActivities: ToolActivity[]
-  inputTokens?: number
-  outputTokens?: number
-  cacheReadTokens?: number
-  contextTokens?: number
-  costUSD?: number
-  unpricedTurns?: number
-  model?: string
-  phase?: AgentWaitV1
-}
+type AgentProgress = Unbuilt
 
 type AgentLedger = {
   inputTokens: number
@@ -103,14 +83,7 @@ type AgentLedger = {
   lastResponse?: { input: number; output: number; cached: number; cost: number; unpriced: number }
 }
 
-export type ProgressTracker = {
-  toolUseCount: number
-  bridgeToolUseIds?: Set<string>
-  recentActivities: ToolActivity[]
-  ledger: AgentLedger
-  lastAssistant?: AssistantMessage
-  phase: AgentWaitV1 | null
-}
+export type ProgressTracker = Unbuilt
 
 export function createAgentLedger(): AgentLedger {
   return { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, contextTokens: 0, costUSD: 0, unpricedTurns: 0 }
@@ -167,23 +140,14 @@ export function foldResponseIntoLedger(ledger: AgentLedger, assistant: Assistant
   if (model !== undefined) ledger.servedModel = model
 }
 
-type ActivityDescriptionResolver = (
-  toolName: string,
-  input: unknown,
-) => string | null
+type ActivityDescriptionResolver = (...args: Unbuilt[]) => Unbuilt
 
 export function createProgressTracker(): ProgressTracker {
-  return {
-    toolUseCount: 0,
-    recentActivities: [],
-    ledger: createAgentLedger(),
-    phase: null,
-  }
+  return notBuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:175')
 }
 
 export function getTokenCountFromTracker(tracker: ProgressTracker): number {
-  if (tracker.lastAssistant !== undefined) foldResponseIntoLedger(tracker.ledger, tracker.lastAssistant)
-  return tracker.ledger.inputTokens + tracker.ledger.outputTokens
+  return notBuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:184')
 }
 
 export function getContextTokensFromTracker(tracker: ProgressTracker): number {
@@ -194,16 +158,7 @@ export function getContextTokensFromTracker(tracker: ProgressTracker): number {
 export function createActivityDescriptionResolver(
   tools: Tools,
 ): ActivityDescriptionResolver {
-  return (toolName, input) => {
-    const tool = findToolByName(tools, toolName)
-    if (!tool) return null
-    try {
-      return tool.getActivityDescription?.(input) ?? null
-    } catch (error) {
-      passedOver(error)
-      return null
-    }
-  }
+  return notBuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:194')
 }
 
 export function updateProgressFromMessage(
@@ -212,67 +167,11 @@ export function updateProgressFromMessage(
   resolveActivityDescription?: ActivityDescriptionResolver,
   tools?: Tools,
 ): void {
-  for (const id of evalNestedToolIds(message)) {
-    const seen = tracker.bridgeToolUseIds ??= new Set<string>()
-    if (!seen.has(id)) {
-      seen.add(id)
-      tracker.toolUseCount++
-    }
-  }
-  if (message.type !== 'assistant') return
-  const assistant = message as AssistantMessage
-  if (tracker.lastAssistant !== undefined && tracker.lastAssistant !== assistant) {
-    foldResponseIntoLedger(tracker.ledger, tracker.lastAssistant)
-  }
-  tracker.lastAssistant = assistant
-  foldResponseIntoLedger(tracker.ledger, assistant)
-  const content = assistant.message.content
-  if (!Array.isArray(content)) return
-  for (const block of content) {
-    if (block.type !== 'tool_use') continue
-    tracker.toolUseCount++
-    if (block.name === STRUCTURED_OUTPUT_TOOL_NAME) continue
-    const classification = tools
-      ? safeSearchOrReadClassification(findToolByName(tools, block.name), block.input)
-      : undefined
-    const activity: ToolActivity = {
-      toolName: block.name,
-      input: block.input,
-      activityDescription: resolveActivityDescription?.(block.name, block.input) ?? undefined,
-      isSearch: classification?.isSearch,
-      isRead: classification?.isRead,
-    }
-    tracker.recentActivities.push(activity)
-    if (tracker.recentActivities.length > MAX_RECENT_ACTIVITIES) {
-      tracker.recentActivities.shift()
-    }
-  }
+  return notBuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:209')
 }
 
 export function getProgressUpdate(tracker: ProgressTracker): AgentProgress {
-  if (tracker.lastAssistant !== undefined) foldResponseIntoLedger(tracker.ledger, tracker.lastAssistant)
-  const ledger = tracker.ledger
-  const settled = ledger.contextTokens > 0
-  return {
-    toolUseCount: tracker.toolUseCount,
-    tokenCount: getTokenCountFromTracker(tracker),
-    totalTokens: getTokenCountFromTracker(tracker),
-    totalToolUseCount: tracker.toolUseCount,
-    lastActivity: tracker.recentActivities[tracker.recentActivities.length - 1],
-    recentActivities: [...tracker.recentActivities],
-    ...(settled
-      ? {
-          inputTokens: ledger.inputTokens,
-          outputTokens: ledger.outputTokens,
-          cacheReadTokens: ledger.cacheReadTokens,
-          contextTokens: ledger.contextTokens,
-          costUSD: ledger.costUSD,
-          unpricedTurns: ledger.unpricedTurns,
-        }
-      : {}),
-    ...(ledger.servedModel !== undefined ? { model: ledger.servedModel } : {}),
-    ...(tracker.phase !== null ? { phase: tracker.phase } : {}),
-  }
+  return notBuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:252')
 }
 
 export function publishAgentWaitFromEvent(
@@ -285,50 +184,14 @@ export function publishAgentWaitFromEvent(
 }
 
 
-export type LocalAgentTaskState = ReturnType<typeof createTaskStateBase> & {
-  type: 'local_agent'
-  agentId: string
-  prompt: string
-  selectedAgent?: AgentDefinition
-  agentType: string
-  model?: string
-  abortController?: AbortController
-  registration?: AbortController
-  cleanup?: () => void
-  error?: string
-  result?: any
-  progress?: AgentProgress
-  summary?: string
-  wait?: string
-  pendingAsks?: number
-  retrieved?: boolean
-  stopReason?: string
-  paused?: AgentPauseV1
-  messages?: Message[]
-  lastReportedToolCount?: number
-  lastReportedTokenCount?: number
-  isBackgrounded: boolean
-  handoverReason?: BackgroundHandoverReason
-  pendingMessages?: string[]
-  operatorMessages?: string[]
-  compactRequested?: true
-  replyTarget?: 'parent' | 'operator'
-  retain?: boolean
-  diskLoaded?: boolean
-  evictAfter?: number
-}
+export type LocalAgentTaskState = Unbuilt
 
 export function isLocalAgentTask(task: unknown): task is LocalAgentTaskState {
-  return (
-    typeof task === 'object' &&
-    task !== null &&
-    'type' in task &&
-    task.type === 'local_agent'
-  )
+  return notBuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:321')
 }
 
 export function isPanelAgentTask(task: unknown): task is LocalAgentTaskState {
-  return isLocalAgentTask(task) && task.agentType !== MAIN_SESSION_AGENT_TYPE
+  return notBuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:330')
 }
 
 export function mergeDiskPrefix<M extends { uuid: unknown }>(live: M[], disk: M[]): M[] {
@@ -372,11 +235,7 @@ export function pauseAgentTask(
   setAppState: SetAppState,
   registration?: AbortController,
 ): void {
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
-    if (heldByAnotherRegistration(task, registration)) return task
-    if (task.status === 'running') return task
-    return { ...task, paused: pause }
-  })
+  return notBuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:369')
 }
 
 export function usageWindowPauseOf(messages: readonly Message[], model: string | null | undefined): AgentPauseV1 | null {
@@ -449,33 +308,15 @@ export function overloadPauseOf(messages: readonly Message[], model: string | nu
 export const AGENT_STOPPED_WHILE_PAUSED = 'stopped while paused'
 
 export function stopPausedAgentTask(taskId: string, setAppState: SetAppState): { description: string; pause: AgentPauseV1 } | null {
-  let stopped: { description: string; pause: AgentPauseV1 } | null = null
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
-    if (task.status === 'running' || task.paused === undefined) return task
-    stopped = { description: task.description, pause: task.paused }
-    const { paused: _lifted, ...rest } = task
-    return terminalPatch(rest as LocalAgentTaskState, 'killed', { stopReason: AGENT_STOPPED_WHILE_PAUSED })
-  })
-  return stopped
+  return notBuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:451')
 }
 
 export function unpauseAgentTask(taskId: string, setAppState: SetAppState, registration?: AbortController): void {
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
-    if (heldByAnotherRegistration(task, registration)) return task
-    if (task.paused === undefined) return task
-    const { paused: _lifted, ...rest } = task
-    return rest as LocalAgentTaskState
-  })
+  return notBuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:462')
 }
 
 export function enqueueAgentReceiptRow(args: { taskId: string; description: string; summary: string; status?: string }): void {
-  const message = `<${TASK_NOTIFICATION_TAG}>
-<${TASK_ID_TAG}>${args.taskId}</${TASK_ID_TAG}>
-<${OUTPUT_FILE_TAG}>${getTaskOutputPath(args.taskId)}</${OUTPUT_FILE_TAG}>
-<${STATUS_TAG}>${args.status ?? 'resumed'}</${STATUS_TAG}>
-<${SUMMARY_TAG}>${args.summary}</${SUMMARY_TAG}>
-</${TASK_NOTIFICATION_TAG}>`
-  enqueuePendingNotification({ value: message, mode: 'task-notification', priority: 'next' })
+  return notBuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:471')
 }
 
 export function agentMessageSummary(sender: { taskId: string; description?: string } | null): string {
@@ -483,13 +324,7 @@ export function agentMessageSummary(sender: { taskId: string; description?: stri
 }
 
 export function agentMessageNotice(args: { taskId: string; summary: string; text: string }): string {
-  return `<${TASK_NOTIFICATION_TAG}>
-<${TASK_ID_TAG}>${args.taskId}</${TASK_ID_TAG}>
-<${OUTPUT_FILE_TAG}>${getTaskOutputPath(args.taskId)}</${OUTPUT_FILE_TAG}>
-<${STATUS_TAG}>${AGENT_MESSAGE_STATUS}</${STATUS_TAG}>
-<${SUMMARY_TAG}>${args.summary}</${SUMMARY_TAG}>
-<${MESSAGE_TAG}>${args.text}</${MESSAGE_TAG}>
-</${TASK_NOTIFICATION_TAG}>`
+  return notBuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:485')
 }
 
 export function enqueueMessageToMainAgent(args: { fromTaskId: string; description: string; text: string }): void {
@@ -513,7 +348,7 @@ export function crewStillRunning(tasks: Record<string, unknown> | undefined): nu
 }
 
 
-const backgroundSignalResolvers = new Map<string, () => void>()
+const backgroundSignalResolvers: Map<string, () => void> = unbuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:516')
 
 function resolveBackgroundSignal(taskId: string): void {
   const resolve = backgroundSignalResolvers.get(taskId)
@@ -523,26 +358,12 @@ function resolveBackgroundSignal(taskId: string): void {
   }
 }
 
-type AgentSiblingEnd = { taskId: string; description: string; status: 'failed' | 'stopped'; error?: string }
+type AgentSiblingEnd = Unbuilt
 
-const siblingEnds = new Map<string, AgentSiblingEnd>()
+const siblingEnds: Map<string, AgentSiblingEnd> = unbuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:528')
 
 function releaseForegroundSiblings(end: AgentSiblingEnd, setAppState: SetAppState): string[] {
-  const released: string[] = []
-  for (const taskId of [...backgroundSignalResolvers.keys()]) {
-    if (taskId === end.taskId) continue
-    let running = false
-    updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
-      if (task.status !== 'running' || task.isBackgrounded) return task
-      running = true
-      return { ...task, isBackgrounded: true }
-    })
-    if (!running) continue
-    siblingEnds.set(taskId, end)
-    resolveBackgroundSignal(taskId)
-    released.push(taskId)
-  }
-  return released
+  return notBuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:530')
 }
 
 export function takeSiblingEnd(taskId: string): AgentSiblingEnd | null {

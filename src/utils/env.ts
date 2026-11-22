@@ -8,6 +8,7 @@ import { whichSync } from './which.js'
 import { passedOver } from './passedOver.js'
 import { hostEnv } from './hostEnv.js'
 import { normalizedOsPlatform } from './platform/programs.js'
+import { unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
 export function globalConfigFileIn(home: string): string {
@@ -47,156 +48,11 @@ function isSshSession(): boolean {
   return Boolean(hostEnv().SSH_CONNECTION || hostEnv().SSH_CLIENT || hostEnv().SSH_TTY)
 }
 
-function detectTerminal(): string | null {
-  const envVars = hostEnv()
-  if (envVars.CURSOR_TRACE_ID) return 'cursor'
-  const askpass = envVars.VSCODE_GIT_ASKPASS_MAIN
-  if (askpass) {
-    if (askpass.includes('cursor')) return 'cursor'
-    if (askpass.includes('windsurf')) return 'windsurf'
-    if (askpass.includes('antigravity')) return 'antigravity'
-  }
-  const bundleId = envVars.__CFBundleIdentifier?.toLowerCase()
-  if (bundleId) {
-    if (bundleId.includes('vscodium')) return 'codium'
-    if (bundleId.includes('windsurf')) return 'windsurf'
-    if (bundleId.includes('com.google.android.studio')) return 'androidstudio'
-    for (const ide of JETBRAINS_IDES) {
-      if (bundleId.includes(ide)) return ide
-    }
-  }
-  if (envVars.VisualStudioVersion) return 'visualstudio'
-  if (envVars.TERMINAL_EMULATOR === 'JetBrains-JediTerm') {
-    return JETBRAINS_IDES[0] as string
-  }
-  if (envVars.TERM === 'xterm-ghostty') return 'ghostty'
-  if (envVars.TERM?.includes('kitty')) return 'kitty'
-  if (envVars.TERM_PROGRAM) return envVars.TERM_PROGRAM
-  if (envVars.TMUX) return 'tmux'
-  if (envVars.STY) return 'screen'
-  if (envVars.KONSOLE_VERSION) return 'konsole'
-  if (envVars.GNOME_TERMINAL_SERVICE) return 'gnome-terminal'
-  if (envVars.XTERM_VERSION) return 'xterm'
-  if (envVars.VTE_VERSION) return 'vte-based'
-  if (envVars.TERMINATOR_UUID) return 'terminator'
-  if (envVars.KITTY_WINDOW_ID) return 'kitty'
-  if (envVars.ALACRITTY_LOG) return 'alacritty'
-  if (envVars.TILIX_ID) return 'tilix'
-  if (envVars.WT_SESSION) return 'windows-terminal'
-  if (envVars.SESSIONNAME && envVars.TERM === 'cygwin') return 'cygwin'
-  if (envVars.MSYSTEM) return envVars.MSYSTEM.toLowerCase()
-  if (envVars.ConEmuANSI || envVars.ConEmuPID || envVars.ConEmuTask) return 'conemu'
-  if (envVars.WSL_DISTRO_NAME) return `wsl-${envVars.WSL_DISTRO_NAME}`
-  if (isSshSession()) return 'ssh-session'
-  if (envVars.TERM) {
-    const term = envVars.TERM
-    if (term.includes('alacritty')) return 'alacritty'
-    if (term.includes('rxvt')) return 'rxvt'
-    if (term.includes('termite')) return 'termite'
-    return term
-  }
-  if (!process.stdout.isTTY) return 'non-interactive'
-  return null
-}
-
 const WSL_INTEROP_MARKER = '/proc/sys/fs/binfmt_misc/WSLInterop'
 const DOCKER_MARKER = '/.dockerenv'
 const HYPERVISOR_UUID_FILE = '/sys/hypervisor/uuid'
 const DIGITALOCEAN_APP_DOMAIN = 'ondigitalocean.app'
 
-export const detectDeploymentEnvironment = memoize((): string => {
-  const envVars = hostEnv()
-  if (isEnvTruthy(envVars.CODESPACES)) return 'codespaces'
-  if (envVars.GITPOD_WORKSPACE_ID) return 'gitpod'
-  if (envVars.REPL_ID || envVars.REPL_SLUG) return 'replit'
-  if (envVars.PROJECT_DOMAIN) return 'glitch'
-  if (isEnvTruthy(envVars.VERCEL)) return 'vercel'
-  if (envVars.RAILWAY_ENVIRONMENT_NAME || envVars.RAILWAY_SERVICE_NAME) return 'railway'
-  if (isEnvTruthy(envVars.RENDER)) return 'render'
-  if (isEnvTruthy(envVars.NETLIFY)) return 'netlify'
-  if (envVars.DYNO) return 'heroku'
-  if (envVars.FLY_APP_NAME || envVars.FLY_MACHINE_ID) return 'fly.io'
-  if (isEnvTruthy(envVars.CF_PAGES)) return 'cloudflare-pages'
-  if (envVars.DENO_DEPLOYMENT_ID) return 'deno-deploy'
-  if (envVars.AWS_LAMBDA_FUNCTION_NAME) return 'aws-lambda'
-  if (envVars.AWS_EXECUTION_ENV === 'AWS_ECS_FARGATE') return 'aws-fargate'
-  if (envVars.AWS_EXECUTION_ENV === 'AWS_ECS_EC2') return 'aws-ecs'
-  try {
-    const uuid = readFileSync(HYPERVISOR_UUID_FILE, 'utf8').trim().toLowerCase()
-    if (uuid.startsWith('ec2')) return 'aws-ec2'
-  } catch (error) {
-    passedOver(error)
-  }
-  if (envVars.K_SERVICE) return 'gcp-cloud-run'
-  if (envVars.GOOGLE_CLOUD_PROJECT) return 'gcp'
-  if (envVars.WEBSITE_SITE_NAME || envVars.WEBSITE_SKU) return 'azure-app-service'
-  if (envVars.AZURE_FUNCTIONS_ENVIRONMENT) return 'azure-functions'
-  if (envVars.APP_URL?.includes(DIGITALOCEAN_APP_DOMAIN)) return 'digitalocean-app-platform'
-  if (envVars.SPACE_CREATOR_USER_ID) return 'huggingface-spaces'
-  if (isEnvTruthy(envVars.GITHUB_ACTIONS)) return 'github-actions'
-  if (isEnvTruthy(envVars.GITLAB_CI)) return 'gitlab-ci'
-  if (envVars.CIRCLECI) return 'circleci'
-  if (envVars.BUILDKITE) return 'buildkite'
-  if (isEnvTruthy(envVars.CI)) return 'ci'
-  if (envVars.KUBERNETES_SERVICE_HOST) return 'kubernetes'
-  try {
-    if (existsSync(DOCKER_MARKER)) return 'docker'
-  } catch (error) {
-    passedOver(error)
-  }
-  switch (normalizedPlatform()) {
-    case 'darwin':
-      return 'unknown-darwin'
-    case 'linux':
-      return 'unknown-linux'
-    case 'win32':
-      return 'unknown-win32'
-    default:
-      return 'unknown'
-  }
-})
+export const detectDeploymentEnvironment: Unbuilt = unbuilt('src/utils/env.ts:107')
 
-const isWslEnvironment = memoize((): boolean => {
-  try {
-    return existsSync(WSL_INTEROP_MARKER)
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
-})
-
-export const env = {
-  isCI: isEnvTruthy(hostEnv().CI),
-  platform: normalizedPlatform(),
-  arch: process.arch,
-  nodeVersion: process.version,
-  terminal: detectTerminal(),
-  isSSH: isSshSession,
-  getPackageManagers: memoize(async (): Promise<string[]> => {
-    const managers: string[] = []
-    for (const candidate of ['npm', 'yarn', 'pnpm']) {
-      if (whichSync(candidate) !== null) managers.push(candidate)
-    }
-    return managers
-  }),
-  getRuntimes: memoize(async (): Promise<string[]> => {
-    const runtimes: string[] = []
-    for (const candidate of ['bun', 'deno', 'node']) {
-      if (whichSync(candidate) !== null) runtimes.push(candidate)
-    }
-    return runtimes
-  }),
-  isRunningWithBun: memoize((): boolean => Boolean(process.versions?.bun)),
-  isWslEnvironment,
-  isNpmFromWindowsPath: memoize((): boolean => {
-    if (!isWslEnvironment()) return false
-    try {
-      const npmPath = whichSync('npm')
-      return npmPath !== null && npmPath.startsWith('/mnt/c/')
-    } catch (error) {
-      passedOver(error)
-      return false
-    }
-  }),
-  detectDeploymentEnvironment,
-}
+export const env: Unbuilt = unbuilt('src/utils/env.ts:168')

@@ -1,6 +1,5 @@
-
-import { useKeybindings } from '../keybindings/useKeybinding.js'
-import { useExitOnCtrlCD, type ExitState } from './useExitOnCtrlCD.js'
+import type { ExitState } from './useExitOnCtrlCD.js'
+import { notBuilt } from '../pi/holes.js'
 
 
 export function useExitOnCtrlCDWithKeybindings(
@@ -8,5 +7,5 @@ export function useExitOnCtrlCDWithKeybindings(
   onInterrupt?: () => boolean,
   isActive?: boolean,
 ): ExitState {
-  return useExitOnCtrlCD(useKeybindings, onInterrupt, onExit, isActive)
+  return notBuilt('src/hooks/useExitOnCtrlCDWithKeybindings.ts:6')
 }

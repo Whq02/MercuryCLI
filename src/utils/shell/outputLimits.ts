@@ -1,8 +1,9 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { validateBoundedIntEnvVar } from '../envValidation.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
-export const BASH_MAX_OUTPUT_UPPER_LIMIT = 150_000
-export const BASH_MAX_OUTPUT_DEFAULT = 30_000
+export const BASH_MAX_OUTPUT_UPPER_LIMIT: Unbuilt = unbuilt('src/utils/shell/outputLimits.ts:4')
+export const BASH_MAX_OUTPUT_DEFAULT: Unbuilt = unbuilt('src/utils/shell/outputLimits.ts:5')
 export const OUTPUT_HEAD_SHARE = 0.6
 
 export const BASH_MAX_OUTPUT_FLOOR = 512
@@ -12,13 +13,7 @@ export const SHELL_MAX_OUTPUT_ENV = 'MERCURY_SHELL_MAX_OUTPUT'
 export type OutputBudget = { effective: number; requested?: number; clampedTo?: 'maximum' | 'minimum' }
 
 export function getMaxOutputLength(): number {
-  const result = validateBoundedIntEnvVar(
-    SHELL_MAX_OUTPUT_ENV,
-    flagEnv('MERCURY_SHELL_MAX_OUTPUT'),
-    BASH_MAX_OUTPUT_DEFAULT,
-    BASH_MAX_OUTPUT_UPPER_LIMIT,
-  )
-  return result.effective
+  return notBuilt('src/utils/shell/outputLimits.ts:14')
 }
 
 export function getMinOutputLength(): number {

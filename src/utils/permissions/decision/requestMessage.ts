@@ -3,29 +3,14 @@ import { pinnedCommandAnalysis } from './commandAnalysis.js'
 import { permissionModeTitle } from '../PermissionMode.js'
 import type { PermissionDecisionReason } from '../PermissionResult.js'
 import { ruleSentence } from '../ruleReason.js'
+import { notBuilt } from '../../../pi/holes.js'
 
 const extractOutputRedirections: typeof pinnedCommandAnalysis.extractOutputRedirections =
   (...a) => pinnedCommandAnalysis.extractOutputRedirections(...a)
 
 export const ORG_ASK_REASON = 'Your organization requires approval for this tool'
 
-function subcommandPartsNeedingApproval(toolName: string, reasons: ReadonlyMap<string, { behavior?: string }>): string[] {
-  const needsApproval: string[] = []
-  for (const [cmd, result] of reasons) {
-    if (result.behavior === 'ask' || result.behavior === 'passthrough') {
-      if (toolName === 'Bash') {
-        const { commandWithoutRedirections, redirections } = extractOutputRedirections(cmd)
-        const displayCmd = redirections.length > 0 ? commandWithoutRedirections : cmd
-        needsApproval.push(displayCmd)
-      } else {
-        needsApproval.push(cmd)
-      }
-    }
-  }
-  return needsApproval
-}
-
-const ungrantedLine = (toolName: string): string => `Mercury requested permissions to use ${toolName}, but you haven't granted it yet.`
+const ungrantedLine = (toolName: string): string => notBuilt('src/utils/permissions/decision/requestMessage.ts:28')
 
 type ReasonByType = { [K in PermissionDecisionReason['type']]: Extract<PermissionDecisionReason, { type: K }> }
 type ReasonLines<T> = { [K in keyof T]: (toolName: string, reason: T[K]) => string }
@@ -35,34 +20,9 @@ function reasonLine<T, K extends keyof T>(lines: ReasonLines<T>, toolName: strin
   return line === undefined ? ungrantedLine(toolName) : line(toolName, reason)
 }
 
-const REASON_TABLE: ReasonLines<ReasonByType> = {
-  hook: (toolName, hook) =>
-    hook.reason
-      ? `Hook '${hook.hookName}' blocked this action: ${hook.reason}`
-      : `Hook '${hook.hookName}' requires approval for this ${toolName} command`,
-  guard: (_toolName, guard) => guard.reason,
-  rule: (toolName, ruleReason) => ruleSentence(`This ${toolName} call`, 'ask', ruleReason.rule),
-  subcommandResults: (toolName, sub) => {
-    const parts = subcommandPartsNeedingApproval(toolName, sub.reasons)
-    if (parts.length > 0) {
-      const n = parts.length
-      return `${plural(n, 'One part', 'Several parts')} of this ${toolName} command ${plural(n, 'needs', 'need')} approval: ${parts.join(', ')}`
-    }
-    return `Several parts of this ${toolName} command need approval`
-  },
-  permissionPromptTool: (toolName, prompt) => `Tool '${prompt.permissionPromptToolName}' requires approval for this ${toolName} command`,
-  workingDir: (_toolName, reason) => reason.reason,
-  safetyCheck: (_toolName, reason) => reason.reason,
-  other: (_toolName, reason) => reason.reason,
-  mode: (toolName, modeReason) => `Current permission mode (${permissionModeTitle(modeReason.mode)}) requires approval for this ${toolName} command`,
-  asyncAgent: (_toolName, reason) => reason.reason,
-  bypassedAsk: (toolName, bypassed) => createPermissionRequestMessage(toolName, bypassed.reason),
-}
-
 export function createPermissionRequestMessage(
   toolName: string,
   decisionReason?: PermissionDecisionReason,
 ): string {
-  if (!decisionReason) return ungrantedLine(toolName)
-  return reasonLine(REASON_TABLE, toolName, decisionReason.type, decisionReason)
+  return notBuilt('src/utils/permissions/decision/requestMessage.ts:62')
 }

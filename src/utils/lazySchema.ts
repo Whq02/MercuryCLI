@@ -1,4 +1,5 @@
+import { notBuilt } from '../pi/holes.js'
+
 export function lazySchema<T>(factory: () => T): () => T {
-  let cached: T | undefined
-  return () => (cached ??= factory())
+  return notBuilt('src/utils/lazySchema.ts:1')
 }

@@ -1,4 +1,3 @@
-
 import autoBind from 'auto-bind'
 import type { ReactNode } from 'react'
 import { ConcurrentRoot } from 'react-reconciler/constants.js'
@@ -49,302 +48,289 @@ import { unmount, waitUntilExit, detachForShutdown } from './ink/exit.js'
 import type { ExitOutcome } from './ink/record.js'
 import { passedOver } from '../utils/passedOver.js'
 import { startInterval, stopInterval } from '../utils/timers.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 export { drainStdin }
 
-export type Options = {
-  stdout: NodeJS.WriteStream
-  stdin: NodeJS.ReadStream
-  stderr: NodeJS.WriteStream
-  exitOnCtrlC: boolean
-  patchConsole: boolean
-  waitUntilExit?: () => Promise<void>
-  onFrame?: (event: FrameEvent) => void
-}
+export type Options = Unbuilt
 
 export default class Ink {
   readonly options: Options
   readonly isTTY: boolean
-  readonly stylePool = new StylePool()
-  charPool = new CharPool()
-  hyperlinkPool = new HyperlinkPool()
+  readonly stylePool: Unbuilt = unbuilt('src/ink/ink.tsx:68')
+  charPool: Unbuilt = unbuilt('src/ink/ink.tsx:69')
+  hyperlinkPool: Unbuilt = unbuilt('src/ink/ink.tsx:70')
   frontFrame: Frame
   backFrame: Frame
   cachedColumns: number
   cachedRows: number
   parkPatch: Patch
-  pendingAltEntry: string | null = null
-  lastPoolReset = Date.now()
+  pendingAltEntry: string | null = unbuilt('src/ink/ink.tsx:76')
+  lastPoolReset: Unbuilt = unbuilt('src/ink/ink.tsx:77')
   readonly rootNode: DOMElement
   readonly renderer: Renderer
   readonly container: unknown
   readonly writer: FrameWriter
   readonly scheduler: RenderScheduler
-  readonly ledger = new FrameLedger()
-  lastAssignedWidth: number | null = null
-  lastAssignedMaxHeight: number | null = null
-  layoutCounters = getCellLayoutCounters()
-  currentTree: ReactNode | null = null
-  isUnmounted = false
-  isPaused = false
-  isRendering = false
-  lastRenderTime: number | null = null
-  restoreConsole: (() => void) | null = null
-  removeTtySubscriptions: (() => void) | null = null
-  exitPromise: Promise<void> | null = null
-  exitOutcomeLatch: ExitOutcome | null = null
-  editorHandoverDepth = 0;
-  altScreenActive = false
+  readonly ledger: Unbuilt = unbuilt('src/ink/ink.tsx:83')
+  lastAssignedWidth: number | null = unbuilt('src/ink/ink.tsx:84')
+  lastAssignedMaxHeight: number | null = unbuilt('src/ink/ink.tsx:85')
+  layoutCounters: Unbuilt = unbuilt('src/ink/ink.tsx:86')
+  currentTree: ReactNode | null = unbuilt('src/ink/ink.tsx:87')
+  isUnmounted: boolean = unbuilt('src/ink/ink.tsx:88')
+  isPaused: boolean = unbuilt('src/ink/ink.tsx:89')
+  isRendering: boolean = unbuilt('src/ink/ink.tsx:90')
+  lastRenderTime: number | null = unbuilt('src/ink/ink.tsx:91')
+  restoreConsole: (() => void) | null = unbuilt('src/ink/ink.tsx:92')
+  removeTtySubscriptions: (() => void) | null = unbuilt('src/ink/ink.tsx:93')
+  exitPromise: Promise<void> | null = unbuilt('src/ink/ink.tsx:94')
+  exitOutcomeLatch: ExitOutcome | null = unbuilt('src/ink/ink.tsx:95')
+  editorHandoverDepth: number = unbuilt('src/ink/ink.tsx:96');
+  altScreenActive: boolean = unbuilt('src/ink/ink.tsx:97')
   mouseTracking: boolean
   mouseTrackingPref: boolean
-  wheelReportingConfirmed = false
-  transcriptScrollTarget: (() => boolean) | null = null
-  readonly arrowKeyOwners = new Set<() => boolean>()
-  displayCursor: CursorPoint | null = null
-  wholeFrameDue = false
-  resizeEraseDue = false
-  wholeFrameAt = -Infinity
-  overwriteTimer: ReturnType<typeof setTimeout> | null = null
-  resizeSettleTimer: ReturnType<typeof setTimeout> | null = null
-  watchdogCommitsRemaining = 0
-  zeroByteRenderStreak = 0
-  readonly selection: SelectionState = createSelectionState()
-  textGesture: { handler: TextGestureHandler; rect: CachedLayout } | null = null
-  readonly selectionListeners = new Set<() => void>()
-  glassOverlay: OverlayRecord | null = null
-  searchQuery = ''
-  searchPositions: SearchPositions | null = null
-  readonly hoveredNodes = new Set<DOMElement>()
-  cursorDeclaration: CursorDeclaration | null = null
-  readonly frameListeners = new Set<() => void>()
-  readonly layoutListeners = new Set<() => void>()
+  wheelReportingConfirmed: boolean = unbuilt('src/ink/ink.tsx:100')
+  transcriptScrollTarget: (() => boolean) | null = unbuilt('src/ink/ink.tsx:101')
+  readonly arrowKeyOwners: Set<() => boolean> = unbuilt('src/ink/ink.tsx:102')
+  displayCursor: CursorPoint | null = unbuilt('src/ink/ink.tsx:103')
+  wholeFrameDue: boolean = unbuilt('src/ink/ink.tsx:104')
+  resizeEraseDue: boolean = unbuilt('src/ink/ink.tsx:105')
+  wholeFrameAt: Unbuilt = unbuilt('src/ink/ink.tsx:106')
+  overwriteTimer: ReturnType<typeof setTimeout> | null = unbuilt('src/ink/ink.tsx:107')
+  resizeSettleTimer: ReturnType<typeof setTimeout> | null = unbuilt('src/ink/ink.tsx:108')
+  watchdogCommitsRemaining: number = unbuilt('src/ink/ink.tsx:109')
+  zeroByteRenderStreak: number = unbuilt('src/ink/ink.tsx:110')
+  readonly selection: SelectionState = unbuilt('src/ink/ink.tsx:111')
+  textGesture: { handler: TextGestureHandler; rect: CachedLayout } | null = unbuilt('src/ink/ink.tsx:112')
+  readonly selectionListeners: Set<() => void> = unbuilt('src/ink/ink.tsx:113')
+  glassOverlay: OverlayRecord | null = unbuilt('src/ink/ink.tsx:114')
+  searchQuery: string = unbuilt('src/ink/ink.tsx:115')
+  searchPositions: SearchPositions | null = unbuilt('src/ink/ink.tsx:116')
+  readonly hoveredNodes: Set<DOMElement> = unbuilt('src/ink/ink.tsx:117')
+  cursorDeclaration: CursorDeclaration | null = unbuilt('src/ink/ink.tsx:118')
+  readonly frameListeners: Set<() => void> = unbuilt('src/ink/ink.tsx:119')
+  readonly layoutListeners: Set<() => void> = unbuilt('src/ink/ink.tsx:120')
   onHyperlinkClick: ((url: string) => void) | undefined
-  storedReadableListeners: Array<(...args: unknown[]) => void> | null = null
-  wasRawMode = false
-  consoleReadHeld = false
-  fittingConsoleBuffer = false
-  stdinRecoveryArmed = false
-  rawModeOffForStop = false
-  stopListenersAttached = false
-  treeDumpBudget = TREE_DUMP_PATH ? TREE_DUMP_BUDGET : 0
+  storedReadableListeners: Array<(...args: unknown[]) => void> | null = unbuilt('src/ink/ink.tsx:122')
+  wasRawMode: boolean = unbuilt('src/ink/ink.tsx:123')
+  consoleReadHeld: boolean = unbuilt('src/ink/ink.tsx:124')
+  fittingConsoleBuffer: boolean = unbuilt('src/ink/ink.tsx:125')
+  stdinRecoveryArmed: boolean = unbuilt('src/ink/ink.tsx:126')
+  rawModeOffForStop: boolean = unbuilt('src/ink/ink.tsx:127')
+  stopListenersAttached: boolean = unbuilt('src/ink/ink.tsx:128')
+  treeDumpBudget: Unbuilt = unbuilt('src/ink/ink.tsx:129')
   readonly focusManager: FocusManager
-  screenReassertCount = 0
-  exitOutcome: ExitOutcome | null = null
+  screenReassertCount: number = unbuilt('src/ink/ink.tsx:131')
+  exitOutcome: ExitOutcome | null = unbuilt('src/ink/ink.tsx:132')
   unsubscribeExit: () => void
-  resolveExitPromise: () => void = () => {}
-  rejectExitPromise: (reason?: Error) => void = () => {}
+  resolveExitPromise: () => void = () => notBuilt('src/ink/ink.tsx:134')
+  rejectExitPromise: (reason?: Error) => void = () => notBuilt('src/ink/ink.tsx:135')
 
   constructor(options: Options) {
-    autoBind(this)
-    this.options = options
-    this.isTTY = options.stdout.isTTY === true
-    if (options.patchConsole) this.restoreConsole = this.patchConsole()
-
-    this.cachedColumns = options.stdout.columns || DEFAULT_COLUMNS
-    this.cachedRows = options.stdout.rows || DEFAULT_ROWS
-    this.parkPatch = buildParkPatch.call(this)
-    this.frontFrame = newEmptyFrame.call(this)
-    this.backFrame = newEmptyFrame.call(this)
-    this.mouseTracking = mouseTrackingEnabledByEnvironment()
-    this.mouseTrackingPref = this.mouseTracking && isMouseCaptureEnabled()
-
-    this.writer = new FrameWriter({ isTTY: this.isTTY, stylePool: this.stylePool })
-    this.scheduler = new RenderScheduler(
-      this.onRender,
-      undefined,
-      shouldHoldFirstPaintForSyncProbe,
-    )
-    this.unsubscribeExit = onExit(this.unmount)
-
-    if (this.isTTY) {
-      options.stdout.on('resize', this.handleResize)
-      process.on('SIGWINCH', this.handleWinch)
-      process.on('SIGCONT', this.resumeAfterContinue)
-      attachStopListeners.call(this)
-      const win32SizeTimer: ReturnType<typeof setInterval> | null =
-        consoleSizeNeedsPolling()
-          ? startInterval(() => this.reconcileSize(), 5_000)
-          : null
-      win32SizeTimer?.unref?.();
-      if (options.stdin.isTTY) setStdinRecovery(this.recoverStdin)
-      this.removeTtySubscriptions = () => {
-        options.stdout.off('resize', this.handleResize)
-        process.off('SIGWINCH', this.handleWinch)
-        process.off('SIGCONT', this.resumeAfterContinue)
-        detachStopListeners.call(this)
-        if (win32SizeTimer !== null) stopInterval(win32SizeTimer)
-        setStdinRecovery(null)
-      }
-    }
-
-    this.rootNode = createNode('ink-root')
-    this.focusManager = new FocusManager((target, event) => {
-      dispatcher.dispatchDiscrete(target, event)
-    })
-    this.rootNode.focusManager = this.focusManager
-    this.renderer = createRenderer(this.rootNode, this.stylePool)
-    this.rootNode.onRender = this.scheduleRender
-    this.rootNode.onImmediateRender = this.onRender
-    this.rootNode.onComputeLayout = this.layoutAfterCommit
-
-    this.container = reconciler.createContainer(
-      this.rootNode,
-      ConcurrentRoot,
-      null,
-      false,
-      null,
-      '',
-      (error: Error) => {
-        logForDebugging(`Uncaught render error: ${error.stack ?? error.message}`, {
-          level: 'warn',
-        })
-      },
-      (error: Error) => {
-        logForDebugging(`Caught render error: ${error.stack ?? error.message}`, {
-          level: 'warn',
-        })
-      },
-      (error: Error) => {
-        logForDebugging(`Recoverable render error: ${error.stack ?? error.message}`, {
-          level: 'warn',
-        })
-      },
-      () => {},
-    )
+    notBuilt('src/ink/ink.tsx:137')
   }
 
-  resetLineCount(): void { resetLineCount.call(this) }
-  resetPools(): void { resetPools.call(this) }
-  handleResize = (): void => handleResize.call(this)
-  private handleWinch = (): void => handleWinch.call(this)
-  applySettledResize = (): void => applySettledResize.call(this)
-  reconcileSize(): void { reconcileSize.call(this) }
-  calculateLayout = (): void => calculateLayout.call(this)
-  private layoutAfterCommit = (): void => layoutAfterCommit.call(this)
-  subscribeLayout(listener: () => void): () => void { return subscribeLayout.call(this, listener) }
-  scheduleRender = (): void => { this.scheduler.requestFrame() }
-  renderFaultStreak = 0
-  firstFrameStamped = false
-  onRender = (): void => onRender.call(this)
+  resetLineCount(): void {
+    return notBuilt('src/ink/ink.tsx:216')
+  }
+  resetPools(): void {
+    return notBuilt('src/ink/ink.tsx:217')
+  }
+  handleResize = (): void => notBuilt('src/ink/ink.tsx:218')
+  private handleWinch = (): void => notBuilt('src/ink/ink.tsx:219')
+  applySettledResize = (): void => notBuilt('src/ink/ink.tsx:220')
+  reconcileSize(): void {
+    return notBuilt('src/ink/ink.tsx:221')
+  }
+  calculateLayout = (): void => notBuilt('src/ink/ink.tsx:222')
+  private layoutAfterCommit = (): void => notBuilt('src/ink/ink.tsx:223')
+  subscribeLayout(listener: () => void): () => void {
+    return notBuilt('src/ink/ink.tsx:224')
+  }
+  scheduleRender = (): void => notBuilt('src/ink/ink.tsx:225')
+  renderFaultStreak: number = unbuilt('src/ink/ink.tsx:226')
+  firstFrameStamped: boolean = unbuilt('src/ink/ink.tsx:227')
+  onRender = (): void => notBuilt('src/ink/ink.tsx:228')
   stampFirstFrame(): void {
-    this.firstFrameStamped = true
-    try {
-      const { recordLaunchMilestone } = require('../substrate/launchMilestones.js') as typeof import('../substrate/launchMilestones.js')
-      recordLaunchMilestone('first-frame')
-    } catch (error) {
-      passedOver(error)
-    }
+    return notBuilt('src/ink/ink.tsx:229')
   }
-  subscribeFrame(listener: () => void): () => void { return subscribeFrame.call(this, listener) }
-  get isAltScreenActive(): boolean { return this.altScreenActive }
-  setAltScreenActive(active: boolean, mouseTracking = true): void {
-    if (!active) this.resizeEraseDue = false
-    setAltScreenActive.call(this, active, mouseTracking)
+  subscribeFrame(listener: () => void): () => void {
+    return notBuilt('src/ink/ink.tsx:238')
   }
-  isMouseTrackingEnabled(): boolean { return this.mouseTracking }
-  confirmWheelReporting(): void { if (this.altScreenActive && this.mouseTracking) this.wheelReportingConfirmed = true }
-  isWheelReportingConfirmed(): boolean { return this.wheelReportingConfirmed }
-  registerTranscriptScrollTarget(target: () => boolean): () => void { return registerTranscriptScrollTarget.call(this, target) }
-  hasScrollableTranscriptTarget(): boolean { return this.transcriptScrollTarget?.() === true }
-  registerArrowKeyOwner(owns: () => boolean): () => void { return registerArrowKeyOwner.call(this, owns) }
-  arrowKeysOwned(): boolean { return arrowKeysOwned.call(this) }
-  isMouseTrackingPreferred(): boolean { return this.mouseTrackingPref }
-  setMouseTrackingEnabled(on: boolean): void { setMouseTrackingEnabled.call(this, on) }
-  awaitTerminalQueries(): Promise<void> { return awaitTerminalQueries.call(this) }
-  enterAlternateScreen(): void { enterAlternateScreen.call(this) }
-  exitAlternateScreen(): void { exitAlternateScreen.call(this) }
-  reassertScreenState(reason: string, opts: { repaint?: boolean } = {}): void { reassertScreenState.call(this, reason, opts) }
-  armScreenWatchdog(): void { armScreenWatchdog.call(this) }
-  stopForSignal = (signal: NodeJS.Signals): void => stopForSignal.call(this, signal)
-  private resumeAfterContinue = (): void => resumeAfterContinue.call(this)
-  reassertTerminalModes(includeAltScreen = false): void { reassertTerminalModes.call(this, includeAltScreen) }
-  repaintAfterNestedAltScreenClose(): void { repaintAfterNestedAltScreenClose.call(this) }
-  armAltScreenTakeover(): void { armAltScreenTakeover.call(this) }
-  armAltScreenEntry(bytes: string): void { armAltScreenEntry.call(this, bytes) }
-  isAltEntryPending(): boolean { return this.pendingAltEntry !== null }
-  forceRedraw(): void { forceRedraw.call(this) }
-  repaintAltScreen(): void { repaintAltScreen.call(this) }
-  overwriteScreen(): void { overwriteScreen.call(this) }
-  invalidatePrevFrame(): void { this.ledger.contaminate('overlay-unmount') }
-  repaint(): void { repaint.call(this) }
+  get isAltScreenActive(): boolean {
+    return notBuilt('src/ink/ink.tsx:239')
+  }
+  setAltScreenActive(active: boolean, mouseTracking?: boolean): void {
+    return notBuilt('src/ink/ink.tsx:240')
+  }
+  isMouseTrackingEnabled(): boolean {
+    return notBuilt('src/ink/ink.tsx:244')
+  }
+  confirmWheelReporting(): void {
+    return notBuilt('src/ink/ink.tsx:245')
+  }
+  isWheelReportingConfirmed(): boolean {
+    return notBuilt('src/ink/ink.tsx:246')
+  }
+  registerTranscriptScrollTarget(target: () => boolean): () => void {
+    return notBuilt('src/ink/ink.tsx:247')
+  }
+  hasScrollableTranscriptTarget(): boolean {
+    return notBuilt('src/ink/ink.tsx:248')
+  }
+  registerArrowKeyOwner(owns: () => boolean): () => void {
+    return notBuilt('src/ink/ink.tsx:249')
+  }
+  arrowKeysOwned(): boolean {
+    return notBuilt('src/ink/ink.tsx:250')
+  }
+  isMouseTrackingPreferred(): boolean {
+    return notBuilt('src/ink/ink.tsx:251')
+  }
+  setMouseTrackingEnabled(on: boolean): void {
+    return notBuilt('src/ink/ink.tsx:252')
+  }
+  awaitTerminalQueries(): Promise<void> {
+    return notBuilt('src/ink/ink.tsx:253')
+  }
+  enterAlternateScreen(): void {
+    return notBuilt('src/ink/ink.tsx:254')
+  }
+  exitAlternateScreen(): void {
+    return notBuilt('src/ink/ink.tsx:255')
+  }
+  reassertScreenState(reason: string, opts?: { repaint?: boolean }): void {
+    return notBuilt('src/ink/ink.tsx:256')
+  }
+  armScreenWatchdog(): void {
+    return notBuilt('src/ink/ink.tsx:257')
+  }
+  stopForSignal = (signal: NodeJS.Signals): void => notBuilt('src/ink/ink.tsx:258')
+  private resumeAfterContinue = (): void => notBuilt('src/ink/ink.tsx:259')
+  reassertTerminalModes(includeAltScreen?: boolean): void {
+    return notBuilt('src/ink/ink.tsx:260')
+  }
+  repaintAfterNestedAltScreenClose(): void {
+    return notBuilt('src/ink/ink.tsx:261')
+  }
+  armAltScreenTakeover(): void {
+    return notBuilt('src/ink/ink.tsx:262')
+  }
+  armAltScreenEntry(bytes: string): void {
+    return notBuilt('src/ink/ink.tsx:263')
+  }
+  isAltEntryPending(): boolean {
+    return notBuilt('src/ink/ink.tsx:264')
+  }
+  forceRedraw(): void {
+    return notBuilt('src/ink/ink.tsx:265')
+  }
+  repaintAltScreen(): void {
+    return notBuilt('src/ink/ink.tsx:266')
+  }
+  overwriteScreen(): void {
+    return notBuilt('src/ink/ink.tsx:267')
+  }
+  invalidatePrevFrame(): void {
+    return notBuilt('src/ink/ink.tsx:268')
+  }
+  repaint(): void {
+    return notBuilt('src/ink/ink.tsx:269')
+  }
   pause(): void {
-    this.resizeEraseDue = false
-    pause.call(this)
+    return notBuilt('src/ink/ink.tsx:270')
   }
-  resume(): void { resume.call(this) }
-  notifySelectionChange = (): void => notifySelectionChange.call(this)
-  subscribeToSelectionChange(callback: () => void): () => void { return subscribeToSelectionChange.call(this, callback) }
-  hasTextSelection(): boolean { return hasSelection(this.selection) }
-  handleSelectionStart(col: number, row: number, pressHadAlt = false): void { handleSelectionStart.call(this, col, row, pressHadAlt) }
-  handleMultiClick(col: number, row: number, count: 2 | 3): void { handleMultiClick.call(this, col, row, count) }
-  handleSelectionDrag(col: number, row: number): void { handleSelectionDrag.call(this, col, row) }
-  handleSelectionRelease(col: number, row: number): boolean { return handleSelectionRelease.call(this, col, row) }
-  moveSelectionFocus(move: FocusMove): void { moveSelectionFocus.call(this, move) }
-  copySelectionNoClear(): string { return copySelectionNoClear.call(this) }
-  copySelection(): string { return copySelection.call(this) }
-  copyText(text: string): void { copyText.call(this, text) }
-  clearTextSelection(): void { clearTextSelection.call(this) }
-  setSelectionBgColor(color: string): void { setSelectionBgColor.call(this, color) }
-  setSearchHighlight(query: string): void { setSearchHighlight.call(this, query) }
-  setSearchPositions(state: SearchPositions | null): void { setSearchPositions.call(this, state) }
-  scanElementSubtree(el: DOMElement): MatchPosition[] { return scanElementSubtree.call(this, el) }
-  getHyperlinkAt(col: number, row: number): string | undefined { return getHyperlinkAt.call(this, col, row) }
-  openHyperlink = (url: string): void => { this.onHyperlinkClick?.(url) }
-  dispatchClick(col: number, row: number): boolean { return dispatchClick.call(this, col, row) }
-  dispatchHover(col: number, row: number): void { dispatchHover.call(this, col, row) }
-  dispatchKeyboardEvent(parsedKey: ParsedKey): void { dispatchKeyboardEvent.call(this, parsedKey) }
-  private setCursorDeclaration = (declaration: CursorDeclaration | null, clearIfNode?: DOMElement | null): void => setCursorDeclaration.call(this, declaration, clearIfNode)
-  drainStdin(): void { drainStdin(this.options.stdin) }
-  suspendStdin(): void { suspendStdin.call(this) }
-  resumeStdin(): void { resumeStdin.call(this) }
-  recoverStdin = (code: string, syscall: string): void => recoverStdin.call(this, code, syscall)
-  patchConsole(): () => void { return patchConsole.call(this) }
-  private writeRaw = (data: string): void => { termWrite(this.options.stdout, data) }
+  resume(): void {
+    return notBuilt('src/ink/ink.tsx:274')
+  }
+  notifySelectionChange = (): void => notBuilt('src/ink/ink.tsx:275')
+  subscribeToSelectionChange(callback: () => void): () => void {
+    return notBuilt('src/ink/ink.tsx:276')
+  }
+  hasTextSelection(): boolean {
+    return notBuilt('src/ink/ink.tsx:277')
+  }
+  handleSelectionStart(col: number, row: number, pressHadAlt?: boolean): void {
+    return notBuilt('src/ink/ink.tsx:278')
+  }
+  handleMultiClick(col: number, row: number, count: 2 | 3): void {
+    return notBuilt('src/ink/ink.tsx:279')
+  }
+  handleSelectionDrag(col: number, row: number): void {
+    return notBuilt('src/ink/ink.tsx:280')
+  }
+  handleSelectionRelease(col: number, row: number): boolean {
+    return notBuilt('src/ink/ink.tsx:281')
+  }
+  moveSelectionFocus(move: FocusMove): void {
+    return notBuilt('src/ink/ink.tsx:282')
+  }
+  copySelectionNoClear(): string {
+    return notBuilt('src/ink/ink.tsx:283')
+  }
+  copySelection(): string {
+    return notBuilt('src/ink/ink.tsx:284')
+  }
+  copyText(text: string): void {
+    return notBuilt('src/ink/ink.tsx:285')
+  }
+  clearTextSelection(): void {
+    return notBuilt('src/ink/ink.tsx:286')
+  }
+  setSelectionBgColor(color: string): void {
+    return notBuilt('src/ink/ink.tsx:287')
+  }
+  setSearchHighlight(query: string): void {
+    return notBuilt('src/ink/ink.tsx:288')
+  }
+  setSearchPositions(state: SearchPositions | null): void {
+    return notBuilt('src/ink/ink.tsx:289')
+  }
+  scanElementSubtree(el: DOMElement): MatchPosition[] {
+    return notBuilt('src/ink/ink.tsx:290')
+  }
+  getHyperlinkAt(col: number, row: number): string | undefined {
+    return notBuilt('src/ink/ink.tsx:291')
+  }
+  openHyperlink = (url: string): void => notBuilt('src/ink/ink.tsx:292')
+  dispatchClick(col: number, row: number): boolean {
+    return notBuilt('src/ink/ink.tsx:293')
+  }
+  dispatchHover(col: number, row: number): void {
+    return notBuilt('src/ink/ink.tsx:294')
+  }
+  dispatchKeyboardEvent(parsedKey: ParsedKey): void {
+    return notBuilt('src/ink/ink.tsx:295')
+  }
+  private setCursorDeclaration = (declaration: CursorDeclaration | null, clearIfNode?: DOMElement | null): void => notBuilt('src/ink/ink.tsx:296')
+  drainStdin(): void {
+    return notBuilt('src/ink/ink.tsx:297')
+  }
+  suspendStdin(): void {
+    return notBuilt('src/ink/ink.tsx:298')
+  }
+  resumeStdin(): void {
+    return notBuilt('src/ink/ink.tsx:299')
+  }
+  recoverStdin = (code: string, syscall: string): void => notBuilt('src/ink/ink.tsx:300')
+  patchConsole(): () => void {
+    return notBuilt('src/ink/ink.tsx:301')
+  }
+  private writeRaw = (data: string): void => notBuilt('src/ink/ink.tsx:302')
 
   render(node: ReactNode): void {
-    this.currentTree = node
-    const tree = (
-      <InkInstanceContext.Provider value={this}>
-        <App
-          stdin={this.options.stdin}
-          stdout={this.options.stdout}
-          stderr={this.options.stderr}
-          exitOnCtrlC={this.options.exitOnCtrlC}
-          onExit={this.unmount}
-          columns={this.cachedColumns}
-          rows={this.cachedRows}
-          selection={this.selection}
-          notifySelectionChange={this.notifySelectionChange}
-          dispatchClick={this.dispatchClick.bind(this)}
-          dispatchHover={this.dispatchHover.bind(this)}
-          getHyperlinkAt={this.getHyperlinkAt.bind(this)}
-          openHyperlink={this.openHyperlink}
-          handleMultiClick={this.handleMultiClick.bind(this)}
-          handleSelectionDrag={this.handleSelectionDrag.bind(this)}
-          handleSelectionStart={this.handleSelectionStart.bind(this)}
-          handleSelectionRelease={this.handleSelectionRelease.bind(this)}
-          onStdinResume={this.onStdinResume}
-          setCursorDeclaration={this.setCursorDeclaration}
-          dispatchKeyboardEvent={this.dispatchKeyboardEvent.bind(this)}
-        >
-          {}
-          <TerminalWriteProvider value={this.isTTY ? this.writeRaw : null}>{node}</TerminalWriteProvider>
-        </App>
-      </InkInstanceContext.Provider>
-    )
-    reconciler.updateContainerSync(tree, this.container, null, null)
-    reconciler.flushSyncWork()
+    return notBuilt('src/ink/ink.tsx:304')
   }
 
-  private onStdinResume = (): void => { this.reassertTerminalModes(false) }
-  unmount = (error?: Error | number | null): void => {
-    this.resizeEraseDue = false
-    unmount.call(this, error)
+  private onStdinResume = (): void => notBuilt('src/ink/ink.tsx:339')
+  unmount = (error?: Error | number | null): void => notBuilt('src/ink/ink.tsx:340')
+  lastFrameText(): string {
+    return notBuilt('src/ink/ink.tsx:344')
   }
-  lastFrameText(): string { return this.writer.fullFrameText(this.frontFrame) }
-  waitUntilExit(): Promise<void> { return waitUntilExit.call(this) }
+  waitUntilExit(): Promise<void> {
+    return notBuilt('src/ink/ink.tsx:345')
+  }
   detachForShutdown(): void {
-    this.resizeEraseDue = false
-    detachForShutdown.call(this)
+    return notBuilt('src/ink/ink.tsx:346')
   }
 }

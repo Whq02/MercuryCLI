@@ -7,11 +7,9 @@ import {
   pinnedCommandAnalysis,
   preparedSecurityParse,
 } from '../../utils/permissions/decision/commandAnalysis.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-export type CommandIdentityCheckers = {
-  isGitCommand: (command: string) => boolean
-  isDirectoryChange: (command: string) => boolean
-}
+export type CommandIdentityCheckers = Unbuilt
 
 export const MULTIPLE_CD_REASON =
   'A command that changes the working directory more than once needs approval — its net effect on the working directory is not obvious to a reader.'
@@ -23,109 +21,11 @@ type SegmentPermissionFn<I> = (input: I) => Promise<PermissionResult>
 
 type CompoundReason = { kind: 'unparseable' } | { kind: 'comment' } | { kind: 'operator'; operator: string; target?: string }
 
-function compoundOperatorAskMessage(reason: CompoundReason): string {
-  if (reason.kind === 'unparseable') return 'This command could not be split into simple commands, so it needs approval.'
-  if (reason.kind === 'comment') return 'This command uses shell operators that require approval.'
-  if (reason.target !== undefined) {
-    return `This command uses the shell operator \`${reason.operator}\` with a target the shell expands (\`${reason.target}\`), which needs approval.`
-  }
-  return `This command uses the shell operator \`${reason.operator}\`, which needs approval.`
-}
-
-async function stripSegmentRedirections(segment: string): Promise<string> {
-  if (!segment.includes('>')) return segment
-  const parsed = await ParsedCommand.parse(segment)
-  if (!parsed) return segment
-  return parsed.withoutOutputRedirections()
-}
-
 export async function checkCommandOperatorPermissions<I extends { command: string }>(
   input: I,
   permissionFn: SegmentPermissionFn<I>,
   checkers: CommandIdentityCheckers,
   astRoot: unknown,
 ): Promise<PermissionResult> {
-  const parsed =
-    astRoot !== undefined && astRoot !== PARSE_ABORTED
-      ? buildParsedCommandFromRoot(input.command, astRoot)
-      : await ParsedCommand.parse(input.command)
-  if (!parsed) {
-    return { behavior: 'passthrough', message: 'Command could not be parsed for operator handling.' }
-  }
-
-  const analysis = parsed.getTreeSitterAnalysis()
-  const unsafeCompound: CompoundReason | null = !analysis
-    ? { kind: 'unparseable' }
-    : analysis.compoundStructure.hasCommandGroup && preparedSecurityParse(input.command).kind !== 'simple'
-      ? { kind: 'operator', operator: '{' }
-      : null
-  if (unsafeCompound !== null) {
-    return {
-      behavior: 'ask',
-      message: compoundOperatorAskMessage(unsafeCompound),
-    }
-  }
-
-  const segments = parsed.getPipeSegments()
-  if (segments.length <= 1) {
-    return { behavior: 'passthrough', message: 'Not a segmented command.' }
-  }
-
-  const strippedSegments = await Promise.all(segments.map(stripSegmentRedirections))
-
-  const dirChangeSegments = strippedSegments.filter(seg => checkers.isDirectoryChange(seg.trim()))
-  if (dirChangeSegments.length > 1) {
-    return { behavior: 'ask', message: MULTIPLE_CD_REASON, decisionReason: { type: 'other', reason: MULTIPLE_CD_REASON } }
-  }
-
-  let sawDirChange = false
-  let sawGit = false
-  for (const seg of strippedSegments) {
-    for (const raw of pinnedCommandAnalysis.splitCommand(seg)) {
-      const sub = raw.trim()
-      if (checkers.isDirectoryChange(sub)) sawDirChange = true
-      if (checkers.isGitCommand(sub)) sawGit = true
-    }
-  }
-  if (sawDirChange && sawGit) {
-    return { behavior: 'ask', message: CD_GIT_BARE_REPO_REASON, decisionReason: { type: 'other', reason: CD_GIT_BARE_REPO_REASON } }
-  }
-
-  const results = new Map<string, PermissionResult>()
-  for (const seg of strippedSegments) {
-    const trimmed = seg.trim()
-    if (trimmed === '') continue
-    const segmentInput = { ...input, command: trimmed }
-    results.set(trimmed, await permissionFn(segmentInput))
-  }
-
-  const reason: PermissionDecisionReason = {
-    type: 'subcommandResults',
-    reasons: results,
-  }
-
-  for (const [segment, result] of results) {
-    if (result.behavior === 'deny') {
-      return {
-        behavior: 'deny',
-        message: result.message ?? `The command segment "${segment}" was denied.`,
-        decisionReason: reason,
-      }
-    }
-  }
-
-  if ([...results.values()].every(result => result.behavior === 'allow')) {
-    return { behavior: 'allow', updatedInput: input, decisionReason: reason }
-  }
-
-  const suggestions = [...results.values()]
-    .filter(result => result.behavior !== 'allow')
-    .flatMap(result => ('suggestions' in result && result.suggestions) || [])
-  const anySegmentAsked = [...results.values()].some(result => result.behavior === 'ask')
-  return {
-    behavior: anySegmentAsked ? 'ask' : 'passthrough',
-    message: createPermissionRequestMessage('Bash', reason),
-    decisionReason: reason,
-    ...(suggestions.length > 0 ? { suggestions } : {}),
-  }
+  return notBuilt('src/tools/BashTool/bashCommandHelpers.ts:42')
 }

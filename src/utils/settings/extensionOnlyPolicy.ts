@@ -1,26 +1,11 @@
-import { CUSTOMIZATION_SURFACES } from './types.js'
-import { getSettingsForSource } from './settings.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-
-type CustomizationSurface = (typeof CUSTOMIZATION_SURFACES)[number]
+type CustomizationSurface = Unbuilt
 
 export function isRestrictedToExtensionsOnly(surface: CustomizationSurface): boolean {
-  const policy = getSettingsForSource('policySettings')
-  const lock = policy?.extensions?.exclusive
-  if (lock === true) return true
-  if (Array.isArray(lock)) return (lock as string[]).includes(surface)
-  return false
+  return notBuilt('src/utils/settings/extensionOnlyPolicy.ts:7')
 }
 
-const ADMIN_TRUSTED_SOURCES: ReadonlySet<string> = new Set([
-  'extension',
-  'policySettings',
-  'built-in',
-  'builtin',
-  'bundled',
-])
-
 export function isSourceAdminTrusted(source: string | undefined): boolean {
-  if (source === undefined) return false
-  return ADMIN_TRUSTED_SOURCES.has(source)
+  return notBuilt('src/utils/settings/extensionOnlyPolicy.ts:23')
 }

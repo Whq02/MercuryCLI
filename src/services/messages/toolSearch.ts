@@ -15,49 +15,23 @@ import { toolDeferralEnabled } from '../../utils/model/capabilities.js'
 import { deferralWireFormFor, type DeferralWireForm } from '../providers/deferralWire.js'
 import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-type ToolSearchMode = 'tst' | 'tst-auto' | 'standard'
+type ToolSearchMode = Unbuilt
 
-type DeferredToolsDelta = {
-  addedNames: string[]
-  addedLines: string[]
-  removedNames: string[]
-}
+type DeferredToolsDelta = Unbuilt
 
-export type DeferredToolsDeltaScanContext = {
-  callSite: 'attachments_main' | 'attachments_subagent' | 'compact_full' | 'compact_partial' | 'reactive_compact'
-  querySource?: string
-  hasPendingMcpServers?: boolean
-}
+export type DeferredToolsDeltaScanContext = Unbuilt
 
-const DEFAULT_AUTO_PERCENT = 10
+const DEFAULT_AUTO_PERCENT: Unbuilt = unbuilt('src/services/messages/toolSearch.ts:34')
 
 function parseAutoPercentage(value: string): number {
-  const suffix = value.slice('auto'.length)
-  if (!suffix.startsWith(':')) return DEFAULT_AUTO_PERCENT
-  const parsed = parseInt(suffix.slice(1), 10)
-  if (Number.isNaN(parsed)) {
-    logForDebugging(`MERCURY_TOOL_SEARCH auto percentage did not parse (${value}); using ${DEFAULT_AUTO_PERCENT}`)
-    return DEFAULT_AUTO_PERCENT
-  }
-  return Math.min(100, Math.max(0, parsed))
+  return notBuilt('src/services/messages/toolSearch.ts:36')
 }
 
 export function getToolSearchMode(): ToolSearchMode {
-  if (isEnvTruthy('1') && !toolDeferralEnabled()) {
-    return 'standard'
-  }
-  const value = flagEnv('MERCURY_TOOL_SEARCH')
-  if (value === undefined || value === '') return 'tst'
-  if (value.startsWith('auto')) {
-    const percent = parseAutoPercentage(value)
-    if (percent === 0) return 'tst'
-    if (percent === 100) return 'standard'
-    return 'tst-auto'
-  }
-  if (isEnvDefinedFalsy(value)) return 'standard'
-  return 'tst'
+  return notBuilt('src/services/messages/toolSearch.ts:47')
 }
 
 function getAutoPercent(): number {
@@ -66,20 +40,8 @@ function getAutoPercent(): number {
   return parseAutoPercentage(value)
 }
 
-function getAutoTokenThreshold(model: string): number {
-  const contextWindow = getContextWindowForModel(model, getMergedBetas(model))
-  return Math.floor((contextWindow * getAutoPercent()) / 100)
-}
-
-function getAutoToolSearchCharThreshold(model: string): number {
-  return Math.floor(getAutoTokenThreshold(model) * 2.5)
-}
-
-const DEFAULT_UNSUPPORTED_PATTERNS = ['haiku']
-
 export function modelSupportsToolReference(model: string): boolean {
-  const lowered = model.toLowerCase()
-  return !DEFAULT_UNSUPPORTED_PATTERNS.some(pattern => lowered.includes(pattern))
+  return notBuilt('src/services/messages/toolSearch.ts:80')
 }
 
 let optimisticDebugEmitted = false
@@ -91,15 +53,11 @@ function logOptimisticOnce(reason: string): void {
 }
 
 export function isToolSearchEnabledOptimistic(): boolean {
-  if (getToolSearchMode() === 'standard') {
-    logOptimisticOnce('standard mode')
-    return false
-  }
-  return true
+  return notBuilt('src/services/messages/toolSearch.ts:93')
 }
 
 export function isToolSearchToolAvailable(tools: readonly { name: string }[]): boolean {
-  return tools.some(tool => toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME))
+  return notBuilt('src/services/messages/toolSearch.ts:101')
 }
 
 type ToolDefinitionCount = (
@@ -114,29 +72,6 @@ let toolDefinitionCount: { count: ToolDefinitionCount; overhead: number } | unde
 export function tellHowToolDefinitionsAreCounted(count: ToolDefinitionCount, overhead: number): void {
   toolDefinitionCount = { count, overhead }
 }
-
-const memoizedDeferredToolTokens = memoize(
-  async (
-    _cacheKey: string,
-    deferrableTools: Tool[],
-    getToolPermissionContext: () => Promise<ToolPermissionContext>,
-    agents: AgentDefinition[],
-    model: string,
-  ): Promise<number | null> => {
-    if (deferrableTools.length === 0) return 0
-    const counted = toolDefinitionCount
-    if (counted === undefined) return null
-    try {
-      const agentInfo = { allAgents: agents, activeAgents: agents } as AgentDefinitionsResult
-      const total = await counted.count(deferrableTools, getToolPermissionContext, agentInfo, model)
-      if (total === 0) return null
-      return Math.max(0, total - counted.overhead)
-    } catch (error) {
-      passedOver(error)
-      return null
-    }
-  },
-)
 
 function characterHeuristic(deferrableTools: Tool[]): number {
   let total = 0
@@ -169,51 +104,11 @@ export async function isToolSearchEnabled(
   source?: string,
   wireForm?: DeferralWireForm,
 ): Promise<boolean> {
-  const form = wireForm ?? deferralWireFormFor(model).form
-  if (form === 'block' && !modelSupportsToolReference(model)) {
-    logForDebugging(`tool search disabled: model ${model} does not support tool references`)
-    return false
-  }
-  if (!isToolSearchToolAvailable(tools)) {
-    logForDebugging('tool search disabled: the tool-search tool is not in the tool list')
-    return false
-  }
-  const mode = getToolSearchMode()
-  if (mode === 'tst') return true
-  if (mode === 'standard') return false
-
-  const thresholdPermissionMode = (await getToolPermissionContext()).mode
-  const deferrableTools = tools.filter(tool => isDeferredToolFor(tool, model, thresholdPermissionMode))
-  const cacheKey = deferrableTools.map(tool => tool.name).join(',')
-  const exactTokens = toolDefinitionCount === undefined ? null : await memoizedDeferredToolTokens(cacheKey, deferrableTools, getToolPermissionContext, agents, model)
-  const suffix = source !== undefined ? ` (${source})` : ''
-  if (exactTokens !== null) {
-    const threshold = getAutoTokenThreshold(model)
-    const enabled = exactTokens >= threshold
-    logForDebugging(
-      `tool search auto: ${exactTokens} tokens vs threshold ${threshold} (${getAutoPercent()}%) => ${enabled}${suffix}`,
-    )
-    return enabled
-  }
-  const chars = characterHeuristic(deferrableTools)
-  const charThreshold = getAutoToolSearchCharThreshold(model)
-  const enabled = chars >= charThreshold
-  logForDebugging(
-    `tool search auto (character fallback): ${chars} chars vs threshold ${charThreshold} (${getAutoPercent()}%) => ${enabled}${suffix}`,
-  )
-  return enabled
+  return notBuilt('src/services/messages/toolSearch.ts:164')
 }
 
 export function isToolReferenceBlock(obj: unknown): boolean {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    (obj as { type?: unknown }).type === 'tool_reference'
-  )
-}
-
-function isNamedToolReference(obj: unknown): obj is { type: 'tool_reference'; tool_name: string } {
-  return isToolReferenceBlock(obj) && typeof (obj as { tool_name?: unknown }).tool_name === 'string'
+  return notBuilt('src/services/messages/toolSearch.ts:207')
 }
 
 function hostedSearchLoadedNames(items: readonly unknown[]): string[] {
@@ -235,51 +130,7 @@ function hostedSearchLoadedNames(items: readonly unknown[]): string[] {
 }
 
 export function extractDiscoveredToolNames(messages: Message[]): Set<string> {
-  const discovered = new Set<string>()
-  let fromBoundary = 0
-  for (const message of messages) {
-    if (
-      message.type === 'system' &&
-      (message as { subtype?: string }).subtype === 'compact_boundary'
-    ) {
-      const carried = (message as { compactMetadata?: { preCompactDiscoveredTools?: string[] } })
-        .compactMetadata?.preCompactDiscoveredTools
-      if (Array.isArray(carried)) {
-        for (const name of carried) {
-          discovered.add(name)
-          fromBoundary++
-        }
-      }
-      continue
-    }
-    if (message.type === 'assistant') {
-      const items = (message as { apexProviderTurn?: { items?: unknown } }).apexProviderTurn?.items
-      if (Array.isArray(items)) for (const name of hostedSearchLoadedNames(items)) discovered.add(name)
-      continue
-    }
-    if (message.type !== 'user') continue
-    const content = message.message.content
-    if (!Array.isArray(content)) continue
-    for (const block of content as Array<{ type?: string; content?: unknown }>) {
-      if (block.type !== 'tool_result') continue
-      if (!Array.isArray(block.content)) continue
-      for (const item of block.content) {
-        if (isNamedToolReference(item)) discovered.add(item.tool_name)
-      }
-    }
-  }
-  if (discovered.size > 0) {
-    logForDebugging(
-      `tool search: ${discovered.size} discovered tools${fromBoundary > 0 ? ` (${fromBoundary} from compact boundaries)` : ''}`,
-    )
-  }
-  return discovered
-}
-
-type DeferredToolsDeltaAttachment = {
-  type: 'deferred_tools_delta'
-  addedNames: string[]
-  removedNames: string[]
+  return notBuilt('src/services/messages/toolSearch.ts:237')
 }
 
 export function getDeferredToolsDelta(
@@ -289,39 +140,5 @@ export function getDeferredToolsDelta(
   model?: string,
   deferredNames?: ReadonlySet<string>,
 ): DeferredToolsDelta | null {
-  const holdMcpRemovals = scanContext?.hasPendingMcpServers === true
-
-  const announced = new Set<string>()
-  for (const message of messages) {
-    if (message.type !== 'attachment') continue
-    const attachment = (message as { attachment?: { type?: string } }).attachment
-    if (!attachment || attachment.type !== 'deferred_tools_delta') continue
-    const delta = attachment as DeferredToolsDeltaAttachment
-    for (const name of delta.addedNames ?? []) announced.add(name)
-    for (const name of delta.removedNames ?? []) announced.delete(name)
-  }
-
-  const loaded = extractDiscoveredToolNames(messages)
-  for (const message of messages) {
-    if (message.type !== 'assistant' || !Array.isArray(message.message.content)) continue
-    for (const block of message.message.content) if (block.type === 'tool_use') loaded.add(block.name)
-  }
-  const deferrableTools = tools.filter(tool => !loaded.has(tool.name) && (deferredNames?.has(tool.name) ?? isDeferredToolFor(tool, model, undefined, messages)))
-  const deferrableNames = new Set(deferrableTools.map(tool => tool.name))
-  const pooledNames = new Set(tools.map(tool => tool.name))
-
-  const added = deferrableTools.filter(tool => !announced.has(tool.name))
-  const removed: string[] = []
-  for (const name of announced) {
-    if (deferrableNames.has(name) || pooledNames.has(name)) continue
-    if (holdMcpRemovals && name.startsWith('mcp__')) continue
-    removed.push(name)
-  }
-
-  if (added.length === 0 && removed.length === 0) return null
-  return {
-    addedNames: added.map(tool => tool.name).sort(),
-    addedLines: added.map(tool => formatDeferredToolLine(tool, isUnattendedRun(), model)).sort(),
-    removedNames: removed.sort(),
-  }
+  return notBuilt('src/services/messages/toolSearch.ts:285')
 }

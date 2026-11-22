@@ -1,14 +1,9 @@
 import { quote } from './shellQuote.js'
 import { quoteShellCommand } from './shellQuoting.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export function formatShellPrefixCommand(prefix: string, command: string): string {
-  const splitIndex = prefix.lastIndexOf(' -')
-  if (splitIndex > 0) {
-    const executable = prefix.slice(0, splitIndex)
-    const flags = prefix.slice(splitIndex + 1)
-    return `${quote([executable])} ${flags} ${quote([command])}`
-  }
-  return `${quote([prefix])} ${quote([command])}`
+  return notBuilt('src/utils/bash/shellPrefix.ts:4')
 }
 
 const START_THE_SHELL_WHERE_THE_LINE_LANDS =

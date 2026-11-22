@@ -1,6 +1,7 @@
 import { logForDebugging } from './debug.js'
 import { passedOver } from './passedOver.js'
 import { toPosixSeparators } from './platform/paths.js'
+import { notBuilt, unbuilt } from '../pi/holes.js'
 
 
 const MAX_TRACKED_WARNING_KEYS = 1000
@@ -21,10 +22,7 @@ function isDevelopmentMode(): boolean {
   return false
 }
 
-const INTERNAL_WARNING_PATTERNS: RegExp[] = [
-  /MaxListenersExceededWarning.*AbortSignal/,
-  /MaxListenersExceededWarning.*EventTarget/,
-]
+const INTERNAL_WARNING_PATTERNS: RegExp[] = unbuilt('src/utils/warningHandler.ts:24')
 
 function handleWarning(warning: Error): void {
   try {
@@ -47,12 +45,5 @@ function handleWarning(warning: Error): void {
 }
 
 export function initializeWarningHandler(): void {
-  if (registeredListener !== null && process.listeners('warning').includes(registeredListener)) {
-    return
-  }
-  if (!isDevelopmentMode()) {
-    process.removeAllListeners('warning')
-  }
-  registeredListener = handleWarning
-  process.on('warning', registeredListener)
+  return notBuilt('src/utils/warningHandler.ts:49')
 }

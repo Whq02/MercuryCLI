@@ -1,50 +1,8 @@
 import { pinnedCommandAnalysis } from '../../utils/permissions/decision/commandAnalysis.js'
 import { posixExitSignalsCount } from '../../utils/platform/processes.js'
+import { notBuilt } from '../../pi/holes.js'
 
 type CommandSemantic = (exitCode: number) => { isError: boolean; message?: string }
-
-const COMMAND_SEMANTICS: Record<string, CommandSemantic> = {
-  grep: code => ({
-    isError: code >= 2,
-    message: code === 1 ? 'no matches found' : undefined,
-  }),
-  rg: code => ({
-    isError: code >= 2,
-    message: code === 1 ? 'no matches found' : undefined,
-  }),
-  find: code => ({
-    isError: code >= 2,
-    message: code === 1 ? 'some directories were inaccessible' : undefined,
-  }),
-  diff: code => ({
-    isError: code >= 2,
-    message: code === 1 ? 'files differ' : undefined,
-  }),
-  cmp: code => ({
-    isError: code >= 2,
-    message: code === 1 ? 'files differ' : undefined,
-  }),
-  pgrep: code => ({
-    isError: code >= 2,
-    message: code === 1 ? 'no process matched' : undefined,
-  }),
-  test: code => ({
-    isError: code >= 2,
-    message: code === 1 ? 'condition is false' : undefined,
-  }),
-  '[': code => ({
-    isError: code >= 2,
-    message: code === 1 ? 'condition is false' : undefined,
-  }),
-  which: code => ({
-    isError: code >= 2,
-    message: code === 1 ? 'a name was not found' : undefined,
-  }),
-  'command -v': code => ({
-    isError: code >= 2,
-    message: code === 1 ? 'a name was not found' : undefined,
-  }),
-}
 
 function baseCommandFor(command: string): string {
   const subcommands = pinnedCommandAnalysis.splitCommand(command)
@@ -92,18 +50,7 @@ export function interpretCommandResult(
   _stdout: string,
   _stderr: string,
 ): { isError: boolean; message?: string } {
-  const base = baseCommandFor(command)
-  if (base === 'which' && exitCode > 1 && exitCode < 126 && exitCode <= whichOperandCount(command)) {
-    return { isError: false, message: 'a name was not found' }
-  }
-  const semantic = COMMAND_SEMANTICS[base]
-  if (semantic) {
-    return semantic(exitCode)
-  }
-  if (exitCode !== 0) {
-    return { isError: true, message: `failed with exit code ${exitCode}` }
-  }
-  return { isError: false }
+  return notBuilt('src/tools/BashTool/commandSemantics.ts:89')
 }
 
 const SIGNAL_EXIT_WORDS: Readonly<Record<number, string>> = {

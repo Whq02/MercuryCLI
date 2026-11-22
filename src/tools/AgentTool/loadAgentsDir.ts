@@ -1,4 +1,3 @@
-
 import { z } from 'zod'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { agentToolRuleProblem } from './agentToolRules.js'
@@ -40,6 +39,7 @@ import {
   type AgentSource,
   type CustomAgentDefinition,
 } from '../../types/agent.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 const PRECEDENCE_DESCENDING: readonly AgentSource[] = [
@@ -87,21 +87,7 @@ function getActiveAgentsFromList(
 export function computeActiveAgents(
   allAgents: readonly AgentDefinition[],
 ): AgentDefinition[] {
-  return getActiveAgentsFromList(allAgents).filter(a => a.disabled !== true)
-}
-
-
-function makeSystemPromptClosure(
-  agentType: string,
-  prompt: string,
-  memory: AgentMemoryScope | undefined,
-): () => string {
-  return () => {
-    if (memory && isMnemeEnabled()) {
-      return `${prompt}\n\n${loadAgentMemoryPrompt(agentType, memory)}`
-    }
-    return prompt
-  }
+  return notBuilt('src/tools/AgentTool/loadAgentsDir.ts:87')
 }
 
 const agentMcpServerSpecSchema = z.union([
@@ -149,85 +135,7 @@ function parseAgentFromMarkdown(
   rawContent?: string,
   failures?: { path: string; error: string }[],
 ): CustomAgentDefinition | null {
-  try {
-    const raw =
-      rawContent ?? rebuildRawDocument(frontmatter, content)
-    const document = decodeAgentDocument(raw, filePath)
-    for (const diagnostic of document.diagnostics) {
-      if (diagnostic.severity === 'info') continue
-      logForDebugging(
-        `agents: ${filePath} ${diagnostic.severity} [${diagnostic.code}] ${diagnostic.message}`,
-      )
-    }
-    const errorDiagnostics = document.diagnostics.filter(d => d.severity === 'error')
-    if (errorDiagnostics.length > 0) {
-      if (failures) {
-        for (const diagnostic of errorDiagnostics) {
-          failures.push({ path: filePath, error: `${diagnostic.line === undefined ? '' : `line ${diagnostic.line}: `}[${diagnostic.code}] ${diagnostic.message}` })
-        }
-      }
-      return null
-    }
-    const fields = document.fields
-    if (!fields.name) return null
-
-    const filename = basenameWithoutMarkdownExtension(filePath)
-    const prompt = document.body.trim()
-    const memory = fields.memory
-    const tools = withMemoryVerbs(fields.tools, memory)
-
-    const definition: CustomAgentDefinition = {
-      agentType: fields.name,
-      whenToUse: fields.description ?? '',
-      source,
-      filename,
-      baseDir,
-      filePath,
-      revision: revisionDigest(raw),
-      getSystemPrompt: makeSystemPromptClosure(fields.name, prompt, memory),
-      ...(tools !== undefined ? { tools } : {}),
-      ...(fields.disallowedTools !== undefined
-        ? { disallowedTools: fields.disallowedTools }
-        : {}),
-      ...(fields.skills !== undefined ? { skills: fields.skills } : {}),
-      ...(fields.color !== undefined ? { color: fields.color } : {}),
-      ...(fields.model !== undefined ? { model: fields.model } : {}),
-      ...(fields.effort !== undefined ? { effort: fields.effort } : {}),
-      ...(fields.instructionProfile !== undefined
-        ? { instructionProfile: fields.instructionProfile }
-        : {}),
-      ...(fields.permissionMode !== undefined
-        ? { permissionMode: fields.permissionMode }
-        : {}),
-      ...(fields.maxTurns !== undefined ? { maxTurns: fields.maxTurns } : {}),
-      ...(fields.background !== undefined
-        ? { background: fields.background }
-        : {}),
-      ...(fields.initialPrompt !== undefined
-        ? { initialPrompt: fields.initialPrompt }
-        : {}),
-      ...(memory !== undefined ? { memory } : {}),
-      ...(fields.isolation !== undefined
-        ? { isolation: fields.isolation }
-        : {}),
-    }
-
-    const mcpServers = validateMcpServers(fields.mcpServers, filePath)
-    if (mcpServers) definition.mcpServers = mcpServers
-
-    const hooks = validateHooks(frontmatter['hooks'], filePath)
-    if (hooks) definition.hooks = hooks
-
-    const standingRule = readStandingRule(frontmatter)
-    if (standingRule !== undefined) definition.standingRule = standingRule
-
-    return definition
-  } catch (error) {
-    logForDebugging(
-      `agents: failed to parse ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
-    )
-    return null
-  }
+  return notBuilt('src/tools/AgentTool/loadAgentsDir.ts:143')
 }
 
 function basenameWithoutMarkdownExtension(filePath: string): string {
@@ -259,85 +167,14 @@ const toolRuleSchema = z.string().superRefine((spec, context) => {
   const problem = agentToolRuleProblem(spec)
   if (problem !== null) context.addIssue({ code: 'custom', message: problem })
 })
-const jsonAgentSchema = z.object({
-  description: z.string().min(1),
-  prompt: z.string().min(1),
-  tools: z.array(toolRuleSchema).optional(),
-  disallowedTools: z.array(toolRuleSchema).optional(),
-  model: z
-    .string()
-    .trim()
-    .min(1)
-    .transform(value =>
-      value.toLowerCase() === 'inherit' ? 'inherit' : value,
-    )
-    .optional(),
-  effort: z
-    .union([
-      z.enum(EFFORT_LEVELS as readonly EffortLevel[] as [EffortLevel, ...EffortLevel[]]),
-      z.number().int(),
-    ])
-    .optional(),
-  instructionProfile: z.enum(['auto', 'native']).optional(),
-  permissionMode: z.enum(PERMISSION_MODES).optional(),
-  mcpServers: z.array(agentMcpServerSpecSchema).optional(),
-  hooks: z.unknown().optional(),
-  maxTurns: z.number().int().positive().optional(),
-  skills: z.array(z.string()).optional(),
-  initialPrompt: z.string().optional(),
-  standingRule: z.string().optional(),
-  memory: z.enum(['user', 'project', 'local']).optional(),
-  background: z.boolean().optional(),
-  isolation: z.literal('worktree').optional(),
-})
+const jsonAgentSchema: Unbuilt = unbuilt('src/tools/AgentTool/loadAgentsDir.ts:262')
 
 export function parseAgentFromJson(
   name: string,
   definition: unknown,
-  source: Exclude<AgentSource, 'built-in' | 'extension'> = 'flagSettings',
+  source?: Exclude<AgentSource, 'built-in' | 'extension'>,
 ): CustomAgentDefinition | null {
-  const parsed = jsonAgentSchema.safeParse(definition)
-  if (!parsed.success) {
-    logForDebugging(
-      `agents: JSON definition '${name}' failed validation: ${parsed.error.message}`,
-    )
-    return null
-  }
-  const fields = parsed.data
-  const memory = fields.memory as AgentMemoryScope | undefined
-  const tools = withMemoryVerbs(fields.tools, memory)
-  const result: CustomAgentDefinition = {
-    agentType: name,
-    whenToUse: fields.description,
-    source,
-    getSystemPrompt: makeSystemPromptClosure(name, fields.prompt, memory),
-  }
-  if (tools !== undefined) result.tools = tools
-  if (fields.disallowedTools !== undefined)
-    result.disallowedTools = fields.disallowedTools
-  if (fields.model !== undefined) result.model = fields.model
-  if (fields.effort !== undefined) result.effort = fields.effort
-  if (fields.instructionProfile !== undefined)
-    result.instructionProfile = fields.instructionProfile
-  if (fields.permissionMode !== undefined)
-    result.permissionMode = fields.permissionMode as PermissionMode
-  if (fields.mcpServers !== undefined && fields.mcpServers.length > 0)
-    result.mcpServers = fields.mcpServers as AgentMcpServerSpec[]
-  if (fields.hooks !== undefined) {
-    const hooks = validateHooks(fields.hooks, `json:${name}`)
-    if (hooks) result.hooks = hooks
-  }
-  if (fields.maxTurns !== undefined) result.maxTurns = fields.maxTurns
-  if (fields.skills !== undefined && fields.skills.length > 0)
-    result.skills = fields.skills
-  if (fields.initialPrompt !== undefined)
-    result.initialPrompt = fields.initialPrompt
-  const standingRule = readStandingRule(fields)
-  if (standingRule !== undefined) result.standingRule = standingRule
-  if (memory !== undefined) result.memory = memory
-  if (fields.background !== undefined) result.background = fields.background
-  if (fields.isolation !== undefined) result.isolation = fields.isolation
-  return result
+  return notBuilt('src/tools/AgentTool/loadAgentsDir.ts:294')
 }
 
 export function parseAgentsFromJson(

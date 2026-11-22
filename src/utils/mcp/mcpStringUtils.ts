@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { normalizeNameForMCP } from './normalization.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const MCP_SEGMENT_SEPARATOR = '__'
 
@@ -15,11 +16,11 @@ export function mcpInfoFromString(
 }
 
 export function getMcpPrefix(serverName: string): string {
-  return `mcp${MCP_SEGMENT_SEPARATOR}${normalizeNameForMCP(serverName)}${MCP_SEGMENT_SEPARATOR}`
+  return notBuilt('src/utils/mcp/mcpStringUtils.ts:17')
 }
 
 export function buildMcpToolName(serverName: string, toolName: string): string {
-  return `${getMcpPrefix(serverName)}${normalizeNameForMCP(toolName)}`
+  return notBuilt('src/utils/mcp/mcpStringUtils.ts:21')
 }
 
 export const WIRE_TOOL_NAME_MAX = 64
@@ -48,7 +49,6 @@ export function getToolNameForPermissionCheck(tool: {
   name: string
   mcpInfo?: { serverName: string; toolName: string }
 }): string {
-  if (tool.mcpInfo) return buildMcpToolName(tool.mcpInfo.serverName, tool.mcpInfo.toolName)
-  return tool.name
+  return notBuilt('src/utils/mcp/mcpStringUtils.ts:47')
 }
 
