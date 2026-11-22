@@ -5,7 +5,6 @@ import { BEL, ESC, SEP } from './ansi.js'
 import type { Action, Color, TabStatusAction } from './display-types.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const OSC_PREFIX = `${ESC}]`
 const ST = `${ESC}\\`
@@ -15,19 +14,50 @@ function terminator(): string {
 }
 
 export function osc(...parts: (string | number)[]): string {
-  return notBuilt('src/ink/termio/osc.ts:17')
+  return `${OSC_PREFIX}${parts.join(SEP)}${terminator()}`
 }
 
 export function wrapForMultiplexer(sequence: string): string {
-  return notBuilt('src/ink/termio/osc.ts:21')
+  if (hostEnv().TMUX) return `${ESC}Ptmux;${sequence.replaceAll(ESC, ESC + ESC)}${ST}`
+  if (hostEnv().STY) return `${ESC}P${sequence}${ST}`
+  return sequence
 }
 
 
-export const OSC: Unbuilt = unbuilt('src/ink/termio/osc.ts:32')
+export const OSC = {
+  SET_TITLE_AND_ICON: 0,
+  SET_ICON: 1,
+  SET_TITLE: 2,
+  SET_COLOR: 4,
+  SET_CWD: 7,
+  HYPERLINK: 8,
+  ITERM2: 9,
+  SET_FG: 10,
+  SET_BG: 11,
+  SET_CURSOR_COLOR: 12,
+  CLIPBOARD: 52,
+  KITTY: 99,
+  RESET_COLOR: 104,
+  RESET_FG: 110,
+  RESET_BG: 111,
+  RESET_CURSOR_COLOR: 112,
+  SEMANTIC_PROMPT: 133,
+  GHOSTTY: 777,
+  TAB_STATUS: 21337,
+} as const
 
-export const ITERM2: Unbuilt = unbuilt('src/ink/termio/osc.ts:54')
+export const ITERM2 = {
+  NOTIFY: 0,
+  BADGE: 2,
+  PROGRESS: 4,
+} as const
 
-export const PROGRESS: Unbuilt = unbuilt('src/ink/termio/osc.ts:60')
+export const PROGRESS = {
+  CLEAR: 0,
+  SET: 1,
+  ERROR: 2,
+  INDETERMINATE: 3,
+} as const
 
 const belTerminated = (...parts: (string | number)[]): string => `${OSC_PREFIX}${parts.join(SEP)}${BEL}`
 export const CLEAR_ITERM2_PROGRESS = belTerminated(OSC.ITERM2, ITERM2.PROGRESS, PROGRESS.CLEAR, '')
@@ -199,17 +229,53 @@ function publishClipboardReceipt(receipt: ClipboardReceipt): ClipboardReceipt {
   return receipt
 }
 
+async function copyByRoads(text: string): Promise<ClipboardReceipt> {
+  const written = writeClipboardFile(text)
+  if (written !== null) {
+    const failed = written === 'failed'
+    return {
+      sequence: '',
+      settled: failed ? [] : [CLIPBOARD_FILE_ROUTE],
+      osc52Emitted: false,
+      noRoad: failed,
+      confirmation: failed ? 'the clipboard file could not be written' : `copied (${CLIPBOARD_FILE_ROUTE})`,
+    }
+  }
+  const native = hostEnv().SSH_CONNECTION ? null : copyNative(text)
+  const tmuxLoaded = await tmuxLoadBuffer(text)
+  const nativeRoute = await native
+  const settled: ClipboardReceipt['settled'] = []
+  if (nativeRoute) settled.push(nativeRoute)
+  if (tmuxLoaded) settled.push('tmux-buffer')
+  const encoded = Buffer.from(text, 'utf8').toString('base64')
+  return {
+    sequence: tmuxLoaded ? wrapForMultiplexer(belTerminated(OSC.CLIPBOARD, 'c', encoded)) : osc(OSC.CLIPBOARD, 'c', encoded),
+    settled,
+    osc52Emitted: true,
+    noRoad: settled.length === 0 && terminalDropsOsc52(),
+    confirmation: settled.length > 0 ? `copied (${settled.join(' + ')})` : 'offered to the terminal via OSC 52 — delivery depends on your terminal',
+  }
+}
+
 export async function setClipboardWithReceipt(text: string): Promise<ClipboardReceipt> {
-  return notBuilt('src/ink/termio/osc.ts:237')
+  return publishClipboardReceipt(await copyByRoads(text))
 }
 
 export async function setClipboard(text: string): Promise<string> {
-  return notBuilt('src/ink/termio/osc.ts:274')
+  return (await setClipboardWithReceipt(text)).sequence
 }
 
 
+function scaledComponent(field: string): number {
+  return Math.round((Number.parseInt(field, 16) / (16 ** field.length - 1)) * 255)
+}
+
 export function parseOscColor(spec: string): Color | null {
-  return notBuilt('src/ink/termio/osc.ts:279')
+  const fields =
+    /^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/.exec(spec) ??
+    /^rgb:([0-9a-fA-F]{1,4})\/([0-9a-fA-F]{1,4})\/([0-9a-fA-F]{1,4})$/.exec(spec)
+  if (!fields) return null
+  return { type: 'rgb', r: scaledComponent(fields[1]!), g: scaledComponent(fields[2]!), b: scaledComponent(fields[3]!) }
 }
 
 function parseTabStatusPayload(data: string): TabStatusAction {
@@ -253,8 +319,36 @@ function parseTabStatusPayload(data: string): TabStatusAction {
   return action
 }
 
+function linkParams(field: string): Record<string, string> | undefined {
+  const params: Record<string, string> = {}
+  for (const pair of field.split(':')) {
+    const equals = pair.indexOf('=')
+    if (equals !== -1) params[pair.slice(0, equals)] = pair.slice(equals + 1)
+  }
+  return Object.keys(params).length > 0 ? params : undefined
+}
+
 export function parseOSC(content: string): Action | null {
-  return notBuilt('src/ink/termio/osc.ts:340')
+  const cut = content.indexOf(SEP)
+  const data = cut === -1 ? '' : content.slice(cut + 1)
+  switch (Number(cut === -1 ? content : content.slice(0, cut))) {
+    case OSC.SET_TITLE_AND_ICON:
+      return { type: 'title', action: { type: 'both', title: data } }
+    case OSC.SET_ICON:
+      return { type: 'title', action: { type: 'iconName', name: data } }
+    case OSC.SET_TITLE:
+      return { type: 'title', action: { type: 'windowTitle', title: data } }
+    case OSC.HYPERLINK: {
+      const split = data.indexOf(SEP)
+      const url = split === -1 ? '' : data.slice(split + 1)
+      if (url === '') return { type: 'link', action: { type: 'end' } }
+      return { type: 'link', action: { type: 'start', url, params: linkParams(data.slice(0, split)) } }
+    }
+    case OSC.TAB_STATUS:
+      return { type: 'tabStatus', action: parseTabStatusPayload(data) }
+    default:
+      return { type: 'unknown', sequence: `${OSC_PREFIX}${content}` }
+  }
 }
 
 
@@ -268,14 +362,16 @@ function linkId(url: string): string {
 }
 
 export function link(url: string, params?: Record<string, string>): string {
-  return notBuilt('src/ink/termio/osc.ts:386')
+  if (url === '') return LINK_END
+  const pairs = Object.entries({ id: linkId(url), ...params })
+  return osc(OSC.HYPERLINK, pairs.map(([key, value]) => `${key}=${value}`).join(':'), url)
 }
 
-export const LINK_END: Unbuilt = unbuilt('src/ink/termio/osc.ts:395')
+export const LINK_END = osc(OSC.HYPERLINK, '', '')
 
 
-export const CLEAR_TAB_STATUS: Unbuilt = unbuilt('src/ink/termio/osc.ts:398')
+export const CLEAR_TAB_STATUS = osc(OSC.TAB_STATUS, 'indicator=', 'status=', 'status-color=')
 
 export function supportsTabStatus(): boolean {
-  return notBuilt('src/ink/termio/osc.ts:400')
+  return false
 }
