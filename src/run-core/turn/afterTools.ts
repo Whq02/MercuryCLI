@@ -92,7 +92,7 @@ export async function* afterTools(run: RunCtx, iter: IterationState): AsyncGener
   const closingNote = pastBudget ? [createUserMessage({ content: MAX_TURNS_CLOSING_TEXT, isMeta: true })] : []
   const next: NextTurn = {
     messages: [...iter.messagesForQuery, ...iter.assistantMessages, ...iter.toolResults, ...closingNote],
-    toolUseContext: refreshTurnTools(iter.updatedToolUseContext),
+    toolUseContext: { ...refreshTurnTools(iter.updatedToolUseContext), callChain: iter.callChain },
     turnCount: nextTurnCount,
     transition: { reason: 'next_turn' },
     stopHookActive: iter.state.stopHookActive,
