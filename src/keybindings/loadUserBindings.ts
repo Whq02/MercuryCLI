@@ -19,18 +19,20 @@ import type { KeybindingBlock, ParsedBinding } from './types.js'
 import { checkDuplicateKeysInJson, validateBindings, type KeybindingWarning } from './validate.js'
 import { isRecord } from '../utils/isRecord.js'
 import { passedOver } from '../utils/passedOver.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 const FILE_NAME = 'keybindings.json'
 
 export function isKeybindingCustomizationEnabled(): boolean {
-  return notBuilt('src/keybindings/loadUserBindings.ts:26')
+  return true
 }
 
-export type KeybindingsLoadResult = Unbuilt
+export type KeybindingsLoadResult = {
+  bindings: ParsedBinding[]
+  warnings: KeybindingWarning[]
+}
 
 export function getKeybindingsPath(): string {
-  return notBuilt('src/keybindings/loadUserBindings.ts:35')
+  return join(getMercuryHome(), FILE_NAME)
 }
 
 function folderTrusted(): boolean {
@@ -61,7 +63,21 @@ function isBlockShape(value: unknown): value is KeybindingBlock {
 }
 
 function parseLayer(raw: string, layer: Layer): ParsedLayer {
-  return notBuilt('src/keybindings/loadUserBindings.ts:66')
+  const refuse = (message: string, suggestion = `Use the shape ${WRAPPER_SHAPE}`): ParsedLayer => ({
+    blocks: null,
+    warnings: [{ type: 'parse_error', severity: 'error', message, suggestion }],
+  })
+  let value: unknown
+  try {
+    value = JSON.parse(stripBOM(raw))
+  } catch (error) {
+    return refuse(`Invalid JSON in the ${layer} keybindings file: ${error instanceof Error ? error.message : String(error)}`, 'Fix the JSON syntax or delete the file')
+  }
+  if (!isRecord(value) || !Object.hasOwn(value, 'bindings')) return refuse(`The ${layer} keybindings file must have a "bindings" array`)
+  const blocks = value.bindings
+  if (!Array.isArray(blocks)) return refuse(`The ${layer} keybindings file's "bindings" must be an array`)
+  if (!blocks.every(isBlockShape)) return refuse(`The ${layer} keybindings file has an invalid block: every entry must be { "context": string, "bindings": object }`)
+  return { blocks, warnings: checkDuplicateKeysInJson(raw) }
 }
 
 let extensionLayer: () => KeybindingBlock[] = () => []
@@ -139,23 +155,79 @@ export function loadKeybindingsSyncWithWarnings(): KeybindingsLoadResult {
 }
 
 export function loadKeybindingsSync(): ParsedBinding[] {
-  return notBuilt('src/keybindings/loadUserBindings.ts:200')
+  return loadKeybindingsSyncWithWarnings().bindings
 }
 
 
 export async function loadKeybindings(): Promise<KeybindingsLoadResult> {
-  return notBuilt('src/keybindings/loadUserBindings.ts:205')
+  let user: ParsedLayer | null = null
+  try {
+    user = parseLayer(await readFile(getKeybindingsPath(), 'utf8'), 'user')
+  } catch (error) {
+    if (!isENOENT(error)) return { bindings: parseBindings(DEFAULT_BINDINGS), warnings: readErrorLayer('user', error).warnings }
+  }
+  const path = getProjectKeybindingsPath()
+  let project: ParsedLayer | null = null
+  if (path !== null) {
+    try {
+      project = parseLayer(await readFile(path, 'utf8'), 'project')
+    } catch (error) {
+      if (!isENOENT(error)) project = readErrorLayer('project', error)
+    }
+  }
+  return assemble(user, project)
 }
 
 
 const changes = createSignal<[KeybindingsLoadResult]>()
 
+let watcher: FSWatcher | null = null
+let watcherInitialized = false
+let watcherDisposed = false
 export async function initializeKeybindingWatcher(): Promise<void> {
-  return notBuilt('src/keybindings/loadUserBindings.ts:241')
+  if (watcherInitialized || watcherDisposed) return
+  const userPath = getKeybindingsPath()
+  const home = dirname(userPath)
+  try {
+    if (!existsSync(home) || !statSync(home).isDirectory()) {
+      logForDebugging(`keybindings watcher: ${home} is not a directory; not watching`)
+      return
+    }
+  } catch {
+    logForDebugging(`keybindings watcher: cannot stat ${home}; not watching`)
+    return
+  }
+  watcherInitialized = true
+  const roots = new Set<string>()
+  for (const path of [userPath, ...projectConfigDirs(getCwd()).map(folder => join(folder, FILE_NAME))]) {
+    if (existsSync(path)) roots.add(resolveWatchRoot(path))
+    else if (existsSync(dirname(path))) roots.add(resolveWatchRoot(dirname(path)))
+  }
+  if (!roots.size) return
+  watcher = chokidar.watch([...roots], {
+    depth: 0, persistent: true, ignoreInitial: true, usePolling: false, atomic: true,
+    ignorePermissionErrors: true, awaitWriteFinish: { stabilityThreshold: 500, pollInterval: 200 }, ignored: ignoringSpecialFiles(),
+  })
+  const reload = (path: string): void => {
+    if (basename(path) !== FILE_NAME) return
+    void loadKeybindings().then(result => {
+      cached = result
+      cachedFor = layersKey()
+      changes.emit(result)
+    }).catch(logError)
+  }
+  watcher.on('add', reload).on('change', reload).on('unlink', reload).on('error', error => {
+    logForDebugging(`keybindings watcher error: ${error instanceof Error ? error.message : String(error)}`)
+  })
 }
 
 export function disposeKeybindingWatcher(): void {
-  return notBuilt('src/keybindings/loadUserBindings.ts:299')
+  watcherDisposed = true
+  if (watcher) {
+    void watcher.close().catch(passedOver)
+    watcher = null
+  }
+  changes.clear()
 }
 
 registerCleanup(async () => {
