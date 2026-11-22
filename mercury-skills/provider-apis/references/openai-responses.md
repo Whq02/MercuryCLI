@@ -16,5 +16,5 @@
 ## Other account variants
 
 - **xAI:** `src/services/providers/xai/xaiCallModel.ts` routes subscription credentials to `src/services/providers/xai/xaiResponsesTransport.ts` and API keys to shared chat (subscription proxy/quota fields are CODE-owned, **UNRESOLVED** publicly).
-- **OpenCode Zen:** `src/services/providers/zen/zenCallModel.ts` routes per `src/services/providers/zen/zenPins.ts` to `src/services/providers/zen/zenResponsesTransport.ts`; do not migrate legacy endpoints/headers from newer public docs without account verification.
+- **OpenCode Zen:** `src/services/providers/zen/zenCallModel.ts` routes per `src/utils/model/pins/zenPins.ts` to `src/services/providers/zen/zenResponsesTransport.ts`; do not migrate legacy endpoints/headers from newer public docs without account verification.
 - **Compat:** `src/services/providers/openaicompat/compatCallModel.ts` routes configured or probed (`src/services/providers/openaicompat/compatProbe.ts`) Responses endpoints to `src/services/providers/openaicompat/compatResponsesTransport.ts`.
