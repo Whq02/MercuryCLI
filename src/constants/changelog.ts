@@ -21,11 +21,6 @@ function parseHistoricalSections(text: string): Record<string, string[]> {
   return out
 }
 
-const HISTORICAL_RELEASES: Readonly<Record<string, string[]>> = {
-  ...parseHistoricalSections(EARLY_DOC_RELEASES),
-  ...parseHistoricalSections(PRE_DOC_RELEASES),
-}
-
 function applyHistoricalDocDelta(version: string, bullets: string[]): string[] {
   const delta = DOC_RELEASE_DELTAS[version]
   if (!delta) return bullets
@@ -72,6 +67,10 @@ function defaultRoot(): string {
 export function buildMercuryChangelog(rootDir: string = defaultRoot()): string {
   const dir = join(rootDir, 'docs', 'releases')
   if (!existsSync(dir)) return ''
+  const historicalReleases: Readonly<Record<string, string[]>> = {
+    ...parseHistoricalSections(EARLY_DOC_RELEASES),
+    ...parseHistoricalSections(PRE_DOC_RELEASES),
+  }
   const versions = readdirSync(dir)
     .filter(name => name.endsWith('.md'))
     .map(name => name.slice(0, -3))
@@ -81,7 +80,7 @@ export function buildMercuryChangelog(rootDir: string = defaultRoot()): string {
   for (const version of versions) {
     const text = readFileSync(join(dir, `${version}.md`), 'utf8')
     if (isQueuedReleaseDoc(version, text)) continue
-    const historical = HISTORICAL_RELEASES[version]
+    const historical = historicalReleases[version]
     const bullets = historical ?? applyHistoricalDocDelta(version, extractReleaseDocBullets(text))
     if (bullets.length === 0) continue
     sections.push(`## ${version}\n${bullets.map(note => `- ${note}`).join('\n')}`)
@@ -96,8 +95,8 @@ export function getMercuryChangelog(): string {
   if (changelogMemo !== undefined) return changelogMemo
   if (typeof MERCURY_CHANGELOG_PACKED === 'string') {
     changelogMemo = gunzipSync(Buffer.from(MERCURY_CHANGELOG_PACKED, 'base64')).toString('utf8')
-    return changelogMemo
+  } else {
+    changelogMemo = buildMercuryChangelog()
   }
-  changelogMemo = buildMercuryChangelog()
   return changelogMemo
 }
