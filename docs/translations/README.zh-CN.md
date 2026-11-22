@@ -238,7 +238,7 @@ Boot Menu 的 Performance 区域包含一项 Motion 设置：`auto`、`full`、`
 
 Mistral、Nous Portal 和 OpenCode Zen 同样可以通过 `/logins` 连接，共计 22 个登录服务商系列。本地模型服务器（Ollama、LM Studio、vLLM 和 llama.cpp）以及自定义的 OpenAI 兼容端点，无需服务商登录即可使用。运行 `/localsetup` 可以安装或启动 Ollama、拉取一个适合你内存容量的模型、设置其上下文窗口，或连接正在运行的 LM Studio、vLLM 或 llama.cpp 服务器（[docs/LOCAL-SETUP.md](../LOCAL-SETUP.md)）。每个服务商都使用自己的协议、凭据和错误处理方式，请求绝不会回退到其他服务商。参见 [docs/ENGINES.md](../ENGINES.md)。
 
-`/llmhost` 会列出你可以托管的模型，并显示每个模型当前可在哪里运行：在从 Runpod、Vast.ai、Lambda、Hugging Face Inference Endpoints、Hyperstack、Verda 或 DigitalOcean 租用的 GPU 上、在你自己的电脑或已保存的 SSH 电脑（`mercury host`）上，或在已有的模型服务器上。每个模型页面都会显示量化选项、GPU 显存预算如何在并行对话之间划分（`conversations × context`），以及默认的思考等级（`/effort` 可以按请求更改）。租用 GPU 需要明确确认每小时价格；如果你关闭弹窗，设置会在后台继续进行。在 Runpod 上，你还可以在租用前或在运行中的 pod 上（`Tune`）调整质量、上下文划分和思考设置，将权重保存在快速加载卷上，并设置 5 秒级的库存监视。Vast.ai 与 Lambda 的租用功能是 1.0.0-beta.40 中的新增功能，已依据厂商公布的 API 在测试夹具（fixtures）上完成验证（未执行真实的租用运行）。参见 [docs/LLM-HOST.md](../LLM-HOST.md)。
+`/llmhost` 会列出你可以托管的模型，并显示每个模型当前可在哪里运行：在从 Runpod、Vast.ai、Lambda、Hugging Face Inference Endpoints、Hyperstack、Verda 或 DigitalOcean 租用的 GPU 上、在你自己的电脑或已保存的 SSH 电脑（`mercury host`）上，或在已有的模型服务器上。每个模型页面都会显示量化选项、GPU 显存预算如何在并行对话之间划分（`conversations × context`），以及默认的思考等级（`/effort` 可以按请求更改）。租用 GPU 需要明确确认每小时价格；如果你关闭弹窗，设置会在后台继续进行。在 Runpod 上，你还可以在租用前或在运行中的 pod 上（`Tune`）调整质量、上下文划分和思考设置，将权重保存在快速加载卷上，并设置 5 秒级的库存监视。参见 [docs/LLM-HOST.md](../LLM-HOST.md)。
 
 新会话会使用你最近连接的服务商，以及该账户可用的最新模型。账户无法访问的模型会被跳过。如果该服务商没有可用模型，Mercury 会检查下一个最近连接的服务商。这一选择在会话启动时完成；已存在会话中的失败请求，仍保留在其原来的服务商上。
 
