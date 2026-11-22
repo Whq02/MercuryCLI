@@ -296,7 +296,7 @@ against their checked-in lock files before a byte is consumed.
   `MERCURY_BUILD_NO_VENDOR_TYPESCRIPT=1` forces it.
 - **tree-sitter grammar engine** (optional). `dist/vendor/treesitter/` —
   the WASM loader, runtime, and exactly the grammar files the declarative
-  registry names (`src/services/structure/grammarRegistry.ts` — the same
+  registry names (`src/utils/structure/grammarRegistry.ts` — the same
   module the runtime routes with). Two sources: the
   `@vscode/tree-sitter-wasm` devDependency, and a cherry-picked grammar pack
   whose cache is verified per-file by sha256 against
