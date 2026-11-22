@@ -23,13 +23,11 @@ export const isTextObjScopeKey = ownKeyOf(TEXT_OBJ_SCOPES)
 type Counted<Type extends string, Fields = unknown> = { type: Type; count: number } & Fields
 type Pending<Type extends string, Fields = unknown> = Counted<Type, { operator: Operator } & Fields>
 
-export type CommandState =
-  Unbuilt
+export type CommandState = Unbuilt
 
 type Replayed<Type extends string, Fields = unknown> = Counted<Type, { op: Operator } & Fields>
 
-export type RecordedChange =
-  Unbuilt
+export type RecordedChange = Unbuilt
 
 export type PersistentState = Unbuilt
 

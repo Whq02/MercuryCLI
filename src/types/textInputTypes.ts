@@ -43,8 +43,7 @@ export type TextInputState = Unbuilt
 
 export type VimInputState = Unbuilt
 
-export type PromptInputMode =
-  Unbuilt
+export type PromptInputMode = Unbuilt
 
 export type QueuePriority = Unbuilt
 

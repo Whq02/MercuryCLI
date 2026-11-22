@@ -45,8 +45,7 @@ export function withoutOrphanCaveats<M extends Message>(messages: M[]): M[] {
   return notBuilt('src/services/messages/apiPlan.ts:57')
 }
 
-export type PlannedMessage =
-  Unbuilt
+export type PlannedMessage = Unbuilt
 
 export type ApiConversationPlan = Unbuilt
 

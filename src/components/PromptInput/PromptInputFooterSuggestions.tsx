@@ -8,8 +8,7 @@ import { GLYPH, displayWidth, truncateToWidth } from '../../utils/glyphs.js'
 import { collapseWhitespace } from '../../utils/stringUtils.js'
 import { truncatePathMiddle } from '../../utils/truncate.js'
 
-export type SuggestionType =
-  Unbuilt
+export type SuggestionType = Unbuilt
 
 import type { SuggestionItem } from '../../types/suggestions.js'
 import { notBuilt, type Unbuilt } from '../../pi/holes.js'

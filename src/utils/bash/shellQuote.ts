@@ -4,8 +4,7 @@ import { logError } from '../log.js'
 import { jsonStringify } from '../slowOperations.js'
 import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-type ShellParseResult =
-  Unbuilt
+type ShellParseResult = Unbuilt
 
 export function tryParseShellCommand(
   cmd: string,

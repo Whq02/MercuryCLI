@@ -12,8 +12,7 @@ import { notBuilt, type Unbuilt } from '../pi/holes.js'
 export type DOMNodeAttribute = Unbuilt
 
 type TextName = Unbuilt
-export type ElementNames =
-  Unbuilt
+export type ElementNames = Unbuilt
 
 export type DOMElement = Unbuilt
 

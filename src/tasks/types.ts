@@ -4,11 +4,9 @@ import type { MonitorMcpTaskState } from './MonitorMcpTask/MonitorMcpTask.js'
 import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 
-export type TaskState =
-  Unbuilt
+export type TaskState = Unbuilt
 
-export type BackgroundTaskState =
-  Unbuilt
+export type BackgroundTaskState = Unbuilt
 
 export function isBackgroundTask(task: TaskState): task is BackgroundTaskState {
   return notBuilt('src/tasks/types.ts:16')

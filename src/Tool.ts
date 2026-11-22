@@ -58,8 +58,7 @@ export type AnyObject = Unbuilt
 
 export type ToolInputJSONSchema = Unbuilt
 
-export type ValidationResult =
-  Unbuilt
+export type ValidationResult = Unbuilt
 
 export type ToolCallChain = {
   key: string
@@ -102,8 +101,7 @@ export function getEmptyToolPermissionContext(): ToolPermissionContext {
   return notBuilt('src/Tool.ts:123')
 }
 
-export type CompactProgressEvent =
-  Unbuilt
+export type CompactProgressEvent = Unbuilt
 
 export type Progress = Unbuilt
 

@@ -17,8 +17,7 @@ type CommandAvailability = Unbuilt
 export type UiRouteAliasKind = Unbuilt
 export type CommandSeat = Unbuilt
 export type CommandResultDisplay = Unbuilt
-export type ResumeEntrypoint =
-  Unbuilt
+export type ResumeEntrypoint = Unbuilt
 
 type CommandDoors = Partial<{
   isEnabled: () => boolean
@@ -50,8 +49,7 @@ export type PromptCommand = Unbuilt
 
 export type Command = Unbuilt
 
-export type LocalCommandResult =
-  Unbuilt
+export type LocalCommandResult = Unbuilt
 
 export type LocalCommandCall = (...args: Unbuilt[]) => Unbuilt
 

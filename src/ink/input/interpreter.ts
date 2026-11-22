@@ -6,8 +6,7 @@ export type ParsedKey = Unbuilt
 
 export const DECRPM_STATUS: Unbuilt = unbuilt('src/ink/input/interpreter.ts:22')
 
-export type TerminalResponse =
-  Unbuilt
+export type TerminalResponse = Unbuilt
 
 export type ParsedResponse = Unbuilt
 

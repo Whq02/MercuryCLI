@@ -57,8 +57,7 @@ import { asSessionId, type SessionId } from '../../types/ids.js'
 import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-export type TurnInterruptionState =
-  Unbuilt
+export type TurnInterruptionState = Unbuilt
 
 type InternalInterruptionState = Unbuilt
 

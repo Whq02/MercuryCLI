@@ -5,8 +5,7 @@ import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 export { modelSupportsAdaptiveThinking, modelSupportsThinking } from './model/capabilities.js'
 
-export type ThinkingConfig =
-  Unbuilt
+export type ThinkingConfig = Unbuilt
 
 export function shouldEnableThinkingByDefault(): boolean {
   return notBuilt('src/utils/thinking.ts:12')

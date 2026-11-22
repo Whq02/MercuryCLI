@@ -1,8 +1,7 @@
 import type { Message } from '../../types/message.js'
 import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-export type CacheLane =
-  Unbuilt
+export type CacheLane = Unbuilt
 
 type PromptStateSnapshot = Unbuilt
 

@@ -18,8 +18,7 @@ import { PROJECT_CONFIG_DIR_NAMES } from '../../../utils/projectConfig.js'
 import type { ToolPermissionContext } from '../../../Tool.js'
 import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
 
-export type PermissionOption =
-  Unbuilt
+export type PermissionOption = Unbuilt
 
 export type PermissionOptionWithLabel = Unbuilt
 

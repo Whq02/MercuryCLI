@@ -11,8 +11,7 @@ import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 export type AgentMcpServerSpec = Unbuilt
 
-export type AgentSource =
-  Unbuilt
+export type AgentSource = Unbuilt
 
 export type BuiltInAgentDefinition = Unbuilt
 
@@ -20,8 +19,7 @@ export type CustomAgentDefinition = Unbuilt
 
 export type ExtensionAgentDefinition = Unbuilt
 
-export type AgentDefinition =
-  Unbuilt
+export type AgentDefinition = Unbuilt
 
 export type AgentDefinitionsResult = Unbuilt
 

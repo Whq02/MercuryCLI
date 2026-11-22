@@ -17,8 +17,7 @@ import type { Attachment } from '../services/attachments.js'
 import { unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
-export type SystemMessageLevel =
-  Unbuilt
+export type SystemMessageLevel = Unbuilt
 
 export const ASSISTANT_MESSAGE_ERRORS: Unbuilt = unbuilt('src/types/message.ts:27')
 export type AssistantMessageError = Unbuilt
@@ -29,8 +28,7 @@ export type RefusedToolCall = Unbuilt
 
 export type PartialCompactDirection = Unbuilt
 
-export type MessageOrigin =
-  Unbuilt
+export type MessageOrigin = Unbuilt
 
 export type CompactMetadata = Unbuilt
 
@@ -110,12 +108,10 @@ export type SystemMicrocompactBoundaryMessage = Unbuilt
 
 export type SystemAPIErrorMessage = Unbuilt
 
-export type SystemMessage =
-  Unbuilt
+export type SystemMessage = Unbuilt
 
 
-export type Message =
-  Unbuilt
+export type Message = Unbuilt
 
 
 export type NormalizedAssistantMessage<
@@ -124,21 +120,18 @@ export type NormalizedAssistantMessage<
 
 export type NormalizedUserMessage = Unbuilt
 
-export type NormalizedMessage =
-  Unbuilt
+export type NormalizedMessage = Unbuilt
 
 
 export type GroupedToolUseMessage = Unbuilt
 
 export type CollapsedReadSearchGroup = Unbuilt
 
-export type CollapsibleMessage =
-  Unbuilt
+export type CollapsibleMessage = Unbuilt
 
 export type TurnReceiptMessage = Unbuilt
 
-export type RenderableMessage =
-  Unbuilt
+export type RenderableMessage = Unbuilt
 
 
 export type StreamEvent = Unbuilt

@@ -35,8 +35,7 @@ export type Redirect = Unbuilt
 
 export type SimpleCommand = Unbuilt
 
-export type ParseForSecurityResult =
-  Unbuilt
+export type ParseForSecurityResult = Unbuilt
 
 export type CommandReading = ShellRead & {
   text: string

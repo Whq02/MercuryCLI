@@ -35,8 +35,7 @@ export function knownShellCommandPrefix(command: string): string | null {
   return words.slice(0, arity).join(' ')
 }
 
-export type ShellPermissionRule =
-  Unbuilt
+export type ShellPermissionRule = Unbuilt
 
 
 export function hasWildcards(pattern: string): boolean {

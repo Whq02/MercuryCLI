@@ -8,8 +8,7 @@ import { commandByteBudget } from '../platform/spawn.js'
 import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-type ElementClass =
-  Unbuilt
+type ElementClass = Unbuilt
 
 type ParsedRedirection = Unbuilt
 

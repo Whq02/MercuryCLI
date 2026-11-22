@@ -12,11 +12,9 @@ import { passedOver } from '../utils/passedOver.js'
 import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
-export type RateLimitType =
-  Unbuilt
+export type RateLimitType = Unbuilt
 
-export type OverageDisabledReason =
-  Unbuilt
+export type OverageDisabledReason = Unbuilt
 
 export type QuotaStatus = Unbuilt
 

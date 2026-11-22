@@ -3,8 +3,7 @@ import type { AppState } from '../../state/AppState.js'
 import type { ShellKillSource } from './guards.js'
 import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-type KillSettlement =
-  Unbuilt
+type KillSettlement = Unbuilt
 
 export function killTask(taskId: string, setAppState: SetAppState, killedBy?: ShellKillSource): Promise<KillSettlement> {
   return notBuilt('src/tasks/LocalShellTask/killShellTasks.ts:25')

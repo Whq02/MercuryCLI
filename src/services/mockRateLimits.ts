@@ -4,11 +4,9 @@ import { FIRST_WARNING_PCT } from './providers/usageTiers.js'
 import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
-type MockHeaderKey =
-  Unbuilt
+type MockHeaderKey = Unbuilt
 
-type MockScenario =
-  Unbuilt
+type MockScenario = Unbuilt
 
 type MockHeaders = Unbuilt
 

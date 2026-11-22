@@ -1,8 +1,7 @@
 import type { NormalizedAssistantMessage } from '../../types/message.js'
 import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-type DisplayMessage =
-  Unbuilt
+type DisplayMessage = Unbuilt
 
 export function reorderMessagesInUI(
   messages: DisplayMessage[],

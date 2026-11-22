@@ -52,11 +52,9 @@ export type DeepImmutable<T> = unknown extends T
 export type FooterItem = Unbuilt
 
 
-export type CompletionBoundary =
-  Unbuilt
+export type CompletionBoundary = Unbuilt
 
-export type SpeculationState =
-  Unbuilt
+export type SpeculationState = Unbuilt
 
 export const IDLE_SPECULATION_STATE: SpeculationState = unbuilt('src/state/AppStateStore.ts:81')
 

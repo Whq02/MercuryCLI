@@ -3,11 +3,9 @@ import type { DisplayPlatform } from './parser.js'
 import type { KeybindingContextName, ParsedBinding, ParsedKeystroke } from './types.js'
 import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
-export type ResolveResult =
-  Unbuilt
+export type ResolveResult = Unbuilt
 
-export type ChordResolveResult =
-  Unbuilt
+export type ChordResolveResult = Unbuilt
 
 export function resolveKey(
   input: string,
