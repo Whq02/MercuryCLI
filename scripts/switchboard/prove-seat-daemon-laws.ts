@@ -180,6 +180,9 @@ try {
     check('D6 the pen stays dead: no enqueue() door on the connector', typeof doors.enqueue === 'undefined')
     check('D6 the pen stays dead: no removeQueued() door on the connector', typeof doors.removeQueued === 'undefined')
   }
+  if (!(await untilAsync(() => api.pacedEmits.some(emit => emit.text === 'long-01 body. '), 15_000))) {
+    throw new Error('D3: the paced Opus fixture in prove-seat-daemon-laws.ts must emit its first delta before the interrupt')
+  }
   check('D3 interrupt() reports the running turn', connector.interrupt() === true)
   check('D3 the interruption marker landed in the session\'s file', await untilAsync(() => logText().includes('[Request interrupted by user]'), 20_000))
   check('D3 the live view falls idle and the latch clears', await untilAsync(() => !connector.turnActive() && !connector.status().interrupting, 15_000), JSON.stringify({ active: connector.turnActive(), status: connector.status() }))
