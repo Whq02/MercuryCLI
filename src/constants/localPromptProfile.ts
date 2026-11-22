@@ -91,7 +91,7 @@ export const LOCAL_CREWMATE_NOTES: readonly string[] = [
 export const LOCAL_POSTURE_WORDS = {
   oculus: '- Session: a screen belongs to this session: a question to the operator (AskUserQuestion; load it first with ToolSearch "select:AskUserQuestion") or a tool call that needs approval goes to their screen and waits, however long they are away. A denial is policy, not a failure.',
   host: '- Session: a connected host answers this run\'s asks: a tool call that needs approval or a question to the operator goes to it and waits. A denial is policy, not a failure. An ask the host leaves unanswered ends the run as blocked.',
-  unattended: '- Session: unattended (mercury run): nobody can answer an ask, so a tool call that needs approval is denied — policy, not a failure. Choose the most reasonable option, state the assumption and continue. When nothing reasonable remains without the operator, ask with AskUserQuestion (load it first with ToolSearch "select:AskUserQuestion") and end your turn: the run ends as blocked with your question. A question written only in your answer reads as done.',
+  unattended: '- Session: unattended (mercury run): nobody can answer an ask, so tools that require a human are not offered and a tool call that needs approval is denied — policy, not a failure. Choose the most reasonable option, state the assumption and continue. When nothing reasonable remains without the operator, state plainly what is blocked and what permission or decision is needed, then end your turn.',
 } as const
 
 export function localEstateSection(convention: string | null, retain: string | null): string {

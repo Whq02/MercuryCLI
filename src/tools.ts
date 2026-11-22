@@ -1,5 +1,5 @@
 import type { Tool, ToolPermissionContext, Tools } from './Tool.js'
-import { getIsNonInteractiveSession } from './bootstrap/state.js'
+import { canAnswerAsks, getIsNonInteractiveSession } from './bootstrap/state.js'
 import { swarmTools } from './services/crewBoard/seam.js'
 import { withBundledAppInstallConsent } from './extensions/installConsent.js'
 import { isEnvTruthy } from './utils/envUtils.js'
@@ -241,6 +241,17 @@ const SPECIAL_TOOL_NAMES = new Set([
   SyntheticOutputTool.name,
 ])
 
+export function toolOfferedInPosture(tool: Pick<Tool, 'requiresUserInteraction'>): boolean {
+  if (canAnswerAsks()) return true
+  try {
+    return tool.requiresUserInteraction?.() !== true
+  } catch (error) {
+    logError(error)
+    passedOver(error)
+    return false
+  }
+}
+
 export function getTools(permissionContext: ToolPermissionContext, agentId?: string): Tools {
   const settled = settledTools(permissionContext, agentId)
   if (getIsNonInteractiveSession() && settled.some(tool => tool.name === BashTool.name)) beginLoginFiles()
@@ -253,7 +264,7 @@ function settledTools(permissionContext: ToolPermissionContext, agentId?: string
     return filterToolsByDenyRules([BashTool, FileReadTool, FileEditTool, FileWriteTool] as Tool[], permissionContext)
   }
   const base = getAllBaseTools(agentId).filter(tool => !SPECIAL_TOOL_NAMES.has(tool.name) && (selected === undefined || selected.includes(tool.name)))
-  const filtered = filterToolsByDenyRules(base, permissionContext)
+  const filtered = filterToolsByDenyRules(base, permissionContext).filter(toolOfferedInPosture)
   const enabled = filtered.map(tool => {
     try {
       return tool.isEnabled()
@@ -286,7 +297,7 @@ export function assembleToolPool(
 
 export function mcpToolPartition(mcpTools: Tools, permissionContext: ToolPermissionContext): Tool[] {
   return filterToolsByDenyRules(mcpTools, permissionContext)
-    .filter(tool => tool.mcpInfo?.effectiveMaxPermission !== 'blocked')
+    .filter(tool => tool.mcpInfo?.effectiveMaxPermission !== 'blocked' && toolOfferedInPosture(tool))
     .map(withBundledAppInstallConsent)
     .sort((a, b) => a.name.localeCompare(b.name))
 }
