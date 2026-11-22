@@ -100,3 +100,13 @@ function isMouseReportHead(data: string, at: number, x10Mouse: boolean): boolean
 }
 
 const DOUBLE_ESC = ESC + ESC
+
+function scan(
+  data: string,
+  initial: ScanState,
+  flush: boolean,
+  x10Mouse: boolean,
+  policy: FlushPolicy,
+): { tokens: ScanToken[]; state: ScanState; carry: string; sealed?: boolean; flushedHead?: string; terminatorOwed?: boolean; heldRun?: boolean } {
+  return notBuilt('src/ink/input/scanner.ts:167')
+}

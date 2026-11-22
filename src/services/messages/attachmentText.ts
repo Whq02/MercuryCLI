@@ -36,6 +36,7 @@ type Body = string | ContentBlockParam[]
 const meta = (content: Body): UserMessage => createUserMessage({ isMeta: true, content })
 const reminders = (...bodies: Body[]): UserMessage[] => wrapMessagesInSystemReminder(bodies.map(meta))
 const notice = (body: string): UserMessage[] => [meta(wrapInSystemReminder(body))]
+const text = (body: string): TextBlockParam => notBuilt('src/services/messages/attachmentText.ts:38')
 
 type ToolWording<Output> = Pick<Tool<AnyObject, Output>, 'name' | 'mapToolResultToToolResultBlockParam'>
 

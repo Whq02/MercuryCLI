@@ -4,7 +4,7 @@ import type { Command } from '../../commands.js'
 import { formatDescriptionWithSource, getCommandName } from '../../commands.js'
 import { requiresArgument } from '../../skills/argumentHint.js'
 import { getSkillUsageScore } from './skillUsageTracking.js'
-import { notBuilt } from '../../pi/holes.js'
+import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 type MidInputSlashCommand = {
@@ -55,6 +55,8 @@ function suggestionIdentifier(command: CommandLike): string {
 }
 
 const MAX_RECENTLY_USED = 5
+
+type IndexedCommand = Unbuilt
 
 export function generateCommandSuggestions(
   input: string,

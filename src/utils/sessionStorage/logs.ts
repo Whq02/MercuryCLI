@@ -131,6 +131,10 @@ function visibleTurnCount(chain: TranscriptMessage[]): number {
   return chain.filter(paintsConversationRow).length
 }
 
+function chainLogOption(chain: TranscriptMessage[], anchor: TranscriptMessage, fullPath?: string): SessionListing {
+  return notBuilt('src/utils/sessionStorage/logs.ts:162')
+}
+
 function newestPerKey(logs: SessionListing[], keyOf: (log: SessionListing) => string | undefined): SessionListing[] {
   return notBuilt('src/utils/sessionStorage/logs.ts:180')
 }

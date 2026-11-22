@@ -11,8 +11,15 @@ type ExternalCommandConfig = Unbuilt
 const none: FlagValue = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:29')
 const str: FlagValue = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:30')
 const num: FlagValue = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:31')
+const char: FlagValue = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:32')
 
 type Flags = Unbuilt
+
+function flags(...groups: Flags[]): Flags {
+  return notBuilt('src/utils/shell/readOnlyCommandValidation.ts:36')
+}
+
+const statFlags: Flags = unbuilt('src/utils/shell/readOnlyCommandValidation.ts:40')
 const colourFlags: Flags = { '--color': none, '--no-color': none }
 const patchFlags: Flags = { '--patch': none, '-p': none, '--no-patch': none, '--no-ext-diff': none, '--no-textconv': none, '-s': none }
 const logDisplayFlags: Flags = { '--oneline': none, '--graph': none, '--decorate': none, '--no-decorate': none, '--date': str, '--relative-date': none }
