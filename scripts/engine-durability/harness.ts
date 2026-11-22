@@ -57,7 +57,7 @@ export function checker(): Checker {
   return {
     check(label, cond, detail = '') {
       if (!cond) failures++
-      console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+      console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
     },
     section(title) {
       console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
