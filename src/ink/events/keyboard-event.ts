@@ -1,6 +1,14 @@
 import type { ParsedKey } from '../input/input-decoder.js'
 import { TerminalEvent } from './terminal-event.js'
-import { notBuilt } from '../../pi/holes.js'
+
+function keyText(parsedKey: ParsedKey): string {
+  const { name, sequence } = parsedKey
+  if (!parsedKey.ctrl && sequence?.length === 1) {
+    const unit = sequence.charCodeAt(0)
+    if (unit >= 0x20 && unit !== 0x7f) return sequence
+  }
+  return name || sequence || ''
+}
 
 export class KeyboardEvent extends TerminalEvent {
   readonly key: string
@@ -11,7 +19,12 @@ export class KeyboardEvent extends TerminalEvent {
   readonly fn: boolean
 
   constructor(parsedKey: ParsedKey) {
-    notBuilt('src/ink/events/keyboard-event.ts:13')
-    super(...(notBuilt('src/ink/events/keyboard-event.ts:13') as ConstructorParameters<typeof TerminalEvent>))
+    super('keydown')
+    this.key = keyText(parsedKey)
+    this.ctrl = parsedKey.ctrl
+    this.shift = parsedKey.shift
+    this.meta = parsedKey.meta || parsedKey.option
+    this.superKey = parsedKey.super
+    this.fn = parsedKey.fn
   }
 }
