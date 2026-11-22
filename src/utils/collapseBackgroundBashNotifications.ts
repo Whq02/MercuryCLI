@@ -11,7 +11,6 @@ import type {
 } from '../types/message.js'
 import { isFullscreenEnvEnabled } from './fullscreen.js'
 import { extractTag } from './messages/text.js'
-import { notBuilt } from '../pi/holes.js'
 
 export const FOLDED_COUNT_TAG = 'folded'
 
@@ -131,5 +130,24 @@ export function collapseBackgroundBashNotifications(
   messages: RenderableMessage[],
   verbose: boolean,
 ): RenderableMessage[] {
-  return notBuilt('src/utils/collapseBackgroundBashNotifications.ts:129')
+  if (!isFullscreenEnvEnabled() || verbose) return messages
+  const result: RenderableMessage[] = []
+  const run: ShellNotice[] = []
+  const flush = (): void => {
+    if (run.length === 1) result.push(run[0]!.message)
+    else if (run.length > 1) result.push(foldedRow(run))
+    run.length = 0
+  }
+  for (const message of messages) {
+    const notices = shellNoticesOf(message)
+    if (notices.length === 0) {
+      flush()
+      result.push(message)
+    } else {
+      if (run.length && run[0]!.queued !== notices[0]!.queued) flush()
+      for (const notice of notices) run.push(notice)
+    }
+  }
+  flush()
+  return result
 }
