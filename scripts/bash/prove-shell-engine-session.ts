@@ -418,6 +418,16 @@ if (process.platform === 'win32') {
   check('an alias the engine cannot read back is left out', started.stdout.includes('semi;colon left-out'), `${JSON.stringify(started.stdout)}; ${aliasFix}`)
 }
 
+section('§14 a login file with a DEBUG trap that prints: its words stay out of what the engine sources, the session starts, and what the file defines is carried')
+if (process.platform === 'win32') {
+  console.log('  [SKIP] this section runs off Windows: its login home is a POSIX home, a ~/.profile the engine reads at login')
+} else {
+  const started = startedAtLogin(String.raw`carried_past_the_trap() { echo carried-past-the-trap; }` + '\n' + String.raw`trap 'echo "it'\''s a trap"' DEBUG` + '\n', 'echo started; carried_past_the_trap')
+  const trapFix = 'buildCaptureScript in src/utils/bash/ShellSnapshot.ts must clear the DEBUG trap for the engine once the login file is read, before it prints the exports and writes the snapshot'
+  check('the session starts and runs its first command', started.code === 0 && started.stdout.includes('started'), `${JSON.stringify(started)}; ${trapFix}`)
+  check('the function the login file defines is carried into the session', started.stdout.includes('carried-past-the-trap'), `${JSON.stringify(started.stdout)}; ${trapFix}`)
+}
+
 resetEngineSessionForTest()
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '✅ ALL SHELL-ENGINE SESSION PROOFS PASS' : `❌ ${failures} SHELL-ENGINE SESSION PROOF(S) FAILED`)

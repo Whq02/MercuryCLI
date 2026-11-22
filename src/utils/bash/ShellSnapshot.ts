@@ -373,6 +373,7 @@ function buildCaptureScript(args: {
   } else {
     lines.push('# no user config file to source')
   }
+  if (readBack) lines.push('trap - DEBUG 2>/dev/null || :')
 
   lines.push(PRINTS_EXPORTS)
 
