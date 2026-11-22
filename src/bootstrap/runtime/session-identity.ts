@@ -1,65 +1,82 @@
 import { realpathSync } from 'fs'
 import { cwd } from 'process'
-import type { SessionId } from 'src/types/ids.js'
+import { asSessionId, type SessionId } from 'src/types/ids.js'
 import { randomUUID } from 'src/utils/crypto.js'
-import { createSignal } from 'src/utils/signal.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
+import { passedOver } from 'src/utils/passedOver.js'
+
+function startFolder(): string {
+  let folder: string
+  try {
+    folder = cwd()
+  } catch (error) {
+    passedOver(error)
+    return ''
+  }
+  try {
+    return realpathSync(folder).normalize('NFC')
+  } catch (error) {
+    passedOver(error)
+    return folder.normalize('NFC')
+  }
+}
 
 export class SessionIdentityOwner {
   originalCwd: string
   projectRoot: string
   cwd: string
   sessionId: SessionId
-  sessionProjectDir: string | null = unbuilt('src/bootstrap/runtime/session-identity.ts:12')
-  readonly planSlugCache: Map<string, string> = unbuilt('src/bootstrap/runtime/session-identity.ts:13')
-  private readonly sessionSwitched: Unbuilt = unbuilt('src/bootstrap/runtime/session-identity.ts:14')
-  private readonly cwdChanged: Unbuilt = unbuilt('src/bootstrap/runtime/session-identity.ts:15')
+  sessionProjectDir: string | null = null
+  readonly planSlugCache: Map<string, string> = new Map()
+  private readonly sessionSwitched = new Set<(id: SessionId) => void>()
+  private readonly cwdChanged = new Set<(cwd: string) => void>()
 
   constructor() {
-    let resolvedCwd = ''
-    if (
-      typeof process !== 'undefined' &&
-      typeof process.cwd === 'function' &&
-      typeof realpathSync === 'function'
-    ) {
-      const rawCwd = cwd()
-      try {
-        resolvedCwd = realpathSync(rawCwd).normalize('NFC')
-      } catch {
-        resolvedCwd = rawCwd.normalize('NFC')
-      }
-    }
-    this.originalCwd = resolvedCwd
-    this.projectRoot = resolvedCwd
-    this.cwd = resolvedCwd
-    this.sessionId = randomUUID() as SessionId
+    const folder = startFolder()
+    this.originalCwd = folder
+    this.projectRoot = folder
+    this.cwd = folder
+    this.sessionId = asSessionId(randomUUID())
   }
 
   setOriginalCwd(nextCwd: string): void {
-    return notBuilt('src/bootstrap/runtime/session-identity.ts:37')
+    this.originalCwd = nextCwd.normalize('NFC')
   }
 
   setProjectRoot(nextCwd: string): void {
-    return notBuilt('src/bootstrap/runtime/session-identity.ts:41')
+    this.projectRoot = nextCwd.normalize('NFC')
   }
 
   setCwdState(nextCwd: string): void {
-    return notBuilt('src/bootstrap/runtime/session-identity.ts:45')
+    const stored = nextCwd.normalize('NFC')
+    this.cwd = stored
+    for (const listener of this.cwdChanged) listener(stored)
   }
 
   switchSession(sessionId: SessionId, projectDir?: string | null): void {
-    return notBuilt('src/bootstrap/runtime/session-identity.ts:50')
+    this.planSlugCache.delete(this.sessionId)
+    this.sessionId = sessionId
+    this.sessionProjectDir = projectDir ?? null
+    for (const listener of this.sessionSwitched) listener(sessionId)
   }
 
   regenerateSessionId(): SessionId {
-    return notBuilt('src/bootstrap/runtime/session-identity.ts:57')
+    this.planSlugCache.delete(this.sessionId)
+    this.sessionId = asSessionId(randomUUID())
+    this.sessionProjectDir = null
+    return this.sessionId
   }
 
   onSessionSwitch(listener: (id: SessionId) => void): () => void {
-    return notBuilt('src/bootstrap/runtime/session-identity.ts:64')
+    this.sessionSwitched.add(listener)
+    return () => {
+      this.sessionSwitched.delete(listener)
+    }
   }
 
   onCwdChange(listener: (cwd: string) => void): () => void {
-    return notBuilt('src/bootstrap/runtime/session-identity.ts:68')
+    this.cwdChanged.add(listener)
+    return () => {
+      this.cwdChanged.delete(listener)
+    }
   }
 }
