@@ -426,7 +426,7 @@ Mercury uses the gateway's Chat Completions endpoint at
 function tools, a `prompt_cache_key` carrying the session id (the vendor's
 routing-stickiness knob for its prefix cache) and the model's documented
 reasoning knobs: the hybrid rows (Kimi K3, GLM 5.2/5.3, DeepSeek V4 Pro,
-MiniMax M3, Qwen 3.6 Plus, Qwen 3.5 9B) take `reasoning: { enabled }` from the session's
+MiniMax M3 and M3.1 Flash, Qwen 3.6 Plus, Qwen 3.5 9B) take `reasoning: { enabled }` from the session's
 thinking switch; `openai/gpt-oss-120b` takes `reasoning_effort` (`low` ·
 `medium` · `high`) and DeepSeek V4 Pro `high` · `max`, the lowest rung standing
 in for thinking-off where the model cannot stop. The gateway streams reasoning

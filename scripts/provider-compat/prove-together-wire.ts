@@ -133,6 +133,7 @@ try {
   await run(params('together/MOONSHOTAI/kimi-k3', 'high', true))
   check("a slug typed in another case dispatches as the listed row the gateway spells", captures.at(-1)?.body.model === 'moonshotai/Kimi-K3')
   check('unknown model facts invent no dial', JSON.stringify(buildTogetherExtras({ wireModel: 'fixture-org/unknown', effortValue: 'max', thinkingEnabled: true, maxOutputTokensOverride: undefined })) === '{"stream_options":{"include_usage":true}}')
+  check('MiniMax M3.1 Flash is a hybrid row as the reasoning page types it (docs.together.ai/docs/inference/chat/reasoning, read 2026-11-22): the thinking switch rides reasoning.enabled both ways and no effort word', JSON.stringify(buildTogetherExtras({ wireModel: 'MiniMaxAI/MiniMax-M3.1-Flash', effortValue: 'max', thinkingEnabled: true, maxOutputTokensOverride: undefined })) === '{"stream_options":{"include_usage":true},"reasoning":{"enabled":true}}' && JSON.stringify(buildTogetherExtras({ wireModel: 'MiniMaxAI/MiniMax-M3.1-Flash', effortValue: 'max', thinkingEnabled: false, maxOutputTokensOverride: undefined })) === '{"stream_options":{"include_usage":true},"reasoning":{"enabled":false}}')
   mode = 'tools'
   const tools = await run()
   const calls = tools.flatMap(row => row.message.content).filter(block => block.type === 'tool_use')
