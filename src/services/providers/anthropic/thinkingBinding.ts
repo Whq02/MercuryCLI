@@ -612,8 +612,9 @@ const THINKING_READ_BY: Readonly<Record<string, readonly string[]>> = {
 export function readsThinkingOf(target: string, writer: string): boolean {
   const [to, from] = [getCanonicalName(target), getCanonicalName(writer)]
   if (to === from) return true
-  if (THINKING_READ_BY_ALL.includes(from)) return THINKING_READ_BY_ALL.includes(to) || Object.hasOwn(THINKING_READ_BY, to)
-  return THINKING_READ_BY[to]?.includes(from) ?? false
+  const reads = Object.hasOwn(THINKING_READ_BY, to) ? THINKING_READ_BY[to] : undefined
+  if (THINKING_READ_BY_ALL.includes(from)) return reads !== undefined || THINKING_READ_BY_ALL.includes(to)
+  return reads?.includes(from) ?? false
 }
 
 export function thinkingPrefixDigest(system: unknown, tools: unknown): string {

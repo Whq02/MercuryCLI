@@ -124,7 +124,16 @@ try {
     }
     check(`into ${NAMES[target].join(' and ')}: read from ${READS[target].join(', ')} and from no other row`, wrong.length === 0, wrong.slice(0, 6).join('; '))
   }
-  check('a model the road does not offer is read by none and reads none but itself', !readsThinkingOf('claude-sonnet-5-5', 'claude-mythos-preview') && !readsThinkingOf('claude-fable-5', 'claude-mythos-preview') && !readsThinkingOf('claude-opus-6', 'claude-sonnet-5') && !readsThinkingOf('claude-sonnet-5-7', 'claude-haiku-5-5') && !readsThinkingOf('constructor', 'claude-sonnet-5') && readsThinkingOf('claude-opus-6', 'claude-opus-6'))
+  check('a model the road does not offer is read by none and reads none but itself', !readsThinkingOf('claude-sonnet-5-5', 'claude-mythos-preview') && !readsThinkingOf('claude-fable-5', 'claude-mythos-preview') && !readsThinkingOf('claude-opus-6', 'claude-sonnet-5') && !readsThinkingOf('claude-sonnet-5-7', 'claude-haiku-5-5') && readsThinkingOf('claude-opus-6', 'claude-opus-6'))
+  const named = (to: string, from: string): string => {
+    try {
+      return String(readsThinkingOf(to, from))
+    } catch (error) {
+      return `threw ${String(error).slice(0, 80)}`
+    }
+  }
+  const odd = [['constructor', 'claude-sonnet-5'], ['constructor', 'claude-opus-5-5'], ['toString', 'claude-haiku-5-5'], ['claude-opus-5-5', 'constructor'], ['__proto__', 'claude-opus-5']].map(([to, from]) => `${from} → ${to}: ${named(to!, from!)}`)
+  check('a model id that is also the name of a built-in property reads nothing and ends no request', odd.every(row => row.endsWith(': false')), odd.join('; '))
 
   section('§2 on the wire: an earlier model\'s thinking rides into a newer reader, and only where the page says so')
   const question = createUserMessage({ content: 'How many sevens from 1 to 300?' })
