@@ -546,8 +546,10 @@ replies, so a message that comes early still finds the pieces before it.
 
 The read-ahead starts only when no request of the session is on that engine.
 A new request cancels it, but the engine finishes the prompt chunk already in
-flight before switching. On Qwen3.5 2B that wait is about a tenth of a second;
-an engine with larger chunks can take longer. Mercury reads the engine's
+flight before switching. On Qwen3.5 2B that wait was about a tenth of a second
+up to TensorFold `1.2.9`, and an engine with larger chunks can take longer; from
+`1.2.10` the 2B reads the next turn ahead itself (`"warm_turns": true`), so
+Mercury reads nothing ahead on it. Mercury reads the engine's
 `/health` before each piece and about three times a second while one runs, so
 another session's request can also wait for the next look. Once that request
 is seen, the read-ahead is cancelled and the turn is left as it is. Where an
