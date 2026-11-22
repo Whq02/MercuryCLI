@@ -1,5 +1,6 @@
 prove-manual-fold-awaits-window.ts
 prove-model-cancel-names-session.ts
+prove-picker-names-replaced-default.ts
 prove-slot-wall-rung.ts
 prove-switch-card-plain-words.ts
 prove-transition-a03-queued-journey.ts

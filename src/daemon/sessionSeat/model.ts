@@ -48,11 +48,11 @@ export function landModel(rec: ConcourseWorkerRecordV1, model: string, roster: S
   publishSeatFacts(rec.runnerId, dir, roster)
 }
 
-export async function forwardModel(rec: ConcourseWorkerRecordV1, model: string, roster: SeatRosterPort, dir: string | undefined, opts: { parked: boolean; settle: boolean; words?: string }): Promise<SeatVerbOutcome> {
+export async function forwardModel(rec: ConcourseWorkerRecordV1, model: string, roster: SeatRosterPort, dir: string | undefined, opts: { parked: boolean; settle: boolean; words?: string; replacedDefault?: string }): Promise<SeatVerbOutcome> {
   const queued: SeatVerbOutcome = { outcome: 'queued', detail: `${model} applies when this turn ends` }
   const door = roster.door(rec.runnerId)
   if (door === undefined || door.closed) return opts.parked ? queued : respawnOnModel(rec, model, roster, dir)
-  const sent = door.send(SESSION_VERBS.setModel.runner.name, { model, ...(opts.words === undefined ? {} : { words: opts.words }) }, { deadlineMs: SEAT_VERB_ANSWER_DEADLINE_MS })
+  const sent = door.send(SESSION_VERBS.setModel.runner.name, { model, ...(opts.words === undefined ? {} : { words: opts.words }), ...(opts.replacedDefault === undefined ? {} : { replaced_default: opts.replacedDefault }) }, { deadlineMs: SEAT_VERB_ANSWER_DEADLINE_MS })
   const seat = seatOf(rec.runnerId)
   seat.heldModel = { requestId: sent.id, model }
   const asked = await sent.answer.then(result => ({ ok: true as const, result, id: sent.id }), (error: unknown) => ({ ok: false as const, failure: doorFailureOf(error, SESSION_VERBS.setModel.daemon.action, SEAT_VERB_ANSWER_DEADLINE_MS), id: sent.id }))
@@ -85,7 +85,7 @@ function liveSwitchReceipt(rec: ConcourseWorkerRecordV1, model: string, dir?: st
   return now.crash === undefined ? plain : `${goneRunnerWords(now, undefined)} and is back — ${plain}`
 }
 
-export async function setSessionModel(sessionId: string, model: string, roster: SeatRosterPort, dir?: string, words?: string): Promise<SeatVerbOutcome> {
+export async function setSessionModel(sessionId: string, model: string, roster: SeatRosterPort, dir?: string, words?: string, replacedDefault?: string): Promise<SeatVerbOutcome> {
   const rec = liveRecordBySession(sessionId, dir)
   if (!rec) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
   if (rec.modelKey === model && rec.pendingModelKey === undefined) return { outcome: 'noop', detail: `already on ${model}` }
@@ -96,7 +96,7 @@ export async function setSessionModel(sessionId: string, model: string, roster: 
     console.error(`[daemon] seat ${SESSION_VERBS.setModel.daemon.action} parked (the session is mid-turn): ${rec.runnerId} → ${model}`)
     publishSeatFacts(rec.runnerId, dir, roster)
   }
-  return forwardModel(rec, model, roster, dir, { parked, settle: false, ...(words === undefined ? {} : { words }) })
+  return forwardModel(rec, model, roster, dir, { parked, settle: false, ...(words === undefined ? {} : { words }), ...(replacedDefault === undefined ? {} : { replacedDefault }) })
 }
 
 function clockOf(atMs: number): string {

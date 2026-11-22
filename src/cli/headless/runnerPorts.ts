@@ -79,7 +79,7 @@ type RunnerState = {
   inputClosed: boolean
   inFlightAbort: AbortController | null
   leaveAbort: AbortController | null
-  heldSeatModel: { requestId: number; model: string; words?: string } | null
+  heldSeatModel: { requestId: number; model: string; words?: string; replacedDefault?: string } | null
   heldSeatEffort: { requestId: number; effort: string } | null
   deferredSpawnSwitches: Array<{ kind: 'subagents'; on: boolean; requestId: number }>
   lastOutcome: OutcomeRow | null
@@ -181,7 +181,7 @@ export type RunnerPorts = {
   relaunchContext: () => Promise<ToolUseContext>
   checkBuildBehind: (now?: boolean) => Promise<void>
   getReadFileCache: () => FileStateCache
-  applySeatModel: (model: string, words?: string) => Promise<void>
+  applySeatModel: (model: string, words?: string, replacedDefault?: string) => Promise<void>
   applySeatEffort: (effort: string) => void
   landSpawnSwitch: (kind: 'subagents', on: boolean) => void
   settleSessionBriefs: (kept: { brief?: string; briefAdd?: string }, record: boolean) => void
@@ -227,7 +227,7 @@ export type RunnerPorts = {
   tellSkippedProjectMcpServers: () => void
   recordNoticeRows: (notices: readonly QueuedCommand[], mark: { isVirtual: true } | { isMeta: true }) => Promise<void>
   recordHostNoticeRows: (notices: readonly QueuedCommand[]) => Promise<void>
-  injectModelSwitchBreadcrumbs: (toModel: string, fromModel: string, words?: string) => Promise<void>
+  injectModelSwitchBreadcrumbs: (toModel: string, fromModel: string, words?: string, replacedDefault?: string) => Promise<void>
   advisorRoad: AdvisorRoad
   landAdvisorQuiet: (quiet: AdvisorQuiet) => void
   party: ReturnType<typeof import('../../services/crewBoard/party.js').partyFeed>

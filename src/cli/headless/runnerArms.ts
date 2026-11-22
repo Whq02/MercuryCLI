@@ -96,12 +96,13 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
         throw refused(errorMessage(error), 'model')
       }
       const words = typeof params.words === 'string' && params.words.trim() !== '' ? params.words.trim() : undefined
+      const replacedDefault = typeof params.replaced_default === 'string' && params.replaced_default.trim() !== '' ? params.replaced_default.trim() : undefined
       if (live.inFlightAbort !== null) {
-        live.heldSeatModel = { requestId: ref.id, model: String(resolved), ...(words === undefined ? {} : { words }) }
+        live.heldSeatModel = { requestId: ref.id, model: String(resolved), ...(words === undefined ? {} : { words }), ...(replacedDefault === undefined ? {} : { replacedDefault }) }
         holdQueuedWordsForTurnEnd(true)
         return { model: String(resolved), at: SEAT_VERB_AT(true) }
       }
-      await applySeatModel(String(resolved), words)
+      await applySeatModel(String(resolved), words, replacedDefault)
       return { model: String(resolved), at: SEAT_VERB_AT(false) }
     },
     [SESSION_VERBS.claim.runner.name]: params => claimSession(params, ports),

@@ -312,7 +312,7 @@ export async function runPrintTurn(command: QueuedCommand, batch: QueuedCommand[
     if (live.heldSeatModel !== null) {
       const held = live.heldSeatModel
       live.heldSeatModel = null
-      await applySeatModel(held.model, held.words)
+      await applySeatModel(held.model, held.words, held.replacedDefault)
       io.outbound.enqueue({ method: SESSION_VERBS.sessionApplied.runner.name, params: { request_id: held.requestId, verb: 'set_model', model: held.model } })
     }
     if (live.heldSeatEffort !== null) {

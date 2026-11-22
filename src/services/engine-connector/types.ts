@@ -473,7 +473,7 @@ export interface EngineConnectorV1 extends EmptyDetailControlMethods {
 
   modelFacts(): ModelFactsV1
   subscribeModel(listener: () => void): () => void
-  setModel(setting: ModelSetting, words?: string): Promise<ModelSwitchReceiptV1>
+  setModel(setting: ModelSetting, words?: string, replacedDefault?: string): Promise<ModelSwitchReceiptV1>
   setEffort(level: string): Promise<ModelSwitchReceiptV1>
 
   usage(): UsageFactsV1

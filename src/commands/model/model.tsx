@@ -174,7 +174,7 @@ function ModelSet({
     if (focused.carrier === 'daemon') {
       const factsBefore = focused.modelFacts()
       const choice = persistModelChoice(target)
-      const receipt = await focused.setModel(target, words !== undefined && words !== target ? words : undefined)
+      const receipt = await focused.setModel(target, words !== undefined && words !== target ? words : undefined, choice.replacedDefault ?? undefined)
       if (receipt.state === 'refused') choice.restore()
       const moved = receipt.state === 'applied' || receipt.state === 'queued'
       const doorCross =

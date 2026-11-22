@@ -369,8 +369,8 @@ abstract class ConnectorHandOffs {
     return this.factsPart.subscribeModel(listener)
   }
 
-  setModel(setting: string | null, words?: string): Promise<ModelSwitchReceiptV1> {
-    return this.dialsPart.setModel(setting, words)
+  setModel(setting: string | null, words?: string, replacedDefault?: string): Promise<ModelSwitchReceiptV1> {
+    return this.dialsPart.setModel(setting, words, replacedDefault)
   }
 
   setEffort(level: string): Promise<ModelSwitchReceiptV1> {

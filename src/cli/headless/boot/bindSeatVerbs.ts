@@ -1,5 +1,5 @@
 import { getSettingsWithSources } from '../../../utils/settings/settings.js'
-import { parseUserSpecifiedModel, getEngineModel } from '../../../services/model/model.js'
+import { parseUserSpecifiedModel, getEngineModel, renderModelName } from '../../../services/model/model.js'
 import { commandOutputRow } from '../../../rows/project.js'
 import { recordTranscript } from '../../../utils/sessionStorage/writer.js'
 import { logForDebugging } from '../../../utils/debug.js'
@@ -15,13 +15,19 @@ function run(ports: RunnerPorts): BootMade<'injectModelSwitchBreadcrumbs' | 'app
     const stored = getSettingsWithSources().sources.find(source => source.source === 'userSettings')?.settings.engine?.model
     return stored === undefined || stored === '' ? null : parseUserSpecifiedModel(stored)
   }
-  const injectModelSwitchBreadcrumbs = async (toModel: string, fromModel: string, words?: string): Promise<void> => {
+  const injectModelSwitchBreadcrumbs = async (toModel: string, fromModel: string, words?: string, replacedDefault?: string): Promise<void> => {
     const { createModelSwitchBreadcrumbs, switchClockWords } = await import('../../../utils/messages/factories.js')
-    const displayOf = (model: string): string => ports.modelInfos.find(info => info.value === model)?.display_name ?? model
+    const displayOf = (model: string): string => ports.modelInfos.find(info => info.value === model)?.display_name ?? renderModelName(model)
+    const saved = savedDefaultModel() === toModel
+    const replaced =
+      saved && replacedDefault !== undefined && replacedDefault !== fromModel && replacedDefault !== toModel
+        ? { replacedDefaultModel: replacedDefault, replacedDefaultDisplay: displayOf(replacedDefault) }
+        : {}
     const breadcrumbs = createModelSwitchBreadcrumbs(words ?? toModel, displayOf(toModel), {
       previousModel: fromModel,
       previousDisplay: displayOf(fromModel),
-      savedAsDefault: savedDefaultModel() === toModel,
+      savedAsDefault: saved,
+      ...replaced,
       model: toModel,
       ...(words === undefined ? {} : { words }),
       at: switchClockWords(new Date()),
@@ -48,14 +54,14 @@ function run(ports: RunnerPorts): BootMade<'injectModelSwitchBreadcrumbs' | 'app
     })
   }
 
-  const applySeatModel = async (model: string, words?: string): Promise<void> => {
+  const applySeatModel = async (model: string, words?: string, replacedDefault?: string): Promise<void> => {
     const previous = live.activeModel ?? getEngineModel()
     live.activeModel = model
     setEngineModelOverride(model)
     setFlagEnv('MERCURY_MODEL', model)
     saveSessionModel(model)
     if (model !== previous) {
-      await injectModelSwitchBreadcrumbs(model, previous, words)
+      await injectModelSwitchBreadcrumbs(model, previous, words, replacedDefault)
       if (getSettingsWithSources().effective.memory?.tellEngineSwitch === true) await tellSeatEngineSwitch(model)
     }
   }

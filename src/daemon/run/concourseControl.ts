@@ -35,7 +35,7 @@ function dropSelfWakesAtFlip(sessionId: string, by: string, why: SaturnSelfWakeD
 }
 
 export function makeConcourseControl(state: DaemonRunState, { concourseDispatchHandler }: ConcourseControlNeeds): ConcourseControlDoor {
-  return async ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, words, effort, mode, contract, kitEdit, mcpAction, mcpServer, scheduleEdit, spawnSwitch, terminalApplication, clientOpId, mintedAtMs, title, titleSource, agentId, note, clientMessageId, paused, boardPost }) => {
+  return async ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, words, replacedDefault, effort, mode, contract, kitEdit, mcpAction, mcpServer, scheduleEdit, spawnSwitch, terminalApplication, clientOpId, mintedAtMs, title, titleSource, agentId, note, clientMessageId, paused, boardPost }) => {
     const roster = state.roster
     void reason
     if (clientOpId !== undefined) {
@@ -159,7 +159,7 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
     }
     if (action === SESSION_VERBS.setModel.daemon.action) {
       if (model === undefined || model === '') return { outcome: 'refused' as const, detail: `${SESSION_VERBS.setModel.daemon.action} requires model` }
-      return roster !== null ? await setSessionModel(sessionId, model, roster, undefined, words) : { outcome: 'refused' as const, detail: 'daemon roster not ready' }
+      return roster !== null ? await setSessionModel(sessionId, model, roster, undefined, words, replacedDefault) : { outcome: 'refused' as const, detail: 'daemon roster not ready' }
     }
     if (action === SESSION_VERBS.setEffort.daemon.action) {
       if (effort === undefined || effort === '') return { outcome: 'refused' as const, detail: `${SESSION_VERBS.setEffort.daemon.action} requires effort` }
