@@ -208,7 +208,7 @@ try {
     check(mode + ' unrelated pid still obeys deny rule', denied.behavior === 'deny', denied.message)
     for (const path of [join(project, 'dist/file'), join(project, 'runtime/file'), join(home, '.mercury/runtime-notes/file')]) {
       const verdict = await decide(FileWriteTool, { file_path: path, content: 'x' }, mode, { allow: ['Write'] })
-      check(mode + ' near-miss is not the running runtime', verdict.behavior === (path.includes('.mercury/runtime-notes') && mode !== 'sovereign' ? 'ask' : 'allow'), verdict.message)
+      check(mode + ' near-miss is not the running runtime', verdict.behavior === (path.replaceAll('\\', '/').includes('.mercury/runtime-notes') && mode !== 'sovereign' ? 'ask' : 'allow'), verdict.message)
     }
     const read = await decide(FileReadTool, { file_path: exe }, mode, { allow: ['Read'] })
     check(mode + ' runtime remains readable', read.behavior === 'allow', read.message)

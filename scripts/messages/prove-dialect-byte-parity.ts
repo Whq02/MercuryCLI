@@ -3,11 +3,12 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { DIALECT_CONVERSATION, TWO_MODEL_COMPACTION, FIXTURE_TOOLS, STRUCTURED_OUTPUT_ASK, canonicalJson } from './dialectFixture.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const recording = process.argv[2] === '--record'
-const checkout = new URL('../..', import.meta.url).pathname
+const checkout = fileURLToPath(new URL('../..', import.meta.url))
 assert.ok(!recording || (process.argv[3] && process.argv[4]), 'record with --record <archived-source/base> <committed-revision>')
 const root = resolve(recording ? process.argv[3]! : checkout)
 const git = (...args: string[]): string => execFileSync('git', ['-C', checkout, ...args], { encoding: 'utf8', maxBuffer: 1 << 26 }).trim()
