@@ -101,6 +101,10 @@ await run({ op: 'open', url: `${A.origin}/opener` })
 
 currentTag = 'plain-redir'
 await run({ op: 'click', selector: '#plain-redir' })
+const redirectDeadline = Date.now() + 10_000
+while (!hits.some(hit => hit.tag === 'plain-redir' && hit.path === '/detect') && Date.now() < redirectDeadline) {
+  await Bun.sleep(10)
+}
 currentTag = 'reset'
 await run({ op: 'open', url: `${A.origin}/opener` })
 
