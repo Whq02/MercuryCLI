@@ -208,7 +208,8 @@ needs up front, and read `error.message` beside `answer` on an outcome that is
 not `completed`. Under `--mode flow` everything runs except five things, which
 a hostless run refuses in one sentence naming the item (`sudo`, a `git push` or
 history rewrite, a publish or deploy, a delete or overwrite outside the project
-and the temp folders, your own ask rules); a run with a host puts those five to
+(the temp folders and this run's own scratch aside), your own ask rules); a run
+with a host puts those five to
 the host and runs the rest. If a later tool call in the same turn succeeds, the turn
 recovers and finishes `completed` (exit 0) with a warning `notice` (`"<Tool> was
 not approved; the run continued with other tools."`). A refusal you did answer

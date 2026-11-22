@@ -110,7 +110,7 @@ check('the law keeps the loop reminder first and explains the reminder blocks (F
 check('on TensorFold the law keeps the batching sentence (FACTS T11)', system.includes(BATCH) && !system.includes(ONE_CALL))
 check('RED ON A TREE WITHOUT THE PROFILE: the local prompt is not the cloud composition (neither constitution rides)', !system.includes(firstLine(MERCURY_HEADLESS_CONSTITUTION)) && !system.includes(firstLine(MERCURY_CONSTITUTION)))
 check('the cloud-only sections are gone (model currency, the harness map)', !system.includes('Model currency:') && !system.includes('# Mercury harness map'))
-check('the unattended posture rides in the profile\'s words and names how to load AskUserQuestion', system.includes(LOCAL_POSTURE_WORDS.unattended) && LOCAL_POSTURE_WORDS.unattended.includes('select:AskUserQuestion'))
+check('the unattended posture rides in the profile\'s words and does not send the model to AskUserQuestion', system.includes(LOCAL_POSTURE_WORDS.unattended) && !LOCAL_POSTURE_WORDS.unattended.includes('AskUserQuestion'))
 check(`the local system prompt stays under its ceiling (${CEILINGS.system} B)`, systemBytes <= CEILINGS.system, `${systemBytes} B`)
 check(`the local tool array stays under its ceiling (${CEILINGS.tools} B)`, toolBytes > 0 && toolBytes <= CEILINGS.tools, `${toolBytes} B`)
 check('the tools term is the core seven in pool order', first !== undefined && toolNamesOf(first).join(',') === CORE.join(','), first ? toolNamesOf(first).join(',') : 'no request')

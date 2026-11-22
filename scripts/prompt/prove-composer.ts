@@ -192,7 +192,7 @@ section('main and sub-agent instructions match the available interaction model')
     const headless = (await getSystemPrompt(tools, 'claude-fable-5-1')).join('\n\n')
     check('headless guidance names no interactive-only command', !headless.includes('/kill') && !headless.includes('starts with `!`'), 'remove /kill and the starts-with-! text from the headless prompt built by getSystemPrompt in src/constants/prompts.ts')
     const askMentions = headless.split('AskUserQuestion').length - 1
-    check('the question tool is named once in the headless prompt, on the posture line as the road to a blocked outcome, with no ask hint', askMentions === 1 && /still ask through AskUserQuestion and end your turn: that unanswered question ends the run as blocked/.test(headless) && !/use AskUserQuestion to ask rather than guessing/.test(headless), String(askMentions) + ' mentions; the headless prompt from getSystemPrompt in src/constants/prompts.ts must name AskUserQuestion once, on the posture line, with no use-it-to-ask hint')
+    check('the unattended headless prompt does not send the model to AskUserQuestion and states that human-requiring tools are not offered', askMentions === 0 && /tools that require a human are not offered/.test(headless) && !/still ask through AskUserQuestion/.test(headless) && !/use AskUserQuestion to ask rather than guessing/.test(headless), String(askMentions) + ' mentions; the unattended headless prompt from getSystemPrompt in src/constants/prompts.ts must not direct the model to AskUserQuestion')
     resetRuntimePostureForTest()
     setAskChannel('sdk')
     markSessionNonInteractive('default')

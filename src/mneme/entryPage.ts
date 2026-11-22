@@ -6,7 +6,7 @@ import { readPinnedStatus } from './mnemeFrontPage.js'
 import { readPins } from './mnemeUsage.js'
 import { lineagePath } from './paths.js'
 import type { LedgerEntry } from './types.js'
-import { gradeLines, HANDOFF_GRADE } from './memoryEvidence.js'
+import { gradeLines, handoffGrade } from './memoryEvidence.js'
 
 export const ENTRY_PAGE_HEADING = '# Lineage'
 export const FIRST_SESSION_LINE = 'First session of this work; no record.'
@@ -26,6 +26,7 @@ export function stampLocal(iso: string): string {
 
 export interface EntryPageOptions {
   journal?: () => { at: string; text: string } | null
+  now?: number | Date
 }
 
 function enginesLine(previous: readonly LedgerEntry[]): string | null {
@@ -93,10 +94,11 @@ export function composeEntryPage(projectKey: string, sessionId?: string, options
     lines.push(`The last session (${last.ordinal}, ${last.endedAt === null ? 'never closed' : `ended ${stampLocal(last.endedAt)}`}) ${NO_NOTE_LEFT}${below}.`)
   }
   if (lastNoted !== null && lastNoted.handoff !== null) {
-    lines.push('', `## The last note left (session ${lastNoted.ordinal}, ${stampLocal(lastNoted.handoff.at)})`, gradeLines(lastNoted.handoff.text, HANDOFF_GRADE))
+    const stamped = lastNoted.handoff.at.trim() ? `, ${stampLocal(lastNoted.handoff.at)}` : ''
+    lines.push('', `## The last note left (session ${lastNoted.ordinal}${stamped})`, gradeLines(lastNoted.handoff.text, handoffGrade(lastNoted.handoff.at, options.now)))
   }
   if (journal !== null) {
-    lines.push('', `## The journal's last entry (${stampLocal(journal.at)}${journalSession !== null ? `, session ${journalSession.ordinal}'s own account — not a note left for you` : " — the model's own account, not a note left for you"})`, gradeLines(journal.text, HANDOFF_GRADE))
+    lines.push('', `## The journal's last entry (${stampLocal(journal.at)}${journalSession !== null ? `, session ${journalSession.ordinal}'s own account — not a note left for you` : " — the model's own account, not a note left for you"})`, gradeLines(journal.text, handoffGrade(journal.at, options.now)))
   }
   return lines.join('\n')
 }
