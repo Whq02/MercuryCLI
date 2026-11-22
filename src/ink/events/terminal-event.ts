@@ -1,48 +1,50 @@
 import { Event } from './event.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
-export type EventTarget = Unbuilt
+export type EventTarget = {
+  parentNode: EventTarget | undefined
+  _eventHandlers?: Record<string, unknown>
+}
 
-type EventPhase = Unbuilt
+type EventPhase = 'none' | 'capturing' | 'at_target' | 'bubbling'
 
 export class TerminalEvent extends Event {
   readonly type: string
   readonly timeStamp: number
-  readonly bubbles: boolean = unbuilt('src/ink/events/terminal-event.ts:14')
-  readonly cancelable: boolean = unbuilt('src/ink/events/terminal-event.ts:15')
-  target: EventTarget | null = unbuilt('src/ink/events/terminal-event.ts:16')
-  currentTarget: EventTarget | null = unbuilt('src/ink/events/terminal-event.ts:17')
-  eventPhase: EventPhase = unbuilt('src/ink/events/terminal-event.ts:18')
-  defaultPrevented: boolean = unbuilt('src/ink/events/terminal-event.ts:19')
+  readonly bubbles: boolean = true
+  readonly cancelable: boolean = true
+  target: EventTarget | null = null
+  currentTarget: EventTarget | null = null
+  eventPhase: EventPhase = 'none'
+  defaultPrevented = false
 
-  private _propagationStopped: boolean = unbuilt('src/ink/events/terminal-event.ts:21')
+  private _propagationStopped = false
 
   constructor(type: string) {
-    notBuilt('src/ink/events/terminal-event.ts:23')
-    super(...(notBuilt('src/ink/events/terminal-event.ts:23') as ConstructorParameters<typeof Event>))
+    super()
+    this.type = type
+    this.timeStamp = performance.now()
   }
 
   stopPropagation(): void {
-    return notBuilt('src/ink/events/terminal-event.ts:29')
+    this._propagationStopped = true
   }
 
   override stopImmediatePropagation(): void {
-    return notBuilt('src/ink/events/terminal-event.ts:33')
+    super.stopImmediatePropagation()
+    this._propagationStopped = true
   }
 
   preventDefault(): void {
-    return notBuilt('src/ink/events/terminal-event.ts:38')
+    if (this.cancelable) this.defaultPrevented = true
   }
 
   isPropagationStopped(): boolean {
-    return notBuilt('src/ink/events/terminal-event.ts:43')
+    return this._propagationStopped
   }
 
   isImmediatePropagationStopped(): boolean {
-    return notBuilt('src/ink/events/terminal-event.ts:47')
+    return this.didStopImmediatePropagation()
   }
 
-  prepareForNode(_node: EventTarget): void {
-    return notBuilt('src/ink/events/terminal-event.ts:51')
-  }
+  prepareForNode(_node: EventTarget): void {}
 }
