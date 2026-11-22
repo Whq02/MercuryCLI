@@ -10,7 +10,7 @@ The eight skills in this directory compile into the Mercury build. Each director
 | `image-generation` | generates and edits images or video via `mercury-media`, reading live tool schemas and installed model rows |
 | `mcp-smithy` | builds an MCP server around a focused tool contract, proves it with the SDK client, and registers it with `mercury mcp add` when asked |
 | `provider-apis` | maps Mercury's provider roads (Anthropic Messages, OpenAI Responses, chat-completions and native codecs) with replay, caching, usage and proof invariants |
-| `research` | researches paper/document corpora with page-level evidence, `Document` OCR/inspection, adaptive search and cited deliverables |
+| `research` | researches paper/document corpora with page-level evidence, `Document` creation/inspection, adaptive search and cited deliverables |
 | `skill-forge` | writes or repairs a Mercury `SKILL.md`, checking discovery, hint behavior and expansion through the real loader |
 
 ## Editing and regenerating
