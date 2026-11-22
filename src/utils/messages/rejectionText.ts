@@ -1,22 +1,21 @@
 export * from './turnCut.js'
 import { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE, isInterruptedResultText } from './turnCut.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
-export const DENIAL_WORKAROUND_GUIDANCE: Unbuilt =
-  unbuilt('src/utils/messages/rejectionText.ts:7')
+export const DENIAL_WORKAROUND_GUIDANCE =
+  'Do not try to reach the same effect by another route. If the task cannot continue without this action, stop and say plainly what was not run and why the task needs it, then wait for the operator.'
 
-export const CANCEL_MESSAGE: Unbuilt =
-  unbuilt('src/utils/messages/rejectionText.ts:11')
+export const CANCEL_MESSAGE =
+  'The operator stopped this action before it ran; nothing was changed. Stop what you are doing and wait for the operator to say how to proceed.'
 
 
-export const REJECT_MESSAGE: Unbuilt =
-  unbuilt('src/utils/messages/rejectionText.ts:15')
-export const REJECT_MESSAGE_WITH_REASON_PREFIX: Unbuilt =
-  unbuilt('src/utils/messages/rejectionText.ts:17')
-export const SUBAGENT_REJECT_MESSAGE: Unbuilt =
-  unbuilt('src/utils/messages/rejectionText.ts:19')
-export const SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX: Unbuilt =
-  unbuilt('src/utils/messages/rejectionText.ts:21')
+export const REJECT_MESSAGE =
+  `The operator declined this tool call; it was not run and nothing was changed. ${DENIAL_WORKAROUND_GUIDANCE}`
+export const REJECT_MESSAGE_WITH_REASON_PREFIX =
+  'The operator declined this tool call; it was not run and nothing was changed. The operator said:\n'
+export const SUBAGENT_REJECT_MESSAGE =
+  `Permission for this tool call was declined; it was not run and nothing was changed. ${DENIAL_WORKAROUND_GUIDANCE}`
+export const SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX =
+  'Permission for this tool call was declined; it was not run and nothing was changed. The operator said:\n'
 
 const DENIAL_SENTENCES_ON_DISK = [
   "The user doesn't want to proceed with this tool use.",
@@ -27,10 +26,10 @@ const DENIAL_SENTENCES_ON_DISK = [
 ]
 
 export function AUTO_REJECT_MESSAGE(toolName: string): string {
-  return notBuilt('src/utils/messages/rejectionText.ts:32')
+  return `Permission to use ${toolName} has been denied: this session cannot show the operator a consent card, so the action was not run. The operator can allow it with a permission rule for ${toolName}, or by running the session interactively and approving it there. ${DENIAL_WORKAROUND_GUIDANCE}`
 }
 export function DONT_ASK_REJECT_MESSAGE(toolName: string): string {
-  return notBuilt('src/utils/messages/rejectionText.ts:39')
+  return `Permission to use ${toolName} has been denied because Mercury is running in don't ask mode: nothing that needs approval runs in this mode. ${DENIAL_WORKAROUND_GUIDANCE}`
 }
 export function UNANSWERED_ASK_REJECT_MESSAGE(toolName: string, cause: string): string {
   return (
@@ -84,10 +83,10 @@ export function denialLineOf(raw: string): string {
   return end === -1 ? text : text.slice(0, end + 1)
 }
 
-export const NO_RESPONSE_REQUESTED: Unbuilt = unbuilt('src/utils/messages/rejectionText.ts:97')
+export const NO_RESPONSE_REQUESTED = 'No response requested.'
 
-export const SYNTHETIC_TOOL_RESULT_PLACEHOLDER: Unbuilt =
-  unbuilt('src/utils/messages/rejectionText.ts:99')
+export const SYNTHETIC_TOOL_RESULT_PLACEHOLDER =
+  'No result was recorded for this tool call. It is unknown whether it started or completed. Retry only if it is read-only or idempotent; if it may have side effects, first verify external state or ask the user. Do not retry blindly.'
 
 export const ENDED_RUN_TOOL_RESULT =
   'The previous run ended before this call returned a result; whether the call started or finished is not known.'
