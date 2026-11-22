@@ -8,3 +8,4 @@ prove-seccomp-pack.ts
 prove-brush-prepare-words.ts
 prove-windows-desktop-guide.ts
 prove-bundle-neutral-paths.ts
+prove-version-path-stays-light.ts
