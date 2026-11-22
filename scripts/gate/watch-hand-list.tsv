@@ -207,7 +207,7 @@ switchboard-drives	6	bundle,unseen
 task-durability	1	unseen
 tensorfold	13	deep,lazy,unseen
 tensorfold-drives	8	bundle,unseen
-terminal-boundary	12	bundle,deep,future,unseen
+terminal-boundary	12	bundle,deep,future,lazy,unseen
 terminal-boundary-drives	10	bundle,future,lazy,unseen
 tool-economy	8	deep
 tools	20	bundle,deep,lazy,unseen

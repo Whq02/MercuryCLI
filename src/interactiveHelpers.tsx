@@ -76,6 +76,14 @@ function completeOnboarding(): void {
   }))
 }
 
+function keepTerminalCheckContinued(kind: string): void {
+  saveGlobalConfig(current =>
+    current.terminalChecksContinued?.[kind]
+      ? current
+      : { ...current, terminalChecksContinued: { ...current.terminalChecksContinued, [kind]: true } },
+  )
+}
+
 
 function SetupGroundFill({ children }: { children: React.ReactNode }): React.ReactNode {
   const tokens = useMercuryTokens()
@@ -183,7 +191,7 @@ export async function showSetupScreens(
   let onboardingShown = false
 
   const resolution = resolveTerminalProfile()
-  if (resolution.verdict === 'unsupported') {
+  if (resolution.verdict === 'unsupported' && !getGlobalConfig().terminalChecksContinued?.[resolution.kind]) {
     const choice = await showSetupDialog<'exit' | 'continue'>(root, done => (
       <TerminalProfileCard resolution={resolution} onDone={done} />
     ))
@@ -200,6 +208,7 @@ export async function showSetupScreens(
         { exitCode: 1, plainLines: true },
       )
     }
+    if (resolveTerminalProfile().verdict === 'unsupported') keepTerminalCheckContinued(resolution.kind)
   }
 
   try {

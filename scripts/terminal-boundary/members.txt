@@ -1,3 +1,4 @@
 prove-machine-output-contract.ts
 prove-product-chrome.ts
 prove-querier-batch.ts
+prove-terminal-check-kept-answer.ts
