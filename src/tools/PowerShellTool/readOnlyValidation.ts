@@ -7,6 +7,7 @@ import {
   type ParsedPowerShellCommand,
   type ParsedCommandElement,
 } from '../../utils/permissions/decision/commandAnalysis.js'
+import { argumentTypeAt } from '../../utils/powershell/parser.js'
 
 type ParsedStatement = ParsedPowerShellCommand['statements'][number]
 import {
@@ -56,11 +57,10 @@ const argLeakCallback = (command: string, element?: ParsedCommandElement): boole
 
 function rejectsPositional(_command: string, element?: ParsedCommandElement): boolean {
   if (!element) return true
-  const types = element.elementTypes
   for (let i = 0; i < element.args.length; i++) {
     const arg = element.args[i] as string
     if (!PS_DASH_RE.test(arg[0] ?? '') && arg[0] !== '/') {
-      if (types && types[i] === 'Parameter') continue
+      if (argumentTypeAt(element, i) === 'Parameter') continue
       return true
     }
   }
@@ -159,18 +159,16 @@ const LEAK_METACHARS = /[$(@{[]/
 
 
 export function argLeaksValue(_command: string, element?: ParsedCommandElement): boolean {
-  if (!element) return false
-  const types = element.elementTypes
-  if (!types) return false
+  if (!element?.elementTypes) return false
   for (let i = 0; i < element.args.length; i++) {
-    if (argumentLeaks(element, types, i)) return true
+    if (argumentLeaks(element, i)) return true
   }
   return false
 }
 
-function argumentLeaks(element: ParsedCommandElement, types: readonly (string | undefined)[], i: number): boolean {
+function argumentLeaks(element: ParsedCommandElement, i: number): boolean {
   const arg = element.args[i] as string
-  const type = types[i]
+  const type = argumentTypeAt(element, i)
   if (type !== 'StringConstant' && type !== 'Parameter') {
     if (LEAK_METACHARS.test(arg)) return true
   }
@@ -201,7 +199,7 @@ export function isAllowlistedCommand(element: ParsedCommandElement, originalComm
   if (!types) return false
   for (let i = 0; i < element.args.length; i++) {
     const arg = element.args[i] as string
-    const type = types[i]
+    const type = argumentTypeAt(element, i)
     if (type !== 'StringConstant' && type !== 'Parameter') {
       if (LEAK_METACHARS.test(arg)) return false
     }
@@ -230,7 +228,7 @@ function validatePsFlags(canonical: string, element: ParsedCommandElement, confi
   for (let i = 0; i < element.args.length; i++) {
     const arg = element.args[i] as string
     const isParam = isCmdlet
-      ? (types ? types[i] === 'Parameter' : isPowerShellParameter(arg))
+      ? (types ? argumentTypeAt(element, i) === 'Parameter' : isPowerShellParameter(arg))
       : arg.startsWith('-') || (getPlatform() === 'windows' && arg.startsWith('/'))
     if (!isParam) continue
     if (!safeFlags || safeFlags.length === 0) return false

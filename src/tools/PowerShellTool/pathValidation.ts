@@ -10,6 +10,7 @@ import {
   type ParsedPowerShellCommand,
   type ParsedCommandElement,
 } from '../../utils/permissions/decision/commandAnalysis.js'
+import { argumentTypeAt } from '../../utils/powershell/parser.js'
 import {
   allWorkingDirectories,
   checkUncPathPermission,
@@ -129,13 +130,16 @@ function extractPaths(element: ParsedCommandElement): ExtractResult {
   const paths: string[] = []
   let unvalidatable = false
   const types = element.elementTypes
-  const safeType = (i: number): boolean => !types || types[i] === 'StringConstant' || types[i] === 'Parameter'
+  const safeType = (i: number): boolean => {
+    const type = argumentTypeAt(element, i)
+    return !types || type === 'StringConstant' || type === 'Parameter'
+  }
   let positionalSeen = 0
   const skip = config.positionalSkip ?? 0
 
   for (let i = 0; i < element.args.length; i++) {
     const raw = element.args[i] as string
-    const isParam = types ? types[i] === 'Parameter' : isPowerShellParameter(raw)
+    const isParam = types ? argumentTypeAt(element, i) === 'Parameter' : isPowerShellParameter(raw)
     if (isParam) {
       const norm = normDash(raw)
       const colon = norm.indexOf(':', 1)

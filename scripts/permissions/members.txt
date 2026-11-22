@@ -80,6 +80,7 @@ prove-powershell-command-sets.ts
 prove-powershell-dash-flags.ts
 prove-powershell-drive-operand.ts
 prove-powershell-git-internal-paths.ts
+prove-powershell-named-arguments.ts
 prove-powershell-statement-kind.ts
 prove-project-grant-persists.ts
 prove-provider-key-isolation.ts

@@ -38,7 +38,7 @@ if (await getCachedPowerShellPath() === null) {
     const name = words.shift() ?? ''
     if (!['Get-Content', 'Set-Content', 'Get-Location', 'Set-Location', 'git'].includes(name)) throw new Error(`Unexpected fixture command: ${text}`)
     const args = words.map(word => word.replace(/^'|'$/g, ''))
-    return { valid: true, statements: [{ statementType: 'pipeline', text, commands: [{ name, text, nameType: name === 'git' ? 'application' : 'cmdlet', args, elementType: 'command', elementTypes: args.map(() => 'StringConstant') }], nestedCommands: [], redirections: [] }], variables: [], errors: [], hasStopParsing: false, originalCommand: text }
+    return { valid: true, statements: [{ statementType: 'pipeline', text, commands: [{ name, text, nameType: name === 'git' ? 'application' : 'cmdlet', args, elementType: 'command', elementTypes: [name, ...args].map(() => 'StringConstant') }], nestedCommands: [], redirections: [] }], variables: [], errors: [], hasStopParsing: false, originalCommand: text }
   }
 }
 const project = join(scratch, 'project')

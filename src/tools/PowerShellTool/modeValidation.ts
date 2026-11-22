@@ -10,6 +10,7 @@ import {
   type ParsedPowerShellCommand,
   type ParsedCommandElement,
 } from '../../utils/permissions/decision/commandAnalysis.js'
+import { argumentTypeAt } from '../../utils/powershell/parser.js'
 import { modeBypassesPermissions } from '../../utils/permissions/PermissionMode.js'
 import {
   resolveToCanonical,
@@ -96,7 +97,7 @@ function checkCommand(command: ParsedCommandElement, _originalCommand: string, d
     const types = command.elementTypes
     if (types) {
       for (let i = 0; i < command.args.length; i++) {
-        const type = types[i]
+        const type = argumentTypeAt(command, i)
         const arg = command.args[i] as string
         if (type !== 'StringConstant' && type !== 'Parameter') {
           return pass('A variable path cannot be statically resolved.')
