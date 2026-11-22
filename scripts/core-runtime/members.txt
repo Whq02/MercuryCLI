@@ -69,3 +69,4 @@ prove-session-identity-behaviour.ts
 prove-semantic-number-behaviour.ts
 prove-warning-handler-behaviour.ts
 prove-argument-substitution-behaviour.ts
+prove-token-budget-behaviour.ts
