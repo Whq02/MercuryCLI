@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, renameSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import type { PathEntryIo, PathEntryOutcome, UserPathRead } from '../../src/services/privateChannel/installPath.js'
@@ -108,6 +108,8 @@ interface FakeOpts {
   failRead?: boolean
   failWrite?: string
   failFileWrite?: string
+  failRemove?: string
+  links?: string[]
   zdot?: string | null
 }
 function fakeIo(opts: FakeOpts) {
@@ -140,9 +142,13 @@ function fakeIo(opts: FakeOpts) {
       fileWrites.push(p)
     },
     removeFile: p => {
+      if (opts.failRemove !== undefined && p.endsWith(opts.failRemove)) {
+        throw Object.assign(new Error(`EACCES: permission denied, unlink '${p}'`), { code: 'EACCES' })
+      }
       files.delete(p)
       removals.push(p)
     },
+    isSymlink: p => (opts.links ?? []).includes(p),
     resolveCommand: () => {
       resolves++
       return opts.resolve ?? null
@@ -178,6 +184,7 @@ const winRoots: LayoutRoots = {
 }
 const P_LINE = 'export PATH="$HOME/.local/bin:$PATH"'
 const P_GUARD = `${shGuardedLine('$HOME/.local/bin')}\n`
+const P_MADE = `${shGuardedLine('$HOME/.local/bin', true)}\n`
 const STOCK_PROFILE = 'if [ -n "$BASH_VERSION" ]; then\n    if [ -f "$HOME/.bashrc" ]; then\n        . "$HOME/.bashrc"\n    fi\nfi\nif [ -d "$HOME/.local/bin" ] ; then\n    PATH="$HOME/.local/bin:$PATH"\nfi\n'
 const STOCK_BASHRC = 'case $- in\n    *i*) ;;\n      *) return;;\nesac\n'
 
@@ -208,7 +215,7 @@ else {
     check('the dry-run line names the act', describePathOutcome(plan, false, HOME_P) === `PATH: would add ${HOME_P}/.local/bin in ~/.zshrc`)
     const out = ensureBinDirOnPath(roots, f.io)
     check('zsh ⇒ written to ~/.zshrc, the current-shell line spelled with $HOME', out.state === 'written' && out.targets.join() === `${HOME_P}/.zshrc` && out.line === P_LINE)
-    check('the file holds exactly the guarded line with the sentinel', f.files.get(`${HOME_P}/.zshrc`) === P_GUARD && count(P_GUARD, PATH_SENTINEL) === 1)
+    check('the file install made holds exactly the guarded line, which says that install made the file and ends with the one sentinel', f.files.get(`${HOME_P}/.zshrc`) === P_MADE && P_MADE !== P_GUARD && P_MADE.trimEnd().endsWith(`# ${PATH_SENTINEL}`) && count(P_MADE, PATH_SENTINEL) === 1 && count(P_GUARD, PATH_SENTINEL) === 1, f.files.get(`${HOME_P}/.zshrc`))
     check('the written line reads as one sentence', describePathOutcome(out, false, HOME_P) === `PATH: added ${HOME_P}/.local/bin in ~/.zshrc — open a new terminal, or run: ${P_LINE}`)
     check('the rest of this run sees the folder first on PATH', (f.io.env.PATH ?? '').startsWith(`${HOME_P}/.local/bin:`))
     const guard = shGuardedLine('$HOME/.local/bin')
@@ -222,7 +229,7 @@ else {
     check('the same line behaves under zsh', zshOnce === once, zshOnce)
     f.io.env.PATH = '/usr/bin:/bin'
     const again = ensureBinDirOnPath(roots, f.io)
-    check('a second run ⇒ present (the sentinel), the file untouched', again.state === 'present' && f.appends.length === 1 && f.files.get(`${HOME_P}/.zshrc`) === P_GUARD)
+    check('a second run ⇒ present (the sentinel), the file untouched', again.state === 'present' && f.appends.length === 1 && f.files.get(`${HOME_P}/.zshrc`) === P_MADE)
     check('the present line on a first install points at a new terminal', describePathOutcome(again, false, HOME_P) === `PATH: ~/.zshrc already names ${HOME_P}/.local/bin — open a new terminal, or run: ${P_LINE}`)
     check('the present line on a repeat install says the folder is already on PATH and gives no advice', describePathOutcome(again, false, HOME_P, true) === `PATH: ${HOME_P}/.local/bin is already on your PATH — ~/.zshrc names it`)
   }
@@ -276,7 +283,7 @@ else {
       check(`${what} ⇒ the plan names ${wrote.length > 0 ? tilde(wrote) : 'no file'} and writes nothing`, (wrote.length > 0 ? plan.state === 'would-write' && plan.targets.join() === wrote.map(at).join() : plan.state === 'present') && f.appends.length === 0, `${plan.state} ${'targets' in plan ? plan.targets.join() : ''}`)
       const out = ensureBinDirOnPath(roots, f.io)
       if (wrote.length > 0) {
-        check(`… ⇒ the line goes to ${tilde(wrote)}, the file a new terminal reads that did not name the folder`, out.state === 'written' && out.targets.join() === wrote.map(at).join() && wrote.every(name => f.files.get(at(name)) === `${had[name] ?? ''}${P_GUARD}`), `${out.state} ${'targets' in out ? out.targets.join() : ''}`)
+        check(`… ⇒ the line goes to ${tilde(wrote)}, the file a new terminal reads that did not name the folder`, out.state === 'written' && out.targets.join() === wrote.map(at).join() && wrote.every(name => f.files.get(at(name)) === (name in had ? `${had[name]}${P_GUARD}` : P_MADE)), `${out.state} ${'targets' in out ? out.targets.join() : ''}`)
         check('… the printed line names the file it wrote', describePathOutcome(out, false, HOME_P) === `PATH: added ${HOME_P}/.local/bin in ${tilde(wrote)} — open a new terminal, or run: ${P_LINE}`, describePathOutcome(out, false, HOME_P))
       } else {
         check('… ⇒ present, nothing written', out.state === 'present' && out.targets.join() === `${at('.bashrc')},${at('.profile')}` && f.appends.length === 0, out.state)
@@ -286,7 +293,7 @@ else {
       const again = ensureBinDirOnPath(roots, f.io)
       check('… a second install changes nothing', again.state === 'present' && f.appends.length === wrote.length, again.state)
       const un = removeBinDirFromPath(roots, f.io)
-      check('… the uninstall leaves every file the user had as before the install, and the line in none', (wrote.length > 0 ? un.state === 'removed' && un.targets.join() === wrote.map(at).join() : un.state === 'absent') && asHad(Object.keys(had)) && [...f.files.values()].every(text => !text.includes(PATH_SENTINEL)), `${un.state} ${'targets' in un ? un.targets.join() : ''}`)
+      check('… the uninstall leaves the startup files as before the install: every file the user had byte-identical, a file install made gone', (wrote.length > 0 ? un.state === 'removed' && un.targets.join() === wrote.map(at).join() : un.state === 'absent') && asHad(Object.keys(had)) && f.files.size === Object.keys(had).length, `${un.state} ${'targets' in un ? un.targets.join() : ''} · ${[...f.files.keys()].join()}`)
     }
   }
   {
@@ -334,7 +341,7 @@ if (!IS_WIN) {
   {
     const f = fakeIo({ home: HOME_P, env: { SHELL: '/bin/zsh', ZDOTDIR: `${HOME_P}/.config/zsh` } })
     const out = ensureBinDirOnPath(roots, f.io)
-    check('an exported ZDOTDIR ⇒ the line goes to $ZDOTDIR/.zshrc, and zsh is not asked', out.state === 'written' && out.targets.join() === `${HOME_P}/.config/zsh/.zshrc` && f.files.get(`${HOME_P}/.config/zsh/.zshrc`) === P_GUARD && !f.files.has(`${HOME_P}/.zshrc`) && f.zdotAsks() === 0)
+    check('an exported ZDOTDIR ⇒ the line goes to $ZDOTDIR/.zshrc, and zsh is not asked', out.state === 'written' && out.targets.join() === `${HOME_P}/.config/zsh/.zshrc` && f.files.get(`${HOME_P}/.config/zsh/.zshrc`) === P_MADE && !f.files.has(`${HOME_P}/.zshrc`) && f.zdotAsks() === 0)
     check('the written line names the real file', describePathOutcome(out, false, HOME_P) === `PATH: added ${HOME_P}/.local/bin in ~/.config/zsh/.zshrc — open a new terminal, or run: ${P_LINE}`)
     f.io.env.PATH = '/usr/bin:/bin'
     check('a second run reads the same file ⇒ present', ensureBinDirOnPath(roots, f.io).state === 'present')
@@ -374,7 +381,7 @@ if (!IS_WIN) {
   {
     const f = fakeIo({ home: HOME_P, env: { SHELL: '/bin/bash' }, files: { [`${HOME_P}/.bashrc`]: P_GUARD, [`${HOME_P}/.profile`]: `# mine\n${P_GUARD}` } })
     const out = removeBinDirFromPath(roots, f.io)
-    check('bash: both files lose the line', out.state === 'removed' && out.targets.join() === `${HOME_P}/.bashrc,${HOME_P}/.profile` && f.files.get(`${HOME_P}/.bashrc`) === '' && f.files.get(`${HOME_P}/.profile`) === '# mine\n')
+    check('bash: both files lose the line; a file that held only the plain line is left empty, for that line does not say who made the file', out.state === 'removed' && out.targets.join() === `${HOME_P}/.bashrc,${HOME_P}/.profile` && f.files.get(`${HOME_P}/.bashrc`) === '' && f.files.get(`${HOME_P}/.profile`) === '# mine\n')
     check('the removal line names both files', describePathRemoval(out, false, HOME_P) === 'removed: the PATH line in ~/.bashrc and ~/.profile')
   }
   {
@@ -399,6 +406,59 @@ if (!IS_WIN) {
     const out = removeBinDirFromPath(roots, f.io)
     check('a file that cannot be written ⇒ refused, the file and the error named', out.state === 'refused' && out.reason.includes('could not write ~/.zshrc') && out.reason.includes('EACCES'))
     check('the refusal is a note that says the folder is still on PATH', describePathRemoval(out, false, HOME_P) === `note: ${HOME_P}/.local/bin is still on your PATH — ${out.reason}`)
+  }
+  {
+    const zshrc = `${HOME_P}/.zshrc`
+    const made = (shell: string, more: Partial<FakeOpts> = {}) => {
+      const f = fakeIo({ home: HOME_P, env: { SHELL: shell }, ...more })
+      ensureBinDirOnPath(roots, f.io)
+      return f
+    }
+    {
+      const f = made('/bin/zsh')
+      const out = removeBinDirFromPath(roots, f.io)
+      check('a startup file install made, holding nothing but its line, is removed with the line', out.state === 'removed' && out.targets.join() === zshrc && f.removals.join() === zshrc && !f.files.has(zshrc) && f.fileWrites.length === 0, `${out.state} · removed ${f.removals.join()} · written ${f.fileWrites.join()}`)
+      check('… and the removal line reads as it did', describePathRemoval(out, false, HOME_P) === 'removed: the PATH line in ~/.zshrc')
+    }
+    {
+      const f = made('/bin/bash')
+      const out = removeBinDirFromPath(roots, f.io)
+      check('bash on a home with no startup file: both files install made are removed', out.state === 'removed' && f.removals.join() === `${HOME_P}/.bashrc,${HOME_P}/.profile` && f.files.size === 0, `${out.state} · removed ${f.removals.join()}`)
+    }
+    {
+      const f = made('/bin/zsh')
+      f.files.set(zshrc, `${f.files.get(zshrc) ?? ''}export EDITOR=vi\n`)
+      const out = removeBinDirFromPath(roots, f.io)
+      check('a file install made that holds anything else is kept: the line goes, the rest stays', out.state === 'removed' && f.files.get(zshrc) === 'export EDITOR=vi\n' && f.removals.length === 0, `${out.state} · removed ${f.removals.join()}`)
+    }
+    {
+      const f = made('/bin/zsh')
+      f.files.set(zshrc, `\n${f.files.get(zshrc) ?? ''}\n`)
+      const out = removeBinDirFromPath(roots, f.io)
+      check('blank lines are nothing else: the file install made is removed', out.state === 'removed' && !f.files.has(zshrc) && f.removals.join() === zshrc, `${out.state} · removed ${f.removals.join()}`)
+    }
+    {
+      const f = made('/bin/zsh', { files: { [zshrc]: '' } })
+      check('an empty file the user had gets the plain line: install did not make it', f.files.get(zshrc) === P_GUARD, f.files.get(zshrc))
+      const out = removeBinDirFromPath(roots, f.io)
+      check('… and is never removed: the line goes and the file stays, empty as it was', out.state === 'removed' && f.files.get(zshrc) === '' && f.removals.length === 0, `${out.state} · removed ${f.removals.join()}`)
+    }
+    {
+      const f = made('/bin/zsh', { failRemove: '.zshrc' })
+      const out = removeBinDirFromPath(roots, f.io)
+      check('a file install made that cannot be removed loses its line as before: the file is written without it', out.state === 'removed' && out.targets.join() === zshrc && f.files.get(zshrc) === '' && f.fileWrites.join() === zshrc, `${out.state === 'refused' ? out.reason : out.state} · written ${f.fileWrites.join()}`)
+      check('… and the removal line reads as it did', describePathRemoval(out, false, HOME_P) === 'removed: the PATH line in ~/.zshrc')
+    }
+    {
+      const f = made('/bin/zsh', { failRemove: '.zshrc', failFileWrite: '.zshrc' })
+      const out = removeBinDirFromPath(roots, f.io)
+      check('… and one that can be neither removed nor written ⇒ refused in the words of a failed write', out.state === 'refused' && out.reason.includes('could not write ~/.zshrc') && out.reason.includes('EACCES'), out.state === 'refused' ? out.reason : out.state)
+    }
+    {
+      const f = made('/bin/zsh', { links: [zshrc] })
+      const out = removeBinDirFromPath(roots, f.io)
+      check('a file install made that is a link by now is the user\'s: never removed, the line goes out through it', out.state === 'removed' && f.files.get(zshrc) === '' && f.removals.length === 0 && f.fileWrites.join() === zshrc, `${out.state} · removed ${f.removals.join()} · written ${f.fileWrites.join()}`)
+    }
   }
 }
 
@@ -620,7 +680,7 @@ if (IS_WIN) {
       check('install says it added the folder in ~/.zshrc and names the current-shell line', r.stdout.includes(`PATH: added ${bin} in ~/.zshrc — open a new terminal, or run: ${P_LINE}`), r.stdout)
       check('the old moot note is gone', !r.stdout.includes('to your PATH to use'))
       const zshrc = existsSync(join(h, '.zshrc')) ? readFileSync(join(h, '.zshrc'), 'utf8') : ''
-      check('~/.zshrc holds exactly the one guarded line', zshrc === P_GUARD)
+      check('~/.zshrc holds exactly the one guarded line', zshrc === P_MADE)
       check('the line names the stable folder, never a version directory', zshrc.includes('$HOME/.local/bin') && !zshrc.includes('versions'))
       if (has('zsh')) {
         check('a NEW interactive login zsh finds mercury (the stable command)', newShell('zsh', '-il', h) === join(bin, 'mercury'), newShell('zsh', '-il', h))
@@ -777,14 +837,14 @@ if (IS_WIN) {
       writeFileSync(join(h, '.zshenv'), `ZDOTDIR=${JSON.stringify(zdot)}\n`)
       const r = run(['install', '--allow-unsigned'], h, '/bin/zsh')
       check('f01: with ZDOTDIR set in ~/.zshenv (not exported), install writes $ZDOTDIR/.zshrc and names it', r.code === 0 && r.stdout.includes(`PATH: added ${bin} in ~/.config/zsh/.zshrc`) && existsSync(join(zdot, '.zshrc')) && !existsSync(join(h, '.zshrc')), r.stdout.slice(0, 600))
-      check('f01: $ZDOTDIR/.zshrc holds exactly the one guarded line', readFileSync(join(zdot, '.zshrc'), 'utf8') === P_GUARD)
+      check('f01: $ZDOTDIR/.zshrc holds exactly the one guarded line', readFileSync(join(zdot, '.zshrc'), 'utf8') === P_MADE)
       if (has('zsh')) check('f01: a NEW interactive login zsh (reading ~/.zshenv) finds mercury', newShell('zsh', '-il', h) === join(bin, 'mercury'), newShell('zsh', '-il', h))
       const exported = home('zdot-exported')
       const exportedDot = join(exported, 'dotfiles', 'zsh')
       const e = run(['install', '--allow-unsigned'], exported, '/bin/zsh', { ZDOTDIR: exportedDot })
-      check('f01: an exported ZDOTDIR is the startup folder, created when absent', e.code === 0 && e.stdout.includes(`PATH: added ${join(exported, '.local', 'bin')} in ~/dotfiles/zsh/.zshrc`) && readFileSync(join(exportedDot, '.zshrc'), 'utf8') === P_GUARD, e.stdout.slice(0, 600))
+      check('f01: an exported ZDOTDIR is the startup folder, created when absent', e.code === 0 && e.stdout.includes(`PATH: added ${join(exported, '.local', 'bin')} in ~/dotfiles/zsh/.zshrc`) && readFileSync(join(exportedDot, '.zshrc'), 'utf8') === P_MADE, e.stdout.slice(0, 600))
       const un = run(['install', '--uninstall'], h, '/bin/zsh', {}, join(bin, 'mercury'))
-      check('f05: uninstall removes the PATH line it wrote and says so', un.code === 0 && un.stdout.includes('removed: the PATH line in ~/.config/zsh/.zshrc') && readFileSync(join(zdot, '.zshrc'), 'utf8') === '', un.stdout)
+      check('f05: uninstall removes the PATH line it wrote, and with it the file install had made, and says so', un.code === 0 && un.stdout.includes('removed: the PATH line in ~/.config/zsh/.zshrc') && !existsSync(join(zdot, '.zshrc')), un.stdout)
       check('f05: the stable command and the versions are gone with it', !existsSync(join(bin, 'mercury')) && !existsSync(join(h, '.mercury', 'versions')))
       const again = run(['install', '--uninstall'], h, '/bin/zsh')
       check('f05: a second uninstall has no PATH line to remove and says nothing about PATH', again.code === 0 && !again.stdout.includes('PATH'), again.stdout)
@@ -796,7 +856,7 @@ if (IS_WIN) {
       const r = run(['install', '--allow-unsigned'], h, '/bin/bash')
       check('bash: install writes ~/.bashrc and the existing ~/.profile', r.code === 0 && r.stdout.includes(`PATH: added ${bin} in ~/.bashrc and ~/.profile`), r.stdout.slice(0, 400))
       const un = run(['install', '--uninstall'], h, '/bin/bash', {}, join(bin, 'mercury'))
-      check('f05: uninstall takes the line out of both files and keeps the user\'s own lines', un.code === 0 && un.stdout.includes('removed: the PATH line in ~/.bashrc and ~/.profile') && readFileSync(join(h, '.profile'), 'utf8') === '# mine\nexport EDITOR=vi\n' && readFileSync(join(h, '.bashrc'), 'utf8') === '', un.stdout)
+      check('f05: uninstall takes the line out of both files, keeps the user\'s own lines and removes the ~/.bashrc install had made', un.code === 0 && un.stdout.includes('removed: the PATH line in ~/.bashrc and ~/.profile') && readFileSync(join(h, '.profile'), 'utf8') === '# mine\nexport EDITOR=vi\n' && !existsSync(join(h, '.bashrc')), un.stdout)
     }
     {
       const h = home('stock-ubuntu')
@@ -818,6 +878,26 @@ if (IS_WIN) {
       const r = run(['install', '--allow-unsigned'], h, '/bin/bash')
       check('~/.bashrc names the folder and ~/.bash_profile does not read it: install writes ~/.bash_profile alone and names it', r.code === 0 && r.stdout.includes(`PATH: added ${bin} in ~/.bash_profile — open a new terminal, or run: ${P_LINE}`) && readFileSync(join(h, '.bash_profile'), 'utf8') === `export EDITOR=vi\n${P_GUARD}` && readFileSync(join(h, '.bashrc'), 'utf8') === named, r.stdout.slice(0, 600))
       check('a NEW login bash (what Terminal and iTerm open on macOS) finds mercury', newShell('bash', '-il', h) === join(bin, 'mercury'), newShell('bash', '-il', h))
+    }
+    {
+      const h = home('made-zshrc')
+      const bin = join(h, '.local', 'bin')
+      const r = run(['install', '--allow-unsigned'], h, '/bin/zsh')
+      check('a home with no ~/.zshrc: install makes one holding its line', r.code === 0 && readFileSync(join(h, '.zshrc'), 'utf8') === P_MADE, r.stdout.slice(0, 400))
+      const un = run(['install', '--uninstall'], h, '/bin/zsh', {}, join(bin, 'mercury'))
+      check('… and the uninstall removes the file with the line: the home has no ~/.zshrc again', un.code === 0 && un.stdout.includes('removed: the PATH line in ~/.zshrc') && !existsSync(join(h, '.zshrc')), un.stdout)
+    }
+    {
+      const h = home('linked-zshrc')
+      const bin = join(h, '.local', 'bin')
+      const kept = join(h, 'dotfiles', 'zshrc')
+      const r = run(['install', '--allow-unsigned'], h, '/bin/zsh')
+      mkdirSync(join(h, 'dotfiles'))
+      renameSync(join(h, '.zshrc'), kept)
+      symlinkSync(kept, join(h, '.zshrc'))
+      const un = run(['install', '--uninstall'], h, '/bin/zsh', {}, join(bin, 'mercury'))
+      const linked = existsSync(kept) && lstatSync(join(h, '.zshrc'), { throwIfNoEntry: false })?.isSymbolicLink() === true
+      check('a ~/.zshrc the user has since made a link to their own file is never removed: the line goes out of that file and the link stays', r.code === 0 && un.code === 0 && linked && readFileSync(kept, 'utf8') === '', un.stdout)
     }
   }
 }
