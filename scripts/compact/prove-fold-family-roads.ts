@@ -632,7 +632,7 @@ section("§3 the stranger's road — a gateway carries it on the Anthropic diale
   check('first-party origin: the stranger\'s fold REFUSED (no result)', home.result === undefined && home.error !== undefined)
   check('first-party origin: no request reached any lane (refused before HTTP)', hitsAfter === 0, String(hitsAfter))
   check('first-party origin: the refusal names the id and says no family declares it', message.includes(stranger) && /not a model id any provider family declares/.test(message), message.slice(0, 300))
-  check('first-party origin: the refusal names the declared vocabulary and both earned roads (a model pin, a gateway base URL)', /claude-\*/.test(message) && /ANTHROPIC_\* model pin/.test(message) && /ANTHROPIC_BASE_URL/.test(message), message.slice(0, 400))
+  check('first-party origin: the refusal names the declared vocabulary and both earned roads (a model pin, a gateway base URL)', /claude-\*/.test(message) && /MERCURY_MODEL, MERCURY_DEFAULT_\*_MODEL or MERCURY_CUSTOM_MODEL_OPTION pin/.test(message) && /ANTHROPIC_BASE_URL/.test(message), message.slice(0, 400))
   check('first-party origin: the conversation stands untouched (read state intact)', home.readFileState.size === 1, String(home.readFileState.size))
 
   const beforeAbsence = shared.captured.length + census.captured.length
