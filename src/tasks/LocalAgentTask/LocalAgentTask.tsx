@@ -239,43 +239,7 @@ export function pauseAgentTask(
 }
 
 export function usageWindowPauseOf(messages: readonly Message[], model: string | null | undefined): AgentPauseV1 | null {
-  let last: Message | undefined
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i]!
-    if (message.type !== 'assistant') continue
-    last = message
-    break
-  }
-  if (last === undefined || last.type !== 'assistant' || !isSyntheticApiErrorMessage(last)) return null
-  const asked = typeof last.providerWaitEndsAtMs === 'number' && last.providerWaitEndsAtMs > Date.now() ? last.providerWaitEndsAtMs : undefined
-  if (last.error !== 'rate_limit' && asked === undefined) return null
-  if (last.busyRefusal !== undefined && asked === undefined) return null
-  const family = providerFamilyOfSetting(model ?? null)
-  const window = ((): { resetsAtMs?: number; windowName?: string } => {
-    if (last.error !== 'rate_limit') return {}
-    try {
-      return observedFamilyWindow(family, undefined, { model: model ?? null })
-    } catch (error) {
-      passedOver(error)
-      return {}
-    }
-  })()
-  const who = ((): string => {
-    if (model === undefined || model === null) return family
-    try {
-      return getMarketingNameForModel(model) ?? model
-    } catch {
-      return model
-    }
-  })()
-  const resumesAtMs = asked ?? (window.resetsAtMs !== undefined && window.resetsAtMs > Date.now() ? window.resetsAtMs : undefined)
-  const content = last.message.content
-  const words = (typeof content === 'string' ? content : content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n')).trim()
-  return {
-    why: last.error === 'rate_limit' ? 'usage limit' : 'provider busy',
-    words: words || `the provider refused ${who}'s request`,
-    ...(resumesAtMs !== undefined ? { resumesAtMs } : {}),
-  }
+  return notBuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:382')
 }
 
 function pauseModelWords(model: string | null | undefined): string {
@@ -460,11 +424,7 @@ export function registerAgentForeground(args: {
 }
 
 export function registerAgentName(name: string, agentId: string, setAppState: SetAppState): void {
-  setAppState(prev => {
-    const next = new Map(prev.agentNameRegistry)
-    next.set(name, asAgentId(agentId))
-    return { ...prev, agentNameRegistry: next }
-  })
+  return notBuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:641')
 }
 
 export function backgroundAgentTask(
@@ -497,18 +457,7 @@ export function handOverForegroundAgentsToQueuedMessage(
 }
 
 export function unregisterAgentForeground(taskId: string, setAppState: SetAppState): void {
-  let cleanupToRun: (() => void) | undefined
-  setAppState(prevState => {
-    const task = prevState.tasks?.[taskId]
-    if (!task || !isLocalAgentTask(task)) return prevState
-    if (task.isBackgrounded) return prevState
-    cleanupToRun = task.cleanup
-    const tasks = { ...prevState.tasks }
-    delete tasks[taskId]
-    return { ...prevState, tasks }
-  })
-  backgroundSignalResolvers.delete(taskId)
-  cleanupToRun?.()
+  return notBuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:678')
 }
 
 export function settleAgentForeground(
@@ -982,11 +931,4 @@ export function enqueueAgentNotification(args: {
 }
 
 
-export const LocalAgentTask: Task = {
-  name: 'LocalAgentTask',
-  type: 'local_agent',
-  async kill(taskId, setAppState) {
-    logForDebugging(`killing agent task ${taskId}`)
-    killAsyncAgent(taskId, setAppState)
-  },
-}
+export const LocalAgentTask: Task = unbuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:1164')

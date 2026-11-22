@@ -61,9 +61,7 @@ function rejectsPositional(_command: string, element?: ParsedCommandElement): bo
 }
 
 function routeRequiresPrint(_command: string, element?: ParsedCommandElement): boolean {
-  if (!element) return true
-  const firstPositional = element.args.find(a => !PS_DASH_RE.test(a[0] ?? '') && a[0] !== '/')
-  return (firstPositional ?? '').toLowerCase() !== 'print'
+  return notBuilt('src/tools/PowerShellTool/readOnlyValidation.ts:70')
 }
 
 const CMDLET_ALLOWLIST: Record<string, CommandConfig> = Object.assign(Object.create(null), {

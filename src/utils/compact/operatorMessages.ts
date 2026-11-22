@@ -3,6 +3,7 @@ import type { Message, UserMessage } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { Attachment } from '../attachments/types.js'
 import { isCommandEcho, isOperatorTurn } from '../messages/operatorTurns.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export const OPERATOR_MESSAGES_ATTACHMENT_TYPE = 'compact_operator_messages' as const
 
@@ -15,8 +16,6 @@ const CHARS_PER_TOKEN = 4
 export type OperatorMessageEntry = { ordinal: number; text: string; truncated?: boolean }
 
 export type OperatorMessagesAttachment = Extract<Attachment, { type: typeof OPERATOR_MESSAGES_ATTACHMENT_TYPE }>
-
-const TERMINAL_OUTPUT_PREFIXES = TERMINAL_OUTPUT_TAGS.map(tag => `<${tag}>`)
 
 function textOfContent(content: string | ContentBlockParam[]): string {
   if (typeof content === 'string') return content
@@ -34,8 +33,7 @@ function isHumanOrigin(origin: { kind: string } | undefined): boolean {
 }
 
 function isTerminalOutputText(text: string): boolean {
-  const head = text.trimStart()
-  return TERMINAL_OUTPUT_PREFIXES.some(prefix => head.startsWith(prefix))
+  return notBuilt('src/utils/compact/operatorMessages.ts:36')
 }
 
 export function operatorTextOf(message: Message): string | null {

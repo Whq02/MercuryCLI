@@ -17,6 +17,7 @@ import { describeArtifactIdentity } from '../utils/artifactIdentity.js'
 import type { RowDraft, SessionFacts } from './project.js'
 import { ConversationState } from './turn/state.js'
 import { turnRows } from './turn/turnRows.js'
+import { notBuilt } from '../pi/holes.js'
 
 export { closeRowOf } from './turn/close.js'
 
@@ -71,26 +72,7 @@ export type TurnOptions = {
 }
 
 export async function sessionFactsOf(config: Pick<ConversationConfig, 'cwd' | 'tools' | 'mcpClients' | 'commands' | 'agents'>, model: string, mode: string, resumeOf?: string, toolsWithheld?: SessionFacts['toolsWithheld']): Promise<SessionFacts> {
-  headlessProfilerCheckpoint('before_skills_extensions')
-  const [skills, loaded] = await Promise.all([getSlashCommandToolSkills(config.cwd), ensureExtensionsLoaded({ cwd: config.cwd })])
-  headlessProfilerCheckpoint('after_skills_extensions')
-  const invocable = (entry: { userInvocable?: boolean }): boolean => entry.userInvocable !== false
-  const build = describeArtifactIdentity(MACRO.VERSION).buildTree
-  return {
-    version: MACRO.VERSION,
-    ...(build !== null ? { build } : {}),
-    ...(resumeOf !== undefined ? { resumeOf } : {}),
-    cwd: getCwd(),
-    model,
-    mode,
-    tools: config.tools.map(tool => tool.name),
-    ...(toolsWithheld !== undefined && toolsWithheld.length > 0 ? { toolsWithheld } : {}),
-    mcpServers: config.mcpClients.map(client => ({ name: client.name, status: client.type })),
-    commands: config.commands.filter(invocable).map(command => command.name),
-    agents: (config.agents ?? []).map(agent => agent.agentType),
-    skills: skills.filter(invocable).map(skill => skill.name),
-    extensions: loaded.set.active.map(ext => ({ name: ext.manifest.name, path: ext.root, id: ext.entry.id })),
-  }
+  return notBuilt('src/rows/turn.ts:73')
 }
 
 export class Conversation {

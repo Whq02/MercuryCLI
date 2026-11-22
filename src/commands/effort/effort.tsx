@@ -159,13 +159,7 @@ function helpText(): string {
 
 
 function applyEffortResult(result: EffortCommandResult, context: LocalJSXCommandContext): void {
-  context.setAppState(prev => {
-    let next: AppState = prev
-    if (result.effortUpdate) {
-      next = { ...next, effortValue: result.effortUpdate.value }
-    }
-    return next
-  })
+  return notBuilt('src/commands/effort/effort.tsx:213')
 }
 
 type EffortReceipt = { text: string; seat: boolean }

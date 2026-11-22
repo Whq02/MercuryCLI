@@ -110,35 +110,7 @@ function createFailureCollector(): FailureCollector {
 export async function loadTranscriptFromFile(
   filePath: string,
 ): Promise<SessionListing> {
-  if (filePath.endsWith('.jsonl')) {
-    const fold = await loadTranscriptFile(filePath)
-    const { messages, summaries, leafUuids } = fold
-
-    if (messages.size === 0) {
-      const head = (await readSessionLite(filePath))?.head ?? ''
-      if (decodeTranscriptBuffer(head).refusal) {
-        throw new Error(TRANSCRIPT_FORMAT_REFUSAL)
-      }
-      throw new Error('No messages found in JSONL file')
-    }
-
-    const leafMessage = findLatestMessage(messages.values(), msg =>
-      leafUuids.has(msg.uuid),
-    )
-    if (!leafMessage) {
-      throw new Error('No valid conversation chain found in JSONL file')
-    }
-
-    const transcript = buildConversationChain(messages, leafMessage)
-    const sessionId = leafMessage.sessionId as UUID
-    return {
-      ...chainLogOption(transcript, transcript.at(-1)!, filePath),
-      summary: summaries.get(leafMessage.uuid),
-      ...resumeFactsOf(fold, sessionId, transcript),
-    }
-  }
-
-  throw new Error(TRANSCRIPT_FORMAT_REFUSAL)
+  return notBuilt('src/utils/sessionStorage/logs.ts:110')
 }
 
 function paintsConversationRow(message: TranscriptMessage): boolean {
@@ -157,10 +129,6 @@ function paintsConversationRow(message: TranscriptMessage): boolean {
 
 function visibleTurnCount(chain: TranscriptMessage[]): number {
   return chain.filter(paintsConversationRow).length
-}
-
-function chainLogOption(chain: TranscriptMessage[], anchor: TranscriptMessage, fullPath?: string): SessionListing {
-  return notBuilt('src/utils/sessionStorage/logs.ts:162')
 }
 
 function newestPerKey(logs: SessionListing[], keyOf: (log: SessionListing) => string | undefined): SessionListing[] {
@@ -352,31 +320,7 @@ export function resumeFactsOf(
   sessionId: UUID,
   chain: TranscriptMessage[],
 ): ResumeFacts {
-  return {
-    fileHistorySnapshots: buildFileHistorySnapshotChain(fold.fileHistorySnapshots, chain),
-    attributionSnapshots: buildAttributionSnapshotChain(fold.attributionSnapshots, chain),
-    contentReplacements: fold.contentReplacements.get(sessionId) ?? [],
-    contextCollapseCommits: fold.contextCollapseCommits.filter(e => e.sessionId === sessionId),
-    contextCollapseSnapshot:
-      fold.contextCollapseSnapshot?.sessionId === sessionId ? fold.contextCollapseSnapshot : undefined,
-    agentName: fold.agentNames.get(sessionId),
-    agentColor: fold.agentColors.get(sessionId),
-    agentSetting: fold.agentSettings.get(sessionId),
-    brief: fold.sessionBriefs.get(sessionId),
-    briefAdd: fold.sessionBriefAdds.get(sessionId),
-    customTitle: fold.customTitles.get(sessionId),
-    tag: fold.tags.get(sessionId),
-    mode: fold.modes.get(sessionId) as SessionListing['mode'],
-    advisor: fold.advisorSwitches.get(sessionId),
-    swarm: fold.swarmSwitches.get(sessionId),
-    model: fold.sessionModels.get(sessionId),
-    worktreeSession: fold.worktreeStates.has(sessionId) ? fold.worktreeStates.get(sessionId) : undefined,
-    prNumber: fold.prNumbers.get(sessionId),
-    prUrl: fold.prUrls.get(sessionId),
-    prRepository: fold.prRepositories.get(sessionId),
-    turnEnd: fold.turnEnds.get(sessionId),
-    ...(fold.turnsOpen.has(sessionId) ? { turnOpen: true } : {}),
-  }
+  return notBuilt('src/utils/sessionStorage/logs.ts:465')
 }
 
 export async function lastSession(
@@ -658,23 +602,7 @@ export async function sessionAtIndex(index: number): Promise<SessionListing | nu
 export async function findUnresolvedToolUse(
   toolUseId: string,
 ): Promise<AssistantMessage | null> {
-  const callsIt = (message: TranscriptMessage): boolean =>
-    message.type === 'assistant' &&
-    Array.isArray(message.message.content) &&
-    message.message.content.some(block => block.type === 'tool_use' && block.id === toolUseId)
-  const answersIt = (message: TranscriptMessage): boolean =>
-    message.type === 'user' &&
-    Array.isArray(message.message.content) &&
-    message.message.content.some(block => block.type === 'tool_result' && block.tool_use_id === toolUseId)
-  try {
-    const { messages } = await loadTranscriptFile(getTranscriptPath())
-    const rows = [...messages.values()]
-    if (rows.some(answersIt)) return null
-    return (rows.findLast(callsIt) as AssistantMessage | undefined) ?? null
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
+  return notBuilt('src/utils/sessionStorage/logs.ts:808')
 }
 
 function statSessionFiles(

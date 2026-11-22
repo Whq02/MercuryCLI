@@ -82,10 +82,6 @@ export function createEmptyAttributionState(): AttributionState {
   return notBuilt('src/utils/commitAttribution.ts:117')
 }
 
-function contributedChars(s: FileAttributionState | undefined): number {
-  return notBuilt('src/utils/commitAttribution.ts:154')
-}
-
 export function trackFileModification(
   state: AttributionState,
   filePath: string,
@@ -102,26 +98,6 @@ type MergedStates = {
   surfaces: string[]
   fileStates: Map<string, FileAttributionState>
   sessionBaselines: Map<string, SessionBaseline>
-}
-
-function mergeStates(states: AttributionState[]): MergedStates {
-  const fileStates = new Map<string, FileAttributionState>()
-  const sessionBaselines = new Map<string, SessionBaseline>()
-  const surfaces: string[] = []
-  for (const state of states) {
-    if (!surfaces.includes(state.surface)) surfaces.push(state.surface)
-    for (const [path, baseline] of toEntries(state.sessionBaselines)) {
-      if (!sessionBaselines.has(path)) sessionBaselines.set(path, baseline)
-    }
-    for (const [path, fileState] of toEntries(state.fileStates)) {
-      const existing = fileStates.get(path)
-      fileStates.set(path, {
-        ...fileState,
-        mercuryContribution: contributedChars(existing) + contributedChars(fileState),
-      })
-    }
-  }
-  return { surface: states[0]?.surface ?? getClientSurface(), surfaces, fileStates, sessionBaselines }
 }
 
 export async function calculateCommitAttribution(

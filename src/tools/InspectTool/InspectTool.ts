@@ -1,4 +1,3 @@
-
 import { z } from 'zod/v4'
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import {
@@ -18,6 +17,7 @@ import {
   renderToolUseErrorMessage,
   renderToolUseMessage,
 } from './UI.js'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export const INSPECT_TOOL_NAME = 'Inspect' as const
 
@@ -45,126 +45,4 @@ async function kindsLine(): Promise<string> {
   return (await resourceAdapterKinds()).map(k => k.kind).join(', ')
 }
 
-export const InspectTool = buildTool({
-  shouldDefer: true,
-  name: INSPECT_TOOL_NAME,
-  searchHint: 'read Mercury records by mercury:// reference',
-  searchKeywords: ['work-graph', 'objects', 'ref', 'runs', 'receipts', 'tasks', 'crews', 'artifacts', 'agents', 'health', 'seat identity', 'model', 'effort', 'posture', 'engine history'],
-  maxResultSizeChars: 100_000,
-  strict: true,
-  isEnabled() {
-    return mercuryRefsEnabled()
-  },
-  async description() {
-    return "Inspect Mercury's durable work graph by mercury:// reference"
-  },
-  async prompt() {
-    return `Read Mercury records by reference. Returns bounded pages and distinct absent, expired or unavailable states. Omitting the id lists objects of that kind.
-
-Kinds: ${await kindsLine()}.
-models — mercury://models lists reachable models live; mercury://models/known lists this build's pin tables, not reachability.
-seat — mercury://seat gives this turn's model, effort, posture and session engine history with switch times.`
-  },
-  userFacingName() {
-    return 'Inspect'
-  },
-  getToolUseSummary(input?: Partial<Input>) {
-    return input?.ref ?? null
-  },
-  isReadOnly() {
-    return true
-  },
-  isConcurrencySafe() {
-    return true
-  },
-  async checkPermissions(input: Input, context: ToolUseContext) {
-    const judged = await referenceReadDecision(INSPECT_TOOL_NAME, input.ref, input, context.getAppState().toolPermissionContext, getCwd())
-    return judged ?? { behavior: 'allow' as const, updatedInput: input }
-  },
-  async validateInput(input: Input) {
-    if (!input.ref.startsWith(MERCURY_REF_SCHEME)) {
-      return {
-        result: false as const,
-        message: `ref must start with ${MERCURY_REF_SCHEME} (got '${input.ref.slice(0, 40)}')`,
-        errorCode: 1,
-      }
-    }
-    return { result: true as const }
-  },
-  get inputSchema(): SchemaType {
-    return inputSchema()
-  },
-  renderToolUseMessage,
-  renderToolUseErrorMessage,
-  renderToolResultMessage,
-  extractSearchText({ result }) {
-    return result ?? ''
-  },
-  async call(input: Input, context: ToolUseContext) {
-    const startedAt = Date.now()
-    const result = await resolveResource(input.ref, {
-      owner: ownerFromToolUseContext(context),
-      cwd: getCwd(),
-      getAppState: context.getAppState as (() => unknown) | undefined,
-      engineModel: context.options?.engineModel,
-    })
-    let output: Output
-    if (result.state === 'ok') {
-      const r = result.resource
-      const lines: string[] = [
-        `${r.title} [${r.kind}${r.version ? ` · v ${r.version}` : ''}]`,
-        r.summary,
-      ]
-      if (r.children?.length) {
-        lines.push('', `children (${r.children.length}):`)
-        for (const c of r.children) {
-          lines.push(`  ${c.ref} — ${c.title} (${c.summary})`)
-        }
-      }
-      if (r.text) {
-        lines.push('', r.text)
-      }
-      if (r.page) {
-        lines.push(
-          '',
-          `[page: cursor ${r.page.cursor}${r.page.total !== undefined ? ` of ${r.page.total} lines` : ''}${r.page.hasMore ? ` — more available: ?cursor=${r.page.cursor + (r.text?.split('\n').length ?? 0)}` : ' — end'}]`,
-        )
-      }
-      output = {
-        ref: r.ref,
-        state: 'ok',
-        result: lines.join('\n'),
-        kind: r.kind,
-        title: r.title,
-        ...(r.version ? { version: r.version } : {}),
-      }
-    } else {
-      output = {
-        ref: input.ref,
-        state: result.state,
-        result: `${result.state.toUpperCase()}: ${result.note}`,
-      }
-    }
-    return {
-      data: output,
-      effect: {
-        outcome: result.state === 'ok' ? ('succeeded' as const) : ('no-change' as const),
-        operation: 'inspect.read',
-        changedPaths: [],
-        evidence:
-          result.state === 'ok'
-            ? `resolved ${input.ref}`
-            : `${result.state}: ${input.ref}`,
-        startedAt,
-        completedAt: Date.now(),
-      },
-    }
-  },
-  mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
-    return {
-      tool_use_id: toolUseId,
-      type: 'tool_result' as const,
-      content: output.result,
-    }
-  },
-})
+export const InspectTool: Unbuilt = unbuilt('src/tools/InspectTool/InspectTool.ts:48')

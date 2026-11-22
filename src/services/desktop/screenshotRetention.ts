@@ -9,6 +9,7 @@ import { conversationEditKey, settleWireEdits, type WireEdit } from '../../utils
 import { noteScreenshot, screenshotPathForToolUse } from './desktopSession.js'
 import { COMPUTER_TOOL_NAME } from './toolName.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export const SCREENSHOT_KEEP_RECENT = 3
 export const SCREENSHOT_WIRE_HIGH_WATER = 12
@@ -187,52 +188,10 @@ export function prefixIsCold(messages: readonly Message[], now: number = Date.no
 
 export function retireOlderScreenshots<M extends Message>(
   messages: M[],
-  keep: number = SCREENSHOT_KEEP_RECENT,
-  highWater: number = SCREENSHOT_WIRE_HIGH_WATER,
+  keep?: number,
+  highWater?: number,
   owner?: string,
   moment?: RetirementMoment,
 ): RetiredScreenshots<M> {
-  const live: Array<{ index: number; toolUseId: string }> = []
-  messages.forEach((message, index) => {
-    const blocks = userBlocks(message)
-    if (blocks === null) return
-    for (const block of blocks) {
-      if (isScreenshotResult(block)) live.push({ index, toolUseId: block.tool_use_id })
-    }
-  })
-  const conversation = owner === undefined ? null : conversationEditKey(owner, messages)
-  const remembered = conversation === null ? new Set<string>() : (retiredByConversation.get(conversation) ?? new Set<string>())
-  const liveIds = new Set(live.map(entry => entry.toolUseId))
-  const held = new Set([...remembered].filter(id => liveIds.has(id)))
-  const unretired = live.filter(entry => !held.has(entry.toolUseId))
-  const cold = moment?.coldPrefix ?? prefixIsCold(messages, moment?.now)
-  const ceilingReached = unretired.length > SCREENSHOT_WIRE_CEILING
-  const retiring = new Set(held)
-  if (live.length > Math.max(0, highWater) && (cold || ceilingReached)) {
-    const retireCount = Math.max(0, live.length - Math.max(0, keep))
-    for (const entry of live.slice(0, retireCount)) retiring.add(entry.toolUseId)
-  }
-  if (conversation !== null && retiring.size > 0) retiredByConversation.set(conversation, new Set(retiring))
-  const retired = new Map<number, Set<string>>()
-  for (const entry of live) {
-    if (!retiring.has(entry.toolUseId)) continue
-    const ids = retired.get(entry.index)
-    if (ids) ids.add(entry.toolUseId)
-    else retired.set(entry.index, new Set([entry.toolUseId]))
-  }
-  if (retired.size === 0) return { messages, firstEdited: -1 }
-  const edits: WireEdit[] = []
-  const projected = messages.map((message, index) => {
-    const ids = retired.get(index)
-    if (ids === undefined) return message
-    const blocks = userBlocks(message)
-    if (blocks === null) return message
-    const rebuilt = blocks.map(block => {
-      if (!isScreenshotResult(block) || !ids.has(block.tool_use_id)) return block
-      edits.push({ index, key: `retired:${block.tool_use_id}` })
-      return withImagesReplaced(block, earlierScreenshotText(screenshotPathForToolUse(block.tool_use_id) ?? ''))
-    })
-    return rebuildUser(message, rebuilt)
-  })
-  return settleWireEdits(owner, projected, edits)
+  return notBuilt('src/services/desktop/screenshotRetention.ts:188')
 }

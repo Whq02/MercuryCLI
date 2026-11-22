@@ -1,7 +1,7 @@
 import { satisfies } from 'semver'
 import type { ActionGraph } from './actionGraph.js'
 import type { KeybindingBlock } from './types.js'
-import { unbuilt, type Unbuilt } from '../pi/holes.js'
+import { unbuilt } from '../pi/holes.js'
 
 type GraphAction = keyof ActionGraph
 type GraphContext = ActionGraph[GraphAction]['contexts'][number]
@@ -32,6 +32,4 @@ const SELECT_LIST_KEYS = {
   ends: { home: 'select:first', end: 'select:last' },
 } as const satisfies Record<string, Record<string, BoundIn<'Settings'> & BoundIn<'Select'>>>
 
-const SHIPPED_KEYS: Unbuilt = unbuilt('src/keybindings/defaultBindings.ts:34')
-
-export const DEFAULT_BINDINGS: KeybindingBlock[] = Object.entries(SHIPPED_KEYS).map(([context, bindings]) => ({ context, bindings }))
+export const DEFAULT_BINDINGS: KeybindingBlock[] = unbuilt('src/keybindings/defaultBindings.ts:238')

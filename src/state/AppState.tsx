@@ -33,64 +33,11 @@ export type {
 
 export const AppStoreContext: Unbuilt = unbuilt('src/state/AppState.tsx:33')
 
-const HasAppStateProviderContext: Unbuilt = unbuilt('src/state/AppState.tsx:35')
-
-export function AppStateProvider({
-  children,
-  initialState,
-}: {
+export function AppStateProvider(arg0: {
   children: React.ReactNode
   initialState?: AppState
 }): React.ReactNode {
-  const alreadyInsideProvider = useContext(HasAppStateProviderContext)
-  if (alreadyInsideProvider) {
-    throw new Error('AppStateProvider components cannot be nested')
-  }
-
-  const storeRef = useRef<AppStateStore | null>(null)
-  if (storeRef.current === null) {
-    storeRef.current = createStore<AppState>(
-      initialState ?? getDefaultAppState(),
-      change => {
-        fluxMark('appstate:set')
-        onChangeAppState(change)
-      },
-    )
-  }
-  const store = storeRef.current
-
-  useMount(() => {
-    const context = store.getState().toolPermissionContext
-    if (context.isBypassPermissionsModeAvailable && isSovereignDisabled()) {
-      logForDebugging(
-        'sovereign mode disabled by remotely-loaded policy settings that arrived before mount; correcting the permission context',
-      )
-      store.setState(prev => ({
-        ...prev,
-        toolPermissionContext: createSovereignDisabledContext(
-          prev.toolPermissionContext,
-        ),
-      }))
-    }
-  })
-
-  const applyChangedSourceRef = useRef((source: Parameters<typeof applySettingsChange>[0]) => {
-    applySettingsChange(source, store.setState)
-  })
-  useClaim(() => {
-    const unsubscribe = settingsChangeDetector.subscribe(source => {
-      applyChangedSourceRef.current(source)
-    })
-    return unsubscribe
-  }, [])
-
-  return (
-    <HasAppStateProviderContext.Provider value={true}>
-      <AppStoreContext.Provider value={store}>
-        <MailboxProvider>{children}</MailboxProvider>
-      </AppStoreContext.Provider>
-    </HasAppStateProviderContext.Provider>
-  )
+  return notBuilt('src/state/AppState.tsx:37')
 }
 
 function useStoreOrThrow(): AppStateStore {
@@ -113,8 +60,7 @@ export function useAppStateStore(): AppStateStore {
 const NOOP_SUBSCRIBE = (): (() => void) => () => {}
 
 export function useSetAppStateMaybe(): ((updater: (prevState: AppState) => AppState) => void) | null {
-  const store = useContext(AppStoreContext)
-  return useMemo(() => (store === null ? null : updater => store.setState(updater)), [store])
+  return notBuilt('src/state/AppState.tsx:122')
 }
 
 export function useAppStateMaybeOutsideOfProvider<Selected>(

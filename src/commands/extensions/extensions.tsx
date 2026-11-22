@@ -3,6 +3,7 @@ import { noteReloaded, reloadExtensions, setExtensionsPending } from '../../exte
 import { extensionsStateFrom } from '../../hooks/useExtensions.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import { createSystemMessage } from '../../utils/messages/systemMessages.js'
+import { notBuilt } from '../../pi/holes.js'
 
 function parseRoute(args: string): ExtensionsRoute | { kind: 'reload' } {
   const trimmed = args.trim()
@@ -15,25 +16,4 @@ function parseRoute(args: string): ExtensionsRoute | { kind: 'reload' } {
   return { kind: 'open', name: trimmed }
 }
 
-export const call: LocalJSXCommandCall = async (onDone, context, args) => {
-  const route = parseRoute(args ?? '')
-  if (route.kind === 'reload') {
-    const pending = reloadExtensions({
-      onServersChanged: () =>
-        context.setAppState(prev => ({ ...prev, mcp: { ...prev.mcp, extensionReconnectKey: prev.mcp.extensionReconnectKey + 1 } })),
-    })
-    noteReloaded(pending)
-    const result = await pending
-    setExtensionsPending(false)
-    context.setAppState(prev => ({ ...prev, extensions: extensionsStateFrom(result.set, false, result.line) }))
-    onDone(result.line, { display: 'system' })
-    return null
-  }
-  return (
-    <ExtensionsBoard
-      route={route}
-      onClose={() => onDone(undefined, { display: 'skip' })}
-      appendTranscript={line => context.setMessages(prev => [...prev, createSystemMessage(line, 'info')])}
-    />
-  )
-}
+export const call: LocalJSXCommandCall = async (onDone, context, args) => notBuilt('src/commands/extensions/extensions.tsx:18')

@@ -154,21 +154,7 @@ export const fetchToolsForClient = Object.assign(
   { cache: fetchToolsForClientMemo.cache },
 )
 
-export const fetchResourcesForClient = memoize(
-  async (client: MCPServerConnection): Promise<ServerResource[]> => {
-    if (client.type !== 'connected') return []
-    if (!client.capabilities.resources) return []
-    try {
-      const result = await client.client.request({ method: 'resources/list', params: {} }, { timeout: connectTimeoutMs() })
-      return (result.resources ?? []).map(resource => ({ ...resource, server: client.name })) as ServerResource[]
-    } catch (err) {
-      logMCPError(client.name, err)
-      fetchResourcesForClient.cache.delete(client.name)
-      return []
-    }
-  },
-  client => client.name,
-)
+export const fetchResourcesForClient: Unbuilt = unbuilt('src/services/mcp/client.ts:510')
 fetchResourcesForClient.cache = new LRUCache<string, Promise<ServerResource[]>>({ max: 20 })
 
 export const fetchCommandsForClient: Unbuilt = unbuilt('src/services/mcp/client.ts:527')

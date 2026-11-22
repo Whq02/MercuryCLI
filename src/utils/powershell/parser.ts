@@ -406,8 +406,7 @@ export function getFileRedirections(parsed: ParsedPowerShellCommand): ParsedRedi
 }
 
 export function getVariablesByScope(parsed: ParsedPowerShellCommand, scope: string): ParsedVariable[] {
-  const prefix = `${scope.toLowerCase()}:`
-  return parsed.variables.filter(v => v.path.toLowerCase().startsWith(prefix))
+  return notBuilt('src/utils/powershell/parser.ts:536')
 }
 
 export function getPipelineSegments(parsed: ParsedPowerShellCommand): ParsedStatement[] {

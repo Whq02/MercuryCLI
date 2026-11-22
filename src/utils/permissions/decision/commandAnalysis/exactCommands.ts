@@ -47,22 +47,6 @@ const VARIABLE_WRITERS: ReadonlySet<string> = new Set(['read', 'printf', 'getopt
 const FOR_LITERAL_ITEMS_CAP = 64
 const SEQ_ARGUMENT_RE = /^-?[0-9]+$/
 
-function sequenceItems(commands: readonly SimpleCommand[]): string[] | null {
-  const [command] = commands
-  if (commands.length !== 1 || command === undefined || command.argv[0] !== 'seq' || command.envVars.length > 0 || command.redirects.length > 0 || command.globOperand) return null
-  const numbers = command.argv.slice(1)
-  if (numbers.length === 0 || numbers.length > 3 || !numbers.every(text => SEQ_ARGUMENT_RE.test(text))) return null
-  const values = numbers.map(Number)
-  const [first, increment, last] = values.length === 1 ? [1, 1, values[0]!] : values.length === 2 ? [values[0]!, 1, values[1]!] : [values[0]!, values[1]!, values[2]!]
-  if (increment === 0) return null
-  const items: string[] = []
-  for (let value = first; increment > 0 ? value <= last : value >= last; value += increment) {
-    if (items.length >= FOR_LITERAL_ITEMS_CAP) return null
-    items.push(String(value))
-  }
-  return items
-}
-
 function commandMayWriteVariables(node: Node): boolean {
   const nameNode = childOfKind(node, 'command_name')
   const inner = nameNode?.children.length === 1 ? (nameNode.children[0] as Node) : undefined
@@ -240,95 +224,11 @@ abstract class FlowWalk extends CommandWalk {
 
 export class Walk extends FlowWalk {
   invalidateAssignments(node: Node, scope: Scope): void {
-    if (node.type === 'subshell' || node.type === 'command_substitution') return
-    if (node.type === 'variable_assignment') {
-      const name = childOfKind(node, 'variable_name')?.text
-      const value = node.children.find(child => child.type !== 'variable_name' && child.type !== '=' && child.type !== '+=')
-      const previous = scope.get(name ?? '')
-      const integer = value !== undefined && (value.type === 'arithmetic_expansion' || (value.type === 'number' && value.children.length === 0)) && (previous === undefined || integerValued(previous))
-      if (name !== undefined) scope.set(name, integer ? UNKNOWN_INTEGER : UNKNOWN_VALUE)
-    }
-    if (node.type === 'unset_command') {
-      for (const child of node.children) {
-        if (child.type === 'variable_name') scope.set(child.text, UNKNOWN_VALUE)
-        else if (child.type !== 'unset' && child.type !== 'unsetenv') for (const name of scope.keys()) scope.set(name, UNKNOWN_VALUE)
-      }
-    }
-    if (node.type === 'for_statement') {
-      const name = childOfKind(node, 'variable_name')?.text
-      if (name !== undefined) scope.set(name, UNKNOWN_VALUE)
-    }
-    if (node.type === 'command' && commandMayWriteVariables(node)) {
-      const changed = new Map(scope)
-      try {
-        new Walk().command(node, changed)
-        for (const [name, value] of changed) {
-          if (value !== scope.get(name)) scope.set(name, UNKNOWN_VALUE)
-        }
-      } catch (error) {
-        if (!(error instanceof Refusal)) throw error
-        for (const name of scope.keys()) scope.set(name, UNKNOWN_VALUE)
-      }
-    }
-    for (const child of node.children) this.invalidateAssignments(child, scope)
+    return notBuilt('src/utils/permissions/decision/commandAnalysis/exactCommands.ts:464')
   }
 
   node(node: Node, scope: Scope): void {
-    switch (node.type) {
-      case 'program':
-        this.statements(node.children, scope)
-        return
-      case 'list':
-        this.chain(node, scope)
-        return
-      case 'pipeline':
-        this.pipeline(node, scope)
-        return
-      case 'comment':
-        return
-      case 'command':
-        this.command(node, scope)
-        return
-      case 'redirected_statement':
-        this.redirected(node, scope)
-        return
-      case 'negated_command':
-        for (const child of node.children) {
-          if (child.type === '!') continue
-          this.node(child, scope)
-          return
-        }
-        return
-      case 'declaration_command':
-        this.declaration(node, scope)
-        return
-      case 'variable_assignment':
-        assign(scope, this.assignment(node, scope))
-        return
-      case 'for_statement':
-        this.loop(node, scope)
-        return
-      case 'if_statement':
-        this.conditional(node, scope)
-        return
-      case 'while_statement':
-        this.whileLoop(node, scope)
-        return
-      case 'subshell':
-        this.subshell(node, scope)
-        return
-      case 'compound_statement':
-        this.statements(node.children.filter(child => child.type !== '{' && child.type !== '}'), scope)
-        return
-      case 'test_command':
-        this.test(node, scope)
-        return
-      case 'unset_command':
-        this.unset(node, scope)
-        return
-      default:
-        refuseNode(node)
-    }
+    return notBuilt('src/utils/permissions/decision/commandAnalysis/exactCommands.ts:498')
   }
 
   statements(children: Node[], scope: Scope): void {
@@ -394,7 +294,7 @@ export class Walk extends FlowWalk {
   }
 
   subshell(node: Node, scope: Scope): void {
-    this.statements(node.children.filter(child => child.type !== '(' && child.type !== ')'), new Map(scope))
+    return notBuilt('src/utils/permissions/decision/commandAnalysis/exactCommands.ts:618')
   }
 
   substitution(node: Node, scope: Scope): void {

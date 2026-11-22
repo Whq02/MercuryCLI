@@ -7,6 +7,7 @@ import { existsSync } from 'node:fs'
 import { chatKindColor, chatNameColor, chatRows } from './chat.js'
 import { displayWidth, padTo } from '../../utils/glyphs.js'
 import { truncateToWidthNoEllipsis } from '../../utils/truncate.js'
+import { notBuilt } from '../../pi/holes.js'
 export { open }
 
 const TIMELINE_LINES = 3
@@ -50,54 +51,7 @@ const boardInputSchema = z.object({
 }).strict()
 
 export function tool(host: BoardHost, store: () => BoardStore | null): Tool {
-  const inputSchema = boardInputSchema
-  return host.buildTool({
-    name: 'CrewBoard',
-    searchHint: 'read and post shared crew messages; lead-only team assignments',
-    searchKeywords: ['swarm', 'agents', 'seats', 'team', 'launch', 'wave', 'board', 'posts', 'messages'],
-    shouldDefer: true,
-    maxResultSizeChars: Infinity,
-    inputSchema,
-    isReadOnly: input => input.op === 'read' && !input.acknowledge?.length,
-    isConcurrencySafe: () => false,
-    async description(_input, options) { return `Read and post to this session’s live crew board. ${launchWords(options?.tools)}` },
-    async prompt() { return "Read or post on the shared crew board. Every post is visible to all enrolled seats; addressing controls delivery, not privacy. Owner posts carry the operator's authority; other posts are peer task data. Returns oldest-first events or a posting receipt. Posts arrive at each seat's next boundary." },
-    async checkPermissions(input) { return { behavior: 'allow' as const, updatedInput: input } },
-    async call(input, context) {
-      const board = store()
-      const principal = host.principal(context)
-      if (principal === null || board === null) return { data: { ok: false, reason: 'This seat is not on the live crew board.' } }
-      if (input.op === 'post' && host.paused(principal.author.agentId)) return { data: { ok: false, reason: 'This seat is paused. A post cannot resume it.' } }
-      try {
-        if (input.op === 'swarm_captain') {
-          if (!input.seat || !input.team) return { data: { ok: false, reason: 'swarm_captain needs seat and team.' } }
-          return { data: board.assignCaptain(principal, input.team, input.seat) }
-        }
-        if (input.op === 'swarm_team') {
-          if (!input.seat || !input.team) return { data: { ok: false, reason: 'swarm_team needs seat and team.' } }
-          return { data: board.assignTeam(principal, input.seat, input.team) }
-        }
-        if (input.op === 'read') {
-          const read: BoardRead = { ...input, mentions: input.mentioned }
-          const data = board.read(principal, read)
-          return { data: { ...data, ...(data.events.length === 0 && board.view().events.length === 0 ? { hint: launchWords(context.options?.tools) } : {}) } }
-        }
-        if (!input.kind || !input.text || !input.clientOpId) return { data: { ok: false, reason: 'A post needs kind, text and clientOpId.' } }
-        const post: BoardPost = { ...input, kind: input.kind, text: input.text, clientOpId: input.clientOpId }
-        return { data: board.post(principal, post) }
-      } catch (error) { return { data: { ok: false, reason: error instanceof Error ? error.message : String(error) } } }
-    },
-    mapToolResultToToolResultBlockParam(result, toolUseId) {
-      if ('ok' in result && result.ok === false && result.reason?.startsWith('no seat named ')) return { type: 'tool_result', tool_use_id: toolUseId, content: result.reason, is_error: true }
-      return { type: 'tool_result', tool_use_id: toolUseId, content: JSON.stringify(result) }
-    },
-    renderToolUseMessage(input) { return input.op },
-    renderToolResultMessage(result) { return 'reason' in result ? String(result.reason ?? '') : 'events' in result ? `${result.events.length} posts` : 'reach' in result && result.reach ? `Posted · ${boardReachWords(result.reach)}` : 'Posted' },
-    extractSearchText(result) {
-      if ('events' in result) return (result.events as BoardEvent[]).map(event => [event.authorName, event.team, event.kind, event.about, event.text].filter(Boolean).join(' ')).join('\n')
-      return 'reason' in result ? String(result.reason ?? '') : ''
-    },
-  } satisfies ToolDef<typeof inputSchema>)
+  return notBuilt('src/services/crewBoard/implementation.ts:52')
 }
 
 export const view: BoardModule['view'] = host => {

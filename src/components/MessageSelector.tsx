@@ -43,7 +43,7 @@ import type {
 import { messageText, previewOf } from './messageSelector/preview.js'
 import { findMutatingShellToolUseIds, mutatingShellCountAfter, writtenElsewhereLine, type CodeStats } from './messageSelector/stats.js'
 import { confirmOptionsOf, confirmView, CURRENT_PROMPT, pickView, summarizeView, UNDO_REWIND, type PickEntry } from './messageSelector/views.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
+import { notBuilt } from '../pi/holes.js'
 
 export { statsBetween, writtenElsewhereLine } from './messageSelector/stats.js'
 
@@ -65,37 +65,11 @@ const COMPLETE_TAG_MARKERS = [
   `<${TASK_NOTIFICATION_TAG}>`,
   `<${TICK_TAG}>`,
 ]
-const CREWMATE_PREFIX: Unbuilt = unbuilt('src/components/MessageSelector.tsx:68')
-
-
-function isTurnCutRow(message: UserMessage): boolean {
-  return notBuilt('src/components/MessageSelector.tsx:71')
-}
 
 export function selectableUserMessagesFilter(
   message: Message,
 ): message is UserMessage {
-  if (message.type !== 'user') return false
-  const content = message.message.content
-  if (Array.isArray(content) && content[0]?.type === 'tool_result') return false
-  if (isSyntheticMessage(message) || isTurnCutRow(message)) return false
-  if (message.isMeta) return false
-  if (message.isCompactSummary) return false
-  if (message.isVisibleInTranscriptOnly) return false
-  if (isSaturnOrigin(message.origin) || isAdvisorOrigin(message.origin)) return false
-  const noticeText = typeof content === 'string'
-    ? content
-    : content.every(block => block.type === 'text')
-      ? content.map(block => (block as { text: string }).text).join('\n')
-      : undefined
-  if (noticeText !== undefined) {
-    if (wrappedNoticeBlocks(noticeText) !== null) return false
-    if (COMPLETE_TAG_MARKERS.some(marker => noticeText.includes(marker)) && stripDisplayTagsAllowEmpty(noticeText) === '') return false
-  }
-  const text = messageText(message)
-  if (COMPLETE_TAG_MARKERS.some(marker => text.includes(marker))) return false
-  if (text.includes(CREWMATE_PREFIX)) return false
-  return true
+  return notBuilt('src/components/MessageSelector.tsx:77')
 }
 
 export function messagesAfterAreOnlySynthetic(

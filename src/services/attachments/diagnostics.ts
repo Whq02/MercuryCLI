@@ -10,6 +10,7 @@ import { logError } from '../../utils/log.js'
 import type { Attachment } from '../../utils/attachments/types.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const RESYNC_REPORT_WAIT_MS = 1_500
 
@@ -81,16 +82,7 @@ export async function deliverAfterRevalidation(
 }
 
 export async function getLSPDiagnosticAttachments(context: ToolUseContext): Promise<Attachment[]> {
-  if (!context.options.tools.some(tool => toolMatchesName(tool, BASH_TOOL_NAME))) return []
-  logForDebugging('LSP Diagnostics: getLSPDiagnosticAttachments called')
-  const owner = ownerFromToolUseContext(context)
-  const manager = await managerIfAny()
-  const resynced = await refreshDiagnosticDocuments(manager)
-  const armed = writesAwaitingReport(owner)
-  const written = manager === undefined ? [] : armed.filter(path => isOpenOn(manager, path))
-  const unserved = armed.filter(path => !written.includes(path))
-  if (unserved.length > 0) settleWritesAwaitingReport(owner, unserved)
-  return deliverAfterRevalidation(resynced, RESYNC_REPORT_WAIT_MS, { owner, written })
+  return notBuilt('src/services/attachments/diagnostics.ts:83')
 }
 
 export async function settleWriterDiagnosticsAtTurnEnd(context: ToolUseContext): Promise<Attachment[]> {

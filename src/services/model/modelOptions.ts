@@ -49,6 +49,7 @@ import { isClaudeAISubscriber, isMaxSubscriber, isCrewPremiumSubscriber } from '
 import { modelRefusalWords } from '../providers/anthropic/modelRefusal.js'
 import type { AnthropicLiveRow } from '../providers/anthropic/anthropicCatalogue.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export type ModelOption = {
   value: string
@@ -90,10 +91,6 @@ function liveAnthropicRows(): readonly AnthropicLiveRow[] {
   }
 }
 
-function anthropicFamilyOf(value: string): string | undefined {
-  return parseFirstPartyGeneration(resolveWithSuffix(stripContext1m(value)))?.family
-}
-
 function tableKnows(id: string): boolean {
   const lowered = id.trim().toLowerCase()
   if (CANONICAL_ID_TO_KEY[lowered] !== undefined) return true
@@ -126,38 +123,7 @@ function listedMirrorOf(key: string): string | undefined {
 }
 
 function mergeAnthropicLiveRows(options: ModelOption[], live: readonly AnthropicLiveRow[]): ModelOption[] {
-  if (live.length === 0) return options
-  const merged = [...options]
-  const isAnthropicModelRow = (option: ModelOption): boolean => option.group === undefined && !isSentinelValue(option.value)
-  const resolvedOf = (option: ModelOption): string => resolveWithSuffix(stripContext1m(option.value)).toLowerCase()
-  const listed = new Set(merged.filter(isAnthropicModelRow).map(resolvedOf))
-  const bareMirrors = new Set(live.map(row => row.id.trim().toLowerCase()).filter(key => mirrorTwinOf(key) !== undefined))
-  for (const row of live) {
-    const id = row.id.trim()
-    const key = id.toLowerCase()
-    if (recognizeModelId(id).kind !== 'first-party' || listed.has(key)) continue
-    const mirror = listedMirrorOf(key)
-    if (mirror !== undefined && mirror !== key && (bareMirrors.has(mirror) || listed.has(mirror))) continue
-    const twin = mirror === undefined ? undefined : mirrorTwinOf(mirror)
-    if (twin === undefined && tableKnows(key)) continue
-    listed.add(key)
-    if (mirror !== undefined) listed.add(mirror)
-    const family = parseFirstPartyGeneration(key)?.family
-    let at = twin === undefined ? -1 : merged.findIndex(option => isAnthropicModelRow(option) && resolvedOf(option) === twin)
-    if (at < 0) {
-      for (let index = 0; index < merged.length; index++) {
-        const option = merged[index]!
-        if (!isAnthropicModelRow(option)) continue
-        if (family === undefined || anthropicFamilyOf(option.value) === family) at = index
-      }
-    }
-    const raw: ModelOption =
-      twin === undefined
-        ? { value: id, label: id, description: '', descriptionForModel: liveRowDescription(row, family) }
-        : { value: key, label: renderModelName(mirror ?? key), description: '', descriptionForModel: mirrorRowDescription(row, twin) }
-    merged.splice(at + 1, 0, raw)
-  }
-  return merged
+  return notBuilt('src/services/model/modelOptions.ts:128')
 }
 
 function withRefusalWords(options: ModelOption[]): ModelOption[] {

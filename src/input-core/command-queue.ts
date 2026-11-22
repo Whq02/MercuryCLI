@@ -134,10 +134,7 @@ let owningSessionId: string | null = null
 const parkedQueues = new Map<string, QueuedCommand[]>()
 
 function compactArgs(cmd: QueuedCommand): string | undefined {
-  if (cmd.localCommand !== true || cmd.agentId !== undefined || cmd.mode !== 'prompt' || cmd.skipSlashCommands || cmd.isMeta) return undefined
-  const line = typeof cmd.value === 'string' ? cmd.value : cmd.value.find(block => block.type === 'text')?.text
-  const parsed = line?.startsWith('/') ? parseSlashCommand(line) : null
-  return parsed?.commandName === 'compact' ? parsed.args.trim() : undefined
+  return notBuilt('src/input-core/command-queue.ts:171')
 }
 
 export function beginQueuedCompact(owner: OwnerKey): { fresh: boolean; instructions?: string; complete: () => void } | undefined {

@@ -997,14 +997,7 @@ export const getAllModelBetas: Unbuilt = unbuilt('src/utils/model/capabilities.t
 export const getModelBetas: Unbuilt = unbuilt('src/utils/model/capabilities.ts:1099')
 
 export function getMergedBetas(model: string, options?: { isAgenticQuery?: boolean }): string[] {
-  const merged = Array.from(getModelBetas(model))
-  const appendNew = (headers: readonly string[]): void => {
-    const present = new Set(merged)
-    headers.forEach(header => { if (!present.has(header)) merged.push(header) })
-  }
-  if (options?.isAgenticQuery) appendNew([CODING_20250219_BETA_HEADER])
-  appendNew(getSdkBetas() ?? [])
-  return merged
+  return notBuilt('src/utils/model/capabilities.ts:1103')
 }
 
 export function clearBetasCaches(): void {

@@ -42,10 +42,7 @@ export function restoreMissionContinuity(
 }
 
 function adoptedSessionIdOf(result: Pick<ResumedConversationLog, 'messages' | 'sessionId'>): string {
-  const fromMessages = result.messages.find(
-    (m): m is Message & { sessionId: string } => typeof (m as { sessionId?: unknown }).sessionId === 'string',
-  ) as { sessionId?: string } | undefined
-  return String(result.sessionId ?? fromMessages?.sessionId ?? getSessionId())
+  return notBuilt('src/services/resume/sessionRestore.ts:85')
 }
 
 export function restoreAgentFromSession(

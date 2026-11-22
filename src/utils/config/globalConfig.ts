@@ -353,10 +353,6 @@ function prepareConfigBackupHome(disk: ReturnType<typeof getFsImplementation>): 
   return directory
 }
 
-function stampedCopies(disk: ReturnType<typeof getFsImplementation>, directory: string, prefix: string): string[] {
-  return disk.readdirStringSync(directory).filter(name => name.startsWith(prefix)).sort().reverse()
-}
-
 export function saveConfigWithLock<A extends object>(
   file: string,
   createDefault: () => A,
@@ -446,23 +442,7 @@ function decodeConfigRead<A>(file: string, text: string, defaults: () => A): A {
 }
 
 function quarantineConfigRead(file: string, disk: ReturnType<typeof getFsImplementation>): { directory: string; copy?: string; matched: boolean } {
-  const stem = basename(file)
-  const directory = prepareConfigBackupHome(disk)
-  const names = disk.readdirStringSync(directory).filter(name => name.startsWith(`${stem}.corrupted.`))
-  const bytes = disk.readFileSync(file, { encoding: 'utf-8' })
-  const matched = names.some(name => {
-    try { return disk.readFileSync(join(directory, name), { encoding: 'utf-8' }) === bytes } catch (error) { passedOver(error); return false }
-  })
-  if (matched) return { directory, matched }
-  const copy = join(directory, `${stem}.corrupted.${Date.now()}`)
-  try {
-    disk.copyFileSync(file, copy)
-    logForDebugging(`Corrupted config backed up to: ${copy}`, { level: 'error' })
-    return { directory, copy, matched }
-  } catch (error) {
-    logForDebugging(`Failed to back up corrupted config to ${copy}: ${error}`, { level: 'error' })
-    return { directory, matched }
-  }
+  return notBuilt('src/utils/config/globalConfig.ts:744')
 }
 
 function reportConfigCorruption(file: string, error: ConfigParseError, disk: ReturnType<typeof getFsImplementation>): void {

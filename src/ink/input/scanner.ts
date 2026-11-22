@@ -38,63 +38,7 @@ const KIND_OF_STATE: Partial<Record<ScanState, TokenKind>> = {
 }
 
 export function createScanner(options?: ScannerOptions): Scanner {
-  const x10Mouse = options?.x10Mouse ?? false
-  const stringReplyOwed = options?.stringReplyOwed
-  let state: ScanState = 'ground'
-  let carry = ''
-  let sealedFlushes = 0
-  let fedSinceFlush = false
-  let flushedHead = ''
-  let terminatorOwed = false
-  let heldRun = false
-  let provisionalBracket = false
-  let escapeAlone = false
-
-  const run = (input: string, flush: boolean): ScanToken[] => {
-    const head = flushedHead
-    const reanchor = head !== '' && !flush && state === 'ground' && isReplyBody(head, input, x10Mouse)
-    if (!flush) escapeAlone = input === ESC && STRING_INTRODUCER[state] !== undefined
-    const result = scan((reanchor ? head : '') + carry + input, state, flush, x10Mouse, {
-      sealedFlushes,
-      fedSinceFlush,
-      stringReplyOwed: flush && stringReplyOwed?.() === true,
-      terminatorOwed,
-      heldRun,
-      provisionalBracket,
-      escapeAlone,
-    })
-    state = result.state
-    carry = result.carry
-    terminatorOwed = result.terminatorOwed === true
-    heldRun = result.heldRun === true
-    provisionalBracket = reanchor && head === ESC && input === '[' && state === 'csi'
-    flushedHead = flush ? result.flushedHead ?? (result.tokens.length === 0 ? head : '') : input === '' ? head : ''
-    if (flush) {
-      sealedFlushes = result.sealed ? sealedFlushes + 1 : 0
-      fedSinceFlush = false
-    } else {
-      fedSinceFlush = true
-      if (state === 'ground') sealedFlushes = 0
-    }
-    return result.tokens
-  }
-
-  return {
-    feed: input => run(input, false),
-    flush: () => run('', true),
-    reset: () => {
-      state = 'ground'
-      carry = ''
-      sealedFlushes = 0
-      fedSinceFlush = false
-      flushedHead = ''
-      terminatorOwed = false
-      heldRun = false
-      provisionalBracket = false
-      escapeAlone = false
-    },
-    buffer: () => carry,
-  }
+  return notBuilt('src/ink/input/scanner.ts:47')
 }
 
 type FlushPolicy = {
@@ -156,13 +100,3 @@ function isMouseReportHead(data: string, at: number, x10Mouse: boolean): boolean
 }
 
 const DOUBLE_ESC = ESC + ESC
-
-function scan(
-  data: string,
-  initial: ScanState,
-  flush: boolean,
-  x10Mouse: boolean,
-  policy: FlushPolicy,
-): { tokens: ScanToken[]; state: ScanState; carry: string; sealed?: boolean; flushedHead?: string; terminatorOwed?: boolean; heldRun?: boolean } {
-  return notBuilt('src/ink/input/scanner.ts:167')
-}

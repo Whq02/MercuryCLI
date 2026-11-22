@@ -17,6 +17,7 @@ import { lineageJoined } from './lineageSession.js'
 import { mnemeProjectKey } from './paths.js'
 import { sessionCloseAsks } from './sessionClose.js'
 import { startTimeout, stopTimeout } from '../utils/timers.js'
+import { notBuilt } from '../pi/holes.js'
 
 export const inThousands = (n: number): string => n.toLocaleString('en-US')
 
@@ -56,9 +57,7 @@ function textOf(message: Message): string {
 }
 
 export function assistantText(messages: readonly Message[]): string {
-  const message = messages.findLast(row => row.type === 'assistant' || row.type === 'user')
-  if (message?.type !== 'assistant' || message.message.content.some(block => block.type === 'tool_use')) return ''
-  return textOf(message)
+  return notBuilt('src/mneme/handoffAsk.ts:58')
 }
 
 function finalAssistant(messages: readonly Message[]): Message | null {

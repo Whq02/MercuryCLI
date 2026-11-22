@@ -9,6 +9,7 @@ import { declaredInputSchema, repairArgumentsBySchema } from './local/schemaTypi
 import { CORRECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../../constants/tools/memory.js'
 import { displayToolName } from '../../utils/toolNameDisplay.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 interface IncomingToolCall {
   id: string
@@ -231,23 +232,7 @@ function issueSummary(reason: string): string {
 }
 
 export function toolCallRefusalNote(lane: string, refusal: RefusedToolCall): string {
-  const name = refusal.name.trim() === '' ? 'unnamed' : displayToolName(refusal.name)
-  switch (refusal.code) {
-    case 'unknown-tool':
-      return `[${lane}] No such tool available: ${name} — it is not in this session's tool list, so it was not executed. Call one of the tools you were given${offeredToolNamesClause((refusal.offered ?? []).map(offered => ({ name: offered })))} (a ToolSearch query loads a deferred tool when one is offered).`
-    case 'missing-id':
-      return `[${lane}] the provider emitted a malformed tool call (${name}): it carried no call id, so it was not executed.`
-    case 'invalid-json':
-      return `[${lane}] the provider emitted a malformed tool call (${name}): its arguments were not valid JSON, so it was not executed.`
-    case 'not-an-object':
-      return `[${lane}] the provider emitted a malformed tool call (${name}): its arguments were not a JSON object, so it was not executed.`
-    case 'schema':
-      return `[${lane}] the provider emitted a malformed tool call (${name}): the arguments do not match the tool's input schema (${issueSummary(refusal.reason)}) — it was not executed.`
-    case 'duplicate-id':
-      return `[${lane}] the provider emitted a second tool call (${name}) under a call id already used in this turn (${refusal.id}) — only the first call with that id was executed.`
-    case 'provider-malformed':
-      return `[${lane}] the provider could not parse the function call the model wrote${name === 'unnamed' ? '' : ` (${name})`}: ${issueSummary(refusal.reason)} — it was not executed.`
-  }
+  return notBuilt('src/services/providers/toolCallGate.ts:233')
 }
 
 const ANSWERABLE_REFUSALS: ReadonlySet<RefusedToolCall['code']> = new Set(['schema', 'unknown-tool', 'invalid-json', 'not-an-object'])
@@ -280,9 +265,7 @@ export function toolCallRefusalResultText(refusal: RefusedToolCall): string {
 }
 
 export function refusalAnsweredBy(refusal: RefusedToolCall, messages: readonly AssistantMessage[]): boolean {
-  return messages.some(message =>
-    Array.isArray(message.message.content) && message.message.content.some(block => block.type === 'tool_use' && block.id === refusal.id),
-  )
+  return notBuilt('src/services/providers/toolCallGate.ts:282')
 }
 
 export function unansweredRefusals(messages: readonly AssistantMessage[]): RefusedToolCall[] {

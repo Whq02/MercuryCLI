@@ -12,6 +12,7 @@ import { isFileReadDenied } from '../../utils/attachments/shared.js'
 import type { Attachment } from '../../utils/attachments/types.js'
 import { passedOverAs } from '../../utils/passedOver.js'
 import { withDeadline } from '../../utils/deadline.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export function processAgentMentions(input: string, agents: AgentDefinition[]): Attachment[] {
   return extractAgentMentions(input).flatMap(word => {
@@ -22,21 +23,7 @@ export function processAgentMentions(input: string, agents: AgentDefinition[]): 
 }
 
 async function readMentionedResource(word: string, context: ToolUseContext, clients: ToolUseContext['options']['mcpClients']): Promise<Attachment[]> {
-  const colon = word.indexOf(':')
-  if (colon < 1 || colon === word.length - 1) return []
-  const server = word.slice(0, colon)
-  const uri = word.slice(colon + 1)
-  const connection = clients.find(client => client.name === server)
-  if (connection?.type !== 'connected') return []
-  const info = (context.options.mcpResources?.[server] || []).find(resource => resource.uri === uri)
-  if (!info) return []
-  try {
-    const content = await connection.client.readResource({ uri })
-    return [{ type: 'mcp_resource', server, uri, name: info.name || uri, description: info.description, content }]
-  } catch (error) {
-    logError(error)
-    return []
-  }
+  return notBuilt('src/services/attachments/mentionResolvers.ts:24')
 }
 
 export async function processMcpResourceAttachments(input: string, context: ToolUseContext): Promise<Attachment[]> {

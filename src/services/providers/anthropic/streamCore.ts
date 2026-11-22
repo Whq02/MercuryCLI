@@ -16,8 +16,8 @@ import type {
 } from '../../../types/message.js'
 import type { JsonOutputFormat, StreamCapabilityAdvertisement } from '../../../types/wire.js'
 import { createUserMessage } from '../../messages.js'
-import { asSystemPrompt, type SystemPrompt } from '../../../utils/systemPromptType.js'
-import { withStreamingVCR, withVCR } from '../../vcr.js'
+import type { SystemPrompt } from '../../../utils/systemPromptType.js'
+import { withStreamingVCR } from '../../vcr.js'
 import type { HeldBusyRetryWait } from '../busyRetry.js'
 import { emptyStreamSpentWords } from '../emptyStreamRetry.js'
 import { toolCallRefusalNote } from '../toolCallGate.js'
@@ -146,21 +146,7 @@ function sideQuestionParams(question: OneShotQuestion, systemPrompt: SystemPromp
 }
 
 export async function queryWithModel(question: OneShotQuestion): Promise<AssistantMessage> {
-  const { systemPrompt = asSystemPrompt([]), userPrompt, outputFormat, signal, options, thinkingConfig } = question
-  question = { systemPrompt, userPrompt, outputFormat, signal, options, thinkingConfig }
-  const { routedCallModel, settleAssistantTurn } = await import('../../providers/callModelRouter.js')
-  const recordedInput = [
-    createUserMessage({ content: systemPrompt.map(text => ({ type: 'text', text })) }),
-    createUserMessage({ content: question.userPrompt }),
-  ]
-  const answer = async (): Promise<AssistantMessage[]> => {
-    const stream = routedCallModel(sideQuestionParams(question, systemPrompt))
-    const replies: AssistantMessage[] = []
-    for await (const row of stream) if (row.type === 'assistant') replies.push(row)
-    return [settleAssistantTurn(replies, question.signal.aborted)]
-  }
-  const [reply] = await withVCR(recordedInput, answer)
-  return reply! as AssistantMessage
+  return notBuilt('src/services/providers/anthropic/streamCore.ts:706')
 }
 
 export { MAX_NON_STREAMING_TOKENS, adjustParamsForNonStreaming } from './streamCore/nonStreaming.js'

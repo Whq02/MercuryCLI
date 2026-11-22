@@ -1,9 +1,9 @@
-
 import type { CompactMetadata, Message, RenderableMessage, SystemCrewChatMessage, TurnReceiptMessage } from '../../types/message.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { deriveUUID } from '../messages/identity.js'
 import { NO_RESPONSE_REQUESTED } from '../messages/rejectionText.js'
 import { isNotEmptyMessage } from '../messages/text.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export function isTurnReceiptEnabled(): boolean {
   return flagEnabled('MERCURY_TURN_RECEIPT')
@@ -126,7 +126,7 @@ type LooseMessage = {
 }
 
 function chatRowOf(m: LooseMessage): Pick<SystemCrewChatMessage, 'turnId'> | null {
-  return m.type === 'system' && m.subtype === 'crew_chat' ? m : null
+  return notBuilt('src/utils/cockpit/turnReceipt.ts:128')
 }
 
 export function promptTokensOf(usage: unknown): number | undefined {

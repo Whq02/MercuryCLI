@@ -186,9 +186,7 @@ export function userFacingName(input?: AgentUiInput): string {
 export function userFacingNameBackgroundColor(
   input?: AgentUiInput,
 ): string | undefined {
-  const type = input?.crewmate_type
-  if (!type) return undefined
-  return getAgentColor(type)
+  return notBuilt('src/tools/AgentTool/UI.tsx:186')
 }
 
 export function renderToolUseMessage(

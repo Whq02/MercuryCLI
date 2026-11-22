@@ -348,14 +348,7 @@ export async function resolvePastedContents(
 }
 
 export async function historyPasteHashes(): Promise<Set<string>> {
-  const hashes = new Set<string>()
-  const corpus = await loadHistoryCorpus()
-  for (const record of corpus) {
-    for (const stored of Object.values(record.pastedContents ?? {})) {
-      if (typeof stored.contentHash === 'string' && stored.contentHash !== '') hashes.add(stored.contentHash)
-    }
-  }
-  return hashes
+  return notBuilt('src/history.ts:446')
 }
 
 export function expandPastedTextRefs(

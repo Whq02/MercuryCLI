@@ -9,6 +9,7 @@ import { truncateStartToWidth, truncateToWidth } from '../utils/truncate.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 import TextInput from './TextInput.js'
+import { notBuilt } from '../pi/holes.js'
 
 export const LOCAL_SETUP_POPUP_WIDTH = 120
 export const LOCAL_SETUP_POPUP_ROWS = 33
@@ -356,15 +357,7 @@ export function localSetupLine(state: LocalSetupState): string {
   return state.steps.length === 0 ? LOCAL_SETUP_OPENING_LINE : 'local model set-up'
 }
 
-export function LocalSetupDialog({
-  road,
-  width,
-  rowBudget,
-  onLine,
-  onHint,
-  onOwnsEscape,
-  onClose,
-}: {
+export function LocalSetupDialog(arg0: {
   road: LocalSetupRoad
   width: number
   rowBudget: number
@@ -373,141 +366,5 @@ export function LocalSetupDialog({
   onOwnsEscape?: (owns: boolean) => void
   onClose?: (summary?: string) => void
 }): React.ReactNode {
-  const tokens = useMercuryTokens()
-  const pastOpenEvent = useOpenEventGate()
-  const [state, setState] = useState<LocalSetupState>(LOCAL_SETUP_INITIAL)
-  const [tail, setTail] = useState(false)
-  const [scroll, setScroll] = useState<number | null>(null)
-  const [input, setInput] = useState('')
-  const [inputCursor, setInputCursor] = useState(0)
-  const controllerRef = useRef<AbortController | null>(null)
-  const answerRef = useRef<((answer: LocalSetupConsent) => void) | null>(null)
-  const stopRef = useRef(false)
-  const stateRef = useRef<LocalSetupState>(LOCAL_SETUP_INITIAL)
-  const dispatch = useCallback((action: LocalSetupAction): void => {
-    if (action.kind !== 'cursor') setScroll(null)
-    const next = reduceLocalSetup(stateRef.current, action)
-    stateRef.current = next
-    setState(next)
-  }, [])
-  useLoad(() => {
-    let live = true
-    const controller = new AbortController()
-    controllerRef.current = controller
-    const consent = (ask: LocalSetupAsk): Promise<LocalSetupConsent> => {
-      if (stopRef.current) return Promise.resolve('stop')
-      setInput('')
-      setInputCursor(0)
-      if (live) dispatch({ kind: 'ask', ask })
-      return new Promise(resolve => {
-        answerRef.current = resolve
-      })
-    }
-    void (async () => {
-      try {
-        for await (const event of road(consent, controller.signal)) {
-          if (!live) break
-          dispatch(event)
-        }
-        if (live) dispatch({ kind: 'ended' })
-      } catch (error) {
-        if (live) dispatch({ kind: 'error', words: error instanceof Error ? error.message : String(error) })
-      }
-    })()
-    return () => {
-      live = false
-      stopRef.current = true
-      controller.abort()
-      answerRef.current?.('stop')
-      answerRef.current = null
-    }
-  }, [road, dispatch])
-  const line = localSetupLine(state)
-  useLayoutPublish(() => {
-    onLine?.(line)
-  }, [line, onLine])
-  const hint = localSetupHint(state)
-  useLayoutClaim(() => {
-    onHint?.(hint)
-    return () => onHint?.(null)
-  }, [hint, onHint])
-  useClaim(() => {
-    onOwnsEscape?.(true)
-    return () => onOwnsEscape?.(false)
-  }, [onOwnsEscape])
-  const answer = (choice: LocalSetupConsent): boolean => {
-    const resolve = answerRef.current
-    if (resolve === null) return false
-    answerRef.current = null
-    setTail(false)
-    dispatch({ kind: 'consent', answer: choice })
-    resolve(choice)
-    return true
-  }
-  const rows = localSetupRows(state, width, tail)
-  const budget = Math.max(1, rowBudget - (localSetupAsking(state)?.input !== undefined ? 1 : 0))
-  const asking = localSetupAsking(state)
-  const choice = localSetupIsChoice(asking) ? asking : undefined
-  const cursorRow = choice !== undefined && choice.cursor !== undefined ? rows.findIndex(row => row.choice === choice.cursor) : -1
-  const window = localSetupWindow(rows.length, budget, cursorRow >= 0 ? localSetupScrollFor(rows.length, budget, cursorRow) : scroll)
-  usePopupListNavigation(choice?.cursor ?? -1, choice?.rows.length ?? 0, Math.max(1, budget - 2), cursor => dispatch({ kind: 'focus', cursor }), choice !== undefined)
-  usePopupListNavigation(window.start, Math.max(1, rows.length - budget + 2), Math.max(1, budget - 1), setScroll, choice === undefined && asking?.input === undefined)
-  useInput((input, key, event) => {
-    if (key.escape) {
-      event.stopImmediatePropagation()
-      if (escapeFromOutsidePress() || state.ended) {
-        stopRef.current = true
-        answer('stop')
-        controllerRef.current?.abort()
-        onClose?.(state.summary ? localSetupSummaryWords(state.summary, stepTitles(state)) : undefined)
-        return
-      }
-      if (!answer('stop')) {
-        stopRef.current = true
-        dispatch({ kind: 'consent', answer: 'stop' })
-        controllerRef.current?.abort()
-      }
-      return
-    }
-    if (asking?.input !== undefined) return
-    if (key.leftArrow || key.rightArrow) {
-      event.stopImmediatePropagation()
-      setTail(key.rightArrow)
-      return
-    }
-    if (key.return) {
-      event.stopImmediatePropagation()
-      if (!pastOpenEvent()) return
-      const open = localSetupAsking(stateRef.current)
-      if (localSetupIsChoice(open)) {
-        const picked = open.cursor !== undefined ? open.rows[open.cursor] : undefined
-        if (picked !== undefined) answer({ pick: picked.tag })
-        return
-      }
-      answer('run')
-      return
-    }
-    if (input === 's') {
-      event.stopImmediatePropagation()
-      if (!pastOpenEvent() || !localSetupSkippable(localSetupAsking(stateRef.current))) return
-      answer('skip')
-    }
-  })
-  const colour = (tone: LocalSetupRow['tone']): string =>
-    tone === 'primary' ? tokens.textPrimary : tone === 'secondary' ? tokens.textSecondary : tone === 'muted' ? tokens.textMuted : tone === 'success' ? tokens.success : tone === 'warning' ? tokens.warning : tokens.info
-  const shown: LocalSetupRow[] = [
-    ...(window.above > 0 ? [{ text: `↑ ${window.above} more`, tone: 'muted' as const }] : []),
-    ...rows.slice(window.start, window.end),
-    ...(window.below > 0 ? [{ text: `↓ ${window.below} more`, tone: 'muted' as const }] : []),
-  ]
-  return (
-    <Box flexDirection="column" width={width} flexShrink={0} maxHeight={Math.max(1, rowBudget)} overflow="hidden">
-      {shown.map((row, index) => (
-        <Box key={`${window.start}:${index}`} height={1} flexShrink={0}>
-          <Text color={colour(row.tone)} bold={row.bold === true} wrap="truncate-end">{row.text}</Text>
-        </Box>
-      ))}
-      {asking?.input !== undefined && <TextInput value={input} onChange={value => setInput(value.replace(/[\r\n\t]+/g, '').slice(0, 240))} onSubmit={() => { if (pastOpenEvent() && input.trim()) answer({ pick: input.trim() }) }} focus showCursor multiline={false} disableCursorMovementForUpDownKeys disableEscapeDoublePress disablePageKeyCursorMovement inputFilter={value => pastOpenEvent() ? value : ''} columns={width} cursorOffset={inputCursor} onChangeCursorOffset={setInputCursor} placeholder={asking.input} />}
-    </Box>
-  )
+  return notBuilt('src/components/LocalSetupDialog.tsx:359')
 }

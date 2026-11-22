@@ -33,11 +33,7 @@ const placeholder = (text: string): AssistantContent => [{ type: 'text', text, c
 export { isThinkingBlock } from '../../utils/messages/thinkingBlock.js'
 
 function withoutThinking<M extends Message>(row: M, emptyText?: string): M {
-  if (row.type !== 'assistant' || !Array.isArray(row.message.content)) return row
-  const before = row.message.content
-  const after = before.filter(block => !isThinkingBlock(block))
-  return after.length === before.length ? row : withAssistantContent(row,
-    after.length === 0 && emptyText !== undefined ? placeholder(emptyText) : after)
+  return notBuilt('src/services/messages/apiFilters.ts:34')
 }
 
 export function stripSignatureBlocks(messages: Message[]): Message[] {
@@ -49,13 +45,7 @@ export function stripThinkingFromIndex<M extends Message>(messages: M[], fromInd
 }
 
 export function stripThinkingInPreservedTail<M extends Message>(messages: M[]): M[] {
-  const boundary = messages[0]
-  const segment = boundary?.type === 'system' && boundary.subtype === 'compact_boundary' ? boundary.compactMetadata.preservedSegment : undefined
-  if (segment === undefined) return messages
-  const head = messages.findIndex(row => row.uuid === segment.headUuid)
-  const tail = messages.findIndex(row => row.uuid === segment.tailUuid)
-  if (head < 0 || tail < head) return messages
-  return reviseRows(messages, (row, index) => index >= head && index <= tail ? withoutThinking(row) : row)
+  return notBuilt('src/services/messages/apiFilters.ts:50')
 }
 
 type SameModel = (a: string, b: string, row: AssistantMessage) => boolean
@@ -91,19 +81,7 @@ export function filterTrailingThinkingFromLastAssistant(messages: ConversationRo
 }
 
 export function dropEmptyTextBlocks<M extends Message>(messages: M[]): M[] {
-  return reviseRows(messages, row => {
-    if (row.type === 'user') {
-      const before = row.message.content
-      if (typeof before === 'string') return before.length > 0 ? row : { ...row, message: { ...row.message, content: NO_CONTENT_MESSAGE } }
-      const after = before.filter(block => block.type !== 'text' || block.text.length > 0)
-      if (after.length === before.length && after.length > 0) return row
-      return { ...row, message: { ...row.message, content: after.length > 0 ? after : [{ type: 'text', text: NO_CONTENT_MESSAGE }] } }
-    }
-    if (row.type !== 'assistant' || !Array.isArray(row.message.content) || row.message.content.length < 2) return row
-    const before = row.message.content
-    const after = before.filter(block => block.type !== 'text' || (typeof block.text === 'string' && block.text.trim() !== ''))
-    return after.length > 0 && after.length !== before.length ? withAssistantContent(row, after) : row
-  })
+  return notBuilt('src/services/messages/apiFilters.ts:99')
 }
 
 export function ensureNonEmptyAssistantContent(messages: ConversationRow[]): ConversationRow[] {

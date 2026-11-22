@@ -91,17 +91,6 @@ function runLeftAlone(toolUseContext: ToolUseContext): boolean {
   return toolUseContext.agentId !== undefined || (getIsNonInteractiveSession() && getSessionKind() !== 'oculus')
 }
 
-function endedWithoutWords(assistantMessages: readonly AssistantMessage[]): boolean {
-  const last = assistantMessages.at(-1)
-  if (last !== undefined && last.message.stop_reason !== 'end_turn') return false
-  return assistantMessages.every(
-    message =>
-      message.isApiErrorMessage !== true &&
-      Array.isArray(message.message.content) &&
-      message.message.content.every(block => block.type === 'text' && (block.text.trim() === '' || block.text === NO_CONTENT_MESSAGE)),
-  )
-}
-
 function continuationAdded(previous: string | undefined, next: string): boolean {
   if (previous === undefined) return true
   const added = next.trim()

@@ -1,4 +1,3 @@
-
 import type { UUID } from 'node:crypto'
 import { z } from 'zod/v4'
 import { buildTool, type ToolUseContext } from '../../Tool.js'
@@ -17,6 +16,7 @@ import {
   renderToolUseMessage,
   userFacingName,
 } from './UI.js'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
@@ -180,98 +180,4 @@ async function runOp(input: Input, context: ToolUseContext, parentMessage: Assis
   return text
 }
 
-export const GodotTool = buildTool({
-  name: GODOT_TOOL_NAME,
-  get searchHint() {
-    return (
-      'Godot editor control (VULCAN): scenes, nodes, scripts, resources, animation, physics, audio, tilemap, shaders, play-test, runtime inspection, input simulation, profiling, export' +
-      (vulcanLiteMode() ? ' (lite subset)' : '')
-    )
-  },
-  maxResultSizeChars: 100_000,
-  async description() {
-    return 'Drive the running Godot editor: scene/node/resource editing (undoable), play-testing, runtime inspection, input simulation'
-  },
-  async prompt() {
-    return getGodotToolDescription()
-  },
-  userFacingName,
-  shouldDefer: true,
-  get inputSchema(): SchemaType {
-    return inputSchema()
-  },
-  isConcurrencySafe() {
-    return false
-  },
-  isReadOnly(input: Input) {
-    return vulcanOp(input.op)?.cls === 'read'
-  },
-  async checkPermissions(input: Input) {
-    const spec = vulcanOp(input.op)
-    if (!spec || spec.cls === 'read') {
-      return { behavior: 'allow' as const, updatedInput: input }
-    }
-    if (input.op === 'project_refresh_classes') {
-      return {
-        behavior: 'ask' as const,
-        message: `Godot exec: project_refresh_classes — rebuilds the class cache: the editor's rescan over the bridge when one is up, else runs godot --headless --import --path <project> (bounded, no editor running)`,
-      }
-    }
-    if (spec.side === 'mercury') {
-      const { engineOpPermissionMessage } = await import('../../services/vulcan/engine/ops.js')
-      const message = engineOpPermissionMessage(input.op, input.args)
-      if (message) return { behavior: 'ask' as const, message }
-    }
-    if (spec.cls === 'exec') {
-      return {
-        behavior: 'ask' as const,
-        message: `Godot exec: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — runs code / drives input in the ${input.op.startsWith('runtime_') || input.op.startsWith('input_') ? 'running game' : 'editor'}`,
-      }
-    }
-    if (input.op === 'vulcan_install' || input.op === 'vulcan_uninstall') {
-      return {
-        behavior: 'ask' as const,
-        message: `Godot mutate: ${input.op} — writes addons/mercury_vulcan/ and project.godot rows (each row receipted; no editor undo step)${input.op === 'vulcan_install' ? '; with a bridge already up it reloads the editor plugin' : ''}`,
-      }
-    }
-    if (FILE_MUTATES.has(input.op)) {
-      return {
-        behavior: 'ask' as const,
-        message: `Godot mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — writes project files; the receipt lists previous values (no editor undo step)`,
-      }
-    }
-    return {
-      behavior: 'ask' as const,
-      message: `Godot mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — one undo step in the editor (Ctrl+Z reverts)`,
-    }
-  },
-  async validateInput(input: Input) {
-    if (!input.op || input.op.trim().length === 0) {
-      return { result: false as const, message: 'op is required', errorCode: 1 }
-    }
-    return { result: true as const }
-  },
-  async call(input: Input, context: ToolUseContext, _canUseTool, parentMessage: AssistantMessage) {
-    let result: string
-    try {
-      result = await runOp(input, context, parentMessage)
-    } catch (err) {
-      result = `${input.op} failed: ${(err as Error).message}\nhint: op:"vulcan_status" lists available instances; name the intended instance explicitly`
-    }
-    const output: Output = { op: input.op, result }
-    return { data: output }
-  },
-  mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
-    return {
-      tool_use_id: toolUseId,
-      type: 'tool_result' as const,
-      content: output.result,
-    }
-  },
-  renderToolUseMessage,
-  renderToolUseErrorMessage,
-  renderToolResultMessage,
-  extractSearchText({ result }) {
-    return result ?? ''
-  },
-})
+export const GodotTool: Unbuilt = unbuilt('src/tools/GodotTool/GodotTool.ts:183')

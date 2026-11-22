@@ -141,15 +141,7 @@ export function stripDangerousPermissionsForFlow(
 }
 
 export function restoreDangerousPermissions(context: ToolPermissionContext): ToolPermissionContext {
-  if (!context.strippedDangerousRules) return context
-  const next = cloneContext(context)
-  for (const [source, rules] of Object.entries(context.strippedDangerousRules)) {
-    if (!rules || rules.length === 0) continue
-    const key = source as PermissionRuleSource
-    next.alwaysAllowRules[key] = [...(next.alwaysAllowRules[key] ?? []), ...rules]
-  }
-  next.strippedDangerousRules = {}
-  return next
+  return notBuilt('src/utils/permissions/permissionSetup.ts:205')
 }
 
 
@@ -352,11 +344,7 @@ export function resolvePermissionModeCandidates(
 }
 
 export function savedPermissionModeCandidate(): PermissionMode | undefined {
-  const { settings, errors } = getSettingsWithErrors()
-  const raw = settings.guardrails?.mode
-  if (!raw) return errors.some(error => error.path === 'guardrails.mode') ? 'default' : undefined
-  const mode = permissionModeFromString(raw)
-  return mode
+  return notBuilt('src/utils/permissions/permissionSetup.ts:468')
 }
 
 export function resolveSavedPermissionMode(): { mode: PermissionMode; notification?: string } | undefined {
@@ -395,24 +383,9 @@ function cloneContext(context: ToolPermissionContext): ClonedContext {
 }
 
 function cloneMap(map?: ReadonlyRuleMap): ToolPermissionRulesBySource {
-  const out: ToolPermissionRulesBySource = {}
-  for (const [key, value] of Object.entries(map ?? {})) {
-    if (value !== undefined) out[key as PermissionRuleSource] = [...value]
-  }
-  return out
+  return notBuilt('src/utils/permissions/permissionSetup.ts:569')
 }
 
 function getAllowRulesFromContext(context: ToolPermissionContext): PermissionRule[] {
-  const bySource = context.alwaysAllowRules ?? {}
-  const rules: PermissionRule[] = []
-  for (const [source, entries] of Object.entries(bySource)) {
-    for (const entry of entries ?? []) {
-      rules.push({
-        source: source as PermissionRuleSource,
-        ruleBehavior: 'allow',
-        ruleValue: permissionRuleValueFromString(entry),
-      })
-    }
-  }
-  return rules
+  return notBuilt('src/utils/permissions/permissionSetup.ts:577')
 }

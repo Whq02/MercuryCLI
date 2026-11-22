@@ -50,8 +50,6 @@ import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export const TOOL_TOKEN_COUNT_OVERHEAD: Unbuilt = unbuilt('src/services/context/analyzeContext.ts:50')
 
-type SystemPromptSectionDetail = Unbuilt
-
 export type ContextData = Unbuilt
 
 const UNKNOWN_NAME = 'unknown'
@@ -127,58 +125,6 @@ export async function countToolDefinitionTokens(
   model?: string,
 ): Promise<number> {
   return notBuilt('src/services/context/analyzeContext.ts:228')
-}
-
-
-function sectionDisplayName(part: string): string {
-  return notBuilt('src/services/context/analyzeContext.ts:346')
-}
-
-async function countSystemPrompt(
-  runtimeModel: string,
-  tools: Tools,
-  toolUseContext: Pick<ToolUseContext, 'options'> | undefined,
-  mainThreadAgentDefinition: AgentDefinition | undefined,
-  messages: Message[],
-): Promise<{ tokens: number; sections: SystemPromptSectionDetail[]; requestSystem: TextBlockParam[] }> {
-  const options = (toolUseContext as { options?: Record<string, unknown> } | undefined)?.options
-  const defaultSystemPrompt = await getSystemPrompt(
-    tools,
-    runtimeModel,
-    options?.mcpClients as MCPServerConnection[] | undefined,
-  )
-  const { buildEffectiveSystemPrompt } = await import('../../utils/systemPrompt.js')
-  const effective = buildEffectiveSystemPrompt({
-    mainThreadAgentDefinition: mainThreadAgentDefinition as AgentDefinition,
-    toolUseContext: toolUseContext ?? ({ options: {} } as Pick<ToolUseContext, 'options'>),
-    customSystemPrompt: options?.customSystemPrompt as string | undefined,
-    defaultSystemPrompt,
-    appendSystemPrompt: options?.appendSystemPrompt as string | undefined,
-  })
-
-  const parts = (effective as readonly string[]).filter(part => part !== '')
-  const systemContext = await getSystemContext()
-  const contextEntries = Object.entries(systemContext).filter(([, value]) => value !== '')
-  const requestSystem = buildTurnSystemBlocks(
-    getAttributionHeader(computeFingerprintFromMessages(messages)),
-    asSystemPrompt(appendSystemContext(effective, systemContext)),
-    getPromptCachingEnabled(runtimeModel),
-  )
-  if (parts.length === 0 && contextEntries.length === 0) {
-    return { tokens: 0, sections: [], requestSystem }
-  }
-  const sections: SystemPromptSectionDetail[] = await Promise.all([
-    ...parts.map(async part => ({
-      name: sectionDisplayName(part),
-      tokens: (await countStringTokens(part)) ?? 0,
-    })),
-    ...contextEntries.map(async ([key, value]) => ({
-      name: key,
-      tokens: (await countStringTokens(value)) ?? 0,
-    })),
-  ])
-  const total = sections.reduce((sum, section) => sum + section.tokens, 0)
-  return { tokens: total, sections, requestSystem }
 }
 
 async function countMemoryFiles(): Promise<{

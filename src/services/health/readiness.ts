@@ -1,4 +1,3 @@
-
 import { FLAG_REGISTRY, flagEnabled, flagEnv, type FlagSpec } from '../../substrate/flagRegistry.js'
 import { realEnvPin } from '../../substrate/startupMenu.js'
 import { driverNodeGate, resolveBrowser } from '../browser/browserResolver.js'
@@ -49,6 +48,7 @@ import { searchToolsAvailability } from '../../utils/ripgrep.js'
 import { mcpGauge } from '../cockpit/mcpGauge.js'
 import { whichSync } from '../../utils/which.js'
 import { withheldTools } from '../tools/withheldTools.js'
+import { notBuilt } from '../../pi/holes.js'
 
 function flagAsSet(env: string): string {
   return `${env}=${flagEnv(env)?.trim() || '0'}`
@@ -276,61 +276,7 @@ function mcpRow(
   runtimeInjected: boolean,
   oauthTail: string,
 ): ReadinessRecord {
-  const id = `mcp:${name}`
-  const source = runtimeInjected
-    ? 'this process connection store (no config row)'
-    : 'config.mcpServers + this process connection store'
-  const base = { id, kind: 'mcp' as const, label: name, source, lastCheckedAt: Date.now() }
-  const injected = connection !== undefined && runtimeInjected ? injectionNote() : ''
-
-  if (connection === undefined) {
-    if (isMcpServerDisabled(name)) {
-      return {
-        ...base,
-        state: 'disabled',
-        detail: `disabled in config${oauthTail}`,
-        remedy: 'enable it via /mcp',
-      }
-    }
-    return {
-      ...base,
-      state: 'configured',
-      detail: `configured — no connection in this process (connects at session start or on demand)${oauthTail}`,
-    }
-  }
-
-  switch (connection.type) {
-    case 'connected':
-      return { ...base, state: 'ready', detail: `connected in this process${injected}${oauthTail}` }
-    case 'pending': {
-      const attempt =
-        connection.reconnectAttempt !== undefined
-          ? ` (attempt ${connection.reconnectAttempt}${connection.maxReconnectAttempts !== undefined ? `/${connection.maxReconnectAttempts}` : ''})`
-          : ''
-      return { ...base, state: 'starting', detail: `connect in flight${attempt}${injected}${oauthTail}` }
-    }
-    case 'needs-auth':
-      return {
-        ...base,
-        state: 'degraded',
-        detail: `server requires authentication${injected}${oauthTail}`,
-        remedy: 'authenticate via /mcp, then reconnect',
-      }
-    case 'failed':
-      return {
-        ...base,
-        state: 'failed',
-        detail: `connection failed${connection.error ? `: ${bounded(connection.error, 140)}` : ''}${injected}${oauthTail}`,
-        remedy: 'check the server command/url and its logs; reconnect via /mcp',
-      }
-    case 'disabled':
-      return {
-        ...base,
-        state: 'disabled',
-        detail: `disabled in config${injected}${oauthTail}`,
-        remedy: 'enable it via /mcp',
-      }
-  }
+  return notBuilt('src/services/health/readiness.ts:273')
 }
 
 function mcpRecords(): ReadinessRecord[] {

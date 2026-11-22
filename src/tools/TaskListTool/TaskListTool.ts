@@ -4,7 +4,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { getTaskListId, isTaskToolsEnabled, listTasks, TASK_STATUSES } from '../../utils/tasks.js'
 import { TASK_LIST_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
+import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const inputSchema = lazySchema(() => z.strictObject({}))
 const taskRow = lazySchema(() => z.object({ id: z.string(), subject: z.string(), status: z.enum(TASK_STATUSES), owner: z.string().optional(), blockedBy: z.string().array() }))
@@ -20,8 +20,7 @@ const NO_TASKS = 'No tasks found'
 const visible = (task: StoredTask): boolean => !task.metadata?._internal
 
 function rowOf(task: StoredTask, completed: ReadonlySet<string>): Row {
-  const owned = task.owner === undefined ? {} : { owner: task.owner }
-  return { id: task.id, subject: task.subject, status: task.status, ...owned, blockedBy: task.blockedBy.filter(id => !completed.has(id)) }
+  return notBuilt('src/tools/TaskListTool/TaskListTool.ts:21')
 }
 
 const hashed = (ids: string[]): string => ids.map(id => `#${id}`).join(', ')

@@ -15,16 +15,11 @@ function optionNames(option: Option): string[] {
 }
 
 function findSubcommandSpec(spec: CommandSpec, token: string): CommandSpec | undefined {
-  const lower = token.toLowerCase()
-  return spec.subcommands?.find(sub => {
-    const name = sub.name as unknown
-    if (Array.isArray(name)) return (name as string[]).some(n => n.toLowerCase() === lower)
-    return (name as string).toLowerCase() === lower
-  })
+  return notBuilt('src/utils/shell/specPrefix.ts:28')
 }
 
 function findOption(spec: CommandSpec | null, flagName: string): Option | undefined {
-  return spec?.options?.find(option => optionNames(option).some(n => n === flagName))
+  return notBuilt('src/utils/shell/specPrefix.ts:37')
 }
 
 function optionTakesArgument(spec: CommandSpec | null, flag: string, followedByNonFlagSubcommand: {

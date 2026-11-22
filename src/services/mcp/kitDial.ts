@@ -4,6 +4,7 @@ import { getMcpPrefix } from '../../utils/mcp/mcpStringUtils.js'
 import { isMcpOrgan, kitMembership } from './membership.js'
 import { pruneStaleMcpResourceTools } from './client.js'
 import type { ScopedMcpServerConfig } from '../../utils/mcp/types.js'
+import { notBuilt } from '../../pi/holes.js'
 
 function kitSpokenMcpNames(kit: SessionKitV1 | undefined): readonly string[] {
   if (kit === undefined) return []
@@ -45,27 +46,5 @@ export function dropMcpServerFromAppState(
   serverName: string,
   config: ScopedMcpServerConfig,
 ): AppState {
-  const prefix = getMcpPrefix(serverName)
-  const nextClients = previous.mcp.clients.map(candidate =>
-    candidate.name === serverName
-      ? { name: serverName, type: 'disabled' as const, config }
-      : candidate,
-  )
-  return {
-    ...previous,
-    mcp: {
-      ...previous.mcp,
-      clients: nextClients,
-      tools: pruneStaleMcpResourceTools(
-        nextClients,
-        previous.mcp.tools.filter(tool => !tool.name.startsWith(prefix)),
-      ),
-      commands: previous.mcp.commands.filter(
-        candidate => !candidate.name.startsWith(prefix),
-      ),
-      resources: Object.fromEntries(
-        Object.entries(previous.mcp.resources ?? {}).filter(([key]) => key !== serverName),
-      ),
-    },
-  }
+  return notBuilt('src/services/mcp/kitDial.ts:43')
 }

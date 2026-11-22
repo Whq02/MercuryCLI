@@ -4,7 +4,7 @@ import type { Command } from '../../commands.js'
 import { formatDescriptionWithSource, getCommandName } from '../../commands.js'
 import { requiresArgument } from '../../skills/argumentHint.js'
 import { getSkillUsageScore } from './skillUsageTracking.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
+import { notBuilt } from '../../pi/holes.js'
 
 
 type MidInputSlashCommand = {
@@ -54,85 +54,7 @@ function suggestionIdentifier(command: CommandLike): string {
   return `${name}-${command.type}`
 }
 
-function toSuggestionItem(
-  command: CommandLike,
-  typedQuery: string,
-): CommandSuggestionItem {
-  const name = getCommandName(command)
-  let value: string | undefined
-  if (command.currentValue !== undefined) {
-    try {
-      value = command.currentValue()
-    } catch {
-      value = undefined
-    }
-  }
-  let aliasSuffix = ''
-  if (typedQuery !== '') {
-    const matchedAlias = (command.aliases ?? []).find(
-      alias => alias.toLowerCase().startsWith(typedQuery) && !name.toLowerCase().startsWith(alias.toLowerCase()),
-    )
-    if (matchedAlias !== undefined) aliasSuffix = ` (${matchedAlias})`
-  }
-  let description = formatDescriptionWithSource(command)
-  if (command.type === 'prompt' && command.argNames !== undefined && command.argNames.length > 0) {
-    description += ` (arguments: ${command.argNames.join(', ')})`
-  }
-  return {
-    id: suggestionIdentifier(command),
-    displayText: `/${name}${aliasSuffix}`,
-    ...(value !== undefined && value !== '' ? { value } : {}),
-    description,
-    metadata: command,
-  }
-}
-
 const MAX_RECENTLY_USED = 5
-
-type IndexedCommand = Unbuilt
-
-function rankResults(
-  results: Array<{ item: IndexedCommand; score?: number }>,
-  query: string,
-): CommandLike[] {
-  type Ranked = {
-    command: CommandLike
-    tier: number
-    tieBreak: number
-    fuzzyScore: number
-  }
-  const ranked: Ranked[] = results.map(result => {
-    const { item } = result
-    const name = item.name.toLowerCase()
-    const aliases = item.aliases.map(alias => alias.toLowerCase())
-    let tier = 4
-    let tieBreak = 0
-    if (name === query) tier = 0
-    else if (aliases.includes(query)) tier = 1
-    else if (name.startsWith(query)) {
-      tier = 2
-      tieBreak = item.name.length
-    } else {
-      const prefixAlias = aliases.find(alias => alias.startsWith(query))
-      if (prefixAlias !== undefined) {
-        tier = 3
-        tieBreak = prefixAlias.length
-      }
-    }
-    return { command: item.command, tier, tieBreak, fuzzyScore: result.score ?? 1 }
-  })
-  ranked.sort((a, b) => {
-    if (a.tier !== b.tier) return a.tier - b.tier
-    if (a.tier === 2 || a.tier === 3) {
-      if (a.tieBreak !== b.tieBreak) return a.tieBreak - b.tieBreak
-    }
-    if (Math.abs(a.fuzzyScore - b.fuzzyScore) < 0.1) {
-      return getSkillUsageScore(getCommandName(b.command)) - getSkillUsageScore(getCommandName(a.command))
-    }
-    return a.fuzzyScore - b.fuzzyScore
-  })
-  return ranked.map(entry => entry.command)
-}
 
 export function generateCommandSuggestions(
   input: string,
@@ -162,15 +84,7 @@ export function getBestCommandMatch(
 }
 
 export function isNameAnchoredSuggestion(input: string, suggestion: CommandSuggestionItem): boolean {
-  if (!input.startsWith('/')) return true
-  const fragment = input.slice(1).toLowerCase().trim()
-  if (fragment === '') return true
-  const cmd = suggestion.metadata as CommandLike | undefined
-  if (cmd === undefined || typeof cmd !== 'object' || typeof cmd.type !== 'string') return false
-  const name = getCommandName(cmd).toLowerCase()
-  if (name.startsWith(fragment)) return true
-  if (name.split(/[:_-]/).some(part => part.startsWith(fragment))) return true
-  return (cmd.aliases ?? []).some(alias => alias.toLowerCase().startsWith(fragment))
+  return notBuilt('src/utils/suggestions/commandSuggestions.ts:266')
 }
 
 export function applyCommandSuggestion(

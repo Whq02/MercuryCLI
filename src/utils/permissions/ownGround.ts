@@ -6,6 +6,7 @@ import { MERCURY_PROJECT_DIR } from '../projectConfig.js'
 import { preparedSecurityParse, type SimpleCommand } from './decision/commandAnalysis.js'
 import { getProjectTempDir, getScratchpadDir, MERCURY_WORKING_FOLDERS, pathInWorkingPath } from './filesystem.js'
 import { passedOver } from '../passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const OWN_GROUND_SCRATCHPAD = "the session's scratchpad"
 const OWN_GROUND_CREATED = 'a path this session created'
@@ -99,12 +100,7 @@ function pathOperands(args: readonly string[]): string[] {
 const OWN_GROUND_VERBS: ReadonlySet<string> = new Set(['mkdir', 'rmdir', 'touch', 'rm', 'mv', 'cp'])
 
 export function ownGroundCommand(command: SimpleCommand, cwd: string): boolean {
-  const [name, ...args] = command.argv
-  if (name === undefined || !OWN_GROUND_VERBS.has(name)) return false
-  const operands = pathOperands(args)
-  if (operands.length === 0) return false
-  if (command.redirects.some(redirect => redirect.op !== '<' && !/^\d+$/.test(redirect.target) && !isOwnGround(redirect.target, cwd))) return false
-  return operands.every(operand => isOwnGround(operand, cwd))
+  return notBuilt('src/utils/permissions/ownGround.ts:101')
 }
 
 type CreationSnapshot = { cwd: string; targets: string[] }

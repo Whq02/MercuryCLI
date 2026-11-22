@@ -692,9 +692,7 @@ function clipsBothAxes(node: FrameNode): boolean {
 }
 
 function nearestLaidOutSibling(siblings: FrameNode['childNodes'], index: number): LayoutNode | null {
-  const after = siblings.slice(index + 1).find(sibling => (sibling as FrameNode).layoutNode)
-  const before = siblings.slice(0, index).reverse().find(sibling => (sibling as FrameNode).layoutNode)
-  return ((after ?? before) as FrameNode | undefined)?.layoutNode ?? null
+  return notBuilt('src/ink/compose-walk.ts:1017')
 }
 
 function siblingSharesY(node: FrameNode, layoutNode: LayoutNode): boolean {

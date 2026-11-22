@@ -49,13 +49,11 @@ export function isThinkingMessage(row: Rows.Message): boolean {
 }
 
 function callIn(row: Rows.Message | undefined, name: string): ToolUseBlock | undefined {
-  if (row?.type !== 'assistant' || !Array.isArray(row.message.content)) return undefined
-  return row.message.content.find((block): block is ToolUseBlock => block.type === 'tool_use' && block.name === name)
+  return notBuilt('src/utils/messages/systemMessages.ts:50')
 }
 
 function resultIn(row: Rows.Message | undefined, id: string): ToolResultBlockParam | undefined {
-  if (row?.type !== 'user' || !Array.isArray(row.message.content)) return undefined
-  return row.message.content.find((block): block is ToolResultBlockParam => block.type === 'tool_result' && block.tool_use_id === id)
+  return notBuilt('src/utils/messages/systemMessages.ts:55')
 }
 
 function* toolCallingRows(rows: Rows.Message[], name: string): IterableIterator<Rows.Message> {

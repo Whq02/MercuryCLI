@@ -35,6 +35,7 @@ import type { ExecResult, ShellCommand } from '../ShellCommand.js'
 import { passedOver, passedOverAs } from '../passedOver.js'
 import { startImmediate, startTimeout, stopTimeout } from '../timers.js'
 import { withDeadline } from '../deadline.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const SOH = String.fromCharCode(1)
 const STX = String.fromCharCode(2)
@@ -129,28 +130,7 @@ export function perCommandEngineBinary(setting?: 'system' | 'brush'): string | n
 }
 
 export function createEngineCommandProvider(binaryPath: string): ShellProvider {
-  return {
-    type: 'bash',
-    shellPath: binaryPath,
-    origin: 'engine',
-    detached: childGetsOwnProcessGroup(rememberedPlatform()),
-    async buildExecCommand(command, options) {
-      const record = join(tmpdir(), `mercury-cwd-${options.id}`)
-      const target = quote([record])
-      const seeds: string[] = []
-      const snapshot = await getSnapshot(binaryPath)
-      if (snapshot) seeds.push(`source ${quote([snapshot])}`)
-      const sessionScript = await getSessionEnvironmentScript()
-      if (sessionScript) seeds.push(sessionScript)
-      const preamble = getGlobPreambleCommand('engine')
-      if (preamble) seeds.push(preamble)
-      const lines = seeds.length === 0 ? [CLEAR_OLD_FOLDER] : [`{\n${seeds.join('\n')}\n} >| ${target} 2>&1 || :`, `: >| ${target}`, CLEAR_OLD_FOLDER]
-      lines.push(`eval ${quoteShellCommand(command, false)} && { __mercury_cwd=$(pwd -P 2>&1) && printf '%s' "$__mercury_cwd" >| ${target} || :; }`)
-      return { commandString: lines.join('\n'), cwdFilePath: record }
-    },
-    getSpawnArgs: commandString => [...ENGINE_FLAGS, '-c', commandString],
-    getEnvironmentOverrides: async () => envOverrides(),
-  }
+  return notBuilt('src/utils/shell/engineSession.ts:131')
 }
 
 

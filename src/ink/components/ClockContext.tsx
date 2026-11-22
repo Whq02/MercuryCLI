@@ -9,12 +9,6 @@ type Clock = Unbuilt
 
 export type ClockTimers = Unbuilt
 
-const REAL_CLOCK_TIMERS: ClockTimers = {
-  now: () => performance.now(),
-  setInterval: (fn, ms) => startInterval(fn, ms),
-  clearInterval: timer => stopInterval(timer as ReturnType<typeof setInterval>),
-}
-
 const FRAME_INTERVAL_MS = 16
 
 export function createClock(intervalMs: number, timers?: ClockTimers): Clock {

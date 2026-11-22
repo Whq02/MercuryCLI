@@ -50,8 +50,6 @@ type IsEqual<A, B> =
     ? true
     : false
 type Assert<T extends true> = T
-type EveryTaskTypeClassified = Assert<IsEqual<TaskType, ClassifiedTaskType>>
-void (true satisfies EveryTaskTypeClassified)
 
 
 type ViewedAgent = {

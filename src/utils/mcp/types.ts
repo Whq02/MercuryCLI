@@ -53,5 +53,5 @@ type ServerIdentity = Unbuilt
 type ConnectionFacts = Unbuilt
 type Connection<State extends keyof ConnectionFacts> = ServerIdentity & { type: State } & ConnectionFacts[State]
 export type ConnectedMCPServer = Connection<'connected'>
-export type MCPServerConnection = { [State in keyof ConnectionFacts]: Connection<State> }[keyof ConnectionFacts]
+export type MCPServerConnection = Unbuilt
 export type ServerResource = Resource & { server: string }
