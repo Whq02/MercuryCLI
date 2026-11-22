@@ -113,8 +113,9 @@ prompt-input-drives	1800
 # (run 45032765938, the second on the release tip of 1.0.12) with 99 of its
 # 102 provers done in 1718 s, every one of them passing, and three unfinished,
 # one of them already running (163 s between them on the run before,
-# 45026888143, which read the whole suite in 1787 s). The row is the measured hosted wall (about 1,900 s
-# whole) with the ui-class slack. api (796 s and 761 s on those two runs),
+# 45026888143, which read the whole suite in 1787 s). The row is the measured
+# hosted wall (about 1,900 s whole) with the ui-class slack. api (796 s and
+# 761 s on those two runs),
 # gate (772 s and 744 s) and sdk (564 s and 686 s, the suite's wall 22 per
 # cent longer on the second) are measured healthy walls over 600 s that stood
 # within a slow runner's reach of the 900 s default; each takes the host row.
