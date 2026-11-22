@@ -30,9 +30,19 @@ export function createFoldMeter(
       ? estimateRequestGauge(request, gauge.fixed, gauge.density, model)
       : estimateContextTokens(request, model)
   }
-  const before = count(stripThinkingFromIndex(messages, 0))
+  const before = count(withoutSkillsList(stripThinkingFromIndex(messages, 0)))
   const measureResult = (result: CompactionResult): number => count(buildPostCompactMessages(result))
   return { gauge, context, before, count, measureResult }
+}
+
+function withoutSkillsList(rows: Message[]): Message[] {
+  return rows.flatMap((row): Message[] => {
+    if (row.type !== 'attachment') return [row]
+    const attachment = row.attachment
+    if (attachment.type === 'skill_listing') return []
+    if (attachment.type !== 'context_capsule' || attachment.sections === undefined) return [row]
+    return [{ ...row, attachment: { ...attachment, sections: attachment.sections.filter(section => !section.kinds.includes('skill_listing')) } }]
+  })
 }
 
 export function contextAfterFold(context: number, before: number, after: number): number {
