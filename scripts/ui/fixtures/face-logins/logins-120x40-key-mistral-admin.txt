@@ -7,34 +7,34 @@
 
                                                         ⌁ logins
 
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ … 2 more above                                                 │  │ ❯ Mistral — API key                        │
-   │   Anthropic — Claude subscription or Cons…      op@example.com │  │                                            │
-   │   Hugging Face — sign-in or Hub token           keyed-op …k9f2 │  │ Mistral Admin API key (optional)           │
-   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ Optional Admin API key from                │
-   │                                                                │  │ backoffice.mistral.ai (Enterprise          │
-   │ available                                                      │  │ plans) unlocks the organisation usage      │
-   │   OpenRouter — browser sign-in or API key        not signed in │  │ meter and spend limit.                     │
-   │   Google Gemini — Google sign-in, API key        not signed in │  │ Stored auth-scoped (mode 600);             │
-   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ MISTRAL_ADMIN_API_KEY wins. Enterprise     │
-   │   DeepSeek — API key                             not signed in │  │ plans issue it at                          │
-   │   xAI — Grok subscription sign-in or API …       not signed in │  │ backoffice.mistral.ai.                     │
-   │   Meta — Muse Code sign-in or API key            not signed in │  │ … (the trail continues — taller terminal)  │
-   │ ❯ Mistral — API key                              not signed in │  ╰────────────────────────────────────────────╯
-   │   Nous Portal — sign-in or API key               not signed in │  ╭────────────────────────────────────────────╮
-   │   MiniMax — API key or M Plan key                not signed in │  │ LOGINS                                     │
-   │   Together AI — API key                          not signed in │  │ Families   22                              │
-   │   Cohere — API key                               not signed in │  │ Signed in  4 of 22                         │
-   │   Groq — API key                                 not signed in │  │ Ready      4 lanes                         │
-   │   Melious AI — API key                           not signed in │  ╰────────────────────────────────────────────╯
-   │   OrcaRouter — device-code sign-in or API…       not signed in │  ╭────────────────────────────────────────────╮
-   │   Cerebras — API key                             not signed in │  │ ENVIRONMENT                                │
-   │   Fireworks — API key                            not signed in │  │ Mercury    Opus 5                          │
-   │   Qwen — QwenCloud or Model Studio API key       not signed in │  │ Critter    Octopus                         │
-   │ … 1 more below                                                 │  │ Dir        orchard-src                     │
-   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  paste Mistral Admin API key (optional)                                                      │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+│ CONTROL PLANE                                                        │  │ SETTING DETAIL                             │
+│ … 4 more above                                                       │  │ ❯ Mistral                                  │
+│   Hugging Face — sign-in or Hub token                 keyed-op …k9f2 │  │                                            │
+│   Kimi (Moonshot) — device-code sign-in or API key                   │  │ Mistral Admin API key (optional)           │
+│                                    kimi.ai (global) · window reached │  │ Optional Admin API key from                │
+│                                                                      │  │ backoffice.mistral.ai (Enterprise          │
+│ available                                                            │  │ plans) unlocks the organisation usage      │
+│   OpenRouter — browser sign-in or API key              not signed in │  │ meter and spend limit.                     │
+│   Google Gemini — Google sign-in, API key              not signed in │  │ Stored auth-scoped (mode 600);             │
+│   GLM (Z.AI) — API key (general or GLM Coding Plan)    not signed in │  │ MISTRAL_ADMIN_API_KEY wins. Enterprise     │
+│   DeepSeek — API key                                   not signed in │  │ plans issue it at                          │
+│   xAI — Grok subscription sign-in or API key           not signed in │  │ backoffice.mistral.ai.                     │
+│   Meta — Muse Code sign-in or API key                  not signed in │  │ … (the trail continues — taller terminal)  │
+│ ❯ Mistral — API key                                    not signed in │  ╰────────────────────────────────────────────╯
+│   Nous Portal — sign-in or API key                     not signed in │  ╭────────────────────────────────────────────╮
+│   MiniMax — API key or M Plan key                      not signed in │  │ LOGINS                                     │
+│   Together AI — API key                                not signed in │  │ Families   22                              │
+│   Cohere — API key                                     not signed in │  │ Signed in  4 of 22                         │
+│   Groq — API key                                       not signed in │  │ Ready      4 lanes                         │
+│   Melious AI — API key                                 not signed in │  ╰────────────────────────────────────────────╯
+│   OrcaRouter — device-code sign-in or API key          not signed in │  ╭────────────────────────────────────────────╮
+│   Cerebras — API key                                   not signed in │  │ ENVIRONMENT                                │
+│   Fireworks — API key                                  not signed in │  │ Mercury    Opus 5                          │
+│   Qwen — QwenCloud or Model Studio API key             not signed in │  │ Critter    Octopus                         │
+│ … 1 more below                                                       │  │ Dir        orchard-src                     │
+╰──────────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ● System ready  │  paste Mistral Admin API key (optional)                                                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
                                               ↵ store key · empty/esc skip
