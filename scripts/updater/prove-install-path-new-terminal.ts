@@ -186,8 +186,8 @@ try {
     )
     const had = STARTUP_FILES.filter(name => before[name] !== null)
     check('after the uninstall every startup file the user had reads as before the install', had.every(name => afterRemoval[name] === before[name]), had.filter(name => afterRemoval[name] !== before[name]).join())
-    const made = STARTUP_FILES.filter(name => before[name] === null && afterRemoval[name] !== null && afterRemoval[name] !== '')
-    check('… and no file the installer made still holds anything', made.length === 0, made.join())
+    const left = STARTUP_FILES.filter(name => before[name] === null && afterRemoval[name] !== null)
+    check('… and a startup file the installer made is gone with its line', left.length === 0, left.join())
   })
 } finally {
   removeScratch(scratch)

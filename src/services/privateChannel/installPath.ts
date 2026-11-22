@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { appendFileSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -13,6 +13,7 @@ import { hostEnv } from '../../utils/hostEnv.js'
 import { stripExtendedLengthPrefixForPlatform } from '../../utils/platform/paths.js'
 
 export const PATH_SENTINEL = 'mercury-managed-path'
+const MADE_FILE_MARK = 'mercury-made-this-file'
 export const WIN32_USER_PATH_STORE = 'the user PATH (HKCU\\Environment)'
 
 export type UserPathKind = 'ExpandString' | 'String'
@@ -29,6 +30,7 @@ export interface PathEntryIo {
   appendFile(path: string, text: string): void
   writeFile(path: string, text: string): void
   removeFile(path: string): void
+  isSymlink(path: string): boolean
   resolveCommand(name: string): string | null
   zshDotDir(): string | null
   zshDotDirError?(): string | null
@@ -56,8 +58,8 @@ export function spellUnderHome(dir: string, home: string, prefix = '$HOME'): str
   return dir
 }
 
-export function shGuardedLine(spelled: string): string {
-  return `case ":$PATH:" in *":${spelled}:"*) ;; *) export PATH="${spelled}:$PATH" ;; esac # ${PATH_SENTINEL}`
+export function shGuardedLine(spelled: string, madeFile = false): string {
+  return `case ":$PATH:" in *":${spelled}:"*) ;; *) export PATH="${spelled}:$PATH" ;; esac #${madeFile ? ` ${MADE_FILE_MARK} #` : ''} ${PATH_SENTINEL}`
 }
 
 export function fishConfText(spelled: string): string {
@@ -254,14 +256,13 @@ function decidePosix(roots: LayoutRoots, io: PathEntryIo): Decision {
   const shell = shellNameOf(io.env)
   const spelled = spellUnderHome(dir, io.home)
   let targets: string[]
-  let text: string
+  let textFor = (madeFile: boolean): string => `${shGuardedLine(spelled, madeFile)}\n`
   let zshNote: string | undefined
   switch (shell) {
     case 'zsh': {
       const resolved = zshStartupDirWithNote(io)
       targets = [join(resolved.dir, '.zshrc')]
       zshNote = resolved.note
-      text = `${shGuardedLine(spelled)}\n`
       break
     }
     case 'bash': {
@@ -269,12 +270,11 @@ function decidePosix(roots: LayoutRoots, io: PathEntryIo): Decision {
         BASH_LOGIN_FILES.map(name => join(io.home, name)).find(candidate => io.readFile(candidate) !== null) ??
         join(io.home, '.profile')
       targets = [join(io.home, '.bashrc'), login]
-      text = `${shGuardedLine(spelled)}\n`
       break
     }
     case 'fish':
       targets = [join(io.home, '.config', 'fish', 'conf.d', 'mercury.fish')]
-      text = fishConfText(spelled)
+      textFor = () => fishConfText(spelled)
       break
     default:
       return {
@@ -297,7 +297,7 @@ function decidePosix(roots: LayoutRoots, io: PathEntryIo): Decision {
       const current = existing.get(target) ?? null
       const lead = current === null || current === '' || current.endsWith('\n') ? '' : '\n'
       try {
-        io.appendFile(target, lead + text)
+        io.appendFile(target, lead + textFor(current === null))
       } catch (e) {
         const partial = written.length > 0 ? ` (already written: ${written.map(w => describePathTarget(w, io.home)).join(', ')})` : ''
         throw new Error(`could not write ${describePathTarget(target, io.home)}: ${errorText(e)}${partial}`)
@@ -372,15 +372,19 @@ function removePosixPathLines(roots: LayoutRoots, io: PathEntryIo): PathRemovalO
   const files = new Set<string>([join(io.home, '.zshrc'), join(zshStartupDir(io), '.zshrc'), join(io.home, '.bashrc'), ...BASH_LOGIN_FILES.map(name => join(io.home, name))])
   const targets: string[] = []
   const ownLine = (line: string): boolean => line.trimEnd().endsWith(`# ${PATH_SENTINEL}`)
+  const madeFileLine = (line: string): boolean => line.trimEnd().endsWith(`# ${MADE_FILE_MARK} # ${PATH_SENTINEL}`)
   for (const file of files) {
     const content = io.readFile(file)
     if (content === null || !content.includes(PATH_SENTINEL)) continue
-    const kept = content.split('\n').filter(line => !ownLine(line))
-    if (kept.length === content.split('\n').length) continue
+    const lines = content.split('\n')
+    const kept = lines.filter(line => !ownLine(line))
+    if (kept.length === lines.length) continue
+    const madeAndBare = lines.some(madeFileLine) && kept.every(line => line.trim() === '') && !io.isSymlink(file)
     try {
-      io.writeFile(file, kept.join('\n'))
+      if (madeAndBare) io.removeFile(file)
+      else io.writeFile(file, kept.join('\n'))
     } catch (e) {
-      return { state: 'refused', dir, reason: `could not write ${describePathTarget(file, io.home)}: ${errorText(e)}` }
+      return { state: 'refused', dir, reason: `could not ${madeAndBare ? 'remove' : 'write'} ${describePathTarget(file, io.home)}: ${errorText(e)}` }
     }
     targets.push(file)
   }
@@ -563,6 +567,9 @@ export function realPathEntryIo(opts: { powershell?: () => string | null } = {})
     },
     removeFile(path) {
       rmSync(path, { force: true })
+    },
+    isSymlink(path) {
+      return lstatSync(path, { throwIfNoEntry: false })?.isSymbolicLink() === true
     },
     resolveCommand: name => whichSync(name),
     zshDotDir() {
