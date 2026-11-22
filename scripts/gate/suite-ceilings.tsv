@@ -69,7 +69,6 @@ switchboard-4-drives	1200
 switchboard-5-drives	1200
 switchboard-6-drives	1200
 daemon	2400
-headless	1800
 transcript-rows-drives	3000
 # The three drive suites the hosted 2-core runner tree-killed in .34
 # (api-drives at the 900 s default with 3 of 5 done at 755 s,
@@ -110,3 +109,16 @@ host	1200
 host-2	1200
 command-catalogue-drives	1800
 prompt-input-drives	1800
+# headless was tree-killed at its 1800 s row by the hosted gate of 22 Nov 2026
+# (run 45032765938, the second on the release tip of 1.0.12) with 99 of its
+# 102 provers done in 1718 s, every one of them passing, and three still to
+# run (163 s between them on the run before, 45026888143, which read the
+# whole suite in 1787 s). The row is the measured hosted wall (about 1,900 s
+# whole) with the ui-class slack. api (796 s and 761 s on those two runs),
+# gate (772 s and 744 s) and sdk (564 s and 686 s, one runner 22 per cent
+# slower than the other) are measured healthy walls over 600 s that stood
+# within a slow runner's reach of the 900 s default; each takes the host row.
+headless	2400
+api	1200
+gate	1200
+sdk	1200
