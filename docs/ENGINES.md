@@ -652,7 +652,8 @@ reason after the status, as every chat refusal is.
 
 A retired DeepSeek id resolves to its current one wherever a model id is
 read (a saved setting, `MERCURY_MODEL`, `/model`, or a crewmate's model)
-and paints as the current id: `deepseek-v4-flash` is `deepseek-flash`, and
+and paints as the current id: `deepseek-v4-flash` and
+`deepseek-v4-flash-vision-exp` are `deepseek-flash`, and
 the wire is sent the current id.
 
 ## Dispatch

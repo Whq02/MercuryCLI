@@ -212,6 +212,7 @@ const MODEL_NAMES = {
   "deepseek-v4-pro": "DeepSeek V4 Pro",
   "deepseek-flash": "DeepSeek V4.1 Flash",
   "deepseek-v4-flash": "DeepSeek V4.1 Flash",
+  "deepseek-v4-flash-vision-exp": "DeepSeek V4.1 Flash",
   "kimi-k3": "Kimi K3",
   "kimi-k3.1-pro": "Kimi K3.1 Pro",
   "kimi-k3.1-pro-highspeed": "Kimi K3.1 Pro Highspeed",
