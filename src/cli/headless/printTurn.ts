@@ -6,7 +6,7 @@ import type { RowDraft } from '../../rows/project.js'
 import { minutesKnobToMs, armInactivityDeadline, holdDeadlineUntil, declaredWaitEnd, DeadlineExceededError } from '../../utils/deadline.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { withElicitationEntered } from '../../services/mcp/elicitationHandler.js'
-import { mcpToolPartition, getTools, toolsWithheldByDeny, getAllBaseTools, toolOfferedInPosture } from '../../tools.js'
+import { mcpToolPartition, getTools, toolsWithheldByDeny, getAllBaseTools } from '../../tools.js'
 import type { Tool } from '../../Tool.js'
 import { isSyntheticOutputToolEnabled, createSyntheticOutputTool, SYNTHETIC_OUTPUT_TOOL_NAME } from '../../tools/SyntheticOutputTool/SyntheticOutputTool.js'
 import { isHostNotice } from '../../input-core/command-queue.js'
@@ -99,7 +99,7 @@ export function assembleTurnTools(state: AppState, turnSchema: Record<string, un
   const mcpPartition = mcpToolPartition(state.mcp.tools as Tool[], state.toolPermissionContext)
   const pool: Tool[] = [
     ...getTools(state.toolPermissionContext),
-    ...sessionTools.filter(tool => !baseToolNames.has(tool.name) && !tool.isMcp && toolOfferedInPosture(tool)),
+    ...sessionTools.filter(tool => !baseToolNames.has(tool.name) && !tool.isMcp),
     ...mcpPartition,
   ]
   const seen = new Set<string>()

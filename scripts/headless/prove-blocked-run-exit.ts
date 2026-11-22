@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { startFixtureApi, type ScriptedTurn, isHandoffRequest, handoffTurn } from '../lib/fixtureApi.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
-import { hostRunner } from '../lib/runnerHost.ts'
+
 const ROOT = resolve(import.meta.dir, '..', '..')
 const proofHome = mkdtempSync(join(tmpdir(), 'blocked-run-home-'))
 process.env.MERCURY_CONFIG_DIR = proofHome
@@ -215,32 +215,18 @@ section('§5 THE DOOR (json) — the one JSON result says blocked')
   }
 }
 
-section('§6 THE QUESTION — a hosted run that asks the operator through AskUserQuestion and gets no answer ends blocked, with the question quoted on the outcome row')
+section('§6 THE QUESTION — a run that asks the operator through AskUserQuestion and ends there is blocked, with the question quoted on the outcome row')
 {
   const door = await openDoor([askTurn, { kind: 'text', text: 'I cannot pick the database for you; tell me which one and I will run the migration.' }])
-  const host = hostRunner({
-    dist,
-    node,
-    cwd: door.project,
-    home: door.home,
-    env: { ...door.env, MERCURY_SESSION_KIND: 'headless', MERCURY_PERMISSION_ASK_EXPIRY_MINUTES: '0.05' },
-    argv: ['--model', 'claude-opus-4-8', '--sovereign'],
-  })
-  const killer = setTimeout(() => host.child.kill('SIGKILL'), 120_000)
   try {
-    await host.initialize({ holds_asks: true }, 90_000)
-    await host.prompt('Run the orders migration.')
-    const outcome = (await host.waitFor('blocked outcome', row => row.type === 'outcome', 60_000)) as Outcome
-    check('the outcome says blocked', outcome?.status === 'blocked', j({ status: outcome?.status, stderr: host.stderr().slice(-200) }))
+    const exit = await runDoor(door, ['--format', 'rows', '--', 'Run the orders migration.'])
+    const { outcome } = outcomeOf(exit.stdout)
+    check('the run exits 1 and the outcome says blocked', exit.code === 1 && outcome?.status === 'blocked', j({ code: exit.code, status: outcome?.status, stderr: exit.stderr.slice(-200) }))
     check('the unanswered question is listed in denials as AskUserQuestion', (outcome?.denials ?? []).some(denial => denial.tool === 'AskUserQuestion'), j(outcome?.denials))
     check('RED ON THE BASE: the error quotes the question itself (read from the ask, not from the answer)', outcome?.error?.class === 'blocked' && (outcome?.error?.message ?? '').includes(`«${QUESTION}»`), j(outcome?.error))
     check('…and the detail says an answer resumes it', (outcome?.error?.detail ?? []).some(line => line.includes('the question is answered')), j(outcome?.error?.detail))
     check('the answer rides the row', typeof outcome?.answer === 'string' && outcome.answer.includes('tell me which one'), j({ answer: outcome?.answer?.slice(0, 80) }))
   } finally {
-    host.end()
-    await host.exited
-    clearTimeout(killer)
-    host.peer.close('probe ended')
     await door.close()
   }
 }
