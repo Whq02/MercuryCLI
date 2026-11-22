@@ -1,14 +1,16 @@
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
+import { formatFileSize } from './format.js'
+
+let perf: Performance | undefined
 
 export function getPerformance(): Performance {
-  return notBuilt('src/utils/profilerBase.ts:6')
+  return perf ??= globalThis.performance
 }
 
 export function formatMs(ms: number): string {
-  return notBuilt('src/utils/profilerBase.ts:11')
+  return ms.toFixed(3)
 }
 
-export type MemorySnapshot = Unbuilt
+export type MemorySnapshot = { heapUsed: number; rss: number }
 
 export function formatTimelineLine(
   totalMs: number,
@@ -19,5 +21,8 @@ export function formatTimelineLine(
   deltaPad: number,
   extra?: string,
 ): string {
-  return notBuilt('src/utils/profilerBase.ts:17')
+  const total = `+${formatMs(totalMs)}ms`.padStart(totalPad)
+  const delta = `+${formatMs(deltaMs)}ms`.padStart(deltaPad)
+  const sizes = memory ? `  [rss ${formatFileSize(memory.rss)}, heap ${formatFileSize(memory.heapUsed)}]` : ''
+  return `[${total}] (${delta}) ${name}${extra ?? ''}${sizes}`
 }
