@@ -14,7 +14,7 @@ type FoldMeter = {
   before: number
   count: (rows: Message[]) => number
   measureResult: (result: CompactionResult) => number
-  after: (landed: number) => number
+  after: (landed: number) => { tokens: number; estimate: number }
 }
 
 export function createFoldMeter(
@@ -40,11 +40,12 @@ export function foldSizes(
   model: string | undefined,
   context: number,
   count: (rows: Message[]) => number,
-): { before: number; after: (landed: number) => number } {
+): { before: number; after: (landed: number) => { tokens: number; estimate: number } } {
   const standing = stripThinkingFromIndex(messages, 0)
+  const whole = count(standing)
   const before = count(withoutSkillsList(standing))
-  const reading = contextFill(messages, model).source === 'usage' ? context : Math.min(context, count(standing))
-  return { before, after: (landed: number): number => contextAfterFold(reading, before, landed) }
+  const reading = contextFill(messages, model).source === 'usage' ? context : Math.min(context, whole)
+  return { before, after: landed => ({ tokens: contextAfterFold(reading, before, landed), estimate: landed + whole - before }) }
 }
 
 function withoutSkillsList(rows: Message[]): Message[] {

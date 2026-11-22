@@ -57,6 +57,7 @@ prove-fold-stream-progress.ts
 prove-fold-that-shrinks-goes-through.ts
 prove-fold-thinking-feeds-watchdog.ts
 prove-fold-work-counts.ts
+prove-footer-matches-receipt.ts
 prove-footer-window-owner.ts
 prove-fork-replay-marker.ts
 prove-fork-ttl-follows-parent.ts

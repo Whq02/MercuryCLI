@@ -246,7 +246,7 @@ export async function trySessionMemoryCompaction(
     if (trigger === 'manual') {
       const sizes = foldSizes(messages, rosterContext?.options.engineModel, preTokens, estimateContextTokens)
       if (estimate >= sizes.before) return null
-      if (preTokens > 0) result.truePostCompactTokenCount = sizes.after(estimate)
+      if (preTokens > 0) result.truePostCompactTokenCount = sizes.after(estimate).tokens
     }
     return result
   } catch (err) {

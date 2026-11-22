@@ -229,12 +229,14 @@ export async function compactConversation(
       )
       throw new Error(nothingToCompactLine(preCompactTokenCount, 'would-not-shrink'))
     }
-    const truePostCompactTokenCount = mustShrink ? meter.after(landed.truePostCompactTokenCount) : landed.truePostCompactTokenCount
+    const size = meter.after(landed.truePostCompactTokenCount)
+    const truePostCompactTokenCount = mustShrink ? size.tokens : landed.truePostCompactTokenCount
     const visibleReads = collectPreservedReadPaths(messagesToKeep ?? [])
     for (const row of partial.attachments) if (row.attachment.type === 'file') visibleReads.add(expandPath(row.attachment.filename))
     for (const path of context.readFileState.keys()) if (!visibleReads.has(expandPath(path))) context.readFileState.delete(path)
     if (context.abortController.signal.aborted) throw new APIUserAbortError()
     boundary.compactMetadata.postTokens = truePostCompactTokenCount
+    if (mustShrink) boundary.compactMetadata.postEstimate = { model: context.options.engineModel, tokens: size.estimate }
     const afterRows = await compactionAfterHooks(context, { method: 'summary', trigger: boundaryTrigger, tokensBefore: preCompactTokenCount, tokensAfter: truePostCompactTokenCount, summary: prose })
     partial = { ...partial, hookResults: [...beforeRows, ...afterRows] }
     if (context.abortController.signal.aborted) throw new APIUserAbortError()
