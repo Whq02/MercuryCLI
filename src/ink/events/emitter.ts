@@ -1,13 +1,23 @@
 import { EventEmitter as NodeEventEmitter } from 'node:events'
-import { notBuilt } from '../../pi/holes.js'
+import { Event } from './event.js'
+import { InputEvent, inputConsumedThroughSeq } from './input-event.js'
 
 export class EventEmitter extends NodeEventEmitter {
   constructor() {
-    notBuilt('src/ink/events/emitter.ts:7')
-    super(...(notBuilt('src/ink/events/emitter.ts:7') as ConstructorParameters<typeof NodeEventEmitter>))
+    super()
+    this.setMaxListeners(0)
   }
 
   override emit(type: string | symbol, ...args: unknown[]): boolean {
-    return notBuilt('src/ink/events/emitter.ts:12')
+    if (type === 'error') return super.emit(type, ...args)
+    const listeners = this.rawListeners(type)
+    if (listeners.length === 0) return false
+    const first = args[0]
+    for (const listener of listeners) {
+      if (first instanceof InputEvent && first.seq <= inputConsumedThroughSeq()) break
+      listener.apply(this, args)
+      if (first instanceof Event && first.didStopImmediatePropagation()) break
+    }
+    return true
   }
 }
