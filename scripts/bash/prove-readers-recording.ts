@@ -1,8 +1,11 @@
 #!/usr/bin/env bun
+import { mock } from 'bun:test'
 import { createHash } from 'node:crypto'
+import * as realFs from 'node:fs'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, isAbsolute, join, normalize, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { z } from 'zod/v4'
 import { removeScratch } from '../lib/removeScratch.ts'
 
@@ -694,7 +697,7 @@ const EXPECTED_CHANGES: readonly ExpectedChange[] = [
   { line: 'truncate -s 0 ~/.ssh/config<PAD>', entry: 'readShellCommands:posix', base: '0 commands: ', now: '1 commands: truncate -s 0 ~/.ssh/config [in <project>]', cell: 'r8h5d3', kind: 'not a hole: the guard keeps its base verdict', why: 'the reading hands the commands of a line the parser gives no tree for, made from its words; the unread mark and its sentence stay, and no guard answers the line otherwise' },
   { line: 'cd ~/.ssh; cd /usr; cd -; echo k >> authorized_keys', entry: 'flowShellAsk:bash', base: 'no ask', now: 'asks before echo k >> authorized_keys: it writes /usr/authorized_keys, outside the project', cell: '3wsq31', kind: 'a hole closed', why: 'the line goes back to ~/.ssh by a cd - that does not stand right behind its entry: the place is not certain, so Flow judges the write in every folder the line entered and asks; the base lost the place at cd - and asked nothing, on any home' },
   { line: 'cd /etc; /usr/bin/cd -; echo x > hosts', entry: 'flowShellAsk:bash', base: 'no ask', now: 'asks before echo x > hosts: it writes /etc/hosts, outside the project', cell: 't30bd1', kind: 'a hole closed', why: '/usr/bin/cd is a program and cannot move the shell, so the write stands in /etc; a return not written as the word cd or popd leaves the place not certain, and Flow judges the write in every folder the line entered and asks; the base took the word for cd -, lost the place and asked nothing' },
-  { line: 'cd /etc; /usr/bin/cd -; echo x > hosts', entry: 'decision:flow', base: 'allow', now: 'ask: Flow asks before echo x > hosts: it writes /etc/hosts, outside the project.', cell: 'n8cgxs', kind: 'a hole closed', why: '/usr/bin/cd is a program and cannot move the shell, so the write stands in /etc; a return not written as the word cd or popd leaves the place not certain, and Flow judges the write in every folder the line entered and asks; the base took the word for cd -, lost the place and asked nothing' },
+  { line: 'cd /etc; /usr/bin/cd -; echo x > hosts', entry: 'decision:flow', base: 'allow', now: 'ask: Flow asks before echo x > hosts: it writes /etc/hosts, outside the project.', cell: 'tmmc06', kind: 'a hole closed', why: '/usr/bin/cd is a program and cannot move the shell, so the write stands in /etc; a return not written as the word cd or popd leaves the place not certain, and Flow judges the write in every folder the line entered and asks; the base took the word for cd -, lost the place and asked nothing' },
   { line: ': ${OLDPWD:=~}; cd -; rm -rf *', entry: 'wards:Bash', base: 'not refused', now: 'refused by the ward no-root-recursive-delete', cell: 'r5xhdp', kind: 'a hole closed', why: 'bash sends cd -, cd ~- and $OLDPWD where the variable OLDPWD points, and this line writes that variable or uses ~-: the return may land elsewhere than where the last move the reading saw left; the line is now judged in every folder its return may land in (the folder it started in, every folder it entered, and, where it writes the old folder, the home folder and the folder it writes there); the base judged it in the one folder the reading named' },
   { line: ': ${OLDPWD:=~}; cd -; rm -rf *', entry: 'floors:bash', base: 'no floor refuses', now: 'the runtime floor refuses: Changing * is refused: <home>/.mercury/runtime is part of Mercury’s running runtime.', cell: 'sgm54v', kind: 'a hole closed', why: 'bash sends cd -, cd ~- and $OLDPWD where the variable OLDPWD points, and this line writes that variable or uses ~-: the return may land elsewhere than where the last move the reading saw left; the line is now judged in every folder its return may land in (the folder it started in, every folder it entered, and, where it writes the old folder, the home folder and the folder it writes there); the base judged it in the one folder the reading named' },
   { line: ': ${OLDPWD:=~}; cd -; rm -rf *', entry: 'decision:default, no rule', base: 'ask: the expansion "${OLDPWD:=~}" supplies a value at runtime; spell out the value, or approve', now: 'deny: Changing * is refused: <home>/.mercury/runtime is part of Mercury’s running runtime.', cell: 'ckhfhg', kind: 'a hole closed', why: 'bash sends cd -, cd ~- and $OLDPWD where the variable OLDPWD points, and this line writes that variable or uses ~-: the return may land elsewhere than where the last move the reading saw left; the line is now judged in every folder its return may land in (the folder it started in, every folder it entered, and, where it writes the old folder, the home folder and the folder it writes there); the base judged it in the one folder the reading named' },
@@ -951,12 +954,14 @@ async function judgedBy(tree: string, indexes: readonly number[], scratch: strin
     const root = join(`${named}${'x'.repeat(Math.max(1, ROOT_LENGTH - named.length - '/in/world'.length))}`, 'in', 'world')
     const home = join(root, 'home', 'Users', FAKE_USER)
     const config = join(root, 'config')
+    const tmp = join(root, 'tmp')
     mkdirSync(home, { recursive: true })
     mkdirSync(join(config, 'tmp'), { recursive: true })
+    mkdirSync(tmp, { recursive: true })
     if (root.length !== ROOT_LENGTH) throw new Error(`${SELF}: the scratch folder ${scratch} is too long a path for a world of ${ROOT_LENGTH} characters; set TMPDIR to a shorter folder`)
     writeFileSync(join(root, 'lines.json'), JSON.stringify(indexes.filter((_at, order) => order % count === slice)))
     const child = Bun.spawn([process.execPath, join(import.meta.dir, 'prove-readers-recording.ts'), '--tree', tree, ...(DISAGREE === undefined ? [] : ['--disagree', DISAGREE])], {
-      env: { ...env, HOME: home, USERPROFILE: home, USER: FAKE_USER, LOGNAME: FAKE_USER, BUN_RUNTIME_TRANSPILER_CACHE_PATH: join(scratch, 'transpiled'), READERS_RECORDING_ROOT: root, MERCURY_CONFIG_DIR: config, MERCURY_TMPDIR: join(config, 'tmp'), MERCURY_DAEMON_DIR: join(config, 'daemon'), GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: join(root, 'no-git-config') },
+      env: { ...env, HOME: home, USERPROFILE: home, USER: FAKE_USER, LOGNAME: FAKE_USER, TMPDIR: tmp, TEMP: tmp, TMP: tmp, BUN_RUNTIME_TRANSPILER_CACHE_PATH: join(scratch, 'transpiled'), READERS_RECORDING_ROOT: root, MERCURY_CONFIG_DIR: config, MERCURY_TMPDIR: join(config, 'tmp'), MERCURY_DAEMON_DIR: join(config, 'daemon'), GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: join(root, 'no-git-config') },
       stdio: ['ignore', 'inherit', 'inherit'],
     })
     return { root, exited: child.exited }
@@ -1137,6 +1142,95 @@ process.env.MERCURY_DESKTOP_DRIVER = 'none'
 process.env.NODE_ENV = 'test'
 for (const key of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS', 'MERCURY_SPAWNED_BY', 'MERCURY_TREE_SCAN_CEILING']) delete process.env[key]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+
+function isolateHostDisk(roots: readonly string[]): void {
+  const snap = { ...realFs }
+  const promisesSnap = { ...realFs.promises }
+  const expanded = [...roots]
+  for (const root of [...expanded]) {
+    if (root.startsWith('/private/var/') || root.startsWith('/private/tmp/')) expanded.push(root.slice('/private'.length))
+  }
+  const caseFold = process.platform === 'darwin' || process.platform === 'win32'
+  const norm = (path: string): string => {
+    const clean = normalize(path).replace(/\/+$/, '') || '/'
+    return caseFold ? clean.toLowerCase() : clean
+  }
+  const allowed = [...new Set(expanded.map(norm))]
+  const pathText = (target: unknown): string | null => {
+    if (typeof target === 'string') return target
+    if (target instanceof URL) return fileURLToPath(target)
+    if (Buffer.isBuffer(target)) return target.toString('utf8')
+    return null
+  }
+  const inside = (target: unknown): boolean => {
+    const text = pathText(target)
+    if (text === null || text === '') return true
+    const abs = norm(isAbsolute(text) ? text : resolve(process.cwd(), text))
+    return allowed.some(root => abs === root || abs.startsWith(`${root}/`))
+  }
+  const enoent = (syscall: string, target: unknown): NodeJS.ErrnoException => {
+    const error = new Error(`ENOENT: no such file or directory, ${syscall} '${String(target)}'`) as NodeJS.ErrnoException
+    error.code = 'ENOENT'
+    error.errno = -2
+    error.syscall = syscall
+    error.path = String(target)
+    return error
+  }
+  const wrappedPromises: Record<string, unknown> = { ...promisesSnap }
+  for (const [op, syscall] of [['stat', 'stat'], ['lstat', 'lstat'], ['realpath', 'realpath'], ['readlink', 'readlink'], ['readdir', 'scandir'], ['access', 'access'], ['open', 'open'], ['readFile', 'open']] as const) {
+    const orig = promisesSnap[op] as (...args: unknown[]) => Promise<unknown>
+    wrappedPromises[op] = (...args: unknown[]) => (inside(args[0]) ? orig(...args) : Promise.reject(enoent(syscall, args[0])))
+  }
+  const wrapped: Record<string, unknown> = { ...snap, promises: wrappedPromises }
+  wrapped.existsSync = (target: realFs.PathLike) => (inside(target) ? snap.existsSync(target) : false)
+  wrapped.statSync = (target: realFs.PathLike, opts?: realFs.StatSyncOptions) => {
+    if (inside(target)) return snap.statSync(target, opts)
+    if (opts?.throwIfNoEntry === false) return undefined
+    throw enoent('stat', target)
+  }
+  wrapped.lstatSync = (target: realFs.PathLike, opts?: realFs.StatSyncOptions) => {
+    if (inside(target)) return snap.lstatSync(target, opts)
+    if (opts?.throwIfNoEntry === false) return undefined
+    throw enoent('lstat', target)
+  }
+  wrapped.readdirSync = (target: realFs.PathLike, opts?: unknown) => {
+    if (inside(target)) return snap.readdirSync(target, opts as never)
+    throw enoent('scandir', target)
+  }
+  wrapped.readlinkSync = (target: realFs.PathLike, opts?: unknown) => {
+    if (inside(target)) return snap.readlinkSync(target, opts as never)
+    throw enoent('readlink', target)
+  }
+  wrapped.accessSync = (target: realFs.PathLike, mode?: number) => {
+    if (inside(target)) return snap.accessSync(target, mode)
+    throw enoent('access', target)
+  }
+  wrapped.openSync = (target: realFs.PathLike, ...rest: unknown[]) => {
+    if (inside(target)) return (snap.openSync as (...args: unknown[]) => number)(target, ...rest)
+    throw enoent('open', target)
+  }
+  wrapped.readFileSync = (target: realFs.PathOrFileDescriptor, ...rest: unknown[]) => {
+    if (typeof target === 'number' || inside(target)) return (snap.readFileSync as (...args: unknown[]) => unknown)(target, ...rest)
+    throw enoent('open', target)
+  }
+  wrapped.realpathSync = Object.assign(
+    (target: realFs.PathLike, opts?: unknown) => {
+      if (inside(target)) return snap.realpathSync(target, opts as never)
+      throw enoent('realpath', target)
+    },
+    {
+      native: (target: realFs.PathLike, opts?: unknown) => {
+        if (inside(target)) return snap.realpathSync.native(target, opts as never)
+        throw enoent('realpath', target)
+      },
+    },
+  )
+  mock.module('node:fs', () => ({ ...wrapped, default: wrapped }))
+  mock.module('fs', () => ({ ...wrapped, default: wrapped }))
+  mock.module('node:fs/promises', () => ({ ...wrappedPromises, default: wrappedPromises }))
+  mock.module('fs/promises', () => ({ ...wrappedPromises, default: wrappedPromises }))
+}
+isolateHostDisk([dirname(dirname(ROOT)), realpathSync(TREE), realpathSync(join(import.meta.dir, '..', '..'))])
 
 const { getEmptyToolPermissionContext } = await import(join(SRC, 'Tool.ts'))
 const { enableConfigs } = await import(join(SRC, 'utils/config.ts'))
