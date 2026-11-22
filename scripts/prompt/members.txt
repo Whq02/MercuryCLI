@@ -13,6 +13,7 @@ prove-headless-form.ts
 prove-local-lane-working-directory.ts
 prove-local-prompt-profile.ts
 prove-models-reference.ts
+prove-orient-writes-the-projects-own.ts
 prove-prompt-layers.ts
 prove-redeploy-tool-schema.ts
 prove-runner-lsp.ts
