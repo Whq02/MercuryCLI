@@ -408,7 +408,7 @@ counts only live machines returned by the vendors; failed local records,
 volumes and watches are left out of that count. Each vendor says how many machines it returned, `none`,
 `no instances`, `no endpoints` or `unread`; an unread vendor adds `+?` to the
 count instead of claiming a complete zero. Rows use the vendor's own name:
-`Runpod pod`, `Vast.ai instance`, `Lambda instance`, `HF endpoint`, `Hyperstack instance`, `Verda instance` or `DigitalOcean instance`.
+`Runpod pod`, `HF endpoint`, or `<Vendor> instance` (Vast.ai, Lambda, Hyperstack, Verda, DigitalOcean).
 Vendor read errors appear once at the top, with their HTTP status and details
 behind the vendor row. A rejected credential stays parked until it changes.
 Each machine row shows its state, hourly rate and available spend estimate.
