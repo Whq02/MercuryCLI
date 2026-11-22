@@ -35,6 +35,11 @@ export function createFoldMeter(
   return { gauge, context, before, count, measureResult }
 }
 
+export function contextAfterFold(context: number, before: number, after: number): number {
+  const saved = before - after
+  return saved < context ? context - saved : Math.floor((context * after) / before)
+}
+
 export function composeFoldSummaryText(parts: {
   prose: string
   capsule: string | null

@@ -27,6 +27,7 @@ import {
   annotateBoundaryWithWork,
   buildPostCompactMessages,
   type CompactionResult,
+  contextAfterFold,
   createAsyncAgentAttachmentsIfNeeded,
 } from './compact.js'
 import type { ToolUseContext } from '../../Tool.js'
@@ -244,9 +245,9 @@ export async function trySessionMemoryCompaction(
     result.postCompactTokenCount = estimate
     result.truePostCompactTokenCount = estimate
     if (trigger === 'manual') {
-      const saved = estimateContextTokens(stripThinkingFromIndex(messages, 0)) - estimate
-      if (saved <= 0) return null
-      if (preTokens > 0) result.truePostCompactTokenCount = Math.max(0, preTokens - saved)
+      const estimatedBefore = estimateContextTokens(stripThinkingFromIndex(messages, 0))
+      if (estimate >= estimatedBefore) return null
+      if (preTokens > 0) result.truePostCompactTokenCount = contextAfterFold(preTokens, estimatedBefore, estimate)
     }
     return result
   } catch (err) {
