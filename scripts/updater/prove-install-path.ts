@@ -178,6 +178,8 @@ const winRoots: LayoutRoots = {
 }
 const P_LINE = 'export PATH="$HOME/.local/bin:$PATH"'
 const P_GUARD = `${shGuardedLine('$HOME/.local/bin')}\n`
+const STOCK_PROFILE = 'if [ -n "$BASH_VERSION" ]; then\n    if [ -f "$HOME/.bashrc" ]; then\n        . "$HOME/.bashrc"\n    fi\nfi\nif [ -d "$HOME/.local/bin" ] ; then\n    PATH="$HOME/.local/bin:$PATH"\nfi\n'
+const STOCK_BASHRC = 'case $- in\n    *i*) ;;\n      *) return;;\nesac\n'
 
 section('§1 the POSIX decision through the seam')
 if (IS_WIN) console.log('  [SKIP] §1, §1b and §1c drive the POSIX decision with POSIX paths — on a Windows host the win32 decision (§2) is the law')
@@ -255,10 +257,37 @@ else {
     check('bash with only ~/.profile ⇒ ~/.profile (a new ~/.bash_profile would silence it)', out.state === 'written' && out.targets.join() === `${HOME_P}/.bashrc,${HOME_P}/.profile` && !f.files.has(`${HOME_P}/.bash_profile`))
   }
   {
-    const stock = '# set PATH so it includes user\'s private bin if it exists\nif [ -d "$HOME/.local/bin" ] ; then\n    PATH="$HOME/.local/bin:$PATH"\nfi\n'
-    const f = fakeIo({ home: HOME_P, env: { SHELL: '/bin/bash' }, files: { [`${HOME_P}/.profile`]: stock } })
-    const out = ensureBinDirOnPath(roots, f.io)
-    check('the stock ~/.profile block that adds ~/.local/bin at login ⇒ present, nothing written', out.state === 'present' && out.targets.join() === `${HOME_P}/.profile` && f.appends.length === 0)
+    const named = `${STOCK_BASHRC}${P_LINE}\n`
+    const at = (name: string): string => `${HOME_P}/${name}`
+    const tilde = (names: string[]): string => names.map(name => `~/${name}`).join(' and ')
+    const cases: [what: string, had: Record<string, string>, wrote: string[]][] = [
+      ['the stock ~/.profile block adds the folder at login only and ~/.bashrc does not name it', { '.profile': STOCK_PROFILE, '.bashrc': STOCK_BASHRC }, ['.bashrc']],
+      ['the stock ~/.profile block and no ~/.bashrc', { '.profile': STOCK_PROFILE }, ['.bashrc']],
+      ['~/.bashrc names the folder and the login file ~/.bash_profile does not', { '.bashrc': named, '.bash_profile': '# mine\n' }, ['.bash_profile']],
+      ['~/.bashrc names the folder and there is no login file', { '.bashrc': named }, ['.profile']],
+      ['neither bash file exists', {}, ['.bashrc', '.profile']],
+      ['both bash files name the folder', { '.bashrc': named, '.profile': STOCK_PROFILE }, []],
+    ]
+    for (const [what, had, wrote] of cases) {
+      const f = fakeIo({ home: HOME_P, env: { SHELL: '/bin/bash' }, files: Object.fromEntries(Object.entries(had).map(([name, text]) => [at(name), text])) })
+      const kept = Object.keys(had).filter(name => !wrote.includes(name))
+      const asHad = (names: string[]): boolean => names.every(name => f.files.get(at(name)) === had[name])
+      const plan = planBinDirOnPath(roots, f.io)
+      check(`${what} ⇒ the plan names ${wrote.length > 0 ? tilde(wrote) : 'no file'} and writes nothing`, (wrote.length > 0 ? plan.state === 'would-write' && plan.targets.join() === wrote.map(at).join() : plan.state === 'present') && f.appends.length === 0, `${plan.state} ${'targets' in plan ? plan.targets.join() : ''}`)
+      const out = ensureBinDirOnPath(roots, f.io)
+      if (wrote.length > 0) {
+        check(`… ⇒ the line goes to ${tilde(wrote)}, the file a new terminal reads that did not name the folder`, out.state === 'written' && out.targets.join() === wrote.map(at).join() && wrote.every(name => f.files.get(at(name)) === `${had[name] ?? ''}${P_GUARD}`), `${out.state} ${'targets' in out ? out.targets.join() : ''}`)
+        check('… the printed line names the file it wrote', describePathOutcome(out, false, HOME_P) === `PATH: added ${HOME_P}/.local/bin in ${tilde(wrote)} — open a new terminal, or run: ${P_LINE}`, describePathOutcome(out, false, HOME_P))
+      } else {
+        check('… ⇒ present, nothing written', out.state === 'present' && out.targets.join() === `${at('.bashrc')},${at('.profile')}` && f.appends.length === 0, out.state)
+      }
+      check('… a file that already names the folder is not written again', asHad(kept) && f.appends.length === wrote.length, kept.filter(name => f.files.get(at(name)) !== had[name]).join())
+      f.io.env.PATH = '/usr/bin:/bin'
+      const again = ensureBinDirOnPath(roots, f.io)
+      check('… a second install changes nothing', again.state === 'present' && f.appends.length === wrote.length, again.state)
+      const un = removeBinDirFromPath(roots, f.io)
+      check('… the uninstall leaves every file the user had as before the install, and the line in none', (wrote.length > 0 ? un.state === 'removed' && un.targets.join() === wrote.map(at).join() : un.state === 'absent') && asHad(Object.keys(had)) && [...f.files.values()].every(text => !text.includes(PATH_SENTINEL)), `${un.state} ${'targets' in un ? un.targets.join() : ''}`)
+    }
   }
   {
     const f = fakeIo({ home: HOME_P, env: { SHELL: '/usr/bin/fish' } })
@@ -768,6 +797,27 @@ if (IS_WIN) {
       check('bash: install writes ~/.bashrc and the existing ~/.profile', r.code === 0 && r.stdout.includes(`PATH: added ${bin} in ~/.bashrc and ~/.profile`), r.stdout.slice(0, 400))
       const un = run(['install', '--uninstall'], h, '/bin/bash', {}, join(bin, 'mercury'))
       check('f05: uninstall takes the line out of both files and keeps the user\'s own lines', un.code === 0 && un.stdout.includes('removed: the PATH line in ~/.bashrc and ~/.profile') && readFileSync(join(h, '.profile'), 'utf8') === '# mine\nexport EDITOR=vi\n' && readFileSync(join(h, '.bashrc'), 'utf8') === '', un.stdout)
+    }
+    {
+      const h = home('stock-ubuntu')
+      const bin = join(h, '.local', 'bin')
+      writeFileSync(join(h, '.profile'), STOCK_PROFILE)
+      writeFileSync(join(h, '.bashrc'), STOCK_BASHRC)
+      const r = run(['install', '--allow-unsigned'], h, '/bin/bash')
+      check('the stock Ubuntu and Debian files: install writes ~/.bashrc alone and names it', r.code === 0 && r.stdout.includes(`PATH: added ${bin} in ~/.bashrc — open a new terminal, or run: ${P_LINE}`) && readFileSync(join(h, '.bashrc'), 'utf8') === `${STOCK_BASHRC}${P_GUARD}` && readFileSync(join(h, '.profile'), 'utf8') === STOCK_PROFILE, r.stdout.slice(0, 600))
+      check('a NEW terminal of the same session (a non-login interactive bash, the PATH the install ran on) finds mercury', newShell('bash', '-i', h) === join(bin, 'mercury'), newShell('bash', '-i', h))
+      const un = run(['install', '--uninstall'], h, '/bin/bash', {}, join(bin, 'mercury'))
+      check('uninstall: both files read as before the install', un.code === 0 && un.stdout.includes('removed: the PATH line in ~/.bashrc') && readFileSync(join(h, '.bashrc'), 'utf8') === STOCK_BASHRC && readFileSync(join(h, '.profile'), 'utf8') === STOCK_PROFILE, un.stdout)
+    }
+    {
+      const h = home('login-bash')
+      const bin = join(h, '.local', 'bin')
+      const named = `${STOCK_BASHRC}${P_LINE}\n`
+      writeFileSync(join(h, '.bashrc'), named)
+      writeFileSync(join(h, '.bash_profile'), 'export EDITOR=vi\n')
+      const r = run(['install', '--allow-unsigned'], h, '/bin/bash')
+      check('~/.bashrc names the folder and ~/.bash_profile does not read it: install writes ~/.bash_profile alone and names it', r.code === 0 && r.stdout.includes(`PATH: added ${bin} in ~/.bash_profile — open a new terminal, or run: ${P_LINE}`) && readFileSync(join(h, '.bash_profile'), 'utf8') === `export EDITOR=vi\n${P_GUARD}` && readFileSync(join(h, '.bashrc'), 'utf8') === named, r.stdout.slice(0, 600))
+      check('a NEW login bash (what Terminal and iTerm open on macOS) finds mercury', newShell('bash', '-il', h) === join(bin, 'mercury'), newShell('bash', '-il', h))
     }
   }
 }
