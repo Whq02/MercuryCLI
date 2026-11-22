@@ -24,7 +24,7 @@ const isDashed = (arg: string): boolean => /^[-\u2013\u2014\u2015]/.test(arg)
 const readsOnly = (command: string): boolean => {
   const [name, ...args] = command.split(' ')
   return isAllowlistedCommand(
-    { name: name as string, text: command, nameType: 'unknown', args, elementTypes: args.map(arg => (isDashed(arg) ? 'Parameter' : 'StringConstant')), elementType: 'CommandAst' } as never,
+    { name: name as string, text: command, nameType: 'unknown', args, elementTypes: ['StringConstant', ...args.map(arg => (isDashed(arg) ? 'Parameter' : 'StringConstant'))], elementType: 'CommandAst' } as never,
     command,
   )
 }

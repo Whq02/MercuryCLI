@@ -100,7 +100,7 @@ const { isAllowlistedCommand } = await import('../../src/tools/PowerShellTool/re
 const psReadsOnly = (command: string): boolean => {
   const [name, ...args] = command.split(' ')
   return isAllowlistedCommand(
-    { name: name as string, text: command, nameType: 'unknown', args, elementTypes: args.map(arg => (arg.startsWith('-') ? 'Parameter' : 'StringConstant')), elementType: 'CommandAst' },
+    { name: name as string, text: command, nameType: 'unknown', args, elementTypes: ['StringConstant', ...args.map(arg => (arg.startsWith('-') ? 'Parameter' : 'StringConstant'))], elementType: 'CommandAst' },
     command,
   )
 }

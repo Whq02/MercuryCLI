@@ -5,6 +5,7 @@ import {
   type ParsedPowerShellCommand,
   type ParsedCommandElement,
 } from '../../utils/permissions/decision/commandAnalysis.js'
+import { argumentTypeAt } from '../../utils/powershell/parser.js'
 import {
   DANGEROUS_SCRIPT_BLOCK_CMDLETS,
   FILEPATH_EXECUTION_CMDLETS,
@@ -84,8 +85,7 @@ export function powershellCommandIsSafe(_command: string, parsed: ParsedPowerShe
   for (const command of commands) {
     if (!FILEPATH_EXECUTION_CMDLETS.has(resolveToCanonical(command.name))) continue
     if (hasParam(command, '-filepath', '-f') || hasParam(command, '-literalpath', '-l')) return ASK('The command executes a script file.')
-    const types = command.elementTypes
-    if (command.args.some((a, i) => (types ? types[i] === 'StringConstant' : true) && !a.startsWith('-'))) {
+    if (command.args.some((a, i) => (!command.elementTypes || argumentTypeAt(command, i) === 'StringConstant') && !a.startsWith('-'))) {
       return ASK('The command executes a script file (positional path).')
     }
   }
@@ -101,8 +101,7 @@ export function powershellCommandIsSafe(_command: string, parsed: ParsedPowerShe
   for (const command of commands) {
     if (resolveToCanonical(command.name) !== 'foreach-object') continue
     if (hasParam(command, '-membername', '-m')) return ASK('ForEach-Object invokes a method by string name, which cannot be validated.')
-    const types = command.elementTypes
-    if (command.args.some((a, i) => (types ? types[i] === 'StringConstant' : true) && !a.startsWith('-'))) {
+    if (command.args.some((a, i) => (!command.elementTypes || argumentTypeAt(command, i) === 'StringConstant') && !a.startsWith('-'))) {
       return ASK('ForEach-Object invokes a method by string name, which cannot be validated.')
     }
   }

@@ -542,6 +542,10 @@ export function getPipelineSegments(parsed: ParsedPowerShellCommand): ParsedStat
   return parsed.statements
 }
 
+export function argumentTypeAt(element: ParsedCommandElement, index: number): ElementClass | undefined {
+  return element.elementTypes?.[index + 1]
+}
+
 export function isPowerShellParameter(arg: string, elementClass?: ElementClass): boolean {
   if (elementClass !== undefined) return elementClass === 'Parameter'
   if (arg === '') return false
