@@ -198,7 +198,7 @@ section('6 · the earned ride (the neutrality ruling): total classifier, admissi
   )
   check(
     '…naming both earned roads (the pin road and the gateway road)',
-    typeof refusal === 'string' && /ANTHROPIC_\* model pin/.test(refusal) && /ANTHROPIC_BASE_URL/.test(refusal),
+    typeof refusal === 'string' && /MERCURY_MODEL, MERCURY_DEFAULT_\*_MODEL or MERCURY_CUSTOM_MODEL_OPTION pin/.test(refusal) && /ANTHROPIC_BASE_URL/.test(refusal),
     String(refusal),
   )
   check(

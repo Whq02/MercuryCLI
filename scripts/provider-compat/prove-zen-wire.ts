@@ -112,6 +112,32 @@ try {
   let refused = false
   try { await resolveEngineDispatch('zen/claude-fable-5-1') } catch { refused = true }
   check('a crewmate dispatch on an unlisted zen/ id refuses', refused)
+  const { zenApiBase, zenGoApiBase, __resetZenBaseFallbackForTest } = await import('../../src/services/providers/zen/zenAccounts.ts')
+  const { fetchZenLiveModels } = await import('../../src/services/providers/zen/zenCatalogue.ts')
+  const { fetchZenGoUsage } = await import('../../src/services/providers/zen/zenUsageState.ts')
+  const fallbackHint = 'fix zenFetch, zenApiBase and zenGoApiBase in src/services/providers/zen/zenAccounts.ts, or the wrapFetch a lane profile hands the two request roads (compatChatClient.ts, openrouterResponsesTransport.ts)'
+  const requests = (paths: string[]): number => paths.filter(path => path.endsWith('/chat/completions') || path.endsWith('/responses')).length
+  const answered = await run(params('zen/glm-5.3'))
+  check(`while the first base answers, the documented new base is never asked — ${fallbackHint}`, text(answered) !== '' && fixture.newPaths.length === 0 && zenApiBase() === fixture.base)
+  fixture.oldStatus = 401
+  let refusedStatus: unknown
+  try { await fetchZenLiveModels({ baseUrl: zenApiBase(), key: KEY }) } catch (error) { refusedStatus = (error as { status?: number }).status }
+  check(`a 401 from the first base stays the refusal it is: no request to the new base and the base kept — ${fallbackHint}`, refusedStatus === 401 && fixture.newPaths.length === 0 && zenApiBase() === fixture.base)
+  fixture.oldStatus = 200
+  await fetchZenGoUsage(KEY)
+  check(`a 403 from the Go base (no plan on the key) is no gone base either — ${fallbackHint}`, fixture.newPaths.length === 0 && zenGoApiBase() === fixture.goBase)
+  fixture.oldStatus = 404
+  const oldRequests = requests(fixture.oldPaths)
+  const movedChat = await run(params('zen/glm-5.3'))
+  check(`a 404 from the first base sends that request once to the documented new base, which serves it — ${fallbackHint}`, text(movedChat) !== '' && !movedChat.some(row => row.isApiErrorMessage) && requests(fixture.oldPaths) === oldRequests + 1 && requests(fixture.newPaths) === 1 && fixture.newPaths.includes('/inference/v1/chat/completions'))
+  check(`once the new base has served, the session's base is the new one — ${fallbackHint}`, zenApiBase() === fixture.base.replace('/zen/v1', '/inference/v1'))
+  const keptResponses = await run(params('zen/gpt-5.5', 'high'))
+  check(`the next request, a Responses one, goes straight to the kept base and never asks the gone one — ${fallbackHint}`, text(keptResponses).includes('ZEN-RESPONSES-SETTLED') && requests(fixture.oldPaths) === oldRequests + 1 && fixture.newPaths.includes('/inference/v1/responses'))
+  await fetchZenGoUsage(fixture.goKey)
+  check(`the Go usage read falls back the same way, to the plan's own new base — ${fallbackHint}`, zenGoApiBase() === fixture.goBase.replace('/zen/go/v1', '/inference/go/v1') && fixture.newPaths.includes('/inference/go/v1/usage'))
+  fixture.oldStatus = 200
+  __resetZenBaseFallbackForTest()
+  check(`a fresh session starts on the first base again — ${fallbackHint}`, zenApiBase() === fixture.base && zenGoApiBase() === fixture.goBase)
   fixture.modelList = []
   await refreshZenCatalogue({ force: true })
   const emptyBefore = fixture.captures.length

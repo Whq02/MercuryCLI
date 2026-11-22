@@ -262,6 +262,7 @@ export interface CompatStreamOptions {
   request: CompatChatRequest
   signal?: AbortSignal
   fetchImpl?: typeof fetch
+  wrapFetch?: (fetchImpl: typeof fetch) => typeof fetch
   idleTimeoutMs?: number
   silentAfterHeadersMs?: number | null
   liveness?: { fenceMs: number | null; read(): Promise<CompatLivenessReading> }
@@ -878,7 +879,8 @@ function watchFirstByte(s: CompatStreamState, needs: Pick<CompatStreamNeeds, 'lo
 }
 
 function sendCompatRequest(options: CompatStreamOptions, request: CompatChatRequest, controller: AbortController): Promise<Response> {
-  const fetchImpl = options.fetchImpl ?? wrapFetchWithWireDump(getApiFetch(), 'compat')
+  const sent = options.fetchImpl ?? wrapFetchWithWireDump(getApiFetch(), 'compat')
+  const fetchImpl = options.wrapFetch?.(sent) ?? sent
   const proxyOptions = options.fetchImpl ? {} : getProxyFetchOptions()
   const { extra, ...core } = request
   return sendWithCacheField({ body: { ...core, ...(extra ?? {}), stream: true }, url: options.url, field: 'prompt_cache_key' }, body => fetchImpl(options.url, {

@@ -98,7 +98,7 @@ try {
   await run(params('codestral-2508', 'max', true))
   check('a model the vendor lists without reasoning sends no reasoning_effort at all', !('reasoning_effort' in captures.at(-1)!.body) && captures.at(-1)?.body.model === 'codestral-2508')
   await run(params('mistral-large-latest'))
-  check('a vendor alias dispatches as the listed row it names (mistral-large-latest is Large 3 today)', captures.at(-1)?.body.model === 'mistral-large-2512')
+  check('a vendor alias dispatches as the listed row it names (mistral-large-latest is Large 4 today)', captures.at(-1)?.body.model === 'mistral-large-4')
   check('unknown model facts invent neither an effort nor an output ceiling', JSON.stringify(buildMistralExtras({ wireModel: 'mistral-fixture-unknown', effortValue: 'max', thinkingEnabled: true, maxOutputTokensOverride: undefined })) === '{}')
   const structured = params('mistral-large-4')
   structured.options.outputFormat = { type: 'json_schema', schema: { type: 'object', properties: { ok: { type: 'boolean' } }, required: ['ok'], additionalProperties: false } }

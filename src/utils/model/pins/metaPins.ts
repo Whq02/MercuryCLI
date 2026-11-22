@@ -7,7 +7,7 @@ export function isMetaModelId(model: string): boolean {
 }
 
 export function isMetaChatModelId(model: string): boolean {
-  return /^muse-(?:spark|wonder)-[a-z0-9][a-z0-9._-]*$/i.test(model.trim())
+  return /^muse-(?:spark|wonder|ember)-[a-z0-9][a-z0-9._-]*$/i.test(model.trim())
 }
 
 export function isMetaContributorModel(model: string): boolean {
@@ -24,6 +24,8 @@ export interface MetaDisplayPin {
   costInPerMtok: number
   cachedInPerMtok: number
   costOutPerMtok: number
+  longContextThreshold?: number
+  longContext?: { costInPerMtok: number; cachedInPerMtok: number; costOutPerMtok: number }
   tools: boolean
   structuredOutputs: boolean
   images: boolean
@@ -42,6 +44,7 @@ export const META_DISPLAY_PINS: readonly MetaDisplayPin[] = [
   { ...facts, id: 'muse-wonder-1.0', displayName: 'Muse Wonder 1.0', costInPerMtok: 4, cachedInPerMtok: 0.2, costOutPerMtok: 20, efforts: [...META_EFFORTS, 'max'] },
   { ...facts, id: 'muse-spark-1.2', displayName: 'Muse Spark 1.2' },
   { ...facts, id: 'muse-spark-1.1', displayName: 'Muse Spark 1.1' },
+  { ...facts, id: 'muse-ember-1.0', displayName: 'Muse Ember 1.0', observedAt: '2026-11-22', outputMax: 524_288, costInPerMtok: 0.1, cachedInPerMtok: 0.004, costOutPerMtok: 0.5, longContextThreshold: 200_000, longContext: { costInPerMtok: 0.3, cachedInPerMtok: 0.012, costOutPerMtok: 1.5 }, efforts: [...META_EFFORTS, 'max'] },
   { ...facts, ...contributor, id: 'muse-spark-1.3-contributor', displayName: 'Muse Spark 1.3 Contributor (training permitted)' },
   { ...facts, ...contributor, id: 'muse-spark-1.2-contributor', displayName: 'Muse Spark 1.2 Contributor (training permitted)' },
 ]

@@ -5,10 +5,10 @@ export const MISTRAL_FIXTURE_ADMIN_KEY = 'proof-key-mistral-admin-fixture-not-a-
 export const MISTRAL_FIXTURE_NOW = Date.UTC(2026, 9, 9, 8, 15, 0)
 
 export const MISTRAL_FIXTURE_MODELS = [
-  { id: 'mistral-large-4', object: 'model', created: 1_759_708_800, owned_by: 'mistralai', name: 'mistral-large-4', max_context_length: 1_048_576, aliases: ['mistral-large-4-0'], capabilities: { completion_chat: true, function_calling: true, vision: true, reasoning: true, completion_fim: false } },
+  { id: 'mistral-large-4', object: 'model', created: 1_759_708_800, owned_by: 'mistralai', name: 'mistral-large-4', max_context_length: 1_048_576, aliases: ['mistral-large-4-0', 'mistral-large-latest'], capabilities: { completion_chat: true, function_calling: true, vision: true, reasoning: true, completion_fim: false } },
   { id: 'mistral-medium-3-5', object: 'model', created: 1_745_798_400, owned_by: 'mistralai', max_context_length: 262_144, aliases: ['mistral-medium-latest', 'mistral-medium-3'], capabilities: { completion_chat: true, function_calling: true, vision: true, reasoning: true } },
   { id: 'mistral-small-2603', object: 'model', created: 1_742_083_200, owned_by: 'mistralai', max_context_length: 262_144, aliases: ['mistral-small-latest'], capabilities: { completion_chat: true, function_calling: true, vision: true, reasoning: true } },
-  { id: 'mistral-large-2512', object: 'model', created: 1_764_633_600, owned_by: 'mistralai', max_context_length: 262_144, aliases: ['mistral-large-latest'], capabilities: { completion_chat: true, function_calling: true, vision: true, reasoning: false } },
+  { id: 'mistral-large-2512', object: 'model', created: 1_764_633_600, owned_by: 'mistralai', max_context_length: 262_144, aliases: [], capabilities: { completion_chat: true, function_calling: true, vision: true, reasoning: false } },
   { id: 'codestral-2508', object: 'model', created: 1_753_833_600, owned_by: 'mistralai', max_context_length: 131_072, aliases: ['codestral-latest'], capabilities: { completion_chat: true, function_calling: true, vision: false, reasoning: false, completion_fim: true } },
   { id: 'mistral-embed', object: 'model', created: 1_702_339_200, owned_by: 'mistralai', max_context_length: 8_192, aliases: [], capabilities: { completion_chat: false, function_calling: false, vision: false, reasoning: false } },
   { id: 'mistral-ocr-2505', object: 'model', created: 1_747_612_800, owned_by: 'mistralai', max_context_length: 16_384, aliases: ['mistral-ocr-latest'], capabilities: { completion_chat: false, ocr: true } },

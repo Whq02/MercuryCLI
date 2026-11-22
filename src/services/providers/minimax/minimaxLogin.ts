@@ -12,7 +12,7 @@ interface MinimaxKeyLoginOutcome {
   receipt: string
 }
 
-const MINIMAX_KEY_RECEIPT_TAIL = 'Text models only; an M Plan Subscription Key draws its 5-hour and weekly windows, a pay-as-you-go key draws the Open Platform balance.'
+const MINIMAX_KEY_RECEIPT_TAIL = 'Text models only; an M Plan API key draws its 5-hour and weekly windows, a pay-as-you-go key draws the Open Platform balance.'
 
 export async function storeMinimaxApiKeyLogin(key: string, io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<MinimaxKeyLoginOutcome> {
   key = key.trim()
@@ -25,7 +25,7 @@ export async function storeMinimaxApiKeyLogin(key: string, io?: { fetchImpl?: ty
     note = `${result.models.length} text ${result.models.length === 1 ? 'model' : 'models'} listed`
   } catch (error) {
     if (error instanceof MinimaxCatalogueHttpError && (error.status === 401 || error.status === 403)) {
-      return { ok: false, stored: false, receipt: `MiniMax refused this key (HTTP ${error.status}) — nothing stored; create an API key at platform.minimax.io/user-center (Account Management → API Keys), or a Subscription Key at platform.minimax.io/console/plan, and paste again.` }
+      return { ok: false, stored: false, receipt: `MiniMax refused this key (HTTP ${error.status}) — nothing stored; create an API key at platform.minimax.io/user-center (Account Management → API Keys), or an M Plan API key at platform.minimax.io/console/plan, and paste again.` }
     }
     note = `UNVERIFIED — the model list could not confirm the key (${safe(errorMessageWithCause(error))})`
   }

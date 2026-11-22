@@ -61,7 +61,7 @@ try {
   __resetMistralUsageForTest()
   await owner.refreshProviderUsage('mistral', { now: () => now, force: true })
   const missing = await capture('mistral-usage-api-only', 116)
-  check('a standard key paints the exact Admin API key remedy and the account, without a failure or an old meter', missing.includes('usage is read with an Admin API key (Enterprise plans, backoffice.mistral.ai)') && missing.includes('fixture@example.invalid') && !missing.includes('refused') && !missing.includes('EUR 455.00'))
+  check('a standard key paints the exact Admin API key remedy and the account, without a failure or an old meter', missing.includes('usage is read with an Admin API key (Enterprise plans, admin.mistral.ai)') && missing.includes('fixture@example.invalid') && !missing.includes('refused') && !missing.includes('EUR 455.00'))
   console.log(`MISTRAL USAGE POPUP GREEN (${checks} checks; source-rendered fixtures)`)
 } finally {
   Date.now = originalNow

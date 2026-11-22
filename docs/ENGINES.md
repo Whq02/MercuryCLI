@@ -25,7 +25,7 @@ arm.
 | `moonshot` | `kimi-*`, `moonshot-*`, alias `kimi` | Moonshot |
 | `deepseek` | `deepseek-*`, alias `deepseek` | DeepSeek |
 | `xai` | `grok-*`, alias `grok` | xAI |
-| `meta` | `muse-spark-*`, `muse-wonder-*`, alias `muse` (other `muse-*` endpoints refuse here) | Meta |
+| `meta` | `muse-spark-*`, `muse-wonder-*`, `muse-ember-*`, alias `muse` (other `muse-*` endpoints refuse here) | Meta |
 | `gemini` | `gemini-*`, `google/<id>` (non-Gemini roster models on a Google sign-in), alias `gemini` | Gemini |
 | `openai-compat` | `compat/<vendor-id>` (qualified; stripped before the wire) | Custom endpoint |
 | `openrouter` | `openrouter/<vendor-slug>` (qualified; stripped because OpenRouter ids are vendor/model slugs, so the namespace disambiguates them) | OpenRouter |
@@ -190,13 +190,16 @@ into training on its prompts and completions. Meta’s documented Spark 1.3,
 1.2 and 1.1 rows have a 1,048,576-token context. Standard pricing is $1.25
 input, $0.15 cached input and $4.25 output per million tokens; the 1.3 and 1.2
 Contributor rows are $0.10, $0.002 and $0.20 respectively, with no long-context
-premium. Unrecorded served ids keep their raw names and unknown prices.
+premium. Muse Ember 1.0 (`muse-ember-1.0`, the same context and up to 524,288
+output tokens) is $0.10, $0.004 and $0.50, and $0.30, $0.012 and $1.50 for a
+request of more than 200,000 input tokens. Unrecorded served ids keep their raw
+names and unknown prices.
 
 Mercury uses Meta’s OpenAI-compatible Chat Completions endpoint at
 `https://api.meta.ai/v1/chat/completions`, with streaming, function tools,
 JSON-schema output and the model’s documented reasoning effort. `none` is
-not supported; `max` is documented for Muse Wonder 1.0 and Standard Muse
-Spark 1.3 and is undocumented for the Contributor variant. No
+not supported; `max` is documented for Muse Wonder 1.0, Muse Ember 1.0 and
+Standard Muse Spark 1.3 and is undocumented for the Contributor variant. No
 reasoning-off flag is sent. Meta also provides Responses and Messages APIs;
 its Chat Completions API does **not** preserve private reasoning across
 turns. Mercury’s Meta road therefore replays the conversation and tool
@@ -233,8 +236,8 @@ Mercury uses Mistral's Chat Completions endpoint at
 `https://api.mistral.ai/v1/chat/completions`, with streaming, function
 tools, JSON-schema output and the vendor's reasoning dial: Mistral Small 4 and
 Medium 3.5 use `reasoning_effort: high` with thinking on and `none` with it off.
-Mistral Large 4 accepts `low`, `medium` and `high`, and Z.ai GLM 5.3 `low`,
-`high` and `max`, each with `low` for thinking-off. Thinking arrives
+Mistral Large 4 accepts `low`, `medium` and `high`, and Z.ai GLM 5.3 and GLM 5.3
+Flash `low`, `high` and `max`, each with `low` for thinking-off. Thinking arrives
 as a chunk inside the reply; a row with no documented dial sends no effort
 word. An explicit output ceiling rides
 `max_tokens`. Thinking is not replayed across turns on this road: Mercury
@@ -360,6 +363,15 @@ prompt caching. The gateway's errors are typed: a refused or exhausted key
 console page to fix it; a Go-plan window reached (`GoUsageLimitError`) carries
 its `retry-after`.
 
+Requests go to `https://opencode.ai/zen/v1`, and the Go usage read to
+`/zen/go/v1`. The vendor's [harness page](https://opencode.ai/docs/console/harnesses)
+names newer bases, `https://opencode.ai/inference` and
+`https://opencode.ai/inference/go`; Mercury keeps them as a fallback. A
+request the first base answers with 404 or 410 is sent once to the same plan's
+new base (`/inference/v1`, `/inference/go/v1`), and when that base serves, the
+session keeps to it and the debug log says so. A refusal (401, 403, 429), a
+server error or a timeout never moves the base.
+
 The meter: the session's spend at the recorded prices, and, for a key that
 carries an **OpenCode Go** plan, the plan's 5-hour, weekly and monthly windows
 from `GET /zen/go/v1/usage`. The pay-as-you-go balance is shown only in the
@@ -399,7 +411,8 @@ the `base_resp` envelope of a 200 body, and typed as the refusal they name.
 
 The meter: the session's spend at the recorded prices (the >512K-token tier of
 `MiniMax-M3` priced at its own rate), and, for an M Plan key, the plan's 5-hour
-and weekly windows per model from `GET /v1/token_plan/remains`. The
+and weekly windows per model from
+`GET https://www.minimax.io/v1/token_plan/remains`. The
 pay-as-you-go balance is shown only on the platform (the API states none);
 `/usage` says so instead of inventing a figure.
 
@@ -423,7 +436,7 @@ Mercury uses the gateway's Chat Completions endpoint at
 function tools, a `prompt_cache_key` carrying the session id (the vendor's
 routing-stickiness knob for its prefix cache) and the model's documented
 reasoning knobs: the hybrid rows (Kimi K3, GLM 5.2/5.3, DeepSeek V4 Pro,
-MiniMax M3, Qwen 3.6 Plus, Qwen 3.5 9B) take `reasoning: { enabled }` from the session's
+MiniMax M3.1 Flash, Qwen 3.6 Plus, Qwen 3.5 9B) take `reasoning: { enabled }` from the session's
 thinking switch; `openai/gpt-oss-120b` takes `reasoning_effort` (`low` ·
 `medium` · `high`) and DeepSeek V4 Pro `high` · `max`, the lowest rung standing
 in for thinking-off where the model cannot stop. The gateway streams reasoning
@@ -652,7 +665,8 @@ reason after the status, as every chat refusal is.
 
 A retired DeepSeek id resolves to its current one wherever a model id is
 read (a saved setting, `MERCURY_MODEL`, `/model`, or a crewmate's model)
-and paints as the current id: `deepseek-v4-flash` is `deepseek-flash`, and
+and paints as the current id: `deepseek-v4-flash` and
+`deepseek-v4-flash-vision-exp` are `deepseek-flash`, and
 the wire is sent the current id.
 
 ## Dispatch

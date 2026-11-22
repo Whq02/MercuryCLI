@@ -279,7 +279,8 @@ export async function* streamOpenrouterResponses(options: CompatStreamOptions, b
     }, firstByteBudget)
     firstByteTimer.unref?.()
     try {
-      const fetchImpl = options.fetchImpl ?? wrapFetchWithWireDump(getApiFetch(), lane)
+      const sent = options.fetchImpl ?? wrapFetchWithWireDump(getApiFetch(), lane)
+      const fetchImpl = options.wrapFetch?.(sent) ?? sent
       const proxyOptions = options.fetchImpl ? {} : getProxyFetchOptions()
       response = await fetchImpl(url, {
         method: 'POST',

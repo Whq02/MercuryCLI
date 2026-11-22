@@ -3,7 +3,7 @@ import { getProductUserAgent } from '../../../utils/http.js'
 import { credentialFingerprint } from '../../../utils/accounts/credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
-import { resolveZenApiKey, zenGoUsageUrl } from './zenAccounts.js'
+import { resolveZenApiKey, zenFetch, zenGoUsageUrl } from './zenAccounts.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 import { nextMicrotask } from '../../../utils/timers.js'
 
@@ -109,7 +109,7 @@ export async function fetchZenGoUsage(
   key: string,
   io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number },
 ): Promise<ZenGoProbe> {
-  const fetchImpl = io?.fetchImpl ?? getApiFetch()
+  const fetchImpl = zenFetch(io?.fetchImpl ?? getApiFetch())
   const proxyOptions = io?.fetchImpl ? {} : getProxyFetchOptions()
   const nowMs = io?.now?.() ?? Date.now()
   let probe: ZenGoProbe

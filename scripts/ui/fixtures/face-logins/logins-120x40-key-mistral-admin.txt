@@ -13,14 +13,14 @@
    │   Kimi (Moonshot) — device-code sign-in or API key             │  │                                            │
    │                              kimi.ai (global) · window reached │  │ Mistral Admin API key (optional)           │
    │                                                                │  │ Optional Admin API key from                │
-   │ available                                                      │  │ backoffice.mistral.ai (Enterprise          │
-   │   OpenRouter — browser sign-in or API key        not signed in │  │ plans) unlocks the organisation usage      │
-   │   Google Gemini — Google sign-in, API key        not signed in │  │ meter and spend limit.                     │
+   │ available                                                      │  │ admin.mistral.ai (Enterprise plans)        │
+   │   OpenRouter — browser sign-in or API key        not signed in │  │ unlocks the organisation usage meter       │
+   │   Google Gemini — Google sign-in, API key        not signed in │  │ and spend limit.                           │
    │   GLM (Z.AI) — API key (general or GLM Coding Plan)            │  │ Stored auth-scoped (mode 600);             │
    │                                                  not signed in │  │ MISTRAL_ADMIN_API_KEY wins. Enterprise     │
-   │   DeepSeek — API key                             not signed in │  │ plans issue it at                          │
-   │   xAI — Grok subscription sign-in or API key     not signed in │  │ backoffice.mistral.ai.                     │
-   │   Meta — Muse Code sign-in or API key            not signed in │  │ … (the trail continues — taller terminal)  │
+   │   DeepSeek — API key                             not signed in │  │ plans issue it at admin.mistral.ai.        │
+   │   xAI — Grok subscription sign-in or API key     not signed in │  │ key: ▌                                     │
+   │   Meta — Muse Code sign-in or API key            not signed in │  │ ↵ stores · empty/esc skips; API key stays  │
    │ ❯ Mistral — API key                              not signed in │  ╰────────────────────────────────────────────╯
    │   Nous Portal — sign-in or API key               not signed in │  ╭────────────────────────────────────────────╮
    │   MiniMax — API key or M Plan key                not signed in │  │ LOGINS                                     │

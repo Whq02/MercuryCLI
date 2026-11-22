@@ -202,5 +202,5 @@ export function declaredIdSpacesLine(): string {
 }
 
 export function unrecognisedModelIdReason(model: string): string {
-  return `'${model.trim()}' is not a model id any provider family declares (${declaredIdSpacesLine()}); only an operator-owned fact puts it on the home wire — an ANTHROPIC_* model pin naming it, or ANTHROPIC_BASE_URL re-pointed at a gateway that serves it`
+  return `'${model.trim()}' is not a model id any provider family declares (${declaredIdSpacesLine()}); only an operator-owned fact puts it on the home wire — a MERCURY_MODEL, MERCURY_DEFAULT_*_MODEL or MERCURY_CUSTOM_MODEL_OPTION pin naming it, or ANTHROPIC_BASE_URL re-pointed at a gateway that serves it`
 }
