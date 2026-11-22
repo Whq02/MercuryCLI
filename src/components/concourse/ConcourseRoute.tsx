@@ -2,9 +2,11 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { usePublish } from '../../hooks/effects.js';
 import { armFaceDoorDeepLink } from '../../substrate/splashHandover.js';
 import {
+  activeReturnToken,
   chatOnlyBoot,
   enterBootSettings,
   enterRootChat,
+  leaveCurrentSurface,
   registerRouteSurface,
   routeSurfaceRegistered,
 } from '../../context/surfaceRoute.js';
@@ -170,7 +172,9 @@ function LiveConcourse(): React.ReactNode {
         return enterBootSettings().ok
       },
       exitToChat: () => {
-        if (!enterRootChat().ok) enterBootSettings()
+        if (!enterRootChat().ok && (activeReturnToken()?.to.kind !== 'boot-settings' || !leaveCurrentSurface().ok)) {
+          enterBootSettings()
+        }
       },
       }
     },

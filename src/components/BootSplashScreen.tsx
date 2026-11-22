@@ -7,6 +7,7 @@ import {
   chatOnlyBoot,
   enterConcourse,
   enterRootChat,
+  lastSurfaceTransition,
   leaveCurrentSurface,
   routeSurfaceRegistered,
   stripKeyMapHint,
@@ -248,6 +249,11 @@ export function BootSplashScreen(): React.ReactNode {
     return runRowOf({ flipFirstBirth, facts, permissionModeRef, setSettingsOpen, setLoginsOpen }, row);
   };
 
+  const [initialRowId] = useState<string | undefined>(() => {
+    const tr = lastSurfaceTransition();
+    return tr.verb === 'RETURN' && tr.from === 'concourse' && tr.to === 'boot-settings' ? 'concourse' : undefined;
+  });
+
   const [selCleared, setSelCleared] = useState(false);
   const selClearedRef = useRef(selCleared);
   selClearedRef.current = selCleared;
@@ -256,6 +262,7 @@ export function BootSplashScreen(): React.ReactNode {
     rows: composedRows,
     rowId: r => r.key,
     idNamespace: 'boot-splash',
+    initialId: initialRowId,
     active: !settingsOpen && !kitOpen && !healthOpen && !resumeOpen && !saturnOpen && !agentsOpen && !loginsOpen && !modelDefaultOpen,
     onClose: () => {
       if (!selClearedRef.current) {
