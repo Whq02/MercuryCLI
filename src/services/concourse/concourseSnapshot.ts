@@ -28,6 +28,7 @@ import {
 } from '../../utils/bootCardFacts.js'
 import { extractFirstPromptFromHead, extractLastJsonStringField, getProjectDir, isTranscriptFileName, LITE_READ_BUF_SIZE } from '../../utils/sessionStoragePortable.js'
 import { historyHead, historyRange } from '../../utils/sessionStorage/historyParts.js'
+import { missionGoalBeside } from '../../utils/mission/missionCard.js'
 import type { ConcourseElsewhereV1, ConcourseRowV1, ConcourseSnapshotV1 } from '../../components/concourse/contracts.js'
 import { ELSEWHERE_CAP, elsewhereLine, projectActivity } from './projectActivity.js'
 import { sessionTitleOf } from './sessionNaming.js'
@@ -186,7 +187,7 @@ export function headBriefLabel(rec: { sessionId: string; workspaceId: string }, 
   try {
     const lines = transcriptWindowLines(rec, LITE_READ_BUF_SIZE, 'head')
     if (lines === null) return null
-    const flat = extractFirstPromptFromHead(lines.join('\n'), opts).replace(/\s+/g, ' ').trim()
+    const flat = (missionGoalBeside(workerTranscriptPath(rec)) ?? extractFirstPromptFromHead(lines.join('\n'), opts)).replace(/\s+/g, ' ').trim()
     if (flat.length === 0) return null
     return sanitizeLabel(flat.length > maxChars ? `${flat.slice(0, maxChars)}…` : flat)
   } catch (error) {

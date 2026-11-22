@@ -30,7 +30,7 @@ export function isTranscriptFileName(name: string): boolean {
   return name.length > 6 && name.endsWith('.jsonl') && !name.slice(0, -6).includes('.')
 }
 
-export function unescapeJsonString(raw: string): string {
+function unescapeJsonString(raw: string): string {
   if (!raw.includes('\\')) return raw
   try {
     return JSON.parse(`"${raw}"`) as string
