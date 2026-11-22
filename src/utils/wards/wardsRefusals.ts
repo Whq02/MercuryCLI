@@ -126,7 +126,7 @@ function protectedRoot(path: string, world: RefusalWorld): string | null {
   const varScratch = same(segments[0], 'var', world) && (segments[1] === 'tmp' || segments[1] === 'folders') && scratch(1)
   const privateScratch = same(segments[0], 'private', world) && ((segments[1] === 'tmp' && scratch(1)) || (segments[1] === 'var' && (segments[2] === 'tmp' || segments[2] === 'folders') && scratch(2)))
   if (content) segments.pop()
-  const whole = `/${segments.join('/')}`
+  const whole = `${path.startsWith('/') ? '/' : ''}${segments.join('/')}`
   if (segments.length === 0) return '/'
   for (const home of world.homes) if (same(whole, posixPath(home, undefined, world) ?? home, world)) return whole
   for (const root of homesRoots(world)) {
@@ -227,6 +227,11 @@ function windowsOtherUser(path: string, world: RefusalWorld): boolean {
   return !world.ownNames.some(name => name.toLowerCase() === segments[1])
 }
 
+function namedDriveHome(word: string, world: RefusalWorld): string | undefined {
+  if (!word.startsWith('~') || !/^[A-Za-z]:\//.test(world.home ?? '')) return undefined
+  return posixPath(word.replace(/\\/g, '/'), undefined, { ...world, windows: true })
+}
+
 function rootNamed(word: string, command: ReadCommand, world: RefusalWorld, anywhere = false): string | null {
   if (windowsShaped(word, world, anywhere)) {
     const path = windowsPath(word, world)
@@ -238,6 +243,8 @@ function rootNamed(word: string, command: ReadCommand, world: RefusalWorld, anyw
     const path = windowsPath(`${stands}/${word}`, world)
     if (path !== undefined) return windowsRoot(path, world)
   }
+  const named = namedDriveHome(word, world)
+  if (named !== undefined && protectedRoot(named, world) !== null) return named
   const path = posixPath(command.dialect === 'powershell' ? word.replace(/\\/g, '/') : word, command.cwd, world)
   return path === undefined ? null : protectedRoot(path, world)
 }
@@ -265,6 +272,8 @@ function otherUserNamed(word: string, command: ReadCommand, world: RefusalWorld)
     const path = windowsPath(`${stands}/${word}`, world)
     if (path !== undefined && windowsOtherUser(path, world) && !insideStartingFolder(path, world)) return true
   }
+  const named = namedDriveHome(word, world)
+  if (named !== undefined && otherUserHome(named, world) && !insideStartingFolder(named, world)) return true
   const path = posixPath(command.dialect === 'powershell' ? word.replace(/\\/g, '/') : word, command.cwd, world)
   return path !== undefined && otherUserHome(path, world) && !insideStartingFolder(path, world)
 }
