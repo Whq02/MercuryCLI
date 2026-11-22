@@ -2,14 +2,37 @@ import { logForDebugging } from './debug.js'
 import type { HooksSettings } from './settings/types.js'
 import { parseYaml } from './yaml.js'
 import { isRecord as isPlainObject } from './isRecord.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
+const SHELL_VALUES = ['bash', 'powershell'] as const
 
-export type FrontmatterShell = Unbuilt
+export type FrontmatterShell = (typeof SHELL_VALUES)[number]
 
-export type FrontmatterData = Unbuilt
+export type FrontmatterData = {
+  [key: string]: unknown
+  'allowed-tools'?: string | string[] | null
+  paths?: string | string[] | null
+  globs?: string | string[] | null
+  description?: string | null
+  type?: string | null
+  'argument-hint'?: string | null
+  'when-to-use'?: string | null
+  version?: string | null
+  'hide-from-slash-command-tool'?: string | null
+  model?: string | null
+  skills?: string | null
+  'user-invocable'?: string | null
+  agent?: string | null
+  shell?: string | null
+  hooks?: HooksSettings | null
+  effort?: string | number | null
+  context?: 'inline' | 'fork' | null
+}
 
-type ParsedMarkdown = Unbuilt
+type ParsedMarkdown = {
+  frontmatter: FrontmatterData
+  content: string
+  parseError?: { message: string }
+}
 
 export const FRONTMATTER_REGEX = /^\uFEFF?---[ \t]*\r?\n((?:[\s\S]*?\r?\n)??)[ \t]*---[ \t]*\r?\n?(?:[ \t]*\r?\n)?/
 
@@ -37,15 +60,48 @@ function quoteSpecialValues(block: string): string {
 }
 
 export function parseFrontmatter(markdown: string, sourcePath?: string): ParsedMarkdown {
-  return notBuilt('src/utils/frontmatterParser.ts:61')
+  const match = FRONTMATTER_REGEX.exec(markdown)
+  if (!match) return { frontmatter: {}, content: markdown }
+  const block = match[1] ?? ''
+  const content = markdown.slice(match[0].length)
+  let data: unknown
+  try {
+    data = parseYaml(block)
+  } catch {
+    try {
+      data = parseYaml(quoteSpecialValues(block))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      logForDebugging(`frontmatter: failed to parse${sourcePath ? ` ${sourcePath}` : ''}: ${message}`, { level: 'warn' })
+      return { frontmatter: {}, content, parseError: { message } }
+    }
+  }
+  return { frontmatter: isPlainObject(data) ? data : {}, content }
 }
 
 function expandBraces(pattern: string): string[] {
-  return notBuilt('src/utils/frontmatterParser.ts:85')
+  const open = pattern.indexOf('{')
+  const close = pattern.indexOf('}', open + 1)
+  if (open < 0 || close < 0) return [pattern]
+  return pattern.slice(open + 1, close).split(',').flatMap(part =>
+    expandBraces(pattern.slice(0, open) + part.trim() + pattern.slice(close + 1)),
+  )
 }
 
 function splitOutsideBraces(input: string): string[] {
-  return notBuilt('src/utils/frontmatterParser.ts:99')
+  const pieces: string[] = []
+  let start = 0
+  let depth = 0
+  for (let i = 0; i < input.length; i++) {
+    if (input[i] === '{') depth++
+    else if (input[i] === '}') depth = Math.max(0, depth - 1)
+    else if (input[i] === ',' && depth === 0) {
+      pieces.push(input.slice(start, i).trim())
+      start = i + 1
+    }
+  }
+  pieces.push(input.slice(start).trim())
+  return pieces.filter(Boolean)
 }
 
 export function splitPathInFrontmatter(input: string | string[]): string[] {
@@ -77,9 +133,16 @@ export function coerceDescriptionToString(value: unknown, componentName?: string
 }
 
 export function parseBooleanFrontmatter(value: unknown): boolean {
-  return notBuilt('src/utils/frontmatterParser.ts:145')
+  return value === true || value === 'true'
 }
 
 export function parseShellFrontmatter(value: unknown, source: string): FrontmatterShell | undefined {
-  return notBuilt('src/utils/frontmatterParser.ts:151')
+  const text = String(value ?? '').trim()
+  if (!text) return undefined
+  const lower = text.toLowerCase()
+  const shell = SHELL_VALUES.find(word => word === lower)
+  if (!shell) {
+    logForDebugging(`frontmatter: unrecognised shell "${text}" in ${source}; valid values are ${SHELL_VALUES.join(', ')}; falling back to bash`, { level: 'warn' })
+  }
+  return shell
 }
