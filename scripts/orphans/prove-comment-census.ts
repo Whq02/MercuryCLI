@@ -150,26 +150,55 @@ if (WRITE) {
   process.exit(0)
 }
 
-const moved: string[] = []
-if (held !== null) {
+const tableMoves = (read: string[]): { moved: string[]; gone: number } => {
+  const moved: string[] = []
+  let gone = 0
+  if (held === null) return { moved, gone }
   const before = new Map(held.map(row => [keyOf(row), row]))
-  const after = new Map(rows.map(row => [keyOf(row), row]))
+  const after = new Map(read.map(row => [keyOf(row), row]))
   for (const [key, row] of after) {
     const was = before.get(key)
     if (was === row) continue
+    const reads = row.split('\t').slice(2)
+    if (was !== undefined && reads.every(count => count === '0')) {
+      gone++
+      continue
+    }
     const name = key.replace('\t', ' ')
     const lines = key.startsWith('excepted-file\t') ? exceptedFiles.get(key.split('\t')[1]!) : key.startsWith('kept-file\t') ? proseFiles.get(key.split('\t')[1]!) : undefined
     const where = lines === undefined ? '' : ` (${key.split('\t')[1]!}:${lines[0]}, every one at lines ${lines.join(', ')})`
-    moved.push(was === undefined ? `${name}: no row, the tree reads ${row.split('\t').slice(2).join(' ')}${where}` : `${name}: the table holds ${was.split('\t').slice(2).join(' ')}, the tree reads ${row.split('\t').slice(2).join(' ')}${where}`)
+    moved.push(was === undefined ? `${name}: no row, the tree reads ${reads.join(' ')}${where}` : `${name}: the table holds ${was.split('\t').slice(2).join(' ')}, the tree reads ${reads.join(' ')}${where}`)
   }
-  for (const [key, row] of before) if (!after.has(key)) moved.push(`${key.replace('\t', ' ')}: the table holds ${row.split('\t').slice(2).join(' ')}, the tree reads nothing`)
+  for (const key of before.keys()) if (!after.has(key)) gone++
+  return { moved, gone }
 }
+const { moved, gone } = tableMoves(rows)
 check(
-  `${TABLE_NAME} holds what the census read of the counts that may only fall: prose kept by rule and the comments of the excepted folders, file by file (${rows.length} rows)`,
+  `${TABLE_NAME} holds what the census read of the counts that may only fall: prose kept by rule and the comments of the excepted folders, file by file (${rows.length} rows${gone > 0 ? `, and ${gone} of the table's rows read nothing in this tree` : ''})`,
   held !== null && moved.length === 0,
   held === null
     ? `${TABLE_NAME} is absent; write it once: bun scripts/orphans/prove-comment-census.ts --write --first`
     : `${moved.length} row(s) moved; delete the new docstring or comment, and where one left write the table: bun scripts/orphans/prove-comment-census.ts --write\n    ${moved.join('\n    ')}`,
+)
+
+const published: string[] = rows.filter(row => !row.startsWith('excepted'))
+for (const [folder, files] of tree.excepted) {
+  let comments = 0
+  let commented = 0
+  for (const file of files) {
+    const left = hashComments(file.path, withoutComments(file.path, readFileSync(join(ROOT, file.path), 'utf8')).out).filter(comment => comment.keep === null).length
+    if (left === 0) continue
+    comments += left
+    commented++
+    published.push(`excepted-file\t${file.path}\t${left}`)
+  }
+  published.push(`excepted\t${folder}\t${commented}\t${comments}`)
+}
+const publishedMoves = tableMoves(published).moved
+check(
+  'on a published checkout (every comment stripped, as the publish filter does) no row of the table moves: a row that reads nothing there is no rise',
+  held !== null && publishedMoves.length === 0,
+  `${publishedMoves.length} row(s) moved once every comment is stripped; the hosted gate reads a published checkout, so tableMoves in scripts/orphans/prove-comment-census.ts must pass a row that reads nothing where the table holds a count:\n    ${publishedMoves.join('\n    ')}`,
 )
 
 const fixture = [

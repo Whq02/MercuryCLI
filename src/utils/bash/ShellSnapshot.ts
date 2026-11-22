@@ -29,7 +29,7 @@ import { birthAfter, birthMark, endMsysGroupBeside, endProcessBornAfter, endProc
 import { ripgrepCommand } from '../ripgrep.js'
 import { sleep } from '../sleep.js'
 import { loginExportsCarried, pathWithLoginEntries, subprocessEnv } from '../subprocessEnv.js'
-import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, SNAPSHOT_READS_FUNCTIONS, argv0FunctionBody, noteLoginExports, noteLoginFiles, snapshotProfileOf, zshNamedBeforeBash, type LoginFilesAbsence, type ShellRecord } from '../shell/shellRecord.js'
+import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, SNAPSHOT_READS_BACK, SNAPSHOT_READS_FUNCTIONS, argv0FunctionBody, noteLoginExports, noteLoginFiles, snapshotProfileOf, zshNamedBeforeBash, type LoginFilesAbsence, type ShellRecord } from '../shell/shellRecord.js'
 import { windowsShellRoadActive, withOwnPrograms, withRoadPrograms, withShippedPrograms } from '../shell/windowsShellRoad.js'
 import { msysSourceLine } from '../shell/msysArgv.js'
 import { windowsPathToPosixPath } from '../windowsPaths.js'
@@ -357,10 +357,11 @@ function buildCaptureScript(args: {
   configFilePath: string
   configExists: boolean
   definitions: boolean
+  readBack: boolean
   programsNeeded: boolean
   mercuryContent: string
 }): string {
-  const { snapshotFilePath, configFilePath, configExists, definitions, programsNeeded, mercuryContent } = args
+  const { snapshotFilePath, configFilePath, configExists, definitions, readBack, programsNeeded, mercuryContent } = args
   const lines: string[] = []
 
   lines.push(`SNAPSHOT_FILE=${quote([snapshotFilePath])}`)
@@ -383,7 +384,7 @@ function buildCaptureScript(args: {
     lines.push('echo "# Functions" >> "$SNAPSHOT_FILE"')
     lines.push(SNAPSHOT_READS_FUNCTIONS)
     lines.push(`for __mercury_fn in $(declare -F | awk '{print $NF}'); do
-  printf 'eval %q\\n' "$(declare -f -- "$__mercury_fn")" >> "$SNAPSHOT_FILE"
+${readBack ? `  ${SNAPSHOT_READS_BACK}\n` : ''}  printf 'eval %q\\n' "$(declare -f -- "$__mercury_fn")" >> "$SNAPSHOT_FILE"
 done`)
     lines.push('echo "} >/dev/null 2>&1" >> "$SNAPSHOT_FILE"')
 
@@ -566,6 +567,7 @@ export async function createAndSaveSnapshot(
       configFilePath,
       configExists,
       definitions: bashOfThisMachine || configExists,
+      readBack: shell.origin === 'engine',
       programsNeeded: bashOfThisMachine,
       mercuryContent,
     })

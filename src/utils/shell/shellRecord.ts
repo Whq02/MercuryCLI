@@ -454,6 +454,8 @@ export const SNAPSHOT_KEEPS_ALIASES = 'echo "shopt -s expand_aliases" >> "$SNAPS
 
 export const SNAPSHOT_READS_FUNCTIONS = 'echo "{ shopt -s extglob" >> "$SNAPSHOT_FILE"'
 
+export const SNAPSHOT_READS_BACK = '( shopt -s extglob; eval "$(printf \'eval %q\' "$(declare -f -- "$__mercury_fn")")" ) >/dev/null 2>&1 || continue'
+
 export const SNAPSHOT_OPTIONS: readonly string[] = [
   `shopt -p | head -n 1000 >> "$SNAPSHOT_FILE"`,
   `set -o | awk '$2 == "on" { print "set -o " $1 }' | head -n 1000 >> "$SNAPSHOT_FILE"`,

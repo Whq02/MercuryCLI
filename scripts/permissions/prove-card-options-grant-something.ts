@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { isAbsolute, join, relative, sep } from 'node:path'
 import { PassThrough } from 'node:stream'
 import * as React from 'react'
 
@@ -43,6 +43,7 @@ const { AppStateProvider } = await import('../../src/state/AppState.tsx')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { render } = await import('../../src/ink.ts')
 const { default: stripAnsi } = await import('strip-ansi')
+const { waitFor } = await import('../lib/settingsPopupHarness.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
 const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
 const { parseForSecurity } = await import('../../src/utils/permissions/decision/commandAnalysis.ts')
@@ -98,7 +99,7 @@ async function drawCard(node: React.ReactElement, mode: 'default' | 'flow'): Pro
     React.createElement(AppStateProvider as never, { initialState } as never, node as never),
     { stdout: stream as never, stdin: stdin as never, patchConsole: false },
   )
-  await new Promise(resolve => setTimeout(resolve, 120))
+  await waitFor(() => stripAnsi(instance.lastFrame()).trim() !== '', 3000)
   const lines = stripAnsi(instance.lastFrame())
     .split('\n')
     .map(line => line.replace(/^[│\s]+|[│\s]+$/g, ''))
@@ -691,6 +692,8 @@ try {
     mkdirSync(projDocs, { recursive: true })
     mkdirSync(outsideDocs, { recursive: true })
     const outsideDocsFile = join(outsideDocs, 'SESSIONS.md')
+    const fromHome = relative(homedir(), outsideDocs)
+    const outsideShown = fromHome.startsWith('..') || isAbsolute(fromHome) ? `${outsideDocs}${sep}` : `~/${fromHome.split(sep).join('/')}/`
     const outsideReadOpts = getFilePermissionOptions({
       filePath: outsideDocsFile,
       toolPermissionContext: ctxFor('default'),
@@ -698,7 +701,7 @@ try {
     }).map(o => words(o.label))
     check(
       'outside-read option 2: names full folder path (not ambiguous docs/)',
-      outsideReadOpts[1] === `Yes, allow reading from ${outsideDocs}/ for this session`,
+      outsideReadOpts[1] === `Yes, allow reading from ${outsideShown} for this session`,
       JSON.stringify(outsideReadOpts[1]),
     )
 
@@ -709,7 +712,7 @@ try {
     }).map(o => words(o.label))
     check(
       'outside-write option 2: names full folder path (not ambiguous docs/)',
-      outsideWriteOpts[1] === `Yes, allow all edits in ${outsideDocs}/ for this session (shift+tab)`,
+      outsideWriteOpts[1] === `Yes, allow all edits in ${outsideShown} for this session (shift+tab)`,
       JSON.stringify(outsideWriteOpts[1]),
     )
 

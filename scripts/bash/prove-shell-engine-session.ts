@@ -85,6 +85,12 @@ async function run(command: string, timeoutMs = 30_000, owner?: string): Promise
   return (await cmd.result) as Result
 }
 
+if (process.argv.includes('--login-row')) {
+  console.log(`ROW ${JSON.stringify(await run('echo started; reads_back'))}`)
+  resetEngineSessionForTest()
+  process.exit(0)
+}
+
 section('§1 sentinel framing · exit codes · stderr folded into stdout')
 {
   const ok = await run('echo hello')
@@ -315,7 +321,7 @@ section('§8 an engine that dies between commands: the pipe error is heard, the 
     unheard = String(error)
   }
   process.on('uncaughtException', onUncaught)
-  const exited = new Promise<void>(resolve => child?.once('exit', () => resolve()))
+  const exited = new Promise<void>(resolve => (child === null ? resolve() : child.once('exit', () => resolve())))
   child?.kill('SIGKILL')
   const writeQuietly = (): void => {
     try {
@@ -355,6 +361,23 @@ section('§9 an interrupt with one command running and one waiting in line: the 
   const next = await run('echo "[${QUEUE_MARK:-gone}]"')
   check('the next command finds the state gone', next.stdout.includes('[gone]'), JSON.stringify(next.stdout))
   check('…and is told — the note the aborted command must not swallow', /interrupted/.test(next.stderr) && /reset/.test(next.stderr), JSON.stringify(next.stderr))
+}
+
+section('§12 a login file with a function the engine prints in a form it cannot read back: the session starts, and what it reads back is carried')
+if (process.platform === 'win32') {
+  console.log('  [SKIP] this section runs off Windows: its login home is a POSIX home, a ~/.profile the engine reads at login')
+} else {
+  const { spawnSync } = await import('node:child_process')
+  const loginHome = fs.mkdtempSync(join(os.tmpdir(), 'engine-login-home-'))
+  fs.writeFileSync(join(loginHome, '.profile'), 'reads_back() { echo carried-by-the-engine; }\nholds_a_here_document() {\n  cat <<EOF\nfrom a here-document\nEOF\n}\n')
+  fs.mkdirSync(join(loginHome, 'temp'))
+  const child = spawnSync(process.execPath, [import.meta.path, '--login-row'], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, HOME: loginHome, USERPROFILE: loginHome, TMPDIR: join(loginHome, 'temp') } })
+  const row = (child.stdout ?? '').split('\n').find(line => line.startsWith('ROW '))
+  const started: Result = row === undefined ? { stdout: '', stderr: `the child that owns the login home printed no row (exit ${String(child.status)}): ${(child.stderr ?? '').slice(-300)}`, code: -1, interrupted: false } : JSON.parse(row.slice('ROW '.length))
+  const captureFix = 'the function loop of buildCaptureScript in src/utils/bash/ShellSnapshot.ts must run SNAPSHOT_READS_BACK of src/utils/shell/shellRecord.ts for the engine, so that only a definition the engine reads back is kept'
+  check('the session starts and runs its first command', started.code === 0 && started.stdout.includes('started'), `${JSON.stringify(started)}; ${captureFix}`)
+  check('the function the engine reads back is carried into the session', started.stdout.includes('carried-by-the-engine'), `${JSON.stringify(started.stdout)}; ${captureFix}`)
+  fs.rmSync(loginHome, { recursive: true, force: true })
 }
 
 resetEngineSessionForTest()
