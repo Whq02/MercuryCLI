@@ -1,6 +1,6 @@
 import { getEngineModel, modelDisplayString, renderModelName } from '../../../services/model/model.js'
 import { glmThinkingLocked } from '../../../utils/model/pins/glmPins.js'
-import { modelThinkingAlwaysOn } from '../../../utils/model/capabilities.js'
+import { modelThinkingAlwaysOn, modelThinkingOffIsBetweenTools } from '../../../utils/model/capabilities.js'
 import { declaredRouteOf } from '../../../services/providers/callModelRouter.js'
 import type { ProviderFamilyPresence } from '../../../services/providers/providerUsage.js'
 import { shownIdentityWords } from '../../../services/providers/providerIdentityLine.js'
@@ -73,7 +73,7 @@ export function thinkingRowApplicability(
       refuseNote: 'This model locks thinking on at the provider; the setting cannot turn it off.',
     }
   }
-  if ((reads?.alwaysOn ?? modelThinkingAlwaysOn)(model)) {
+  if ((reads?.alwaysOn ?? modelThinkingAlwaysOn)(model) && !modelThinkingOffIsBetweenTools(model, {})) {
     return {
       applies: false,
       naText: `n/a — ${(reads?.nameOf ?? renderModelName)(model)} keeps thinking on`,

@@ -6,7 +6,7 @@ NEXT                    │ │ project · 84 settings · 2 set by you          
   · /health — health…   │ │                                                                                          │ │
   · /memory — memory    │ │ / think                                                                                  │ │
   · /mission — set a…   │ │                                                                                          │ │
-                        │ │ › Thinking                          n/a — Sonnet 5.5 keeps thinking on                   │ │
+                        │ │ › Thinking                          n/a — Opus 5.5 keeps thinking on                     │ │
 FILES · project         │ │   This model thinks on every request; the setting cannot turn it off — /effort is the    │ │
   ↵ or click · browse   │ │ lever.                                                                                   │ │
                         │ │                                                                                          │ │
