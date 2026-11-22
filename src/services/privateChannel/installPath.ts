@@ -373,6 +373,15 @@ function removePosixPathLines(roots: LayoutRoots, io: PathEntryIo): PathRemovalO
   const targets: string[] = []
   const ownLine = (line: string): boolean => line.trimEnd().endsWith(`# ${PATH_SENTINEL}`)
   const madeFileLine = (line: string): boolean => line.trimEnd().endsWith(`# ${MADE_FILE_MARK} # ${PATH_SENTINEL}`)
+  const couldRemove = (file: string): boolean => {
+    try {
+      io.removeFile(file)
+      return true
+    } catch (error) {
+      passedOver(error)
+      return false
+    }
+  }
   for (const file of files) {
     const content = io.readFile(file)
     if (content === null || !content.includes(PATH_SENTINEL)) continue
@@ -381,10 +390,9 @@ function removePosixPathLines(roots: LayoutRoots, io: PathEntryIo): PathRemovalO
     if (kept.length === lines.length) continue
     const madeAndBare = lines.some(madeFileLine) && kept.every(line => line.trim() === '') && !io.isSymlink(file)
     try {
-      if (madeAndBare) io.removeFile(file)
-      else io.writeFile(file, kept.join('\n'))
+      if (!madeAndBare || !couldRemove(file)) io.writeFile(file, kept.join('\n'))
     } catch (e) {
-      return { state: 'refused', dir, reason: `could not ${madeAndBare ? 'remove' : 'write'} ${describePathTarget(file, io.home)}: ${errorText(e)}` }
+      return { state: 'refused', dir, reason: `could not write ${describePathTarget(file, io.home)}: ${errorText(e)}` }
     }
     targets.push(file)
   }

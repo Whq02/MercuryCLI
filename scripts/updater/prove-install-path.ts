@@ -446,7 +446,13 @@ if (!IS_WIN) {
     {
       const f = made('/bin/zsh', { failRemove: '.zshrc' })
       const out = removeBinDirFromPath(roots, f.io)
-      check('a file install made that cannot be removed ⇒ refused, the file and the error named', out.state === 'refused' && out.reason.includes('could not remove ~/.zshrc') && out.reason.includes('EACCES'), out.state === 'refused' ? out.reason : out.state)
+      check('a file install made that cannot be removed loses its line as before: the file is written without it', out.state === 'removed' && out.targets.join() === zshrc && f.files.get(zshrc) === '' && f.fileWrites.join() === zshrc, `${out.state === 'refused' ? out.reason : out.state} · written ${f.fileWrites.join()}`)
+      check('… and the removal line reads as it did', describePathRemoval(out, false, HOME_P) === 'removed: the PATH line in ~/.zshrc')
+    }
+    {
+      const f = made('/bin/zsh', { failRemove: '.zshrc', failFileWrite: '.zshrc' })
+      const out = removeBinDirFromPath(roots, f.io)
+      check('… and one that can be neither removed nor written ⇒ refused in the words of a failed write', out.state === 'refused' && out.reason.includes('could not write ~/.zshrc') && out.reason.includes('EACCES'), out.state === 'refused' ? out.reason : out.state)
     }
     {
       const f = made('/bin/zsh', { links: [zshrc] })
