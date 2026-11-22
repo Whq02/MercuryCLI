@@ -100,10 +100,10 @@ function projectText(keypress: ParsedKey): string {
   const name: string | undefined = keypress.name
   const start: string = (keypress.ctrl ? name : keypress.sequence) ?? ''
   if (keypress.ctrl && name === 'space') return ' '
-  if (name === undefined) {
-    if (keypress.code) return ''
+  if (keypress.code !== undefined && name === undefined) return ''
+  if (!name) {
     if (!keypress.isPasted && MOUSE_REPORT_SHAPE_RE.test(start)) return ''
-    if (SILENT_CSI_HEAD_RE.test(start)) return ''
+    if (SILENT_CSI_HEAD_RE.test(keypress.sequence ?? '')) return ''
   }
   const text = start.replace(LEADING_ESC_RE, '')
   if (EXTENDED_KEYBOARD_RE.test(text) || MODIFY_OTHER_KEYS_RE.test(text) || EVENT_TYPED_FUNCTIONAL_RE.test(text)) {
