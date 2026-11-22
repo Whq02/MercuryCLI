@@ -10,7 +10,7 @@ Start from observed tasks, realistic trigger/non-trigger/sibling prompts, a no-s
 Place `SKILL.md` in `.mercury/skills/<name>/` (project) or `<config-home>/skills/<name>/` (personal). Prefer lowercase hyphenated directory names; built-in and bundled names win collisions.
 
 Frontmatter:
-- `description`: start with the trigger (`Use when …`) and sibling boundary (`Not for …`), fitting whole within `MAX_LISTING_DESC_CHARS` (250 in `src/tools/SkillTool/constants.ts`; `when-to-use`, if set, joins as `description - when-to-use` under that 250-char cap).
+- `description`: start with the trigger (`Use when …`) and sibling boundary (`Not for …`), fitting whole within `MAX_LISTING_DESC_CHARS` (250 in `src/constants/tools/skill.ts`; `when-to-use`, if set, joins as `description - when-to-use` under that 250-char cap).
 - `argument-hint`: leading `<` requires an argument (bare `/name` prints usage); `[optional]` or omitted runs bare.
 - `disable-model-invocation: true` reserves invocation for the user; `user-invocable: false` hides/refuses `/name` while allowing the model. Neither grants permissions; omit `allowed-tools` when only `Read`, `Grep` or `Glob` are used.
 

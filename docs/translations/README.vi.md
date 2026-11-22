@@ -397,7 +397,7 @@ Các cờ runtime được định nghĩa trong `src/substrate/flagRegistry.ts`,
 | --- | --- |
 | `/imagesetup` | Thiết lập các mô hình hình ảnh và video cục bộ. |
 | `/llmhost` | Chọn một mô hình để thuê trên Runpod, Vast.ai hoặc Lambda, chạy trên máy của bạn, hoặc kết nối một máy chủ có sẵn. |
-| `/tensorfold` | Chạy một mô hình cục bộ trên TensorFold: cài đặt engine, tải mô hình, phục vụ trên máy Mac này, chia sẻ trên mạng của bạn hoặc thuê GPU cho nó, rồi chuyển sang dùng, tất cả trên một màn hình. |
+| `/tensorfold` | Chạy một mô hình cục bộ trên TensorFold: cài đặt engine, tải mô hình, phục vụ trên máy của bạn, chia sẻ trên mạng của bạn hoặc thuê GPU cho nó, rồi chuyển sang dùng, tất cả trên một màn hình. |
 | `/restart` | Chuyển chat này sang bản biên dịch Mercury đã cài đặt; các watch đang chạy và shell nền sẽ dừng. |
 | `/mcp` | Kiểm tra máy chủ, đăng nhập, duyệt công cụ và tham số của từng máy chủ, kết nối lại, hoặc bật/tắt một máy chủ cho chat này. |
 

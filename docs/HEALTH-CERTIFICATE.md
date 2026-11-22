@@ -97,7 +97,7 @@ check makes, and the row reads `renewed on this check`; a grant the provider
 refuses marks the sign-in expired, the row warns with `sign-in expired` and
 its fix is the same line the chat shows (`/logins <family>` reconnects). The
 same check runs once when Mercury opens, so an expired sign-in shows on the
-boot screen's Logins row (`<Family> sign-in expired`) before a first prompt is
+boot screen's Logins/Keys row (`<Family> sign-in expired — sign in again`) before a first prompt is
 sent. When a prompt does meet an expired sign-in, its words come back to the
 composer under the error line and are sent again on their own once `/logins`
 lands a credential (or `/model` moves the session to a family that is signed
@@ -161,10 +161,10 @@ set in the environment, with Mercury's own stamps and the boot's saved
 defaults named apart from your overrides. Each override names the
 registered switch, its value and its kind; unset switches use their defaults.
 
-AUTH carries the `Model lists` row: for all 19 provider families Mercury
-carries typed model ids for (Anthropic, OpenAI, Z.AI, Moonshot, DeepSeek,
+AUTH carries the `Model lists` row: for all 21 provider families Mercury
+tracks (Anthropic, OpenAI, Z.AI, Moonshot, DeepSeek,
 xAI, Meta, Gemini, Hugging Face, Mistral, Nous, OpenCode Zen, MiniMax,
-Together AI, Cohere, Groq, Cerebras, Fireworks AI, Qwen), whether each
+Together AI, Cohere, Groq, Melious, OrcaRouter, Cerebras, Fireworks AI, Qwen), whether each
 typed id is still served by the live model list the product has already read
 for that family's signed-in source. The row never fetches: it reads the
 catalogue already fetched by `/model`, `/logins` or a chat naming the family.
@@ -174,8 +174,8 @@ and a family without a credential reads `<Family> · no credential · <n> typed
 ids not judged`. When a list has been read, the family's line names the
 credential door, the served and not-served counts, and `list from <age>`; a
 failed read names the failed door, the endpoint's reason and the age. The
-evidence line counts served and unserved ids, then `lists read <n> of 19`
-across all 19 families.
+evidence line counts served and unserved ids, then `lists read <n> of 21`
+across all 21 families.
 The detail names one line per family and, beneath a family whose list lacks a typed id,
 the ids it lacks. The row reads `ok` when every typed id a read list can
 judge is served, `warn` when a read list lacks one, `info` when no list has

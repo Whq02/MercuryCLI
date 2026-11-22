@@ -397,7 +397,7 @@ Les options d'exécution sont définies dans `src/substrate/flagRegistry.ts`, ex
 | --- | --- |
 | `/imagesetup` | Configurez les modèles locaux d’image et de vidéo. |
 | `/llmhost` | Choisissez un modèle à louer chez Runpod, Vast.ai ou Lambda, à exécuter sur votre propre ordinateur, ou à connecter à un serveur existant. |
-| `/tensorfold` | Exécutez un modèle local sur TensorFold : installez le moteur, téléchargez un modèle, servez-le sur ce Mac, partagez-le sur votre réseau ou louez un GPU pour lui, puis basculez dessus, le tout sur un seul écran. |
+| `/tensorfold` | Exécutez un modèle local sur TensorFold : installez le moteur, téléchargez un modèle, servez-le sur votre ordinateur, partagez-le sur votre réseau ou louez un GPU pour lui, puis basculez dessus, le tout sur un seul écran. |
 | `/restart` | Déplace cette conversation vers la version de Mercury installée ; les surveillances en cours et les shells d'arrière-plan s'arrêtent. |
 | `/mcp` | Inspectez les serveurs, connectez-vous, parcourez les outils et paramètres de chaque serveur, reconnectez-vous ou activez ou désactivez un serveur pour cette conversation. |
 
