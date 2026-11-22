@@ -396,7 +396,7 @@ Laufzeit-Flags sind in `src/substrate/flagRegistry.ts` definiert, werden als `ME
 | Befehl | Funktion |
 | --- | --- |
 | `/imagesetup` | Lokale Bild- und Videomodelle einrichten. |
-| `/llmhost` | Ein Modell wählen, das Sie bei Runpod, Vast.ai oder Lambda mieten, auf Ihrem Computer betreiben oder an einen bestehenden Server anbinden. |
+| `/llmhost` | Ein Modell wählen, das Sie bei Runpod, Vast.ai, Lambda, Hugging Face Inference Endpoints, Hyperstack, Verda oder DigitalOcean mieten, auf Ihrem Computer betreiben oder an einen bestehenden Server anbinden. |
 | `/tensorfold` | Ein lokales Modell auf TensorFold ausführen: die Engine installieren, ein Modell laden, es auf Ihrem Computer bereitstellen, in Ihrem Netzwerk teilen oder eine GPU dafür mieten und darauf wechseln, alles auf einem Bildschirm. |
 | `/restart` | Diesen Chat auf den installierten Mercury-Build verschieben; laufende Überwachungen und Hintergrund-Shells werden beendet. |
 | `/mcp` | Server prüfen, sich anmelden, die Werkzeuge und Parameter jedes Servers durchsuchen, neu verbinden oder einen Server für diesen Chat umschalten. |

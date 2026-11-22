@@ -396,7 +396,7 @@ docker run --rm mercury --version
 | コマンド | 機能 |
 | --- | --- |
 | `/imagesetup` | ローカルの画像・動画モデルを設定します。 |
-| `/llmhost` | Runpod、Vast.ai、Lambda でレンタルするモデルを選ぶ、自分のコンピューターで実行する、または既存のサーバーに接続します。 |
+| `/llmhost` | Runpod、Vast.ai、Lambda、Hugging Face Inference Endpoints、Hyperstack、Verda、DigitalOcean でレンタルするモデルを選ぶ、自分のコンピューターで実行する、または既存のサーバーに接続します。 |
 | `/tensorfold` | TensorFold でローカルモデルを実行します。エンジンのインストール、モデルの取得、自分のコンピューターでの配信、ネットワークでの共有や GPU のレンタル、そのモデルへの切り替えをすべて一つの画面で行えます。 |
 | `/restart` | 現在のチャットを、インストール済みの Mercury ビルドに移します。実行中の監視とバックグラウンドのシェルは停止します。 |
 | `/mcp` | サーバーを確認する、サインインする、各サーバーのツールとパラメーターを参照する、再接続する、またはこのチャットでサーバーを切り替えます。 |

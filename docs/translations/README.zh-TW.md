@@ -396,7 +396,7 @@ docker run --rm mercury --version
 | 指令 | 功能 |
 | --- | --- |
 | `/imagesetup` | 設定本機影像和影片模型。 |
-| `/llmhost` | 選擇要在 Runpod、Vast.ai 或 Lambda 上租用的模型、在你自己的電腦上執行，或連接既有的伺服器。 |
+| `/llmhost` | 選擇要在 Runpod、Vast.ai、Lambda、Hugging Face Inference Endpoints、Hyperstack、Verda 或 DigitalOcean 上租用的模型、在你自己的電腦上執行，或連接既有的伺服器。 |
 | `/tensorfold` | 在 TensorFold 上執行本機模型：安裝引擎、拉取模型、在你的電腦上提供服務、在你的網路上共享或為其租用 GPU，並切換至該模型，全部在同一個畫面完成。 |
 | `/restart` | 把此對話移到已安裝的 Mercury 版本；正在執行的監看（watch）與背景 shell 會停止。 |
 | `/mcp` | 檢視伺服器、登入、瀏覽每個伺服器的工具與參數、重新連線，或為此對話切換伺服器的啟用狀態。 |
