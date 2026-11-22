@@ -81,7 +81,7 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
   )
 
   const groupPrefixes: HelpRow[] = [
-    { key: 'bash', text: '! for bash mode' },
+    { key: 'bash', text: '! for shell mode' },
     { key: 'cmds', text: '/ for commands' },
     { key: 'at', text: '@ for file paths' },
   ]

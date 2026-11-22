@@ -126,6 +126,21 @@ section(
   check('? shortcuts list names "shift + tab to cycle the mode" and never "for implement mode"', help.includes('shift + tab to cycle the mode') && !help.includes('for implement mode'), help)
 }
 
+section(
+  '§3 ? shortcuts list and composer footer agree on "! for shell mode"',
+  'change the ! row text in PromptInputHelpMenu in src/components/PromptInput/PromptInputHelpMenu.tsx and the bash-mode hint in src/components/PromptInput/PromptInputFooterLeftSide.tsx',
+)
+{
+  const { PromptInputFooterLeftSide } = await import(join(ROOT, 'src/components/PromptInput/PromptInputFooterLeftSide.tsx'))
+  const help = await paint(h(PromptInputHelpMenu as never, { availableColumns: 120 }), { columns: 120, rows: 30 })
+  check('? shortcuts list says "! for shell mode" and never "! for bash mode"', help.includes('! for shell mode') && !help.includes('! for bash mode'), help)
+  const footer = await paint(
+    h(PromptInputFooterLeftSide as never, { exitPending: false, exitKeyName: null, isPasting: false, mode: 'bash', isLoading: false }),
+    { columns: 120, rows: 10 },
+  )
+  check('composer footer hint also says "! for shell mode"', footer.includes('! for shell mode') && !footer.includes('! for bash mode'), footer)
+}
+
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(`\nprove-small-words-rows: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)
