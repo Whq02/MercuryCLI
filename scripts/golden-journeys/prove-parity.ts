@@ -22,6 +22,10 @@ seedWorld()
 const sid = SIDS.J3
 seedSubstantialState(sid)
 process.chdir(FIXTURE_CWD)
+const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/bootstrap/state.ts')
+setOriginalCwd(FIXTURE_CWD)
+setProjectRoot(FIXTURE_CWD)
+setCwdState(FIXTURE_CWD)
 const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 const { reconcileOnResume, getRunSnapshot } = await import(
   '../../src/services/run/runCoordinator.ts'
