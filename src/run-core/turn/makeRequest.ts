@@ -5,7 +5,7 @@ import {
   splitCarriedOperatorTail,
   type OverflowEpisode,
 } from '../../services/compact/overflowRecovery.js'
-import type { ToolUseContext } from '../../Tool.js'
+import { advanceToolCallChain, type ToolUseContext } from '../../Tool.js'
 import type { SystemPrompt } from '../../utils/systemPromptType.js'
 import type { AttachmentMessage, Message } from '../../types/message.js'
 import { appendSystemContext, firstTurnUserContext } from '../../services/messages/api.js'
@@ -79,5 +79,47 @@ export async function* holdBlockingLimit(run: RunCtx, state: TurnState, toolUseC
 }
 
 export async function* makeRequest(run: RunCtx, state: TurnState, ordinal: number): AsyncGenerator<RunEvent, RequestDecision> {
-  return notBuilt('src/run-core/turn/makeRequest.ts:485')
+  const turnId = `t${ordinal}`
+  yield run.emit({ kind: 'turn_started', turnId, n: ordinal })
+  if (state.toolUseContext.agentId === undefined) headlessProfilerCheckpoint('query_started')
+
+  const callChain = advanceToolCallChain(state.toolUseContext, run.deps.uuid)
+  const toolUseContext: ToolUseContext = { ...state.toolUseContext, callChain }
+  const planned = yield* planContext(run, state, toolUseContext)
+  const folded = yield* foldContext(run, state, toolUseContext, { tracking: state.autoCompactTracking, overflowEpisode: state.overflowEpisode }, planned)
+  if (folded.kind !== 'go_on') return folded
+  const fitting = yield* holdBlockingLimit(run, state, toolUseContext, planned, folded)
+  if (fitting.kind !== 'go_on') return fitting
+
+  const iter: IterationState = {
+    state,
+    turnId,
+    requestPlan: planned.requestPlan,
+    messagesForQuery: folded.messagesForQuery,
+    toolUseContext: fitting.toolUseContext,
+    callChain,
+    tracking: folded.tracking,
+    fullSystemPrompt: folded.fullSystemPrompt,
+    appState: fitting.appState,
+    currentModel: fitting.currentModel,
+    maxOutputTokensOverride: state.maxOutputTokensOverride,
+    assistantMessages: [],
+    toolResults: [],
+    thinkingRecords: planned.thinkingRecords,
+    toolUseBlocks: [],
+    needsFollowUp: false,
+    closingTurn: run.budgetGuard.maxTurnsExceeded(state.turnCount, run.params.maxTurns),
+    callOrdinal: 0,
+    replyTo: run.awaitingReply,
+    early: new EarlyStarts(fitting.toolUseContext, run.params.canUseTool),
+    overflowEpisode: folded.overflowEpisode,
+    allRefusedToolCalls: [],
+    refusedToolCalls: [],
+    answeredRefusalIds: new Set(),
+    shouldPreventContinuation: false,
+    loopStoppedCycle: null,
+    loopStoppedRecord: null,
+    updatedToolUseContext: fitting.toolUseContext,
+  }
+  return { kind: 'go_on', iter }
 }
