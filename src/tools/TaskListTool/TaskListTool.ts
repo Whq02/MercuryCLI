@@ -20,7 +20,8 @@ const NO_TASKS = 'No tasks found'
 const visible = (task: StoredTask): boolean => !task.metadata?._internal
 
 function rowOf(task: StoredTask, completed: ReadonlySet<string>): Row {
-  return notBuilt('src/tools/TaskListTool/TaskListTool.ts:21')
+  const owned = task.owner === undefined ? {} : { owner: task.owner }
+  return { id: task.id, subject: task.subject, status: task.status, ...owned, blockedBy: task.blockedBy.filter(id => !completed.has(id)) }
 }
 
 const hashed = (ids: string[]): string => ids.map(id => `#${id}`).join(', ')
