@@ -25,7 +25,7 @@ builtin-tools-drives	24	lazy,unseen
 cache	3	unseen
 changesets	7	deep,lazy,unseen
 changesets-drives	6	bundle,lazy,unseen
-cockpit-interaction	35	bundle,deep,lazy,unseen
+cockpit-interaction	34	bundle,deep,lazy,unseen
 cockpit-interaction-drives	27	bundle,deep,lazy,unseen
 command-catalogue	12	bundle,deep,future,lazy,unseen
 command-catalogue-drives	18	bundle,deep,future,lazy,unseen

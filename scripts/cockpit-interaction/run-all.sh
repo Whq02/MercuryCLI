@@ -10,7 +10,6 @@
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/services/cockpit/helmLanesModel.ts
 # gate-watch: src/constants/subagentDoctrine.ts
-# gate-watch: src/interactiveHelpers.tsx
 # gate-watch: src/utils/run/resolveOwner.ts src/skills/bundled/index.ts src/skills/bundledSkills.ts
 # gate-watch: src/utils/projectConfig.ts
 # gate-watch: scripts/streaming/artifactArena.ts scripts/streaming/ptydrive.py scripts/streaming/screengrab.py scripts/lib/observed_walk.py
