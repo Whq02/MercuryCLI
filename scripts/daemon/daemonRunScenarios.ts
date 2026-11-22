@@ -228,6 +228,7 @@ class World {
     out = out.replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/g, '<iso>')
     out = out.replace(/\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [ \d]\d \d{2}:\d{2}:\d{2} \d{4}\b/g, '<start>')
     out = out.replace(/\b\d{14}\.\d{6}[+-]\d{3}\b/g, '<start>')
+    out = out.replace(/"procStart":"\d+"/g, '"procStart":"<start>"')
     out = out.replace(/(?<![\d.])1[6-9]\d{11}(?![\d])/g, '<ms>')
     out = out.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '<uuid>')
     for (const [pid, token] of [...this.pids].sort((a, b) => String(b[0]).length - String(a[0]).length)) out = out.replace(new RegExp(`(?<![\\d.])${pid}(?![\\d])`, 'g'), token)
