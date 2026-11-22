@@ -12,6 +12,8 @@ import { resolveTerminalProfile, TERMINAL_PROFILE_VERSION } from '../../src/ink/
 
 if (process.argv[2] === '--leave') {
   const platform = Object.getOwnPropertyDescriptor(process, 'platform')!
+  const os = require('node:os') as { release: () => string }
+  const release = os.release
   Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
   enableConfigs()
@@ -26,13 +28,19 @@ if (process.argv[2] === '--leave') {
     }
     return leave(props.children)
   }
-  if (process.argv[3] === 'win32') Object.defineProperty(process, 'platform', { ...platform, value: 'win32' })
+  if (process.argv[3] === 'win32') {
+    Object.defineProperty(process, 'platform', { ...platform, value: 'win32' })
+    os.release = () => '10.0.22631'
+  }
   await showSetupScreens(
     {
       render: (node: React.ReactNode) => {
         if (!leave(node)) throw new Error('a setup screen other than the terminal check was shown')
       },
-      unmount: () => Object.defineProperty(process, 'platform', platform),
+      unmount: () => {
+        Object.defineProperty(process, 'platform', platform)
+        os.release = release
+      },
     } as never,
     'default',
     false,

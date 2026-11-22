@@ -40,7 +40,7 @@ function check(label: string, good: boolean, detail = '', fix = ''): void {
 
 type Row = { status: string; evidence: string; detail?: string; fix?: string }
 type Window = { platform?: 'win32'; release?: string; term?: string }
-const OLD_CONSOLE: Window = { platform: 'win32' }
+const OLD_CONSOLE: Window = { platform: 'win32', release: '10.0.22631' }
 const BEFORE_CONPTY: Window = { platform: 'win32', release: '6.3.9600' }
 const DUMB: Window = { term: 'dumb' }
 const XTERM: Window = { term: 'xterm-256color' }
