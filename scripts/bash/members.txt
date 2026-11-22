@@ -107,3 +107,4 @@ prove-bash-spec-alias-behaviour.ts
 prove-bash-spec-nohup-behaviour.ts
 prove-bash-spec-sleep-behaviour.ts
 prove-bash-spec-srun-behaviour.ts
+prove-bash-spec-time-behaviour.ts
