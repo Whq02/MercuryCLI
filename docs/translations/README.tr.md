@@ -397,7 +397,7 @@ Kullanılabilir komutlar şunları içerir:
 | --- | --- |
 | `/imagesetup` | Yerel görüntü ve video modellerini yapılandırın. |
 | `/llmhost` | Runpod, Vast.ai veya Lambda üzerinde kiralamak için bir model seçin, kendi bilgisayarınızda çalıştırın ya da mevcut bir sunucuya bağlanın. |
-| `/tensorfold` | TensorFold üzerinde yerel bir model çalıştırın: motoru kurun, bir model çekin, bu Mac üzerinde sunun, ağınızda paylaşın veya bunun için bir GPU kiralayın ve ona geçin; hepsi tek ekranda. |
+| `/tensorfold` | TensorFold üzerinde yerel bir model çalıştırın: motoru kurun, bir model çekin, bilgisayarınızda sunun, ağınızda paylaşın veya bunun için bir GPU kiralayın ve ona geçin; hepsi tek ekranda. |
 | `/restart` | Bu sohbeti kurulu Mercury sürümüne taşıyın; çalışan izleyiciler ve arka plan shell'leri durur. |
 | `/mcp` | Sunucuları inceleyin, oturum açın, her sunucunun araçlarını ve parametrelerini görüntüleyin, yeniden bağlanın veya bu sohbet için bir sunucuyu açıp kapatın. |
 

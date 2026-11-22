@@ -397,7 +397,7 @@ Runtime-flaggene er definert i `src/substrate/flagRegistry.ts`, eksponeres som `
 | --- | --- |
 | `/imagesetup` | Sett opp lokale bilde- og videomodeller. |
 | `/llmhost` | Velg en modell å leie hos Runpod, Vast.ai eller Lambda, kjøre på din egen datamaskin eller koble til en eksisterende server. |
-| `/tensorfold` | Kjør en lokal modell på TensorFold: installer motoren, hent en modell, server den på denne Mac-en, del den på nettverket ditt eller lei en GPU for den, og bytt til den, alt på én skjerm. |
+| `/tensorfold` | Kjør en lokal modell på TensorFold: installer motoren, hent en modell, server den på datamaskinen din, del den på nettverket ditt eller lei en GPU for den, og bytt til den, alt på én skjerm. |
 | `/restart` | Flytt denne chatten til det installerte Mercury-bygget; kjørende overvåkinger og bakgrunns-shell-er stopper. |
 | `/mcp` | Undersøk servere, logg inn, bla gjennom verktøyene og parameterne til hver server, koble til på nytt, eller slå en server av eller på for denne chatten. |
 
