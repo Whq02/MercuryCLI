@@ -493,19 +493,22 @@ function backUpOutgoingConfig(file: string): void {
   try {
     const disk = getFsImplementation()
     const directory = prepareConfigBackupHome(disk)
-    const prefix = `${basename(file)}.backup.`
-    const copies = (): string[] =>
+    const stamp = '.backup.'
+    const prefix = `${basename(file)}${stamp}`
+    const copiesOnHand = (): string[] =>
       disk
         .readdirStringSync(directory)
         .filter((name: string) => name.startsWith(prefix))
         .sort()
         .reverse()
-    const newest = copies()[0]
-    const newestAt = newest === undefined ? Number.NaN : Number(newest.slice(prefix.length))
+    let copies = copiesOnHand()
+    const newest = copies[0]
+    const newestAt = newest === undefined ? Number.NaN : Number(newest.slice(newest.lastIndexOf(stamp) + stamp.length))
     if (Number.isNaN(newestAt) || Date.now() - newestAt >= 60_000) {
       copyFileSync(file, join(directory, `${prefix}${Date.now()}`))
+      copies = copiesOnHand()
     }
-    for (const old of copies().slice(5)) {
+    for (const old of copies.slice(5)) {
       try {
         disk.unlinkSync(join(directory, old))
       } catch (error) {
@@ -519,7 +522,7 @@ function backUpOutgoingConfig(file: string): void {
 
 function lockConfigFile(file: string, waitForLock: boolean): () => void {
   const startedAt = Date.now()
-  for (let attempt = 1; ; attempt++) {
+  for (let attempt = 0; ; attempt++) {
     try {
       const release = lockfile.lockSync(file, {
         lockfilePath: `${file}.lock`,
@@ -533,8 +536,9 @@ function lockConfigFile(file: string, waitForLock: boolean): () => void {
       }
       return release
     } catch (error) {
-      if (!waitForLock || getErrnoCode(error) !== 'ELOCKED' || attempt === 12) throw error
-      sleepSync(Math.min(1000, 15 * 2 ** (attempt - 1)))
+      if (!waitForLock || getErrnoCode(error) !== 'ELOCKED') throw error
+      sleepSync(Math.min(1000, 15 * 2 ** attempt))
+      if (attempt === 11) throw error
     }
   }
 }
