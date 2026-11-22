@@ -26,7 +26,7 @@ import {
   type ParkedSessionFact,
   type ProjectIdentity,
 } from '../../utils/bootCardFacts.js'
-import { extractFirstPromptFromHead, getProjectDir, isTranscriptFileName, LITE_READ_BUF_SIZE } from '../../utils/sessionStoragePortable.js'
+import { extractFirstPromptFromHead, extractLastJsonStringField, getProjectDir, isTranscriptFileName, LITE_READ_BUF_SIZE } from '../../utils/sessionStoragePortable.js'
 import { historyHead, historyRange } from '../../utils/sessionStorage/historyParts.js'
 import type { ConcourseElsewhereV1, ConcourseRowV1, ConcourseSnapshotV1 } from '../../components/concourse/contracts.js'
 import { ELSEWHERE_CAP, elsewhereLine, projectActivity } from './projectActivity.js'
@@ -743,12 +743,26 @@ export interface OlderChatsCensusV1 {
 const olderFactCache = new Map<string, { mtimeMs: number; size: number; husk: boolean; title: string | null }>()
 const OLDER_FACT_CACHE_CAP = 2048
 
+function transcriptTitleOf(rec: { sessionId: string; workspaceId: string }): string | null {
+  let custom: string | undefined
+  try {
+    for (const from of ['tail', 'head'] as const) {
+      const raw = transcriptWindowLines(rec, LITE_READ_BUF_SIZE, from)?.join('\n')
+      const hit = raw !== undefined ? extractLastJsonStringField(raw, 'customTitle')?.trim() : undefined
+      if (hit !== undefined && hit.length > 0) { custom = hit; break }
+    }
+  } catch (error) { passedOver(error) }
+  const brief = headBriefLabel(rec, 48, { promptsOnly: true })
+  if (brief === null && custom === undefined) return null
+  return sanitizeLabel(sessionTitleOf({ title: custom, workspaceId: rec.workspaceId }, () => brief))
+}
+
 function olderFactOf(projectDir: string, file: string, mtimeMs: number, size: number): { husk: boolean; title: string | null } {
   const held = olderFactCache.get(file)
   if (held !== undefined && held.mtimeMs === mtimeMs && held.size === size) return held
   const sessionId = basename(file).replace(/\.jsonl$/, '')
   const husk = isAuthFailureHusk(file, size)
-  const title = husk ? null : headBriefLabel({ sessionId, workspaceId: projectDir }, 48, { promptsOnly: true })
+  const title = husk ? null : transcriptTitleOf({ sessionId, workspaceId: projectDir })
   if (olderFactCache.size >= OLDER_FACT_CACHE_CAP) olderFactCache.clear()
   const fact = { mtimeMs, size, husk, title }
   olderFactCache.set(file, fact)
@@ -843,12 +857,12 @@ export function parkedBoardRows(
     for (const s of listed) {
       if (rows.length >= PARKED_CAP) break
       if (liveSessionIds.has(s.sessionId) || cleared.has(s.sessionId)) continue
-      const brief = headBriefLabel({ sessionId: s.sessionId, workspaceId: projectDir }, 48, { promptsOnly: true })
-      if (brief === null) continue
+      const title = transcriptTitleOf({ sessionId: s.sessionId, workspaceId: projectDir })
+      if (title === null) continue
       const ageLabel = ageLabelOf(nowMs, nowMs - s.ageMs)
       rows.push({
         sessionId: s.sessionId,
-        title: brief,
+        title,
         state: 'parked',
         projectLabel,
         ownerLabel: 'Mercury',
@@ -1215,6 +1229,23 @@ export async function buildConcourseSnapshot(
   }
 }
 
+function hostedLastUsedAt(
+  rec: Pick<ConcourseWorkerRecordV1, 'sessionId' | 'workspaceId' | 'lastDeliveryAt' | 'lastTurnSettledAt' | 'activity'>,
+): number | null {
+  let latest = 0
+  for (const t of [rec.lastDeliveryAt, rec.lastTurnSettledAt, rec.activity?.lastTurnAt]) {
+    if (typeof t === 'number' && Number.isFinite(t) && t > latest) latest = t
+  }
+  if (latest > 0) return latest
+  try {
+    const mtime = statSync(workerTranscriptPath(rec)).mtimeMs
+    return Number.isFinite(mtime) && mtime > 0 ? mtime : null
+  } catch (error) {
+    passedOver(error)
+    return null
+  }
+}
+
 function recordRowOf(
   rec: ConcourseWorkerRecordV1,
   nowMs: number,
@@ -1231,13 +1262,14 @@ function recordRowOf(
   workspaceOfRow.set(rec.sessionId, rec.workspaceId)
   const activity = state === 'working' ? tailActivity(rec) : undefined
   const nowLabel = concourseNowLabel(rec, { alive, needsYou: needsYouSessions.has(rec.sessionId) }, nowMs, activity)
+  const lastUsedAt = hostedLastUsedAt(rec)
   return {
     sessionId: rec.sessionId,
     title: sanitizeLabel(sessionTitleOf(rec, () => headBriefLabel(rec, 48))),
     state,
     projectLabel: sanitizeLabel(projectName),
     ownerLabel: sanitizeLabel(rec.agentName ?? 'Mercury'),
-    ageLabel: ageLabelOf(nowMs, rec.spawnedAt),
+    ageLabel: lastUsedAt !== null ? ageLabelOf(nowMs, lastUsedAt) : null,
     seats: null,
     nowLabel,
     ...(nowWordsAreLive(activity, nowLabel) ? { nowLive: true as const } : {}),

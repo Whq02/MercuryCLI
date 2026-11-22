@@ -274,9 +274,18 @@ function LiveSessionManager({
         }
         return
       }
-      const action = decodeNavKey(input, key, { orientation: 'vertical', leftCloses: true })
+      const action = decodeNavKey(input, key, { orientation: { grid: { columns: 1 } } })
       if (action === 'cancel') {
         onClose()
+        return
+      }
+      if (action === 'moveLeft') {
+        if (sel > 0) moveTo(sel - 1)
+        else onClose()
+        return
+      }
+      if (action === 'moveRight') {
+        moveTo(sel + 1)
         return
       }
       if (action === 'movePrevious') {

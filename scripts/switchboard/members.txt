@@ -62,3 +62,5 @@ prove-work-chip.ts
 prove-concourse-composer-border.ts
 prove-contract-tool-hosted.ts
 prove-empty-board-lines-whole.ts
+prove-last-used-is-last-use.ts
+prove-one-session-name.ts

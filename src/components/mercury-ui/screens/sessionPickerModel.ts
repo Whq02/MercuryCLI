@@ -6,7 +6,9 @@ import { filterResumableSessions } from '../../../utils/sessionResumeFilter.js'
 import type { SessionListing } from '../../../types/logs.js'
 import { getLogDisplayTitle } from '../../../utils/log.js'
 import { formatRelativeTimeAgo } from '../../../utils/format.js'
-import { boardHomedSessionIds } from '../../../daemon/concourseWorkers.js'
+import { boardHomedSessionIds, readSessionWorkers } from '../../../daemon/concourseWorkers.js'
+import { sanitizeLabel } from '../../../services/concourse/concourseSnapshot.js'
+import { sessionTitleOf } from '../../../services/concourse/sessionNaming.js'
 import { isSubstantiveSession, partitionByProject } from '../../../utils/sessionFilter.js'
 import { isSessionCleared } from '../../../utils/sessionStorage/clearedSessions.js'
 import {
@@ -36,8 +38,31 @@ type SessionPickerRow = {
 }
 export type SessionPickerFlatRow = { project: string; head: boolean; row: SessionPickerRow }
 
-export function rowLabel(log: SessionListing): string {
-  return getLogDisplayTitle(log, '(untitled session)')
+function workerTitlesBySession(recordsDir?: string): ReadonlyMap<string, string> {
+  const out = new Map<string, string>()
+  try {
+    for (const rec of Object.values(readSessionWorkers(recordsDir))) {
+      if (rec.endedAt !== undefined) continue
+      const title = (rec.title ?? '').trim()
+      if (title.length > 0) out.set(rec.sessionId, title)
+    }
+  } catch (error) {
+    passedOver(error)
+  }
+  return out
+}
+
+export function rowLabel(log: SessionListing, workerTitle?: string): string {
+  const renamed = (workerTitle ?? '').trim() || (log.customTitle ?? '').trim()
+  const workspaceId = log.projectPath || currentProject().dir
+  return sanitizeLabel(
+    sessionTitleOf({ title: renamed, workspaceId }, () => {
+      const prompt = getLogDisplayTitle({ ...log, agentName: undefined, customTitle: undefined, summary: undefined }, '')
+      if (prompt.length > 0 && prompt !== log.sessionId?.slice(0, 8)) return prompt
+      const fallback = getLogDisplayTitle({ ...log, agentName: undefined, customTitle: undefined }, '')
+      return fallback.length > 0 ? fallback : null
+    }),
+  )
 }
 
 export function rowProject(log: SessionListing): string {
@@ -56,6 +81,7 @@ export interface SessionPickerFacts {
   projectDir: string
   boardHomed: ReadonlySet<string>
   isCleared: (sessionId: string | undefined) => boolean
+  workerTitles?: ReadonlyMap<string, string>
   nowMs?: number
   filterDir?: string
 }
@@ -67,6 +93,7 @@ export function projectSessionPickerRows(
   const now = facts.nowMs !== undefined ? new Date(facts.nowMs) : undefined
   const seenOf = (log: SessionListing): string =>
     formatRelativeTimeAgo(new Date(log.modified), { style: 'short', ...(now !== undefined ? { now } : {}) })
+  const titles = facts.workerTitles ?? workerTitlesBySession()
   const operatorLogs = logs.filter(l => !facts.boardHomed.has(sessionIdOfListing(l) ?? ''))
   const scoped =
     facts.scope === 'project'
@@ -81,7 +108,7 @@ export function projectSessionPickerRows(
       : scoped.inProject
   const rows: SessionPickerRow[] = viewed.map(log => ({
     project: rowProject(log),
-    label: rowLabel(log),
+    label: rowLabel(log, titles.get(sessionIdOfListing(log) ?? '')),
     seen: seenOf(log),
     log,
     cleared: facts.scope === 'all' ? facts.isCleared(sessionIdOfListing(log)) : undefined,
