@@ -61,3 +61,4 @@ prove-switchboard-geometry.ts
 prove-work-chip.ts
 prove-concourse-composer-border.ts
 prove-contract-tool-hosted.ts
+prove-last-used-is-last-use.ts

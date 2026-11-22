@@ -1215,6 +1215,23 @@ export async function buildConcourseSnapshot(
   }
 }
 
+function hostedLastUsedAt(
+  rec: Pick<ConcourseWorkerRecordV1, 'sessionId' | 'workspaceId' | 'lastDeliveryAt' | 'lastTurnSettledAt' | 'activity'>,
+): number | null {
+  let latest = 0
+  for (const t of [rec.lastDeliveryAt, rec.lastTurnSettledAt, rec.activity?.lastTurnAt]) {
+    if (typeof t === 'number' && Number.isFinite(t) && t > latest) latest = t
+  }
+  if (latest > 0) return latest
+  try {
+    const mtime = statSync(workerTranscriptPath(rec)).mtimeMs
+    return Number.isFinite(mtime) && mtime > 0 ? mtime : null
+  } catch (error) {
+    passedOver(error)
+    return null
+  }
+}
+
 function recordRowOf(
   rec: ConcourseWorkerRecordV1,
   nowMs: number,
@@ -1231,13 +1248,14 @@ function recordRowOf(
   workspaceOfRow.set(rec.sessionId, rec.workspaceId)
   const activity = state === 'working' ? tailActivity(rec) : undefined
   const nowLabel = concourseNowLabel(rec, { alive, needsYou: needsYouSessions.has(rec.sessionId) }, nowMs, activity)
+  const lastUsedAt = hostedLastUsedAt(rec)
   return {
     sessionId: rec.sessionId,
     title: sanitizeLabel(sessionTitleOf(rec, () => headBriefLabel(rec, 48))),
     state,
     projectLabel: sanitizeLabel(projectName),
     ownerLabel: sanitizeLabel(rec.agentName ?? 'Mercury'),
-    ageLabel: ageLabelOf(nowMs, rec.spawnedAt),
+    ageLabel: lastUsedAt !== null ? ageLabelOf(nowMs, lastUsedAt) : null,
     seats: null,
     nowLabel,
     ...(nowWordsAreLive(activity, nowLabel) ? { nowLive: true as const } : {}),
