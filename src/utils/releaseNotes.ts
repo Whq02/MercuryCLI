@@ -4,19 +4,30 @@ import { getMercuryChangelog } from '../constants/changelog.js'
 import { logError } from './log.js'
 import { gt } from './semver.js'
 import { passedOver } from './passedOver.js'
-import { notBuilt } from '../pi/holes.js'
-
 
 function getStoredChangelogFromMemory(): string {
   return getMercuryChangelog()
 }
 
 export async function getStoredChangelog(): Promise<string> {
-  return notBuilt('src/utils/releaseNotes.ts:13')
+  return getMercuryChangelog()
 }
 
 function parseChangelog(content: string): Record<string, string[]> {
-  return notBuilt('src/utils/releaseNotes.ts:17')
+  try {
+    const sections = new Map<string, string[]>()
+    for (const section of content.split(/^## /m).slice(1)) {
+      const [header = '', ...lines] = section.split('\n')
+      const version = header.split(' - ', 1)[0]?.trim()
+      if (!version) continue
+      const notes = lines.map(line => line.trim()).filter(line => line.startsWith('- ')).map(line => line.slice(2).trim()).filter(Boolean)
+      if (notes.length) sections.set(version, notes)
+    }
+    return Object.fromEntries(sections)
+  } catch (error) {
+    logError(error)
+    return {}
+  }
 }
 
 const RECENT_NOTES_CAP = 5
@@ -26,7 +37,35 @@ export function getRecentReleaseNotes(
   previousVersion: string | null | undefined,
   changelogContent?: string,
 ): string[] {
-  return notBuilt('src/utils/releaseNotes.ts:42')
+  try {
+    const current = coerce(currentVersion)?.version
+    const previous = coerce(previousVersion)?.version
+    if (previous && (!current || current === previous)) return []
+    const reset = previous && current && gt(previous, current)
+    return Object.entries(parseChangelog(changelogContent ?? getStoredChangelogFromMemory()))
+      .filter(([version]) => {
+        if (!previous || reset) return true
+        try {
+          return gt(version, previous)
+        } catch (error) {
+          passedOver(error)
+          return false
+        }
+      })
+      .sort(([a], [b]) => {
+        try {
+          return gt(a, b) ? -1 : gt(b, a) ? 1 : 0
+        } catch (error) {
+          passedOver(error)
+          return 0
+        }
+      })
+      .flatMap(([, notes]) => notes)
+      .slice(0, RECENT_NOTES_CAP)
+  } catch (error) {
+    logError(error)
+    return []
+  }
 }
 
 export function getAllReleaseNotes(changelogContent: string = getStoredChangelogFromMemory()): Array<[string, string[]]> {
