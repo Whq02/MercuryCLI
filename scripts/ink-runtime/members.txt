@@ -65,3 +65,4 @@ prove-app-recording.ts
 prove-compose-buffer-recording.ts
 prove-ink-event-behaviour.ts
 prove-ink-terminal-event-behaviour.ts
+prove-line-width-cache-behaviour.ts
