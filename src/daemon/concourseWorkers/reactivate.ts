@@ -68,6 +68,7 @@ export async function reactivateConcourseSession(
     keyless?: true
     effort?: string
     permissionMode?: PermissionMode
+    permissionModeTyped?: true
     runnerArgv?: string[]
     bypassConsent?: true
     kit?: SessionKitV1
@@ -140,6 +141,7 @@ export async function reactivateConcourseSession(
       modelKey: args.modelKey,
       effort,
       permissionMode: claimPosture,
+      ...(args.permissionModeTyped === true ? { permissionModeTyped: true as const } : {}),
       bypassConsent: args.bypassConsent === true,
       kit,
       restartReason,
@@ -170,7 +172,7 @@ export async function reactivateConcourseSession(
           if (args.atRest === true) stampTakenBackAtRest(next)
           Object.assign(next, buildTreeFields())
           restampSessionKit(next, kit, kitSource, args.by)
-          stampSpawnPosture(next, { permissionMode: claimPosture, ...(args.bypassConsent === true ? { bypassConsent: true as const } : {}), kind })
+          stampSpawnPosture(next, { permissionMode: claimPosture, ...(args.permissionModeTyped === true ? { permissionModeTyped: true as const } : {}), ...(args.bypassConsent === true ? { bypassConsent: true as const } : {}), kind })
           workers[short] = next
         }, deps.dir)
       } catch (error) {
@@ -234,6 +236,7 @@ export async function reactivateConcourseSession(
       clearCrash: true,
       kitOverride: kit,
       ...(args.permissionMode !== undefined ? { permissionMode: args.permissionMode } : {}),
+      ...(args.permissionModeTyped === true ? { permissionModeTyped: true as const } : {}),
       bypassConsent: args.bypassConsent === true,
       kind,
       ...(args.restartReason !== undefined ? { restartReason: args.restartReason } : {}),
@@ -271,6 +274,7 @@ export async function reactivateConcourseSession(
       ...(rec.title !== undefined ? { title: rec.title } : {}),
       ...(runnerArgv !== undefined && runnerArgv.length > 0 ? { runnerArgv } : {}),
       ...(args.permissionMode !== undefined ? { permissionMode: args.permissionMode } : {}),
+      ...(args.permissionModeTyped === true ? { permissionModeTyped: true as const } : {}),
       ...(args.bypassConsent === true ? { bypassConsent: true as const } : {}),
       resume: true,
       cwd: rec.worktreePath ?? rec.workspaceId,

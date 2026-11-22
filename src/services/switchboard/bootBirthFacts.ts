@@ -12,6 +12,7 @@ export interface BootBirthFacts {
   model: string | null
   effort: string | null
   permissionMode: PermissionMode | null
+  permissionModeTyped: boolean
   runnerArgv: readonly string[]
   kit: SessionKitV1 | null
   presetKit: { name: string; kit: SessionKitV1 } | null
@@ -19,7 +20,7 @@ export interface BootBirthFacts {
   landing: LandingWords | null
 }
 
-let facts: BootBirthFacts = { title: null, model: null, effort: null, permissionMode: null, runnerArgv: [], kit: null, presetKit: null, bypassConsent: false, landing: null }
+let facts: BootBirthFacts = { title: null, model: null, effort: null, permissionMode: null, permissionModeTyped: false, runnerArgv: [], kit: null, presetKit: null, bypassConsent: false, landing: null }
 
 export function setBootBirthFacts(next: Partial<BootBirthFacts>): void {
   facts = { ...facts, ...next, runnerArgv: [...(next.runnerArgv ?? facts.runnerArgv)] }
@@ -124,6 +125,10 @@ export function carriedConsentOf(record: Pick<BootBirthFacts, 'bypassConsent'>):
   return record.bypassConsent ? { bypassConsent: true } : {}
 }
 
+export function carriedTypedModeOf(record: Pick<BootBirthFacts, 'permissionMode' | 'permissionModeTyped'>, carried: string | null | undefined = record.permissionMode): { permissionModeTyped: true } | Record<string, never> {
+  return record.permissionModeTyped && carried === record.permissionMode ? { permissionModeTyped: true } : {}
+}
+
 export function carriedRunnerArgvOf(record: Pick<BootBirthFacts, 'runnerArgv'>): { runnerArgv: string[] } | Record<string, never> {
   return record.runnerArgv.length > 0 ? { runnerArgv: [...record.runnerArgv] } : {}
 }
@@ -139,5 +144,5 @@ export function resumeLaunchWordsOf(
 }
 
 export function _resetBootBirthFactsForTesting(): void {
-  facts = { title: null, model: null, effort: null, permissionMode: null, runnerArgv: [], kit: null, presetKit: null, bypassConsent: false, landing: null }
+  facts = { title: null, model: null, effort: null, permissionMode: null, permissionModeTyped: false, runnerArgv: [], kit: null, presetKit: null, bypassConsent: false, landing: null }
 }

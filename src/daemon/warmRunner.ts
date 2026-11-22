@@ -87,7 +87,7 @@ export interface WarmRosterPort {
   onExit?(short: string, listener: () => void): () => void
   patchSeatClaim(
     short: string,
-    patch: { model: string; effort: string; respawnExtraArgv: readonly string[]; permissionMode: SeatPermissionMode },
+    patch: { model: string; effort: string; respawnExtraArgv: readonly string[]; permissionMode: SeatPermissionMode; permissionModeTyped?: true },
   ): RunnerChildSpec | null
 }
 
@@ -336,6 +336,7 @@ export async function claimWarmRunner(
     modelKey: string
     effort: string
     permissionMode: string
+    permissionModeTyped?: true
     bypassConsent?: boolean
     kit: SessionKitV1
     resume?: true
@@ -421,6 +422,7 @@ export async function claimWarmRunner(
     effort: args.effort,
     respawnExtraArgv: ['--resume', args.sessionId],
     permissionMode: args.permissionMode as SeatPermissionMode,
+    ...(args.permissionModeTyped === true ? { permissionModeTyped: true as const } : {}),
   })
   if (spec === null) {
     roster.kill(entry.short)

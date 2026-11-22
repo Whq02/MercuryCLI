@@ -94,10 +94,15 @@ export function getHeadlessPermissionMode(
 export function headlessPermissionArgv(
   mode: SeatPermissionMode = getHeadlessPermissionMode(),
   allowBypass = false,
+  typed = false,
 ): string[] {
   if (mode === 'sovereign') return ['--sovereign']
-  const words = mode === 'default' ? [] : ['--mode', mode]
+  const words = mode === 'default' && !typed ? [] : ['--mode', mode]
   return allowBypass ? [...words, '--allow-sovereign'] : words
+}
+
+export function headlessPermissionModeTyped(spec: Pick<RunnerChildSpec, 'permissionMode' | 'permissionModeTyped'>): boolean {
+  return spec.permissionModeTyped === true && getHeadlessPermissionMode(spec.permissionMode) === spec.permissionMode
 }
 
 export function killProcessTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -167,6 +172,7 @@ export interface RunnerChildSpec {
   cwd?: string
   extraEnv?: Readonly<Record<string, string>>
   permissionMode?: SeatPermissionMode
+  permissionModeTyped?: true
   allowBypass?: true
   allowedTools?: readonly string[]
   extraArgv?: readonly string[]
@@ -221,7 +227,7 @@ export function buildRunnerInvocation(
   const argv = [
     script,
     'runner',
-    ...headlessPermissionArgv(getHeadlessPermissionMode(spec.permissionMode), spec.allowBypass === true),
+    ...headlessPermissionArgv(getHeadlessPermissionMode(spec.permissionMode), spec.allowBypass === true, headlessPermissionModeTyped(spec)),
     ...(spec.allowedTools && spec.allowedTools.length > 0
       ? ['--allowed-tools', ...spec.allowedTools]
       : []),

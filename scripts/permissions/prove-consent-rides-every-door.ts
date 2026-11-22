@@ -27,6 +27,7 @@ const doorHints: Record<string, string> = {
   '§4': 'to fix, look at headlessPermissionArgv in src/daemon/headlessRun.ts',
   '§5': 'to fix, look at ensureWarmRunner and claimWarmRunner in src/daemon/warmRunner.ts (the consent gate on the warm pool)',
   '§7': 'to fix, look at buildRunnerInvocation in src/daemon/headlessRun.ts and resolvePermissionModeTransition in src/cli/headless/controlHandlers.ts',
+  '§8': 'to fix, look at carriedTypedModeOf in src/services/switchboard/bootBirthFacts.ts (what the launch carries) and buildConcourseWorkerSpec in src/daemon/concourseWorkers/spec.ts (what the seat keeps)',
 }
 let doorHint = ''
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -223,6 +224,27 @@ section('§7 the floors: crew seats, cron one-shots and the runner claim door')
   check('the runner claim door refuses a sovereign posture it was not launched for', withoutFlag.ok === false && withoutFlag.ok === false && withoutFlag.error.includes(SKIP))
   const withFlag = resolvePermissionModeTransition('sovereign', { ...getEmptyToolPermissionContext(), isBypassPermissionsModeAvailable: true })
   check('…and accepts it on a runner that booted the consent', withFlag.ok === true && withFlag.ok === true && withFlag.context.mode === 'sovereign')
+}
+
+section("§8 the typed mode rides beside the consent: only the launch's own typed word crosses, and the seat spells a typed default")
+{
+  const carried = (mode?: string): string => JSON.stringify(mode === undefined ? facts.carriedTypedModeOf(facts.bootBirthFacts()) : facts.carriedTypedModeOf(facts.bootBirthFacts(), mode))
+  facts._resetBootBirthFactsForTesting()
+  check('a fresh record carries no typed word', carried() === '{}')
+  facts.setBootBirthFacts({ permissionMode: 'default', permissionModeTyped: true })
+  check('a launch that typed its mode carries exactly { permissionModeTyped: true } on a birth', carried() === JSON.stringify({ permissionModeTyped: true }))
+  check('…and on a resume that carries that same mode', carried('default') === JSON.stringify({ permissionModeTyped: true }))
+  check("a resume that carries another mode (the chat's own, after a step) is not the typed word", carried('flow') === '{}')
+  facts.setBootBirthFacts({ permissionMode: 'default', permissionModeTyped: false })
+  check('a mode the launch resolved from the settings carries nothing', carried() === '{}' && carried('default') === '{}')
+  facts.setBootBirthFacts({ permissionMode: 'default', permissionModeTyped: true })
+  facts._resetBootBirthFactsForTesting()
+  check('the proof reset clears it', carried() === '{}')
+  const seat = (extra: { permissionMode: string; permissionModeTyped?: true; bypassConsent?: true }) =>
+    buildConcourseWorkerSpec({ runnerId: 'concourse-w9', sessionId: '00000000-0000-4000-8000-000000000001', workspaceId: PROJ, modelKey: 'claude-sonnet-5', ...(extra as object) } as never)
+  const typed = buildRunnerInvocation(seat({ permissionMode: 'default', permissionModeTyped: true, bypassConsent: true })).argv
+  check('typed default + consent ⇒ --mode default AND the allow flag, never the skip flag', typed[typed.indexOf('--mode') + 1] === 'default' && typed.includes(ALLOW) && !typed.includes(SKIP))
+  check('a typed word beside a carried word that is no mode does not cross: the seat keeps its own resolution, untyped', seat({ permissionMode: 'frobnicate', permissionModeTyped: true }).permissionModeTyped === undefined)
 }
 
 console.log(failures === 0 ? '\nprove-consent-rides-every-door: ALL LAWS HOLD' : `\nprove-consent-rides-every-door: ${failures} FAILURE(S)`)

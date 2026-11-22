@@ -1,7 +1,7 @@
 import { logForDebugging } from '../../utils/debug.js'
 import { flagSpellings, flagPair, flagEnv } from '../../substrate/flagRegistry.js'
 import { foldLegacyWorkerModelKey } from '../../services/concourse/workerModels.js'
-import { HEADLESS_PERMISSION_MODES, type SeatPermissionMode, type HeadlessPermissionMode, type RunnerChildSpec, getHeadlessPermissionMode } from '../headlessRun.js'
+import { HEADLESS_PERMISSION_MODES, type SeatPermissionMode, type HeadlessPermissionMode, type RunnerChildSpec, getHeadlessPermissionMode, headlessPermissionModeTyped } from '../headlessRun.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { resolveSavedPermissionMode } from '../../utils/permissions/permissionSetup.js'
 import { getProjectDir } from '../../utils/sessionStorage/paths.js'
@@ -53,6 +53,7 @@ export function buildConcourseWorkerSpec(args: {
   resume?: boolean
   cwd?: string
   permissionMode?: PermissionMode
+  permissionModeTyped?: true
   bypassConsent?: true
   runnerArgv?: readonly string[]
   warm?: boolean
@@ -61,6 +62,7 @@ export function buildConcourseWorkerSpec(args: {
   kind?: SessionKind
 }): RunnerChildSpec {
   const runnerArgv = args.runnerArgv ?? []
+  const permissionMode = seatInitialPermissionMode(args.permissionMode)
   return {
     model: foldLegacyWorkerModelKey(args.modelKey),
     ...(args.keyless ? { keyless: true } : {}),
@@ -81,7 +83,8 @@ export function buildConcourseWorkerSpec(args: {
       ...(args.restartReason !== undefined ? { ...flagPair('MERCURY_RUNNER_RESTART_REASON', args.restartReason) } : {}),
       ...(args.kind !== undefined ? { ...flagPair(SESSION_KIND_ENV, args.kind) } : {}),
     },
-    permissionMode: seatInitialPermissionMode(args.permissionMode),
+    permissionMode,
+    ...(args.permissionModeTyped === true && permissionMode === args.permissionMode ? { permissionModeTyped: true as const } : {}),
     ...(args.bypassConsent === true ? { allowBypass: true as const } : {}),
     stripEnv: concourseWorkerStripEnv(),
     partialRows: true,
@@ -99,17 +102,20 @@ export function buildConcourseWorkerSpec(args: {
   }
 }
 
-export function spawnPostureOf(spec: Pick<RunnerChildSpec, 'permissionMode' | 'allowBypass' | 'extraEnv'>): { permissionMode: SeatPermissionMode; bypassConsent?: true; kind?: SessionKind } {
+export function spawnPostureOf(spec: Pick<RunnerChildSpec, 'permissionMode' | 'permissionModeTyped' | 'allowBypass' | 'extraEnv'>): { permissionMode: SeatPermissionMode; permissionModeTyped?: true; bypassConsent?: true; kind?: SessionKind } {
   const kind = sessionKindOfSpec(spec)
   return {
     permissionMode: getHeadlessPermissionMode(spec.permissionMode),
+    ...(headlessPermissionModeTyped(spec) ? { permissionModeTyped: true as const } : {}),
     ...(spec.allowBypass === true ? { bypassConsent: true as const } : {}),
     ...(kind !== undefined ? { kind } : {}),
   }
 }
 
-export function stampSpawnPosture(rec: ConcourseWorkerRecordV1, posture: { permissionMode: SeatPermissionMode; bypassConsent?: true; kind?: SessionKind }): void {
+export function stampSpawnPosture(rec: ConcourseWorkerRecordV1, posture: { permissionMode: SeatPermissionMode; permissionModeTyped?: true; bypassConsent?: true; kind?: SessionKind }): void {
   rec.permissionMode = posture.permissionMode
+  if (posture.permissionModeTyped === true) rec.permissionModeTyped = true
+  else delete rec.permissionModeTyped
   if (posture.bypassConsent === true) rec.bypassConsent = true
   else delete rec.bypassConsent
   if (posture.kind !== undefined) rec.kind = posture.kind

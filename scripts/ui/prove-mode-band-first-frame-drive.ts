@@ -71,13 +71,14 @@ const FRAMES = 24
 type Send = Record<string, unknown>
 type Capture = { home: string; text: string; lines: string[]; status: number; tail: string; payload: Record<string, unknown> }
 
-function freshHome(id: string): string {
+function freshHome(id: string, saved?: string): string {
   const home = join(SCRATCH, `home-${id}`)
   cpSync(TEMPLATE, home, { recursive: true })
+  if (saved !== undefined) writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { mode: saved } }))
   return home
 }
 
-async function capture(opts: { id: string; home: string; argv?: string[]; sends: Send[]; total?: number }): Promise<Capture> {
+async function capture(opts: { id: string; home: string; argv?: string[]; sends: Send[]; total?: number; env?: Record<string, string> }): Promise<Capture> {
   const api = await startFixtureApi([{ kind: 'text', text: 'Spare.' }, { kind: 'text', text: 'Spare.' }])
   const cfgPath = join(SCRATCH, `cfg-${opts.id}.json`)
   const outPath = join(SCRATCH, `grid-${opts.id}.json`)
@@ -112,6 +113,7 @@ async function capture(opts: { id: string; home: string; argv?: string[]; sends:
       ANTHROPIC_BASE_URL: api.url,
       MERCURY_CACHE_CLOCK: '0',
       MERCURY_PARTY: '0',
+      ...(opts.env ?? {}),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
@@ -256,13 +258,17 @@ type Run = {
   door: 'face' | 'board' | 'direct'
   consented: boolean
   born: 'sovereign' | 'blank'
+  typedOverSaved?: { env: Record<string, string> }
 }
+const COLD = { env: { MERCURY_WARM_RUNNER: '0' } }
 const RUNS: Run[] = [
   { id: 'r1', title: 'the skip flag → the consent card → the face → ↵ New Session (a fresh birth)', argv: () => ['--sovereign'], home: () => freshHome('r1'), door: 'face', consented: true, born: 'sovereign' },
   { id: 'r2', title: 'CONTROL — no consent → the face → ↵ New Session (born default)', argv: () => [], home: () => freshHome('r2'), door: 'face', consented: false, born: 'blank' },
   { id: 'r3', title: 'the skip flag → the face → o → the board → tab → n → (No) → the chat (the concourse door)', argv: () => ['--sovereign'], home: () => freshHome('r3'), door: 'board', consented: true, born: 'sovereign' },
   { id: 'r4', title: "the skip flag → --continue in R1's home (its runner reaped: a cold reactivation)", argv: () => ['--sovereign', '--continue'], home: homes => homes.r1 ?? freshHome('r4'), door: 'direct', consented: true, born: 'sovereign' },
   { id: 'r5', title: "--resume <id> in R2's home (its runner reaped: the resume verb's road, born default)", argv: homes => ['--resume', sessionIdOf(homes.r2 ?? '')], home: homes => homes.r2 ?? freshHome('r5'), door: 'direct', consented: false, born: 'blank' },
+  { id: 'r6', title: '--mode default over a saved flow, the warm pool off → the face → ↵ New Session (a cold birth under the typed mode)', argv: () => ['--mode', 'default'], home: () => freshHome('r6', 'flow'), door: 'face', consented: false, born: 'blank', typedOverSaved: COLD },
+  { id: 'r7', title: "--mode default --continue in R6's home (its runner reaped: a cold reactivation under the typed mode)", argv: () => ['--mode', 'default', '--continue'], home: homes => homes.r6 ?? freshHome('r7', 'flow'), door: 'direct', consented: false, born: 'blank', typedOverSaved: COLD },
 ]
 function sessionIdOf(home: string): string {
   const live = Object.values(home === '' ? {} : liveRecords(home))
@@ -285,7 +291,7 @@ for (const run of RUNS) {
     run.door === 'direct'
       ? [...(run.consented ? acceptConsent() : []), ...frames(!run.consented)]
       : [...(run.consented ? acceptConsent() : []), awaitFace(!run.consented), ...(run.door === 'face' ? faceDoor() : boardDoor()), ...frames(false), ...converse()]
-  const c = await capture({ id: run.id, home, argv, sends })
+  const c = await capture({ id: run.id, home, argv, sends, ...(run.typedOverSaved !== undefined ? { env: run.typedOverSaved.env } : {}) })
   const first = markText(c, 'f00')
   if (first !== null) printFrame(`${run.id} @f00 (the first composer frame)`, first.split('\n'))
   printFrame(`${run.id} (the final frame)`, c.lines)
@@ -316,6 +322,9 @@ for (const run of RUNS) {
   const trueMode = sessionId !== undefined ? factsModeOf(await runnerTrueMode(home, sessionId)) : '(no session)'
   console.log(`  [TRUTH] ${run.id}: the runner's facts say=${trueMode} · records=${JSON.stringify(live.map(r => ({ short: r.runnerId, sessionId: r.sessionId, permissionMode: (r as { permissionMode?: string }).permissionMode ?? null })))}`)
   check(`${run.id} L3 the runner's own facts agree with the band's last frame`, trueMode === lastWord, `facts=${trueMode} band=${lastWord}`, 'the band disagrees with the permissionMode the runner writes in its session facts (readSessionFacts in src/services/engine-connector/seatProjections.ts); make the band follow those facts')
+  if (run.typedOverSaved !== undefined) {
+    check(`${run.id} L4 the runner holds the mode the launch typed, not the saved one (${run.born})`, trueMode === run.born, `facts=${trueMode}`, 'a mode typed with --mode must reach the runner over the saved guardrails.mode: routeBootJourney in src/main/interactiveLaunch.ts records that it was typed, bornSession.ts and hopIntoSession.ts in src/services/switchboard carry permissionModeTyped on sessionAdmit, and headlessPermissionArgv in src/daemon/headlessRun.ts spells --mode default for it')
+  }
   for (const l of daemonLogLines(home)) console.log(`  [DAEMON] ${l}`)
   summary.push(`${run.id}: first=${firstWord} last=${lastWord} foreign=${foreign.length}`)
   reapHome(home)

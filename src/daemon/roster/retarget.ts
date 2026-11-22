@@ -124,7 +124,7 @@ export class RetargetPart {
 
   patchSeatClaim(
     short: string,
-    patch: { model: string; effort: string; respawnExtraArgv: readonly string[]; permissionMode: SeatPermissionMode },
+    patch: { model: string; effort: string; respawnExtraArgv: readonly string[]; permissionMode: SeatPermissionMode; permissionModeTyped?: true },
   ): RunnerChildSpec | null {
     const h = this.handles.get(short)
     if (!h?.longLived) return null
@@ -135,6 +135,7 @@ export class RetargetPart {
       effort: patch.effort,
       respawnExtraArgv: [...patch.respawnExtraArgv],
       permissionMode: patch.permissionMode,
+      ...(patch.permissionModeTyped === true ? { permissionModeTyped: true as const } : {}),
     }
     if (ll.running) ll.running = { model: patch.model, effort: patch.effort }
     const connection = ll.connection

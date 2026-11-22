@@ -146,6 +146,7 @@ export type DaemonRequest =
       model?: string
       effort?: string
       permissionMode?: string
+      permissionModeTyped?: true
       title?: string
       resumeSessionId?: string
       bornBlank?: true

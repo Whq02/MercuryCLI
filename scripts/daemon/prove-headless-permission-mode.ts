@@ -97,6 +97,28 @@ section('operator overrides — live-read per spawn, no re-import')
   check('unset env builds the bare boot byte for byte', JSON.stringify(buildArgv()) === JSON.stringify(bare))
 }
 
+section('the mode typed for this start — a typed default is spelled; a default nobody typed keeps the bare boot')
+{
+  const argvOf = (posture: Record<string, unknown>, respawn = false): string[] => buildRunnerInvocation({ ...SPEC, ...posture } as never, { respawn }).argv
+  const same = (a: string[], b: string[]): boolean => JSON.stringify(a) === JSON.stringify(b)
+  const bare = buildArgv()
+  const typed = argvOf({ permissionMode: 'default', permissionModeTyped: true })
+  check("a typed default spells --mode default (the runner's saved mode cannot take its place)", hasPair(typed, 'default'), JSON.stringify(typed.slice(1, 6)))
+  check('…and that pair is the ONLY argv delta vs the bare boot', same(typed.filter((w, i, a) => !(w === '--mode' || a[i - 1] === '--mode')), bare))
+  check('a respawn of that seat spells it again', hasPair(argvOf({ permissionMode: 'default', permissionModeTyped: true }, true), 'default'))
+  check('a default nobody typed keeps the bare boot byte for byte', same(argvOf({ permissionMode: 'default' }), bare))
+  const consented = argvOf({ permissionMode: 'default', permissionModeTyped: true, allowBypass: true })
+  check('a typed default beside the launch consent spells both, never the bypass launch', hasPair(consented, 'default') && consented.includes('--allow-sovereign') && !consented.includes('--sovereign'))
+  for (const mode of ['implement', 'flow', 'dontAsk', 'apollo', 'sovereign']) {
+    check(`'${mode}' spells the same words typed or not (the typed word adds --mode default and nothing else)`, same(argvOf({ permissionMode: mode, permissionModeTyped: true }), argvOf({ permissionMode: mode })))
+  }
+  check('the speller itself: (default, typed) ⇒ [--mode, default] · (default) ⇒ []', same(headlessPermissionArgv('default', false, true), ['--mode', 'default']) && headlessPermissionArgv('default').length === 0)
+  process.env.MERCURY_DAEMON_PERMISSION_MODE = 'flow'
+  const overridden = argvOf({ permissionMode: 'default', permissionModeTyped: true })
+  check("the operator's daemon env still wins over a typed default (its own pair, no second one)", hasPair(overridden, 'flow') && overridden.filter(w => w === '--mode').length === 1)
+  delete process.env.MERCURY_DAEMON_PERMISSION_MODE
+}
+
 section('hostile / invalid values fall back, never leak into argv')
 {
   for (const bad of ['plan', 'scribe', 'bubble', 'ACCEPTEDITS', 'yes', '--verbose']) {

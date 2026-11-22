@@ -19,6 +19,7 @@ export interface ConcourseWorkerRecordV1 {
   seatsMax?: 1 | 2
   effort?: string
   permissionMode?: SeatPermissionMode
+  permissionModeTyped?: true
   bypassConsent?: true
   kind?: SessionKind
   spawnedAt: number

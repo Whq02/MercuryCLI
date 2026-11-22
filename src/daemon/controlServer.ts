@@ -952,6 +952,7 @@ function readSessionAdmit(deps: ControlServerDeps, sock: net.Socket, raw: Contro
     ...(raw.seatsMax === 1 || raw.seatsMax === 2 ? { seatsMax: raw.seatsMax } : {}),
     ...(typeof raw.resumeSessionId === 'string' && raw.resumeSessionId ? { resumeSessionId: raw.resumeSessionId } : {}),
     ...(typeof raw.permissionMode === 'string' && raw.permissionMode ? { permissionMode: raw.permissionMode } : {}),
+    ...(raw.permissionModeTyped === true && typeof raw.permissionMode === 'string' && raw.permissionMode ? { permissionModeTyped: true } : {}),
     ...(Array.isArray(raw.runnerArgv) && raw.runnerArgv.length > 0 ? { runnerArgv: raw.runnerArgv as string[] } : {}),
     ...(raw.bypassConsent === true ? { bypassConsent: true } : {}),
     ...(raw.bornBlank === true ? { bornBlank: true } : {}),

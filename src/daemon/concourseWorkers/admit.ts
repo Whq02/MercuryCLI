@@ -54,6 +54,7 @@ export interface ConcourseAdmitDeps {
     modelKey: string
     effort: string
     permissionMode: string
+    permissionModeTyped?: true
     bypassConsent: boolean
     kit: SessionKitV1
     resume?: true
@@ -75,6 +76,7 @@ export interface ConcourseAdmitRequest {
   seatsMax?: 1 | 2
   resumeSessionId?: string
   permissionMode?: PermissionMode
+  permissionModeTyped?: true
   runnerArgv?: string[]
   bornBlank?: boolean
   resumedAtRest?: true
@@ -260,6 +262,7 @@ export function makeConcourseAdmitHandler(
             ...(keyless ? { keyless: true } : {}),
             ...(req.effort !== undefined ? { effort: req.effort } : {}),
             ...(req.permissionMode !== undefined ? { permissionMode: req.permissionMode } : {}),
+            ...(req.permissionModeTyped === true ? { permissionModeTyped: true as const } : {}),
             ...(req.runnerArgv !== undefined && req.runnerArgv.length > 0 ? { runnerArgv: req.runnerArgv } : {}),
             ...(req.bypassConsent === true ? { bypassConsent: true as const } : {}),
             ...(req.kit !== undefined ? { kit: req.kit } : {}),
@@ -338,6 +341,7 @@ export function makeConcourseAdmitHandler(
         modelKey,
         effort: claimEffort,
         permissionMode: claimPosture,
+        ...(req.permissionModeTyped === true ? { permissionModeTyped: true as const } : {}),
         bypassConsent: req.bypassConsent === true,
         kit,
         ...(req.title !== undefined && req.title.length > 0 ? { title: partiallySanitizeUnicode(req.title).slice(0, 120) } : {}),

@@ -2,7 +2,7 @@ import { catalogFirstChat } from '../../utils/bootCardFacts.js'
 import { randomUUID } from '../../utils/crypto.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { emitFocusedSessionConnectorChanged, getFocusedSessionConnector, subscribeFocusedSessionConnector, withLanding } from '../engine-connector/focusedConnector.js'
-import { armLandingWords, birthFallbackModel, birthModelOf, bootBirthFacts, carriedConsentOf, carriedKitOf, screenBirthModel, settleLandingWords, takeBootTitle, takeWornPresetKit } from './bootBirthFacts.js'
+import { armLandingWords, birthFallbackModel, birthModelOf, bootBirthFacts, carriedConsentOf, carriedKitOf, carriedTypedModeOf, screenBirthModel, settleLandingWords, takeBootTitle, takeWornPresetKit } from './bootBirthFacts.js'
 import { hopIntoBoardSession, paintAdmissionNote } from './hopIntoSession.js'
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 import { getInitialEffortSetting } from '../../utils/effort.js'
@@ -172,6 +172,7 @@ async function admitAndEnter(
         ...(title !== null ? { title } : {}),
         ...(effort !== null ? { effort } : {}),
         ...(facts.permissionMode !== null ? { permissionMode: facts.permissionMode } : {}),
+        ...carriedTypedModeOf(facts),
         ...carriedConsentOf(facts),
         ...(facts.runnerArgv.length > 0 ? { runnerArgv: [...facts.runnerArgv] } : {}),
         ...(worn !== null ? { kit: worn.kit } : carriedKitOf(facts)),

@@ -335,7 +335,7 @@ export class TaskRoster {
 
   patchSeatClaim(
     short: string,
-    patch: { model: string; effort: string; respawnExtraArgv: readonly string[]; permissionMode: SeatPermissionMode },
+    patch: { model: string; effort: string; respawnExtraArgv: readonly string[]; permissionMode: SeatPermissionMode; permissionModeTyped?: true },
   ): RunnerChildSpec | null {
     return this.retargetPart.patchSeatClaim(short, patch)
   }
