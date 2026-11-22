@@ -277,6 +277,10 @@ lines.push('')
 lines.push('## Source attributions')
 lines.push('')
 lines.push(
+  '- Parts of the agent runtime (`src/pi/`: the turn loop) derive from **Pi**, © 2025 Mario Zechner, MIT (https://github.com/earendil-works/pi), forked at v1.6.0 (`faac5858`) and changed by Mercury; the changes are listed in `src/pi/DIVERGENCE.tsv`.',
+)
+lines.push('')
+lines.push(
   '- Parts of the terminal runtime (`src/ink/` — reconciler, DOM, styles, component shells) derive from the **Ink** project — © Vadim Demedes and contributors, MIT (https://github.com/vadimdemedes/ink). The layout engine, termio tokenizer, input byte layer and frame writer are Mercury-native.',
 )
 lines.push('')

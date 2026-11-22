@@ -120,6 +120,8 @@ The preservation sweep walked every installed package root (transitive dependenc
 
 ## Source attributions
 
+- Parts of the agent runtime (`src/pi/`: the turn loop) derive from **Pi**, © 2025 Mario Zechner, MIT (https://github.com/earendil-works/pi), forked at v1.6.0 (`faac5858`) and changed by Mercury; the changes are listed in `src/pi/DIVERGENCE.tsv`.
+
 - Parts of the terminal runtime (`src/ink/` — reconciler, DOM, styles, component shells) derive from the **Ink** project — © Vadim Demedes and contributors, MIT (https://github.com/vadimdemedes/ink). The layout engine, termio tokenizer, input byte layer and frame writer are Mercury-native.
 
 - The extensions estate: archive sources are decompressed with **fflate** (MIT; a direct dependency) through the hardened reader at `src/utils/archive/zip.ts`; the extensions estate reads no bundle files — an extension declares its servers in its own manifest.
