@@ -180,7 +180,7 @@ what each extension needs, who maintains it, and the licence.
   an update that adds a hook shows the diff and asks again.
 - `space`/`enable`/`disable`: toggle the switch, everywhere or per project; `b` blocks;
   `x`/`uninstall` removes everything (files, records, switches, options, secrets, and data,
-  or keeps the data on request). Per repository, the home screen's MCPs & Skills
+  or keeps the data on request). Per repository, Boot Menu's MCPs & Skills
   menu adds a second switch: an extension's master row there turns its
   contributions off for sessions started in that repository, and a session loads
   an extension only when both switches are on ([KIT.md](KIT.md)).
