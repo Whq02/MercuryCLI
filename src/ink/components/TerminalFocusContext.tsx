@@ -5,13 +5,18 @@ import {
   subscribeTerminalFocus,
   type TerminalFocusState,
 } from '../session/focus-store.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export type { TerminalFocusState }
 
-type TerminalFocusContextProps = Unbuilt
+type TerminalFocusContextProps = {
+  readonly isTerminalFocused: boolean
+  readonly focusState: TerminalFocusState
+}
 
-const TerminalFocusContext: Unbuilt = unbuilt('src/ink/components/TerminalFocusContext.tsx:17')
+const TerminalFocusContext = createContext<TerminalFocusContextProps>({
+  isTerminalFocused: true,
+  focusState: 'unknown',
+})
 
 TerminalFocusContext.displayName = 'InternalTerminalFocusContext'
 
