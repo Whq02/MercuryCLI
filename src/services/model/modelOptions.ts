@@ -1028,7 +1028,7 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
       keyPresent: zenCredentialed, pins: zenRows, listState: zenState, engineWords: 'the OpenCode Zen gateway' }))
   }
   for (const lane of [
-    { provider: 'minimax' as const, group: MINIMAX_MODEL_GROUP, name: 'MiniMax', credentialed: reads.minimaxKeyPresent?.() ?? false, hint: 'opens /logins minimax (a MiniMax API key or M Plan Subscription Key) — MINIMAX_API_KEY works too', empty: "the account's live list serves no text model — /logins minimax checks the key", engine: 'the native chat-completions engine' },
+    { provider: 'minimax' as const, group: MINIMAX_MODEL_GROUP, name: 'MiniMax', credentialed: reads.minimaxKeyPresent?.() ?? false, hint: 'opens /logins minimax (a MiniMax API key or M Plan API key) — MINIMAX_API_KEY works too', empty: "the account's live list serves no text model — /logins minimax checks the key", engine: 'the native chat-completions engine' },
     { provider: 'together' as const, group: TOGETHER_MODEL_GROUP, name: 'Together AI', credentialed: reads.togetherKeyPresent?.() ?? false, hint: 'opens /logins together (a Together AI API key) — TOGETHER_API_KEY works too', empty: "the gateway's live list serves no chat model — /logins together checks the key", engine: 'the Together AI gateway' },
     { provider: 'cohere' as const, group: COHERE_MODEL_GROUP, name: 'Cohere', credentialed: reads.cohereKeyPresent?.() ?? false, hint: 'opens /logins cohere (a Cohere API key) — COHERE_API_KEY works too', empty: "the account's live list serves no chat model — /logins cohere checks the key", engine: 'the native chat-completions engine' },
   ]) {

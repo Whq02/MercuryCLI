@@ -43,7 +43,7 @@ const minimaxLaneProfile: CompatLaneProfile = {
     const failure = providerKeyCommandFailure('minimax')
     return failure ? `the configured ${failure.message} — no MiniMax API key detected.` : `no MiniMax API key detected — /logins minimax stores one (made at platform.minimax.io/user-center, Account Management → API Keys); ${MINIMAX_ENV_KEY} works too.`
   },
-  authRemedy: `set a valid ${MINIMAX_ENV_KEY}, or /logins minimax stores a new key from platform.minimax.io/user-center (an M Plan Subscription Key from platform.minimax.io/console/plan works too).`,
+  authRemedy: `set a valid ${MINIMAX_ENV_KEY}, or /logins minimax stores a new key from platform.minimax.io/user-center (an M Plan API key from platform.minimax.io/console/plan works too).`,
   billingRemedy: 'the Open Platform balance is spent or the M Plan window is used up — top up at platform.minimax.io or wait for the window to reset, then retry; /model picks another model meanwhile.',
   requestUrl: () => minimaxChatCompletionsUrl(),
   wireModelId: model => minimaxWireId(model),
