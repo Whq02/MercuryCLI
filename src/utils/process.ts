@@ -1,5 +1,4 @@
 import { passedOver } from './passedOver.js'
-import { notBuilt } from '../pi/holes.js'
 
 const STREAM_GONE_CODES = new Set(['EPIPE', 'EIO', 'ENXIO', 'EBADF'])
 
@@ -16,11 +15,27 @@ export function isPeerGoneWriteError(error: unknown): boolean {
 }
 
 function handleStreamGoneErrors(stream: NodeJS.WriteStream | NodeJS.ReadStream, onGone?: (code: string) => void, onHandoverFault?: (code: string, syscall: string) => void): void {
-  return notBuilt('src/utils/process.ts:17')
+  stream.on('error', (error: NodeJS.ErrnoException) => {
+    if (onHandoverFault && consoleLentOrJustReturned()) {
+      const code = error.code ?? 'EUNKNOWN'
+      const syscall = error.syscall ?? 'read'
+      onHandoverFault(code, syscall)
+      stdinRecovery?.(code, syscall)
+      return
+    }
+    if (error.code === undefined || !STREAM_GONE_CODES.has(error.code)) throw error
+    try {
+      stream.destroy()
+    } catch (failure) {
+      passedOver(failure)
+    }
+    onGone?.(error.code)
+  })
 }
 
 export function registerProcessOutputErrorHandlers(): void {
-  return notBuilt('src/utils/process.ts:36')
+  handleStreamGoneErrors(process.stdout)
+  handleStreamGoneErrors(process.stderr)
 }
 
 const CONSOLE_HANDBACK_GRACE_MS = 5000
@@ -52,5 +67,6 @@ export function registerProcessInputErrorHandler(onGone: (code: string) => void,
 }
 
 export function writeToStderr(data: string): void {
-  return notBuilt('src/utils/process.ts:69')
+  if (process.stderr.destroyed) return
+  process.stderr.write(data)
 }
