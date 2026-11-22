@@ -13,6 +13,8 @@ src/extensions/bundled/mercury-media/server/THIRD_PARTY_NOTICES text eol=lf
 *.gd   text eol=lf
 *.cfg  text eol=lf
 *.py   text eol=lf
+*.tsv  text eol=lf
+*.txt  text eol=lf
 scripts/vendor/patches/*.patch text eol=lf
 vendor/document-licences/** -text
 vendor/python-licences/** -text

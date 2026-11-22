@@ -10,7 +10,7 @@ import { ModuleCache, calleeName, declarationOf, importOf, lineOf, returnedExpre
 const ROOT = fileURLToPath(new URL('../../', import.meta.url))
 const TABLE = 'scripts/gate/feature-map.tsv'
 const HEADER = 'kind\tfeature\tproof\thow'
-const FLOOR = '6ec6aed9e70c87754deffa898563184e8205e257'
+const NONE_FLOOR = 74
 const DOOR = 'src/substrate/featureReached.ts'
 const kinds = ['command', 'screen', 'tool', 'verb'] as const
 const cache = new ModuleCache(ROOT)
@@ -283,7 +283,7 @@ function run(): void {
     if (!write) throw Error(`${TABLE}: stale feature ${key}; fold a trace with --write`)
     rows.delete(key)
   }
-  checkFloor(rows)
+  checkFloor(rows, old)
   if (write) {
     for (const key of [...new Set([...rows.keys(), ...old.keys()])].sort(order)) {
       const a = old.get(key), b = rows.get(key)
@@ -297,19 +297,21 @@ function run(): void {
   }
   console.log(`${rows.size} feature rows; every named proof is enrolled`)
 }
-function checkFloor(rows: Map<string, Row>): void {
+function checkFloor(rows: Map<string, Row>, disk: Map<string, Row>): void {
   const git = (...args: string[]): string => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' })
   const at = (ref: string): Map<string, Row> => parse(git('show', `${ref}:${TABLE}`), ref)
   const check = (floor: Map<string, Row>, next: Map<string, Row>, ref: string): void => {
     for (const [key, row] of next) if (row.proof === 'none' && floor.get(key)?.proof !== 'none') throw Error(`${TABLE}: new none row ${key} at ${ref}; run its proof with the trace on and fold it with --write`)
   }
-  let floor = at(FLOOR)
-  const writes = git('rev-list', '--first-parent', '--reverse', `${FLOOR}..HEAD`, '--', TABLE).trim().split('\n').filter(Boolean)
-  for (const ref of writes) {
+  const writes = git('rev-list', '--first-parent', '--reverse', 'HEAD', '--', TABLE).trim().split('\n').filter(Boolean)
+  let floor = writes.length ? at(writes[0]!) : disk
+  for (const ref of writes.slice(1)) {
     const next = at(ref)
     check(floor, next, ref)
     floor = next
   }
   check(floor, rows, 'working tree')
+  const unproved = [...rows.values()].filter(row => row.proof === 'none').length
+  if (unproved > NONE_FLOOR) throw Error(`${TABLE}: ${unproved} none rows exceeds floor ${NONE_FLOOR}; run each proof with the trace on and fold it with --write`)
 }
 try { run() } catch (e) { console.error(e instanceof Error ? e.message : e); process.exitCode = 1 }

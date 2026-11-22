@@ -1006,6 +1006,13 @@ if (!process.env.READERS_RECORDING_ROOT) {
   console.log('============================================================')
   console.log(' the readers of a command line — the recording (what each entry answers)')
   console.log('============================================================')
+  const recorded = existsSync(RECORDING) ? (JSON.parse(readFileSync(RECORDING, 'utf8')) as { platform: string; cell: number; entries: string[]; rows: string[] }) : undefined
+  if (!RECORD && READINGS === undefined && DISAGREE === undefined && TREE === resolve(join(import.meta.dir, '..', '..')) && recorded !== undefined && recorded.platform !== process.platform) {
+    console.log(`\n  [SKIP] the recording was taken on ${recorded.platform} and reads a scratch tree as that platform lists and spells it; on ${process.platform} nothing of it is compared`)
+    console.log('\n============================================================')
+    console.log(` READERS RECORDING GREEN (${checks} checks)`)
+    process.exit(0)
+  }
   const corpus = JSON.parse(readFileSync(CORPUS, 'utf8')) as string[]
   const indexes = LINES ?? corpus.map((_line, at) => at)
   const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'readers-recording-')))
@@ -1019,7 +1026,6 @@ if (!process.env.READERS_RECORDING_ROOT) {
     note(`${indexes.length} lines, ${ENTRIES.length} entries each, judged in ${seconds.toFixed(1)} s on ${Math.min(SLICES, indexes.length)} processes: ${(work.reduce((sum, [, ms]) => sum + ms, 0) / 1000).toFixed(1)} s of judging (${work.map(([entry, ms]) => `${entry} ${(ms / 1000).toFixed(1)}`).join(' · ')})`)
     if (READINGS !== undefined) writeFileSync(READINGS, JSON.stringify(Object.fromEntries(indexes.map(at => [at, Object.fromEntries(ENTRIES.map((entry, column) => [entry, (readings[String(at)] as string[])[column]]))]))))
     if (DISAGREE !== undefined) writeDisagreements(DISAGREE, corpus, indexes, judged.seen)
-    const recorded = existsSync(RECORDING) ? (JSON.parse(readFileSync(RECORDING, 'utf8')) as { platform: string; cell: number; entries: string[]; rows: string[] }) : undefined
     if (RECORD) {
       if (recorded !== undefined) check('the recording is made once, on the base: it is never re-recorded by a seat', false, `${RECORDING} stands; a verdict that changes on purpose is a row of EXPECTED_CHANGES in ${SELF}`)
       else if (LINES !== undefined) check('the recording holds every line of the corpus', false, '--record does not go with --lines')

@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+import sys
+
+if sys.platform == 'win32':
+    print('  [SKIP] prove-splash.py drives the splash through POSIX fcntl/pty/termios; skipped on win32')
+    sys.exit(0)
+
 import fcntl
 import json
 import os
@@ -7,7 +13,6 @@ import re
 HINT_RE = re.compile(r'(?:>_(?:\x1b\[[0-9;]*m)*\s*·\s*(?:\x1b\[[0-9;]*m)*↵|MERCURY(?:\x1b\[[0-9;]*m)*\s+(?:\x1b\[[0-9;]*m)*↵)')
 import struct
 import subprocess
-import sys
 import tempfile
 import termios
 import time
