@@ -25,7 +25,7 @@ arm.
 | `moonshot` | `kimi-*`, `moonshot-*`, alias `kimi` | Moonshot |
 | `deepseek` | `deepseek-*`, alias `deepseek` | DeepSeek |
 | `xai` | `grok-*`, alias `grok` | xAI |
-| `meta` | `muse-spark-*`, `muse-wonder-*`, alias `muse` (other `muse-*` endpoints refuse here) | Meta |
+| `meta` | `muse-spark-*`, `muse-wonder-*`, `muse-ember-*`, alias `muse` (other `muse-*` endpoints refuse here) | Meta |
 | `gemini` | `gemini-*`, `google/<id>` (non-Gemini roster models on a Google sign-in), alias `gemini` | Gemini |
 | `openai-compat` | `compat/<vendor-id>` (qualified; stripped before the wire) | Custom endpoint |
 | `openrouter` | `openrouter/<vendor-slug>` (qualified; stripped because OpenRouter ids are vendor/model slugs, so the namespace disambiguates them) | OpenRouter |
@@ -190,13 +190,16 @@ into training on its prompts and completions. Meta’s documented Spark 1.3,
 1.2 and 1.1 rows have a 1,048,576-token context. Standard pricing is $1.25
 input, $0.15 cached input and $4.25 output per million tokens; the 1.3 and 1.2
 Contributor rows are $0.10, $0.002 and $0.20 respectively, with no long-context
-premium. Unrecorded served ids keep their raw names and unknown prices.
+premium. Muse Ember 1.0 (`muse-ember-1.0`, the same context and up to 524,288
+output tokens) is $0.10, $0.004 and $0.50, and $0.30, $0.012 and $1.50 for a
+request of more than 200,000 input tokens. Unrecorded served ids keep their raw
+names and unknown prices.
 
 Mercury uses Meta’s OpenAI-compatible Chat Completions endpoint at
 `https://api.meta.ai/v1/chat/completions`, with streaming, function tools,
 JSON-schema output and the model’s documented reasoning effort. `none` is
-not supported; `max` is documented for Muse Wonder 1.0 and Standard Muse
-Spark 1.3 and is undocumented for the Contributor variant. No
+not supported; `max` is documented for Muse Wonder 1.0, Muse Ember 1.0 and
+Standard Muse Spark 1.3 and is undocumented for the Contributor variant. No
 reasoning-off flag is sent. Meta also provides Responses and Messages APIs;
 its Chat Completions API does **not** preserve private reasoning across
 turns. Mercury’s Meta road therefore replays the conversation and tool

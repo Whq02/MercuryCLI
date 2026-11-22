@@ -287,7 +287,10 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
     const pin = xaiModelFacts(model)
     return recorded(engineTier(pin?.longContext && promptTokens !== undefined && promptTokens >= (pin.longContextThreshold ?? Infinity) ? pin.longContext : pin))
   },
-  meta: model => recorded(engineTier(metaDisplayPin(model))),
+  meta: (model, promptTokens) => {
+    const pin = metaDisplayPin(model)
+    return recorded(engineTier(pin?.longContext && promptTokens !== undefined && promptTokens > (pin.longContextThreshold ?? Infinity) ? pin.longContext : pin))
+  },
   gemini: (model, promptTokens, startedAtMs) => {
     const pin = geminiPricePin(model)
     return pin === undefined ? undefined : recorded(engineTier(geminiPriceTierFor(pin, promptTokens, utcDayOf(startedAtMs))))

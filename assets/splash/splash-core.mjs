@@ -127,6 +127,7 @@ const MODEL_NAMES = {
   "muse-wonder-1.0": "Muse Wonder 1.0",
   "muse-spark-1.2": "Muse Spark 1.2",
   "muse-spark-1.1": "Muse Spark 1.1",
+  "muse-ember-1.0": "Muse Ember 1.0",
   "muse-spark-1.3-contributor": "Muse Spark 1.3 Contributor (training permitted)",
   "muse-spark-1.2-contributor": "Muse Spark 1.2 Contributor (training permitted)",
   "muse": "Muse",
