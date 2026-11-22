@@ -29,6 +29,9 @@ Ground rules while writing:
 - Read the README and the instruction files the repository already holds, so that the guide
   neither repeats nor contradicts them.
 - Claim nothing you did not verify in files you actually read.
+- Write only what the repository and its user say — what the code, its scripts, its documents
+  and the user's own words show — and never the harness's own standing rules (its git rules,
+  its tool rules, its permission rules), which every session already carries.
 - Open the file with a two-line header naming MERCURY.md and stating that it guides the
   Mercury harness when working in this repository.
 

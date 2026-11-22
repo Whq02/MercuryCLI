@@ -21,7 +21,7 @@ import { startTimeout, stopTimeout } from '../utils/timers.js'
 export const inThousands = (n: number): string => n.toLocaleString('en-US')
 
 export const HANDOFF_ASK =
-  `The session is ending. Leave one note for the next session to orient itself just enough for the next session to know the repo\'s workings, nothing else. Keep prose concise, effective, and short. Reply with the note alone; it is stored exactly as written, up to ${inThousands(HANDOFF_TEXT_CAP)} characters.`
+  `The session is ending. Leave one note for the next session to orient itself just enough for the next session to know the repo\'s workings, nothing else. Include only what this session did or saw: leave out any statement about a file or about git that no tool call of this session showed — do not guess it or copy it from an earlier note — and if this session did and saw nothing, say so in one line. Keep prose concise, effective, and short. Reply with the note alone; it is stored exactly as written, up to ${inThousands(HANDOFF_TEXT_CAP)} characters.`
 
 export const HANDOFF_ASK_BUDGET_MS = 120_000
 
