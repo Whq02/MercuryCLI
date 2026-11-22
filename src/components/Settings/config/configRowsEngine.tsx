@@ -181,7 +181,7 @@ export function configEngineRows({ config, merged, tokens, boolValue, writeGloba
           ? thinkingApplicability.refuseNote
           : thinkingWarning && conversationHasAssistantTurn
             ? 'Thinking raises latency and can reduce quality mid-conversation.'
-            : 'On by default. Off asks the model not to think before answering. Sonnet 5.5 honors off at low, medium and high effort; thinking stays on at xhigh and max. Opus 5.5 keeps thinking on · engine.reasoning in settings',
+            : 'the model reasons before it answers; on is the default · off asks the model not to — Sonnet 5.5 keeps thinking on at xhigh and max effort, Opus 5.5 at every effort · engine.reasoning in settings',
       change: () => {
         if (!thinkingApplicability.applies) return
         const next = !thinkingOn

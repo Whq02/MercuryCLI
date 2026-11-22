@@ -76,7 +76,7 @@ const settingsPath = join(HOME, 'settings.json')
 const HAIKU = 'claude-haiku-4-5-20251001'
 const SONNET = 'claude-sonnet-5-5'
 const OPUS = 'claude-opus-5-5'
-const EFFORT_NOTE = 'Sonnet 5.5 honors off at low, medium and high effort; thinking stays on at xhigh and max. Opus 5.5 keeps thinking on'
+const EFFORT_NOTE = 'Sonnet 5.5 keeps thinking on at xhigh and max effort, Opus 5.5 at every effort'
 writeFileSync(settingsPath, JSON.stringify({ engine: { model: HAIKU } }))
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
@@ -213,7 +213,7 @@ section('§3 /config on Sonnet 5.5 (off stops its thinking before an answer up t
   writeFileSync(settingsPath, JSON.stringify({ engine: { model: SONNET } }))
   const { m } = await openConfigOnThinking()
   check('with no key saved the row reads on', thinkingRow(m) === '› Thinking on', thinkingRow(m))
-  check('under the row: off asks the model not to, and Sonnet 5.5 keeps thinking on at xhigh and max', popupWords(m).includes('Off asks the model not to think before answering.') && popupWords(m).includes(EFFORT_NOTE), popupWords(m))
+  check('under the row: off asks the model not to, and Sonnet 5.5 keeps thinking on at xhigh and max', popupWords(m).includes('off asks the model not to') && popupWords(m).includes(EFFORT_NOTE), popupWords(m))
   m.push(KEY.right)
   const off = await waitFor(() => thinkingRow(m) === '› Thinking off' && engineOf().reasoning === false, 6000)
   check('→ turns the row off and writes engine.reasoning false', off, `${thinkingRow(m)} · ${JSON.stringify(engineOf())}`)
