@@ -9,18 +9,45 @@ import type { AnthropicObservedUsageV1 } from './engine-connector/types.js'
 import { processRateLimitHeaders, shouldProcessRateLimits } from './rateLimitMocking.js'
 import { providerAskedWaitMs, providerWaitIsWindow } from './api/recoveryBudget.js'
 import { passedOver } from '../utils/passedOver.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
-export type RateLimitType = Unbuilt
+export type RateLimitType = 'five_hour' | 'seven_day' | 'seven_day_opus' | 'seven_day_sonnet' | 'seven_day_fable' | 'overage'
 
-export type OverageDisabledReason = Unbuilt
+export type OverageDisabledReason =
+  | 'overage_not_provisioned'
+  | 'no_limits_configured'
+  | 'org_level_disabled'
+  | 'org_level_disabled_until'
+  | 'org_service_level_disabled'
+  | 'seat_tier_level_disabled'
+  | 'member_level_disabled'
+  | 'seat_tier_zero_credit_limit'
+  | 'group_zero_credit_limit'
+  | 'member_zero_credit_limit'
+  | 'org_service_zero_credit_limit'
+  | 'out_of_credits'
+  | 'unknown'
 
-export type QuotaStatus = Unbuilt
+export type QuotaStatus = 'allowed' | 'allowed_warning' | 'rejected'
 
-export type AnthropicLimits = Unbuilt
+export type AnthropicLimits = {
+  status: QuotaStatus
+  unifiedRateLimitFallbackAvailable: boolean
+  isUsingOverage: boolean
+  resetsAt?: number
+  utilization?: number
+  rateLimitType?: RateLimitType
+  overageStatus?: QuotaStatus
+  overageResetsAt?: number
+  overageDisabledReason?: OverageDisabledReason
+  surpassedThreshold?: number
+}
 
-const DEFAULT_LIMITS: AnthropicLimits = unbuilt('src/services/anthropicLimits.ts:52')
+const DEFAULT_LIMITS: AnthropicLimits = {
+  status: 'allowed',
+  unifiedRateLimitFallbackAvailable: false,
+  isUsingOverage: false,
+}
 
 export function anthropicWindowClosed(limits: Pick<AnthropicLimits, 'status' | 'isUsingOverage' | 'resetsAt'>, nowMs: number = Date.now()): boolean {
   if (limits.status !== 'rejected' || limits.isUsingOverage) return false
@@ -34,14 +61,24 @@ export function laneQuotaStatus(limits: Pick<AnthropicLimits, 'status' | 'isUsin
 
 export let currentLimits: AnthropicLimits = { ...DEFAULT_LIMITS }
 
-export const statusListeners: Set<(limits: AnthropicLimits) => void> = unbuilt('src/services/anthropicLimits.ts:70')
+export const statusListeners: Set<(limits: AnthropicLimits) => void> = new Set()
 
 function emitStatusChange(limits: AnthropicLimits): void {
-  return notBuilt('src/services/anthropicLimits.ts:72')
+  currentLimits = limits
+  for (const listener of statusListeners) listener(limits)
 }
 
+const DISPLAY_NAMES: Readonly<Record<string, string>> = {
+  five_hour: 'session limit',
+  seven_day: 'weekly limit',
+  seven_day_opus: 'Opus limit',
+  seven_day_sonnet: 'Sonnet limit',
+  seven_day_fable: 'Fable limit',
+  overage: 'extra usage limit',
+} satisfies Record<RateLimitType, string>
+
 export function getRateLimitDisplayName(type: string): string {
-  return notBuilt('src/services/anthropicLimits.ts:88')
+  return Object.hasOwn(DISPLAY_NAMES, type) ? DISPLAY_NAMES[type] : type
 }
 
 export function rateLimitTypeOfClaim(claim: string): RateLimitType {
@@ -52,7 +89,7 @@ export function rateLimitTypeOfClaim(claim: string): RateLimitType {
 type RawWindow = { utilization: number; resets_at: number; source?: UsageFeed; observedAtMs?: number }
 export type WeeklyPoolClaim = 'seven_day_fable' | 'seven_day_opus' | 'seven_day_sonnet'
 export const WEEKLY_POOL_CLAIMS: readonly WeeklyPoolClaim[] = ['seven_day_fable', 'seven_day_opus', 'seven_day_sonnet']
-type RawUtilization = Unbuilt
+type RawUtilization = { five_hour?: RawWindow; seven_day?: RawWindow } & Partial<Record<WeeklyPoolClaim, RawWindow>>
 
 export function weeklyPoolClaimForModel(model: string): WeeklyPoolClaim | undefined {
   const id = model.toLowerCase()
@@ -62,7 +99,7 @@ export function weeklyPoolClaimForModel(model: string): WeeklyPoolClaim | undefi
   return undefined
 }
 
-let rawUtilization: RawUtilization = unbuilt('src/services/anthropicLimits.ts:110')
+let rawUtilization: RawUtilization = {}
 
 let usageRecordVersion = 0
 const usageRecordListeners = new Set<() => void>()
@@ -131,7 +168,23 @@ function currentAnthropicAccountName(): string {
 }
 
 function recomputeRawUtilization(headers: Headers): void {
-  return notBuilt('src/services/anthropicLimits.ts:178')
+  const stated: RawUtilization = {}
+  for (const [window, short] of [
+    ['five_hour', '5h'],
+    ['seven_day', '7d'],
+    ['seven_day_fable', '7d_oi'],
+  ] as const) {
+    const utilizationText = headerValue(headers, `anthropic-ratelimit-unified-${short}-utilization`)
+    const resetText = headerValue(headers, `anthropic-ratelimit-unified-${short}-reset`)
+    if (!utilizationText || !resetText) continue
+    const utilization = Number(utilizationText)
+    const resets_at = Number(resetText)
+    if (!Number.isFinite(utilization) || !Number.isFinite(resets_at) || utilization < 0 || resets_at < 0) continue
+    stated[window] = { utilization, resets_at, source: 'headers', observedAtMs: Date.now() }
+  }
+  rawUtilization = stated
+  observedOwner = resolveOwner()
+  noteUsageRecordChanged()
 }
 
 const SEED_DEFAULT_TTL_SECONDS = 2820
@@ -388,7 +441,29 @@ function detectEarlyWarning(headers: Headers, fallbackAvailable: boolean): Early
 }
 
 export function computeNewLimitsFromHeaders(headers: Headers): AnthropicLimits {
-  return notBuilt('src/services/anthropicLimits.ts:453')
+  const stated = (name: string): string | undefined => headerValue(headers, `anthropic-ratelimit-unified-${name}`) || undefined
+  const status = (stated('status') ?? 'allowed') as QuotaStatus
+  const reset = stated('reset')
+  const unifiedRateLimitFallbackAvailable = headerValue(headers, 'anthropic-ratelimit-unified-fallback') === 'available'
+  const claim = stated('representative-claim')
+  const overageStatus = stated('overage-status')
+  const overageReset = stated('overage-reset')
+  const overageDisabledReason = stated('overage-disabled-reason')
+  if (status === 'allowed' || status === 'allowed_warning') {
+    const warning = detectEarlyWarning(headers, unifiedRateLimitFallbackAvailable)
+    if (warning) return warning
+  }
+  const overageResetsAt = Number(overageReset)
+  return {
+    status: status === 'allowed_warning' ? 'allowed' : status,
+    unifiedRateLimitFallbackAvailable,
+    resetsAt: reset === undefined ? undefined : Number(reset),
+    isUsingOverage: status === 'rejected' && (overageStatus === 'allowed' || overageStatus === 'allowed_warning'),
+    ...(claim !== undefined ? { rateLimitType: rateLimitTypeOfClaim(claim) } : {}),
+    ...(overageStatus !== undefined ? { overageStatus: overageStatus as QuotaStatus } : {}),
+    ...(overageDisabledReason !== undefined ? { overageDisabledReason: overageDisabledReason as OverageDisabledReason } : {}),
+    ...(overageReset !== undefined && overageResetsAt ? { overageResetsAt } : {}),
+  }
 }
 
 function limitsEqual(a: unknown, b: unknown): boolean {
@@ -629,8 +704,32 @@ export function extractQuotaStatusFromHeaders(headers: Headers, startedAtMs: num
   }
 }
 
+function refusedVerdictOf(error: unknown): AnthropicLimits {
+  const carried = (error as { headers?: unknown } | null)?.headers
+  if (!(carried instanceof Headers)) return { ...DEFAULT_LIMITS }
+  const headers = processRateLimitHeaders(carried)
+  if (headers.has('anthropic-ratelimit-unified-5h-utilization') || headers.has('anthropic-ratelimit-unified-7d-utilization')) {
+    recomputeRawUtilization(headers)
+  }
+  const verdictStated = ['status', 'reset', 'representative-claim', 'overage-status'].some(name => headerValue(headers, `anthropic-ratelimit-unified-${name}`))
+  return verdictStated ? computeNewLimitsFromHeaders(headers) : { ...DEFAULT_LIMITS }
+}
+
 export function extractQuotaStatusFromError(error: unknown): void {
-  return notBuilt('src/services/anthropicLimits.ts:731')
+  try {
+    if (!shouldProcessRateLimits(isClaudeAISubscriber())) return
+    const kind = classifyAnthropicRefusal(anthropicRefusalFactsOf(error))
+    const askedWaitMs = providerAskedWaitMs(error)
+    if (kind !== 'window' && !(kind === 'rate-limit' && providerWaitIsWindow(askedWaitMs))) return
+    const verdict = refusedVerdictOf(error)
+    verdict.status = 'rejected'
+    if (verdict.resetsAt === undefined && askedWaitMs !== undefined) verdict.resetsAt = Math.ceil((Date.now() + askedWaitMs) / 1000)
+    windowObserved = true
+    stampVerdictOwner()
+    if (!limitsEqual(verdict, currentLimits)) emitStatusChange(verdict)
+  } catch (failure) {
+    logError(failure)
+  }
 }
 
 
