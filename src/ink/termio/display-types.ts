@@ -1,5 +1,3 @@
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
-
 type Tagged<Table> = {
   [Tag in keyof Table & string]: { type: Tag } & Table[Tag]
 }[keyof Table & string]
@@ -28,7 +26,20 @@ type ColorSlot = 'fg' | 'bg' | 'underlineColor'
 export type TextStyle = Record<Attribute, boolean> & { underline: UnderlineStyle } & Record<ColorSlot, Color>
 
 export function defaultStyle(): TextStyle {
-  return notBuilt('src/ink/termio/display-types.ts:28')
+  return {
+    bold: false,
+    dim: false,
+    italic: false,
+    blink: false,
+    inverse: false,
+    hidden: false,
+    strikethrough: false,
+    overline: false,
+    underline: 'none',
+    fg: { type: 'default' },
+    bg: { type: 'default' },
+    underlineColor: { type: 'default' },
+  }
 }
 
 type Count = { count: number }
@@ -79,9 +90,13 @@ type TitleAction = Tagged<{
   both: { title: string }
 }>
 
-export type TabStatusAction = Unbuilt
+export type TabStatusAction = {
+  indicator?: Color | null
+  status?: string | null
+  statusColor?: Color | null
+}
 
-export type Grapheme = Unbuilt
+export type Grapheme = { value: string; width: 1 | 2 }
 
 type ActionFamilies = {
   cursor: CursorAction
