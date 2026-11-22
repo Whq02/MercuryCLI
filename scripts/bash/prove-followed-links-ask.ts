@@ -158,7 +158,7 @@ if (process.platform === 'win32') {
   const { execFileSync } = await import('node:child_process')
   const long = 'x'.repeat(300)
   const step = 'd'.repeat(200)
-  execFileSync('/bin/sh', ['-c', `mkdir deep && cd deep && for i in 1 2 3 4 5 6; do mkdir ${step} && cd ${step}; done && echo alpha > f.txt`], { cwd: root })
+  execFileSync('/bin/sh', ['-c', `mkdir deep && cd deep && for i in $(seq 1 22); do mkdir ${step} && cd ${step}; done && echo alpha > f.txt`], { cwd: root })
   const short = (text: string): string => text.replace(/[xd]{20,}/g, '…')
   const DENY = { alwaysDenyRules: { userSettings: ['Read(//nowhere/secret/**)'] } }
   const missing = await decide('grep -R alpha nowhere')
