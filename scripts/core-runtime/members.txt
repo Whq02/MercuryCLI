@@ -66,3 +66,4 @@ prove-bare-slash-words.ts
 prove-owner-bleed.ts
 prove-memoize-behaviour.ts
 prove-session-identity-behaviour.ts
+prove-semantic-number-behaviour.ts
