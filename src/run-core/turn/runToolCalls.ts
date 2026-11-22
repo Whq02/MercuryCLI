@@ -71,14 +71,14 @@ export async function* runToolCalls(run: RunCtx, iter: IterationState): AsyncGen
   let loopStoppedRecord: Message | null = null
   const { tools } = iter.toolUseContext.options
   for await (const update of runTools(iter.toolUseBlocks, iter.assistantMessages, run.params.canUseTool, iter.toolUseContext, iter.early)) {
-    updatedToolUseContext = { ...update.newContext, callChain: iter.callChain }
     const { message } = update
-    if (message === undefined) continue
-    if (message.type === 'attachment' && message.attachment.type === 'loop_stopped') {
+    if (message !== undefined && message.type === 'attachment' && message.attachment.type === 'loop_stopped') {
       loopStoppedCycle = message.attachment.cycle
       loopStoppedRecord = message
       continue
     }
+    updatedToolUseContext = { ...update.newContext, callChain: iter.callChain }
+    if (message === undefined) continue
     yield toolUpdateEvent(message, emit)
     if (message.type === 'attachment') {
       if (message.attachment.type === 'hook' && message.attachment.outcome === 'stop') shouldPreventContinuation = true
