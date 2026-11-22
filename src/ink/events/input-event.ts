@@ -3,9 +3,30 @@ import {
   type ParsedKey,
 } from '../input/input-decoder.js'
 import { Event } from './event.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-export type Key = Unbuilt
+export type Key = {
+  ctrl: boolean
+  meta: boolean
+  shift: boolean
+  super: boolean
+  fn: boolean
+  upArrow: boolean
+  downArrow: boolean
+  leftArrow: boolean
+  rightArrow: boolean
+  home: boolean
+  end: boolean
+  pageUp: boolean
+  pageDown: boolean
+  wheelUp: boolean
+  wheelDown: boolean
+  return: boolean
+  tab: boolean
+  backspace: boolean
+  delete: boolean
+  escape: boolean
+  isPasted: boolean
+}
 
 const NAME_TO_FLAG: Record<string, keyof Key> = {
   up: 'upArrow',
@@ -39,6 +60,60 @@ function normalizeSpecialFamilyText(name: string | undefined): string {
   return name
 }
 
+const SILENT_CSI_HEAD_RE = /^\x1b+\[[?><=]?[\d;:$]*$/
+const LEADING_ESC_RE = /^\x1b+/
+const ASCII_CAPITAL_RE = /^[A-Z]$/
+
+function projectKey(keypress: ParsedKey, wheelStep: boolean, input: string): Key {
+  const key: Key = {
+    ctrl: keypress.ctrl,
+    meta: keypress.meta || keypress.name === 'escape' || keypress.option,
+    shift: keypress.shift || ASCII_CAPITAL_RE.test(input),
+    super: keypress.super,
+    fn: keypress.fn,
+    upArrow: false,
+    downArrow: false,
+    leftArrow: false,
+    rightArrow: false,
+    home: false,
+    end: false,
+    pageUp: false,
+    pageDown: false,
+    wheelUp: false,
+    wheelDown: false,
+    return: false,
+    tab: false,
+    backspace: false,
+    delete: false,
+    escape: false,
+    isPasted: keypress.isPasted,
+  }
+  if (keypress.name !== undefined && Object.hasOwn(NAME_TO_FLAG, keypress.name)) key[NAME_TO_FLAG[keypress.name]!] = true
+  if (wheelStep) {
+    key.upArrow = key.wheelUp
+    key.downArrow = key.wheelDown
+  }
+  return key
+}
+
+function projectText(keypress: ParsedKey): string {
+  const name: string | undefined = keypress.name
+  const start: string = (keypress.ctrl ? name : keypress.sequence) ?? ''
+  if (keypress.ctrl && name === 'space') return ' '
+  if (name === undefined) {
+    if (keypress.code) return ''
+    if (!keypress.isPasted && MOUSE_REPORT_SHAPE_RE.test(start)) return ''
+    if (SILENT_CSI_HEAD_RE.test(start)) return ''
+  }
+  const text = start.replace(LEADING_ESC_RE, '')
+  if (EXTENDED_KEYBOARD_RE.test(text) || MODIFY_OTHER_KEYS_RE.test(text) || EVENT_TYPED_FUNCTIONAL_RE.test(text)) {
+    return normalizeSpecialFamilyText(name)
+  }
+  if (text.length === 2 && text.startsWith('O') && name?.length === 1) return name
+  if (name !== undefined && FUNCTIONAL_NAMES.has(name)) return ''
+  return text
+}
+
 let inputEventSeq = 0
 let consumedThroughSeq = 0
 
@@ -48,9 +123,12 @@ export class InputEvent extends Event {
   readonly input: string
   readonly seq: number
 
-  constructor(keypress: ParsedKey, readonly wheelStep?: boolean) {
-    notBuilt('src/ink/events/input-event.ts:146')
-    super(...(notBuilt('src/ink/events/input-event.ts:146') as ConstructorParameters<typeof Event>))
+  constructor(keypress: ParsedKey, readonly wheelStep: boolean = false) {
+    super()
+    this.keypress = keypress
+    this.input = projectText(keypress)
+    this.key = projectKey(keypress, wheelStep, this.input)
+    this.seq = ++inputEventSeq
   }
 }
 
