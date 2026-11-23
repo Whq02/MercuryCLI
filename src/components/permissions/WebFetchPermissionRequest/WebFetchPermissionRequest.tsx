@@ -15,9 +15,8 @@ type FetchOptionValue = 'yes' | 'yes-dont-ask-domain' | 'no'
 function domainRuleContent(input: unknown): string {
   try {
     const parsed = WebFetchTool.inputSchema.safeParse(input)
-    if (!parsed.success) return `input:${String(input)}`
-    const { url } = parsed.data as { url: string }
-    return `domain:${new URL(url).hostname}`
+    if (!parsed.success || parsed.data.url === undefined) return `input:${String(input)}`
+    return `domain:${new URL(parsed.data.url).hostname}`
   } catch {
     return `input:${String(input)}`
   }
@@ -32,9 +31,10 @@ export function WebFetchPermissionRequest({
 }: PermissionRequestProps): React.ReactNode {
   usePermissionRequestLogging(toolUseConfirm)
 
-  const rawUrl = (toolUseConfirm.input as { url?: unknown }).url
+  const parsedInput = WebFetchTool.inputSchema.safeParse(toolUseConfirm.input)
+  const rawUrl = parsedInput.success ? parsedInput.data.url : undefined
   const hostname =
-    typeof rawUrl === 'string' && rawUrl !== '' ? (URL.parse(rawUrl)?.hostname ?? '') : ''
+    rawUrl !== undefined && rawUrl !== '' ? (URL.parse(rawUrl)?.hostname ?? '') : ''
 
   const options: Array<{ label: React.ReactNode; value: FetchOptionValue }> = [
     { label: 'Yes', value: 'yes' },

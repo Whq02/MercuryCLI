@@ -25,7 +25,7 @@ type Property = {
 
 export function propertyValueToText(value: React.ReactNode | string[]): string {
   if (Array.isArray(value) && value.every(item => typeof item === 'string')) return value.join(', ')
-  return nodeText(value as React.ReactNode)
+  return nodeText(value)
 }
 
 function nodeText(value: React.ReactNode): string {
@@ -33,9 +33,8 @@ function nodeText(value: React.ReactNode): string {
   if (typeof value === 'string') return value
   if (typeof value === 'number') return String(value)
   if (Array.isArray(value)) return value.map(nodeText).join('')
-  if (React.isValidElement(value)) {
-    const children = (value.props as { children?: React.ReactNode }).children
-    return nodeText(children)
+  if (React.isValidElement<{ children?: React.ReactNode }>(value)) {
+    return nodeText(value.props.children)
   }
   return ''
 }

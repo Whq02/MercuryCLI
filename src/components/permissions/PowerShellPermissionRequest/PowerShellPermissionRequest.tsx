@@ -28,8 +28,6 @@ import {
 } from './powershellToolUseOptions.js'
 import { passedOver } from '../../../utils/passedOver.js'
 
-type PowerShellCardInput = { command: string }
-
 export function PowerShellPermissionRequest({
   toolUseConfirm,
   onDone,
@@ -37,7 +35,7 @@ export function PowerShellPermissionRequest({
   verbose,
   workerBadge,
 }: PermissionRequestProps): React.ReactNode {
-  const { command } = PowerShellTool.inputSchema.parse(toolUseConfirm.input) as PowerShellCardInput
+  const { command } = PowerShellTool.inputSchema.parse(toolUseConfirm.input)
   const description = toolUseConfirm.description
 
   usePermissionRequestLogging(toolUseConfirm)

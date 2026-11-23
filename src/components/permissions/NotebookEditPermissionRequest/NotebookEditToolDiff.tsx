@@ -20,15 +20,22 @@ import { intersperse } from '../../../utils/array.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
 import { getPatchForDisplay } from '../../../utils/diff.js'
 import { parseCellId } from '../../../utils/notebook.js'
-import { safeParseJSON } from '../../../utils/json.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import type { StructuredPatchHunk } from 'diff'
+import { z } from 'zod/v4'
 
-type NotebookCell = {
-  id?: string
-  cell_type?: string
-  source?: string | string[]
-}
+const notebookCellSchema = z.object({
+  id: z.string().optional(),
+  cell_type: z.string().optional(),
+  source: z.union([z.string(), z.array(z.string())]).optional(),
+})
+
+const notebookSchema = z.object({
+  cells: z.array(notebookCellSchema).optional(),
+})
+
+type NotebookCell = z.infer<typeof notebookCellSchema>
+type NotebookDocument = z.infer<typeof notebookSchema>
 
 type Props = {
   notebook_path: string
@@ -56,7 +63,7 @@ export function NotebookEditToolDiff({
 }: Props): React.ReactNode {
   const { columns, rows } = useTerminalSize()
   const [expanded, setExpanded] = useState(false)
-  const [loaded, setLoaded] = useState<{ path: string; data: { cells?: NotebookCell[] } } | null>(null)
+  const [loaded, setLoaded] = useState<{ path: string; data: NotebookDocument } | null>(null)
 
   useKeybinding('confirm:toggleFullPreview', () => setExpanded(prev => !prev), {
     context: 'Confirmation',
@@ -68,9 +75,17 @@ export function NotebookEditToolDiff({
     fs.readFile(notebook_path, 'utf8')
       .then(raw => {
         if (cancelled) return
-        const parsed = safeParseJSON(raw, false)
-        if (parsed && typeof parsed === 'object') {
-          setLoaded({ path: notebook_path, data: parsed as { cells?: NotebookCell[] } })
+        let parsed: unknown
+        try {
+          parsed = JSON.parse(raw)
+        } catch (error) {
+          passedOver(error)
+          setLoaded(null)
+          return
+        }
+        const result = notebookSchema.safeParse(parsed)
+        if (result.success) {
+          setLoaded({ path: notebook_path, data: result.data })
         } else {
           setLoaded(null)
         }
