@@ -6,11 +6,14 @@ import { toError } from '../../utils/errors.js'
 import { formatFileSize } from '../../utils/format.js'
 import { logError } from '../../utils/log.js'
 import { ensureToolResultsDir, getToolResultsDir } from '../../utils/toolResultStorage.js'
-import { notBuilt } from '../../pi/holes.js'
-
 
 export function getFormatDescription(type: MCPResultType, schema?: unknown): string {
-  return notBuilt('src/services/mcp/mcpOutputStorage.ts:11')
+  if (type === 'toolResult') return 'plain text'
+  const base = type === 'structuredContent' ? 'JSON' : 'a JSON array'
+  if (schema !== undefined) {
+    return `${base} matching the schema ${JSON.stringify(schema)}`
+  }
+  return base
 }
 
 export function getLargeOutputInstructions(
@@ -19,7 +22,18 @@ export function getLargeOutputInstructions(
   formatDescription: string,
   maxReadLength?: number,
 ): string {
-  return notBuilt('src/services/mcp/mcpOutputStorage.ts:22')
+  const sizeLabel = contentLength.toLocaleString()
+  const limitNote =
+    maxReadLength !== undefined
+      ? `Read it in sequential chunks of at most ${maxReadLength.toLocaleString()} characters per command`
+      : 'Read it in sequential bounded chunks'
+  return (
+    `Error: result (${sizeLabel} characters) exceeds maximum allowed tokens. ` +
+    `Output has been saved to ${rawOutputPath}.\n\n` +
+    `Format: ${formatDescription}\n` +
+    `${limitNote} rather than loading the entire file at once. ` +
+    'Report honestly which portion of the file you inspected and do not claim full coverage if you only read part of it.'
+  )
 }
 
 const MIME_EXTENSIONS: ReadonlyMap<string, string> = new Map(
@@ -52,7 +66,25 @@ function normalizeMime(mimeType: string | undefined): string {
 }
 
 export function isBinaryContentType(contentType: string): boolean {
-  return notBuilt('src/services/mcp/mcpOutputStorage.ts:84')
+  const mime = normalizeMime(contentType)
+  if (mime === '') return false
+  if (mime.startsWith('text/')) return false
+  if (mime === 'application/json' || mime.endsWith('+json')) return false
+  if (mime === 'application/xml' || mime.endsWith('+xml')) return false
+  if (mime.startsWith('application/javascript')) return false
+  if (mime === 'application/x-www-form-urlencoded') return false
+  return true
+}
+
+function extensionForMime(mimeType: string | undefined): string {
+  const normalized = normalizeMime(mimeType)
+  if (normalized === '') return 'bin'
+  const mapped = MIME_EXTENSIONS.get(normalized)
+  if (mapped !== undefined) return mapped
+  if (normalized.endsWith('+json')) return 'json'
+  if (normalized.endsWith('+xml')) return 'xml'
+  if (normalized.startsWith('text/')) return 'txt'
+  return 'bin'
 }
 
 type PersistBinaryResult = { filepath: string; size: number; ext: string } | { error: string }
@@ -62,7 +94,17 @@ export async function persistBinaryContent(
   mimeType: string | undefined,
   persistId: string,
 ): Promise<PersistBinaryResult> {
-  return notBuilt('src/services/mcp/mcpOutputStorage.ts:97')
+  await ensureToolResultsDir()
+  const ext = extensionForMime(mimeType)
+  const filepath = join(getToolResultsDir(), `${persistId}.${ext}`)
+  try {
+    await writeFile(filepath, bytes)
+    return { filepath, size: bytes.length, ext }
+  } catch (error) {
+    const err = toError(error)
+    logError(err)
+    return { error: err.message }
+  }
 }
 
 export function getBinaryBlobSavedMessage(
@@ -71,5 +113,5 @@ export function getBinaryBlobSavedMessage(
   size: number,
   sourceDescription: string,
 ): string {
-  return notBuilt('src/services/mcp/mcpOutputStorage.ts:120')
+  return `${sourceDescription}: binary content (${mimeType || 'unknown type'}, ${formatFileSize(size)}) saved to ${filepath}`
 }
