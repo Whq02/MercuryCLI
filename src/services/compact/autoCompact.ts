@@ -45,6 +45,7 @@ import { trySessionMemoryCompaction, shouldUseSessionMemoryCompaction } from './
 import { APIUserAbortError } from '../../utils/api/sdkErrors.js'
 import { calculateTokenWarningState, getAutoCompactThreshold, getAutoCompactThresholdWithFixed, getBlockingLimit, getEffectiveContextWindowSize, isAutoCompactEnabled, SUMMARY_RESERVE_MAX_WINDOW_DIVISOR, thresholdOverridden } from '../../utils/compact/autoCompactWindow.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { isRecord } from '../../utils/isRecord.js'
 export { MIN_AUTOCOMPACT_WINDOW, MAX_AUTOCOMPACT_WINDOW, WARNING_THRESHOLD_BUFFER_TOKENS, MANUAL_COMPACT_BUFFER_TOKENS, AUTOCOMPACT_BUFFER_TOKENS, autoCompactWindowIsInputLimit, resolveAutoCompactWindow, getEffectiveContextWindowSize, getTurnReserveTokens, getAutoCompactThreshold, getAutoCompactThresholdWithFixed, autoCompactDisabledReason, isAutoCompactEnabled, compactionSettingsText, getBlockingLimit, calculateTokenWarningState } from '../../utils/compact/autoCompactWindow.js'
 export type { AutoCompactWindowSource, TokenWarningLevel } from '../../utils/compact/autoCompactWindow.js'
 
@@ -191,10 +192,10 @@ export function detectFixedPrefixOverflow(
   let imageBlockCount = 0
   const countBlocks = (blocks: unknown[]): void => {
     for (const block of blocks) {
-      const record = block as { type?: string; content?: unknown }
-      if (record.type === 'document') documentBlockCount++
-      else if (record.type === 'image') imageBlockCount++
-      else if (record.type === 'tool_result' && Array.isArray(record.content)) countBlocks(record.content)
+      if (!isRecord(block)) continue
+      if (block.type === 'document') documentBlockCount++
+      else if (block.type === 'image') imageBlockCount++
+      else if (block.type === 'tool_result' && Array.isArray(block.content)) countBlocks(block.content)
     }
   }
   for (const message of messages) {

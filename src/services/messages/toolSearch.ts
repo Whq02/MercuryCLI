@@ -15,6 +15,7 @@ import { toolDeferralEnabled } from '../../utils/model/capabilities.js'
 import { deferralWireFormFor, type DeferralWireForm } from '../providers/deferralWire.js'
 import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { isRecord } from '../../utils/isRecord.js'
 
 
 type ToolSearchMode = 'tst' | 'tst-auto' | 'standard'
@@ -202,7 +203,7 @@ export function isToolReferenceBlock(obj: unknown): boolean {
 }
 
 function isNamedToolReferenceBlock(obj: unknown): obj is { type: 'tool_reference'; tool_name: string } {
-  return isToolReferenceBlock(obj) && typeof (obj as { tool_name?: unknown }).tool_name === 'string'
+  return isToolReferenceBlock(obj) && isRecord(obj) && typeof obj.tool_name === 'string'
 }
 
 function hostedSearchLoadedNames(items: readonly unknown[]): string[] {
@@ -210,15 +211,13 @@ function hostedSearchLoadedNames(items: readonly unknown[]): string[] {
   const walk = (tools: unknown): void => {
     if (!Array.isArray(tools)) return
     for (const raw of tools) {
-      const tool = raw as { type?: unknown; name?: unknown; tools?: unknown } | null
-      if (tool === null || typeof tool !== 'object') continue
-      if (tool.type === 'namespace') walk(tool.tools)
-      else if (typeof tool.name === 'string') names.push(tool.name)
+      if (!isRecord(raw)) continue
+      if (raw.type === 'namespace') walk(raw.tools)
+      else if (typeof raw.name === 'string') names.push(raw.name)
     }
   }
   for (const item of items) {
-    const record = item as { type?: unknown; tools?: unknown } | null
-    if (record !== null && typeof record === 'object' && record.type === 'tool_search_output') walk(record.tools)
+    if (isRecord(item) && item.type === 'tool_search_output') walk(item.tools)
   }
   return names
 }

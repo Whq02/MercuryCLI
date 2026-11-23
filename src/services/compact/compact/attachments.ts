@@ -32,6 +32,7 @@ import { FOLDED_RESULT_KEY } from '../verbatimTail.js'
 import { POST_COMPACT_MAX_FILES_TO_RESTORE, POST_COMPACT_TOKEN_BUDGET, POST_COMPACT_MAX_TOKENS_PER_FILE, POST_COMPACT_MAX_TOKENS_PER_SKILL, POST_COMPACT_SKILLS_TOKEN_BUDGET, ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } from './limits.js'
 import { type CompactionResult, buildPostCompactMessages } from './result.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
+import { isRecord } from '../../../utils/isRecord.js'
 
 export function collectPreservedReadPaths(preserved: Message[], resultIds?: ReadonlySet<string>): Set<string> {
   const stubs = new Set<string>()
@@ -78,9 +79,8 @@ export function collectPreservedReadPaths(preserved: Message[], resultIds?: Read
       if (block.type !== 'tool_use' || block.name !== FILE_READ_TOOL_NAME) continue
       if (stubs.has(block.id)) continue
       if (resultIds !== undefined && !shown.has(block.id)) continue
-      const input = block.input as Record<string, unknown> | undefined
-      if (input !== undefined && typeof input.file_path === 'string') {
-        paths.add(expandPath(input.file_path))
+      if (isRecord(block.input) && typeof block.input.file_path === 'string') {
+        paths.add(expandPath(block.input.file_path))
       }
     }
   }

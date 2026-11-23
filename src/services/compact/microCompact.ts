@@ -2,6 +2,7 @@ import { isThinkingBlock } from '../messages/apiFilters.js'
 import type { AssistantMessage, DeadThinkingMark, Message } from '../../types/message.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { expandPath } from '../../utils/path.js'
+import { isRecord } from '../../utils/isRecord.js'
 import type { FileStateCache } from '../../utils/fileStateCache.js'
 import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import { processMainOwner } from '../../utils/run/resolveOwner.js'
@@ -102,7 +103,7 @@ function persistedReferenceOf(content: unknown): string | undefined {
     typeof content === 'string'
       ? content
       : Array.isArray(content)
-        ? content.map(item => ((item as { type?: string }).type === 'text' ? String((item as { text?: unknown }).text ?? '') : '')).join('\n')
+        ? content.map(item => (isRecord(item) && item.type === 'text' ? String(item.text ?? '') : '')).join('\n')
         : ''
   const at = text.indexOf(PERSISTED_PATH_PHRASE)
   if (at === -1) return undefined
@@ -116,11 +117,10 @@ function containsRepeatedResultTag(content: unknown): boolean {
   if (!Array.isArray(content)) return false
   return content.some(
     item =>
-      typeof item === 'object' &&
-      item !== null &&
-      (item as { type?: string }).type === 'text' &&
-      typeof (item as { text?: unknown }).text === 'string' &&
-      (item as { text: string }).text.includes(REPEATED_RESULT_TAG),
+      isRecord(item) &&
+      item.type === 'text' &&
+      typeof item.text === 'string' &&
+      item.text.includes(REPEATED_RESULT_TAG),
   )
 }
 
@@ -162,8 +162,7 @@ export function projectTimeBasedMicrocompact(
       if (block.type !== 'tool_use') continue
       const id = block.id
       const name = block.name
-      const input = block.input as { file_path?: unknown } | undefined
-      const filePath = typeof input?.file_path === 'string' ? input.file_path : undefined
+      const filePath = isRecord(block.input) && typeof block.input.file_path === 'string' ? block.input.file_path : undefined
       if (
         supersededOnly &&
         filePath !== undefined &&
@@ -211,8 +210,7 @@ export function projectTimeBasedMicrocompact(
     const supersededIds = new Set<string>()
     for (const message of messages) {
       if (message.type !== 'user') continue
-      const toolUseResult = message.toolUseResult as { type?: unknown } | undefined
-      if (toolUseResult?.type === 'file_unchanged') continue
+      if (isRecord(message.toolUseResult) && message.toolUseResult.type === 'file_unchanged') continue
       const content = message.message.content
       if (!Array.isArray(content)) continue
       for (const block of content) {
