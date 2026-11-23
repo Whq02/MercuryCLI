@@ -93,7 +93,7 @@ function userBlockRows(parent: UserMessage, blocks: (ContentBlock | ContentBlock
     const pasteId = block.type === 'image' ? parent.imagePasteIds?.[images++] : undefined
     return {
       ...createUserMessage({
-        content: [block as ContentBlockParam],
+        content: [block],
         toolUseResult: parent.toolUseResult,
         mcpMeta: parent.mcpMeta,
         isMeta: parent.isMeta,
