@@ -4,7 +4,6 @@ import type { ToolUseContext } from '../../tools/kit/tool.js'
 import type { SystemPrompt } from '../system-prompt/systemPromptType.js'
 import type {
   Message,
-  RefusedToolCall,
 } from '../message-shapes/message.js'
 import {
   memoryWriteLostNotice,

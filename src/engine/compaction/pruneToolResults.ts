@@ -343,20 +343,6 @@ function ownerOrMain(owner: OwnerKey | undefined): OwnerKey {
   return owner ?? processMainOwner()
 }
 
-export const consumePendingCacheEdits: (owner?: OwnerKey) => PendingCacheEdits | null = function (
-  owner,
-) {
-  const state = cacheEditStore.get(ownerOrMain(owner))
-  const pending = state.pendingEdits
-  state.pendingEdits = null
-  return pending
-}
-
-export const getPinnedCacheEdits: (owner?: OwnerKey) => PendingCacheEdits[] = function (owner) {
-  const state = cacheEditStore.peek(ownerOrMain(owner))
-  return state === undefined ? [] : state.pinnedEdits
-}
-
 export const pinCacheEdits: (
   userMessageIndex: number,
   block: unknown,

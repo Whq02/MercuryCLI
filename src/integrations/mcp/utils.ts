@@ -17,7 +17,6 @@ import type {
   Transport,
 } from '../mcp-shapes/mcpServerRecords.js'
 import { getEnterpriseMcpFilePath, projectMcpFilePath } from './configPaths.js'
-import { passedOver } from '../../platform/errors/passedOver.js'
 
 
 type NamedTool = { name: string; mcpInfo?: { serverName?: string } }

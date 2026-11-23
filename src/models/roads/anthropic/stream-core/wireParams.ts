@@ -1,5 +1,4 @@
 import { flagEnv } from '../../../../platform/substrate/flagRegistry.js'
-import type { JsonOutputFormat as BetaJSONOutputFormat } from '../../../../engine/message-shapes/wire.js'
 import type { AnthropicMessageParams as BetaMessageStreamParams, AnthropicOutputConfig as BetaOutputConfig } from '../anthropicWire.js'
 import { MESSAGE_EFFORT_BETA_HEADER, STRUCTURED_OUTPUTS_BETA_HEADER } from 'src/models/roads/betaHeaders.js'
 import { applyThinkingBinding } from '../thinkingBinding.js'
@@ -25,10 +24,6 @@ import { getModelMaxOutputTokens } from '../../../../engine/compaction-window/co
 import { isTurnOwningQuerySource, resolveAppliedEffort } from '../../../effort/effort.js'
 import { validateBoundedIntEnvVar } from '../../../../platform/environment/envValidation.js'
 import { normalizeModelStringForAPI } from '../../../catalogue/engineModel.js'
-import {
-  consumePendingCacheEdits,
-  getPinnedCacheEdits,
-} from '../../../../engine/compaction/pruneToolResults.js'
 import { clientContractMoveOf } from '../../../../engine/requests/clientContractLearned.js'
 import type { RetryContext } from '../../../../engine/requests/withRetry.js'
 import { fitOutputTokensForRequest, outputFitWords } from '../../../../engine/requests/outputFit.js'

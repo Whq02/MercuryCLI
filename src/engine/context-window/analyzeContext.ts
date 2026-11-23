@@ -15,7 +15,6 @@ import {
   MANUAL_COMPACT_BUFFER_TOKENS,
 } from '../compaction/autoFold.js'
 import { microcompactMessages } from '../compaction/pruneToolResults.js'
-import type { MCPServerConnection } from '../../integrations/mcp-shapes/mcpServerRecords.js'
 import { getSdkBetas } from '../../boot/process-state/processState.js'
 import {
   filterInjectedInstructionFiles,

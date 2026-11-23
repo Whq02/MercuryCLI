@@ -1,6 +1,5 @@
 import type { ToolUseContext } from '../../../tools/kit/tool.js'
 import type { Message } from '../../message-shapes/message.js'
-import type { ToolResultBlockParam } from '../../message-shapes/wire.js'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import type { CacheSafeParams } from '../../../crew/agents/forkedAgent.js'
 import { appendSystemContext, toolToAPISchema } from '../../messages/apiSystemAndToolSchema.js'

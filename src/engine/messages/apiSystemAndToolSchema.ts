@@ -1,4 +1,3 @@
-import { isEnvTruthy } from '../../platform/environment/envUtils.js'
 import { isWholeRecordedComposition } from '../system-prompt/recordedComposition.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import {

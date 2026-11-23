@@ -1,7 +1,7 @@
 import { featureReached } from '../../platform/substrate/featureReached.js'
 
 import * as React from 'react'
-import { randomUUID, type UUID } from 'node:crypto'
+import type { UUID } from 'node:crypto'
 import { statSync } from 'node:fs'
 import { Box, Text } from '../../screen/themedRenderer.js'
 import type { CanUseToolFn, SetToolJSXFn, ToolUseContext } from '../../tools/kit/tool.js'

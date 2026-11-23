@@ -42,7 +42,7 @@ import { emitCompactionTrace } from '../../../platform/observability/invocationT
 import { flushSessionStorage, recordContentReplacement } from '../../../sessions/transcripts/sessionStorage.js'
 import { buildRequestContextPlan, type RequestContextPlan } from '../../run/requestContextPlan.js'
 import { calibrationKeyFor } from '../../run/contextCalibration.js'
-import { randomUUID, type UUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { requestGaugeFixed } from '../../run/requestGauge.js'
 import { buildPostCompactMessages, ERROR_MESSAGE_USER_ABORT } from '../../compaction/foldConversation.js'
 import { toolToAPISchema } from '../../messages/apiSystemAndToolSchema.js'
