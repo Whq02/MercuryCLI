@@ -110,7 +110,6 @@ function renderSystemBody(
         param={{ type: 'text', text: message.content ?? '' }}
         verbose={props.verbose}
         isTranscriptMode={props.isTranscriptMode}
-        timestamp={message.timestamp}
       />
     )
   }
@@ -249,7 +248,6 @@ function renderUserBody(
           param={block}
           verbose={props.verbose}
           isTranscriptMode={props.isTranscriptMode}
-          timestamp={message.timestamp}
           origin={message.origin}
         />,
       )
