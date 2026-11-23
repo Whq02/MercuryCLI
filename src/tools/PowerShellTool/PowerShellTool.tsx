@@ -77,7 +77,7 @@ function detectBlockedSleepPattern(command: string): string | null {
   const firstStatement = (trimmed.split(/[;|&\r\n]/)[0] ?? '').trim()
   const match = firstStatement.match(/^(?:start-sleep|sleep)(?:\s+(?:-s(?:econds)?)?\s*)?(\d+(?:\.\d+)?)\s*$/i)
   if (!match) return null
-  const seconds = parseFloat(match[1] as string)
+  const seconds = parseFloat(match[1])
   if (seconds < SLEEP_THRESHOLD_SECONDS) return null
   const remainder = trimmed.slice(firstStatement.length).trim()
   return remainder

@@ -49,8 +49,8 @@ export function deriveVersionedPathParts(path: string): VersionedPathParts | nul
   if (!match) return null
   return {
     versionsRoot: `${match[1]}${match[2]}`,
-    version: match[3] as string,
-    suffix: match[4] as string,
+    version: match[3],
+    suffix: match[4],
   }
 }
 

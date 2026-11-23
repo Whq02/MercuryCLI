@@ -256,7 +256,7 @@ export function setPermissionModeWithGuards(
     if (current.mode === mode) return current
     const transitioned = transitionPermissionMode(current.mode, mode, current)
     recordModeTransition({ from: current.mode, to: mode, road })
-    return { ...(transitioned as object), mode } as ToolPermissionContext
+    return { ...transitioned, mode }
   })
   return { ok: true, mode }
 }
@@ -319,9 +319,9 @@ export function createSovereignDisabledContext(
   let next = currentContext
   if (modeBypassesPermissions(currentContext.mode)) {
     recordModeTransition({ from: currentContext.mode, to: 'default', road: 'bypass-disabled' })
-    next = { ...(next as object), mode: 'default' } as ToolPermissionContext
+    next = { ...next, mode: 'default' }
   }
-  return { ...(next as object), isBypassPermissionsModeAvailable: false } as ToolPermissionContext
+  return { ...next, isBypassPermissionsModeAvailable: false }
 }
 
 
@@ -425,7 +425,7 @@ export function resolveSessionPermissionMode({
 
   const ordered: PermissionMode[] = candidates.map(c => c.mode)
   const result = resolvePermissionModeCandidates(ordered, { dangerouslySkipPermissions: dangerouslySkipPermissions && !typedPosture })
-  const winner = candidates.find(c => c.mode === result.mode) ?? { mode: result.mode as PermissionMode, source: 'default' as SessionPermissionModeSource }
+  const winner = candidates.find(c => c.mode === result.mode) ?? { mode: result.mode, source: 'default' as SessionPermissionModeSource }
   return { ...result, source: winner.source }
 }
 

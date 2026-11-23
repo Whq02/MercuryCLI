@@ -9,11 +9,11 @@ function describeTools(agent: AgentDefinition): string {
   const hasAllow = Array.isArray(allow) && allow.length > 0
   const hasDeny = Array.isArray(deny) && deny.length > 0
   if (hasAllow && hasDeny) {
-    const effective = allow!.filter(name => !deny!.includes(name))
+    const effective = allow.filter(name => !deny.includes(name))
     return effective.length > 0 ? effective.join(', ') : 'None'
   }
-  if (hasAllow) return allow!.join(', ')
-  if (hasDeny) return `All tools except ${deny!.join(', ')}`
+  if (hasAllow) return allow.join(', ')
+  if (hasDeny) return `All tools except ${deny.join(', ')}`
   return 'All tools'
 }
 
