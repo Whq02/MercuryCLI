@@ -156,13 +156,12 @@ export function useChatBootStart({
     return disarm;
   }, []);
 
-  useLoad(() => {
+  useLoad(signal => {
     const key = 'daemon-version';
-    let alive = true;
     let unsubscribe = (): void => {};
     void loadDaemonHandshake()
       .then(hs => {
-        if (!alive) return;
+        if (signal.aborted) return;
         const paint = (): void => {
           const line = hs.lastDaemonHandshake()?.line ?? null;
           if (line !== null) addNotification({ key, ...splitWayOut(line), priority: 'high', color: 'warning', timeoutMs: 60_000 });
@@ -173,7 +172,6 @@ export function useChatBootStart({
       })
       .catch(passedOver);
     return () => {
-      alive = false;
       unsubscribe();
     };
   }, []);

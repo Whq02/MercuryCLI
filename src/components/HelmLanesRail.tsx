@@ -304,9 +304,8 @@ function useRecentSessions(solo: boolean): SessionListing[] | null {
     key: recentScopeKey,
     rows: lastKnownRecent.get(recentScopeKey) ?? null,
   }))
-  useLoad(() => {
+  useLoad(signal => {
     if (!solo) return
-    let alive = true
     void (async () => {
       try {
         const all = await listSessionsAcrossProjects()
@@ -317,42 +316,37 @@ function useRecentSessions(solo: boolean): SessionListing[] | null {
           .filter(l => isProjectSession(l, getProjectRoot() || ''))
           .filter(l => !isSessionCleared(sessionIdOfListing(l)))
         resumable.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime())
-        if (alive) {
+        if (!signal.aborted) {
           const rows = resumable.slice(0, 3)
           lastKnownRecent.set(recentScopeKey, rows)
           setRecentSnap({ key: recentScopeKey, rows })
         }
       } catch {
-        if (alive) setRecentSnap({ key: recentScopeKey, rows: [] })
+        if (!signal.aborted) setRecentSnap({ key: recentScopeKey, rows: [] })
       }
     })()
-    return () => {
-      alive = false
-    }
   }, [solo, recentScopeKey])
   return recentSnap.key === recentScopeKey ? recentSnap.rows : lastKnownRecent.get(recentScopeKey) ?? null
 }
 
 function useWakeGlance(): SaturnWakeGlanceV1 | null {
   const [wakeGlance, setWakeGlance] = useState<SaturnWakeGlanceV1 | null>(() => lastKnownWakeGlance)
-  useTimer(() => {
-    let alive = true
+  useTimer(signal => {
     const probe = () => {
       try {
         const records = Object.values(readSessionWorkers()).filter(r => r.endedAt === undefined)
         const s = saturnWakeGlanceOf(records)
         const next = s.count > 0 ? s : null
         lastKnownWakeGlance = next
-        if (alive) setWakeGlance(next)
+        if (!signal.aborted) setWakeGlance(next)
       } catch {
-        if (alive) setWakeGlance(null)
+        if (!signal.aborted) setWakeGlance(null)
       }
     }
     probe()
     const unsubscribe = subscribeConcourseWorkers(probe)
     const stopFloor = subscribeUiClock(15_000, probe)
     return () => {
-      alive = false
       unsubscribe()
       stopFloor()
     }

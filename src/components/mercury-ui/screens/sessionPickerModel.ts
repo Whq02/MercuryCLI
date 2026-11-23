@@ -133,46 +133,42 @@ function useResumableSessionLogs(opts: { enabled?: boolean } = {}): {
   const [logs, setLogs] = useState<SessionListing[] | null>(null)
   const [pendingMore, setPendingMore] = useState(0)
   const [readFailures, setReadFailures] = useState<SessionReadFailures | undefined>(undefined)
-  useLoad(() => {
+  useLoad(signal => {
     if (!enabled) return
-    let alive = true
     void (async () => {
       try {
         const first = await listSessionsAcrossProjectsProgressive()
         const publish = (all: SessionListing[]): void => {
-          if (alive) setLogs(resumableNewestFirst(all, conversationIdHere()))
+          if (!signal.aborted) setLogs(resumableNewestFirst(all, conversationIdHere()))
         }
         let acc = first.logs
         let next = first.nextIndex
         let failures = first.readFailures
         publish(acc)
-        if (alive) {
+        if (!signal.aborted) {
           setPendingMore(Math.max(0, first.allStatLogs.length - next))
           setReadFailures(failures)
         }
-        while (alive && next < first.allStatLogs.length) {
+        while (!signal.aborted && next < first.allStatLogs.length) {
           const batch = await enrichSessionListings(first.allStatLogs, next, ENRICH_BATCH)
           next = batch.nextIndex
           acc = [...acc, ...batch.logs]
           failures = mergeSessionReadFailures(failures, batch.readFailures)
           publish(acc)
-          if (alive) {
+          if (!signal.aborted) {
             setPendingMore(Math.max(0, first.allStatLogs.length - next))
             setReadFailures(failures)
           }
         }
       } catch (error) {
         passedOver(error)
-        if (alive) {
+        if (!signal.aborted) {
           setLogs([])
           setPendingMore(0)
           setReadFailures({ count: 1, firstPath: getProjectsDir(), firstError: errorMessage(error) })
         }
       }
     })()
-    return () => {
-      alive = false
-    }
   }, [enabled])
   const dropSessions = (sessionIds: ReadonlySet<string>): void => {
     setLogs(prev => (prev === null ? prev : prev.filter(l => !sessionIds.has(sessionIdOfListing(l) ?? ''))))

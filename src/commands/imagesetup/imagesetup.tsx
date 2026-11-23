@@ -83,11 +83,9 @@ export function ImageSetupBody({ geometry, io, preview, initialError, initialSou
     frame.setLine(places ? LLM_HOST_WORDS.where : snapshot ? `${snapshot.location ?? snapshot.root} · ${gibWords(snapshot.totalMemoryBytes)} memory · ${mediaSizeWords(snapshot.freeBytes)} free` : 'Local images and video')
     return () => frame.setOwnsEscape(false)
   }, [snapshot, places, frame.setLine, frame.setHint, frame.setOwnsEscape])
-  useLoad(() => {
+  useLoad(signal => {
     if (!image) { setCells(''); return }
-    let active = true
-    void imageToCells(image.png, Math.max(1, geometry.inner - 2), Math.max(1, geometry.rowBudget - 3)).then(value => { if (active) setCells(value) }, error => { if (active) setError(String(error)) })
-    return () => { active = false }
+    void imageToCells(image.png, Math.max(1, geometry.inner - 2), Math.max(1, geometry.rowBudget - 3)).then(value => { if (!signal.aborted) setCells(value) }, error => { if (!signal.aborted) setError(String(error)) })
   }, [image, geometry.inner, geometry.rowBudget])
 
   const perform = (label: string, run: (signal: AbortSignal) => Promise<void>): void => {

@@ -64,10 +64,9 @@ export function PaletteView({
 
   const pastOpenEvent = useOpenEventGate()
 
-  useLoad(() => {
-    let alive = true
+  useLoad(signal => {
     void loadPaletteRows(getCwd()).then(result => {
-      if (!alive) return
+      if (signal.aborted) return
       if (result.ok) {
         setLoadError(null)
         setRows(result.rows)
@@ -76,9 +75,6 @@ export function PaletteView({
         setRows([])
       }
     })
-    return () => {
-      alive = false
-    }
   }, [])
 
   const haystackOf = (r: PaletteRow): string => `${r.name} — ${r.description}`

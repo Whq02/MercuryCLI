@@ -359,18 +359,16 @@ export const LOCAL_ROAD: CatalogueRoad<LocalDiscoverySnapshot> = {
 
 export function useCatalogueRefreshOnOpen<S>(road: CatalogueRoad<S>, setNotice: (notice: string) => void): void {
   const identity = road.identity()
-  useLoad(() => {
+  useLoad(signal => {
     if (identity === undefined) return
     const before = road.cached()
-    let open = true
     void road.refresh().then(snapshot => {
       if (
-        open && before !== null && road.populated(before) && snapshot !== null && !road.failed(snapshot) &&
+        !signal.aborted && before !== null && road.populated(before) && snapshot !== null && !road.failed(snapshot) &&
         road.identity() === identity && road.cached() === snapshot && road.changed(before, snapshot)
       ) {
         setNotice(`${road.family} — the live list changed; rows updated`)
       }
     }, passedOver)
-    return () => { open = false }
   }, [road, identity, setNotice])
 }

@@ -113,16 +113,12 @@ export function MercuryHome(): React.ReactNode {
 
 function useMemoryAtStartRow(): string | null {
   const [words, setWords] = useState<string | null>(() => (mnemeEnabled() ? null : 'off (memory.enabled is false in settings)'))
-  useLoad(() => {
+  useLoad(signal => {
     if (!mnemeEnabled()) return
-    let live = true
     void composeMemoryAtStart({ projectKey: mnemeProjectKey(), sessionId: String(getSessionId()), root: getProjectRoot() }).then(() => {
       const status = memoryAtStartStatus()
-      if (live && status !== null) setWords(memoryAtStartRowWords(status))
+      if (!signal.aborted && status !== null) setWords(memoryAtStartRowWords(status))
     })
-    return () => {
-      live = false
-    }
   }, [])
   return words
 }
@@ -147,22 +143,18 @@ function MercuryHomeBody(): React.ReactNode {
       return false
     }
   }, [cwd])
-  useLoad(() => {
-    let alive = true
-    gitSnapshot().then(s => alive && setGit(s))
-    traceSnapshot().then(s => alive && setTrace(s))
+  useLoad(signal => {
+    gitSnapshot().then(s => !signal.aborted && setGit(s))
+    traceSnapshot().then(s => !signal.aborted && setTrace(s))
     void import('../services/instructions/engine.js')
       .then(engine => engine.getInstructionFiles())
       .then(files => {
-        if (!alive) return
+        if (signal.aborted) return
         setProjectScopeEmpty(
           !files.some(f => f.type === 'Project' || f.type === 'Local'),
         )
       })
       .catch(passedOver)
-    return () => {
-      alive = false
-    }
   }, [cwd])
 
   const substrate = substrateSnapshot()

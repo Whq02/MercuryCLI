@@ -29,18 +29,14 @@ export function GroundPicker({
   useRegisterOverlay('concourse-ground')
   const { columns } = useTerminalSize()
   const [known, setKnown] = useState<BootProjectFact[] | null>(null)
-  useLoad(() => {
-    let alive = true
+  useLoad(signal => {
     void import('../../utils/bootCardFacts.js')
       .then(m => {
-        if (alive) setKnown(m.workedInProjects())
+        if (!signal.aborted) setKnown(m.workedInProjects())
       })
       .catch(() => {
-        if (alive) setKnown([])
+        if (!signal.aborted) setKnown([])
       })
-    return () => {
-      alive = false
-    }
   }, [])
   const rows = useMemo(() => {
     const out: Array<{ dir: string; base: string; isBoot: boolean }> = []

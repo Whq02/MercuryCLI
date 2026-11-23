@@ -35,18 +35,14 @@ export function SessionPreview({
     [columns, cardHeight],
   )
 
-  useLoad(() => {
+  useLoad(signal => {
     if (!isLiteListing(log)) {
       setFullLog(log)
       return
     }
-    let cancelled = false
     void fillSessionListing(log).then(loaded => {
-      if (!cancelled) setFullLog(loaded)
+      if (!signal.aborted) setFullLog(loaded)
     })
-    return () => {
-      cancelled = true
-    }
   }, [log])
 
   useKeybinding('confirm:yes', () => onSelect(fullLog ?? log), {

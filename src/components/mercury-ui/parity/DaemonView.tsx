@@ -78,26 +78,24 @@ export function DaemonView({ onClose }: { onClose: () => void }): React.ReactNod
 
   const pastOpenEvent = useOpenEventGate()
 
-  useTimer(() => {
-    let alive = true
+  useTimer(signal => {
     let expiry: ReturnType<typeof setTimeout> | undefined
     getMercuryDaemonStatus()
       .then(s => {
-        if (!alive) return
+        if (signal.aborted) return
         setStatus(s)
         setProbedAt(Date.now())
         setNote(prev => (prev ? 'refreshed ✓' : prev))
         expiry = startTimeout(() => {
-          if (alive) setNote(prev => (prev === 'refreshed ✓' ? null : prev))
+          if (!signal.aborted) setNote(prev => (prev === 'refreshed ✓' ? null : prev))
         }, NOTE_EXPIRE_MS)
       })
       .catch(() => {
-        if (!alive) return
+        if (signal.aborted) return
         setStatus(EMPTY_STATUS)
         setProbedAt(Date.now())
       })
     return () => {
-      alive = false
       if (expiry) stopTimeout(expiry)
     }
   }, [loadId])

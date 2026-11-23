@@ -202,14 +202,13 @@ export function GeminiConnect({
     })
   }
 
-  useLoad(() => {
+  useLoad(signal => {
     if (leg !== 'guide' && leg !== 'plan') return
     if (leg === 'guide' && step <= 4) {
       openStepPage(step)
       return
     }
     if (leg === 'guide' && step !== 6) return
-    let disposed = false
     const plan = leg === 'plan'
     const handles = plan
       ? beginGeminiPlanBrowserConnect({ onListenerIssue: message => setListenerNote(message) })
@@ -219,12 +218,12 @@ export function GeminiConnect({
     setPhase('waiting')
     handles.result
       .then(async () => {
-        if (disposed || settledRef.current) return
+        if (signal.aborted || settledRef.current) return
         const outcome = plan ? await finishGeminiPlanConnect() : await finishGeminiOauthConnect()
-        if (!disposed) settle(outcome.receipt, outcome.ok)
+        if (!signal.aborted) settle(outcome.receipt, outcome.ok)
       })
       .catch(error => {
-        if (disposed || settledRef.current) return
+        if (signal.aborted || settledRef.current) return
         const failure = errorMessageWithCause(error)
         const back = plan ? undefined : geminiGuideReturnStep(failure)
         if (back === undefined) {
@@ -234,7 +233,6 @@ export function GeminiConnect({
         enterStep(back, failure)
       })
     return () => {
-      disposed = true
       handlesRef.current = undefined
       handles.cancel('cancelled from the connect surface')
     }
@@ -420,14 +418,10 @@ function GeminiKeyLeg({
   const [note, setNote] = useState<string | null>(null)
   const [storing, setStoring] = useState(false)
   const storingRef = useRef(false)
-  useLoad(() => {
-    let live = true
+  useLoad(signal => {
     void openBrowser(GEMINI_API_KEY_PAGE.address).then(ok => {
-      if (live) setOpened(ok ? 'opened' : 'failed')
+      if (!signal.aborted) setOpened(ok ? 'opened' : 'failed')
     })
-    return () => {
-      live = false
-    }
   }, [])
   const submit = (raw: string): void => {
     if (storingRef.current) return

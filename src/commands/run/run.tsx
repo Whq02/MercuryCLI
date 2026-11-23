@@ -69,15 +69,11 @@ function MercuryRunInspector({ onClose }: { onClose: () => void }): React.ReactN
   const recovery = React.useSyncExternalStore(subscribeBootRecovery, getBootRecovery, getBootRecovery)
 
   const [missionRow, setMissionRow] = useState<MissionRow | null>(null)
-  useLoad(() => {
+  useLoad(signal => {
     if (!missionEnabled()) return
-    let alive = true
     void gatherMissionView().then(view => {
-      if (alive) setMissionRow(buildMissionRow(view))
+      if (!signal.aborted) setMissionRow(buildMissionRow(view))
     })
-    return () => {
-      alive = false
-    }
   }, [snapshot])
 
   const rows = React.useMemo(() => {

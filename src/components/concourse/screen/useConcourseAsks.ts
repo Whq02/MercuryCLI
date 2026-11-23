@@ -28,19 +28,15 @@ export function useConcourseAsks({ callbacks, setGroundPickerOpen, setNote }: Pi
 
   const [capacityAsk, setCapacityAsk] = useState(false)
   const capacityAskRef = useRef(false)
-  useLoad(() => {
-    let alive = true
+  useLoad(signal => {
     void import('../../../utils/switchboard/capacityCheck.js')
       .then(m => {
-        if (alive && m.needsCapacityAsk()) {
+        if (!signal.aborted && m.needsCapacityAsk()) {
           capacityAskRef.current = true
           setCapacityAsk(true)
         }
       })
       .catch(passedOver)
-    return () => {
-      alive = false
-    }
   }, [])
   const [trustAsk, setTrustAsk] = useState<{ dir: string } | null>(null)
   const trustAskRef = useRef<{ dir: string } | null>(null)

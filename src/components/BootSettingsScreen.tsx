@@ -171,10 +171,8 @@ export function BootSettingsScreen({
   );
   const [seatsTick, setSeatsTick] = useState(0);
   const [seatFacts, setSeatFacts] = useState<SeatCeilingFacts | null>(null);
-  useLoad(() => {
-    let active = true;
-    void seatCeilingFactsAsync().then(facts => { if (active) setSeatFacts(facts); });
-    return () => { active = false; };
+  useLoad(signal => {
+    void seatCeilingFactsAsync().then(facts => { if (!signal.aborted) setSeatFacts(facts); });
   }, [seatsTick, saveTick]);
   const [motionTick, setMotionTick] = useState(0);
   const motionSetting = useMemo(() => readMotionSetting(), [motionTick, saveTick]);
@@ -196,21 +194,16 @@ export function BootSettingsScreen({
 
   const [liveCount, setLiveCount] = useState<number | null>(null);
   const [apply, setApply] = useState<ApplyState>({ phase: 'closed' });
-  useLoad(() => {
-    let cancelled = false;
+  useLoad(signal => {
     void readLiveSessionCount(() => import('../daemon/concourseWorkers.js').then(sup => sup.countLiveConcourseWorkers())).then(count => {
-      if (!cancelled) setLiveCount(count);
+      if (!signal.aborted) setLiveCount(count);
     });
-    return () => {
-      cancelled = true;
-    };
   }, [saveTick]);
-  useLoad(() => {
+  useLoad(signal => {
     if (apply.phase !== 'loading') return;
-    let cancelled = false;
     void import('../daemon/concourseWorkers.js')
       .then(sup => {
-        if (cancelled) return;
+        if (signal.aborted) return;
         const currentProfile = readBootDefaultsProfile(path);
         const savedAtMs = currentProfile?.savedAt ? Date.parse(currentProfile.savedAt) : NaN;
         const workers = sup
@@ -246,7 +239,7 @@ export function BootSettingsScreen({
             const kind = spawnSwitchKindOfEnv(receipt.env);
             if (receipt.outcome !== 'queued' || kind === null) continue;
             void deliverSpawnSwitchReceipt(worker.sessionId, receipt, kind, {
-              isCancelled: () => cancelled,
+              isCancelled: () => signal.aborted,
               setApply,
             });
           }
@@ -254,11 +247,8 @@ export function BootSettingsScreen({
       })
       .catch(error => {
         passedOver(error);
-        if (!cancelled) setApply({ phase: 'ready', workers: [], error: errorMessage(error) });
+        if (!signal.aborted) setApply({ phase: 'ready', workers: [], error: errorMessage(error) });
       });
-    return () => {
-      cancelled = true;
-    };
   }, [apply.phase === 'closed', path]);
 
   const commitRow = (row: MenuRow, value: string | null): string => commitRowOf(ctx, row, value);

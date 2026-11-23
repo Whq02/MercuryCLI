@@ -237,16 +237,14 @@ export function BootHealthScreen({ onClose, fullScene, certificate: given }: Boo
   const [loadFailed, setLoadFailed] = useState<string | null>(null);
   const [runToken, setRunToken] = useState(0);
   const depthRef = useRef<'fast' | 'deep'>('fast');
-  useLoad(() => {
+  useLoad(signal => {
     if (given !== undefined) return;
-    let alive = true;
-    const ac = new AbortController();
     const acc = new Map<string, HealthSection>();
     runAndRecordHealthReport({
       depth: depthRef.current,
-      signal: ac.signal,
+      signal,
       onProgress: ev => {
-        if (!alive) return;
+        if (signal.aborted) return;
         const section = acc.get(ev.sectionId) ?? { id: ev.sectionId, title: ev.sectionTitle, checks: [] };
         section.checks = [...section.checks, ev.check];
         acc.set(ev.sectionId, section);
@@ -255,21 +253,17 @@ export function BootHealthScreen({ onClose, fullScene, certificate: given }: Boo
       },
     })
       .then(c => {
-        if (!alive) return;
+        if (signal.aborted) return;
         setCert(c);
         setLoadFailed(null);
       })
       .catch((e: unknown) => {
-        if (!alive) return;
+        if (signal.aborted) return;
         setLoadFailed(String(e));
       })
       .finally(() => {
-        if (alive) setProgress(null);
+        if (!signal.aborted) setProgress(null);
       });
-    return () => {
-      alive = false;
-      ac.abort();
-    };
   }, [runToken, given]);
   const rerun = (depth: 'fast' | 'deep'): void => {
     if (given !== undefined) return;

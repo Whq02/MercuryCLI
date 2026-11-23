@@ -88,14 +88,10 @@ export function MercuryFilesMenu({ root, width, rowBudget, onClose, onPick }: Pr
   const [reader, setReader] = useState<FileReaderDocument | null>(null)
   const [readHint, setReadHint] = useState(false)
 
-  useLoad(() => {
-    let alive = true
+  useLoad(signal => {
     void readFileTreeGit(root).then(state => {
-      if (alive) setGit(state)
+      if (!signal.aborted) setGit(state)
     })
-    return () => {
-      alive = false
-    }
   }, [root])
 
   const rows = useMemo(() => filterRows(flattenTree(children, open), filter), [children, open, filter])

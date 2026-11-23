@@ -38,9 +38,8 @@ export function useCrewmateModel(crewmate: CrewmateInView | null): CrewmateModel
   const file = crewmateMetadataFile(crewmate)
   const startedAt = crewmate?.facts?.startedAt
   const [recorded, setRecorded] = useState<{ file: string; identity: CrewmateRecord } | null>(null)
-  useTimer(() => {
+  useTimer(signal => {
     if (file === null) return
-    let alive = true
     let reading = false
     let pending = false
     const read = async (): Promise<void> => {
@@ -58,8 +57,8 @@ export function useCrewmateModel(crewmate: CrewmateInView | null): CrewmateModel
       } finally {
         reading = false
       }
-      if (alive) setRecorded(previous => previous?.file === file && previous.identity.model === identity.model && previous.identity.effort === identity.effort && previous.identity.effortOverride === identity.effortOverride ? previous : { file, identity })
-      if (pending && alive) {
+      if (!signal.aborted) setRecorded(previous => previous?.file === file && previous.identity.model === identity.model && previous.identity.effort === identity.effort && previous.identity.effortOverride === identity.effortOverride ? previous : { file, identity })
+      if (pending && !signal.aborted) {
         pending = false
         void read()
       }
@@ -67,7 +66,6 @@ export function useCrewmateModel(crewmate: CrewmateInView | null): CrewmateModel
     void read()
     const stop = subscribeAgentMetadataPath(file, () => { void read() })
     return () => {
-      alive = false
       stop()
     }
   }, [file, startedAt])

@@ -145,9 +145,8 @@ export function useCrewmateTranscript(crewmate: CrewmateInView | null, rosterSta
     return crewmateTranscriptFile(crewmate, { sessionId: connector.sessionId(), originalCwd: workspace.originalCwd || workspace.cwd })
   }, [crewmate])
   const agentId = crewmate === null ? null : crewmateTranscriptAgentId(crewmate)
-  useTimer(() => {
+  useTimer(signal => {
     if (taskId === undefined || file === null || agentId === null) return
-    let alive = true
     const read = async (): Promise<void> => {
       if (inFlight.current) {
         pendingRead.current = true
@@ -182,7 +181,7 @@ export function useCrewmateTranscript(crewmate: CrewmateInView | null, rosterSta
             }
           }
         }
-        if (!alive) return
+        if (signal.aborted) return
         lastStamp.current = readError !== null ? `${file}|${agentId}|error:${readError}` : fullStamp
         pruneLandedCrewmateLines(taskId, landedUserTexts(rows))
         setDisk({ taskId, rows, read: true, error: readError })
@@ -198,7 +197,6 @@ export function useCrewmateTranscript(crewmate: CrewmateInView | null, rosterSta
     void read()
     const stop = subscribeTranscriptFile(file, () => { void read() })
     return () => {
-      alive = false
       if (latestRead.current === read) latestRead.current = null
       stop()
     }

@@ -51,22 +51,18 @@ function ContextCommandCard({ context, onDone }: { context: LocalJSXCommandConte
   const tokens = useMercuryTokens()
   const [failure, setFailure] = useState<string | null>(null)
   const settled = useRef(false)
-  useLoad(() => {
-    let mounted = true
+  useLoad(signal => {
     void renderContextChart(context).then(
       rendered => {
-        if (!mounted || settled.current) return
+        if (signal.aborted || settled.current) return
         settled.current = true
         onDone(rendered)
       },
       (err: unknown) => {
-        if (!mounted || settled.current) return
+        if (signal.aborted || settled.current) return
         setFailure(errorMessage(err))
       },
     )
-    return () => {
-      mounted = false
-    }
   }, [])
   useInput((_input, key) => {
     if (!key.escape || settled.current) return

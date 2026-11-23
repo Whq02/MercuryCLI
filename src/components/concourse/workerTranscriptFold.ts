@@ -79,11 +79,10 @@ export function useWorkerTranscriptFold(
   const [fold, setFold] = useState<TranscriptFold | null>(null)
   const [malformed, setMalformed] = useState(0)
   const [readError, setReadError] = useState<string | null>(null)
-  useTimer(() => {
+  useTimer(signal => {
     setFold(null)
     setMalformed(0)
     setReadError(null)
-    const controller = new AbortController()
     let cursorRef: import('../../services/concourse/workerTranscript.js').TranscriptCursor | null = null
     let watcher: import('node:fs').FSWatcher | null = null
     let heartbeat: (() => void) | null = null
@@ -94,10 +93,10 @@ export function useWorkerTranscriptFold(
       import('node:fs'),
     ]).then(
       ([wt, fs]) => {
-        if (controller.signal.aborted) return
+        if (signal.aborted) return
         const path = wt.workerTranscriptPath({ sessionId, workspaceId })
         const drain = (): void => {
-          if (controller.signal.aborted) return
+          if (signal.aborted) return
           let pending: TranscriptFold | null = null
           let seq = liftSeq
           const receive = (records: Iterable<unknown>, rewound: boolean, alreadyShed = 0): void => {
@@ -166,14 +165,13 @@ export function useWorkerTranscriptFold(
             1000,
             Infinity,
             () => false,
-            { signal: controller.signal, onAbort: () => false, unref: true },
+            { signal, onAbort: () => false, unref: true },
           )
         }
         heartbeat = subscribeUiClock(5000, drain)
       },
     )
     return () => {
-      controller.abort()
       if (watcher) watcher.close()
       if (heartbeat) heartbeat()
     }
@@ -198,10 +196,9 @@ export function useCoordinatorAttribution(
 ): (m: { type?: string }) => 'user' | 'coordinator' {
   const [coordDigests, setCoordDigests] = useState<ReadonlySet<string>>(new Set())
   const ledgerStampRef = useRef('')
-  useLoad(() => {
-    let cancelled = false
+  useLoad(signal => {
     void import('../../daemon/concourseDispatch.js').then(d => {
-      if (cancelled) return
+      if (signal.aborted) return
       try {
         const st = statSync(d.concourseDispatchesPath())
         const stamp = `${sessionId}:${st.mtimeMs}:${st.size}`
@@ -224,9 +221,6 @@ export function useCoordinatorAttribution(
         return next
       })
     })
-    return () => {
-      cancelled = true
-    }
   }, [sessionId, fold])
   const digestMemoRef = useRef<Map<string, string>>(new Map())
   return useCallback(

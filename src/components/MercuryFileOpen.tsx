@@ -68,19 +68,15 @@ export function MercuryFileOpen({
   const [loadError, setLoadError] = useState<string | null>(null)
   const genRef = useRef(0)
 
-  useLoad(() => {
+  useLoad(signal => {
     setResults(null)
     setLoadError(null)
     const gen = ++genRef.current
-    let alive = true
     void runFileOpenLoad(query, loadFiles).then(outcome => {
-      if (!alive || gen !== genRef.current) return
+      if (signal.aborted || gen !== genRef.current) return
       setResults(outcome.results)
       setLoadError(outcome.error)
     })
-    return () => {
-      alive = false
-    }
   }, [query, loadFiles])
 
   const listRows = (results?.length ?? 0) > rowCap ? Math.max(1, rowCap - 1) : rowCap

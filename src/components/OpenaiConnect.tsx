@@ -63,12 +63,11 @@ export function OpenaiConnect({
     settle(outcome.receipt, outcome.ok)
   }
 
-  useLoad(() => {
-    let alive = true
+  useLoad(signal => {
     if (mode === 'device') {
       beginOpenaiDeviceConnect()
         .then(start => {
-          if (!alive) return
+          if (signal.aborted) return
           setDevice({ userCode: start.userCode, verifyHint: start.verifyHint })
           setPhase('waiting')
           start.result
@@ -76,9 +75,7 @@ export function OpenaiConnect({
             .catch(error => settle(openaiConnectFailedReceipt(error, 'device')))
         })
         .catch(error => settle(openaiConnectFailedReceipt(error, 'device')))
-      return () => {
-        alive = false
-      }
+      return
     }
     const handles = beginOpenaiBrowserConnect({
       onListenerIssue: message => setListenerNote(message),
@@ -93,7 +90,6 @@ export function OpenaiConnect({
         settle(openaiConnectFailedReceipt(error, 'browser'))
       })
     return () => {
-      alive = false
       handles.cancel('cancelled from the connect surface')
     }
   }, [mode])

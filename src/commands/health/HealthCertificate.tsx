@@ -325,15 +325,13 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
     setRunToken(t => t + 1)
   }, [])
 
-  useLoad(() => {
-    let alive = true
-    const ac = new AbortController()
+  useLoad(signal => {
     const acc = new Map<string, HealthSection>()
     report({
       depth: depthRef.current,
-      signal: ac.signal,
+      signal,
       onProgress: ev => {
-        if (!alive) return
+        if (signal.aborted) return
         const section = acc.get(ev.sectionId) ?? { id: ev.sectionId, title: ev.sectionTitle, checks: [] }
         section.checks = [...section.checks, ev.check]
         acc.set(ev.sectionId, section)
@@ -344,21 +342,17 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
       },
     })
       .then(c => {
-        if (!alive) return
+        if (signal.aborted) return
         checksRef.current = flatChecks(c.sections)
         setCert(c)
         setLoadError(null)
         setLoading(false)
       })
       .catch((e: unknown) => {
-        if (!alive) return
+        if (signal.aborted) return
         setLoadError(String(e))
         setLoading(false)
       })
-    return () => {
-      alive = false
-      ac.abort()
-    }
   }, [runToken])
 
   const checks = useMemo(

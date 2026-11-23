@@ -59,12 +59,11 @@ export function useFlatList<T>(opts: FlatListOptions<T>): FlatList<T> {
   const rowIdRef = React.useRef(rowId)
   rowIdRef.current = rowId
 
-  useLoad(() => {
-    let alive = true
+  useLoad(signal => {
     loadRef
       .current()
       .then(rows => {
-        if (!alive) return
+        if (signal.aborted) return
         listRef.current = rows
         const id = rowIdRef.current
         if (topRef.current) {
@@ -87,14 +86,11 @@ export function useFlatList<T>(opts: FlatListOptions<T>): FlatList<T> {
         setLoadError(null)
       })
       .catch((e: unknown) => {
-        if (!alive) return
+        if (signal.aborted) return
         listRef.current = []
         setRaw([])
         setLoadError(String(e))
       })
-    return () => {
-      alive = false
-    }
   }, [loadId])
 
   const list = raw ?? []

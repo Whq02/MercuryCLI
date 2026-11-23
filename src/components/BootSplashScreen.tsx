@@ -179,31 +179,23 @@ export function BootSplashScreen(): React.ReactNode {
         : null;
 
   const [liveCount, setLiveCount] = useState<number>(0);
-  useLoad(() => {
+  useLoad(signal => {
     if (chatBoot) return;
-    let cancelled = false;
     void import('../daemon/concourseWorkers.js')
       .then(sup => {
-        if (!cancelled) setLiveCount(sup.countLiveConcourseWorkers());
+        if (!signal.aborted) setLiveCount(sup.countLiveConcourseWorkers());
       })
       .catch(passedOver);
-    return () => {
-      cancelled = true;
-    };
   }, [chatBoot]);
   const [runningByKey, setRunningByKey] = useState<ReadonlyMap<string, number>>(() => new Map());
-  useLoad(() => {
+  useLoad(signal => {
     if (chatOnlyBoot()) return;
-    let cancelled = false;
     void import('../services/concourse/projectActivity.js')
       .then(async m => {
         const counts = await m.runningByProjectKey();
-        if (!cancelled && counts.size > 0) setRunningByKey(counts);
+        if (!signal.aborted && counts.size > 0) setRunningByKey(counts);
       })
       .catch(passedOver);
-    return () => {
-      cancelled = true;
-    };
   }, []);
   const runningOf = (dir: string): number => {
     try {

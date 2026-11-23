@@ -42,24 +42,20 @@ export function MetaConnect({ onResult, onBack }: {
     settled.current = true
     onResult(result)
   }
-  useLoad(() => {
+  useLoad(signal => {
     if (step !== 'device') return
-    let disposed = false
     void runMetaDeviceLogin({
-      cancelled: () => disposed || cancelled.current,
+      cancelled: () => signal.aborted || cancelled.current,
       onEvent: e => {
-        if (disposed) return
+        if (signal.aborted) return
         setEvent(e)
         if (e.phase === 'waiting' && e.polls === 0) {
           void openBrowser(e.start.verificationUriComplete ?? e.start.verificationUri)
         }
       },
     }).then(outcome => {
-      if (!disposed || outcome.settledAfterCancel) finish({ ok: outcome.ok, receipt: outcome.receipt })
+      if (!signal.aborted || outcome.settledAfterCancel) finish({ ok: outcome.ok, receipt: outcome.receipt })
     })
-    return () => {
-      disposed = true
-    }
   }, [step])
   const [value, setValue] = useState('')
   const [cursor, setCursor] = useState(0)

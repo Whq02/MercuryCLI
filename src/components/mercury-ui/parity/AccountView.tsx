@@ -72,17 +72,13 @@ export function AccountView({
   const [identities, setIdentities] = useState<Identities>({})
   const armedRemovalRef = useRef<{ id: string; at: number } | null>(null)
 
-  useLoad(() => {
-    let alive = true
+  useLoad(signal => {
     void import('../../../services/providers/providerDiscovery.js')
       .then(m => m.refreshProviderDiscovery('local'))
       .then(() => {
-        if (alive) setVersion(v => v + 1)
+        if (!signal.aborted) setVersion(v => v + 1)
       })
       .catch(passedOver)
-    return () => {
-      alive = false
-    }
   }, [])
 
   void version
@@ -90,29 +86,23 @@ export function AccountView({
   const scopeSlots = groups.flatMap(group => group.slots.filter(slot => slot.scope !== undefined))
   const [, setUsageVersion] = useState(0)
   const usageFamiliesKey = groups.filter(group => group.slots.some(slot => slot.active && slot.signedIn)).map(group => group.family.id).join('|')
-  useLoad(() => {
-    let alive = true
+  useLoad(signal => {
     for (const group of groups) {
       if (!group.slots.some(slot => slot.active && slot.signedIn)) continue
       void refreshProviderUsage(group.family.id, { reason: 'open' }).then(() => {
-        if (alive) setUsageVersion(value => value + 1)
+        if (!signal.aborted) setUsageVersion(value => value + 1)
       })
     }
-    return () => { alive = false }
   }, [usageFamiliesKey])
 
   const scopeDirsKey = scopeSlots.map(slot => slot.id).join('|')
-  useLoad(() => {
-    let alive = true
+  useLoad(signal => {
     for (const slot of scopeSlots) {
       if (slot.scope!.foreignHarness) continue
       setIdentities(prev => (prev[slot.id] ? prev : { ...prev, [slot.id]: { state: 'checking' } }))
       void resolveLiveScopeIdentity(slot.id).then(v => {
-        if (alive) setIdentities(prev => ({ ...prev, [slot.id]: v }))
+        if (!signal.aborted) setIdentities(prev => ({ ...prev, [slot.id]: v }))
       })
-    }
-    return () => {
-      alive = false
     }
   }, [scopeDirsKey, version])
 

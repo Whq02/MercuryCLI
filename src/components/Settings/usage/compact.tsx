@@ -194,16 +194,12 @@ export function UsageCompact({ openToken, width, rowBudget }: { openToken?: numb
   const plan = orderUsageSections(usageSectionPlan(providerFamilyPresences()), liveSignInRecency(), liveSessionFamily())
   const [, setSample] = useState(0)
   const asks = plan.filter(section => section.family.credentialed).map(section => section.id).join('|')
-  useLoad(() => {
-    let disposed = false
+  useLoad(signal => {
     for (const id of asks.split('|').filter(Boolean) as ProviderFamilyId[]) {
       const operator = id === 'anthropic' && isClaudeAISubscriber() && openToken !== undefined && markOpenAsked(openToken)
       void refreshProviderUsage(id, { reason: operator ? 'operator' : 'open' }).then(() => {
-        if (!disposed) setSample(s => s + 1)
+        if (!signal.aborted) setSample(s => s + 1)
       })
-    }
-    return () => {
-      disposed = true
     }
   }, [openToken, asks])
   const lines = usageCompactLines(plan)

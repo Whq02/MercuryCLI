@@ -110,10 +110,8 @@ export function Config({
   items.push(...configCompactRows(rowKit))
   const [seatFacts, setSeatFacts] = useState<SeatCeilingFacts | null>(null)
   const configStamp = useSyncExternalStore(subscribeGlobalConfigCache, getGlobalConfigCacheStamp, getGlobalConfigCacheStamp)
-  useLoad(() => {
-    let active = true
-    void seatCeilingFactsAsync().then(facts => { if (active) setSeatFacts(facts) })
-    return () => { active = false }
+  useLoad(signal => {
+    void seatCeilingFactsAsync().then(facts => { if (!signal.aborted) setSeatFacts(facts) })
   }, [version, configStamp])
   const jevStamp = useSyncExternalStore(subscribeJevSessionFacts, jevSessionFactsStamp, jevSessionFactsStamp)
   const localServer = useLocalServerConfig(version)

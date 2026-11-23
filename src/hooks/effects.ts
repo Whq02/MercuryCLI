@@ -7,17 +7,29 @@ import {
 
 type Undo = () => void
 type UndoableEffect = () => Undo | undefined
+type LivedEffect = (signal: AbortSignal) => void | Undo
+
+function lived(effect: LivedEffect): EffectCallback {
+  return () => {
+    const life = new AbortController()
+    const undo = effect(life.signal)
+    return () => {
+      life.abort()
+      if (typeof undo === 'function') undo()
+    }
+  }
+}
 
 export function useMount(effect: EffectCallback): void {
   useEffect(effect, [])
 }
 
-export function useTimer(start: EffectCallback, deps?: DependencyList): void {
-  useEffect(start, deps)
+export function useTimer(start: LivedEffect, deps?: DependencyList): void {
+  useEffect(lived(start), deps)
 }
 
-export function useLoad(load: EffectCallback, deps?: DependencyList): void {
-  useEffect(load, deps)
+export function useLoad(load: LivedEffect, deps?: DependencyList): void {
+  useEffect(lived(load), deps)
 }
 
 export function useSubscription(

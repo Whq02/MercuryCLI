@@ -22,15 +22,13 @@ export function NousConnect({ onResult, onBack }: {
   const [step, setStep] = useState<'choice' | 'device' | 'key'>('choice')
   const [event, setEvent] = useState<NousDeviceLoginEvent>({ phase: 'starting' })
   const cancelled = useRef(false)
-  useLoad(() => {
+  useLoad(signal => {
     if (step !== 'device') return
-    let disposed = false
-    void runNousDeviceLogin({ cancelled: () => disposed || cancelled.current, onEvent: e => {
-      if (disposed) return
+    void runNousDeviceLogin({ cancelled: () => signal.aborted || cancelled.current, onEvent: e => {
+      if (signal.aborted) return
       setEvent(e)
       if (e.phase === 'waiting' && e.polls === 0) void openBrowser(e.start.verificationUriComplete ?? e.start.verificationUri)
-    } }).then(outcome => { if (!disposed || outcome.settledAfterCancel) onResult(outcome) })
-    return () => { disposed = true }
+    } }).then(outcome => { if (!signal.aborted || outcome.settledAfterCancel) onResult(outcome) })
   }, [step])
   const [value, setValue] = useState('')
   const [cursor, setCursor] = useState(0)

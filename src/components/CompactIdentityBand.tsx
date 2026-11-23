@@ -74,13 +74,9 @@ export function CompactIdentityBand(): React.ReactNode {
   const cwd = useFocusedWorkspaceCwd()
   const viewed = useViewedCrewmate()
   const [git, setGit] = useState<Snapshot<{ data: GitData }> | null>(null)
-  useLoad(() => {
-    let alive = true
+  useLoad(signal => {
     setGit(null)
-    gitSnapshot().then(snapshot => alive && setGit(snapshot))
-    return () => {
-      alive = false
-    }
+    gitSnapshot().then(snapshot => !signal.aborted && setGit(snapshot))
   }, [cwd])
   if (form === 'none') return null
   const dir = pathTailLabel(cwd)

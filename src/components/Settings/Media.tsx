@@ -19,13 +19,11 @@ export function useMediaConfig(): {
   const [config, setConfig] = React.useState<MediaConfig>({})
   const [error, setError] = React.useState('')
   const settings = { enabled: initial.enabled, root: initial.root, serverPath: initial.serverPath, ...draft }
-  useLoad(() => {
-    let active = true
+  useLoad(signal => {
     const current = { ...initial, ...draft }
     void Promise.all([readMediaCatalogue(current), mediaConfigModule(current).then(module => module.readMediaConfig(mediaRoot(current)))]).then(([catalogue, config]) => {
-      if (active) { setCatalogue(catalogue); setConfig(config); setError('') }
-    }, error => { if (active) setError(error instanceof Error ? error.message : String(error)) })
-    return () => { active = false }
+      if (!signal.aborted) { setCatalogue(catalogue); setConfig(config); setError('') }
+    }, error => { if (!signal.aborted) setError(error instanceof Error ? error.message : String(error)) })
   }, [initial, draft.root])
   const change = (patch: MediaSettings): void => { setDraft(current => ({ ...current, ...patch })); setError('') }
   return {

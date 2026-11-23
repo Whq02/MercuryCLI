@@ -390,15 +390,14 @@ export function LocalSetupDialog({
     stateRef.current = next
     setState(next)
   }, [])
-  useLoad(() => {
-    let live = true
+  useLoad(signal => {
     const controller = new AbortController()
     controllerRef.current = controller
     const consent = (ask: LocalSetupAsk): Promise<LocalSetupConsent> => {
       if (stopRef.current) return Promise.resolve('stop')
       setInput('')
       setInputCursor(0)
-      if (live) dispatch({ kind: 'ask', ask })
+      if (!signal.aborted) dispatch({ kind: 'ask', ask })
       return new Promise(resolve => {
         answerRef.current = resolve
       })
@@ -406,16 +405,15 @@ export function LocalSetupDialog({
     void (async () => {
       try {
         for await (const event of road(consent, controller.signal)) {
-          if (!live) break
+          if (signal.aborted) break
           dispatch(event)
         }
-        if (live) dispatch({ kind: 'ended' })
+        if (!signal.aborted) dispatch({ kind: 'ended' })
       } catch (error) {
-        if (live) dispatch({ kind: 'error', words: error instanceof Error ? error.message : String(error) })
+        if (!signal.aborted) dispatch({ kind: 'error', words: error instanceof Error ? error.message : String(error) })
       }
     })()
     return () => {
-      live = false
       stopRef.current = true
       controller.abort()
       answerRef.current?.('stop')

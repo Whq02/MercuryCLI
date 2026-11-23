@@ -225,15 +225,11 @@ export function FullWindowLine({ usage }: { usage: Pick<ActiveSourceUsage, 'wind
 export function useOwnerUsage(id: ProviderFamilyId, credentialed: boolean): ActiveSourceUsage {
   useUsageLayout()
   const [, setSample] = useState(0)
-  useLoad(() => {
+  useLoad(signal => {
     if (!credentialed) return
-    let disposed = false
     void refreshProviderUsage(id, { reason: 'open' }).then(() => {
-      if (!disposed) setSample(s => s + 1)
+      if (!signal.aborted) setSample(s => s + 1)
     })
-    return () => {
-      disposed = true
-    }
   }, [id, credentialed])
   return usageForProvider(id)
 }

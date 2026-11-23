@@ -26,15 +26,13 @@ export function OrcarouterConnect({ onResult, onBack }: {
   const [cursor, setCursor] = useState(0)
   const [note, setNote] = useState<string | null>(null)
   const [storing, setStoring] = useState(false)
-  useLoad(() => {
+  useLoad(signal => {
     if (step !== 'device') return
-    let disposed = false
-    void runOrcarouterDeviceLogin({ cancelled: () => disposed || cancelled.current, onEvent: next => {
-      if (disposed) return
+    void runOrcarouterDeviceLogin({ cancelled: () => signal.aborted || cancelled.current, onEvent: next => {
+      if (signal.aborted) return
       setEvent(next)
       if (next.phase === 'waiting' && next.polls === 0) void openBrowser(next.start.verificationUriComplete ?? next.start.verificationUri)
-    } }).then(outcome => { if (!disposed || outcome.settledAfterCancel) onResult(outcome) })
-    return () => { disposed = true }
+    } }).then(outcome => { if (!signal.aborted || outcome.settledAfterCancel) onResult(outcome) })
   }, [step])
   useInput((input, key, keyEvent) => {
     if (step === 'choice') return

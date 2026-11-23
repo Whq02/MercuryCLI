@@ -12,18 +12,16 @@ import type { PermissionRequestProps } from './PermissionRequest.js'
 
 export function MediaPermissionRequest(props: PermissionRequestProps & { kind: MediaKind }): React.ReactNode {
   const [detail, setDetail] = React.useState<string | null>(null)
-  useLoad(() => {
-    let active = true
+  useLoad(signal => {
     const { input, tool, cwd } = props.toolUseConfirm
     const project = cwd ?? getCwd()
     const detail = tool.mcpInfo?.toolName === 'pipeline_run'
       ? readMediaPipelineDetails(input, project)
       : readMediaGenerationDetails(props.kind, input, project)
     void detail.then(
-      text => { if (active) setDetail(text) },
-      error => { if (active) setDetail(String(error instanceof Error ? error.message : error)) },
+      text => { if (!signal.aborted) setDetail(text) },
+      error => { if (!signal.aborted) setDetail(String(error instanceof Error ? error.message : error)) },
     )
-    return () => { active = false }
   }, [props.kind, props.toolUseConfirm.input, props.toolUseConfirm.cwd, props.toolUseConfirm.tool])
   const title = props.kind === 'image' ? 'Local image' : 'Local video'
   if (detail === null) return <PermissionDialog title={title} crewmate={props.toolUseConfirm.crewmate} workerBadge={props.workerBadge}><Text>{String(props.toolUseConfirm.input.model ?? `Default ${props.kind}`)}</Text></PermissionDialog>

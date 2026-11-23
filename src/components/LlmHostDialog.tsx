@@ -50,12 +50,11 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   useTimer(() => { if (!host || question?.step === 'pod-logs') return; const timer = startInterval(() => setNow(Date.now()), 1000); return () => stopInterval(timer) }, [host, question?.step])
   const answerRef = useRef<((value: string | null) => void) | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
-  useLoad(() => {
-    let live = true
+  useLoad(signal => {
     const controller = new AbortController()
     controllerRef.current = controller
     void road(plan => {
-      if (!live || controller.signal.aborted) return Promise.resolve(null)
+      if (signal.aborted || controller.signal.aborted) return Promise.resolve(null)
       if (plan.step === 'rent-confirm') setHistory(rows => rows.filter(row => row.title !== 'Tune'))
       setValue(plan.initial ?? '')
       setOffset(plan.initial?.length ?? 0)
@@ -69,7 +68,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
       setQuestion(plan)
       return new Promise(resolve => { answerRef.current = resolve })
     }, event => {
-      if (!live) return
+      if (signal.aborted) return
       setHistory(rows => event.host && rows.at(-1)?.host?.id === event.host.id ? [...rows.slice(0, -1), event] : [...rows, event])
       if (event.host) {
         setHost(event.host)
@@ -86,11 +85,11 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
         })
       }
     }, controller.signal).then(done => {
-      if (live) { setQuestion(null); setResult(done) }
+      if (!signal.aborted) { setQuestion(null); setResult(done) }
     }, error => {
-      if (live) { setQuestion(null); setResult({ ok: false, words: error instanceof Error ? error.message : String(error) }) }
+      if (!signal.aborted) { setQuestion(null); setResult({ ok: false, words: error instanceof Error ? error.message : String(error) }) }
     })
-    return () => { live = false; controller.abort(); answerRef.current?.(null); answerRef.current = null }
+    return () => { controller.abort(); answerRef.current?.(null); answerRef.current = null }
   }, [road])
   const pending = history.length === 0 ? 'Reading models and prices…' : words.running
   const line = result ? words.ended : question?.title ?? pending

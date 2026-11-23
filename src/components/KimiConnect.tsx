@@ -48,14 +48,13 @@ export function KimiConnect({
     onResult({ ok, receipt })
   }
 
-  useLoad(() => {
+  useLoad(signal => {
     if (leg !== 'device') return
-    let disposed = false
     void runKimiDeviceLogin({
       region,
-      cancelled: () => disposed || cancelledRef.current,
+      cancelled: () => signal.aborted || cancelledRef.current,
       onEvent: event => {
-        if (disposed) return
+        if (signal.aborted) return
         if (event.phase === 'starting') {
           setPhase('starting')
           return
@@ -73,14 +72,11 @@ export function KimiConnect({
         }
       },
     }).then(outcome => {
-      if (disposed) return
+      if (signal.aborted) return
       settle(outcome.receipt, outcome.ok)
     }).catch(error => {
-      if (!disposed) settle(errorMessageWithCause(error))
+      if (!signal.aborted) settle(errorMessageWithCause(error))
     })
-    return () => {
-      disposed = true
-    }
   }, [leg])
 
   useInput((input, key, event) => {

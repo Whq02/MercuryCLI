@@ -218,26 +218,24 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
   const [workspaceDir] = useState(() => givenWorkspace ?? process.cwd());
 
   const [catalogue, setCatalogue] = useState<KitCatalogue>(() => given ?? LOADING_KIT_CATALOGUE);
-  useLoad(() => {
+  useLoad(signal => {
     if (given !== undefined) {
       setCatalogue(given);
       return;
     }
-    let cancelled = false;
     const enumerate = (): void => {
       void enumerateKitCatalogueFresh(process.cwd())
         .then(read => {
-          if (!cancelled) setCatalogue(read);
+          if (!signal.aborted) setCatalogue(read);
         })
         .catch(() => {
-          if (!cancelled) setCatalogue(UNREADABLE_KIT_CATALOGUE);
+          if (!signal.aborted) setCatalogue(UNREADABLE_KIT_CATALOGUE);
         });
     };
     enumerate();
     void skillChangeDetector.rearmWatchRoots().catch(passedOver);
     const unsubscribe = skillChangeDetector.subscribe(enumerate);
     return () => {
-      cancelled = true;
       unsubscribe();
     };
   }, [given]);
@@ -305,14 +303,10 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
   });
 
   const [liveCount, setLiveCount] = useState<number | null>(null);
-  useLoad(() => {
-    let cancelled = false;
+  useLoad(signal => {
     void readKitLiveSessionCount(() => import('../daemon/concourseWorkers.js').then(sup => sup.countLiveConcourseWorkers())).then(count => {
-      if (!cancelled) setLiveCount(count);
+      if (!signal.aborted) setLiveCount(count);
     });
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   const list = useInteractiveList<KitRow>({

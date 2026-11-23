@@ -128,7 +128,7 @@ export function MercuryContentSearch({
   const genRef = useRef(0)
   const abortRef = useRef<AbortController | null>(null)
 
-  useLoad(() => {
+  useLoad(signal => {
     const gen = ++genRef.current
     abortRef.current?.abort()
     const q = query.trim()
@@ -139,16 +139,14 @@ export function MercuryContentSearch({
     }
     const controller = new AbortController()
     abortRef.current = controller
-    let alive = true
     setMatches(null)
     setSearchError(null)
     void runContentSearch(q, controller.signal, loadMatches).then(outcome => {
-      if (!alive || gen !== genRef.current || outcome === null) return
+      if (signal.aborted || gen !== genRef.current || outcome === null) return
       setMatches(outcome.matches)
       setSearchError(outcome.error)
     })
     return () => {
-      alive = false
       controller.abort()
     }
   }, [query, loadMatches])

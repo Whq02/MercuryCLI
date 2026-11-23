@@ -27,17 +27,13 @@ function readBranchSync(cwd: string): string | null {
 export function useFocusedWorkspaceBranch(): WorkspaceBranchV1 {
   const cwd = useFocusedWorkspaceCwd()
   const [branch, setBranch] = useState<string | null>(() => readBranchSync(cwd))
-  useLoad(() => {
-    let alive = true
+  useLoad(signal => {
     setBranch(readBranchSync(cwd))
     execFile('git', gitArgs(['rev-parse', '--abbrev-ref', 'HEAD'], cwd), { windowsHide: true, cwd, timeout: 500 }, (err, stdout) => {
-      if (!alive || err) return
+      if (signal.aborted || err) return
       const b = stdout.trim()
       if (b && b !== 'HEAD') setBranch(b)
     })
-    return () => {
-      alive = false
-    }
   }, [cwd])
   return { cwd, folder: workspaceFolderOf(cwd), branch }
 }

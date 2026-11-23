@@ -43,8 +43,7 @@ export function TerminalProfileCard({
     onDone(choice)
   }
 
-  useTimer(() => {
-    const controller = new AbortController()
+  useTimer(signal => {
     let ticks = 0
     void pollUntil(
       () => {
@@ -62,31 +61,25 @@ export function TerminalProfileCard({
       RERESOLVE_TICK_MS,
       Infinity,
       () => false,
-      { signal: controller.signal, onAbort: () => false },
+      { signal, onAbort: () => false },
     )
-    return () => controller.abort()
   }, [])
 
-  useLoad(() => {
-    let alive = true
+  useLoad(signal => {
     void detectWindowsHostInventory().then(inv => {
-      if (alive && process.platform === 'win32') setInventory(inv)
+      if (!signal.aborted && process.platform === 'win32') setInventory(inv)
     })
-    return () => {
-      alive = false
-    }
   }, [])
 
   const [installWatch, setInstallWatch] = React.useState<HostSetupAction['id'] | null>(null)
-  useTimer(() => {
+  useTimer(signal => {
     if (installWatch === null || process.platform !== 'win32') return
-    const controller = new AbortController()
     let ticks = 0
     void pollUntil(
       async () => {
         if (ticks > 0) {
           const inv = await detectWindowsHostInventory()
-          if (controller.signal.aborted) return false
+          if (signal.aborted) return false
           setInventory(inv)
           const landed =
             installWatch === 'install-windows-terminal'
@@ -103,9 +96,8 @@ export function TerminalProfileCard({
       INSTALL_WATCH_TICK_MS,
       Infinity,
       () => false,
-      { signal: controller.signal, onAbort: () => false },
+      { signal, onAbort: () => false },
     )
-    return () => controller.abort()
   }, [installWatch])
 
   const failing = resolution.checks.filter(c => c.requirement === 'required' && !c.ok)
