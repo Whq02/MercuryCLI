@@ -4,8 +4,6 @@ import { truecolorActive } from '../../ink/colorize.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import { expandTabs } from '../../ink/tabstops.js'
 import { logError } from '../../utils/log.js'
-import { isRecord } from '../../utils/isRecord.js'
-import { passedOver } from '../../utils/passedOver.js'
 
 function charWidth(char: string): number {
   return stringWidth(char)
@@ -251,22 +249,11 @@ type HighlightApi = {
 
 let highlighter: HighlightApi | null = null
 
-function isHighlightApi(value: unknown): value is HighlightApi {
-  return isRecord(value) && typeof value.highlight === 'function' && typeof value.getLanguage === 'function'
-}
-
 function getHighlighter(): HighlightApi {
   if (highlighter) return highlighter
-  const loaded: unknown = require('highlight.js')
-  if (isHighlightApi(loaded)) {
-    highlighter = loaded
-    return highlighter
-  }
-  if (isRecord(loaded) && isHighlightApi(loaded.default)) {
-    highlighter = loaded.default
-    return highlighter
-  }
-  throw new Error('color-diff: highlight.js module missing highlight API')
+  const loaded = require('highlight.js') as { default?: HighlightApi } & HighlightApi
+  highlighter = typeof loaded.highlight === 'function' ? loaded : (loaded.default as HighlightApi)
+  return highlighter
 }
 
 
@@ -317,6 +304,12 @@ function detectLanguage(filePath: string, firstLine?: string): string | undefine
 }
 
 
+type EmitterNode = {
+  scope?: string
+  kind?: string
+  children?: Array<EmitterNode | string>
+}
+
 let emitterShapeErrorLogged = false
 
 function highlightLine(line: string, language: string | undefined, theme: DiffTheme): StyledBlock[] {
@@ -326,17 +319,27 @@ function highlightLine(line: string, language: string | undefined, theme: DiffTh
   let result: unknown
   try {
     result = getHighlighter().highlight(`${line}\n`, { language, ignoreIllegals: true })
-  } catch (error) {
-    passedOver(error)
+  } catch {
     return fallback
   }
-  const emitter = isRecord(result) ? (result._emitter ?? result.emitter) : undefined
-  const root = isRecord(emitter) ? (emitter.rootNode ?? emitter.root) : undefined
-  const rootChildren = isRecord(root) && Array.isArray(root.children) ? root.children : null
-  if (rootChildren === null) {
+  const emitter =
+    (result as { _emitter?: unknown })._emitter ?? (result as { emitter?: unknown }).emitter
+  const root =
+    typeof emitter === 'object' && emitter !== null
+      ? ((emitter as { rootNode?: unknown; root?: unknown }).rootNode ??
+        (emitter as { root?: unknown }).root)
+      : undefined
+  const rootOk =
+    typeof root === 'object' &&
+    root !== null &&
+    Array.isArray((root as { children?: unknown }).children)
+  if (!rootOk) {
     if (!emitterShapeErrorLogged) {
       emitterShapeErrorLogged = true
-      const keys = isRecord(emitter) ? Object.keys(emitter).join(', ') : String(emitter)
+      const keys =
+        typeof emitter === 'object' && emitter !== null
+          ? Object.keys(emitter).join(', ')
+          : String(emitter)
       logError(
         `color-diff: highlighter emitter shape mismatched (keys: ${keys}); syntax highlighting is disabled`,
       )
@@ -344,22 +347,17 @@ function highlightLine(line: string, language: string | undefined, theme: DiffTh
     return fallback
   }
   const blocks: StyledBlock[] = []
-  const visit = (node: unknown, scope: string | undefined): void => {
+  const visit = (node: EmitterNode | string, scope: string | undefined): void => {
     if (typeof node === 'string') {
       if (node !== '') {
         blocks.push({ text: node, fg: colorForScope(scope, node, theme), bg: theme.background })
       }
       return
     }
-    if (!isRecord(node)) return
-    const nodeScope = typeof node.scope === 'string' ? node.scope : undefined
-    const nodeKind = typeof node.kind === 'string' ? node.kind : undefined
-    const ownScope = nodeScope ?? nodeKind ?? scope
-    if (Array.isArray(node.children)) {
-      for (const child of node.children) visit(child, ownScope)
-    }
+    const ownScope = node.scope ?? node.kind ?? scope
+    for (const child of node.children ?? []) visit(child, ownScope)
   }
-  for (const child of rootChildren) visit(child, undefined)
+  for (const child of (root as EmitterNode).children ?? []) visit(child, undefined)
   return blocks.length > 0 ? blocks : fallback
 }
 
