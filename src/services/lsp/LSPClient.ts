@@ -9,7 +9,7 @@ import {
   StreamMessageReader,
   StreamMessageWriter,
   Trace,
-} from 'vscode-jsonrpc/node.js'
+} from 'vscode-jsonrpc/node'
 import type { InitializeParams, InitializeResult, ServerCapabilities } from 'vscode-languageserver-protocol'
 
 import { logForDebugging } from '../../utils/debug.js'
@@ -171,10 +171,9 @@ async function startClient(
       if (state.childProcess !== proc || state.isStopping) return
       state.startFailed = true
       state.startError = error
-      logError(new Error(`LSP server ${serverName} process error: ${error.message}`))
+      logForDebugging(`LSP server ${serverName} process error: ${error.message}`, { level: 'error' })
     }
     proc.on('error', state.onChildError)
-
     state.onChildExit = (code: number | null, signal: NodeJS.Signals | null): void => {
       if (state.childProcess !== proc || state.isStopping) return
       state.isInitialized = false
@@ -209,15 +208,15 @@ async function startClient(
         state.startFailed = true
         state.startError = error
       }
-      logError(new Error(`LSP server ${serverName} connection error: ${error.message}`))
+      logForDebugging(`LSP server ${serverName} connection error: ${error.message}`, { level: 'error' })
     })
 
     conn.onClose(() => {
       if (state.connection !== conn || state.isStopping) return
+      logForDebugging(`LSP server ${serverName} connection closed`)
       if (state.isInitialized) {
         state.isInitialized = false
-        logForDebugging(`LSP server ${serverName} connection closed unexpectedly`)
-        notifyClientCrash(state, new Error(`LSP server ${serverName} connection closed unexpectedly`))
+        notifyClientCrash(state, new Error(`LSP server ${serverName} connection closed`))
       }
     })
 
@@ -230,7 +229,7 @@ async function startClient(
       })
     } catch (error) {
       logForDebugging(
-        `LSP server ${serverName}: failed to enable trace: ${error instanceof Error ? error.message : String(error)}`,
+        `LSP server ${serverName} trace enable failed: ${error instanceof Error ? error.message : String(error)}`,
       )
     }
 
@@ -239,7 +238,7 @@ async function startClient(
     const err = error instanceof Error ? error : new Error(String(error))
     state.startFailed = true
     state.startError = err
-    logError(new Error(`LSP server ${serverName} failed to start: ${err.message}`))
+    logForDebugging(`LSP server ${serverName} failed to start: ${err.message}`, { level: 'error' })
     throw err
   }
 }
@@ -267,7 +266,7 @@ async function stopClient(
 
     if (conn !== null) {
       if (!listening) {
-        logForDebugging(`LSP server ${serverName}: skipping shutdown handshake (process not listening)`)
+        logForDebugging(`LSP server ${serverName} is already gone; no shutdown handshake`)
       } else {
         try {
           const shutdownReq = conn.sendRequest('shutdown', null)
@@ -285,7 +284,7 @@ async function stopClient(
         conn.dispose()
       } catch (error) {
         logForDebugging(
-          `LSP server ${serverName}: error disposing connection: ${error instanceof Error ? error.message : String(error)}`,
+          `LSP server ${serverName} connection dispose failed: ${error instanceof Error ? error.message : String(error)}`,
         )
       }
       state.connection = null
@@ -334,7 +333,7 @@ async function stopClient(
     if (gracefulError !== undefined) {
       state.startFailed = true
       state.startError = gracefulError
-      logError(new Error(`LSP server ${serverName} graceful stop failed: ${gracefulError.message}`))
+      logForDebugging(`LSP server ${serverName} graceful shutdown failed: ${gracefulError.message}`)
     }
   }
 }
@@ -387,7 +386,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
         return result
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error))
-        logError(new Error(`LSP server ${serverName} initialize failed: ${err.message}`))
+        logForDebugging(`LSP server ${serverName} initialize failed: ${err.message}`, { level: 'error' })
         throw error
       }
     },
@@ -402,7 +401,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
           : await conn.sendRequest<T>(method, params)
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error))
-        logError(new Error(`LSP request ${method} to ${serverName} failed: ${err.message}`))
+        logForDebugging(`LSP server ${serverName} request ${method} failed: ${err.message}`, { level: 'error' })
         throw error
       }
     },
@@ -412,14 +411,14 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
         await conn.sendNotification(method, params)
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error))
-        logError(new Error(`LSP notification ${method} to ${serverName} failed: ${err.message}`))
+        logForDebugging(`LSP server ${serverName} notification ${method} failed: ${err.message}`, { level: 'error' })
         throw error
       }
     },
     onNotification<T = unknown>(method: string, handler: (params: T) => void | Promise<void>) {
       state.notificationHandlers.push({ method, handler })
       if (state.connection === null) {
-        logForDebugging(`LSP server ${serverName}: queued notification handler ${method} (not started yet)`)
+        logForDebugging(`LSP server ${serverName}: queued notification handler ${method} (no connection yet)`)
         return
       }
       if (state.startFailed) {
@@ -430,13 +429,13 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
     onRequest<T = unknown, R = unknown>(method: string, handler: (params: T) => R | Promise<R>) {
       state.requestHandlers.push({ method, handler })
       if (state.connection === null) {
-        logForDebugging(`LSP server ${serverName}: queued request handler ${method} (not started yet)`)
+        logForDebugging(`LSP server ${serverName}: queued request handler ${method} (no connection yet)`)
         return
       }
       if (state.startFailed) {
         throw state.startError ?? new Error(`LSP server ${serverName} failed to start`)
       }
-      state.connection.onRequest(method, handler)
+      state.connection.onRequest<unknown, unknown>(method, handler)
     },
     stop(options) {
       return stopClient(state, options)
