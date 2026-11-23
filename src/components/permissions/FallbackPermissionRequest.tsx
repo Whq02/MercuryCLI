@@ -39,7 +39,6 @@ export function FallbackPermissionRequest({
   toolUseConfirm,
   onDone,
   onReject,
-  verbose,
   workerBadge,
   title,
   body,
@@ -127,7 +126,7 @@ export function FallbackPermissionRequest({
   } else {
     const useMessage = toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input, {
       theme: resolveThemeName(),
-      verbose,
+      verbose: true,
     })
     const isStringMessage =
       typeof useMessage === 'string' || useMessage === null || useMessage === undefined
