@@ -82,7 +82,8 @@ export function SystemAPIErrorMessage({
         {truncated ? <CtrlOToExpand /> : null}
         <Text color="subtle">{`${statusLine}${timeoutHint}`}</Text>
         <Text dimColor>
-          Reporting this? /export &lt;name&gt; writes the whole conversation to a file.
+          Reporting this? /export {'<name>'} writes the whole conversation to{' '}
+          a file.
         </Text>
       </Box>
     </MessageResponse>

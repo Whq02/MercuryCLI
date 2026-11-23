@@ -72,7 +72,7 @@ export function FallbackPermissionRequest({
         value: 'yes-dont-ask-again',
         label: (
           <Text>
-            Yes, and don't ask again for <Text bold>{displayName}</Text> in this project
+            Yes, and don&apos;t ask again for <Text bold>{displayName}</Text> in this project
           </Text>
         ),
       })

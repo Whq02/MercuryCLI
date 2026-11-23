@@ -48,7 +48,7 @@ export function previewQuestionBody({
   const tabHint = showTabHint ? ' · Tab to switch questions' : ''
   const editorHint =
     editorKey && editorName ? ` · ${editorKey} to edit in ${editorName}` : ''
-  const helpLine = `Enter to select · ↑/↓ to navigate · n to add notes${tabHint}${editorHint} · Esc to cancel`
+  const helpLine = `Enter to select · ${figures.arrowUp}/${figures.arrowDown} to navigate · n to add notes${tabHint}${editorHint} · Esc to cancel`
 
   return (
     <Box

@@ -75,7 +75,8 @@ export function SubmitQuestionsView({
           {!allQuestionsAnswered ? (
             <Box marginBottom={1}>
               <Text color="warning">
-                {`${GLYPH.warn} Not every question is answered — select one to answer it, or submit deliberately`}
+                {GLYPH.warn} Not every question is answered — select one to answer it, or{' '}
+                submit deliberately
               </Text>
             </Box>
           ) : null}
