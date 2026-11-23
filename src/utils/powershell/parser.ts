@@ -76,7 +76,7 @@ type RawStatement = Record<string, unknown>
 
 
 export const COMMON_ALIASES: Record<string, string> = Object.assign(
-  Object.create(null) as Record<string, string>,
+  Object.create(null),
   {
     ls: 'Get-ChildItem',
     dir: 'Get-ChildItem',
@@ -341,14 +341,31 @@ function dedupeRedirections(redirections: ParsedRedirection[]): ParsedRedirectio
   return out
 }
 
+function readSecurityPatterns(value: unknown): ParsedStatement['securityPatterns'] {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
+  const out: NonNullable<ParsedStatement['securityPatterns']> = {}
+  if ('hasMemberAccess' in value && typeof value.hasMemberAccess === 'boolean') {
+    out.hasMemberAccess = value.hasMemberAccess
+  }
+  if ('hasSubExpression' in value && typeof value.hasSubExpression === 'boolean') {
+    out.hasSubExpression = value.hasSubExpression
+  }
+  if ('hasExpandableString' in value && typeof value.hasExpandableString === 'boolean') {
+    out.hasExpandableString = value.hasExpandableString
+  }
+  if ('hasScriptBlock' in value && typeof value.hasScriptBlock === 'boolean') {
+    out.hasScriptBlock = value.hasScriptBlock
+  }
+  return out
+}
+
 function transformStatement(raw: RawStatement): ParsedStatement {
   const statementType = mapStatementType(typeof raw.type === 'string' ? raw.type : '')
-  const text = (raw.text as string) ?? ''
+  const text = typeof raw.text === 'string' ? raw.text : ''
   const nestedCommands = asArray<RawCommandElement>(raw.nestedCommands).map(cmd =>
     transformCommandAst(cmd),
   )
-  const securityPatterns = (raw.securityPatterns ?? undefined) as ParsedStatement['securityPatterns']
-
+  const securityPatterns = readSecurityPatterns(raw.securityPatterns)
   if (raw.elements !== undefined && raw.elements !== null) {
     const commands: ParsedCommandElement[] = []
     const allRedirections: ParsedRedirection[] = []
