@@ -312,7 +312,8 @@ export async function resumeAgentBackground(args: {
     recordedDescription(meta?.description) ||
     recordedDescription(previousTask?.description) ||
     RESUMED_AGENT_DESCRIPTION
-  const replyTarget = args.replyTarget ?? previousTask?.replyTarget
+  const replyTarget =
+    args.replyTarget ?? (args.automatic === true ? previousTask?.replyTarget : undefined) ?? 'parent'
   const compactRequested: true | undefined =
     meta?.compactOnResume === true || previousTask?.compactRequested === true
       ? true
@@ -331,7 +332,7 @@ export async function resumeAgentBackground(args: {
     selectedAgent,
     model: lifecycleModel,
     toolUseId: toolUseContext.toolUseId,
-    ...(replyTarget !== undefined ? { replyTarget } : {}),
+    replyTarget,
     ...(compactRequested === true ? { compactRequested } : {}),
   })
 
@@ -400,9 +401,6 @@ export async function resumeAgentBackground(args: {
     throw error
   }
 
-  const effectiveCanUseTool: CanUseToolFn =
-    args.canUseTool ??
-    (async (_tool, input) => ({ behavior: 'allow', updatedInput: input }))
   startResumedLifecycle({
     agentId,
     typedAgentId,
@@ -412,7 +410,7 @@ export async function resumeAgentBackground(args: {
     promptMessages,
     toolUseContext,
     rootSetAppState,
-    canUseTool: effectiveCanUseTool,
+    canUseTool: args.canUseTool,
     abortController: task.abortController!,
     workerTools,
     restoredContexts,
@@ -449,7 +447,7 @@ function startResumedLifecycle(input: {
   promptMessages: Message[]
   toolUseContext: ToolUseContext
   rootSetAppState: ToolUseContext['setAppState']
-  canUseTool: CanUseToolFn
+  canUseTool: CanUseToolFn | undefined
   abortController: AbortController
   workerTools: ReturnType<typeof resolveWorkerTools>
   restoredContexts: ReturnType<typeof recordedRequestContexts>
@@ -463,7 +461,7 @@ function startResumedLifecycle(input: {
   cwdPath: string | undefined
   invokingRequestId: string | undefined
   automatic: boolean
-  replyTarget: 'parent' | 'operator' | undefined
+  replyTarget: 'parent' | 'operator'
 }): void {
   const {
     agentId,
@@ -513,10 +511,9 @@ function startResumedLifecycle(input: {
             agentDefinition: selectedAgent,
             promptMessages,
             toolUseContext,
-            canUseTool,
+            canUseTool: canUseTool ?? (async () => ({ behavior: 'allow', updatedInput: {} })),
             isAsync: true,
             resumed: true,
-            canShowPermissionPrompts: false,
             querySource,
             availableTools: workerTools,
             override: {
@@ -530,16 +527,14 @@ function startResumedLifecycle(input: {
                 : {}),
               ...(meta?.swarmBrief !== undefined ? { swarmBrief: meta.swarmBrief } : {}),
             },
-            ...(restoredModel !== undefined ? { model: restoredModel } : {}),
-            ...(restoredEffort !== undefined ? { effortOverride: restoredEffort } : {}),
-            ...(meta?.thinkingConfig !== undefined
-              ? { thinkingConfigOverride: meta.thinkingConfig }
-              : {}),
+            model: restoredModel,
+            effortOverride: restoredEffort,
+            thinkingConfigOverride: meta?.thinkingConfig,
             ...(meta?.instructionProfile !== undefined
               ? { instructionProfileOverride: meta.instructionProfile }
               : {}),
-            ...(structuredOutputSpec !== undefined ? { structuredOutputSpec } : {}),
-            ...(contentReplacementState !== undefined ? { contentReplacementState } : {}),
+            structuredOutputSpec,
+            contentReplacementState,
             ...(worktreePath !== undefined ? { worktreePath } : {}),
             ...(cwdPath !== undefined ? { cwd: cwdPath } : {}),
             description,
@@ -571,7 +566,7 @@ function startResumedLifecycle(input: {
         agentIdForCleanup: agentId,
         enableSummarization,
         ...(automatic ? { automaticResume: true } : {}),
-        ...(replyTarget !== undefined ? { replyTarget } : {}),
+        replyTarget,
         getWorktreeResult: async () => (worktreePath !== undefined ? { worktreePath } : {}),
         canUseTool,
       }),
