@@ -133,7 +133,7 @@ function MercurySkillsMenu({ onExit, commands }: Props): React.ReactNode {
                 <SectionHeader count={items.length}>{groupTitle(source)}</SectionHeader>
                 {sub !== undefined ? <Text color={FAINT}>{sub}</Text> : null}
                 {items.map(skill => {
-                  const extName = skill.extensionInfo?.manifest.name
+                  const extName = source === 'extension' ? skill.extensionInfo?.manifest.name : undefined
                   const tokens = formatTokens(estimateSkillFrontmatterTokens(skill))
                   return (
                     <Box key={skill.name}>

@@ -32,15 +32,9 @@ export function WebFetchPermissionRequest({
 }: PermissionRequestProps): React.ReactNode {
   usePermissionRequestLogging(toolUseConfirm)
 
-  let hostname = ''
-  try {
-    const url = (toolUseConfirm.input as { url?: unknown }).url
-    if (typeof url === 'string' && url !== '') {
-      hostname = new URL(url).hostname
-    }
-  } catch {
-    hostname = ''
-  }
+  const rawUrl = (toolUseConfirm.input as { url?: unknown }).url
+  const hostname =
+    typeof rawUrl === 'string' && rawUrl !== '' ? (URL.parse(rawUrl)?.hostname ?? '') : ''
 
   const options: Array<{ label: React.ReactNode; value: FetchOptionValue }> = [
     { label: 'Yes', value: 'yes' },
@@ -106,7 +100,7 @@ export function WebFetchPermissionRequest({
         {typeof useMessage === 'string' ? (
           <ConsentBodyText text={useMessage} />
         ) : (
-          <Text>{useMessage}</Text>
+          useMessage
         )}
         {toolUseConfirm.description ? <Text dimColor>{toolUseConfirm.description}</Text> : null}
         <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />
