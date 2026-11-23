@@ -1,5 +1,12 @@
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
+import type { Command } from '../../commands.js'
 
-const mcp: Unbuilt = unbuilt('src/commands/mcp/index.ts:3')
+const mcp: Command = {
+  type: 'local-jsx',
+  name: 'mcp',
+  description: 'Browse server tools and parameters; reconnect, enable or disable',
+  immediate: true,
+  argumentHint: '[enable|disable|reconnect [server-name]]',
+  load: () => import('./mcp.js'),
+}
 
 export default mcp
