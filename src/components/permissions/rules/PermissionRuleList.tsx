@@ -280,7 +280,6 @@ export function PermissionRuleList({
   const [headerFocused, setHeaderFocused] = useState(true)
   const [changeLog, setChangeLog] = useState<string[]>([])
   const focusHeaderRef = useRef<() => void>(() => {})
-  const searchQueryRef = useRef('')
   const exitedRef = useRef(false)
 
   const exitState = useExitOnCtrlCDWithKeybindings(undefined, undefined, subDialog === null)
@@ -312,9 +311,8 @@ export function PermissionRuleList({
 
   const search = useSearchInput({
     isActive: subDialog === null,
-    passthroughKeys: key =>
-      !searchModeRef.current &&
-      (REST_PASSTHROUGH_KEYS.includes(key) || (key === 'escape' && searchQueryRef.current === '')),
+    passthroughKeys: query =>
+      searchModeRef.current ? [] : query === '' ? [...REST_PASSTHROUGH_KEYS, 'escape'] : REST_PASSTHROUGH_KEYS,
     onExit: () => setSearchMode(false),
     onCancel: () => {
       search.setQuery('')
@@ -326,7 +324,6 @@ export function PermissionRuleList({
     },
   })
   const { query, cursorOffset } = search
-  searchQueryRef.current = query
 
   useKeybinding('confirm:no', handleExit, {
     context: 'Settings',
