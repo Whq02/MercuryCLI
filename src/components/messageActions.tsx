@@ -15,7 +15,6 @@ import {
   isTurnCutText,
   NO_RESPONSE_REQUESTED,
 } from '../services/messages.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
 type NavigableType =
@@ -103,16 +102,75 @@ export function stripSystemReminders(text: string): string {
 export function toolCallOf(
   msg: NavigableMessage,
 ): { name: string; input: unknown } | undefined {
-  return notBuilt('src/components/messageActions.tsx:103')
+  if (msg.type === 'assistant') {
+    const first = msg.message.content[0]
+    if (first && first.type === 'tool_use') {
+      return { name: first.name, input: first.input }
+    }
+    return undefined
+  }
+  if (msg.type === 'grouped_tool_use') {
+    const first = msg.messages[0]?.message.content[0]
+    if (first && first.type === 'tool_use') {
+      return { name: msg.toolName, input: first.input }
+    }
+    return undefined
+  }
+  return undefined
 }
 
 export function isNavigableMessage(msg: NavigableMessage): boolean {
-  return notBuilt('src/components/messageActions.tsx:123')
+  switch (msg.type) {
+    case 'assistant': {
+      const first = msg.message.content[0]
+      if (!first) return false
+      if (first.type === 'text') {
+        return (
+          first.text.trim() !== '' &&
+          !SYNTHETIC_TEXTS.has(first.text) &&
+          !isTurnCutText(first.text)
+        )
+      }
+      if (first.type === 'tool_use') {
+        return Object.hasOwn(PRIMARY_INPUT_TABLE, first.name)
+      }
+      return false
+    }
+    case 'user': {
+      if (msg.isMeta || msg.isCompactSummary) return false
+      if (hasNoticeFold(msg)) return true
+      const first = msg.message.content[0]
+      if (!first || first.type !== 'text') return false
+      if (SYNTHETIC_TEXTS.has(first.text) || isTurnCutText(first.text)) return false
+      return !stripSystemReminders(first.text).startsWith('<')
+    }
+    case 'system':
+      return !EXCLUDED_SYSTEM_SUBTYPES.has(msg.subtype)
+    case 'attachment':
+      return INCLUDED_ATTACHMENT_TYPES.has(msg.attachment.type)
+    case 'grouped_tool_use':
+    case 'collapsed_read_search':
+      return true
+    case 'turn_receipt':
+    default:
+      return false
+  }
 }
 
 
 function toolResultText(result: NormalizedUserMessage): string {
-  return notBuilt('src/components/messageActions.tsx:157')
+  const first = result.message.content[0]
+  if (!first || first.type !== 'tool_result') return ''
+  const content = first.content
+  if (typeof content === 'string') return content
+  if (Array.isArray(content)) {
+    const parts: string[] = []
+    for (const block of content) {
+      if (block.type === 'text') parts.push(block.text)
+    }
+    return parts.join('\n')
+  }
+  return ''
 }
 
 function joinedResultTexts(results: NormalizedUserMessage[]): string[] {
@@ -174,11 +232,29 @@ export function copyTextOf(msg: NavigableMessage): string {
 }
 
 
-export type MessageActionsState = Unbuilt
+export type MessageActionsState = {
+  uuid: string
+  type: NavigableType
+  expanded: boolean
+  notice?: true
+  toolName?: string
+}
 
-export type MessageActionsNav = Unbuilt
+export type MessageActionsNav = {
+  enter: () => void
+  prev: () => void
+  next: () => void
+  prevUser: () => void
+  nextUser: () => void
+  top: () => void
+  bottom: () => void
+  getSelected: () => NavigableMessage | undefined
+}
 
-type MessageActionCaps = Unbuilt
+type MessageActionCaps = {
+  copy: (text: string) => void
+  edit: (message: NormalizedUserMessage) => void | Promise<void>
+}
 
 type MessageAction = {
   key: string
@@ -192,7 +268,62 @@ type MessageAction = {
   ) => void | Promise<void>
 }
 
-export const MESSAGE_ACTIONS: readonly MessageAction[] = unbuilt('src/components/messageActions.tsx:266')
+export const MESSAGE_ACTIONS: readonly MessageAction[] = [
+  {
+    key: 'enter',
+    label: cursor => (cursor.expanded ? 'collapse' : 'expand'),
+    types: [
+      'grouped_tool_use',
+      'collapsed_read_search',
+      'attachment',
+      'system',
+      'user',
+    ],
+    isApplicable: cursor => cursor.type !== 'user' || cursor.notice === true,
+    staysInCursorMode: true,
+    run: () => {},
+  },
+  {
+    key: 'enter',
+    label: () => 'edit',
+    types: ['user'],
+    isApplicable: cursor => cursor.notice !== true,
+    staysInCursorMode: false,
+    run: (message, caps) => {
+      if (message.type === 'user') {
+        return caps.edit(message)
+      }
+    },
+  },
+  {
+    key: 'c',
+    label: () => 'copy',
+    types: ALL_NAVIGABLE_TYPES,
+    staysInCursorMode: false,
+    run: (message, caps) => {
+      caps.copy(copyTextOf(message))
+    },
+  },
+  {
+    key: 'p',
+    label: cursor => {
+      const entry = cursor.toolName ? PRIMARY_INPUT_TABLE[cursor.toolName] : undefined
+      return entry ? `copy ${entry.label}` : 'copy'
+    },
+    types: ['grouped_tool_use', 'assistant'],
+    isApplicable: cursor =>
+      cursor.toolName !== undefined && Object.hasOwn(PRIMARY_INPUT_TABLE, cursor.toolName),
+    staysInCursorMode: false,
+    run: (message, caps) => {
+      const call = toolCallOf(message)
+      if (!call) return
+      const value = primaryInputValue(call.name, call.input)
+      if (value !== undefined && value !== '') {
+        caps.copy(value)
+      }
+    },
+  },
+]
 
 function applicableActions(cursor: MessageActionsState): MessageAction[] {
   return MESSAGE_ACTIONS.filter(
@@ -210,7 +341,75 @@ export function useMessageActions(
   enter: () => void
   handlers: Record<string, () => void>
 } {
-  return notBuilt('src/components/messageActions.tsx:320')
+  const capsRef = useRef(caps)
+  capsRef.current = caps
+
+  const enter = useMemo(
+    () => () => {
+      navRef.current?.enter()
+    },
+    [navRef],
+  )
+
+  const handlers = useMemo<Record<string, () => void>>(() => {
+    const dispatchKey = (key: string): void => {
+      const current = getMessageCursor()
+      if (!current) return
+      const action = applicableActions(current).find(item => item.key === key)
+      if (!action) return
+      if (action.staysInCursorMode) {
+        setMessageCursor({ ...current, expanded: !current.expanded })
+        return
+      }
+      const selected = navRef.current?.getSelected()
+      if (!selected) return
+      void action.run(selected, capsRef.current)
+      setMessageCursor(null)
+    }
+
+    return {
+      'messageActions:prev': () => {
+        navRef.current?.prev()
+      },
+      'messageActions:next': () => {
+        navRef.current?.next()
+      },
+      'messageActions:prevUser': () => {
+        navRef.current?.prevUser()
+      },
+      'messageActions:nextUser': () => {
+        navRef.current?.nextUser()
+      },
+      'messageActions:top': () => {
+        navRef.current?.top()
+      },
+      'messageActions:bottom': () => {
+        navRef.current?.bottom()
+      },
+      'messageActions:escape': () => {
+        const current = getMessageCursor()
+        if (current?.expanded) {
+          setMessageCursor({ ...current, expanded: false })
+          return
+        }
+        setMessageCursor(null)
+      },
+      'messageActions:ctrlc': () => {
+        setMessageCursor(null)
+      },
+      'messageActions:enter': () => {
+        dispatchKey('enter')
+      },
+      'messageActions:c': () => {
+        dispatchKey('c')
+      },
+      'messageActions:p': () => {
+        dispatchKey('p')
+      },
+    }
+  }, [navRef])
+
+  return { enter, handlers }
 }
 
 export function MessageActionsKeybindings({
