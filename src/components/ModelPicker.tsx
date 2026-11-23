@@ -9,7 +9,6 @@ import {
   type ModelOption,
   focusedOptionSupports1m,
   getModelOptions,
-  isCatalogueDoorRow,
   isProviderActionRow,
   resolvesToExistingOption,
   stripContext1m,
@@ -77,10 +76,7 @@ export function ModelPicker({
 
   const { options, defaultFocusValue } = useMemo(() => {
     const filtered: ModelOption[] = getModelOptions().filter(
-      opt =>
-        !opt.unavailable &&
-        !isCatalogueDoorRow(opt.value) &&
-        !isProviderActionRow(opt.value),
+      opt => !opt.unavailable && !isProviderActionRow(opt.value),
     )
 
     const trimmedInitial = initial !== null && initial !== '' ? initial : null
@@ -91,29 +87,21 @@ export function ModelPicker({
       matched =
         filtered.find(opt => opt.value === trimmedInitial) ??
         filtered.find(opt => resolvesToExistingOption([opt], trimmedInitial)) ??
-        filtered.find(opt => stripContext1m(opt.value) === bareInitial) ??
-        filtered.find(opt => resolvesToExistingOption([opt], bareInitial))
+        filtered.find(opt => opt.value === bareInitial) ??
+        filtered.find(opt => resolvesToExistingOption([opt], bareInitial)) ??
+        filtered.find(opt => stripContext1m(opt.value) === bareInitial)
     }
 
     const list = [...filtered]
     let focusVal = matched?.value
 
-    if (
-      focusVal === undefined &&
-      trimmedInitial !== null &&
-      bareInitial !== null &&
-      !resolvesToExistingOption(filtered, trimmedInitial) &&
-      !resolvesToExistingOption(filtered, bareInitial)
-    ) {
-      const appendedValue = focusedOptionSupports1m(bareInitial)
-        ? bareInitial
-        : trimmedInitial
+    if (focusVal === undefined && trimmedInitial !== null) {
       list.push({
-        value: appendedValue,
-        label: appendedValue,
+        value: trimmedInitial,
+        label: trimmedInitial,
         description: 'current model',
       })
-      focusVal = appendedValue
+      focusVal = trimmedInitial
     }
 
     return {
@@ -145,7 +133,9 @@ export function ModelPicker({
   )
   const [effortToggled, setEffortToggled] = useState(false)
   const [contextToggle, setContextToggle] = useState<boolean>(() =>
-    initial !== null && initial !== '' ? initialContextToggle(initial) : false,
+    initial !== null && initial !== ''
+      ? initialContextToggle(initial)
+      : initialContextToggle(defaultFocusValue),
   )
   const [visibleTo, setVisibleTo] = useState<number>(() =>
     Math.min(VISIBLE_OPTIONS, selectOptions.length),
@@ -159,13 +149,14 @@ export function ModelPicker({
 
   const handleFocus = useCallback(
     (nextValue: string) => {
+      if (nextValue === focusedValue) return
       setFocusedValue(nextValue)
       setContextToggle(initialContextToggle(nextValue))
       if (!effortToggled && toPersistableEffort(appEffortValue) === undefined) {
         setEffortLevel(toPersistableEffort(getDefaultEffortForModel(nextValue)))
       }
     },
-    [effortToggled, appEffortValue],
+    [focusedValue, effortToggled, appEffortValue],
   )
 
   const handleVisibleWindowChange = useCallback(
@@ -194,10 +185,11 @@ export function ModelPicker({
 
   const handleSelect = useCallback(
     (value: string) => {
-      const finalModel =
-        focusedOptionSupports1m(value) && contextToggle
+      const finalModel = focusedOptionSupports1m(value)
+        ? contextToggle
           ? withContext1m(value)
-          : value
+          : stripContext1m(value)
+        : value
       const explicitEffort =
         effortToggled && modelSupportsEffort(finalModel)
           ? effortLevel
@@ -262,8 +254,7 @@ export function ModelPicker({
     sessionOverrideNotice ??
     (effectiveSessionModel !== null &&
     effectiveSessionModel !== undefined &&
-    effectiveSessionModel !== '' &&
-    effectiveSessionModel !== initial
+    effectiveSessionModel !== ''
       ? `Session model override active: ${getPublicModelDisplayName(effectiveSessionModel) ?? effectiveSessionModel}`
       : undefined)
 

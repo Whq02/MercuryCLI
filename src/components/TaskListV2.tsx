@@ -1,17 +1,88 @@
-import figures from 'figures'
+import React, { useContext, useRef, useState, useSyncExternalStore } from 'react'
 import { GLYPH } from '../utils/glyphs.js'
-import React, { useRef, useState } from 'react'
 import { Box, Text } from '../ink.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import { useTimer } from '../hooks/effects.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
+import { AppStoreContext, type AppState } from '../state/AppState.js'
+import { isLocalAgentTask } from '../tasks/LocalAgentTask/LocalAgentTask.js'
+import type { WorkRowV1 } from '../services/engine-connector/types.js'
 import { isTaskToolsEnabled } from '../utils/tasks.js'
-
-type TaskRowV2 = { id: string; status: 'pending' | 'in_progress' | 'completed'; subject: string; blockedBy?: readonly string[]; owner?: string }
 import { truncateToWidth } from '../utils/truncate.js'
 import { startTimeout, stopTimeout } from '../utils/timers.js'
+import { useFocusedWorkRoster } from './tasks/useFocusedWork.js'
+
+type TaskRowV2 = {
+  id: string
+  status: 'pending' | 'in_progress' | 'completed'
+  subject: string
+  activeForm?: string
+  blockedBy?: readonly string[]
+  owner?: string
+}
 
 const RECENT_COMPLETION_MS = 30_000
+const noopSubscribe = (): (() => void) => () => {}
+
+function collectRunningOwners(
+  appTasks: AppState['tasks'] | undefined,
+  agentNameRegistry: AppState['agentNameRegistry'] | undefined,
+  rosterRows: readonly WorkRowV1[],
+): { runningOwners: Set<string>; ownerActivity: Map<string, string> } {
+  const runningOwners = new Set<string>()
+  const ownerActivity = new Map<string, string>()
+
+  if (appTasks !== undefined) {
+    if (agentNameRegistry !== undefined) {
+      for (const [name, taskId] of agentNameRegistry) {
+        const agentTask = appTasks[taskId]
+        if (
+          agentTask !== undefined &&
+          isLocalAgentTask(agentTask) &&
+          agentTask.status === 'running'
+        ) {
+          runningOwners.add(name)
+          const last = agentTask.progress?.lastActivity
+          const desc = last?.activityDescription || last?.toolName
+          if (desc !== undefined && desc !== '') {
+            ownerActivity.set(name, desc)
+          }
+        }
+      }
+    }
+    for (const agentTask of Object.values(appTasks)) {
+      if (isLocalAgentTask(agentTask) && agentTask.status === 'running') {
+        runningOwners.add(agentTask.id)
+        runningOwners.add(agentTask.agentId)
+        const last = agentTask.progress?.lastActivity
+        const desc = last?.activityDescription || last?.toolName
+        if (desc !== undefined && desc !== '') {
+          ownerActivity.set(agentTask.id, desc)
+          ownerActivity.set(agentTask.agentId, desc)
+        }
+      }
+    }
+  }
+
+  for (const row of rosterRows) {
+    if (row.kind === 'agent' && row.status === 'running') {
+      runningOwners.add(row.name)
+      runningOwners.add(row.id)
+      if (row.agentId !== undefined) {
+        runningOwners.add(row.agentId)
+      }
+      if (typeof row.activity === 'string' && row.activity.length > 0) {
+        if (!ownerActivity.has(row.name)) ownerActivity.set(row.name, row.activity)
+        if (!ownerActivity.has(row.id)) ownerActivity.set(row.id, row.activity)
+        if (row.agentId !== undefined && !ownerActivity.has(row.agentId)) {
+          ownerActivity.set(row.agentId, row.activity)
+        }
+      }
+    }
+  }
+
+  return { runningOwners, ownerActivity }
+}
 
 function compareIds(a: string, b: string): number {
   const an = Number(a)
@@ -28,10 +99,21 @@ export function TaskListV2({
   isStandalone?: boolean
 }): React.ReactNode {
   const { columns, rows } = useTerminalSize()
+  const store = useContext(AppStoreContext)
+  const appTasks = useSyncExternalStore(
+    store ? store.subscribe : noopSubscribe,
+    () => store?.getState().tasks,
+    () => store?.getState().tasks,
+  )
+  const agentNameRegistry = useSyncExternalStore(
+    store ? store.subscribe : noopSubscribe,
+    () => store?.getState().agentNameRegistry,
+    () => store?.getState().agentNameRegistry,
+  )
+  const roster = useFocusedWorkRoster()
   const [tick, setTick] = useState(0)
   const prevStatusRef = useRef<Map<string, TaskRowV2['status']> | null>(null)
   const completedAtRef = useRef<Map<string, number>>(new Map())
-
   const now = Date.now()
   if (prevStatusRef.current === null) {
     prevStatusRef.current = new Map(tasks.map(task => [task.id, task.status]))
@@ -177,6 +259,12 @@ export function TaskListV2({
     return null
   }
 
+  const { runningOwners, ownerActivity } = collectRunningOwners(
+    appTasks,
+    agentNameRegistry,
+    roster.rows,
+  )
+
   const rowIndent = isStandalone ? 2 : 0
 
   return (
@@ -189,16 +277,24 @@ export function TaskListV2({
       {visibleTasks.map(task => {
         const openBlockers = task.status === 'completed' ? [] : openBlockersOf(task)
         const isBlocked = task.status === 'pending' && openBlockers.length > 0
-        const showOwner =
-          columns >= 60 &&
+        const ownerIsRunning =
+          typeof task.owner === 'string' &&
+          task.owner.length > 0 &&
+          runningOwners.has(task.owner)
+        const ownerSuffix =
+          columns >= 60 && task.status !== 'completed' && ownerIsRunning
+            ? ` (${task.owner})`
+            : ''
+        const liveActivity =
           task.status === 'in_progress' &&
           openBlockers.length === 0 &&
-          typeof task.owner === 'string' &&
-          task.owner.length > 0
-        const ownerSuffix = showOwner ? ` (${task.owner})` : ''
+          ownerIsRunning &&
+          task.owner !== undefined
+            ? ownerActivity.get(task.owner)
+            : undefined
         const blockerSuffix =
           openBlockers.length > 0
-            ? ` ${figures.pointerSmall} blocked by ${openBlockers.map(id => `#${id}`).join(', ')}`
+            ? ` ${GLYPH.cursor} blocked by ${openBlockers.map(id => `#${id}`).join(', ')}`
             : ''
         const glyph =
           task.status === 'completed'
@@ -212,23 +308,32 @@ export function TaskListV2({
         const subject = truncateToWidth(task.subject, maxSubjectWidth)
 
         return (
-          <Box key={task.id} flexDirection="row">
-            {task.status === 'completed' ? (
-              <Text color="success">{glyph} </Text>
-            ) : task.status === 'in_progress' ? (
-              <Text color="brand">{glyph} </Text>
-            ) : (
-              <Text dimColor={isBlocked}>{glyph} </Text>
+          <Box key={task.id} flexDirection="column">
+            <Box flexDirection="row">
+              {task.status === 'completed' ? (
+                <Text color="success">{glyph} </Text>
+              ) : task.status === 'in_progress' ? (
+                <Text color="brand">{glyph} </Text>
+              ) : (
+                <Text dimColor={isBlocked}>{glyph} </Text>
+              )}
+              <Text
+                bold={task.status === 'in_progress'}
+                strikethrough={task.status === 'completed'}
+                dimColor={task.status === 'completed' || isBlocked}
+              >
+                {subject}
+              </Text>
+              {ownerSuffix.length > 0 && <Text dimColor>{ownerSuffix}</Text>}
+              {blockerSuffix.length > 0 && <Text dimColor>{blockerSuffix}</Text>}
+            </Box>
+            {liveActivity !== undefined && (
+              <Box paddingLeft={2}>
+                <Text dimColor>
+                  {truncateToWidth(liveActivity, Math.max(10, columns - rowIndent - 2))}
+                </Text>
+              </Box>
             )}
-            <Text
-              bold={task.status === 'in_progress'}
-              strikethrough={task.status === 'completed'}
-              dimColor={task.status === 'completed' || isBlocked}
-            >
-              {subject}
-            </Text>
-            {ownerSuffix.length > 0 && <Text dimColor>{ownerSuffix}</Text>}
-            {blockerSuffix.length > 0 && <Text dimColor>{blockerSuffix}</Text>}
           </Box>
         )
       })}
