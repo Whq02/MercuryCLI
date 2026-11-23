@@ -1,7 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { isENOENT } from '../errors.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 function matchesSectionHeader(line: string, section: string, subsection: string | null): boolean {
@@ -91,11 +90,50 @@ function parseKeyValueLine(line: string, key: string): string | null {
   return parseValueText(line.slice(index))
 }
 
+function parseGitConfigString(
+  content: string,
+  section: string,
+  subsection: string | null,
+  key: string,
+): string | null {
+  const lines = content.split(/\r?\n/)
+  let inSection = false
+  let found: string | null = null
+  for (let i = 0; i < lines.length; i++) {
+    let trimmed = (lines[i] as string).trimStart()
+    if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith(';')) continue
+    if (trimmed.startsWith('[')) {
+      inSection = matchesSectionHeader(trimmed, section, subsection)
+      continue
+    }
+    if (!inSection) continue
+    while (trimmed.endsWith('\\') && i + 1 < lines.length) {
+      let backslashes = 0
+      for (let j = trimmed.length - 1; j >= 0 && trimmed[j] === '\\'; j--) backslashes++
+      if (backslashes % 2 === 0) break
+      i++
+      trimmed = trimmed.slice(0, -1) + (lines[i] as string)
+    }
+    const parsed = parseKeyValueLine(trimmed, key)
+    if (parsed !== null) {
+      found = parsed
+    }
+  }
+  return found
+}
+
 export async function parseGitConfigValue(
   gitDir: string,
   section: string,
   subsection: string | null,
   key: string,
 ): Promise<string | null> {
-  return notBuilt('src/utils/git/gitConfigParser.ts:114')
+  let content: string
+  try {
+    content = await readFile(join(gitDir, 'config'), 'utf8')
+  } catch (error) {
+    if (isENOENT(error)) return null
+    throw error
+  }
+  return parseGitConfigString(content, section, subsection, key)
 }
