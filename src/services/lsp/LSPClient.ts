@@ -9,11 +9,10 @@ import {
   StreamMessageReader,
   StreamMessageWriter,
   Trace,
-} from 'vscode-jsonrpc/node'
+} from 'vscode-jsonrpc/node.js'
 import type { InitializeParams, InitializeResult, ServerCapabilities } from 'vscode-languageserver-protocol'
 
 import { logForDebugging } from '../../utils/debug.js'
-import { getErrnoCode } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
 import { endProcessTree, endProcessTreeSurvivors } from '../../utils/processGroup.js'
 import { passedOver } from '../../utils/passedOver.js'
@@ -52,7 +51,7 @@ export function createLspMessageWriter(output: Writable): MessageWriter {
     try {
       await write(message)
     } catch (error) {
-      const code = getErrnoCode(error)
+      const code = (error as NodeJS.ErrnoException)?.code
       if ((output.destroyed || output.writableEnded) && (code === 'ERR_STREAM_DESTROYED' || code === 'ERR_STREAM_WRITE_AFTER_END' || code === 'EPIPE')) return
       throw error
     }
@@ -203,7 +202,7 @@ async function startClient(
     const conn = createMessageConnection(reader, writer)
     state.connection = conn
 
-    conn.onError(([error]) => {
+    conn.onError(([error]: [Error, Message | undefined, number | undefined]) => {
       if (state.connection !== conn || state.isStopping) return
       if (!state.isInitialized) {
         state.startFailed = true
@@ -374,7 +373,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
     async initialize(params) {
       const conn = requireClientConnection(state)
       try {
-        const initPromise = conn.sendRequest<InitializeResult>('initialize', params)
+        const initPromise: Promise<InitializeResult> = conn.sendRequest('initialize', params)
         initPromise.catch(passedOver)
         const result =
           state.processDeathPromise !== null
@@ -398,8 +397,8 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
       }
       try {
         return token !== undefined
-          ? await conn.sendRequest<T>(method, params, token)
-          : await conn.sendRequest<T>(method, params)
+          ? await conn.sendRequest(method, params, token)
+          : await conn.sendRequest(method, params)
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error))
         logForDebugging(`LSP server ${serverName} request ${method} failed: ${err.message}`, { level: 'error' })
@@ -436,7 +435,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
       if (state.startFailed) {
         throw state.startError ?? new Error(`LSP server ${serverName} failed to start`)
       }
-      state.connection.onRequest<unknown, unknown>(method, handler)
+      state.connection.onRequest(method, handler)
     },
     stop(options) {
       return stopClient(state, options)
