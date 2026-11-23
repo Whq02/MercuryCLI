@@ -17,14 +17,13 @@ import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'
 import { killTask } from '../tasks/LocalShellTask/killShellTasks.js'
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
 import { registerBootDoors } from '../services/boot/registerDoors.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 
 export { joinPromptValues, canBatchWith }
 export { removeInterruptedMessage }
 
 type GetAppState = () => AppState
-type SetAppState = (...args: Unbuilt[]) => Unbuilt
+type SetAppState = (updater: (prev: AppState) => AppState) => void
 
 
 export async function runHeadless(
@@ -36,5 +35,24 @@ export async function runHeadless(
   agents: AgentDefinition[],
   options: HeadlessOptions,
 ): Promise<void> {
-  return notBuilt('src/cli/run.ts:29')
+  registerBootDoors()
+  const { ports, give } = createRunnerPorts(
+    {
+      live: createRunnerState(),
+      options,
+      inputPrompt,
+      getAppState,
+      setAppState,
+      commands,
+      tools,
+      agents,
+      isLocalShellTask,
+      killTask,
+      requestShellBackground,
+      windowsShellRoadNotice,
+      hydrateResumedRun: () => hydrateResumedRun(ports),
+    },
+    BOOT_STEPS,
+  )
+  await runBootSteps(BOOT_STEPS, ports, give)
 }
