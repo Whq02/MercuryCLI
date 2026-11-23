@@ -105,7 +105,6 @@ export function getToolUseSummary(input: GrepRenderInput | undefined): string | 
 
 export function renderToolUseMessage(
   input: GrepRenderInput,
-  _options: { verbose: boolean },
 ): React.ReactNode {
   if (!input.pattern) return null
   if (input.path) {
