@@ -1,6 +1,5 @@
 import { getShellCwd } from '../../utils/Shell.js'
 import { basename, posix as posixPath } from 'node:path'
-import { notBuilt } from '../../pi/holes.js'
 
 const PS_DASH = /[-–—―]/
 
@@ -55,10 +54,51 @@ function matchesGitInternal(path: string): boolean {
   return false
 }
 
+function normalizePsPath(arg: string): string {
+  let s = arg.trim()
+  if (PS_DASH.test(s[0] ?? '') || s.startsWith('/')) {
+    const colon = s.indexOf(':', 1)
+    if (colon !== -1 && (!s.startsWith('/') || !s.slice(1, colon).includes('/'))) {
+      s = s.slice(colon + 1)
+    }
+  }
+  if (s.length >= 2 && ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'")))) {
+    s = s.slice(1, -1)
+  }
+  s = s.replace(/`/g, '')
+  s = s.replace(/^(?:[\w.]+\\)?filesystem::/i, '')
+  s = s.replace(/^[A-Za-z]:(?![\\/])/, '')
+  s = s.replace(/\\/g, '/')
+  s = s
+    .split(posixPath.sep)
+    .map(seg => {
+      if (seg === '' || seg === '.' || seg === '..') return seg
+      const stripped = seg.replace(/[ .]+$/, '')
+      return stripped === '' ? '.' : stripped
+    })
+    .join('/')
+  s = posixNormalise(s)
+  return s.replace(/^\.\//, '').toLowerCase()
+}
+
+function matchesDotGit(path: string): boolean {
+  if (path === '.git' || path.startsWith('.git/')) return true
+  if (/^git~\d+(?:\/|$)/.test(path)) return true
+  return false
+}
+
 export function isGitInternalPathPS(arg: string): boolean {
-  return notBuilt('src/tools/PowerShellTool/gitSafety.ts:86')
+  const normalised = normalizePsPath(arg)
+  if (!normalised) return false
+  if (matchesGitInternal(resolveCurrentDirectoryReentry(normalised))) return true
+  const escaped = resolveEscapingPath(normalised)
+  return escaped !== null && matchesGitInternal(escaped)
 }
 
 export function isDotGitPathPS(arg: string): boolean {
-  return notBuilt('src/tools/PowerShellTool/gitSafety.ts:95')
+  const normalised = normalizePsPath(arg)
+  if (!normalised) return false
+  if (matchesDotGit(resolveCurrentDirectoryReentry(normalised))) return true
+  const escaped = resolveEscapingPath(normalised)
+  return escaped !== null && matchesDotGit(escaped)
 }
