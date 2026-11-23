@@ -3,6 +3,7 @@ import { getReservedShortcuts, normalizeKeyForComparison } from './reservedShort
 import type { KeybindingBlock, ParsedBinding } from './types.js'
 import { isRecord } from '../utils/isRecord.js'
 import { isOneOf } from '../utils/isOneOf.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export type KeybindingWarning = {
   type: 'parse_error' | 'duplicate' | 'reserved' | 'invalid_context' | 'invalid_action'
@@ -201,7 +202,8 @@ function readJsonString(src: string, start: number): { value: string; end: numbe
       try {
         const parsed: unknown = JSON.parse(raw)
         value = typeof parsed === 'string' ? parsed : src.slice(start + 1, i)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         value = src.slice(start + 1, i)
       }
       return { value, end: i + 1 }
@@ -228,7 +230,8 @@ function findPrecedingContext(prefix: string): string {
   try {
     const parsed: unknown = JSON.parse(`"${last[1]}"`)
     return typeof parsed === 'string' ? parsed : (last[1] ?? '(unknown context)')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return last[1] ?? '(unknown context)'
   }
 }
