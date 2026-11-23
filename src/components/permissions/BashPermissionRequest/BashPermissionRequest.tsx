@@ -148,16 +148,15 @@ function BashCommandPermissionRequest(
     [],
   )
 
-  useLoad(() => {
+  useLoad(signal => {
     if (decisionReason?.type === 'subcommandResults') return
-    let cancelled = false
     const isReadOnly = (subcommand: string): boolean => {
       const parsed = BashTool.inputSchema.safeParse({ command: subcommand })
       return parsed.success ? BashTool.isReadOnly(parsed.data) : false
     }
     getCompoundCommandPrefixesStatic(command, isReadOnly)
       .then(prefixes => {
-        if (cancelled || userEditedRef.current) return
+        if (signal.aborted || userEditedRef.current) return
         if (prefixes.length === 1) {
           const first = prefixes[0]
           if (first) {
@@ -167,9 +166,6 @@ function BashCommandPermissionRequest(
         }
       })
       .catch(passedOver)
-    return () => {
-      cancelled = true
-    }
   }, [command, decisionReason?.type])
 
   const options = useMemo(

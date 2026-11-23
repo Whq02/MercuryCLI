@@ -71,12 +71,11 @@ export function PowerShellPermissionRequest({
   const [isWildcard, setIsWildcard] = useState(false)
   const userEditedRef = useRef(false)
 
-  useLoad(() => {
+  useLoad(signal => {
     if (!isSingleLine) return
-    let cancelled = false
     getCompoundCommandPrefixesStatic(command, element => isAllowlistedCommand(element, command))
       .then(prefixes => {
-        if (cancelled || userEditedRef.current) return
+        if (signal.aborted || userEditedRef.current) return
         const prefix = prefixes.length === 1 ? prefixes[0] : undefined
         if (prefix) {
           setEditablePrefix(prefix.includes('*') ? prefix : `${prefix} *`)
@@ -84,9 +83,6 @@ export function PowerShellPermissionRequest({
         }
       })
       .catch(passedOver)
-    return () => {
-      cancelled = true
-    }
   }, [command, isSingleLine])
 
   const handleEditablePrefixChange = useCallback((next: string): void => {

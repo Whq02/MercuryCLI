@@ -83,17 +83,13 @@ export function ConsoleOAuthFlow({
   const [localRoad, setLocalRoad] = useState<ReturnType<typeof localDiscoverySummary> | null>(() =>
     hasSkip ? localDiscoverySummary() : null,
   )
-  useLoad(() => {
+  useLoad(signal => {
     if (!hasSkip) return
-    let cancelled = false
     void refreshLocalDiscovery()
       .then(() => {
-        if (!cancelled) setLocalRoad(localDiscoverySummary())
+        if (!signal.aborted) setLocalRoad(localDiscoverySummary())
       })
       .catch(passedOverAs(undefined))
-    return () => {
-      cancelled = true
-    }
   }, [hasSkip])
 
   const setupToken = mode === 'setup-token'

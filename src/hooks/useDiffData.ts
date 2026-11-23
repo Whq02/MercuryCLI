@@ -72,8 +72,7 @@ export function useDiffData(spec?: GitDiffSpec): DiffData {
   const specRef = useRef(spec)
   specRef.current = spec
 
-  useLoad(() => {
-    let dropped = false
+  useLoad(signal => {
     const activeSpec = specRef.current
     setData(prev => ({
       stats: prev.stats,
@@ -85,7 +84,7 @@ export function useDiffData(spec?: GitDiffSpec): DiffData {
     const hunksPromise = activeSpec ? fetchGitDiffHunksFor(activeSpec) : fetchGitDiffHunks()
     void Promise.all([statsPromise, hunksPromise])
       .then(([result, hunks]) => {
-        if (dropped) return
+        if (signal.aborted) return
         if (result === null) {
           setData({
             stats: null,
@@ -104,7 +103,7 @@ export function useDiffData(spec?: GitDiffSpec): DiffData {
       })
       .catch((err: unknown) => {
         logError(err)
-        if (dropped) return
+        if (signal.aborted) return
         setData({
           stats: null,
           files: [],
@@ -113,9 +112,6 @@ export function useDiffData(spec?: GitDiffSpec): DiffData {
           error: err instanceof Error ? err.message : String(err),
         })
       })
-    return () => {
-      dropped = true
-    }
   }, [specKey])
 
   return data

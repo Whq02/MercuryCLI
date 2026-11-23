@@ -324,16 +324,12 @@ export function DiffDialog({
   const turnDiffs = useTurnDiffs(messages)
 
   const [extraSources, setExtraSources] = useState<WorkspaceDiffSource[]>([])
-  useLoad(() => {
-    let cancelled = false
+  useLoad(signal => {
     void enumerateExtraSources(getSessionId())
       .then(loaded => {
-        if (!cancelled) setExtraSources(loaded)
+        if (!signal.aborted) setExtraSources(loaded)
       })
       .catch(passedOver)
-    return () => {
-      cancelled = true
-    }
   }, [])
 
   const sources = useMemo<WorkspaceDiffSource[]>(

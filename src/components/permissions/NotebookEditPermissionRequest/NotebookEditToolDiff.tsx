@@ -69,12 +69,11 @@ export function NotebookEditToolDiff({
     context: 'Confirmation',
   })
 
-  useLoad(() => {
-    let cancelled = false
+  useLoad(signal => {
     setLoaded(prev => (prev === null ? prev : null))
     fs.readFile(notebook_path, 'utf8')
       .then(raw => {
-        if (cancelled) return
+        if (signal.aborted) return
         let parsed: unknown
         try {
           parsed = JSON.parse(raw)
@@ -91,9 +90,6 @@ export function NotebookEditToolDiff({
         }
       })
       .catch(passedOver)
-    return () => {
-      cancelled = true
-    }
   }, [notebook_path])
 
   const notebook = loaded?.path === notebook_path ? loaded.data : null

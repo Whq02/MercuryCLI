@@ -44,26 +44,22 @@ export function usePermissionExplainerUI({
   const [visible, setVisible] = useState(false)
   const [promise, setPromise] = useState<Promise<PermissionExplanation | null> | null>(null)
   const promiseRef = useRef<Promise<PermissionExplanation | null> | null>(null)
-  const abortRef = useRef<AbortController | null>(null)
+  const signalRef = useRef<AbortSignal | null>(null)
 
-  useLoad(() => {
-    return () => {
-      abortRef.current?.abort()
-    }
+  useLoad(signal => {
+    signalRef.current = signal
   }, [])
 
   useKeybinding(
     'confirm:toggleExplanation',
     () => {
-      if (!promiseRef.current) {
-        const controller = new AbortController()
-        abortRef.current = controller
+      if (!promiseRef.current && signalRef.current) {
         const started = generatePermissionExplanation({
           toolName,
           toolInput,
           toolDescription,
           messages,
-          signal: controller.signal,
+          signal: signalRef.current,
         }).catch(passedOverAs(null))
         promiseRef.current = started
         setPromise(started)
@@ -111,19 +107,15 @@ export function PermissionExplainerContent({
   const [status, setStatus] = useState<'pending' | 'done'>('pending')
   const [result, setResult] = useState<PermissionExplanation | null>(null)
 
-  useLoad(() => {
+  useLoad(signal => {
     if (!promise) return
-    let cancelled = false
     setStatus('pending')
     setResult(null)
     promise.catch(passedOverAs(null)).then(value => {
-      if (cancelled) return
+      if (signal.aborted) return
       setResult(value)
       setStatus('done')
     })
-    return () => {
-      cancelled = true
-    }
   }, [promise])
 
   if (!visible || !promise) return null

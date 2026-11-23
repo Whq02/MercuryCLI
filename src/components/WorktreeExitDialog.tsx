@@ -84,7 +84,7 @@ export function WorktreeExitDialog({
   )
   const reportedRef = useRef(false)
   const busyRef = useRef(false)
-  const mountedRef = useRef(true)
+  const signalRef = useRef<AbortSignal | null>(null)
   const onDoneRef = useRef(onDone)
   onDoneRef.current = onDone
 
@@ -94,15 +94,9 @@ export function WorktreeExitDialog({
     onDoneRef.current(resultRef.current, { displayMode: 'system' })
   }, [phase.kind])
 
-  useLoad(() => {
-    mountedRef.current = true
-    let stale = false
-    if (session === null) {
-      return () => {
-        stale = true
-        mountedRef.current = false
-      }
-    }
+  useLoad(signal => {
+    signalRef.current = signal
+    if (session === null) return
 
     const probe = async (): Promise<void> => {
       const statusResult = await execFileNoThrowWithCwd('git', ['status', '--porcelain'], {
@@ -116,7 +110,7 @@ export function WorktreeExitDialog({
           )
         : null
 
-      if (stale) return
+      if (signal.aborted) return
 
       const statusOk = statusResult.code === 0
       const changedFiles = statusOk
@@ -143,7 +137,7 @@ export function WorktreeExitDialog({
       try {
         await cleanupWorktree()
       } catch (error) {
-        if (stale) return
+        if (signal.aborted) return
         logError(error)
         resultRef.current = `Could not remove worktree at ${session.worktreePath}: ${errorMessage(error)}. Resolve the issue and retry.`
         setPhase({ kind: 'done' })
@@ -155,7 +149,7 @@ export function WorktreeExitDialog({
       }
       const restoreNote = restoreWorktreeDirectories(session)
       await recordWorktreeExit()
-      if (stale) return
+      if (signal.aborted) return
       resultRef.current = appendRestoreNote(
         'Removed the worktree — there was nothing to keep.',
         restoreNote,
@@ -164,10 +158,6 @@ export function WorktreeExitDialog({
     }
 
     void probe()
-    return () => {
-      stale = true
-      mountedRef.current = false
-    }
   }, [session])
 
   if (session === null || phase.kind === 'done') {
@@ -187,7 +177,7 @@ export function WorktreeExitDialog({
         await keepWorktree()
       } catch (error) {
         logError(error)
-        if (!mountedRef.current) return
+        if (signalRef.current?.aborted) return
         resultRef.current = `Could not keep worktree at ${session.worktreePath}: ${errorMessage(error)}.`
         setPhase({ kind: 'done' })
         return
@@ -197,7 +187,7 @@ export function WorktreeExitDialog({
       }
       const restoreNote = restoreWorktreeDirectories(session)
       await recordWorktreeExit()
-      if (!mountedRef.current) return
+      if (signalRef.current?.aborted) return
       const branchPart = session.worktreeBranch ? ` on branch ${session.worktreeBranch}` : ''
       let summary = `Kept worktree at ${session.worktreePath}${branchPart}.`
       if (choice === 'keep-with-tmux' && session.tmuxSessionName) {
@@ -215,7 +205,7 @@ export function WorktreeExitDialog({
       await cleanupWorktree()
     } catch (error) {
       logError(error)
-      if (!mountedRef.current) return
+      if (signalRef.current?.aborted) return
       resultRef.current = `Could not remove worktree at ${session.worktreePath}: ${errorMessage(error)}. Resolve the issue and retry.`
       setPhase({ kind: 'done' })
       return
@@ -226,7 +216,7 @@ export function WorktreeExitDialog({
     }
     const restoreNote = restoreWorktreeDirectories(session)
     await recordWorktreeExit()
-    if (!mountedRef.current) return
+    if (signalRef.current?.aborted) return
 
     const discarded: string[] = []
     if (counts.commits > 0) {

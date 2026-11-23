@@ -29,28 +29,24 @@ export function SedEditPermissionRequest({
   const [loaded, setLoaded] = useState<LoadedFile | null>(null)
   const [readError, setReadError] = useState<unknown>(null)
 
-  useLoad(() => {
-    let cancelled = false
+  useLoad(signal => {
     setLoaded(null)
     setReadError(null)
     fs.readFile(sedEditInfo.filePath)
       .then(raw => {
-        if (cancelled) return
+        if (signal.aborted) return
         const encoding = detectEncodingForResolvedPath(sedEditInfo.filePath)
         const content = raw.toString(encoding).replace(/\r\n/g, '\n')
         setLoaded({ exists: true, content, beforeBytes: raw.toString('base64') })
       })
       .catch(error => {
-        if (cancelled) return
+        if (signal.aborted) return
         if (isENOENT(error)) {
           setLoaded({ exists: false, content: '' })
           return
         }
         setReadError(error)
       })
-    return () => {
-      cancelled = true
-    }
   }, [sedEditInfo.filePath])
 
   const oldContent = loaded?.content ?? ''

@@ -162,20 +162,16 @@ export function FileEditToolDiff({
   const [loaded, setLoaded] = useState<LoadedDiff | null>(null)
   const editsKey = JSON.stringify(edits)
 
-  useLoad(() => {
-    let stale = false
+  useLoad(signal => {
     setLoaded(null)
     void loadDiff(file_path, edits)
       .then(result => {
-        if (!stale) setLoaded(result)
+        if (!signal.aborted) setLoaded(result)
       })
       .catch(err => {
         logError(err)
-        if (!stale) setLoaded({ hunks: [], firstLine: null })
+        if (!signal.aborted) setLoaded({ hunks: [], firstLine: null })
       })
-    return () => {
-      stale = true
-    }
   }, [file_path, editsKey])
 
   if (loaded === null) {

@@ -374,22 +374,18 @@ export function LogSelector({
   const [renameError, setRenameError] = useState<string | null>(null)
   const lastLoadMoreLenRef = useRef<number>(-1)
 
-  useLoad(() => {
-    let cancelled = false
+  useLoad(signal => {
     void getBranch(getCwd())
       .then(branch => {
-        if (!cancelled && branch) setCurrentBranch(branch)
+        if (!signal.aborted && branch) setCurrentBranch(branch)
       })
       .catch(passedOver)
     if (worktreePathsProp === undefined) {
       void getWorktreePaths(getOriginalCwd())
         .then(paths => {
-          if (!cancelled) setLoadedWorktrees(paths)
+          if (!signal.aborted) setLoadedWorktrees(paths)
         })
         .catch(passedOver)
-    }
-    return () => {
-      cancelled = true
     }
   }, [worktreePathsProp])
 
