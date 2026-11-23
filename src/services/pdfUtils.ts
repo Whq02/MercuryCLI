@@ -1,6 +1,5 @@
 import { resolveModelCapabilities } from '../utils/model/capabilities.js'
 import { getEngineModel } from './model/model.js'
-import { notBuilt } from '../pi/holes.js'
 
 function leadingInt(component: string): number | null {
   if (!/^[+-]?\d/.test(component)) return null
@@ -9,7 +8,25 @@ function leadingInt(component: string): number | null {
 }
 
 export function parsePDFPageRange(pages: string): { firstPage: number; lastPage: number } | null {
-  return notBuilt('src/services/pdfUtils.ts:13')
+  const trimmed = pages.trim()
+  if (!trimmed) return null
+  const parts = trimmed.split('-')
+  if (parts.length === 1) {
+    const page = leadingInt(parts[0]!)
+    if (page === null || page < 1) return null
+    return { firstPage: page, lastPage: page }
+  }
+  if (parts.length === 2) {
+    const firstPage = leadingInt(parts[0]!)
+    if (firstPage === null || firstPage < 1) return null
+    if (parts[1] === '') {
+      return { firstPage, lastPage: Infinity }
+    }
+    const lastPage = leadingInt(parts[1]!)
+    if (lastPage === null || lastPage < firstPage) return null
+    return { firstPage, lastPage }
+  }
+  return null
 }
 
 export function isPDFSupported(model?: string): boolean {
@@ -17,5 +34,6 @@ export function isPDFSupported(model?: string): boolean {
 }
 
 export function isPDFExtension(ext: string): boolean {
-  return notBuilt('src/services/pdfUtils.ts:37')
+  const normalized = ext.toLowerCase()
+  return normalized === 'pdf' || normalized === '.pdf'
 }
