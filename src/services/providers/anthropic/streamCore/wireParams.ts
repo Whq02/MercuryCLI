@@ -46,17 +46,6 @@ import {
 import type { Options } from '../streamCore.js'
 import type { CallState, PlannedRequest } from './state.js'
 import { messageEffortRow, messageEffortSteps, withMessageEffort } from '../messageEffort.js'
-function isCachedMCEditsBlock(value: unknown): value is CachedMCEditsBlock {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'type' in value &&
-    value.type === 'cache_edits' &&
-    'edits' in value &&
-    Array.isArray(value.edits)
-  )
-}
-
 type WireInputs = {
   messages: Message[]
   thinkingConfig: ThinkingConfig
@@ -67,8 +56,8 @@ type WireInputs = {
   cachedMCEnabled: boolean
   cacheEditingHeaderLatched: boolean
   effort: ReturnType<typeof resolveAppliedEffort>
-  consumedCacheEdits: ReturnType<typeof consumePendingCacheEdits>
-  consumedPinnedEdits: ReturnType<typeof getPinnedCacheEdits>
+  consumedCacheEdits: CachedMCEditsBlock | null
+  consumedPinnedEdits: CachedMCPinnedEdits[]
 }
 
 export function wireParamsFor(call: CallState, wire: WireInputs): (context: RetryContext) => BetaMessageStreamParams {
@@ -172,13 +161,6 @@ export function wireParamsFor(call: CallState, wire: WireInputs): (context: Retr
       logForDebugging(`forced tool_choice folded to auto for ${wire.options.model} (the model rejects forced tool choice)`)
     }
 
-    const freshEdits: CachedMCEditsBlock | null =
-      wire.consumedCacheEdits !== null && isCachedMCEditsBlock(wire.consumedCacheEdits.block)
-        ? wire.consumedCacheEdits.block
-        : null
-    const pinnedEdits: CachedMCPinnedEdits[] = wire.consumedPinnedEdits.flatMap(entry =>
-      isCachedMCEditsBlock(entry.block) ? [{ userMessageIndex: entry.userMessageIndex, block: entry.block }] : [],
-    )
     let wirePrefix: WirePrefixParts = {
       system,
       tools: wire.planned.allTools,
@@ -186,8 +168,8 @@ export function wireParamsFor(call: CallState, wire: WireInputs): (context: Retr
         wire.planned.messagesForAPI,
         enablePromptCaching,
         useCachedMC,
-        freshEdits,
-        pinnedEdits,
+        wire.consumedCacheEdits,
+        wire.consumedPinnedEdits,
         wire.options.skipCacheWrite,
       ),
     }
