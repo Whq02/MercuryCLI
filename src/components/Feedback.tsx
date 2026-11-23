@@ -307,7 +307,7 @@ export async function gatherReport(
     const head = historyHead(transcriptPath)
     const totalSize = head.before + (head.end - head.start)
     if (totalSize > MAX_TRANSCRIPT_READ_BYTES) {
-      logForDebugging(`feedback: transcript over the read cap (${totalSize} bytes)`)
+      logForDebugging(`feedback: transcript over the read cap (${totalSize} bytes), skipped`)
     } else if (totalSize > 0) {
       rawTranscript = redactSensitiveInfo(historyRange(head, 0, totalSize).toString('utf8'))
     }

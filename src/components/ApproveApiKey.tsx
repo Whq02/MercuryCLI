@@ -63,7 +63,7 @@ export function ApproveApiKey({
         An Anthropic API key is set in your environment
       </Text>
       <Text>
-        ANTHROPIC_API_KEY: <Text bold>{`sk-ant-…${customApiKeyTruncated}`}</Text>
+        ANTHROPIC_API_KEY: <Text bold>sk-ant-…{customApiKeyTruncated}</Text>
       </Text>
       <Text>Use this key for Anthropic usage-based billing?</Text>
       <Select<'yes' | 'no'>

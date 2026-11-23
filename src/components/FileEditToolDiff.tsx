@@ -205,7 +205,7 @@ export function FileEditToolDiff({
       />
       {bounded.hiddenLines > 0 ? (
         <Text dimColor>
-          … +{bounded.hiddenLines} more {bounded.hiddenLines === 1 ? 'line' : 'lines'} · ctrl+f expands · the whole edit applies
+          … +{bounded.hiddenLines} more line{bounded.hiddenLines === 1 ? '' : 's'} · ctrl+f expands · the whole edit applies
         </Text>
       ) : consentBudget === null ? (
         <Text dimColor>ctrl+f collapses the preview</Text>
