@@ -1,6 +1,7 @@
 import { z } from 'zod/v4'
 
 import { buildTool, type Tool, type ToolDef, type ValidationResult } from '../../Tool.js'
+import { isRecord } from '../../utils/isRecord.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
@@ -56,7 +57,6 @@ const outputSchema = lazySchema(() =>
 type OutputSchema = ReturnType<typeof outputSchema>
 export type CreateOutput = z.infer<OutputSchema>
 const CRON_CREATE_ANSWER_DEADLINE_MS = 10_000
-const methodNotFoundErrorSchema = z.object({ code: z.literal(RPC_METHOD_NOT_FOUND) })
 
 function refuse(message: string, errorCode = 1): ValidationResult {
   return { result: false, message, errorCode }
@@ -182,7 +182,7 @@ export const CronCreateTool: Tool<InputSchema, CreateOutput> = buildTool({
       answer = await askSchedule(edit, signal)
     } catch (error) {
       if (signal?.aborted) throw error
-      if (methodNotFoundErrorSchema.safeParse(error).success) {
+      if (isRecord(error) && error.code === RPC_METHOD_NOT_FOUND) {
         return submitLegacy(true)
       }
       const reason =

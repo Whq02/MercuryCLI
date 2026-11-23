@@ -348,20 +348,13 @@ function dedupeRedirections(redirections: ParsedRedirection[]): ParsedRedirectio
 }
 
 function readSecurityPatterns(value: unknown): ParsedStatement['securityPatterns'] {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
+  if (!isRecord(value)) return undefined
+  const { hasMemberAccess, hasSubExpression, hasExpandableString, hasScriptBlock } = value
   const out: NonNullable<ParsedStatement['securityPatterns']> = {}
-  if ('hasMemberAccess' in value && typeof value.hasMemberAccess === 'boolean') {
-    out.hasMemberAccess = value.hasMemberAccess
-  }
-  if ('hasSubExpression' in value && typeof value.hasSubExpression === 'boolean') {
-    out.hasSubExpression = value.hasSubExpression
-  }
-  if ('hasExpandableString' in value && typeof value.hasExpandableString === 'boolean') {
-    out.hasExpandableString = value.hasExpandableString
-  }
-  if ('hasScriptBlock' in value && typeof value.hasScriptBlock === 'boolean') {
-    out.hasScriptBlock = value.hasScriptBlock
-  }
+  if (typeof hasMemberAccess === 'boolean') out.hasMemberAccess = hasMemberAccess
+  if (typeof hasSubExpression === 'boolean') out.hasSubExpression = hasSubExpression
+  if (typeof hasExpandableString === 'boolean') out.hasExpandableString = hasExpandableString
+  if (typeof hasScriptBlock === 'boolean') out.hasScriptBlock = hasScriptBlock
   return out
 }
 
