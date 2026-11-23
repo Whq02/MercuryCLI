@@ -2,6 +2,7 @@ import React from 'react'
 import { Text } from '../../ink.js'
 import type { TaskState } from '../../tasks/types.js'
 import type { LocalShellTaskState } from '../../tasks/LocalShellTask/guards.js'
+import type { LocalAgentTaskState } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { truncateToWidth } from '../../utils/glyphs.js'
 import { ShellProgress, TaskStatusText } from './ShellProgress.js'
 
@@ -30,11 +31,12 @@ function AgentLine({
   task,
   width,
 }: {
-  task: TaskState
+  task: LocalAgentTaskState | (TaskState & { description: string })
   width: number
 }): React.ReactNode {
-  const retrieved = task.type === 'local_agent' && task.retrieved === true
-  const unread = task.status === 'completed' && !retrieved
+  const unread =
+    task.status === 'completed' &&
+    !(task.type === 'local_agent' && task.retrieved === true)
   return (
     <Text wrap="truncate-end">
       {truncateToWidth(task.description, width)}{' '}

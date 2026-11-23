@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { Box, Text } from '../../ink.js'
 import {
   type AgentModelPickerRow,
@@ -7,7 +7,8 @@ import {
 } from '../../services/model/agentModelPicker.js'
 import { parseUserSpecifiedModel } from '../../services/model/model.js'
 import { AMBER } from '../mercuryPalette.js'
-import { type OptionWithDescription, Select } from '../CustomSelect/select.js'
+import { Select } from '../CustomSelect/index.js'
+import type { OptionWithDescription } from '../CustomSelect/select.js'
 
 const CUSTOM_DESCRIPTION = 'Current model (custom id)'
 
@@ -29,11 +30,11 @@ export function ModelSelector({
   onComplete: (model: string | undefined) => void
   onCancel?: () => void
 }): React.ReactNode {
-  const [rows] = useState(() => getAgentModelPickerRows())
-  const [initial] = useState(() =>
+  const [rows] = React.useState(() => getAgentModelPickerRows())
+  const [initial] = React.useState(() =>
     initialModel === undefined ? 'inherit' : parseUserSpecifiedModel(initialModel),
   )
-  const [notice, setNotice] = useState<string | null>(null)
+  const [notice, setNotice] = React.useState<string | null>(null)
 
   const catalogue = rows.map(optionOf)
   const options = rows.some(row => row.value === initial)
