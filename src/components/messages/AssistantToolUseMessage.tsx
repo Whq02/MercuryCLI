@@ -31,6 +31,7 @@ import { HookProgressMessage } from './HookProgressMessage.js'
 import { ToolRowLead, toolRowStateOf } from './ToolRowLead.js'
 import { TranscriptNameplate } from './TranscriptNameplate.js'
 import { useSelectedMessageBg } from '../messageActions.js'
+import { isRecord } from '../../utils/isRecord.js'
 
 const EDIT_META_TOOLS = new Set(['Edit', 'Write', 'MultiEdit'])
 const NAME_MIN_COLUMNS = 12
@@ -114,16 +115,11 @@ export function RunningShellBackgroundHint({ id }: { id: string }): React.ReactN
 function editMetaCounts(
   rawResult: unknown,
 ): { added: number; removed: number } | null {
-  if (typeof rawResult !== 'object' || rawResult === null || !('structuredPatch' in rawResult)) {
-    return null
-  }
-  const patch = rawResult.structuredPatch
-  if (!Array.isArray(patch)) return null
+  if (!isRecord(rawResult) || !Array.isArray(rawResult.structuredPatch)) return null
   let added = 0
   let removed = 0
-  for (const hunk of patch) {
-    if (typeof hunk !== 'object' || hunk === null || !('lines' in hunk)) continue
-    if (!Array.isArray(hunk.lines)) continue
+  for (const hunk of rawResult.structuredPatch) {
+    if (!isRecord(hunk) || !Array.isArray(hunk.lines)) continue
     for (const line of hunk.lines) {
       if (typeof line !== 'string') continue
       if (line.startsWith('+')) added += 1
