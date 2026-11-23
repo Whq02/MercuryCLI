@@ -12,7 +12,7 @@ const STDIN_REARM_DELAY_MS = 50
 const STDIN_REARM_ATTEMPTS = 8
 
 function rawModeOn(stdin: NodeJS.ReadStream): boolean {
-  return stdin.isRaw === true
+  return (stdin as { isRaw?: boolean }).isRaw === true
 }
 
 export function drainStdin(stdin: NodeJS.ReadStream = process.stdin): void {
