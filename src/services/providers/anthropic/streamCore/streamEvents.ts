@@ -12,13 +12,17 @@ import { logForDiagnosticsNoPII } from 'src/utils/diagLogs.js'
 import { headlessProfilerCheckpoint } from 'src/utils/headlessProfiler.js'
 import { noteRunPhase } from 'src/utils/runPhases.js'
 import { noteCacheDiagnostics } from '../cacheDiagnostics.js'
-import type { ConnectorTextBlock } from '../../../../types/connectorText.js'
+import { addToTotalSessionCost } from 'src/cost-tracker.js'
+import { calculateUSDCost } from 'src/services/usage/modelCost.js'
+import type { ConnectorTextBlock, ConnectorTextDelta } from '../../../../types/connectorText.js'
 import type { AssistantMessage, Message } from '../../../../types/message.js'
+import { settleTranscriptMessage } from '../../../../utils/sessionStorage/writer.js'
 import {
   clearAnthropicUsageLimit,
   extractQuotaStatusFromHeaders,
 } from '../../../anthropicLimits.js'
 import { EMPTY_USAGE } from '../../../api/logging.js'
+import { checkResponseForCacheBreak } from '../../../api/promptCacheBreakDetection.js'
 import { updateUsage } from '../cacheAndUsage.js'
 import {
   createStreamActivityRelay,
@@ -27,8 +31,6 @@ import {
 } from '../../streamIdleBudget.js'
 import type { Options } from '../streamCore.js'
 import type { CallState, StreamPass } from './state.js'
-import { notBuilt, type Unbuilt } from '../../../../pi/holes.js'
-
 export function openStreamPass(): StreamPass {
   const firstByte: { wait: Extract<RequestWaitV1, { kind: 'first-byte' }> | null } = { wait: null }
   const pass: StreamPass = {
@@ -101,15 +103,111 @@ export function startMessage(call: CallState, part: Extract<BetaRawMessageStream
 }
 
 export function openContentBlock(contentBlocks: (BetaContentBlock | ConnectorTextBlock)[], part: Extract<BetaRawMessageStreamEvent, { type: 'content_block_start' }>): void {
-  return notBuilt('src/services/providers/anthropic/streamCore/streamEvents.ts:114')
+  const block = part.content_block
+  switch (block.type) {
+    case 'tool_use':
+      contentBlocks[part.index] = { ...block, input: '' }
+      break
+    case 'server_tool_use':
+      contentBlocks[part.index] = { ...block, input: '' }
+      break
+    case 'mcp_tool_use':
+      contentBlocks[part.index] = { ...block, input: '' }
+      break
+    case 'text':
+      contentBlocks[part.index] = { ...block, text: block.text ?? '' }
+      break
+    case 'thinking':
+      contentBlocks[part.index] = { ...block, thinking: block.thinking ?? '', signature: block.signature ?? '' }
+      break
+    case 'compaction':
+      contentBlocks[part.index] = { ...block, content: block.content ?? '' }
+      break
+    default:
+      contentBlocks[part.index] = { ...block }
+      break
+  }
 }
 
 export function applyBlockDelta(contentBlocks: (BetaContentBlock | ConnectorTextBlock)[], part: Extract<BetaRawMessageStreamEvent, { type: 'content_block_delta' }>): void {
-  return notBuilt('src/services/providers/anthropic/streamCore/streamEvents.ts:150')
+  const block = contentBlocks[part.index]
+  if (!block) {
+    throw new RangeError('Content block not found')
+  }
+  const delta: Extract<BetaRawMessageStreamEvent, { type: 'content_block_delta' }>['delta'] | ConnectorTextDelta = part.delta
+  switch (delta.type) {
+    case 'text_delta':
+      if (block.type !== 'text') throw new Error('Content block is not a text block')
+      block.text += delta.text
+      break
+    case 'input_json_delta':
+      if (block.type !== 'tool_use' && block.type !== 'server_tool_use' && block.type !== 'mcp_tool_use') {
+        throw new Error('Content block is not a tool_use block')
+      }
+      if (typeof block.input !== 'string') block.input = ''
+      block.input += delta.partial_json
+      break
+    case 'thinking_delta':
+      if (block.type !== 'thinking') throw new Error('Content block is not a thinking block')
+      block.thinking += delta.thinking
+      break
+    case 'signature_delta':
+      if (block.type !== 'thinking') throw new Error('Content block is not a thinking block')
+      block.signature += delta.signature
+      break
+    case 'citations_delta':
+      if (block.type === 'text') {
+        if (!Array.isArray(block.citations)) block.citations = []
+        block.citations.push(delta.citation)
+      }
+      break
+    case 'compaction_delta':
+      if (block.type === 'compaction') {
+        if (delta.content !== null) {
+          block.content = (block.content ?? '') + delta.content
+        }
+        if (delta.encrypted_content !== null) {
+          block.encrypted_content = delta.encrypted_content
+        }
+      }
+      break
+    case 'connector_text_delta':
+      if (block.type === 'connector_text') {
+        block.text = (block.text ?? '') + delta.connector_text
+      }
+      break
+  }
 }
 
 export function settleMessageDelta(call: CallState, part: Extract<BetaRawMessageStreamEvent, { type: 'message_delta' }>, newMessages: AssistantMessage[], pricingModel: () => string, options: Options, messages: Message[]): void {
-  return notBuilt('src/services/providers/anthropic/streamCore/streamEvents.ts:195')
+  call.stopReason = part.delta.stop_reason
+  call.usage = updateUsage(call.usage, part.usage)
+  const settledUsage = { ...call.usage, request_started_at_ms: call.start }
+  if (call.partialMessage) {
+    call.partialMessage.stop_reason = part.delta.stop_reason
+    call.partialMessage.stop_sequence = part.delta.stop_sequence
+    call.partialMessage.usage = settledUsage
+  }
+  const lastMessage = newMessages.at(-1)
+  if (lastMessage) {
+    lastMessage.message.usage = settledUsage
+    lastMessage.message.stop_reason = part.delta.stop_reason
+    lastMessage.message.stop_sequence = part.delta.stop_sequence
+    void settleTranscriptMessage(lastMessage)
+  }
+  if (!call.ledgerSettled) {
+    call.ledgerSettled = true
+    const model = pricingModel()
+    addToTotalSessionCost(calculateUSDCost(model, settledUsage), settledUsage, model)
+  }
+  void checkResponseForCacheBreak(
+    options.querySource,
+    call.usage.cache_read_input_tokens,
+    call.usage.cache_creation_input_tokens,
+    messages,
+    options.agentId,
+    call.streamRequestId ?? null,
+  )
 }
 
 export function noteWatchdogCleanExit(pass: StreamPass): void {
@@ -154,9 +252,19 @@ export function observeStreamEnd(call: CallState, pass: StreamPass, turnOwning: 
 }
 
 export function noteWatchdogErrorExit(pass: StreamPass & { streamWatchdogFiredAt: number }): void {
-  return notBuilt('src/services/providers/anthropic/streamCore/streamEvents.ts:262')
+  const exitDelayMs = Math.round(performance.now() - pass.streamWatchdogFiredAt)
+  logForDiagnosticsNoPII(
+    'info',
+    'cli_stream_loop_exited_after_watchdog_error',
+  )
+  logForDebugging(
+    `stream loop exited ${exitDelayMs}ms after watchdog abort (error exit)`,
+  )
+  pass.streamWatchdogFiredAt = null
 }
 
-export function sdkAbortError(signal: AbortSignal, streamingError: APIUserAbortError): Unbuilt {
-  return notBuilt('src/services/providers/anthropic/streamCore/streamEvents.ts:275')
+export function sdkAbortError(signal: AbortSignal, streamingError: APIUserAbortError): APIUserAbortError | APIConnectionTimeoutError {
+  if (signal.aborted) return streamingError
+  logForDebugging('APIUserAbortError caught while caller signal is not aborted — treating as timeout', { level: 'warn' })
+  return new APIConnectionTimeoutError()
 }
