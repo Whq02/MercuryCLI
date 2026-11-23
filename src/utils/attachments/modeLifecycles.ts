@@ -8,7 +8,6 @@ import { capsuleStateFor } from './capsuleState.js'
 import {
   type Attachment,
 } from './types.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export function getDateChangeAttachments(
   messages: Message[] | undefined,
@@ -42,5 +41,22 @@ export function getModePackAttachments(
   messages: Message[] | undefined,
   toolUseContext: ToolUseContext,
 ): Attachment[] {
-  return notBuilt('src/utils/attachments/modeLifecycles.ts:43')
+  if (toolUseContext.agentId) return []
+  const mode = toolUseContext.getAppState().toolPermissionContext.mode
+  const wanted: 'apollo' | null = mode === 'apollo' ? 'apollo' : null
+  const active = latestModePack(messages ?? [])
+  if (wanted === active) return []
+  if (active !== null && wanted === null) {
+    const transition = lastModeTransitionFrom(active)
+    const reason = transition
+      ? `${describeModeRoad(transition.road)} moved the session to ${permissionModeTitle(transition.to)}`
+      : undefined
+    return [{ type: 'mode_pack_exit', mode: active, ...(reason !== undefined ? { reason } : {}) }]
+  }
+  if (wanted !== null) {
+    const sections = getApolloModeSections(wanted)
+    if (sections.length === 0) return []
+    return [{ type: 'mode_pack', mode: wanted, text: sections.join('\n\n') }]
+  }
+  return []
 }
