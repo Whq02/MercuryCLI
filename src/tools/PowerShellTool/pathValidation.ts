@@ -396,16 +396,18 @@ export function checkPathConstraints(
   cwd = getShellCwd(),
 ): PermissionResult {
   if (!parsed.valid) {
-    return { behavior: 'passthrough', message: 'Parsed PowerShell AST is not valid.' }
+    return { behavior: 'passthrough', message: 'Paths cannot be validated on an unparseable command.' }
   }
 
   let firstAsk: PermissionResult | null = null
   for (const statement of getPipelineSegments(parsed)) {
     if (compoundCommandHasCd) {
-      const msg = 'This compound changes the working directory (Set-Location / Push-Location / Pop-Location / New-PSDrive), so relative paths cannot be validated against the original working directory.'
-      firstAsk ??= { behavior: 'ask', message: msg, decisionReason: other(msg) }
+      firstAsk ??= {
+        behavior: 'ask',
+        message: 'This compound changes the working directory (Set-Location / Push-Location / Pop-Location / New-PSDrive), so relative paths cannot be validated against the original working directory.',
+        decisionReason: other('A compound directory change makes relative paths unresolvable.'),
+      }
     }
-
     for (const cmd of statement.commands) {
       const verdict = checkOneCommandNested(cmd, cwd, context)
       if (!verdict) continue
@@ -446,9 +448,8 @@ export function checkPathConstraints(
   }
 
   if (firstAsk) return firstAsk
-  return { behavior: 'passthrough', message: 'All PowerShell paths passed validation.' }
+  return { behavior: 'passthrough', message: 'Paths validated.' }
 }
-
 function checkOneCommand(command: ParsedCommandElement, cwd: string, context: ToolPermissionContext): PermissionResult | null {
   const extracted = extractPaths(command)
   const canonical = resolveToCanonical(command.name)

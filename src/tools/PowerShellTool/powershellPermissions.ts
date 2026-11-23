@@ -240,7 +240,7 @@ async function decidePowerShellPermission(
       }
     }
     if (deferredAsk) return deferredAsk
-    const errMsg = parsed.errors[0]?.message ?? 'unknown syntax error'
+    const errMsg = parsed.errors[0]?.message ?? 'parse error'
     const msg = `The command has malformed syntax that cannot be parsed: ${errMsg}`
     return { behavior: 'ask', message: msg, decisionReason: other(msg) }
   }
@@ -285,17 +285,17 @@ function collectValidAstVerdicts(
 
   const safety = powershellCommandIsSafe(trimmed, parsed)
   if (safety.behavior === 'ask') {
-    const msg = safety.message ?? 'PowerShell command failed security checks.'
+    const msg = safety.message ?? 'The command carries security-relevant patterns and needs approval.'
     collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
   }
 
   if (parsed.hasUsingStatements) {
-    const msg = 'PowerShell using statements require manual approval.'
+    const msg = 'A `using` statement may load external code (a module or an assembly).'
     collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
   }
 
   if (parsed.hasScriptRequirements) {
-    const msg = 'PowerShell #Requires directives require manual approval.'
+    const msg = 'A `#Requires` directive may trigger module loading.'
     collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
   }
 
@@ -309,21 +309,21 @@ function collectValidAstVerdicts(
 
   const hasGit = allCommands.some(cmd => resolveToCanonical(cmd.name) === 'git')
   if (compoundHasCd && hasGit) {
-    const msg = 'Combining a directory change with git requires manual approval because the target directory may be a bare repository.'
+    const msg = 'A compound that mixes a directory change with a git invocation needs approval, because the pairing is the shape of a bare-repository attack.'
     collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
   }
 
   if (hasGit && isCurrentDirectoryBareGitRepo(effectiveCwd) !== false) {
-    const msg = 'Running git inside a bare or untrusted git repository requires manual approval.'
+    const msg = 'The current directory carries bare-repository indicators (HEAD, objects/, refs/) with no valid .git/HEAD; git may treat it as the repository and run hooks from it.'
     collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
   }
 
   const fileRedirs = pinnedCommandAnalysis.getFileRedirections(parsed)
   if (dotGitWrite(parsed, allCommands)) {
-    const msg = 'Writing or redirecting output inside .git/ requires manual approval.'
+    const msg = 'The command targets .git/; anything planted there runs at the next git operation.'
     collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
   } else if (hasGit && gitInternalWrite(parsed, allCommands)) {
-    const msg = 'Writing or redirecting output to git-internal paths alongside git requires manual approval.'
+    const msg = 'The command writes into a git-internal location (HEAD, objects/, refs/, hooks/, .git/) and then runs git — a hook could be planted and executed.'
     collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
   }
 
@@ -332,10 +332,9 @@ function collectValidAstVerdicts(
   )
   const lastGitIdx = allCommands.map(cmd => resolveToCanonical(cmd.name)).lastIndexOf('git')
   if (firstArchiveIdx !== -1 && lastGitIdx !== -1 && firstArchiveIdx < lastGitIdx) {
-    const msg = 'Extracting an archive before running git requires manual approval.'
+    const msg = 'The compound unpacks an archive before running git; an archive can carry the files that make a directory look like a repository root.'
     collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
   }
-
   const pathVerdict = checkPathConstraints(input, parsed, context, compoundHasCd, effectiveCwd)
   if (pathVerdict.behavior !== 'passthrough') collected.push(pathVerdict)
 
@@ -348,14 +347,13 @@ function collectValidAstVerdicts(
   }
 
   if (isReadOnlyCommand(trimmed, parsed)) {
-    collected.push({ behavior: 'allow', updatedInput: input, decisionReason: other('Read-only PowerShell command.') })
+    collected.push({ behavior: 'allow', updatedInput: input, decisionReason: other('The whole command is read-only.') })
   }
 
   if (fileRedirs.length > 0) {
-    const msg = `Command redirects output to ${fileRedirs.map(r => r.target).join(', ')}.`
+    const msg = 'The command has file redirections that could write to arbitrary paths.'
     collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
   }
-
   const modeVerdict = checkPermissionMode(input, parsed, context)
   if (modeVerdict.behavior !== 'passthrough') collected.push(modeVerdict)
 
@@ -409,7 +407,7 @@ function evaluatePerSubcommand(
 
   if (unapproved.length === 0 && !hasUnsafeStatement) {
     if (parsedHasScriptBlocks(parsed)) {
-      const msg = 'Command contains script blocks that could not be statically approved.'
+      const msg = 'What remains is a formatting pipeline whose script-block bodies were never inspected.'
       return { behavior: 'ask', message: msg, decisionReason: other(msg) }
     }
     return {

@@ -32,22 +32,22 @@ function checkCommandInImplementMode(
   originalCommand: string,
 ): PermissionResult | null {
   if (!cmd.name || (cmd.elementType !== 'CommandAst' && cmd.elementType !== 'command')) {
-    return pass('Non-command or empty element cannot be auto-allowed in implement mode.')
+    return pass(`A non-command element (${cmd.elementType}) requires approval.`)
   }
   if (cmd.nameType === 'application') {
-    return pass(`External application "${cmd.name}" requires approval in implement mode.`)
+    return pass(`${cmd.name} resolves as a file path.`)
   }
   if (isDirect) {
     for (let i = 0; i < cmd.args.length; i++) {
       const arg = cmd.args[i]!
       const argType = argumentTypeAt(cmd, i)
       if (argType !== 'StringConstant' && argType !== 'Parameter') {
-        return pass(`Argument "${arg}" is not a static literal or parameter.`)
+        return pass('A variable path cannot be statically resolved.')
       }
       if (isPowerShellParameter(arg, argType)) {
         const colon = arg.indexOf(':', 1)
         if (colon !== -1 && COMPLEX_COLON.test(arg.slice(colon + 1))) {
-          return pass(`Parameter "${arg}" has a complex colon-bound value.`)
+          return pass('An unvalidatable colon-bound expression requires approval.')
         }
       }
     }
@@ -56,10 +56,10 @@ function checkCommandInImplementMode(
   if (isAllowlistedPipelineTail(cmd, originalCommand)) return null
   const canonical = resolveToCanonical(cmd.name)
   if (!ACCEPT_EDITS_WRITE.has(canonical)) {
-    return pass(`Command "${cmd.name}" is not auto-allowed in implement mode.`)
+    return pass(`${cmd.name} is not an auto-allowed writer.`)
   }
   if (argLeaksValue(originalCommand, cmd)) {
-    return pass(`Command "${cmd.name}" has an argument that may leak dynamic values.`)
+    return pass('The command arguments cannot be statically validated.')
   }
   return null
 }
@@ -70,11 +70,14 @@ export function checkPermissionMode(
   toolPermissionContext: ToolPermissionContext,
 ): PermissionResult {
   const { mode } = toolPermissionContext
-  if (modeBypassesPermissions(mode) || mode === 'dontAsk' || mode !== 'implement') {
-    return pass(`Permission mode "${mode}" does not auto-allow this command.`)
+  if (modeBypassesPermissions(mode) || mode === 'dontAsk') {
+    return pass('Bypass-posture or never-ask mode handles this command.')
+  }
+  if (mode !== 'implement') {
+    return pass('Not implement mode.')
   }
   if (!parsed.valid) {
-    return pass('Command AST is not valid.')
+    return pass('Unparseable command cannot be auto-allowed.')
   }
   const flags = deriveSecurityFlags(parsed)
   if (
@@ -86,11 +89,11 @@ export function checkPermissionMode(
     flags.hasSplatting ||
     flags.hasStopParsing
   ) {
-    return pass('Command contains dynamic or unsafe PowerShell constructs.')
+    return pass('The command uses constructs that require approval.')
   }
   const segments = getPipelineSegments(parsed)
   if (segments.length === 0) {
-    return pass('Command has no pipeline segments.')
+    return pass('Nothing to check.')
   }
 
   const allCommands: ParsedCommandElement[] = []
@@ -99,20 +102,19 @@ export function checkPermissionMode(
     for (const cmd of segment.nestedCommands) allCommands.push(cmd)
   }
   if (allCommands.length === 0) {
-    return pass('Command contains no commands.')
+    return pass('Nothing to check.')
   }
 
   if (allCommands.length > 1) {
     const hasCwdChange = allCommands.some(cmd => isCwdChangingCmdlet(cmd.name))
     const hasAcceptEditsWrite = allCommands.some(cmd => ACCEPT_EDITS_WRITE.has(resolveToCanonical(cmd.name)))
     if (hasCwdChange && hasAcceptEditsWrite) {
-      return pass('Compound command combines a working-directory change with file writes.')
+      return pass('A compound changing the working directory and writing cannot use a stale working directory.')
     }
     if (allCommands.some(cmd => isSymlinkCreatingCommand(cmd))) {
-      return pass('Compound command creates symlinks, junctions, or hardlinks.')
+      return pass('Path validation cannot follow just-created filesystem links.')
     }
   }
-
   for (const segment of segments) {
     for (const cmd of segment.commands) {
       const verdict = checkCommandInImplementMode(cmd, true, input.command)
