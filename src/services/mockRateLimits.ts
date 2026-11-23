@@ -1,4 +1,5 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
+import { isOneOf } from '../utils/isOneOf.js'
 import type { RateLimitType } from './anthropicLimits.js'
 import { FIRST_WARNING_PCT } from './providers/usageTiers.js'
 
@@ -50,12 +51,7 @@ type ScenarioPool = { utilization: number; resets_at: string }
 
 type ScenarioPools = Partial<Record<'seven_day_opus' | 'seven_day_sonnet', ScenarioPool>>
 
-const CLAIM_DERIVED_TYPES: ReadonlySet<string> = new Set([
-  'five_hour',
-  'seven_day',
-  'seven_day_opus',
-  'seven_day_sonnet',
-])
+const CLAIM_DERIVED_TYPES = ['five_hour', 'seven_day', 'seven_day_opus', 'seven_day_sonnet'] as const
 
 let enabled = false
 let mockHeaders: MockHeaders = {}
@@ -147,11 +143,10 @@ export function setMockHeader(key: MockHeaderKey, value: string | undefined): vo
     return
   }
 
-  if (key === 'claim' && CLAIM_DERIVED_TYPES.has(value)) {
-    const limitType = value as RateLimitType
-    const resetsAt = hoursFromNowEpoch(limitType === 'five_hour' ? 5 : 7 * 24)
-    exceededLimits = exceededLimits.filter(entry => entry.type !== limitType)
-    exceededLimits.push({ type: limitType, resetsAt })
+  if (key === 'claim' && isOneOf(CLAIM_DERIVED_TYPES, value)) {
+    const resetsAt = hoursFromNowEpoch(value === 'five_hour' ? 5 : 7 * 24)
+    exceededLimits = exceededLimits.filter(entry => entry.type !== value)
+    exceededLimits.push({ type: value, resetsAt })
     deriveRepresentativeClaim()
     return
   }
