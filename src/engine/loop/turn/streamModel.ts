@@ -433,8 +433,8 @@ export async function* streamOneCall(run: RunCtx, iter: IterationState, emit: Ev
       },
       onWait: (wait: RequestWaitV1 | null) => toolUseContext.setSDKStatus?.({ wait }),
       onStreamActivity: (atMs: number) => {
-        reachedTheRoad()
         toolUseContext.setSDKStatus?.({ streamActivity: atMs })
+        reachedTheRoad()
       },
     },
   })
