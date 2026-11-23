@@ -1,4 +1,5 @@
-import { basename, isAbsolute, relative, resolve } from 'node:path'
+import { existsSync } from 'node:fs'
+import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
 
 import * as chokidar from 'chokidar'
 
@@ -10,11 +11,13 @@ import { ignoringSpecialFiles, resolveWatchRoot } from '../watchRoot.js'
 import { bankHookOutcomes } from './background.js'
 import { fireHooks } from './fire.js'
 import { hooksFor } from './matching.js'
-import { notBuilt, unbuilt } from '../../pi/holes.js'
-let currentCwd: string = unbuilt('src/utils/hooks/fileChangedWatcher.ts:15')
-let watcher: chokidar.FSWatcher | null = unbuilt('src/utils/hooks/fileChangedWatcher.ts:16')
-let watchedPaths: Set<string> = unbuilt('src/utils/hooks/fileChangedWatcher.ts:17')
-let dynamicWatchPaths: string[] = unbuilt('src/utils/hooks/fileChangedWatcher.ts:18')
+
+let initialized = false
+let currentCwd = ''
+let watcher: chokidar.FSWatcher | null = null
+let watchedPaths = new Set<string>()
+let dynamicWatchPaths: string[] = []
+let lastDynamicSorted: string[] = []
 
 function scope(): { sessionId: string } {
   return { sessionId: String(getSessionId()) }
@@ -51,7 +54,34 @@ function handleWatchEvent(event: keyof typeof CHANGE_WORDS, path: string): void 
 }
 
 async function startWatching(): Promise<void> {
-  return notBuilt('src/utils/hooks/fileChangedWatcher.ts:55')
+  const paths = resolveWatchPaths()
+  watchedPaths = new Set(paths)
+  if (paths.length === 0) return
+
+  const armTargets = new Set<string>()
+  for (const target of paths) {
+    if (existsSync(target)) armTargets.add(resolveWatchRoot(target))
+    else if (existsSync(dirname(target))) armTargets.add(resolveWatchRoot(dirname(target)))
+  }
+
+  logForDebugging(`file.changed watcher: ${paths.length} watched paths, ${armTargets.size} arm targets`)
+
+  watcher = chokidar.watch([...armTargets], {
+    depth: 0,
+    persistent: true,
+    ignoreInitial: true,
+    ignorePermissionErrors: true,
+    awaitWriteFinish: { stabilityThreshold: 500, pollInterval: 200 },
+    ignored: ignoringSpecialFiles(),
+  })
+
+  watcher
+    .on('change', path => handleWatchEvent('change', path))
+    .on('add', path => handleWatchEvent('add', path))
+    .on('unlink', path => handleWatchEvent('unlink', path))
+    .on('error', error => {
+      logForDebugging(`file.changed watcher error: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
+    })
 }
 
 let restarting: Promise<void> = Promise.resolve()
@@ -68,10 +98,45 @@ function restartWatching(): Promise<void> {
   return restarting
 }
 
+async function disposeFileChangedWatcher(): Promise<void> {
+  if (watcher) {
+    await watcher.close()
+    watcher = null
+  }
+  initialized = false
+  currentCwd = ''
+  watchedPaths.clear()
+  dynamicWatchPaths = []
+  lastDynamicSorted = []
+}
+
+function queueRestart(): void {
+  void restartWatching().catch(error => {
+    logForDebugging(`file.changed watcher error: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
+  })
+}
+
 export function initializeFileChangedWatcher(cwd: string): void {
-  return notBuilt('src/utils/hooks/fileChangedWatcher.ts:101')
+  if (initialized) return
+  initialized = true
+  currentCwd = cwd
+  if (hooksFor('file.changed', scope()).length === 0) return
+  registerCleanup(disposeFileChangedWatcher)
+  if (resolveWatchPaths().length > 0) {
+    queueRestart()
+  }
 }
 
 export function updateWatchPaths(paths: string[]): void {
-  return notBuilt('src/utils/hooks/fileChangedWatcher.ts:112')
+  if (!initialized) return
+  const nextSorted = [...paths].sort()
+  if (
+    nextSorted.length === lastDynamicSorted.length &&
+    nextSorted.every((value, index) => value === lastDynamicSorted[index])
+  ) {
+    return
+  }
+  dynamicWatchPaths = [...paths]
+  lastDynamicSorted = nextSorted
+  queueRestart()
 }
