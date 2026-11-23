@@ -51,7 +51,6 @@ import { RemovePart } from './writer/remove.js'
 import { SettlePart } from './writer/settle.js'
 import { describeTranscriptStoreFailure, setStoreHealth } from './writer/storeHealth.js'
 import { passedOver } from '../passedOver.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 export { describeTranscriptStoreFailure, subscribeTranscriptStoreHealth, transcriptStoreHealth } from './writer/storeHealth.js'
 
 export function subscribeTranscriptFile(path: string, listener: () => void): () => void {
@@ -124,23 +123,48 @@ let project: Project | null = null
 let cleanupRegistered = false
 
 export function getProject(): Project {
-  return notBuilt('src/utils/sessionStorage/writer.ts:125')
+  if (!project) {
+    project = new Project()
+    if (!cleanupRegistered) {
+      cleanupRegistered = true
+      registerCleanup(async () => {
+        await project?.flush()
+        try {
+          project?.reAppendSessionMetadata()
+        } catch (error) {
+          logError(
+            new Error(
+              `the session's title and tag rows could not be restamped into its transcript at exit, so it can list without its title: ${errorMessage(error)}`,
+            ),
+          )
+        }
+      })
+      registerExitCliffSeam({
+        name: 'transcript-writer',
+        phase: 1,
+        settle: () => project?.flush() ?? Promise.resolve(),
+      })
+    }
+  }
+  return project
 }
 
 export function peekProject(): Project | null {
-  return notBuilt('src/utils/sessionStorage/writer.ts:149')
+  return project
 }
 
 export function resetProjectFlushStateForTesting(): void {
-  return notBuilt('src/utils/sessionStorage/writer.ts:153')
+  project?._resetFlushState()
 }
 
 export function resetProjectForTesting(): void {
-  return notBuilt('src/utils/sessionStorage/writer.ts:157')
+  resetTranscriptFormatCacheForTesting()
+  reportedAgentReadFailures.clear()
+  project = null
 }
 
 export function setSessionFileForTesting(path: string): void {
-  return notBuilt('src/utils/sessionStorage/writer.ts:163')
+  getProject().sessionFile = path
 }
 
 let transcriptMessagesVisited = 0
@@ -162,36 +186,93 @@ function partitionUnwritten(
   return { unwritten, parent }
 }
 
+function findLastRecordedParent(
+  allMessages: readonly Message[],
+  unwritten: Transcript,
+  onDisk: ReadonlySet<UUID>,
+): UUID | undefined {
+  const unwrittenIds = new Set<UUID>(unwritten.map(m => m.uuid as UUID))
+  let parent: UUID | undefined
+  for (const m of allMessages) {
+    if (unwrittenIds.has(m.uuid as UUID)) break
+    if (isChainParticipant(m) && onDisk.has(m.uuid as UUID)) {
+      parent = m.uuid as UUID
+    }
+  }
+  return parent
+}
+
 export async function recordTranscript(
   messages: Message[],
   startingParentUuidHint?: UUID,
   allMessages?: readonly Message[],
 ): Promise<UUID | null> {
-  return notBuilt('src/utils/sessionStorage/writer.ts:201')
+  transcriptMessagesVisited += messages.length
+  const cleaned = cleanForTranscript(messages, allMessages)
+  const onDisk = await getSessionMessages(getSessionId() as UUID)
+  const { unwritten, parent } = partitionUnwritten(
+    cleaned,
+    onDisk,
+    startingParentUuidHint,
+  )
+  const startingParentUuid =
+    parent ??
+    (allMessages && unwritten.length > 0
+      ? findLastRecordedParent(allMessages, unwritten, onDisk)
+      : undefined)
+  const preferLiveLeaf = onDisk.size > 0
+  const currentProject = getProject()
+  if (unwritten.length > 0) {
+    await currentProject.insertMessageChain(
+      unwritten,
+      false,
+      undefined,
+      startingParentUuid,
+      preferLiveLeaf,
+    )
+  }
+  for (let i = unwritten.length - 1; i >= 0; i--) {
+    const m = unwritten[i]!
+    if (isChainParticipant(m)) return m.uuid as UUID
+  }
+  if (preferLiveLeaf && currentProject.currentSessionChainLeaf !== undefined) {
+    return currentProject.currentSessionChainLeaf
+  }
+  return startingParentUuid ?? null
 }
 
 export function settleTranscriptMessage(message: Message): Promise<void> {
-  return notBuilt('src/utils/sessionStorage/writer.ts:231')
+  return getProject().settleMessage(message)
 }
 
 export async function recordSidechainTranscript(
   messages: Message[],
   agentId?: string,
   startingParentUuid?: UUID | null,
-): Promise<Unbuilt> {
-  return notBuilt('src/utils/sessionStorage/writer.ts:235')
+): Promise<void> {
+  await getProject().insertMessageChain(
+    cleanForTranscript(messages),
+    true,
+    agentId,
+    startingParentUuid,
+  )
 }
 
 export function closeAgentTranscript(agentId: string): void {
-  return notBuilt('src/utils/sessionStorage/writer.ts:248')
+  const currentProject = peekProject()
+  if (!currentProject) return
+  const file =
+    agentTranscriptDestinations.get(agentId) ??
+    getAgentTranscriptPath(asAgentId(agentId))
+  currentProject.closeTranscript(file)
 }
 
-export async function recordQueueOperation(queueOp: QueueOperationMessage): Promise<Unbuilt> {
-  return notBuilt('src/utils/sessionStorage/writer.ts:252')
+export async function recordQueueOperation(queueOp: QueueOperationMessage): Promise<void> {
+  await getProject().insertQueueOperation(queueOp)
 }
 
 export async function recordTurnStart(turnId: string): Promise<void> {
-  return notBuilt('src/utils/sessionStorage/writer.ts:256')
+  await recordSessionRow(sessionId => ({ type: 'turn-start', sessionId, turnId }))
 }
 
 export async function recordTurnEnd(turnId: string, status: string): Promise<void> {
@@ -199,48 +280,57 @@ export async function recordTurnEnd(turnId: string, status: string): Promise<voi
 }
 
 export async function removeTranscriptMessage(targetUuid: UUID): Promise<void> {
-  return notBuilt('src/utils/sessionStorage/writer.ts:264')
+  await getProject().removeMessageByUuid(targetUuid)
 }
 
 export async function recordFileHistorySnapshot(
   messageId: UUID,
   snapshot: FileHistorySnapshot,
   isSnapshotUpdate: boolean,
-): Promise<Unbuilt> {
-  return notBuilt('src/utils/sessionStorage/writer.ts:268')
+): Promise<void> {
+  await getProject().insertFileHistorySnapshot(
+    messageId,
+    snapshot,
+    isSnapshotUpdate,
+  )
 }
 
 export async function recordAttributionSnapshot(
   snapshot: AttributionSnapshotEntry,
-): Promise<Unbuilt> {
-  return notBuilt('src/utils/sessionStorage/writer.ts:280')
+): Promise<void> {
+  await getProject().insertAttributionSnapshot(snapshot)
 }
 
 export async function recordContentReplacement(
   replacements: ContentReplacementRecord[],
   agentId?: AgentId,
-): Promise<Unbuilt> {
-  return notBuilt('src/utils/sessionStorage/writer.ts:286')
+): Promise<void> {
+  await getProject().insertContentReplacement(replacements, agentId)
 }
 
-export async function resetSessionFilePointer(): Promise<Unbuilt> {
-  return notBuilt('src/utils/sessionStorage/writer.ts:293')
+export async function resetSessionFilePointer(): Promise<void> {
+  getProject().resetSessionFile()
 }
 
 export function advisorSwitchOfSession(): boolean {
-  return notBuilt('src/utils/sessionStorage/writer.ts:297')
+  return getProject().currentSessionAdvisor === true
 }
 
 export function swarmSwitchOfSession(): boolean {
-  return notBuilt('src/utils/sessionStorage/writer.ts:301')
+  return getProject().currentSessionSwarm !== false
 }
 
 export function adoptResumedSessionFile(): void {
-  return notBuilt('src/utils/sessionStorage/writer.ts:305')
+  const currentProject = getProject()
+  currentProject.sessionFile = getTranscriptPath()
+  currentProject.reAppendSessionMetadata(true)
+  currentProject.currentSessionChainLeaf = undefined
 }
 
 async function recordSessionRow(row: (sessionId: UUID) => Entry): Promise<void> {
-  return notBuilt('src/utils/sessionStorage/writer.ts:312')
+  const sessionId = getSessionId() as UUID
+  if (!sessionId) return
+  await getProject().appendEntry(row(sessionId))
 }
 
 export async function recordContextCollapseCommit(commit: {
@@ -251,7 +341,11 @@ export async function recordContextCollapseCommit(commit: {
   firstArchivedUuid: string
   lastArchivedUuid: string
 }): Promise<void> {
-  return notBuilt('src/utils/sessionStorage/writer.ts:318')
+  await recordSessionRow(sessionId => ({
+    type: 'context-collapse-commit',
+    sessionId,
+    ...commit,
+  }))
 }
 
 export async function recordContextCollapseSnapshot(snapshot: {
@@ -265,11 +359,15 @@ export async function recordContextCollapseSnapshot(snapshot: {
   armed: boolean
   lastSpawnTokens: number
 }): Promise<void> {
-  return notBuilt('src/utils/sessionStorage/writer.ts:329')
+  await recordSessionRow(sessionId => ({
+    type: 'context-collapse-snapshot',
+    sessionId,
+    ...snapshot,
+  }))
 }
 
 export async function flushSessionStorage(): Promise<void> {
-  return notBuilt('src/utils/sessionStorage/writer.ts:343')
+  await getProject().flush()
 }
 
 class Project {
@@ -279,7 +377,11 @@ class Project {
   currentSessionAgentColor: string | undefined
   currentSessionLastPrompt: string | undefined
   currentSessionChainLeaf: UUID | undefined
-  private readonly chainPart: Unbuilt = unbuilt('src/utils/sessionStorage/writer.ts:354')
+  private readonly chainPart: ChainPart = new ChainPart(this, {
+    trackWrite: <T>(fn: () => Promise<T>) => this.queuePart.trackWrite(fn),
+    serializeInsert: <T>(fn: () => Promise<T>) => this.queuePart.serializeInsert(fn),
+    materializeSessionFile: () => this.filesPart.materializeSessionFile(),
+  })
   currentSessionAgentSetting: string | undefined
   currentSessionMode: 'coordinator' | 'normal' | undefined
   currentSessionAdvisor: boolean | undefined
@@ -290,89 +392,189 @@ class Project {
   currentSessionPrUrl: string | undefined
   currentSessionPrRepository: string | undefined
 
-  sessionFile: string | null = unbuilt('src/utils/sessionStorage/writer.ts:369')
-  private readonly filesPart: Unbuilt = unbuilt('src/utils/sessionStorage/writer.ts:370')
-  private readonly queuePart: Unbuilt = unbuilt('src/utils/sessionStorage/writer.ts:371')
-  private readonly settlePart: Unbuilt = unbuilt('src/utils/sessionStorage/writer.ts:372')
-  private readonly removePart: Unbuilt = unbuilt('src/utils/sessionStorage/writer.ts:380')
+  sessionFile: string | null = null
+  private readonly filesPart: FilesPart = new FilesPart(this, {
+    shouldSkipPersistence: () => this.shouldSkipPersistence(),
+  })
+  private readonly queuePart: QueuePart = new QueuePart()
+  private readonly settlePart: SettlePart = new SettlePart({
+    enqueueRawLine: (filePath, line, capture, record) =>
+      this.queuePart.enqueueRawLine(filePath, line, capture, record).then(() => {
+        notifyStorageFile(filePath)
+      }),
+    writeQueues: () => this.queuePart.writeQueues,
+    shouldSkipPersistence: () => this.shouldSkipPersistence(),
+  })
+  private readonly removePart: RemovePart = new RemovePart(this, {
+    trackWrite: <T>(fn: () => Promise<T>) => this.queuePart.trackWrite(fn),
+    serializeWrite: <T>(fn: () => Promise<T>) => this.queuePart.serializeWrite(fn),
+    _drainWriteQueueInner: () => this.queuePart._drainWriteQueueInner(),
+  })
 
-  readonly metadata: Unbuilt = unbuilt('src/utils/sessionStorage/writer.ts:386')
+  readonly metadata: SessionMeta = new SessionMeta({
+    currentId: () => getSessionId() as UUID,
+    currentFile: () => this.sessionFile,
+    append: appendEntryToFile,
+    tail: path => readTranscriptTailSync(path, LITE_READ_BUF_SIZE),
+  })
 
   constructor() {
-    notBuilt('src/utils/sessionStorage/writer.ts:393')
+    for (const [prop, field] of Object.entries(SESSION_META_COMPAT_FIELDS)) {
+      Object.defineProperty(this, prop, {
+        enumerable: true,
+        configurable: true,
+        get: () => this.metadata.fields[field],
+        set: (value: unknown) => {
+          ;(this.metadata.fields as Record<string, unknown>)[field] = value
+        },
+      })
+    }
   }
 
   _resetFlushState(): void {
-    return notBuilt('src/utils/sessionStorage/writer.ts:404')
+    this.settlePart.resetSettled()
+    this.queuePart._resetFlushState()
   }
 
   resetSessionFile(): void {
-    return notBuilt('src/utils/sessionStorage/writer.ts:409')
+    this.sessionFile = null
+    this.filesPart.pendingEntries = []
+    this.settlePart.resetSettled()
+    this.currentSessionChainLeaf = undefined
   }
 
-  reAppendSessionMetadata(skipTitleRefresh?: boolean): void {
-    return notBuilt('src/utils/sessionStorage/writer.ts:416')
+  reAppendSessionMetadata(skipTitleRefresh = false): void {
+    this.metadata.restamp(skipTitleRefresh)
   }
 
   flush(): Promise<void> {
-    return notBuilt('src/utils/sessionStorage/writer.ts:420')
+    return this.queuePart.flush()
   }
 
   async removeMessageByUuid(targetUuid: UUID): Promise<void> {
-    return notBuilt('src/utils/sessionStorage/writer.ts:424')
+    const file = this.sessionFile
+    await this.removePart.removeMessageByUuid(targetUuid)
+    if (file) notifyStorageFile(file)
   }
 
   private shouldSkipPersistence(): boolean {
-    return notBuilt('src/utils/sessionStorage/writer.ts:430')
+    if (getNodeEnv() === 'test') return true
+    if (getInitialSettings().records?.retentionDays === 0) return true
+    if (isSessionPersistenceDisabled()) return true
+    if (isEnvTruthy(flagEnv('MERCURY_SKIP_PROMPT_HISTORY'))) return true
+    return false
   }
 
   insertMessageChain(
     messages: Transcript,
-    isSidechain?: boolean,
+    isSidechain = false,
     agentId?: string,
     startingParentUuid?: UUID | null,
-    preferLiveLeaf?: boolean,
-  ): Unbuilt {
-    return notBuilt('src/utils/sessionStorage/writer.ts:439')
+    preferLiveLeaf = false,
+  ): Promise<void> {
+    return this.chainPart.insertMessageChain(
+      messages,
+      isSidechain,
+      agentId,
+      startingParentUuid,
+      preferLiveLeaf,
+    )
   }
 
   private insertTracked(entry: Entry): Promise<void> {
-    return notBuilt('src/utils/sessionStorage/writer.ts:449')
+    return this.queuePart.trackWrite(() => this.appendEntry(entry))
   }
 
   async insertFileHistorySnapshot(
     messageId: UUID,
     snapshot: FileHistorySnapshot,
     isSnapshotUpdate: boolean,
-  ): Promise<Unbuilt> {
-    return notBuilt('src/utils/sessionStorage/writer.ts:453')
+  ): Promise<void> {
+    const entry: FileHistorySnapshotEntry = {
+      type: 'file-history-snapshot',
+      messageId,
+      snapshot,
+      isSnapshotUpdate,
+    }
+    await this.insertTracked(entry)
   }
 
-  async insertQueueOperation(queueOp: QueueOperationMessage): Promise<Unbuilt> {
-    return notBuilt('src/utils/sessionStorage/writer.ts:462')
+  async insertQueueOperation(queueOp: QueueOperationMessage): Promise<void> {
+    await this.insertTracked(queueOp)
   }
 
-  async insertAttributionSnapshot(snapshot: AttributionSnapshotEntry): Promise<Unbuilt> {
-    return notBuilt('src/utils/sessionStorage/writer.ts:466')
+  async insertAttributionSnapshot(snapshot: AttributionSnapshotEntry): Promise<void> {
+    await this.insertTracked(snapshot)
   }
 
   async insertContentReplacement(
     replacements: ContentReplacementRecord[],
     agentId?: AgentId,
-  ): Promise<Unbuilt> {
-    return notBuilt('src/utils/sessionStorage/writer.ts:470')
+  ): Promise<void> {
+    const entry: ContentReplacementEntry = {
+      type: 'content-replacement',
+      sessionId: getSessionId() as UUID,
+      agentId,
+      replacements,
+    }
+    await this.insertTracked(entry)
   }
 
-  async appendEntry(entry: Entry, sessionId?: UUID): Promise<Unbuilt> {
-    return notBuilt('src/utils/sessionStorage/writer.ts:478')
+  async appendEntry(entry: Entry, sessionId?: UUID): Promise<void> {
+    if (this.shouldSkipPersistence()) return
+    const targetSessionId = sessionId ?? (getSessionId() as UUID)
+    const file = await this.filesPart.sessionFileFor(targetSessionId, entry)
+    if (file === null) return
+
+    if (storageRowPolicy(entry.type)?.write === 'append') {
+      void this.queuePart
+        .enqueueWrite(file, entry)
+        .then(() => notifyStorageFile(file), passedOver)
+      return
+    }
+
+    if (entry.type === 'content-replacement') {
+      const target = entry.agentId
+        ? (agentTranscriptDestinations.get(entry.agentId) ??
+            getAgentTranscriptPath(entry.agentId))
+        : file
+      void this.queuePart
+        .enqueueWrite(target, entry)
+        .then(() => notifyStorageFile(target), passedOver)
+      return
+    }
+
+    if (entry.type === 'queue-operation') {
+      void this.queuePart
+        .enqueueWrite(file, entry)
+        .then(() => notifyStorageFile(file), passedOver)
+      return
+    }
+
+    const message = entry as TranscriptMessage
+    if (message.isSidechain && message.agentId !== undefined) {
+      const agentFile =
+        agentTranscriptDestinations.get(message.agentId) ??
+        getAgentTranscriptPath(asAgentId(message.agentId))
+      const existing = await getAgentFileMessages(agentFile)
+      if (existing.has(message.uuid)) return
+      existing.add(message.uuid)
+      this.settlePart.enqueueMessageWrite(agentFile, message)
+      return
+    }
+
+    const existing = await getSessionMessages(targetSessionId)
+    if (existing.has(message.uuid)) return
+    this.settlePart.enqueueMessageWrite(file, message)
+    existing.add(message.uuid)
   }
 
   settleMessage(message: Message): Promise<void> {
-    return notBuilt('src/utils/sessionStorage/writer.ts:528')
+    return this.settlePart.settleMessage(message)
   }
 
   closeTranscript(file: string): void {
-    return notBuilt('src/utils/sessionStorage/writer.ts:532')
+    this.settlePart.closeTranscript(file)
   }
 }
 
@@ -380,6 +582,18 @@ export function appendEntryToFile(
   fullPath: string,
   entry: Record<string, unknown>,
 ): void {
-  return notBuilt('src/utils/sessionStorage/writer.ts:537')
+  const { line } = encodeTranscriptLine(fullPath, entry)
+  const fs = getFsImplementation()
+  try {
+    fs.appendFileSync(fullPath, line, { mode: 0o600 })
+  } catch {
+    try {
+      fs.mkdirSync(dirname(fullPath), { mode: 0o700 })
+      fs.appendFileSync(fullPath, line, { mode: 0o600 })
+    } catch (retryError) {
+      throw describeTranscriptStoreFailure(fullPath, retryError)
+    }
+  }
+  notifyStorageFile(fullPath)
 }
 
