@@ -20,7 +20,6 @@ import { hasSeatLive } from '../services/engine-connector/seatLive.js'
 import type { AgentControlReceiptV1 } from '../services/engine-connector/types.js'
 import { crewStillRunningLine, interruptReceiptLine } from '../services/engine-connector/crewFacts.js'
 import { workCounts } from '../services/engine-connector/workCounts.js'
-import type { Message } from '../types/message.js'
 import { createSystemMessage } from '../utils/messages/systemMessages.js'
 import * as pendingInput from '../input-core/pending-input.js'
 import type { Screen } from '../screens/Chat.js'
@@ -49,8 +48,7 @@ export function interruptFocusedTurn(): boolean {
   if (!focused.interrupt()) return false
   const line = press === null ? crewStillRunningLine(running) : interruptReceiptLine(running, press)
   if (line !== null) {
-    const painter = focused as { addDisplayRow?: (row: Message) => void }
-    if (typeof painter.addDisplayRow === 'function') painter.addDisplayRow(createSystemMessage(line, 'warning'))
+    if (focused.addDisplayRow !== undefined) focused.addDisplayRow(createSystemMessage(line, 'warning'))
   }
   return true
 }
