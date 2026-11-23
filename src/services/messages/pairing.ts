@@ -26,11 +26,11 @@ export function stripUnsignedThinkingBlocks(
     if (row.type !== 'assistant') return row
     const before = row.message.content
     const kept = before.filter(block => !isUnsignedThinkingBlock(block))
-    const phased = kept.some(block => block.type === 'text' && 'phase' in block)
+    const phased = kept.some(block => block.type === 'text' && Object.hasOwn(block, 'phase'))
     if (kept.length === before.length && !phased) return row
     const content = kept.map(block => {
-      if (block.type !== 'text' || !('phase' in block)) return block
-      const { phase: _phase, ...unphased } = block
+      if (block.type !== 'text' || !Object.hasOwn(block, 'phase')) return block
+      const { phase: _phase, ...unphased }: typeof block & { phase?: unknown } = block
       return unphased
     })
     if (content.length === 0) content.push({ type: 'text', text: '[reasoning from another model provider — not transferable]', citations: [] })

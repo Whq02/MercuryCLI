@@ -5,6 +5,7 @@ import type { HookAttachment } from '../../utils/attachments/types.js'
 import { isContinuableStreamFaultMessage, isStreamFaultRecoveryNudgeText } from '../api/errors.js'
 import { contentBlocksOf } from '../../utils/messages/normalize.js'
 import { accumulateOpenToolUses, freshOpenToolUses } from '../../utils/messages/openToolUses.js'
+import { isRecord } from '../../utils/isRecord.js'
 import { isDenialResultText } from '../../utils/messages/rejectionText.js'
 export type MessageLookups = {
   normalizedMessageCount: number
@@ -122,7 +123,8 @@ export function buildMessageLookups(normalizedMessages: NormalizedMessage[], mes
     for (const block of contentBlocksOf(row.message.content)) {
       if (block.type === 'tool_use') normalizedCalls.add(block.id)
       if (block.type === 'server_tool_use' || block.type === 'mcp_tool_use') hostedCalls.push({ id: block.id, messageId: row.message.id })
-      if ('tool_use_id' in block && typeof block.tool_use_id === 'string') lookups.resolvedToolUseIDs.add(block.tool_use_id)
+      const part: unknown = block
+      if (isRecord(part) && typeof part.tool_use_id === 'string') lookups.resolvedToolUseIDs.add(part.tool_use_id)
     }
   }
   for (const id of normalizedCalls) {
