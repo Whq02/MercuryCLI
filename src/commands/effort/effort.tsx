@@ -92,7 +92,10 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
   const trimmed = args.trim()
   const lower = trimmed.toLowerCase()
   if (lower === 'auto' || lower === 'unset') {
-    updateSettingsForSource('userSettings', { engine: { effort: undefined } })
+    const cleared = updateSettingsForSource('userSettings', { engine: { effort: undefined } })
+    if (cleared.error !== null) {
+      return { message: `Failed to clear effort setting: ${cleared.error.message}` }
+    }
     unpinAllLaunchEffort()
     const envOverride = getEffortEnvOverride()
     const message =
@@ -116,7 +119,10 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
   let persisted = false
   if (persistable !== undefined) {
     const saved = updateSettingsForSource('userSettings', { engine: { effort: persistable } })
-    persisted = saved.error === null
+    if (saved.error !== null) {
+      return { message: `Failed to save effort setting: ${saved.error.message}` }
+    }
+    persisted = true
   }
   unpinAllLaunchEffort()
 
@@ -301,9 +307,20 @@ export async function call(
   args: string,
 ): Promise<React.ReactNode> {
   const trimmed = args.trim()
+  const lower = trimmed.toLowerCase()
   const model = context.options.engineModel
-  if (HELP_TOKENS.has(trimmed.toLowerCase())) {
+  if (HELP_TOKENS.has(lower)) {
     onDone(helpText())
+    return null
+  }
+  if (lower === 'status' || lower === 'current') {
+    const focused = getFocusedSessionConnector()
+    if (focused.carrier === 'daemon') {
+      const facts = focused.modelFacts()
+      onDone(showSeatEffort(facts.effort, facts.effortSent, facts.effective))
+    } else {
+      onDone(showCurrentEffort(context.getAppState().effortValue, model).message)
+    }
     return null
   }
   if (trimmed === '') {
