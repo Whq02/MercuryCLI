@@ -570,10 +570,8 @@
    ],
    "src/engine/compaction/pruneToolResults.ts": [
     "TIME_BASED_MC_CLEARED_MESSAGE",
-    "consumePendingCacheEdits",
     "estimateContextTokens",
     "estimateMessageTokens",
-    "getPinnedCacheEdits",
     "microcompactMessages",
     "pinCacheEdits",
     "projectTimeBasedMicrocompact",
