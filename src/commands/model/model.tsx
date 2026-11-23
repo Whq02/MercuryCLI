@@ -239,31 +239,28 @@ function ModelDirectSet({
     startedRef.current = true
     void (async () => {
       try {
+        const lowerTyped = typed.toLowerCase()
+        const disabledFamily = BARE_FAMILY_WORDS.some(entry => entry.word === lowerTyped && isProviderDisabled(entry.route))
+        if (disabledFamily || isModelFromDisabledProvider(target)) {
+          onDone(`Model ${typed} not found.`, { display: 'system' })
+          return
+        }
         if (target !== null) {
-          if (isModelFromDisabledProvider(target)) {
-            onDone(`Model not found — ${typed}`, { display: 'system' })
-            return
-          }
           if (!isModelAllowed(target)) {
-            onDone(`Model ${typed} isn't available: your organization restricts model selection.`, { display: 'system' })
+            onDone(`${typed} isn't available: your organization restricts model selection.`, { display: 'system' })
             return
           }
-          const lowerTarget = target.toLowerCase()
-          if (lowerTarget.includes('[1m]')) {
-            if (lowerTarget.includes('opus') && !checkOpus1mAccess() && !isOpus1mMergeEnabled()) {
-              onDone(`The 1M-context ${typed} model isn't available for this account. Run /model to pick a different model.`, { display: 'system' })
-              return
-            }
-            if (lowerTarget.includes('sonnet') && !checkSonnet1mAccess()) {
-              onDone(`The 1M-context ${typed} model isn't available for this account. Run /model to pick a different model.`, { display: 'system' })
-              return
-            }
+          const opusLocked = lowerTyped.includes('opus') && lowerTyped.includes('[1m]') && !checkOpus1mAccess() && !isOpus1mMergeEnabled()
+          const sonnetLocked = (lowerTyped.includes('sonnet[1m]') || lowerTyped.includes('sonnet-4-6[1m]')) && !checkSonnet1mAccess()
+          if (opusLocked || sonnetLocked) {
+            onDone(`The 1M-context ${renderModelName(target)} model isn't available for this account. Run /model to pick a different model.`, { display: 'system' })
+            return
           }
-          if (!isModelAlias(lowerTarget)) {
+          if (!isModelAlias(target.toLowerCase())) {
             const verdict = await validateModel(target)
             if (signal.aborted) return
             if (!verdict.valid) {
-              onDone(verdict.error ?? `Model validation failed: ${typed}`, { display: 'system' })
+              onDone(verdict.error ?? `Model ${typed} not found.`, { display: 'system' })
               return
             }
           }
@@ -367,14 +364,7 @@ export async function call(
     return <ModelReadout onDone={onDone} />
   }
   if (COMMON_HELP_ARGS.includes(lowered)) {
-    const families = BARE_FAMILY_WORDS.filter(entry => !isProviderDisabled(entry.route)).map(entry => entry.word)
-    onDone(
-      [
-        'Run /model with no argument to open the model selection menu, or /model <modelName> to set the model directly.',
-        ...(families.length > 0 ? [`Family aliases: ${families.join(', ')}`] : []),
-      ].join('\n'),
-      { display: 'system' },
-    )
+    onDone('Run /model with no argument to open the model selection menu, or /model <modelName> to set the model directly.', { display: 'system' })
     return null
   }
   const target: ModelSetting = trimmed === 'default' ? null : trimmed
