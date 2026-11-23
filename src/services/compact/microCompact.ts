@@ -67,19 +67,13 @@ export function estimateContextTokens(messages: Message[], model?: string): numb
 
 const MAIN_THREAD_PREFIX = 'main_thread'
 
-function isMainThreadSource(querySource: string | undefined): boolean {
-  return querySource === undefined || querySource.startsWith(MAIN_THREAD_PREFIX)
-}
-
 function evaluateTimeBasedTrigger(
   messages: Message[],
   querySource: string | undefined,
 ): { gapMinutes: number; config: ReturnType<typeof getTimeBasedMCConfig> } | null {
   const config = getTimeBasedMCConfig()
   if (!config.enabled) return null
-  if (querySource === undefined) return null
-  if (!isMainThreadSource(querySource)) return null
-
+  if (querySource === undefined || !querySource.startsWith(MAIN_THREAD_PREFIX)) return null
   let lastAssistant: AssistantMessage | undefined
   for (let index = messages.length - 1; index >= 0; index--) {
     const candidate = messages[index]
@@ -126,7 +120,7 @@ function containsRepeatedResultTag(content: unknown): boolean {
 
 export function projectTimeBasedMicrocompact(
   messages: Message[],
-  querySource: string | undefined,
+  querySource?: string,
   trigger?: MicrocompactTrigger,
 ): {
   messages: Message[]
