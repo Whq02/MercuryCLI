@@ -1,5 +1,4 @@
-import { existsSync } from 'node:fs'
-import * as fs from 'node:fs'
+import { existsSync, promises as fsPromises } from 'node:fs'
 
 import {
   OUTPUT_FILE_TAG,
@@ -39,7 +38,7 @@ import {
 import { registerTask, updateTaskState } from '../../utils/task/framework.js'
 import { getToolResultPath } from '../../utils/toolResultStorage.js'
 import { recordShellCommandOutcome } from '../../utils/verification/verificationState.js'
-import type { AgentId } from '../../types/ids.js'
+import { asAgentId } from '../../types/ids.js'
 import type { BashTaskKind, LocalShellTaskState, ShellKillSource } from './guards.js'
 import { isLocalShellTask } from './guards.js'
 import { killTask } from './killShellTasks.js'
@@ -85,7 +84,6 @@ function enqueueShellNotification(
   setAppState: SetAppState,
   toolUseId: string | undefined,
   agentId: string | undefined,
-  _kind: BashTaskKind | undefined,
 ): void {
   let shouldNotify = false
   updateTaskState<LocalShellTaskState>(taskId, setAppState, task => {
@@ -155,7 +153,7 @@ function armStallWatchdog(args: {
   void pollUntil(
     async () => {
       try {
-        const stats = await fs.promises.stat(outputPath)
+        const stats = await fsPromises.stat(outputPath)
         if (stats.size > highWaterSize) {
           highWaterSize = stats.size
           quietSince = Date.now()
@@ -358,7 +356,6 @@ async function settleShellTask(args: {
     setAppState,
     toolUseId,
     agentId,
-    kind,
   )
 
   void evictTaskOutput(taskId)
@@ -394,7 +391,7 @@ export async function spawnShellTask(
     completionStatusSentInAttachment: false,
     lastReportedTotalLines: 0,
     isBackgrounded: true,
-    agentId: input.agentId as AgentId | undefined,
+    agentId: input.agentId !== undefined ? asAgentId(input.agentId) : undefined,
     ...(input.kind !== undefined ? { kind: input.kind } : {}),
     verifyCwd,
   }
@@ -528,7 +525,7 @@ export function registerForeground(
     completionStatusSentInAttachment: false,
     lastReportedTotalLines: 0,
     isBackgrounded: false,
-    agentId: input.agentId as AgentId | undefined,
+    agentId: input.agentId !== undefined ? asAgentId(input.agentId) : undefined,
     verifyCwd: getCwd(),
   }
   registerTask(taskState, setAppState)
