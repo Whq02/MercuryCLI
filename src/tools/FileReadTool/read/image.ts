@@ -119,7 +119,7 @@ export async function readImageWithTokenBudget(
       ? Math.min(tokenBudget, Math.floor(Math.ceil(maxBytes / 3) * 4 * 0.125))
       : tokenBudget
   try {
-    const compressed = await compressImageBufferWithTokenLimit(buffer, effectiveMaxTokens, detected)
+    const compressed = await compressImageBufferWithTokenLimit(resized.buffer, effectiveMaxTokens, resizedMime)
     return {
       type: 'image',
       file: {
