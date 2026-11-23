@@ -56,8 +56,7 @@ Pressing `a` opens the new-session schedule form. Its rows:
 - **Opening mission**: `audit` and `review` run complete, self-contained
   missions; `custom…` opens a text field; `born-waiting — no mission` starts the session idle and
   ready for input.
-- **Contract**, **Title**, **Note**: the session contract pre-answered for the
-  session, the session's title, and a note for the board.
+- **Title**, **Note**: the session's title and a note for the board.
 
 The form's preview runs the schedule-time preflight live as you edit: the
 compiler's errors verbatim, the account the session would run on, and the
