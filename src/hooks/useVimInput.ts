@@ -23,7 +23,6 @@ import {
   type PersistentState,
 } from '../vim/types.js'
 import { useTextInput, type UseTextInputProps } from './useTextInput.js'
-import { notBuilt } from '../pi/holes.js'
 
 export type VimMode = 'INSERT' | 'NORMAL'
 
@@ -72,5 +71,194 @@ function replay(change: RecordedChange, ctx: TransitionContext): void {
 }
 
 export function useVimInput(props: UseVimInputProps): VimInputState {
-  return notBuilt('src/hooks/useVimInput.ts:74')
+  const { onModeChange, onUndo, initialMode, inputFilter, ...textInputProps } = props
+  const base: TextInputState = useTextInput(textInputProps)
+
+  const [mode, setModeState] = useState<VimMode>(initialMode ?? 'INSERT')
+  const modeRef = useRef<VimMode>(mode)
+  const prevInitialModeRef = useRef<VimMode | undefined>(initialMode)
+  const onModeChangeRef = useRef(onModeChange)
+  onModeChangeRef.current = onModeChange
+
+  const commandStateRef = useRef<CommandState>({ type: 'idle' })
+  const insertedTextRef = useRef<string>('')
+  const replayingRef = useRef<boolean>(false)
+  const persistent: PersistentState = getSessionVimPersistentState()
+
+  const setMode = (nextMode: VimMode): void => {
+    if (nextMode === modeRef.current) return
+    modeRef.current = nextMode
+    setModeState(nextMode)
+    onModeChangeRef.current?.(nextMode)
+  }
+
+  usePublish(() => {
+    const prev = prevInitialModeRef.current
+    prevInitialModeRef.current = initialMode
+    if (initialMode === undefined || initialMode === prev) return
+    if (initialMode === 'INSERT') {
+      insertedTextRef.current = ''
+    } else {
+      commandStateRef.current = { type: 'idle' }
+    }
+    if (initialMode !== modeRef.current) {
+      modeRef.current = initialMode
+      setModeState(initialMode)
+      onModeChangeRef.current?.(initialMode)
+    }
+  }, [initialMode])
+
+  const recordChange = (change: RecordedChange): void => {
+    if (replayingRef.current) return
+    persistent.lastChange = change
+  }
+
+  const enterInsertMode = (offset?: number): void => {
+    if (offset !== undefined) {
+      base.setOffset(offset)
+    }
+    insertedTextRef.current = ''
+    commandStateRef.current = { type: 'idle' }
+    setMode('INSERT')
+  }
+
+  const enterNormalMode = (): void => {
+    if (insertedTextRef.current.length > 0) {
+      recordChange({ type: 'insert', text: insertedTextRef.current })
+      insertedTextRef.current = ''
+    }
+    if (base.offset > 0 && props.value[base.offset - 1] !== '\n') {
+      base.setOffset(base.offset - 1)
+    }
+    commandStateRef.current = { type: 'idle' }
+    setMode('NORMAL')
+  }
+
+  const replayLastChange = (ctx: TransitionContext): void => {
+    const change = persistent.lastChange
+    if (!change) return
+    replayingRef.current = true
+    try {
+      replay(change, ctx)
+    } finally {
+      replayingRef.current = false
+    }
+  }
+
+  const onInput = (input: string, key: Key): void => {
+    if (key.escape) {
+      if (modeRef.current === 'INSERT') {
+        enterNormalMode()
+      } else {
+        commandStateRef.current = { type: 'idle' }
+      }
+      return
+    }
+
+    if (modeRef.current === 'INSERT') {
+      const filtered = inputFilter ? inputFilter(input, key) : input
+      if (key.ctrl || key.return) {
+        base.onInput(filtered, key)
+        return
+      }
+      if (key.backspace || key.delete) {
+        if (insertedTextRef.current.length > 0) {
+          const last = lastGrapheme(insertedTextRef.current)
+          insertedTextRef.current = insertedTextRef.current.slice(
+            0,
+            insertedTextRef.current.length - last.length,
+          )
+        }
+      } else if (
+        !key.meta &&
+        !key.upArrow &&
+        !key.downArrow &&
+        !key.leftArrow &&
+        !key.rightArrow &&
+        !key.tab &&
+        !key.pageUp &&
+        !key.pageDown &&
+        !key.home &&
+        !key.end &&
+        filtered.length > 0
+      ) {
+        insertedTextRef.current += filtered
+      }
+      base.onInput(filtered, key)
+      return
+    }
+
+    if (key.ctrl || key.return) {
+      base.onInput(input, key)
+      return
+    }
+
+    const currentState = commandStateRef.current
+    if (
+      currentState.type === 'idle' &&
+      (key.upArrow || key.downArrow || key.leftArrow || key.rightArrow)
+    ) {
+      base.onInput(input, key)
+      return
+    }
+
+    let mappedInput = inputFilter ? inputFilter(input, key) : input
+    if (key.leftArrow) {
+      mappedInput = 'h'
+    } else if (key.downArrow) {
+      mappedInput = 'j'
+    } else if (key.upArrow) {
+      mappedInput = 'k'
+    } else if (key.rightArrow) {
+      mappedInput = 'l'
+    } else if (key.backspace) {
+      if (!isMotionExpectingState(currentState)) {
+        commandStateRef.current = { type: 'idle' }
+        return
+      }
+      mappedInput = 'h'
+    } else if (key.delete) {
+      if (currentState.type === 'count') return
+      mappedInput = 'x'
+    }
+
+    if (currentState.type === 'idle' && mappedInput === '?' && props.value === '') {
+      props.onChange('?')
+      base.setOffset(1)
+      return
+    }
+
+    if (mappedInput === '') return
+
+    const ctx: TransitionContext = {
+      cursor: Cursor.fromText(props.value, props.columns, base.offset),
+      text: props.value,
+      setText: props.onChange,
+      setOffset: base.setOffset,
+      enterInsert: (offset: number) => enterInsertMode(offset),
+      getRegister: () => persistent.register,
+      setRegister: (content: string, linewise: boolean) => {
+        persistent.register = content
+        persistent.registerIsLinewise = linewise
+      },
+      getLastFind: () => persistent.lastFind,
+      setLastFind: (type, char) => {
+        persistent.lastFind = { type, char }
+      },
+      recordChange,
+      onDotRepeat: () => replayLastChange(ctx),
+      onUndo,
+    }
+
+    const result = transition(currentState, mappedInput, ctx)
+    commandStateRef.current = result.next ?? { type: 'idle' }
+    result.execute?.()
+  }
+
+  return {
+    ...base,
+    onInput,
+    mode,
+    setMode,
+  }
 }
