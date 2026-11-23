@@ -674,7 +674,8 @@ function recordVisibleMatches(
       const rawFile = rawFiles[pageStart + index] ?? null
       let file: string
       let rest: string
-      if (rawFile !== null && line.startsWith(`${rawFile}:`)) {
+      if (rawFile !== null) {
+        if (!line.startsWith(`${rawFile}:`)) continue
         file = rawFile
         rest = line.slice(rawFile.length)
       } else {
