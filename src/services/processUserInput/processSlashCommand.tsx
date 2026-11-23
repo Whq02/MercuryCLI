@@ -58,14 +58,6 @@ class TaggedMalformedCommandError extends Error {
   readonly isMalformedCommand = true
 }
 
-function isMalformedCommandError(error: unknown): error is Error {
-  return (
-    error instanceof Error &&
-    'isMalformedCommand' in error &&
-    error.isMalformedCommand === true
-  )
-}
-
 const UNKNOWN_COMMAND_PREFIX = 'Unknown skill'
 
 export function resolveUnknownSlashName(input: string, commands: Command[]): string | undefined {
@@ -614,7 +606,7 @@ export async function processSlashCommand(
     }
     return finalizeCommandResult(result)
   } catch (error) {
-    if (isMalformedCommandError(error)) {
+    if (error instanceof TaggedMalformedCommandError) {
       return {
         messages: [
           createUserMessage({

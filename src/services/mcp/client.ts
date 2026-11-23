@@ -209,50 +209,56 @@ function createStderrCollector(name: string, redact: (text: string) => string): 
   }
 }
 
-type PreparedTransport = {
-  transport: Transport
-  transportLabel: string
-  stdioTransport: StdioClientTransport | null
-  inProcessServer: { close: () => Promise<void> } | null
-}
+type PreparedTransport =
+  | {
+      ready: true
+      transport: Transport
+      transportLabel: string
+      stdioTransport: StdioClientTransport | null
+      inProcessServer: { close: () => Promise<void> } | null
+    }
+  | {
+      ready: false
+      connection: MCPServerConnection
+    }
 
 async function prepareTransportFor(
   name: string,
   serverRef: ScopedMcpServerConfig,
   type: string,
-): Promise<PreparedTransport | MCPServerConnection> {
+): Promise<PreparedTransport> {
   const config = serverRef as RemoteConfig
   try {
     if (type === 'stdio') {
       if (isMercuryServer(name) && isMercuryServerEnabled()) {
         const { server, clientSide } = await inProcessTransportFor()
-        return { transport: clientSide, transportLabel: 'in-process', stdioTransport: null, inProcessServer: server }
+        return { ready: true, transport: clientSide, transportLabel: 'in-process', stdioTransport: null, inProcessServer: server }
       }
       const stdio = buildStdioTransport(name, serverRef, config)
-      return { transport: stdio, transportLabel: 'stdio', stdioTransport: stdio, inProcessServer: null }
+      return { ready: true, transport: stdio, transportLabel: 'stdio', stdioTransport: stdio, inProcessServer: null }
     }
     if (type === 'sse') {
       const provider = new MercuryMcpAuthProvider(name, serverRef, undefined, false, undefined, true)
       const transport = await sseTransportFor(name, config, provider)
-      return { transport, transportLabel: 'sse', stdioTransport: null, inProcessServer: null }
+      return { ready: true, transport, transportLabel: 'sse', stdioTransport: null, inProcessServer: null }
     }
     if (type === 'http') {
       const provider = new MercuryMcpAuthProvider(name, serverRef, undefined, false, undefined, true)
       const transport = await httpTransportFor(name, config, provider)
-      return { transport, transportLabel: 'http', stdioTransport: null, inProcessServer: null }
+      return { ready: true, transport, transportLabel: 'http', stdioTransport: null, inProcessServer: null }
     }
     if (type === 'ws') {
       const transport = await wsTransportFor(name, config)
-      return { transport, transportLabel: 'ws', stdioTransport: null, inProcessServer: null }
+      return { ready: true, transport, transportLabel: 'ws', stdioTransport: null, inProcessServer: null }
     }
     if (type === 'claudeai-proxy') {
       const transport = proxyTransportFor(name, config)
-      return { transport, transportLabel: 'claudeai-proxy', stdioTransport: null, inProcessServer: null }
+      return { ready: true, transport, transportLabel: 'claudeai-proxy', stdioTransport: null, inProcessServer: null }
     }
-    return { name, type: 'failed', config: serverRef, error: `Unsupported MCP server type: ${String(type)}` }
+    return { ready: false, connection: { name, type: 'failed', config: serverRef, error: `Unsupported MCP server type: ${String(type)}` } }
   } catch (err) {
     logMCPError(name, err)
-    return { name, type: 'failed', config: serverRef, error: errorMessage(err) }
+    return { ready: false, connection: { name, type: 'failed', config: serverRef, error: errorMessage(err) } }
   }
 }
 
@@ -394,7 +400,7 @@ export const connectToServer = memoize(
     }
 
     const prepared = await prepareTransportFor(name, serverRef, type)
-    if (!('transport' in prepared)) return prepared
+    if (!prepared.ready) return prepared.connection
 
     const { transportLabel, inProcessServer } = prepared
     let transport = prepared.transport
