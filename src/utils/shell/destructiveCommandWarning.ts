@@ -269,81 +269,80 @@ function checkWindowsSegmentWarning(
   return null
 }
 
+function partAfter(command: string, verb: string): string | null {
+  const match = new RegExp(`(?<![A-Za-z0-9_])git\\s+${verb}(?![A-Za-z0-9_])([^;&|\\n]*)`).exec(command)
+  return match ? (match[1] ?? '') : null
+}
+
 const MATCHERS: Matcher[] = [
   command =>
-    /\bgit\s+reset\b[^;&|\n]*(?:--hard|"--hard"|'--hard')(?:\s|$|[;&|])/.test(command)
+    /(?<![A-Za-z0-9_])git\s+reset(?![A-Za-z0-9_])[^\n]*\s--hard(?![A-Za-z0-9_])/.test(command)
       ? 'Note: a hard reset may discard uncommitted changes.'
       : null,
   command =>
-    new RegExp(`${SEGMENT_BOUNDARY}git\\s+push\\b[^;&|\\n]*\\s(?:-f(?:\\s|$)|--force(?:-with-lease)?\\b)`).test(command)
+    new RegExp(`${SEGMENT_BOUNDARY}git\\s+push(?![A-Za-z0-9_])[^;&|\\n]*\\s(?:--force-with-lease|--force|-f)(?![A-Za-z0-9_])`).test(command)
       ? 'Note: a force push may overwrite remote history.'
       : null,
   command => {
-    const match = /\bgit\s+clean\b([^;&|\n]*)/.exec(command)
-    if (!match) return null
-    const rest = match[1] ?? ''
-    const hasForce = /(?:^|\s)-[a-zA-Z]*f|--force\b/.test(rest)
-    const hasDryRun = /(?:^|\s)-[a-zA-Z]*n|--dry-run\b/.test(rest)
+    const part = partAfter(command, 'clean')
+    if (part === null) return null
+    const hasForce = /\s(?:-[A-Za-z]*f[A-Za-z]*|--force)(?![A-Za-z0-9_])/.test(part)
+    const hasDryRun = /\s(?:-[A-Za-z]*n[A-Za-z]*|--dry-run)(?![A-Za-z0-9_])/.test(part)
     return hasForce && !hasDryRun ? 'Note: a forced git clean may permanently delete untracked files.' : null
   },
   command =>
-    new RegExp(`${SEGMENT_BOUNDARY}git\\s+checkout\\s+(?:--\\s+)?\\.(?:\\s|$|[;&|])`).test(command)
+    /(?<![A-Za-z0-9_])git\s+checkout(?![A-Za-z0-9_])[^\n]*?(?: --)?\s+\.\s*(?:[;&|]|$)/.test(command)
       ? 'Note: checking out the current directory may discard all working tree changes.'
       : null,
   command =>
-    new RegExp(`${SEGMENT_BOUNDARY}git\\s+restore\\s+(?:--\\s+)?\\.(?:\\s|$|[;&|])`).test(command)
+    /(?<![A-Za-z0-9_])git\s+restore(?![A-Za-z0-9_])[^\n]*?(?: --)?\s+\.\s*(?:[;&|]|$)/.test(command)
       ? 'Note: restoring the current directory may discard all working tree changes.'
       : null,
   command =>
-    new RegExp(`${SEGMENT_BOUNDARY}git\\s+stash\\s+(?:drop|clear)\\b`).test(command)
+    /git\s+stash\s+(?:drop|clear)(?![A-Za-z0-9_])/.test(command)
       ? 'Note: this may permanently remove stashed changes.'
       : null,
   command => {
-    const match = new RegExp(`${SEGMENT_BOUNDARY}git\\s+branch\\b([^;&|\\n]*)`).exec(command)
-    if (!match) return null
-    const rest = match[1] ?? ''
-    if (/(?:^|\s)-[a-zA-Z]*D(?:\s|$)/.test(rest)) return 'Note: this may force-delete a branch.'
-    if (/(?:^|\s)--delete\b/.test(rest) && /(?:^|\s)--force\b/.test(rest)) {
-      return 'Note: this may force-delete a branch.'
-    }
-    return null
+    const part = partAfter(command, 'branch')
+    if (part === null) return null
+    if (/\s-D[ \t]+/.test(part)) return 'Note: this may force-delete a branch.'
+    const deletes = /\s--delete(?![A-Za-z0-9_])/.test(part)
+    const forces = /\s--force(?![A-Za-z0-9_])/.test(part)
+    return deletes && forces ? 'Note: this may force-delete a branch.' : null
   },
   command =>
-    new RegExp(`${SEGMENT_BOUNDARY}git\\s+(?:commit|push|merge)\\b[^;&|\\n]*--no-verify\\b`).test(command)
+    /git\s+(?:commit|push|merge)(?![A-Za-z0-9_])[^\n]*\s--no-verify(?![A-Za-z0-9_])/.test(command)
       ? 'Note: skipping verification may bypass safety hooks.'
       : null,
   command =>
-    new RegExp(`${SEGMENT_BOUNDARY}git\\s+commit\\b[^;&|\\n]*--amend\\b`).test(command)
+    /git\s+commit(?![A-Za-z0-9_])[^\n]*\s--amend(?![A-Za-z0-9_])/.test(command)
       ? 'Note: amending may rewrite the last commit.'
       : null,
   command => {
-    const re = new RegExp(`${SEGMENT_BOUNDARY}rm\\b([^;&|\\n]*)`, 'g')
-    let match: RegExpExecArray | null
-    while ((match = re.exec(command)) !== null) {
-      const cluster = firstFlagCluster(match[1] ?? '')
-      if (!cluster) continue
-      const hasR = /[rR]/.test(cluster)
-      const hasF = cluster.includes('f')
-      if (hasR && hasF) return 'Note: this may recursively force-remove files.'
-      if (hasR) return 'Note: this may recursively remove files.'
-      if (hasF) return 'Note: this may force-remove files.'
-    }
+    const match = new RegExp(`${SEGMENT_BOUNDARY}rm(?![A-Za-z0-9_])([^;&|\\n]*)`).exec(command)
+    const cluster = match ? firstFlagCluster(match[1] ?? '') : null
+    if (cluster === null) return null
+    const hasR = /[rR]/.test(cluster)
+    const hasF = cluster.includes('f')
+    if (hasR && hasF) return 'Note: this may recursively force-remove files.'
+    if (hasR) return 'Note: this may recursively remove files.'
+    if (hasF) return 'Note: this may force-remove files.'
     return null
   },
   command =>
-    /\b(?:drop|truncate)\s+(?:table|database|schema)\b/i.test(command)
+    /(?<![A-Za-z0-9_])(?:drop|truncate)\s+(?:table|database|schema)(?![A-Za-z0-9_])/i.test(command)
       ? 'Note: this may drop or truncate database objects.'
       : null,
   command =>
-    /\bdelete\s+from\s+\S+\s*;?\s*$/i.test(command) && !/\bwhere\b/i.test(command)
+    /delete\s+from\s+\S+\s*;?\s*$/i.test(command)
       ? 'Note: this may delete all rows from a database table.'
       : null,
   command =>
-    new RegExp(`${SEGMENT_BOUNDARY}kubectl\\s+delete\\b`).test(command)
+    /(?<![A-Za-z0-9_])kubectl\s+delete(?![A-Za-z0-9_])/.test(command)
       ? 'Note: this may delete Kubernetes resources.'
       : null,
   command =>
-    new RegExp(`${SEGMENT_BOUNDARY}terraform\\s+destroy\\b`).test(command)
+    /(?<![A-Za-z0-9_])terraform\s+destroy(?![A-Za-z0-9_])/.test(command)
       ? 'Note: this may destroy Terraform infrastructure.'
       : null,
 ]
