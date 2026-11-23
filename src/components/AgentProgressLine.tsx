@@ -55,16 +55,20 @@ export function AgentProgressLine({
         <Text dimColor>{connector}</Text>
         {hideType ? (
           <>
-            <Text bold>{name ?? description ?? agentType}</Text>
+            <Text bold dimColor={dim}>
+              {name ?? description ?? agentType}
+            </Text>
             {name !== undefined && description !== undefined && (
               <Text dimColor>{` (${description})`}</Text>
             )}
           </>
         ) : (
           <>
-            <Text inverse color={color}>{` ${agentType} `}</Text>
+            <Text inverse color={color} dimColor={dim}>{` ${agentType} `}</Text>
             {description !== undefined && (
-              <Text inverse color={descriptionColor ?? color}>{` (${description}) `}</Text>
+              <Text inverse color={descriptionColor ?? color} dimColor={dim}>
+                {` (${description}) `}
+              </Text>
             )}
           </>
         )}
