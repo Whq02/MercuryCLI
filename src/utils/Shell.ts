@@ -565,7 +565,7 @@ function followShellFolder(run: ThirdRoad, result: ExecResult, cwdFile: string):
     const trimmed = text.trim()
     if (run.road.recordsBash && trimmed === '') {
       logForDebugging('bash cwd tracking: the shell directory stays put — the command left no directory')
-    } else if ('refused' in recorded) {
+    } else if (recorded.refused !== undefined) {
       logForDebugging(`bash cwd tracking: the shell directory stays put — ${recorded.refused}`)
       if (trimmed !== '') tell(shellDirectoryStays(run.runFolder, `${trimmed.split(/\r?\n/)[0]} is a folder of the bash's own with no Windows path`))
     } else if (recorded.path.normalize('NFC') !== run.runFolder.normalize('NFC')) {

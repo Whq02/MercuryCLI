@@ -1,3 +1,4 @@
+import { entriesOf } from '../../utils/entriesOf.js'
 import { getEmptyToolPermissionContext, type ToolPermissionContext, type ToolUseContext } from '../../Tool.js'
 import type {
   PermissionResult,
@@ -427,7 +428,7 @@ function contentRulesReadAsBash(context: ToolPermissionContext, toolName: string
     if (nextReasons === undefined) {
       const cloned: MutableRuleReasons = {}
       if (context.ruleReasons) {
-        for (const [source, map] of Object.entries(context.ruleReasons) as Array<[RuleSourceKey, Readonly<Record<string, string>> | undefined]>) {
+        for (const [source, map] of entriesOf(context.ruleReasons)) {
           if (map) cloned[source] = { ...map }
         }
       }
@@ -439,7 +440,7 @@ function contentRulesReadAsBash(context: ToolPermissionContext, toolName: string
   const projectMap = (map: RulesBySource): RulesBySource => {
     let changed = false
     const out: MutableRulesBySource = {}
-    for (const [source, rules] of Object.entries(map) as Array<[RuleSourceKey, readonly string[] | undefined]>) {
+    for (const [source, rules] of entriesOf(map)) {
       if (!rules) continue
       const projected = [...rules]
       for (const raw of rules) {
