@@ -5,7 +5,6 @@ import { useNotifications } from '../../context/notifications.js'
 import { Text } from '../../ink.js'
 import { hasAnthropicConnectorEverConnected } from '../../services/mcp/anthropicConnectors.js'
 import type { MCPServerConnection } from '../../utils/mcp/types.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const PROXY_TYPES = ['claudeai-proxy']
 
@@ -15,6 +14,96 @@ type Props = {
   mcpClients?: MCPServerConnection[]
 }
 
-export function useMcpConnectivityStatus(arg0: Props): void {
-  return notBuilt('src/hooks/notifs/useMcpConnectivityStatus.tsx:18')
+export function useMcpConnectivityStatus({
+  mcpClients = EMPTY_CLIENTS,
+}: Props): void {
+  const { addNotification } = useNotifications()
+
+  usePublish(() => {
+    if (getIsRemoteMode()) return
+
+    let failedCount = 0
+    let claudeaiFailedCount = 0
+    let needsAuthCount = 0
+    let claudeaiNeedsAuthCount = 0
+
+    for (const client of mcpClients) {
+      const isProxy =
+        client.config.type !== undefined &&
+        PROXY_TYPES.includes(client.config.type)
+      if (client.type === 'failed') {
+        if (isProxy) {
+          if (hasAnthropicConnectorEverConnected(client.name)) {
+            claudeaiFailedCount++
+          }
+        } else {
+          failedCount++
+        }
+      } else if (client.type === 'needs-auth') {
+        if (isProxy) {
+          if (hasAnthropicConnectorEverConnected(client.name)) {
+            claudeaiNeedsAuthCount++
+          }
+        } else {
+          needsAuthCount++
+        }
+      }
+    }
+
+    if (failedCount > 0) {
+      addNotification({
+        key: 'mcp-failed',
+        priority: 'medium',
+        jsx: (
+          <Text>
+            <Text color="error">{GLYPH.fail}</Text>
+            {` ${failedCount} MCP ${failedCount === 1 ? 'server' : 'servers'} failed`}
+            <Text dimColor>{' — /mcp for details'}</Text>
+          </Text>
+        ),
+      })
+    }
+
+    if (claudeaiFailedCount > 0) {
+      addNotification({
+        key: 'mcp-claudeai-failed',
+        priority: 'medium',
+        jsx: (
+          <Text>
+            <Text color="error">{GLYPH.fail}</Text>
+            {` ${claudeaiFailedCount} claude.ai ${claudeaiFailedCount === 1 ? 'connector' : 'connectors'} unavailable`}
+            <Text dimColor>{' — /mcp for details'}</Text>
+          </Text>
+        ),
+      })
+    }
+
+    if (needsAuthCount > 0) {
+      addNotification({
+        key: 'mcp-needs-auth',
+        priority: 'medium',
+        jsx: (
+          <Text>
+            <Text color="warning">{GLYPH.warn}</Text>
+            {` ${needsAuthCount} MCP ${needsAuthCount === 1 ? 'server needs' : 'servers need'} authentication`}
+            <Text dimColor>{' — /mcp for details'}</Text>
+          </Text>
+        ),
+      })
+    }
+
+    if (claudeaiNeedsAuthCount > 0) {
+      addNotification({
+        key: 'mcp-claudeai-needs-auth',
+        priority: 'medium',
+        jsx: (
+          <Text>
+            <Text color="warning">{GLYPH.warn}</Text>
+            {` ${claudeaiNeedsAuthCount} claude.ai ${claudeaiNeedsAuthCount === 1 ? 'connector needs' : 'connectors need'} authentication`}
+            <Text dimColor>{' — /mcp for details'}</Text>
+          </Text>
+        ),
+      })
+    }
+  }, [mcpClients, addNotification])
 }
