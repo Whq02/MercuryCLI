@@ -105,7 +105,7 @@ export function resolveShellEngine(setting?: 'system' | 'brush'): ShellEngineRes
 
 export function recordedCwdToNative(reported: string, platform: string = getPlatform()): string | null {
   const native = nativeCwdFromRecordedShell(reported, false, platform)
-  if ('refused' in native) {
+  if (native.refused !== undefined) {
     logForDebugging(`engine cwd record refused — the session directory stays put: ${native.refused}`)
     return null
   }

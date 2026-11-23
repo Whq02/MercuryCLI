@@ -205,11 +205,13 @@ function asStoredOnDisk(filePath: string): string {
   return stored !== filePath && pathExists(stored) ? stored : filePath
 }
 
+export type RecordedCwd = { path: string; refused?: never } | { refused: string; path?: never }
+
 export function nativeCwdFromRecordedShell(
   record: string,
   trimOnPosix = true,
   platform: string = getPlatform(),
-): { path: string } | { refused: string } {
+): RecordedCwd {
   if (platform !== 'windows') return { path: trimOnPosix ? record.trim() : record }
   const lines = record
     .split(/\r?\n/)
