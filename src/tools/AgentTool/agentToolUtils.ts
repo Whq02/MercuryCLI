@@ -7,6 +7,7 @@ import {
   RULE_INHERITS,
 } from '../../constants/tools.js'
 import type { Message } from '../../types/message.js'
+import type { AppState } from '../../state/AppState.js'
 import type { SetAppState } from '../../Task.js'
 import {
   AGENT_BUDGET_RESUME_NOTE,
@@ -14,6 +15,7 @@ import {
   AGENT_WINDOW_RESUME_NOTE,
   agentStopReasonOf,
   agentStopStatusWordOf,
+  appendMessageToLocalAgent,
   completeAgentTask,
   overloadPauseOf,
   pauseAgentTask,
@@ -48,7 +50,7 @@ import { AbortError, errorMessage } from '../../utils/errors.js'
 import { flushSessionStorage } from '../../utils/sessionStorage.js'
 import { recoveryBudgetMs, recoveryBudgetSpentFactsOf } from '../../services/api/recoveryBudget.js'
 import { getMarketingNameForModel } from '../../services/model/model.js'
-import { getCwdState } from '../../bootstrap/state.js'
+import { clearInvokedSkillsForAgent, getCwdState } from '../../bootstrap/state.js'
 import { runWithCwdOverride } from '../../utils/cwd.js'
 import { pauseResumeWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
 import { agentPauseRecordPath, clearAgentPauseRecord, writeAgentPauseRecord } from '../../tasks/LocalAgentTask/pauseCarry.js'
@@ -89,7 +91,6 @@ import { STRUCTURED_TAG } from '../../constants/xml.js'
 import type { AgentDefinition } from '../../types/agent.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const MCP_TOOL_PREFIX = 'mcp__'
 
@@ -98,10 +99,25 @@ export function filterToolsForAgent(args: {
   tools: Tools
   isBuiltIn: boolean
 }): Tools {
-  return notBuilt('src/tools/AgentTool/agentToolUtils.ts:97')
+  const { tools, isBuiltIn } = args
+  const jevAllowed = readJevSettings().subagents
+  return tools.filter(tool => {
+    if (tool.name.startsWith(MCP_TOOL_PREFIX)) return true
+    if (ALL_AGENT_DISALLOWED_TOOLS.has(tool.name)) return false
+    if (tool.name === JEV_TOOL_NAME && !jevAllowed) return false
+    if (!isBuiltIn && CUSTOM_AGENT_DISALLOWED_TOOLS.has(tool.name)) return false
+    return true
+  })
 }
 
-export type ResolvedAgentTools = Unbuilt
+export type ResolvedAgentTools = {
+  hasWildcard: boolean
+  readOnly?: boolean
+  validTools: string[]
+  invalidTools: string[]
+  resolvedTools: Tools
+  allowedAgentTypes?: string[]
+}
 
 export function resolveWorkerTools(
   definition: AgentDefinition,
@@ -119,7 +135,103 @@ export function resolveAgentTools(
   availableTools: Tools,
   isMainThread?: boolean,
 ): ResolvedAgentTools {
-  return notBuilt('src/tools/AgentTool/agentToolUtils.ts:130')
+  const basePool = isMainThread
+    ? availableTools
+    : filterToolsForAgent({ tools: availableTools, isBuiltIn: definition.source === 'built-in' })
+
+  const deniedNames = new Set<string>()
+  for (const entry of definition.disallowedTools ?? []) {
+    const parsed = permissionRuleValueFromString(entry)
+    if (parsed.ruleContent !== undefined) continue
+    for (const expanded of expandLspFamily(parsed.toolName)) deniedNames.add(expanded)
+  }
+
+  const isToolDenied = (tool: Tool): boolean => {
+    for (const name of deniedNames) if (toolMatchesName(tool, name)) return true
+    const inheritedFrom = RULE_INHERITS[tool.name]
+    if (inheritedFrom !== undefined) {
+      for (const parent of inheritedFrom) if (deniedNames.has(parent)) return true
+    }
+    return false
+  }
+
+  const surviving = deniedNames.size > 0 ? basePool.filter(tool => !isToolDenied(tool)) : [...basePool]
+  const readOnlyField =
+    definition.source === 'built-in' && definition.agentType === MERCURY_SCOUT_AGENT_TYPE
+      ? { readOnly: true as const }
+      : {}
+
+  const declared = definition.tools
+  if (declared === undefined || (declared.length === 1 && declared[0] === '*')) {
+    return { hasWildcard: true, ...readOnlyField, validTools: [], invalidTools: [], resolvedTools: surviving }
+  }
+
+  const validTools: string[] = []
+  const invalidTools: string[] = []
+  const resolvedTools: Tool[] = []
+  const seenNames = new Set<string>()
+  let allowedAgentTypes: string[] | undefined
+  const addResolved = (tool: Tool): void => {
+    if (!seenNames.has(tool.name)) {
+      seenNames.add(tool.name)
+      resolvedTools.push(tool)
+    }
+  }
+
+  for (const spec of declared) {
+    const parsed = permissionRuleValueFromString(spec)
+    const isUnqualified = parsed.ruleContent === undefined
+    if (parsed.toolName === AGENT_TOOL_NAME && !isUnqualified) {
+      allowedAgentTypes = parsed.ruleContent!.split(',').map(part => part.trim()).filter(part => part.length > 0)
+      validTools.push(spec)
+      if (isMainThread) {
+        const agentTool = surviving.find(tool => toolMatchesName(tool, AGENT_TOOL_NAME))
+        if (agentTool) addResolved(agentTool)
+      }
+      continue
+    }
+
+    let matched = false
+    let directName: string | undefined
+    if (isUnqualified) {
+      const lspMatches = surviving.filter(tool => lspFamilyMatches(parsed.toolName, tool.name))
+      if (lspMatches.length > 0) {
+        matched = true
+        for (const tool of lspMatches) addResolved(tool)
+      }
+    }
+    if (!matched) {
+      const direct = surviving.find(tool => toolMatchesName(tool, parsed.toolName))
+      if (direct) {
+        matched = true
+        directName = direct.name
+        addResolved(direct)
+      }
+    }
+    if (isUnqualified) {
+      for (const tool of surviving) {
+        const inheritedFrom = RULE_INHERITS[tool.name]
+        if (inheritedFrom !== undefined && (inheritedFrom.includes(parsed.toolName) || (directName !== undefined && inheritedFrom.includes(directName)))) {
+          matched = true
+          addResolved(tool)
+        }
+      }
+    }
+    if (matched) {
+      if (!validTools.includes(spec)) validTools.push(spec)
+    } else {
+      invalidTools.push(spec)
+    }
+  }
+
+  return {
+    hasWildcard: false,
+    ...readOnlyField,
+    validTools,
+    invalidTools,
+    resolvedTools,
+    ...(allowedAgentTypes !== undefined ? { allowedAgentTypes } : {}),
+  }
 }
 
 
@@ -206,12 +318,53 @@ export function stoppedPartWay(response: { messages: readonly Message[]; stopRea
 }
 
 
-export const agentToolResultSchema: Unbuilt = unbuilt('src/tools/AgentTool/agentToolUtils.ts:307')
+export const agentToolResultSchema = lazySchema(() =>
+  z.object({
+    agentId: z.string(),
+    outcome: z
+      .discriminatedUnion('status', [
+        z.object({ status: z.literal('completed'), promotedNarration: z.boolean() }),
+        z.object({ status: z.literal('failed'), reason: z.enum(['provider-declined', 'schema-mismatch', 'loop-stopped']), error: z.string() }),
+      ])
+      .optional(),
+    structured: z
+      .object({ data: z.unknown().optional(), error: z.string().optional(), source: z.enum(['dispatch', 'agent-definition']), mode: z.enum(['permissive', 'strict']) })
+      .optional(),
+    agentType: z.string().optional(),
+    content: z.array(z.object({ type: z.literal('text'), text: z.string() })),
+    totalToolUseCount: z.number(),
+    totalDurationMs: z.number(),
+    totalTokens: z.number(),
+    costUSD: z.number().optional(),
+    unpricedTurns: z.number().optional(),
+    usage: z.object({
+      input_tokens: z.number(),
+      output_tokens: z.number(),
+      cache_creation_input_tokens: z.number().nullable(),
+      cache_read_input_tokens: z.number().nullable(),
+      server_tool_use: z.object({ web_search_requests: z.number(), web_fetch_requests: z.number() }).nullable(),
+      service_tier: z.enum(['standard', 'priority', 'batch']).nullable(),
+      cache_creation: z.object({ ephemeral_1h_input_tokens: z.number(), ephemeral_5m_input_tokens: z.number() }).nullable(),
+    }),
+  }),
+)
 
-export type AgentToolResult = Unbuilt
+export type AgentToolResult = z.input<ReturnType<typeof agentToolResultSchema>>
 
 export function countToolUses(messages: readonly Message[]): number {
-  return notBuilt('src/tools/AgentTool/agentToolUtils.ts:364')
+  let count = 0
+  const nestedIds = new Set<string>()
+  for (const message of messages) {
+    if (message.type === 'assistant' && Array.isArray(message.message.content)) {
+      for (const block of message.message.content) {
+        if (block.type === 'tool_use') count++
+      }
+    }
+    for (const id of evalNestedToolIds(message)) {
+      nestedIds.add(id)
+    }
+  }
+  return count + nestedIds.size
 }
 
 const EMPTY_USAGE: AgentToolResult['usage'] = {
@@ -430,7 +583,14 @@ export function structuredResultBlock(structured: { data?: unknown; error?: stri
 }
 
 export function getLastToolUseName(message: Message): string | undefined {
-  return notBuilt('src/tools/AgentTool/agentToolUtils.ts:594')
+  if (message.type !== 'assistant') return undefined
+  const content = message.message.content
+  if (!Array.isArray(content)) return undefined
+  for (let i = content.length - 1; i >= 0; i--) {
+    const block = content[i]!
+    if (block.type === 'tool_use') return block.name
+  }
+  return undefined
 }
 
 export function emitTaskProgress(
@@ -441,7 +601,16 @@ export function emitTaskProgress(
   startTime: number,
   lastToolName: string,
 ): void {
-  return notBuilt('src/tools/AgentTool/agentToolUtils.ts:605')
+  const lastActivity = tracker.recentActivities[tracker.recentActivities.length - 1]
+  emitSdkTaskProgress({
+    taskId,
+    toolUseId,
+    description: lastActivity?.activityDescription || description,
+    startTime,
+    totalTokens: getTokenCountFromTracker(tracker),
+    toolUses: tracker.toolUseCount,
+    lastToolName,
+  })
 }
 
 const WRITE_TOOL_NAMES = new Set([FILE_WRITE_TOOL_NAME, FILE_EDIT_TOOL_NAME, NOTEBOOK_EDIT_TOOL_NAME])
@@ -648,7 +817,96 @@ export function armBudgetCutResume(args: {
     automatic: true
   }) => Promise<{ note?: string } | void>
 }): ReturnType<typeof setTimeout> | null {
-  return notBuilt('src/tools/AgentTool/agentToolUtils.ts:808')
+  if (args.automaticResume || cutsAlreadyResumed.has(args.registration)) return null
+  cutsAlreadyResumed.add(args.registration)
+  clearPendingTimer(args.taskId)
+
+  const delayMs = args.delayMs ?? recoveryBudgetMs()
+  if (args.pause !== undefined) {
+    pauseAgentTask(args.taskId, args.pause, args.rootSetAppState, args.registration)
+    if (args.pause.resumesAtMs !== undefined) {
+      savePauseRecord(args.taskId, args.description, {
+        pause: { ...args.pause, resumesAtMs: args.pause.resumesAtMs },
+        description: args.description,
+        armedAt: Date.now(),
+        ...(args.toolUseContext.toolUseId ? { toolUseId: args.toolUseContext.toolUseId } : {}),
+      })
+    }
+  }
+
+  const requirePaused = args.pause !== undefined
+  const defaultPrompt = args.prompt ?? AGENT_BUDGET_RESUME_NOTE
+  const defaultSummary =
+    args.summary ??
+    `Crewmate "${args.description}" resumed by itself — the provider recovery budget reset; its partial work carried forward`
+
+  const fire = (prompt: string, summary: string): void => {
+    void whileFiring(args.taskId, async () => {
+      if (!isStillHeldForResume(args.taskId, args.registration, args.rootSetAppState, requirePaused)) return
+      await executeAutomaticResume({ ...args, prompt, summary, logTag: 'automatic resume' })
+    })
+  }
+
+  let unsubscribeAccount = (): void => {}
+  const timer = startTimeout(() => {
+    if (pendingAutomaticResumes.get(args.taskId) !== timer) return
+    pendingAutomaticResumes.delete(args.taskId)
+    unsubscribeAccount()
+    fire(defaultPrompt, defaultSummary)
+  }, delayMs)
+  timer.unref?.()
+  pendingAutomaticResumes.set(args.taskId, timer)
+
+  unsubscribeAccount = subscribeCrewAccountChange(() => {
+    if (pendingAutomaticResumes.get(args.taskId) !== timer) {
+      unsubscribeAccount()
+      return
+    }
+    stopTimeout(timer)
+    pendingAutomaticResumes.delete(args.taskId)
+    unsubscribeAccount()
+    fire(CREW_ACCOUNT_RESUME_NOTE, crewAccountResumeSummary(`Crewmate "${args.description}"`))
+  })
+  return timer
+}
+
+function clearPendingTimer(taskId: string): void {
+  const existing = pendingAutomaticResumes.get(taskId)
+  if (existing !== undefined) {
+    stopTimeout(existing)
+    pendingAutomaticResumes.delete(taskId)
+  }
+}
+
+function isStillHeldForResume(taskId: string, registration: AbortController, rootSetAppState: SetAppState, requirePaused: boolean): boolean {
+  let held = false
+  rootSetAppState((prev: AppState) => {
+    const task = prev.tasks?.[taskId]
+    held = isLocalAgentTask(task) && task.registration === registration && (!requirePaused || task.paused !== undefined)
+    return prev
+  })
+  return held
+}
+
+async function executeAutomaticResume(opts: {
+  taskId: string; description: string; registration: AbortController; toolUseContext: ToolUseContext; rootSetAppState: SetAppState
+  canUseTool?: CanUseToolFn; invokingRequestId?: string; prompt: string; summary: string; logTag: string
+  resume?: (resumeArgs: { agentId: string; prompt: string; toolUseContext: ToolUseContext; canUseTool?: CanUseToolFn; invokingRequestId?: string; automatic: true }) => Promise<{ note?: string } | void>
+}): Promise<void> {
+  const runResume = opts.resume ?? (async resumeArgs => (await import('./resumeAgent.js')).resumeAgentBackground(resumeArgs))
+  const freshContext: ToolUseContext = { ...opts.toolUseContext, abortController: new AbortController() }
+  try {
+    const resumed = await runWithCwdOverride(getCwdState(), () =>
+      runResume({ agentId: opts.taskId, prompt: opts.prompt, toolUseContext: freshContext, canUseTool: opts.canUseTool, invokingRequestId: opts.invokingRequestId, automatic: true }),
+    )
+    dropPauseRecord(opts.taskId, opts.description)
+    const note = resumed?.note?.trim()
+    enqueueAgentReceiptRow({ taskId: opts.taskId, description: opts.description, status: 'resumed', summary: note ? `${opts.summary} (${note})` : opts.summary })
+  } catch (error) {
+    logForDebugging(`agent lifecycle: ${opts.logTag} of ${opts.taskId} failed: ${errorMessage(error)}`)
+    unpauseAgentTask(opts.taskId, opts.rootSetAppState, opts.registration)
+    dropPauseRecord(opts.taskId, opts.description)
+  }
 }
 
 const overloadEpisodes = new Map<string, OverloadEpisode>()
@@ -731,7 +989,59 @@ export function armOverloadProbe(args: {
     automatic: true
   }) => Promise<{ note?: string } | void>
 }): ReturnType<typeof setTimeout> | null {
-  return notBuilt('src/tools/AgentTool/agentToolUtils.ts:958')
+  const nowMs = Date.now()
+  const episode = args.afterDeath ? overloadEpisodeOf(args.taskId, nowMs) : overloadEpisodeStanding(args.taskId, nowMs)
+  const delayMs = nextOverloadProbeDelayMs(episode, nowMs, args.afterDeath)
+  if (delayMs === null) {
+    unpauseAgentTask(args.taskId, args.rootSetAppState, args.registration)
+    dropPauseRecord(args.taskId, args.description)
+    closeOverloadEpisode(args.taskId)
+    return null
+  }
+
+  pauseAgentTask(args.taskId, args.pause, args.rootSetAppState, args.registration)
+  if (!args.recorded) {
+    savePauseRecord(args.taskId, args.description, {
+      pause: { why: 'provider overloaded', words: args.pause.words },
+      model: args.model,
+      description: args.description,
+      armedAt: nowMs,
+      ...(args.toolUseContext.toolUseId ? { toolUseId: args.toolUseContext.toolUseId } : {}),
+    })
+  }
+  clearPendingTimer(args.taskId)
+
+  const timer = startTimeout(() => {
+    if (pendingAutomaticResumes.get(args.taskId) !== timer) return
+    pendingAutomaticResumes.delete(args.taskId)
+    void whileFiring(args.taskId, async () => {
+      if (!isStillHeldForResume(args.taskId, args.registration, args.rootSetAppState, true)) return
+      episode.probes += 1
+      const probeFn = args.probe ?? (model => probeProviderAnswers(model, overloadProbeRequestMs(episode.scale)))
+      const answered = await probeFn(args.model)
+      if (!isStillHeldForResume(args.taskId, args.registration, args.rootSetAppState, true)) return
+      if (!answered) {
+        armOverloadProbe({ ...args, afterDeath: false, recorded: true })
+        return
+      }
+      await executeAutomaticResume({
+        taskId: args.taskId,
+        description: args.description,
+        registration: args.registration,
+        toolUseContext: args.toolUseContext,
+        rootSetAppState: args.rootSetAppState,
+        canUseTool: args.canUseTool,
+        invokingRequestId: args.invokingRequestId,
+        prompt: AGENT_OVERLOAD_RESUME_NOTE,
+        summary: `Crewmate "${args.description}" resumed by itself — the provider answered again; its partial work carried forward`,
+        resume: args.resume,
+        logTag: 'automatic overload resume',
+      })
+    })
+  }, delayMs)
+  timer.unref?.()
+  pendingAutomaticResumes.set(args.taskId, timer)
+  return timer
 }
 
 export async function deliverOperatorMessagesAfterStop(
@@ -741,7 +1051,26 @@ export async function deliverOperatorMessagesAfterStop(
   rootSetAppState: SetAppState,
   canUseTool?: CanUseToolFn,
 ): Promise<boolean> {
-  return notBuilt('src/tools/AgentTool/agentToolUtils.ts:1048')
+  const queued = peekOperatorMessages(toolUseContext.getAppState().tasks?.[taskId])
+  if (queued.length === 0) return false
+  try {
+    const { resumeAgentBackground } = await import('./resumeAgent.js')
+    const resumed = await resumeAgentBackground({
+      agentId: taskId,
+      prompt: queued.join('\n\n'),
+      toolUseContext,
+      canUseTool,
+      replyTarget: 'operator',
+    })
+    takeOperatorMessages(taskId, toolUseContext.getAppState, rootSetAppState, queued.length)
+    if (resumed.note && resumed.note.trim() !== '') {
+      enqueueAgentReceiptRow({ taskId, description, status: 'resumed', summary: resumed.note.replace(/^\s+/, '') })
+    }
+    return true
+  } catch (error) {
+    logForDebugging(`agent lifecycle: post-stop operator message delivery failed: ${errorMessage(error)}`)
+    return false
+  }
 }
 
 const noticesOwed = new Set<object>()
@@ -779,7 +1108,213 @@ export async function runAsyncAgentLifecycle(args: {
   }>
   canUseTool?: CanUseToolFn
 }): Promise<void> {
-  return notBuilt('src/tools/AgentTool/agentToolUtils.ts:1091')
+  const { taskId, makeStream, metadata, description, toolUseContext, rootSetAppState, agentIdForCleanup, enableSummarization } = args
+  const tracker = createProgressTracker()
+  const resolveActivity = createActivityDescriptionResolver(toolUseContext.options.tools)
+  const accumulated: Message[] = []
+  const owedKey = {}
+  let stopSummarization: (() => void) | undefined
+  let summaryStopped = false
+  const stopSummary = (): void => {
+    summaryStopped = true
+    stopSummarization?.()
+    stopSummarization = undefined
+  }
+  const onCacheSafeParams = enableSummarization
+    ? (params: CacheSafeParams) => {
+        void import('../../services/AgentSummary/agentSummary.js')
+          .then(({ startAgentSummarization }) => {
+            const handle = startAgentSummarization(taskId, agentIdForCleanup, params, rootSetAppState)
+            if (summaryStopped) handle.stop()
+            else stopSummarization = handle.stop
+          })
+          .catch((error: unknown) => {
+            logForDebugging(`agent lifecycle: summarization start failed: ${errorMessage(error)}`)
+          })
+      }
+    : undefined
+  const onQueryProgress = (event: unknown): void => {
+    publishAgentWaitFromEvent(taskId, tracker, event, rootSetAppState)
+  }
+
+  let streamError: unknown
+  let hasStreamError = false
+  let result: AgentToolResult | undefined
+  try {
+    try {
+      for await (const message of makeStream(onCacheSafeParams, onQueryProgress)) {
+        accumulated.push(message)
+        emitBackgroundAgentRows(toolUseContext.toolUseId, message)
+        const currentTask = toolUseContext.getAppState().tasks?.[taskId]
+        if (isLocalAgentTask(currentTask) && currentTask.retain === true) {
+          appendMessageToLocalAgent(taskId, message, rootSetAppState)
+        }
+        updateProgressFromMessage(tracker, message, resolveActivity, toolUseContext.options.tools)
+        publishAgentProgressSoon(taskId, tracker, rootSetAppState)
+        const lastToolName = getLastToolUseName(message)
+        if (lastToolName !== undefined) {
+          emitTaskProgress(tracker, taskId, toolUseContext.toolUseId, description, metadata.startTime, lastToolName)
+        }
+      }
+      stopSummary()
+      result = finalizeAgentTool(accumulated, taskId, metadata)
+    } catch (error) {
+      streamError = error
+      hasStreamError = true
+      stopSummary()
+    }
+
+    if (hasStreamError) {
+      if (streamError instanceof AbortError) {
+        await settleAbortedRun(args, tracker, accumulated, owedKey)
+      } else {
+        await settleErroredRun(args, streamError, tracker, accumulated, owedKey)
+      }
+    } else {
+      await settleFinishedRun(args, result!, tracker, accumulated, owedKey)
+    }
+  } finally {
+    noticesOwed.delete(owedKey)
+    stopSummary()
+    try {
+      clearInvokedSkillsForAgent(agentIdForCleanup)
+    } catch (error) {
+      logForDebugging(`agent lifecycle: final cleanup failed: ${errorMessage(error)}`)
+    }
+  }
+}
+
+async function settleAbortedRun(
+  args: AsyncAgentLifecycleArgs,
+  tracker: ProgressTracker,
+  accumulated: Message[],
+  owedKey: object,
+): Promise<void> {
+  const { taskId, abortController, metadata, description, toolUseContext, rootSetAppState, getWorktreeResult, canUseTool } = args
+  const stopReason = agentStopReasonOf(abortController.signal.reason)
+  const stopStatusWord = agentStopStatusWordOf(abortController.signal.reason)
+  noticesOwed.add(owedKey)
+  killAsyncAgent(taskId, rootSetAppState, stopReason, abortController)
+  closeOverloadEpisode(taskId)
+  const worktreeResult = await getWorktreeResult()
+  await flushSessionStorage()
+  const partialResult = extractPartialResult(accumulated)
+  const usage = { totalTokens: getTokenCountFromTracker(tracker), toolUses: tracker.toolUseCount, durationMs: Date.now() - metadata.startTime }
+  const envelopeBlock = await partialResultEnvelopeBlock({
+    agentId: taskId,
+    agentType: metadata.agentType,
+    status: 'stopped',
+    partialText: partialResult,
+    usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs },
+  })
+  enqueueAgentNotification(stoppedNoticeOf(args, { partialResult, usage, accumulated, stopReason, stopStatusWord, worktreeResult, envelopeBlock }))
+  noticesOwed.delete(owedKey)
+  await deliverOperatorMessagesAfterStop(taskId, description, toolUseContext, rootSetAppState, canUseTool)
+}
+
+async function settleErroredRun(args: AsyncAgentLifecycleArgs, streamError: unknown, tracker: ProgressTracker, accumulated: Message[], owedKey: object): Promise<void> {
+  const { taskId, abortController, metadata, description, toolUseContext, rootSetAppState, automaticResume, replyTarget, getWorktreeResult, canUseTool } = args
+  const errMsg = errorMessage(streamError)
+  const overload = overloadBudgetCutOf(streamError, metadata.resolvedAgentModel)
+  const budgetCut = overload === null ? recoveryBudgetCutOf(streamError) : null
+  let overloadSuppressesNotice = false
+  if (overload !== null) {
+    const episode = overloadEpisodeOf(taskId)
+    noteOverloadDeath(episode)
+    overloadSuppressesNotice = !overloadDeathNotifies(episode)
+  }
+  noticesOwed.add(owedKey)
+  const noticeFollows = !overloadSuppressesNotice && replyTarget !== 'operator'
+  failAgentTask(taskId, errMsg, rootSetAppState, abortController, { settleFrame: !noticeFollows })
+  const worktreeResult = await getWorktreeResult()
+  await flushSessionStorage()
+  if (!overloadSuppressesNotice) {
+    const partialResult = extractPartialResult(accumulated)
+    const usage = { totalTokens: getTokenCountFromTracker(tracker), toolUses: tracker.toolUseCount, durationMs: Date.now() - metadata.startTime }
+    const envelopeBlock = await partialResultEnvelopeBlock({ agentId: taskId, agentType: metadata.agentType, status: 'failed', partialText: partialResult, usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs } })
+    enqueueAgentNotification(failedNoticeOf(args, { errMsg, overload, partialResult, usage, accumulated, worktreeResult, envelopeBlock }))
+  }
+  noticesOwed.delete(owedKey)
+  if (overload !== null) {
+    armOverloadProbe({ taskId, description, registration: abortController, toolUseContext, rootSetAppState, canUseTool, model: metadata.resolvedAgentModel, pause: overload.pause, afterDeath: true })
+  } else if (budgetCut !== null && !automaticResume) {
+    const delayMs = budgetCutResumeDelayMs(budgetCut)
+    armBudgetCutResume({ taskId, description, registration: abortController, toolUseContext, rootSetAppState, canUseTool, delayMs, automaticResume, pause: { why: 'provider busy', words: budgetCut.words, resumesAtMs: Date.now() + delayMs }, prompt: AGENT_BUDGET_RESUME_NOTE })
+  }
+}
+
+async function tryQueuedGuidance(args: AsyncAgentLifecycleArgs): Promise<boolean> {
+  const { taskId, description, toolUseContext, rootSetAppState, canUseTool } = args
+  try {
+    const currentTask = toolUseContext.getAppState().tasks?.[taskId]
+    const pendingParent = isLocalAgentTask(currentTask) ? [...(currentTask.pendingMessages ?? [])] : []
+    const pendingOperator = peekOperatorMessages(currentTask)
+    const combined = [...pendingParent, ...pendingOperator]
+    if (combined.length === 0) return false
+    const nextReplyTarget: 'parent' | 'operator' = pendingParent.length > 0 ? 'parent' : 'operator'
+    const { resumeAgentBackground } = await import('./resumeAgent.js')
+    const resumed = await resumeAgentBackground({ agentId: taskId, prompt: combined.join('\n\n'), toolUseContext, canUseTool, replyTarget: nextReplyTarget })
+    if (pendingParent.length > 0) drainPendingMessages(taskId, toolUseContext.getAppState, rootSetAppState, pendingParent.length)
+    if (pendingOperator.length > 0) takeOperatorMessages(taskId, toolUseContext.getAppState, rootSetAppState, pendingOperator.length)
+    if (resumed.note && resumed.note.trim() !== '') {
+      enqueueAgentReceiptRow({ taskId, description, status: 'resumed', summary: resumed.note.replace(/^\s+/, '') })
+    }
+    return nextReplyTarget === 'parent'
+  } catch (error) {
+    logForDebugging(`agent lifecycle: queued-guidance drain failed: ${errorMessage(error)}`)
+    return false
+  }
+}
+
+async function settleFinishedRun(args: AsyncAgentLifecycleArgs, result: AgentToolResult, tracker: ProgressTracker, accumulated: Message[], owedKey: object): Promise<void> {
+  const { taskId, abortController, metadata, rootSetAppState, replyTarget, getWorktreeResult } = args
+  const declined = result.outcome?.status === 'failed' ? result.outcome : undefined
+  const windowPause = declined ? usageWindowPauseOf(accumulated, metadata.resolvedAgentModel) : null
+  const overload = declined && windowPause === null ? overloadPauseOf(accumulated, metadata.resolvedAgentModel) : null
+  let overloadSuppressesNotice = false
+  if (overload !== null) {
+    const episode = overloadEpisodeOf(taskId)
+    noteOverloadDeath(episode)
+    overloadSuppressesNotice = !overloadDeathNotifies(episode)
+  }
+
+  noticesOwed.add(owedKey)
+  const noticeFollows = !overloadSuppressesNotice && replyTarget !== 'operator'
+  if (declined) {
+    settleDeclinedRun(args, declined, noticeFollows, overload, windowPause)
+  } else {
+    completeAgentTask(result, rootSetAppState, abortController, {
+      usage: { tokens: getTokenCountFromTracker(tracker), toolUses: result.totalToolUseCount, durationMs: result.totalDurationMs },
+      settleFrame: !noticeFollows,
+    })
+  }
+
+  let continuedOnParentGuidance = false
+  if (!declined) {
+    closeOverloadEpisode(taskId)
+    continuedOnParentGuidance = await tryQueuedGuidance(args)
+  }
+
+  if (!continuedOnParentGuidance && !overloadSuppressesNotice) {
+    const joinedContent = result.content.map(block => block.text).join('\n')
+    const finalMessage =
+      result.outcome?.status === 'completed' && result.outcome.promotedNarration && joinedContent !== ''
+        ? `${PROMOTED_NARRATION_NOTE}\n\n${joinedContent}`
+        : joinedContent
+    const worktreeResult = await getWorktreeResult()
+    const envelopeStatus: 'paused' | 'failed' | 'completed' = windowPause !== null || overload !== null ? 'paused' : declined ? 'failed' : 'completed'
+    let envelopeBlock: string | undefined
+    try {
+      const { buildAgentResultEnvelope, formatEnvelopeBlock } = await import('../../services/agentResults/normalize.js')
+      envelopeBlock = formatEnvelopeBlock(
+        await buildAgentResultEnvelope({ agentId: taskId, agentType: metadata.agentType, status: envelopeStatus, finalText: finalMessage, usage: { totalTokens: getTokenCountFromTracker(tracker), toolUseCount: result.totalToolUseCount, durationMs: result.totalDurationMs } }),
+      )
+    } catch (error) {
+      passedOver(error)
+    }
+    enqueueAgentNotification(completionNoticeOf(args, { declined, accumulated, windowPause, overload, finalMessage, result, tracker, worktreeResult, envelopeBlock }))
+  }
+  noticesOwed.delete(owedKey)
 }
 
 type AsyncAgentLifecycleArgs = Parameters<typeof runAsyncAgentLifecycle>[0]
