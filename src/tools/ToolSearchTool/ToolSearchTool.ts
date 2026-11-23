@@ -56,7 +56,7 @@ const STOP_WORDS = new Set([
 const MCP_PREFIX = 'mcp__'
 
 function isMcpToolLike(tool: Tool): boolean {
-  return ('isMcp' in tool && (tool as { isMcp?: boolean }).isMcp === true) || tool.name.startsWith(MCP_PREFIX)
+  return tool.isMcp === true || tool.name.startsWith(MCP_PREFIX)
 }
 
 type NameParts = { parts: string[]; full: string }
@@ -257,7 +257,7 @@ export async function searchToolsWithKeywords(
 }
 
 function pendingMcpServerNames(context: ToolUseContext): string[] {
-  const clients = context.getAppState().mcp?.clients ?? []
+  const clients = context.getAppState()?.mcp?.clients ?? []
   return clients.filter(client => client.type === 'pending').map(client => String(client.name))
 }
 
@@ -296,7 +296,7 @@ function matchLinesFor(names: string[], allTools: Tools): string[] {
 async function runSearch(input: Input, context: ToolUseContext): Promise<Output> {
   const allTools = context.options?.tools ?? []
   const model = context.options?.engineModel ?? getEngineModel()
-  const permissionMode = context.getAppState().toolPermissionContext?.mode
+  const permissionMode = context.getAppState()?.toolPermissionContext?.mode
   const messages = context.messages ?? []
   const deferredTools = allTools.filter(tool => isDeferredToolFor(tool, model, permissionMode, messages))
   const totalDeferred = deferredTools.length
@@ -325,7 +325,9 @@ async function runSearch(input: Input, context: ToolUseContext): Promise<Output>
       const suggestions = closest.every((name): name is string => name !== undefined) ? closest : undefined
       const pending = pendingMcpServerNames(context)
       logForDebugging(
-        `tool search: select miss for ${unresolved.join(', ')} (resolved: ${resolved.join(', ') || 'none'})`,
+        resolved.length > 0
+          ? `tool search select loaded nothing: unresolved ${unresolved.join(', ')}; resolved but not loaded ${resolved.join(', ')}`
+          : `tool search select loaded nothing: unresolved ${unresolved.join(', ')}`,
       )
       return {
         matches: [],
@@ -339,6 +341,7 @@ async function runSearch(input: Input, context: ToolUseContext): Promise<Output>
     }
     if (resolved.length === 0) {
       const pending = pendingMcpServerNames(context)
+      logForDebugging(`tool search select failed: no tool requested (${input.query})`)
       return {
         matches: [],
         query: input.query,
@@ -347,7 +350,7 @@ async function runSearch(input: Input, context: ToolUseContext): Promise<Output>
       }
     }
     recordToolDiscovery(resolved)
-    logForDebugging(`tool search: select resolved ${resolved.join(', ')}`)
+    logForDebugging(`tool search selected: ${resolved.join(', ')}`)
     return {
       matches: resolved,
       query: input.query,
@@ -357,7 +360,7 @@ async function runSearch(input: Input, context: ToolUseContext): Promise<Output>
   const maxResults = input.max_results ?? 5
   const matches = await searchToolsWithKeywords(input.query, deferredTools, allTools, maxResults)
   recordToolDiscovery(matches)
-  logForDebugging(`tool search: keyword "${input.query}" matched ${matches.length} tool(s)`)
+  logForDebugging(`tool search keyword: ${matches.length} match(es) for "${input.query}"`)
   if (matches.length === 0) {
     const pending = pendingMcpServerNames(context)
     return {
@@ -388,8 +391,8 @@ export const ToolSearchTool = buildTool({
   async description() {
     return getPrompt(deferralWireFormFor(getEngineModel()).form)
   },
-  async prompt({ model }) {
-    return getPrompt(deferralWireFormFor(model ?? getEngineModel()).form)
+  async prompt(options) {
+    return getPrompt(deferralWireFormFor(options?.model ?? getEngineModel()).form)
   },
   async call(input: Input, context: ToolUseContext) {
     const data = await runSearch(input, context)
