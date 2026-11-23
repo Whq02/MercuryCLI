@@ -165,7 +165,8 @@ function modelFacts(): { family: string; model: string } {
     const model = focusedSessionModelFacts()?.effective ?? getEngineModel()
     const route = providerFamilyOfSetting(model)
     return { family: route === 'unrecognised' ? 'Not sure' : providerDisplayName(route), model }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return { family: 'Not sure', model: '(unknown)' }
   }
 }

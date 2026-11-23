@@ -21,7 +21,7 @@ import { StructuredDiffList } from './StructuredDiffList.js'
 import { passedOver } from '../utils/passedOver.js'
 
 const SCAN_CONTEXT_LINES = 3
-const FRAME_COLUMNS = 4
+const FRAME_COLUMNS = 2
 
 type Edit = { old_string?: string; new_string?: string; replace_all?: boolean }
 type CompleteEdit = { old_string: string; new_string: string; replace_all?: boolean }
@@ -221,7 +221,6 @@ export function FileEditToolDiff({
         flexDirection="column"
         borderStyle="round"
         borderDimColor
-        paddingX={1}
         width={outerWidth}
       >
         <Text bold>{name}</Text>
