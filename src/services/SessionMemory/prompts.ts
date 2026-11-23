@@ -22,7 +22,8 @@ function loadOverrideOr(fileName: string, fallback: string): string {
 }
 
 
-const DEFAULT_SESSION_MEMORY_TEMPLATE = `# Session Title
+const DEFAULT_SESSION_MEMORY_TEMPLATE = `
+# Session Title
 _A dense one-line title, roughly 5-10 words, distinctive and free of filler._
 
 # Current State

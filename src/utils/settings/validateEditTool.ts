@@ -12,7 +12,7 @@ export function validateInputForSettingsFileEdit(
   if (validation.isValid) return null
   return {
     result: false,
-    message: `${validation.error}\n\nExpected schema:\n${validation.fullSchema}\n\nDo not modify the environment.values block of a settings file unless the user explicitly asked for it.`,
+    message: `The settings file would fail validation after this edit.\n${validation.error}\n\nExpected schema:\n${validation.fullSchema}\n\nDo not modify the environment.values block of a settings file unless the user explicitly asked for it.`,
     errorCode: 10,
   }
 }
