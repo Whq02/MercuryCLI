@@ -80,10 +80,6 @@ function cursorForPreview(display: string, query: string): number {
   return idx >= 0 ? idx : Math.max(0, display.lastIndexOf(query))
 }
 
-function useReducerLike(): [number, () => void] {
-  return useReducer((n: number) => n + 1, 0)
-}
-
 export function useHistorySearch(
   onAcceptHistory: (entry: HistoryEntry) => void,
   currentInput: string,
@@ -104,7 +100,7 @@ export function useHistorySearch(
   handleKeyDown: (e: KeyboardEvent) => void
   handleStartSearch: () => void
 } {
-  const [, force] = useReducerLike()
+  const [, force] = useReducer((n: number) => n + 1, 0)
   const queryRef = useRef('')
   const matchRef = useRef<HistoryEntry | undefined>(undefined)
   const failedRef = useRef(false)
@@ -250,8 +246,10 @@ export function useHistorySearch(
 
   const setHistoryQuery = useCallback((query: string) => {
     queryRef.current = query
-    force()
-    if (!latestRef.current.isSearching) return
+    if (!latestRef.current.isSearching) {
+      force()
+      return
+    }
     if (query === '') {
       cancelDebounce()
       scanAbortRef.current?.abort()
@@ -276,6 +274,7 @@ export function useHistorySearch(
       debounceTimerRef.current = null
       runScan(queryRef.current, false)
     }, HISTORY_SCAN_DEBOUNCE_MS)
+    force()
   }, [cancelDebounce, closeReader, runScan])
 
   const handleNext = useCallback(() => {
