@@ -32,9 +32,6 @@ export function markConcourseWorkerDelivery(runnerId: string, dir?: string): voi
         rec.activity = { state: 'working', subagents: rec.activity?.subagents ?? 0, description: 'working', lastTurnAt: rec.activity?.lastTurnAt ?? null }
         delete rec.crash
         delete rec.parkRefused
-        if (rec.contract !== undefined && rec.contract.status === 'acknowledged') {
-          rec.contract.status = 'active'
-        }
       }
     }, dir)
   } catch (err) {

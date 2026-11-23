@@ -7,7 +7,6 @@ import { isProcessAlive } from '../../utils/ownerWatch.js'
 import { answerPermissionAsk } from '../permissionAsks.js'
 import type { TaskRoster } from '../roster.js'
 import { dropSaturnSelfWakes, type SaturnSelfWakeDropWhy } from '../saturn.js'
-import { applyConcourseContractOp } from '../sessionContract.js'
 import { SESSION_VERBS } from '../../runner/wire/sessionVerbs.js'
 import { controlSessionAgent, applySeatScheduleControl, onSeatSpawned, pushScheduleRosterForSession, refreshSessionFacts, setSessionEffort, setSessionKitDial, actOnSessionMcp, listSessionMcpTools, setSessionModel, setSessionPermissionMode, setSessionSpawnSwitch, withdrawSessionSend, isGenericSeatVerb, forwardGenericSeatVerb, pauseSessionGate, postSessionBoard, leaveSession } from '../sessionSeat.js'
 import type { DaemonRunState } from './state.js'
@@ -35,7 +34,7 @@ function dropSelfWakesAtFlip(sessionId: string, by: string, why: SaturnSelfWakeD
 }
 
 export function makeConcourseControl(state: DaemonRunState, { concourseDispatchHandler }: ConcourseControlNeeds): ConcourseControlDoor {
-  return async ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, words, replacedDefault, effort, mode, contract, kitEdit, mcpAction, mcpServer, scheduleEdit, spawnSwitch, terminalApplication, clientOpId, mintedAtMs, title, titleSource, agentId, note, clientMessageId, paused, boardPost }) => {
+  return async ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, words, replacedDefault, effort, mode, kitEdit, mcpAction, mcpServer, scheduleEdit, spawnSwitch, terminalApplication, clientOpId, mintedAtMs, title, titleSource, agentId, note, clientMessageId, paused, boardPost }) => {
     const roster = state.roster
     void reason
     if (clientOpId !== undefined) {
@@ -137,10 +136,6 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
     }
     if (action === SESSION_VERBS.setTitle.daemon.action) {
       return settle(setConcourseSessionTitle(sessionId, title ?? '', by, titleSource === 'minted' ? 'minted' : 'operator'))
-    }
-    if (action === SESSION_VERBS.contract.daemon.action) {
-      if (contract === undefined) return { outcome: 'refused' as const, detail: `${SESSION_VERBS.contract.daemon.action} requires { contract: { op, text? } }` }
-      return settle(applyConcourseContractOp(sessionId, contract, by))
     }
     if (action === SESSION_VERBS.setSchedule.daemon.action) {
       if (scheduleEdit === undefined) return { outcome: 'refused' as const, detail: `${SESSION_VERBS.setSchedule.daemon.action} requires { scheduleEdit: { op, schedule? | scheduleId? } }` }

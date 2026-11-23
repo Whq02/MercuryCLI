@@ -5,7 +5,6 @@ import { detectSecrets } from '../utils/detectSecrets.js'
 import { presetNameProblem } from '../services/mcp/presetStore.js'
 import { getProjectDir } from '../utils/sessionStorage/paths.js'
 import { appendSessionReceipt } from '../services/switchboard/sessionReceipts.js'
-import { CONTRACT_TEXT_CAP } from './sessionContract.js'
 import { updateConcourseWorkers } from './concourseWorkers.js'
 import { wakeDelayOfSpelling } from '../utils/messages/noticeRows.js'
 import { isRecord } from '../utils/isRecord.js'
@@ -43,7 +42,6 @@ export interface SaturnBirthSpecV1 {
   workspaceDir: string
   modelKey: string
   effort?: string
-  contract?: { text: string } | null
   kitPreset?: string
   opening?: string
   presence: 'headless' | 'screen-present'
@@ -155,19 +153,6 @@ function validateBirth(raw: unknown): { ok: true; birth: SaturnBirthSpecV1 } | {
     const effort = cleanString(raw.effort, 40)
     if (effort === null) return { ok: false, reason: 'birth.effort is malformed' }
     birth.effort = effort
-  }
-  if (raw.contract !== undefined) {
-    if (raw.contract === null) {
-      birth.contract = null
-    } else if (isRecord(raw.contract)) {
-      const text = typeof raw.contract.text === 'string' ? raw.contract.text.replace(/\r\n/g, '\n').trim() : ''
-      if (text.length === 0 || text.length > CONTRACT_TEXT_CAP) {
-        return { ok: false, reason: 'birth.contract.text must be non-empty prose under the contract cap' }
-      }
-      birth.contract = { text }
-    } else {
-      return { ok: false, reason: 'birth.contract must be null or { text }' }
-    }
   }
   if (raw.kitPreset !== undefined) {
     const name = typeof raw.kitPreset === 'string' ? raw.kitPreset : ''

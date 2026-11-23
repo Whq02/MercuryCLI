@@ -418,7 +418,6 @@ export const SESSION_VERBS = {
   blur: { daemon: { op: 'sessionControl', action: 'blur' } },
   park: { daemon: { op: 'sessionControl', action: 'park' } },
   parkAll: { daemon: { op: 'sessionControl', action: 'park-all' } },
-  contract: { daemon: { op: 'sessionControl', action: 'contract', bornAt: 3, bornOrder: 7 } },
   setSchedule: { daemon: { op: 'sessionControl', action: 'set-schedule' } },
   hello: { daemon: { op: 'hello', bornAt: 2, auth: false } },
   restartWhenIdle: { daemon: { op: 'restart-when-idle', bornAt: 2 } },

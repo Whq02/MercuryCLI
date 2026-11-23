@@ -15,7 +15,6 @@ interface SaturnBirthDoorsV1 {
   }): Promise<{ ok: boolean; sessionId?: string; workspaceId?: string; error?: string; heldReason?: string }>
   withdraw(clientMessageId: string): Promise<boolean>
   admit(req: ConcourseAdmitRequest): Promise<ConcourseAdmitResult>
-  contract(sessionId: string, text: string, by: string): { outcome: 'applied' | 'noop' | 'refused'; detail?: string }
 }
 
 export function makeSaturnBirthPort(doors: SaturnBirthDoorsV1): SaturnTickerPortsV1['birth'] {
@@ -55,24 +54,12 @@ export function makeSaturnBirthPort(doors: SaturnBirthDoorsV1): SaturnTickerPort
       sessionId = r.sessionId
       workspaceId = r.workspaceId
     }
-    if (spec.contract !== undefined && spec.contract !== null) {
-      const set = doors.contract(sessionId, spec.contract.text, by)
-      if (set.outcome === 'refused') {
-        rowSaturnTickReceipt({ workspaceId, sessionId }, by, 'schedule-fire', `born by schedule '${scheduleId}' — contract pre-answer refused: ${set.detail ?? 'no detail'}`, {
-          outcome: 'born',
-          scheduleId,
-          contract: 'refused',
-        })
-        return { ok: true, sessionId }
-      }
-    }
     rowSaturnTickReceipt({ workspaceId, sessionId }, by, 'schedule-fire', `born by schedule '${scheduleId}'${spec.opening !== undefined ? ' — working its opening mission' : ' — waiting'}`, {
       outcome: 'born',
       scheduleId,
       mode: spec.opening !== undefined ? 'born-working' : 'born-waiting',
       presence: spec.presence,
       ...(spec.kitPreset !== undefined ? { kitPreset: spec.kitPreset } : {}),
-      ...(spec.contract !== undefined && spec.contract !== null ? { contract: 'set' } : { contract: 'none' }),
     })
     return { ok: true, sessionId }
   }

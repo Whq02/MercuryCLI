@@ -4,7 +4,6 @@ import { isProcessAlive } from '../../utils/ownerWatch.js'
 import { deriveScheduleAccountForModel, liveFactsForSessionFire } from '../saturnAccount.js'
 import { makeSaturnBirthPort } from '../saturnBirth.js'
 import { startSaturnTicker } from '../saturnTicker.js'
-import { applyConcourseContractOp } from '../sessionContract.js'
 import { onSeatSpawned, pushScheduleRosterForSession } from '../sessionSeat.js'
 import { refreshSignInReads } from '../signInView.js'
 import { markHosted } from './owner.js'
@@ -63,7 +62,6 @@ export function armSaturn(state: DaemonRunState, { concourseDispatchHandler, war
             if (state.roster !== null) onSeatSpawned(runnerId, state.roster)
           },
         }),
-        contract: (sessionId, text, by) => applyConcourseContractOp(sessionId, { op: 'set', text }, by),
       }),
       screenOpen: () => (state.controlServer?.leaseCount() ?? 0) > 0,
       rosterChanged: sessionId => {

@@ -197,7 +197,6 @@ export type DaemonRequest =
       mode?: string
       title?: string
       titleSource?: 'operator' | 'minted'
-      contract?: { op: 'set' | 'ack' | 'amend' | 'close'; text?: string }
       kitEdit?: SessionKitEditV1
       mcpAction?: { name: string; action: 'authenticate' | 'reconnect' | 'cancel-auth' }
       mcpServer?: string

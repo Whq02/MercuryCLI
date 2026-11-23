@@ -81,7 +81,6 @@ export interface ConcourseWorkerRecordV1 {
   parkRequestedReason?: string
   parkIntent?: { token: string; by: string; at: number; pid: number }
   parkRefused?: { reason: string; at: number; by: string }
-  contract?: import('../sessionContract.js').SessionContractV1
   kit?: import('../sessionKit.js').SessionKitV1
   schedules?: import('../saturn.js').SaturnScheduleV1[]
   heldFires?: import('../saturn.js').HeldFireV1[]

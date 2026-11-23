@@ -181,7 +181,6 @@ export interface ControlServerDeps {
     mode?: string
     title?: string
     titleSource?: 'operator' | 'minted'
-    contract?: { op: 'set' | 'ack' | 'amend' | 'close'; text?: string }
     kitEdit?: SessionKitEditV1
     mcpAction?: { name: string; action: 'authenticate' | 'reconnect' | 'cancel-auth' }
     mcpServer?: string
@@ -474,7 +473,6 @@ const BASE_ADVERTISED_CONTROL_ROWS = [
   SESSION_VERBS.park,
   SESSION_VERBS.parkAll,
   SESSION_VERBS.setEffort,
-  SESSION_VERBS.contract,
   SESSION_VERBS.setKit,
   SESSION_VERBS.setSchedule,
   SESSION_VERBS.setSpawnSwitch,
@@ -1168,14 +1166,6 @@ function readSessionControl(deps: ControlServerDeps, sock: net.Socket, raw: Cont
           ...(rawAnswer.interrupt === true ? { interrupt: true } : {}),
         }
       : undefined
-  const rawContract = raw.contract && typeof raw.contract === 'object' && !Array.isArray(raw.contract) ? (raw.contract as Record<string, unknown>) : undefined
-  const contract =
-    rawContract?.op === 'set' || rawContract?.op === 'ack' || rawContract?.op === 'amend' || rawContract?.op === 'close'
-      ? {
-          op: rawContract.op as 'set' | 'ack' | 'amend' | 'close',
-          ...(typeof rawContract.text === 'string' ? { text: rawContract.text.slice(0, 20_000) } : {}),
-        }
-      : undefined
   let mcpAction: { name: string; action: 'authenticate' | 'reconnect' | 'cancel-auth' } | undefined
   if (action === SESSION_VERBS.mcpAction.daemon.action) {
     const m = raw.mcpAction as Record<string, unknown> | undefined
@@ -1233,10 +1223,10 @@ function readSessionControl(deps: ControlServerDeps, sock: net.Socket, raw: Cont
       terminalApplication = { identity: candidate.identity, name: candidate.name, ...(candidate.windowId !== undefined ? { windowId: candidate.windowId as string | null } : {}), ...(candidate.tty !== undefined ? { tty: candidate.tty as string | null } : {}) }
     } else return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'terminalApplication requires nonempty identity and name strings' })
   }
-  return { action, sessionId, by, boardPost, spawnSwitch, answerPayload, contract, mcpAction, mcpServer, kitEdit, scheduleEdit, terminalApplication } as const
+  return { action, sessionId, by, boardPost, spawnSwitch, answerPayload, mcpAction, mcpServer, kitEdit, scheduleEdit, terminalApplication } as const
 }
 
-async function answerSessionControl(deps: DepsWith<'concourseControl'>, sock: net.Socket, raw: ControlRequestRaw, requestedOp: string | undefined, { action, sessionId, by, boardPost, spawnSwitch, answerPayload, contract, mcpAction, mcpServer, kitEdit, scheduleEdit, terminalApplication }: Exclude<ReturnType<typeof readSessionControl>, void>): Promise<void> {
+async function answerSessionControl(deps: DepsWith<'concourseControl'>, sock: net.Socket, raw: ControlRequestRaw, requestedOp: string | undefined, { action, sessionId, by, boardPost, spawnSwitch, answerPayload, mcpAction, mcpServer, kitEdit, scheduleEdit, terminalApplication }: Exclude<ReturnType<typeof readSessionControl>, void>): Promise<void> {
   const r = await deps.concourseControl({
     action,
     sessionId,
@@ -1255,7 +1245,6 @@ async function answerSessionControl(deps: DepsWith<'concourseControl'>, sock: ne
     ...(typeof raw.mode === 'string' && raw.mode ? { mode: raw.mode.slice(0, 64) } : {}),
     ...(typeof raw.title === 'string' && raw.title ? { title: raw.title.slice(0, 200) } : {}),
     ...(raw.titleSource === 'operator' || raw.titleSource === 'minted' ? { titleSource: raw.titleSource } : {}),
-    ...(contract !== undefined ? { contract } : {}),
     ...(kitEdit !== undefined ? { kitEdit } : {}),
     ...(mcpAction !== undefined ? { mcpAction } : {}),
     ...(mcpServer !== undefined ? { mcpServer } : {}),
