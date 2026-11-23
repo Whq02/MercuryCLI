@@ -34,19 +34,20 @@ type McpAddOptions = {
   callbackPort?: string
 }
 
-function inferTransport(commandOrUrl: string): 'stdio' | 'sse' | 'http' {
-  const lower = commandOrUrl.toLowerCase()
+function resemblesUrl(value: string): boolean {
+  const lower = value.toLowerCase()
   const pathPart = lower.split(/[?#]/, 1)[0] ?? lower
-  if (pathPart.endsWith('/sse')) return 'sse'
-  if (
+  return (
     lower.startsWith('http://') ||
     lower.startsWith('https://') ||
     lower.startsWith('localhost') ||
+    pathPart.endsWith('/sse') ||
     pathPart.endsWith('/mcp')
-  ) {
-    return 'http'
-  }
-  return 'stdio'
+  )
+}
+
+function collectList(value: string, previous: string[]): string[] {
+  return [...previous, value]
 }
 
 export function registerMcpAddCommand(mcp: CommanderCommand): void {
@@ -56,8 +57,8 @@ export function registerMcpAddCommand(mcp: CommanderCommand): void {
     .description('Add an MCP server to Mercury')
     .option('-s, --scope <scope>', 'Configuration scope (local, user, or project)', 'local')
     .option('-t, --transport <transport>', 'Transport type (stdio, sse, http)')
-    .option('-e, --env <env...>', 'Set environment variables (e.g. -e KEY=value)')
-    .option('-H, --header <header...>', 'Set HTTP headers (e.g. -H "X-Api-Key: abc123")')
+    .option('-e, --env <env...>', 'Set environment variables (e.g. -e KEY=value)', collectList, [])
+    .option('-H, --header <header...>', 'Set HTTP headers (e.g. -H "X-Api-Key: abc123")', collectList, [])
     .option('--client-id <clientId>', 'OAuth client ID for HTTP/SSE servers')
     .option('--client-secret', 'Prompt for an OAuth client secret (or set MERCURY_MCP_CLIENT_SECRET)')
     .option('--callback-port <port>', 'Fixed port for the OAuth redirect callback')
@@ -69,28 +70,37 @@ export function registerMcpAddCommand(mcp: CommanderCommand): void {
       let summary: string
       try {
         if (!name || !commandOrUrl) {
-          throw new Error('Missing required arguments: <name> and <commandOrUrl>. Run with --help for usage.')
+          throw new Error(
+            `Usage: ${cmd} mcp add [options] <name> <commandOrUrl> [args...]\nRun "${cmd} mcp add --help" for examples.`,
+          )
         }
 
         const scope = ensureConfigScope(options.scope)
-        const transport =
-          options.transport !== undefined
-            ? ensureTransport(options.transport)
-            : inferTransport(commandOrUrl)
+        const transport = ensureTransport(options.transport)
 
-        let callbackPort: number | undefined
-        if (options.callbackPort !== undefined) {
-          const parsedPort = Number.parseInt(options.callbackPort, 10)
-          if (!Number.isInteger(parsedPort) || parsedPort <= 0 || String(parsedPort) !== options.callbackPort.trim()) {
-            throw new Error(`Invalid --callback-port "${options.callbackPort}" — expected a positive integer port number`)
-          }
-          callbackPort = parsedPort
+        if (options.transport === undefined && resemblesUrl(commandOrUrl)) {
+          process.stderr.write(
+            `Warning: "${describeUrlRedacted(commandOrUrl)}" looks like a URL, but transport defaults to stdio. To add a remote server, pass --transport http or --transport sse:\n  ${cmd} mcp add --transport http ${name} ${describeUrlRedacted(commandOrUrl)}\n  ${cmd} mcp add --transport sse ${name} ${describeUrlRedacted(commandOrUrl)}\n`,
+          )
         }
 
         let rawConfig: unknown
         let headers: Record<string, string> | undefined
+        let shouldReadSecret = false
+
         if (transport === 'sse' || transport === 'http') {
           headers = options.header && options.header.length > 0 ? parseHeaders(options.header) : undefined
+          let callbackPort: number | undefined
+          if (options.callbackPort !== undefined) {
+            const rawPort = options.callbackPort.trim()
+            const parsedPort = Number.parseInt(rawPort, 10)
+            if (!/^\d+$/.test(rawPort) || parsedPort <= 0) {
+              throw new Error(
+                `Invalid --callback-port "${options.callbackPort}" — expected a positive integer port number`,
+              )
+            }
+            callbackPort = parsedPort
+          }
           const oauth =
             options.clientId !== undefined || callbackPort !== undefined
               ? {
@@ -98,6 +108,10 @@ export function registerMcpAddCommand(mcp: CommanderCommand): void {
                   ...(callbackPort !== undefined ? { callbackPort } : {}),
                 }
               : undefined
+          shouldReadSecret = Boolean(options.clientSecret) && options.clientId !== undefined
+          if (options.clientSecret && options.clientId === undefined) {
+            process.stderr.write('Warning: --client-secret requires --client-id and was ignored.\n')
+          }
           rawConfig = {
             type: transport,
             url: commandOrUrl,
@@ -105,6 +119,15 @@ export function registerMcpAddCommand(mcp: CommanderCommand): void {
             ...(oauth !== undefined ? { oauth } : {}),
           }
         } else {
+          if (
+            options.clientId !== undefined ||
+            options.clientSecret ||
+            options.callbackPort !== undefined
+          ) {
+            process.stderr.write(
+              'Warning: OAuth flags (--client-id, --client-secret, --callback-port) only apply to HTTP/SSE transports and were ignored for stdio.\n',
+            )
+          }
           const env = options.env && options.env.length > 0 ? parseEnvAssignments(options.env) : undefined
           rawConfig = {
             type: 'stdio',
@@ -121,7 +144,7 @@ export function registerMcpAddCommand(mcp: CommanderCommand): void {
         }
         const config: McpServerConfig = parsed.data
 
-        const clientSecret = options.clientSecret ? await readClientSecret() : undefined
+        const clientSecret = shouldReadSecret ? await readClientSecret() : undefined
         await addMcpConfig(name, config, scope)
         if (clientSecret !== undefined) {
           saveMcpClientSecret(name, config, clientSecret)
