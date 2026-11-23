@@ -362,10 +362,18 @@ export function PermissionRuleList({
           setSubDialog(null)
         })
         .catch(err => {
-          logError(err)
+          const reason =
+            err instanceof SyntaxError
+              ? 'a settings file is not valid JSON'
+              : errorMessage(err)
+          logError(
+            new Error(
+              `the ${rule.ruleBehavior} rule for ${rule.ruleValue.toolName} could not be deleted: ${reason}`,
+            ),
+          )
           setChangeLog(prev => [
             ...prev,
-            `Could not delete ${adj} rule ${chalk.bold(ruleStr)}: ${errorMessage(err)}`,
+            `Could not delete ${adj} rule ${chalk.bold(ruleStr)}: ${reason}`,
           ])
           setSubDialog(null)
         })

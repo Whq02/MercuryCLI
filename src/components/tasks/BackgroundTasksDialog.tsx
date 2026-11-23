@@ -34,14 +34,12 @@ export { boardRowElapsedMs, RosterWorkDetail } from './backgroundTasks/rows.js'
 const LEAD_ROW_ID = 'lead'
 
 function kindOf(task: TaskState): RowKind {
-  switch (task.type) {
-    case 'local_bash':
-      return task.kind === 'monitor' ? 'monitor' : 'shell'
-    case 'local_agent':
-      return 'agent'
-    case 'monitor_mcp':
-      return 'monitor'
-  }
+  if (isLocalShellTask(task)) return task.kind === 'monitor' ? 'monitor' : 'shell'
+  if (isLocalAgentTask(task)) return 'agent'
+  if ((task as { type?: string }).type === 'monitor_mcp') return 'monitor'
+  throw new Error(
+    `BackgroundTasksDialog: unrecognised task kind ${(task as { type?: string }).type}`,
+  )
 }
 
 export function rosterRowsOf(

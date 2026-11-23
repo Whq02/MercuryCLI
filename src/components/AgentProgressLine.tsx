@@ -41,10 +41,13 @@ export function AgentProgressLine({
   const trunk = isLast ? '   ' : '│  '
   const dim = !isResolved
   const backgrounded = isAsync && isResolved
-  const status = statusLine ?? (isResolved ? 'done' : (lastToolInfo ?? 'initialising…'))
+  const status = backgrounded
+    ? description
+      ? `${description} continues in the background`
+      : 'continues in the background'
+    : (statusLine ?? (isResolved ? 'done' : (lastToolInfo ?? 'initialising…')))
   const modelPart = model ? ` · ${model}` : ''
   const toolPart = ` · ${toolUseCount} ${plural(toolUseCount, 'tool use')}`
-  const statusDetail = tokensLabel ? `${tokensLabel} · ${status}` : status
 
   return (
     <Box flexDirection="column">
@@ -70,9 +73,10 @@ export function AgentProgressLine({
         )}
       </Text>
       {!backgrounded && (
-        <Text dimColor={dim} wrap="truncate-end">
-          <Text dimColor>{trunk}</Text>
-          <Text dimColor>{statusDetail}</Text>
+        <Text dimColor wrap="truncate-end">
+          {trunk}
+          {tokensLabel ? `${tokensLabel} · ` : ''}
+          {status}
         </Text>
       )}
     </Box>
