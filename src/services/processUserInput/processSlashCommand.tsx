@@ -57,7 +57,16 @@ import type {
   ProcessUserInputContext,
 } from './processUserInput.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
+class TaggedMalformedCommandError extends Error {
+  readonly isMalformedCommand = true
+}
+
+function isMalformedCommandError(error: unknown): error is Error {
+  return (
+    error instanceof Error &&
+    (error as { isMalformedCommand?: unknown }).isMalformedCommand === true
+  )
+}
 
 const UNKNOWN_COMMAND_PREFIX = 'Unknown skill'
 
@@ -91,7 +100,7 @@ export function unknownCommandLine(name: string, commands: Command[]): string {
 
 
 function looksLikeCommand(commandName: string): boolean {
-  return notBuilt('src/services/processUserInput/processSlashCommand.tsx:92')
+  return /^[a-zA-Z0-9:_-]+$/.test(commandName)
 }
 
 function isExistingPath(slashPrefixed: string): boolean {
@@ -107,13 +116,14 @@ function isExistingPath(slashPrefixed: string): boolean {
 
 export function formatSkillLoadingMetadata(
   skillName: string,
-  progressMessage?: string,
+  _progressMessage?: string,
 ): string {
-  return notBuilt('src/services/processUserInput/processSlashCommand.tsx:107')
+  return `<${COMMAND_MESSAGE_TAG}>${skillName}</${COMMAND_MESSAGE_TAG}><${COMMAND_NAME_TAG}>${skillName}</${COMMAND_NAME_TAG}><skill-format>skill</skill-format>`
 }
 
 export function formatCommandLoadingMetadata(fullName: string, args: string): string {
-  return notBuilt('src/services/processUserInput/processSlashCommand.tsx:115')
+  const argsTag = args ? `<${COMMAND_ARGS_TAG}>${args}</${COMMAND_ARGS_TAG}>` : ''
+  return `<${COMMAND_MESSAGE_TAG}>${fullName}</${COMMAND_MESSAGE_TAG}><${COMMAND_NAME_TAG}>/${fullName}</${COMMAND_NAME_TAG}>${argsTag}`
 }
 
 export function unavailableCommandLine(real: Command, args = ''): string {
@@ -168,6 +178,137 @@ function findCommand(commands: Command[], name: string): Command | undefined {
 }
 
 
+async function runPromptCommand(
+  command: Command & { type: 'prompt' },
+  args: string,
+  context: ToolUseContext,
+  imageContentBlocks: ContentBlockParam[],
+  attachmentMessages: AttachmentMessage[],
+  uuid?: UUID,
+  setToolJSX?: SetToolJSXFn,
+  _canUseTool?: CanUseToolFn,
+): Promise<ProcessUserInputBaseResult> {
+  const fullName = getCommandName(command)
+  featureReached('command', command.name)
+  const isSkill =
+    command.loadedFrom === 'skills' ||
+    command.loadedFrom === 'bundled' ||
+    command.loadedFrom === 'extension'
+  if (isSkill) {
+    recordSkillUsage(fullName)
+  }
+  if (
+    command.hooks !== undefined &&
+    context.setAppState !== undefined &&
+    (!isRestrictedToExtensionsOnly('hooks') ||
+      command.source === 'extension' ||
+      command.source === 'policySettings' ||
+      command.source === 'bundled')
+  ) {
+    registerSkillHooks(context.setAppState, { sessionId: getSessionId() }, command.hooks, {
+      name: fullName,
+      root: command.skillRoot ?? '',
+    })
+  }
+  const echoed = createUserMessage({
+    content: formatCommandLoadingMetadata(fullName, args),
+    ...(uuid ? { uuid } : {}),
+  })
+  if (setToolJSX !== undefined && command.progressMessage) {
+    setToolJSX({
+      jsx: (
+        <Box>
+          <Text dimColor>{command.progressMessage}</Text>
+        </Box>
+      ),
+      shouldHidePromptInput: false,
+      showSpinner: true,
+    })
+  }
+  let promptBlocks: ContentBlockParam[]
+  try {
+    promptBlocks = await command.getPromptForCommand(args, context)
+  } finally {
+    if (setToolJSX !== undefined && command.progressMessage) {
+      setToolJSX({ jsx: null, shouldHidePromptInput: false })
+    }
+  }
+  if (context.abortController?.signal?.aborted) {
+    return {
+      messages: [echoed, createUserMessage({ content: INTERRUPT_MESSAGE })],
+      shouldQuery: false,
+    }
+  }
+  if (isSkill) {
+    const promptText = promptBlocks
+      .filter((block): block is Extract<ContentBlockParam, { type: 'text' }> => block.type === 'text')
+      .map(block => block.text)
+      .join('\n')
+    addInvokedSkill(
+      fullName,
+      command.skillRoot ?? '',
+      promptText,
+      getAgentContext()?.agentId ?? context.agentId ?? null,
+    )
+  }
+  const combinedContent: ContentBlockParam[] =
+    imageContentBlocks.length > 0 ? [...promptBlocks, ...imageContentBlocks] : promptBlocks
+  const promptMessage = createUserMessage({
+    content: combinedContent,
+    isMeta: true,
+  })
+  const allowedTools =
+    command.allowedTools !== undefined && command.allowedTools.length > 0
+      ? parseSlashCommandToolsFromFrontmatter(command.allowedTools)
+      : undefined
+  return {
+    messages: [echoed, promptMessage, ...attachmentMessages],
+    shouldQuery: true,
+    ...(allowedTools !== undefined && allowedTools.length > 0 ? { allowedTools } : {}),
+    ...(command.model !== undefined ? { model: command.model } : {}),
+    ...(command.effort !== undefined ? { effort: command.effort } : {}),
+  }
+}
+
+function finalizeCommandResult(
+  result: ProcessUserInputBaseResult,
+): ProcessUserInputBaseResult {
+  if (result.messages.length === 0) {
+    return {
+      messages: [],
+      shouldQuery: false,
+      ...(result.model !== undefined ? { model: result.model } : {}),
+      ...(result.nextInput !== undefined ? { nextInput: result.nextInput } : {}),
+      ...(result.submitNextInput !== undefined
+        ? { submitNextInput: result.submitNextInput }
+        : {}),
+      ...(result.resultText !== undefined ? { resultText: result.resultText } : {}),
+    }
+  }
+  const isAllLocalCommandSystem = result.messages.every(
+    (msg: Message) => msg.type === 'system' && msg.subtype === 'local_command',
+  )
+  const startsAtCompactBoundary = isCompactBoundaryMessage(result.messages[0]!)
+  const isTwoRowUnknown =
+    result.messages.length === 2 &&
+    result.messages.some(
+      (msg: Message) =>
+        msg.type === 'user' &&
+        typeof msg.message.content === 'string' &&
+        msg.message.content.includes(UNKNOWN_COMMAND_PREFIX),
+    )
+  if (
+    isTwoRowUnknown ||
+    (!result.shouldQuery && !isAllLocalCommandSystem && !startsAtCompactBoundary)
+  ) {
+    return {
+      ...result,
+      messages: [createSyntheticUserCaveatMessage(), ...result.messages],
+    }
+  }
+  return result
+}
+
 export async function processPromptSlashCommand(
   commandName: string,
   args: string,
@@ -175,7 +316,23 @@ export async function processPromptSlashCommand(
   context: ToolUseContext,
   imageContentBlocks?: ContentBlockParam[],
 ): Promise<ProcessUserInputBaseResult & { command: Command }> {
-  return notBuilt('src/services/processUserInput/processSlashCommand.tsx:173')
+  const command = findCommand(commands, commandName)
+  if (command === undefined) {
+    throw new TaggedMalformedCommandError(`Unknown command: ${commandName}`)
+  }
+  if (command.type !== 'prompt') {
+    throw new Error(
+      `Command /${commandName} is not a prompt command — use the command directly in the main conversation.`,
+    )
+  }
+  const result = await runPromptCommand(
+    command,
+    args,
+    context,
+    imageContentBlocks ?? [],
+    [],
+  )
+  return { ...result, command }
 }
 
 
@@ -392,16 +549,185 @@ async function runForkedPromptCommand(
 
 export async function processSlashCommand(
   inputString: string,
-  precedingInputBlocks: ContentBlockParam[],
+  _precedingInputBlocks: ContentBlockParam[],
   imageContentBlocks: ContentBlockParam[],
   attachmentMessages: AttachmentMessage[],
   context: ProcessUserInputContext,
   setToolJSX: SetToolJSXFn,
   uuid?: UUID,
-  isAlreadyProcessing?: boolean,
+  _isAlreadyProcessing?: boolean,
   canUseTool?: CanUseToolFn,
 ): Promise<ProcessUserInputBaseResult> {
-  return notBuilt('src/services/processUserInput/processSlashCommand.tsx:415')
+  const parsed = parseSlashCommand(inputString)
+  if (!parsed) {
+    return {
+      messages: [
+        createUserMessage({
+          content: inputString,
+          ...(uuid ? { uuid } : {}),
+        }),
+        ...attachmentMessages,
+      ],
+      shouldQuery: true,
+    }
+  }
+  const { commandName, args } = parsed
+  const commands = context.options?.commands ?? []
+  const command = findCommand(commands, commandName)
+  const isHeadless =
+    context.options?.isNonInteractiveSession ?? getIsNonInteractiveSession()
+
+  if (command === undefined) {
+    if (!looksLikeCommand(commandName) || isExistingPath(`/${commandName}`)) {
+      return {
+        messages: [
+          createUserMessage({
+            content: inputString,
+            ...(uuid ? { uuid } : {}),
+          }),
+          ...attachmentMessages,
+        ],
+        shouldQuery: true,
+      }
+    }
+    const builtin = findCommand([...builtinCommands()], commandName)
+    if (builtin !== undefined) {
+      if (isHeadless && commandSeat(builtin) === 'screen') {
+        const line = unavailableCommandLine(builtin, args)
+        return {
+          messages: [],
+          shouldQuery: false,
+          resultText: line,
+          commandRefused: true,
+        }
+      }
+      if (
+        builtin.type === 'local' &&
+        builtin.userPrivate === true &&
+        isCommandEnabled(builtin) &&
+        meetsAvailabilityRequirement(builtin) &&
+        !commandOffInPlainWorld(builtin)
+      ) {
+        try {
+          const module = await builtin.load()
+          featureReached('command', builtin.name)
+          const result = await module.call(args, context)
+          const text = result.type === 'text' ? result.value : ''
+          return {
+            messages: [],
+            shouldQuery: false,
+            ...(text !== '' ? { resultText: text } : {}),
+          }
+        } catch (error) {
+          logError(
+            new Error(`/${getCommandName(builtin)} failed — ${String(error)}`),
+          )
+          return {
+            messages: [],
+            shouldQuery: false,
+            commandError: String(error),
+          }
+        }
+      }
+      const line = unavailableCommandLine(builtin, args)
+      return {
+        messages: [
+          createSyntheticUserCaveatMessage(),
+          ...attachmentMessages,
+          createUserMessage({
+            content: line,
+            ...(uuid ? { uuid } : {}),
+          }),
+        ],
+        shouldQuery: false,
+        resultText: line,
+        commandRefused: true,
+      }
+    }
+    const line = unknownCommandLine(commandName, commands)
+    const notice = createSystemMessage(line, 'warning')
+    return {
+      messages: [uuid ? { ...notice, uuid } : notice],
+      shouldQuery: false,
+      resultText: line,
+      commandRefused: true,
+    }
+  }
+
+  if (!isCommandEnabled(command)) {
+    const line = unavailableCommandLine(command, args)
+    return {
+      messages: [
+        createSyntheticUserCaveatMessage(),
+        ...attachmentMessages,
+        createUserMessage({
+          content: line,
+          ...(uuid ? { uuid } : {}),
+        }),
+      ],
+      shouldQuery: false,
+      resultText: line,
+      commandRefused: true,
+    }
+  }
+
+  if (command.userInvocable === false) {
+    const fullName = getCommandName(command)
+    const explanation = `The ${fullName} skill can only be invoked by the assistant. Ask for it by name instead.`
+    const echoed = createUserMessage({
+      content: formatCommandLoadingMetadata(fullName, args),
+      ...(uuid ? { uuid } : {}),
+    })
+    return finalizeCommandResult({
+      messages: [echoed, createCommandInputMessage(stdoutWrapped(explanation))],
+      shouldQuery: false,
+      resultText: explanation,
+    })
+  }
+
+  try {
+    let result: ProcessUserInputBaseResult
+    if (command.type === 'local-jsx') {
+      result = await runLocalJsxCommand(
+        command,
+        commandName,
+        args,
+        context,
+        setToolJSX,
+        uuid,
+      )
+    } else if (command.type === 'local') {
+      result = await runLocalCommand(command, commandName, args, context, uuid)
+    } else if (requiresArgument(command) && args.trim() === '') {
+      result = answerBareUsage(command, args, uuid)
+    } else {
+      result = await runPromptCommand(
+        command,
+        args,
+        context,
+        imageContentBlocks,
+        attachmentMessages,
+        uuid,
+        setToolJSX,
+        canUseTool,
+      )
+    }
+    return finalizeCommandResult(result)
+  } catch (error) {
+    if (isMalformedCommandError(error)) {
+      return {
+        messages: [
+          createUserMessage({
+            content: error.message,
+            ...(uuid ? { uuid } : {}),
+          }),
+        ],
+        shouldQuery: false,
+        commandError: error.message,
+      }
+    }
+    throw error
+  }
 }
 
 
