@@ -8,6 +8,7 @@ import { COMMAND_MESSAGE_TAG } from '../../constants/xml.js'
 import type { CanUseToolFn } from '../../Tool.js'
 import {
   buildTool,
+  type Tool,
   type ToolCallProgress,
   type ToolDef,
   type ToolUseContext,
@@ -44,13 +45,39 @@ import {
   renderToolUseProgressMessage,
   renderToolUseRejectedMessage,
 } from './UI.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
+import { processPromptSlashCommand } from '../../services/processUserInput/processSlashCommand.js'
+import type { PermissionUpdate } from '../../types/permissions.js'
 
 
-export const inputSchema: Unbuilt = unbuilt('src/tools/SkillTool/SkillTool.ts:50')
+export const inputSchema = lazySchema(() =>
+  z.object({
+    skill: z.string().describe('The skill\'s name, or "<extension>:<skill>" for an extension skill'),
+    args: z.string().optional().describe('Optional arguments passed to the skill'),
+  }),
+)
+type InputSchema = ReturnType<typeof inputSchema>
 
-export const outputSchema: Unbuilt = unbuilt('src/tools/SkillTool/SkillTool.ts:61')
-export type Output = Unbuilt
+export const outputSchema = lazySchema(() =>
+  z.union([
+    z.object({
+      success: z.boolean().describe('Whether the skill loaded'),
+      commandName: z.string().describe('The resolved skill command name'),
+      allowedTools: z.array(z.string()).optional().describe('Tools the skill grants for its run'),
+      model: z.string().optional().describe('The model the skill pins'),
+      status: z.literal('inline').optional().describe('The skill expanded inline into the conversation'),
+      alreadyLoaded: z.literal(true).optional().describe('The same expansion is already in the conversation; the body was not sent again'),
+    }),
+    z.object({
+      success: z.boolean().describe('Whether the skill run completed'),
+      commandName: z.string().describe('The resolved skill command name'),
+      status: z.literal('forked').describe('The skill ran in a forked crewmate'),
+      agentId: z.string().describe("The forked runner's agent id"),
+      result: z.string().describe("The forked run's result text"),
+    }),
+  ]),
+)
+type OutputSchema = ReturnType<typeof outputSchema>
+export type Output = z.infer<OutputSchema>
 
 
 export const READ_ONLY_SKILL_TOOLS: ReadonlySet<string> = new Set([
@@ -59,10 +86,44 @@ export const READ_ONLY_SKILL_TOOLS: ReadonlySet<string> = new Set([
   GLOB_TOOL_NAME,
 ])
 
-const SAFE_COMMAND_PROPERTIES: ReadonlySet<string> = unbuilt('src/tools/SkillTool/SkillTool.ts:99')
+const SAFE_COMMAND_PROPERTIES: ReadonlySet<string> = new Set([
+  'type',
+  'progressMessage',
+  'contentLength',
+  'argNames',
+  'model',
+  'effort',
+  'source',
+  'extensionInfo',
+  'disableNonInteractive',
+  'skillRoot',
+  'context',
+  'agent',
+  'getPromptForCommand',
+  'frontmatterKeys',
+  'name',
+  'description',
+  'hasUserSpecifiedDescription',
+  'isEnabled',
+  'isHidden',
+  'aliases',
+  'isMcp',
+  'argumentHint',
+  'whenToUse',
+  'pathFilters',
+  'menuDescription',
+  'version',
+  'disableModelInvocation',
+  'userInvocable',
+  'loadedFrom',
+  'immediate',
+  'userFacingName',
+])
 
 function isEmptyPlainObject(value: unknown): boolean {
-  return notBuilt('src/tools/SkillTool/SkillTool.ts:133')
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
+  if (Object.getPrototypeOf(value) !== Object.prototype) return false
+  return Object.keys(value).length === 0
 }
 
 export function skillHasOnlySafeProperties(command: Command): boolean {
@@ -192,4 +253,347 @@ export function refusedExpansionError(
 
 const FORK_CONTEXT_REFUSAL = 'Fork-context skills run only in the main session. Report what you checked to the session that launched you; it runs any independent verification.'
 
-export const SkillTool: Unbuilt = unbuilt('src/tools/SkillTool/SkillTool.ts:270')
+type Input = z.infer<InputSchema>
+
+async function runForkedSkill(
+  command: Command & PromptCommand,
+  commandName: string,
+  args: string,
+  context: ToolUseContext,
+  canUseTool: CanUseToolFn,
+  parentAssistantMessage: AssistantMessage,
+  parentToolUseID: string | undefined,
+  onProgress?: ToolCallProgress<SkillToolProgress>,
+): Promise<{ data: Output }> {
+  const authority = evaluateLaunchAuthority('subagents')
+  if (!authority.allowed) {
+    throw new Error(authority.reason)
+  }
+  const agentId = createAgentId()
+  try {
+    const { skillContent, modifiedGetAppState, baseAgent, promptMessages } =
+      await prepareForkedCommandContext(command, args, context)
+    const agentDefinition =
+      command.effort !== undefined
+        ? { ...baseAgent, effort: command.effort }
+        : baseAgent
+    const forkContext: ToolUseContext = {
+      ...context,
+      getAppState: modifiedGetAppState,
+    }
+    const collected: Message[] = []
+    const progressToolUseID = parentToolUseID ?? parentAssistantMessage.uuid
+    for await (const emitted of runAgent({
+      agentDefinition,
+      promptMessages,
+      toolUseContext: forkContext,
+      canUseTool,
+      isAsync: false,
+      querySource: 'agent:custom',
+      ...(command.model ? { model: command.model } : {}),
+      availableTools: context.options.tools,
+      override: { agentId },
+    })) {
+      collected.push(emitted)
+      if (onProgress) {
+        const normalized = normalizeMessages([emitted])
+        for (const row of normalized) {
+          if (
+            (row.type === 'assistant' || row.type === 'user') &&
+            messageCarriesToolActivity(row)
+          ) {
+            onProgress({
+              toolUseID: progressToolUseID,
+              data: {
+                type: 'skill_progress',
+                message: row,
+                prompt: skillContent,
+                agentId,
+              },
+            })
+          }
+        }
+      }
+    }
+    const result = extractResultText(collected, 'Skill execution completed.')
+    return {
+      data: {
+        success: true,
+        commandName,
+        status: 'forked',
+        agentId,
+        result,
+      },
+    }
+  } finally {
+    clearInvokedSkillsForAgent(agentId)
+  }
+}
+
+async function runInlineSkill(
+  name: string,
+  command: Command & PromptCommand,
+  commandName: string,
+  args: string,
+  commands: Command[],
+  context: ToolUseContext,
+  parentToolUseID: string | undefined,
+): Promise<{
+  data: Output
+  newMessages: Message[]
+  contextModifier: (ctx: ToolUseContext) => ToolUseContext
+}> {
+  const processed = await processPromptSlashCommand(name, args, commands, context)
+  if (!processed.shouldQuery) {
+    throw refusedExpansionError(name, processed)
+  }
+  const allowedTools: string[] = processed.allowedTools ?? []
+  const model: string | undefined = processed.model
+  const effort = command.effort
+  const commandOpenTag = `<${COMMAND_MESSAGE_TAG}>`
+  const filtered: Message[] = (processed.messages as Message[]).filter(msg => {
+    if (msg.type === 'progress') return false
+    if (
+      msg.type === 'user' &&
+      typeof msg.message.content === 'string' &&
+      msg.message.content.includes(commandOpenTag)
+    ) {
+      return false
+    }
+    return true
+  })
+  const existingBodies = new Set<string>()
+  for (const msg of context.messages) {
+    const body = expansionBodyOf(msg)
+    if (body !== null) existingBodies.add(body)
+  }
+  let alreadyLoaded = false
+  const deduped: Message[] = []
+  for (const msg of filtered) {
+    const body = expansionBodyOf(msg)
+    if (body !== null && existingBodies.has(body)) {
+      alreadyLoaded = true
+      continue
+    }
+    deduped.push(msg)
+  }
+  const newMessages = tagMessagesWithToolUseID(deduped, parentToolUseID)
+  const contextModifier = (ctx: ToolUseContext): ToolUseContext => {
+    if (allowedTools.length === 0 && !model && effort === undefined) {
+      return ctx
+    }
+    let nextGetAppState = ctx.getAppState
+    if (allowedTools.length > 0) {
+      nextGetAppState = createGetAppStateWithAllowedTools(nextGetAppState, allowedTools)
+    }
+    if (effort !== undefined) {
+      const prevGetAppState = nextGetAppState
+      nextGetAppState = () => ({
+        ...prevGetAppState(),
+        effortValue: effort,
+      })
+    }
+    return {
+      ...ctx,
+      getAppState: nextGetAppState,
+      ...(model
+        ? {
+            options: {
+              ...ctx.options,
+              engineModel: resolveSkillModelOverride(model, ctx.options.engineModel),
+            },
+          }
+        : {}),
+    }
+  }
+  return {
+    data: {
+      success: true,
+      commandName,
+      ...(allowedTools.length > 0 ? { allowedTools } : {}),
+      ...(model ? { model } : {}),
+      ...(alreadyLoaded ? { alreadyLoaded: true as const } : {}),
+    },
+    newMessages,
+    contextModifier,
+  }
+}
+
+export const SkillTool: Tool<InputSchema, Output, SkillToolProgress> = buildTool({
+  name: SKILL_TOOL_NAME,
+  searchHint: 'invoke a slash-command skill by name',
+  maxResultSizeChars: 100_000,
+  get inputSchema(): InputSchema {
+    return inputSchema()
+  },
+  get outputSchema(): OutputSchema {
+    return outputSchema()
+  },
+  async description(input?: Partial<Input>) {
+    return `Execute the ${input?.skill ?? ''} skill`
+  },
+  async prompt() {
+    return getPrompt(getProjectRoot())
+  },
+  async validateInput(input: Input, context: ToolUseContext): Promise<ValidationResult> {
+    const name = normalizeSkillName(input.skill)
+    if (name === '') {
+      return {
+        result: false,
+        message: `Skill name is required (got "${input.skill}").`,
+        errorCode: 1,
+      }
+    }
+    const commands = await getCommandUniverse(context)
+    const command = findCommand(name, commands)
+    if (!command) {
+      return {
+        result: false,
+        message: unknownSkillMessage(name, commands),
+        errorCode: 2,
+      }
+    }
+    if (command.disableModelInvocation) {
+      return {
+        result: false,
+        message: `Skill "${name}" cannot be invoked through Skill: it sets disable-model-invocation in its frontmatter.`,
+        errorCode: 4,
+      }
+    }
+    if (!isPromptCommand(command)) {
+      return {
+        result: false,
+        message: `Skill "${name}" is not a prompt-based skill and cannot be invoked.`,
+        errorCode: 5,
+      }
+    }
+    if (context.agentId !== undefined && command.context === 'fork') {
+      return {
+        result: false,
+        message: FORK_CONTEXT_REFUSAL,
+        errorCode: 6,
+      }
+    }
+    return { result: true }
+  },
+  async checkPermissions(input: Input, context: ToolUseContext) {
+    const name = normalizeSkillName(input.skill)
+    const commands = await getCommandUniverse(context)
+    const command = findCommand(name, commands)
+    const namesToCheck: string[] = [name]
+    if (command) {
+      if (!namesToCheck.includes(command.name)) namesToCheck.push(command.name)
+      const displayed = getCommandName(command)
+      if (!namesToCheck.includes(displayed)) namesToCheck.push(displayed)
+      for (const alias of command.aliases ?? []) {
+        if (!namesToCheck.includes(alias)) namesToCheck.push(alias)
+      }
+    }
+    const permCtx = context.getAppState().toolPermissionContext
+    const denyRules = getRuleByContentsForToolName(permCtx, SKILL_TOOL_NAME, 'deny')
+    for (const candidate of namesToCheck) {
+      for (const [ruleContent, rule] of denyRules) {
+        if (ruleMatchesSkill(ruleContent, candidate)) {
+          return {
+            behavior: 'deny' as const,
+            message: ruleSentence(`The ${name} skill`, 'deny', rule),
+            decisionReason: { type: 'rule' as const, rule },
+          }
+        }
+      }
+    }
+    const allowRules = getRuleByContentsForToolName(permCtx, SKILL_TOOL_NAME, 'allow')
+    for (const candidate of namesToCheck) {
+      for (const [ruleContent, rule] of allowRules) {
+        if (ruleMatchesSkill(ruleContent, candidate)) {
+          return {
+            behavior: 'allow' as const,
+            updatedInput: input,
+            decisionReason: { type: 'rule' as const, rule },
+          }
+        }
+      }
+    }
+    if (command && isPromptCommand(command) && skillHasOnlySafeProperties(command)) {
+      return {
+        behavior: 'allow' as const,
+        updatedInput: input,
+      }
+    }
+    const suggestions: PermissionUpdate[] = [
+      ...suggestionForExactCommand(SKILL_TOOL_NAME, name),
+      {
+        type: 'addRules',
+        rules: [{ toolName: SKILL_TOOL_NAME, ruleContent: `${name}*` }],
+        behavior: 'allow',
+        destination: 'localSettings',
+      },
+    ]
+    return {
+      behavior: 'ask' as const,
+      message: `Run skill "${name}"?`,
+      ...(command ? { metadata: { command } } : {}),
+      suggestions,
+    }
+  },
+  async call(
+    input: Input,
+    context: ToolUseContext,
+    canUseTool: CanUseToolFn,
+    parentAssistantMessage: AssistantMessage,
+    onProgress?: ToolCallProgress<SkillToolProgress>,
+  ) {
+    const name = normalizeSkillName(input.skill)
+    const commands = await getCommandUniverse(context)
+    const command = findCommand(name, commands)
+    if (!command || !isPromptCommand(command)) {
+      throw new Error(unknownSkillMessage(name, commands))
+    }
+    if (context.agentId !== undefined && command.context === 'fork') {
+      throw new Error(FORK_CONTEXT_REFUSAL)
+    }
+    recordSkillUsage(name)
+    const parentToolUseID = getToolUseIDFromParentMessage(parentAssistantMessage, SKILL_TOOL_NAME)
+    const args = input.args ?? ''
+    const commandName = getCommandName(command)
+    if (command.context === 'fork') {
+      return runForkedSkill(
+        command,
+        commandName,
+        args,
+        context,
+        canUseTool,
+        parentAssistantMessage,
+        parentToolUseID,
+        onProgress,
+      )
+    }
+    return runInlineSkill(name, command, commandName, args, commands, context, parentToolUseID)
+  },
+  mapToolResultToToolResultBlockParam(output: Output, toolUseID: string) {
+    if (output.status === 'forked') {
+      return {
+        tool_use_id: toolUseID,
+        type: 'tool_result' as const,
+        content: `Skill "${output.commandName}" completed as a forked execution.\n\n${output.result}`,
+      }
+    }
+    if (output.alreadyLoaded) {
+      return {
+        tool_use_id: toolUseID,
+        type: 'tool_result' as const,
+        content: `Skill "${output.commandName}" is already loaded in this conversation; follow the instructions it gave above.`,
+      }
+    }
+    return {
+      tool_use_id: toolUseID,
+      type: 'tool_result' as const,
+      content: `Launching skill: ${output.commandName}`,
+    }
+  },
+  renderToolUseMessage,
+  renderToolUseProgressMessage,
+  renderToolUseRejectedMessage,
+  renderToolUseErrorMessage,
+  renderToolResultMessage,
+} satisfies ToolDef<InputSchema, Output, SkillToolProgress>)
