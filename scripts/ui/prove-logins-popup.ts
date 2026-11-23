@@ -191,6 +191,16 @@ const bodyRows = (m: Mounted, s: Scene): string[] => {
   return lines.slice(top + 2, bottom).map(line => line.replace(/^\s*│ ?/, '').replace(/│\s*$/, '').trimEnd())
 }
 const rowsVisible = (m: Mounted, s: Scene): number => bodyRows(m, s).filter(line => line !== '').length
+const rowsShown = (m: Mounted, s: Scene): string => bodyRows(m, s).map(line => line.replace('❯', ' ')).join('\n')
+const behindOf = (m: Mounted): string => {
+  const lines = m.lines()
+  const top = lines.findIndex(line => line.includes('╭'))
+  const left = lines[top]?.indexOf('╭') ?? 0
+  const right = lines[top]?.indexOf('╮') ?? 0
+  const bottom = lines.findIndex((line, i) => i > top && line[left] === '╰')
+  return lines.map((line, i) => (i < top || i > bottom ? line : `${line.slice(0, left)}${line.slice(right + 1)}`)).join('\n')
+}
+const noReadiness = (m: Mounted): boolean => !m.screen().includes('Provider readiness') && !m.screen().includes('ready · ')
 for (const s of sizes) {
   seed = 'idle'; estate = 'absent'
   let board = await mount(s)
@@ -213,18 +223,25 @@ for (const s of sizes) {
     if (compact) check(`${s.columns}x${s.rows} compact: the marker follows the focus to ${index + 1} of 22`, markerOf(board.m) === `${index + 1} of 22`, markerOf(board.m))
   }
   save(board.m, s, 'menu-bottom')
+  const shown = rowsShown(board.m, s)
+  const behind = behindOf(board.m)
+  await key(board.m, '\x1b[<64;15;7M')
+  check(`${s.columns}x${s.rows}: a wheel notch up moves the selected row to the family above and the card's body does not scroll`, board.m.screen().includes(`❯ ${familyRows[20]!.label.slice(0, 24)}`) && rowsShown(board.m, s) === shown, board.m.screen())
+  check(`${s.columns}x${s.rows}: the wheel does not scroll the transcript behind the popup`, behindOf(board.m) === behind, behindOf(board.m))
+  await key(board.m, '\x1b[<65;15;7M')
+  check(`${s.columns}x${s.rows}: a wheel notch down moves the selected row back to the last family and the card's body does not scroll`, board.m.screen().includes(`❯ ${familyRows[21]!.label.slice(0, 24)}`) && rowsShown(board.m, s) === shown, board.m.screen())
   if (compact) {
     check(`${s.columns}x${s.rows} compact: the last family row is reached by arrows with the title row still pinned`, board.m.screen().includes('OpenCode Zen — API key') && board.m.lines().some(line => line.includes(compactHint)))
     for (let index = 0; index < 21; index++) await key(board.m, KEY.up)
     check(`${s.columns}x${s.rows} compact: arrows return to the first row and the marker reads 1 of 22`, markerOf(board.m) === '1 of 22' && board.m.screen().includes('OpenAI — ChatGPT'), markerOf(board.m))
-  } else {
-    check('the readiness tail is reachable by paging past the last family row, without moving the list key guide', await walk(board.m, 'OpenAI-compatible') && board.m.screen().includes(listHint))
-    save(board.m, s, 'readiness')
-    const scroll = store.settingsPopupRequest()?.scrollRef?.current
-    const beforeWheel = scroll?.getScrollTop() ?? 0
-    await key(board.m, '\x1b[<64;15;7M')
-    check('the shared wheel handler scrolls the popup, not the retained transcript', beforeWheel > 0 && (scroll?.getScrollTop() ?? beforeWheel) < beforeWheel)
   }
+  const guide = compact ? compactHint : listHint
+  check(`${s.columns}x${s.rows}: paging down walks the family rows to the last one, without moving the list key guide`, await walk(board.m, `❯ ${familyRows[21]!.label.slice(0, 24)}`) && board.m.screen().includes(guide), board.m.screen())
+  const last = board.m.screen()
+  await key(board.m, '\x1b[6~')
+  check(`${s.columns}x${s.rows}: paging past the last family row finds nothing below it`, board.m.screen() === last && noReadiness(board.m), board.m.screen())
+  save(board.m, s, 'menu-paged')
+  check(`${s.columns}x${s.rows}: paging up walks the family rows back to the first one, without moving the list key guide`, await walk(board.m, '❯ OpenAI — ChatGPT', '\x1b[5~') && board.m.screen().includes(guide), board.m.screen())
   await key(board.m, KEY.esc)
   const closed = await waitFor(() => !store.isSettingsPopupOpen(), 1000)
   check('menu esc closes the popup and reports no credential change', closed && receipts.at(-1)?.includes('no credential changed') === true, `open=${store.isSettingsPopupOpen()} receipt=${receipts.at(-1)}`)
@@ -298,7 +315,7 @@ for (const s of sizes) {
   check('the paste guard stays in the popup without reaching a driver', submits.length === submitted && await walk(board.m, 'whitespace).'))
   save(board.m, s, 'paste-guard')
   await key(board.m, KEY.esc)
-  check('key esc returns to the family menu, not out of the popup', store.isSettingsPopupOpen() && await walk(board.m, compact ? 'OpenAI — ChatGPT' : 'Provider readiness', compact ? KEY.up : undefined))
+  check('key esc returns to the family menu, not out of the popup', store.isSettingsPopupOpen() && await walk(board.m, '❯ OpenAI — ChatGPT', KEY.up) && noReadiness(board.m), board.m.screen())
   if (compact) check('compact: back on the menu the marker returns', markerOf(board.m) !== undefined && /of 22$/.test(markerOf(board.m) ?? ''), markerOf(board.m))
   board.close()
   board = await mount(s, 'moonshot')
@@ -342,10 +359,9 @@ for (const s of sizes) {
       check(`${estate} compact: a signed-in family row carries its identity chip inline`, await walk(board.m, 'Groq — API key · groq@example.com', KEY.down))
       fits(board.m, s, `${estate} estate`)
     } else {
-      check(`${estate} readiness reaches the credentialed family rows`, await walk(board.m, 'ready · oauth'))
-      save(board.m, s, `${estate}-readiness-top`)
-      check(`${estate} readiness reaches every family`, await walk(board.m, 'OpenAI-compatible'))
-      fits(board.m, s, `${estate} estate`); save(board.m, s, `${estate}-readiness-bottom`)
+      check(`${estate} ${s.columns}x${s.rows}: the menu opens on the sign-in rows alone`, board.m.screen().includes('❯ OpenAI — ChatGPT') && noReadiness(board.m), board.m.screen())
+      check(`${estate} ${s.columns}x${s.rows}: paging ends on the last family row, with nothing below it`, await walk(board.m, `❯ ${familyRows[21]!.label.slice(0, 24)}`) && noReadiness(board.m), board.m.screen())
+      fits(board.m, s, `${estate} estate`); save(board.m, s, `${estate}-menu-bottom`)
     }
     board.close()
     for (const family of ['openai', 'anthropic', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'nous']) {

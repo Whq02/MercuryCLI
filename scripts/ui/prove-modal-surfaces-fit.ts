@@ -104,15 +104,15 @@ if (driver.kind !== 'posix-pty') {
       { atTick: 60, data: '/logins', awaitText: 'Type a prompt', minTick: 5 },
       { afterPrevTicks: 4, data: '\r' },
       { requireAwait: true, awaitText: 'Mercury · logins', awaitStableTicks: 3, mark: 'top', data: '' },
-      { requireAwait: true, awaitText: 'OpenAI-compatible', awaitPattern: '(?s)(?=.*OpenAI-compatible)(?=.*esc back)', awaitStableTicks: 3, repeatEveryTicks: 3, mark: 'paged', data: '\u001b[6~' },
+      { requireAwait: true, awaitText: 'OpenCode Zen — API key', awaitPattern: '(?s)(?=.*❯ OpenCode Zen — API key)(?=.*esc back)', awaitStableTicks: 3, repeatEveryTicks: 3, mark: 'paged', data: '\u001b[6~' },
       { afterPrevTicks: 3, data: '\u001b' },
     ], 70)
     check('/logins drive delivered every send', r.status === 0, `exit ${r.status}: ${r.stderr.trim().slice(-200)}`)
     const top = r.marks.top ?? ''
     const paged = r.marks.paged ?? ''
     check('/logins at 100x30: the footer is on screen with the menu (esc back)', top.includes('esc back') && top.includes('Sign in'))
-    check('/logins at 100x30: the readiness tail starts below the fold', !top.includes('OpenAI-compatible'))
-    check('PageDown pages the body: the readiness tail lands, the footer stays', paged.includes('OpenAI-compatible') && paged.includes('esc back'))
+    check('/logins at 100x30: the menu is the sign-in rows alone and its last family row starts below the fold', !top.includes('Provider readiness') && !top.includes('OpenCode Zen — API key'))
+    check('PageDown pages the family rows: the last one is selected, the footer stays and nothing stands below it', paged.includes('❯ OpenCode Zen — API key') && paged.includes('esc back') && !paged.includes('Provider readiness'))
   }
   {
     const r = capture('logins-wrap', [

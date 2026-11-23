@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { firstRunCardsCentred, setupFrameBodyRows } from '../../src/boot/first-run/MercurySetupFrame.tsx'
-import { MORE_BELOW_ROW, READINESS_ROWS, signInCardFit, type SignInCardFit } from '../../src/models/sign-in/flow-cards/SignInFlow.tsx'
+import { MORE_BELOW_ROW, signInCardFit, type SignInCardFit } from '../../src/models/sign-in/flow-cards/SignInFlow.tsx'
 import { SIGN_IN_LATER_ROW, loginFamilyRows } from '../../src/models/sign-in/flow-cards/loginFamilyRows.ts'
 import { SIGN_IN_WORDS } from '../../src/boot/first-run/Onboarding.tsx'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
@@ -129,7 +129,7 @@ const ROSTER_ROWS = loginFamilyRows({ engineLegs: true }).length + 1
 function rosterFit(cols: number, rows: number): SignInCardFit {
   const width = Math.max(Math.min(cols - 2, 100), 40)
   const bodyRows = setupFrameBodyRows({ rows, bootNoteRows: 0 })
-  return signInCardFit({ bodyRows, textWidth: width - 8, intro: SIGN_IN_WORDS.intro, rosterRows: ROSTER_ROWS, readinessRows: READINESS_ROWS.length + 1 })
+  return signInCardFit({ bodyRows, textWidth: width - 8, intro: SIGN_IN_WORDS.intro, rosterRows: ROSTER_ROWS })
 }
 
 function cardBox(grid: Grid): Box | null {
@@ -283,17 +283,11 @@ try {
         if (station === 'provider') {
           const text = gridText(grid)
           const lines = text.split('\n')
-          const readinessAt = lines.findIndex(row => row.includes('Provider readiness'))
-          const rosterPart = (readinessAt >= 0 ? lines.slice(0, readinessAt) : lines).join('\n')
-          const readinessPart = readinessAt >= 0 ? lines.slice(readinessAt).join('\n') : ''
           check(`${label}: the card is no taller than the ${rows - 1} usable rows`, box.height <= rows - 1, `height ${box.height}`)
-          check(`${label}: the roster is whole (${ROSTER_ROWS} rows, no scroll tail)`, rosterPart.includes(SIGN_IN_LATER_ROW.label) && !rosterPart.includes('more below'), lines.find(row => row.includes('more below')) ?? '')
+          check(`${label}: the roster is whole (${ROSTER_ROWS} rows, no scroll tail)`, text.includes(SIGN_IN_LATER_ROW.label) && !text.includes('more below'), lines.find(row => row.includes('more below')) ?? '')
           check(`${label}: the sign-in card keeps its outline (its bottom edge is on screen)`, lines.filter(row => row.includes('╰')).length === 2)
-          const readinessWhole = readinessPart.includes('Nous Portal') && readinessPart.includes('OpenAI-compatible') && !readinessPart.includes('more below')
-          const readinessClipped = /…and \d+ more below/.test(readinessPart)
-          const readinessFits = rosterFit(cols, rows).readiness > 0
-          check(`${label}: readiness follows the available rows after the full provider roster`, readinessFits ? readinessAt >= 0 && (readinessWhole || readinessClipped) : readinessAt < 0, `available=${rosterFit(cols, rows).readiness}; ${readinessPart}`)
-          console.log(`       ${label}: ${box.height} rows; readiness ${readinessWhole ? 'whole' : readinessClipped ? 'clipped' : 'absent'}`)
+          check(`${label}: the card holds the sign-in rows alone, with no readiness block under the roster`, !text.includes('Provider readiness'), lines.find(row => row.includes('Provider readiness')) ?? '')
+          console.log(`       ${label}: ${box.height} rows`)
         }
         if (state === 'centred') {
           const left = Math.round((cols - box.width) / 2)
@@ -414,7 +408,7 @@ try {
       check(`${tag}: the card fills the ${rows - 1} usable rows`, box.height === rows - 1, `height ${box.height}`)
       check(`${tag}: the sign-in card keeps its outline (its bottom edge is on screen)`, text.split('\n').filter(row => row.includes('╰')).length === 2)
       check(`${tag}: the roster shows ${want.roster} rows and names the ${hidden} below it`, text.includes(MORE_BELOW_ROW(hidden)) && !text.includes(SIGN_IN_LATER_ROW.label), text.split('\n').find(row => row.includes('more below')) ?? 'no tail row')
-      check(`${tag}: the readiness block waits for a taller terminal`, !text.includes('Provider readiness'))
+      check(`${tag}: the card holds the sign-in rows alone, with no readiness block`, !text.includes('Provider readiness'))
       const left = state === 'centred' ? Math.round((cols - box.width) / 2) : 0
       check(`${tag}: ${state === 'centred' ? 'centred' : 'top-left as shipped'} at row 0, column ${left}`, box.top === 0 && box.left === left, `row ${box.top}, column ${box.left}`)
       const end = gridText(shot.grid)
@@ -461,7 +455,7 @@ try {
           writeFileSync(join(FRAMES, 'logins-178x51.json'), JSON.stringify({ cols: 178, rows: 51, grid: shot.grid }))
         }
         const introRow = text.split('\n').find(row => row.includes('Choose a provider')) ?? 'no intro row'
-        check('logins-178x51: the /logins card opens in the cockpit with its roster and close hint (twenty-two providers; the tail of the roster and the readiness block sit below the popup\'s fold, reachable by ↓)', text.includes('Sign in') && text.includes('OpenAI — ChatGPT subscription or API key') && text.includes('Melious AI') && text.includes('↓') && text.includes(LOGINS_HINT))
+        check('logins-178x51: the /logins card opens in the cockpit with its roster and close hint (twenty-two providers; the tail of the roster sits below the popup\'s fold, reachable by ↓) and no readiness block', text.includes('Sign in') && text.includes('OpenAI — ChatGPT subscription or API key') && text.includes('Melious AI') && text.includes('↓') && text.includes(LOGINS_HINT) && !text.includes('Provider readiness'))
         check(`logins-178x51: the /logins card opens on its own one-line ask, not the walk's intro (the declutter)`, text.includes('Choose a provider to sign in.') && !text.includes('Use a Claude or OpenAI subscription'), introRow)
         check('logins-178x51: the shipped default sentence is gone from /logins', !text.includes('Mercury can run on a Claude or OpenAI subscription'), introRow)
       }
