@@ -151,5 +151,54 @@ export async function call(
   context: LocalJSXCommandContext,
   args?: string,
 ): Promise<React.ReactNode> {
-  return notBuilt('src/commands/login/login.tsx:159')
+  const tokens = (args ?? '').trim().split(/\s+/).filter(token => token !== '')
+  const returnCommand = tokens.find(token => token.startsWith('--return='))?.slice('--return='.length)
+  const chain: Parameters<LocalJSXCommandOnDone>[1] =
+    returnCommand !== undefined && returnCommand.startsWith('/') ? { nextInput: returnCommand, submitNextInput: true } : {}
+  const initialFocus = parseFamilyFocus(tokens.find(token => !token.startsWith('--')))
+
+  const complete = async (success: boolean): Promise<void> => {
+    if (!success) {
+      onDone('/logins closed — no credential changed', chain)
+      return
+    }
+    context.onChangeAPIKey()
+    context.setMessages(prev => stripSignatureBlocks(prev))
+    resetCostState()
+    resetUserCache()
+    resetSovereignCheck()
+    checkAndDisableSovereignIfNeeded(context.getAppState().toolPermissionContext, context.setAppState).catch(logError)
+    context.setAppState(prev => ({ ...prev, authVersion: prev.authVersion + 1 }))
+    const shadowWarning = loginShadowWarning()
+    const receipt = loginSuccessReceipt(getOauthAccountInfo()?.emailAddress)
+    onDone(shadowWarning ? `${receipt}\n${shadowWarning}` : receipt, chain)
+  }
+
+  const scrollRef = React.createRef<ScrollBoxHandle>()
+  openSettingsPopup({
+    view: 'logins',
+    scrollRef,
+    width: 100,
+    rows: 29,
+    line: '',
+    hint: 'esc or click outside closes',
+    bodyOwnsEscape: true,
+    body: geometry => (
+      <Login
+        geometry={geometry}
+        scrollRef={scrollRef}
+        onDone={success => {
+          closeSettingsPopup()
+          void complete(success)
+        }}
+        onOpenaiDone={result => {
+          closeSettingsPopup()
+          context.setAppState(prev => ({ ...prev, authVersion: prev.authVersion + 1 }))
+          onDone(result.receipt, chain)
+        }}
+        {...(initialFocus === undefined ? {} : { initialFocus })}
+      />
+    ),
+  })
+  return null
 }
