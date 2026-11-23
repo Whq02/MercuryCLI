@@ -40,7 +40,10 @@ export function createClock(
     return origin
   }
 
-  const elapsed = (): number => timers.now() - ensureOrigin()
+  const elapsed = (): number => {
+    const began = ensureOrigin()
+    return timers.now() - began
+  }
 
   const tick = (): void => {
     latestTickTime = elapsed()
