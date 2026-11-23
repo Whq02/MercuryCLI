@@ -27,7 +27,7 @@ import { runPostCompactCleanup } from '../../services/compact/postCompactCleanup
 import { shouldUseSessionMemoryCompaction, trySessionMemoryCompaction } from '../../services/compact/sessionMemoryCompact.js'
 import { setLastSummarizedMessageId } from '../../services/SessionMemory/sessionMemoryUtils.js'
 import type { LocalCommandResult, LocalJSXCommandContext } from '../../types/command.js'
-import type { Message } from '../../types/message.js'
+import type { Message, UserMessage } from '../../types/message.js'
 import { getMessagesAfterCompactBoundary } from '../../services/messages.js'
 import { buildEffectiveSystemPrompt } from '../../utils/systemPrompt.js'
 import { fetchSystemPromptParts } from '../../services/agents/queryContext.js'
@@ -48,14 +48,8 @@ function enrichSummaryForLiveDisplay(
 
   const pre = result.preCompactTokenCount
   const post = result.truePostCompactTokenCount ?? result.postCompactTokenCount
-  const tokenCounts =
-    typeof pre === 'number' && pre > 0 && typeof post === 'number' && post >= 0
-      ? {
-          tokensBefore: pre,
-          tokensAfter: post,
-          contextReclaimedPct: Math.round(Math.min(100, Math.max(0, ((pre - post) / pre) * 100))),
-        }
-      : {}
+  const pctValid = typeof pre === 'number' && pre > 0 && typeof post === 'number' && post >= 0
+  const pct = pctValid ? Math.round(Math.min(100, Math.max(0, ((pre - post) / pre) * 100))) : undefined
 
   for (const summary of result.summaryMessages) {
     if (!summary.isCompactSummary) continue
@@ -65,9 +59,10 @@ function enrichSummaryForLiveDisplay(
       ...existing,
       messagesSummarized: existing?.messagesSummarized ?? computedCount,
       ...(customInstructions ? { userContext: existing?.userContext ?? customInstructions } : {}),
-      ...tokenCounts,
+      ...(pct !== undefined ? { contextReclaimedPct: pct } : {}),
+      ...(pctValid ? { tokensBefore: pre, tokensAfter: post } : {}),
       ...(kept > 0 ? { keptMessages: kept } : {}),
-    }
+    } as UserMessage['summarizeMetadata']
   }
 }
 

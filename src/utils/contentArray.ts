@@ -1,12 +1,11 @@
-type ContentItem = { readonly type: string }
+import { isRecord } from './isRecord.js'
 
-export function insertBlockAfterToolResults(content: ContentItem[], block: ContentItem): void {
-  const lastToolResultIndex = content.findLastIndex(item => item.type === 'tool_result')
+export function insertBlockAfterToolResults(content: unknown[], block: unknown): void {
+  const lastToolResultIndex = content.findLastIndex(item => isRecord(item) && item.type === 'tool_result')
   if (lastToolResultIndex !== -1) {
     const insertIndex = lastToolResultIndex + 1
     if (insertIndex === content.length) {
-      const period: ContentItem & { text: string } = { type: 'text', text: '.' }
-      content.push(block, period)
+      content.push(block, { type: 'text', text: '.' })
     } else {
       content.splice(insertIndex, 0, block)
     }
