@@ -34,7 +34,6 @@ import { useShellPermissionFeedback } from '../useShellPermissionFeedback.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 import { bashToolUseOptions, type BashToolUseOption } from './bashToolUseOptions.js'
 import { passedOver } from '../../../utils/passedOver.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 type BashCardInput = { command: string; cwd?: string }
 
@@ -47,6 +46,35 @@ function suggestedBashRuleContents(suggestions: PermissionUpdate[]): string[] {
     }
   }
   return contents
+}
+
+function seedEditablePrefix(
+  command: string,
+  suggestions: PermissionUpdate[],
+  decisionReasonType: string | undefined,
+): { prefix: string | undefined; hadWildcard: boolean } {
+  let raw: string | undefined
+  if (decisionReasonType === 'subcommandResults') {
+    const contents = suggestedBashRuleContents(suggestions)
+    raw = contents.length === 1 ? contents[0] : undefined
+  } else {
+    const simple = getSimpleCommandPrefix(command)
+    if (simple !== null) {
+      raw = `${simple} *`
+    } else {
+      const firstWord = getFirstWordPrefix(command)
+      if (firstWord !== null) {
+        raw = `${firstWord} *`
+      } else if (!command.includes('*')) {
+        raw = command
+      }
+    }
+  }
+  if (raw === undefined) return { prefix: undefined, hadWildcard: false }
+  if (raw.endsWith(' *')) {
+    return { prefix: raw.slice(0, -2), hadWildcard: true }
+  }
+  return { prefix: raw, hadWildcard: false }
 }
 
 export function BashPermissionRequest(props: PermissionRequestProps): React.ReactNode {
@@ -77,5 +105,210 @@ export function MonitorPermissionRequest(props: PermissionRequestProps): React.R
 function BashCommandPermissionRequest(
   props: PermissionRequestProps & { command: string; cwd?: string; title?: string; summary?: string },
 ): React.ReactNode {
-  return notBuilt('src/components/permissions/BashPermissionRequest/BashPermissionRequest.tsx:76')
+  const { toolUseConfirm, toolUseContext, onDone, onReject, workerBadge, command, cwd, title, summary } = props
+
+  usePermissionRequestLogging(toolUseConfirm)
+  const feedback = useShellPermissionFeedback({ toolUseConfirm, onDone, onReject })
+  const [showDebug, setShowDebug] = useState(false)
+
+  useKeybinding('permission:toggleDebug', () => setShowDebug(prev => !prev), {
+    context: 'Confirmation',
+  })
+
+  const messages: Message[] | undefined = toolUseContext?.messages
+  const explainer = usePermissionExplainerUI({
+    toolName: toolUseConfirm.tool.name,
+    toolInput: toolUseConfirm.input,
+    toolDescription: toolUseConfirm.description,
+    messages,
+  })
+
+  const destructiveWarning = useMemo(() => getDestructiveCommandWarning(command), [command])
+
+  const decisionReason = toolUseConfirm.permissionResult.decisionReason
+  const suggestions = useMemo(
+    () => (shouldShowAlwaysAllowOptions() ? (toolUseConfirm.permissionResult.suggestions ?? []) : []),
+    [toolUseConfirm.permissionResult.suggestions],
+  )
+
+  const initialSeed = useMemo(
+    () => seedEditablePrefix(command, suggestions, decisionReason?.type),
+    [command, suggestions, decisionReason?.type],
+  )
+  const [editablePrefix, setEditablePrefix] = useState<string | undefined>(initialSeed.prefix)
+  const hadWildcardRef = useRef(initialSeed.hadWildcard)
+  const userEditedRef = useRef(false)
+
+  const handleEditablePrefixChange = useMemo(
+    () => (next: string) => {
+      userEditedRef.current = true
+      setEditablePrefix(next)
+    },
+    [],
+  )
+
+  useLoad(() => {
+    if (decisionReason?.type === 'subcommandResults') return
+    let cancelled = false
+    const isReadOnly = (subcommand: string): boolean => {
+      const parsed = BashTool.inputSchema.safeParse({ command: subcommand })
+      return parsed.success ? BashTool.isReadOnly(parsed.data) : false
+    }
+    getCompoundCommandPrefixesStatic(command, isReadOnly)
+      .then(prefixes => {
+        if (cancelled || userEditedRef.current) return
+        if (prefixes.length === 1) {
+          const first = prefixes[0]
+          if (first) {
+            hadWildcardRef.current = true
+            setEditablePrefix(first.endsWith(' *') ? first.slice(0, -2) : first)
+          }
+        }
+      })
+      .catch(passedOver)
+    return () => {
+      cancelled = true
+    }
+  }, [command, decisionReason?.type])
+
+  const options = useMemo(
+    () =>
+      bashToolUseOptions({
+        suggestions,
+        decisionReason,
+        onRejectFeedbackChange: feedback.setRejectFeedback,
+        onAcceptFeedbackChange: feedback.setAcceptFeedback,
+        yesInputMode: feedback.yesInputMode,
+        noInputMode: feedback.noInputMode,
+        editablePrefix,
+        onEditablePrefixChange: handleEditablePrefixChange,
+      }),
+    [
+      suggestions,
+      decisionReason,
+      feedback.setRejectFeedback,
+      feedback.setAcceptFeedback,
+      feedback.yesInputMode,
+      feedback.noInputMode,
+      editablePrefix,
+      handleEditablePrefixChange,
+    ],
+  )
+
+  function handleSelect(value: BashToolUseOption): void {
+    switch (value) {
+      case 'yes': {
+        const trimmedFeedback = feedback.acceptFeedback.trim() || undefined
+        toolUseConfirm.onAllow(toolUseConfirm.input, [], trimmedFeedback)
+        onDone()
+        return
+      }
+      case 'yes-apply-suggestions': {
+        toolUseConfirm.onAllow(toolUseConfirm.input, suggestions)
+        onDone()
+        return
+      }
+      case 'yes-edited-prefix': {
+        const trimmed = (editablePrefix ?? '').trim()
+        if (trimmed === '') {
+          toolUseConfirm.onAllow(toolUseConfirm.input, [])
+        } else {
+          const ruleContent = hadWildcardRef.current && !trimmed.includes('*') ? `${trimmed} *` : trimmed
+          const updates: PermissionUpdate[] = [
+            {
+              type: 'addRules',
+              rules: [{ toolName: BASH_TOOL_NAME, ruleContent }],
+              behavior: 'allow',
+              destination: 'localSettings',
+            },
+          ]
+          toolUseConfirm.onAllow(toolUseConfirm.input, updates)
+        }
+        onDone()
+        return
+      }
+      case 'no': {
+        feedback.handleReject()
+        return
+      }
+    }
+  }
+
+  const focusedCwd = useFocusedWorkspaceCwd()
+  const focusedOriginalCwd = useFocusedWorkspaceOriginalCwd()
+  const runFolder = toolUseConfirm.cwd ?? (cwd === undefined ? focusedCwd : resolve(focusedOriginalCwd, cwd))
+  const descriptionText = summary ?? toolUseConfirm.description
+  const fallbackCommand = command
+    ? null
+    : toolUseConfirm.tool.renderToolUseMessage?.(toolUseConfirm.input, {
+        theme: resolveThemeName(),
+        verbose: true,
+      })
+
+  const showTabAmend =
+    !showDebug &&
+    ((feedback.focusedOption === 'yes' && !feedback.yesInputMode) ||
+      (feedback.focusedOption === 'no' && !feedback.noInputMode))
+
+  return (
+    <PermissionDialog title={title ?? 'Bash command'} workerBadge={workerBadge}>
+      <Box flexDirection="column" paddingX={2} paddingY={1}>
+        {command ? (
+          <ConsentBodyText
+            text={command}
+            tail=" (the whole command runs)"
+            dimColor={explainer.visible}
+          />
+        ) : typeof fallbackCommand === 'string' ? (
+          <Text dimColor={explainer.visible}>{fallbackCommand}</Text>
+        ) : (
+          fallbackCommand
+        )}
+        {descriptionText && !explainer.visible ? <Text dimColor>{descriptionText}</Text> : null}
+        <Text dimColor>in {toTildePath(runFolder)}</Text>
+        {toolUseConfirm.crewmate ? (
+          <Text dimColor wrap="truncate-end">
+            {toolUseConfirm.crewmate}
+          </Text>
+        ) : null}
+        <PermissionExplainerContent
+          visible={explainer.visible}
+          promise={explainer.promise}
+          fallback={descriptionText ? <Text dimColor>{descriptionText}</Text> : undefined}
+        />
+        {destructiveWarning ? (
+          <Box marginTop={1}>
+            <Text color="warning">{destructiveWarning}</Text>
+          </Box>
+        ) : null}
+      </Box>
+      {showDebug ? (
+        <PermissionDecisionDebugInfo
+          permissionResult={toolUseConfirm.permissionResult}
+          toolName={toolUseConfirm.tool.name}
+        />
+      ) : (
+        <Box flexDirection="column">
+          <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />
+          <Text bold>Do you want to proceed?</Text>
+          <Select
+            options={options}
+            onChange={handleSelect}
+            onCancel={() => feedback.handleReject()}
+            onFocus={feedback.handleFocus}
+            onInputModeToggle={feedback.handleInputModeToggle}
+            scrollMovesFocus={false}
+          />
+        </Box>
+      )}
+      <Box justifyContent="space-between" marginTop={1}>
+        <Text color="subtle">
+          esc cancel
+          {showTabAmend ? ' · tab amend' : ''}
+          {explainer.enabled ? ` · ctrl+e ${explainer.visible ? 'hide' : 'explain'}` : ''}
+        </Text>
+        {showDebug ? <Text color="subtle">ctrl+d debug</Text> : null}
+      </Box>
+    </PermissionDialog>
+  )
 }
