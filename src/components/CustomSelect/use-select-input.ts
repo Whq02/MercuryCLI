@@ -16,6 +16,7 @@ import {
 import {
   isInputOption,
   optionValueOf,
+  type InputOption,
   type OptionWithDescription,
 } from './option-map.js'
 import type { SelectState } from './use-select-state.js'
@@ -34,7 +35,7 @@ export function isWheelReport(key: Key, event: InputEvent): boolean {
   return (key.wheelUp || key.wheelDown) && event.keypress.x !== undefined && event.keypress.y !== undefined
 }
 
-type UseSelectProps<T> = {
+export type UseSelectProps<T> = {
   isDisabled?: boolean
   disableSelection?: boolean | 'numeric'
   isMultiSelect?: boolean
@@ -44,10 +45,10 @@ type UseSelectProps<T> = {
   onDownFromLastItem?: () => void
   scrollMovesFocus?: boolean
   onInputModeToggle?: (value: T) => void
-  getInputText?: (value: T) => string
-  onInputSubmit?: (value: T, text?: string) => void
+  getInputValue?: (value: T) => string
+  submitInputOption?: (option: InputOption<T>) => void
   isImageSelectionModeActive?: boolean
-  onEnterImageSelection?: () => boolean
+  tryEnterImageSelectionMode?: () => boolean
 }
 
 export function useSelectInput<T>({
@@ -60,10 +61,10 @@ export function useSelectInput<T>({
   onDownFromLastItem,
   scrollMovesFocus = true,
   onInputModeToggle,
-  getInputText,
-  onInputSubmit,
+  getInputValue,
+  submitInputOption,
   isImageSelectionModeActive = false,
-  onEnterImageSelection,
+  tryEnterImageSelectionMode,
 }: UseSelectProps<T>): void {
   const modalScrollRef = useModalScrollRef()
   const cancelHandler = onCancel ?? state.onCancel
@@ -191,9 +192,12 @@ export function useSelectInput<T>({
     if (target.disabled) return
     const val = optionValueOf(target)
     if (isInputOption(target)) {
-      const text = getInputText?.(val) ?? ''
-      if (text.trim().length > 0 || target.allowEmptySubmitToCancel) {
-        onInputSubmit?.(val, text)
+      const text = getInputValue?.(val) ?? ''
+      if (
+        submitInputOption &&
+        (text.trim().length > 0 || target.allowEmptySubmitToCancel)
+      ) {
+        submitInputOption(target)
       } else {
         state.focusValue(val)
       }
@@ -243,7 +247,7 @@ export function useSelectInput<T>({
           return
         }
         if (key.downArrow) {
-          if (onEnterImageSelection?.()) {
+          if (tryEnterImageSelectionMode?.()) {
             event.stopImmediatePropagation()
             return
           }
