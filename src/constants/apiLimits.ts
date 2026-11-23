@@ -1,5 +1,3 @@
-import { unbuilt, type Unbuilt } from '../pi/holes.js'
-
 export type ImageLimitFamily = 'anthropic' | 'openai' | 'gemini' | 'generic'
 
 export interface ImageLimits {
@@ -80,12 +78,12 @@ export const STRICTEST_IMAGE_MAX_BASE64_BYTES = Math.min(
   ...Object.values(IMAGE_LIMITS_BY_FAMILY).flatMap(limits => (limits.maxBase64Bytes === null ? [] : [limits.maxBase64Bytes])),
 )
 
-export const PDF_TARGET_RAW_SIZE: Unbuilt = unbuilt('src/constants/apiLimits.ts:82')
+export const PDF_TARGET_RAW_SIZE = 20 * MiB
 
-export const API_PDF_MAX_PAGES: Unbuilt = unbuilt('src/constants/apiLimits.ts:84')
+export const API_PDF_MAX_PAGES = 100
 
-export const PDF_MAX_EXTRACT_SIZE: Unbuilt = unbuilt('src/constants/apiLimits.ts:86')
+export const PDF_MAX_EXTRACT_SIZE = 100 * MiB
 
-export const PDF_AT_MENTION_INLINE_THRESHOLD: Unbuilt = unbuilt('src/constants/apiLimits.ts:88')
+export const PDF_AT_MENTION_INLINE_THRESHOLD = 10
 
-export const API_MAX_MEDIA_PER_REQUEST: Unbuilt = unbuilt('src/constants/apiLimits.ts:90')
+export const API_MAX_MEDIA_PER_REQUEST = 100
