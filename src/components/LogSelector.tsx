@@ -56,19 +56,16 @@ export function commitLogRename(
 
 type LogSelectorProps = {
   logs: SessionListing[]
-  onSelect: (log: SessionListing) => void
-  onCancel?: () => void
   maxHeight?: number
   forceWidth?: number
-  initialSearchQuery?: string
-  showAllProjects?: boolean
-  onToggleAllProjects?: () => void
+  onCancel?: () => void
+  onSelect: (log: SessionListing) => void
   onLogsChanged?: () => void
   onLogRenamed?: (sessionId: string, customTitle: string) => void
   onLoadMore?: (count: number) => void
-  hasMore?: boolean
-  isLoadingMore?: boolean
-  worktreePaths?: string[]
+  initialSearchQuery?: string
+  showAllProjects?: boolean
+  onToggleAllProjects?: () => void
 }
 
 const MIN_LABEL_WIDTH = 8
@@ -111,381 +108,228 @@ function describeLogFitted(log: SessionListing, withProjectPath: boolean, width:
 
 type LogGroup = { log: SessionListing; children: SessionListing[] }
 
-function modifiedMs(log: SessionListing): number {
-  return log.modified instanceof Date ? log.modified.getTime() : 0
+function keptByFilters(
+  log: SessionListing,
+  facts: {
+    renaming: boolean
+    selectedTag: string | null
+    branchFilter: boolean
+    currentBranch: string | null
+    multipleWorktrees: boolean
+    allWorktrees: boolean
+  },
+): boolean {
+  if (facts.renaming && !hasMeaningfulEntry(log)) return false
+  if (facts.selectedTag !== null && log.tag !== facts.selectedTag) return false
+  if (facts.branchFilter && facts.currentBranch && log.gitBranch !== facts.currentBranch) return false
+  if (
+    facts.multipleWorktrees &&
+    !facts.allWorktrees &&
+    log.projectPath !== undefined &&
+    log.projectPath !== getOriginalCwd()
+  ) {
+    return false
+  }
+  return true
 }
 
-function matchesSearchQuery(log: SessionListing, needle: string): boolean {
-  if (displayTitle(log).toLowerCase().includes(needle)) return true
-  if (log.gitBranch && log.gitBranch.toLowerCase().includes(needle)) return true
-  if (log.tag && log.tag.toLowerCase().includes(needle)) return true
-  const pr = prDescriptor(log)
-  if (pr !== '' && pr.toLowerCase().includes(needle)) return true
-  return false
+function matchesQuery(log: SessionListing, needle: string): boolean {
+  if (needle === '') return true
+  return (
+    displayTitle(log).toLowerCase().includes(needle) ||
+    (log.gitBranch?.includes(needle) ?? false) ||
+    (log.tag?.includes(needle) ?? false) ||
+    prDescriptor(log).toLowerCase().includes(needle)
+  )
 }
 
-function filterAndGroupLogs(params: {
-  logs: SessionListing[]
-  customTitlesEnabled: boolean
-  selectedTag: string | null
-  branchFilter: boolean
-  currentBranch: string | null
-  filterByWorktree: boolean
-  currentCwd: string
-  originalCwd: string
-  query: string
-}): LogGroup[] {
-  const needle = params.query.trim().toLowerCase()
-  const filtered = params.logs.filter(log => {
-    if (params.customTitlesEnabled && !hasMeaningfulEntry(log)) return false
-    if (params.selectedTag !== null && log.tag !== params.selectedTag) return false
-    if (params.branchFilter && params.currentBranch && log.gitBranch !== params.currentBranch) {
-      return false
-    }
-    if (
-      params.filterByWorktree &&
-      log.projectPath !== undefined &&
-      log.projectPath !== '' &&
-      log.projectPath !== params.currentCwd &&
-      log.projectPath !== params.originalCwd
-    ) {
-      return false
-    }
-    if (needle !== '' && !matchesSearchQuery(log, needle)) return false
-    return true
-  })
-
-  if (!params.customTitlesEnabled) {
-    return filtered.map(log => ({ log, children: [] }))
-  }
-
-  const bySession = new Map<string, SessionListing[]>()
-  const singles: SessionListing[] = []
-  for (const log of filtered) {
-    if (log.sessionId !== undefined && log.sessionId !== '') {
-      const bucket = bySession.get(log.sessionId)
-      if (bucket) bucket.push(log)
-      else bySession.set(log.sessionId, [log])
-    } else {
-      singles.push(log)
-    }
-  }
-
+function groupLogs(logs: SessionListing[], renaming: boolean): LogGroup[] {
+  if (!renaming) return logs.map(log => ({ log, children: [] }))
   const groups: LogGroup[] = []
+  const bySession = new Map<string, SessionListing[]>()
+  for (const log of logs) {
+    if (log.sessionId === undefined) {
+      groups.push({ log, children: [] })
+      continue
+    }
+    const bucket = bySession.get(log.sessionId)
+    if (bucket) bucket.push(log)
+    else bySession.set(log.sessionId, [log])
+  }
   for (const bucket of bySession.values()) {
-    const sorted = [...bucket].sort((a, b) => modifiedMs(b) - modifiedMs(a))
-    groups.push({ log: sorted[0]!, children: sorted.slice(1) })
+    const [newest, ...rest] = [...bucket].sort((x, y) => y.modified.getTime() - x.modified.getTime())
+    if (newest !== undefined) groups.push({ log: newest, children: rest })
   }
-  for (const log of singles) {
-    groups.push({ log, children: [] })
-  }
-  groups.sort((a, b) => modifiedMs(b.log) - modifiedMs(a.log))
-  return groups
+  return groups.sort((x, y) => y.log.modified.getTime() - x.log.modified.getTime())
 }
 
-function buildHints(params: {
+function tagTabsOf(logs: SessionListing[]): string[] {
+  const tags = [...new Set(logs.flatMap(log => (log.tag ? [log.tag] : [])))].sort()
+  return tags.length > 0 ? ['all', ...tags] : []
+}
+
+function hintsOf(facts: {
   searchMode: boolean
-  showAllProjects: boolean
+  query: string
   hasToggleAllProjects: boolean
-  currentBranch: string | null
-  branchFilter: boolean
-  hasMultipleWorktrees: boolean
-  allWorktrees: boolean
-  canRename: boolean
-  hasFocus: boolean
+  multipleWorktrees: boolean
+  renaming: boolean
   hasTagTabs: boolean
 }): string[] {
-  const hints: string[] = [
-    '↑↓ move',
+  if (facts.searchMode) {
+    return ['↵ to list', facts.query !== '' ? 'esc clear' : 'esc back', 'ctrl+n exit search']
+  }
+  return [
+    '↑↓ select',
     'pgup/pgdn page',
     '↵ resume',
-    params.searchMode ? 'ctrl+n list' : '/ search',
+    '/ search',
+    ...(facts.hasToggleAllProjects ? ['ctrl+a all projects'] : []),
+    'ctrl+b branch',
+    ...(facts.multipleWorktrees ? ['ctrl+w worktrees'] : []),
+    ...(facts.renaming ? ['ctrl+r rename', 'ctrl+v preview'] : []),
+    ...(facts.hasTagTabs ? ['tab tags'] : []),
+    'esc close',
   ]
-  if (params.hasToggleAllProjects) {
-    hints.push(params.showAllProjects ? 'ctrl+a this project' : 'ctrl+a all projects')
-  }
-  if (params.currentBranch) {
-    hints.push(params.branchFilter ? 'ctrl+b all branches' : 'ctrl+b branch')
-  }
-  if (params.hasMultipleWorktrees) {
-    hints.push(params.allWorktrees ? 'ctrl+w this worktree' : 'ctrl+w all worktrees')
-  }
-  if (params.canRename) {
-    hints.push('ctrl+r rename')
-  }
-  if (params.hasFocus) {
-    hints.push('ctrl+v preview')
-  }
-  if (params.hasTagTabs) {
-    hints.push('tab tags')
-  }
-  hints.push('esc close')
-  return hints
-}
-
-function collectTagTabs(logs: SessionListing[]): string[] {
-  const unique = new Set<string>()
-  for (const log of logs) {
-    if (log.tag) unique.add(log.tag)
-  }
-  return unique.size === 0 ? [] : ['all', ...[...unique].sort()]
-}
-
-function flattenVisibleLogs(
-  grouped: LogGroup[],
-  forceExpanded: boolean,
-  expanded: ReadonlySet<string>,
-): SessionListing[] {
-  const flat: SessionListing[] = []
-  for (const group of grouped) {
-    flat.push(group.log)
-    if (
-      group.children.length > 0 &&
-      (forceExpanded || (group.log.sessionId !== undefined && expanded.has(group.log.sessionId)))
-    ) {
-      flat.push(...group.children)
-    }
-  }
-  return flat
-}
-
-function useLogSelectorKeys(params: {
-  inPreview: boolean
-  inRename: boolean
-  searchMode: boolean
-  currentBranch: string | null
-  hasMultipleWorktrees: boolean
-  customTitlesEnabled: boolean
-  activeFocusedLog: SessionListing | null
-  tagTabs: string[]
-  selectedTag: string | null
-  onToggleAllProjects?: () => void
-  cancelRename: () => void
-  setSearchMode: React.Dispatch<React.SetStateAction<boolean>>
-  setBranchFilter: React.Dispatch<React.SetStateAction<boolean>>
-  setAllWorktrees: React.Dispatch<React.SetStateAction<boolean>>
-  setSelectedTag: React.Dispatch<React.SetStateAction<string | null>>
-  setPreviewLog: React.Dispatch<React.SetStateAction<SessionListing | null>>
-  openRename: (target: SessionListing) => void
-  setSearchQuery: (value: string) => void
-}): void {
-  useInput(
-    (input, key) => {
-      if (params.inPreview) return
-      if (params.inRename) {
-        if (key.escape) params.cancelRename()
-        return
-      }
-      if (key.ctrl && input === 'n') {
-        if (params.searchMode) params.setSearchMode(false)
-        return
-      }
-      if (key.ctrl && input === 'a') {
-        params.onToggleAllProjects?.()
-        return
-      }
-      if (key.ctrl && input === 'b') {
-        if (params.currentBranch) params.setBranchFilter(prev => !prev)
-        return
-      }
-      if (key.ctrl && input === 'w') {
-        if (params.hasMultipleWorktrees) params.setAllWorktrees(prev => !prev)
-        return
-      }
-      if (key.ctrl && input === 'r') {
-        if (
-          params.activeFocusedLog &&
-          params.customTitlesEnabled &&
-          params.activeFocusedLog.sessionId !== undefined
-        ) {
-          params.openRename(params.activeFocusedLog)
-        }
-        return
-      }
-      if (key.ctrl && input === 'v') {
-        if (params.activeFocusedLog) {
-          params.setPreviewLog(params.activeFocusedLog)
-          params.setSearchMode(false)
-        }
-        return
-      }
-      if (key.tab && !params.searchMode && params.tagTabs.length > 1) {
-        const currentTab = params.selectedTag ?? 'all'
-        const idx = params.tagTabs.indexOf(currentTab)
-        const step = key.shift ? -1 : 1
-        const nextTab =
-          params.tagTabs[(idx + step + params.tagTabs.length) % params.tagTabs.length]!
-        params.setSelectedTag(nextTab === 'all' ? null : nextTab)
-        return
-      }
-      if (!params.searchMode && !key.ctrl && !key.meta) {
-        if (input === '/') {
-          params.setSearchMode(true)
-          return
-        }
-        if (
-          input.length === 1 &&
-          input.charCodeAt(0) > 32 &&
-          input.charCodeAt(0) !== 127 &&
-          params.activeFocusedLog !== null
-        ) {
-          params.setSearchQuery(input)
-          params.setSearchMode(true)
-        }
-      }
-    },
-    { isActive: !params.inPreview },
-  )
 }
 
 export function LogSelector({
   logs,
-  onSelect,
-  onCancel,
   maxHeight,
   forceWidth,
-  initialSearchQuery,
-  showAllProjects = false,
-  onToggleAllProjects,
+  onCancel,
+  onSelect,
   onLogsChanged,
   onLogRenamed,
   onLoadMore,
-  hasMore,
-  isLoadingMore,
-  worktreePaths: worktreePathsProp,
+  initialSearchQuery,
+  showAllProjects = false,
+  onToggleAllProjects,
 }: LogSelectorProps): React.ReactNode {
   const tokens = useMercuryTokens()
   const terminalSize = useTerminalSize()
   const columns = forceWidth ?? terminalSize.columns
-  const customTitlesEnabled = isCustomTitleEnabled()
+  const renaming = isCustomTitleEnabled()
 
-  const [currentBranch, setCurrentBranch] = useState<string | null>(null)
-  const [loadedWorktrees, setLoadedWorktrees] = useState<string[]>(() => worktreePathsProp ?? [])
+  const [searchMode, setSearchMode] = useState(() => Boolean(initialSearchQuery))
   const [branchFilter, setBranchFilter] = useState(false)
   const [allWorktrees, setAllWorktrees] = useState(false)
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
-  const [searchMode, setSearchMode] = useState<boolean>(
-    () => Boolean(initialSearchQuery && initialSearchQuery.length > 0),
-  )
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
-  const [focusedLog, setFocusedLog] = useState<SessionListing | null>(() => logs[0] ?? null)
-  const [previewLog, setPreviewLog] = useState<SessionListing | null>(null)
+  const [focusedLog, setFocusedLog] = useState<SessionListing | null>(null)
   const [renameTarget, setRenameTarget] = useState<SessionListing | null>(null)
+  const [previewLog, setPreviewLog] = useState<SessionListing | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [renameCursor, setRenameCursor] = useState(0)
   const [renameError, setRenameError] = useState<string | null>(null)
-  const lastLoadMoreLenRef = useRef<number>(-1)
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
+  const [currentBranch, setCurrentBranch] = useState<string | null>(null)
+  const [multipleWorktrees, setMultipleWorktrees] = useState(false)
+  const multipleWorktreesRef = useRef(false)
 
   useLoad(signal => {
     void getBranch(getCwd())
       .then(branch => {
-        if (!signal.aborted && branch) setCurrentBranch(branch)
+        if (branch && !signal.aborted) setCurrentBranch(branch)
       })
       .catch(passedOver)
-    if (worktreePathsProp === undefined) {
-      void getWorktreePaths(getOriginalCwd())
-        .then(paths => {
-          if (!signal.aborted) setLoadedWorktrees(paths)
-        })
-        .catch(passedOver)
-    }
-  }, [worktreePathsProp])
+    void getWorktreePaths(getOriginalCwd())
+      .then(paths => {
+        const multiple = paths.length > 1
+        multipleWorktreesRef.current = multiple
+        setMultipleWorktrees(multiple)
+      })
+      .catch(passedOver)
+  }, [])
 
-  const worktrees =
-    worktreePathsProp !== undefined && worktreePathsProp.length > 0
-      ? worktreePathsProp
-      : loadedWorktrees
-  const hasMultipleWorktrees = worktrees.length > 1
   const inRename = renameTarget !== null
   const inPreview = previewLog !== null
 
   const search = useSearchInput({
-    isActive: searchMode && !inRename && !inPreview,
-    initialQuery: initialSearchQuery ?? '',
-    backspaceExitsOnEmpty: false,
-    columns: Math.max(MIN_LABEL_WIDTH, columns - 10),
-    passthroughCtrlKeys: ['a', 'b', 'w', 'n', 'r', 'v'],
+    isActive: searchMode && !inPreview && !inRename,
     onExit: () => setSearchMode(false),
-    onCancel: () => setSearchMode(false),
+    initialQuery: initialSearchQuery,
+    passthroughCtrlKeys: ['n'],
+    backspaceExitsOnEmpty: false,
   })
+  const query = search.query
+  const trimmedQuery = query.trim()
 
-  const tagTabs = useMemo(() => collectTagTabs(logs), [logs])
-  const filterParts = useMemo(() => {
-    const parts: string[] = []
-    if (branchFilter && currentBranch) parts.push(`branch: ${currentBranch}`)
-    if (selectedTag !== null) parts.push(`tag: ${selectedTag}`)
-    if (showAllProjects) parts.push('all projects')
-    if (hasMultipleWorktrees && allWorktrees) parts.push('all worktrees')
-    return parts
-  }, [branchFilter, currentBranch, selectedTag, showAllProjects, hasMultipleWorktrees, allWorktrees])
+  const grouped = useMemo(() => {
+    const facts = { renaming, selectedTag, branchFilter, currentBranch, multipleWorktrees, allWorktrees }
+    const needle = trimmedQuery.toLowerCase()
+    const searched = logs.filter(log => keptByFilters(log, facts) && matchesQuery(log, needle))
+    return groupLogs(searched, renaming)
+  }, [logs, renaming, selectedTag, branchFilter, currentBranch, multipleWorktrees, allWorktrees, trimmedQuery])
 
-  const filterByWorktree = hasMultipleWorktrees && !allWorktrees && !showAllProjects
-  const currentCwd = getCwd()
-  const originalCwd = getOriginalCwd()
+  const tagTabs = useMemo(() => tagTabsOf(logs), [logs])
+  const forceExpanded = trimmedQuery !== '' || branchFilter
 
-  const grouped = useMemo(
-    () =>
-      filterAndGroupLogs({
-        logs,
-        customTitlesEnabled,
-        selectedTag,
-        branchFilter,
-        currentBranch,
-        filterByWorktree,
-        currentCwd,
-        originalCwd,
-        query: search.query,
-      }),
-    [logs, customTitlesEnabled, selectedTag, branchFilter, currentBranch, filterByWorktree, currentCwd, originalCwd, search.query],
+  const headerLines =
+    10 +
+    (branchFilter || selectedTag !== null || (multipleWorktrees && !allWorktrees) || showAllProjects ? 1 : 0) +
+    (tagTabs.length > 0 ? 1 : 0)
+  const visibleCount = Math.max(
+    1,
+    maxHeight === undefined ? grouped.length : Math.floor((maxHeight - headerLines - 2) / 3),
   )
+  const labelWidth = Math.max(30, columns - 8)
 
-  const forceExpanded = search.query.trim() !== '' || branchFilter
-  const visibleLogs = useMemo(
-    () => flattenVisibleLogs(grouped, forceExpanded, expanded),
-    [grouped, forceExpanded, expanded],
-  )
-
-  const headerBudget = 10 + (filterParts.length > 0 ? 1 : 0) + (tagTabs.length > 0 ? 1 : 0)
-  const visibleCount = Math.max(1, Math.floor(((maxHeight ?? terminalSize.rows) - headerBudget - 2) / 3))
-
-  const activeFocusedLog =
-    focusedLog !== null && visibleLogs.includes(focusedLog) ? focusedLog : (visibleLogs[0] ?? null)
-  const focusedIndex = activeFocusedLog !== null ? visibleLogs.indexOf(activeFocusedLog) : -1
+  const focusedIndex = grouped.findIndex(row => row.log === focusedLog)
 
   usePublish(() => {
-    if (!onLoadMore || hasMore === false || isLoadingMore || visibleLogs.length === 0 || focusedIndex < 0) return
-    if (visibleLogs.length - 1 - focusedIndex <= 2 * visibleCount && lastLoadMoreLenRef.current !== logs.length) {
-      lastLoadMoreLenRef.current = logs.length
+    if (onLoadMore && focusedIndex >= 0 && focusedIndex + 2 * visibleCount >= grouped.length) {
       onLoadMore(3 * visibleCount)
     }
-  }, [onLoadMore, hasMore, isLoadingMore, visibleLogs.length, focusedIndex, visibleCount, logs.length])
+  }, [focusedIndex, visibleCount, grouped.length, onLoadMore])
 
-  const cancelRename = useCallback(() => {
-    setRenameTarget(null)
-    setRenameError(null)
-  }, [])
+  useInput((input, key) => {
+    if (inPreview || inRename) return
+    if (searchMode) {
+      if (key.ctrl && input === 'n') setSearchMode(false)
+      return
+    }
+    if (key.ctrl && input === 'a') {
+      onToggleAllProjects?.()
+    } else if (key.ctrl && input === 'b') {
+      setBranchFilter(on => !on)
+    } else if (key.ctrl && input === 'w') {
+      if (multipleWorktreesRef.current) setAllWorktrees(on => !on)
+    } else if (key.ctrl && input === 'r') {
+      if (renaming && focusedLog !== null) {
+        const title = focusedLog.customTitle ?? ''
+        setRenameTarget(focusedLog)
+        setRenameValue(title)
+        setRenameCursor(title.length)
+      }
+    } else if (key.ctrl && input === 'v') {
+      if (renaming && focusedLog !== null) setPreviewLog(focusedLog)
+    } else if (key.tab) {
+      if (tagTabs.length > 0) {
+        const current = selectedTag === null ? 0 : Math.max(0, tagTabs.indexOf(selectedTag))
+        const next = (current + (key.shift ? -1 : 1) + tagTabs.length) % tagTabs.length
+        setSelectedTag(next === 0 ? null : (tagTabs[next] ?? null))
+      }
+    } else if (input === '/') {
+      setSearchMode(true)
+    } else if (input.length === 1 && input.trim() !== '' && !key.ctrl && !key.meta && focusedLog !== null) {
+      setSearchMode(true)
+      search.setQuery(input)
+    }
+  })
 
-  const openRename = useCallback((target: SessionListing) => {
-    const initial = target.customTitle ?? ''
-    setRenameTarget(target)
-    setRenameError(null)
-    setRenameValue(initial)
-    setRenameCursor(initial.length)
-    setSearchMode(false)
-  }, [])
-
-  useKeybinding('confirm:no', cancelRename, { context: 'Settings', isActive: inRename })
+  const exitState = useExitOnCtrlCDWithKeybindings(() => onCancel?.())
 
   const submitRename = useCallback(
     (title: string) => {
       const target = renameTarget
-      const trimmed = title.trim()
       setRenameTarget(null)
-      if (target === null || trimmed === '') return
+      const trimmed = title.trim()
+      if (target === null || trimmed === '' || target.sessionId === undefined) return
+      const sessionId = target.sessionId
       void commitLogRename(target, trimmed, {
         onRenamed: () => {
-          if (target.sessionId !== undefined) onLogRenamed?.(target.sessionId, trimmed)
-          onLogsChanged?.()
+          if (onLogRenamed) onLogRenamed(String(sessionId), trimmed)
+          else onLogsChanged?.()
         },
         onError: setRenameError,
       })
@@ -493,97 +337,54 @@ export function LogSelector({
     [renameTarget, onLogRenamed, onLogsChanged],
   )
 
-  useLogSelectorKeys({
-    inPreview,
-    inRename,
-    searchMode,
-    currentBranch,
-    hasMultipleWorktrees,
-    customTitlesEnabled,
-    activeFocusedLog,
-    tagTabs,
-    selectedTag,
-    onToggleAllProjects,
-    cancelRename,
-    setSearchMode,
-    setBranchFilter,
-    setAllWorktrees,
-    setSelectedTag,
-    setPreviewLog,
-    openRename,
-    setSearchQuery: search.setQuery,
-  })
+  useKeybinding('confirm:no', () => setRenameTarget(null), { context: 'Settings', isActive: inRename })
 
-  const exitState = useExitOnCtrlCDWithKeybindings(onCancel, undefined, !inRename && !inPreview)
-  const labelWidth = Math.max(MIN_LABEL_WIDTH, columns - 8)
   const rowLabel = useCallback(
     (log: SessionListing, kind: 'header' | 'child' | 'flat', forkCount: number): string => {
-      const suffix = kind === 'header' && forkCount > 0 ? ` (+${forkCount})` : ''
-      return truncateLabel(`${displayTitle(log)}${suffix}`, labelWidth)
+      const forked = kind === 'header' && forkCount > 0
+      const prefixWidth = forked ? 2 : kind === 'child' ? 4 : 0
+      const sidechain = log.isSidechain ? ' (sidechain)' : ''
+      const forks = forked ? ` (+${forkCount})` : ''
+      const room = labelWidth - prefixWidth - sidechain.length - forks.length
+      return `${truncateLabel(displayTitle(log), room)}${sidechain}${forks}`
     },
     [labelWidth],
   )
 
-  const emptyReasons = useMemo(() => {
-    const reasons: string[] = []
-    if (search.query.trim() !== '') reasons.push(`query "${search.query.trim()}"`)
-    if (branchFilter && currentBranch) reasons.push(`branch ${currentBranch}`)
-    if (selectedTag !== null) reasons.push(`tag ${selectedTag}`)
-    if (filterByWorktree) reasons.push('current worktree (ctrl+w for all)')
-    return reasons
-  }, [search.query, branchFilter, currentBranch, selectedTag, filterByWorktree])
-
-  const expandHint = useMemo(() => {
-    if (activeFocusedLog === null || forceExpanded) return null
-    const group = grouped.find(g => g.log === activeFocusedLog)
-    if (!group || group.children.length === 0) return null
-    return group.log.sessionId !== undefined && expanded.has(group.log.sessionId)
-      ? '← collapse'
-      : '→ expand'
-  }, [activeFocusedLog, forceExpanded, grouped, expanded])
-
+  const filterParts = [
+    ...(branchFilter && currentBranch ? [`branch: ${currentBranch}`] : []),
+    ...(selectedTag !== null ? [`tag: ${selectedTag}`] : []),
+    ...(multipleWorktrees && !allWorktrees ? ['this worktree'] : []),
+    ...(showAllProjects ? ['all projects'] : []),
+  ]
+  const emptyReasons = trimmedQuery !== '' ? [...filterParts, `search: ${trimmedQuery}`] : filterParts
   const positionSuffix =
-    visibleLogs.length > 0 && focusedIndex >= 0
-      ? ` (${focusedIndex + 1}/${visibleLogs.length}${hasMore ? '+' : ''})`
-      : isLoadingMore
-        ? ' (loading…)'
-        : ''
-
-  const hints = useMemo(
-    () =>
-      buildHints({
-        searchMode,
-        showAllProjects,
-        hasToggleAllProjects: Boolean(onToggleAllProjects),
-        currentBranch,
-        branchFilter,
-        hasMultipleWorktrees,
-        allWorktrees,
-        canRename: Boolean(activeFocusedLog && customTitlesEnabled && activeFocusedLog.sessionId !== undefined),
-        hasFocus: activeFocusedLog !== null,
-        hasTagTabs: tagTabs.length > 1,
-      }),
-    [searchMode, showAllProjects, onToggleAllProjects, currentBranch, branchFilter, hasMultipleWorktrees, allWorktrees, activeFocusedLog, customTitlesEnabled, tagTabs.length],
-  )
+    grouped.length > visibleCount && focusedIndex >= 0 ? ` (${focusedIndex + 1}/${grouped.length})` : ''
+  const hints = hintsOf({
+    searchMode,
+    query,
+    hasToggleAllProjects: onToggleAllProjects !== undefined,
+    multipleWorktrees,
+    renaming,
+    hasTagTabs: tagTabs.length > 0,
+  })
+  const focusedRow = focusedIndex >= 0 ? grouped[focusedIndex] : undefined
+  const expandHint =
+    renaming && focusedRow !== undefined && focusedRow.children.length > 0 && !forceExpanded
+      ? expanded.has(String(focusedRow.log.sessionId))
+        ? '← collapse'
+        : '→ expand'
+      : null
 
   if (logs.length === 0) return null
   if (previewLog !== null) {
-    return (
-      <SessionPreview
-        log={previewLog}
-        onExit={() => setPreviewLog(null)}
-        onSelect={log => {
-          setPreviewLog(null)
-          onSelect(log)
-        }}
-      />
-    )
+    return <SessionPreview log={previewLog} onExit={() => setPreviewLog(null)} onSelect={onSelect} />
   }
 
   const view = logSelectorView({
     grouped,
     emptyReasons,
-    renaming: inRename,
+    renaming,
     searchMode,
     rowLabel,
     describeLogFitted,
@@ -603,7 +404,7 @@ export function LogSelector({
     selectedTag,
     columns,
     positionSuffix,
-    query: search.query,
+    query,
     search,
     filterParts,
     inRename,

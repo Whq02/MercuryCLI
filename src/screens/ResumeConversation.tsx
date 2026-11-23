@@ -157,8 +157,6 @@ export function ResumeConversation({
   )
   const [showAllProjects, setShowAllProjects] = useState(false)
   const [logs, setLogs] = useState<SessionListing[] | null>(null)
-  const [hasMore, setHasMore] = useState(false)
-  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [readFailures, setReadFailures] = useState<SessionReadFailures | undefined>(undefined)
   const [resuming, setResuming] = useState(false)
@@ -180,11 +178,9 @@ export function ResumeConversation({
   useLoad(() => {
     const gen = ++loadGenRef.current
     loadingMoreRef.current = false
-    setIsLoadingMore(false)
     setLoadError(null)
     setLogs(null)
     setReadFailures(undefined)
-    setHasMore(false)
     allStatLogsRef.current = []
     nextIndexRef.current = 0
     void (async () => {
@@ -195,7 +191,6 @@ export function ResumeConversation({
         if (loadGenRef.current !== gen) return
         allStatLogsRef.current = page.allStatLogs
         nextIndexRef.current = page.nextIndex
-        setHasMore(page.nextIndex < page.allStatLogs.length)
         setReadFailures(page.readFailures)
         setLogs(filterLogs(page.logs))
       } catch (thrown) {
@@ -230,14 +225,12 @@ export function ResumeConversation({
       if (startIndex >= allStatLogs.length) return
       const batchSize = count > 0 ? count : LOAD_MORE_BATCH
       loadingMoreRef.current = true
-      setIsLoadingMore(true)
       const gen = loadGenRef.current
       void (async () => {
         try {
           const batch = await enrichSessionListings(allStatLogs, startIndex, batchSize)
           if (loadGenRef.current !== gen) return
           nextIndexRef.current = batch.nextIndex
-          setHasMore(batch.nextIndex < allStatLogs.length)
           if (batch.readFailures) {
             setReadFailures(prev => mergeSessionReadFailures(prev, batch.readFailures))
           }
@@ -251,7 +244,6 @@ export function ResumeConversation({
         } finally {
           if (loadGenRef.current === gen) {
             loadingMoreRef.current = false
-            setIsLoadingMore(false)
           }
         }
       })()
@@ -413,9 +405,6 @@ export function ResumeConversation({
           onToggleAllProjects={handleToggleAllProjects}
           onLogRenamed={isCustomTitleEnabled() ? handleLogRenamed : undefined}
           onLoadMore={handleLoadMore}
-          hasMore={hasMore}
-          isLoadingMore={isLoadingMore}
-          worktreePaths={worktreePaths}
         />
       </Box>
     )
