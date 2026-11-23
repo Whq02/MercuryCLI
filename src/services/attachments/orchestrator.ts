@@ -32,10 +32,7 @@ import {
   getMcpInstructionsDeltaAttachment,
   getMcpServersFailedAttachment,
 } from './deltas.js'
-import {
-  getContractReminderAttachments,
-  getTaskReminderAttachments,
-} from './reminders.js'
+import { getTaskReminderAttachments } from './reminders.js'
 import { getToolSchemaDeltaAttachment } from './toolSchemaDelta.js'
 import {
   getCriticalSystemReminderAttachment,
@@ -204,12 +201,7 @@ export async function getAttachments(
         ? [maybe('context_capsule', () => getContextCapsuleAttachment(input, history, toolUseContext))]
         : []),
       ...(opening
-        ? [
-            maybe('task_reminders', () => getTaskReminderAttachments(history, toolUseContext)),
-            maybe('contract_reminder', () =>
-              getContractReminderAttachments(history, toolUseContext),
-            ),
-          ]
+        ? [maybe('task_reminders', () => getTaskReminderAttachments(history, toolUseContext))]
         : []),
       maybe('agent_pending_messages', () => getAgentPendingMessageAttachments(toolUseContext), {
         priority: true,

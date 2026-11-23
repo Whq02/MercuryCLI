@@ -193,7 +193,6 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
   edited_text_file: z.looseObject({ filename: z.string(), snippet: z.string() }),
   edited_image_file: z.looseObject({ filename: z.string(), content: z.looseObject({}) }),
   directory: z.looseObject({ path: z.string(), content: z.string(), displayPath: z.string() }),
-  contract_reminder: z.looseObject({ text: z.string(), status: z.string(), amendments: z.number(), ackOwed: z.boolean() }),
   dynamic_skill: z.looseObject({ skillDir: z.string(), skillNames: strings, displayPath: z.string() }),
   skill_listing: z.looseObject({ content: z.string(), skillCount: z.number(), isInitial: z.boolean(), removedNames: strings.nullish(), truncation: z.looseObject({}).nullish() }),
   skill_discovery: z.looseObject({ skills: objectList, source: z.string() }),

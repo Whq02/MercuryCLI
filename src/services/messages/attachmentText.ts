@@ -1,7 +1,6 @@
 import type { ContentBlockParam, TextBlockParam } from '../../types/wire.js'
 import type { AnyObject, Tool } from '../../Tool.js'
 import type { MessageOrigin, UserMessage } from '../../types/message.js'
-import { CONTRACT_TOOL_NAME } from '../../constants/tools/contract.js'
 import type { FileReadToolOutput } from '../../types/fileReadOutput.js'
 import { FILE_READ_TOOL_NAME } from '../../constants/tools/fileRead.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../../constants/tools/sendMessage.js'
@@ -155,12 +154,6 @@ function skillListing(listing: Of<'skill_listing'>): UserMessage[] {
   return parts.length ? reminders(parts.join('\n\n')) : []
 }
 
-function contractRows(contract: Of<'contract_reminder'>): UserMessage[] {
-  const history = contract.amendments > 0 ? ` (${contract.amendments} superseded text${contract.amendments === 1 ? '' : 's'})` : ''
-  const acknowledgment = contract.ackOwed ? `\n\nAwaits acknowledgment: restate it in your own words via \`${CONTRACT_TOOL_NAME}\` ({ action: "acknowledge", restatement }).` : ''
-  return reminders(`Session contract (advisory work agreement, status ${contract.status}${history}): never blocks steps; hold to it, check in via \`${CONTRACT_TOOL_NAME}\` when unsure, and propose-amend when a clause fails contact with the code.${acknowledgment}\n\nAgreement:\n\n${contract.text}`)
-}
-
 function taskRows(tasks: Of<'task_reminder'>): UserMessage[] {
   if (!isTaskToolsEnabled()) return []
   const head = `Task list idle: if tracked progress helps here, use ${TASK_CREATE_TOOL_NAME} and ${TASK_UPDATE_TOOL_NAME} (in_progress on start, completed on finish); clean up stale items.\n`
@@ -229,7 +222,6 @@ const renderers: Renderers = {
   diagnostics: item => item.files.length ? reminders(`<new-diagnostics>New diagnostics from the language server:\n\n${DiagnosticTrackingService.formatDiagnosticsSummary(item.files)}</new-diagnostics>`) : [],
   queued_command: queuedRows,
   context_capsule: capsuleRows,
-  contract_reminder: contractRows,
   task_reminder: taskRows,
   agent_roster: rosterRows,
   agent_mention: item => reminders(`The user's message names the agent "${item.agentType}" — invoke that agent for this work, passing it the context it needs.`),

@@ -19,7 +19,6 @@ const capsuleKinds = {
   dynamic_skill: { section: 'Skills', cadence: 'state' },
   diagnostics: { section: 'Diagnostics', cadence: 'event' },
   task_reminder: { section: 'Reminders', cadence: 'event' },
-  contract_reminder: { section: 'Reminders', cadence: 'event' },
   date_change: { section: 'Date', cadence: 'state' },
 } as const satisfies Partial<Record<Attachment['type'], { section: CapsuleSectionName; cadence: 'state' | 'event' }>>
 

@@ -25,7 +25,6 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'max_turns_reached',
   'loop_stopped',
   'task_reminder',
-  'contract_reminder',
   'mode_pack',
   'mode_pack_exit',
   'output_token_usage',

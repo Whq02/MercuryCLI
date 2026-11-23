@@ -103,7 +103,6 @@ type TurnBodies = {
   }
   compact_operator_messages: { messages: Array<{ ordinal: number; text: string; truncated?: boolean }>; omitted: number }
   task_reminder: { content: Task[]; itemCount: number }
-  contract_reminder: { text: string; status: string; amendments: number; ackOwed: boolean }
   verify_plan_reminder: Record<never, never>
   hook: { outcome: HookRowOutcome; event: HookEvent; name: string; words: string; callId?: string; background?: true }
   bypassed_ask: { toolUseID: string; mode: PermissionMode; road: BypassedAskRoad; reason: string }
@@ -138,5 +137,4 @@ export type BypassedAskAttachment = AttachmentRow<'bypassed_ask'>
 export const HOOK_ROW_OUTCOMES = ['context', 'block', 'stop', 'notice', 'failed', 'text'] as const
 export type HookRowOutcome = (typeof HOOK_ROW_OUTCOMES)[number]
 export const TASK_REMINDER_CONFIG = { TURNS_SINCE_WRITE: 10, TURNS_BETWEEN_REMINDERS: 10 } as const
-export const CONTRACT_REMINDER_CONFIG = { TURNS_SINCE_TOUCH: 12, TURNS_BETWEEN_REMINDERS: 12 } as const
 export const FLOW_ATTACHMENT_CONFIG = { TURNS_BETWEEN_ATTACHMENTS: 5, FULL_REMINDER_EVERY_N_ATTACHMENTS: 5 } as const
