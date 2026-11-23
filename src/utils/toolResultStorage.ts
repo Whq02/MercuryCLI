@@ -14,32 +14,30 @@ import { formatFileSize } from './format.js'
 import { logError } from './log.js'
 import { getProjectDir } from './sessionStorage/paths.js'
 import { passedOver } from './passedOver.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
+export const TOOL_RESULTS_SUBDIR = 'tool-results'
+export const PERSISTED_OUTPUT_TAG = '<persisted-output>'
+export const PERSISTED_OUTPUT_CLOSING_TAG = '</persisted-output>'
+export const TOOL_RESULT_CLEARED_MESSAGE = '[stale tool result pruned — content cleared]'
 
-export const TOOL_RESULTS_SUBDIR: Unbuilt = unbuilt('src/utils/toolResultStorage.ts:19')
-export const PERSISTED_OUTPUT_TAG: Unbuilt = unbuilt('src/utils/toolResultStorage.ts:20')
-export const PERSISTED_OUTPUT_CLOSING_TAG: Unbuilt = unbuilt('src/utils/toolResultStorage.ts:21')
-export const TOOL_RESULT_CLEARED_MESSAGE: Unbuilt = unbuilt('src/utils/toolResultStorage.ts:22')
+export const PREVIEW_SIZE_CHARS = 2000
+export const PREVIEW_MAX_LINE_CHARS = 400
 
-export const PREVIEW_SIZE_CHARS: Unbuilt = unbuilt('src/utils/toolResultStorage.ts:24')
-export const PREVIEW_MAX_LINE_CHARS: Unbuilt = unbuilt('src/utils/toolResultStorage.ts:25')
+type PersistedToolResult = { filepath: string; originalSize: number; isJson: boolean; preview: string; hasMore: boolean }
 
-type PersistedToolResult = Unbuilt
-
-type PersistToolResultError = Unbuilt
+type PersistToolResultError = { error: string }
 
 function isPersistError(
   result: PersistedToolResult | PersistToolResultError,
 ): result is PersistToolResultError {
-  return notBuilt('src/utils/toolResultStorage.ts:37')
+  return Object.hasOwn(result, 'error')
 }
 
-export type ToolResultReplacementRecord = Unbuilt
+export type ToolResultReplacementRecord = { kind: 'tool-result'; toolUseId: string; replacement: string }
 
-export type ContentReplacementRecord = Unbuilt
+export type ContentReplacementRecord = ToolResultReplacementRecord
 
-export type ContentReplacementState = Unbuilt
+export type ContentReplacementState = { seenIds: Set<string>; replacements: Map<string, string>; budgetChars?: number }
 
 function getPersistenceThreshold(declaredMaxResultSizeChars: number, model?: string): number {
   if (!Number.isFinite(declaredMaxResultSizeChars)) return declaredMaxResultSizeChars
@@ -247,13 +245,19 @@ async function applySizePersistence(
   }) }
 }
 
+function isStorageId(id: unknown): id is string {
+  return typeof id === 'string' && id.length > 0 && id !== '.' && id !== '..' && !/[/\\\0]/.test(id)
+}
 export async function processToolResultBlock<T>(
   tool: Tool,
   toolUseResult: T,
   toolUseID: string,
   model?: string,
 ): Promise<ToolResultBlockParam> {
-  return notBuilt('src/utils/toolResultStorage.ts:263')
+  const block = tool.mapToolResultToToolResultBlockParam(toolUseResult, toolUseID)
+  if (!isStorageId(toolUseID) || !isStorageId(block.tool_use_id)) return block
+  const threshold = getPersistenceThreshold(tool.maxResultSizeChars ?? DEFAULT_MAX_RESULT_SIZE_CHARS, model)
+  return applySizePersistence(block, tool.name, threshold)
 }
 
 export async function processPreMappedToolResultBlock(
@@ -263,24 +267,116 @@ export async function processPreMappedToolResultBlock(
   room?: ResultRoomShare,
   model?: string,
 ): Promise<ToolResultBlockParam> {
-  return notBuilt('src/utils/toolResultStorage.ts:274')
+  if (!isStorageId(block.tool_use_id)) return block
+  return applySizePersistence(block, toolName, getPersistenceThreshold(maxResultSizeChars, model), room)
 }
 
 export function createContentReplacementState(): ContentReplacementState {
-  return notBuilt('src/utils/toolResultStorage.ts:284')
+  return { seenIds: new Set(), replacements: new Map() }
 }
 
 export function cloneContentReplacementState(source: ContentReplacementState): ContentReplacementState {
-  return notBuilt('src/utils/toolResultStorage.ts:288')
+  return { ...source, seenIds: new Set(source.seenIds), replacements: new Map(source.replacements) }
 }
 
+type BudgetCandidate = { id: string; block: ToolResultBlockParam; content: NonNullable<ToolResultBlockParam['content']>; size: number }
+
+function candidatesOf(row: Message): BudgetCandidate[] {
+  if (row.type !== 'user' || !Array.isArray(row.message.content)) return []
+  const candidates: BudgetCandidate[] = []
+  for (const block of row.message.content) {
+    if (block.type !== 'tool_result' || !isStorageId(block.tool_use_id)) continue
+    const content = block.content
+    if (content == null || hasImageBlock(content)) continue
+    if (typeof content === 'string' && content.startsWith(TOOL_RESULT_CLEARED_MESSAGE)) continue
+    candidates.push({ id: block.tool_use_id, block, content, size: contentSizeOf(content) })
+  }
+  return candidates
+}
 export async function enforceToolResultBudget(
   messages: Message[],
   state: ContentReplacementState,
   skipToolNames?: ReadonlySet<string>,
   model?: string,
 ): Promise<{ messages: Message[]; replacements: ToolResultReplacementRecord[] }> {
-  return notBuilt('src/utils/toolResultStorage.ts:314')
+  const limit = state.budgetChars ?? resultBudgetsForModel(model).messageChars
+  const names = new Map<string, string>()
+  const responseIds = new Set<string>()
+  const groups: BudgetCandidate[][] = []
+  let group: BudgetCandidate[] = []
+  for (const row of messages) {
+    if (row.type === 'assistant') {
+      const { id, content } = row.message
+      if (id && !responseIds.has(id)) {
+        responseIds.add(id)
+        if (group.length) groups.push(group)
+        group = []
+      }
+      if (skipToolNames?.size && Array.isArray(content)) {
+        for (const block of content) {
+          if (block.type === 'tool_use' && typeof block.id === 'string' && typeof block.name === 'string') names.set(block.id, block.name)
+        }
+      }
+    } else if (row.type === 'user') {
+      for (const candidate of candidatesOf(row)) group.push(candidate)
+    }
+  }
+  if (group.length) groups.push(group)
+
+  const applied = new Map<ToolResultBlockParam, string>()
+  const replacements: ToolResultReplacementRecord[] = []
+  let overBudget = 0
+  let shed = 0
+  let replayed = 0
+  for (const batch of groups) {
+    let size = 0
+    const fresh: BudgetCandidate[] = []
+    for (const candidate of batch) {
+      const id = candidate.id
+      const pointer = state.replacements.get(id)
+      if (pointer !== undefined) {
+        replayed++
+        if (candidate.content !== pointer) applied.set(candidate.block, pointer)
+      } else if (state.seenIds.has(id)) {
+        size += candidate.size
+      } else {
+        const name = names.get(id)
+        if (name !== undefined && skipToolNames?.has(name)) continue
+        fresh.push(candidate)
+        size += candidate.size
+      }
+    }
+    for (const candidate of batch) state.seenIds.add(candidate.id)
+    if (!fresh.length || size <= limit) continue
+    overBudget++
+    for (const candidate of fresh.sort((a, b) => b.size - a.size)) {
+      if (size <= limit) break
+      size -= candidate.size
+      const toolUseId = candidate.id
+      const stored = await persistToolResult(candidate.content, toolUseId)
+      if (isPersistError(stored)) continue
+      const replacement = buildLargeToolResultMessage(stored)
+      state.replacements.set(toolUseId, replacement)
+      applied.set(candidate.block, replacement)
+      replacements.push({ kind: 'tool-result', toolUseId, replacement })
+      shed += candidate.size
+    }
+  }
+  if (replacements.length) {
+    logForDebugging(`tool-result budget: persisted ${replacements.length} results across ${overBudget} over-budget messages (~${shed} chars shed, ${replayed} re-applied)`)
+  }
+  if (!applied.size) return { messages, replacements }
+  const view = messages.map(row => {
+    if (row.type !== 'user' || !Array.isArray(row.message.content)) return row
+    if (!row.message.content.some(block => block.type === 'tool_result' && applied.has(block))) return row
+    const content = row.message.content.map(block => {
+      if (block.type !== 'tool_result') return block
+      const replacement = applied.get(block)
+      return replacement === undefined ? block : { ...block, content: replacement }
+    })
+    return { ...row, message: { ...row.message, content } }
+  })
+  return { messages: view, replacements }
 }
 
 export async function applyToolResultBudget(
@@ -290,7 +386,10 @@ export async function applyToolResultBudget(
   skipToolNames?: ReadonlySet<string>,
   model?: string,
 ): Promise<Message[]> {
-  return notBuilt('src/utils/toolResultStorage.ts:468')
+  if (!state) return messages
+  const view = await enforceToolResultBudget(messages, state, skipToolNames, model)
+  if (view.replacements.length && writeToTranscript) await writeToTranscript(view.replacements)
+  return view.messages
 }
 
 export function reconstructContentReplacementState(
@@ -298,7 +397,17 @@ export function reconstructContentReplacementState(
   records: ContentReplacementRecord[],
   inheritedReplacements?: Map<string, string>,
 ): ContentReplacementState {
-  return notBuilt('src/utils/toolResultStorage.ts:483')
+  const state = createContentReplacementState()
+  for (const row of messages) {
+    for (const { id } of candidatesOf(row)) state.seenIds.add(id)
+  }
+  for (const { kind, toolUseId, replacement } of records) {
+    if (kind === 'tool-result' && state.seenIds.has(toolUseId)) state.replacements.set(toolUseId, replacement)
+  }
+  for (const [id, text] of inheritedReplacements ?? []) {
+    if (state.seenIds.has(id) && !state.replacements.has(id)) state.replacements.set(id, text)
+  }
+  return state
 }
 
 export function reconstructForSubagentResume(
@@ -306,5 +415,8 @@ export function reconstructForSubagentResume(
   resumedMessages: Message[],
   sidechainRecords: ContentReplacementRecord[],
 ): ContentReplacementState | undefined {
-  return notBuilt('src/utils/toolResultStorage.ts:511')
+  if (!parentState) return undefined
+  const state = reconstructContentReplacementState(resumedMessages, sidechainRecords, parentState.replacements)
+  if (parentState.budgetChars !== undefined) state.budgetChars = parentState.budgetChars
+  return state
 }
