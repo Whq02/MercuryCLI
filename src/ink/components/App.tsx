@@ -154,8 +154,6 @@ export default class App extends PureComponent<Props, State> {
   private get isRawModeSupported(): boolean {
     return this.props.stdin.isTTY === true
   }
-
-
   override componentDidMount() {
     if (
       this.props.stdout.isTTY &&
