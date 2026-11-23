@@ -9,10 +9,23 @@ import { useSetAppState } from '../../state/AppState.js'
 import { trySeedComposer } from '../../utils/cockpit/composerSeed.js'
 import type { ToolUseConfirm } from './PermissionRequest.js'
 import { startImmediate } from '../../utils/timers.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export function usePermissionRequestLogging(toolUseConfirm: ToolUseConfirm, screen?: 'ChangeSetPermissionRequest' | 'MediaPermissionRequest'): void {
-  return notBuilt('src/components/permissions/hooks.ts:13')
+  const setAppState = useSetAppState()
+  const lastLoggedId = useRef<string | null>(null)
+
+  usePublish(() => {
+    if (lastLoggedId.current === toolUseConfirm.toolUseID) return
+    lastLoggedId.current = toolUseConfirm.toolUseID
+    if (screen) featureReached('screen', screen)
+    setAppState(prev => ({
+      ...prev,
+      attribution: {
+        ...prev.attribution,
+        permissionPromptCount: prev.attribution.permissionPromptCount + 1,
+      },
+    }))
+  }, [toolUseConfirm.toolUseID, screen, setAppState])
 }
 
 export function useKeysHeldUntilFirstPaint(): void {
