@@ -118,8 +118,8 @@ export async function mcpServeHandler(options: {
   } catch (error) {
     const code = getErrnoCode(error)
     if (code === 'ENOENT' || code === 'EACCES' || code === 'EPERM') {
-      const pathPart = cwd !== undefined ? ` (${cwd})` : ''
-      return cliError(`Current working directory is not accessible${pathPart}: ${errorMessage(error)}`)
+      const detail = cwd !== undefined ? `${cwd} (${errorMessage(error)})` : errorMessage(error)
+      return cliError(`The working directory is not accessible: ${detail}`)
     }
     throw error
   }
@@ -173,7 +173,7 @@ export async function mcpRemoveHandler(
         .map(holder => `  ${binaryName()} mcp remove "${name}" -s ${holder.scope}`)
         .join('\n')
       return cliError(
-        `MCP server "${name}" exists in multiple scopes:\n${details}\n\nTo remove from a specific scope, run:\n${commands}`,
+        `MCP server ${name} exists in multiple scopes:\n${details}\n\nRemove it from a specific scope with:\n${commands}`,
       )
     }
     targetScope = holders[0]!.scope
@@ -257,13 +257,13 @@ export async function mcpListHandler(): Promise<void> {
       trustLine === null &&
       approvalLines.length === 0
     ) {
-      console.log(`No MCP servers configured. Use \`${binaryName()} mcp add\` to add a server.`)
+      console.log(`No MCP servers configured. Add one with: ${binaryName()} mcp add`)
     }
     await gracefulShutdown(0)
     return
   }
 
-  console.log('Checking MCP server health...\n')
+  console.log('Checking MCP server health…\n')
   const results = await pMap(
     entries,
     async ([name, config]) => ({
@@ -284,7 +284,7 @@ export async function mcpListHandler(): Promise<void> {
 export async function mcpGetHandler(name: string): Promise<void> {
   const config = getMcpConfigByName(name)
   if (!config) {
-    return cliError(`No MCP server found with name: ${name}`)
+    return cliError(`No MCP server named ${name} is configured`)
   }
 
   const trustLine = mcpServerSkippedForTrustLine(name, config)
@@ -337,12 +337,16 @@ export async function mcpGetHandler(name: string): Promise<void> {
       console.log(`  Headers: ${describeHeadersRedacted(config.headers)}`)
     }
     if (config.type === 'http' || config.type === 'sse') {
+      const oauthBits: string[] = []
       if (config.oauth?.clientId) {
-        console.log(`  Client ID: ${config.oauth.clientId}`)
+        oauthBits.push('client_id configured')
       }
       const clientConfig = getMcpClientConfig(name, config)
       if (clientConfig?.clientSecret) {
-        console.log('  Client Secret: [configured]')
+        oauthBits.push('client_secret configured')
+      }
+      if (oauthBits.length > 0) {
+        console.log(`  OAuth: ${oauthBits.join(', ')}`)
       }
       if (config.oauth?.callbackPort !== undefined) {
         console.log(`  Callback Port: ${config.oauth.callbackPort}`)
@@ -351,7 +355,7 @@ export async function mcpGetHandler(name: string): Promise<void> {
   }
 
   if (scope === 'local' || scope === 'project' || scope === 'user') {
-    console.log(`\nTo remove this server, run: ${binaryName()} mcp remove "${name}" -s ${scope}`)
+    console.log(`\nRemove this server with: ${binaryName()} mcp remove "${name}" -s ${scope}`)
   }
 
   await gracefulShutdown(0)
@@ -365,13 +369,13 @@ export async function mcpAddJsonHandler(
   const scope = normalizeScope(options.scope, 'local')
   const parsed = safeParseJSONC(json)
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    return cliError('Invalid JSON string provided')
+    return cliError(`Invalid JSON for MCP server ${name}`)
   }
 
   const validated = McpServerConfigSchema().safeParse(parsed)
   if (!validated.success) {
     return cliError(
-      `Invalid MCP server configuration: ${describeMcpConfigIssues(validated.error.issues, parsed)}`,
+      `Invalid MCP server configuration: ${name}: the config does not match the server schema — ${describeMcpConfigIssues(validated.error.issues, parsed)}`,
     )
   }
 
@@ -413,6 +417,6 @@ export async function mcpResetChoicesHandler(): Promise<void> {
     return cliError(errorMessage(error))
   }
   return cliOk(
-    'All project-scoped MCP server approvals and rejections were reset. You will be prompted for approval next time you start Mercury.',
+    'All project-scoped MCP server approvals and rejections were reset. You will be asked to approve them again on the next start.',
   )
 }

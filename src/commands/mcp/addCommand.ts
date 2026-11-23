@@ -53,34 +53,42 @@ function collectList(value: string, previous: string[]): string[] {
 export function registerMcpAddCommand(mcp: CommanderCommand): void {
   const cmd = binaryName()
   mcp
-    .command('add [name] [commandOrUrl] [args...]')
-    .description('Add an MCP server to Mercury')
-    .option('-s, --scope <scope>', 'Configuration scope (local, user, or project)', 'local')
-    .option('-t, --transport <transport>', 'Transport type (stdio, sse, http)')
-    .option('-e, --env <env...>', 'Set environment variables (e.g. -e KEY=value)', collectList, [])
-    .option('-H, --header <header...>', 'Set HTTP headers (e.g. -H "X-Api-Key: abc123")', collectList, [])
-    .option('--client-id <clientId>', 'OAuth client ID for HTTP/SSE servers')
-    .option('--client-secret', 'Prompt for an OAuth client secret (or set MERCURY_MCP_CLIENT_SECRET)')
-    .option('--callback-port <port>', 'Fixed port for the OAuth redirect callback')
+    .command('add')
+    .description('Add an MCP server')
+    .argument('[name]')
+    .argument('[commandOrUrl]', 'the command to launch it, or its URL')
+    .argument('[args...]', 'stdio subprocess arguments')
+    .option('-s, --scope <scope>', 'configuration scope (local, user, or project)', 'local')
+    .option('-t, --transport <transport>', 'transport type (stdio, sse, http)')
+    .option('-e, --env <env...>', 'environment variables for a stdio server (KEY=VALUE)', collectList, [])
+    .option('-H, --header <header...>', 'HTTP headers for an SSE/HTTP server', collectList, [])
+    .option('--client-id <clientId>', 'OAuth client id')
+    .option('--client-secret', 'read the OAuth client secret (prompt, or MERCURY_MCP_CLIENT_SECRET)')
+    .option('--callback-port <port>', 'fixed OAuth callback port')
     .addHelpText(
       'after',
-      `\nExamples:\n  ${cmd} mcp add my-server -- npx -y @example/mcp-server\n  ${cmd} mcp add --transport http my-api https://example.com/mcp\n  ${cmd} mcp add --transport sse my-sse https://example.com/sse --header "Authorization: Bearer token"\n  ${cmd} mcp add --scope user -e API_KEY=value my-tool -- node server.js\n`,
+      `\nExamples:\n  ${cmd} mcp add docs https://docs.example.com/mcp --transport http\n  ${cmd} mcp add gateway https://gw.example.com/mcp --transport http --header "Authorization: Bearer TOKEN"\n  ${cmd} mcp add tools -e API_KEY=secret -- npx run-tools\n  ${cmd} mcp add runner -- my-server --flag value\n`,
     )
     .action(async (name: string | undefined, commandOrUrl: string | undefined, args: string[] | undefined, options: McpAddOptions) => {
       let summary: string
       try {
-        if (!name || !commandOrUrl) {
-          throw new Error(
-            `Usage: ${cmd} mcp add [options] <name> <commandOrUrl> [args...]\nRun "${cmd} mcp add --help" for examples.`,
-          )
+        if (!name) {
+          throw new Error(`Usage: ${cmd} mcp add <name> <commandOrUrl> [args...]`)
+        }
+        if (!commandOrUrl) {
+          throw new Error('A command (or URL) is required when a server name is given.')
         }
 
         const scope = ensureConfigScope(options.scope)
         const transport = ensureTransport(options.transport)
 
         if (!options.transport && resemblesUrl(commandOrUrl)) {
+          const redacted = describeUrlRedacted(commandOrUrl)
+          const remoteExamples = ['http', 'sse']
+            .map(remoteTransport => `  ${cmd} mcp add ${name} ${redacted} --transport ${remoteTransport}`)
+            .join('\n')
           process.stderr.write(
-            `Warning: "${describeUrlRedacted(commandOrUrl)}" looks like a URL, but transport defaults to stdio. To add a remote server, pass --transport http or --transport sse:\n  ${cmd} mcp add --transport http ${name} ${describeUrlRedacted(commandOrUrl)}\n  ${cmd} mcp add --transport sse ${name} ${describeUrlRedacted(commandOrUrl)}\n`,
+            `Warning: "${redacted}" looks like a URL but no transport was specified, so it is being registered as a stdio COMMAND.\nFor a remote server use:\n${remoteExamples}\n`,
           )
         }
 
@@ -90,17 +98,12 @@ export function registerMcpAddCommand(mcp: CommanderCommand): void {
 
         if (transport === 'sse' || transport === 'http') {
           headers = options.header && options.header.length > 0 ? parseHeaders(options.header) : undefined
-          let callbackPort: number | undefined
-          if (options.callbackPort !== undefined) {
-            const rawPort = options.callbackPort.trim()
-            const parsedPort = Number.parseInt(rawPort, 10)
-            if (!/^\d+$/.test(rawPort) || parsedPort <= 0) {
-              throw new Error(
-                `Invalid --callback-port "${options.callbackPort}" — expected a positive integer port number`,
-              )
-            }
-            callbackPort = parsedPort
-          }
+          const callbackPort =
+            options.callbackPort !== undefined
+              ? /^\d+$/.test(options.callbackPort.trim())
+                ? Number.parseInt(options.callbackPort.trim(), 10)
+                : Number.NaN
+              : undefined
           const oauth =
             options.clientId !== undefined || callbackPort !== undefined
               ? {
@@ -109,9 +112,6 @@ export function registerMcpAddCommand(mcp: CommanderCommand): void {
                 }
               : undefined
           shouldReadSecret = Boolean(options.clientSecret) && options.clientId !== undefined
-          if (options.clientSecret && options.clientId === undefined) {
-            process.stderr.write('Warning: --client-secret requires --client-id and was ignored.\n')
-          }
           rawConfig = {
             type: transport,
             url: commandOrUrl,
@@ -119,13 +119,13 @@ export function registerMcpAddCommand(mcp: CommanderCommand): void {
             ...(oauth !== undefined ? { oauth } : {}),
           }
         } else {
-          if (
-            options.clientId !== undefined ||
-            options.clientSecret ||
-            options.callbackPort !== undefined
-          ) {
+          const ignoredOAuthFlags: string[] = []
+          if (options.clientId !== undefined) ignoredOAuthFlags.push('--client-id')
+          if (options.clientSecret) ignoredOAuthFlags.push('--client-secret')
+          if (options.callbackPort !== undefined) ignoredOAuthFlags.push('--callback-port')
+          if (ignoredOAuthFlags.length > 0) {
             process.stderr.write(
-              'Warning: OAuth flags (--client-id, --client-secret, --callback-port) only apply to HTTP/SSE transports and were ignored for stdio.\n',
+              `Warning: ${ignoredOAuthFlags.join(', ')} only apply to SSE/HTTP transports and are ignored for stdio.\n`,
             )
           }
           const env = options.env && options.env.length > 0 ? parseEnvAssignments(options.env) : undefined
@@ -157,11 +157,11 @@ export function registerMcpAddCommand(mcp: CommanderCommand): void {
           if (headers !== undefined && Object.keys(headers).length > 0) {
             lines.push(`Headers: ${describeHeadersRedacted(headers)}`)
           }
-          lines.push(`File modified: ${describeMcpConfigFilePath(scope)}`)
+          lines.push(`Configuration written to ${describeMcpConfigFilePath(scope)}`)
           summary = lines.join('\n')
         } else {
           const commandSummary = [commandOrUrl, ...(args ?? [])].join(' ')
-          summary = `Added stdio MCP server ${name} with command: ${commandSummary} to ${scope} config\nFile modified: ${describeMcpConfigFilePath(scope)}`
+          summary = `Added stdio MCP server ${name} with command: ${commandSummary} to ${scope} config\nConfiguration written to ${describeMcpConfigFilePath(scope)}`
         }
       } catch (error) {
         cliError(error instanceof Error ? error.message : String(error))
