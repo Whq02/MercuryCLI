@@ -12,8 +12,8 @@ const J = (...parts: string[]): string => parts.join('')
 const M = J('flag', 'Registry')
 const S = J('sub', 'strate')
 const spell = (text: string): string => text.replaceAll('@M@', M).replaceAll('@S@', S)
-const MODULE_PATH = spell('src/@S@/@M@.ts')
-const ROWS_DIR = spell('src/@S@/flags')
+const MODULE_PATH = spell('src/platform/@S@/@M@.ts')
+const ROWS_DIR = spell('src/platform/@S@/flags')
 const DOOR = 'scripts/lib/flagRegistrySource.ts'
 const MODULE_STATE_TABLE = 'scripts/gate/module-state.tsv'
 const MODULE_STATE_HEADER = [
@@ -35,7 +35,7 @@ const SPELLINGS = [
   `${S}${SEP}flags(?![A-Za-z0-9_])`,
   `(?<!scripts[\\\\/])${S}${SEP}(?:[*?$\\[{]|flag[a-z]*[*?\\[{])`,
 ].join('|')
-const FOLDER = `(?<![A-Za-z0-9_])src${SEP}${S}(?:${SEP})?(?=$|[\\s'"\`),;:|&<>\\]])`
+const FOLDER = `(?<![A-Za-z0-9_])src${SEP}platform${SEP}${S}(?:${SEP})?(?=$|[\\s'"\`),;:|&<>\\]])`
 const IN_A_LITERAL = new RegExp(`${SPELLINGS}|${FOLDER}`, 'gi')
 const IN_A_SEGMENT = new RegExp(SPELLINGS, 'gi')
 const IN_A_LINE = new RegExp(`${SPELLINGS}|${FOLDER}|(?<![A-Za-z0-9_.-])${M}(?![A-Za-z0-9_])`, 'i')
@@ -44,21 +44,24 @@ const FOLDER_WORD = new RegExp(S, 'i')
 const ROWS_SEGMENT = /^[\\/]*flags(?![A-Za-z0-9_])/i
 const FOLDER_SEGMENT = new RegExp(`(?:^|[\\\\/])${S}[\\\\/]*$`, 'i')
 const SRC_SEGMENT = /(?:^|[\\/])src[\\/]*$/i
+const HOME_SEGMENT = /^[\\/]*platform[\\/]*$/i
+const SRC_HOME_SEGMENT = /(?:^|[\\/])src[\\/]+platform[\\/]*$/i
+const HOME_FOLDER_SEGMENT = new RegExp(`(?:^|[\\\\/])platform[\\\\/]+${S}[\\\\/]*$`, 'i')
 const SRC_NAME = /^src|src$/i
-const INSTEAD = spell(`look the row up through getFlagSpec or FLAG_REGISTRY (a plain import of src/@S@/@M@.ts); a fact the rows cannot say reads the text through flagRegistryText, and a sweep tests a path with isFlagRegistryFile, both from ${DOOR}`)
+const INSTEAD = spell(`look the row up through getFlagSpec or FLAG_REGISTRY (a plain import of src/platform/@S@/@M@.ts); a fact the rows cannot say reads the text through flagRegistryText, and a sweep tests a path with isFlagRegistryFile, both from ${DOOR}`)
 const OUT_OF_REACH = 'a name assembled from fragments at run time, a path that arrives in a variable, a walk of the whole of src'
 
 type Mention = { file: string; line: number; text: string }
 type Scan = { read: number; imports: number; mentions: Mention[] }
 type Row = { file: string; line: string; why: string }
-type Near = { before: ts.Node | undefined; after: ts.Node | undefined; argument: boolean }
+type Near = { before: ts.Node | undefined; beforeThat: ts.Node | undefined; after: ts.Node | undefined; argument: boolean }
 
 const NAMED: Row[] = [
-  { file: 'scripts/gate/impact-doors.txt', line: 'src/@S@/flags/** src/@S@/@M@.ts', why: "the planner's door row: a glob and a path that scripts/verify/impactManifest.ts matches against changed paths; it opens no registry file" },
-  { file: 'scripts/identity/prove-docs-altitude.ts', line: "const CONFIG_INDEX_SPELLING = J('src/@S@/', '@M@.ts')", why: 'the spelling a document may cite: the proof strips it from document text and opens no registry file' },
-  { file: 'scripts/orphans/gen-reachability-manifest.ts', line: "'src/@S@/@M@.ts',", why: 'a root-class label written into the generated manifest: the generator reads the rows through its import' },
-  { file: 'scripts/substrate/gen-flag-table.ts', line: '> Derived from \\`src/@S@/@M@.ts\\` by \\`scripts/@S@/gen-flag-table.ts\\`.', why: 'a sentence in the header of the rendered table: the renderer reads the rows through its import' },
-  { file: 'scripts/vulcan/vulcan-audit-waves.js', line: 'The new surfaces: src/integrations/vulcan-optable/*, src/integrations/vulcan/*, src/tools/godot/*, assets/vulcan/addon/**, scripts/vulcan/*, plus edits in src/tools/kit/toolList.ts, src/engine/system-prompt/defaultSystemPrompt.ts, src/tools/crewmate/subagentDoctrine.ts, src/screen/cockpit/harnessMap.ts, src/@S@/startupMenu.ts, src/@S@/@M@.ts, src/utils/healthReport.ts, assets/splash/mercury-splash.mjs.', why: 'a file list inside the audit prompt text: the script opens none of them' },
+  { file: 'scripts/gate/impact-doors.txt', line: 'src/platform/@S@/flags/** src/platform/@S@/@M@.ts', why: "the planner's door row: a glob and a path that scripts/verify/impactManifest.ts matches against changed paths; it opens no registry file" },
+  { file: 'scripts/identity/prove-docs-altitude.ts', line: "const CONFIG_INDEX_SPELLING = J('src/platform/@S@/', '@M@.ts')", why: 'the spelling a document may cite: the proof strips it from document text and opens no registry file' },
+  { file: 'scripts/orphans/gen-reachability-manifest.ts', line: "'src/platform/@S@/@M@.ts',", why: 'a root-class label written into the generated manifest: the generator reads the rows through its import' },
+  { file: 'scripts/substrate/gen-flag-table.ts', line: '> Derived from \\`src/platform/@S@/@M@.ts\\` by \\`scripts/@S@/gen-flag-table.ts\\`.', why: 'a sentence in the header of the rendered table: the renderer reads the rows through its import' },
+  { file: 'scripts/vulcan/vulcan-audit-waves.js', line: 'The new surfaces: src/integrations/vulcan-optable/*, src/integrations/vulcan/*, src/tools/godot/*, assets/vulcan/addon/**, scripts/vulcan/*, plus edits in src/tools/kit/toolList.ts, src/engine/system-prompt/defaultSystemPrompt.ts, src/tools/crewmate/subagentDoctrine.ts, src/screen/cockpit/harnessMap.ts, src/platform/@S@/startupMenu.ts, src/platform/@S@/@M@.ts, src/utils/healthReport.ts, assets/splash/mercury-splash.mjs.', why: 'a file list inside the audit prompt text: the script opens none of them' },
 ].map(row => ({ ...row, line: spell(row.line) }))
 const NAMED_ROWS = 5
 
@@ -75,7 +78,7 @@ type Told = { file: string; line: number; flag: string }
 const REFLECTION = ['Reflect.get', 'Reflect.has', 'Reflect.set', 'Reflect.deleteProperty', 'Reflect.getOwnPropertyDescriptor', 'Object.hasOwn', 'Object.getOwnPropertyDescriptor']
 const OWN_KEY_TESTS = ['hasOwnProperty', 'propertyIsEnumerable']
 const DOOR_VERBS = ['flagEnv', 'flagEnvLoose', 'flagEnabled', 'setFlagEnv', 'stampFlagEnv', 'deleteFlagEnv', 'stampFlagOnEnv', 'flagPair', 'flagSpellings', 'getFlagSpec']
-const THE_VERBS = spell("the door is src/@S@/@M@.ts: flagEnv(name) reads the process environment and flagEnv(name, env) another one, flagEnabled(name) answers a switch, setFlagEnv and deleteFlagEnv write and delete, stampFlagEnv writes what is not the session's own stamp, stampFlagOnEnv and flagPair write into an environment that is being built")
+const THE_VERBS = spell("the door is src/platform/@S@/@M@.ts: flagEnv(name) reads the process environment and flagEnv(name, env) another one, flagEnabled(name) answers a switch, setFlagEnv and deleteFlagEnv write and delete, stampFlagEnv writes what is not the session's own stamp, stampFlagOnEnv and flagPair write into an environment that is being built")
 const PAST_REACH = 'a name assembled at run time, a name taken out of a list or a table, a name handed in from another file, a name that arrives through a re-export, program text held as a string'
 const PAYLOAD = 'a payload copied out of the product and run by node on its own: it cannot import the registry'
 const KEPT: Kept[] = [
@@ -163,11 +166,14 @@ function nearOf(node: ts.Node): Near | null {
   const list = call ? p.arguments : ts.isArrayLiteralExpression(p) ? p.elements : undefined
   const at = list ? list.indexOf(node as ts.Expression) : -1
   if (!list || at < 0) return null
-  return { before: at > 0 ? list[at - 1] : call ? p.expression : undefined, after: list[at + 1], argument: call }
+  return { before: at > 0 ? list[at - 1] : call ? p.expression : undefined, beforeThat: at > 1 ? list[at - 2] : at === 1 && call ? p.expression : undefined, after: list[at + 1], argument: call }
 }
 
 const plainSegment = (node: ts.Node | undefined): boolean => node !== undefined && ts.isStringLiteralLike(node)
 const namesSrc = (node: ts.Node | undefined): boolean => node !== undefined && ((ts.isStringLiteralLike(node) && SRC_SEGMENT.test(node.text)) || (ts.isIdentifier(node) && SRC_NAME.test(node.text)))
+const namesTheHome = (text: string, near: Near): boolean =>
+  (HOME_FOLDER_SEGMENT.test(text) && namesSrc(near.before)) ||
+  (near.before !== undefined && ts.isStringLiteralLike(near.before) && (SRC_HOME_SEGMENT.test(near.before.text) || (HOME_SEGMENT.test(near.before.text) && namesSrc(near.beforeThat))))
 
 function isModuleStateHeader(lines: string[]): boolean {
   return lines[0]?.replace(/\r$/, '') === MODULE_STATE_HEADER[0] && lines[1]?.replace(/\r$/, '') === MODULE_STATE_HEADER[1]
@@ -207,7 +213,7 @@ function scan(root: string, files: string[]): Scan {
           const hits = [...text.slice(start, node.getEnd()).matchAll(aSegmentFollows ? IN_A_SEGMENT : IN_A_LITERAL)].map(hit => hit.index)
           if (ts.isStringLiteralLike(node)) {
             const rowsAfterTheFolder = near !== null && ROWS_SEGMENT.test(node.text) && near.before !== undefined && FOLDER_WORD.test(near.before.getText(source))
-            const theFolderAfterSrc = near !== null && FOLDER_SEGMENT.test(node.text) && namesSrc(near.before) && !plainSegment(near.after)
+            const theFolderAfterSrc = near !== null && FOLDER_SEGMENT.test(node.text) && namesTheHome(node.text, near) && !plainSegment(near.after)
             if (WHOLE.test(node.text) || rowsAfterTheFolder || theFolderAfterSrc) hits.push(0)
           }
           if (hits.length > 0) {
@@ -541,20 +547,20 @@ section('§0 the reading on a planted estate: every reader the net reaches is na
 {
   const estate = mkdtempSync(join(tmpdir(), 'flag-registry-readers-'))
   const planted: Array<{ file: string; lines: string[]; named: number[] }> = [
-    { file: DOOR, lines: ["export const text = (): string => readFileSync('src/@S@/@M@.ts', 'utf8')"], named: [] },
+    { file: DOOR, lines: ["export const text = (): string => readFileSync('src/platform/@S@/@M@.ts', 'utf8')"], named: [] },
     {
       file: 'scripts/a/prove-lookup.ts',
       lines: [
-        "import { getFlagSpec } from '../../src/@S@/@M@.ts'",
+        "import { getFlagSpec } from '../../src/platform/@S@/@M@.ts'",
         "import { flagRegistryText } from '../lib/flagRegistrySource.ts'",
-        "const { FLAG_REGISTRY } = await import('../../src/@S@/@M@.js')",
-        "const late = await import(join(ROOT, 'src/@S@/@M@.ts'))",
-        "type Spec = import('../../src/@S@/@M@.ts').FlagSpec",
-        "import legacy = require('../../src/@S@/@M@.ts')",
-        '// a comment may name src/@S@/@M@.ts',
-        "const menu = readFileSync(join(ROOT, 'src', '@S@', 'startupMenu.ts'), 'utf8')",
-        "const lock = read('src/@S@/pidLock.ts')",
-        "const identity = walk(join(ROOT, 'src/@S@/identity'))",
+        "const { FLAG_REGISTRY } = await import('../../src/platform/@S@/@M@.js')",
+        "const late = await import(join(ROOT, 'src/platform/@S@/@M@.ts'))",
+        "type Spec = import('../../src/platform/@S@/@M@.ts').FlagSpec",
+        "import legacy = require('../../src/platform/@S@/@M@.ts')",
+        '// a comment may name src/platform/@S@/@M@.ts',
+        "const menu = readFileSync(join(ROOT, 'src', 'platform', '@S@', 'startupMenu.ts'), 'utf8')",
+        "const lock = read('src/platform/@S@/pidLock.ts')",
+        "const identity = walk(join(ROOT, 'src/platform/@S@/identity'))",
         "check('the @M@ row is present exactly once', FLAG_REGISTRY.length > 0)",
         'export const out = [getFlagSpec, late, flagRegistryText, legacy, menu, lock, identity]',
       ],
@@ -565,45 +571,45 @@ section('§0 the reading on a planted estate: every reader the net reaches is na
       lines: [
         "import { readFileSync } from 'node:fs'",
         "import { join } from 'node:path'",
-        "const text = readFileSync(join(ROOT, 'src/@S@/@M@.ts'), 'utf8')",
-        "const again = src('@S@', '@M@.ts')",
-        "const rows = readFileSync(join(ROOT, 'src', '@S@', 'flags', 'core.ts'), 'utf8')",
-        "const more = read('src/@S@/flags/core.ts')",
-        "const kept = files.filter(f => f !== 'src/@S@/@M@.ts' && !/@M@\\.ts$/.test(f))",
+        "const text = readFileSync(join(ROOT, 'src/platform/@S@/@M@.ts'), 'utf8')",
+        "const again = src('platform', '@S@', '@M@.ts')",
+        "const rows = readFileSync(join(ROOT, 'src', 'platform', '@S@', 'flags', 'core.ts'), 'utf8')",
+        "const more = read('src/platform/@S@/flags/core.ts')",
+        "const kept = files.filter(f => f !== 'src/platform/@S@/@M@.ts' && !/@M@\\.ts$/.test(f))",
         'export const out = [text, again, rows, more, kept]',
       ],
       named: [3, 4, 5, 6, 7],
     },
-    { file: 'scripts/a/run.sh', lines: ['#!/usr/bin/env bash', '# gate-watch: src/@S@/@M@.ts', 'grep -c MERCURY src/@S@/@M@.ts'], named: [3] },
-    { file: 'scripts/a/notes.md', lines: ['src/@S@/@M@.ts is where the rows live'], named: [] },
-    { file: 'scripts/a/hole-parts.ts', lines: ["const text = readFileSync(join(ROOT, 'src', '@S@', '@M@' + '.ts'), 'utf8')"], named: [1] },
-    { file: 'scripts/a/hole-template.ts', lines: ["const MODULE = '@M@'", "const text = readFileSync(join(ROOT, `src/@S@/${MODULE}.ts`), 'utf8')"], named: [1, 2] },
-    { file: 'scripts/lib/hole-second-helper.ts', lines: ["export const @S@Text = (name: string): string => readFileSync(join(ROOT, 'src', '@S@', `${name}.ts`), 'utf8')"], named: [1] },
+    { file: 'scripts/a/run.sh', lines: ['#!/usr/bin/env bash', '# gate-watch: src/platform/@S@/@M@.ts', 'grep -c MERCURY src/platform/@S@/@M@.ts'], named: [3] },
+    { file: 'scripts/a/notes.md', lines: ['src/platform/@S@/@M@.ts is where the rows live'], named: [] },
+    { file: 'scripts/a/hole-parts.ts', lines: ["const text = readFileSync(join(ROOT, 'src', 'platform', '@S@', '@M@' + '.ts'), 'utf8')"], named: [1] },
+    { file: 'scripts/a/hole-template.ts', lines: ["const MODULE = '@M@'", "const text = readFileSync(join(ROOT, `src/platform/@S@/${MODULE}.ts`), 'utf8')"], named: [1, 2] },
+    { file: 'scripts/lib/hole-second-helper.ts', lines: ["export const @S@Text = (name: string): string => readFileSync(join(ROOT, 'src', 'platform', '@S@', `${name}.ts`), 'utf8')"], named: [1] },
     { file: 'scripts/a/hole-wrapper.ts', lines: ["import { @S@Text } from '../lib/hole-second-helper.ts'", "const text = @S@Text('@M@')"], named: [2] },
-    { file: 'scripts/a/hole-folder.ts', lines: ["for (const full of walk(join(ROOT, 'src', '@S@'))) readFileSync(full, 'utf8')"], named: [1] },
-    { file: 'scripts/a/hole-glob.ts', lines: ["const found = [...new Bun.Glob('src/@S@/flag*.ts').scanSync({ cwd: ROOT }), ...new Bun.Glob('src/@S@/flag*/**/*').scanSync({ cwd: ROOT })]"], named: [1] },
-    { file: 'scripts/a/hole-exec.ts', lines: ["const out = execFileSync('grep', ['-rc', 'MERCURY_', 'src/@S@'], { cwd: ROOT, encoding: 'utf8' })"], named: [1] },
-    { file: 'scripts/a/hole-shell.sh', lines: ['set -u', 'name=@M@', 'grep -c MERCURY_ "src/@S@/$name.ts"', 'cat src/@S@/flagR*.ts', "find src/@S@ -name 'flag*' -type f"], named: [2, 3, 4, 5] },
+    { file: 'scripts/a/hole-folder.ts', lines: ["for (const full of walk(join(ROOT, 'src', 'platform', '@S@'))) readFileSync(full, 'utf8')"], named: [1] },
+    { file: 'scripts/a/hole-glob.ts', lines: ["const found = [...new Bun.Glob('src/platform/@S@/flag*.ts').scanSync({ cwd: ROOT }), ...new Bun.Glob('src/platform/@S@/flag*/**/*').scanSync({ cwd: ROOT })]"], named: [1] },
+    { file: 'scripts/a/hole-exec.ts', lines: ["const out = execFileSync('grep', ['-rc', 'MERCURY_', 'src/platform/@S@'], { cwd: ROOT, encoding: 'utf8' })"], named: [1] },
+    { file: 'scripts/a/hole-shell.sh', lines: ['set -u', 'name=@M@', 'grep -c MERCURY_ "src/platform/@S@/$name.ts"', 'cat src/platform/@S@/flagR*.ts', "find src/platform/@S@ -name 'flag*' -type f"], named: [2, 3, 4, 5] },
     { file: 'scripts/a/suite-runner.sh', lines: ['fail=0', `drive_members @S@ 'scripts/@S@/$name' "$here/members.txt" || fail=1`], named: [] },
-    { file: 'scripts/a/hole-import-text.ts', lines: ["import text from '../../src/@S@/@M@.ts' with { type: 'text' }", "const late = await import('../../src/@S@/@M@.ts', { with: { type: 'text' } })"], named: [1, 2] },
-    { file: 'scripts/a/hole-rows-folder.ts', lines: ["const @S@Dir = join(ROOT, 'src', '@S@')", "const rows = join(@S@Dir, 'flags')", "const core = join(ROOT, 'src', '@S@', 'flags/core.ts')"], named: [1, 2, 3] },
+    { file: 'scripts/a/hole-import-text.ts', lines: ["import text from '../../src/platform/@S@/@M@.ts' with { type: 'text' }", "const late = await import('../../src/platform/@S@/@M@.ts', { with: { type: 'text' } })"], named: [1, 2] },
+    { file: 'scripts/a/hole-rows-folder.ts', lines: ["const @S@Dir = join(ROOT, 'src', 'platform', '@S@')", "const rows = join(@S@Dir, 'flags')", "const core = join(ROOT, 'src', 'platform', '@S@', 'flags/core.ts')"], named: [1, 2, 3] },
     { file: 'scripts/a/hole-path-test.ts', lines: ["const registry = files.filter(f => f.includes('/@M@') || /@S@[\\\\/]flags[\\\\/]/.test(f))"], named: [1] },
-    { file: 'scripts/a/hole-noext', lines: ['grep -c MERCURY_ src/@S@/@M@.ts'], named: [1] },
-    { file: 'scripts/a/hole-list.txt', lines: ['# paths a reader opens', 'src/@S@/@M@.ts'], named: [2] },
+    { file: 'scripts/a/hole-noext', lines: ['grep -c MERCURY_ src/platform/@S@/@M@.ts'], named: [1] },
+    { file: 'scripts/a/hole-list.txt', lines: ['# paths a reader opens', 'src/platform/@S@/@M@.ts'], named: [2] },
     { file: 'scripts/a/hole-list-reader.ts', lines: ["const listed = readFileSync(join(import.meta.dir, 'hole-list.txt'), 'utf8').split('\\n')"], named: [] },
-    { file: 'scripts/a/gen-list.ts', lines: ['export const roots = [', "  'src/@S@/@M@.ts',", ']', 'export const twice = [', "  'src/@S@/@M@.ts',", ']', "console.log(readFileSync('src/@S@/@M@.ts', 'utf8').length)"], named: [5, 7] },
+    { file: 'scripts/a/gen-list.ts', lines: ['export const roots = [', "  'src/platform/@S@/@M@.ts',", ']', 'export const twice = [', "  'src/platform/@S@/@M@.ts',", ']', "console.log(readFileSync('src/platform/@S@/@M@.ts', 'utf8').length)"], named: [5, 7] },
     {
       file: MODULE_STATE_TABLE,
       lines: [
         ...MODULE_STATE_HEADER,
-        'src/@S@/@M@.ts\tFLAG_REGISTRY\tprocess\tmodule\tLoad-time definition',
-        'src/@S@/flags/core.ts\tCORE_FLAGS\tprocess\tmodule\tLoad-time list',
-        'src/@S@/@M@.ts\tresetFlags\treset-export',
-        'src/a/other.ts\tcache\tprocess\tmodule\treads src/@S@/@M@.ts',
-        'src/@S@/@M@.ts\tFLAG_REGISTRY\tunknown\tmodule\treason',
-        'src/@S@/@M@.ts\tFLAG_REGISTRY\tprocess\tmodule\t',
-        'src/@S@/@M@.ts\tnot-an-id\tprocess\tmodule\treason',
-        'src/@S@/@M@.ts\tFLAG_REGISTRY\tprocess\tmodule\treason\textra',
+        'src/platform/@S@/@M@.ts\tFLAG_REGISTRY\tprocess\tmodule\tLoad-time definition',
+        'src/platform/@S@/flags/core.ts\tCORE_FLAGS\tprocess\tmodule\tLoad-time list',
+        'src/platform/@S@/@M@.ts\tresetFlags\treset-export',
+        'src/a/other.ts\tcache\tprocess\tmodule\treads src/platform/@S@/@M@.ts',
+        'src/platform/@S@/@M@.ts\tFLAG_REGISTRY\tunknown\tmodule\treason',
+        'src/platform/@S@/@M@.ts\tFLAG_REGISTRY\tprocess\tmodule\t',
+        'src/platform/@S@/@M@.ts\tnot-an-id\tprocess\tmodule\treason',
+        'src/platform/@S@/@M@.ts\tFLAG_REGISTRY\tprocess\tmodule\treason\textra',
       ],
       named: [6, 7, 8, 9, 10],
     },
@@ -611,7 +617,7 @@ section('§0 the reading on a planted estate: every reader the net reaches is na
       file: 'scripts/a/module-state-copy.tsv',
       lines: [
         ...MODULE_STATE_HEADER,
-        'src/@S@/@M@.ts\tFLAG_REGISTRY\tprocess\tmodule\tLoad-time definition',
+        'src/platform/@S@/@M@.ts\tFLAG_REGISTRY\tprocess\tmodule\tLoad-time definition',
       ],
       named: [3],
     },
@@ -622,12 +628,12 @@ section('§0 the reading on a planted estate: every reader the net reaches is na
     writeFileSync(join(estate, file), spell(lines.join('\n') + '\n'))
   }
   const got = scan(estate, planted.map(p => p.file))
-  writeFileSync(join(estate, MODULE_STATE_TABLE), spell('src/@S@/@M@.ts\tFLAG_REGISTRY\tprocess\tmodule\tLoad-time definition\n'))
+  writeFileSync(join(estate, MODULE_STATE_TABLE), spell('src/platform/@S@/@M@.ts\tFLAG_REGISTRY\tprocess\tmodule\tLoad-time definition\n'))
   const headerless = scan(estate, [MODULE_STATE_TABLE])
-  writeFileSync(join(estate, MODULE_STATE_TABLE), spell(`${MODULE_STATE_HEADER[1]}\nsrc/@S@/@M@.ts\tFLAG_REGISTRY\tprocess\tmodule\tLoad-time definition\n`))
+  writeFileSync(join(estate, MODULE_STATE_TABLE), spell(`${MODULE_STATE_HEADER[1]}\nsrc/platform/@S@/@M@.ts\tFLAG_REGISTRY\tprocess\tmodule\tLoad-time definition\n`))
   const partialHeader = scan(estate, [MODULE_STATE_TABLE])
   rmSync(estate, { recursive: true, force: true })
-  const { unlisted, stale } = judge(got.mentions, [{ file: 'scripts/a/gen-list.ts', line: spell("'src/@S@/@M@.ts',"), why: 'a label' }])
+  const { unlisted, stale } = judge(got.mentions, [{ file: 'scripts/a/gen-list.ts', line: spell("'src/platform/@S@/@M@.ts',"), why: 'a label' }])
   const seen = unlisted.map(where).join(' ')
   const want = planted.flatMap(p => p.named.map(n => `${p.file}:${n}`)).join(' ')
   check('a direct read, a read through a helper, a read of a rows file, a path test in a sweep and a shell grep are each named with their line', ['scripts/a/prove-read.ts:3', 'scripts/a/prove-read.ts:4', 'scripts/a/prove-read.ts:5', 'scripts/a/prove-read.ts:6', 'scripts/a/prove-read.ts:7', 'scripts/a/run.sh:3'].every(at => unlisted.some(m => where(m) === at)), `seen ${seen} · to fix: scan in this file must name each of these planted lines as file:line; adjust its literal, segment or shell-line rule (SPELLINGS, FOLDER, nearOf), or the planted line`)
@@ -642,8 +648,8 @@ section("§1 the door: the registry's files, their text and the path test")
 {
   const files = flagRegistryFiles()
   check('the list holds the registry module first and only registry files', files[0] === MODULE_PATH && files.every(isFlagRegistryFile), files.join(', ') + ' · to fix: flagRegistryFiles and isFlagRegistryFile in scripts/lib/flagRegistrySource.ts must list the registry module first and then only registry files')
-  check('the path test takes the module and anything under the rows folder, in either spelling of the separator', isFlagRegistryFile(MODULE_PATH) && isFlagRegistryFile(`${ROWS_DIR}/core.ts`) && isFlagRegistryFile(spell('src\\@S@\\flags\\deep\\core.ts')) && isFlagRegistryFile(spell('src\\@S@\\@M@.ts')), 'to fix: isFlagRegistryFile in scripts/lib/flagRegistrySource.ts must take the module and every path under the rows folder, with either separator')
-  check('the path test refuses a neighbour, a look-alike and the door itself', !isFlagRegistryFile(spell('src/@S@/flagOff.ts')) && !isFlagRegistryFile(`${ROWS_DIR}.ts`) && !isFlagRegistryFile(`${ROWS_DIR}Extra/core.ts`) && !isFlagRegistryFile(`${MODULE_PATH}x`) && !isFlagRegistryFile(DOOR), 'to fix: isFlagRegistryFile in scripts/lib/flagRegistrySource.ts must refuse a neighbour, a look-alike and the door file itself')
+  check('the path test takes the module and anything under the rows folder, in either spelling of the separator', isFlagRegistryFile(MODULE_PATH) && isFlagRegistryFile(`${ROWS_DIR}/core.ts`) && isFlagRegistryFile(spell('src\\platform\\@S@\\flags\\deep\\core.ts')) && isFlagRegistryFile(spell('src\\platform\\@S@\\@M@.ts')), 'to fix: isFlagRegistryFile in scripts/lib/flagRegistrySource.ts must take the module and every path under the rows folder, with either separator')
+  check('the path test refuses a neighbour, a look-alike and the door itself', !isFlagRegistryFile(spell('src/platform/@S@/flagOff.ts')) && !isFlagRegistryFile(`${ROWS_DIR}.ts`) && !isFlagRegistryFile(`${ROWS_DIR}Extra/core.ts`) && !isFlagRegistryFile(`${MODULE_PATH}x`) && !isFlagRegistryFile(DOOR), 'to fix: isFlagRegistryFile in scripts/lib/flagRegistrySource.ts must refuse a neighbour, a look-alike and the door file itself')
   const split = mkdtempSync(join(tmpdir(), 'flag-registry-door-'))
   const w = (rel: string, body: string): void => {
     mkdirSync(dirname(join(split, rel)), { recursive: true })
@@ -655,7 +661,7 @@ section("§1 the door: the registry's files, their text and the path test")
   w(`${ROWS_DIR}/deep/c.ts`, 'C')
   w(`${ROWS_DIR}/b.ts.orig`, 'A BACKUP')
   w(`${ROWS_DIR}/.DS_Store`, 'A FINDER FILE')
-  w(spell('src/@S@/flagOff.ts'), 'OFF')
+  w(spell('src/platform/@S@/flagOff.ts'), 'OFF')
   const after = flagRegistryFiles(split)
   check('on a tree whose rows live in the rows folder the list is the module and every .ts file under the folder, in order', after.join(' ') === [MODULE_PATH, `${ROWS_DIR}/a.ts`, `${ROWS_DIR}/b.ts`, `${ROWS_DIR}/deep/c.ts`].join(' '), after.join(' ') + ' · to fix: flagRegistryFiles in scripts/lib/flagRegistrySource.ts must list the module and then every .ts file under the rows folder in name order, and nothing else')
   rmSync(join(split, MODULE_PATH))
@@ -725,7 +731,7 @@ section('§3 the reading of src on a planted estate: a registered flag named at 
     {
       file: 'src/planted/quiet.ts',
       lines: [
-        "import { flagEnv, flagPair, setFlagEnv, stampFlagEnv, stampFlagOnEnv } from '../@S@/@M@.js'",
+        "import { flagEnv, flagPair, setFlagEnv, stampFlagEnv, stampFlagOnEnv } from '../platform/@S@/@M@.js'",
         "export const read = flagEnv('MERCURY_PLANT_A')",
         "export const from = (env: NodeJS.ProcessEnv): string | undefined => flagEnv('MERCURY_PLANT_A', env)",
         "setFlagEnv('MERCURY_PLANT_A', '1')",
@@ -744,8 +750,8 @@ section('§3 the reading of src on a planted estate: a registered flag named at 
       ],
       named: [],
     },
-    { file: 'src/@S@/@M@.ts', lines: ['export const flagEnv = (name: string): string | undefined => process.env[name]', 'export const direct = process.env.MERCURY_PLANT_A'], named: [] },
-    { file: 'src/@S@/flags/core.ts', lines: ["export const rows = [{ env: 'MERCURY_PLANT_A' }]", 'export const direct = process.env.MERCURY_PLANT_A'], named: [] },
+    { file: 'src/platform/@S@/@M@.ts', lines: ['export const flagEnv = (name: string): string | undefined => process.env[name]', 'export const direct = process.env.MERCURY_PLANT_A'], named: [] },
+    { file: 'src/platform/@S@/flags/core.ts', lines: ["export const rows = [{ env: 'MERCURY_PLANT_A' }]", 'export const direct = process.env.MERCURY_PLANT_A'], named: [] },
   ].map(p => ({ ...p, file: spell(p.file) }))
   for (const { file, lines } of planted) {
     mkdirSync(dirname(join(estate, file)), { recursive: true })
@@ -795,7 +801,7 @@ section('§3 the reading of src on a planted estate: a registered flag named at 
     {
       file: lawful,
       lines: [
-        "import { flagEnabled, flagEnv } from '../@S@/@M@.js'",
+        "import { flagEnabled, flagEnv } from '../platform/@S@/@M@.js'",
         "export const once = flagEnv('MERCURY_PLANT_A')",
         "export const glued = `${flagEnv('MERCURY_PLANT_A')}ms`",
         "export const parsed = Number.parseInt(flagEnv('MERCURY_PLANT_B', {}) ?? '', 10)",
@@ -805,7 +811,7 @@ section('§3 the reading of src on a planted estate: a registered flag named at 
     {
       file: keyed,
       lines: [
-        "import { flagPair } from '../@S@/@M@.js'",
+        "import { flagPair } from '../platform/@S@/@M@.js'",
         "const KEY = 'MERCURY_PLANT_B'",
         "export const child = { ...process.env, MERCURY_PLANT_A: '1', [KEY]: undefined }",
         "export const built = { ...process.env, ...flagPair('MERCURY_PLANT_A', '1') }",
