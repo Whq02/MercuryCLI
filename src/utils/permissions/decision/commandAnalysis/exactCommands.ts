@@ -53,7 +53,7 @@ function sequenceItems(commands: readonly SimpleCommand[]): string[] | null {
   if (numbers.length === 0 || numbers.length > 3 || !numbers.every(text => SEQ_ARGUMENT_RE.test(text))) return null
   const values = numbers.map(Number)
   const [first, increment, last] = values.length === 1 ? [1, 1, values[0]!] : values.length === 2 ? [values[0]!, 1, values[1]!] : [values[0]!, values[1]!, values[2]!]
-  if (increment === 0) return null
+  if (increment === 0 || (increment > 0 ? first > last : first < last)) return null
   const items: string[] = []
   for (let value = first; increment > 0 ? value <= last : value >= last; value += increment) {
     if (items.length >= FOR_LITERAL_ITEMS_CAP) return null
@@ -385,38 +385,13 @@ abstract class FlowWalk extends CommandWalk {
         this.substitution(item, scope)
         const emitted = this.commands.slice(before)
         if (items === null) continue
-        if (emitted.length !== 1) {
+        const expanded = sequenceItems(emitted)
+        if (expanded === null) {
           items = null
           continue
         }
-        const cmd = emitted[0]!
-        const args = cmd.argv.slice(1)
-        if (
-          cmd.argv[0] !== 'seq' ||
-          cmd.envVars.length > 0 ||
-          cmd.redirects.length > 0 ||
-          cmd.globOperand ||
-          args.length < 1 ||
-          args.length > 3 ||
-          !args.every(arg => SEQ_ARGUMENT_RE.test(arg))
-        ) {
-          items = null
-          continue
-        }
-        const start = args.length === 1 ? 1 : Number(args[0])
-        const step = args.length === 3 ? Number(args[1]) : 1
-        const end = Number(args[args.length - 1])
-        if (step === 0 || (step > 0 ? start > end : start < end)) {
-          items = null
-          continue
-        }
-        for (let value = start; step > 0 ? value <= end : value >= end; value += step) {
-          items.push(String(value))
-          if (items.length > FOR_LITERAL_ITEMS_CAP) {
-            items = null
-            break
-          }
-        }
+        items.push(...expanded)
+        if (items.length > FOR_LITERAL_ITEMS_CAP) items = null
         continue
       }
 
@@ -432,18 +407,25 @@ abstract class FlowWalk extends CommandWalk {
 
     const bodyScope = new Map(scope)
     this.invalidateAssignments(body, bodyScope)
+    this.invalidateAssignments(body, scope)
     if (items === null) {
       bodyScope.set(variable, UNKNOWN_VALUE)
       this.body(body, bodyScope)
+      for (const [name, value] of bodyScope) {
+        if (!scope.has(name)) scope.set(name, value === UNKNOWN_INTEGER ? UNKNOWN_INTEGER : UNKNOWN_VALUE)
+      }
     } else {
       for (const item of items) {
-        bodyScope.set(variable, item)
-        this.body(body, bodyScope)
+        const iteration = new Map(bodyScope)
+        iteration.set(variable, item)
+        this.body(body, iteration)
+        for (const [name, value] of iteration) {
+          if (name === variable) continue
+          if (!scope.has(name) || (!isKnown(value) && value !== scope.get(name))) {
+            scope.set(name, value === UNKNOWN_INTEGER ? UNKNOWN_INTEGER : UNKNOWN_VALUE)
+          }
+        }
       }
-    }
-    this.invalidateAssignments(body, scope)
-    for (const [name, value] of bodyScope) {
-      if (!scope.has(name)) scope.set(name, value === UNKNOWN_INTEGER ? UNKNOWN_INTEGER : UNKNOWN_VALUE)
     }
     scope.set(variable, UNKNOWN_VALUE)
   }
