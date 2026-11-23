@@ -164,7 +164,18 @@ export async function loadKeybindings(): Promise<KeybindingsLoadResult> {
   try {
     user = parseLayer(await readFile(getKeybindingsPath(), 'utf8'), 'user')
   } catch (error) {
-    if (!isENOENT(error)) return { bindings: parseBindings(DEFAULT_BINDINGS), warnings: readErrorLayer('user', error).warnings }
+    if (!isENOENT(error)) {
+      return {
+        bindings: parseBindings(DEFAULT_BINDINGS),
+        warnings: [
+          {
+            type: 'parse_error',
+            severity: 'error',
+            message: `Could not read the user keybindings file: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+      }
+    }
   }
   const path = getProjectKeybindingsPath()
   let project: ParsedLayer | null = null
