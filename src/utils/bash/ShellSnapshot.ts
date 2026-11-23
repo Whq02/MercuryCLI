@@ -592,7 +592,7 @@ function buildCaptureScript(params: {
     if (readBack) {
       lines.push(`(\n${SNAPSHOT_READS_BACK_ALIASES}\n)${aliasFilter} | head -n 1000 >> "$SNAPSHOT_FILE" || true`)
     } else {
-      lines.push(`(alias || true) | sed 's/^alias /alias -- /'${aliasFilter} | head -n 1000 >> "$SNAPSHOT_FILE" || true`)
+      lines.push(`(alias -p || true) | sed 's/^alias /alias -- /'${aliasFilter} | head -n 1000 >> "$SNAPSHOT_FILE" || true`)
     }
   } else {
     lines.push(SNAPSHOT_KEEPS_ALIASES)
