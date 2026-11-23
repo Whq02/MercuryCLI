@@ -13,7 +13,6 @@ import type { PermissionRequestProps } from '../PermissionRequest.js'
 import { composeAnswer, type QuestionState } from './questionState.js'
 import { QuestionView } from './QuestionView.js'
 import { SubmitQuestionsView } from './SubmitQuestionsView.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 type QuestionViewProps = React.ComponentProps<typeof QuestionView>
 type LegacyQuestionOf = (q: InterviewQuestion) => QuestionViewProps['question']
@@ -90,8 +89,36 @@ type CurrentQuestionArgs = {
   handleNotesPasteLarge: (questionText: string, text: string) => void
 }
 
-export function currentQuestionView(arg0: CurrentQuestionArgs): React.ReactNode {
-  return notBuilt('src/components/permissions/AskUserQuestionPermissionRequest/askUserQuestionParts.tsx:92')
+export function currentQuestionView({ currentQuestion, toLegacyQuestion, questions, currentQuestionIndex, answers, questionStates, hideSubmitTab, globalContentHeight, globalContentWidth, handleUpdateQuestionState, handleQuestionAnswer, handleTextInputFocus, handleCancel, handleTabNext, handleTabPrev, handleRespondToModel, onImagePaste, chipContents, onRemoveImage, handleNotesPasteLarge }: CurrentQuestionArgs): React.ReactNode {
+  const legacyQuestion = toLegacyQuestion(currentQuestion)
+  const legacyQuestions = questions.map(toLegacyQuestion)
+  return (
+    <QuestionView
+      key={currentQuestion.id}
+      question={legacyQuestion}
+      questions={legacyQuestions}
+      currentQuestionIndex={currentQuestionIndex}
+      answers={answers}
+      questionStates={questionStates}
+      hideSubmitTab={hideSubmitTab}
+      minContentHeight={globalContentHeight}
+      minContentWidth={globalContentWidth}
+      onUpdateQuestionState={handleUpdateQuestionState}
+      onAnswer={handleQuestionAnswer}
+      onTextInputFocus={handleTextInputFocus}
+      onCancel={handleCancel}
+      onSubmit={handleTabNext}
+      onTabPrev={handleTabPrev}
+      onTabNext={handleTabNext}
+      onRespondToModel={() => void handleRespondToModel().catch(logError)}
+      onImagePaste={(base64, mediaType, filename, dims, path) =>
+        onImagePaste(currentQuestion.text, base64, mediaType, filename, dims, path)
+      }
+      pastedContents={chipContents}
+      onRemoveImage={id => onRemoveImage(currentQuestion.text, id)}
+      onNotesPasteLarge={handleNotesPasteLarge}
+    />
+  )
 }
 
 type SubmitViewArgs = {
