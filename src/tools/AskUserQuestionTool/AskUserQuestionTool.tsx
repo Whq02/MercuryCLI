@@ -6,7 +6,10 @@ import { getQuestionPreviewFormat } from '../../bootstrap/state.js'
 import { Box, Text } from '../../ink.js'
 import { MessageResponse } from '../../components/MessageResponse.js'
 import { useAppState } from '../../state/AppState.js'
-import { getModeColor } from '../../utils/permissions/PermissionMode.js'
+import {
+  getModeColor,
+  type PermissionMode,
+} from '../../utils/permissions/PermissionMode.js'
 import type { Theme } from '../../utils/theme.js'
 import { buildTool } from '../../Tool.js'
 import { REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX, SUBAGENT_REJECT_MESSAGE, SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX, unwrapToolUseError } from '../../utils/messages/rejectionText.js'
@@ -348,7 +351,7 @@ function AnsweredQuestionsCard({
   return (
     <Box flexDirection="column" marginTop={1}>
       <Text>
-        <Text color={getModeColor(mode)}>
+        <Text color={getModeColor(mode as PermissionMode) as keyof Theme}>
           ●
         </Text>{' '}
         User answered Mercury&apos;s questions:

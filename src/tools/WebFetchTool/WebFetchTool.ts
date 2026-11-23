@@ -73,8 +73,7 @@ const BATCH_TRUNCATION_LINE = '[Batch result truncated; fetch this URL separatel
 function ruleContentFor(input: Input): string {
   try {
     return `domain:${new URL(input.url ?? '').hostname}`
-  } catch (error) {
-    passedOver(error)
+  } catch {
     return `input:${JSON.stringify(input)}`
   }
 }
@@ -91,8 +90,19 @@ function matchingRule(
   return undefined
 }
 
-function ruleReason(rule: PermissionRule): Extract<PermissionDecisionReason, { type: 'rule' }> {
-  return { type: 'rule', rule }
+function ruleReason(
+  rule: PermissionRule | undefined,
+  requestContent: string,
+  behavior: 'allow' | 'deny' | 'ask',
+): Extract<PermissionDecisionReason, { type: 'rule' }> {
+  return {
+    type: 'rule',
+    rule: rule ?? {
+      source: 'localSettings',
+      ruleBehavior: behavior,
+      ruleValue: { toolName: WEB_FETCH_TOOL_NAME, ruleContent: requestContent },
+    },
+  }
 }
 
 const REDIRECT_PHRASES: Record<number, string> = {
@@ -253,7 +263,7 @@ export const WebFetchTool = buildTool({
       return {
         behavior: 'deny',
         message: ruleSentence(`Fetching ${url}`, 'deny', denyRule),
-        decisionReason: ruleReason(denyRule),
+        decisionReason: ruleReason(denyRule, requestContent, 'deny'),
       }
     }
     const askRule = matchingRule(permissionContext, requestContent, 'ask')
@@ -261,7 +271,7 @@ export const WebFetchTool = buildTool({
       return {
         behavior: 'ask',
         message: ruleSentence(`Fetching ${url}`, 'ask', askRule),
-        decisionReason: ruleReason(askRule),
+        decisionReason: ruleReason(askRule, requestContent, 'ask'),
         suggestions: suggestionForExactCommand(WEB_FETCH_TOOL_NAME, requestContent),
       }
     }
@@ -270,7 +280,7 @@ export const WebFetchTool = buildTool({
       return {
         behavior: 'allow',
         updatedInput: input,
-        decisionReason: ruleReason(allowRule),
+        decisionReason: ruleReason(allowRule, requestContent, 'allow'),
       }
     }
     return {

@@ -244,20 +244,16 @@ function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [value as T]
 }
 
-function textOf(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined
-}
-
 const NULL_TARGET_RE = /^\$\{?null\}?$/i
 
 function transformRedirection(raw: RawRedirection): ParsedRedirection {
   const streams: Record<string, string> = { All: '*', Output: '1', Error: '2', Warning: '3', Verbose: '4', Debug: '5', Information: '6' }
   if (raw.type === 'MergingRedirectionAst') {
-    return { operator: `${streams[textOf(raw.stream) ?? ''] ?? '2'}>&${streams[textOf(raw.toStream) ?? ''] ?? '1'}`, target: '', isMerging: true }
+    return { operator: `${streams[raw.stream as string] ?? '2'}>&${streams[raw.toStream as string] ?? '1'}`, target: '', isMerging: true }
   }
-  const stream = streams[textOf(raw.stream) ?? ''] ?? '1'
+  const stream = streams[raw.stream as string] ?? '1'
   const operator = `${stream === '1' ? '' : stream}${raw.append === true ? '>>' : '>'}`
-  return { operator, target: textOf(raw.target) ?? '', isMerging: false }
+  return { operator, target: (raw.target as string) ?? '', isMerging: false }
 }
 
 function extractCommandName(elements: RawCommandElement[]): {
@@ -266,13 +262,13 @@ function extractCommandName(elements: RawCommandElement[]): {
 } {
   const first = elements[0]
   if (!first) return { name: '', classification: 'unknown' }
-  const typeName = textOf(first.type)
+  const typeName = first.type as string
   const isStringLiteral = typeName === 'StringConstantExpressionAst' || typeName === 'ExpandableStringExpressionAst'
   let raw: string
   if (isStringLiteral && typeof first.value === 'string') {
     raw = first.value
   } else {
-    raw = textOf(first.text) ?? ''
+    raw = (first.text as string) ?? ''
   }
   if (raw.length >= 2 && /['"]/.test(raw[0]!) && /['"]/.test(raw[raw.length - 1]!)) {
     raw = raw.slice(1, -1)
@@ -280,7 +276,7 @@ function extractCommandName(elements: RawCommandElement[]): {
   return { name: raw, classification: classifyCommandName(raw) }
 }
 
-function transformCommandAst(raw: RawCommandElement): ParsedCommandElement {
+function transformCommandAst(raw: RawCommandElement, elementType: string): ParsedCommandElement {
   const elements = asArray<RawCommandElement>(raw.elements)
   const { name, classification } = extractCommandName(elements)
 
@@ -290,19 +286,18 @@ function transformCommandAst(raw: RawCommandElement): ParsedCommandElement {
   let anyChild = false
 
   elements.forEach((element, index) => {
-    const typeName = textOf(element.type)
-    const elementType = mapElementType(typeName, textOf(element.wrappedType))
+    const typeName = element.type as string
+    const elementType = mapElementType(typeName, element.wrappedType as string | undefined)
     elementTypes.push(elementType)
     if (index === 0) return
     const isStringLiteral = typeName === 'StringConstantExpressionAst' || typeName === 'ExpandableStringExpressionAst'
     const value =
-      isStringLiteral && typeof element.value === 'string' ? element.value : textOf(element.text) ?? ''
+      isStringLiteral && typeof element.value === 'string' ? element.value : (element.text as string) ?? ''
     args.push(value)
-    const child = element.child
+    const child = element.child as RawCommandElement | undefined
     if (child) {
       anyChild = true
-      const fields: Record<string, unknown> = isRecord(child) ? child : {}
-      children.push([{ type: mapElementType(textOf(fields.type)), text: textOf(fields.text) ?? '' }])
+      children.push([{ type: mapElementType(child.type as string), text: (child.text as string) ?? '' }])
     } else {
       children.push(undefined)
     }
@@ -310,20 +305,20 @@ function transformCommandAst(raw: RawCommandElement): ParsedCommandElement {
 
   return {
     name,
-    text: textOf(raw.text) ?? '',
+    text: (raw.text as string) ?? '',
     nameType: classification,
     args,
     elementTypes,
     children: anyChild ? children : undefined,
     redirections: asArray<RawRedirection>(raw.redirections).map(transformRedirection),
-    elementType: 'CommandAst',
+    elementType,
   }
 }
 
 function transformExpressionElement(raw: RawPipelineElement): ParsedCommandElement {
-  const text = textOf(raw.text) ?? ''
-  const wrapped = textOf(raw.wrappedType)
-  const rawKind = textOf(raw.type)
+  const text = (raw.text as string) ?? ''
+  const wrapped = raw.wrappedType as string | undefined
+  const rawKind = raw.type as string
   return {
     name: text,
     text,
@@ -362,7 +357,7 @@ function transformStatement(raw: RawStatement): ParsedStatement {
   const statementType = mapStatementType(typeof raw.type === 'string' ? raw.type : '')
   const text = typeof raw.text === 'string' ? raw.text : ''
   const nestedCommands = asArray<RawCommandElement>(raw.nestedCommands).map(cmd =>
-    transformCommandAst(cmd),
+    transformCommandAst(cmd, 'CommandAst'),
   )
   const securityPatterns = readSecurityPatterns(raw.securityPatterns)
   if (raw.elements !== undefined && raw.elements !== null) {
@@ -370,7 +365,7 @@ function transformStatement(raw: RawStatement): ParsedStatement {
     const allRedirections: ParsedRedirection[] = []
     for (const el of asArray<RawPipelineElement>(raw.elements)) {
       if (el.type === 'CommandAst') {
-        const cmd = transformCommandAst(el)
+        const cmd = transformCommandAst(el, 'CommandAst')
         if (cmd.redirections && cmd.redirections.length > 0) {
           allRedirections.push(...cmd.redirections)
         }
@@ -415,12 +410,12 @@ function transformStatement(raw: RawStatement): ParsedStatement {
 function normaliseResult(raw: Record<string, unknown>): ParsedPowerShellCommand {
   const statements = asArray<RawStatement>(raw.statements).map(transformStatement)
   const variables = asArray<Record<string, unknown>>(raw.variables).map(v => ({
-    path: textOf(v.path) ?? '',
+    path: (v.path as string) ?? '',
     splatted: v.splatted === true,
   }))
   const errors = asArray<Record<string, unknown>>(raw.errors).map(e => ({
-    message: textOf(e.message) ?? '',
-    errorId: textOf(e.errorId) ?? '',
+    message: (e.message as string) ?? '',
+    errorId: (e.errorId as string) ?? '',
   }))
   const typeLiterals = asArray<string>(raw.typeLiterals)
   const result: ParsedPowerShellCommand = {
@@ -429,7 +424,7 @@ function normaliseResult(raw: Record<string, unknown>): ParsedPowerShellCommand 
     variables,
     errors,
     hasStopParsing: raw.hasStopParsing === true,
-    originalCommand: textOf(raw.command) ?? '',
+    originalCommand: (raw.command as string) ?? '',
   }
   if (typeLiterals.length > 0) result.typeLiterals = typeLiterals
   if (raw.hasUsingStatements === true) result.hasUsingStatements = true
@@ -475,13 +470,13 @@ async function runAnalysis(
     new Promise(resolve => {
       execFile(pwshPath, args, { windowsHide: true, timeout: parseTimeoutMs(), maxBuffer: 16 * 1024 * 1024, env: { ...subprocessEnv() } }, (error, stdout, stderr) => {
         if (error) {
-          const timedOut = error.killed === true
+          const timedOut = (error as { killed?: boolean; signal?: string }).killed === true
           if (timedOut) {
             resolve({ code: null, stdout, stderr, timedOut: true })
             return
           }
-          const code = typeof error.code === 'number' ? error.code : 1
-          if (error.code !== undefined && typeof error.code !== 'number') {
+          const code = typeof (error as { code?: unknown }).code === 'number' ? ((error as { code: number }).code) : 1
+          if ((error as { code?: unknown }).code !== undefined && typeof (error as { code: unknown }).code !== 'number') {
             resolve({ code: 1, stdout, stderr, timedOut: false, spawnError: error })
             return
           }

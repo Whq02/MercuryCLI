@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, posix as posixPath } from 'node:path'
 import { createAndSaveSnapshot, loginRunFailed } from '../bash/ShellSnapshot.js'
 import { quote } from '../bash/shellQuote.js'
 import { rearrangePipeCommand } from '../bash/bashPipeCommand.js'

@@ -27,6 +27,7 @@ import {
 } from '../platform/loginShell.js'
 import { birthAfter, birthMark, endMsysGroupBeside, endProcessBornAfter, endProcessBornAt, endProcessTree, strikeProcessGroupNow, type BirthMark } from '../processGroup.js'
 import { ripgrepCommand } from '../ripgrep.js'
+import { sleep } from '../sleep.js'
 import { withDeadline } from '../deadline.js'
 import { loginExportsCarried, pathWithLoginEntries, subprocessEnv } from '../subprocessEnv.js'
 import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, SNAPSHOT_READS_BACK, SNAPSHOT_READS_BACK_ALIASES, SNAPSHOT_READS_FUNCTIONS, argv0FunctionBody, noteLoginExports, noteLoginFiles, snapshotProfileOf, zshNamedBeforeBash, type LoginFilesAbsence, type ShellRecord } from '../shell/shellRecord.js'
@@ -49,8 +50,8 @@ export function deriveVersionedPathParts(path: string): VersionedPathParts | nul
   if (!match) return null
   return {
     versionsRoot: `${match[1]}${match[2]}`,
-    version: match[3],
-    suffix: match[4],
+    version: match[3] as string,
+    suffix: match[4] as string,
   }
 }
 

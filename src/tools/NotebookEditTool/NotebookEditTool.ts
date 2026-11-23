@@ -1,3 +1,4 @@
+import { type UUID } from 'node:crypto'
 import { extname, isAbsolute, resolve } from 'node:path'
 import { z } from 'zod/v4'
 
@@ -9,6 +10,7 @@ import { isENOENT } from '../../utils/errors.js'
 import { getCheckedFileModificationTime, getDisplayPath, getFileModificationTime, writeTextContent } from '../../utils/file.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../services/changeTransaction/fileHistory.js'
 import { readFileSyncWithMetadata } from '../../utils/fileRead.js'
+import { jsonParse } from '../../utils/slowOperations.js'
 import { safeParseJSON } from '../../utils/json.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { parseCellId } from '../../utils/notebook.js'

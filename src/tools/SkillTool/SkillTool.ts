@@ -171,7 +171,7 @@ function editDistance(a: string, b: string): number {
 function nearestSkillNames(name: string, commands: Command[]): string[] {
   const target = name.toLowerCase()
   const candidates = commands
-    .filter(c => !c.disableModelInvocation)
+    .filter(c => !(c as { disableModelInvocation?: boolean }).disableModelInvocation)
     .map(c => getCommandName(c))
   const scored = candidates
     .map(candidate => {
@@ -191,7 +191,7 @@ function unknownSkillMessage(name: string, commands: Command[]): string {
   if (nearest.length > 0) {
     return `Unknown skill: ${name}. Did you mean: ${nearest.join(', ')}? The available skills ride in system-reminder messages in this conversation.`
   }
-  const total = commands.filter(c => !c.disableModelInvocation).length
+  const total = commands.filter(c => !(c as { disableModelInvocation?: boolean }).disableModelInvocation).length
   return `Unknown skill: ${name}. No skill by that name is available${total > 0 ? ` (${total} skill${total === 1 ? '' : 's'} exist — they ride in system-reminder messages in this conversation)` : ''}.`
 }
 
@@ -218,7 +218,7 @@ function isPromptCommand(command: Command): command is Command & PromptCommand {
 export function expansionBodyOf(message: Message): string | null {
   if (message.type !== 'user' || message.isMeta !== true || !Array.isArray(message.message.content)) return null
   const text = message.message.content
-    .map(block => (block.type === 'text' ? block.text : ''))
+    .map(block => (block.type === 'text' ? (block as { text: string }).text : ''))
     .join('\n')
   return text.trim() === '' ? null : text
 }
@@ -227,7 +227,10 @@ function messageCarriesToolActivity(message: Message): boolean {
   if (message.type !== 'assistant' && message.type !== 'user') return false
   const content = message.message.content
   if (!Array.isArray(content)) return false
-  return content.some(block => block.type === 'tool_use' || block.type === 'tool_result')
+  return content.some(block => {
+    const type = (block as { type?: string }).type
+    return type === 'tool_use' || type === 'tool_result'
+  })
 }
 
 

@@ -208,7 +208,8 @@ export function restoreDangerousPermissions(context: ToolPermissionContext): Too
   const next = cloneContext(context)
   for (const [source, rules] of entriesOf(context.strippedDangerousRules)) {
     if (!rules || rules.length === 0) continue
-    next.alwaysAllowRules[source] = [...(next.alwaysAllowRules[source] ?? []), ...rules]
+    const key = source as PermissionRuleSource
+    next.alwaysAllowRules[key] = [...(next.alwaysAllowRules[key] ?? []), ...rules]
   }
   next.strippedDangerousRules = {}
   return next
@@ -254,7 +255,7 @@ export function setPermissionModeWithGuards(
     if (current.mode === mode) return current
     const transitioned = transitionPermissionMode(current.mode, mode, current)
     recordModeTransition({ from: current.mode, to: mode, road })
-    return { ...transitioned, mode }
+    return { ...(transitioned as object), mode } as ToolPermissionContext
   })
   return { ok: true, mode }
 }
@@ -317,9 +318,9 @@ export function createSovereignDisabledContext(
   let next = currentContext
   if (modeBypassesPermissions(currentContext.mode)) {
     recordModeTransition({ from: currentContext.mode, to: 'default', road: 'bypass-disabled' })
-    next = { ...next, mode: 'default' }
+    next = { ...(next as object), mode: 'default' } as ToolPermissionContext
   }
-  return { ...next, isBypassPermissionsModeAvailable: false }
+  return { ...(next as object), isBypassPermissionsModeAvailable: false } as ToolPermissionContext
 }
 
 
@@ -423,7 +424,7 @@ export function resolveSessionPermissionMode({
 
   const ordered: PermissionMode[] = candidates.map(c => c.mode)
   const result = resolvePermissionModeCandidates(ordered, { dangerouslySkipPermissions: dangerouslySkipPermissions && !typedPosture })
-  const winner = candidates.find(c => c.mode === result.mode) ?? { mode: result.mode, source: 'default' as SessionPermissionModeSource }
+  const winner = candidates.find(c => c.mode === result.mode) ?? { mode: result.mode as PermissionMode, source: 'default' as SessionPermissionModeSource }
   return { ...result, source: winner.source }
 }
 
@@ -565,12 +566,12 @@ function cloneMap(map?: ReadonlyRuleMap): ToolPermissionRulesBySource {
 }
 
 function getAllowRulesFromContext(context: ToolPermissionContext): PermissionRule[] {
-  const bySource: ReadonlyRuleMap = context.alwaysAllowRules ?? {}
+  const bySource = context.alwaysAllowRules ?? {}
   const rules: PermissionRule[] = []
   for (const [source, entries] of entriesOf(bySource)) {
     for (const entry of entries ?? []) {
       rules.push({
-        source,
+        source: source as PermissionRuleSource,
         ruleBehavior: 'allow',
         ruleValue: permissionRuleValueFromString(entry),
       })

@@ -5,7 +5,8 @@ import { dirname, isAbsolute, join, relative } from 'node:path'
 import picomatch from 'picomatch'
 import { z } from 'zod/v4'
 
-import { buildTool, type CanUseToolFn, type Tool, type ToolPermissionContext, type ToolUseContext, type ValidationResult } from '../../Tool.js'
+import { buildTool, type CanUseToolFn, type Tool, type ToolPermissionContext, type ToolUseContext } from '../../Tool.js'
+import type { ValidationResult } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import { isRemotePath } from '../../utils/remoteFiles/target.js'
 import { anchorPatchEnabled } from '../../services/changeTransaction/anchorPatch.js'
@@ -155,7 +156,7 @@ function envFileTargetsInGlobField(glob: string | undefined): string[] {
   return glob ? splitGrepGlobField(glob).flatMap(envFileTargetsInGlob) : []
 }
 
-function envFilesWithheld(permission: ToolPermissionContext, givenRoot: string): boolean {
+function envFilesWithheld(input: Input, permission: ToolPermissionContext, givenRoot: string): boolean {
   if (modeBypassesPermissions(permission.mode)) return false
   return !isProjectEnvFileName(givenRoot)
 }
@@ -803,7 +804,7 @@ async function runGrepCall(
   const searchRoot = realSearchRoot(givenRoot)
   const mode = input.output_mode ?? 'files_with_matches'
   const permission = context.getAppState().toolPermissionContext
-  const withholding = envFilesWithheld(permission, givenRoot)
+  const withholding = envFilesWithheld(input, permission, givenRoot)
   if (mode === 'ranked') {
     return { data: await rankedCall(input, context, searchRoot, givenRoot, withholding) }
   }

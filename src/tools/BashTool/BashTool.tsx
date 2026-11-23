@@ -236,8 +236,7 @@ function isSilentCommand(command: string): boolean {
   let precededBy = ''
   let sawReal = false
   for (let i = 0; i < parts.length; i++) {
-    const part = parts[i]
-    if (part === undefined) continue
+    const part = parts[i] as string
     if (REDIRECT_OPERATORS.has(part)) {
       i++
       continue

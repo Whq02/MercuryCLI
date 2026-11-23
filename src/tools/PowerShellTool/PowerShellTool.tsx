@@ -77,7 +77,7 @@ function detectBlockedSleepPattern(command: string): string | null {
   const firstStatement = (trimmed.split(/[;|&\r\n]/)[0] ?? '').trim()
   const match = firstStatement.match(/^(?:start-sleep|sleep)(?:\s+(?:-s(?:econds)?)?\s*)?(\d+(?:\.\d+)?)\s*$/i)
   if (!match) return null
-  const seconds = parseFloat(match[1])
+  const seconds = parseFloat(match[1] as string)
   if (seconds < SLEEP_THRESHOLD_SECONDS) return null
   const remainder = trimmed.slice(firstStatement.length).trim()
   return remainder
@@ -157,9 +157,10 @@ function isSearchOrRead(command: string): { isSearch: boolean; isRead: boolean }
   return sawReal ? { isSearch, isRead } : { isSearch: false, isRead: false }
 }
 
-function backgroundNoticeFor(id: string, backgroundedByUser?: boolean): string {
+function backgroundNoticeFor(output: Out): string {
+  const id = output.backgroundTaskId as string
   const outputPath = getTaskOutputPath(id)
-  if (backgroundedByUser) return `You moved this command to the background (ID: ${id}). Output: ${outputPath}.`
+  if (output.backgroundedByUser) return `You moved this command to the background (ID: ${id}). Output: ${outputPath}.`
   return `Running in the background (ID: ${id}). Output: ${outputPath}.`
 }
 
@@ -701,7 +702,7 @@ export const PowerShellTool: Tool<PowerShellToolInput, Out, PowerShellProgress> 
     if (output.interrupted) {
       errorText += '\n<error>The command was cut short before it finished.</error>'
     }
-    const backgroundNotice = output.backgroundTaskId ? backgroundNoticeFor(output.backgroundTaskId, output.backgroundedByUser) : ''
+    const backgroundNotice = output.backgroundTaskId ? backgroundNoticeFor(output) : ''
     const content = [
       stdout,
       errorText,

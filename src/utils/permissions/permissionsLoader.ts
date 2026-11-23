@@ -3,8 +3,9 @@ import { logError } from '../log.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage, isENOENT } from '../errors.js'
 import { stripBOM } from '../jsonRead.js'
+import { safeResolvePath } from '../fsOperations.js'
+import { getFsImplementation } from '../fsOperations.js'
 import { isOneOf } from '../isOneOf.js'
-import { getFsImplementation, safeResolvePath } from '../fsOperations.js'
 import type {
   PermissionBehavior,
   PermissionRule,
@@ -96,8 +97,8 @@ function loadSettingsLenient(source: EditableSettingSource): SettingsJson {
 }
 
 function guardrailsArray(settings: SettingsJson, behavior: PermissionBehavior): string[] {
-  const list = settings.guardrails?.[behavior]
-  return Array.isArray(list) ? list : []
+  const guardrails = (settings as { guardrails?: Record<string, string[] | undefined> }).guardrails
+  return guardrails?.[behavior] ?? []
 }
 
 export function addPermissionRulesToSettings(

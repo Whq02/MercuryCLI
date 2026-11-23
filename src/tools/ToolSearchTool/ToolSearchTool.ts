@@ -56,7 +56,7 @@ const STOP_WORDS = new Set([
 const MCP_PREFIX = 'mcp__'
 
 function isMcpToolLike(tool: Tool): boolean {
-  return tool.isMcp === true || tool.name.startsWith(MCP_PREFIX)
+  return ('isMcp' in tool && (tool as { isMcp?: boolean }).isMcp === true) || tool.name.startsWith(MCP_PREFIX)
 }
 
 type NameParts = { parts: string[]; full: string }
@@ -257,7 +257,7 @@ export async function searchToolsWithKeywords(
 }
 
 function pendingMcpServerNames(context: ToolUseContext): string[] {
-  const clients = context.getAppState()?.mcp?.clients ?? []
+  const clients = context.getAppState().mcp?.clients ?? []
   return clients.filter(client => client.type === 'pending').map(client => String(client.name))
 }
 

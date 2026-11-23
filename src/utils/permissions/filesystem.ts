@@ -578,7 +578,7 @@ function rulesForToolAndBehavior(
       const parsed = permissionRuleValueFromString(ruleString)
       if (parsed.toolName !== toolName || parsed.ruleContent === undefined) continue
       const rule = {
-        source,
+        source: source as PermissionRule['source'],
         ruleBehavior: behavior,
         ruleValue: parsed,
       }
