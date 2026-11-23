@@ -88,6 +88,7 @@ export function Commands({
       <Text bold>{title}</Text>
       <Select
         options={options}
+        layout="compact-vertical"
         isDisabled={headerFocused}
         hideIndexes
         visibleOptionCount={visibleCount}
