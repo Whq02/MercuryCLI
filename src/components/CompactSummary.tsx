@@ -13,10 +13,7 @@ type Props = {
 };
 
 function reclaimPct(message: NormalizedUserMessage): number | undefined {
-  const meta = message.summarizeMetadata as
-    | { contextReclaimedPct?: number }
-    | undefined;
-  const v = meta?.contextReclaimedPct;
+  const v = message.summarizeMetadata?.contextReclaimedPct;
   return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
 }
 
@@ -26,16 +23,15 @@ export function CompactSummary({ message, screen }: Props): React.ReactNode {
 
   if (message.summarizeMetadata) {
     const meta = message.summarizeMetadata;
-    const pct = reclaimPct(message);
     return (
       <MercuryCompactSummary
         summary={summary}
-        {...(pct !== undefined ? { pct } : {})}
+        pct={reclaimPct(message)}
         messagesSummarized={meta.messagesSummarized}
-        {...(meta.userContext !== undefined ? { userContext: meta.userContext } : {})}
-        {...(meta.tokensBefore !== undefined ? { tokensBefore: meta.tokensBefore } : {})}
-        {...(meta.tokensAfter !== undefined ? { tokensAfter: meta.tokensAfter } : {})}
-        {...(meta.keptMessages !== undefined ? { keptMessages: meta.keptMessages } : {})}
+        userContext={meta.userContext}
+        tokensBefore={meta.tokensBefore}
+        tokensAfter={meta.tokensAfter}
+        keptMessages={meta.keptMessages}
         transcript={isTranscript}
       />
     );
@@ -43,25 +39,27 @@ export function CompactSummary({ message, screen }: Props): React.ReactNode {
 
   return (
     <Box flexDirection="column" marginTop={1}>
-      <Box>
+      <Box flexDirection="row">
         <Box minWidth={2}>
-          <Text>{BLACK_CIRCLE}</Text>
+          <Text color="text">{BLACK_CIRCLE}</Text>
         </Box>
-        <Text>
-          <Text bold>Compact summary</Text>
-          {!isTranscript && (
-            <Text dimColor>
-              {' '}
-              <ConfigurableShortcutHint
-                action="app:toggleTranscript"
-                context="Global"
-                fallback="ctrl+o"
-                description="expand"
-                parens={true}
-              />
-            </Text>
-          )}
-        </Text>
+        <Box flexDirection="column">
+          <Text bold>
+            Compact summary
+            {!isTranscript && (
+              <Text dimColor>
+                {' '}
+                <ConfigurableShortcutHint
+                  action="app:toggleTranscript"
+                  context="Global"
+                  fallback="ctrl+o"
+                  description="expand"
+                  parens
+                />
+              </Text>
+            )}
+          </Text>
+        </Box>
       </Box>
       {isTranscript && (
         <MessageResponse>
