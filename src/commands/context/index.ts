@@ -1,5 +1,24 @@
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
+import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
+import type { Command } from '../../commands.js'
 
-export const context: Unbuilt = unbuilt('src/commands/context/index.ts:4')
+export const context: Command = {
+  type: 'local-jsx',
+  name: 'context',
+  description: 'Chart the context window — a colored cell map of what fills it',
+  isEnabled: () => !getIsNonInteractiveSession(),
+  scope: 'agent',
+  load: () => import('./context.js'),
+}
 
-export const contextNonInteractive: Unbuilt = unbuilt('src/commands/context/index.ts:13')
+export const contextNonInteractive: Command = {
+  type: 'local',
+  name: 'context',
+  description: 'Print the context-window breakdown',
+  isEnabled: () => getIsNonInteractiveSession(),
+  get isHidden() {
+    return !getIsNonInteractiveSession()
+  },
+  supportsNonInteractive: true,
+  scope: 'agent',
+  load: () => import('./context-noninteractive.js'),
+}
