@@ -40,7 +40,7 @@ export function CompactSummary({ message, screen }: Props): React.ReactNode {
 
   return (
     <Box flexDirection="column" marginTop={1}>
-      <Box flexDirection="row">
+      <Box>
         <Box minWidth={2}>
           <Text>{BLACK_CIRCLE}</Text>
         </Box>

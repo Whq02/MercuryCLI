@@ -109,7 +109,7 @@ export function BackgroundTaskStatus({
       activeIndex,
     )
     return (
-      <Box flexDirection="row">
+      <Box>
         {win.showLeftArrow ? <Text dimColor>‹ </Text> : null}
         {pills.slice(win.startIndex, win.endIndex).map((pill, offset) => {
           const index = win.startIndex + offset

@@ -70,10 +70,10 @@ export function TagTabs({
   const hiddenRight = tabs.length - to
 
   return (
-    <Box flexDirection="row" gap={1}>
+    <Box gap={1}>
       <Text color="suggestion">{label}</Text>
       {hiddenLeft > 0 && <Text dimColor>{`← ${hiddenLeft}`}</Text>}
-      <Box flexDirection="row" gap={1}>
+      <Box gap={1}>
         {tabs.slice(from, to).map((tab, offset) => {
           const index = from + offset
           const isSelected = index === clamped

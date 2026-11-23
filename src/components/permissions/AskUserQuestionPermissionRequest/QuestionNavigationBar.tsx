@@ -56,7 +56,7 @@ export function QuestionNavigationBar({
   const isOnSubmit = currentQuestionIndex === questions.length
 
   return (
-    <Box flexDirection="row" marginBottom={1}>
+    <Box marginBottom={1}>
       {showArrows ? <Text dimColor={currentQuestionIndex === 0}>{leftArrow}</Text> : null}
       {questions.map((q, idx) => {
         const isSelected = idx === currentQuestionIndex

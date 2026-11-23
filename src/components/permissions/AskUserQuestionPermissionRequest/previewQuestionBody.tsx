@@ -67,7 +67,7 @@ export function previewQuestionBody({
         <PermissionRequestTitle title={question.question} color="text" />
         <Box marginTop={1} flexDirection="column">
           {layout.mode === 'side-by-side' ? (
-            <Box flexDirection="row" gap={2}>
+            <Box gap={2}>
               <Box width={layout.optionPaneWidth} flexShrink={0} flexDirection="column">
                 {optionRows}
               </Box>

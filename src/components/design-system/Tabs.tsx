@@ -217,7 +217,7 @@ export function Tabs({
     <TabsContext.Provider value={contextValue}>
       <Box flexDirection="column" width={contentWidth} onKeyDown={handleKeyDown}>
         {!hidden ? (
-          <Box flexDirection="row" gap={1} flexShrink={0}>
+          <Box gap={1} flexShrink={0}>
             {title !== undefined ? (
               <Text bold color={color}>
                 {title}

@@ -251,7 +251,7 @@ export function StructuredDiffFallback({
       )
       const pad = Math.max(0, contentWidth - rowWidth)
       rows.push(
-        <Box key={`${lineIndex}-${rowIndex}`} flexDirection="row">
+        <Box key={`${lineIndex}-${rowIndex}`}>
           <NoSelect fromLeftEdge flexShrink={0}>
             <Text
               dimColor={line.type === 'nochange' || dim}

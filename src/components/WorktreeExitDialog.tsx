@@ -249,7 +249,7 @@ export function WorktreeExitDialog({
 
   if (phase.kind === 'loading') {
     return (
-      <Box flexDirection="row">
+      <Box>
         <Spinner />
         <Text>Checking worktree status…</Text>
       </Box>
@@ -258,7 +258,7 @@ export function WorktreeExitDialog({
 
   if (phase.kind === 'keeping') {
     return (
-      <Box flexDirection="row">
+      <Box>
         <Spinner />
         <Text>Keeping the worktree…</Text>
       </Box>
@@ -267,7 +267,7 @@ export function WorktreeExitDialog({
 
   if (phase.kind === 'removing') {
     return (
-      <Box flexDirection="row">
+      <Box>
         <Spinner />
         <Text>Removing the worktree…</Text>
       </Box>

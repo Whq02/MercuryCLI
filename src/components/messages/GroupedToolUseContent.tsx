@@ -75,7 +75,7 @@ export function GroupedToolUseContent({
   }
 
   return (
-    <Box flexDirection="row">
+    <Box>
       <Box flexShrink={0}>
         <TranscriptNameplate />
       </Box>

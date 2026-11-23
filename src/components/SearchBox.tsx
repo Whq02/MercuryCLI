@@ -57,7 +57,6 @@ export function SearchBox({
 
   return (
     <Box
-      flexDirection="row"
       borderStyle={borderless ? undefined : 'round'}
       borderDimColor={borderless ? undefined : true}
       paddingX={borderless ? 0 : 1}

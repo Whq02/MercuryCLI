@@ -309,7 +309,7 @@ export function TaskListV2({
 
         return (
           <Box key={task.id} flexDirection="column">
-            <Box flexDirection="row">
+            <Box>
               {task.status === 'completed' ? (
                 <Text color="success">{glyph} </Text>
               ) : task.status === 'in_progress' ? (
