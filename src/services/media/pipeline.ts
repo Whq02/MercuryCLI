@@ -19,9 +19,9 @@ const runRecord = z.object({
   pipelineHash: z.string().regex(/^[a-f0-9]{64}$/), document: z.unknown(),
   status: z.string(), fromStep: z.string().optional(), steps: z.array(stepRecord), outputs: z.array(z.string()), remote: z.string().optional(),
 }).passthrough()
-export type MediaPipelineRunRecord = z.infer<typeof runRecord>
+type MediaPipelineRunRecord = z.infer<typeof runRecord>
 
-export function isMediaPipelineTool(serverName: string, toolName: string): boolean {
+function isMediaPipelineTool(serverName: string, toolName: string): boolean {
   return serverName === MEDIA_SERVER_NAME && ['pipeline_validate', 'pipeline_describe', 'pipeline_run', 'pipeline_import_workflow', 'pipeline_export_workflow'].includes(toolName)
 }
 
@@ -39,11 +39,11 @@ export async function discoverMediaPipelines(cwd: string): Promise<string[]> {
   return paths.sort()
 }
 
-export function mediaPipelineDetail(name: string, step: string): string {
+function mediaPipelineDetail(name: string, step: string): string {
   return collapseWhitespace(stripTerminalControls(`Pipeline: ${name} · step ${step}`))
 }
 
-export async function readMediaPipelineFile(path: string, cwd: string): Promise<unknown> {
+async function readMediaPipelineFile(path: string, cwd: string): Promise<unknown> {
   return JSON.parse(await readFile(resolve(cwd, path), 'utf8')) as unknown
 }
 
