@@ -60,7 +60,7 @@ import { formatError } from '../../utils/toolErrors.js'
 import { getCwd } from '../../utils/cwd.js'
 import { Stream } from '../../utils/stream.js'
 import { POWERSHELL_TOOL_NAME } from '../../constants/tools/powershell.js'
-import { McpAuthError } from '../mcp/client.js'
+import { McpAuthError, McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../mcp/client.js'
 import { createProgressMessage, turnCutOf, turnCutResultText } from '../messages.js'
 import { ambientRound, closeRound, openRoundCall, recordToolCall, repeatedResultPointer, toolResultBlockOf, withResultContent } from './loopGuard.js'
 
@@ -897,7 +897,7 @@ async function runAdmittedCall(needs: ToolCallNeeds): Promise<void> {
     const after = await afterToolHooks(tool, toolUseID, callInput, { ok: false, error: message, cut: signal.aborted, wallMs: durationMs }, toolUseContext, signal, announceHooks('tool.after'))
     settleHookWait()
     if (cutText === undefined) {
-      const { mcpMeta } = error as { mcpMeta?: UserMessage['mcpMeta'] }
+      const mcpMeta = error instanceof McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS ? error.mcpMeta : undefined
       const shellRun = shellRunOfError(tool, error)
       push({
         message: createUserMessage({

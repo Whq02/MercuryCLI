@@ -5,6 +5,7 @@ import type {
   PermissionResult,
 } from '../../types/permissions.js'
 import { BYPASSED_ASK_ROAD_WORDS } from '../../types/permissions.js'
+import { isRecord } from '../isRecord.js'
 
 interface PermissionResultWireV1 {
   [key: string]: unknown
@@ -17,11 +18,6 @@ export type DecisionReasonWireV1 =
   | { type: 'bypassedAsk'; mode: PermissionMode; road: BypassedAskRoad; reason: DecisionReasonWireV1 }
 
 const BYPASSED_ASK_ROADS: ReadonlySet<string> = new Set(Object.keys(BYPASSED_ASK_ROAD_WORDS))
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
-  return value as Record<string, unknown>
-}
 
 function isBypassedAskRoad(value: unknown): value is BypassedAskRoad {
   return typeof value === 'string' && BYPASSED_ASK_ROADS.has(value)
@@ -47,56 +43,51 @@ export function encodeDecisionReasonForWire(
   return { type: 'subcommandResults', reasons }
 }
 
+function untouchedWhen(minimumHolds: boolean, value: unknown): PermissionDecisionReason | undefined {
+  return minimumHolds ? (value as PermissionDecisionReason) : undefined
+}
+
 export function decodeDecisionReasonFromWire(value: unknown): PermissionDecisionReason | undefined {
-  const record = asRecord(value)
-  if (record === undefined || typeof record.type !== 'string') return undefined
-  switch (record.type) {
+  if (!isRecord(value) || typeof value.type !== 'string') return undefined
+  switch (value.type) {
     case 'rule': {
-      const rule = asRecord(record.rule)
-      const ruleValue = rule ? asRecord(rule.ruleValue) : undefined
-      return ruleValue && typeof ruleValue.toolName === 'string'
-        ? (value as PermissionDecisionReason)
-        : undefined
+      const ruleValue = isRecord(value.rule) ? value.rule.ruleValue : undefined
+      return untouchedWhen(isRecord(ruleValue) && typeof ruleValue.toolName === 'string', value)
     }
     case 'mode':
-      return typeof record.mode === 'string' ? (value as PermissionDecisionReason) : undefined
+      return untouchedWhen(typeof value.mode === 'string', value)
     case 'hook':
-      return typeof record.hookName === 'string' ? (value as PermissionDecisionReason) : undefined
+      return untouchedWhen(typeof value.hookName === 'string', value)
     case 'asyncAgent':
     case 'workingDir':
     case 'other':
-      return typeof record.reason === 'string' ? (value as PermissionDecisionReason) : undefined
+      return untouchedWhen(typeof value.reason === 'string', value)
     case 'guard':
-      return typeof record.reason === 'string' && typeof record.guard === 'string'
-        ? (value as PermissionDecisionReason)
-        : undefined
+      return untouchedWhen(typeof value.reason === 'string' && typeof value.guard === 'string', value)
     case 'safetyCheck':
-      return typeof record.reason === 'string' && typeof record.operatorOnly === 'boolean'
-        ? (value as PermissionDecisionReason)
-        : undefined
+      return untouchedWhen(typeof value.reason === 'string' && typeof value.operatorOnly === 'boolean', value)
     case 'permissionPromptTool':
-      return value as PermissionDecisionReason
+      return untouchedWhen(true, value)
     case 'bypassedAsk': {
-      if (typeof record.mode !== 'string' || !isBypassedAskRoad(record.road)) return undefined
-      const reason = decodeDecisionReasonFromWire(record.reason)
+      if (typeof value.mode !== 'string' || !isBypassedAskRoad(value.road)) return undefined
+      const reason = decodeDecisionReasonFromWire(value.reason)
       if (reason === undefined) return undefined
       return {
         type: 'bypassedAsk',
-        mode: record.mode as PermissionMode,
-        road: record.road,
+        mode: value.mode as PermissionMode,
+        road: value.road,
         reason,
       }
     }
     case 'subcommandResults': {
-      if (!Array.isArray(record.reasons)) return undefined
+      if (!Array.isArray(value.reasons)) return undefined
       const reasons = new Map<string, PermissionResult>()
-      for (const entry of record.reasons) {
+      for (const entry of value.reasons) {
         if (!Array.isArray(entry) || entry.length !== 2) continue
         const [command, rawResult] = entry
         if (typeof command !== 'string') continue
-        const resultRecord = asRecord(rawResult)
-        if (resultRecord === undefined) continue
-        const { decisionReason, ...rest } = resultRecord
+        if (!isRecord(rawResult)) continue
+        const { decisionReason, ...rest } = rawResult
         const decoded = decodeDecisionReasonFromWire(decisionReason)
         const next: object = decoded !== undefined ? { ...rest, decisionReason: decoded } : rest
         reasons.set(command, next as PermissionResult)
