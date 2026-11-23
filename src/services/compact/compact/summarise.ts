@@ -36,12 +36,6 @@ async function summarizeViaCacheSharingFork(
   const estTokens = tokenCountWithEstimation(messages)
   const cold = coldPrefixOf(messages, model)
   const bound = armFoldBound(context.abortController.signal, 'fork', estTokens, model, cold)
-  const handOverAtBound = (): null => {
-    const elapsed = Date.now() - startedAt
-    logForDebugging(`compact: fork lane cut for ${foldCutWords(bound)} after ${elapsed} ms — handing over to the direct call`, { level: 'warn' })
-    recordFoldRoad(model, 'fork', startedAt, 'handover', `fold bound after ${elapsed} ms`)
-    return null
-  }
   context.setResponseLength?.(() => 0)
   try {
     const getAppState = () => {
@@ -85,7 +79,12 @@ async function summarizeViaCacheSharingFork(
         getAppState,
       },
     })
-    if (bound.hitDeadline()) return handOverAtBound()
+    if (bound.hitDeadline()) {
+      const elapsed = Date.now() - startedAt
+      logForDebugging(`compact: fork lane hit its fold bound (${foldCutWords(bound)}) after ${elapsed} ms mid-stream — its partial output is discarded; handing over to the direct call`, { level: 'warn' })
+      recordFoldRoad(model, 'fork', startedAt, 'handover', `fold bound after ${elapsed} ms (partial output discarded)`)
+      return null
+    }
     if (context.abortController.signal.aborted) {
       recordFoldRoad(model, 'fork', startedAt, 'aborted')
       return null
@@ -119,18 +118,25 @@ async function summarizeViaCacheSharingFork(
         })
       }
     }
-    logForDebugging('compact: fork lane did not produce a usable summary — handing over to direct lane', { level: 'warn' })
+    logForDebugging(`compact: fork path produced no usable summary: ${JSON.stringify(result.messages).slice(0, 500)}`, { level: 'warn' })
     recordFoldRoad(model, 'fork', startedAt, 'handover', 'no usable summary')
     return null
   } catch (error) {
     if (error instanceof CompactionRefusedForHistoryError) throw error
-    if (bound.hitDeadline()) return handOverAtBound()
+    const elapsed = Date.now() - startedAt
+    if (bound.hitDeadline()) {
+      logForDebugging(`compact: fork lane hit its fold bound (${foldCutWords(bound)}) after ${elapsed} ms — handing over to the direct call`, { level: 'warn' })
+      recordFoldRoad(model, 'fork', startedAt, 'handover', `fold bound after ${elapsed} ms`)
+      return null
+    }
     if (context.abortController.signal.aborted) {
       recordFoldRoad(model, 'fork', startedAt, 'aborted')
       return null
     }
     logError(error)
-    recordFoldRoad(model, 'fork', startedAt, 'handover', error instanceof Error ? error.message : String(error))
+    const message = error instanceof Error ? error.message : String(error)
+    logForDebugging(`compact: fork lane failed after ${elapsed} ms — handing over to the direct call: ${message}`, { level: 'warn' })
+    recordFoldRoad(model, 'fork', startedAt, 'handover', message.slice(0, 160))
     return null
   } finally {
     bound.dispose()
@@ -194,6 +200,9 @@ async function summarizeDirect(
       continuation !== null
         ? [...continuation.sent, ...continuation.tail, promptMessage]
         : [...projected, promptMessage]
+    if (continuation !== null) {
+      logForDebugging(`compact: direct lane re-sends the session's last request (${continuation.sent.length} rows) + ${continuation.tail.length} newer row(s) + the prompt`)
+    }
 
     const systemPrompt = asSystemPrompt(
       appendSystemContext(cacheSafeParams.systemPrompt ?? [], cacheSafeParams.systemContext ?? {}, model),
