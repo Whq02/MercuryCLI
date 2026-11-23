@@ -5,7 +5,6 @@ import { projectConfigDirs } from './projectConfig.js'
 import { projectLocalPath } from './projectLocal/paths.js'
 import { projectHomePath, projectHomeStore } from './projectHomeStores.js'
 import { CORRECT_TOOL_NAME, RECALL_TOOL_NAME, REFLECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../constants/tools/memory.js'
-import { notBuilt } from '../pi/holes.js'
 
 export type AgentMemoryScope = 'user' | 'project' | 'local'
 
@@ -27,7 +26,15 @@ export function getAgentMemoryDir(
   agentType: string,
   scope: AgentMemoryScope,
 ): string {
-  return notBuilt('src/utils/agentMemory.ts:30')
+  const normalizedType = agentType.replace(/:/g, '-')
+  switch (scope) {
+    case 'user':
+      return `${join(getMemoryBaseDir(), AGENT_MEMORY_SUBDIR, normalizedType)}${sep}`
+    case 'project':
+      return `${projectLocalPath(getCwd(), AGENT_MEMORY_SUBDIR, normalizedType)}${sep}`
+    case 'local':
+      return `${join(projectHomeStore(getCwd(), AGENT_MEMORY_LOCAL_SUBDIR), normalizedType)}${sep}`
+  }
 }
 
 function isUnder(candidate: string, dir: string): boolean {
@@ -58,8 +65,12 @@ const SCOPE_GUIDELINES: Record<AgentMemoryScope, string> = {
 }
 
 export function loadAgentMemoryPrompt(
-  agentType: string,
+  _agentType: string,
   scope: AgentMemoryScope,
 ): string {
-  return notBuilt('src/utils/agentMemory.ts:74')
+  return [
+    '# Memory',
+    `You share Mercury's memory store through ${RECALL_TOOL_NAME}, ${RETAIN_TOOL_NAME}, ${REFLECT_TOOL_NAME}, and ${CORRECT_TOOL_NAME}.`,
+    SCOPE_GUIDELINES[scope],
+  ].join('\n')
 }
