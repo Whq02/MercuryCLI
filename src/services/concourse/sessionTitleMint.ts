@@ -76,10 +76,10 @@ async function mintOne(rec: ConcourseWorkerRecordV1, description: string, signal
   if (title === null) return false
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-    const reply = (await daemonControlRpc(
+    const reply = await daemonControlRpc(
       { op: 'sessionControl', action: 'set-title', sessionId: rec.sessionId, by: 'title-mint', title, titleSource: 'minted' },
       { timeoutMs: 10_000 },
-    )) as { ok?: boolean; outcome?: string }
+    )
     return reply.ok === true && reply.outcome === 'applied'
   } catch (e) {
     logForDebugging(`[session-title] mint store failed for ${rec.sessionId}: ${e}`)

@@ -90,12 +90,12 @@ export async function restartSessionOnInstalledBuild(args: {
   const runnerAlive = (r: { pid?: number }): boolean => r.pid !== undefined && isProcessAlive(r.pid)
   if (runnerAlive(rec)) {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-    const stop = (await daemonControlRpc(
+    const stop = await daemonControlRpc(
       { op: 'sessionControl', action: 'stop', sessionId: args.sessionId, by: `operator:${process.pid}` },
       { timeoutMs: 15_000 },
-    )) as { ok?: boolean; outcome?: string; detail?: string; error?: string }
+    )
     if (stop.ok !== true || stop.outcome === 'refused') {
-      return { ok: false, reason: `the session was not stopped, so it stays as it is — ${stop.detail ?? stop.error ?? 'the daemon refused the stop'}` }
+      return { ok: false, reason: `the session was not stopped, so it stays as it is — ${(stop.ok ? stop.detail : stop.error) ?? 'the daemon refused the stop'}` }
     }
     const settled: NonNullable<ReturnType<typeof standing>> | null = await pollUntil(
       () => {

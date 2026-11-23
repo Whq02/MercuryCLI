@@ -26,14 +26,14 @@ export async function call(
   }
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-    const reply = (await daemonControlRpc(
+    const reply = await daemonControlRpc(
       { op: 'sessionControl', action: 'set-title', sessionId, by: 'operator', title, titleSource: 'operator' },
       { timeoutMs: 10_000 },
-    )) as { ok?: boolean; outcome?: string; detail?: string }
+    )
     if (reply.ok === true && reply.outcome === 'applied') {
       onDone(`Titled this session "${title}"`, { display: 'system' })
     } else {
-      onDone(`The title was not set — ${reply.detail ?? 'the daemon refused it'}`, { display: 'system' })
+      onDone(`The title was not set — ${(reply.ok ? reply.detail : undefined) ?? 'the daemon refused it'}`, { display: 'system' })
     }
   } catch {
     onDone('The title was not set — the daemon that hosts sessions was unreachable.', { display: 'system' })

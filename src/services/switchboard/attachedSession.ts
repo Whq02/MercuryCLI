@@ -13,10 +13,10 @@ export async function completeHandback(
     await ensureOwnedDaemon()
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
     const action = kind === 'detach' ? 'detach' : kind === 'grant-workflows' ? 'grant-workflows' : 'resume'
-    const reply = (await daemonControlRpc(
+    const reply = await daemonControlRpc(
       { op: 'sessionControl', action, sessionId, by: 'operator', mintedAtMs },
       { timeoutMs: 20_000 },
-    )) as { ok?: boolean; outcome?: string; detail?: string }
+    )
     const applied = reply.ok === true && (reply.outcome === 'applied' || reply.outcome === 'noop')
     const nothingToDo =
       reply.ok === true &&

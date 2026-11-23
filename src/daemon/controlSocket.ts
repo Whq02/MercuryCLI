@@ -28,6 +28,7 @@ import {
   encodeFrame,
   verbBornAt,
   type DaemonReply,
+  type DaemonReplyTo,
   type DaemonRequest,
 } from './protocol.js'
 import { SESSION_VERBS, type SessionVerbRow } from '../runner/wire/sessionVerbs.js'
@@ -335,6 +336,10 @@ export type DaemonRpcRequest = DaemonRequest extends infer R
     : R
   : never
 
+export async function daemonControlRpc<Op extends DaemonRpcRequest['op']>(
+  req: DaemonRpcRequest & { op: Op },
+  opts?: { timeoutMs?: number; protoRetry?: boolean },
+): Promise<DaemonReplyTo<Op> & { frameWritten?: boolean }>
 export async function daemonControlRpc(
   req: DaemonRpcRequest,
   opts: { timeoutMs?: number; protoRetry?: boolean } = {},

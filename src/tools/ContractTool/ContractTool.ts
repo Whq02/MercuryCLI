@@ -45,7 +45,7 @@ async function readOwnContract(): Promise<{ contract: SessionContractV1 | undefi
 async function contractVerb(op: 'ack' | 'close'): Promise<{ ok: boolean; detail?: string }> {
   const sessionId = getSessionId()
   const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-  const reply = (await daemonControlRpc(
+  const reply = await daemonControlRpc(
     {
       op: 'sessionControl',
       action: 'contract',
@@ -55,8 +55,9 @@ async function contractVerb(op: 'ack' | 'close'): Promise<{ ok: boolean; detail?
       clientOpId: `contract-${op}-${sessionId.slice(0, 8)}-${Date.now().toString(36)}`,
     },
     { timeoutMs: 10_000 },
-  )) as { ok?: boolean; outcome?: string; detail?: string }
-  return { ok: reply.ok === true && (reply.outcome === 'applied' || reply.outcome === 'noop'), ...(reply.detail !== undefined ? { detail: reply.detail } : {}) }
+  )
+  const detail = reply.ok ? reply.detail : undefined
+  return { ok: reply.ok === true && (reply.outcome === 'applied' || reply.outcome === 'noop'), ...(detail !== undefined ? { detail } : {}) }
 }
 
 const NO_CONTRACT =

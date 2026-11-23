@@ -16,10 +16,7 @@ export async function call(
 
   const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
   const readContract = async (): Promise<{ found: boolean; contract?: SessionContractV1 }> => {
-    const reply = (await daemonControlRpc({ op: 'sessionList' }, { timeoutMs: 10_000 })) as {
-      ok?: boolean
-      workers?: ReadonlyArray<Record<string, unknown>>
-    }
+    const reply = await daemonControlRpc({ op: 'sessionList' }, { timeoutMs: 10_000 })
     if (reply.ok !== true || !Array.isArray(reply.workers)) return { found: false }
     const rec = reply.workers.find(w => w.sessionId === sessionId && w.endedAt === undefined)
     if (rec === undefined) return { found: false }
@@ -27,11 +24,11 @@ export async function call(
     return { found: true, ...(c !== undefined ? { contract: c } : {}) }
   }
   const sendOp = async (op: 'set' | 'ack' | 'amend' | 'close', text?: string): Promise<{ ok: boolean; outcome?: string; detail?: string }> => {
-    const reply = (await daemonControlRpc(
+    const reply = await daemonControlRpc(
       { op: 'sessionControl', action: 'contract', sessionId, by: 'operator', contract: { op, ...(text !== undefined ? { text } : {}) } },
       { timeoutMs: 10_000 },
-    )) as { ok?: boolean; outcome?: string; detail?: string }
-    return { ok: reply.ok === true, ...(reply.outcome !== undefined ? { outcome: reply.outcome } : {}), ...(reply.detail !== undefined ? { detail: reply.detail } : {}) }
+    )
+    return reply.ok ? { ok: true, outcome: reply.outcome, ...(reply.detail !== undefined ? { detail: reply.detail } : {}) } : { ok: false }
   }
 
   try {

@@ -48,7 +48,7 @@ export function answerPermission({ noteControl, refresh }: RouteControls, reques
       const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
       const o = await import('../../../services/crew/obligations.js')
       const row = await o.obligationOf(obligationId, { scope: 'switchboard' })
-      const reply = (await daemonControlRpc(
+      const reply = await daemonControlRpc(
         {
           op: 'concourseControl',
           action: 'answer-permission',
@@ -58,13 +58,13 @@ export function answerPermission({ noteControl, refresh }: RouteControls, reques
           allow,
         },
         { timeoutMs: 15_000 },
-      )) as { ok?: boolean; outcome?: string; detail?: string }
+      )
       if (reply.ok === true && reply.outcome === 'applied') {
         noteControl('strip:composer', { state: 'applied', reason: allow ? 'allowed' : 'denied' })
       } else {
         noteControl('strip:composer', {
           state: 'refused',
-          reason: reply.detail ?? 'the ask was already answered',
+          reason: (reply.ok ? reply.detail : undefined) ?? 'the ask was already answered',
         })
       }
     } catch {

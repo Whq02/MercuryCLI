@@ -73,10 +73,10 @@ export function stopSession({ noteControl, stopAwaitingStampRef, refresh }: Rout
         return
       }
       const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
-      const reply = (await daemonControlRpc(
+      const reply = await daemonControlRpc(
         { op: 'concourseControl', action: 'stop', sessionId, by: 'operator' },
         { timeoutMs: 15_000 },
-      )) as { ok?: boolean; outcome?: string; detail?: string; error?: string; code?: string }
+      )
       const acknowledged = reply.ok === true && reply.outcome === 'applied' && /^stopped /.test(reply.detail ?? '')
       if (reply.ok === true && reply.outcome === 'applied' && !acknowledged && reply.detail !== undefined) stopAwaitingStampRef.current.add(sessionId)
       noteControl(
@@ -86,7 +86,7 @@ export function stopSession({ noteControl, stopAwaitingStampRef, refresh }: Rout
               state: 'applied',
               reason: acknowledged || reply.outcome === 'noop' || reply.detail === undefined ? `stopped — ${keyHintLabel('⌃x ⌃x')} archives it (the chat stands parked)` : reply.detail,
             }
-          : { state: 'refused', reason: reply.detail ?? reply.error ?? `stop refused${reply.code !== undefined ? ` (${reply.code})` : ''}` },
+          : { state: 'refused', reason: (reply.ok ? reply.detail : reply.error) ?? `stop refused${reply.ok ? '' : ` (${reply.code})`}` },
       )
     } catch {
       noteControl('strip:composer', { state: 'failed', reason: 'the daemon was unreachable', next: `${keyHintLabel('⌃x ⌃x')} retries` })
@@ -106,10 +106,10 @@ export function archiveSession({ noteControl, refresh, snapshotRef }: RouteContr
         return
       }
       const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
-      const reply = (await daemonControlRpc(
+      const reply = await daemonControlRpc(
         { op: 'sessionControl', action: 'park', sessionId, by: 'operator' },
         { timeoutMs: 15_000 },
-      )) as { ok?: boolean; outcome?: string; detail?: string; error?: string; code?: string }
+      )
       const parkApplied = reply.ok === true && reply.outcome !== 'refused'
       const workers = await import('../../../daemon/concourseWorkers.js')
       const released = parkApplied && !Object.values(workers.readSessionWorkers()).some(r => r.sessionId === sessionId && r.endedAt === undefined)
@@ -126,7 +126,7 @@ export function archiveSession({ noteControl, refresh, snapshotRef }: RouteContr
               ? { state: 'applied', reason: 'removed from the board — the chat held no message' }
               : clearedMarkMissedNote()
             : { state: 'applied', reason: `archived — the chat stands parked; ${keyHintLabel('⌃x ⌃x')} again in 5 s deletes it` }
-          : { state: 'refused', reason: reply.detail ?? reply.error ?? `archive refused${reply.code !== undefined ? ` (${reply.code})` : ''}` },
+          : { state: 'refused', reason: (reply.ok ? reply.detail : reply.error) ?? `archive refused${reply.ok ? '' : ` (${reply.code})`}` },
       )
     } catch {
       noteControl('strip:composer', { state: 'failed', reason: 'the daemon was unreachable', next: `${keyHintLabel('⌃x ⌃x')} retries` })
@@ -143,10 +143,10 @@ export function removeSession({ noteControl, refresh, snapshotRef }: RouteContro
         let gone = false
         try {
           const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
-          const reply = (await daemonControlRpc(
+          const reply = await daemonControlRpc(
             { op: 'concourseWithdraw', clientMessageId },
             { timeoutMs: 10_000 },
-          )) as { ok?: boolean; withdrawn?: boolean }
+          )
           if (reply.ok !== true) throw new Error('withdraw rpc refused')
           gone = reply.withdrawn === true
         } catch {
@@ -194,10 +194,10 @@ export function removeSession({ noteControl, refresh, snapshotRef }: RouteContro
       let reply: { ok?: boolean; settled?: boolean; error?: string; code?: string }
       if (daemonUp) {
         const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
-        reply = (await daemonControlRpc(
+        reply = await daemonControlRpc(
           { op: 'sessionRelease', runnerId: rec.runnerId },
           { timeoutMs: 15_000 },
-        )) as typeof reply
+        )
       } else {
         const { isProcessAlive } = await import('../../../utils/ownerWatch.js')
         const runnerAlive = rec.pid !== undefined && isProcessAlive(rec.pid)
@@ -238,15 +238,15 @@ export function renameSession({ noteControl, refresh }: RouteControls, sessionId
   void (async () => {
     try {
       const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
-      const reply = (await daemonControlRpc(
+      const reply = await daemonControlRpc(
         { op: 'concourseControl', action: 'set-title', sessionId, by: 'operator', title, titleSource: 'operator' },
         { timeoutMs: 10_000 },
-      )) as { ok?: boolean; outcome?: string; detail?: string }
+      )
       noteControl(
         'strip:composer',
         reply.ok === true && reply.outcome === 'applied'
           ? { state: 'applied', reason: `renamed to "${title.trim().slice(0, 40)}"` }
-          : { state: 'refused', reason: reply.detail ?? 'the title was not set' },
+          : { state: 'refused', reason: (reply.ok ? reply.detail : undefined) ?? 'the title was not set' },
       )
     } catch {
       noteControl('strip:composer', { state: 'failed', reason: 'the daemon was unreachable', next: 'r retries' })

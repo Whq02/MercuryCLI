@@ -30,7 +30,7 @@ export function useConcourseEntry({
       const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
       const entries = await store.readConcourseQueuedStack(dispatchId)
       for (const entry of entries) {
-        const reply = (await daemonControlRpc(
+        const reply = await daemonControlRpc(
           {
             op: 'concourseDispatch',
             clientMessageId: entry.clientMessageId,
@@ -40,7 +40,7 @@ export function useConcourseEntry({
             by: 'operator',
           },
           { timeoutMs: 15_000 },
-        )) as { ok?: boolean; refusal?: string }
+        )
         if (reply.ok === true) {
           await store.removeConcourseQueuedStackEntry(dispatchId, entry.clientMessageId)
         } else if (reply.refusal === 'edited-replay') {

@@ -189,8 +189,8 @@ export function useConcourseDraftDispatch({
         let tries = 0
         const ready = await pollUntil(
           async () => {
-            const probe = (await daemonControlRpc({ op: 'concourseList' }, { timeoutMs: 500 })) as { code?: string }
-            if (probe.code !== 'ENOCONN') return true
+            const probe = await daemonControlRpc({ op: 'concourseList' }, { timeoutMs: 500 })
+            if (probe.ok || probe.code !== 'ENOCONN') return true
             tries += 1
             return tries >= 40 ? false : undefined
           },

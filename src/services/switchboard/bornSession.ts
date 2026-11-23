@@ -179,7 +179,7 @@ async function admitAndEnter(
         ...(req.vacatingSessionId !== undefined ? { vacatingSessionId: req.vacatingSessionId } : {}),
       },
       { timeoutMs: 60_000 },
-    ) as Promise<Record<string, unknown>>
+    )
     reply = await admitWithDaemonRecheck(() => admit(), ensureOwnedDaemon)
     if (reply.ok !== true && reply.refusal === 'runtime-ceiling') {
       mintImmediateReceipt(`▲ ${seatWaitWords(reply)}`, 'warning')

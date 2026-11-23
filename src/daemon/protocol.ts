@@ -422,6 +422,12 @@ export type DaemonReply =
       serverVersion?: string
     }
 
+export type DaemonReplyTo<Op extends DaemonRequest['op'], Reply = DaemonReply> = Reply extends { ok: true; op: infer Answered }
+  ? Op extends Answered
+    ? Reply
+    : never
+  : Reply
+
 export interface WireStatus {
   pid: number
   version: string

@@ -124,7 +124,7 @@ export async function warmSessionRunner(workspaceDir: string, retiring?: string)
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
     const { bootBirthFacts, carriedConsentOf, carriedKitOf } = await import('./bootBirthFacts.js')
-    const reply = (await daemonControlRpc(
+    const reply = await daemonControlRpc(
       {
         op: 'concourseWarm',
         workspaceDir,
@@ -134,7 +134,7 @@ export async function warmSessionRunner(workspaceDir: string, retiring?: string)
         ...carriedKitOf(bootBirthFacts()),
       },
       { timeoutMs: 5_000 },
-    )) as { ok?: boolean; state?: string }
+    )
     return reply.ok === true && (reply.state === 'warmed' || reply.state === 'kept')
   } catch (error) {
     passedOver(error)

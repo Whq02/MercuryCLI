@@ -77,10 +77,10 @@ export function interruptSession({ peekOpInFlight, noteControl, mintControlOpId,
       const { randomUUID } = await import('../../../utils/crypto.js')
       const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
       const clientOpId = mintControlOpId(`interrupt:${sessionId}`, `concourse-op-${randomUUID()}`)
-      const reply = (await daemonControlRpc(
+      const reply = await daemonControlRpc(
         { op: 'concourseControl', action: 'interrupt', sessionId, by: 'operator', clientOpId },
         { timeoutMs: 15_000 },
-      )) as { ok?: boolean; outcome?: string; detail?: string; error?: string; code?: string }
+      )
       if (reply.ok !== true) {
         if (reply.code !== 'ETIMEOUT' && reply.code !== 'ENOCONN') controlOpIdRef.current.delete(`interrupt:${sessionId}`)
         noteControl(`board:row-control:${sessionId}`, {
@@ -116,10 +116,10 @@ export function setSessionModel({ peekOpInFlight, noteControl, refresh }: RouteC
   void (async () => {
     try {
       const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
-      const reply = (await daemonControlRpc(
+      const reply = await daemonControlRpc(
         { op: 'concourseControl', action: 'set-model', sessionId, by: 'operator', model: modelId },
         { timeoutMs: 15_000 },
-      )) as { ok?: boolean; outcome?: string; detail?: string; error?: string; code?: string }
+      )
       noteControl(
         `board:row-control:${sessionId}`,
         reply.ok === true && reply.outcome === 'applied'
@@ -129,8 +129,8 @@ export function setSessionModel({ peekOpInFlight, noteControl, refresh }: RouteC
             : reply.ok === true && reply.outcome === 'noop'
               ? { state: 'applied', reason: reply.detail ?? `already on ${spoken}` }
               : {
-                  state: reply.code === 'ETIMEOUT' || reply.code === 'ENOCONN' ? 'failed' : 'refused',
-                  reason: reply.detail ?? reply.error ?? 'the model was not switched',
+                  state: !reply.ok && (reply.code === 'ETIMEOUT' || reply.code === 'ENOCONN') ? 'failed' : 'refused',
+                  reason: (reply.ok ? reply.detail : reply.error) ?? 'the model was not switched',
                   next: 'm retries',
                 },
       )
@@ -188,10 +188,10 @@ export function setSessionEffort({ peekOpInFlight, noteControl, refresh }: Route
   void (async () => {
     try {
       const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
-      const reply = (await daemonControlRpc(
+      const reply = await daemonControlRpc(
         { op: 'concourseControl', action: 'set-effort', sessionId, by: 'operator', effort },
         { timeoutMs: 15_000 },
-      )) as { ok?: boolean; outcome?: string; detail?: string; error?: string; code?: string }
+      )
       noteControl(
         `board:row-control:${sessionId}`,
         reply.ok === true && reply.outcome === 'applied'
@@ -201,8 +201,8 @@ export function setSessionEffort({ peekOpInFlight, noteControl, refresh }: Route
             : reply.ok === true && reply.outcome === 'noop'
               ? { state: 'applied', reason: reply.detail ?? `already at ${effort}` }
               : {
-                  state: reply.code === 'ETIMEOUT' || reply.code === 'ENOCONN' ? 'failed' : 'refused',
-                  reason: reply.detail ?? reply.error ?? 'the effort was not set',
+                  state: !reply.ok && (reply.code === 'ETIMEOUT' || reply.code === 'ENOCONN') ? 'failed' : 'refused',
+                  reason: (reply.ok ? reply.detail : reply.error) ?? 'the effort was not set',
                   next: 'e retries',
                 },
       )

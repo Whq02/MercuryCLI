@@ -86,7 +86,7 @@ export function useConcourseAdmissionPump({
             const w = workers.find(x => x.sessionId === sessionId && x.endedAt === undefined)
             const free = w !== undefined && w.attachedAt === undefined && w.pausedAt === undefined && w.attachRequestedAt === undefined
             if (!free) continue
-            const dreply = (await daemonControlRpc(
+            const dreply = await daemonControlRpc(
               {
                 op: 'concourseDispatch',
                 clientMessageId: heldDelivery.clientMessageId,
@@ -96,7 +96,7 @@ export function useConcourseAdmissionPump({
                 by: 'operator',
               },
               { timeoutMs: 15_000 },
-            )) as { ok?: boolean; heldReason?: string }
+            )
             if (dreply.ok === true || dreply.heldReason === undefined) {
               await store.writeConcourseHeldDelivery(sessionId, null)
               refresh()

@@ -161,7 +161,7 @@ function seatVerb(action: 'focus' | 'blur', sessionId: string): void {
         const terminal = driver.state === 'ok' ? await driver.driver.ownTerminalApplication() : null
         terminalApplication = terminal?.ok && terminal.value !== null ? { identity: terminal.value.identity, name: terminal.value.name, windowId: terminal.value.windowId ?? null, tty: terminal.value.tty ?? null } : null
       }
-      const reply = (await daemonControlRpc({ op: 'sessionControl', action, sessionId, by: SEAT_BY, ...(terminalApplication !== undefined ? { terminalApplication } : {}) }, { timeoutMs: RPC_TIMEOUT_MS })) as { ok?: boolean; error?: string }
+      const reply = await daemonControlRpc({ op: 'sessionControl', action, sessionId, by: SEAT_BY, ...(terminalApplication !== undefined ? { terminalApplication } : {}) }, { timeoutMs: RPC_TIMEOUT_MS })
       if (reply.ok !== true) logForDebugging(`[engine-connector] ${action} ${sessionId} not applied: ${reply.error ?? 'no reply'}`)
     })
     .catch(e => logForDebugging(`[engine-connector] ${action} ${sessionId} threw: ${e}`))

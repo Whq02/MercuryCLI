@@ -35,12 +35,12 @@ export function newSession({ noteControl, splitFrameStands, birthInFlightRef, se
       if (contractText.length > 0) {
         try {
           const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
-          const reply = (await daemonControlRpc(
+          const reply = await daemonControlRpc(
             { op: 'sessionControl', action: 'contract', sessionId: born.sessionId, by: 'operator', contract: { op: 'set', text: contractText } },
             { timeoutMs: 10_000 },
-          )) as { ok?: boolean; outcome?: string; detail?: string }
+          )
           if (reply.ok !== true || reply.outcome !== 'applied') {
-            contractNote = ` — the contract was not set (${reply.detail ?? 'the daemon refused it'}); /contract retries`
+            contractNote = ` — the contract was not set (${(reply.ok ? reply.detail : undefined) ?? 'the daemon refused it'}); /contract retries`
           }
         } catch {
           contractNote = ' — the contract was not set (the daemon was unreachable); /contract retries'

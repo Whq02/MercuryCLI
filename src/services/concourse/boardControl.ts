@@ -72,7 +72,7 @@ export async function executeBoardControl(
     case 'session.redirect': {
       const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
       try {
-        const reply = (await daemonControlRpc(
+        const reply = await daemonControlRpc(
           {
             op: 'sessionDispatch',
             clientMessageId: decision.clientMessageId,
@@ -82,8 +82,8 @@ export async function executeBoardControl(
             by: decision.by,
           },
           { timeoutMs: 15_000 },
-        )) as { ok?: boolean; state?: string; error?: string; code?: string; heldReason?: string }
-        const lost = reply.code === 'ETIMEOUT' || reply.code === 'ENOCONN'
+        )
+        const lost = !reply.ok && (reply.code === 'ETIMEOUT' || reply.code === 'ENOCONN')
         const heldOpen = reply.ok !== true && reply.state === 'queued' && typeof reply.heldReason === 'string'
         return {
           verb: decision.verb,

@@ -235,10 +235,10 @@ async function admitResumedSession(
       const admit = async (): Promise<Record<string, unknown>> => {
         const boot = bootBirthFacts()
         const permissionMode = opts?.permissionMode ?? boot.permissionMode ?? undefined
-        return (await daemonControlRpc(
+        return await daemonControlRpc(
           { op: 'sessionAdmit', workspaceDir, resumeSessionId: sessionId, isolation: 'shared', by: 'operator', ...launch, ...(permissionMode !== undefined ? { permissionMode } : {}), ...carriedTypedModeOf(boot, permissionMode), ...carriedConsentOf(boot), ...(opts?.restartReason === undefined ? carriedRunnerArgvOf(boot) : {}), ...(worn !== null ? { kit: worn.kit } : carriedKitOf(boot)), ...(opts?.restartReason !== undefined ? { restartReason: opts.restartReason } : {}) },
           { timeoutMs: 60_000 },
-        )) as Record<string, unknown>
+        )
       }
       const parkedStill = (): boolean => Object.values(workers.readSessionWorkers()).some(r => r.sessionId === sessionId && r.endedAt === undefined && r.parkedAt !== undefined)
       let reply = await admit()
@@ -319,13 +319,13 @@ export async function closeFocusedChat(opts: { fate: 'park' | 'end' }): Promise<
       const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
       if (opts.fate === 'end') {
         await daemonControlRpc({ op: 'sessionControl', action: 'stop', sessionId, by: 'operator' }, { timeoutMs: 15_000 })
-        const released = (await daemonControlRpc({ op: 'sessionRelease', runnerId: rec.runnerId }, { timeoutMs: 15_000 })) as { ok?: boolean; settled?: boolean }
+        const released = await daemonControlRpc({ op: 'sessionRelease', runnerId: rec.runnerId }, { timeoutMs: 15_000 })
         if (released.ok === true && released.settled !== false) fate = 'ended'
       } else {
-        const parked = (await daemonControlRpc(
+        const parked = await daemonControlRpc(
           { op: 'sessionControl', action: 'park', sessionId, by: `operator:${process.pid}` },
           { timeoutMs: 15_000 },
-        )) as { ok?: boolean; outcome?: string; detail?: string }
+        )
         if (parked.ok === true) {
           fate = parked.outcome === 'draining' ? 'draining' : parked.outcome === 'applied' && (parked.detail ?? '').startsWith('released') ? 'released' : parked.outcome === 'applied' || parked.outcome === 'noop' ? 'parked' : 'none'
         }
@@ -370,7 +370,7 @@ async function parkSessionById(sessionId: string): Promise<string | null> {
   if (rec === undefined) return null
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-    const reply = (await daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId, by: `operator:${process.pid}` }, { timeoutMs: 15_000 })) as { ok?: boolean; error?: unknown }
+    const reply = await daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId, by: `operator:${process.pid}` }, { timeoutMs: 15_000 })
     return reply.ok === true ? null : String(reply.error ?? 'refused')
   } catch (error) {
     return errorMessage(error)

@@ -79,7 +79,7 @@ async function attemptSwitchRentingSession(record: Pick<HostRecord, 'sessionId'>
     if (row.state === 'absent') return { state: 'skipped' }
     if (row.state === 'failed') return { state: 'failed', detail: row.detail }
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-    const reply = await daemonControlRpc({ op: 'sessionControl', action: 'set-model', sessionId: record.sessionId, by: 'llmhost', model }, { timeoutMs: 30_000 }) as { ok?: boolean; outcome?: string; error?: string; code?: string }
+    const reply = await daemonControlRpc({ op: 'sessionControl', action: 'set-model', sessionId: record.sessionId, by: 'llmhost', model }, { timeoutMs: 30_000 })
     if (reply.ok === true) return reply.outcome === 'applied' || reply.outcome === 'queued' ? { state: 'restored' } : { state: 'skipped' }
     return { state: 'failed', detail: typeof reply.error === 'string' && reply.error.trim() ? reply.error.trim() : reply.code ?? 'model switch rejected' }
   } catch (error) {
