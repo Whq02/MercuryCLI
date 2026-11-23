@@ -39,20 +39,22 @@ export const PREAPPROVED_HOSTS: ReadonlySet<string> = new Set(Object.values(DOCU
 type Reach = { whole: true } | { prefixes: string[] }
 
 function reachTable(entries: Iterable<string>): ReadonlyMap<string, Reach> {
-  const table = new Map<string, Reach>()
+  const prefixesByHost = new Map<string, string[] | null>()
   for (const entry of entries) {
     const slash = entry.indexOf('/')
     if (slash === -1) {
-      table.set(entry, { whole: true })
+      prefixesByHost.set(entry, null)
       continue
     }
     const host = entry.slice(0, slash)
     const prefix = entry.slice(slash)
-    const existing = table.get(host)
-    if (existing && 'whole' in existing) continue
-    if (existing) existing.prefixes.push(prefix)
-    else table.set(host, { prefixes: [prefix] })
+    const prefixes = prefixesByHost.get(host)
+    if (prefixes === null) continue
+    if (prefixes === undefined) prefixesByHost.set(host, [prefix])
+    else prefixes.push(prefix)
   }
+  const table = new Map<string, Reach>()
+  for (const [host, prefixes] of prefixesByHost) table.set(host, prefixes === null ? { whole: true } : { prefixes })
   return table
 }
 
