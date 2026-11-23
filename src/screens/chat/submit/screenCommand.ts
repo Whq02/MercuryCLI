@@ -9,7 +9,7 @@ import { logForDebugging } from '../../../utils/debug.js';
 import { RECEIPT_TIMEOUT_MS } from '../limits.js';
 import { armForLanding, type SubmitDeps, type SubmitLine } from './submitLine.js';
 
-const HELD_FOR_LANDING: ReadonlySet<string> = new Set(['swarm', 'swarmchat', 'general', 'team', 'whisper', 'rename', 'title', 'contract', 'crewmates', 'context']);
+const HELD_FOR_LANDING: ReadonlySet<string> = new Set(['swarm', 'swarmchat', 'general', 'team', 'whisper', 'rename', 'title', 'crewmates', 'context']);
 
 export type CommandArgs = { spaceAt: number; args: string; argsWithPastes: () => Promise<string> };
 

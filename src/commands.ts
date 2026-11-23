@@ -15,7 +15,6 @@ import clear from './commands/clear/index.js'
 import caching from './commands/caching/index.js'
 import compact from './commands/compact/index.js'
 import config from './commands/config/index.js'
-import contractCommand from './commands/contract/index.js'
 import copy from './commands/copy/index.js'
 import { context, contextNonInteractive } from './commands/context/index.js'
 import { mission, missionNonInteractive } from './commands/mission/index.js'
@@ -134,7 +133,6 @@ const COMMANDS = memoize((): Command[] => [
   clear,
   compact,
   config,
-  contractCommand,
   copy,
   context,
   contextNonInteractive,

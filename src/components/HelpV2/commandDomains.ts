@@ -28,7 +28,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
       'clear', 'compact', 'context',
       'rewind', 'sessions', 'concourse',
       'export', 'usage',
-      'rename', 'title', 'contract',
+      'rename', 'title',
       'copy',
       'restart',
     ],
