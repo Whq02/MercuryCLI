@@ -251,13 +251,15 @@ export function QuestionView(props: Props): React.ReactNode {
   return (
     <Box
       flexDirection="column"
-      minHeight={minContentHeight}
+      marginTop={0}
       tabIndex={0}
       autoFocus
       onKeyDown={handleKeyDown}
     >
-      <Divider color="permission" />
-      <Box flexDirection="column">
+      <Box marginTop={cockpitActive ? -1 : 0}>
+        <Divider color="inactive" />
+      </Box>
+      <Box flexDirection="column" paddingTop={0}>
         <QuestionNavigationBar
           questions={questions}
           currentQuestionIndex={currentQuestionIndex}
@@ -265,103 +267,105 @@ export function QuestionView(props: Props): React.ReactNode {
           hideSubmitTab={hideSubmitTab}
         />
         <PermissionRequestTitle title={question.question} color="text" />
-        <Box marginTop={1} flexDirection="column">
-          {question.multiSelect ? (
-            <SelectMulti
-              key={question.question}
-              options={optionItems}
-              defaultValue={multiSelected}
-              isDisabled={isFooterFocused}
-              scrollMovesFocus={!cockpitActive}
-              submitButtonText={isLastQuestion ? 'Submit' : 'Next'}
-              onFocus={(value: string) => {
-                const onOther = value === OTHER_OPTION_VALUE
-                setIsSubmitFocused(false)
-                setIsFocusedOnOther(onOther)
-                if (!onOther) setEmptyOtherHint(false)
-                onTextInputFocus(onOther)
-              }}
-              onSubmitFocus={(focused: boolean) => {
-                setIsSubmitFocused(focused)
-                if (focused) {
-                  setIsFocusedOnOther(false)
+        <Box flexDirection="column" minHeight={minContentHeight}>
+          <Box marginTop={1} flexDirection="column">
+            {question.multiSelect ? (
+              <SelectMulti
+                key={question.question}
+                options={optionItems}
+                defaultValue={multiSelected}
+                isDisabled={isFooterFocused}
+                scrollMovesFocus={!cockpitActive}
+                submitButtonText={isLastQuestion ? 'Submit' : 'Next'}
+                onFocus={(value: string) => {
+                  const onOther = value === OTHER_OPTION_VALUE
+                  setIsSubmitFocused(false)
+                  setIsFocusedOnOther(onOther)
+                  if (!onOther) setEmptyOtherHint(false)
+                  onTextInputFocus(onOther)
+                }}
+                onSubmitFocus={(focused: boolean) => {
+                  setIsSubmitFocused(focused)
+                  if (focused) {
+                    setIsFocusedOnOther(false)
+                    setEmptyOtherHint(false)
+                    onTextInputFocus(false)
+                  }
+                }}
+                onChange={(values: string[]) =>
+                  onUpdateQuestionState(question.question, { selectedValue: values })
+                }
+                onSubmit={(values: string[]) => {
+                  setEmptyOtherHint(false)
+                  onUpdateQuestionState(question.question, { selectedValue: values })
+                  onAnswer(
+                    question.question,
+                    values,
+                    values.includes(OTHER_OPTION_VALUE) ? textInputRef.current : undefined,
+                    true,
+                  )
+                }}
+                onEmptyInputSubmit={() => setEmptyOtherHint(true)}
+                onCancel={onCancel}
+                onDownFromLastItem={() => {
+                  wasSubmitFocusedRef.current = isSubmitFocused
+                  setIsFooterFocused(true)
+                  setIsSubmitFocused(false)
                   setEmptyOtherHint(false)
                   onTextInputFocus(false)
-                }
-              }}
-              onChange={(values: string[]) =>
-                onUpdateQuestionState(question.question, { selectedValue: values })
-              }
-              onSubmit={(values: string[]) => {
-                setEmptyOtherHint(false)
-                onUpdateQuestionState(question.question, { selectedValue: values })
-                onAnswer(
-                  question.question,
-                  values,
-                  values.includes(OTHER_OPTION_VALUE) ? textInputRef.current : undefined,
-                  true,
-                )
-              }}
-              onEmptyInputSubmit={() => setEmptyOtherHint(true)}
-              onCancel={onCancel}
-              onDownFromLastItem={() => {
-                wasSubmitFocusedRef.current = isSubmitFocused
-                setIsFooterFocused(true)
-                setIsSubmitFocused(false)
-                setEmptyOtherHint(false)
-                onTextInputFocus(false)
-              }}
-              onTabOut={(dir: 'next' | 'prev') => (dir === 'next' ? onTabNext?.() : onTabPrev?.())}
-              onOpenEditor={handleOpenEditor}
-              onImagePaste={onImagePaste}
-              pastedContents={pastedContents}
-              onRemoveImage={onRemoveImage}
-            />
-          ) : (
-            <Select
-              key={question.question}
-              options={optionItems}
-              defaultValue={singleSelected}
-              defaultFocusValue={singleSelected}
-              layout="compact-vertical"
-              isDisabled={isFooterFocused}
-              scrollMovesFocus={!cockpitActive}
-              onFocus={value => {
-                const onOther = value === OTHER_OPTION_VALUE
-                setIsFocusedOnOther(onOther)
-                if (!onOther) setEmptyOtherHint(false)
-                onTextInputFocus(onOther)
-              }}
-              onChange={value => {
-                setEmptyOtherHint(false)
-                if (value === OTHER_OPTION_VALUE) {
-                  onUpdateQuestionState(question.question, {
-                    selectedValue: OTHER_OPTION_VALUE,
-                    textInputValue: textInputRef.current,
-                  })
-                  onAnswer(question.question, OTHER_OPTION_VALUE, textInputRef.current, true)
-                } else {
-                  onUpdateQuestionState(question.question, { selectedValue: value })
-                  onAnswer(question.question, value, undefined, true)
-                }
-              }}
-              onEmptyInputSubmit={() => setEmptyOtherHint(true)}
-              onCancel={onCancel}
-              onDownFromLastItem={() => {
-                setIsFooterFocused(true)
-                setEmptyOtherHint(false)
-                onTextInputFocus(false)
-              }}
-              onOpenEditor={handleOpenEditor}
-              onImagePaste={onImagePaste}
-              pastedContents={pastedContents}
-              onRemoveImage={onRemoveImage}
-            />
-          )}
+                }}
+                onTabOut={(dir: 'next' | 'prev') => (dir === 'next' ? onTabNext?.() : onTabPrev?.())}
+                onOpenEditor={handleOpenEditor}
+                onImagePaste={onImagePaste}
+                pastedContents={pastedContents}
+                onRemoveImage={onRemoveImage}
+              />
+            ) : (
+              <Select
+                key={question.question}
+                options={optionItems}
+                defaultValue={singleSelected}
+                defaultFocusValue={singleSelected}
+                layout="compact-vertical"
+                isDisabled={isFooterFocused}
+                scrollMovesFocus={!cockpitActive}
+                onFocus={value => {
+                  const onOther = value === OTHER_OPTION_VALUE
+                  setIsFocusedOnOther(onOther)
+                  if (!onOther) setEmptyOtherHint(false)
+                  onTextInputFocus(onOther)
+                }}
+                onChange={value => {
+                  setEmptyOtherHint(false)
+                  if (value === OTHER_OPTION_VALUE) {
+                    onUpdateQuestionState(question.question, {
+                      selectedValue: OTHER_OPTION_VALUE,
+                      textInputValue: textInputRef.current,
+                    })
+                    onAnswer(question.question, OTHER_OPTION_VALUE, textInputRef.current, true)
+                  } else {
+                    onUpdateQuestionState(question.question, { selectedValue: value })
+                    onAnswer(question.question, value, undefined, true)
+                  }
+                }}
+                onEmptyInputSubmit={() => setEmptyOtherHint(true)}
+                onCancel={onCancel}
+                onDownFromLastItem={() => {
+                  setIsFooterFocused(true)
+                  setEmptyOtherHint(false)
+                  onTextInputFocus(false)
+                }}
+                onOpenEditor={handleOpenEditor}
+                onImagePaste={onImagePaste}
+                pastedContents={pastedContents}
+                onRemoveImage={onRemoveImage}
+              />
+            )}
+          </Box>
           {renderDiscussFooter(footerNumber, isFooterFocused, onRespondToModel)}
-        </Box>
-        <Box marginTop={1}>
-          <Text dimColor>{helpLine}</Text>
+          <Box marginTop={1}>
+            <Text dimColor>{helpLine}</Text>
+          </Box>
         </Box>
       </Box>
     </Box>
@@ -405,7 +409,8 @@ function renderDiscussFooter(
   onRespondToModel?: () => void | Promise<void>,
 ): React.ReactNode {
   return (
-    <Box marginTop={1}>
+    <Box flexDirection="column" marginTop={1}>
+      <Divider color="inactive" />
       <InteractiveRow
         id="question:discuss-footer"
         directActivate

@@ -304,6 +304,7 @@ export function PreviewQuestionView({
     answers,
     hideSubmitTab,
     layout,
+    minContentHeight,
     optionRows,
     previewBox,
     notesRow,

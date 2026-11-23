@@ -16,6 +16,7 @@ type PreviewQuestionBodyArgs = {
   answers: Record<string, string>
   hideSubmitTab: boolean
   layout: ReturnType<typeof resolveInterviewLayout>
+  minContentHeight: number | undefined
   optionRows: React.ReactNode
   previewBox: React.ReactNode
   notesRow: React.ReactNode
@@ -33,6 +34,7 @@ export function previewQuestionBody({
   answers,
   hideSubmitTab,
   layout,
+  minContentHeight,
   optionRows,
   previewBox,
   notesRow,
@@ -51,12 +53,13 @@ export function previewQuestionBody({
   return (
     <Box
       flexDirection="column"
+      marginTop={1}
       tabIndex={0}
       autoFocus
       onKeyDown={onKeyDown}
     >
-      <Divider color="permission" />
-      <Box flexDirection="column">
+      <Divider color="inactive" />
+      <Box flexDirection="column" paddingTop={0}>
         <QuestionNavigationBar
           questions={questions}
           currentQuestionIndex={currentQuestionIndex}
@@ -64,9 +67,9 @@ export function previewQuestionBody({
           hideSubmitTab={hideSubmitTab}
         />
         <PermissionRequestTitle title={question.question} color="text" />
-        <Box marginTop={1} flexDirection="column">
+        <Box flexDirection="column" minHeight={minContentHeight}>
           {layout.mode === 'side-by-side' ? (
-            <Box gap={2}>
+            <Box gap={2} marginTop={1}>
               <Box width={layout.optionPaneWidth} flexShrink={0} flexDirection="column">
                 {optionRows}
               </Box>
@@ -76,7 +79,7 @@ export function previewQuestionBody({
               </Box>
             </Box>
           ) : (
-            <Box flexDirection="column">
+            <Box flexDirection="column" marginTop={1}>
               {optionRows}
               {layout.mode === 'stacked' ? (
                 <Box marginTop={1}>{previewBox}</Box>

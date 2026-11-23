@@ -62,16 +62,16 @@ export function SubmitQuestionsView({
   ]
 
   return (
-    <Box flexDirection="column" minHeight={minContentHeight}>
-      <Divider color="permission" />
-      <Box flexDirection="column">
+    <Box flexDirection="column" marginTop={1}>
+      <Divider color="inactive" />
+      <Box flexDirection="column" borderTop borderColor="inactive" paddingTop={0}>
         <QuestionNavigationBar
           questions={questions}
           currentQuestionIndex={currentQuestionIndex}
           answers={answers}
         />
         <PermissionRequestTitle title="Review your answers" color="text" />
-        <Box flexDirection="column" marginTop={1}>
+        <Box flexDirection="column" marginTop={1} minHeight={minContentHeight}>
           {!allQuestionsAnswered ? (
             <Box marginBottom={1}>
               <Text color="warning">
