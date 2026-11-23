@@ -6,7 +6,6 @@ import {
 } from '../../constants/prompts.js'
 import type { QueryParams } from '../../run-core/turn-machine.js'
 import { productionDeps } from '../../query/deps.js'
-import type { LegacyQueryYield } from '../../run-core/project-legacy.js'
 import { randomUUID, type UUID } from 'node:crypto'
 import { connectToServer, fetchToolsForClient } from '../../services/mcp/client.js'
 import {
@@ -463,15 +462,21 @@ export async function landAgentTranscriptRows(
   return writtenChainTail(messages, parentUuid)
 }
 
-function recordableRow(anyMessage: Message & { subtype?: string; attachment?: { type?: string } }): boolean {
-  const subtype = (anyMessage as { subtype?: string }).subtype
-  const recordable =
-    anyMessage.type === 'assistant' ||
-    anyMessage.type === 'user' ||
-    anyMessage.type === 'progress' ||
-    (anyMessage.type === 'system' &&
-      (subtype === 'compact_boundary' || subtype === 'informational' || subtype === 'api_error' || subtype === 'stream_cut' || subtype === 'busy_recovery'))
-  return recordable
+function recordableRow(anyMessage: Message): boolean {
+  if (anyMessage.type === 'assistant' || anyMessage.type === 'user' || anyMessage.type === 'progress') {
+    return true
+  }
+  if (anyMessage.type === 'system') {
+    const subtype = anyMessage.subtype
+    return (
+      subtype === 'compact_boundary' ||
+      subtype === 'informational' ||
+      subtype === 'api_error' ||
+      subtype === 'stream_cut' ||
+      subtype === 'busy_recovery'
+    )
+  }
+  return false
 }
 
 async function preloadSkills(
@@ -765,7 +770,7 @@ export async function* runAgent(
       try {
         for await (const raw of settled) {
           if (raw.type === 'stream_event' || raw.type === 'stream_request_start' || raw.type === 'tombstone') continue
-          const message = raw as Message
+          const message: Message = raw
           if (message.type === 'attachment') {
             lastRecordedUuid = await landAgentTranscriptRows([message], agentId, lastRecordedUuid)
             conversationRows.push(message)
@@ -800,8 +805,8 @@ export async function* runAgent(
       currentMessages = [...historyFromLatestCompactBoundary(conversationRows), retry.row]
     }
 
-    if (run.watchdog.fired) throw stalledError()
     if (run.throttled !== null) throw run.throttled
+    if (run.watchdog.fired) throw stalledError()
     if (abortController.signal.aborted) throw new AbortError()
     if (isBuiltInAgent(agentDefinition) && agentDefinition.callback !== undefined) {
       void Promise.resolve(agentDefinition.callback()).catch(error => {
