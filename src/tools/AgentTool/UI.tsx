@@ -39,7 +39,6 @@ import {
 } from '../../services/engine-connector/crewFacts.js'
 import type { AgentToolOutput } from './AgentTool.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
 
 function ExpandHint({ parens }: { parens?: boolean }): React.ReactNode {
   return (
@@ -186,7 +185,8 @@ export function userFacingName(input?: AgentUiInput): string {
 export function userFacingNameBackgroundColor(
   input?: AgentUiInput,
 ): string | undefined {
-  return notBuilt('src/tools/AgentTool/UI.tsx:186')
+  if (!input?.crewmate_type) return undefined
+  return getAgentColor(input.crewmate_type)
 }
 
 export function renderToolUseMessage(
@@ -210,11 +210,50 @@ export function renderToolUseTag(
   }
 }
 
+function hasToolUseBlock(
+  message: AssistantMessage | NormalizedUserMessage,
+): boolean {
+  if (message.type !== 'assistant') return false
+  const content = message.message.content
+  return Array.isArray(content) && content.some(block => block.type === 'tool_use')
+}
+
+function countAssistantToolUses(
+  rows: ReadonlyArray<{ data: AgentProgressDataWithMessage }>,
+): number {
+  let count = 0
+  for (const row of rows) {
+    if (row.data.message.type !== 'assistant') continue
+    const content = row.data.message.message.content
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      if (block.type === 'tool_use') count++
+    }
+  }
+  return count
+}
+
+function firstProgressPrompt(
+  progressMessages: readonly ProgressMessage[],
+): string | undefined {
+  const first = progressMessages[0]
+  if (!first) return undefined
+  const data = (first as { data?: AgentProgressData }).data
+  return typeof data?.prompt === 'string' && data.prompt !== ''
+    ? data.prompt
+    : undefined
+}
+
 export function hiddenAgentToolUses(
   progressMessages: readonly ProgressMessage[],
   tools: Tools,
 ): number {
-  return notBuilt('src/tools/AgentTool/UI.tsx:215')
+  void tools
+  const rows = displayRows(progressMessages)
+  if (rows.length <= VISIBLE_TAIL) return 0
+  return rows
+    .slice(0, rows.length - VISIBLE_TAIL)
+    .filter(row => hasToolUseBlock(row.data.message)).length
 }
 
 const VISIBLE_TAIL = 3
@@ -232,7 +271,95 @@ export function renderToolUseProgressMessage(
     toolUseID?: string
   },
 ): React.ReactNode {
-  return notBuilt('src/tools/AgentTool/UI.tsx:238')
+  const allMessages = messagesOf(progressMessages)
+  if (allMessages.length === 0) {
+    return (
+      <AgentFactsOrInitialising
+        {...(options.toolUseID !== undefined
+          ? { toolUseID: options.toolUseID }
+          : {})}
+      />
+    )
+  }
+
+  const condensedThreshold =
+    (options.inProgressToolCallCount ?? 1) * CONDENSED_ROWS_PER_CALL +
+    CONDENSED_ROWS_BASE
+  if (
+    !options.isTranscriptMode &&
+    options.terminalSize !== undefined &&
+    options.terminalSize.rows < condensedThreshold
+  ) {
+    const toolUseCount = countAssistantToolUses(allMessages)
+    const tokens = latestTokenTotal(progressMessages)
+    return (
+      <MessageResponse height={1}>
+        <Text dimColor>
+          <Text bold>
+            In progress… {pluralise(toolUseCount, 'tool use')}
+          </Text>
+          {tokens > 0 ? ` · ${formatTokens(tokens)} context` : null}
+          {' · '}
+          <ExpandHint parens />
+        </Text>
+      </MessageResponse>
+    )
+  }
+
+  const allDisplay = displayRows(progressMessages)
+  const showAll = Boolean(options.isTranscriptMode || options.verbose)
+  const visible = showAll ? allDisplay : allDisplay.slice(-VISIBLE_TAIL)
+  const hiddenToolUseCount = showAll
+    ? 0
+    : hiddenAgentToolUses(progressMessages, options.tools)
+
+  if (visible.length === 0) {
+    return (
+      <MessageResponse height={1}>
+        <Text dimColor>Initializing crewmate…</Text>
+      </MessageResponse>
+    )
+  }
+
+  const prompt = options.isTranscriptMode
+    ? firstProgressPrompt(progressMessages)
+    : undefined
+  const { lookups, inProgressToolUseIDs } = buildSubagentLookups(
+    allMessages.map(row => ({ message: row.data.message })),
+  )
+
+  return (
+    <MessageResponse>
+      <Box flexDirection="column">
+        {prompt !== undefined ? <AgentPromptDisplay prompt={prompt} /> : null}
+        {hiddenToolUseCount > 0 ? (
+          <Text dimColor>
+            +{pluralise(hiddenToolUseCount, 'more tool use')}{' '}
+            <CtrlOToExpand />
+          </Text>
+        ) : null}
+        <SubAgentProvider>
+          {visible.map((row, index) => (
+            <MessageComponent
+              key={row.progress.uuid ?? index}
+              message={row.data.message}
+              tools={options.tools}
+              commands={[]}
+              verbose={false}
+              addMargin={false}
+              shouldAnimate={false}
+              shouldShowDot={false}
+              inProgressToolUseIDs={inProgressToolUseIDs}
+              progressMessagesForMessage={[]}
+              isTranscriptMode={false}
+              isStatic={true}
+              lookups={lookups}
+            />
+          ))}
+        </SubAgentProvider>
+      </Box>
+    </MessageResponse>
+  )
 }
 
 const EMPTY_SET: Set<string> = new Set()
@@ -251,6 +378,17 @@ export function isResultTruncated(data: AgentToolOutput): boolean {
   )
 }
 
+type AgentResultRecord = {
+  status?: string
+  prompt?: string
+  error?: string
+  content?: ReadonlyArray<{ type: 'text'; text: string }>
+  totalToolUseCount?: number
+  totalDurationMs?: number
+  totalTokens?: number
+  usage?: ApiUsage
+}
+
 export function renderToolResultMessage(
   data: AgentToolOutput & { error?: string },
   progressMessages: readonly ProgressMessage[],
@@ -261,7 +399,126 @@ export function renderToolResultMessage(
     isTranscriptMode?: boolean
   },
 ): React.ReactNode {
-  return notBuilt('src/tools/AgentTool/UI.tsx:352')
+  const record = data as AgentResultRecord
+  if (record.status === 'async_launched') {
+    const prompt =
+      typeof record.prompt === 'string' && record.prompt !== ''
+        ? record.prompt
+        : undefined
+    return (
+      <MessageResponse>
+        <Box flexDirection="column">
+          <Text>Crewmate launched in the background</Text>
+          {options.isTranscriptMode ? (
+            prompt !== undefined ? (
+              <Box marginTop={1}>
+                <AgentPromptDisplay prompt={prompt} theme={options.theme} />
+              </Box>
+            ) : null
+          ) : (
+            <Box>
+              <Text dimColor>
+                <Byline>
+                  <KeyboardShortcutHint shortcut="↓" action="manage" />
+                  {prompt !== undefined ? <ExpandHint /> : null}
+                </Byline>
+              </Text>
+            </Box>
+          )}
+        </Box>
+      </MessageResponse>
+    )
+  }
+
+  if (record.status !== 'completed' && record.status !== 'failed') {
+    return null
+  }
+
+  const stats: string[] = [pluralise(record.totalToolUseCount ?? 0, 'tool use')]
+  const contextTokens = record.usage ? getTokenCountFromUsage(record.usage) : 0
+  if (contextTokens > 0) {
+    stats.push(`${formatTokens(contextTokens)} context`)
+  }
+  if (record.totalTokens !== undefined && record.totalTokens > 0) {
+    stats.push(`${formatTokens(record.totalTokens)} spent`)
+  }
+  if (record.totalDurationMs !== undefined) {
+    stats.push(formatDuration(record.totalDurationMs))
+  }
+  const statsText = stats.join(' · ')
+
+  const prompt =
+    typeof record.prompt === 'string' && record.prompt !== ''
+      ? record.prompt
+      : firstProgressPrompt(progressMessages)
+  const allMessages = messagesOf(progressMessages)
+  const transcriptRows = options.isTranscriptMode
+    ? displayRows(progressMessages)
+    : []
+  const transcriptLookups =
+    transcriptRows.length > 0
+      ? buildSubagentLookups(
+          allMessages.map(row => ({ message: row.data.message })),
+        ).lookups
+      : null
+  const textBlocks = (record.content ?? []).filter(
+    block => block.type === 'text' && block.text.trim() !== '',
+  )
+  const showExpandHint =
+    record.status === 'completed' &&
+    !options.isTranscriptMode &&
+    !options.verbose &&
+    isResultTruncated(data)
+
+  return (
+    <MessageResponse>
+      <Box flexDirection="column">
+        {options.isTranscriptMode && prompt !== undefined ? (
+          <AgentPromptDisplay prompt={prompt} theme={options.theme} />
+        ) : null}
+        {transcriptLookups !== null ? (
+          <SubAgentProvider>
+            {transcriptRows.map((row, index) => (
+              <MessageComponent
+                key={row.progress.uuid ?? index}
+                message={row.data.message}
+                tools={options.tools}
+                commands={[]}
+                verbose={false}
+                addMargin={false}
+                shouldAnimate={false}
+                shouldShowDot={false}
+                inProgressToolUseIDs={EMPTY_SET}
+                progressMessagesForMessage={[]}
+                isTranscriptMode={false}
+                isStatic={true}
+                lookups={transcriptLookups}
+              />
+            ))}
+          </SubAgentProvider>
+        ) : null}
+        {(options.isTranscriptMode || options.verbose) &&
+        textBlocks.length > 0 ? (
+          <AgentResponseDisplay content={textBlocks} theme={options.theme} />
+        ) : null}
+        {record.status === 'failed' ? (
+          <Text color="error">
+            Failed ({statsText})
+            {record.error ? ` — ${record.error}` : ''}
+          </Text>
+        ) : (
+          <Text>Done ({statsText})</Text>
+        )}
+        {showExpandHint ? (
+          <Box marginLeft={2}>
+            <Text dimColor>
+              <CtrlOToExpand />
+            </Text>
+          </Box>
+        ) : null}
+      </Box>
+    </MessageResponse>
+  )
 }
 
 export function renderToolUseRejectedMessage(
@@ -445,9 +702,182 @@ function AgentFactsOrInitialising({ toolUseID }: { toolUseID?: string }): React.
   )
 }
 
+function isSearchOrReadCall(
+  tools: Tools,
+  call: { name: string; input: unknown },
+): boolean {
+  const tool = tools.find(t => t.name === call.name)
+  const classification = safeSearchOrReadClassification(tool, call.input)
+  return Boolean(
+    classification?.isSearch ||
+      classification?.isRead ||
+      classification?.isList,
+  )
+}
+
+function summarizeLastTool(
+  allMessages: ReadonlyArray<{ data: AgentProgressDataWithMessage }>,
+  tools: Tools,
+): string | null {
+  const toolUsesById = new Map<string, { name: string; input: unknown }>()
+  const allToolUses: Array<{ name: string; input: unknown }> = []
+  const completedCalls: Array<{ name: string; input: unknown }> = []
+
+  for (const row of allMessages) {
+    const message = row.data.message
+    const content = message.message.content
+    if (!Array.isArray(content)) continue
+    if (message.type === 'assistant') {
+      for (const block of content) {
+        if (block.type === 'tool_use') {
+          const call = { name: block.name, input: block.input }
+          toolUsesById.set(block.id, call)
+          allToolUses.push(call)
+        }
+      }
+      continue
+    }
+    for (const block of content) {
+      if (typeof block !== 'string' && block.type === 'tool_result') {
+        const matched = toolUsesById.get(block.tool_use_id)
+        if (matched) completedCalls.push(matched)
+      }
+    }
+  }
+
+  let trailingSearchRead = 0
+  for (let i = completedCalls.length - 1; i >= 0; i--) {
+    if (isSearchOrReadCall(tools, completedCalls[i]!)) {
+      trailingSearchRead++
+    } else {
+      break
+    }
+  }
+  if (trailingSearchRead >= 2) {
+    return `Searching and reading (${trailingSearchRead} operations)`
+  }
+
+  const lastCall = completedCalls.at(-1) ?? allToolUses.at(-1)
+  if (!lastCall) return null
+  const tool = tools.find(t => t.name === lastCall.name)
+  const name = tool ? safeUserFacingName(tool, lastCall.input) : lastCall.name
+  let summary: string | null = null
+  if (tool?.getToolUseSummary) {
+    try {
+      summary = tool.getToolUseSummary(lastCall.input)
+    } catch (error) {
+      passedOver(error)
+    }
+  }
+  return summary ? `${name}: ${summary}` : name
+}
+
+function countToolResultRows(
+  allMessages: ReadonlyArray<{ data: AgentProgressDataWithMessage }>,
+): number {
+  let count = 0
+  for (const row of allMessages) {
+    if (row.data.message.type !== 'user') continue
+    const content = row.data.message.message.content
+    if (
+      Array.isArray(content) &&
+      content.some(block => typeof block !== 'string' && block.type === 'tool_result')
+    ) {
+      count++
+    }
+  }
+  return count
+}
+
 export function renderGroupedAgentToolUse(
   toolUses: GroupedToolUse[],
   options: { shouldAnimate: boolean; tools: Tools },
 ): React.ReactNode {
-  return notBuilt('src/tools/AgentTool/UI.tsx:725')
+  const analyzed = toolUses.map(raw => {
+    const input = parseGroupInput(raw)
+    const progress = raw.progressMessages ?? []
+    const allMsgs = messagesOf(progress)
+    const output = groupOutput(raw)
+    const isBackground = Boolean(
+      input.run_in_background || output?.status === 'async_launched',
+    )
+    const resolved = Boolean(raw.isResolved || output !== undefined)
+    const isErrored = Boolean(raw.isErrored || output?.status === 'failed')
+    const isDenied = Boolean(raw.isDenied)
+    const entry: GroupedEntry = {
+      toolUseID: groupToolUseId(raw),
+      input,
+      toolUseCount: countToolResultRows(allMsgs),
+      tokens: latestTokenTotal(progress),
+      lastTool: summarizeLastTool(allMsgs, options.tools),
+      output: output as
+        | { totalToolUseCount?: number; totalTokens?: number }
+        | undefined,
+      resolved,
+      isErrored,
+    }
+    return { entry, isBackground, isDenied }
+  })
+
+  const entries = analyzed.map(item => item.entry)
+  const allResolved =
+    analyzed.length > 0 && analyzed.every(item => item.entry.resolved)
+  const allBackground =
+    analyzed.length > 0 && analyzed.every(item => item.isBackground)
+  const anyErrored = analyzed.some(item => item.entry.isErrored)
+  const anyDenied = analyzed.some(item => item.isDenied)
+
+  const names = entries.map(entry => userFacingName(entry.input))
+  const firstName = names[0]
+  const commonType =
+    firstName !== undefined &&
+    firstName !== GENERIC_AGENT_LABEL &&
+    names.every(name => name === firstName)
+      ? firstName
+      : null
+
+  const headerText = allResolved
+    ? commonType !== null
+      ? `${entries.length} ${commonType} crewmates finished`
+      : `${entries.length} crewmates finished`
+    : commonType !== null
+      ? `Running ${entries.length} ${commonType} crewmates…`
+      : `Running ${entries.length} crewmates…`
+
+  return (
+    <Box flexDirection="column">
+      <Box>
+        <ToolRowLead
+          family="agent"
+          state={toolRowStateOf({
+            resolved: allResolved,
+            errored: anyErrored,
+            denied: anyDenied,
+          })}
+        />
+        {allResolved && allBackground ? (
+          <>
+            <Text bold>{entries.length} background crewmates launched </Text>
+            <Text dimColor>
+              <KeyboardShortcutHint shortcut="↓" action="manage" parens />
+            </Text>
+          </>
+        ) : (
+          <Text>
+            <Text bold>{headerText}</Text>
+            {!allBackground ? (
+              <>
+                {' '}
+                <CtrlOToExpand />
+              </>
+            ) : null}
+          </Text>
+        )}
+      </Box>
+      <CrewAgentRows
+        entries={entries}
+        animate={options.shouldAnimate && !allResolved}
+      />
+    </Box>
+  )
 }
