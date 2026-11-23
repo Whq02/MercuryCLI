@@ -374,7 +374,7 @@ export async function mcpAddJsonHandler(
   const validated = McpServerConfigSchema().safeParse(parsed)
   if (!validated.success) {
     return cliError(
-      `Invalid MCP server configuration: ${name}: the config does not match the server schema — ${describeMcpConfigIssues(validated.error.issues, parsed)}`,
+      `mcp import ${name}: the config does not match the server schema — ${describeMcpConfigIssues(validated.error.issues, parsed)}`,
     )
   }
 
