@@ -2,7 +2,7 @@ const SEGMENT_BOUNDARY = String.raw`(?:^|[;&|])\s*`
 
 function firstFlagCluster(afterCommand: string): string | null {
   const match = afterCommand.match(/^\s+-([A-Za-z]+)(?:\s|$)/)
-  return match ? (match[1] as string) : null
+  return match?.[1] ?? null
 }
 
 type Matcher = (command: string) => string | null

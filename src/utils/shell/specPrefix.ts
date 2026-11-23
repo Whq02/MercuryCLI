@@ -25,13 +25,15 @@ function optionNames(option: Option): string[] {
   return Array.isArray(option.name) ? option.name : [option.name]
 }
 
+function matchesSubcommandName(name: string | string[], lower: string): boolean {
+  return Array.isArray(name)
+    ? name.some(entry => entry.toLowerCase() === lower)
+    : name.toLowerCase() === lower
+}
+
 function findSubcommandSpec(spec: CommandSpec, token: string): CommandSpec | undefined {
   const lower = token.toLowerCase()
-  return spec.subcommands?.find(sub => {
-    const name = sub.name as unknown
-    if (Array.isArray(name)) return (name as string[]).some(n => n.toLowerCase() === lower)
-    return (name as string).toLowerCase() === lower
-  })
+  return spec.subcommands?.find(sub => matchesSubcommandName(sub.name, lower))
 }
 
 function findOption(spec: CommandSpec | null, flagName: string): Option | undefined {
