@@ -184,8 +184,7 @@ export function AttachmentMessage({
       const names = attachment.skills.map(skill => skill.name).join(', ')
       return (
         <AttachmentLine>
-          Restored {plural(attachment.skills.length, 'skill')}{' '}
-          <Text bold>{names}</Text>
+          Restored {plural(attachment.skills.length, 'skill')} {names}
         </AttachmentLine>
       )
     }
