@@ -7,7 +7,7 @@ function matchesSectionHeader(line: string, section: string, subsection: string 
   let index = 1
   let name = ''
   while (index < line.length) {
-    const char = line[index]!
+    const char = line[index] as string
     if (char === ']' || char === '"' || char === ' ' || char === '\t') break
     name += char
     index++
@@ -23,7 +23,7 @@ function matchesSectionHeader(line: string, section: string, subsection: string 
   index++
   let parsed = ''
   while (index < line.length) {
-    const char = line[index]!
+    const char = line[index] as string
     if (char === '\\') {
       const next = line[index + 1]
       if (next === undefined) return false
@@ -44,14 +44,14 @@ function parseValueText(text: string): string {
   let value = ''
   let inQuotes = false
   for (let index = 0; index < text.length; index++) {
-    const char = text[index]!
+    const char = text[index] as string
     if (!inQuotes && (char === '#' || char === ';')) break
     if (char === '"') {
       inQuotes = !inQuotes
       continue
     }
     if (char === '\\' && index + 1 < text.length) {
-      const next = text[index + 1]!
+      const next = text[index + 1] as string
       if (inQuotes) {
         if (next === 'n') value += '\n'
         else if (next === 't') value += '\t'

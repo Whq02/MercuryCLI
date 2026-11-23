@@ -172,16 +172,16 @@ function simulateConsoleFaultAfterHandback(): void {
 
 function collapseUnmodifiedPastes(
   editedText: string,
-  originalPrompt: string,
+  _originalPrompt: string,
   pastedContents: Record<number, PastedContent>,
 ): string {
   let result = editedText
   for (const paste of Object.values(pastedContents)) {
-    if (paste.type !== 'text' || paste.content === '') continue
-    const ref = formatPastedTextRef(paste.id, getPastedTextRefNumLines(paste.content))
-    if (!originalPrompt.includes(ref)) continue
+    if (paste.type !== 'text') continue
     if (!result.includes(paste.content)) continue
-    result = result.replace(paste.content, () => ref)
+    result = result.replace(paste.content, () =>
+      formatPastedTextRef(paste.id, getPastedTextRefNumLines(paste.content)),
+    )
   }
   return result
 }
