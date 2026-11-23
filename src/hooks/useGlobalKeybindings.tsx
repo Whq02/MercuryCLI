@@ -50,8 +50,8 @@ export function GlobalKeybindingHandlers({
   useKeybindings(
     {
       'app:toggleTasks': () => {
-        if (isCompact && compactWork) {
-          compactWork.toggleSummary()
+        if (isCompact) {
+          compactWork?.toggleSummary()
           return
         }
         setAppState(prev => ({
