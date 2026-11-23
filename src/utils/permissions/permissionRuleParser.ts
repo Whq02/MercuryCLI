@@ -1,5 +1,4 @@
 import type { PermissionRuleValue } from '../../types/permissions.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export function precedingBackslashes(text: string, i: number): number {
   let count = 0
@@ -18,8 +17,15 @@ function firstUnescaped(text: string, ch: string): number {
   return -1
 }
 
+function lastUnescaped(text: string, ch: string): number {
+  for (let i = text.length - 1; i >= 0; i--) {
+    if (text[i] === ch && precedingBackslashes(text, i) % 2 === 0) return i
+  }
+  return -1
+}
+
 function escapeRuleContent(content: string): string {
-  return notBuilt('src/utils/permissions/permissionRuleParser.ts:27')
+  return content.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)')
 }
 
 function unescapeRuleContent(content: string): string {
@@ -27,7 +33,26 @@ function unescapeRuleContent(content: string): string {
 }
 
 export function permissionRuleValueFromString(ruleString: string): PermissionRuleValue {
-  return notBuilt('src/utils/permissions/permissionRuleParser.ts:35')
+  const trimmed = ruleString.trim()
+  const openIdx = firstUnescaped(trimmed, '(')
+  const closeIdx = lastUnescaped(trimmed, ')')
+  if (
+    openIdx === -1 ||
+    closeIdx === -1 ||
+    closeIdx <= openIdx ||
+    closeIdx !== trimmed.length - 1
+  ) {
+    return { toolName: trimmed }
+  }
+  const toolName = trimmed.slice(0, openIdx).trim()
+  if (toolName.length === 0) {
+    return { toolName: trimmed }
+  }
+  const content = unescapeRuleContent(trimmed.slice(openIdx + 1, closeIdx))
+  if (content === '' || content === '*') {
+    return { toolName }
+  }
+  return { toolName, ruleContent: content }
 }
 
 export function permissionRuleValueToString(ruleValue: PermissionRuleValue): string {
