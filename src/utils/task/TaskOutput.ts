@@ -9,11 +9,19 @@ import { safeJoinLines } from '../stringUtils.js'
 import { DiskTaskOutput, acquireTaskOutputWriter, getTaskOutputPath } from './diskOutput.js'
 import { passedOver } from '../passedOver.js'
 import { startInterval, stopInterval } from '../timers.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-type ProgressCallback = (...args: Unbuilt[]) => Unbuilt
-const POLL_SAMPLE_BYTES: Unbuilt = unbuilt('src/utils/task/TaskOutput.ts:24')
+type ProgressCallback = (
+  recentLines: string,
+  allLines: string,
+  lineCount: number,
+  byteCount: number,
+  isIncomplete: boolean,
+) => void
+const POLL_SAMPLE_BYTES = 4096
+const DEFAULT_MAX_MEMORY_BYTES = 8 * 1024 * 1024
+const DECISION_TAIL_BYTES = 1024 * 1024
+const POLL_INTERVAL_MS = 1000
 const HARVEST_BUDGET_UNITS = 4096
 const HARVEST_MAX_SEGMENTS = 100
 const ROLLING_LINE_CAPACITY = 1000
@@ -64,14 +72,27 @@ export class TaskOutput {
   constructor(
     taskId: string,
     onProgress: ProgressCallback | null,
-    stdoutToFile?: boolean,
-    maxMemoryBytes?: number,
+    stdoutToFile: boolean = false,
+    maxMemoryBytes: number = DEFAULT_MAX_MEMORY_BYTES,
   ) {
-    notBuilt('src/utils/task/TaskOutput.ts:73')
+    this.taskId = taskId
+    this.path = getTaskOutputPath(taskId)
+    this.onProgress = onProgress
+    this.stdoutToFile = stdoutToFile
+    this.maxMemoryBytes = maxMemoryBytes
+    if (onProgress !== null) {
+      pollRegistry.set(taskId, this)
+    }
   }
 
   static startPolling(taskId: string): void {
-    return notBuilt('src/utils/task/TaskOutput.ts:89')
+    const instance = pollRegistry.get(taskId)
+    if (!instance || !instance.hasProgressCallback()) return
+    activePolling.add(taskId)
+    if (pollTimer === null) {
+      pollTimer = startInterval(pollTick, POLL_INTERVAL_MS)
+      pollTimer.unref?.()
+    }
   }
 
   static stopPolling(taskId: string): void {
@@ -113,11 +134,11 @@ export class TaskOutput {
   sampleFileProgress(): Promise<void> { return sampleFileProgressOf.call(this) }
 
   writeStdout(data: string): void {
-    return notBuilt('src/utils/task/TaskOutput.ts:137')
+    this.write(data, false)
   }
 
   writeStderr(data: string): void {
-    return notBuilt('src/utils/task/TaskOutput.ts:141')
+    this.write(data, true)
   }
 
   private write(data: string, isStderr: boolean): void {
@@ -186,48 +207,125 @@ export class TaskOutput {
     this.spilled = true
   }
 
-  private async headAndTailExcerpt(head: { content: string; bytesRead: number; bytesTotal: number }, maxLength: number): Promise<string> {
-    return notBuilt('src/utils/task/TaskOutput.ts:211')
+  private async headAndTailExcerpt(
+    head: { content: string; bytesRead: number; bytesTotal: number },
+    maxLength: number,
+  ): Promise<string> {
+    const noticeReserve = 160 + this.path.length
+    const excerptBudget = Math.max(64, maxLength - noticeReserve)
+    const headBudget = Math.floor(excerptBudget * OUTPUT_HEAD_SHARE)
+    const tailBudget = excerptBudget - headBudget
+
+    const rawHead = head.content.slice(0, headBudget)
+    const lastHeadNewline = rawHead.lastIndexOf('\n')
+    const headText =
+      lastHeadNewline >= Math.floor(rawHead.length / 2)
+        ? rawHead.slice(0, lastHeadNewline)
+        : rawHead
+
+    const tailRead = await tailFile(this.path, tailBudget)
+    const rawTail = tailRead.content
+    const firstTailNewline = rawTail.indexOf('\n')
+    const tailText =
+      firstTailNewline !== -1 && firstTailNewline < Math.ceil(rawTail.length / 2)
+        ? rawTail.slice(firstTailNewline + 1)
+        : rawTail
+
+    const omittedBytes = Math.max(
+      0,
+      head.bytesTotal - Buffer.byteLength(headText, 'utf8') - Buffer.byteLength(tailText, 'utf8'),
+    )
+    const notice = `\n\n[${omittedBytes} bytes truncated from the middle — the head and the tail of the output are shown; the complete output is saved at ${this.path}]\n\n`
+    return `${headText}${notice}${tailText}`
   }
 
   async getStdout(): Promise<string> {
-    return notBuilt('src/utils/task/TaskOutput.ts:229')
+    if (this.stdoutToFile) {
+      const maxLength = getMaxOutputLength()
+      try {
+        const head = await readFileRange(this.path, 0, maxLength)
+        if (head === null) {
+          this.fileSize = 0
+          this.fileRedundant = true
+          return ''
+        }
+        this.fileSize = head.bytesTotal
+        if (head.bytesRead >= head.bytesTotal) {
+          this.fileRedundant = true
+          return head.content
+        }
+        this.fileRedundant = false
+        return await this.headAndTailExcerpt(head, maxLength)
+      } catch (error) {
+        const code = getErrnoCode(error)
+        if (code === 'ENOENT') {
+          this.fileSize = 0
+          this.fileRedundant = true
+          return ''
+        }
+        const detail = code ?? (error instanceof Error ? error.message : String(error))
+        logForDebugging(`TaskOutput: failed to read ${this.path}: ${detail}`)
+        return `[output unavailable: failed to read ${this.path} (${detail})]`
+      }
+    }
+    if (this.spilled) {
+      const tail = this.joinRecent(RECENT_VIEW_LINES)
+      const totalKb = Math.round(this.byteTotal / 1024)
+      const notice = `<output truncated: ~${totalKb}KB captured in total — the complete output is saved at ${this.path}>`
+      return tail === '' ? notice : `${tail}\n${notice}`
+    }
+    return this.stdoutChunks.join('')
   }
 
-  async getStdoutForDecision(maxBytes?: number): Promise<string> {
-    return notBuilt('src/utils/task/TaskOutput.ts:261')
+  async getStdoutForDecision(maxBytes: number = DECISION_TAIL_BYTES): Promise<string> {
+    if (!this.stdoutToFile && this.spilled) {
+      await this.flush()
+      try {
+        return (await tailFile(this.path, maxBytes)).content
+      } catch (error) {
+        passedOver(error)
+        return this.getStdout()
+      }
+    }
+    return this.getStdout()
   }
 
   getStderr(): string {
-    return notBuilt('src/utils/task/TaskOutput.ts:274')
+    return this.spilled || this.stdoutToFile ? '' : this.stderrChunks.join('')
   }
 
   get isOverflowed(): boolean {
-    return notBuilt('src/utils/task/TaskOutput.ts:278')
+    return this.spilled
   }
 
   get totalLines(): number {
-    return notBuilt('src/utils/task/TaskOutput.ts:282')
+    return this.linesSoFar()
   }
 
   get totalBytes(): number {
-    return notBuilt('src/utils/task/TaskOutput.ts:286')
+    return this.byteTotal
   }
 
   get outputFileRedundant(): boolean {
-    return notBuilt('src/utils/task/TaskOutput.ts:290')
+    return this.fileRedundant
   }
 
   get outputFileSize(): number {
-    return notBuilt('src/utils/task/TaskOutput.ts:294')
+    return this.fileSize
   }
 
   async flush(): Promise<void> {
-    return notBuilt('src/utils/task/TaskOutput.ts:298')
+    if (this.diskWriter) {
+      await this.diskWriter.flush()
+    }
   }
 
   async deleteOutputFile(): Promise<void> {
-    return notBuilt('src/utils/task/TaskOutput.ts:302')
+    try {
+      await fs.promises.unlink(this.path)
+    } catch (error) {
+      passedOver(error)
+    }
   }
 
   clear(): void {
@@ -292,5 +390,38 @@ async function sampleFileProgressOf(this: TaskOutput): Promise<void> {
 }
 
 function harvestOf(this: TaskOutput, chunk: string): boolean {
-  return notBuilt('src/utils/task/TaskOutput.ts:371')
+  if (chunk.length === 0) return false
+  const startedAtLineStart = this.atLineStart
+  let newlineCount = 0
+  let pos = chunk.indexOf('\n')
+  while (pos !== -1) {
+    newlineCount++
+    pos = chunk.indexOf('\n', pos + 1)
+  }
+  this.lineCount += newlineCount
+  this.atLineStart = chunk.charCodeAt(chunk.length - 1) === 10
+
+  const collected: string[] = []
+  let budget = HARVEST_BUDGET_UNITS
+  let end = chunk.length
+  while (end > 0 && collected.length < HARVEST_MAX_SEGMENTS && budget > 0) {
+    const nl = chunk.lastIndexOf('\n', end - 1)
+    const isFirstSegment = nl === -1
+    const start = isFirstSegment ? 0 : nl + 1
+    if (!isFirstSegment || (startedAtLineStart && newlineCount > 0)) {
+      const raw = chunk.slice(start, end)
+      if (raw.trim().length > 0) {
+        if (raw.length > budget) break
+        collected.push(materialiseSegment(raw))
+        budget -= raw.length
+      }
+    }
+    end = nl
+  }
+
+  if (collected.length === 0) return false
+  for (let i = collected.length - 1; i >= 0; i--) {
+    this.recentLines.add(collected[i]!)
+  }
+  return true
 }
