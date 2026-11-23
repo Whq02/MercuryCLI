@@ -193,7 +193,7 @@ function assertStartAllowed(name: string, config: ScopedLspServerConfig, server:
   } else if (server.initFailures > 0) {
     const retryAt = server.lastInitFailureAt + initBackoffMs(server.initFailures)
     if (lspLedgerNow() < retryAt) {
-      const refused = startFailure(name, server.initFailures, server.lastError ?? 'previous start failed')
+      const refused = startFailure(name, server.initFailures, server.lastError)
       refused.refused = true
       refused.retryAt = retryAt
       throw refused

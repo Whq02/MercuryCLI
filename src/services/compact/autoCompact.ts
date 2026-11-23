@@ -284,10 +284,7 @@ function tryAdvanceTrigger(
     })
     currentAdvance.lastFiredTurn = decision.state.lastFiredTurn
     currentAdvance.rearmed = decision.state.rearmed
-    if (decision.action === 'compact') {
-      logForDebugging(`autoCompact: advance trigger fired (${decision.reason})`)
-      return true
-    }
+    if (decision.action === 'compact') return true
   } catch (error) {
     logError(error)
   }
