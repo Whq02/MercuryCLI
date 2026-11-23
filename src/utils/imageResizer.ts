@@ -8,12 +8,11 @@ import type { CallModelRoute } from '../types/providerRoute.js'
 import { providerCapabilities } from './model/capabilityRegistry.js'
 import { getImageProcessor, imageProcessorState, type SharpFunction } from './imageProcessor/imageProcessor.js'
 import { imageDimensionsFromHeader } from './imageProcessor/imageProcessorJs.js'
-import type { Base64ImageSource, ImageBlockParam, ToolResultBlockParam } from '../types/wire.js'
+import type { Base64ImageSource, ImageBlockParam } from '../types/wire.js'
 import { logForDebugging } from './debug.js'
 import { formatFileSize } from './format.js'
 import { conversationEditKey, settleWireEdits, type WireEdit } from './messages/wireEdits.js'
 import { passedOver } from './passedOver.js'
-import { isRecord } from './isRecord.js'
 
 
 export class ImageResizeError extends Error {
@@ -110,8 +109,9 @@ export function statedManyImageLimit(sentence: string): number | null {
 export function manyImageLimitStatedIn(messages: readonly unknown[]): number | null {
   let lowest: number | null = null
   for (const row of messages) {
-    if (!isRecord(row) || row.type !== 'assistant' || row.isApiErrorMessage !== true || typeof row.errorDetails !== 'string') continue
-    const stated = statedManyImageLimit(row.errorDetails)
+    const record = row as { type?: unknown; isApiErrorMessage?: unknown; errorDetails?: unknown } | null
+    if (record === null || record.type !== 'assistant' || record.isApiErrorMessage !== true || typeof record.errorDetails !== 'string') continue
+    const stated = statedManyImageLimit(record.errorDetails)
     if (stated !== null && (lowest === null || stated < lowest)) lowest = stated
   }
   return lowest
@@ -372,21 +372,23 @@ export async function maybeResizeAndDownsampleImageBlock(
 }
 
 export async function clampToolResultImageBlocks(
-  block: ToolResultBlockParam,
+  block: { type: string; content?: unknown },
   options?: Omit<ResizeOptions, 'role'>,
 ): Promise<void> {
-  if (!Array.isArray(block.content)) return
-  const parts = block.content
-  const count = parts.filter(part => part.type === 'image').length
+  if (block.type !== 'tool_result' || !Array.isArray(block.content)) return
+  const parts = block.content as unknown[]
+  const isImage = (part: unknown): part is { type: 'image'; source?: { type?: string } } =>
+    typeof part === 'object' && part !== null && (part as { type?: string }).type === 'image'
+  const count = parts.filter(isImage).length
   const notes: string[] = []
   let ordinal = 0
   for (let index = 0; index < parts.length; index++) {
     const part = parts[index]
-    if (part === undefined || part.type !== 'image') continue
+    if (!isImage(part)) continue
     ordinal++
-    if (part.source.type !== 'base64') continue
+    if (part.source?.type !== 'base64') continue
     try {
-      const resized = await maybeResizeAndDownsampleImageBlock(part, { ...options, role: 'tool-result' })
+      const resized = await maybeResizeAndDownsampleImageBlock(part as ImageBlockParam, { ...options, role: 'tool-result' })
       parts[index] = resized.block
       const note = resized.dimensions === undefined ? null : createImageMetadataText(resized.dimensions, undefined, { index: ordinal, count })
       if (note !== null) notes.push(note)
@@ -421,6 +423,7 @@ export interface ImagesLeftOutReceiptV1 {
 }
 
 type RequestRow = { type: string }
+type BlockRecord = Record<string, unknown> & { type?: unknown }
 
 const HEADER_PREFIX_CHARS = 96 * 1024
 const SIZED_IMAGE_CACHE_BYTES = 64 * 1024 * 1024
@@ -496,7 +499,10 @@ export function takeImagesLeftOutReceipt(owner: string): ImagesLeftOutReceiptV1 
 }
 
 export function imagesLeftOutMarked(messages: readonly unknown[]): boolean {
-  return messages.some(message => isRecord(message) && message.type === 'attachment' && isRecord(message.attachment) && message.attachment.type === 'images_left_out')
+  return messages.some(message => {
+    const row = message as { type?: unknown; attachment?: { type?: unknown } } | null
+    return row?.type === 'attachment' && row.attachment?.type === 'images_left_out'
+  })
 }
 
 export function resetImagesLeftOutForTesting(): void {
@@ -511,30 +517,26 @@ export function imageDimensionsOfBase64(data: string): { width: number; height: 
 }
 
 function isBase64ImageRecord(block: unknown): block is ImageBlockParam & { source: Base64ImageSource } {
-  return isRecord(block) && block.type === 'image' && isRecord(block.source) && block.source.type === 'base64' && typeof block.source.data === 'string'
+  if (typeof block !== 'object' || block === null) return false
+  const candidate = block as BlockRecord & { source?: { type?: unknown; data?: unknown } }
+  return candidate.type === 'image' && typeof candidate.source === 'object' && candidate.source !== null && candidate.source.type === 'base64' && typeof candidate.source.data === 'string'
 }
 
 function contentOfRow(row: unknown): unknown[] | null {
-  if (!isRecord(row) || !isRecord(row.message)) return null
-  return Array.isArray(row.message.content) ? row.message.content : null
-}
-
-function isUserRowWithMessage<M extends RequestRow>(row: M): row is M & { message: Record<string, unknown> & { content: unknown[] } } {
-  const value: unknown = row
-  return row.type === 'user' && isRecord(value) && isRecord(value.message) && Array.isArray(value.message.content)
+  const content = (row as { message?: { content?: unknown } } | null)?.message?.content
+  return Array.isArray(content) ? content : null
 }
 
 export function countRequestImages(messages: readonly unknown[]): number {
   let count = 0
   for (const row of messages) {
-    if (!isRecord(row) || row.type !== 'user') continue
+    if ((row as RequestRow).type !== 'user') continue
     const content = contentOfRow(row)
     if (content === null) continue
     for (const block of content) {
       if (isBase64ImageRecord(block)) count++
-      if (isRecord(block) && block.type === 'tool_result' && Array.isArray(block.content)) {
-        for (const inner of block.content) if (isBase64ImageRecord(inner)) count++
-      }
+      const nested = (block as BlockRecord).type === 'tool_result' ? (block as BlockRecord).content : undefined
+      if (Array.isArray(nested)) for (const inner of nested) if (isBase64ImageRecord(inner)) count++
     }
   }
   return count
@@ -609,7 +611,7 @@ export async function fitImagesToRequestCap<M extends RequestRow>(
   const images = countRequestImages(messages)
   const sidePx = requestImageSidePx(limits, images, options?.statedSidePx)
   const owner = options?.owner
-  const conversation = owner === undefined ? undefined : conversationEditKey(owner, messages)
+  const conversation = owner === undefined ? undefined : conversationEditKey(owner, messages as Array<{ type: string; uuid?: unknown }>)
   const identity: RequestImageFit<M> = { messages, firstEdited: -1, images, sized: 0, leftOut: 0, sidePx }
   if (images === 0 || (sidePx === null && (conversation === undefined || (fittedImagesByOwner.get(conversation)?.size ?? 0) === 0))) return identity
   let leftOut = 0
@@ -633,11 +635,11 @@ export async function fitImagesToRequestCap<M extends RequestRow>(
   const out: M[] = []
   for (let index = 0; index < messages.length; index++) {
     const row = messages[index]!
-    if (!isUserRowWithMessage(row)) {
+    const content = row.type === 'user' ? contentOfRow(row) : null
+    if (content === null) {
       out.push(row)
       continue
     }
-    const content = row.message.content
     let changed = false
     const blocks: unknown[] = []
     for (const block of content) {
@@ -648,13 +650,14 @@ export async function fitImagesToRequestCap<M extends RequestRow>(
         blocks.push(fitted)
         continue
       }
-      if (!isRecord(block) || block.type !== 'tool_result' || !Array.isArray(block.content)) {
+      const nested = (block as BlockRecord).type === 'tool_result' ? (block as BlockRecord).content : undefined
+      if (!Array.isArray(nested)) {
         blocks.push(block)
         continue
       }
       let innerChanged = false
       const inner: unknown[] = []
-      for (const part of block.content) {
+      for (const part of nested) {
         const fitted = await fitBlock(part, index)
         if (fitted !== part) {
           innerChanged = true
@@ -667,14 +670,15 @@ export async function fitImagesToRequestCap<M extends RequestRow>(
         continue
       }
       changed = true
-      blocks.push({ ...block, content: inner })
+      blocks.push({ ...(block as BlockRecord), content: inner })
     }
     if (!changed) {
       out.push(row)
       continue
     }
     if (firstEdited === -1) firstEdited = index
-    out.push({ ...row, message: { ...row.message, content: blocks } })
+    const carrier = row as M & { message: Record<string, unknown> }
+    out.push({ ...carrier, message: { ...carrier.message, content: blocks } })
   }
   if (firstEdited === -1) return identity
   sized -= leftOut
@@ -764,7 +768,7 @@ export async function compressImageBlock(imageBlock: ImageBlockParam, maxBytes: 
     type: 'image',
     source: {
       type: 'base64',
-      media_type: result.mediaType,
+      media_type: result.mediaType as Base64ImageSource['media_type'],
       data: result.base64,
     },
   }
