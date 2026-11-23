@@ -127,7 +127,12 @@ export function openContentBlock(contentBlocks: (BetaContentBlock | ConnectorTex
   }
 }
 
-export function applyBlockDelta(contentBlocks: (BetaContentBlock | ConnectorTextBlock)[], part: Extract<BetaRawMessageStreamEvent, { type: 'content_block_delta' }>): void {
+export function applyBlockDelta(
+  contentBlocks: (BetaContentBlock | ConnectorTextBlock)[],
+  part:
+    | Extract<BetaRawMessageStreamEvent, { type: 'content_block_delta' }>
+    | { type: 'content_block_delta'; index: number; delta: ConnectorTextDelta },
+): void {
   if (!part.delta) {
     throw new Error(malformedStreamFrameText('content_block_delta', 'delta'))
   }
@@ -135,7 +140,7 @@ export function applyBlockDelta(contentBlocks: (BetaContentBlock | ConnectorText
   if (!block) {
     throw new RangeError('Content block not found')
   }
-  const delta: Extract<BetaRawMessageStreamEvent, { type: 'content_block_delta' }>['delta'] | ConnectorTextDelta = part.delta
+  const delta = part.delta
   switch (delta.type) {
     case 'text_delta':
       if (block.type !== 'text') throw new Error('Content block is not a text block')
@@ -250,8 +255,11 @@ export function observeStreamEnd(call: CallState, pass: StreamPass, turnOwning: 
   }
 }
 
-export function noteWatchdogErrorExit(pass: StreamPass & { streamWatchdogFiredAt: number }): void {
-  const exitDelayMs = Math.round(performance.now() - pass.streamWatchdogFiredAt)
+export function noteWatchdogErrorExit(pass: StreamPass): void {
+  const exitDelayMs =
+    pass.streamWatchdogFiredAt !== null
+      ? Math.round(performance.now() - pass.streamWatchdogFiredAt)
+      : -1
   logForDiagnosticsNoPII(
     'info',
     'cli_stream_loop_exited_after_watchdog_error',
