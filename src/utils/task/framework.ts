@@ -1,5 +1,5 @@
 import type { AppState } from '../../state/AppState.js'
-import type { TaskStatus } from '../../Task.js'
+import type { SetAppState, TaskStatus } from '../../Task.js'
 import { isTerminalTaskStatus } from '../../Task.js'
 import { isBackgroundTask, type TaskState } from '../../tasks/types.js'
 import { emitTaskStarted } from '../sdkEventQueue.js'
@@ -8,18 +8,17 @@ import { projectTaskExecution } from './executionProjection.js'
 export const POLL_INTERVAL_MS = 1000
 export const PANEL_GRACE_MS = 30_000
 
-type TaskAppStateSetter = (updater: (prevState: AppState) => AppState) => void
-
 export function updateTaskState<T extends TaskState = TaskState>(
   taskId: string,
-  setAppState: TaskAppStateSetter,
+  setAppState: SetAppState,
   updater: (task: T) => T,
 ): void {
   let projected: TaskState | undefined
   setAppState(prev => {
+    projected = undefined
     const existing = prev.tasks[taskId]
     if (!existing) return prev
-    const updated = updater(existing as T)
+    const updated: TaskState = updater(existing as T)
     if (updated === existing) return prev
     if (updated.status !== existing.status) {
       projected = updated
@@ -37,7 +36,7 @@ export function updateTaskState<T extends TaskState = TaskState>(
   }
 }
 
-export function registerTask(task: TaskState, setAppState: TaskAppStateSetter): void {
+export function registerTask(task: TaskState, setAppState: SetAppState): void {
   let isNew = false
   setAppState(prev => {
     const existing = prev.tasks[task.id]
@@ -147,7 +146,7 @@ export function liveWorkWords(counts: LiveWorkCounts): string {
 }
 
 export function settleOwnerlessTasks(
-  setAppState: TaskAppStateSetter,
+  setAppState: SetAppState,
   now: number = Date.now(),
 ): Array<{ id: string; reason: string }> {
   const settled: Array<{ id: string; reason: string }> = []
@@ -173,7 +172,7 @@ export function settleOwnerlessTasks(
   return settled
 }
 
-export function evictTerminalTask(taskId: string, setAppState: TaskAppStateSetter): void {
+export function evictTerminalTask(taskId: string, setAppState: SetAppState): void {
   setAppState(prev => {
     const task = prev.tasks[taskId]
     if (!task) return prev
@@ -214,7 +213,7 @@ export async function generateTaskAttachments(state: AppState): Promise<{
 }
 
 export function applyTaskOffsetsAndEvictions(
-  setAppState: TaskAppStateSetter,
+  setAppState: SetAppState,
   updatedTaskOffsets: Record<string, number>,
   evictedTaskIds: string[],
 ): void {
