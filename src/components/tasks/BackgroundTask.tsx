@@ -5,7 +5,6 @@ import type { LocalShellTaskState } from '../../tasks/LocalShellTask/guards.js'
 import type { LocalAgentTaskState } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { truncateToWidth } from '../../utils/glyphs.js'
 import { ShellProgress, TaskStatusText } from './ShellProgress.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const DEFAULT_ACTIVITY_WIDTH = 40
 
@@ -50,9 +49,15 @@ function AgentLine({
   )
 }
 
-export function BackgroundTask(arg0: {
+export function BackgroundTask({
+  task,
+  maxActivityWidth = DEFAULT_ACTIVITY_WIDTH,
+}: {
   task: TaskState
   maxActivityWidth?: number
 }): React.ReactNode {
-  return notBuilt('src/components/tasks/BackgroundTask.tsx:53')
+  if (task.type === 'local_bash') {
+    return <ShellLine shell={task} width={maxActivityWidth} />
+  }
+  return <AgentLine task={task} width={maxActivityWidth} />
 }
