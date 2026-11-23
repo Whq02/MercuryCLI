@@ -7,12 +7,17 @@ import { LRUCache } from 'lru-cache'
 import { logForDebugging } from '../../utils/debug.js'
 import type { Diagnostic, DiagnosticFile } from '../../utils/diagnosticTracking.js'
 import { MAIN_LANE, parseOwnerKey, type OwnerKey } from '../../utils/run/ownerKey.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 type Lane = OwnerKey | null
 
-type PendingLSPDiagnostic = Unbuilt
+type PendingLSPDiagnostic = {
+  serverName: string
+  files: DiagnosticFile[]
+  timestamp: number
+  attachmentSent: boolean
+  owner: Lane
+}
 
 type PublishListener = (event: { serverName: string; files: DiagnosticFile[] }) => void
 
@@ -148,8 +153,60 @@ function boundRootClaims(): void {
   }
 }
 
+function dropPendingForFile(fileKey: string, serverName?: string): void {
+  for (const [id, entry] of pending) {
+    if (entry.attachmentSent) continue
+    if (serverName !== undefined && entry.serverName !== serverName) continue
+    const remaining = entry.files.filter(file => plainPathKey(file.uri) !== fileKey)
+    if (remaining.length === entry.files.length) continue
+    if (remaining.length === 0) pending.delete(id)
+    else entry.files = remaining
+  }
+}
+
 export function releaseDiagnosticsWriter(owner: OwnerKey, worktree?: string): void {
-  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:156')
+  const lane = laneOf(owner)
+  if (lane === null) return
+
+  for (const fileKey of [...writers.keys()]) {
+    if (writers.peek(fileKey) === lane) writers.delete(fileKey)
+  }
+
+  for (const [fileKey, entry] of awaitingWrites) {
+    if (entry.owner === lane) awaitingWrites.delete(fileKey)
+  }
+
+  const laneStr = laneKey(lane)
+  for (const fileKey of [...delivered.keys()]) {
+    const lanes = delivered.peek(fileKey)
+    if (lanes !== undefined) {
+      lanes.delete(laneStr)
+      if (lanes.size === 0) delivered.delete(fileKey)
+    }
+  }
+
+  const root = worktree !== undefined ? normaliseRoot(worktree) : roots.get(lane)
+  if (root !== undefined) {
+    roots.delete(lane)
+    roots.set(lane, root)
+    ended.add(lane)
+    boundRootClaims()
+  }
+
+  for (const [id, entry] of pending) {
+    if (entry.owner !== lane) continue
+    if (root !== undefined) {
+      const remaining = entry.files.filter(file => !underRoot(plainPathKey(file.uri), root))
+      if (remaining.length === 0) {
+        pending.delete(id)
+      } else {
+        entry.files = remaining
+        entry.owner = null
+      }
+    } else {
+      entry.owner = null
+    }
+  }
 }
 
 function armAwaitingWrite(lane: Lane, fileKey: string, docVersion: number | undefined): void {
@@ -201,12 +258,93 @@ function diagnosticKey(diagnostic: Diagnostic): string {
   ])
 }
 
-export function registerPendingLSPDiagnostic(arg0: {
+export function registerPendingLSPDiagnostic({
+  serverName,
+  files,
+  version,
+}: {
   serverName: string
   files: DiagnosticFile[]
   version?: number
 }): void {
-  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:252')
+  const nonStale = files.filter(file => !staleAgainstWriteBaseline(serverName, file.uri, version))
+  if (nonStale.length < files.length) {
+    logForDebugging(
+      `LSP diagnostics: ${serverName} published document version ${version} for a file written since — no data until it publishes the written version`,
+    )
+  }
+  if (nonStale.length === 0) return
+
+  let sunkCount = 0
+  const byLane = new Map<Lane, DiagnosticFile[]>()
+  for (const file of nonStale) {
+    const owner = laneForFile(plainPathKey(file.uri))
+    if (owner === 'sunk') {
+      sunkCount++
+      continue
+    }
+    let group = byLane.get(owner)
+    if (group === undefined) {
+      group = []
+      byLane.set(owner, group)
+    }
+    group.push(file)
+  }
+
+  if (sunkCount > 0) {
+    logForDebugging(
+      `LSP diagnostics: ${serverName} published for ${sunkCount} file${sunkCount === 1 ? '' : 's'} of a handed-back worktree — dropped`,
+    )
+  }
+
+  if (byLane.size > 0) {
+    const publishedKeys = new Set(nonStale.map(file => plainPathKey(file.uri)))
+    for (const [id, entry] of pending) {
+      if (entry.attachmentSent || entry.serverName !== serverName) continue
+      const remaining = entry.files.filter(file => !publishedKeys.has(plainPathKey(file.uri)))
+      if (remaining.length === entry.files.length) continue
+      if (remaining.length === 0) pending.delete(id)
+      else entry.files = remaining
+    }
+
+    const now = Date.now()
+    for (const [owner, groupFiles] of byLane) {
+      const id = randomUUID()
+      pending.set(id, {
+        serverName,
+        files: groupFiles,
+        timestamp: now,
+        attachmentSent: false,
+        owner,
+      })
+      const diagCount = groupFiles.reduce((sum, file) => sum + file.diagnostics.length, 0)
+      logForDebugging(
+        `LSP diagnostics: registered ${diagCount} from ${serverName} (${id}${owner !== null ? `, lane ${owner}` : ''})`,
+      )
+    }
+
+    if (pending.size > MAX_PENDING_PUBLISHES) {
+      let dropped = 0
+      for (const id of pending.keys()) {
+        if (pending.size <= MAX_PENDING_PUBLISHES) break
+        pending.delete(id)
+        dropped++
+      }
+      if (dropped > 0) {
+        logForDebugging(
+          `LSP diagnostics: pending table full — dropped ${dropped} oldest publish${dropped === 1 ? '' : 'es'}`,
+        )
+      }
+    }
+  }
+
+  for (const listener of publishListeners) {
+    try {
+      listener({ serverName, files: nonStale })
+    } catch (err) {
+      logForDebugging(`LSP diagnostics: publish listener threw: ${String(err)}`)
+    }
+  }
 }
 
 export function subscribeLSPDiagnosticPublish(cb: PublishListener): () => void {
@@ -259,12 +397,91 @@ function staleAgainstWriteBaseline(serverName: string, uri: string, version: num
   return baseline !== undefined && baseline.docVersion !== undefined && version <= baseline.docVersion
 }
 
-export function snapshotDiagnosticsBeforeWrite(path: string, before: string | null, after: string, docVersion: number | undefined, owner?: OwnerKey): void {
-  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:379')
+export function snapshotDiagnosticsBeforeWrite(
+  path: string,
+  before: string | null,
+  after: string,
+  docVersion: number | undefined,
+  owner?: OwnerKey,
+): void {
+  const fileKey = plainPathKey(path)
+  const lane = laneOf(owner)
+  claimWriter(lane, fileKey)
+  armAwaitingWrite(lane, fileKey, docVersion)
+  dropPendingForFile(fileKey)
+
+  if (before === null) {
+    writeBaselines.delete(fileKey)
+    return
+  }
+
+  const step = lineShiftStepBetween(before, after)
+  if (step === null) {
+    writeBaselines.delete(fileKey)
+    return
+  }
+
+  const latestByServer = new Map<string, { file: DiagnosticFile; at: number }>()
+  for (const key of lastReports.keys()) {
+    const sep = key.indexOf('::')
+    if (sep === -1) continue
+    if (plainPathKey(key.slice(sep + 2)) !== fileKey) continue
+    const report = lastReports.peek(key)
+    if (report === undefined) continue
+    const serverName = key.slice(0, sep)
+    const current = latestByServer.get(serverName)
+    if (current === undefined || report.at >= current.at) {
+      latestByServer.set(serverName, report)
+    }
+  }
+
+  if (latestByServer.size === 0) {
+    writeBaselines.delete(fileKey)
+    return
+  }
+
+  const existing = writeBaselines.peek(fileKey)
+  const perServer = new Map<string, WriteBaseline>()
+  for (const [serverName, report] of latestByServer) {
+    const prev = existing?.get(serverName)
+    if (prev !== undefined && prev.report === report) {
+      perServer.set(serverName, {
+        report,
+        steps: [...prev.steps, step],
+        docVersion,
+      })
+    } else {
+      perServer.set(serverName, {
+        report,
+        steps: [step],
+        docVersion,
+      })
+    }
+  }
+  writeBaselines.set(fileKey, perServer)
 }
 
-export function noteOutOfBandWrite(path: string, versions: ReadonlyArray<{ serverName: string; docVersion: number }>): void {
-  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:419')
+export function noteOutOfBandWrite(
+  path: string,
+  versions: ReadonlyArray<{ serverName: string; docVersion: number }>,
+): void {
+  const fileKey = plainPathKey(path)
+  dropPendingForFile(fileKey)
+  clearDeliveredDiagnosticsForFile(path)
+  if (versions.length === 0) {
+    writeBaselines.delete(fileKey)
+    return
+  }
+  const perServer = new Map<string, WriteBaseline>()
+  const now = Date.now()
+  for (const { serverName, docVersion } of versions) {
+    perServer.set(serverName, {
+      report: { file: { uri: path, diagnostics: [] }, at: now },
+      steps: [],
+      docVersion,
+    })
+  }
+  writeBaselines.set(fileKey, perServer)
 }
 
 export function _writeBaselineForTesting(path: string): Array<{ serverName: string; steps: number; docVersion: number | undefined }> {
@@ -274,7 +491,16 @@ export function _writeBaselineForTesting(path: string): Array<{ serverName: stri
 }
 
 export function _pendingForTesting(): Array<{ serverName: string; uris: string[]; owner: OwnerKey | null }> {
-  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:447')
+  const out: Array<{ serverName: string; uris: string[]; owner: OwnerKey | null }> = []
+  for (const entry of pending.values()) {
+    if (entry.attachmentSent) continue
+    out.push({
+      serverName: entry.serverName,
+      uris: entry.files.map(file => file.uri),
+      owner: entry.owner,
+    })
+  }
+  return out
 }
 
 export function _writerForTesting(path: string): OwnerKey | null {
@@ -341,22 +567,136 @@ function recordDelivered(files: DiagnosticFile[], lane: Lane): void {
   }
 }
 
-export function checkForLSPDiagnostics(owner?: OwnerKey): Array<{ serverName: string; files: DiagnosticFile[] }> {
-  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:515')
+function introducedSinceWrite(serverName: string, file: DiagnosticFile): DiagnosticFile {
+  const baseline = writeBaselines.peek(plainPathKey(file.uri))?.get(serverName)
+  if (baseline === undefined) return file
+  try {
+    const priorKeys = new Set<string>()
+    for (const prior of baseline.report.file.diagnostics) {
+      const remapped = remapThroughWrites(prior, baseline.steps)
+      if (remapped === null) continue
+      priorKeys.add(diagnosticKey(remapped))
+    }
+    const kept = file.diagnostics.filter(diag => !priorKeys.has(diagnosticKey(diag)))
+    const removed = file.diagnostics.length - kept.length
+    if (removed === 0) return file
+    logForDebugging(
+      `LSP diagnostics: ${file.uri}: ${removed} pre-existing before the write subtracted, ${kept.length} introduced by it`,
+    )
+    return { ...file, diagnostics: kept }
+  } catch (err) {
+    logForDebugging(
+      `LSP diagnostics: baseline subtraction failed, delivering whole: ${String(err).slice(0, 100)}`,
+    )
+    return file
+  }
+}
+
+function severityRank(severity: string): number {
+  if (severity === 'Error') return 0
+  if (severity === 'Warning') return 1
+  if (severity === 'Info') return 2
+  return 3
+}
+
+export function checkForLSPDiagnostics(
+  owner?: OwnerKey,
+): Array<{ serverName: string; files: DiagnosticFile[] }> {
+  const lane = laneOf(owner)
+  const gatheredIds: string[] = []
+  const serverNames: string[] = []
+  const seenServers = new Set<string>()
+  const gatheredFiles: DiagnosticFile[] = []
+
+  for (const [id, entry] of pending) {
+    if (entry.attachmentSent || entry.owner !== lane) continue
+    gatheredIds.push(id)
+    if (!seenServers.has(entry.serverName)) {
+      seenServers.add(entry.serverName)
+      serverNames.push(entry.serverName)
+    }
+    for (const file of entry.files) {
+      gatheredFiles.push(introducedSinceWrite(entry.serverName, file))
+    }
+  }
+
+  if (gatheredIds.length === 0) return []
+
+  const beforeDedupCount = gatheredFiles.reduce((sum, file) => sum + file.diagnostics.length, 0)
+  let deduped: DiagnosticFile[]
+  try {
+    deduped = dedupe(gatheredFiles, lane)
+  } catch (err) {
+    logForDebugging(`LSP diagnostics: dedup failed, delivering undeduplicated: ${String(err)}`)
+    deduped = gatheredFiles
+  }
+  const afterDedupCount = deduped.reduce((sum, file) => sum + file.diagnostics.length, 0)
+  if (beforeDedupCount > afterDedupCount) {
+    logForDebugging(`LSP diagnostics: dedup removed ${beforeDedupCount - afterDedupCount}`)
+  }
+
+  for (const id of gatheredIds) {
+    const entry = pending.get(id)
+    if (entry !== undefined) entry.attachmentSent = true
+    pending.delete(id)
+  }
+
+  const cappedFiles: DiagnosticFile[] = []
+  let totalKept = 0
+  for (const file of deduped) {
+    if (file.diagnostics.length === 0) continue
+    const remainingBudget = MAX_TOTAL - totalKept
+    if (remainingBudget <= 0) break
+    const sorted = [...file.diagnostics].sort((a, b) => severityRank(a.severity) - severityRank(b.severity))
+    const kept = sorted.slice(0, Math.min(MAX_PER_FILE, remainingBudget))
+    if (kept.length > 0) {
+      cappedFiles.push({ ...file, diagnostics: kept })
+      totalKept += kept.length
+    }
+  }
+
+  const truncated = afterDedupCount - totalKept
+  if (truncated > 0) {
+    logForDebugging(
+      `LSP diagnostics: truncated ${truncated} (caps: ${MAX_PER_FILE} per file, ${MAX_TOTAL} total)`,
+    )
+  }
+
+  if (cappedFiles.length === 0) {
+    logForDebugging('LSP diagnostics: nothing survives dedup/capping')
+    return []
+  }
+
+  recordDelivered(cappedFiles, lane)
+  return [{ serverName: serverNames.join(', '), files: cappedFiles }]
 }
 
 export function clearDeliveredDiagnosticsForFile(fileUriOrPath: string): void {
-  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:571')
+  const plain = plainPathKey(fileUriOrPath)
+  for (const key of [plain, `file://${plain}`]) {
+    if (delivered.delete(key)) {
+      logForDebugging(`LSP diagnostics: cleared delivered set for ${key}`)
+    }
+  }
 }
 
 export function clearAllLSPDiagnostics(): void {
-  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:581')
+  logForDebugging(`LSP diagnostics: clearing ${pending.size} pending entries`)
+  pending.clear()
 }
 
 export function resetAllLSPDiagnosticState(): void {
-  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:586')
+  logForDebugging(`LSP diagnostics: reset (${pending.size} pending, ${delivered.size} tracked files)`)
+  pending.clear()
+  delivered.clear()
+  lastReports.clear()
+  writeBaselines.clear()
+  writers.clear()
+  roots.clear()
+  ended.clear()
+  awaitingWrites.clear()
 }
 
 export function getPendingLSPDiagnosticCount(): number {
-  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:598')
+  return pending.size
 }
