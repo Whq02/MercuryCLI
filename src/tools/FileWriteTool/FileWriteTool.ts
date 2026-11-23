@@ -8,6 +8,7 @@ import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.
 import { ruleSentence } from '../../utils/permissions/ruleReason.js'
 import { memoryWriteRefusal } from '../../utils/memoryFileDetection.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
+import { passedOver } from '../../utils/passedOver.js'
 import { APPLIED_NO_REREAD_NOTE } from '../FileEditTool/FileEditTool.js'
 import {
   expandStructuredTargetPath,
@@ -153,7 +154,8 @@ export const FileWriteTool = buildTool({
           errorCode: 2,
         }
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return { result: true }
     }
     return { result: true }
