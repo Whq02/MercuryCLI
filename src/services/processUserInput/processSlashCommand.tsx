@@ -2,7 +2,7 @@ import { featureReached } from '../../substrate/featureReached.js'
 
 import * as React from 'react'
 import type { UUID } from 'node:crypto'
-import { existsSync } from 'node:fs'
+import { statSync } from 'node:fs'
 import { Box, Text } from '../../ink.js'
 import type { CanUseToolFn, SetToolJSXFn, ToolUseContext } from '../../Tool.js'
 import type { Command } from '../../commands.js'
@@ -77,16 +77,12 @@ export function unknownCommandLine(name: string, commands: Command[]): string {
   if (registered !== undefined) return unavailableCommandLine(registered)
   let near: string | undefined
   try {
-    const byNameAlone: Command[] = commands
+    const byNameAlone = commands
       .filter(command => command.type !== 'prompt' && command.isHidden !== true)
-      .map(command => (
-        command.type === 'local'
-          ? { ...command, description: '' }
-          : { ...command, description: '' }
-      ))
+      .map(command => ({ ...command, description: '' }) as Command)
     const top = generateCommandSuggestions(`/${name}`, byNameAlone)[0]
-    const matched = byNameAlone.find(command => command === top?.metadata)
-    if (matched !== undefined) near = getCommandName(matched)
+    const meta = top?.metadata as Command | undefined
+    if (meta !== undefined && typeof meta === 'object' && typeof meta.type === 'string') near = getCommandName(meta)
   } catch (error) {
     passedOver(error)
   }
@@ -99,7 +95,13 @@ function looksLikeCommand(commandName: string): boolean {
 }
 
 function isExistingPath(slashPrefixed: string): boolean {
-  return existsSync(slashPrefixed)
+  try {
+    statSync(slashPrefixed)
+    return true
+  } catch (error) {
+    passedOver(error)
+    return false
+  }
 }
 
 
