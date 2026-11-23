@@ -64,7 +64,7 @@ function effortParenthetical(
     return ` (effort: ${truth.requested} — not sent; the provider default applies)`
   }
   if (truth.adjustedFrom !== undefined || truth.wire !== String(truth.requested)) {
-    return ` (effort: ${truth.requested}, runs at ${truth.label})`
+    return ` (effort: ${truth.requested} — runs at ${truth.label})`
   }
   return ` (effort: ${truth.requested})`
 }
@@ -251,11 +251,11 @@ function ModelDirectSet({
           const lowerTarget = target.toLowerCase()
           if (lowerTarget.includes('[1m]')) {
             if (lowerTarget.includes('opus') && !checkOpus1mAccess() && !isOpus1mMergeEnabled()) {
-              onDone(`${typed} model isn't available for this account. Run /model to pick a different model.`, { display: 'system' })
+              onDone(`The 1M-context ${typed} model isn't available for this account. Run /model to pick a different model.`, { display: 'system' })
               return
             }
             if (lowerTarget.includes('sonnet') && !checkSonnet1mAccess()) {
-              onDone(`${typed} model isn't available for this account. Run /model to pick a different model.`, { display: 'system' })
+              onDone(`The 1M-context ${typed} model isn't available for this account. Run /model to pick a different model.`, { display: 'system' })
               return
             }
           }

@@ -202,7 +202,7 @@ export function renderContextUsageMarkdown(data: ContextData): string {
     if (trunc && (trunc.nameOnly > 0 || trunc.withheld > 0)) {
       const parts: string[] = []
       if (trunc.nameOnly > 0) parts.push(`${trunc.nameOnly} entries name-only`)
-      if (trunc.withheld > 0) parts.push(`${trunc.withheld} withheld`)
+      if (trunc.withheld > 0) parts.push(`${trunc.withheld} name(s) withheld`)
       lines.push('', `Skill listing degraded by its budget: ${parts.join(', ')}`)
     }
   }

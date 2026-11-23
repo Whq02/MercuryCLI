@@ -55,7 +55,7 @@ export function registerMcpAddCommand(mcp: CommanderCommand): void {
   mcp
     .command('add')
     .description('Add an MCP server')
-    .argument('[name]')
+    .argument('[name]', 'server name')
     .argument('[commandOrUrl]', 'the command to launch it, or its URL')
     .argument('[args...]', 'stdio subprocess arguments')
     .option('-s, --scope <scope>', 'configuration scope (local, user, or project)', 'local')

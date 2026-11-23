@@ -96,7 +96,7 @@ export async function agentsHandler(): Promise<void> {
   ]
 
   const count = activeAgents.length
-  const lines: string[] = [`${count} active ${count === 1 ? 'agent' : 'agents'}`]
+  const lines: string[] = [`${count} active agent${count === 1 ? '' : 's'}`]
 
   for (const source of orderedSources) {
     const group = bySource.get(source)

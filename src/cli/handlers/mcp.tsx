@@ -170,7 +170,7 @@ export async function mcpRemoveHandler(
         .map(holder => `  - ${holder.scope} (${scopeConfigFileLabel(holder.scope)})`)
         .join('\n')
       const commands = holders
-        .map(holder => `  ${binaryName()} mcp remove "${name}" -s ${holder.scope}`)
+        .map(holder => `  ${binaryName()} mcp remove ${name} -s ${holder.scope}`)
         .join('\n')
       return cliError(
         `MCP server ${name} exists in multiple scopes:\n${details}\n\nRemove it from a specific scope with:\n${commands}`,
@@ -308,8 +308,7 @@ export async function mcpGetHandler(name: string): Promise<void> {
   console.log(`${name}:`)
   console.log(`  Scope: ${scope}`)
   console.log(`  Status: ${renderStatus(result)}`)
-  console.log(`  Type: ${config.type ?? 'stdio'}`)
-
+  console.log(config.type === undefined || config.type === 'stdio' ? '  Type: stdio' : `  Type: ${config.type}`)
   if (config.type === undefined || config.type === 'stdio') {
     console.log(`  Command: ${written.command ?? config.command}`)
     if (written.args.length > 0) {
@@ -345,17 +344,17 @@ export async function mcpGetHandler(name: string): Promise<void> {
       if (clientConfig?.clientSecret) {
         oauthBits.push('client_secret configured')
       }
+      if (config.oauth?.callbackPort !== undefined) {
+        oauthBits.push(`callback port ${config.oauth.callbackPort}`)
+      }
       if (oauthBits.length > 0) {
         console.log(`  OAuth: ${oauthBits.join(', ')}`)
-      }
-      if (config.oauth?.callbackPort !== undefined) {
-        console.log(`  Callback Port: ${config.oauth.callbackPort}`)
       }
     }
   }
 
   if (scope === 'local' || scope === 'project' || scope === 'user') {
-    console.log(`\nRemove this server with: ${binaryName()} mcp remove "${name}" -s ${scope}`)
+    console.log(`\nRemove this server with: ${binaryName()} mcp remove ${name} -s ${scope}`)
   }
 
   await gracefulShutdown(0)
