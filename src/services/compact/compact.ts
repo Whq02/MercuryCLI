@@ -338,6 +338,7 @@ async function finishCommittedFold(params: {
   isAutoCompact: boolean
   overflow: OverflowSignal | undefined
   preCompactTokenCount: number
+  truePostCompactTokenCount: number
   prose: string
   proseSkippedReceipt: string | undefined
   rawSummary: string
@@ -356,6 +357,7 @@ async function finishCommittedFold(params: {
     isAutoCompact,
     overflow,
     preCompactTokenCount,
+    truePostCompactTokenCount,
     prose,
     proseSkippedReceipt,
     rawSummary,
@@ -383,7 +385,7 @@ async function finishCommittedFold(params: {
   const finalResult: CompactionResult = {
     ...landed.partial,
     hookResults,
-    truePostCompactTokenCount: landed.truePostCompactTokenCount,
+    truePostCompactTokenCount,
   }
   restoreBoundPrefixFromMessages(buildPostCompactMessages(finalResult), { fold: true })
 
@@ -666,6 +668,7 @@ export async function compactConversation(
       isAutoCompact,
       overflow,
       preCompactTokenCount,
+      truePostCompactTokenCount: recompactionInfo?.mustShrink ? after.tokens : landed.truePostCompactTokenCount,
       prose,
       proseSkippedReceipt,
       rawSummary,
