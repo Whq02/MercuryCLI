@@ -9,11 +9,30 @@ import {
 import { syncPermissionRulesFromDisk } from '../permissions/permissions.js'
 import type { SettingSource } from './constants.js'
 import { getInitialSettings } from './settings.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export function applySettingsChange(
-  source: SettingSource,
+  _source: SettingSource,
   setAppState: (updater: (prev: AppState) => AppState) => void,
 ): void {
-  return notBuilt('src/utils/settings/applySettingsChange.ts:13')
+  const newSettings = getInitialSettings()
+  const diskRules = loadAllPermissionRulesFromDisk()
+  refreshHooksSnapshot()
+
+  setAppState(prev => {
+    let toolPermissionContext = syncPermissionRulesFromDisk(prev.toolPermissionContext, diskRules)
+    if (isSovereignDisabled()) {
+      toolPermissionContext = createSovereignDisabledContext(toolPermissionContext)
+    }
+    if (toolPermissionContext.mode === 'flow') {
+      toolPermissionContext = stripDangerousPermissionsForFlow(toolPermissionContext)
+    }
+    const nextEffort = newSettings.engine?.effort
+    const effortChanged = nextEffort !== undefined && nextEffort !== prev.settings?.engine?.effort
+    return {
+      ...prev,
+      settings: newSettings,
+      toolPermissionContext,
+      ...(effortChanged ? { effortValue: nextEffort } : {}),
+    }
+  })
 }
