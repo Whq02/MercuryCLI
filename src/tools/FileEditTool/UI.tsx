@@ -19,41 +19,104 @@ import { getDisplayPath } from '../../utils/file.js'
 import { firstLineOf } from '../../utils/stringUtils.js'
 import { toolErrorReason } from '../../utils/toolErrorReason.js'
 import type { FileEditInput, FileEditOutput } from './types.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 export function userFacingName(input?: Partial<FileEditInput>): string {
-  return notBuilt('src/tools/FileEditTool/UI.tsx:24')
+  return input?.old_string === '' ? 'Create' : 'Update'
 }
 
 export function getToolUseSummary(input: Partial<FileEditInput> | undefined): string | null {
-  return notBuilt('src/tools/FileEditTool/UI.tsx:29')
+  if (!input?.file_path) return null
+  return truncatePathMiddle(getDisplayPath(input.file_path), TOOL_SUMMARY_MAX_LENGTH)
 }
 
 export function renderToolUseMessage(
   input: Partial<FileEditInput>,
-  arg1: { verbose: boolean },
+  { verbose }: { verbose: boolean },
 ): React.ReactNode {
-  return notBuilt('src/tools/FileEditTool/UI.tsx:34')
+  if (!input.file_path) return null
+  return (
+    <FilePathLink filePath={input.file_path}>
+      {verbose ? input.file_path : getDisplayPath(input.file_path)}
+    </FilePathLink>
+  )
+}
+
+function NoChangeMessage({ filePath }: { filePath: string }): React.ReactNode {
+  const tokens = useMercuryTokens()
+  return (
+    <MessageResponse>
+      <Text color={tokens.textMuted}>
+        No changes — {getDisplayPath(filePath)} already matches the requested content
+      </Text>
+    </MessageResponse>
+  )
 }
 
 export function renderToolResultMessage(
   output: FileEditOutput,
   _progressMessages: unknown,
-  arg2: { verbose: boolean; style?: 'condensed' | 'default' },
+  { verbose, style }: { verbose: boolean; style?: 'condensed' | 'default' },
 ): React.ReactNode {
-  return notBuilt('src/tools/FileEditTool/UI.tsx:57')
+  if (output.noChange) {
+    return <NoChangeMessage filePath={output.filePath} />
+  }
+  return (
+    <FileEditToolUpdatedMessage
+      filePath={output.filePath}
+      structuredPatch={output.structuredPatch}
+      firstLine={firstLineOf(output.originalFile)}
+      fileContent={output.originalFile}
+      verbose={verbose}
+      style={style === 'condensed' ? 'condensed' : undefined}
+    />
+  )
 }
 
 export function renderToolUseRejectedMessage(
   input?: Partial<FileEditInput>,
   options?: { verbose?: boolean; width?: number | string },
 ): React.ReactNode {
-  return notBuilt('src/tools/FileEditTool/UI.tsx:77')
+  if (!input?.file_path) {
+    return <FallbackToolUseRejectedMessage />
+  }
+  const availableWidth =
+    typeof options?.width === 'number' ? consentContentWidth(options.width) : undefined
+  if (input.old_string === '') {
+    return (
+      <MessageResponse>
+        <HighlightedCode
+          code={input.new_string ?? ''}
+          filePath={input.file_path}
+          width={availableWidth}
+        />
+      </MessageResponse>
+    )
+  }
+  return (
+    <FileEditToolDiff
+      file_path={input.file_path}
+      edits={[
+        {
+          old_string: input.old_string,
+          new_string: input.new_string,
+          replace_all: input.replace_all,
+        },
+      ]}
+      availableWidth={availableWidth}
+    />
+  )
 }
 
-function ShortErrorLine(arg0: { text: string }): React.ReactNode {
-  return notBuilt('src/tools/FileEditTool/UI.tsx:106')
+function ShortErrorLine({ text }: { text: string }): React.ReactNode {
+  const tokens = useMercuryTokens()
+  return (
+    <MessageResponse>
+      <Text color={tokens.warning}>
+        {GLYPH.warn} {text}
+      </Text>
+    </MessageResponse>
+  )
 }
 
 export function renderToolUseErrorMessage(
