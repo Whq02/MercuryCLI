@@ -32,7 +32,6 @@ import {
   searchSessionsByCustomTitle,
 } from '../../utils/sessionStorage.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export async function crossProjectResumeNotice(
   command: string,
@@ -60,15 +59,45 @@ async function performResume(
   log: SessionListing,
   entrypoint: ResumeEntrypoint,
 ): Promise<void> {
-  return notBuilt('src/commands/sessions/sessions.tsx:55')
+  if (!context.resume) {
+    onDone('Failed to resume: resume is not available in this context.')
+    return
+  }
+  try {
+    await context.resume(sessionId, log, entrypoint)
+    onDone(undefined, { display: 'skip' })
+  } catch (thrown) {
+    logError(thrown)
+    onDone(`Failed to resume: ${errorMessage(thrown)}`)
+  }
 }
 
-function SessionsErrorCard(arg0: {
+function SessionsErrorCard({
+  argument,
+  message,
+  onDone,
+}: {
   argument: string
   message: string
   onDone: LocalJSXCommandOnDone
 }): React.ReactNode {
-  return notBuilt('src/commands/sessions/sessions.tsx:71')
+  useTimer(() => {
+    const timer = startTimeout(() => {
+      onDone(undefined, { display: 'skip' })
+    }, 0)
+    return () => {
+      stopTimeout(timer)
+    }
+  }, [onDone])
+
+  return (
+    <MessageResponse>
+      <Box flexDirection="column">
+        <Text dimColor>{`› /sessions ${argument}`}</Text>
+        <Text>{message}</Text>
+      </Box>
+    </MessageResponse>
+  )
 }
 
 function SessionsLogPicker({
