@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto'
-import { notBuilt } from '../pi/holes.js'
 
 type BunHash = {
   hash(input: string, seed?: number): number | bigint
@@ -11,7 +10,9 @@ function bunHash(): BunHash | undefined {
 }
 
 export function djb2Hash(str: string): number {
-  return notBuilt('src/utils/hash.ts:13')
+  let value = 0
+  for (let i = 0; i < str.length; i++) value = (value * 31 + str.charCodeAt(i)) | 0
+  return value
 }
 
 function sha256Parts(...parts: string[]): string {
@@ -28,9 +29,13 @@ export function sha256Hex(data: Buffer | string): string {
 }
 
 export function hashContent(content: string): string {
-  return notBuilt('src/utils/hash.ts:34')
+  const bun = bunHash()
+  return bun ? String(bun.hash(content)) : sha256Parts(content)
 }
 
 export function hashPair(a: string, b: string): string {
-  return notBuilt('src/utils/hash.ts:40')
+  const bun = bunHash()
+  if (!bun) return sha256Parts(a, b)
+  const seed = Number(BigInt.asUintN(32, BigInt(bun.hash(a))))
+  return String(bun.hash(b, seed))
 }
