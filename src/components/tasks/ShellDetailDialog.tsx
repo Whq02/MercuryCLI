@@ -213,18 +213,18 @@ export function ShellDetailDialog({
   })
 
   const cwdRows = shell.cwd !== undefined && shell.cwd !== '' ? 1 : 0
-  const commandWidth = Math.max(10, columns - LABEL_WIDTH - 8)
+  const commandWidth = Math.max(20, columns - 4 - LABEL_WIDTH)
   const commandMaxRows = Math.max(1, rows - CARD_ROWS_ABOVE_KEYS - HOST_FOOTER_ROWS - cwdRows)
   const fittedCommand = useMemo(
     () => fitRows(shell.command, commandWidth, commandMaxRows),
     [shell.command, commandWidth, commandMaxRows],
   )
   const commandRows = wrappedRows(fittedCommand, commandWidth)
-  const frameRows = Math.max(
-    FRAME_ROWS_FLOOR,
-    Math.min(FRAME_ROWS, rows - CARD_CHROME_ROWS - HOST_FOOTER_ROWS - (commandRows - 1)),
-  )
-  const maxOutputLines = Math.max(1, Math.min(OUTPUT_LINES, frameRows - 2))
+  const fixedRows = commandRows + cwdRows + CARD_CHROME_ROWS
+  const frameRows = Math.max(FRAME_ROWS_FLOOR, Math.min(FRAME_ROWS, rows - fixedRows))
+  const maxOutputLines = Math.min(OUTPUT_LINES, frameRows - 2)
+  const frameWidth = Math.max(20, columns - 6)
+  const truncated = deferredTail.totalBytes > TAIL_BYTES
 
   const nonEmptyLines = useMemo(
     () => deferredTail.content.split('\n').filter(line => line.length > 0),
@@ -235,11 +235,9 @@ export function ShellDetailDialog({
   const statusTone =
     shell.status === 'completed'
       ? tokens.success
-      : shell.status === 'failed'
-        ? tokens.failure
-        : shell.status === 'killed'
-          ? tokens.warning
-          : tokens.textPrimary
+      : shell.status === 'killed'
+        ? tokens.warning
+        : tokens.failure
 
   const subtitle = shell.description !== undefined && shell.description !== '' ? shell.description : undefined
 
@@ -252,24 +250,24 @@ export function ShellDetailDialog({
       captureInput={false}
     >
       <Box flexDirection="column" tabIndex={-1}>
-        <Box>
+        <Box flexDirection="row">
           <Box width={LABEL_WIDTH} flexShrink={0}>
-            <Text color={tokens.textMuted}>{isMonitor ? 'script' : 'command'}</Text>
+            <Text dimColor>{isMonitor ? 'script' : 'command'}</Text>
           </Box>
-          <Box flexGrow={1} minWidth={0}>
-            <Text color={tokens.textPrimary} wrap="wrap">
+          <Box flexGrow={1} minWidth={0} height={commandRows} overflow="hidden">
+            <Text dimColor wrap="wrap">
               {fittedCommand}
             </Text>
           </Box>
         </Box>
 
         {shell.cwd !== undefined && shell.cwd !== '' ? (
-          <Box>
+          <Box flexDirection="row">
             <Box width={LABEL_WIDTH} flexShrink={0}>
-              <Text color={tokens.textMuted}>cwd</Text>
+              <Text dimColor>cwd</Text>
             </Box>
             <Box flexGrow={1} minWidth={0}>
-              <Text color={tokens.textMuted} wrap="truncate-middle">
+              <Text dimColor wrap="truncate-middle">
                 {shell.cwd}
               </Text>
             </Box>
@@ -296,10 +294,12 @@ export function ShellDetailDialog({
         <SectionHeader>Output</SectionHeader>
         <Box
           flexDirection="column"
+          height={frameRows}
+          width={frameWidth}
           borderStyle="round"
           borderDimColor
           paddingX={1}
-          minHeight={frameRows}
+          overflow="hidden"
         >
           {shell.outputFile === undefined ? (
             <Text dimColor>{OUTPUT_UNREPORTED}</Text>
@@ -316,15 +316,11 @@ export function ShellDetailDialog({
           )}
         </Box>
 
-        {deferredTail.present && deferredTail.totalLines > 0 ? (
-          <Text dimColor italic>
-            {visibleLines.length} of {deferredTail.totalLines}{' '}
-            {deferredTail.totalLines === 1 ? 'line' : 'lines'} shown
-            {deferredTail.totalBytes > TAIL_BYTES
-              ? ` · ${formatFileSize(deferredTail.totalBytes)} total`
-              : ''}
-          </Text>
-        ) : null}
+        <Text dimColor italic>
+          {visibleLines.length} of {deferredTail.totalLines}{' '}
+          {deferredTail.totalLines === 1 ? 'line' : 'lines'} shown
+          {truncated ? ` · ${formatFileSize(deferredTail.totalBytes)} total` : ''}
+        </Text>
 
         <Box marginTop={1}>
           {exitState.pending ? (
