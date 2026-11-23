@@ -9,6 +9,7 @@ import type { SESSION_END_REASONS } from './hooks/contract.js'
 import { runCleanupFunctions } from './cleanupRegistry.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
+import { getErrnoCode } from './errors.js'
 import { logError } from './log.js'
 import { isPeerGoneWriteError, registerProcessInputErrorHandler, registerProcessOutputErrorHandlers } from './process.js'
 import { profileReport } from './startupProfiler.js'
@@ -325,7 +326,7 @@ function onUnhandledRejection(reason: unknown): void {
     return
   }
   if (shutdownInProgress && isPeerGoneWriteError(reason)) {
-    const { code } = reason as NodeJS.ErrnoException
+    const code = getErrnoCode(reason)
     logForDebugging(`unhandledRejection during shutdown: a peer's pipe closed (${code}) — the shutdown ends its peers; no crash record`)
     logForDiagnosticsNoPII('info', 'shutdown_peer_gone_write', { code })
     return
