@@ -1,6 +1,6 @@
 import { C0, ESC, ESC_TYPE, isEscFinal } from '../termio/ansi.js'
 import { isCSIFinal, isCSIIntermediate, isCSIParam } from '../termio/csi.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
+import { notBuilt } from '../../pi/holes.js'
 
 
 export type TokenKind =
@@ -25,9 +25,17 @@ type ScanState =
   | 'dcs'
   | 'apc'
 
-type ScannerOptions = Unbuilt
+type ScannerOptions = {
+  x10Mouse?: boolean
+  stringReplyOwed?: () => boolean
+}
 
-export type Scanner = Unbuilt
+export type Scanner = {
+  feed(data: string): ScanToken[]
+  flush(): ScanToken[]
+  reset(): void
+  buffer(): string
+}
 
 const KIND_OF_STATE: Partial<Record<ScanState, TokenKind>> = {
   csi: 'csi',
@@ -101,12 +109,381 @@ function isMouseReportHead(data: string, at: number, x10Mouse: boolean): boolean
 
 const DOUBLE_ESC = ESC + ESC
 
+type ScanResult = {
+  tokens: ScanToken[]
+  state: ScanState
+  carry: string
+  sealed?: boolean
+  flushedHead?: string
+  terminatorOwed?: boolean
+  heldRun?: boolean
+}
+
+function probeX10Payload(
+  data: string,
+  payloadStart: number,
+  heldRun: boolean,
+): { kind: 'complete' } | { kind: 'wait' } | { kind: 'bad'; at: number } {
+  const avail = Math.min(3, data.length - payloadStart)
+  for (let k = 0; k < avail; k++) {
+    const b = data.charCodeAt(payloadStart + k)
+    if (b < 0x20 || (heldRun && b === C0.DEL)) return { kind: 'bad', at: payloadStart + k }
+  }
+  return avail < 3 ? { kind: 'wait' } : { kind: 'complete' }
+}
+
+function flushPending(
+  state: ScanState,
+  carried: string,
+  x10Mouse: boolean,
+  policy: FlushPolicy,
+  interruptedFlushedHead: string,
+  tokens: ScanToken[],
+  emit: (kind: TokenKind, value: string) => void,
+  getTerminatorOwed: () => boolean,
+): ScanResult {
+  const isStringState = STRING_INTRODUCER[state] !== undefined
+
+  if (isStringState && carried.length > 0) {
+    if (carried.length <= 2) {
+      emit('esc', carried)
+      return { tokens, state: 'ground', carry: '', flushedHead: carried, terminatorOwed: getTerminatorOwed() }
+    }
+    const replyProbe = carried.endsWith(ESC) ? carried.slice(0, -1) : carried
+    if (policy.stringReplyOwed || isReplyStringHead(replyProbe)) {
+      return { tokens, state, carry: carried, terminatorOwed: getTerminatorOwed() }
+    }
+    if (policy.sealedFlushes === 0) {
+      return { tokens, state, carry: carried, sealed: true, terminatorOwed: getTerminatorOwed() }
+    }
+    if (!policy.fedSinceFlush) {
+      return { tokens, state, carry: '', sealed: true, terminatorOwed: getTerminatorOwed() }
+    }
+    return { tokens, state: 'ground', carry: '', terminatorOwed: getTerminatorOwed() }
+  }
+
+  if (state === 'csi' && x10Mouse) {
+    if (policy.provisionalBracket && carried === CSI_HEAD) {
+      emit('text', '[')
+      return { tokens, state: 'ground', carry: '', terminatorOwed: getTerminatorOwed() }
+    }
+    if (policy.sealedFlushes < CSI_HOLD_FLUSHES) {
+      return { tokens, state, carry: carried, sealed: true, heldRun: true, terminatorOwed: getTerminatorOwed() }
+    }
+    emit('csi', carried)
+    return { tokens, state: 'ground', carry: '', flushedHead: carried, terminatorOwed: getTerminatorOwed() }
+  }
+
+  if (carried === DOUBLE_ESC) {
+    emit('esc', ESC)
+    emit('esc', ESC)
+    return { tokens, state: 'ground', carry: '', terminatorOwed: getTerminatorOwed() }
+  }
+
+  if (carried.length > 0) {
+    const kind: TokenKind = KIND_OF_STATE[state] ?? 'esc'
+    emit(kind, carried)
+    const flushedHead = interruptedFlushedHead || (carried === ESC ? ESC : '')
+    return { tokens, state: 'ground', carry: '', flushedHead, terminatorOwed: getTerminatorOwed() }
+  }
+
+  return { tokens, state: 'ground', carry: '', terminatorOwed: getTerminatorOwed() }
+}
+
 function scan(
   data: string,
   initial: ScanState,
   flush: boolean,
   x10Mouse: boolean,
   policy: FlushPolicy,
-): { tokens: ScanToken[]; state: ScanState; carry: string; sealed?: boolean; flushedHead?: string; terminatorOwed?: boolean; heldRun?: boolean } {
-  return notBuilt('src/ink/input/scanner.ts:167')
+): ScanResult {
+  const tokens: ScanToken[] = []
+  let state: ScanState = 'ground'
+  let seqStart = 0
+  let headlessString = false
+  let heldRun = policy.heldRun
+  let terminatorOwed = policy.terminatorOwed
+  let debtFromPolicy = policy.terminatorOwed
+  let interruptedFlushedHead = ''
+
+  const initialIntro = STRING_INTRODUCER[initial]
+  if (
+    initialIntro !== undefined &&
+    !(data.length >= 2 && data.charCodeAt(0) === C0.ESC && data.charCodeAt(1) === initialIntro)
+  ) {
+    state = initial
+    headlessString = true
+  }
+
+  const emit = (kind: TokenKind, value: string): void => {
+    if (value.length === 0) return
+    if (kind === 'esc' && value === '\x1b\\' && terminatorOwed) {
+      terminatorOwed = false
+      debtFromPolicy = false
+      return
+    }
+    tokens.push({ kind, value })
+    heldRun = false
+    if (debtFromPolicy) {
+      terminatorOwed = false
+      debtFromPolicy = false
+    }
+  }
+
+  let i = 0
+  let headlessTrailingEsc = false
+  while (i < data.length) {
+    const code = data.charCodeAt(i)
+
+    if (state === 'ground') {
+      if (terminatorOwed) {
+        if (code === C0.BEL) {
+          terminatorOwed = false
+          debtFromPolicy = false
+          i++
+          seqStart = i
+          continue
+        }
+        if (code === C0.ESC && i + 1 < data.length && data.charCodeAt(i + 1) === ESC_TYPE.ST) {
+          terminatorOwed = false
+          debtFromPolicy = false
+          i += 2
+          seqStart = i
+          continue
+        }
+      }
+      if (code === C0.ESC) {
+        if (i > seqStart) emit('text', data.slice(seqStart, i))
+        seqStart = i
+        state = 'escape'
+        i++
+        continue
+      }
+      i++
+      continue
+    }
+
+    if (state === 'escape') {
+      if (code === C0.ESC && i - seqStart === 1) {
+        if (i + 1 === data.length) {
+          i++
+          break
+        }
+        const next = data.charCodeAt(i + 1)
+        if (isMetaPrefixedIntroducer(next) && !isMouseReportHead(data, i + 1, x10Mouse)) {
+          i++
+          continue
+        }
+        emit('esc', ESC)
+        seqStart = i
+        i++
+        continue
+      }
+      if (code === ESC_TYPE.CSI) {
+        state = 'csi'
+        i++
+        continue
+      }
+      if (code === 0x4f) {
+        state = 'ss3'
+        i++
+        continue
+      }
+      if (code === ESC_TYPE.OSC) {
+        state = 'osc'
+        i++
+        continue
+      }
+      if (code === ESC_TYPE.DCS) {
+        state = 'dcs'
+        i++
+        continue
+      }
+      if (code === ESC_TYPE.APC) {
+        state = 'apc'
+        i++
+        continue
+      }
+      if (isCSIIntermediate(code)) {
+        state = 'escapeIntermediate'
+        i++
+        continue
+      }
+      if (isEscFinal(code)) {
+        emit('esc', data.slice(seqStart, i + 1))
+        state = 'ground'
+        i++
+        seqStart = i
+        continue
+      }
+      state = 'ground'
+      continue
+    }
+
+    if (state === 'escapeIntermediate') {
+      if (isCSIIntermediate(code)) {
+        i++
+        continue
+      }
+      if (isEscFinal(code)) {
+        emit('esc', data.slice(seqStart, i + 1))
+        state = 'ground'
+        i++
+        seqStart = i
+        continue
+      }
+      state = 'ground'
+      continue
+    }
+
+    if (state === 'ss3') {
+      if (isCSIFinal(code)) {
+        emit('ss3', data.slice(seqStart, i + 1))
+        state = 'ground'
+        i++
+        seqStart = i
+        continue
+      }
+      state = 'ground'
+      continue
+    }
+
+    if (state === 'csi') {
+      if (isCSIParam(code) || isCSIIntermediate(code)) {
+        i++
+        continue
+      }
+      if (isCSIFinal(code)) {
+        if (x10Mouse && code === 0x4d && i - seqStart === 2) {
+          const probe = probeX10Payload(data, i + 1, heldRun)
+          if (probe.kind === 'bad') {
+            if (heldRun) {
+              heldRun = false
+              state = 'ground'
+              seqStart = probe.at
+              i = probe.at
+              continue
+            }
+            emit('csi', data.slice(seqStart, i + 1))
+            state = 'ground'
+            i++
+            seqStart = i
+            continue
+          }
+          if (probe.kind === 'wait') {
+            i = data.length
+            break
+          }
+          emit('x10-mouse', data.slice(seqStart, i + 4))
+          state = 'ground'
+          i += 4
+          seqStart = i
+          continue
+        }
+        if (heldRun && data.startsWith('\x1b[<', seqStart) && code !== 0x4d && code !== 0x6d) {
+          heldRun = false
+          state = 'ground'
+          seqStart = i
+          continue
+        }
+        emit('csi', data.slice(seqStart, i + 1))
+        state = 'ground'
+        i++
+        seqStart = i
+        continue
+      }
+      if (heldRun) {
+        heldRun = false
+        state = 'ground'
+        seqStart = i
+        continue
+      }
+      state = 'ground'
+      continue
+    }
+
+    if (code === C0.BEL) {
+      if (!headlessString) emit(KIND_OF_STATE[state]!, data.slice(seqStart, i + 1))
+      headlessString = false
+      state = 'ground'
+      i++
+      seqStart = i
+      continue
+    }
+
+    if (code === C0.ESC) {
+      if (i + 1 < data.length && data.charCodeAt(i + 1) === ESC_TYPE.ST) {
+        if (!headlessString) emit(KIND_OF_STATE[state]!, data.slice(seqStart, i + 2))
+        headlessString = false
+        state = 'ground'
+        i += 2
+        seqStart = i
+        continue
+      }
+      if (i + 1 === data.length) {
+        const shouldWait =
+          !flush ||
+          (x10Mouse &&
+            !headlessString &&
+            isReplyStringHead(data.slice(seqStart, i)) &&
+            !policy.escapeAlone)
+        if (shouldWait) {
+          if (headlessString) headlessTrailingEsc = true
+          break
+        }
+      }
+      if (!headlessString) {
+        const run = data.slice(seqStart, i)
+        if (isReplyStringHead(run)) {
+          terminatorOwed = true
+          debtFromPolicy = false
+          if (flush && i === data.length - 1) {
+            interruptedFlushedHead = data.slice(seqStart, i + 1)
+          }
+        }
+      }
+      headlessString = false
+      state = 'ground'
+      seqStart = i
+      continue
+    }
+
+    if (isStringBodyByte(code)) {
+      i++
+      continue
+    }
+
+    if (!headlessString) {
+      const run = data.slice(seqStart, i)
+      if (isReplyStringHead(run)) {
+        terminatorOwed = true
+        debtFromPolicy = false
+      }
+    }
+    headlessString = false
+    state = 'ground'
+    seqStart = i
+  }
+
+  if (state === 'ground') {
+    if (i > seqStart) emit('text', data.slice(seqStart, i))
+    return { tokens, state: 'ground', carry: '', terminatorOwed }
+  }
+
+  if (!flush) {
+    const carry = headlessString ? (headlessTrailingEsc ? ESC : '') : data.slice(seqStart)
+    return { tokens, state, carry, terminatorOwed, heldRun }
+  }
+
+  const carried = headlessString ? '' : data.slice(seqStart)
+  return flushPending(
+    state,
+    carried,
+    x10Mouse,
+    policy,
+    interruptedFlushedHead,
+    tokens,
+    emit,
+    () => terminatorOwed,
+  )
 }
