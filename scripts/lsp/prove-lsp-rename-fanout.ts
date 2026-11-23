@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const repo = path.resolve(import.meta.dir, '../../kit/toolList')
+const repo = path.resolve(import.meta.dir, '../..')
 const scripted = path.join(repo, 'scripts/lsp/fixtures/scripted-rename-server.mjs')
 
 let failures = 0

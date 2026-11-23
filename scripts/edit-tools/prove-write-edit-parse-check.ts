@@ -21,7 +21,7 @@ delete process.env.NODE_ENV
 
 const engineDir = join(scratch, 'engine')
 mkdirSync(engineDir)
-const repo = join(import.meta.dir, '../../kit/toolList')
+const repo = join(import.meta.dir, '../..')
 const vscodeDir = join(repo, 'node_modules/@vscode/tree-sitter-wasm/wasm')
 const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../src/platform/grammars/grammarRegistry.ts')
 for (const file of GRAMMAR_ENGINE_RUNTIME_FILES) copyFileSync(join(vscodeDir, file), join(engineDir, file))

@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
-const ROOT = realpathSync(join(import.meta.dir, '../../kit/toolList'))
+const ROOT = realpathSync(join(import.meta.dir, '../..'))
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'agent-starting-folder-')))
 const work = join(scratch, 'work')
 const inside = join(work, 'inside')

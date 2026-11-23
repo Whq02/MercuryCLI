@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { runInNewContext } from 'node:vm'
 import type { Browser as DriverBrowser } from 'puppeteer-core'
 
-const ROOT = process.env.PROOF_SUBJECT_ROOT ?? join(import.meta.dir, '../../kit/toolList')
+const ROOT = process.env.PROOF_SUBJECT_ROOT ?? join(import.meta.dir, '../..')
 const actualSpawn = childProcess.spawnSync
 const scratch = mkdtempSync(join(tmpdir(), 'browser-secrets-'))
 const file = join(scratch, 'browser-secrets.json')

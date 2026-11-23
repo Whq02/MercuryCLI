@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
-const REPO = join(import.meta.dir, '../../kit/toolList')
+const REPO = join(import.meta.dir, '../..')
 const arg = (name: string): string | undefined => { const at = process.argv.indexOf(name); return at < 0 ? undefined : process.argv[at + 1] }
 const BIN = arg('--dist') ?? join(REPO, 'dist/mercury.mjs')
 const OUT = arg('--records')

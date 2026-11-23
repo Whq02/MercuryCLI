@@ -8,7 +8,7 @@ import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
-const REPO = path.resolve(import.meta.dir, '../../catalogue/commands')
+const REPO = path.resolve(import.meta.dir, '../..')
 const argAfter = (flag: string): string | undefined => {
   const at = process.argv.indexOf(flag)
   return at >= 0 ? process.argv[at + 1] : undefined

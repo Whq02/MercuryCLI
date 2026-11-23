@@ -46,7 +46,7 @@ console.log('prove-cd-dot-is-current — cd . names the folder the command alrea
 
 section('§1 the spelling check: dots and separators alone name the current folder')
 for (const spelled of ['.', './', './.', '././', '.\\']) check(`${JSON.stringify(spelled)} is the current folder`, isCurrentFolderSpelling(spelled, root), 'isCurrentFolderSpelling returned false for a spelling of the current folder' + cdDotWhere)
-for (const spelled of ['..', '../kit/toolList', './sub', 'sub', '.hidden', '', '.;', '$PWD']) check(`${JSON.stringify(spelled)} is not`, !isCurrentFolderSpelling(spelled, root), 'isCurrentFolderSpelling returned true for a spelling that names another folder' + cdDotWhere)
+for (const spelled of ['..', './..', './sub', 'sub', '.hidden', '', '.;', '$PWD']) check(`${JSON.stringify(spelled)} is not`, !isCurrentFolderSpelling(spelled, root), 'isCurrentFolderSpelling returned true for a spelling that names another folder' + cdDotWhere)
 check('the absolute spelling of the folder still counts', isCurrentFolderSpelling(root, root), 'isCurrentFolderSpelling no longer matches the absolute path of the folder (shellFolderComparisonKey comparison)' + cdDotWhere)
 
 section('§2 default and implement: a read after cd . is allowed as the read alone would be')
