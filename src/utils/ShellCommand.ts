@@ -96,7 +96,7 @@ function policyNoticeFor(
     return (
       `Background command killed: the absolute deadline elapsed (${HARD_CAP_MULTIPLIER}x the original ${formatDuration(timeout)} timeout — auto-backgrounding preserves the task's ` +
       'time bound). For a service-style command that should run indefinitely, background it ' +
-      'explicitly.'
+      'explicitly instead.'
     )
   }
   if (killedByTimeout) {

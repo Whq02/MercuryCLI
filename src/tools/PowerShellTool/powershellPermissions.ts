@@ -240,7 +240,7 @@ async function decidePowerShellPermission(
       }
     }
     if (deferredAsk) return deferredAsk
-    const errMsg = parsed.errors[0]?.message ?? 'parse error'
+    const errMsg = parsed.errors[0]?.message ?? 'unknown error'
     const msg = `The command has malformed syntax that cannot be parsed: ${errMsg}`
     return { behavior: 'ask', message: msg, decisionReason: other(msg) }
   }
