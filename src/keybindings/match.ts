@@ -1,6 +1,5 @@
 import type { Key } from '../ink/events/input-event.js'
 import type { ParsedBinding, ParsedKeystroke } from './types.js'
-import { notBuilt } from '../pi/holes.js'
 
 const NAMED_FLAGS: ReadonlyArray<[keyof Key, string]> = [
   ['escape', 'escape'],
@@ -21,13 +20,20 @@ const NAMED_FLAGS: ReadonlyArray<[keyof Key, string]> = [
 ]
 
 export function getKeyName(input: string, key: Key): string | null {
-  return notBuilt('src/keybindings/match.ts:23')
+  for (const [flag, name] of NAMED_FLAGS) if (key[flag]) return name
+  if (input.length <= 1) return input.toLowerCase() || null
+  const first = input.charCodeAt(0)
+  if (first < 32 || first === 127) return null
+  for (let i = 1; i < input.length; i++) if (input.charCodeAt(i) !== first) return null
+  return input[0]!.toLowerCase()
 }
 
 export function matchesKeystroke(input: string, key: Key, target: ParsedKeystroke): boolean {
-  return notBuilt('src/keybindings/match.ts:35')
+  const name = getKeyName(input, key)
+  return name === target.key && key.ctrl === target.ctrl && key.shift === target.shift && key.super === target.super &&
+    (name !== 'escape' && key.meta) === (target.alt || target.meta)
 }
 
 export function matchesBinding(input: string, key: Key, binding: ParsedBinding): boolean {
-  return notBuilt('src/keybindings/match.ts:45')
+  return binding.chord.length === 1 && matchesKeystroke(input, key, binding.chord[0]!)
 }
