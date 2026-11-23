@@ -20,7 +20,6 @@ import { connectTimeoutMs, mcpStdioMaxMessageBytes } from './limits.js'
 import { type FetchLike, wrapFetchWithTimeout, loggedHeadersOf, createAnthropicProxyFetch } from './fetch.js'
 import { OwnedStdioClientTransport } from './protocolClient.js'
 import { createWsTransport } from './wsTransport.js'
-import { endProcessTree, endProcessTreeSurvivors } from '../../../utils/processGroup.js'
 
 export type RemoteConfig = ScopedMcpServerConfig & { url?: string; headers?: Record<string, string> }
 
@@ -64,8 +63,7 @@ export function buildStdioTransport(name: string, serverRef: ScopedMcpServerConf
 
 export async function sseTransportFor(name: string, config: RemoteConfig, provider: MercuryMcpAuthProvider): Promise<Transport> {
   const serverHeaders = await getMcpServerHeaders(name, config)
-  const apiFetch = getApiFetch()
-  const wrappedFetch = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(apiFetch, provider))
+  const wrappedFetch = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(getApiFetch(), provider))
   const headers: Record<string, string> = { 'User-Agent': getMCPUserAgent(), ...serverHeaders }
   const proxyOptions = getProxyFetchOptions()
   const eventSourceFetch: FetchLike = async (input, init) => {
@@ -79,12 +77,12 @@ export async function sseTransportFor(name: string, config: RemoteConfig, provid
       mergedHeaders.set(key, value)
     }
     mergedHeaders.set('Accept', 'text/event-stream')
-    return apiFetch(input, { ...init, headers: mergedHeaders, ...proxyOptions } as RequestInit)
+    return getApiFetch()(input, { ...init, headers: mergedHeaders, ...proxyOptions } as RequestInit)
   }
   return new SSEClientTransport(new URL(config.url!), {
     authProvider: provider,
     fetch: wrappedFetch,
-    requestInit: { headers, ...proxyOptions } as RequestInit,
+    requestInit: { headers },
     eventSourceInit: { fetch: eventSourceFetch },
   })
 }
@@ -112,9 +110,7 @@ export async function httpTransportFor(name: string, config: RemoteConfig, provi
   const requestInit = { headers, ...proxyOptions } as RequestInit
   const runtime = typeof (globalThis as { Bun?: unknown }).Bun !== 'undefined' ? 'bun' : 'node'
   const proxyUrl = getProxyUrl()
-  const safeProxy = proxyUrl
-    ? (getLoggingSafeMcpBaseUrl({ type: 'http', url: proxyUrl, scope: 'dynamic' }) ?? '[REDACTED]')
-    : 'none'
+  const safeProxy = proxyUrl !== undefined ? (getLoggingSafeMcpBaseUrl({ type: 'http', url: proxyUrl }) ?? '[REDACTED]') : 'none'
   logMCPDebug(name, `runtime ${runtime}, proxy ${safeProxy}`)
   logMCPDebug(
     name,
@@ -140,14 +136,14 @@ export function proxyTransportFor(name: string, config: RemoteConfig): Transport
   const oauth = getOauthConfig()
   const serverId = (config as { id?: string }).id ?? ''
   const path = oauth.MCP_PROXY_PATH.replace('{server_id}', serverId)
-  const wrappedFetch = wrapFetchWithTimeout(createAnthropicProxyFetch(getApiFetch()))
+  const wrappedFetch = wrapFetchWithTimeout(createAnthropicProxyFetch(fetch))
   const headers: Record<string, string> = {
     'User-Agent': getMCPUserAgent(),
     'X-Mcp-Client-Session-Id': getSessionId(),
   }
   return new StreamableHTTPClientTransport(new URL(`${oauth.MCP_PROXY_URL}${path}`), {
     fetch: wrappedFetch,
-    requestInit: { headers, ...getProxyFetchOptions() } as RequestInit,
+    requestInit: { headers },
   })
 }
 
@@ -167,8 +163,9 @@ export async function inProcessTransportFor(): Promise<{
 
 export async function endStdioTree(name: string, stdioTransport: StdioClientTransport | null): Promise<void> {
   const pid = stdioTransport?.pid
-  if (!pid) return
+  if (pid === null || pid === undefined) return
   try {
+    const { endProcessTree, endProcessTreeSurvivors } = await import('../../../utils/processGroup.js')
     const first = await endProcessTree(pid, 'SIGINT')
     let ended = first.ended
     let survivors = first.survivors
