@@ -165,10 +165,14 @@ type WorkspaceSymbolResponse =
   | { symbols: SymbolInformation[]; incompleteError?: string }
   | null
 
-function isAbortError(err: unknown): boolean {
+function hasAbortCode(err: unknown): boolean {
   if (!(err instanceof Error)) return false
   const withCode: Error & { code?: unknown } = err
-  return withCode.code === 'ABORT_ERR' || err.name === 'AbortError'
+  return withCode.code === 'ABORT_ERR'
+}
+
+function isAbortError(err: unknown): boolean {
+  return hasAbortCode(err) || (err instanceof Error && err.name === 'AbortError')
 }
 
 function locationUri(loc: Locationish): string | undefined {
@@ -287,9 +291,8 @@ function unclaimedFileResult(
 ): Settled {
   const ext = extname(absolutePath).toLowerCase() || basename(absolutePath)
   const { cause, remedy } = unclaimedCause(ext, cwd)
-  const detail = remedy ? ` — ${cause}` : ''
   const help = remedy ? ` What helps: ${remedy}.` : ''
-  const result = `${operation} operation was not run: no language server claims '${ext}' files in this session${detail}.${help}${consumeInvalidLspServersNote()}`
+  const result = `The ${operation} operation was not run: no language server claims '${ext}' files in this session — ${cause}.${help}${consumeInvalidLspServersNote()}`
   return {
     data: { operation, result, filePath, outcome: 'failed' },
     effect: makeEffect(operation, 'failed', result, startedAt),
@@ -370,12 +373,16 @@ async function runWorkspaceSymbolOp(
         ? await manager.sendRequest(absolutePath, 'workspace/symbol', { query })
         : await target.server.sendRequest('workspace/symbol', { query })
     ) as WorkspaceSymbolResponse | undefined
-    if (response === undefined) {
-      return unclaimedFileResult('workspaceSymbol', filePath, absolutePath, cwd, startedAt)
+    const rawSymbols = Array.isArray(response) ? response : response && Array.isArray(response.symbols) ? response.symbols : null
+    if (rawSymbols === null) {
+      const result = `No symbols found for "${query}" (the server returned no result).`
+      return {
+        data: { operation: 'workspaceSymbol', result, filePath, resultCount: 0, fileCount: 0, outcome: 'no-change' },
+        effect: makeEffect('workspaceSymbol', 'no-change', result, startedAt),
+      }
     }
-    const rawSymbols = Array.isArray(response) ? response : response !== null && Array.isArray(response.symbols) ? response.symbols : []
     const incompleteError =
-      response !== null && !Array.isArray(response) && typeof response.incompleteError === 'string' ? response.incompleteError : undefined
+      response && !Array.isArray(response) && typeof response.incompleteError === 'string' ? response.incompleteError : undefined
     const filtered = await filterGitignoredSymbols(rawSymbols, cwd, context.abortController.signal)
     const limit = Math.min(input.limit ?? WORKSPACE_SYMBOL_DEFAULT_LIMIT, WORKSPACE_SYMBOL_MAX_LIMIT)
     const { shown, total, truncated } = boundWorkspaceSymbols(filtered, limit)
@@ -410,7 +417,8 @@ async function runWorkspaceSymbolOp(
       effect: makeEffect('workspaceSymbol', 'succeeded', formatted, startedAt),
     }
   } catch (err) {
-    if (isAbortError(err) || context.abortController.signal.aborted) throw err
+    if (hasAbortCode(err) && context.abortController.signal.aborted) throw err
+    logError(err)
     const startFail = formatStartFailure(
       err,
       manager,
@@ -423,8 +431,7 @@ async function runWorkspaceSymbolOp(
       target.path,
     )
     if (startFail) return startFail
-    logError(err)
-    const result = `Error performing workspaceSymbol: ${err instanceof Error ? err.message : String(err)}`
+    const result = `The workspaceSymbol search for "${query}" failed: ${err instanceof Error ? err.message : String(err)}`
     return {
       data: { operation: 'workspaceSymbol', result, filePath, outcome: 'failed' },
       effect: makeEffect('workspaceSymbol', 'failed', result, startedAt),
@@ -586,14 +593,15 @@ async function runLspOperation(
         input.operation === 'incomingCalls'
           ? 'callHierarchy/incomingCalls'
           : 'callHierarchy/outgoingCalls'
-      const calls: unknown = await manager.sendRequest(
+      const answered: unknown = await manager.sendRequest(
         absolutePath,
         callMethod,
         { item: prepared[0] },
       )
-      if (calls === undefined) {
-        return unclaimedFileResult(input.operation, filePath, absolutePath, cwd, startedAt)
+      if (answered === undefined) {
+        logError(new Error(`LSP ${input.operation}: undefined second response`))
       }
+      const calls = answered === undefined ? [] : answered
       if (input.operation === 'incomingCalls') {
         const incoming = (calls as IncomingCall[] | null) ?? []
         const result = formatIncomingCallsResult(calls as IncomingCall[] | null, cwd)
