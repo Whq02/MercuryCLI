@@ -9,7 +9,7 @@ import {
   type ModelOption,
   focusedOptionSupports1m,
   getModelOptions,
-  isProviderActionRow,
+  isCatalogueDoorRow,
   resolvesToExistingOption,
   stripContext1m,
   withContext1m,
@@ -76,7 +76,7 @@ export function ModelPicker({
 
   const { options, defaultFocusValue } = useMemo(() => {
     const filtered: ModelOption[] = getModelOptions().filter(
-      opt => !opt.unavailable && !isProviderActionRow(opt.value),
+      opt => !opt.unavailable && !isCatalogueDoorRow(opt.value),
     )
 
     const trimmedInitial = initial !== null && initial !== '' ? initial : null
