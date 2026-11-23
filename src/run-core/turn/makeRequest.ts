@@ -28,6 +28,7 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { fireHooks } from '../../utils/hooks/fire.js'
 import { hookRowsOfResult } from '../../utils/hooks/rows.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 import { advanceToolCallChain, type ToolUseContext } from '../../Tool.js'
 import { asSystemPrompt, type SystemPrompt } from '../../utils/systemPromptType.js'
 import type { AttachmentMessage, Message } from '../../types/message.js'
@@ -41,7 +42,7 @@ import { emitCompactionTrace } from '../../utils/observability/invocationTrace.j
 import { flushSessionStorage, recordContentReplacement } from '../../utils/sessionStorage.js'
 import { buildRequestContextPlan, type RequestContextPlan } from '../../services/run/requestContextPlan.js'
 import { calibrationKeyFor } from '../../services/run/contextCalibration.js'
-import { randomUUID, type UUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { requestGaugeFixed } from '../../services/run/requestGauge.js'
 import { buildPostCompactMessages, ERROR_MESSAGE_USER_ABORT } from '../../services/compact/compact.js'
 import { toolToAPISchema } from '../../services/messages/api.js'
@@ -114,7 +115,7 @@ export async function* planContext(run: RunCtx, state: TurnState, toolUseContext
   const tools = await Promise.all(
     toolsOnTheWire(payload).map(tool =>
       toolToAPISchema(tool, { getToolPermissionContext, tools: options.tools, agents, allowedAgentTypes: options.agentDefinitions.allowedAgentTypes, model: engine }).catch(
-        (): { name: string } => ({ name: tool.name }),
+        passedOverAs({ name: tool.name }),
       ),
     ),
   )
