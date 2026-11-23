@@ -4,9 +4,18 @@ import React from 'react'
 import { Box, Text } from '../../ink.js'
 import { useDeclaredCursor } from '../../ink/hooks/use-declared-cursor.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import type { Unbuilt } from '../../pi/holes.js'
 
-type ListItemProps = Unbuilt
+type ListItemProps = {
+  isFocused?: boolean
+  isSelected?: boolean
+  children?: React.ReactNode
+  description?: string
+  showScrollDown?: boolean
+  showScrollUp?: boolean
+  styled?: boolean
+  disabled?: boolean
+  declareCursor?: boolean
+}
 
 export function ListItem({
   isFocused = false,
