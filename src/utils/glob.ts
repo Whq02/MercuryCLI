@@ -105,21 +105,15 @@ export async function glob(
   }
 
   const rgCwd = isFileTarget ? dirname(canonicalTarget) : canonicalTarget
-  const resolvedGlobs = resolveSearchGlob(pattern, rgCwd)
+  const resolvedGlobs = resolveSearchGlob(pattern, rgCwd, false)
   const maxDepth = globSearchDepth(resolvedGlobs)
 
-  const sharedArgs: string[] = ['--files']
+  const sharedPrefix: string[] = ['--files']
   if (envFlagDefaultOn('MERCURY_GLOB_HIDDEN')) {
-    sharedArgs.push('--hidden')
+    sharedPrefix.push('--hidden')
   }
   if (maxDepth !== undefined) {
-    sharedArgs.push('--max-depth', String(maxDepth))
-  }
-  for (const resolvedGlob of resolvedGlobs) {
-    sharedArgs.push('--glob', resolvedGlob)
-  }
-  for (const dir of ['.git', '.svn', '.hg', '.bzr', '.jj', '.sl']) {
-    sharedArgs.push('--glob', `!**/${dir}`, '--glob', `!**/${dir}/**`)
+    sharedPrefix.push('--max-depth', String(maxDepth))
   }
 
   const ignoreByRoot = getFileReadIgnorePatterns(toolPermissionContext)
@@ -130,43 +124,65 @@ export async function glob(
       ignorePatterns.add(ignorePattern)
     }
   }
-  for (const ignorePattern of ignorePatterns) {
-    sharedArgs.push('--iglob', ignorePattern.startsWith('/') ? `!${ignorePattern}` : `!**/${ignorePattern}`)
+  const unrootedIgnores = ignoreByRoot.get(null)
+  if (unrootedIgnores !== undefined && unrootedIgnores.length > 0) {
+    const processCwd = process.cwd()
+    const procResolved = safeResolvePath(getFsImplementation(), processCwd).resolvedPath
+    for (const rootCandidate of procResolved === processCwd ? [processCwd] : [processCwd, procResolved]) {
+      const rel = relative(rootCandidate, rgCwd)
+      if (rel !== '' && rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel)) {
+        for (const ignorePattern of normalizePatternsToPath(new Map([[rootCandidate, unrootedIgnores]]), rgCwd)) {
+          ignorePatterns.add(ignorePattern)
+        }
+      }
+    }
   }
 
-  const mainArgs = ['--sortr=modified', ...sharedArgs]
-  const unignoredArgs = ['--no-ignore', ...sharedArgs]
+  const sharedExcludes: string[] = []
+  for (const dir of ['.git', '.svn', '.hg', '.bzr', '.jj', '.sl']) {
+    sharedExcludes.push('--glob', `!**/${dir}`, '--glob', `!**/${dir}/**`)
+  }
+  for (const ignorePattern of ignorePatterns) {
+    sharedExcludes.push('--iglob', ignorePattern.startsWith('/') ? `!${ignorePattern}` : `!**/${ignorePattern}`)
+  }
+
+  const matchArgs = [
+    '--sortr=modified',
+    '--no-ignore',
+    ...sharedPrefix,
+    ...resolvedGlobs.flatMap(resolvedGlob => ['--glob', resolvedGlob]),
+    ...sharedExcludes,
+  ]
+  const universeArgs = [...sharedPrefix, ...sharedExcludes]
   const rgOptions = { cwd: rgCwd }
 
-  const [mainAnswer, unignoredAnswer] = await Promise.all([
-    ripGrepAnswer(mainArgs, canonicalTarget, abortSignal, rgOptions),
-    ripGrepAnswer(unignoredArgs, canonicalTarget, abortSignal, rgOptions),
+  const [matchAnswer, universeAnswer] = await Promise.all([
+    ripGrepAnswer(matchArgs, canonicalTarget, abortSignal, rgOptions),
+    ripGrepAnswer(universeArgs, canonicalTarget, abortSignal, rgOptions),
   ])
 
   const suppliedBase = searchDir.replace(/[\\/]+$/, '')
+  const canonicalBase = canonicalTarget.replace(/[\\/]+$/, '')
   const restoreSpelling = (file: string): string => {
     if (canonicalTarget === searchDir) return file
     if (file === canonicalTarget) return searchDir
-    if (file.startsWith(canonicalTarget)) {
-      const next = file.charAt(canonicalTarget.length)
+    if (file.startsWith(canonicalBase)) {
+      const next = file.charAt(canonicalBase.length)
       if (next === '/' || next === '\\') {
-        return `${suppliedBase}${file.slice(canonicalTarget.length)}`
+        return `${suppliedBase}${file.slice(canonicalBase.length)}`
       }
     }
     return file
   }
 
   const isDenied = readDenialFilter(toolPermissionContext, searchDir)
-  const visible = mainAnswer.lines.map(restoreSpelling).filter(file => !isDenied(file))
+  const readableMatches = matchAnswer.lines.map(restoreSpelling).filter(file => !isDenied(file))
+  const readableUniverse = new Set(universeAnswer.lines.map(restoreSpelling).filter(file => !isDenied(file)))
+  const visible = readableMatches.filter(file => readableUniverse.has(file))
 
-  let ignored = 0
-  if (mainAnswer.complete && unignoredAnswer.complete) {
-    const visibleSet = new Set(visible)
-    for (const rawFile of unignoredAnswer.lines) {
-      const file = restoreSpelling(rawFile)
-      if (!isDenied(file) && !visibleSet.has(file)) ignored++
-    }
-  }
+  const complete = matchAnswer.complete && universeAnswer.complete
+  const ignored = complete ? readableMatches.length - visible.length : 0
+  const incomplete = complete ? undefined : (matchAnswer.reason ?? universeAnswer.reason)
 
   const { limit, offset } = arg2
   const truncated = visible.length > offset + limit
@@ -179,6 +195,6 @@ export async function glob(
     files,
     truncated,
     ignored,
-    ...(mainAnswer.complete ? {} : { incomplete: mainAnswer.reason }),
+    ...(incomplete === undefined ? {} : { incomplete }),
   }
 }

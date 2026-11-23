@@ -6,6 +6,7 @@ import type { SessionListing } from '../types/logs.js'
 import { quote } from './bash/shellQuote.js'
 import { binaryName } from './config.js'
 import { normalizePathForComparison } from './file.js'
+import { passedOver } from './passedOver.js'
 import { sessionIdOfListing } from './sessionStorage.js'
 
 type CrossProjectResumeResult =
@@ -39,7 +40,8 @@ export function checkCrossProjectResume(
     if (!existsSync(projectPath)) {
       return { isCrossProject: false }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return { isCrossProject: false }
   }
   const isSameRepoWorktree = worktreePaths.some(worktreePath => {
