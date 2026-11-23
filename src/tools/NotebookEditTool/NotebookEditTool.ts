@@ -1,4 +1,3 @@
-import { type UUID } from 'node:crypto'
 import { extname, isAbsolute, resolve } from 'node:path'
 import { z } from 'zod/v4'
 
@@ -250,7 +249,7 @@ export const NotebookEditTool = buildTool({
       await fileHistoryTrackEdit(
         context.updateFileHistoryState,
         resolvedPath,
-        parentMessage.uuid as UUID,
+        parentMessage.uuid,
       )
     }
 
