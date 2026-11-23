@@ -136,7 +136,7 @@ const apiKeyConflictNotice: StatusNoticeDefinition = {
     return (
       <Box marginTop={1}>
         <Text color="warning">
-          {GLYPH.warn} {source} is being used instead of your stored API key. Unset it, or run `{binaryName()} /logout` and sign in again.
+          {`${GLYPH.warn} ${source} is being used instead of Mercury's own login key. Unset it, or run \`${binaryName()} /logout\` and log in again.`}
         </Text>
       </Box>
     )
@@ -173,22 +173,22 @@ const bothAuthMethodsNotice: StatusNoticeDefinition = {
     const describedToken = describeTokenSource(tokenSource)
     const tokenRemedy =
       apiKeySource === 'ANTHROPIC_API_KEY'
-        ? 'unset ANTHROPIC_API_KEY'
+        ? `unset ANTHROPIC_API_KEY, or run \`${bin} /logout\`, decline the API-key approval, and log in again`
         : apiKeySource === 'credentials.keyCommand'
-          ? 'remove credentials.keyCommand from settings'
+          ? 'unset the credentials.keyCommand setting'
           : `run \`${bin} /logout\``
     const keyRemedy =
       tokenSource === 'claude.ai'
-        ? `run \`${bin} /logout\``
+        ? `run \`${bin} /logout\` to sign out of ${describedToken}`
         : `unset ${tokenSource}`
     return (
       <Box flexDirection="column" marginTop={1}>
         <Text color="warning">
-          {GLYPH.warn} Auth conflict: Both a token ({describedToken}) and an API key ({apiKeySource}) are set. This may lead to unexpected behavior.
+          {`${GLYPH.warn} Both an auth token (${describedToken}) and an API key (${apiKeySource}) are set — one silently outranks the other.`}
         </Text>
         <Box flexDirection="column" paddingLeft={3}>
-          <Text>Trying to use {describedToken}? {tokenRemedy}.</Text>
-          <Text>Trying to use {apiKeySource}? {keyRemedy}.</Text>
+          <Text>{`Trying to use ${describedToken}? ${tokenRemedy}.`}</Text>
+          <Text>{`Trying to use the API key (${apiKeySource})? ${keyRemedy}.`}</Text>
         </Box>
       </Box>
     )
