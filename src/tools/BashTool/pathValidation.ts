@@ -806,9 +806,10 @@ function runPathChecker(
 
   if (operationType === 'read') {
     const follows = FOLLOWS_LINKS[command]?.(args) === true
+    const checkLinks = follows && context.mode !== 'flow'
     const recursive = RECURSIVE_READERS[command]?.(args) === true
     const denied = recursive ? ruleMatcherFor(context, 'read', 'deny') : null
-    if (follows || denied !== null) {
+    if (checkLinks || denied !== null) {
       const refusal = treeRefusal(command, allowedPaths, cwd, context, operationType, follows, denied)
       if (refusal !== null) return refusal
     }
@@ -1001,8 +1002,12 @@ function treeRefusal(
       const full = join(real, entry.name)
       if (entry.isSymbolicLink()) {
         if (!follows) continue
+        const rule = denied?.(full)[0]
+        if (rule !== undefined) return ruleDeny(denySubject(command, full), full, 'read', context, rule)
         const check = validatePath(full, cwd, context, operationType)
-        if (!check.allowed) return operandRefusal(command, check, context, operationType, full)
+        if (!check.allowed && (check.decisionReason?.type === 'rule' || context.mode !== 'flow' || check.decisionReason !== undefined)) {
+          return operandRefusal(command, check, context, operationType, full)
+        }
         const target = folderReading(check.resolvedPath)
         if (typeof target === 'object') {
           const ask = unread(root, check.resolvedPath, target.unread)
