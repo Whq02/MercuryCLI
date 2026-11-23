@@ -2,10 +2,22 @@ import * as React from 'react'
 import { Text } from '../../ink.js'
 import type { Theme } from '../../utils/theme.js'
 import type { HexColor } from '../../ink/styles.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-type Props = Unbuilt
+type Props = {
+  char: string
+  index: number
+  glimmerIndex: number
+  messageColor: keyof Theme | HexColor
+  shimmerColor: keyof Theme | HexColor
+}
 
-export function ShimmerChar(arg0: Props): React.ReactNode {
-  return notBuilt('src/components/Spinner/ShimmerChar.tsx:14')
+export function ShimmerChar({
+  char,
+  index,
+  glimmerIndex,
+  messageColor,
+  shimmerColor,
+}: Props): React.ReactNode {
+  const isShimmer = Math.abs(index - glimmerIndex) <= 1
+  return <Text color={isShimmer ? shimmerColor : messageColor}>{char}</Text>
 }
