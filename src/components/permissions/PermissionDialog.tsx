@@ -7,7 +7,6 @@ import {
   isDefaultMode,
   permissionModeSymbol,
   permissionModeTitle,
-  type PermissionMode,
 } from '../../utils/permissions/PermissionMode.js'
 import { PermissionRequestTitle } from './PermissionRequestTitle.js'
 import { PermissionQueueContext } from './PermissionQueueContext.js'
@@ -39,15 +38,14 @@ export function PermissionDialog({
 }: Props): React.ReactNode {
   const popup = React.useContext(PopupFrameContext)
   const mode = useAppStateMaybeOutsideOfProvider(
-    (s: { toolPermissionContext?: { mode?: string } } | undefined) =>
-      s?.toolPermissionContext?.mode,
-  ) as PermissionMode | undefined
+    s => s.toolPermissionContext.mode,
+  )
   const modeActive = !isDefaultMode(mode)
   const cardColor: keyof Theme =
-    modeActive && mode ? (getModeColor(mode) as keyof Theme) : color
+    modeActive && mode ? getModeColor(mode) : color
   const modeChip =
     modeActive && mode ? (
-      <Text color={getModeColor(mode) as keyof Theme}>
+      <Text color={getModeColor(mode)}>
         {permissionModeSymbol(mode) ? `${permissionModeSymbol(mode)} ` : ''}
         {permissionModeTitle(mode).toLowerCase()}
       </Text>
