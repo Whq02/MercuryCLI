@@ -237,77 +237,73 @@ function BashCommandPermissionRequest(
   const focusedOriginalCwd = useFocusedWorkspaceOriginalCwd()
   const runFolder = toolUseConfirm.cwd ?? (cwd === undefined ? focusedCwd : resolve(focusedOriginalCwd, cwd))
   const descriptionText = summary ?? toolUseConfirm.description
-  const fallbackCommand = command
-    ? null
-    : toolUseConfirm.tool.renderToolUseMessage?.(toolUseConfirm.input, {
-        theme: resolveThemeName(),
-        verbose: true,
-      })
-
+  const inputCommand = toolUseConfirm.input.command
   const showTabAmend =
-    !showDebug &&
-    ((feedback.focusedOption === 'yes' && !feedback.yesInputMode) ||
-      (feedback.focusedOption === 'no' && !feedback.noInputMode))
+    (feedback.focusedOption === 'yes' && !feedback.yesInputMode) ||
+    (feedback.focusedOption === 'no' && !feedback.noInputMode)
 
   return (
-    <PermissionDialog title={title ?? 'Bash command'} workerBadge={workerBadge}>
-      <Box flexDirection="column" paddingX={2} paddingY={1}>
-        {command ? (
-          <ConsentBodyText
-            text={command}
-            tail=" (the whole command runs)"
-            dimColor={explainer.visible}
-          />
-        ) : typeof fallbackCommand === 'string' ? (
-          <Text dimColor={explainer.visible}>{fallbackCommand}</Text>
-        ) : (
-          fallbackCommand
-        )}
-        {descriptionText && !explainer.visible ? <Text dimColor>{descriptionText}</Text> : null}
-        <Text dimColor>in {toTildePath(runFolder)}</Text>
-        {toolUseConfirm.crewmate ? (
-          <Text dimColor wrap="truncate-end">
-            {toolUseConfirm.crewmate}
-          </Text>
-        ) : null}
-        <PermissionExplainerContent
-          visible={explainer.visible}
-          promise={explainer.promise}
-          fallback={descriptionText ? <Text dimColor>{descriptionText}</Text> : undefined}
-        />
-        {destructiveWarning ? (
-          <Box marginTop={1}>
-            <Text color="warning">{destructiveWarning}</Text>
-          </Box>
-        ) : null}
-      </Box>
-      {showDebug ? (
-        <PermissionDecisionDebugInfo
-          permissionResult={toolUseConfirm.permissionResult}
-          toolName={toolUseConfirm.tool.name}
-        />
-      ) : (
+    <Box flexDirection="column">
+      <PermissionDialog title={title ?? 'Bash command'} workerBadge={workerBadge}>
         <Box flexDirection="column">
-          <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />
-          <Text bold>Do you want to proceed?</Text>
-          <Select
-            options={options}
-            onChange={handleSelect}
-            onCancel={() => feedback.handleReject()}
-            onFocus={feedback.handleFocus}
-            onInputModeToggle={feedback.handleInputModeToggle}
-            scrollMovesFocus={false}
+          <Box flexDirection="column">
+            {typeof inputCommand === 'string' ? (
+              <ConsentBodyText
+                text={inputCommand}
+                tail=" (the whole command runs)"
+                dimColor={explainer.visible}
+              />
+            ) : (
+              <Text dimColor={explainer.visible}>
+                {toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input, {
+                  theme: resolveThemeName(),
+                  verbose: true,
+                })}
+              </Text>
+            )}
+            {explainer.visible || summary === '' ? null : <Text dimColor>{descriptionText}</Text>}
+            <Text dimColor>in {toTildePath(runFolder)}</Text>
+            {toolUseConfirm.crewmate ? (
+              <Text dimColor wrap="truncate-end">
+                {toolUseConfirm.crewmate}
+              </Text>
+            ) : null}
+          </Box>
+          <PermissionExplainerContent
+            visible={explainer.visible}
+            promise={explainer.promise}
+            fallback={<Text dimColor>{descriptionText}</Text>}
           />
+          {showDebug ? (
+            <PermissionDecisionDebugInfo
+              permissionResult={toolUseConfirm.permissionResult}
+              toolName="Bash"
+            />
+          ) : (
+            <>
+              {destructiveWarning ? <Text color="warning">{destructiveWarning}</Text> : null}
+              <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />
+              <Text bold>Do you want to proceed?</Text>
+              <Select
+                scrollMovesFocus={false}
+                options={options}
+                onChange={handleSelect}
+                onCancel={() => feedback.handleReject(undefined)}
+                onFocus={feedback.handleFocus}
+                onInputModeToggle={feedback.handleInputModeToggle}
+              />
+            </>
+          )}
         </Box>
-      )}
-      <Box justifyContent="space-between" marginTop={1}>
+      </PermissionDialog>
+      <Box marginTop={1} justifyContent="space-between">
         <Text color="subtle">
           esc cancel
           {showTabAmend ? ' · tab amend' : ''}
           {explainer.enabled ? ` · ctrl+e ${explainer.visible ? 'hide' : 'explain'}` : ''}
         </Text>
-        {showDebug ? <Text color="subtle">ctrl+d debug</Text> : null}
+        {toolUseContext.options.debug ? <Text color="subtle">ctrl+d debug</Text> : null}
       </Box>
-    </PermissionDialog>
+    </Box>
   )
 }
