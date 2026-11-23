@@ -32,7 +32,6 @@ import { recordContentReplacement, listProjectSessions, sessionIdOfListing } fro
 import { sessionFilePath } from '../../utils/sessionStorage/loading.js'
 import { claimSessionWriter } from '../../utils/sessionStorage/sessionWriter.js'
 import { resumeMissMessage } from '../../utils/sessionStorage/resumeMiss.js'
-import type { UUID } from 'node:crypto'
 
 export function emitLoadError(
   message: string,
@@ -156,8 +155,8 @@ export async function loadInitialMessages(
       )
     }
     const homePin = consumeSessionHomePin()
-    let sourceFile = parsed.jsonlFile
-    if (sourceFile === undefined && homePin !== null && parsed.sessionId !== undefined) {
+    let sourceFile = parsed.jsonlFile ?? undefined
+    if (sourceFile === undefined && homePin !== null) {
       const pinnedPath = join(homePin, `${parsed.sessionId}.jsonl`)
       if (existsSync(pinnedPath)) {
         sourceFile = pinnedPath
@@ -165,17 +164,16 @@ export async function loadInitialMessages(
     }
     let loaded: { result: LoadedConversation; messages: Message[] }
     try {
-      const candidatePath =
-        sourceFile ?? (parsed.sessionId !== undefined ? sessionFilePath(parsed.sessionId as UUID) : undefined)
-      if (persistSession && !options.forkSession && candidatePath !== undefined && existsSync(candidatePath)) {
+      const candidatePath = sourceFile ?? sessionFilePath(parsed.sessionId)
+      if (persistSession && !options.forkSession && existsSync(candidatePath)) {
         await claimSessionWriter(candidatePath)
       }
-      const result = await loadConversationForResume(parsed.sessionId ?? parsed.jsonlFile, sourceFile)
+      const result = await loadConversationForResume(parsed.sessionId, sourceFile)
       if (!result || !hasConversationTurn(result.messages)) {
-        if (parsed.jsonlFile !== undefined) {
-          return fail(`No conversation could be loaded from: ${given || parsed.sessionId || ''}`)
+        if (parsed.isJsonlFile) {
+          return fail(`No conversation could be loaded from: ${given || parsed.sessionId}`)
         }
-        return fail(await resumeMissMessage(parsed.sessionId ?? given, sourceFile))
+        return fail(await resumeMissMessage(parsed.sessionId, sourceFile))
       }
       let messages = result.messages
       if (options.resumeSessionAt) {
