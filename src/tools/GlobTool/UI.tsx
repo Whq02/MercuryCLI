@@ -13,24 +13,34 @@ import { truncate } from '../../utils/format.js'
 import { extractTag } from '../../services/messages.js'
 import { SearchResultSummary } from '../GrepTool/UI.js'
 import type { Output } from './GlobTool.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 type GlobRenderInput = { pattern?: string; path?: string }
 
 export function userFacingName(): string {
-  return notBuilt('src/tools/GlobTool/UI.tsx:20')
+  return 'Search'
 }
 
 export function getToolUseSummary(input: GlobRenderInput | undefined): string | null {
-  return notBuilt('src/tools/GlobTool/UI.tsx:24')
+  if (!input?.pattern) return null
+  return truncate(input.pattern, TOOL_SUMMARY_MAX_LENGTH)
 }
 
 export function renderToolUseMessage(
   input: GlobRenderInput,
-  arg1: { verbose: boolean },
+  { verbose }: { verbose: boolean },
 ): React.ReactNode {
-  return notBuilt('src/tools/GlobTool/UI.tsx:29')
+  if (!input.pattern) return null
+  if (input.path) {
+    const shown = verbose ? input.path : getDisplayPath(input.path)
+    return (
+      <Text>
+        {input.pattern}
+        <Text dimColor> in {shown}</Text>
+      </Text>
+    )
+  }
+  return input.pattern
 }
 
 export function renderToolResultMessage(
@@ -38,16 +48,46 @@ export function renderToolResultMessage(
   _progressMessages: unknown,
   opts: { verbose: boolean; isTranscriptMode?: boolean },
 ): React.ReactNode {
-  return notBuilt('src/tools/GlobTool/UI.tsx:45')
+  const revealed = (opts.verbose || opts.isTranscriptMode === true) && output.filenames.length > 0
+  return (
+    <SearchResultSummary
+      count={output.numFiles}
+      label="files"
+      body={output.filenames.length > 0 ? output.filenames.join('\n') : undefined}
+      verbose={revealed}
+      trailer={output.durationMs > 0 ? `${Math.round(output.durationMs)}ms` : undefined}
+    />
+  )
 }
 
 export function isResultTruncated(output: Output | undefined): boolean {
-  return notBuilt('src/tools/GlobTool/UI.tsx:67')
+  if (!output) return false
+  return output.filenames.length > 0
+}
+
+function ShortErrorLine({ text }: { text: string }): React.ReactNode {
+  const tokens = useMercuryTokens()
+  return (
+    <MessageResponse>
+      <Text color={tokens.warning}>
+        {GLYPH.warn} {text}
+      </Text>
+    </MessageResponse>
+  )
 }
 
 export function renderToolUseErrorMessage(
   result: ToolResultBlockParam['content'],
-  arg1: { verbose: boolean },
+  { verbose }: { verbose: boolean },
 ): React.ReactNode {
-  return notBuilt('src/tools/GlobTool/UI.tsx:82')
+  if (!verbose && typeof result === 'string' && !isDenialResultText(result)) {
+    const extracted = extractTag(result, 'tool_use_error')
+    if (extracted !== null) {
+      if (extracted.includes(FILE_NOT_FOUND_CWD_NOTE)) {
+        return <ShortErrorLine text="File not found" />
+      }
+      return <ShortErrorLine text="Error searching files" />
+    }
+  }
+  return <FallbackToolUseErrorMessage result={result} verbose={verbose} />
 }
