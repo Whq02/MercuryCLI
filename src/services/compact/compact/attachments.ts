@@ -32,10 +32,59 @@ import { FOLDED_RESULT_KEY } from '../verbatimTail.js'
 import { POST_COMPACT_MAX_FILES_TO_RESTORE, POST_COMPACT_TOKEN_BUDGET, POST_COMPACT_MAX_TOKENS_PER_FILE, POST_COMPACT_MAX_TOKENS_PER_SKILL, POST_COMPACT_SKILLS_TOKEN_BUDGET, ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } from './limits.js'
 import { type CompactionResult, buildPostCompactMessages } from './result.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
-import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
 
 export function collectPreservedReadPaths(preserved: Message[], resultIds?: ReadonlySet<string>): Set<string> {
-  return notBuilt('src/services/compact/compact/attachments.ts:48')
+  const stubs = new Set<string>()
+  const shown = new Set<string>()
+  for (const message of preserved) {
+    if (message.type !== 'user') continue
+    const content = (message as UserMessage).message.content
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      if (block.type !== 'tool_result') continue
+      const text =
+        typeof block.content === 'string'
+          ? block.content
+          : Array.isArray(block.content)
+            ? block.content
+                .filter((item): item is { type: 'text'; text: string } => item.type === 'text')
+                .map(item => item.text)
+                .join('\n')
+            : ''
+      if (
+        text.includes(FILE_UNCHANGED_STUB) ||
+        text.startsWith(FOLDED_RESULT_KEY) ||
+        text.startsWith(REPEATED_RESULT_TAG)
+      ) {
+        stubs.add(block.tool_use_id)
+      } else if (
+        resultIds !== undefined &&
+        resultIds.has(block.tool_use_id) &&
+        block.is_error !== true &&
+        text !== '' &&
+        !text.startsWith(PERSISTED_OUTPUT_TAG) &&
+        !text.startsWith(TOOL_RESULT_CLEARED_MESSAGE)
+      ) {
+        shown.add(block.tool_use_id)
+      }
+    }
+  }
+  const paths = new Set<string>()
+  for (const message of preserved) {
+    if (message.type !== 'assistant') continue
+    const content = (message as AssistantMessage).message.content
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      if (block.type !== 'tool_use' || block.name !== FILE_READ_TOOL_NAME) continue
+      if (stubs.has(block.id)) continue
+      if (resultIds !== undefined && !shown.has(block.id)) continue
+      const input = block.input as Record<string, unknown> | undefined
+      if (input !== undefined && typeof input.file_path === 'string') {
+        paths.add(expandPath(input.file_path))
+      }
+    }
+  }
+  return paths
 }
 
 export function linesWithinTokenCeiling(lines: readonly string[], maxTokens: number): number {
@@ -114,10 +163,51 @@ export async function createPostCompactFileAttachments(
   readFileState: Record<string, { content: string; timestamp: number }>,
   toolUseContext: ToolUseContext,
   maxFiles: number,
-  preservedMessages?: Message[],
-  project?: boolean,
+  preservedMessages: Message[] = [],
+  project = false,
 ): Promise<AttachmentMessage[]> {
-  return notBuilt('src/services/compact/compact/attachments.ts:157')
+  const preservedReads = collectPreservedReadPaths(preservedMessages)
+  const memoryPaths = new Set<string>()
+  for (const memoryType of MEMORY_TYPE_VALUES) {
+    try {
+      memoryPaths.add(expandPath(getMemoryPath(memoryType)))
+    } catch (error) {
+      passedOver(error)
+    }
+  }
+  const candidates = Object.entries(readFileState)
+    .filter(([path]) => {
+      const expanded = expandPath(path)
+      if (isInstructionFilePath(expanded) || memoryPaths.has(expanded)) return false
+      if (preservedReads.has(expanded)) return false
+      return true
+    })
+    .sort(([, a], [, b]) => b.timestamp - a.timestamp)
+    .slice(0, maxFiles)
+
+  const rawAttachments: Array<Attachment | null> = project
+    ? candidates.map(([path, state]) => projectedFileAttachment(path, state, toolUseContext))
+    : await Promise.all(
+        candidates.map(([path]) =>
+          generateFileAttachment(path, toolUseContext, 'compact', { limit: MAX_LINES_TO_READ }).catch(
+            passedOverAs(null),
+          ),
+        ),
+      )
+
+  const kept: AttachmentMessage[] = []
+  let totalTokens = 0
+  for (const raw of rawAttachments) {
+    if (raw === null) continue
+    const fitted = fitFileAttachmentToTokenCeiling(raw, POST_COMPACT_MAX_TOKENS_PER_FILE)
+    const message = createAttachmentMessage(fitted)
+    const tokens = roughTokenCountEstimation(JSON.stringify(message))
+    if (totalTokens + tokens <= POST_COMPACT_TOKEN_BUDGET) {
+      kept.push(message)
+      totalTokens += tokens
+    }
+  }
+  return kept
 }
 
 
@@ -136,8 +226,40 @@ function describeAttachment(message: AttachmentMessage): string {
   return attachment.type
 }
 
-export function fitPostCompactUnderThreshold(result: CompactionResult, threshold: number, count?: Unbuilt): PostCompactFit {
-  return notBuilt('src/services/compact/compact/attachments.ts:227')
+export function fitPostCompactUnderThreshold(
+  result: CompactionResult,
+  threshold: number,
+  count: (rows: Message[]) => number = estimateContextTokens,
+): PostCompactFit {
+  let estimate = count(buildPostCompactMessages(result))
+  if (estimate < threshold) {
+    return { result, estimate, shed: [] }
+  }
+  const attachments = [...result.attachments]
+  let current: CompactionResult = { ...result, attachments }
+  const shed: string[] = []
+  for (const kind of POST_COMPACT_SHEDDABLE_ATTACHMENT_TYPES) {
+    while (estimate >= threshold) {
+      let bestIndex = -1
+      let bestSize = -1
+      for (let index = 0; index < attachments.length; index++) {
+        const candidate = attachments[index]!
+        if (candidate.attachment.type !== kind) continue
+        const size = estimateContextTokens([candidate])
+        if (size > bestSize) {
+          bestSize = size
+          bestIndex = index
+        }
+      }
+      if (bestIndex === -1) break
+      const [removed] = attachments.splice(bestIndex, 1)
+      shed.push(describeAttachment(removed!))
+      current = { ...result, attachments: [...attachments] }
+      estimate = count(buildPostCompactMessages(current))
+    }
+    if (estimate < threshold) break
+  }
+  return { result: shed.length === 0 ? result : current, estimate, shed }
 }
 
 export function obligationsOverThresholdMessage(estimate: number, threshold: number): string {
@@ -157,19 +279,62 @@ export function postCompactOverThresholdMessage(estimate: number, threshold: num
   )
 }
 
+const SKILL_TRUNCATION_MARKER =
+  '\n\n[Skill content truncated for compaction — Read the skill path above for the full text.]'
+
 export function createSkillAttachmentIfNeeded(
   agentId?: string,
   catalogue?: ReadonlyArray<{ name: string }>,
 ): AttachmentMessage | null {
-  return notBuilt('src/services/compact/compact/attachments.ts:270')
+  const invoked = getInvokedSkillsForAgent(agentId)
+  if (invoked.size === 0) return null
+  const allowedNames = catalogue !== undefined ? new Set(catalogue.map(item => item.name)) : null
+  const entries = Array.from(invoked.values()).filter(skill => {
+    if (allowedNames !== null && !allowedNames.has(skill.skillName)) {
+      logForDebugging(`compact: dropping invoked skill "${skill.skillName}" no longer in catalogue`)
+      return false
+    }
+    return true
+  })
+  if (entries.length === 0) return null
+  entries.sort((a, b) => b.invokedAt - a.invokedAt)
+
+  const maxChars = POST_COMPACT_MAX_TOKENS_PER_SKILL * 4
+  const skills: Array<{ name: string; path: string; content: string }> = []
+  let totalTokens = 0
+  for (const skill of entries) {
+    const content =
+      skill.content.length > maxChars
+        ? skill.content.slice(0, Math.max(0, maxChars - SKILL_TRUNCATION_MARKER.length)) + SKILL_TRUNCATION_MARKER
+        : skill.content
+    const tokens = roughTokenCountEstimation(content)
+    if (totalTokens + tokens > POST_COMPACT_SKILLS_TOKEN_BUDGET) continue
+    totalTokens += tokens
+    skills.push({ name: skill.skillName, path: skill.skillPath, content })
+  }
+  if (skills.length === 0) return null
+  return createAttachmentMessage({ type: 'invoked_skills', skills })
 }
 
 export async function createAsyncAgentAttachmentsIfNeeded(context: ToolUseContext): Promise<AttachmentMessage[]> {
-  return notBuilt('src/services/compact/compact/attachments.ts:297')
+  const appState = context.getAppState()
+  const attachments = getAgentRosterAttachment({
+    tasks: appState.tasks,
+    agentNameRegistry: appState.agentNameRegistry,
+    excludeAgentId: context.agentId,
+    queuedNoticeIds: queuedNoticeTaskIds(getCommandQueue()),
+  })
+  return attachments.map(attachment => createAttachmentMessage(attachment))
 }
 
 export function snapshotAndClearReadState(context: ToolUseContext): Record<string, { content: string; timestamp: number }> {
-  return notBuilt('src/services/compact/compact/attachments.ts:307')
+  const snapshot: Record<string, { content: string; timestamp: number }> = {}
+  for (const [path, state] of context.readFileState.entries()) {
+    snapshot[path] = { content: state.content, timestamp: state.timestamp }
+  }
+  context.readFileState.clear()
+  context.loadedNestedMemoryPaths?.clear()
+  return snapshot
 }
 
 export function restorePreservedReads(
@@ -207,7 +372,64 @@ export async function assembleAttachments(
   callSite: 'compact_full' | 'compact_partial',
   ledger: Array<[string, FileState]>,
   projection?: { userContext: Record<string, string> },
-  restoreFiles?: boolean,
+  restoreFiles = true,
 ): Promise<AttachmentMessage[]> {
-  return notBuilt('src/services/compact/compact/attachments.ts:345')
+  const [fileAttachments, agentAttachments] = await Promise.all([
+    restoreFiles
+      ? createPostCompactFileAttachments(
+          snapshot,
+          context,
+          POST_COMPACT_MAX_FILES_TO_RESTORE,
+          preserved,
+          projection !== undefined,
+        )
+      : Promise.resolve<AttachmentMessage[]>([]),
+    createAsyncAgentAttachmentsIfNeeded(context),
+  ])
+
+  if (projection === undefined) {
+    restorePreservedReads(context, ledger, preserved)
+  }
+
+  const attachments: AttachmentMessage[] = [...fileAttachments, ...agentAttachments]
+
+  const skillAttachment = createSkillAttachmentIfNeeded(context.agentId, context.options.commands)
+  if (skillAttachment !== null) {
+    attachments.push(skillAttachment)
+  }
+
+  const appState = context.getAppState()
+  const mcpClients = context.options.mcpClients ?? []
+  const appMcpClients = appState.mcp?.clients ?? []
+  const hasPendingMcpServers =
+    mcpClients.some(client => client.type === 'pending') ||
+    appMcpClients.some(client => client.type === 'pending')
+
+  const deferredToolsAttachments = await getPlannedDeferredToolsAttachment(context, preserved, {
+    callSite,
+    querySource: context.options.querySource,
+    hasPendingMcpServers,
+  })
+  for (const attachment of deferredToolsAttachments) {
+    attachments.push(createAttachmentMessage(attachment))
+  }
+
+  const mcpDeltaAttachments = getMcpInstructionsDeltaAttachment(
+    mcpClients,
+    context.options.tools,
+    context.options.engineModel,
+    preserved,
+  )
+  for (const attachment of mcpDeltaAttachments) {
+    attachments.push(createAttachmentMessage(attachment))
+  }
+
+  if (!context.agentId) {
+    const userContextAttachments = await getUserContextAttachment(preserved, projection?.userContext)
+    for (const attachment of userContextAttachments) {
+      attachments.push(createAttachmentMessage(attachment))
+    }
+  }
+
+  return attachments
 }
