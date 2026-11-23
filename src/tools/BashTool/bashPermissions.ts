@@ -224,7 +224,7 @@ export function bashToolCheckPermission(
     }
   }
 
-  const readOnly = checkPreparedReadOnlyConstraints(input, compoundHasCd, { ...simple, redirects: [] })
+  const readOnly = checkPreparedReadOnlyConstraints(input, compoundHasCd, { ...simple, redirects: [] }, SHELL_C_MAX_DEPTH)
   if (readOnly.behavior === 'allow') {
     return {
       behavior: 'allow',
@@ -1022,24 +1022,22 @@ function restrictedCommandCandidates(command: SimpleCommand, depth = 0): string[
         enqueue(inner)
       }
     }
+  }
 
-    if (depth < SHELL_C_MAX_DEPTH) {
-      const synthetic: SimpleCommand =
-        argv === command.argv ? command : { ...command, argv, text: shellCommandText(argv) }
-      const scripts = [extractShellCScript(synthetic), extractEvalScript(synthetic)].filter(
-        (script): script is string => script !== null,
-      )
-      for (const script of scripts) {
-        addText(script)
-        for (const piece of pinnedCommandAnalysis.splitCommand(script)) {
-          addText(piece)
-        }
-        const inner = preparedSecurityParse(script)
-        if (inner.kind === 'simple') {
-          for (const sub of inner.commands) {
-            for (const subCandidate of restrictedCommandCandidates(sub, depth + 1)) {
-              addText(subCandidate)
-            }
+  if (depth < SHELL_C_MAX_DEPTH) {
+    const scripts = [extractShellCScript(command), extractEvalScript(command)].filter(
+      (script): script is string => script !== null,
+    )
+    for (const script of scripts) {
+      addText(script)
+      for (const piece of pinnedCommandAnalysis.splitCommand(script)) {
+        addText(piece)
+      }
+      const inner = preparedSecurityParse(script)
+      if (inner.kind === 'simple') {
+        for (const sub of inner.commands) {
+          for (const subCandidate of restrictedCommandCandidates(sub, depth + 1)) {
+            addText(subCandidate)
           }
         }
       }
