@@ -274,9 +274,7 @@ function buildBoundaryAndSummary(params: {
     ...workPlaceholderSummary,
     message: { ...workPlaceholderSummary.message, content: summaryText },
   }
-  if (messagesToKeep !== undefined && messagesToKeep.length > 0 && anchorUuid !== undefined) {
-    annotateBoundaryWithPreservedSegment(boundaryMarker, anchorUuid, messagesToKeep)
-  }
+  annotateBoundaryWithPreservedSegment(boundaryMarker, summaryMessage.uuid, messagesToKeep ?? [])
   annotateBoundaryWithWork(boundaryMarker, messages, messagesToKeep ?? [], summaryMessage.uuid)
   return { boundaryMarker, summaryMessage }
 }
