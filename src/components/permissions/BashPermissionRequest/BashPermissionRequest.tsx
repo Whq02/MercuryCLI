@@ -302,7 +302,7 @@ function BashCommandPermissionRequest(
           {showTabAmend ? ' · tab amend' : ''}
           {explainer.enabled ? ` · ctrl+e ${explainer.visible ? 'hide' : 'explain'}` : ''}
         </Text>
-        {toolUseContext.options.debug ? <Text color="subtle">ctrl+d debug</Text> : null}
+        {toolUseContext?.options?.debug ? <Text color="subtle">ctrl+d debug</Text> : null}
       </Box>
     </Box>
   )

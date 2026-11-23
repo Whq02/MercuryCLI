@@ -215,7 +215,7 @@ export function PowerShellPermissionRequest({
           {canAmend ? ' · tab amend' : ''}
           {explainer.enabled ? ` · ctrl+e ${explainer.visible ? 'hide' : 'explain'}` : ''}
         </Text>
-        {toolUseConfirm.toolUseContext.options.debug ? (
+        {toolUseConfirm.toolUseContext?.options?.debug ? (
           <Text color="subtle">ctrl+d debug</Text>
         ) : null}
       </Box>
