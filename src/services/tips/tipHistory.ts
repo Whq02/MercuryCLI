@@ -1,9 +1,23 @@
-import { notBuilt } from '../../pi/holes.js'
+import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 
 export function recordTipShown(tipId: string): void {
-  return notBuilt('src/services/tips/tipHistory.ts:3')
+  saveGlobalConfig(current => {
+    const count = current.numStartups ?? 0
+    const history = current.tipsHistory ?? {}
+    if (history[tipId] === count) return current
+    return {
+      ...current,
+      tipsHistory: {
+        ...history,
+        [tipId]: count,
+      },
+    }
+  })
 }
 
 export function getSessionsSinceLastShown(tipId: string): number {
-  return notBuilt('src/services/tips/tipHistory.ts:12')
+  const config = getGlobalConfig()
+  const lastShown = config.tipsHistory?.[tipId]
+  if (!lastShown) return Infinity
+  return (config.numStartups ?? 0) - lastShown
 }
