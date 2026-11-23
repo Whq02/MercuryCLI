@@ -1,7 +1,6 @@
 import { ProtocolError, SdkError, SdkErrorCode } from '../../../utils/mcp/sdk.js'
 import { deepestErrorDetail, isStaleSocketCode } from '../../../utils/api/transportEvidence.js'
 import { errorMessage, TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../../utils/errors.js'
-import { isRecord } from '../../../utils/isRecord.js'
 
 export class McpAuthError extends Error {
   constructor(
@@ -32,7 +31,7 @@ export class McpSessionExpiredError extends Error {
 }
 
 export function isMcpSessionExpiredError(error: unknown): boolean {
-  const status = isRecord(error) ? error.status : undefined
+  const status = (error as { status?: unknown; code?: unknown } | null)?.status
   const message = errorMessage(error)
   if (status === 404 && (message.includes('"code":-32001') || message.includes('"code": -32001'))) return true
   return false
@@ -54,12 +53,12 @@ const STALE_SOCKET_MESSAGE_SUBSTRINGS = ['other side closed', 'socket hang up', 
 export function isStaleSocketFetchError(error: unknown): boolean {
   if (isStaleSocketCode(deepestErrorDetail(error).code)) return true
   if (!(error instanceof TypeError)) return false
-  const message = `${errorMessage(error)} ${errorMessage(error.cause)}`
+  const message = `${errorMessage(error)} ${errorMessage((error as { cause?: unknown }).cause)}`
   return STALE_SOCKET_MESSAGE_SUBSTRINGS.some(substring => message.includes(substring))
 }
 
 export const RESPONSE_STREAM_ENDED = 'mercury/response-stream-ended'
 
 export function isResponseStreamEndedError(error: unknown): boolean {
-  return error instanceof ProtocolError && isRecord(error.data) && error.data.reason === RESPONSE_STREAM_ENDED
+  return error instanceof ProtocolError && (error.data as { reason?: unknown } | undefined)?.reason === RESPONSE_STREAM_ENDED
 }

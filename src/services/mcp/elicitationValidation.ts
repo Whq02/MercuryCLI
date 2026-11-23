@@ -48,7 +48,7 @@ export function isMultiSelectEnumSchema(
 }
 
 export function isDateTimeSchema(schema: PrimitiveSchemaDefinition): boolean {
-  const s: SchemaLike = schema
+  const s = schema as SchemaLike
   return s.type === 'string' && (s.format === 'date' || s.format === 'date-time')
 }
 
@@ -58,27 +58,25 @@ function membersOf(members: Array<{ const?: unknown; title?: string }> | undefin
 }
 
 export function getEnumValues(schema: PrimitiveSchemaDefinition): string[] {
-  const s: SchemaLike = schema
+  const s = schema as SchemaLike
   return membersOf(s.oneOf) ?? (s.enum ? s.enum.map(String) : [])
 }
 
 export function getEnumLabels(schema: PrimitiveSchemaDefinition): string[] {
-  const s: SchemaLike = schema
+  const s = schema as SchemaLike
   if (s.oneOf) return s.oneOf.map((member, index) => member.title ?? String(member.const ?? getEnumValues(schema)[index] ?? ''))
   if (s.enumNames) return s.enumNames.map(String)
   return getEnumValues(schema)
 }
 
 export function getMultiSelectValues(schema: PrimitiveSchemaDefinition): string[] {
-  const s: SchemaLike = schema
-  const items = s.items
+  const items = (schema as SchemaLike).items
   if (!items) return []
   return membersOf(items.anyOf) ?? (items.enum ? items.enum.map(String) : [])
 }
 
 export function getMultiSelectLabels(schema: PrimitiveSchemaDefinition): string[] {
-  const s: SchemaLike = schema
-  const items = s.items
+  const items = (schema as SchemaLike).items
   if (!items) return []
   if (items.anyOf) return items.anyOf.map((member, index) => member.title ?? String(member.const ?? getMultiSelectValues(schema)[index] ?? ''))
   return getMultiSelectValues(schema)
@@ -132,7 +130,7 @@ function numberRangeMessage(s: SchemaLike): string {
 }
 
 export function validateElicitationInput(stringValue: string, schema: PrimitiveSchemaDefinition): ValidationResult {
-  const s: SchemaLike = schema
+  const s = schema as SchemaLike
   const issues: string[] = []
 
   if (isEnumSchema(schema)) {

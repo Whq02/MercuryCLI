@@ -795,7 +795,7 @@ const fetchToolsForClientMemo = memoize(
       const tools = sanitized.map(sdkTool => buildMcpTool(client, sdkTool))
       toolDiscoveryFailures.delete(client.name)
       return tools.filter(tool => {
-        const info = tool.mcpInfo
+        const info = (tool as { mcpInfo?: { toolName: string } }).mcpInfo
         const annotations = sanitized.find(entry => entry.name === info?.toolName)?.annotations as McpToolAnnotations
         return mcpToolAllowed(client.name, info?.toolName ?? tool.name, annotations)
       })
@@ -1119,8 +1119,9 @@ export async function callMCPToolWithUrlElicitationRetry(params: {
   if (toolUseId === undefined && Array.isArray(parentContent)) {
     const wireName = wireSafeMcpToolName(client.name, tool)
     for (const block of parentContent) {
-      if (block.type === 'tool_use' && (block.name === wireName || block.name === tool)) {
-        toolUseId = block.id
+      const b = block as { type?: string; id?: string; name?: string }
+      if (b.type === 'tool_use' && (b.name === wireName || b.name === tool)) {
+        toolUseId = b.id
         break
       }
     }

@@ -5,7 +5,6 @@ import { getCwd } from '../../utils/cwd.js'
 import { getGlobalMercuryFile } from '../../utils/env.js'
 import { errorMessage, errorMessageWithCause, getErrnoCode } from '../../utils/errors.js'
 import { isOneOf } from '../../utils/isOneOf.js'
-import { isRecord } from '../../utils/isRecord.js'
 import { getEnabledSettingsForSource, getSettingsForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
 import { getMcpPrefix } from '../../utils/mcp/mcpStringUtils.js'
 import { normalizeNameForMCP } from '../../utils/mcp/normalization.js'
@@ -18,6 +17,7 @@ import type {
   Transport,
 } from '../../utils/mcp/types.js'
 import { getEnterpriseMcpFilePath, projectMcpFilePath } from './configPaths.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 type NamedTool = { name: string; mcpInfo?: { serverName?: string } }
@@ -167,7 +167,7 @@ function stripErrorClassPrefixes(text: string): string {
 
 export function describeMcpConnectFailure(error: unknown, context: McpConnectFailureContext): string {
   const message = errorMessage(error)
-  if (isRecord(error) && error.telemetryMessage === MCP_CONNECT_TIMEOUT_TELEMETRY) return message
+  if ((error as { telemetryMessage?: unknown } | null)?.telemetryMessage === MCP_CONNECT_TIMEOUT_TELEMETRY) return message
   const code = errnoCodeInChain(error)
   if (context.transport === 'stdio') {
     const command = context.command ?? 'the command'
@@ -283,7 +283,7 @@ type McpDefinitionRecord = {
 }
 
 export function mcpConfigAsWritten(config: McpServerConfig | ScopedMcpServerConfig): { command?: string; args: string[]; url?: string } {
-  const record: McpDefinitionRecord = config
+  const record = config as McpDefinitionRecord
   const written = record.unexpanded ?? {}
   const command = written.command ?? record.command
   const url = written.url ?? record.url
@@ -318,7 +318,7 @@ export function mcpVariableCarriesCode(name: string): boolean {
 }
 
 export function projectMcpServerDefinitionDigest(config: McpServerConfig | ScopedMcpServerConfig): string {
-  const record: McpDefinitionRecord = config
+  const record = config as McpDefinitionRecord
   const writtenEnv = record.unexpanded?.env ?? {}
   const code = Object.fromEntries(Object.entries(record.env ?? {}).filter(([name]) => mcpVariableCarriesCode(name)).map(([name, value]) => [name, writtenEnv[name] ?? value]))
   const definition = {
