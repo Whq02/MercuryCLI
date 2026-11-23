@@ -68,7 +68,7 @@ export function AskUserQuestionPermissionRequest(props: PermissionRequestProps):
 }
 
 function AskUserQuestionWithHighlight(props: PermissionRequestProps) {
-  const highlight = use(getCliHighlightPromise())
+  const highlight = use(getCliHighlightPromise()) as CliHighlight | null
   return <AskUserQuestionPermissionRequestBody {...props} highlight={highlight} />
 }
 

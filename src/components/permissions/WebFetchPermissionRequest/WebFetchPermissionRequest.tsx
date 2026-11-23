@@ -15,8 +15,9 @@ type FetchOptionValue = 'yes' | 'yes-dont-ask-domain' | 'no'
 function domainRuleContent(input: unknown): string {
   try {
     const parsed = WebFetchTool.inputSchema.safeParse(input)
-    if (!parsed.success || parsed.data.url === undefined) return `input:${String(input)}`
-    return `domain:${new URL(parsed.data.url).hostname}`
+    if (!parsed.success) return `input:${String(input)}`
+    const { url } = parsed.data as { url: string }
+    return `domain:${new URL(url).hostname}`
   } catch {
     return `input:${String(input)}`
   }

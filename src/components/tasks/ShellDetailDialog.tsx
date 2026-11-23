@@ -10,7 +10,6 @@ import { useExitOnCtrlCD } from '../../hooks/useExitOnCtrlCD.js'
 import type { BashTaskKind, LocalShellTaskState } from '../../tasks/LocalShellTask/guards.js'
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import { formatFileSize } from '../../utils/format.js'
-import { isENOENT } from '../../utils/errors.js'
 import { tailFileSync } from '../../utils/fsOperations.js'
 import wrapText from '../../ink/wrap-text.js'
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
@@ -121,7 +120,8 @@ function readTail(path: string | undefined, count: LineCount): Tail {
     const tail = tailFileSync(path, TAIL_BYTES)
     return { content: tail.content, totalBytes: tail.bytesTotal, totalLines: advanceLineCount(count, tail.bytesTotal), present: true }
   } catch (error) {
-    return { content: '', totalBytes: 0, totalLines: 0, present: !isENOENT(error) }
+    const missing = (error as { code?: string }).code === 'ENOENT'
+    return { content: '', totalBytes: 0, totalLines: 0, present: !missing }
   }
 }
 

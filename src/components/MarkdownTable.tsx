@@ -1,7 +1,8 @@
 import React from 'react'
 import type { Tokens } from 'marked'
 import wrapAnsi from 'wrap-ansi'
-import { Ansi, Box } from '../ink.js'
+import { Box } from '../ink.js'
+import { Ansi } from '../ink.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import sliceAnsi from '../utils/sliceAnsi.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
@@ -11,6 +12,8 @@ import type { CliHighlight } from '../utils/cliHighlight.js'
 
 const MIN_COL_WIDTH = 3
 const MAX_ROW_LINES = 4
+
+type Cell = { text: string }
 
 function inlineText(
   raw: string,
@@ -149,14 +152,15 @@ export function MarkdownTable({
   const [themeName] = useTheme()
   const terminalWidth = forceWidth ?? termColumns
 
-  const headers = token.header.map(cell => inlineText(cell.text, themeName, highlight))
+  const headers = token.header.map((cell: Cell) => inlineText(cell.text, themeName, highlight))
   const columnCount = headers.length
   if (columnCount === 0) return null
 
   const rows = token.rows.map(row =>
-    Array.from({ length: columnCount }, (_, c) =>
-      inlineText(row[c]?.text ?? '', themeName, highlight),
-    ),
+    Array.from({ length: columnCount }, (_, c) => {
+      const cell: Cell | undefined = row[c]
+      return inlineText(cell?.text ?? '', themeName, highlight)
+    }),
   )
   const aligns = Array.from({ length: columnCount }, (_, c) => token.align[c] ?? 'left')
 
