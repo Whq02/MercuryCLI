@@ -254,7 +254,7 @@ export function CollapsedReadSearchContent({
   inProgressToolUseIDs,
   shouldAnimate: _shouldAnimate,
   verbose = false,
-  isTranscriptMode: _isTranscriptMode,
+  isTranscriptMode = false,
   tools,
   lookups,
   isActiveGroup = false,
@@ -318,7 +318,7 @@ export function CollapsedReadSearchContent({
       : null
   const hint = useMinDisplayTime(rawHint, HINT_MIN_DISPLAY_MS)
 
-  const shellId = firstRunningShellId(memberEntries, inProgressToolUseIDs)
+  const shellId = isTranscriptMode ? null : firstRunningShellId(memberEntries, inProgressToolUseIDs)
 
   if (verbose) {
     return verboseGroupView({
