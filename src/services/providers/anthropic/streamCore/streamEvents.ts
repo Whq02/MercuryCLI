@@ -16,6 +16,7 @@ import { addToTotalSessionCost } from 'src/cost-tracker.js'
 import { calculateUSDCost } from 'src/services/usage/modelCost.js'
 import type { ConnectorTextBlock } from '../../../../types/connectorText.js'
 import type { AssistantMessage, Message } from '../../../../types/message.js'
+import { errorMessage } from '../../../../utils/errors.js'
 import { settleTranscriptMessage } from '../../../../utils/sessionStorage/writer.js'
 import {
   clearAnthropicUsageLimit,
@@ -245,6 +246,10 @@ export function noteWatchdogErrorExit(pass: StreamPass & { streamWatchdogFiredAt
 }
 
 export function sdkAbortError(signal: AbortSignal, streamingError: APIUserAbortError): APIUserAbortError | APIConnectionTimeoutError {
-  if (signal.aborted) return streamingError
+  if (signal.aborted) {
+    logForDebugging(`Streaming aborted by user: ${errorMessage(streamingError)}`)
+    return streamingError
+  }
+  logForDebugging(`Streaming timeout (SDK abort): ${streamingError.message}`, { level: 'error' })
   return new APIConnectionTimeoutError({ message: 'Request timed out' })
 }

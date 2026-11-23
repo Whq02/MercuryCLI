@@ -47,23 +47,20 @@ export function watchStream(ctx: QueryCtx, call: CallState, pass: StreamPass): S
   const streamIdleWatchdog = createStreamIdleWatchdog({
     timeoutMs: STREAM_IDLE_TIMEOUT_MS,
     silentAfterHeadersMs,
-    onWarning: silentMs => {
-      logForDiagnosticsNoPII('warn', 'cli_stream_idle_watchdog_warning')
-      logForDebugging(
-        `stream idle warning: no activity for ${patienceSeconds(silentMs)} (warning threshold ${patienceSeconds(STREAM_IDLE_WARNING_MS)}, timeout ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)})`,
-        { level: 'warn' },
-      )
+    onWarning: () => {
+      logForDebugging(`stream silent for ${patienceSeconds(STREAM_IDLE_WARNING_MS)} — watchdog warning`, { level: 'warn' })
+      logForDiagnosticsNoPII('warn', 'cli_streaming_idle_warning')
     },
     onFire: fire => {
       pass.streamIdleAborted = true
       pass.streamWatchdogFiredAt = performance.now()
-      logForDiagnosticsNoPII('warn', 'cli_stream_idle_watchdog_fired')
       logForDebugging(
         fire.noBytes
-          ? `stream idle watchdog fired (${silentAfterHeadersFaultWords(modelDisplayName, fire.silentMs, pass.firstByte.wait?.promptTokens ?? 0)})`
-          : `stream idle watchdog fired after ${patienceSeconds(fire.silentMs)} of silence (${pass.streamEventCount} event(s) received)`,
-        { level: 'warn' },
+          ? `${silentAfterHeadersFaultWords(modelDisplayName, fire.silentMs, pass.firstByte.wait?.promptTokens ?? 0)} — watchdog aborting the stream`
+          : `stream silent for ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} — watchdog aborting the stream`,
+        { level: 'error' },
       )
+      logForDiagnosticsNoPII('error', 'cli_streaming_idle_timeout')
       ctx.releaseStreamResources()
     },
   })
