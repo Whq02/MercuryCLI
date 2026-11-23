@@ -15,7 +15,6 @@ import {
   MANUAL_COMPACT_BUFFER_TOKENS,
 } from '../compact/autoCompact.js'
 import { microcompactMessages } from '../compact/microCompact.js'
-import type { MCPServerConnection } from '../../utils/mcp/types.js'
 import { getSdkBetas } from '../../bootstrap/state.js'
 import {
   filterInjectedInstructionFiles,
