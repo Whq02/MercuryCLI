@@ -132,8 +132,10 @@ function createStderrCollector(name: string, redact: (text: string) => string): 
     const trimmed = raw.trim()
     if (trimmed.length === 0) return
     if (firstNonBlank === undefined) firstNonBlank = trimmed
+    const existingIndex = recentLines.indexOf(trimmed)
+    if (existingIndex !== -1) recentLines.splice(existingIndex, 1)
     recentLines.push(trimmed)
-    if (recentLines.length > 64) recentLines.splice(0, recentLines.length - 64)
+    if (recentLines.length > 3) recentLines.shift()
   }
 
   const flush = (): void => {
@@ -867,7 +869,7 @@ export const fetchCommandsForClient = memoize(
           argNames,
           userFacingName: () => `${client.name}:${prompt.name} (MCP)`,
           async getPromptForCommand(args: string): Promise<ContentBlockParam[]> {
-            const values = args === '' ? [] : args.split(' ')
+            const values = args.split(' ')
             const namedArgs: Record<string, string> = {}
             for (let i = 0; i < argNames.length && i < values.length; i++) {
               namedArgs[argNames[i]!] = values[i]!
