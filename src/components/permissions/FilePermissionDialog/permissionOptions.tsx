@@ -16,13 +16,21 @@ import {
 } from '../../../utils/permissions/filesystem.js'
 import { PROJECT_CONFIG_DIR_NAMES } from '../../../utils/projectConfig.js'
 import type { ToolPermissionContext } from '../../../Tool.js'
-import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
 
-export type PermissionOption = Unbuilt
+export type PermissionOption =
+  | { type: 'accept-once' }
+  | {
+      type: 'accept-session'
+      scope?: 'config-home' | 'global-config-home'
+      pattern?: string
+    }
+  | { type: 'reject' }
 
-export type PermissionOptionWithLabel = Unbuilt
+export type PermissionOptionWithLabel = OptionWithDescription<string> & {
+  option: PermissionOption
+}
 
-export type FileOperationType = Unbuilt
+export type FileOperationType = 'create' | 'read' | 'write'
 
 export type ToolInput = Record<string, unknown>
 
@@ -86,7 +94,121 @@ function containingDirectoryName(filePath: string): string {
   return ensureTrailing(toTildePath(dir), '/')
 }
 
-export function getFilePermissionOptions(arg0: {
+function buildSessionOption(
+  filePath: string | null,
+  toolPermissionContext: ToolPermissionContext,
+  operationType: FileOperationType,
+): PermissionOptionWithLabel | null {
+  if (filePath === null) return null
+
+  const remote = isRemotePath(filePath)
+  const remoteHost = remote ? remoteHostLabel(filePath) : null
+  if (remote && remoteHost === null) return null
+
+  if (!remote && operationType !== 'read') {
+    if (isInGlobalConfigHome(filePath)) {
+      return {
+        label: (
+          <Text>
+            Yes, and allow Mercury to edit <Text bold>its own settings</Text> for the rest of this session
+          </Text>
+        ),
+        value: 'accept-session',
+        option: {
+          type: 'accept-session',
+          scope: 'global-config-home',
+          pattern: globalConfigHomePattern(),
+        },
+      }
+    }
+    const configHome = projectConfigHomeOf(filePath)
+    if (configHome !== null) {
+      return {
+        label: (
+          <Text>
+            Yes, and allow Mercury to edit <Text bold>its own settings</Text> for the rest of this session
+          </Text>
+        ),
+        value: 'accept-session',
+        option: {
+          type: 'accept-session',
+          scope: 'config-home',
+          pattern: `/${configHome}/**`,
+        },
+      }
+    }
+  }
+
+  const suggestions = generateSuggestions(filePath, operationType, toolPermissionContext)
+  if (suggestions.length === 0) return null
+
+  const shortcut = getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')
+
+  if (remote && remoteHost !== null) {
+    return {
+      label:
+        operationType === 'read' ? (
+          <Text>
+            Yes, allow reading from <Text bold>{remoteHost}</Text> for this session
+          </Text>
+        ) : (
+          <Text>
+            Yes, allow all edits on <Text bold>{remoteHost}</Text> for this session{' '}
+            <Text bold>({shortcut})</Text>
+          </Text>
+        ),
+      value: 'accept-session',
+      option: { type: 'accept-session' },
+    }
+  }
+
+  const cwd = getFocusedSessionConnector().workspace().originalCwd
+  const isWindowsOnNonWindows = WINDOWS_ABS.test(filePath) && !WINDOWS_ABS.test(cwd)
+  const isInside =
+    !isWindowsOnNonWindows && pathInAllowedWorkingPath(filePath, toolPermissionContext)
+
+  if (isInside) {
+    return {
+      label:
+        operationType === 'read' ? (
+          'Yes, for this session'
+        ) : (
+          <Text>
+            Yes, allow all edits for this session <Text bold>({shortcut})</Text>
+          </Text>
+        ),
+      value: 'accept-session',
+      option: { type: 'accept-session' },
+    }
+  }
+
+  const directory = containingDirectoryName(filePath)
+  return {
+    label:
+      operationType === 'read' ? (
+        <Text>
+          Yes, allow reading from <Text bold>{directory}</Text> for this session
+        </Text>
+      ) : (
+        <Text>
+          Yes, allow all edits in <Text bold>{directory}</Text> for this session{' '}
+          <Text bold>({shortcut})</Text>
+        </Text>
+      ),
+    value: 'accept-session',
+    option: { type: 'accept-session' },
+  }
+}
+
+export function getFilePermissionOptions({
+  filePath,
+  toolPermissionContext,
+  operationType = 'write',
+  onRejectFeedbackChange,
+  onAcceptFeedbackChange,
+  yesInputMode,
+  noInputMode,
+}: {
   filePath: string | null
   toolPermissionContext: ToolPermissionContext
   operationType?: FileOperationType
@@ -95,5 +217,41 @@ export function getFilePermissionOptions(arg0: {
   yesInputMode?: boolean
   noInputMode?: boolean
 }): PermissionOptionWithLabel[] {
-  return notBuilt('src/components/permissions/FilePermissionDialog/permissionOptions.tsx:97')
+  const yesOption: PermissionOptionWithLabel =
+    yesInputMode && onAcceptFeedbackChange
+      ? {
+          type: 'input',
+          label: 'Yes',
+          value: 'accept-once',
+          placeholder: 'tell Mercury what to do next',
+          onChange: onAcceptFeedbackChange,
+          allowEmptySubmitToCancel: true,
+          option: { type: 'accept-once' },
+        }
+      : {
+          label: 'Yes',
+          value: 'accept-once',
+          option: { type: 'accept-once' },
+        }
+
+  const sessionOption = buildSessionOption(filePath, toolPermissionContext, operationType)
+
+  const noOption: PermissionOptionWithLabel =
+    noInputMode && onRejectFeedbackChange
+      ? {
+          type: 'input',
+          label: 'No, and tell Mercury what to do differently (esc)',
+          value: 'reject',
+          placeholder: 'tell Mercury what to do differently',
+          onChange: onRejectFeedbackChange,
+          allowEmptySubmitToCancel: true,
+          option: { type: 'reject' },
+        }
+      : {
+          label: 'No, and tell Mercury what to do differently (esc)',
+          value: 'reject',
+          option: { type: 'reject' },
+        }
+
+  return sessionOption ? [yesOption, sessionOption, noOption] : [yesOption, noOption]
 }
