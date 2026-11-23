@@ -4,13 +4,12 @@ import type {
   UserMessage,
 } from '../../types/message.js'
 import { requestConversationPlan } from './apiPlan.js'
-import { notBuilt } from '../../pi/holes.js'
 export { ensureToolResultPairing, foldSplitTurnsForWire, orderToolResultsByUse, pairConversationMessages } from '../../utils/messages/resultPairing.js'
 
 export function healWalkableForWire(
   messages: readonly { type: string }[],
 ): (UserMessage | AssistantMessage)[] {
-  return notBuilt('src/services/messages/pairing.ts:9')
+  return requestConversationPlan(messages as readonly Message[], [], 'family').messages
 }
 
 export function isUnsignedThinkingBlock(b: { type?: string }): boolean {
@@ -22,5 +21,21 @@ export function isUnsignedThinkingBlock(b: { type?: string }): boolean {
 export function stripUnsignedThinkingBlocks(
   messages: (UserMessage | AssistantMessage)[],
 ): (UserMessage | AssistantMessage)[] {
-  return notBuilt('src/services/messages/pairing.ts:21')
+  let changed = false
+  const rows = messages.map(row => {
+    if (row.type !== 'assistant') return row
+    const before = row.message.content
+    const kept = before.filter(block => !isUnsignedThinkingBlock(block))
+    const phased = kept.some(block => block.type === 'text' && 'phase' in block)
+    if (kept.length === before.length && !phased) return row
+    const content = kept.map(block => {
+      if (block.type !== 'text' || !('phase' in block)) return block
+      const { phase: _phase, ...unphased } = block
+      return unphased
+    })
+    if (content.length === 0) content.push({ type: 'text', text: '[reasoning from another model provider — not transferable]', citations: [] })
+    changed = true
+    return { ...row, message: { ...row.message, content } }
+  })
+  return changed ? rows : messages
 }
