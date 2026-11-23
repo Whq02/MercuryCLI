@@ -538,7 +538,7 @@ function buildMercuryToolsContent(pathValue: string): string {
   }
   return [
     '# Mercury search tools',
-    'if ! (unalias rg 2>/dev/null; command -v rg) >/dev/null 2>&1; then',
+    'if ! (unalias rg 2>/dev/null; command -v rg >/dev/null 2>&1); then',
     rgFallback,
     'fi',
     '',
@@ -565,45 +565,44 @@ function buildCaptureScript(params: {
     lines.push('# no user config file to source')
   }
   if (readBack) {
-    lines.push('trap - DEBUG 2>/dev/null || true')
+    lines.push('trap - DEBUG 2>/dev/null || :')
   }
   lines.push(PRINTS_EXPORTS)
   if (checkPrograms) {
     lines.push(
-      `for __mercury_prog in awk sed head cat; do command -v "$__mercury_prog" >/dev/null 2>&1 || exit ${PATH_LEFT_WITHOUT_PROGRAMS}; done`,
+      `for __mercury_program in awk sed head cat; do command -v "$__mercury_program" >/dev/null 2>&1 || exit ${PATH_LEFT_WITHOUT_PROGRAMS}; done`,
     )
   }
-  lines.push(`echo '# Mercury shell environment snapshot' >| "$SNAPSHOT_FILE"`)
-  lines.push(`echo 'unalias -a 2>/dev/null || true' >> "$SNAPSHOT_FILE"`)
+  lines.push('echo "# Mercury shell environment snapshot" >| "$SNAPSHOT_FILE"')
+  lines.push('echo "unalias -a 2>/dev/null || true" >> "$SNAPSHOT_FILE"')
   if (collectDefinitions) {
-    lines.push(`echo '# Functions' >> "$SNAPSHOT_FILE"`)
+    lines.push('echo "# Functions" >> "$SNAPSHOT_FILE"')
     lines.push(SNAPSHOT_READS_FUNCTIONS)
-    lines.push('(compgen -A function || true) | while IFS= read -r __mercury_fn; do')
-    lines.push('  [ -n "$__mercury_fn" ] || continue')
+    lines.push(`for __mercury_fn in $(declare -F | awk '{print $NF}'); do`)
     if (readBack) {
       lines.push(`  ${SNAPSHOT_READS_BACK}`)
     }
     lines.push(`  printf 'eval %q\\n' "$(declare -f -- "$__mercury_fn")" >> "$SNAPSHOT_FILE"`)
-    lines.push('done || true')
-    lines.push(`echo '} >/dev/null 2>&1' >> "$SNAPSHOT_FILE"`)
-    lines.push(`echo '# Shell Options' >> "$SNAPSHOT_FILE"`)
+    lines.push('done')
+    lines.push('echo "} >/dev/null 2>&1" >> "$SNAPSHOT_FILE"')
+    lines.push('echo "# Shell Options" >> "$SNAPSHOT_FILE"')
     lines.push(...SNAPSHOT_OPTIONS)
-    lines.push(`echo '# Aliases' >> "$SNAPSHOT_FILE"`)
+    lines.push('echo "# Aliases" >> "$SNAPSHOT_FILE"')
     const aliasFilter = snapshotAliasPipelineFilter()
     if (readBack) {
-      lines.push(`(\n${SNAPSHOT_READS_BACK_ALIASES}\n)${aliasFilter} | head -n 1000 >> "$SNAPSHOT_FILE" || true`)
+      lines.push(`(\n${SNAPSHOT_READS_BACK_ALIASES}\n)${aliasFilter} | head -n 1000 >> "$SNAPSHOT_FILE"`)
     } else {
-      lines.push(`(set +o posix; alias || true) | sed 's/^alias /alias -- /'${aliasFilter} | head -n 1000 >> "$SNAPSHOT_FILE" || true`)
+      lines.push(`( set +o posix 2>/dev/null; alias )${aliasFilter} | sed 's/^alias /alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"`)
     }
   } else {
     lines.push(SNAPSHOT_KEEPS_ALIASES)
   }
   const mercuryContent = buildMercuryToolsContent(pathValue)
-  lines.push(`cat <<'${MERCURY_CONTENT_DELIMITER}' >> "$SNAPSHOT_FILE"`)
+  lines.push(`cat >> "$SNAPSHOT_FILE" <<'${MERCURY_CONTENT_DELIMITER}'`)
   lines.push(mercuryContent)
   lines.push(MERCURY_CONTENT_DELIMITER)
   lines.push('if [ ! -f "$SNAPSHOT_FILE" ]; then')
-  lines.push("  echo 'snapshot file was not created' >&2")
+  lines.push('  echo "snapshot file was not created" >&2')
   lines.push('  exit 1')
   lines.push('fi')
   return lines.join('\n')
@@ -635,7 +634,7 @@ export async function createAndSaveSnapshot(
         if (hostBash) {
           noteLoginFiles({
             why,
-            change: `Make ${mercuryHome} a folder Mercury can write in, or name another in MERCURY_CONFIG_DIR, then restart Mercury.`,
+            change: `Make ${mercuryHome} a folder Mercury can write in, or name another in MERCURY_CONFIG_DIR, ${THEN_RESTART}.`,
           })
         }
         logForDebugging(`skipping shell snapshot: ${why}`)

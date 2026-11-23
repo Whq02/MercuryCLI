@@ -1,4 +1,3 @@
-import { plural } from '../../stringUtils.js'
 import { pinnedCommandAnalysis } from './commandAnalysis.js'
 import { permissionModeTitle } from '../PermissionMode.js'
 import type { PermissionDecisionReason } from '../PermissionResult.js'
@@ -35,10 +34,9 @@ const REASON_LINES: ReasonLines<ReasonByType> = {
         parts.push(command)
       }
     }
-    const count = parts.length
-    if (count === 0) return `Several parts of this ${toolName} command need approval`
-    const lead = count === 1 ? 'One' : 'Several'
-    return `${lead} ${plural(count, 'part')} of this ${toolName} command ${plural(count, 'needs', 'need')} approval: ${parts.join(', ')}`
+    if (parts.length === 0) return `Several parts of this ${toolName} command need approval`
+    const one = parts.length === 1
+    return `${one ? 'One part' : 'Several parts'} of this ${toolName} command ${one ? 'needs' : 'need'} approval: ${parts.join(', ')}`
   },
   permissionPromptTool: (toolName, reason) =>
     `Tool '${reason.permissionPromptToolName ?? ''}' requires approval for this ${toolName} command`,
