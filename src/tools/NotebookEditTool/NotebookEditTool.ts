@@ -122,7 +122,7 @@ function effectFor(
 }
 
 function isNotebookContent(value: unknown): value is NotebookContent {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
+  return typeof value === 'object' && value !== null
 }
 
 function readNotebookContent(content: string, mutable = false): NotebookContent | null {
