@@ -76,38 +76,35 @@ type ToolsNeeds = Pick<RunAgentParams, 'availableTools' | 'structuredOutputSpec'
   readOnlyScout: boolean
 }
 
-export function agentToolsOf({
-  availableTools,
-  structuredOutputSpec,
-  worktreePath,
-  swarm,
-  mcp,
-  reviewReceipt,
-  readOnlyScout,
-}: ToolsNeeds): Tools {
-  const seen = new Set<string>()
-  const merged: Tool[] = []
-  for (const tool of [...availableTools, ...mcp.tools]) {
-    if (tool.name === ASK_ADVISOR_TOOL_NAME || tool.name === COMPUTER_TOOL_NAME) continue
-    if (!swarm && tool.name === 'CrewBoard') continue
-    if (seen.has(tool.name)) continue
-    seen.add(tool.name)
-    merged.push(tool.name === 'CrewBoard' ? { ...tool, alwaysLoad: true } : tool)
+export function agentToolsOf({ availableTools, swarm, mcp, structuredOutputSpec, reviewReceipt, worktreePath, readOnlyScout }: ToolsNeeds): Tools {
+  let tools: Tools = availableTools
+    .filter(tool => tool.name !== COMPUTER_TOOL_NAME && (swarm || tool.name !== 'CrewBoard'))
+    .map(tool => tool.name === 'CrewBoard' ? { ...tool, alwaysLoad: true } : tool)
+  if (mcp.tools.length > 0) {
+    const merged = [...tools]
+    for (const mcpTool of mcp.tools) {
+      if (!merged.some(existing => existing.name === mcpTool.name)) {
+        merged.push(mcpTool)
+      }
+    }
+    tools = merged
   }
-  let tools: Tools = merged
-  if (reviewReceipt !== undefined && worktreePath !== undefined) {
-    tools = restrictReviewerTools(tools, reviewReceipt, worktreePath)
-  }
-  if (readOnlyScout) {
-    tools = restrictScoutTools(tools)
-  }
+
   if (structuredOutputSpec !== undefined) {
     const bound = getSchemaBoundStructuredOutputTool(structuredOutputSpec.schema)
-    if (bound.error !== undefined) {
-      throw new Error(`output_schema is not a valid JSON Schema: ${bound.error}`)
+    if (bound.tool !== undefined) {
+      tools = [...tools.filter(t => t.name !== bound.tool.name), bound.tool]
+    } else {
+      logForDebugging(
+        `runAgent: structured-output schema failed to bind (${bound.error ?? 'unknown'}) — dispatch proceeds without the tool`,
+        { level: 'error' },
+      )
     }
-    tools = [...tools.filter(tool => tool.name !== bound.tool.name), bound.tool]
   }
+
+  if (reviewReceipt !== undefined) tools = restrictReviewerTools(tools, reviewReceipt, worktreePath!)
+  if (readOnlyScout) tools = restrictScoutTools(tools)
+  tools = tools.filter(tool => tool.name !== ASK_ADVISOR_TOOL_NAME)
   return tools
 }
 
