@@ -13,6 +13,7 @@ import { permissionRuleValueFromString, permissionRuleValueToString } from './pe
 import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from './modeTransitions.js'
 import { noteAllowRulesGranted } from './lateAllowRules.js'
 import { passedOver } from '../passedOver.js'
+import { entriesOf } from '../entriesOf.js'
 
 function ruleMapKey(behavior: PermissionBehavior): 'alwaysAllowRules' | 'alwaysDenyRules' | 'alwaysAskRules' {
   if (behavior === 'allow') return 'alwaysAllowRules'
@@ -291,13 +292,14 @@ function structuredCloneContext(context: ToolPermissionContext): MutableContext 
 
 function cloneRuleMap(map: ToolPermissionContext['alwaysAllowRules'] | undefined): MutableRulesBySource {
   const out: MutableRulesBySource = {}
-  for (const [key, value] of Object.entries(map ?? {}) as Array<[PermissionRuleSource, readonly string[]]>) out[key] = [...value]
+  const held: ToolPermissionContext['alwaysAllowRules'] = map ?? {}
+  for (const [key, value] of entriesOf(held)) out[key] = [...value]
   return out
 }
 
 function cloneReasonMap(map: NonNullable<ToolPermissionContext['ruleReasons']>): MutableRuleReasonsBySource {
   const out: MutableRuleReasonsBySource = {}
-  for (const [key, value] of Object.entries(map) as Array<[PermissionRuleSource, Readonly<Record<string, string>>]>) out[key] = { ...value }
+  for (const [key, value] of entriesOf(map)) out[key] = { ...value }
   return out
 }
 

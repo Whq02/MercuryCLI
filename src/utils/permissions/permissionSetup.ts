@@ -8,6 +8,7 @@ import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { holdModeTransition, recordModeTransition, type ModeTransitionRoad } from './modeTransitions.js'
 import { forgetLateAllowRules } from './lateAllowRules.js'
+import { entriesOf } from '../entriesOf.js'
 import {
   getInitialSettings,
   getSettingsWithErrors,
@@ -205,10 +206,9 @@ export function stripDangerousPermissionsForFlow(
 export function restoreDangerousPermissions(context: ToolPermissionContext): ToolPermissionContext {
   if (!context.strippedDangerousRules) return context
   const next = cloneContext(context)
-  for (const [source, rules] of Object.entries(context.strippedDangerousRules)) {
+  for (const [source, rules] of entriesOf(context.strippedDangerousRules)) {
     if (!rules || rules.length === 0) continue
-    const key = source as PermissionRuleSource
-    next.alwaysAllowRules[key] = [...(next.alwaysAllowRules[key] ?? []), ...rules]
+    next.alwaysAllowRules[source] = [...(next.alwaysAllowRules[source] ?? []), ...rules]
   }
   next.strippedDangerousRules = {}
   return next
@@ -557,19 +557,20 @@ function cloneContext(context: ToolPermissionContext): ClonedContext {
 
 function cloneMap(map?: ReadonlyRuleMap): ToolPermissionRulesBySource {
   const out: ToolPermissionRulesBySource = {}
-  for (const [key, value] of Object.entries(map ?? {})) {
-    if (value !== undefined) out[key as PermissionRuleSource] = [...value]
+  const held: ReadonlyRuleMap = map ?? {}
+  for (const [key, value] of entriesOf(held)) {
+    if (value !== undefined) out[key] = [...value]
   }
   return out
 }
 
 function getAllowRulesFromContext(context: ToolPermissionContext): PermissionRule[] {
-  const bySource = context.alwaysAllowRules ?? {}
+  const bySource: ReadonlyRuleMap = context.alwaysAllowRules ?? {}
   const rules: PermissionRule[] = []
-  for (const [source, entries] of Object.entries(bySource)) {
+  for (const [source, entries] of entriesOf(bySource)) {
     for (const entry of entries ?? []) {
       rules.push({
-        source: source as PermissionRuleSource,
+        source,
         ruleBehavior: 'allow',
         ruleValue: permissionRuleValueFromString(entry),
       })

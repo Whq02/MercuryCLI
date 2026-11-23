@@ -50,6 +50,7 @@ import {
 } from '../remoteFiles/target.js'
 import { remoteLocalForms } from '../thisMachine.js'
 import { passedOver } from '../passedOver.js'
+import { entriesOf } from '../entriesOf.js'
 import { hostEnv } from '../hostEnv.js'
 import { startTimeout, stopTimeout } from '../timers.js'
 
@@ -571,13 +572,13 @@ function rulesForToolAndBehavior(
 ): Map<string, PermissionRule> {
   const map = new Map<string, PermissionRule>()
   const key = behavior === 'allow' ? 'alwaysAllowRules' : behavior === 'deny' ? 'alwaysDenyRules' : 'alwaysAskRules'
-  const bySource = context[key] ?? {}
-  for (const [source, rules] of Object.entries(bySource)) {
+  const bySource: ToolPermissionContext['alwaysAllowRules'] = context[key] ?? {}
+  for (const [source, rules] of entriesOf(bySource)) {
     for (const ruleString of rules ?? []) {
       const parsed = permissionRuleValueFromString(ruleString)
       if (parsed.toolName !== toolName || parsed.ruleContent === undefined) continue
       const rule = {
-        source: source as PermissionRule['source'],
+        source,
         ruleBehavior: behavior,
         ruleValue: parsed,
       }
