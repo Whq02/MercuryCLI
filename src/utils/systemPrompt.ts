@@ -1,6 +1,7 @@
 import type { ToolUseContext } from '../Tool.js'
 import { isBuiltInAgent, type AgentDefinition } from '../types/agent.js'
 import { MERCURY_CONSTITUTION } from '../prompt/mercuryContract.js'
+import { isWholeRecordedComposition } from '../prompt/recordedComposition.js'
 import { asSystemPrompt, type SystemPrompt } from './systemPromptType.js'
 
 
@@ -23,17 +24,21 @@ export function buildEffectiveSystemPrompt({
     return asSystemPrompt([overrideSystemPrompt])
   }
 
-  let base: string[]
-  if (mainThreadAgentDefinition) {
-    const agentPrompt = isBuiltInAgent(mainThreadAgentDefinition)
+  if (isWholeRecordedComposition(defaultSystemPrompt)) {
+    return asSystemPrompt([...defaultSystemPrompt])
+  }
+
+  const agentPrompt = mainThreadAgentDefinition
+    ? isBuiltInAgent(mainThreadAgentDefinition)
       ? mainThreadAgentDefinition.getSystemPrompt({ toolUseContext })
       : mainThreadAgentDefinition.getSystemPrompt()
-    base = agentPrompt ? [MERCURY_CONSTITUTION, agentPrompt] : [MERCURY_CONSTITUTION]
-  } else if (customSystemPrompt) {
-    base = [MERCURY_CONSTITUTION, customSystemPrompt]
-  } else {
-    base = [...defaultSystemPrompt]
-  }
+    : undefined
+
+  const base = agentPrompt
+    ? [MERCURY_CONSTITUTION, agentPrompt]
+    : customSystemPrompt !== undefined
+      ? [MERCURY_CONSTITUTION, customSystemPrompt]
+      : [...defaultSystemPrompt]
 
   if (appendSystemPrompt) {
     base.push(appendSystemPrompt)

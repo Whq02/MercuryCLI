@@ -1,4 +1,4 @@
-import { reduceAnsiCodes, tokenize, undoAnsiCodes, type AnsiCode } from '@alcalzone/ansi-tokenize'
+import { ansiCodesToString, reduceAnsiCodes, tokenize, undoAnsiCodes, type AnsiCode } from '@alcalzone/ansi-tokenize'
 
 import type { Theme } from './theme.js'
 import type { HexColor } from '../ink/styles.js'
@@ -44,7 +44,7 @@ function buildRanges(plainLength: number, highlights: TextHighlight[]): Highligh
   }
   if (candidates.length === 0) return []
 
-  candidates.sort((a, b) => a.start - b.start || b.highlight.priority - a.highlight.priority)
+  candidates.sort((a, b) => a.highlight.start - b.highlight.start || b.highlight.priority - a.highlight.priority)
 
   const accepted: ClampedHighlight[] = []
   let lastEnd = 0
@@ -103,6 +103,7 @@ export function segmentTextByHighlights(text: string, highlights: TextHighlight[
   let activeCodes: AnsiCode[] = []
   let segmentActiveCodes: AnsiCode[] = []
   let segmentStarted = false
+  let segmentStart = 0
   let buf = ''
   let plainPos = 0
   let rangeIndex = 0
@@ -124,46 +125,52 @@ export function segmentTextByHighlights(text: string, highlights: TextHighlight[
       }
       continue
     }
-    if (rangeIndex >= ranges.length) break
-    if (!segmentStarted) {
-      segmentStarted = true
-      if (activeCodes.length > 0) {
-        buf += activeCodes.map(code => code.code).join('')
-        segmentActiveCodes = [...activeCodes]
+    let remaining = token.value
+    while (remaining.length > 0 && rangeIndex < ranges.length) {
+      const current = ranges[rangeIndex]!
+      if (!segmentStarted) {
+        segmentStarted = true
+        segmentStart = plainPos
+        if (activeCodes.length > 0) {
+          buf += ansiCodesToString(activeCodes)
+          segmentActiveCodes = [...activeCodes]
+        }
       }
-    }
-    buf += token.value
-    plainPos += token.value.length
+      const need = current.end - plainPos
+      const take = Math.min(remaining.length, need)
+      buf += remaining.slice(0, take)
+      remaining = remaining.slice(take)
+      plainPos += take
 
-    const current = ranges[rangeIndex]!
-    if (plainPos >= current.end) {
-      if (segmentActiveCodes.length > 0) {
-        buf += undoAnsiCodes(segmentActiveCodes).map(code => code.code).join('')
-      }
-      segments.push(
-        current.highlight
-          ? { text: buf, start: current.start, highlight: current.highlight }
-          : { text: buf, start: current.start },
-      )
-      buf = ''
-      segmentStarted = false
-      segmentActiveCodes = []
-      rangeIndex++
-      while (rangeIndex < ranges.length && ranges[rangeIndex]!.end <= plainPos) {
+      if (plainPos >= current.end) {
+        if (segmentActiveCodes.length > 0) {
+          buf += ansiCodesToString(undoAnsiCodes(segmentActiveCodes))
+        }
+        segments.push(
+          current.highlight
+            ? { text: buf, start: segmentStart, highlight: current.highlight }
+            : { text: buf, start: segmentStart },
+        )
+        buf = ''
+        segmentStarted = false
+        segmentActiveCodes = []
         rangeIndex++
+        while (rangeIndex < ranges.length && ranges[rangeIndex]!.end <= plainPos) {
+          rangeIndex++
+        }
       }
     }
   }
 
   if (segmentStarted && buf !== '' && rangeIndex < ranges.length) {
     if (segmentActiveCodes.length > 0) {
-      buf += undoAnsiCodes(segmentActiveCodes).map(code => code.code).join('')
+      buf += ansiCodesToString(undoAnsiCodes(segmentActiveCodes))
     }
     const current = ranges[rangeIndex]!
     segments.push(
       current.highlight
-        ? { text: buf, start: current.start, highlight: current.highlight }
-        : { text: buf, start: current.start },
+        ? { text: buf, start: segmentStart, highlight: current.highlight }
+        : { text: buf, start: segmentStart },
     )
   }
 
