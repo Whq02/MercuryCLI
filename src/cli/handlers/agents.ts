@@ -2,7 +2,6 @@ import { getAgentSourceDisplayName } from '../../components/agents/utils.js'
 import { getAgentDefinitionsWithOverrides } from '../../tools/AgentTool/loadAgentsDir.js'
 import type { AgentDefinition, AgentSource } from '../../types/agent.js'
 import { getCwd } from '../../utils/cwd.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const SOURCE_GROUP_ORDER = [
   'built-in',
@@ -50,6 +49,62 @@ export function renderAgentLine(entry: RenderableAgent): string {
   return composed.replace(INVENTORY_HOSTILE, '�')
 }
 
+function winnerLabel(winner: AgentDefinition): string {
+  if (winner.source !== 'built-in' && winner.source !== 'extension' && winner.filePath) {
+    return winner.filePath
+  }
+  return getAgentSourceDisplayName(winner.source)
+}
+
 export async function agentsHandler(): Promise<void> {
-  return notBuilt('src/cli/handlers/agents.ts:52')
+  const { activeAgents, allAgents, failedFiles } = await getAgentDefinitionsWithOverrides(getCwd())
+  const lines: string[] = []
+
+  if (allAgents.length === 0) {
+    lines.push('No agents found')
+  } else {
+    const activeByType = new Map<string, AgentDefinition>()
+    for (const agent of activeAgents) {
+      activeByType.set(agent.agentType, agent)
+    }
+
+    const bySource = new Map<AgentSource, RenderableAgent[]>()
+    for (const definition of allAgents) {
+      const winner = activeByType.get(definition.agentType)
+      const shadowedBy =
+        winner !== undefined && winner !== definition
+          ? winnerLabel(winner)
+          : undefined
+      const list = bySource.get(definition.source)
+      if (list) {
+        list.push({ definition, shadowedBy })
+      } else {
+        bySource.set(definition.source, [{ definition, shadowedBy }])
+      }
+    }
+
+    const count = activeAgents.length
+    lines.push(`${count} active ${count === 1 ? 'agent' : 'agents'}`)
+
+    for (const source of SOURCE_GROUP_ORDER) {
+      const group = bySource.get(source)
+      if (!group || group.length === 0) continue
+      group.sort((a, b) => a.definition.agentType.localeCompare(b.definition.agentType))
+      lines.push('')
+      lines.push(`${getAgentSourceDisplayName(source)}:`)
+      for (const entry of group) {
+        lines.push(`  ${renderAgentLine(entry)}`)
+      }
+    }
+  }
+
+  if (failedFiles && failedFiles.length > 0) {
+    lines.push('')
+    lines.push('Invalid agent definition files:')
+    for (const file of failedFiles) {
+      lines.push(`  ${file.path}: ${file.error}`)
+    }
+  }
+
+  console.log(lines.join('\n'))
 }
