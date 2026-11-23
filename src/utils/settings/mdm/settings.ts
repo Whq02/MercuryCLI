@@ -6,6 +6,7 @@ import escapeRegExp from 'lodash-es/escapeRegExp.js'
 import { logForDebugging } from '../../debug.js'
 import { logForDiagnosticsNoPII } from '../../diagLogs.js'
 import { getErrnoCode } from '../../errors.js'
+import { isRecord } from '../../isRecord.js'
 import { safeParseJSON } from '../../json.js'
 import { getManagedFilePath, getManagedSettingsDropInDir } from '../managedPath.js'
 import type { SettingsJson } from '../types.js'
@@ -43,11 +44,11 @@ function registryValueOf(stdout: string): string | null {
 
 export function parseCommandOutputAsSettings(stdout: string, sourcePath: string): MdmTierResult {
   const parsed = safeParseJSON(stdout)
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return { settings: {} as SettingsJson, errors: [] }
+  if (!isRecord(parsed)) return { settings: {}, errors: [] }
   const warnings = filterInvalidPermissionRules(parsed, sourcePath)
   const result = SettingsSchema().safeParse(parsed)
-  if (!result.success) return { settings: {} as SettingsJson, errors: [...formatZodError(result.error, sourcePath), ...warnings] }
-  return { settings: result.data as SettingsJson, errors: warnings }
+  if (!result.success) return { settings: {}, errors: [...formatZodError(result.error, sourcePath), ...warnings] }
+  return { settings: result.data, errors: warnings }
 }
 
 function managedFileSettingsExist(): boolean {
