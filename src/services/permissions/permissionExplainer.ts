@@ -85,17 +85,27 @@ export async function generatePermissionExplanation(args: {
   messages?: Message[]
   signal: AbortSignal
 }): Promise<PermissionExplanation | null> {
-  if (!isPermissionExplainerEnabled() || args.signal.aborted) {
+  if (!isPermissionExplainerEnabled()) {
+    return null
+  }
+  if (args.signal.aborted) {
+    logForDebugging('permissionExplainer: aborted before request')
     return null
   }
   const sections: string[] = [`Tool: ${args.toolName}`]
   if (args.toolDescription) {
     sections.push(`Description: ${args.toolDescription}`)
   }
-  const serializedInput =
-    typeof args.toolInput === 'string'
-      ? args.toolInput
-      : JSON.stringify(args.toolInput, null, 2)
+  let serializedInput: string
+  if (typeof args.toolInput === 'string') {
+    serializedInput = args.toolInput
+  } else {
+    try {
+      serializedInput = JSON.stringify(args.toolInput, null, 2) ?? String(args.toolInput)
+    } catch {
+      serializedInput = String(args.toolInput)
+    }
+  }
   sections.push(`Input:\n${serializedInput}`)
   if (args.messages && args.messages.length > 0) {
     const context = extractConversationContext(args.messages)
@@ -116,12 +126,13 @@ export async function generatePermissionExplanation(args: {
       querySource: 'permission_explainer',
       source: 'permission_explainer',
     })
-    if (args.signal.aborted) return null
-    const toolUse = response.content.find(
-      block => block.type === 'tool_use' && block.name === 'explain_command',
-    )
+    if (args.signal.aborted) {
+      logForDebugging('permissionExplainer: aborted')
+      return null
+    }
+    const toolUse = response.content.find(block => block.type === 'tool_use')
     if (!toolUse || toolUse.type !== 'tool_use') {
-      logForDebugging('permissionExplainer: response did not contain explain_command tool_use block')
+      logForDebugging('permissionExplainer: response did not contain a tool_use block')
       return null
     }
     const parsed = PermissionExplanationSchema.safeParse(toolUse.input)
@@ -129,9 +140,14 @@ export async function generatePermissionExplanation(args: {
       logForDebugging(`permissionExplainer: invalid explanation payload: ${parsed.error.message}`)
       return null
     }
+    logForDebugging(`permissionExplainer: riskLevel=${parsed.data.riskLevel}`)
     return parsed.data
   } catch (error) {
-    if (args.signal.aborted) return null
+    if (args.signal.aborted) {
+      logForDebugging('permissionExplainer: aborted')
+      return null
+    }
+    logForDebugging(`permissionExplainer: failed: ${String(error)}`)
     logError(error)
     return null
   }
