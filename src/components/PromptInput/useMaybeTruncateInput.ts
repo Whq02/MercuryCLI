@@ -1,7 +1,15 @@
+import { useRef } from 'react'
+import { usePublish } from '../../hooks/effects.js'
 import type { PastedContent } from '../../utils/config.js'
-import { notBuilt } from '../../pi/holes.js'
+import { maybeTruncateInput } from './inputPaste.js'
 
-export function useMaybeTruncateInput(arg0: {
+export function useMaybeTruncateInput({
+  input,
+  pastedContents,
+  onInputChange,
+  setCursorOffset,
+  setPastedContents,
+}: {
   input: string
   pastedContents: Record<number, PastedContent>
   onInputChange: (value: string) => void
@@ -10,5 +18,19 @@ export function useMaybeTruncateInput(arg0: {
     updater: (previous: Record<number, PastedContent>) => Record<number, PastedContent>,
   ) => void
 }): void {
-  return notBuilt('src/components/PromptInput/useMaybeTruncateInput.ts:7')
+  const truncatedRef = useRef(false)
+
+  usePublish(() => {
+    if (input === '') {
+      truncatedRef.current = false
+      return
+    }
+    if (truncatedRef.current) return
+    const { newInput, newPastedContents } = maybeTruncateInput(input, pastedContents)
+    if (newInput === input) return
+    truncatedRef.current = true
+    setPastedContents(() => newPastedContents)
+    onInputChange(newInput)
+    setCursorOffset(newInput.length)
+  }, [input, pastedContents, onInputChange, setCursorOffset, setPastedContents])
 }
