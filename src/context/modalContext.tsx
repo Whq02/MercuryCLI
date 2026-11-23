@@ -1,21 +1,28 @@
 import { createContext, useContext } from 'react'
 import type { RefObject } from 'react'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
-export const ModalContext: Unbuilt = unbuilt('src/context/modalContext.tsx:12')
+type ModalContextValue = {
+  rows: number
+  columns: number
+  scrollRef: RefObject<ScrollBoxHandle | null> | null
+}
+
+export const ModalContext = createContext<ModalContextValue | null>(null)
 
 export function useIsInsideModal(): boolean {
-  return notBuilt('src/context/modalContext.tsx:14')
+  return useContext(ModalContext) !== null
 }
 
 export function useModalOrTerminalSize(fallback: {
   rows: number
   columns: number
 }): { rows: number; columns: number } {
-  return notBuilt('src/context/modalContext.tsx:18')
+  const modal = useContext(ModalContext)
+  if (modal === null) return fallback
+  return { rows: modal.rows, columns: modal.columns }
 }
 
 export function useModalScrollRef(): RefObject<ScrollBoxHandle | null> | null {
-  return notBuilt('src/context/modalContext.tsx:27')
+  return useContext(ModalContext)?.scrollRef ?? null
 }
