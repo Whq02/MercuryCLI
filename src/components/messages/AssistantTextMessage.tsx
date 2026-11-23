@@ -175,7 +175,8 @@ export function AssistantTextMessage({
     return (
       <Box flexDirection="column" marginTop={addMargin ? 1 : 0}>
         <Text color="error">
-          Context limit reached. Run /compact to continue with a summarized history, or /clear to start fresh.
+          Context limit reached. Run /compact to continue with a summarized
+          history, or /clear to start fresh.
         </Text>
         {upgrade ? <Text dimColor>{upgrade.tip}</Text> : null}
       </Box>
@@ -185,7 +186,7 @@ export function AssistantTextMessage({
   if (text === CREDIT_BALANCE_TOO_LOW_ERROR_MESSAGE) {
     return (
       <Text color="error">
-        Anthropic says this account&apos;s credit balance is too low · Add funds at {BILLING_SETTINGS_URL}
+        Anthropic says this account's credit balance is too low · Add funds at {BILLING_SETTINGS_URL}
       </Text>
     )
   }
@@ -222,7 +223,8 @@ export function AssistantTextMessage({
 
     const keychainWarning = keychainLocked ? (
       <Text dimColor>
-        {'The macOS keychain is locked — run `security unlock-keychain` in another terminal, then retry.'}
+        The macOS keychain is locked — run `security unlock-keychain` in
+        another terminal, then retry.
       </Text>
     ) : null
 

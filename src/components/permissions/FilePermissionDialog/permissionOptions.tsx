@@ -110,7 +110,8 @@ function buildSessionOption(
       return {
         label: (
           <Text>
-            Yes, and allow Mercury to edit <Text bold>its own settings</Text> for the rest of this session
+            Yes, and allow Mercury to edit <Text bold>its own settings</Text> for the rest of this
+            session
           </Text>
         ),
         value: 'accept-session',
@@ -126,7 +127,8 @@ function buildSessionOption(
       return {
         label: (
           <Text>
-            Yes, and allow Mercury to edit <Text bold>its own settings</Text> for the rest of this session
+            Yes, and allow Mercury to edit <Text bold>its own settings</Text> for the rest of this
+            session
           </Text>
         ),
         value: 'accept-session',

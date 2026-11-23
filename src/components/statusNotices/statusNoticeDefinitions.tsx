@@ -134,7 +134,8 @@ const apiKeyConflictNotice: StatusNoticeDefinition = {
     return (
       <Box marginTop={1}>
         <Text color="warning">
-          {`${GLYPH.warn} ${source} is being used instead of Mercury's own login key. Unset it, or run \`${binaryName()} /logout\` and log in again.`}
+          {GLYPH.warn} {source} is being used instead of Mercury's own login key. Unset it, or run
+          `{binaryName()} /logout` and log in again.
         </Text>
       </Box>
     )
@@ -180,7 +181,8 @@ const bothAuthMethodsNotice: StatusNoticeDefinition = {
     return (
       <Box flexDirection="column" marginTop={1}>
         <Text color="warning">
-          {`${GLYPH.warn} Both an auth token (${describedToken}) and an API key (${apiKeySource}) are set — one silently outranks the other.`}
+          {GLYPH.warn} Both an auth token ({describedToken}) and an API key ({apiKeySource})
+          are set — one silently outranks the other.
         </Text>
         <Box flexDirection="column" paddingLeft={3}>
           <Text>{`Trying to use ${describedToken}? ${tokenRemedy}.`}</Text>

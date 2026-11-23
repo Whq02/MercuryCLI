@@ -71,7 +71,7 @@ export function useMcpConnectivityStatus({
         jsx: (
           <Text>
             <Text color="error">{GLYPH.fail}</Text>
-            {` ${claudeaiFailedCount} claude.ai ${claudeaiFailedCount === 1 ? 'connector' : 'connectors'} unavailable`}
+            {` ${claudeaiFailedCount} claude.ai connector${claudeaiFailedCount === 1 ? '' : 's'} unavailable`}
             <Text dimColor>{' — /mcp for details'}</Text>
           </Text>
         ),

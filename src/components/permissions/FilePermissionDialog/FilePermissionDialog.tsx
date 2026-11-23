@@ -122,9 +122,8 @@ export function FilePermissionDialog<T extends ToolInput>({
   const showTabAmend =
     (focusedOption === 'accept-once' && !yesInputMode) ||
     (focusedOption === 'reject' && !noInputMode)
-  const footerText = showTabAmend
-    ? '↑↓ move · pgup/pgdn page · ↵ confirm · esc cancel · tab amend'
-    : '↑↓ move · pgup/pgdn page · ↵ confirm · esc cancel'
+  const footerKeys = '↑↓ move · pgup/pgdn page · ↵ confirm · esc cancel'
+  const footerText = showTabAmend ? `${footerKeys} · tab amend` : footerKeys
 
   return (
     <Box flexDirection="column">
