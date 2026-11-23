@@ -524,12 +524,7 @@ function buildMercuryToolsContent(pathValue: string): string {
   const rgCommand = ripgrepCommand()
   let rgFallback: string
   if (rgCommand.argv0) {
-    rgFallback = buildArgv0Function(
-      'rg',
-      rgCommand.argv0,
-      rgCommand.rgPath,
-      rgCommand.rgArgs.map(arg => quote([arg])),
-    )
+    rgFallback = buildArgv0Function('rg', rgCommand.argv0, rgCommand.rgPath, [])
   } else if (!rgCommand.rgPath.includes('/') && !rgCommand.rgPath.includes('\\')) {
     const quotedArgv = quote([rgCommand.rgPath, ...rgCommand.rgArgs])
     rgFallback = `alias rg=${quote([quotedArgv])}`
@@ -541,7 +536,6 @@ function buildMercuryToolsContent(pathValue: string): string {
     'if ! (unalias rg 2>/dev/null; command -v rg >/dev/null 2>&1); then',
     rgFallback,
     'fi',
-    '',
     '# Mercury PATH',
     `export PATH=${quote([pathValue])}`,
   ].join('\n')
@@ -560,7 +554,7 @@ function buildCaptureScript(params: {
   const groupMark = loginGroupMarkLine(LOGIN_GROUP_MARK)
   if (groupMark !== undefined) lines.push(groupMark)
   if (configFile !== null) {
-    lines.push(`if [ -f ${quote([configFile])} ]; then source ${quote([configFile])} </dev/null; fi`)
+    lines.push(`source ${quote([configFile])} < /dev/null`)
   } else {
     lines.push('# no user config file to source')
   }
@@ -590,7 +584,7 @@ function buildCaptureScript(params: {
     lines.push('echo "# Aliases" >> "$SNAPSHOT_FILE"')
     const aliasFilter = snapshotAliasPipelineFilter()
     if (readBack) {
-      lines.push(`(\n${SNAPSHOT_READS_BACK_ALIASES}\n)${aliasFilter} | head -n 1000 >> "$SNAPSHOT_FILE"`)
+      lines.push(`${SNAPSHOT_READS_BACK_ALIASES}${aliasFilter} | head -n 1000 >> "$SNAPSHOT_FILE"`)
     } else {
       lines.push(`( set +o posix 2>/dev/null; alias )${aliasFilter} | sed 's/^alias /alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"`)
     }
@@ -620,25 +614,25 @@ export async function createAndSaveSnapshot(
   let zshWork: Promise<void> | null = null
 
   try {
+    const mercuryHome = getMercuryHome()
     let snapshotDir: string
     if (scratch) {
       snapshotDir = await mkdtemp(join(tmpdir(), 'mercury-login-run-'))
       scratchDir = snapshotDir
     } else {
-      const mercuryHome = getMercuryHome()
       snapshotDir = join(mercuryHome, 'shell-snapshots')
       try {
         await getFsImplementation().mkdir(snapshotDir)
       } catch (error) {
         const why = `the folder ${snapshotDir} could not be made (${errorMessage(error)}), so no login run was tried`
+        logForDebugging(`shell snapshot capture skipped: ${why}`)
+        logError(`shell snapshot creation failed: ${why}`)
         if (hostBash) {
           noteLoginFiles({
             why,
             change: `Make ${mercuryHome} a folder Mercury can write in, or name another in MERCURY_CONFIG_DIR, ${THEN_RESTART}.`,
           })
         }
-        logForDebugging(`skipping shell snapshot: ${why}`)
-        logError(`shell snapshot failed: ${why}`)
         return undefined
       }
     }
@@ -691,7 +685,7 @@ export async function createAndSaveSnapshot(
     } finally {
       if (scriptFilePath !== undefined) {
         await rm(scriptFilePath, { force: true }).catch(error => {
-          passedOver(error)
+          logForDebugging(`the login run's script file was not removed (${scriptFilePath}): ${errorMessage(error)}`)
         })
       }
     }
@@ -704,32 +698,38 @@ export async function createAndSaveSnapshot(
 
     if (run.killed || run.exitCode !== 0) {
       const absence = loginRunLeftNothing(run)
-      if (hostBash) noteLoginFiles(absence)
-      if (remembersFailedLoginRun(session)) loginRunsThatFailed.add(shell.path)
+      const stdoutLines = run.stdout.length > 0 ? `  stdout (${run.stdout.length} chars):\n${run.stdout}` : '  stdout: none captured'
+      const stderrLines = run.stderr.length > 0 ? `  stderr (${run.stderr.length} chars):\n${run.stderr}` : '  stderr: none captured'
       logForDebugging(
-        `shell snapshot failed: ${absence.why} (shell=${shell.path}, config=${configFile}, cwd=${getCwd()}, home=${userHome}, exit=${String(run.exitCode)}, signal=${String(run.signal)})${run.stdout.length > 0 ? `\n  stdout (${run.stdout.length} chars):\n${run.stdout}` : ''}${run.stderr.length > 0 ? `\n  stderr (${run.stderr.length} chars):\n${run.stderr}` : ''}`,
+        `shell snapshot capture failed\n  ${absence.why} (${shell.path})\n  config file: ${configFile} (exists: ${hasConfigFile})\n  cwd: ${getCwd()}\n  mercury home: ${mercuryHome}\n  script:\n${captureScript}\n${stdoutLines}\n${stderrLines}`,
       )
-      logError(`shell snapshot failed: ${absence.why} (${shell.path})`)
+      logError(`shell snapshot creation failed: ${absence.why} (${shell.path})`)
+      if (remembersFailedLoginRun(session)) loginRunsThatFailed.add(shell.path)
+      if (hostBash) noteLoginFiles(absence)
       return undefined
     }
 
-    let snapshotExists = false
+    let snapshotSize: number | undefined
     try {
-      await stat(snapshotFilePath)
-      snapshotExists = true
+      snapshotSize = (await stat(snapshotFilePath)).size
     } catch (error) {
       passedOver(error)
     }
 
-    if (!snapshotExists) {
-      if (hostBash) noteLoginFiles(LOGIN_RUN_HANDED_OVER)
+    if (snapshotSize === undefined) {
+      logForDebugging(`shell snapshot file missing after capture: ${snapshotFilePath} (${LOGIN_RUN_HANDED_OVER.why}; ${shell.path})`)
+      try {
+        const entries = await getFsImplementation().readdir(snapshotDir)
+        logForDebugging(`snapshots directory ${snapshotDir} holds ${entries.length} entries`)
+      } catch (error) {
+        passedOver(error)
+        logForDebugging(`snapshots directory ${snapshotDir} no longer exists`)
+      }
       if (remembersFailedLoginRun(session)) loginRunsThatFailed.add(shell.path)
-      logForDebugging(
-        `shell snapshot missing: ${LOGIN_RUN_HANDED_OVER.why} (shell=${shell.path}, path=${snapshotFilePath}, config=${configFile}, cwd=${getCwd()}, home=${userHome})${run.stdout.length > 0 ? `\n  stdout (${run.stdout.length} chars):\n${run.stdout}` : ''}${run.stderr.length > 0 ? `\n  stderr (${run.stderr.length} chars):\n${run.stderr}` : ''}`,
-      )
-      logError(`shell snapshot missing: ${LOGIN_RUN_HANDED_OVER.why} (${shell.path})`)
+      if (hostBash) noteLoginFiles(LOGIN_RUN_HANDED_OVER)
       return undefined
     }
+    logForDebugging(`shell snapshot created at ${snapshotFilePath} (${snapshotSize} bytes)`)
 
     if (hostBash) noteLoginFiles(null)
 
@@ -737,35 +737,35 @@ export async function createAndSaveSnapshot(
 
     const mergedPath = pathWithLoginEntries(pathValue, loginExports(shell.path))
     if (mergedPath !== pathValue) {
-      await appendFile(snapshotFilePath, `\nexport PATH=${quote([mergedPath])}\n`, 'utf8')
+      await appendFile(snapshotFilePath, `export PATH=${quote([mergedPath])}\n`, 'utf8')
     }
 
     registerCleanup(async () => {
       try {
         await getFsImplementation().unlink(snapshotFilePath)
-        logForDebugging(`removed shell snapshot: ${snapshotFilePath}`)
+        logForDebugging(`removed shell snapshot ${snapshotFilePath}`)
       } catch (error) {
-        logForDebugging(`shell snapshot was not removed (${snapshotFilePath}): ${errorMessage(error)}`)
+        logForDebugging(`failed to remove shell snapshot ${snapshotFilePath}: ${errorMessage(error)}`)
       }
     })
 
     return snapshotFilePath
   } catch (error) {
     const why = errorMessage(error)
+    const stack = error instanceof Error && error.stack ? `\n${error.stack}` : ''
+    logForDebugging(`shell snapshot capture threw unexpectedly: ${why}${stack}`)
+    logError(`shell snapshot creation failed: ${why}`)
     if (hostBash) {
       noteLoginFiles(
         loginRunLeftNothing({ stdout: '', stderr: '', killed: false, overflowed: false, unstarted: why }),
       )
     }
-    logForDebugging(`shell snapshot failed unexpectedly: ${why} (${shell.path})`)
-    logError(`shell snapshot failed: ${why} (${shell.path})`)
     return undefined
   } finally {
     if (zshWork !== null) await zshWork
     if (scratchDir !== null) {
       await rm(scratchDir, { recursive: true, force: true }).catch(error => {
-        passedOver(error)
-        logForDebugging(`scratch snapshot dir was not removed (${scratchDir}): ${errorMessage(error)}`)
+        logForDebugging(`the login run's folder ${scratchDir} was not removed: ${errorMessage(error)}`)
       })
     }
   }
