@@ -1,6 +1,5 @@
 import { getSettingsWithAllErrors } from './allErrors.js'
 import { settingsFaultLine, type ValidationError } from '../../utils/settings/validation.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const told = new Set<string>()
 
@@ -9,7 +8,7 @@ function faultKey(fault: ValidationError): string {
 }
 
 export function currentSettingsFaults(): ValidationError[] {
-  return notBuilt('src/services/settings/faultNotices.ts:10')
+  return getSettingsWithAllErrors().errors.filter(fault => fault.mcpErrorMetadata === undefined)
 }
 
 export function untoldSettingsFaults(): ValidationError[] {

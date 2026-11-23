@@ -47,6 +47,20 @@ function counted(verb: string, n: number, noun: string, family: ToolFamily): Fra
   }
 }
 
+function memberResultText(lookups: MessageLookups, id: string): string {
+  const holder = lookups.toolResultByToolUseID.get(id)
+  const content = holder?.type === 'user' ? holder.message.content : undefined
+  if (!Array.isArray(content)) return ''
+  for (const block of content) {
+    if (block.type !== 'tool_result' || block.tool_use_id !== id) continue
+    if (typeof block.content === 'string') return block.content
+    if (Array.isArray(block.content)) {
+      return block.content.map(part => (part.type === 'text' ? part.text : '')).join('\n')
+    }
+  }
+  return ''
+}
+
 export function CollapsedReadSearchContent(arg0: {
   message: CollapsedReadSearchGroup
   inProgressToolUseIDs: Set<string>

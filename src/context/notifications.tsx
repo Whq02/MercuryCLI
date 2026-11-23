@@ -77,7 +77,80 @@ export function enqueueNotification(
   setAppState: SetAppState,
   incoming: Notification,
 ): void {
-  return notBuilt('src/context/notifications.tsx:107')
+  if (incoming.priority === 'immediate') {
+    cancelExpiry()
+    setAppState(prev => {
+      const displaced = prev.notifications.current
+      const requeued =
+        displaced !== null && displaced.priority !== 'immediate'
+          ? [displaced]
+          : []
+      const queue = [...requeued, ...prev.notifications.queue].filter(
+        entry =>
+          entry.priority !== 'immediate' &&
+          !incoming.invalidates?.includes(entry.key),
+      )
+      return {
+        ...prev,
+        notifications: { current: incoming, queue },
+      }
+    })
+    armExpiry(incoming, setAppState)
+    return
+  }
+
+  let foldedIntoCurrent: Notification | null = null
+  setAppState(prev => {
+    const { current, queue } = prev.notifications
+    if (incoming.fold) {
+      if (current?.key === incoming.key) {
+        const folded = incoming.fold(current as Notification, incoming)
+        foldedIntoCurrent = folded
+        return {
+          ...prev,
+          notifications: { current: folded, queue },
+        }
+      }
+      const at = queue.findIndex(entry => entry.key === incoming.key)
+      if (at !== -1) {
+        const folded = incoming.fold(queue[at] as Notification, incoming)
+        const nextQueue = [...queue]
+        nextQueue[at] = folded
+        return {
+          ...prev,
+          notifications: { current, queue: nextQueue },
+        }
+      }
+    }
+    if (
+      current?.key === incoming.key ||
+      queue.some(entry => entry.key === incoming.key)
+    ) {
+      return prev
+    }
+    const invalidatesCurrent =
+      current !== null && incoming.invalidates?.includes(current.key) === true
+    if (invalidatesCurrent) cancelExpiry()
+    const yields =
+      current !== null && !invalidatesCurrent && standsUntilRemoved(current) && !standsUntilRemoved(incoming)
+    const filtered = queue.filter(
+      entry =>
+        entry.priority !== 'immediate' &&
+        !incoming.invalidates?.includes(entry.key),
+    )
+    return {
+      ...prev,
+      notifications: {
+        current: invalidatesCurrent || yields ? null : current,
+        queue: [...filtered, incoming, ...(yields ? [current as Notification] : [])],
+      },
+    }
+  })
+  if (foldedIntoCurrent !== null) {
+    armExpiry(foldedIntoCurrent, setAppState)
+    return
+  }
+  promote(setAppState)
 }
 
 export function useNotifications(): {

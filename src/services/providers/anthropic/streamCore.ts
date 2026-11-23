@@ -40,6 +40,8 @@ import { openStreamPass, resetStreamAttempt, noteStreamEvent, startMessage, open
 import { watchStream } from './streamCore/watchStream.js'
 import { wireParamsFor } from './streamCore/wireParams.js'
 import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
+import { asSystemPrompt } from '../../../utils/systemPromptType.js'
+import { withVCR } from '../../vcr.js'
 
 export const ANTHROPIC_STREAM_ADVERTISEMENT: StreamCapabilityAdvertisement = {
   textDelta: true,
@@ -146,7 +148,21 @@ function sideQuestionParams(question: OneShotQuestion, systemPrompt: SystemPromp
 }
 
 export async function queryWithModel(question: OneShotQuestion): Promise<AssistantMessage> {
-  return notBuilt('src/services/providers/anthropic/streamCore.ts:706')
+  const { systemPrompt = asSystemPrompt([]), userPrompt, outputFormat, signal, options, thinkingConfig } = question
+  question = { systemPrompt, userPrompt, outputFormat, signal, options, thinkingConfig }
+  const { routedCallModel, settleAssistantTurn } = await import('../../providers/callModelRouter.js')
+  const recordedInput = [
+    createUserMessage({ content: systemPrompt.map(text => ({ type: 'text', text })) }),
+    createUserMessage({ content: question.userPrompt }),
+  ]
+  const answer = async (): Promise<AssistantMessage[]> => {
+    const stream = routedCallModel(sideQuestionParams(question, systemPrompt))
+    const replies: AssistantMessage[] = []
+    for await (const row of stream) if (row.type === 'assistant') replies.push(row)
+    return [settleAssistantTurn(replies, question.signal.aborted)]
+  }
+  const [reply] = await withVCR(recordedInput, answer)
+  return reply! as AssistantMessage
 }
 
 export { MAX_NON_STREAMING_TOKENS, adjustParamsForNonStreaming } from './streamCore/nonStreaming.js'

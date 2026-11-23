@@ -352,7 +352,11 @@ export function resolvePermissionModeCandidates(
 }
 
 export function savedPermissionModeCandidate(): PermissionMode | undefined {
-  return notBuilt('src/utils/permissions/permissionSetup.ts:468')
+  const { settings, errors } = getSettingsWithErrors()
+  const raw = settings.guardrails?.mode
+  if (!raw) return errors.some(error => error.path === 'guardrails.mode') ? 'default' : undefined
+  const mode = permissionModeFromString(raw)
+  return mode
 }
 
 export function resolveSavedPermissionMode(): { mode: PermissionMode; notification?: string } | undefined {

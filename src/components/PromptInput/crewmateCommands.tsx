@@ -40,7 +40,6 @@ import { POPUP_GUTTER } from '../PopupGutter.js'
 import { crewmateMetadataFile } from '../tasks/useCrewmateModel.js'
 import { crewmateLive, type CrewmateInView } from '../tasks/useCrewmateView.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const CREWMATE_COMMAND_RECEIPT_KEY = 'crewmate-command'
 const CREWMATE_COMPACT_INSTRUCTIONS_NOTE = 'the instructions are not carried; a crewmate compacts with the standard summary'
@@ -53,7 +52,8 @@ type CrewmateCommandIo = {
 }
 
 export function crewmateCommandReceipt(addNotification: (notification: Notification) => void): CrewmateCommandIo['receipt'] {
-  return notBuilt('src/components/PromptInput/crewmateCommands.tsx:54')
+  return (text, color) =>
+    addNotification({ key: CREWMATE_COMMAND_RECEIPT_KEY, text, priority: 'medium', timeoutMs: 8000, ...(color !== undefined ? { color } : {}), fold: (_accumulated, incoming) => incoming })
 }
 
 const word = (value: unknown): string | null => (typeof value === 'string' && value.trim() !== '' ? value.trim() : null)

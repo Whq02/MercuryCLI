@@ -48,7 +48,6 @@ import { typedString, writeErr, UUID_SHAPE, type RootOptions } from './cli.js'
 import { startDeferredPrefetches } from './deferredPrefetches.js'
 import { passedOver } from '../utils/passedOver.js'
 import { startInterval, stopInterval } from '../utils/timers.js'
-import { notBuilt } from '../pi/holes.js'
 
 let abandonAnnounced = false
 function announceAbandonedLaunch(): void {
@@ -84,7 +83,144 @@ type InteractiveLaunchArgs = {
 }
 
 export async function interactiveLaunch(args: InteractiveLaunchArgs): Promise<void> {
-  return notBuilt('src/main/interactiveLaunch.ts:85')
+  const { opts, commands } = args
+  let inputPrompt = args.prompt
+
+  profileCheckpoint('action_before_create_root')
+  const { renderOptions, getFpsMetrics, stats } = getRenderContext(false)
+  const { createRoot } = await import('../ink.js')
+  const root = await createRoot(renderOptions)
+  profileCheckpoint('action_after_create_root')
+
+  const startupMeasuredAt = Date.now()
+  const onboardingShown = await showSetupScreens(
+    root,
+    args.permissionMode,
+    args.allowDangerousSkip,
+    commands,
+  )
+  if (onboardingShown && inputPrompt?.trim().toLowerCase() === '/logins') {
+    inputPrompt = undefined
+  }
+  if (onboardingShown) resetUserCache()
+  const orgValidation = await validateForceLoginOrg()
+  if (!orgValidation.valid) {
+    await exitWithError(root, orgValidation.message)
+    return
+  }
+  if (process.exitCode !== undefined && process.exitCode !== 0) {
+    announceAbandonedLaunch()
+    logForDebugging('graceful shutdown already initiated; abandoning interactive launch')
+    return
+  }
+  if (isShuttingDown()) {
+    announceAbandonedLaunch()
+    logForDebugging('shutdown in progress; abandoning interactive launch')
+    return
+  }
+
+  registerBootBackgroundNodes(args)
+
+  const settingsErrors = getSettingsWithErrors().errors.filter(
+    error => error.mcpErrorMetadata === undefined,
+  )
+  if (settingsErrors.length > 0) {
+    await launchInvalidSettingsDialog(root, {
+      settingsErrors,
+      onExit: () => void gracefulShutdown(1),
+    })
+  }
+
+  const effectiveContext = args.toolPermissionContext
+
+  const config = getGlobalConfig()
+  const effortLevel = (opts.effort as EffortLevel | undefined) ?? getInitialSettings().engine?.effort
+  const effortEnv = describeEffortEnvOverride()
+  if (effortEnv.state === 'ignored') addBootNote('warn', effortEnv.sentence)
+  const initialState: AppState = {
+    ...getDefaultAppState(),
+    toolPermissionContext: effectiveContext,
+    verbose: config.toolOutput === 'full',
+    expandedView: config.showExpandedTasks ? 'tasks' : 'none',
+    ...(effortLevel !== undefined ? { effortValue: effortLevel } : {}),
+    agent: args.mainThreadAgentDefinition?.agentType,
+    agentDefinitions: { activeAgents: args.activeAgents, allAgents: args.allAgents },
+    remoteControlEnabled: getRemoteControlAtStartup() || assistantBridgeSeed(),
+    promptSuggestionEnabled: false,
+    ...(inputPrompt
+      ? {
+          initialMessage: {
+            message: createUserMessage({ content: inputPrompt }),
+          },
+        }
+      : {}),
+  }
+
+  if (inputPrompt) {
+    const { addToHistory } = await import('../history.js')
+    addToHistory(inputPrompt)
+  }
+
+  saveGlobalConfigDeferred(current => ({ ...current, numStartups: (current.numStartups ?? 0) + 1 }))
+  clearBootAttempts()
+  armProvisionalSessionReconcile()
+  registerBackgroundNode('startup-records', async () => {
+    await flushDeferredGlobalConfigSaves()
+    try {
+      recordInvocation()
+    } catch (error) {
+      passedOver(error)
+    }
+  })
+
+  {
+    const { armQuitParksAll } = await import('../services/switchboard/quitParksAll.js')
+    armQuitParksAll()
+  }
+  if (opts.continue || opts.resume || opts.pr || inputPrompt) {
+    markExplicitBootJourney()
+  }
+  if (opts.chat === true) {
+    const { markChatBoot } = await import('../context/surfaceRoute.js')
+    markChatBoot()
+  }
+
+  const appProps = {
+    getFpsMetrics,
+    stats,
+    initialState,
+  }
+  const chatProps: ChatProps = {
+    commands,
+    initialTools: [...getTools(effectiveContext)],
+    debug: Boolean(opts.debug || opts.d),
+    disableSlashCommands: opts.commands === false,
+  }
+
+  if (!getIsInteractive()) return
+
+  armBackgroundDiscovery();
+  markLaunchBegun();
+
+  try {
+    if (!(await routeBootJourney({ args, opts, root, appProps, chatProps, inputPrompt, effectiveContext }))) return
+
+    await launchChat(root, appProps, chatProps, renderAndRun, {
+      dynamicMcpConfig: args.dynamicMcpConfig,
+      isStrictMcpConfig: Boolean(args.opts.onlyMcp),
+    })
+  } catch (error) {
+    logError(error)
+    const detail = error instanceof Error ? error.message : String(error)
+    writeErr(`Mercury exited on an error: ${detail}`)
+    const crashPath = lastCrashReportPath()
+    if (crashPath) writeErr(`Crash report: ${crashPath}`)
+    writeErr(`Run ${binaryName()} health for diagnostics.`)
+    await crashShutdown(1)
+    process.exit(1)
+  }
+
+  void startupMeasuredAt
 }
 
 function assistantBridgeSeed(): boolean {

@@ -14,14 +14,29 @@ import {
 import { toError } from '../utils/errors.js'
 import { logError } from '../utils/log.js'
 import { startTimeout, stopTimeout } from '../utils/timers.js'
-import { notBuilt } from '../pi/holes.js'
 
 export async function reloadAgentDefinitionsIntoAppState(
   cwd: string,
   setAppState: (updater: (state: AppState) => AppState) => void,
   opts?: { invalidate?: boolean },
 ): Promise<void> {
-  return notBuilt('src/hooks/useAgentsChange.ts:18')
+  if (opts?.invalidate) clearAgentDefinitionsCache()
+  const fresh = await getAgentDefinitionsWithOverrides(cwd)
+  setAppState(state => {
+    const flagAgents = state.agentDefinitions.allAgents.filter(
+      a => a.source === 'flagSettings',
+    )
+    const allAgents = [...fresh.allAgents, ...flagAgents]
+    return {
+      ...state,
+      agentDefinitions: {
+        ...state.agentDefinitions,
+        ...fresh,
+        allAgents,
+        activeAgents: computeActiveAgents(allAgents),
+      },
+    }
+  })
 }
 
 

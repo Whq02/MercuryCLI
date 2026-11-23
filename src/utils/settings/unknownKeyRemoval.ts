@@ -5,7 +5,6 @@ import { getSettingsFilePathForSource, updateSettingsForSource } from './setting
 import type { SettingsJson } from './types.js'
 import type { ValidationError } from './validation.js'
 import { isRecord as isPlainObject } from '../isRecord.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const EDITABLE_SOURCES: readonly EditableSettingSource[] = ['userSettings', 'projectSettings', 'localSettings']
 
@@ -16,7 +15,8 @@ function isObjectPath(path: string): boolean {
 }
 
 function fieldPaths(error: ValidationError): string[] {
-  return notBuilt('src/utils/settings/unknownKeyRemoval.ts:17')
+  if (!isObjectPath(error.path)) return []
+  return (error.unknownKeys ?? []).map(key => (error.path === '' ? key : `${error.path}.${key}`))
 }
 
 export function removableUnknownKeys(errors: ValidationError[]): UnknownKeyRemoval[] {

@@ -109,6 +109,11 @@ export async function searchToolsWithKeywords(
   return notBuilt('src/tools/ToolSearchTool/ToolSearchTool.ts:156')
 }
 
+function pendingMcpServerNames(context: ToolUseContext): string[] {
+  const clients = context.getAppState().mcp?.clients ?? []
+  return clients.filter(client => client.type === 'pending').map(client => String(client.name))
+}
+
 const SELECT_FORM = /^select:(.+)$/i
 
 const quoted = (name: string): string => `"${name}"`

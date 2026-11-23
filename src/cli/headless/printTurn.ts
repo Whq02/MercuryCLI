@@ -95,5 +95,232 @@ export function assembleTurnTools(state: AppState, turnSchema: Record<string, un
 }
 
 export async function runPrintTurn(command: QueuedCommand, batch: QueuedCommand[], onMessage: (message: RowDraft) => void, given: QueuedCommand[] | undefined, ports: RunnerPorts): Promise<void> {
-  return notBuilt('src/cli/headless/printTurn.ts:122')
+  let initialNotices = given ?? []
+  const { advisorRoad, answerSchemaOf, applySeatEffort, applySeatModel, asks, assembleTools, canUseTool, checkBuildBehind, emitCommandNotifications, enqueueRow, getAppState, getReadFileCache, injectModelSwitchBreadcrumbs, inputPrompt, io, landAdvisorQuiet, landSpawnSwitch, live, liveScope, localCommandInput, maxTime, messages, options, party, peer, promisedWaitOf, recordHostNoticeRows, recordNoticeRows, registerPerTurnHandlers, setAppState, setReadFileCache, statusIsProgress, statusRowOf, swarmLead, swarmResumes, tellFailedMcpServers, tellSkippedProjectMcpServers } = ports
+  const { applyLiveBootMenuEnv } = await import('../../substrate/startupMenu.js')
+  applyLiveBootMenuEnv()
+  const members = batch.length > 0 ? batch : [command]
+  live.turnReachedModel = false
+  if (members.some(isHostNotice) || initialNotices.some(isHostNotice)) {
+    const hostNotices = [...initialNotices, ...members].filter(isHostNotice)
+    emitCommandNotifications(hostNotices)
+    await recordHostNoticeRows(hostNotices)
+    initialNotices = initialNotices.filter(member => !isHostNotice(member))
+  }
+  const heard = members.filter(member => !isHostNotice(member))
+  if (heard.length === 0) return
+  const spoken = spokenNotifications(heard)
+  if (spoken.length < heard.length) await recordNoticeRows(heard.filter(member => !spoken.includes(member)), { isMeta: true })
+  if (spoken.length < members.length) {
+    batch = spoken.length > 1 ? spoken : []
+    command = foldNotifications(spoken)
+  }
+  live.turnReachedModel = true
+  const promptUuid = command.uuid ?? randomUUID()
+  const localCommand = localCommandInput(command)
+  live.turnAnchor = localCommand ? null : promptUuid
+  if (localCommand) party.blockOpen()
+  const delivery = command.mode === 'task-notification' ? fitCompletionCommands(batch.length > 0 ? batch : [command], { messages, model: live.activeModel ?? getEngineModel() }) : []
+  const promptValue = delivery.length > 1 ? foldNotificationValues(delivery.map(member => member.value)) : delivery[0]?.value ?? command.value
+  const batchUuids = batch.map(member => member.uuid).filter((uuid): uuid is UUID => uuid !== undefined)
+  const batchTail: BatchedPrompt[] =
+    command.mode === 'prompt'
+      ? batch.slice(1).map(member => ({
+          value: member.value,
+          ...(member.uuid !== undefined ? { uuid: member.uuid } : {}),
+          ...(member.origin !== undefined ? { origin: member.origin } : {}),
+        }))
+      : []
+  emitCommandNotifications([...initialNotices, command])
+  const turnAbort = new AbortController()
+  live.inFlightAbort = turnAbort
+  live.turnsRun += 1
+  live.currentTurn = live.turnsRun
+  live.currentTurnId = null
+  const turnIdleLimitMs = headlessTurnIdleLimitMs()
+  const turnWatchdog = armInactivityDeadline({
+    seam: 'unattended turn',
+    limitMs: turnIdleLimitMs,
+    advice: 'the turn was aborted and the run exits non-zero; MERCURY_HEADLESS_IDLE_MINUTES tunes the limit (0 disables)',
+    onExpire: error => {
+      logForDebugging(`print: ${error.message}`)
+      turnAbort.abort(error)
+    },
+  })
+  let promiseHold: { cancel(): void } | null = null
+  const holdPromise = (wait: Extract<RequestWaitV1, { kind: 'first-byte' }> | null): void => {
+    promiseHold?.cancel()
+    promiseHold = wait === null || !turnWatchdog.armed ? null : holdDeadlineUntil(turnWatchdog, declaredWaitEnd(wait.sinceMs, wait.budgetMs, LOCAL_FIRST_BYTE_CAP_MS), turnIdleLimitMs / 2)
+  }
+  live.hostAsks = keepTurnLiveWhileHostAnswers({
+    watchdog: turnWatchdog,
+    limitMs: turnIdleLimitMs,
+    parkedWithHost: () => asks.pendingControlRequestCount(),
+    parkedAsks: () => asks.parkedAsks(),
+    settleParkedAsks: cause => (live.capabilities.holds_asks ? 0 : asks.denyPendingPermissionRequests(cause)),
+  })
+  const workload = command.workload ?? options.workload
+  try {
+    await runWithWorkload(workload, async () => {
+      const state = getAppState()
+      const turnClients: MCPServerConnection[] = [
+        ...state.mcp.clients,
+      ]
+      registerPerTurnHandlers(turnClients)
+      const answerSchema = answerSchemaOf(command.schema)
+      const answerSchemaKey = answerSchema === undefined ? '' : JSON.stringify(answerSchema)
+      if (live.lastAnswerSchemaKey !== null && answerSchemaKey !== live.lastAnswerSchemaKey) {
+        const owner = String(processMainOwner())
+        clearToolRosterLatches(owner)
+        clearToolRosterRestore()
+        declareLawfulPrefixChange(owner, answerSchema === undefined ? 'this turn asked for no structured output' : 'this turn asked for its own structured-output schema')
+      }
+      live.lastAnswerSchemaKey = answerSchemaKey
+      const assembledTools = assembleTools(state, command.schema)
+      const mcpCommands = state.mcp.commands
+      const dedupedCommands = [
+        ...live.activeCommands,
+        ...mcpCommands.filter(
+          mcpCommand => !live.activeCommands.some(existing => existing.name === mcpCommand.name),
+        ),
+      ]
+      if (live.sessionRowFor !== String(getSessionId())) {
+        live.sessionRowFor = String(getSessionId())
+        const withheld = toolsWithheldByDeny([...getAllBaseTools(), ...state.mcp.tools], state.toolPermissionContext)
+        const facts = await sessionFactsOf(
+          { cwd: getCwd(), tools: assembledTools, mcpClients: turnClients, commands: dedupedCommands, agents: live.activeAgents },
+          live.activeModel ?? getEngineModel(),
+          state.toolPermissionContext.mode,
+          live.resumeOf,
+          withheld.map(({ tool, rule }) => ({ tool, rule: ruleSpelling(rule.ruleValue), source: ruleSourceWords(rule.source) })),
+        )
+        enqueueRow(sessionRow({ session_id: getSessionId() }, facts))
+        for (const entry of withheld) enqueueRow(noticeRow(liveScope(), 'warning', withheldByRuleWords(entry.tool, entry.rule), TOOL_WITHHELD_CODE))
+      }
+      tellSkippedProjectMcpServers()
+      tellFailedMcpServers()
+      for await (const message of ask({
+        commands: dedupedCommands,
+        prompt: promptValue,
+        ...(options.syntaxInput !== undefined && command.value === inputPrompt ? { syntaxInput: options.syntaxInput } : {}),
+        promptUuid,
+        ...(batchUuids.length > 0 ? { batchUuids } : {}),
+        ...(batchTail.length > 0 ? { batchTail } : {}),
+        ...(initialNotices.length > 0 ? { initialNotices } : {}),
+        isMeta: command.isMeta,
+        operatorPrompt: command.mode === 'prompt' && command.isMeta !== true,
+        ...(command.origin !== undefined ? { origin: command.origin } : {}),
+        ...(command.skipSlashCommands === true ? { skipSlashCommands: true } : {}),
+        ...(command.mode === 'bash' ? { promptMode: 'bash' as const } : {}),
+        cwd: getCwd(),
+        tools: assembledTools,
+        mcpClients: turnClients,
+        thinkingConfig: live.thinkingConfig,
+        maxTurns: options.maxTurns,
+        maxBudgetUsd: options.maxBudgetUsd,
+        maxTime,
+        canUseTool,
+        ...(peer !== null ? { hostHoldsAsks: true } : {}),
+        userSpecifiedModel: live.activeModel,
+        fallbackModel: options.fallbackModel,
+        jsonSchema: answerSchema,
+        mutableMessages: messages,
+        onTurnMessages: read => {
+          live.turnMessages = read
+        },
+        contentReplacementState: live.contentReplacementState,
+        getReadFileCache,
+        setReadFileCache,
+        customSystemPrompt: options.systemPrompt,
+        appendSystemPrompt: options.appendSystemPrompt,
+        getAppState,
+        setAppState,
+        abortController: turnAbort,
+        partialRows: options.includePartialMessages || live.capabilities.partial_rows,
+        turn: live.currentTurn ?? undefined,
+        onLiveness: () => turnWatchdog.touch(),
+        onToolRoundSettled: rows => {
+          void advisorMainRound(String(getSessionId()), rows, advisorRoad)
+        },
+        handleElicitation: (
+          serverName: string,
+          params: { message: string; mode?: 'form' | 'url'; url?: string; elicitationId?: string },
+          elicitSignal?: AbortSignal,
+        ) =>
+          asks.handleElicitation(
+            serverName,
+            params.message,
+            undefined,
+            elicitSignal,
+            params.mode,
+            params.url,
+            params.elicitationId,
+          ),
+        agents: live.activeAgents,
+        setSDKStatus: (status: unknown) => {
+          if (statusIsProgress(status)) turnWatchdog.touch()
+          const promised = promisedWaitOf(status)
+          if (promised !== undefined) holdPromise(promised)
+          else if (typeof status === 'object' && status !== null && 'streamActivity' in status) holdPromise(null)
+          const row = statusRowOf(status)
+          if (row !== null) enqueueRow(row)
+        },
+      })) {
+        turnWatchdog.touch()
+        if (turnOpened(message)) {
+          live.currentTurnId = message.turn_id
+          if (options.door !== 'wire') for (const line of untoldHiddenCharacterLines()) process.stderr.write(`${GLYPH.warn} ${line}\n`)
+        }
+        if (options.door !== 'wire' && mentionDropped(message)) process.stderr.write(`${GLYPH.warn} ${message.text}\n`)
+        onMessage(message)
+      }
+      tellFailedMcpServers()
+    })
+  } finally {
+    party.turnEnd()
+    live.turnAnchor = null
+    live.hostAsks?.stop()
+    live.hostAsks = null
+    holdPromise(null)
+    turnWatchdog.cancel()
+    live.inFlightAbort = null
+    live.currentTurn = null
+    if (live.heldSeatModel !== null) {
+      const held = live.heldSeatModel
+      live.heldSeatModel = null
+      await applySeatModel(held.model, held.words, held.replacedDefault)
+      io.outbound.enqueue({ method: SESSION_VERBS.sessionApplied.runner.name, params: { request_id: held.requestId, verb: 'set_model', model: held.model } })
+    }
+    if (live.heldSeatEffort !== null) {
+      const held = live.heldSeatEffort
+      live.heldSeatEffort = null
+      applySeatEffort(held.effort)
+      io.outbound.enqueue({ method: SESSION_VERBS.sessionApplied.runner.name, params: { request_id: held.requestId, verb: 'set_effort', effort: held.effort } })
+    }
+    holdQueuedWordsForTurnEnd(false)
+    if (live.deferredModelBreadcrumb !== null) {
+      const crumb = live.deferredModelBreadcrumb
+      live.deferredModelBreadcrumb = null
+      await injectModelSwitchBreadcrumbs(crumb.to, crumb.from)
+    }
+    if (live.deferredSpawnSwitches.length > 0) {
+      const toggles = live.deferredSpawnSwitches
+      live.deferredSpawnSwitches = []
+      for (const toggle of toggles) {
+        landSpawnSwitch(toggle.kind, toggle.on)
+        io.outbound.enqueue({ method: SESSION_VERBS.sessionApplied.runner.name, params: { request_id: toggle.requestId, verb: 'set_spawn_switch', switch: toggle.kind, on: toggle.on } })
+      }
+    }
+    if (live.deferredAdvisorQuiet.length > 0) {
+      const quiets = live.deferredAdvisorQuiet
+      live.deferredAdvisorQuiet = []
+      for (const quiet of quiets) landAdvisorQuiet(quiet)
+    }
+    swarmLead.check()
+    swarmResumes.check()
+    void checkBuildBehind(true)
+  }
+  if (turnWatchdog.fired) {
+    throw new DeadlineExceededError('unattended turn', turnIdleLimitMs, turnIdleLimitMs, turnWatchdog.progressCount, 'no engine event for the whole limit — the turn was aborted; MERCURY_HEADLESS_IDLE_MINUTES tunes the limit (0 disables)')
+  }
 }

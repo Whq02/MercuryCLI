@@ -61,7 +61,57 @@ async function waitForRequiredMcpServers(
   definition: AgentDefinition,
   context: ToolUseContext,
 ): Promise<void> {
-  return notBuilt('src/tools/AgentTool/agent/call.ts:59')
+  const required = definition.requiredMcpServers
+  if (!required || required.length === 0) return
+  const clients = () => context.getAppState().mcp.clients ?? []
+  const matchesRequired = (name: string) =>
+    required.some(pattern =>
+      name.toLowerCase().includes(pattern.toLowerCase()),
+    )
+  const settled = (): boolean => {
+    const current = clients()
+    const pendingRequired = current.some(
+      client => client.type === 'pending' && matchesRequired(client.name),
+    )
+    if (!pendingRequired) return true
+    return current.some(
+      client => client.type === 'failed' && matchesRequired(client.name),
+    )
+  }
+  if (!settled()) {
+    let unsubscribe: (() => void) | undefined
+    try {
+      await withDeadline(
+        new Promise<void>(resolve => {
+          unsubscribe = subscribeMcpClientsChange(() => {
+            if (settled()) resolve()
+          })
+          if (settled()) resolve()
+        }),
+        30_000,
+        () => {},
+        { signal: context.abortController?.signal },
+      )
+    } finally {
+      unsubscribe?.()
+    }
+  }
+  const serversWithTools = mcpServerNamesWithTools(
+    context.getAppState().mcp.tools ?? [],
+  )
+  const missing = required.filter(
+    pattern =>
+      !serversWithTools.some(name =>
+        name.toLowerCase().includes(pattern.toLowerCase()),
+      ),
+  )
+  if (missing.length > 0) {
+    throw new Error(
+      `Crewmate type '${definition.agentType}' requires MCP server(s) matching: ${missing.join(', ')}. ` +
+        `Servers currently exposing tools: ${serversWithTools.length > 0 ? [...new Set(serversWithTools)].join(', ') : 'none'}. ` +
+        'Configure the required server with the /mcp command.',
+    )
+  }
 }
 
 const CREWMATE_SEAT: MercuryAgentSeat = 'a crewmate'

@@ -46,13 +46,64 @@ import { applyMergedConfigEnv, typedString, writeErr, type RootOptions } from '.
 import { startDeferredPrefetches } from './deferredPrefetches.js'
 import { passedOver } from '../utils/passedOver.js'
 import { withDeadline } from '../utils/deadline.js'
-import { notBuilt } from '../pi/holes.js'
 
 async function connectMcpBatch(
   configs: Record<string, ScopedMcpServerConfig>,
   setAppState: (updater: (previous: AppState) => AppState) => void,
 ): Promise<void> {
-  return notBuilt('src/main/runLaunch.ts:50')
+  const { survivors, collided } = fenceMcpPrefixCollisions(configs)
+  const { members, excluded } = partitionMcpConfigsByMembership(survivors)
+  if (members.length === 0 && excluded.length === 0 && collided.length === 0) return
+  setAppState(previous => ({
+    ...previous,
+    mcp: {
+      ...previous.mcp,
+      clients: [
+        ...previous.mcp.clients,
+        ...members.map(([name, config]) => ({ name, type: 'pending' as const, config })),
+        ...excluded.map(([name, config]) => ({ name, type: 'disabled' as const, config })),
+        ...collided.map(({ name, config, error }) => ({ name, type: 'failed' as const, config, error })),
+      ],
+    },
+  }))
+  await Promise.all(
+    members.map(async ([name, config]) => {
+      try {
+        const client = await connectToServer(name, config)
+        const [tools, commands, resources] = await Promise.all([
+          fetchToolsForClient(client),
+          fetchCommandsForClient(client),
+          fetchResourcesForClient(client),
+        ])
+        const supplementary = supplementaryToolsForMcpClient(client)
+        setAppState(previous => ({
+          ...previous,
+          mcp: {
+            ...previous.mcp,
+            clients: previous.mcp.clients.map(entry => (entry.name === name ? client : entry)),
+            tools: dedupeByName([...previous.mcp.tools, ...tools, ...supplementary]),
+            commands: dedupeByName([...previous.mcp.commands, ...commands]),
+            resources:
+              resources.length > 0
+                ? { ...previous.mcp.resources, [name]: resources }
+                : previous.mcp.resources,
+          },
+        }))
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error)
+        logForDebugging(`MCP connect failed for ${name}: ${reason}`)
+        setAppState(previous => ({
+          ...previous,
+          mcp: {
+            ...previous.mcp,
+            clients: previous.mcp.clients.map(entry =>
+              entry.name === name ? { name, type: 'failed' as const, config, error: reason } : entry,
+            ),
+          },
+        }))
+      }
+    }),
+  )
 }
 
 function dedupeByName<T extends { name?: string }>(entries: T[]): T[] {
@@ -295,5 +346,76 @@ async function connectAnthropicConnectors(store: {
   getState: () => AppState
   setState: (updater: (previous: AppState) => AppState) => void
 }): Promise<void> {
-  return notBuilt('src/main/runLaunch.ts:345')
+  const strictOrBare = isBareMode()
+  if (strictOrBare || doesEnterpriseMcpConfigExist()) return
+  const work = (async () => {
+    const connectors = await fetchAnthropicConnectorsIfEligible()
+    if (!connectors || Object.keys(connectors).length === 0) return
+    const connectorEntries = connectors
+    const state = store.getState()
+    const connectorSignatures = new Set(
+      Object.values(connectorEntries).map(config => getMcpServerSignature(config)),
+    )
+    const suppressed: string[] = []
+    for (const client of state.mcp.clients) {
+      if (!client.name.startsWith('ext:')) continue
+      const signature = getMcpServerSignature(client.config)
+      if (!connectorSignatures.has(signature)) continue
+      suppressed.push(client.name)
+      if (client.type === 'connected') {
+        try {
+          const cleared = await clearServerCache(client.name, client.config)
+          if (cleared.cleanupError !== undefined) {
+            writeErr(`the duplicate MCP server ${client.name} could not be closed (${cleared.cleanupError}) and may still be running`)
+          }
+        } catch (error) {
+          passedOver(error)
+          writeErr(`the duplicate MCP server ${client.name} could not be closed (${error instanceof Error ? error.message : String(error)}) and may still be running`)
+        }
+      }
+    }
+    const manualSignatures = new Set(
+      store
+        .getState()
+        .mcp.clients.filter(
+          client => !client.name.startsWith('ext:') && !suppressed.includes(client.name),
+        )
+        .map(client => getMcpServerSignature(client.config)),
+    )
+    const surviving: Record<string, ScopedMcpServerConfig> = Object.create(null) as Record<string, ScopedMcpServerConfig>
+    for (const [name, connectorConfig] of Object.entries(connectorEntries)) {
+      if (manualSignatures.has(getMcpServerSignature(connectorConfig))) continue
+      surviving[name] = connectorConfig
+    }
+    if (suppressed.length > 0) {
+      const suppressedPrefixes = suppressed.map(name => getMcpPrefix(name))
+      store.setState(previous => {
+        const nextClients = previous.mcp.clients.filter(client => !suppressed.includes(client.name))
+        return {
+          ...previous,
+          mcp: {
+            ...previous.mcp,
+            clients: nextClients,
+            tools: pruneStaleMcpResourceTools(
+              nextClients,
+              previous.mcp.tools.filter(
+                tool => !suppressed.includes(tool.mcpInfo?.serverName ?? ''),
+              ),
+            ),
+            commands: previous.mcp.commands.filter(
+              command => !suppressedPrefixes.some(prefix => command.name.startsWith(prefix)),
+            ),
+            resources: Object.fromEntries(
+              Object.entries(previous.mcp.resources ?? {}).filter(([serverName]) => !suppressed.includes(serverName)),
+            ),
+          },
+        }
+      })
+    }
+    await connectMcpBatch(surviving, store.setState)
+  })()
+  const raced = await withDeadline(work, 5000, () => 'timeout' as const)
+  if (raced === 'timeout') {
+    logForDebugging('claude.ai connectors were not ready within 5s; continuing')
+  }
 }
