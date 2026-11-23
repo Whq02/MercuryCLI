@@ -270,8 +270,11 @@ function formatPendingReason(pending: PendingChanges): string {
   }
   if (pending.systemPromptChanged) {
     const delta = pending.systemTextLengthDelta
-    const deltaClause = delta !== 0 ? ` (${delta > 0 ? `+${delta}` : `${delta}`} chars)` : ''
-    parts.push(`system prompt changed${deltaClause}`)
+    parts.push(
+      delta !== 0
+        ? `system prompt changed (${delta > 0 ? '+' : ''}${delta} chars)`
+        : 'system prompt changed',
+    )
   }
   if (pending.toolSchemasChanged) {
     if (pending.addedTools.length > 0 || pending.removedTools.length > 0) {

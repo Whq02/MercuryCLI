@@ -203,10 +203,10 @@ function providerNameOfModel(model: string): string {
 
 
 export function getPdfTooLargeErrorMessage(): string {
-  const prefix = `The PDF is too large for the API. PDFs are limited to ${API_PDF_MAX_PAGES} pages and ${formatFileSize(PDF_TARGET_RAW_SIZE)}. `
+  const limit = `PDFs are limited to ${API_PDF_MAX_PAGES} pages and ${formatFileSize(PDF_TARGET_RAW_SIZE)}.`
   return getIsNonInteractiveSession()
-    ? `${prefix}Try reading the file another way, e.g. extracting its text with a PDF-to-text tool.`
-    : `${prefix}Use /rewind (or shift+up) to edit your last message, then retry with a smaller PDF or convert it to text first.`
+    ? `The PDF is too large for the API. ${limit} Try reading the file another way, e.g. extracting its text with a PDF-to-text tool.`
+    : `The PDF is too large for the API. ${limit} Use /rewind (or shift+up) to edit your last message, then retry with a smaller PDF or convert it to text first.`
 }
 
 export function getPdfPasswordProtectedErrorMessage(): string {
@@ -460,23 +460,25 @@ function composeRateLimitErrorMessage(
   }
 
   if (message.includes(LONG_CONTEXT_EXTRA_USAGE_PHRASE)) {
-    const switchCmd = nonInteractive ? '--model' : '/model'
+    const remedy = nonInteractive
+      ? 'Enable extra usage in your Claude settings on the web, or switch to standard context with --model.'
+      : 'Enable extra usage in your Claude settings on the web, or switch to standard context with /model.'
     return createAssistantAPIErrorMessage({
-      content: `${API_ERROR_MESSAGE_PREFIX}: Anthropic says "Extra usage is required for long context". Enable extra usage in your Claude settings on the web, or switch to standard context with ${switchCmd}.`,
+      content: `${API_ERROR_MESSAGE_PREFIX}: Anthropic says "${LONG_CONTEXT_EXTRA_USAGE_PHRASE}". ${remedy}`,
       error: 'rate_limit',
       errorDetails: message,
     })
   }
 
   const detail = extract429Detail(message)
-  const body =
+  const content =
     detail === null
-      ? 'Anthropic sent no detail; check https://status.anthropic.com.'
+      ? `${API_ERROR_MESSAGE_PREFIX} (429, request rejected): Anthropic sent no detail; check https://status.anthropic.com.`
       : detail.providerSentence
-        ? `Anthropic says: ${detail.text}`
-        : detail.text
+        ? `${API_ERROR_MESSAGE_PREFIX} (429, request rejected): Anthropic says: ${detail.text}`
+        : `${API_ERROR_MESSAGE_PREFIX} (429, request rejected): ${detail.text}`
   return createAssistantAPIErrorMessage({
-    content: `${API_ERROR_MESSAGE_PREFIX} (429, request rejected): ${body}`,
+    content,
     error: 'rate_limit',
     errorDetails: message,
   })
@@ -673,15 +675,18 @@ function composeAssistantMessageFromError(
     }
   }
 
-  const wallKind =
-    classifyCredentialWall(status, message, anthropicWireCredential(model, status)) ??
-    (classifyAnthropicRefusal(anthropicRefusalFactsOf(error, isAnthropicOAuthSignInExpired())) === 'sign-in'
-      ? 'sign-in'
-      : undefined)
+  const wallKind = classifyCredentialWall(status, message, anthropicWireCredential(model, status))
   if (wallKind !== undefined) {
     logForDebugging(`[api] credential wall (${wallKind}) on ${model} — the wire said: ${message}`)
     return createAssistantAPIErrorMessage({
       content: `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine(routeOfModel(model), wallKind, { nonInteractive })}`,
+      error: 'authentication_failed',
+    })
+  }
+  if (classifyAnthropicRefusal(anthropicRefusalFactsOf(error, isAnthropicOAuthSignInExpired())) === 'sign-in') {
+    logForDebugging(`[api] credential wall (sign-in) on ${model} — the wire said: ${message}`)
+    return createAssistantAPIErrorMessage({
+      content: `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine(routeOfModel(model), 'sign-in', { nonInteractive })}`,
       error: 'authentication_failed',
     })
   }
@@ -691,9 +696,9 @@ function composeAssistantMessageFromError(
   }
 
   if (status === 404) {
-    const cmd = nonInteractive ? '`--model`' : '`/model`'
+    const cmd = nonInteractive ? '--model' : '/model'
     return createAssistantAPIErrorMessage({
-      content: `Model ${model} was not found or is not accessible (HTTP 404, request_id: ${requestIdOf(error)}). Run ${cmd} to pick another model.`,
+      content: `Model ${model} was not found or is not accessible (HTTP 404, request_id: ${requestIdOf(error)}). Run \`${cmd}\` to pick another model.`,
       error: 'invalid_request',
     })
   }

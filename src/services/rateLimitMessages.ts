@@ -11,11 +11,11 @@ const SEPARATOR = ' · '
 const RATE_LIMIT_ERROR_PREFIXES = [
   "Anthropic says this account's",
   'Anthropic says this account has used',
-  `Anthropic says this account is now using extra usage${SEPARATOR}`,
+  'Anthropic says this account is now using extra usage · ',
   'Anthropic says this account is close to its extra usage',
   "You've reached your",
   "You've used",
-  `You're now using extra usage${SEPARATOR}`,
+  "You're now using extra usage · ",
   "You're close to your extra usage",
   "You've run out of extra usage",
 ] as const
