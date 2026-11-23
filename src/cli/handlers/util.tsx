@@ -9,24 +9,25 @@ import { AppStateProvider } from '../../state/AppState.js'
 import { isAnthropicAuthEnabled } from '../../utils/auth.js'
 import { logError } from '../../utils/log.js'
 export async function setupTokenHandler(root: Root): Promise<void> {
+  const warningOwed = !isAnthropicAuthEnabled()
   await new Promise<void>(resolve => {
     root.render(
       <AppStateProvider>
         <KeybindingSetup>
-          <Box flexDirection="column" gap={1} paddingY={1}>
-            <Box gap={1}>
+          <Box flexDirection="column" gap={1}>
+            <Box flexDirection="column">
               <Crab />
               <Wordmark version={MERCURY_VERSION} />
               <Text dimColor>Long-lived token setup</Text>
             </Box>
-            {!isAnthropicAuthEnabled() && (
+            {warningOwed && (
               <Text color="ansi:yellow">
-                Warning: Existing environment or credential helper authentication is active and may take precedence over this token.
+                This session already has credentials (via environment variable or API key helper). This flow mints a separate OAuth token you can use in their place.
               </Text>
             )}
             <ConsoleOAuthFlow
               mode="setup-token"
-              startingMessage="Create a long-lived authentication token (valid for 1 year). Requires an active Anthropic subscription."
+              startingMessage="This creates a long-lived authentication token for your Claude account. The token is valid for one year and requires an active subscription."
               onDone={() => resolve()}
             />
           </Box>
@@ -34,11 +35,7 @@ export async function setupTokenHandler(root: Root): Promise<void> {
       </AppStateProvider>,
     )
   })
-  try {
-    root.unmount()
-  } catch (error) {
-    logError(error)
-  }
+  root.unmount()
   process.exit(0)
 }
 
