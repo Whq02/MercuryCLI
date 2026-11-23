@@ -129,12 +129,12 @@ type ConnectionFacts = {
   failed: {
     error?: string
   }
+  'needs-auth': Record<never, never>
   pending: {
     reconnectAttempt?: number
     maxReconnectAttempts?: number
   }
   disabled: Record<never, never>
-  'needs-auth': Record<never, never>
 }
 type Connection<State extends keyof ConnectionFacts> = ServerIdentity & { type: State } & ConnectionFacts[State]
 export type ConnectedMCPServer = Connection<'connected'>
