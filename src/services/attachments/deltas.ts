@@ -19,7 +19,6 @@ import {
 } from '../messages/toolSearch.js'
 import { DEFERRED_TOOLS_ANNOUNCEMENT_HEAD } from '../../constants/tools/toolSearch.js'
 import type { Attachment } from '../../utils/attachments/types.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export const SERVER_SEARCH_ANNOUNCEMENT_HEAD =
   'The following tools are available in this session but their definitions are not loaded yet. Before calling one, load it with the tool-search tool: pass the tool name as the pattern (a plain unanchored name such as WebFetch — the pattern is matched against the name and description together, so never use ^ or $), then call the tool as usual:'
@@ -62,7 +61,21 @@ export function getDeferredToolsDeltaAttachment(
   scanContext?: DeferredToolsDeltaScanContext,
   plan?: Pick<ToolPayloadPlan, 'enabled' | 'wireForm' | 'deferredNames'>,
 ): Attachment[] {
-  return notBuilt('src/services/attachments/deltas.ts:58')
+  if (!plan && !isToolSearchEnabledOptimistic()) return []
+  if (!supportsToolDeferral(model)) return []
+  const form = plan?.wireForm ?? deferralWireFormFor(model).form
+  if (form === 'block' && !modelSupportsToolReference(model)) return []
+  if (!isToolSearchToolAvailable(tools)) return []
+  const names = plan?.enabled === false ? new Set<string>() : plan?.deferredNames
+  const delta = getDeferredToolsDelta(tools, messages ?? [], scanContext, model, names)
+  if (!delta) return []
+  const parts: string[] = []
+  if (delta.addedLines.length) {
+    const head = deferralSearchIsServerSide(form) ? SERVER_SEARCH_ANNOUNCEMENT_HEAD : DEFERRED_TOOLS_ANNOUNCEMENT_HEAD
+    parts.push(`${head}\n${delta.addedLines.join('\n')}`)
+  }
+  if (delta.removedNames.length) parts.push(`The following tools are no longer available in this session:\n${delta.removedNames.join('\n')}`)
+  return [{ type: 'deferred_tools_delta', ...delta, body: parts.join('\n\n') }]
 }
 
 export function heldToolsBody(names: readonly string[]): string {
@@ -71,14 +84,34 @@ ${names.join(String.fromCharCode(10))}`
 }
 
 export function getHeldToolsAttachment(rosterOwner: string, messages: Message[]): Attachment[] {
-  return notBuilt('src/services/attachments/deltas.ts:87')
+  const held = heldToolsAtLastPlan(rosterOwner, messages)
+  if (!held.length) return []
+  const told = new Set<string>()
+  for (const row of messages) {
+    if (row.type === 'attachment' && row.attachment.type === 'held_tools') {
+      for (const name of row.attachment.names) told.add(name)
+    }
+  }
+  const names = held.filter(name => !told.has(name)).sort()
+  return names.length ? [{ type: 'held_tools', names, body: heldToolsBody(names) }] : []
 }
 
 export function getMcpServersFailedAttachment(
   mcpClients: ReadonlyArray<{ name: string; type: string; error?: string }>,
   messages: readonly Message[] | undefined,
 ): Attachment[] {
-  return notBuilt('src/services/attachments/deltas.ts:100')
+  const failed = mcpServersFailed(mcpClients)
+  if (!failed.length) return []
+  const told = new Set<string>()
+  for (const row of messages ?? []) {
+    if (row.type === 'attachment' && row.attachment.type === 'mcp_servers_failed') {
+      for (const server of row.attachment.servers) told.add(server.name)
+    }
+  }
+  const servers = failed.filter(server => !told.has(server.name))
+  if (!servers.length) return []
+  const body = servers.map(server => mcpServerFailedWords(server.name, server.reason)).join('\n')
+  return [{ type: 'mcp_servers_failed', servers, body }]
 }
 
 export function getMcpInstructionsDeltaAttachment(
@@ -87,5 +120,7 @@ export function getMcpInstructionsDeltaAttachment(
   _model: string,
   messages: Message[] | undefined,
 ): Attachment[] {
-  return notBuilt('src/services/attachments/deltas.ts:116')
+  if (!isMcpInstructionsDeltaEnabled()) return []
+  const delta = getMcpInstructionsDelta(mcpClients, messages ?? [], [])
+  return delta ? [{ type: 'mcp_instructions_delta', ...delta }] : []
 }
