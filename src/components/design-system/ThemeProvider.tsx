@@ -17,11 +17,24 @@ import {
   type ThemeName,
   type ThemeSetting,
 } from '../../utils/theme.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
-type ThemeContextValue = Unbuilt
+type ThemeContextValue = {
+  resolvedTheme: ThemeName
+  themeSetting: ThemeSetting
+  setThemeSetting: (setting: ThemeSetting) => void
+  setPreviewTheme: (setting: ThemeSetting) => void
+  savePreview: () => void
+  cancelPreview: () => void
+}
 
-const DEFAULT_CONTEXT: ThemeContextValue = unbuilt('src/components/design-system/ThemeProvider.tsx:31')
+const DEFAULT_CONTEXT: ThemeContextValue = {
+  resolvedTheme: DEFAULT_THEME_SETTING,
+  themeSetting: DEFAULT_THEME_SETTING,
+  setThemeSetting: () => {},
+  setPreviewTheme: () => {},
+  savePreview: () => {},
+  cancelPreview: () => {},
+}
 
 const ThemeContext = createContext<ThemeContextValue>(DEFAULT_CONTEXT)
 
@@ -41,12 +54,37 @@ export function currentStoredThemeSetting(): ThemeSetting {
   return initialThemeSetting()
 }
 
-export function ThemeProvider(arg0: {
+export function ThemeProvider({ children, initialState, onThemeSave }: {
   children?: React.ReactNode
   initialState?: ThemeSetting
   onThemeSave?: (setting: ThemeSetting) => void
 }): React.ReactNode {
-  return notBuilt('src/components/design-system/ThemeProvider.tsx:58')
+  const ownsMonochrome = useContext(ThemeContext) === DEFAULT_CONTEXT
+  const [themeSetting, setSaved] = useState(() => initialThemeSetting(initialState))
+  const [preview, setPreview] = useState<ThemeSetting | null>(null)
+  const resolvedTheme = resolveThemeSetting(preview ?? themeSetting)
+  if (ownsMonochrome) setMonochromeTheme(isMonochromeTheme(resolvedTheme))
+  useLayoutClaim(() => {
+    if (ownsMonochrome) return () => { setMonochromeTheme(false) }
+  }, [ownsMonochrome])
+  usePublish(() => { syncOasisBgToTheme(resolvedTheme) }, [resolvedTheme])
+  const value = useMemo<ThemeContextValue>(() => {
+    const setThemeSetting = (setting: ThemeSetting): void => {
+      setSaved(setting)
+      setPreview(null)
+      if (onThemeSave) onThemeSave(setting)
+      else saveGlobalConfig(config => ({ ...config, theme: setting }))
+    }
+    return {
+      resolvedTheme,
+      themeSetting,
+      setThemeSetting,
+      setPreviewTheme: setPreview,
+      savePreview: () => { if (preview !== null) setThemeSetting(preview) },
+      cancelPreview: () => setPreview(null),
+    }
+  }, [resolvedTheme, themeSetting, preview, onThemeSave])
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }
 
 export function useTheme(): readonly [
@@ -58,7 +96,7 @@ export function useTheme(): readonly [
 }
 
 export function useThemeSetting(): ThemeSetting {
-  return notBuilt('src/components/design-system/ThemeProvider.tsx:132')
+  return useContext(ThemeContext).themeSetting
 }
 
 export function usePreviewTheme(): {
@@ -66,5 +104,6 @@ export function usePreviewTheme(): {
   savePreview: () => void
   cancelPreview: () => void
 } {
-  return notBuilt('src/components/design-system/ThemeProvider.tsx:136')
+  const { setPreviewTheme, savePreview, cancelPreview } = useContext(ThemeContext)
+  return { setPreviewTheme, savePreview, cancelPreview }
 }
