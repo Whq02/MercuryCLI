@@ -26,8 +26,10 @@ const PermissionExplanationSchema = z.object({
 const EXPLAINER_SYSTEM_PROMPT =
   'Look at the shell command the agent wants to run and account for it on three axes: what it does, why the caller is running it, and how it could go wrong.'
 
+const EXPLAIN_COMMAND_TOOL_NAME = 'explain_command'
+
 const EXPLAIN_COMMAND_TOOL = {
-  name: 'explain_command',
+  name: EXPLAIN_COMMAND_TOOL_NAME,
   description: 'Reports an explanation of a shell command.',
   input_schema: {
     type: 'object' as const,
@@ -90,10 +92,6 @@ export async function generatePermissionExplanation(args: {
   if (!isPermissionExplainerEnabled()) {
     return null
   }
-  if (args.signal.aborted) {
-    logForDebugging('permission explainer aborted')
-    return null
-  }
   const sections: string[] = [`Tool: ${args.toolName}`]
   if (args.toolDescription) {
     sections.push(`Description: ${args.toolDescription}`)
@@ -121,18 +119,11 @@ export async function generatePermissionExplanation(args: {
       model: getEngineModel(),
       system: EXPLAINER_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: sections.join('\n\n') }],
-      tools: [EXPLAIN_COMMAND_TOOL],
-      tool_choice: { type: 'tool', name: 'explain_command' },
-      max_tokens: 512,
-      thinking: false,
       signal: args.signal,
       querySource: 'permission_explainer',
-      source: 'permission_explainer',
+      tools: [EXPLAIN_COMMAND_TOOL],
+      tool_choice: { type: 'tool', name: EXPLAIN_COMMAND_TOOL_NAME },
     })
-    if (args.signal.aborted) {
-      logForDebugging('permission explainer aborted')
-      return null
-    }
     const toolUse = response.content.find(block => block.type === 'tool_use')
     if (!toolUse || toolUse.type !== 'tool_use') {
       return null
@@ -148,7 +139,9 @@ export async function generatePermissionExplanation(args: {
       logForDebugging('permission explainer aborted')
       return null
     }
-    logForDebugging(`permission explainer failed: ${String(error)}`)
+    logForDebugging(
+      `permission explainer failed: ${error instanceof Error ? error.message : String(error)}`,
+    )
     logError(error)
     return null
   }

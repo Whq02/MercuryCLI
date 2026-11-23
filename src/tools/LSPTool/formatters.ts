@@ -314,9 +314,15 @@ export function formatWorkspaceSymbolResult(
   result: SymbolInformation[] | null,
   workingDirectory?: string,
 ): string {
-  const valid = (result ?? []).filter(
-    (sym): sym is SymbolInformation & { location: Location } => Boolean(sym.location?.uri),
-  )
+  const valid: Array<SymbolInformation & { location: Location }> = []
+  for (const sym of result ?? []) {
+    const location = sym.location
+    if (!location?.uri) {
+      logForDebugging('LSP formatter: workspace symbol with no location URI')
+      continue
+    }
+    valid.push({ ...sym, location })
+  }
   if (valid.length === 0) {
     return 'No symbols found in the workspace. The workspace may be empty or indexing may not have completed.'
   }
@@ -378,13 +384,33 @@ function formatCallList(
   return lines.join('\n')
 }
 
+type CallEntry = {
+  from?: CallHierarchyItem
+  to?: CallHierarchyItem
+  fromRanges?: Range[]
+}
+
+function extractCallEntries(
+  result: readonly CallEntry[] | null,
+  direction: 'incoming' | 'outgoing',
+): Array<{ item: CallHierarchyItem; fromRanges?: Range[] }> {
+  const entries: Array<{ item: CallHierarchyItem; fromRanges?: Range[] }> = []
+  for (const call of result ?? []) {
+    const item = call.from ?? call.to
+    if (!item) {
+      logForDebugging(`LSP formatter: ${direction} call entry missing its item`)
+      continue
+    }
+    entries.push({ item, fromRanges: call.fromRanges })
+  }
+  return entries
+}
+
 export function formatIncomingCallsResult(
   result: IncomingCall[] | null,
   workingDirectory?: string,
 ): string {
-  const entries = (result ?? [])
-    .filter((call): call is IncomingCall & { from: CallHierarchyItem } => call.from !== undefined)
-    .map(call => ({ item: call.from, fromRanges: call.fromRanges }))
+  const entries = extractCallEntries(result, 'incoming')
   return formatCallList(
     entries,
     'No incoming calls: nothing in the indexed workspace calls this symbol.',
@@ -399,9 +425,7 @@ export function formatOutgoingCallsResult(
   result: OutgoingCall[] | null,
   workingDirectory?: string,
 ): string {
-  const entries = (result ?? [])
-    .filter((call): call is OutgoingCall & { to: CallHierarchyItem } => call.to !== undefined)
-    .map(call => ({ item: call.to, fromRanges: call.fromRanges }))
+  const entries = extractCallEntries(result, 'outgoing')
   return formatCallList(
     entries,
     'No outgoing calls: this symbol calls nothing the server can resolve.',

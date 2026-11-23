@@ -22,7 +22,7 @@ export const TestingPermissionTool = buildTool({
     updatedInput: input,
   }),
   call: async () => ({
-    data: 'TestingPermission executed successfully',
+    data: `${TESTING_PERMISSION_TOOL_NAME} executed successfully`,
   }),
   mapToolResultToToolResultBlockParam(output: string, toolUseID: string) {
     return {

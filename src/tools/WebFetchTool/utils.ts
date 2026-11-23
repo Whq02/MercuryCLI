@@ -108,11 +108,7 @@ function parseCharset(contentType: string): string {
 
 function decodeText(bytes: Buffer, contentType: string): string {
   const charset = parseCharset(contentType)
-  try {
-    return new TextDecoder(charset).decode(bytes)
-  } catch {
-    throw new FetchRefusedError(415, `Unsupported character encoding: ${charset}`)
-  }
+  return new TextDecoder(charset).decode(bytes)
 }
 
 async function handleBinaryResponse(

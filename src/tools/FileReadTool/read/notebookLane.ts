@@ -30,7 +30,7 @@ export async function readNotebookLane(
   const sizeBytes = Buffer.byteLength(content, 'utf8')
   if (sizeBytes > declared.maxSizeBytes) {
     throw new Error(
-      `File content (${formatFileSize(sizeBytes)}) exceeds maximum allowed size (${formatFileSize(declared.maxSizeBytes)}). ${notebookSliceRemedy(keyPath)}`,
+      `Notebook content (${formatFileSize(sizeBytes)}) exceeds the maximum allowed size (${formatFileSize(declared.maxSizeBytes)}). ${notebookSliceRemedy(keyPath)}`,
     )
   }
   const limits = reserve ? reserve() : declared
