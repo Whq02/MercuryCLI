@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, posix as posixPath } from 'node:path'
+import { join } from 'node:path'
 import { createAndSaveSnapshot, loginRunFailed } from '../bash/ShellSnapshot.js'
 import { quote } from '../bash/shellQuote.js'
 import { rearrangePipeCommand } from '../bash/bashPipeCommand.js'
@@ -81,17 +81,16 @@ export async function createBashShellProvider(
       }
 
       const cwdFile = cwdFileName(opts.id)
-      const cwdFileInShell = isWindows
-        ? posixPath.join(windowsPathToPosixPath(tmpdir()), cwdFile)
-        : join(tmpdir(), cwdFile)
-      const trackPipeline = command.includes('|')
-      const pipelineStatusPath = trackPipeline ? `${cwdFileInShell}-pipeline` : undefined
+      const cwdFileNative = join(tmpdir(), cwdFile)
+      const cwdFileInShell = isWindows ? windowsPathToPosixPath(cwdFileNative) : cwdFileNative
+      const preparedCommand = rewriteWindowsNullRedirect(command)
+      const pipelineStatusPath = preparedCommand.includes('|') ? `${cwdFileInShell}-pipeline` : undefined
       const jobsPath = isWindows && STARTS_A_JOB.test(command) ? `${cwdFileInShell}-jobs` : undefined
 
       const parts: string[] = []
       if (usableSnapshot !== undefined) {
         const snapshotInShell = isWindows ? windowsPathToPosixPath(usableSnapshot) : usableSnapshot
-        parts.push(`{ [ -f ${quote([snapshotInShell])} ] && source ${quote([snapshotInShell])} < /dev/null; } 2>/dev/null || true`)
+        parts.push(`source ${quote([snapshotInShell])} 2>/dev/null || true`)
       }
 
       const sessionEnvScript = await getSessionEnvironmentScript(record.origin !== 'engine')
@@ -105,66 +104,61 @@ export async function createBashShellProvider(
       }
 
       if (isWindows) {
-        parts.push(UTF8_CONSOLE)
         parts.push(CMD_SWITCHES_AS_WRITTEN)
+        parts.push(UTF8_CONSOLE)
         if (jobsPath !== undefined) {
-          parts.push(`{ printf '%s\\n' "$$" >| ${quote([jobsPath])}; } 2>/dev/null || true`)
+          parts.push(`{ { echo $$ >| ${quote([jobsPath])}; } 2>/dev/null || true; }`)
         }
       }
 
-      const preparedCommand = rewriteWindowsNullRedirect(command)
-      const addStdin = shouldAddStdinRedirect(preparedCommand)
-      const evalBody = pipelineStatusPath !== undefined
-        ? `${preparedCommand}\n__mercury_p $? "${PIPELINE_STATUS_ARRAY}"`
-        : preparedCommand
-      const quotedCommand = addStdin && preparedCommand.includes('|')
-        ? rearrangePipeCommand(evalBody)
-        : quoteShellCommand(evalBody, addStdin)
-
-      if (pipelineStatusPath !== undefined) {
-        parts.push(`__mercury_p() { __mercury_rc=$1; shift; { printf '%s\\n' "$@" >| ${quote([pipelineStatusPath])}; } 2>/dev/null; return "$__mercury_rc"; }`)
-      }
+      const commandToEval =
+        pipelineStatusPath !== undefined
+          ? `${preparedCommand}\n__mercury_status=$? __mercury_pipeline=("${PIPELINE_STATUS_ARRAY}")\n{ printf '%s\\n' "\${__mercury_pipeline[@]}" >| ${quote([pipelineStatusPath])}; } 2>/dev/null\n(exit "$__mercury_status")`
+          : preparedCommand
+      const addStdin = shouldAddStdinRedirect(commandToEval)
+      const quotedCommand =
+        addStdin && commandToEval.includes('|')
+          ? rearrangePipeCommand(commandToEval)
+          : quoteShellCommand(commandToEval, addStdin)
+      parts.push(`eval ${quotedCommand}`)
 
       const quotedCwdFile = quote([cwdFileInShell])
-      const cwdRecord = isWindows
-        ? `{ { pwd -P >| ${quotedCwdFile}; pwd -W >> ${quotedCwdFile}; } 2>/dev/null || true; }`
-        : `{ { pwd -P >| ${quotedCwdFile}; } 2>/dev/null || true; }`
-      parts.push(`eval ${quotedCommand} && ${cwdRecord}`)
+      parts.push(`{ { pwd -P >| ${quotedCwdFile}; } 2>/dev/null || true; }`)
+      if (isWindows) {
+        parts.push(`{ pwd -W >> ${quotedCwdFile} 2>/dev/null || true; }`)
+      }
 
-      const body = parts.join('\n')
+      const frame = parts.join(' && ')
       const prefix = shellPrefix()
-      const afterMark = prefix
-        ? formatShellPrefixCommand(prefix, isWindows ? body : shellStartLine(record.path, body))
-        : body
-      const commandString = prefix
-        ? `${markFrameRead(cwdFileInShell)}; ${afterMark}`
-        : `${markFrameRead(cwdFileInShell)}\n${afterMark}`
+      const wrapped = prefix
+        ? formatShellPrefixCommand(prefix, isWindows ? frame : shellStartLine(record.path, frame))
+        : frame
+      const commandString = isWindows ? wrapped : `${markFrameRead(cwdFileInShell)}; ${wrapped}`
 
       const handOver = isWindows
         ? (env: NodeJS.ProcessEnv, cwd?: string): FrameHandOver => {
-            let frame = commandString
+            let handedFrame = commandString
             let startIn: string | undefined
             if (cwd !== undefined && cwd.length > WINDOWS_STARTS_A_PROGRAM_IN) {
               startIn = folderWindowsStartsIn(cwd)
               const targetInShell = windowsPathToPosixPath(cwd)
-              const enterLongCwd = `cd -- ${quote([targetInShell])} || exit $?; unset OLDPWD CDPATH 2>/dev/null || :; dirs -c 2>/dev/null || :`
-              frame = `${markFrameRead(cwdFileInShell)}\n${enterLongCwd}\n${afterMark}`
+              handedFrame = `cd -- ${quote([targetInShell])} || exit; unset OLDPWD CDPATH 2>/dev/null || :; dirs -c 2>/dev/null || :; ${commandString}`
             }
-            const noLoginFiles = lastUsedSnapshot || loginRunFailed(record.path)
-            if (msysArgvCarries(frame, env)) {
+            const noLoginFiles = usableSnapshot !== undefined || loginRunFailed(record.path)
+            if (msysArgvCarries(handedFrame, env)) {
               return {
-                args: msysSpawnArgs(frame, noLoginFiles),
+                args: msysSpawnArgs(handedFrame, noLoginFiles),
                 ...(startIn !== undefined ? { startIn } : {}),
               }
             }
-            const filePath = join(tmpdir(), `mercury-frame-${process.pid}-${++frameFiles}`)
+            const filePath = join(tmpdir(), `${cwdFile}-${process.pid}-${++frameFiles}-frame`)
             const fileInShell = windowsPathToPosixPath(filePath)
             const mark = randomBytes(6).toString('hex')
             const words = `Mercury: the file that carries this command to bash is gone (${filePath}), so nothing ran.`
             const loader = msysSourceLine(fileInShell, { words, exit: 126, mark })
             return {
               args: msysSpawnArgs(loader, noLoginFiles),
-              file: { path: filePath, text: carriedByFile(frame, mark) },
+              file: { path: filePath, text: carriedByFile(handedFrame, mark) },
               ...(startIn !== undefined ? { startIn } : {}),
             }
           }

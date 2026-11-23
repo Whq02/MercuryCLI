@@ -275,7 +275,7 @@ function extractCommandName(elements: RawCommandElement[]): {
   return { name: raw, classification: classifyCommandName(raw) }
 }
 
-function transformCommandAst(raw: RawCommandElement, elementType: string): ParsedCommandElement {
+function transformCommandAst(raw: RawCommandElement): ParsedCommandElement {
   const elements = asArray<RawCommandElement>(raw.elements)
   const { name, classification } = extractCommandName(elements)
 
@@ -310,7 +310,7 @@ function transformCommandAst(raw: RawCommandElement, elementType: string): Parse
     elementTypes,
     children: anyChild ? children : undefined,
     redirections: asArray<RawRedirection>(raw.redirections).map(transformRedirection),
-    elementType,
+    elementType: 'CommandAst',
   }
 }
 
@@ -345,16 +345,16 @@ function transformStatement(raw: RawStatement): ParsedStatement {
   const statementType = mapStatementType(typeof raw.type === 'string' ? raw.type : '')
   const text = (raw.text as string) ?? ''
   const nestedCommands = asArray<RawCommandElement>(raw.nestedCommands).map(cmd =>
-    transformCommandAst(cmd, (cmd.type as string) ?? 'CommandAst'),
+    transformCommandAst(cmd),
   )
-  const securityPatterns = raw.securityPatterns as ParsedStatement['securityPatterns']
+  const securityPatterns = (raw.securityPatterns ?? undefined) as ParsedStatement['securityPatterns']
 
   if (raw.elements !== undefined && raw.elements !== null) {
     const commands: ParsedCommandElement[] = []
     const allRedirections: ParsedRedirection[] = []
     for (const el of asArray<RawPipelineElement>(raw.elements)) {
       if (el.type === 'CommandAst') {
-        const cmd = transformCommandAst(el, 'CommandAst')
+        const cmd = transformCommandAst(el)
         if (cmd.redirections && cmd.redirections.length > 0) {
           allRedirections.push(...cmd.redirections)
         }
