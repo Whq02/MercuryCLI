@@ -6,12 +6,83 @@ import { getTranscriptPath, saveAgentName, saveCustomTitle } from '../../utils/s
 import { isCompactBoundaryMessage } from '../../services/messages.js'
 import { generateSessionName } from './generateSessionName.js'
 import { partiallySanitizeUnicode } from '../../utils/sanitization.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export async function call(
   onDone: LocalJSXCommandOnDone,
   context: LocalJSXCommandContext,
   args?: string,
 ): Promise<null> {
-  return notBuilt('src/commands/rename/rename.ts:10')
+  const focusedSessionId = hasFocusedSession() ? getFocusedSessionConnector().sessionId() : ''
+  let rawName = (args ?? '').trim()
+  if (rawName === '') {
+    const messages = context.messages ?? []
+    let startIdx = 0
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (isCompactBoundaryMessage(messages[i]!)) {
+        startIdx = i + 1
+        break
+      }
+    }
+    const recentMessages = startIdx > 0 ? messages.slice(startIdx) : messages
+    let generated: string | null
+    try {
+      generated = await generateSessionName(recentMessages, context.abortController.signal)
+    } catch (thrown) {
+      const reason = thrown instanceof Error ? thrown.message : String(thrown)
+      onDone(`Could not generate a session name (${reason}). Use /rename <name> to name the session directly.`, { display: 'system' })
+      return null
+    }
+    if (generated === null || generated.trim() === '') {
+      onDone('No conversation context yet — use /rename <name> to name the session directly.', { display: 'system' })
+      return null
+    }
+    rawName = generated
+  }
+
+  const name = partiallySanitizeUnicode(rawName).trim()
+  if (name === '') {
+    onDone('A session name needs visible text.', { display: 'system' })
+    return null
+  }
+
+  if (focusedSessionId !== '') {
+    try {
+      const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
+      const reply = (await daemonControlRpc(
+        { op: 'sessionControl', action: 'set-title', sessionId: focusedSessionId, by: 'operator', title: name, titleSource: 'operator' },
+        { timeoutMs: 10_000 },
+      )) as { ok?: boolean; outcome?: string; detail?: string; error?: string }
+      if (reply.ok === true && reply.outcome === 'applied') {
+        if (hasFocusedSession() && getFocusedSessionConnector().sessionId() === focusedSessionId) {
+          context.setAppState(prev => ({
+            ...prev,
+            standaloneAgentContext: {
+              ...prev.standaloneAgentContext,
+              name,
+            },
+          }))
+        }
+        onDone(`Renamed this session to ${name}`, { display: 'system' })
+      } else {
+        onDone(`Could not rename this session — ${reply.detail ?? reply.error ?? 'the daemon refused it'}`, { display: 'system' })
+      }
+    } catch {
+      onDone('Could not rename this session — the daemon that hosts sessions was unreachable.', { display: 'system' })
+    }
+    return null
+  }
+
+  const sessionId = getSessionId() as UUID
+  const fullPath = getTranscriptPath()
+  await saveCustomTitle(sessionId, name, fullPath, 'user')
+  await saveAgentName(sessionId, name, fullPath, 'user')
+  context.setAppState(prev => ({
+    ...prev,
+    standaloneAgentContext: {
+      ...prev.standaloneAgentContext,
+      name,
+    },
+  }))
+  onDone(`Renamed this session to ${name}`, { display: 'system' })
+  return null
 }
