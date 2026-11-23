@@ -168,7 +168,7 @@ export const terminal = new TerminalModes()
 export const wordsOf = (error: unknown): string => (error instanceof Error ? error.message : String(error)).split('\n')[0]!
 
 const DEBUG_LINE = /^\d{4}-\d\d-\d\dT[0-9:.]+Z \[([A-Z]+)\] ([^\n]*)/
-const UNIT_FRAME = /[\\/]src[\\/]ink[\\/]ink(?:\.tsx|[\\/])/
+const UNIT_FRAME = /[\\/]src[\\/]screen[\\/]renderer[\\/](?:screenInstance\.tsx|instance[\\/])/
 
 export function installStage(fd1File: string | null): void {
   if (fd1File !== null) fd1 = openSync(fd1File, 'r')
