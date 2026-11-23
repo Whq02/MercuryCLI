@@ -76,11 +76,10 @@ export function getTaskStatusColor(
 
 export function agentLifecycleOf(task: TaskState): AgentLifecycle | undefined {
   if (!isLocalAgentTask(task)) return undefined
-  const row = task as { status: string; endTime?: number }
   return deriveAgentLifecycle({
-    taskStatus: row.status,
-    ...(row.endTime !== undefined ? { finishedAtMs: row.endTime } : {}),
-    transcriptExists: isTerminalStatus(row.status),
+    taskStatus: task.status,
+    ...(task.endTime !== undefined ? { finishedAtMs: task.endTime } : {}),
+    transcriptExists: isTerminalStatus(task.status),
   })
 }
 

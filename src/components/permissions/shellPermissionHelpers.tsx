@@ -19,7 +19,7 @@ export function displayFolderOfRule(cleaned: string, spelling: FolderSpelling = 
   const drive = /^\/([A-Za-z])(?:\/(.*))?$/.exec(anchored) ?? /^([A-Za-z]):\/(.*)$/.exec(anchored)
   if (drive === null) return anchored.replace(/\//g, '\\').replace(/\\+$/, '')
   const rest = (drive[2] ?? '').replace(/\//g, '\\').replace(/\\+$/, '')
-  return `${(drive[1] as string).toUpperCase()}:\\${rest}`
+  return `${drive[1]!.toUpperCase()}:\\${rest}`
 }
 
 export function folderSeparator(spelling: FolderSpelling = folderSpelling()): string {
@@ -47,7 +47,7 @@ function formatPathList(rulePaths: string[], namesOnly = false): React.ReactNode
   if (names.length === 1) {
     return (
       <Text bold>
-        {namesOnly ? names[0] : singlePathDisplay(paths[0] as string)}
+        {namesOnly ? names[0] : singlePathDisplay(paths[0]!)}
         {sep}
       </Text>
     )
