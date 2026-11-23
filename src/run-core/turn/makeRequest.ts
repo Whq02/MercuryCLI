@@ -42,7 +42,7 @@ import { emitCompactionTrace } from '../../utils/observability/invocationTrace.j
 import { flushSessionStorage, recordContentReplacement } from '../../utils/sessionStorage.js'
 import { buildRequestContextPlan, type RequestContextPlan } from '../../services/run/requestContextPlan.js'
 import { calibrationKeyFor } from '../../services/run/contextCalibration.js'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, type UUID } from 'node:crypto'
 import { requestGaugeFixed } from '../../services/run/requestGauge.js'
 import { buildPostCompactMessages, ERROR_MESSAGE_USER_ABORT } from '../../services/compact/compact.js'
 import { toolToAPISchema } from '../../services/messages/api.js'

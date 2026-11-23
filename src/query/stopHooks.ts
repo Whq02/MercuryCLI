@@ -36,7 +36,7 @@ export async function* handleStopHooks(
   userContext: { [k: string]: string },
   systemContext: { [k: string]: string },
   toolUseContext: ToolUseContext,
-  querySource?: QuerySource,
+  querySource: QuerySource | undefined,
   stopHookActive?: boolean,
 ): AsyncGenerator<Message, StopHookOutcome> {
   if (querySource === 'side_question') {

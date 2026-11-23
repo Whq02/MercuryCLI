@@ -7,7 +7,6 @@ import { durableAtomicPublish } from './substrate/durablePublish.js'
 import { registerCleanup } from './utils/cleanupRegistry.js'
 import type { HistoryEntry, PastedContent } from './utils/config.js'
 import { getMercuryHome, isEnvTruthy } from './utils/envUtils.js'
-import { isENOENT } from './utils/errors.js'
 import { lock } from './utils/lockfile.js'
 import { logForDebugging } from './utils/debug.js'
 import {
@@ -271,7 +270,7 @@ async function* diskRecordsReversed(keep?: (line: string) => boolean): AsyncGene
     historyIoCensus.reads++
     raw = await readFile(historyFilePath(), 'utf8')
   } catch (error) {
-    if (isENOENT(error)) return
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
     throw error
   }
   let end = raw.length
