@@ -7,7 +7,6 @@ import {
   type ModelKey,
 } from './configs.js'
 import { passedOver } from '../passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export type ModelStrings = Record<ModelKey, string>
 
@@ -29,8 +28,26 @@ function readOverrides(): Record<string, string> {
   }
 }
 
+function applyOverrides(base: ModelStrings): ModelStrings {
+  const overrides = readOverrides()
+  const entries = Object.entries(overrides)
+  if (entries.length === 0) return base
+  const result: ModelStrings = { ...base }
+  for (const [canonicalId, overrideId] of entries) {
+    const key = CANONICAL_ID_TO_KEY[canonicalId]
+    if (key !== undefined) {
+      result[key] = overrideId
+    }
+  }
+  return result
+}
+
 export function resolveOverriddenModel(id: string): string {
-  return notBuilt('src/utils/model/modelStrings.ts:42')
+  const overrides = readOverrides()
+  for (const [canonicalId, overrideId] of Object.entries(overrides)) {
+    if (overrideId === id) return canonicalId
+  }
+  return id
 }
 
 
@@ -43,5 +60,10 @@ function builtInStrings(): ModelStrings {
 }
 
 export function getModelStrings(): ModelStrings {
-  return notBuilt('src/utils/model/modelStrings.ts:59')
+  let base = getModelStringsSlot()
+  if (base === null) {
+    base = builtInStrings()
+    setModelStrings(base)
+  }
+  return applyOverrides(base)
 }
