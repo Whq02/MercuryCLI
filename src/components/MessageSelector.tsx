@@ -90,7 +90,7 @@ export function selectableUserMessagesFilter(
   const noticeText = typeof content === 'string'
     ? content
     : content.every(block => block.type === 'text')
-      ? content.map(block => block.text).join('\n')
+      ? content.map(block => (block as { text: string }).text).join('\n')
       : undefined
   if (noticeText !== undefined) {
     if (wrappedNoticeBlocks(noticeText) !== null) return false
@@ -168,14 +168,16 @@ function useSelectorLoads({
   claimed,
   messages,
   phase,
-  canRestoreCode,
-  chosenUuid,
+  chosen,
+  historyOn,
+  hasSavedPoint,
 }: {
   claimed: boolean
   messages: Message[]
   phase: 'pick' | 'confirm' | 'summarize'
-  canRestoreCode: boolean
-  chosenUuid: string | undefined
+  chosen: UserMessage | null
+  historyOn: boolean
+  hasSavedPoint: (uuid: string) => boolean
 }): {
   mutatingShellIds: ReadonlySet<string> | null
   storeStats: CodeStats | undefined
@@ -185,46 +187,35 @@ function useSelectorLoads({
   const [storeStats, setStoreStats] = useState<CodeStats | undefined>(undefined)
 
   useLoad(signal => {
-    if (!claimed) return
-    void findMutatingShellToolUseIds(messages).then(
-      ids => {
-        if (!signal.aborted) setMutatingShellIds(ids)
-      },
-      error => {
-        passedOver(error)
-        if (!signal.aborted) setMutatingShellIds(null)
-      },
-    )
-  }, [claimed, messages])
+    setMutatingShellIds(null)
+    void findMutatingShellToolUseIds(messages).then(ids => {
+      if (!signal.aborted && ids.size > 0) setMutatingShellIds(ids)
+    })
+  }, [messages])
 
   useLoad(signal => {
     if (
       !claimed ||
       phase !== 'confirm' ||
-      !canRestoreCode ||
-      chosenUuid === undefined
+      chosen === null ||
+      !historyOn ||
+      !hasSavedPoint(chosen.uuid)
     ) {
       setStoreStats(undefined)
       return
     }
-    setStoreStats(undefined)
     void getFocusedSessionConnector()
-      .rewind({ userMessageId: chosenUuid, mode: 'code', dryRun: true })
+      .rewind({ userMessageId: chosen.uuid, mode: 'code', dryRun: true })
       .then(
         receipt => {
-          if (signal.aborted) return
-          if (receipt.outcome !== 'refused' && receipt.code !== undefined) {
-            setStoreStats(receipt.code)
-          } else {
-            setStoreStats(undefined)
-          }
+          if (!signal.aborted) setStoreStats(receipt.code)
         },
         error => {
           passedOver(error)
           if (!signal.aborted) setStoreStats(undefined)
         },
       )
-  }, [claimed, phase, canRestoreCode, chosenUuid])
+  }, [claimed, phase, chosen, historyOn, hasSavedPoint])
 
   return { mutatingShellIds, storeStats }
 }
@@ -256,17 +247,15 @@ function useSelectorActions({
     async (
       what: 'both' | 'conversation' | 'code',
       files?: { filePath?: string; undo?: boolean; userMessageId?: string },
-      targetOverride?: UserMessage,
     ): Promise<void> => {
       const isUndo = files?.undo === true
-      const target = targetOverride ?? chosen
-      if (!isUndo && target === null) return
+      if (!isUndo && chosen === null) return
       setError(null)
       setBusy(true)
       try {
         onPreRestore()
         const receipt = await onRestore(
-          isUndo ? undefined : (target ?? undefined),
+          isUndo ? undefined : (chosen ?? undefined),
           what,
           files,
         )
@@ -427,25 +416,23 @@ export function MessageSelector({
       ? preselectedIndex
       : Math.max(0, entries.length - 1),
   )
-  const [chosen, setChosen] = useState<UserMessage | null>(() =>
-    preselectedIndex !== -1 ? selectable[preselectedIndex]! : null,
-  )
+  const chosen = selectable[index] ?? null
   const [feedback, setFeedback] = useState('')
   const [feedbackCursor, setFeedbackCursor] = useState(0)
   const [focusedConfirm, setFocusedConfirm] = useState<string>('conversation')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const chosenUuid = chosen?.uuid
   const canRestoreCode =
-    chosenUuid !== undefined && historyOn && hasSavedPoint(chosenUuid)
+    chosen !== null && historyOn && hasSavedPoint(chosen.uuid)
 
   const { mutatingShellIds, storeStats } = useSelectorLoads({
     claimed,
     messages,
     phase,
-    canRestoreCode,
-    chosenUuid,
+    chosen,
+    historyOn,
+    hasSavedPoint,
   })
 
   const close = useCallback(() => {
@@ -501,9 +488,8 @@ export function MessageSelector({
           }
           return
         }
-        setChosen(selected)
         if (!historyOn && !onViewOnly && !onRerun && !onBranchCreated) {
-          void runRestore('conversation', undefined, selected)
+          void runRestore('conversation')
           return
         }
         setFocusedConfirm(
