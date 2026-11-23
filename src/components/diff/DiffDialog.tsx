@@ -477,14 +477,12 @@ export function DiffDialog({
 
   const stats = diffData.stats
   const statsLine = useMemo(() => {
-    if (files.length === 0) return null
-    const added = files.reduce((sum, f) => sum + f.linesAdded, 0)
-    const removed = files.reduce((sum, f) => sum + f.linesRemoved, 0)
-    const parts = [`${files.length} ${plural(files.length, 'file')} changed`]
-    if (added > 0) parts.push(`+${added}`)
-    if (removed > 0) parts.push(`-${removed}`)
-    return parts.join(' · ')
-  }, [files])
+    if (!stats || files.length === 0) return null
+    const parts = [`${files.length} ${plural(files.length, 'file')}`]
+    if (stats.linesAdded > 0) parts.push(`+${stats.linesAdded}`)
+    if (stats.linesRemoved > 0) parts.push(`-${stats.linesRemoved}`)
+    return parts.join(' ')
+  }, [stats, files])
   const { title, subtitle } = sourceTitle(source)
   const strip = sourceStripOf({
     sources,
