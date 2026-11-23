@@ -8,18 +8,35 @@ import { normalizePathForConfigKey } from '../path.js'
 import { DEFAULT_PROJECT_CONFIG, type GlobalConfig } from './schema.js'
 import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from './globalConfig.js'
 import { getProjectPathForConfig, saveCurrentProjectConfigDeferred } from './projectConfig.js'
-import { notBuilt } from '../../pi/holes.js'
+
+let _trustAccepted = false
 
 export function resetTrustDialogAcceptedCacheForTesting(): void {
-  return notBuilt('src/utils/config/trust.ts:14')
+  _trustAccepted = false
+}
+
+function trustDialogAnswer(): boolean {
+  if (getSessionTrustAccepted()) return true
+  const projects = getGlobalConfig().projects
+  return grantedUnder(projects, [getProjectPathForConfig()]) || grantedUnder(projects, ancestorKeys(getCwd()))
 }
 
 export function checkHasTrustDialogAccepted(): boolean {
-  return notBuilt('src/utils/config/trust.ts:18')
+  return (_trustAccepted ||= trustDialogAnswer())
 }
 
 export function untrustedWorkspaceHeadless(): boolean {
-  return notBuilt('src/utils/config/trust.ts:22')
+  try {
+    return getIsNonInteractiveSession() && !checkHasTrustDialogAccepted()
+  } catch (error) {
+    if (isConfigReadingAllowed()) {
+      logForDebugging(
+        `trust: whether this workspace is trusted could not be read, so this headless run goes on as in a trusted one: ${error instanceof Error ? error.message : String(error)}`,
+        { level: 'warn' },
+      )
+    }
+    return false
+  }
 }
 
 function* ancestorKeys(start: string): Generator<string> {
@@ -40,11 +57,23 @@ function grantedUnder(projects: GlobalConfig['projects'], keys: Iterable<string>
 }
 
 export function isPathTrusted(dir: string): boolean {
-  return notBuilt('src/utils/config/trust.ts:59')
+  return grantedUnder(getGlobalConfig().projects, ancestorKeys(resolve(dir)))
 }
 
 export function setPathTrusted(dir: string): void {
-  return notBuilt('src/utils/config/trust.ts:63')
+  const key = normalizePathForConfigKey(resolve(dir))
+  if (key === normalizePathForConfigKey(homedir())) {
+    setSessionTrustAccepted(true)
+    return
+  }
+  saveGlobalConfig(current => {
+    const record = current.projects?.[key]
+    if (record?.hasTrustDialogAccepted) return current
+    return {
+      ...current,
+      projects: { ...current.projects, [key]: { ...(record ?? DEFAULT_PROJECT_CONFIG), hasTrustDialogAccepted: true } },
+    }
+  })
 }
 
 export function isProjectScopeTrustAccepted(): boolean {
