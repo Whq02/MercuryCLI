@@ -52,7 +52,7 @@ type Props = {
 
 function matchesPrFilter(log: SessionListing, filter: Props['filterByPr']): boolean {
   if (filter === undefined) return true
-  const prNumber = (log as { prNumber?: number }).prNumber
+  const prNumber = log.prNumber
   if (filter === true) return prNumber !== undefined
   if (typeof filter === 'number') return prNumber === filter
   if (typeof filter !== 'string') return false
