@@ -123,12 +123,8 @@ export function watchStream(ctx: QueryCtx, call: CallState, pass: StreamPass): S
     const last: AssistantMessage | undefined = ctx.newMessages.at(-1)
     if (!last) return
     call.stopReason = stopReason
-    if (call.partialMessage) {
-      call.partialMessage.stop_reason = stopReason
-    }
-    const usage = { ...call.usage, request_started_at_ms: call.start }
+    last.message.usage = call.usage
     last.message.stop_reason = stopReason
-    last.message.usage = usage
     last.streamEnd = end
     void settleTranscriptMessage(last)
     logForDebugging(streamEndReceiptLine(end), { level: 'warn' })
@@ -137,7 +133,7 @@ export function watchStream(ctx: QueryCtx, call: CallState, pass: StreamPass): S
       event: {
         type: 'message_delta',
         delta: { stop_reason: stopReason, stop_sequence: null },
-        usage,
+        usage: call.usage,
       },
     }
     yield {

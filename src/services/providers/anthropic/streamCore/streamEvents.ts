@@ -163,33 +163,24 @@ export function applyBlockDelta(contentBlocks: (BetaContentBlock | ConnectorText
 }
 
 export function settleMessageDelta(call: CallState, part: Extract<BetaRawMessageStreamEvent, { type: 'message_delta' }>, newMessages: AssistantMessage[], pricingModel: () => string, options: Options, messages: Message[]): void {
-  call.stopReason = part.delta.stop_reason
   call.usage = updateUsage(call.usage, part.usage)
-  const settledUsage = { ...call.usage, request_started_at_ms: call.start }
-  if (call.partialMessage) {
-    call.partialMessage.stop_reason = part.delta.stop_reason
-    call.partialMessage.stop_sequence = part.delta.stop_sequence
-    call.partialMessage.usage = settledUsage
-  }
+  call.stopReason = part.delta.stop_reason
   const lastMessage = newMessages.at(-1)
   if (lastMessage) {
-    lastMessage.message.usage = settledUsage
-    lastMessage.message.stop_reason = part.delta.stop_reason
-    lastMessage.message.stop_sequence = part.delta.stop_sequence
+    lastMessage.message.usage = call.usage
+    lastMessage.message.stop_reason = call.stopReason
     void settleTranscriptMessage(lastMessage)
   }
-  if (!call.ledgerSettled) {
-    call.ledgerSettled = true
-    const model = pricingModel()
-    addToTotalSessionCost(calculateUSDCost(model, settledUsage), settledUsage, model)
-  }
+  const model = pricingModel()
+  addToTotalSessionCost(calculateUSDCost(model, call.usage), call.usage, model)
+  call.ledgerSettled = true
   void checkResponseForCacheBreak(
     options.querySource,
     call.usage.cache_read_input_tokens,
     call.usage.cache_creation_input_tokens,
     messages,
     options.agentId,
-    call.streamRequestId ?? null,
+    call.clientRequestId ?? null,
   )
 }
 
