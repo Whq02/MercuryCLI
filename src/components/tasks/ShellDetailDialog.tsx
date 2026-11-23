@@ -212,18 +212,19 @@ export function ShellDetailDialog({
     }
   })
 
-  const frameRows = Math.max(FRAME_ROWS_FLOOR, Math.min(FRAME_ROWS, rows - CARD_CHROME_ROWS - HOST_FOOTER_ROWS))
-  const maxOutputLines = Math.max(1, Math.min(OUTPUT_LINES, frameRows - 2))
   const cwdRows = shell.cwd !== undefined && shell.cwd !== '' ? 1 : 0
   const commandWidth = Math.max(10, columns - LABEL_WIDTH - 8)
-  const commandMaxRows = Math.max(
-    1,
-    rows - CARD_ROWS_ABOVE_KEYS - HOST_FOOTER_ROWS - cwdRows - (frameRows - FRAME_ROWS_FLOOR),
-  )
+  const commandMaxRows = Math.max(1, rows - CARD_ROWS_ABOVE_KEYS - HOST_FOOTER_ROWS - cwdRows)
   const fittedCommand = useMemo(
     () => fitRows(shell.command, commandWidth, commandMaxRows),
     [shell.command, commandWidth, commandMaxRows],
   )
+  const commandRows = wrappedRows(fittedCommand, commandWidth)
+  const frameRows = Math.max(
+    FRAME_ROWS_FLOOR,
+    Math.min(FRAME_ROWS, rows - CARD_CHROME_ROWS - HOST_FOOTER_ROWS - (commandRows - 1)),
+  )
+  const maxOutputLines = Math.max(1, Math.min(OUTPUT_LINES, frameRows - 2))
 
   const nonEmptyLines = useMemo(
     () => deferredTail.content.split('\n').filter(line => line.length > 0),
