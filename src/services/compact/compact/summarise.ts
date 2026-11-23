@@ -35,7 +35,7 @@ async function summarizeViaCacheSharingFork(
   const estTokens = tokenCountWithEstimation(messages)
   const cold = coldPrefixOf(messages, model)
   const bound = armFoldBound(context.abortController.signal, 'fork', estTokens, model, cold)
-  context.setResponseLength?.(() => 0)
+  context.setResponseLength(() => 0)
   try {
     const getAppState = () => {
       const state = context.getAppState()
@@ -68,29 +68,9 @@ async function summarizeViaCacheSharingFork(
       skipCacheWrite: true,
       onStreamEvent: event => {
         bound.content()
-        const raw =
-          typeof event === 'object' && event !== null && 'event' in event && event.event !== undefined
-            ? event.event
-            : event
-        if (
-          typeof raw === 'object' &&
-          raw !== null &&
-          'type' in raw &&
-          raw.type === 'content_block_delta' &&
-          'delta' in raw
-        ) {
-          const delta = raw.delta
-          if (
-            typeof delta === 'object' &&
-            delta !== null &&
-            'type' in delta &&
-            delta.type === 'text_delta' &&
-            'text' in delta &&
-            typeof delta.text === 'string'
-          ) {
-            const len = delta.text.length
-            context.setResponseLength?.(prev => prev + len)
-          }
+        if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+          const len = event.delta.text.length
+          context.setResponseLength(prev => prev + len)
         }
       },
       overrides: {
@@ -171,7 +151,7 @@ async function summarizeDirect(
   const estTokens = tokenCountWithEstimation(messages)
   const cold = coldPrefixOf(messages, model)
   const bound = armFoldBound(context.abortController.signal, 'direct', estTokens, model, cold)
-  context.setResponseLength?.(() => 0)
+  context.setResponseLength(() => 0)
   try {
     const getToolPermissionContext = async () => context.getAppState().toolPermissionContext
     const activeAgents = context.options.agentDefinitions?.activeAgents ?? []
@@ -248,10 +228,10 @@ async function summarizeDirect(
           } else if (item.event.type === 'content_block_delta') {
             if (item.event.delta.type === 'text_delta') {
               const len = item.event.delta.text.length
-              context.setResponseLength?.(prev => prev + len)
+              context.setResponseLength(prev => prev + len)
             } else if (item.event.delta.type === 'thinking_delta') {
               const len = item.event.delta.thinking.length
-              context.setResponseLength?.(prev => prev + len)
+              context.setResponseLength(prev => prev + len)
             }
           }
         } else if (item.type === 'assistant') {

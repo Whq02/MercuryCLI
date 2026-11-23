@@ -15,7 +15,7 @@ import type { AgentDefinition } from '../../types/agent.js'
 import type { AgentId } from '../../types/ids.js'
 import type { Message } from '../../types/message.js'
 import type { NonNullableUsage } from '../api/logging.js'
-import type { ApiMessageDeltaUsage } from '../../types/wire.js'
+import type { ApiMessageDeltaUsage, ApiStreamEvent } from '../../types/wire.js'
 import type { PromptCommand } from '../../commands.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { cloneFileStateCache, type FileStateCache } from '../../utils/fileStateCache.js'
@@ -71,7 +71,7 @@ export type ForkedAgentParams = {
   maxOutputTokens?: number
   maxTurns?: number
   onMessage?: (message: Message) => void
-  onStreamEvent?: (event: unknown) => void
+  onStreamEvent?: (event: ApiStreamEvent) => void
   skipTranscript?: boolean
   skipCacheWrite?: boolean
 }
