@@ -63,13 +63,16 @@ import type { InternalPermissionMode } from './types/permissions.js'
 import { modeBypassesPermissions } from './utils/permissions/PermissionMode.js'
 import { passedOver } from './utils/passedOver.js'
 import { hostEnv } from './utils/hostEnv.js'
-import { notBuilt } from './pi/holes.js'
 
 
 function completeOnboarding(): void {
-  return notBuilt('src/interactiveHelpers.tsx:69')
+  saveGlobalConfig(current => ({
+    ...current,
+    hasCompletedOnboarding: true,
+    lastOnboardingVersion:
+      typeof MACRO !== 'undefined' && MACRO.VERSION ? MACRO.VERSION : 'unknown',
+  }))
 }
-
 function keepTerminalCheckContinued(kind: string): void {
   saveGlobalConfig(current =>
     current.terminalChecksContinued?.[kind]
@@ -110,7 +113,15 @@ function showSetupDialog<T>(
   root: Root,
   renderer: (done: (result: T) => void) => React.ReactNode,
 ): Promise<T> {
-  return notBuilt('src/interactiveHelpers.tsx:115')
+  return new Promise<T>(resolve => {
+    root.render(
+      <AppStateProvider>
+        <KeybindingSetup>
+          <SetupScreenHost>{renderer(resolve)}</SetupScreenHost>
+        </KeybindingSetup>
+      </AppStateProvider>,
+    )
+  })
 }
 
 export async function exitWithMessage(
@@ -123,7 +134,24 @@ export async function exitWithMessage(
     plainLines?: boolean
   },
 ): Promise<never> {
-  return notBuilt('src/interactiveHelpers.tsx:130')
+  releaseLauncherAltHoldNow()
+  const { color, exitCode = 1, beforeExit, plainLines } = options ?? {}
+  if (plainLines) {
+    root.unmount()
+    process.stdout.write(`\n${message}\n`)
+  } else {
+    root.render(
+      <Box>
+        <Text color={color}>{message}</Text>
+      </Box>,
+    )
+    root.unmount()
+  }
+  if (beforeExit) {
+    await beforeExit()
+  }
+  gracefulShutdownSync(exitCode)
+  return new Promise<never>(() => {})
 }
 
 export function exitWithError(
@@ -131,16 +159,23 @@ export function exitWithError(
   message: string,
   beforeExit?: () => void | Promise<void>,
 ): Promise<never> {
-  return notBuilt('src/interactiveHelpers.tsx:157')
+  return exitWithMessage(root, message, {
+    color: 'red',
+    exitCode: 1,
+    beforeExit,
+  })
 }
 
 export async function renderAndRun(
   root: Root,
   element: React.ReactNode,
 ): Promise<void> {
-  return notBuilt('src/interactiveHelpers.tsx:169')
+  profileCheckpoint('render_and_run_start')
+  root.render(element)
+  profileCheckpoint('render_and_run_after_render')
+  await root.waitUntilExit()
+  await gracefulShutdown(0)
 }
-
 
 export async function showSetupScreens(
   root: Root,
@@ -299,5 +334,51 @@ export function getRenderContext(exitOnCtrlC: boolean): {
   getFpsMetrics: () => FpsMetrics | undefined
   stats: StatsStore
 } {
-  return notBuilt('src/interactiveHelpers.tsx:334')
+  const fpsTracker = new FpsTracker()
+  const stats = createStatsStore()
+  setStatsStore(stats)
+  const frameTimingLogPath = flagEnv('MERCURY_FRAME_TIMING_LOG')
+  let lastFlickerAt = 0
+  logForDebugging('render context created')
+
+  const onFrame = (event: FrameEvent): void => {
+    fpsTracker.record(event.durationMs)
+    stats.observe('frame_ms', event.durationMs)
+    recordFrameTrace({
+      durationMs: event.durationMs,
+      phases: event.phases,
+      flickers: event.flickers,
+    })
+    if (frameTimingLogPath) {
+      try {
+        const line = JSON.stringify({
+          durationMs: event.durationMs,
+          phases: event.phases,
+          rss: process.memoryUsage().rss,
+          cpu: process.cpuUsage(),
+        })
+        appendFileSync(frameTimingLogPath, `${line}\n`)
+      } catch (error) {
+        passedOver(error)
+      }
+    }
+    if (!syncOutputSupportedNow() && event.flickers.length > 0) {
+      const realFlicker = event.flickers.some(f => f.reason !== 'resize')
+      if (realFlicker) {
+        const now = Date.now()
+        if (now - lastFlickerAt >= FLICKER_GATE_MS) {
+          lastFlickerAt = now
+        }
+      }
+    }
+  }
+
+  return {
+    renderOptions: {
+      exitOnCtrlC,
+      onFrame,
+    },
+    getFpsMetrics: () => fpsTracker.getMetrics(),
+    stats,
+  }
 }
