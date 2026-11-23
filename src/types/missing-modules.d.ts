@@ -15,11 +15,6 @@ declare module 'vscode-jsonrpc/node.js' {
   export const Trace: any;
 }
 
-declare module 'src/tasks/MonitorMcpTask/MonitorMcpTask.js' {
-  export type MonitorMcpTaskState = any;
-}
-
-
 declare module 'image-processor-napi' { const m: any; export = m; }
 declare module 'url-handler-napi' { const m: any; export = m; }
 declare module 'cli-highlight' {

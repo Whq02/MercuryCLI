@@ -41,7 +41,7 @@ import { renderModelChip } from '../services/model/model.js'
 import { focusedEffortLabelOf } from './mercury-ui/EffortChip.js'
 import { modelSupportsEffort } from '../utils/effort.js'
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
-import { crewmateLive, useComposerCrewmate, useViewedCrewmate } from './tasks/useCrewmateView.js'
+import { crewmateLive, targetWords, useComposerCrewmate, useViewedCrewmate } from './tasks/useCrewmateView.js'
 import { crewmateNextTurnWords, crewmateStatusRightHint, crewmateStatusWords } from '../utils/cockpit/crewmateWords.js'
 import { daemonBuildStatusWords, lastDaemonHandshake, subscribeDaemonHandshake } from '../daemon/handshake.js'
 import { startTimeout, stopTimeout } from '../utils/timers.js'
@@ -344,7 +344,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   }, [painting])
   if (!painting) return null
   const status: SeatStatusV1 = c.status()
-  const line = composerCrewmate !== null ? crewmateStatusWords(crewmate, composerCrewmate, composerCrewmate.running) : statusLine(live, status, crew)
+  const line = composerCrewmate !== null ? crewmateStatusWords(crewmate, targetWords(composerCrewmate), composerCrewmate.running) : statusLine(live, status, crew)
   const backHint =
     crewmate !== null && !crewmate.pinned
       ? `${crewmateStatusRightHint(false, crewmateLive(crewmate), escapeOwned)} · ${keyHintLabel('⇧← back')}`

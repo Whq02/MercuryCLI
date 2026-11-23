@@ -13,7 +13,7 @@ import type { HelmRow } from '../../../utils/cockpit/helmFocus.js'
 import type { ActivityState } from '../../../utils/cockpit/cockpitActivity.js'
 import type { MercuryThemeTokens } from '../../../utils/mercuryTokens.js'
 
-export type RunKind = 'shell' | 'monitor' | 'cloud' | 'run'
+export type RunKind = 'shell' | 'monitor' | 'run'
 export type RunRow = { id: string; title: string; status: TaskStatus; kind: RunKind; startedAtMs: number }
 
 export type CrewRow = { id: string; label: string; status: TaskStatus; hosted?: boolean; facts?: CrewAgentFacts }

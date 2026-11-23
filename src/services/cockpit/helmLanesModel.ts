@@ -90,14 +90,7 @@ export function fitPointerRows(text: string, width: number, maxRows: number): st
 
 function runKindOf(t: TaskState): RunKind {
   if (isLocalShellTask(t)) return t.kind === 'monitor' ? 'monitor' : 'shell'
-  switch (t.type) {
-    case 'remote_agent':
-      return 'cloud'
-    case 'monitor_mcp':
-      return 'monitor'
-    default:
-      return 'run'
-  }
+  return t.type === 'monitor_mcp' ? 'monitor' : 'run'
 }
 
 function crewRowsOf(sessionCrew: readonly CrewLedgerRow[]): CrewRow[] {
