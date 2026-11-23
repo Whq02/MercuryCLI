@@ -49,7 +49,6 @@ import { forgetHiddenCharacters, recordHiddenCharacters } from '../utils/text/hi
 import { baseDirLine } from './baseDirLine.js'
 import { checkHasTrustDialogAccepted } from '../utils/config/trust.js'
 import { passedOver } from '../utils/passedOver.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 export type LoadedFrom =
   | 'skills'
@@ -123,7 +122,24 @@ export function getSkillsPath(source: SettingSource | 'extension', dir: string):
 }
 
 
-export type ParsedSkillFrontmatterFields = Unbuilt
+export type ParsedSkillFrontmatterFields = {
+  description: string
+  hasUserSpecifiedDescription: boolean
+  displayName?: string
+  allowedTools: string[]
+  argumentHint?: string
+  argNames?: string[]
+  whenToUse?: string
+  version?: string
+  model?: string
+  disableModelInvocation: boolean
+  userInvocable: boolean
+  hooks?: HooksSettings
+  context?: 'fork'
+  agent?: string
+  effort?: EffortValue
+  shell?: FrontmatterShell
+}
 
 export function parseSkillFrontmatterFields(
   frontmatter: Record<string, unknown>,
@@ -222,7 +238,54 @@ export function createSkillCommand(options: {
   fields: ParsedSkillFrontmatterFields
   pathFilters?: string[]
 }): Command {
-  return notBuilt('src/skills/loadSkillsDir.ts:232')
+  const { name, markdownContent, source, baseDir, loadedFrom, fields, pathFilters } = options
+  const command: PromptCommand = {
+    type: 'prompt',
+    name,
+    description: fields.description,
+    hasUserSpecifiedDescription: fields.hasUserSpecifiedDescription,
+    allowedTools: fields.allowedTools,
+    disableModelInvocation: fields.disableModelInvocation,
+    userInvocable: fields.userInvocable,
+    isHidden: !fields.userInvocable,
+    progressMessage: 'running',
+    contentLength: markdownContent.length,
+    source,
+    loadedFrom,
+    userFacingName: () => fields.displayName || name,
+    ...(fields.argumentHint !== undefined ? { argumentHint: fields.argumentHint } : {}),
+    ...(fields.argNames !== undefined && fields.argNames.length > 0
+      ? { argNames: fields.argNames }
+      : {}),
+    ...(fields.whenToUse !== undefined ? { whenToUse: fields.whenToUse } : {}),
+    ...(fields.version !== undefined ? { version: fields.version } : {}),
+    ...(fields.model !== undefined ? { model: fields.model } : {}),
+    ...(fields.hooks !== undefined ? { hooks: fields.hooks } : {}),
+    ...(fields.context !== undefined ? { context: fields.context } : {}),
+    ...(fields.agent !== undefined ? { agent: fields.agent } : {}),
+    ...(fields.effort !== undefined ? { effort: fields.effort } : {}),
+    ...(baseDir ? { skillRoot: baseDir } : {}),
+    ...(pathFilters !== undefined ? { pathFilters } : {}),
+    async getPromptForCommand(args: string, context: ToolUseContext) {
+      let content = baseDir ? `${baseDirLine(baseDir)}${markdownContent}` : markdownContent
+      content = substituteArguments(content, args, true, fields.argNames)
+      if (baseDir) {
+        const posixBaseDir = toPosixSeparators(baseDir)
+        content = content.replace(SKILL_DIR_TOKEN, () => posixBaseDir)
+      }
+      const sessionId = String(getSessionId())
+      content = content.replace(SESSION_ID_TOKEN, () => sessionId)
+      if (loadedFrom !== 'mcp') {
+        const execContext =
+          fields.allowedTools.length > 0
+            ? wrapContextForSkillSelfAuth(context, fields.allowedTools)
+            : context
+        content = await executeShellCommandsInPrompt(content, execContext, `/${name}`, fields.shell)
+      }
+      return [{ type: 'text', text: content }]
+    },
+  }
+  return command
 }
 
 function wrapContextForSkillSelfAuth(
@@ -395,12 +458,94 @@ function splitConditional(commands: Command[]): Command[] {
   return unconditional
 }
 
+const getSkillDirCommandsMemoized = memoize(
+  async (cwd: string): Promise<Command[]> => {
+    const managedDir = getSkillsPath('policySettings', 'skills')
+    const userDir = getSkillsPath('userSettings', 'skills')
+    const projectDirs = getProjectDirsUpToHome('skills', cwd)
+    logForDebugging(
+      `skills: managed=${managedDir} user=${userDir} project=[${projectDirs.join(', ')}]`,
+    )
+    if (isBareMode()) return []
+
+    const extOnly = isRestrictedToExtensionsOnly('skills')
+    const targets: Array<{
+      dir: string
+      source: SettingSource
+      label: string
+    }> = [{ dir: managedDir, source: 'policySettings', label: 'managed' }]
+
+    if (isSettingSourceEnabled('userSettings') && !extOnly) {
+      targets.push({ dir: userDir, source: 'userSettings', label: 'user' })
+    }
+    if (isSettingSourceEnabled('projectSettings') && !extOnly && checkHasTrustDialogAccepted()) {
+      for (const dir of projectDirs) {
+        targets.push({ dir, source: 'projectSettings', label: 'project' })
+      }
+    }
+
+    const batches = await Promise.all(
+      targets.map(target => loadSkillsFromDir(target.dir, target.source, target.label)),
+    )
+    const allLoaded = batches.flat()
+
+    const seenRealpaths = new Map<string, string>()
+    const unique: LoadedSkill[] = []
+    let dropped = 0
+    for (const item of allLoaded) {
+      let real: string | null = null
+      try {
+        real = await fsPromises.realpath(item.filePath)
+      } catch (error) {
+        passedOver(error)
+      }
+      if (real !== null) {
+        const winnerSource = seenRealpaths.get(real)
+        if (winnerSource !== undefined) {
+          logForDebugging(
+            `skills: duplicate ${item.command.name} from ${item.source} skipped — already loaded from ${winnerSource}`,
+          )
+          dropped++
+          continue
+        }
+        seenRealpaths.set(real, item.source)
+      }
+      unique.push(item)
+    }
+    if (dropped > 0) {
+      logForDebugging(`skills: removed ${dropped} duplicate(s)`)
+    }
+
+    const commands = splitConditional(unique.map(item => item.command))
+    const sourceCounts = new Map<string, number>()
+    for (const item of unique) {
+      sourceCounts.set(item.source, (sourceCounts.get(item.source) ?? 0) + 1)
+    }
+    const breakdown = [...sourceCounts.entries()]
+      .map(([src, count]) => `${src}=${count}`)
+      .join(' ')
+    const withheldCount = unique.length - commands.length
+    logForDebugging(
+      `skills: ${unique.length} unique — ${commands.length} unconditional, ${withheldCount} conditional (${breakdown})`,
+    )
+    return commands
+  },
+  (cwd: string) => `${cwd}\0${checkHasTrustDialogAccepted() ? '1' : '0'}`,
+)
+
 export function getSkillDirCommands(cwd: string): Promise<Command[]> {
-  return notBuilt('src/skills/loadSkillsDir.ts:546')
+  return getSkillDirCommandsMemoized(cwd)
 }
 
 export function clearSkillCaches(): void {
-  return notBuilt('src/skills/loadSkillsDir.ts:550')
+  getSkillDirCommandsMemoized.cache.clear?.()
+  clearMarkdownFileCache()
+  pendingConditional.clear()
+  conditionalBases.clear()
+  activatedSkillNames.clear()
+  skillLoadRefusals.clear()
+  forgetHiddenCharacters('skill')
+  pruneDynamicSkillsSync()
 }
 
 
@@ -581,25 +726,153 @@ export async function discoverSkillDirsForPaths(
   filePaths: string[],
   cwd: string,
 ): Promise<string[]> {
-  return notBuilt('src/skills/loadSkillsDir.ts:735')
+  const resolvedCwd = resolve(cwd)
+  const cwdPrefix = resolvedCwd.endsWith(sep) ? resolvedCwd : `${resolvedCwd}${sep}`
+  const now = Date.now()
+  const discovered: string[] = []
+  const inspected = new Set<string>()
+  const changedLoaded = new Set<string>()
+
+  for (const filePath of filePaths) {
+    const resolvedPath = resolve(resolvedCwd, filePath)
+    let dir = dirname(resolvedPath)
+    while (dir !== resolvedCwd && dir.startsWith(cwdPrefix)) {
+      for (const configDirName of PROJECT_CONFIG_DIR_NAMES) {
+        const candidate = join(dir, configDirName, 'skills')
+        if (inspected.has(candidate)) continue
+
+        const record = examinedCandidates.get(candidate)
+        const touchUnderCandidate =
+          resolvedPath === candidate || resolvedPath.startsWith(`${candidate}${sep}`)
+        if (
+          record !== undefined &&
+          !touchUnderCandidate &&
+          now - record.examinedAt < dynamicProbeTtlMs
+        ) {
+          continue
+        }
+
+        inspected.add(candidate)
+
+        if (record?.state === 'loaded') {
+          if (await dynamicDirChanged(candidate, record)) {
+            changedLoaded.add(candidate)
+          } else {
+            examinedCandidates.set(candidate, { ...record, examinedAt: now })
+          }
+          continue
+        }
+
+        let isDir = false
+        try {
+          isDir = (await fsPromises.stat(candidate)).isDirectory()
+        } catch (error) {
+          passedOver(error)
+        }
+        if (!isDir) {
+          examinedCandidates.set(candidate, { state: 'missing', examinedAt: now })
+          continue
+        }
+
+        if (await isPathGitignored(dir, resolvedCwd)) {
+          logForDebugging(`skills: ${candidate} skipped (containing directory is git-ignored)`)
+          examinedCandidates.set(candidate, { state: 'missing', examinedAt: now })
+          continue
+        }
+
+        examinedCandidates.set(candidate, {
+          state: 'loaded',
+          examinedAt: now,
+          entries: [],
+          seen: [],
+        })
+        discovered.push(candidate)
+      }
+
+      const parent = dirname(dir)
+      if (parent === dir) break
+      dir = parent
+    }
+  }
+
+  if (changedLoaded.size > 0) {
+    const toReload = [...changedLoaded].sort((a, b) => b.length - a.length)
+    await reloadDynamicDirs(toReload)
+  }
+
+  return discovered.sort((a, b) => b.length - a.length)
 }
 
-export async function addSkillDirectories(dirs: string[], touched?: { filePaths: string[]; cwd: string }): Promise<void> {
-  return notBuilt('src/skills/loadSkillsDir.ts:788')
+export async function addSkillDirectories(
+  dirs: string[],
+  touched?: { filePaths: string[]; cwd: string },
+): Promise<void> {
+  if (dirs.length === 0 || dynamicSkillsRefused()) return
+  const now = Date.now()
+  const loaded = await Promise.all(dirs.map(async dir => ({ dir, ...(await loadDynamicDir(dir)) })))
+  let changed = false
+  let count = 0
+  for (let i = loaded.length - 1; i >= 0; i--) {
+    const { dir, entries, seen } = loaded[i]!
+    count += entries.length
+    if (applyDynamicDir(dir, entries, seen, now)) changed = true
+  }
+  if (count > 0) {
+    logForDebugging(`skills: ${count} dynamic skill(s) from ${dirs.length} directorie(s)`)
+  }
+  if (changed) {
+    skillsLoadedSignal.emit()
+  }
+  if (touched) {
+    activateConditionalSkillsForPaths(touched.filePaths, touched.cwd)
+  }
 }
 
 export function getDynamicSkills(): Command[] {
-  return notBuilt('src/skills/loadSkillsDir.ts:805')
+  return [...dynamicSkills.values()]
 }
 
 export function activateConditionalSkillsForPaths(
   filePaths: string[],
   cwd: string,
 ): string[] {
-  return notBuilt('src/skills/loadSkillsDir.ts:809')
+  if (pendingConditional.size === 0 || filePaths.length === 0) return []
+  const activated: string[] = []
+  for (const [name, command] of [...pendingConditional.entries()]) {
+    const filters = pathFiltersOf(command)
+    if (filters.length === 0) continue
+    const matcher = ignore().add(filters)
+    const anchor = conditionalBases.get(name) ?? cwd
+    for (const filePath of filePaths) {
+      const rel =
+        anchor === cwd && !isAbsolute(filePath)
+          ? filePath
+          : relative(anchor, resolve(cwd, filePath))
+      const normalizedRel = toPosixSeparators(rel)
+      if (normalizedRel === '' || isAbsolute(rel) || normalizedRel.startsWith('..')) {
+        continue
+      }
+      if (matcher.ignores(normalizedRel)) {
+        dynamicSkills.set(name, command)
+        pendingConditional.delete(name)
+        conditionalBases.delete(name)
+        activatedSkillNames.add(name)
+        logForDebugging(`skills: conditional skill ${name} activated by ${normalizedRel}`)
+        activated.push(name)
+        break
+      }
+    }
+  }
+  if (activated.length > 0) {
+    skillsLoadedSignal.emit()
+  }
+  return activated
 }
 
-
 export function clearDynamicSkills(): void {
-  return notBuilt('src/skills/loadSkillsDir.ts:839')
+  dynamicSkills.clear()
+  examinedCandidates.clear()
+  pendingConditional.clear()
+  conditionalBases.clear()
+  activatedSkillNames.clear()
 }
