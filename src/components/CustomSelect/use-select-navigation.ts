@@ -74,12 +74,12 @@ export function createNavigationState<T>({
       Math.min(previousViewport[0], options.length - count),
     )
     visibleToIndex = visibleFromIndex + count
-    if (explicitItem !== undefined) {
-      if (explicitItem.index < visibleFromIndex) {
-        visibleFromIndex = explicitItem.index
+    if (initialItem !== undefined) {
+      if (initialItem.index < visibleFromIndex) {
+        visibleFromIndex = initialItem.index
         visibleToIndex = visibleFromIndex + count
-      } else if (explicitItem.index >= visibleToIndex) {
-        visibleToIndex = explicitItem.index + 1
+      } else if (initialItem.index >= visibleToIndex) {
+        visibleToIndex = initialItem.index + 1
         visibleFromIndex = visibleToIndex - count
       }
     }
