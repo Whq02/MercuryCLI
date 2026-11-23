@@ -49,7 +49,6 @@ import { feedbackView, type Step } from './feedback/feedbackView.js'
 import { getErrnoCode } from '../utils/errors.js'
 import { passedOver } from '../utils/passedOver.js'
 import { withDeadline } from '../utils/deadline.js'
-import { notBuilt } from '../pi/holes.js'
 
 
 export function redactSensitiveInfo(text: string): string {
@@ -174,6 +173,95 @@ function modelFacts(): { family: string; model: string } {
 
 type RecentError = { error: string; timestamp: string }
 
+const EMPTY_PERMISSION_CONTEXT: ToolPermissionContext = {
+  mode: 'default',
+  alwaysAllowRules: {},
+  alwaysDenyRules: {},
+  alwaysAskRules: {},
+  isBypassPermissionsModeAvailable: false,
+}
+
+async function generateTitle(
+  form: IssueForm,
+  description: string,
+  signal: AbortSignal,
+): Promise<string> {
+  const generic = `${form.name} from Mercury`
+  const fallback = (): string => fallbackTitle(description, generic)
+  if (signal.aborted) return fallback()
+  const controller = new AbortController()
+  try {
+    const { thinkingConfig, ...call } = utilityCallFor()
+    const response = await withDeadline(
+      routedCallModelSettled({
+        messages: [
+          createUserMessage({
+            content: `Generate a concise title for this ${form.name.toLowerCase()}:\n\n${description}`,
+          }),
+        ],
+        systemPrompt: asSystemPrompt([titleSystemPrompt(form)]),
+        thinkingConfig,
+        tools: [],
+        signal: controller.signal,
+        options: {
+          ...call,
+          getToolPermissionContext: async () => EMPTY_PERMISSION_CONTEXT,
+          isNonInteractiveSession: true,
+          querySource: 'feedback',
+          agents: [],
+          hasAppendSystemPrompt: false,
+          mcpTools: [],
+          maxOutputTokensOverride: 100,
+        },
+      }),
+      TITLE_DEADLINE_MS,
+      () => {
+        controller.abort(new Error('title generation timed out'))
+        return null
+      },
+      {
+        signal,
+        onAbort: () => {
+          controller.abort(signal.reason)
+          return null
+        },
+      },
+    )
+    if (response === null || response.isApiErrorMessage) return fallback()
+    const text = response.message.content
+      .filter((block): block is Extract<typeof block, { type: 'text' }> => block.type === 'text')
+      .map(block => block.text)
+      .join('')
+      .trim()
+    if (text === '' || text.startsWith('API Error')) return fallback()
+    return text
+  } catch (error) {
+    passedOver(error)
+    return fallback()
+  } finally {
+    if (!controller.signal.aborted) controller.abort()
+  }
+}
+
+function autoFieldValue(fieldId: string): string {
+  switch (fieldId) {
+    case 'version':
+      return `Mercury ${productVersion()}`
+    case 'platform':
+      return redactSensitiveInfo(platformLine())
+    case 'os':
+      return platformDisplayName()
+    case 'install':
+      return redactSensitiveInfo(installLine())
+    case 'family':
+      return modelFacts().family
+    case 'model':
+      return modelFacts().model
+    default:
+      return ''
+  }
+}
+
 export async function gatherReport(
   description: string,
   messages: Message[],
@@ -185,7 +273,86 @@ export async function gatherReport(
     }
   },
 ): Promise<{ report: Record<string, unknown>; errors: RecentError[] }> {
-  return notBuilt('src/components/Feedback.tsx:235')
+  const errors: RecentError[] = getInMemoryErrors().map(entry => ({
+    error: redactSensitiveInfo(entry.error),
+    timestamp: entry.timestamp,
+  }))
+  const recordProbeError = (err: unknown): void => {
+    logError(err)
+    const msg = err instanceof Error ? err.message : String(err)
+    errors.push({ error: redactSensitiveInfo(msg), timestamp: new Date().toISOString() })
+  }
+
+  const [isGit, diskSubagents] = await Promise.all([
+    getIsGit().catch(err => {
+      recordProbeError(err)
+      return false
+    }),
+    loadAllSubagentTranscriptsFromDisk().catch((err): Record<string, Message[]> => {
+      recordProbeError(err)
+      return {}
+    }),
+  ])
+
+  const sessionId = getSessionId()
+  let rawTranscript: string | null = null
+  try {
+    const transcriptPath = getTranscriptPathForSession(sessionId)
+    const head = historyHead(transcriptPath)
+    const totalSize = head.before + (head.end - head.start)
+    if (totalSize > 0 && totalSize <= MAX_TRANSCRIPT_READ_BYTES) {
+      rawTranscript = redactSensitiveInfo(historyRange(head, 0, totalSize).toString('utf8'))
+    }
+  } catch (err) {
+    const code = getErrnoCode(err)
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+      logForDebugging(
+        `Failed to read session transcript for feedback: ${err instanceof Error ? err.message : String(err)}`,
+      )
+      recordProbeError(err)
+    }
+  }
+
+  const subagentTranscripts: Record<string, unknown[]> = {}
+  for (const [agentId, subMessages] of Object.entries(diskSubagents)) {
+    subagentTranscripts[agentId] = normalizeMessagesForAPI(subMessages)
+  }
+  for (const task of Object.values(backgroundTasks)) {
+    const agentId = task.identity?.agentId
+    if (agentId && task.messages) {
+      subagentTranscripts[agentId] = normalizeMessagesForAPI(task.messages)
+    }
+  }
+
+  let lastAssistantRequestId: string | undefined
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i]
+    if (msg?.type === 'assistant' && msg.requestId) {
+      lastAssistantRequestId = msg.requestId
+      break
+    }
+  }
+
+  const report: Record<string, unknown> = {
+    message_count: messages.length,
+    datetime: new Date().toISOString(),
+    description: redactSensitiveInfo(description),
+    version: productVersion(),
+    platform: redactSensitiveInfo(platformLine()),
+    install: redactSensitiveInfo(installLine()),
+    model: modelFacts(),
+    is_git: isGit,
+    terminal: envDynamic.terminal ?? 'unknown',
+    session_id: sessionId,
+    last_request_id: lastAssistantRequestId ?? getLastMainRequestId() ?? null,
+    last_api_request: getLastAPIRequest(),
+    errors,
+    transcript: normalizeMessagesForAPI(messages),
+    ...(rawTranscript !== null ? { raw_transcript: rawTranscript } : {}),
+    ...(Object.keys(subagentTranscripts).length > 0 ? { subagent_transcripts: subagentTranscripts } : {}),
+  }
+
+  return { report, errors }
 }
 
 function draftPaths(kind: IssueKind): { json: string; body: string } | null {
@@ -252,7 +419,14 @@ function surfaceTitle(form: IssueForm | null): string {
   }
 }
 
-export function Feedback(arg0: {
+export function Feedback({
+  abortSignal,
+  messages,
+  initialDescription = '',
+  onDone,
+  backgroundTasks = {},
+  kind,
+}: {
   abortSignal: AbortSignal
   messages: Message[]
   initialDescription?: string
@@ -266,7 +440,282 @@ export function Feedback(arg0: {
   }
   kind?: IssueKind
 }): React.ReactNode {
-  return notBuilt('src/components/Feedback.tsx:386')
+  const tokens = useMercuryTokens()
+  const surfaceRef = useElevatedSurface()
+  const { columns, rows } = useTerminalSize()
+  const slug = issueRepoSlug()
+  const initialForm = kind !== undefined ? ISSUE_FORMS[kind] : null
+
+  const [form, setForm] = useState<IssueForm | null>(initialForm)
+  const [step, setStep] = useState<Step>(initialForm !== null ? 'ask' : 'kind')
+  const [askIndex, setAskIndex] = useState(0)
+  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [draft, setDraft] = useState(initialDescription)
+  const [cursorOffset, setCursorOffset] = useState(initialDescription.length)
+  const [title, setTitle] = useState<string | null>(null)
+  const [body, setBody] = useState('')
+  const [scroll, setScroll] = useState(0)
+  const [paths, setPaths] = useState<{ json: string; body: string } | null>(null)
+  const [access, setAccess] = useState<IssueAccess | null>(null)
+  const [failure, setFailure] = useState<{ note: string; remedy: string } | null>(null)
+  const [issueUrl, setIssueUrl] = useState<string | null>(null)
+  const [formUrl, setFormUrl] = useState<string | null>(null)
+
+  const draftRecordRef = useRef<Record<string, unknown> | null>(null)
+  const cancelledRef = useRef(false)
+  const doneRef = useRef(false)
+  const preparingRef = useRef(false)
+  const openingBrowserRef = useRef(false)
+
+  useRegisterOverlay('feedback-review', step === 'review', { ownsPageKeys: true })
+
+  const finishOnce = useCallback(
+    (result: string) => {
+      if (doneRef.current) return
+      doneRef.current = true
+      onDone(result, { display: 'system' })
+    },
+    [onDone],
+  )
+
+  const cancel = useCallback(() => {
+    cancelledRef.current = true
+    const name = form?.name ?? 'Feedback'
+    finishOnce(`${name} cancelled — nothing was filed.`)
+  }, [finishOnce, form])
+
+  useKeybinding('confirm:no', cancel, {
+    context: 'Settings',
+    isActive: step === 'preparing' || step === 'review' || step === 'filing',
+  })
+
+  const prepare = useCallback(
+    async (activeForm: IssueForm, finalAnswers: Record<string, string>) => {
+      if (preparingRef.current) return
+      preparingRef.current = true
+      const wordsField = activeForm.fields.find(f => f.source === 'words')
+      const description =
+        (wordsField ? finalAnswers[wordsField.id] : undefined) ??
+        Object.values(finalAnswers).filter(Boolean).join('\n\n')
+      const needsHealth = activeForm.fields.some(f => f.source === 'health')
+
+      const [{ report, errors }, draftedTitle, healthText, accessResult] = await Promise.all([
+        gatherReport(description, messages, backgroundTasks),
+        activeForm.kind === 'tester'
+          ? Promise.resolve(fallbackTitle(description, `${activeForm.name} from Mercury`))
+          : generateTitle(activeForm, description, abortSignal),
+        needsHealth ? gatherHealthSection({ signal: abortSignal }) : Promise.resolve<string | null>(null),
+        checkIssueAccess(slug),
+      ])
+
+      if (cancelledRef.current || abortSignal.aborted) return
+
+      const values: Record<string, string> = {}
+      for (const f of activeForm.fields) {
+        if (f.source === 'words' || f.source === 'ask') {
+          values[f.id] = redactSensitiveInfo(finalAnswers[f.id] ?? '')
+        } else if (f.source === 'health') {
+          values[f.id] = redactSensitiveInfo(healthText ?? '')
+        } else {
+          values[f.id] = autoFieldValue(f.id)
+        }
+      }
+
+      const finalTitle = redactSensitiveInfo(fullIssueTitle(activeForm, draftedTitle))
+      const finalBody = redactSensitiveInfo(composeIssueBody(activeForm, { values, recentErrors: errors }))
+      const outPaths = draftPaths(activeForm.kind)
+      if (outPaths === null) {
+        setFailure({
+          note: 'could not create the local feedback draft folder',
+          remedy: 'check permissions on ~/.mercury/feedback and retry',
+        })
+        setStep('failed')
+        return
+      }
+
+      let prefilledUrl: string | null = null
+      if (accessResult.state !== 'ok') {
+        const urlValues: Record<string, string> = { ...values }
+        for (const f of activeForm.fields) {
+          if (f.source === 'health') {
+            urlValues[f.id] = healthPointer(redactSensitiveInfo(outPaths.body))
+          }
+        }
+        prefilledUrl = redactSensitiveInfo(
+          issueFormUrl(activeForm, { slug, title: finalTitle, values: urlValues }),
+        )
+      }
+
+      const draftRecord: Record<string, unknown> = {
+        ...report,
+        kind: activeForm.kind,
+        title: finalTitle,
+        issue_repo: slug,
+        body_path: outPaths.body,
+        ...(prefilledUrl !== null ? { issue_form_url: prefilledUrl } : {}),
+      }
+
+      const wroteBody = writeDraftFile(outPaths.body, finalBody)
+      const wroteJson = writeDraftFile(outPaths.json, draftJson(draftRecord))
+      if (!wroteBody || !wroteJson) {
+        setPaths(outPaths)
+        setFailure({
+          note: 'could not write the local feedback draft',
+          remedy: 'check disk space and permissions on ~/.mercury/feedback, then retry',
+        })
+        setStep('failed')
+        return
+      }
+
+      draftRecordRef.current = draftRecord
+      setPaths(outPaths)
+      setTitle(finalTitle)
+      setBody(finalBody)
+      setScroll(0)
+      setAccess(accessResult)
+      setFormUrl(prefilledUrl)
+      setStep(accessResult.state === 'ok' ? 'review' : 'unavailable')
+    },
+    [abortSignal, backgroundTasks, messages, slug],
+  )
+
+  const activeFields = promptedFields(form ?? ISSUE_FORMS.bug)
+  const field = activeFields[askIndex] ?? activeFields[0]!
+
+  const advance = useCallback(
+    (value: string) => {
+      if (form === null) return
+      const fields = promptedFields(form)
+      const current = fields[askIndex]
+      if (current === undefined) return
+      const trimmed = value.trim()
+      if ((current.source === 'words' || current.required) && trimmed === '') return
+      const nextAnswers = { ...answers, [current.id]: trimmed }
+      setAnswers(nextAnswers)
+      if (askIndex + 1 < fields.length) {
+        setAskIndex(askIndex + 1)
+        setDraft('')
+        setCursorOffset(0)
+        return
+      }
+      setStep('preparing')
+      void prepare(form, nextAnswers)
+    },
+    [answers, askIndex, form, prepare],
+  )
+
+  const submit = useCallback(async () => {
+    if (paths === null || title === null) return
+    setStep('filing')
+    const result = await fileIssue({ slug, title, bodyFile: paths.body })
+    if (cancelledRef.current) return
+    if (result.state === 'filed') {
+      if (draftRecordRef.current !== null) {
+        draftRecordRef.current = { ...draftRecordRef.current, issue_url: result.url }
+        writeDraftFile(paths.json, draftJson(draftRecordRef.current))
+      }
+      setIssueUrl(result.url)
+      setStep('done')
+      return
+    }
+    setFailure({ note: result.note, remedy: result.remedy })
+    setStep('failed')
+  }, [paths, slug, title])
+
+  const previewWidth = Math.max(30, columns - 10)
+  const lines = bodyLines(body, previewWidth)
+  const viewRows = Math.max(5, Math.min(18, rows - 16))
+  const maxScroll = Math.max(0, lines.length - viewRows)
+  const bytes = bodyByteCount(body)
+
+  useInput(
+    (input, key) => {
+      if (step === 'review') {
+        if (key.escape) {
+          cancel()
+          return
+        }
+        if (key.return) {
+          void submit()
+          return
+        }
+        if (key.upArrow || input === 'k') {
+          setScroll(s => Math.max(0, s - 1))
+          return
+        }
+        if (key.downArrow || input === 'j') {
+          setScroll(s => Math.min(maxScroll, s + 1))
+          return
+        }
+        if (key.pageUp) {
+          setScroll(s => Math.max(0, s - Math.max(1, viewRows - 1)))
+          return
+        }
+        if (key.pageDown) {
+          setScroll(s => Math.min(maxScroll, s + Math.max(1, viewRows - 1)))
+        }
+        return
+      }
+      if (step === 'done') {
+        finishOnce(issueUrl ? `Filed: ${issueUrl}` : 'Issue filed.')
+        return
+      }
+      if (step === 'failed') {
+        finishOnce(failure ? `Not filed: ${failure.note}` : 'Issue not filed.')
+        return
+      }
+      if (step === 'unavailable') {
+        if (key.return && formUrl !== null) {
+          if (openingBrowserRef.current) return
+          openingBrowserRef.current = true
+          void openBrowser(formUrl).then(opened => {
+            finishOnce(
+              opened
+                ? `Opened the prefilled issue form in your browser (not filed yet): ${formUrl}`
+                : `Could not open a browser — open the prefilled form yourself: ${formUrl}`,
+            )
+          })
+          return
+        }
+        finishOnce(
+          formUrl !== null
+            ? `Issue not filed — prefilled form: ${formUrl}`
+            : 'Issue not filed — local draft saved.',
+        )
+      }
+    },
+    { isActive: step === 'review' || step === 'done' || step === 'unavailable' || step === 'failed' },
+  )
+
+  return feedbackView({
+    tokens,
+    surfaceRef,
+    columns,
+    form,
+    setForm,
+    step,
+    setStep,
+    setAskIndex,
+    draft,
+    setDraft,
+    cursorOffset,
+    setCursorOffset,
+    title,
+    scroll,
+    paths,
+    access,
+    failure,
+    issueUrl,
+    formUrl,
+    cancel,
+    field,
+    advance,
+    lines,
+    viewRows,
+    bytes,
+    slug,
+    surfaceTitle,
+  })
 }
 
 export default Feedback
