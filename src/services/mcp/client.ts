@@ -240,12 +240,12 @@ async function prepareTransportFor(
       return { ready: true, transport: stdio, transportLabel: 'stdio', stdioTransport: stdio, inProcessServer: null }
     }
     if (type === 'sse') {
-      const provider = new MercuryMcpAuthProvider(name, serverRef, undefined, false, undefined, true)
+      const provider = new MercuryMcpAuthProvider(name, serverRef, undefined, false)
       const transport = await sseTransportFor(name, config, provider)
       return { ready: true, transport, transportLabel: 'sse', stdioTransport: null, inProcessServer: null }
     }
     if (type === 'http') {
-      const provider = new MercuryMcpAuthProvider(name, serverRef, undefined, false, undefined, true)
+      const provider = new MercuryMcpAuthProvider(name, serverRef, undefined, false)
       const transport = await httpTransportFor(name, config, provider)
       return { ready: true, transport, transportLabel: 'http', stdioTransport: null, inProcessServer: null }
     }
