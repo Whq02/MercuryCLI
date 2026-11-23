@@ -5,7 +5,6 @@ import { LRUCache } from 'lru-cache'
 
 import { logForDiagnosticsNoPII } from '../diagLogs.js'
 import { passedOver } from '../passedOver.js'
-import { unbuilt } from '../../pi/holes.js'
 
 
 const ROOT_CACHE_ENTRIES = 50
@@ -27,4 +26,28 @@ export function makeCachedFinder(compute: (startPath: string) => string | null):
   return finder
 }
 
-export const findGitRoot: CachedFinder = unbuilt('src/utils/git/gitRoot.ts:29')
+export const findGitRoot: CachedFinder = makeCachedFinder(startPath => {
+  const startedAt = Date.now()
+  logForDiagnosticsNoPII('debug', 'git_root_discovery_started')
+  let folder = resolve(startPath)
+  let stats = 0
+  let root: string | null = null
+  while (root === null) {
+    stats++
+    try {
+      const entry = statSync(join(folder, '.git'))
+      if (entry.isDirectory() || entry.isFile()) root = folder.normalize('NFC')
+    } catch (error) {
+      passedOver(error)
+    }
+    const parent = dirname(folder)
+    if (parent === folder) break
+    folder = parent
+  }
+  logForDiagnosticsNoPII('debug', 'git_root_discovery_completed', {
+    found: root !== null,
+    stats,
+    duration_ms: Date.now() - startedAt,
+  })
+  return root
+})
