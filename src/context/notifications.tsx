@@ -5,7 +5,6 @@ import { useAppStateStore, useSetAppState } from '../state/AppState.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { Theme } from '../utils/theme.js'
 import { startTimeout, stopTimeout } from '../utils/timers.js'
-import { notBuilt } from '../pi/holes.js'
 
 type Priority = 'low' | 'medium' | 'high' | 'immediate'
 type NoticeBase = {
@@ -157,5 +156,42 @@ export function useNotifications(): {
   addNotification: (notification: Notification) => void
   removeNotification: (key: string) => void
 } {
-  return notBuilt('src/context/notifications.tsx:187')
+  const store = useAppStateStore()
+  const setAppState = useSetAppState()
+
+  useMount(() => {
+    if (store.getState().notifications.queue.length > 0) {
+      promote(setAppState)
+    }
+  })
+
+  const addNotification = useCallback(
+    (notification: Notification) => {
+      enqueueNotification(setAppState, notification)
+    },
+    [setAppState],
+  )
+
+  const removeNotification = useCallback(
+    (key: string) => {
+      setAppState(prev => {
+        const { current, queue } = prev.notifications
+        const inCurrent = current?.key === key
+        const inQueue = queue.some(entry => entry.key === key)
+        if (!inCurrent && !inQueue) return prev
+        if (inCurrent) cancelExpiry()
+        return {
+          ...prev,
+          notifications: {
+            current: inCurrent ? null : current,
+            queue: queue.filter(entry => entry.key !== key),
+          },
+        }
+      })
+      promote(setAppState)
+    },
+    [setAppState],
+  )
+
+  return { addNotification, removeNotification }
 }
