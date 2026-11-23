@@ -1,5 +1,7 @@
+import * as React from 'react'
+import type { UUID } from 'node:crypto'
 import { z } from 'zod/v4'
-import { buildTool, stringInputField, type ToolUseContext, type ToolResult, type ToolPermissionContext } from '../../Tool.js'
+import { buildTool, stringInputField, type Tool, type ToolInputJSONSchema, type ToolUseContext, type ToolResult, type ToolPermissionContext } from '../../Tool.js'
 import { loginFilesLineOnce, settleShellRecord } from '../../utils/shell/shellRecord.js'
 import { bashToolAvailable } from '../../utils/shell/windowsShellRoad.js'
 import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
@@ -90,7 +92,7 @@ import { shellWebContentNotice } from './webContent.js'
 import { boxLockLineForCommand, commandNamesBoxLock, refreshBoxReading } from '../../utils/boxLock.js'
 import { mapResultToBlock } from './resultBlock.js'
 import { withDeadline } from '../../utils/deadline.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
+import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
 
 
 const QUIET_WINDOW_MS = 2_000
@@ -159,10 +161,75 @@ export type Out = {
 }
 
 
+const SEARCH_COMMANDS = new Set(['find', 'grep', 'rg', 'ag', 'ack', 'locate', 'which', 'whereis'])
+const READ_COMMANDS = new Set([
+  'cat',
+  'head',
+  'tail',
+  'less',
+  'more',
+  'wc',
+  'stat',
+  'file',
+  'strings',
+  'jq',
+  'awk',
+  'cut',
+  'sort',
+  'uniq',
+  'tr',
+])
+const LIST_COMMANDS = new Set(['ls', 'tree', 'du'])
 const NEUTRAL_COMMANDS = new Set(['echo', 'printf', 'true', 'false', ':'])
-const REDIRECT_OPERATORS: Unbuilt = unbuilt('src/tools/BashTool/BashTool.tsx:166')
-const CONTROL_OPERATORS: Unbuilt = unbuilt('src/tools/BashTool/BashTool.tsx:167')
-const SILENT_COMMANDS: Unbuilt = unbuilt('src/tools/BashTool/BashTool.tsx:168')
+const REDIRECT_OPERATORS: ReadonlySet<string> = new Set(['>', '>>', '>&'])
+const CONTROL_OPERATORS: ReadonlySet<string> = new Set(['||', '&&', '|', ';'])
+const SILENT_COMMANDS: ReadonlySet<string> = new Set([
+  'mv',
+  'cp',
+  'rm',
+  'mkdir',
+  'rmdir',
+  'chmod',
+  'chown',
+  'chgrp',
+  'touch',
+  'ln',
+  'cd',
+  'export',
+  'unset',
+  'wait',
+])
+
+function classifyCommand(command: string): { isSearch: boolean; isRead: boolean; isList: boolean } {
+  const parts = splitCommandWithOperators(command)
+  if (parts.length === 0) return { isSearch: false, isRead: false, isList: false }
+  let isSearch = false
+  let isRead = false
+  let isList = false
+  let sawRecognized = false
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i] as string
+    if (REDIRECT_OPERATORS.has(part)) {
+      i++
+      continue
+    }
+    if (CONTROL_OPERATORS.has(part)) continue
+    const base = part.trim().split(/\s+/)[0]
+    if (!base) continue
+    if (NEUTRAL_COMMANDS.has(base)) continue
+    const matchesSearch = SEARCH_COMMANDS.has(base)
+    const matchesRead = READ_COMMANDS.has(base)
+    const matchesList = LIST_COMMANDS.has(base)
+    if (!matchesSearch && !matchesRead && !matchesList) {
+      return { isSearch: false, isRead: false, isList: false }
+    }
+    sawRecognized = true
+    if (matchesSearch) isSearch = true
+    if (matchesRead) isRead = true
+    if (matchesList) isList = true
+  }
+  return sawRecognized ? { isSearch, isRead, isList } : { isSearch: false, isRead: false, isList: false }
+}
 
 function isSilentCommand(command: string): boolean {
   const parts = splitCommandWithOperators(command)
@@ -406,6 +473,746 @@ function foregroundBackgroundedAnswer({ webNotice, foregroundTaskId, shellComman
 }
 
 
-export const BashTool: Unbuilt = unbuilt('src/tools/BashTool/BashTool.tsx:774')
-
 const EMPTY_COMMAND_REFUSAL = 'Nothing to run: the command is empty. Pass the command to execute.'
+
+function getBashInputJSONSchema(): ToolInputJSONSchema {
+  const converted = zodToJsonSchema(modelInputSchema())
+  if (!BACKGROUND_TASKS_DISABLED) return converted
+  const properties = converted.properties
+  if (typeof properties !== 'object' || properties === null) return converted
+  const { run_in_background: _omitted, ...rest } = properties as Record<string, unknown>
+  return { ...converted, properties: rest }
+}
+
+async function runSimulatedSedEdit(
+  input: BashToolInput,
+  context: ToolUseContext,
+  parentAssistantMessage: AssistantMessage,
+): Promise<ToolResult<Out>> {
+  const edit = input._simulatedSedEdit!
+  const cwd = resolveShellCwd(input.cwd)
+  const resolvedPath = expandPath(edit.filePath, cwd)
+  if (!existsSync(resolvedPath)) {
+    return {
+      data: {
+        stdout: '',
+        stderr: `sed: can't read ${edit.filePath}: No such file or directory\nexit code 1`,
+        interrupted: false,
+      },
+    }
+  }
+  const encoding = detectFileEncoding(resolvedPath)
+  const lineEndings = detectLineEndings(resolvedPath, encoding)
+  if (fileHistoryEnabled() && parentAssistantMessage?.uuid) {
+    await fileHistoryTrackEdit(
+      context.updateFileHistoryState,
+      resolvedPath,
+      parentAssistantMessage.uuid as UUID,
+    )
+  }
+  const currentBase64 = readFileSync(resolvedPath).toString('base64')
+  if (typeof edit.beforeBytes !== 'string' || currentBase64 !== edit.beforeBytes) {
+    return {
+      data: {
+        stdout: '',
+        stderr: modifiedSinceReadMessage(),
+        interrupted: false,
+      },
+    }
+  }
+  writeTextContent(resolvedPath, edit.newContent, encoding, lineEndings)
+  context.readFileState.set(resolvedPath, {
+    content: edit.newContent,
+    timestamp: getFileModificationTime(resolvedPath),
+    offset: undefined,
+    limit: undefined,
+  })
+  return {
+    data: {
+      stdout: '',
+      stderr: '',
+      interrupted: false,
+    },
+  }
+}
+
+async function launchShell(args: {
+  input: BashToolInput
+  context: ToolUseContext
+  cwd: string
+  effectiveTimeout: number
+  shouldAutoBackground: boolean
+  isBackgroundRequest: boolean
+  owner: ReturnType<typeof processOwnerForLane>
+  onProgress: (recentLines: string, allLines: string, numLines: number, numBytes: number, incomplete: boolean) => void
+}): Promise<{ shellCommand: ShellCommand; editorTerminalNote: string | undefined }> {
+  const { input, context, cwd, effectiveTimeout, shouldAutoBackground, isBackgroundRequest, owner, onProgress } = args
+  const verificationStart = captureVerificationStart(input.command, cwd, owner)
+  let editorTerminalNote: string | undefined
+  let shellCommand: ShellCommand | null = null
+  if (!isBackgroundRequest && context.agentId === undefined && ideTerminalAvailable()) {
+    try {
+      const shell = await terminalShellInvocation(input.command, input.inherit_session_env === true)
+      shellCommand = await execViaIdeTerminal(context.abortController.signal, {
+        cwd,
+        timeout: effectiveTimeout,
+        shell,
+        shouldAutoBackground,
+        onProgress,
+      })
+      if (shellCommand !== null) {
+        editorTerminalNote = EDITOR_TERMINAL_RESULT_NOTE
+      }
+    } catch (error) {
+      if (error instanceof IdeTerminalUnavailableError) {
+        editorTerminalNote = error.message
+      } else {
+        throw error
+      }
+    }
+  }
+  if (shellCommand === null) {
+    shellCommand = await exec(input.command, context.abortController.signal, 'bash', {
+      ...(input.cwd !== undefined ? { cwd } : {}),
+      timeout: effectiveTimeout,
+      shouldAutoBackground,
+      preventCwdChanges: context.agentId !== undefined || input.cwd !== undefined,
+      ...(isBackgroundRequest ? { backgroundIntent: true } : {}),
+      ...(input.inherit_session_env === true ? { inheritSessionEnv: true } : {}),
+      owner,
+      onProgress,
+    })
+  }
+  shellCommand.verificationStart = verificationStart
+  return { shellCommand, editorTerminalNote }
+}
+
+async function* runShellCommand(
+  input: BashToolInput,
+  context: ToolUseContext,
+): AsyncGenerator<BashProgress, Out> {
+  await sayWhatTheShellOwes(context)
+  const cwd = resolveShellCwd(input.cwd)
+  const webNotice = await shellWebContentNotice(input.command)
+  const {
+    setToolJSX,
+    setTaskState,
+    requestedTimeout,
+    effectiveTimeout,
+    timeoutClampNotice,
+    shouldAutoBackground,
+    creations,
+    launchedAt,
+  } = shellRunPlan(input, context, cwd)
+  const owner = processOwnerForLane(context.agentId ?? null)
+  const isBackgroundRequest = !BACKGROUND_TASKS_DISABLED && Boolean(input.run_in_background)
+
+  let latest: {
+    recent: string
+    all: string
+    totalLines: number
+    totalBytes: number | undefined
+    incomplete: boolean
+  } = { recent: '', all: '', totalLines: 0, totalBytes: undefined, incomplete: false }
+  let woken = false
+  let wakeWaiter: (() => void) | null = null
+  const wake = (): void => {
+    woken = true
+    const fn = wakeWaiter
+    wakeWaiter = null
+    fn?.()
+  }
+  const waitForWake = (): Promise<void> => {
+    if (woken) {
+      woken = false
+      return Promise.resolve()
+    }
+    return new Promise<void>(resolve => {
+      wakeWaiter = () => {
+        woken = false
+        resolve()
+      }
+    })
+  }
+  const onProgress = (
+    recentLines: string,
+    allLines: string,
+    numLines: number,
+    numBytes: number,
+    incomplete: boolean,
+  ): void => {
+    latest = {
+      recent: recentLines,
+      all: allLines,
+      totalLines: numLines,
+      totalBytes: incomplete ? numBytes : undefined,
+      incomplete,
+    }
+    wake()
+  }
+
+  const { shellCommand, editorTerminalNote } = await launchShell({
+    input,
+    context,
+    cwd,
+    effectiveTimeout,
+    shouldAutoBackground,
+    isBackgroundRequest,
+    owner,
+    onProgress,
+  })
+
+  const postNeeds: PostProcessNeeds = {
+    input,
+    creations,
+    editorTerminalNote,
+    agentId: context.agentId,
+    shouldAutoBackground,
+    cwd,
+    abortController: context.abortController,
+    shellCommand,
+    webNotice,
+    timeoutClampNotice,
+  }
+
+  const backgroundLifetime: BackgroundLifetime =
+    context.agentId !== undefined ? 'crewmate' : isRunInputClosed() ? 'turn' : 'session'
+  const offeredNames = new Set((context.options?.tools ?? []).map(tool => tool.name))
+  const backgroundFacts: BackgroundFacts = () => ({
+    ...(shellCommand.pid !== undefined ? { backgroundPid: shellCommand.pid } : {}),
+    backgroundLifetime,
+    stopOffered: offeredNames.has(TASK_STOP_TOOL_NAME),
+    serviceOffered: offeredNames.has('Service'),
+    sleepOffered: offeredNames.has(SLEEP_TOOL_NAME),
+  })
+  const description = input.description ?? input.command
+  const launchFacts: ShellLaunchFacts = {
+    command: input.command,
+    description,
+    agentId: context.agentId,
+    cwd,
+    startTime: launchedAt,
+    toolUseId: context.toolUseId,
+  }
+
+  let foregroundTaskId: string | undefined
+  let backgroundId: string | undefined
+  let timeoutAutoBackgroundedAfterMs: number | undefined
+  let handoverPromise: Promise<string | undefined> | null = null
+  let resolveBackgroundAssigned: (() => void) | null = null
+  const backgroundAssignedPromise = new Promise<void>(resolve => {
+    resolveBackgroundAssigned = resolve
+  })
+
+  const moveToBackground = (timeoutBg?: (id: string) => boolean): Promise<string | undefined> => {
+    if (handoverPromise !== null) return handoverPromise
+    handoverPromise = (async () => {
+      if (foregroundTaskId !== undefined) {
+        const accepted = backgroundExistingForegroundTask(
+          foregroundTaskId,
+          shellCommand,
+          description,
+          setTaskState,
+          context.toolUseId,
+          launchFacts,
+        )
+        if (accepted) {
+          backgroundId = foregroundTaskId
+          timeoutBg?.(backgroundId)
+          resolveBackgroundAssigned?.()
+          resolveBackgroundAssigned = null
+          wake()
+          return backgroundId
+        }
+        return undefined
+      }
+      const handle = await spawnShellTask(
+        {
+          command: input.command,
+          description,
+          timeout: effectiveTimeout,
+          toolUseId: context.toolUseId,
+          agentId: context.agentId,
+          shellCommand,
+          startTime: launchedAt,
+        },
+        {
+          abortController: context.abortController,
+          getAppState: () => {
+            throw new Error('AppState is not accessible during shell spawn')
+          },
+          setAppState: setTaskState,
+        },
+      )
+      if (handle.accepted) {
+        backgroundId = handle.taskId
+        timeoutBg?.(backgroundId)
+        resolveBackgroundAssigned?.()
+        resolveBackgroundAssigned = null
+        wake()
+        return backgroundId
+      }
+      return undefined
+    })()
+    return handoverPromise
+  }
+
+  const readOutputSoFar = async (): Promise<OutputSoFar> => {
+    const budget = resolveOutputBudget(readMaxOutputChars(input.max_output_chars))
+    try {
+      const tailed = await tailFile(shellCommand.taskOutput.path, budget.effective)
+      const cleaned = stripEmptyLines(tailed.content)
+      const formatted = formatOutput(cleaned, { maxLength: budget.effective })
+      return { stdout: formatted.truncatedContent, isTail: tailed.bytesRead < tailed.bytesTotal }
+    } catch {
+      const cleaned = stripEmptyLines(latest.all)
+      const formatted = formatOutput(cleaned, { maxLength: budget.effective })
+      return { stdout: formatted.truncatedContent, isTail: latest.incomplete }
+    }
+  }
+
+  if (shouldAutoBackground && !isBackgroundRequest) {
+    shellCommand.onTimeout?.((bg: (id: string) => boolean) => {
+      timeoutAutoBackgroundedAfterMs = effectiveTimeout
+      void moveToBackground(bg)
+    })
+  }
+
+  if (isBackgroundRequest) {
+    const id = await moveToBackground()
+    if (id !== undefined) {
+      return {
+        stdout: webNotice,
+        stderr: '',
+        interrupted: false,
+        backgroundTaskId: id,
+        scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
+        ...backgroundFacts(),
+      }
+    }
+    const result = await shellCommand.result
+    shellCommand.cleanup()
+    return postProcess(result, postNeeds)
+  }
+
+  return yield* runForegroundCommand({
+    input,
+    context,
+    description,
+    setToolJSX,
+    setTaskState,
+    requestedTimeout,
+    effectiveTimeout,
+    timeoutClampNotice,
+    launchedAt,
+    webNotice,
+    shellCommand,
+    postNeeds,
+    backgroundFacts,
+    getLatest: () => latest,
+    getBackgroundId: () => backgroundId,
+    getTimeoutAutoBackgroundedAfterMs: () => timeoutAutoBackgroundedAfterMs,
+    getForegroundTaskId: () => foregroundTaskId,
+    setForegroundTaskId: id => {
+      foregroundTaskId = id
+    },
+    backgroundAssignedPromise,
+    moveToBackground,
+    readOutputSoFar,
+    wake,
+    waitForWake,
+    clearWakeWaiter: () => {
+      wakeWaiter = null
+    },
+  })
+}
+
+interface ForegroundRunArgs {
+  input: BashToolInput
+  context: ToolUseContext
+  description: string
+  setToolJSX: ToolUseContext['setToolJSX']
+  setTaskState: NonNullable<ToolUseContext['setAppStateForTasks']>
+  requestedTimeout: number | undefined
+  effectiveTimeout: number
+  timeoutClampNotice: string | undefined
+  launchedAt: number
+  webNotice: string
+  shellCommand: ShellCommand
+  postNeeds: PostProcessNeeds
+  backgroundFacts: BackgroundFacts
+  getLatest: () => { recent: string; all: string; totalLines: number; totalBytes: number | undefined; incomplete: boolean }
+  getBackgroundId: () => string | undefined
+  getTimeoutAutoBackgroundedAfterMs: () => number | undefined
+  getForegroundTaskId: () => string | undefined
+  setForegroundTaskId: (id: string | undefined) => void
+  backgroundAssignedPromise: Promise<void>
+  moveToBackground: (timeoutBg?: (id: string) => boolean) => Promise<string | undefined>
+  readOutputSoFar: () => Promise<OutputSoFar>
+  wake: () => void
+  waitForWake: () => Promise<void>
+  clearWakeWaiter: () => void
+}
+
+async function* runForegroundCommand(args: ForegroundRunArgs): AsyncGenerator<BashProgress, Out> {
+  const {
+    input,
+    context,
+    description,
+    setToolJSX,
+    setTaskState,
+    requestedTimeout,
+    effectiveTimeout,
+    timeoutClampNotice,
+    launchedAt,
+    webNotice,
+    shellCommand,
+    postNeeds,
+    backgroundFacts,
+    getLatest,
+    getBackgroundId,
+    getTimeoutAutoBackgroundedAfterMs,
+    getForegroundTaskId,
+    setForegroundTaskId,
+    backgroundAssignedPromise,
+    moveToBackground,
+    readOutputSoFar,
+    wake,
+    waitForWake,
+    clearWakeWaiter,
+  } = args
+
+  let userBackgroundAsked = false
+  let resolveUserBackground: (() => void) | null = null
+  const userBackgroundPromise = new Promise<void>(resolve => {
+    resolveUserBackground = resolve
+  })
+  const requestUserBackground = (): void => {
+    userBackgroundAsked = true
+    const fn = resolveUserBackground
+    resolveUserBackground = null
+    fn?.()
+    wake()
+  }
+  const unregisterRun = registerShellRun({
+    agentId: context.agentId,
+    request: requestUserBackground,
+  })
+
+  const ensureForegroundRegistered = (): string => {
+    const existing = getForegroundTaskId()
+    if (existing !== undefined) return existing
+    const id = context.shellInputId ?? context.toolUseId
+    const registered = registerForeground(
+      {
+        command: input.command,
+        description,
+        timeout: effectiveTimeout,
+        toolUseId: id,
+        agentId: context.agentId,
+        shellCommand,
+      },
+      setTaskState,
+      id,
+    )
+    setForegroundTaskId(registered)
+    return registered
+  }
+  if (context.shellInputId !== undefined) {
+    ensureForegroundRegistered()
+  }
+
+  let settled: { ok: true; result: ExecResult } | { ok: false; error: unknown } | null = null
+  void shellCommand.result.then(
+    result => {
+      settled = { ok: true, result }
+      wake()
+    },
+    error => {
+      settled = { ok: false, error }
+      wake()
+    },
+  )
+
+  const settleCompleted = (result: ExecResult): Promise<Out> => {
+    if (result.backgroundTaskId !== undefined) {
+      markTaskNotified(result.backgroundTaskId, setTaskState)
+      result.backgroundTaskId = undefined
+    } else {
+      const fgId = getForegroundTaskId()
+      if (fgId !== undefined) {
+        unregisterForeground(fgId, setTaskState)
+        setForegroundTaskId(undefined)
+      }
+    }
+    shellCommand.cleanup()
+    return postProcess(result, postNeeds)
+  }
+
+  const onAbortWake = (): void => wake()
+  context.abortController.signal.addEventListener('abort', onAbortWake)
+
+  try {
+    const quietWinner = await withDeadline(
+      Promise.race([
+        shellCommand.result.then(result => ({ kind: 'done' as const, result })),
+        userBackgroundPromise.then(() => ({ kind: 'user-bg' as const })),
+        backgroundAssignedPromise.then(() => ({ kind: 'bg-assigned' as const })),
+      ]),
+      QUIET_WINDOW_MS,
+      () => ({ kind: 'window-end' as const }),
+      { unref: true },
+    )
+
+    if (quietWinner.kind === 'done') {
+      return await settleCompleted(quietWinner.result)
+    }
+    if (quietWinner.kind === 'user-bg') {
+      await moveToBackground()
+      const assigned = getBackgroundId()
+      if (assigned !== undefined) {
+        return userBackgroundedAnswer({
+          webNotice,
+          latest: getLatest(),
+          backgroundId: assigned,
+          shellCommand,
+          backgroundFacts,
+        })
+      }
+      const result = await shellCommand.result
+      return await settleCompleted(result)
+    }
+    const quietBgId = getBackgroundId()
+    if (quietBgId !== undefined) {
+      const afterMs = getTimeoutAutoBackgroundedAfterMs()
+      const soFar: OutputSoFar = afterMs !== undefined ? await readOutputSoFar() : { stdout: '', isTail: false }
+      return timeoutBackgroundedAnswer({
+        webNotice,
+        soFar,
+        backgroundId: quietBgId,
+        shellCommand,
+        timeoutAutoBackgroundedAfterMs: afterMs,
+        timeoutClampNotice,
+        backgroundFacts,
+      })
+    }
+
+    const progressPhaseStartedAt = Date.now()
+    let backgroundHintShown = false
+    let interruptBackgroundingStarted = false
+    let backgroundAskHandled = false
+    TaskOutput.startPolling(shellCommand.taskOutput.taskId)
+    try {
+      for (;;) {
+        if (settled !== null) {
+          if (!settled.ok) throw settled.error
+          return await settleCompleted(settled.result)
+        }
+        const isInterrupt =
+          context.abortController.signal.aborted && context.abortController.signal.reason === 'interrupt'
+        if (isInterrupt && !interruptBackgroundingStarted) {
+          interruptBackgroundingStarted = true
+          if (BACKGROUND_TASKS_DISABLED) {
+            shellCommand.kill()
+          } else {
+            await moveToBackground()
+          }
+        }
+        if (userBackgroundAsked && !backgroundAskHandled && !isInterrupt && getBackgroundId() === undefined) {
+          backgroundAskHandled = true
+          await moveToBackground()
+        }
+        const currentBgId = getBackgroundId()
+        if (currentBgId !== undefined) {
+          const afterMs = getTimeoutAutoBackgroundedAfterMs()
+          const soFar: OutputSoFar =
+            !interruptBackgroundingStarted && !backgroundAskHandled && afterMs !== undefined
+              ? await readOutputSoFar()
+              : { stdout: '', isTail: false }
+          return loopBackgroundedAnswer({
+            webNotice,
+            interruptBackgroundingStarted,
+            backgroundAskHandled,
+            fullOutput: getLatest().all,
+            soFar,
+            backgroundId: currentBgId,
+            shellCommand,
+            timeoutAutoBackgroundedAfterMs: afterMs,
+            backgroundFacts,
+          })
+        }
+        const currentFgId = getForegroundTaskId()
+        if (currentFgId !== undefined && shellCommand.status === 'backgrounded') {
+          return foregroundBackgroundedAnswer({
+            webNotice,
+            foregroundTaskId: currentFgId,
+            shellCommand,
+            backgroundFacts,
+          })
+        }
+        if (
+          !backgroundHintShown &&
+          !BACKGROUND_TASKS_DISABLED &&
+          getBackgroundId() === undefined &&
+          shellCommand.status !== 'backgrounded' &&
+          setToolJSX !== undefined &&
+          Date.now() - progressPhaseStartedAt >= QUIET_WINDOW_MS
+        ) {
+          backgroundHintShown = true
+          ensureForegroundRegistered()
+          setToolJSX({
+            jsx: <BackgroundHint onBackground={requestUserBackground} />,
+            shouldHidePromptInput: false,
+            shouldContinueAnimation: true,
+            showSpinner: true,
+          })
+        }
+        const latestNow = getLatest()
+        const elapsedMs = Date.now() - launchedAt
+        const elapsedTimeSeconds = Math.floor(elapsedMs / 1000)
+        let displayOutput = latestNow.recent
+        if (elapsedMs >= SOFT_TIMEOUT_MS) {
+          const timeoutPart = requestedTimeout ? `, timing out at ${Math.round(effectiveTimeout / 1000)}s` : ''
+          displayOutput = `[still running after ${elapsedTimeSeconds}s${timeoutPart}]\n${displayOutput}`
+        }
+        yield {
+          type: 'bash_progress',
+          output: displayOutput,
+          fullOutput: latestNow.all,
+          elapsedTimeSeconds,
+          totalLines: latestNow.totalLines,
+          ...(latestNow.incomplete ? { totalBytes: latestNow.totalBytes } : {}),
+          taskId: getForegroundTaskId(),
+          ...(requestedTimeout ? { timeoutMs: effectiveTimeout } : {}),
+          budgetMs: effectiveTimeout,
+        }
+        await withDeadline(waitForWake(), 1_000, clearWakeWaiter, { unref: true })
+      }
+    } finally {
+      TaskOutput.stopPolling(shellCommand.taskOutput.taskId)
+    }
+  } finally {
+    context.abortController.signal.removeEventListener('abort', onAbortWake)
+    unregisterRun()
+    const fgId = getForegroundTaskId()
+    if (fgId !== undefined && getBackgroundId() === undefined && shellCommand.status !== 'backgrounded') {
+      unregisterForeground(fgId, setTaskState)
+    }
+  }
+}
+
+export const BashTool: Tool<BashToolInput, Out, BashProgress> = buildTool({
+  name: BASH_TOOL_NAME,
+  strict: true,
+  maxResultSizeChars: PERSIST_THRESHOLD_CHARS,
+  straightQuoteInputs: ['command'],
+  searchHint: 'Executes shell commands.',
+  userFacingName,
+  isEnabled() {
+    return bashToolAvailable()
+  },
+  get inputSchema() {
+    return modelInputSchema()
+  },
+  get inputJSONSchema() {
+    return getBashInputJSONSchema()
+  },
+  shellCommandOf(input) {
+    return stringInputField(input, 'command')
+  },
+  isSearchOrReadCommand(input) {
+    const command = stringInputField(input, 'command')
+    if (!command) return { isSearch: false, isRead: false, isList: false }
+    return classifyCommand(command)
+  },
+  async prepare(input) {
+    await prepareBashReadOnly(input)
+  },
+  isReadOnly(input) {
+    return isBashReadOnly(input)
+  },
+  isConcurrencySafe(input) {
+    return isBashReadOnly(input)
+  },
+  async checkPermissions(input, context) {
+    return bashToolHasPermission(input, context.getAppState().toolPermissionContext)
+  },
+  async preparePermissionMatcher(input) {
+    const parsed = await parseForSecurity(input.command)
+    if (parsed.kind === 'simple') {
+      const texts = parsed.commands.map(command => command.argv.join(' '))
+      return (rulePattern: string) => texts.some(text => matchGlob(rulePattern, text))
+    }
+    return () => true
+  },
+  async description(input) {
+    return input?.description ?? 'Run a shell command'
+  },
+  async prompt(options) {
+    await Promise.all([settleShellRecord(), settleLoginFiles()])
+    return getSimplePrompt(new Set((options?.tools ?? []).map(tool => tool.name)))
+  },
+  getToolUseSummary(input) {
+    const command = stringInputField(input, 'command')
+    if (!command) return null
+    return input?.description ?? truncateForSummary(command)
+  },
+  getActivityDescription(input) {
+    const command = stringInputField(input, 'command')
+    if (!command) return 'Running a shell command'
+    const summary = input?.description ?? truncateForSummary(command)
+    return `Running ${summary}`
+  },
+  async validateInput(input) {
+    const cwdRefusal = controlCharacterPathRefusal(input.cwd)
+    if (cwdRefusal !== null) {
+      return { result: false, message: cwdRefusal, errorCode: 1 }
+    }
+    if (input.command.trim() === '') {
+      return { result: false, message: EMPTY_COMMAND_REFUSAL, errorCode: 1 }
+    }
+    const budgetRefusal = refuseMaxOutputChars(input.max_output_chars)
+    if (budgetRefusal !== undefined) {
+      return { result: false, message: budgetRefusal, errorCode: 2 }
+    }
+    return { result: true }
+  },
+  renderToolUseMessage,
+  renderToolUseProgressMessage,
+  renderToolUseQueuedMessage,
+  renderToolResultMessage,
+  renderToolUseErrorMessage,
+  mapToolResultToToolResultBlockParam: mapResultToBlock,
+  extractSearchText(output) {
+    return output.stderr ? `${output.stdout}\n${output.stderr}` : output.stdout
+  },
+  isResultTruncated(output) {
+    return isOutputLineTruncated(output.stdout) || isOutputLineTruncated(output.stderr)
+  },
+  async call(input, context, _canUseTool, parentAssistantMessage, onProgress) {
+    try {
+      if (input._simulatedSedEdit !== undefined) {
+        return await runSimulatedSedEdit(input, context, parentAssistantMessage)
+      }
+      const generator = runShellCommand(input, context)
+      const baseId = context.toolUseId ?? 'bash'
+      let counter = 0
+      for (;;) {
+        const next = await generator.next()
+        if (next.done) {
+          const out = next.value
+          const notice = sessionEnvNoticeForResult({
+            scrubbed: out.scrubbedSessionEnv,
+            commandText: input.command,
+          })
+          const data: Out = notice !== '' ? { ...out, sessionEnvNotice: notice } : out
+          return { data }
+        }
+        counter += 1
+        onProgress?.({ toolUseID: `${baseId}-${counter}`, data: next.value })
+      }
+    } finally {
+      context.setToolJSX?.(null)
+    }
+  },
+})
