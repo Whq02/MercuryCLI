@@ -156,7 +156,6 @@ export function ResumeConversation({
     () => launcherAltHoldPending() || isFullscreenEnvEnabled(),
   )
   const [showAllProjects, setShowAllProjects] = useState(false)
-  const [reloadNonce, setReloadNonce] = useState(0)
   const [logs, setLogs] = useState<SessionListing[] | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -208,7 +207,7 @@ export function ResumeConversation({
     return () => {
       loadGenRef.current += 1
     }
-  }, [showAllProjects, worktreePaths, filterLogs, reloadNonce])
+  }, [showAllProjects, worktreePaths, filterLogs])
 
   const worktreeFailure = useMemo<SessionReadFailures | undefined>(
     () =>
@@ -223,38 +222,42 @@ export function ResumeConversation({
     [worktreeFailure, readFailures],
   )
 
-  const handleLoadMore = useCallback(() => {
-    if (loadingMoreRef.current) return
-    const allStatLogs = allStatLogsRef.current
-    const startIndex = nextIndexRef.current
-    if (startIndex >= allStatLogs.length) return
-    loadingMoreRef.current = true
-    setIsLoadingMore(true)
-    const gen = loadGenRef.current
-    void (async () => {
-      try {
-        const batch = await enrichSessionListings(allStatLogs, startIndex, LOAD_MORE_BATCH)
-        if (loadGenRef.current !== gen) return
-        nextIndexRef.current = batch.nextIndex
-        setHasMore(batch.nextIndex < allStatLogs.length)
-        if (batch.readFailures) {
-          setReadFailures(prev => mergeSessionReadFailures(prev, batch.readFailures))
+  const handleLoadMore = useCallback(
+    (count: number = LOAD_MORE_BATCH) => {
+      if (loadingMoreRef.current) return
+      const allStatLogs = allStatLogsRef.current
+      const startIndex = nextIndexRef.current
+      if (startIndex >= allStatLogs.length) return
+      const batchSize = count > 0 ? count : LOAD_MORE_BATCH
+      loadingMoreRef.current = true
+      setIsLoadingMore(true)
+      const gen = loadGenRef.current
+      void (async () => {
+        try {
+          const batch = await enrichSessionListings(allStatLogs, startIndex, batchSize)
+          if (loadGenRef.current !== gen) return
+          nextIndexRef.current = batch.nextIndex
+          setHasMore(batch.nextIndex < allStatLogs.length)
+          if (batch.readFailures) {
+            setReadFailures(prev => mergeSessionReadFailures(prev, batch.readFailures))
+          }
+          const nextLogs = filterLogs(batch.logs)
+          if (nextLogs.length > 0) {
+            setLogs(prev => (prev ? [...prev, ...nextLogs] : nextLogs))
+          }
+        } catch (thrown) {
+          if (loadGenRef.current !== gen) return
+          logError(thrown)
+        } finally {
+          if (loadGenRef.current === gen) {
+            loadingMoreRef.current = false
+            setIsLoadingMore(false)
+          }
         }
-        const nextLogs = filterLogs(batch.logs)
-        if (nextLogs.length > 0) {
-          setLogs(prev => (prev ? [...prev, ...nextLogs] : nextLogs))
-        }
-      } catch (thrown) {
-        if (loadGenRef.current !== gen) return
-        logError(thrown)
-      } finally {
-        if (loadGenRef.current === gen) {
-          loadingMoreRef.current = false
-          setIsLoadingMore(false)
-        }
-      }
-    })()
-  }, [filterLogs])
+      })()
+    },
+    [filterLogs],
+  )
 
   const handleCancelExit = useCallback(() => {
     process.exit(1)
@@ -269,10 +272,6 @@ export function ResumeConversation({
   const handleToggleAllProjects = useCallback(() => {
     setResumeNotice(null)
     setShowAllProjects(prev => !prev)
-  }, [])
-
-  const handleLogsChanged = useCallback(() => {
-    setReloadNonce(nonce => nonce + 1)
   }, [])
 
   const handleLogRenamed = useCallback((sessionId: string, customTitle: string) => {
@@ -412,7 +411,6 @@ export function ResumeConversation({
           initialSearchQuery={initialSearchQuery}
           showAllProjects={showAllProjects}
           onToggleAllProjects={handleToggleAllProjects}
-          onLogsChanged={handleLogsChanged}
           onLogRenamed={isCustomTitleEnabled() ? handleLogRenamed : undefined}
           onLoadMore={handleLoadMore}
           hasMore={hasMore}
