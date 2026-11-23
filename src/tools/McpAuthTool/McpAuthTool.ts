@@ -33,7 +33,11 @@ export function createMcpAuthTool(
   serverName: string,
   config: ScopedMcpServerConfig,
 ): Tool<typeof emptyInputSchema, McpAuthOutput> {
-  const descriptionText = `The MCP server "${serverName}" (${transportDescription(config)}) is installed but requires authentication before its tools can be used. Calling this tool starts the OAuth flow and returns an authorization URL to share with the user. Once the user authorizes in their browser, the server's real tools become available automatically.`
+  const descriptionText = [
+    `The MCP server "${serverName}" (${transportDescription(config)}) is installed but requires authentication before its tools can be used.`,
+    'Calling this tool starts the OAuth flow and returns an authorization URL to share with the user.',
+    "Once the user authorizes in their browser, the server's real tools become available automatically.",
+  ].join(' ')
 
   async function reconnectAfterAuth(
     setAppState: ToolUseContext['setAppState'] | undefined,

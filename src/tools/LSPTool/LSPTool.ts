@@ -203,7 +203,7 @@ function mapOperationToLspRequest(
     case 'outgoingCalls':
       return { method: 'textDocument/prepareCallHierarchy', params: { textDocument: { uri }, position } }
     default:
-      throw new Error(`Unsupported LSP operation: ${input.operation}`)
+      throw new Error(`No base LSP method mapping for operation: ${input.operation}`)
   }
 }
 
@@ -287,9 +287,9 @@ function unclaimedFileResult(
 ): Settled {
   const ext = extname(absolutePath).toLowerCase() || basename(absolutePath)
   const { cause, remedy } = unclaimedCause(ext, cwd)
-  const detail = cause.includes('no language server') ? '' : ` — ${cause}`
+  const detail = remedy ? ` — ${cause}` : ''
   const help = remedy ? ` What helps: ${remedy}.` : ''
-  const result = `${operation} could not run: no language server claims '${ext}' files in this session${detail}.${help}${consumeInvalidLspServersNote()}`
+  const result = `${operation} operation was not run: no language server claims '${ext}' files in this session${detail}.${help}${consumeInvalidLspServersNote()}`
   return {
     data: { operation, result, filePath, outcome: 'failed' },
     effect: makeEffect(operation, 'failed', result, startedAt),
@@ -313,14 +313,10 @@ function formatStartFailure(
     manager.getAllServers().get(err.server) ??
     (absolutePath ? manager.getServerForFile(absolutePath) : undefined)
   const targetPath = pathOverride ?? absolutePath
-  const result = server
-    ? (() => {
-        const title = serverTitle(server, targetPath)
-        const remedy = remedyForLanguageServer(server, targetPath, err.lspCause, cwd)
-        const attempted = `${title} did not start: ${err.lspCause}.${remedy ? ` What helps: ${remedy}.` : ''}`
-        return lspStartFailureWords(err, title, remedy, attempted)
-      })()
-    : err.message
+  const title = server ? serverTitle(server, targetPath) : 'the language server'
+  const remedy = server ? remedyForLanguageServer(server, targetPath, err.lspCause, cwd) : ''
+  const attempted = `${operation} operation was not run: ${title} did not start — ${err.lspCause}.${remedy ? ` What helps: ${remedy}.` : ''}`
+  const result = lspStartFailureWords(err, title, remedy, attempted)
   return {
     data: { operation, result, filePath, outcome: 'failed' },
     effect: makeEffect(operation, 'failed', result, startedAt),
@@ -345,7 +341,7 @@ async function runWorkspaceSymbolOp(
   } else {
     const chosen = workspaceSymbolServer(manager, query, cwd)
     if (!chosen) {
-      const result = `No language server is configured for this workspace.${consumeInvalidLspServersNote()}`
+      const result = `No language server is configured in this session; LspRead serverStatus lists what is available.${consumeInvalidLspServersNote()}`
       return {
         data: { operation: 'workspaceSymbol', result, filePath, outcome: 'failed' },
         effect: makeEffect('workspaceSymbol', 'failed', result, startedAt),
@@ -362,7 +358,7 @@ async function runWorkspaceSymbolOp(
       }
       if (!ready) {
         const waitSeconds = Math.round((2 * LSP_FIRST_CALL_START_WAIT_MS) / 1000)
-        const result = `${serverTitle(target.server, target.path)} is starting for this workspace and was not ready after ${waitSeconds} s. Send the same call again in a few seconds once it finishes indexing.`
+        const result = `${serverTitle(target.server, target.path)} is starting for this workspace and was not ready after ${waitSeconds} s, so the search for "${query}" was not sent. Send the same call again; it answers once the server is up.`
         return {
           data: { operation: 'workspaceSymbol', result, filePath, outcome: 'indeterminate' },
           effect: makeEffect('workspaceSymbol', 'indeterminate', result, startedAt),
@@ -648,7 +644,7 @@ async function runLspOperation(
 
     if (input.operation === 'hover') {
       const result = formatHoverResult(response as HoverResult | null, cwd)
-      const hasHover = !result.startsWith('No hover information available')
+      const hasHover = result !== formatHoverResult(null, cwd)
       return {
         data: {
           operation: input.operation,
@@ -676,7 +672,7 @@ async function runLspOperation(
       }
     }
 
-    const result = `Unsupported LSP operation: ${input.operation}`
+    const result = `Unhandled base LSP operation: ${input.operation}`
     return {
       data: { operation: input.operation, result, filePath, outcome: 'failed' },
       effect: makeEffect(input.operation, 'failed', result, startedAt),

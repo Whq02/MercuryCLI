@@ -46,7 +46,7 @@ export function getSymbolAtPosition(
     return null
   } catch (error) {
     logForDebugging(
-      `Failed to read symbol context from ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+      `getSymbolAtPosition failed for ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
       { level: 'warn' },
     )
     return null

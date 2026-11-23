@@ -39,7 +39,7 @@ export async function readNotebookLane(
     throw new MaxFileReadTokenExceededError(
       tokens,
       limits.maxTokens,
-      `notebook reads have no line window. ${notebookSliceRemedy(keyPath)}`,
+      `no cells were returned, and a notebook Read has no line window (offset and limit do not select cells). ${notebookSliceRemedy(keyPath)}`,
     )
   }
   context.readFileState.set(keyPath, {
