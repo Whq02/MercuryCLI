@@ -128,8 +128,6 @@ export function NotebookEditToolDiff({
       : mode === 'delete'
         ? 'Delete cell'
         : 'Replace cell contents'
-  const subtitle = `${actionLabel}${cell_id ? ` ${cell_id}` : ''}${cell_type ? ` (${cell_type})` : ''}`
-
   const useDiff = mode === 'replace' && notebook !== null && hunks.length > 0
   const boundedDiff = useMemo(
     () => (useDiff ? boundHunks(hunks, diffPaintWidth(width, hunks), budget) : null),
@@ -147,45 +145,45 @@ export function NotebookEditToolDiff({
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="subtle" paddingX={1}>
-      <Box flexDirection="column" marginBottom={1}>
-        <Text bold>{displayPath}</Text>
-        <Text dimColor>{subtitle}</Text>
-      </Box>
+      <Text bold>{displayPath}</Text>
+      <Text dimColor>
+        {actionLabel} {cell_id}
+        {cell_type ? ` (${cell_type})` : ''}
+      </Text>
       {boundedDiff ? (
-        <Box flexDirection="column">
-          {intersperse<React.ReactNode>(
-            boundedDiff.hunks.map((hunk, i) => (
-              <StructuredDiff
-                key={`${hunk.oldStart}-${hunk.newStart}-${i}`}
-                patch={hunk}
-                dim={false}
-                width={width}
-                filePath={highlightPath}
-              />
-            )),
-            i => (
-              <NoSelect key={`ellipsis-${i}`}>
-                <Text dimColor>...</Text>
-              </NoSelect>
-            ),
-          )}
-        </Box>
+        intersperse<React.ReactNode>(
+          boundedDiff.hunks.map((hunk, i) => (
+            <StructuredDiff
+              key={`${hunk.oldStart}-${hunk.newStart}-${i}`}
+              patch={hunk}
+              dim={false}
+              filePath={notebook_path}
+              firstLine={new_source.split('\n')[0] ?? null}
+              fileContent={oldSource}
+              width={width}
+            />
+          )),
+          i => (
+            <NoSelect fromLeftEdge key={`ellipsis-${i}`}>
+              <Text dimColor>...</Text>
+            </NoSelect>
+          ),
+        )
       ) : (
         <HighlightedCode
           code={(boundedCode?.lines ?? []).join('\n')}
           filePath={highlightPath}
-          width={width}
         />
       )}
       {hiddenLines > 0 ? (
-        <NoSelect>
+        <NoSelect fromLeftEdge>
           <Text dimColor>
             … +{hiddenLines} more line{hiddenLines === 1 ? '' : 's'} · ctrl+f expands (the whole edit applies)
           </Text>
         </NoSelect>
       ) : null}
       {expanded ? (
-        <NoSelect>
+        <NoSelect fromLeftEdge>
           <Text dimColor>ctrl+f collapses the preview</Text>
         </NoSelect>
       ) : null}
