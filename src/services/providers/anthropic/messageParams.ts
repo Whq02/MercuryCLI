@@ -3,7 +3,6 @@ import type { MessageParam } from '../../../types/wire.js'
 import { contentItemOf } from '../../../rows/content.js'
 import { requestTurnOf, type RequestTurn } from '../../../rows/request.js'
 import { getCacheControl } from './requestParams.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 type WireContent = MessageParam['content']
 type WireBlock = Exclude<WireContent, string>[number]
@@ -44,16 +43,16 @@ function encodeAnthropicTurn(turn: RequestTurn, addCache: boolean, enablePromptC
 
 export function userMessageToMessageParam(
   message: UserMessage,
-  addCache: boolean | undefined,
-  enablePromptCaching: boolean,
+  addCache: boolean = false,
+  enablePromptCaching: boolean = false,
 ): MessageParam {
-  return notBuilt('src/services/providers/anthropic/messageParams.ts:44')
+  return encodeAnthropicTurn(requestTurnOf('user', message.message.content), addCache, enablePromptCaching)
 }
 
 export function assistantMessageToMessageParam(
   message: AssistantMessage,
-  addCache: boolean | undefined,
-  enablePromptCaching: boolean,
+  addCache: boolean = false,
+  enablePromptCaching: boolean = false,
 ): MessageParam {
-  return notBuilt('src/services/providers/anthropic/messageParams.ts:52')
+  return encodeAnthropicTurn(requestTurnOf('assistant', message.message.content), addCache, enablePromptCaching)
 }
