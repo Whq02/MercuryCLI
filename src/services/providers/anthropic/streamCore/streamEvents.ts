@@ -14,7 +14,7 @@ import { noteRunPhase } from 'src/utils/runPhases.js'
 import { noteCacheDiagnostics } from '../cacheDiagnostics.js'
 import { addToTotalSessionCost } from 'src/cost-tracker.js'
 import { calculateUSDCost } from 'src/services/usage/modelCost.js'
-import type { ConnectorTextBlock, ConnectorTextDelta } from '../../../../types/connectorText.js'
+import type { ConnectorTextBlock } from '../../../../types/connectorText.js'
 import type { AssistantMessage, Message } from '../../../../types/message.js'
 import { settleTranscriptMessage } from '../../../../utils/sessionStorage/writer.js'
 import {
@@ -127,24 +127,16 @@ export function openContentBlock(contentBlocks: (BetaContentBlock | ConnectorTex
   }
 }
 
-function deltaOf(part: Extract<BetaRawMessageStreamEvent, { type: 'content_block_delta' }>): typeof part.delta | ConnectorTextDelta {
-  return part.delta
-}
-
 export function applyBlockDelta(contentBlocks: (BetaContentBlock | ConnectorTextBlock)[], part: Extract<BetaRawMessageStreamEvent, { type: 'content_block_delta' }>): void {
-  if (!part.delta) {
-    throw new Error(malformedStreamFrameText('content_block_delta', 'delta'))
-  }
   const block = contentBlocks[part.index]
   if (!block) {
     throw new RangeError('Content block not found')
   }
-  const delta = deltaOf(part)
+  const delta = part.delta
+  if (delta === null || delta === undefined) {
+    throw new Error(malformedStreamFrameText('content_block_delta', 'delta'))
+  }
   switch (delta.type) {
-    case 'text_delta':
-      if (block.type !== 'text') throw new Error('Content block is not a text block')
-      block.text += delta.text
-      break
     case 'input_json_delta':
       if (block.type !== 'tool_use' && block.type !== 'server_tool_use') {
         throw new Error('Content block is not a input_json block')
@@ -154,30 +146,17 @@ export function applyBlockDelta(contentBlocks: (BetaContentBlock | ConnectorText
       }
       block.input += delta.partial_json
       break
-    case 'thinking_delta':
-      if (block.type !== 'thinking') throw new Error('Content block is not a thinking block')
-      block.thinking += delta.thinking
+    case 'text_delta':
+      if (block.type !== 'text') throw new Error('Content block is not a text block')
+      block.text += delta.text
       break
     case 'signature_delta':
       if (block.type !== 'thinking') throw new Error('Content block is not a thinking block')
       block.signature = delta.signature
       break
-    case 'citations_delta':
-      break
-    case 'compaction_delta':
-      if (block.type === 'compaction') {
-        if (delta.content !== null) {
-          block.content = (block.content ?? '') + delta.content
-        }
-        if (delta.encrypted_content !== null) {
-          block.encrypted_content = delta.encrypted_content
-        }
-      }
-      break
-    case 'connector_text_delta':
-      if (block.type === 'connector_text') {
-        block.text = (block.text ?? '') + delta.connector_text
-      }
+    case 'thinking_delta':
+      if (block.type !== 'thinking') throw new Error('Content block is not a thinking block')
+      block.thinking += delta.thinking
       break
   }
 }
