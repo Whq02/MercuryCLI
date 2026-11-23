@@ -174,8 +174,9 @@ export default class Ink {
     this.rootNode.onComputeLayout = this.layoutAfterCommit
     const tell =
       (prefix: string) =>
-      (error: Error): void =>
+      (error: Error): void => {
         logForDebugging(`${prefix}${error.stack ?? error.message}`, { level: 'warn' })
+      }
     this.container = reconciler.createContainer(
       this.rootNode,
       ConcurrentRoot,
