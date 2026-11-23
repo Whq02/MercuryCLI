@@ -178,7 +178,7 @@ export function killShellTasksForAgent(
       task.status === 'running' &&
       task.agentId === agentId
     ) {
-      logForDebugging(`killing orphaned shell task ${taskId}`)
+      logForDebugging(`killing orphaned shell task ${taskId} for agent ${agentId}`)
       void killTask(taskId, setAppState, 'agent-end')
     }
   }

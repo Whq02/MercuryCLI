@@ -57,30 +57,21 @@ export function renderToolUseMessage(
 ): React.ReactNode {
   if (!input.file_path) return null
   if (agentOutputTaskId(input.file_path) !== null) return ''
-  const link = (
-    <FilePathLink filePath={input.file_path}>
-      {verbose ? input.file_path : getDisplayPath(input.file_path)}
-    </FilePathLink>
-  )
+  const trailers: string[] = []
   if (input.pages) {
-    return (
-      <>
-        {link} · pages {input.pages}
-      </>
-    )
-  }
-  if (verbose && (input.offset !== undefined || input.limit !== undefined)) {
+    trailers.push(`pages ${input.pages}`)
+  } else if (verbose && (input.offset !== undefined || input.limit !== undefined)) {
     const start = input.offset ?? 1
-    const suffix =
-      input.limit !== undefined ? ` · lines ${start}-${start + input.limit - 1}` : ` · from line ${start}`
-    return (
-      <>
-        {link}
-        {suffix}
-      </>
-    )
+    trailers.push(input.limit !== undefined ? `lines ${start}-${start + input.limit - 1}` : `from line ${start}`)
   }
-  return link
+  return (
+    <Text>
+      <FilePathLink filePath={input.file_path}>
+        {verbose ? input.file_path : getDisplayPath(input.file_path)}
+      </FilePathLink>
+      {trailers.length > 0 ? ` · ${trailers.join(' · ')}` : null}
+    </Text>
+  )
 }
 
 export function renderToolUseTag(input?: Partial<Input>): string | null {
