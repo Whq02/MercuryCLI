@@ -1,29 +1,29 @@
 import stripAnsi from 'strip-ansi'
-import { notBuilt, unbuilt } from '../pi/holes.js'
+export { escapeRegExp } from 'lodash-es'
 
-
-export function escapeRegExp(str: string): string {
-  return notBuilt('src/utils/stringUtils.ts:4')
-}
+const MAX_CONTENT_SIZE = 2 ** 25
+const TRUNCATION_MARK = '…[content truncated]'
 
 export function capitalize(str: string): string {
-  return notBuilt('src/utils/stringUtils.ts:8')
+  return str.slice(0, 1).toUpperCase() + str.slice(1)
 }
 
 export function plural(n: number, word: string, pluralWord?: string): string {
-  return notBuilt('src/utils/stringUtils.ts:13')
+  if (n === 1) return word
+  return pluralWord ?? (/[^aeiou]y$/i.test(word) ? `${word.slice(0, -1)}ies` : `${word}s`)
 }
 
 export function firstLineOf(s: string): string {
-  return notBuilt('src/utils/stringUtils.ts:21')
+  const end = s.indexOf('\n')
+  return end < 0 ? s : s.slice(0, end)
 }
 
 export function collapseWhitespace(text: string): string {
-  return notBuilt('src/utils/stringUtils.ts:26')
+  return text.replace(/\s+/g, ' ').trim()
 }
 
 export function clipWithEllipsis(text: string, max: number): string {
-  return notBuilt('src/utils/stringUtils.ts:30')
+  return text.length <= max ? text : text.slice(0, max - 1) + '…'
 }
 
 export function collapseAndClip(text: string, max: number): string {
@@ -42,58 +42,86 @@ type IndexSearchable = {
   indexOf(needle: string, start?: number): number
 }
 
-export function countCharInString(haystack: IndexSearchable, char: string, start?: number): number {
-  return notBuilt('src/utils/stringUtils.ts:50')
+export function countCharInString(haystack: IndexSearchable, char: string, start = 0): number {
+  let count = 0
+  let index = haystack.indexOf(char, start)
+  while (index >= 0 && index >= start) {
+    count++
+    start = index + 1
+    index = haystack.indexOf(char, start)
+  }
+  return count
 }
 
 export function normalizeFullWidthDigits(input: string): string {
-  return notBuilt('src/utils/stringUtils.ts:62')
+  return input.replace(/[０-９]/g, digit => String.fromCharCode(digit.charCodeAt(0) - 0xfee0))
 }
 
 export function normalizeFullWidthSpace(input: string): string {
-  return notBuilt('src/utils/stringUtils.ts:68')
+  return input.replaceAll('\u3000', ' ')
 }
 
-export function safeJoinLines(lines: string[], delimiter?: string, maxSize?: number): string {
-  return notBuilt('src/utils/stringUtils.ts:74')
+export function safeJoinLines(lines: string[], delimiter = ',', maxSize = MAX_CONTENT_SIZE): string {
+  let content = ''
+  for (const line of lines) {
+    const joiner = content ? delimiter : ''
+    const length = content.length + joiner.length
+    if (length + line.length > maxSize) {
+      const room = maxSize - length - TRUNCATION_MARK.length
+      return content + (room > 0 ? joiner + line.slice(0, room) : '') + TRUNCATION_MARK
+    }
+    content += joiner + line
+  }
+  return content
 }
 
 export class EndTruncatingAccumulator {
-  private content: string = unbuilt('src/utils/stringUtils.ts:92')
-  private hasTruncated: boolean = unbuilt('src/utils/stringUtils.ts:93')
-  private totalReceived: number = unbuilt('src/utils/stringUtils.ts:94')
+  private content = ''
+  private hasTruncated = false
+  private totalReceived = 0
 
-  constructor(private readonly maxSize?: number) {
-    notBuilt('src/utils/stringUtils.ts:96')
-  }
+  constructor(private readonly maxSize = MAX_CONTENT_SIZE) {}
 
   append(data: string | Buffer): void {
-    return notBuilt('src/utils/stringUtils.ts:98')
+    const text = data.toString()
+    this.totalReceived += text.length
+    if (this.hasTruncated) return
+    const room = this.maxSize - this.content.length
+    if (text.length <= room) this.content += text
+    else {
+      this.content += text.slice(0, Math.max(0, room))
+      this.hasTruncated = true
+    }
   }
 
   toString(): string {
-    return notBuilt('src/utils/stringUtils.ts:111')
+    if (!this.hasTruncated) return this.content
+    const kb = Math.round((this.totalReceived - this.maxSize) / 1024)
+    return `${this.content}\n[${kb}KB truncated from the end of the output]`
   }
 
   clear(): void {
-    return notBuilt('src/utils/stringUtils.ts:117')
+    this.content = ''
+    this.hasTruncated = false
+    this.totalReceived = 0
   }
 
   get length(): number {
-    return notBuilt('src/utils/stringUtils.ts:123')
+    return this.content.length
   }
 
   get truncated(): boolean {
-    return notBuilt('src/utils/stringUtils.ts:127')
+    return this.hasTruncated
   }
 
   get totalBytes(): number {
-    return notBuilt('src/utils/stringUtils.ts:131')
+    return this.totalReceived
   }
 }
 
 export function truncateToLines(text: string, maxLines: number): string {
-  return notBuilt('src/utils/stringUtils.ts:136')
+  const lines = text.split('\n')
+  return lines.length <= maxLines ? text : lines.slice(0, maxLines).join('\n') + '…'
 }
 
 export function stripTerminalControls(text: string): string {
