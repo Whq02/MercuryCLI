@@ -10,7 +10,7 @@ type UseSearchInputOptions = {
   onExitUp?: () => void
   columns?: number
   passthroughCtrlKeys?: readonly string[]
-  passthroughKeys?: readonly string[] | ((key: string) => boolean)
+  passthroughKeys?: readonly string[] | ((query: string) => readonly string[])
   initialQuery?: string
   backspaceExitsOnEmpty?: boolean
 }
@@ -66,20 +66,14 @@ function consume(e: KeyboardEvent): void {
   e.stopImmediatePropagation()
 }
 
-function isPassthrough(e: KeyboardEvent, opts: UseSearchInputOptions): boolean {
-  const k = e.key
-  const lower = k.toLowerCase()
-  if (e.ctrl && !e.meta && opts.passthroughCtrlKeys) {
-    if (opts.passthroughCtrlKeys.includes(k) || opts.passthroughCtrlKeys.includes(lower)) {
-      return true
-    }
+function isPassthrough(e: KeyboardEvent, opts: UseSearchInputOptions, query: string): boolean {
+  const name = e.key.toLowerCase()
+  if (e.ctrl) {
+    return opts.passthroughCtrlKeys?.some(letter => letter.toLowerCase() === name) ?? false
   }
-  if (!e.ctrl && !e.meta && opts.passthroughKeys) {
-    return typeof opts.passthroughKeys === 'function'
-      ? opts.passthroughKeys(k)
-      : opts.passthroughKeys.includes(k)
-  }
-  return false
+  if (e.meta || opts.passthroughKeys === undefined) return false
+  const names = typeof opts.passthroughKeys === 'function' ? opts.passthroughKeys(query) : opts.passthroughKeys
+  return names.includes(name)
 }
 
 function pushKill(kr: KillRingState, text: string, direction: 'prepend' | 'append'): void {
@@ -220,10 +214,10 @@ function handleNavigation(e: KeyboardEvent, ctx: SearchDispatchContext): boolean
   return false
 }
 
-function processSearchKey(e: KeyboardEvent, rawInput: string, ctx: SearchDispatchContext): void {
+function processSearchKey(e: KeyboardEvent, ctx: SearchDispatchContext): void {
   const { opts, queryRef, cursorRef, kr, applyEdit } = ctx
   if (!opts.isActive) return
-  if (isPassthrough(e, opts)) return
+  if (isPassthrough(e, opts, queryRef.current)) return
 
   const k = e.key
   const lower = k.toLowerCase()
@@ -316,7 +310,7 @@ function processSearchKey(e: KeyboardEvent, rawInput: string, ctx: SearchDispatc
     return
   }
 
-  const text = k === 'space' ? ' ' : k === '' ? rawInput : k
+  const text = k === 'space' ? ' ' : k
   if (text.length > 0 && text >= ' ' && text !== '\x7f') {
     resetKillAndYank(kr)
     consume(e)
@@ -360,7 +354,7 @@ export function useSearchInput(options: UseSearchInputOptions): UseSearchInputRe
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent): void => {
-      processSearchKey(e, '', {
+      processSearchKey(e, {
         opts: optionsRef.current,
         queryRef,
         cursorRef,
@@ -372,22 +366,10 @@ export function useSearchInput(options: UseSearchInputOptions): UseSearchInputRe
   )
 
   useInput(
-    (input, _key, event) => {
-      const kbEvent = new KeyboardEvent(event.keypress)
-      processSearchKey(kbEvent, input, {
-        opts: optionsRef.current,
-        queryRef,
-        cursorRef,
-        kr: killRingRef.current,
-        applyEdit,
-      })
-      if (
-        kbEvent.isImmediatePropagationStopped() ||
-        kbEvent.isPropagationStopped() ||
-        kbEvent.defaultPrevented
-      ) {
-        event.stopImmediatePropagation()
-      }
+    (input, key, event) => {
+      const made = new KeyboardEvent(event.keypress)
+      const unnamed = made.key === '' && input !== '' && !key.ctrl && !key.meta && !key.escape
+      handleKeyDown(unnamed ? new KeyboardEvent({ ...event.keypress, name: undefined, sequence: input }) : made)
     },
     { isActive: options.isActive },
   )
