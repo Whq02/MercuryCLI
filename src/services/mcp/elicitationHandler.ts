@@ -5,9 +5,32 @@ import { logForDebugging } from '../../utils/debug.js'
 import { logMCPDebug, logMCPError } from '../../utils/log.js'
 import { urlElicitationVerdict } from '../../utils/mcp/toolPolicy.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-export type ElicitationRequestEvent = Unbuilt
+export type ElicitationRequestEvent = {
+  serverName: string
+  requestId?: string | number
+  elicitationId?: string
+  params: {
+    message?: string
+    mode?: 'form' | 'url'
+    requestedSchema?: {
+      type?: 'object'
+      properties?: Record<string, unknown>
+      required?: string[]
+    }
+    url?: string
+    elicitationId?: string
+  }
+  signal: AbortSignal
+  respond: (response: ElicitResult) => void
+  onWaitingDismiss?: (action: 'cancel' | 'retry' | 'dismiss') => void
+  waitingState?: {
+    showCancel?: boolean
+    actionLabel?: string
+  }
+  completed?: boolean
+  riskPosture?: string
+}
 
 type SetAppState = (updater: (prev: AppState) => AppState) => void
 
@@ -90,5 +113,112 @@ export function registerElicitationHandler(
   serverName: string,
   setAppState: SetAppState,
 ): void {
-  return notBuilt('src/services/mcp/elicitationHandler.ts:112')
+  try {
+    client.setRequestHandler('elicitation/create', async (request, ctx): Promise<ElicitResult> => {
+      return withElicitationEntered(client, async () => {
+        try {
+          const params: ElicitationRequestEvent['params'] = request.params ?? {}
+          const isUrlMode = params.mode === 'url'
+          let riskPosture: string | undefined
+
+          logMCPDebug(
+            serverName,
+            `Received elicitation request (${isUrlMode ? 'url' : 'form'}): ${params.message ?? ''}`,
+          )
+          logForDebugging(`MCP elicitation request from ${serverName} (${isUrlMode ? 'url' : 'form'})`)
+
+          if (isUrlMode) {
+            const verdict = urlElicitationVerdict(serverName)
+            if (verdict.refuse) {
+              logMCPDebug(serverName, `Refused URL elicitation request: ${verdict.posture}`)
+              return { action: 'decline' }
+            }
+            if (verdict.posture) {
+              riskPosture = verdict.posture
+            }
+          }
+
+          const signal = ctx.mcpReq.signal
+          if (signal.aborted) {
+            logMCPDebug(serverName, 'Elicitation request already aborted')
+            return { action: 'cancel' }
+          }
+
+          const result = await new Promise<ElicitResult>(resolve => {
+            let settled = false
+            const onAbort = () => {
+              if (settled) return
+              settled = true
+              signal.removeEventListener('abort', onAbort)
+              resolve({ action: 'cancel' })
+            }
+            const respond = (response: ElicitResult) => {
+              if (settled) return
+              settled = true
+              signal.removeEventListener('abort', onAbort)
+              resolve(response)
+            }
+            signal.addEventListener('abort', onAbort, { once: true })
+
+            const event: ElicitationRequestEvent = {
+              serverName,
+              requestId: ctx.mcpReq.id,
+              params,
+              signal,
+              respond,
+              ...(isUrlMode && params.elicitationId !== undefined
+                ? { waitingState: { actionLabel: 'Skip confirmation' } }
+                : {}),
+              ...(riskPosture !== undefined ? { riskPosture } : {}),
+            }
+
+            setAppState(prev => ({
+              ...prev,
+              elicitation: {
+                ...prev.elicitation,
+                queue: [...prev.elicitation.queue, event],
+              },
+            }))
+          })
+
+          logMCPDebug(serverName, `Elicitation response: ${result.action}`)
+          return result
+        } catch (error) {
+          logMCPError(serverName, error)
+          return { action: 'cancel' }
+        }
+      })
+    })
+  } catch (error) {
+    passedOver(error)
+  }
+
+  try {
+    client.setNotificationHandler('notifications/elicitation/complete', notification => {
+      const elicitationId = notification.params?.elicitationId
+      if (typeof elicitationId !== 'string') return
+      logMCPDebug(serverName, `Received elicitation completion notification for ${elicitationId}`)
+      setAppState(prev => {
+        const queue = prev.elicitation.queue
+        const index = queue.findIndex(
+          event =>
+            event.serverName === serverName &&
+            event.params.mode === 'url' &&
+            event.params.elicitationId === elicitationId,
+        )
+        if (index === -1) return prev
+        const nextQueue = [...queue]
+        nextQueue[index] = { ...queue[index]!, completed: true }
+        return {
+          ...prev,
+          elicitation: {
+            ...prev.elicitation,
+            queue: nextQueue,
+          },
+        }
+      })
+    })
+  } catch (error) {
+    passedOver(error)
+  }
 }
