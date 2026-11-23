@@ -3,6 +3,7 @@ import { subprocessEnv } from '../subprocessEnv.js'
 import { memoizeWithLRU } from '../memoize.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
+import { isRecord } from '../isRecord.js'
 import { getCachedPowerShellPath } from '../shell/powershellDetection.js'
 import { commandByteBudget } from '../platform/spawn.js'
 
@@ -298,14 +299,10 @@ function transformCommandAst(raw: RawCommandElement): ParsedCommandElement {
       isStringLiteral && typeof element.value === 'string' ? element.value : textOf(element.text) ?? ''
     args.push(value)
     const child = element.child
-    if (typeof child === 'object' && child !== null && !Array.isArray(child)) {
+    if (child) {
       anyChild = true
-      children.push([
-        {
-          type: mapElementType('type' in child ? textOf(child.type) : undefined),
-          text: ('text' in child ? textOf(child.text) : undefined) ?? '',
-        },
-      ])
+      const fields: Record<string, unknown> = isRecord(child) ? child : {}
+      children.push([{ type: mapElementType(textOf(fields.type)), text: textOf(fields.text) ?? '' }])
     } else {
       children.push(undefined)
     }
