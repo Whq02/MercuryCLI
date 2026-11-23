@@ -24,8 +24,6 @@ import type {
   PermissionRuleValue,
   ToolPermissionRulesBySource,
 } from '../../types/permissions.js'
-import { applyPermissionRulesToPermissionContext } from './permissions.js'
-import { loadAllPermissionRulesFromDisk } from './permissionsLoader.js'
 
 
 function contentMatchesDangerousPattern(content: string | undefined, patterns: string[]): boolean {
@@ -486,6 +484,8 @@ export async function initializeToolPermissionContext(args: {
   const allowedTools = parseToolListFromCLI(args.allowedToolsCli).map(normalizeRuleString)
   const disallowedTools = parseToolListFromCLI(args.disallowedToolsCli)
   const baseTools = args.baseToolsCli !== undefined ? parseToolListFromCLI(args.baseToolsCli) : undefined
+  const { loadAllPermissionRulesFromDisk } = await import('./permissionsLoader.js')
+  const { applyPermissionRulesToPermissionContext } = await import('./permissions.js')
   const diskRules = loadAllPermissionRulesFromDisk()
   const isBypassPermissionsModeAvailable =
     (modeBypassesPermissions(args.permissionMode) || args.allowDangerouslySkipPermissions) &&
