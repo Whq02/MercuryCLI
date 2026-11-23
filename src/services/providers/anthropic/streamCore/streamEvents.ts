@@ -21,6 +21,7 @@ import {
   clearAnthropicUsageLimit,
   extractQuotaStatusFromHeaders,
 } from '../../../anthropicLimits.js'
+import { malformedStreamFrameText } from '../../../api/errors.js'
 import { EMPTY_USAGE } from '../../../api/logging.js'
 import { checkResponseForCacheBreak } from '../../../api/promptCacheBreakDetection.js'
 import { updateUsage } from '../cacheAndUsage.js'
@@ -104,6 +105,9 @@ export function startMessage(call: CallState, part: Extract<BetaRawMessageStream
 
 export function openContentBlock(contentBlocks: (BetaContentBlock | ConnectorTextBlock)[], part: Extract<BetaRawMessageStreamEvent, { type: 'content_block_start' }>): void {
   const block = part.content_block
+  if (!block) {
+    throw new Error(malformedStreamFrameText('content_block_start', 'content_block'))
+  }
   switch (block.type) {
     case 'tool_use':
       contentBlocks[part.index] = { ...block, input: '' }
@@ -111,17 +115,11 @@ export function openContentBlock(contentBlocks: (BetaContentBlock | ConnectorTex
     case 'server_tool_use':
       contentBlocks[part.index] = { ...block, input: '' }
       break
-    case 'mcp_tool_use':
-      contentBlocks[part.index] = { ...block, input: '' }
-      break
     case 'text':
-      contentBlocks[part.index] = { ...block, text: block.text ?? '' }
+      contentBlocks[part.index] = { ...block, text: '' }
       break
     case 'thinking':
-      contentBlocks[part.index] = { ...block, thinking: block.thinking ?? '', signature: block.signature ?? '' }
-      break
-    case 'compaction':
-      contentBlocks[part.index] = { ...block, content: block.content ?? '' }
+      contentBlocks[part.index] = { ...block, thinking: '', signature: '' }
       break
     default:
       contentBlocks[part.index] = { ...block }
@@ -130,6 +128,9 @@ export function openContentBlock(contentBlocks: (BetaContentBlock | ConnectorTex
 }
 
 export function applyBlockDelta(contentBlocks: (BetaContentBlock | ConnectorTextBlock)[], part: Extract<BetaRawMessageStreamEvent, { type: 'content_block_delta' }>): void {
+  if (!part.delta) {
+    throw new Error(malformedStreamFrameText('content_block_delta', 'delta'))
+  }
   const block = contentBlocks[part.index]
   if (!block) {
     throw new RangeError('Content block not found')
@@ -141,10 +142,12 @@ export function applyBlockDelta(contentBlocks: (BetaContentBlock | ConnectorText
       block.text += delta.text
       break
     case 'input_json_delta':
-      if (block.type !== 'tool_use' && block.type !== 'server_tool_use' && block.type !== 'mcp_tool_use') {
+      if (block.type !== 'tool_use' && block.type !== 'server_tool_use') {
         throw new Error('Content block is not a tool_use block')
       }
-      if (typeof block.input !== 'string') block.input = ''
+      if (typeof block.input !== 'string') {
+        throw new Error('Tool use block input is not a string')
+      }
       block.input += delta.partial_json
       break
     case 'thinking_delta':
@@ -153,13 +156,9 @@ export function applyBlockDelta(contentBlocks: (BetaContentBlock | ConnectorText
       break
     case 'signature_delta':
       if (block.type !== 'thinking') throw new Error('Content block is not a thinking block')
-      block.signature += delta.signature
+      block.signature = delta.signature
       break
     case 'citations_delta':
-      if (block.type === 'text') {
-        if (!Array.isArray(block.citations)) block.citations = []
-        block.citations.push(delta.citation)
-      }
       break
     case 'compaction_delta':
       if (block.type === 'compaction') {
@@ -265,6 +264,5 @@ export function noteWatchdogErrorExit(pass: StreamPass & { streamWatchdogFiredAt
 
 export function sdkAbortError(signal: AbortSignal, streamingError: APIUserAbortError): APIUserAbortError | APIConnectionTimeoutError {
   if (signal.aborted) return streamingError
-  logForDebugging('APIUserAbortError caught while caller signal is not aborted — treating as timeout', { level: 'warn' })
-  return new APIConnectionTimeoutError()
+  return new APIConnectionTimeoutError({ message: 'Request timed out' })
 }
