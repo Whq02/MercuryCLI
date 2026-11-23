@@ -5,11 +5,14 @@ import { useIsModalOverlayActive } from '../context/overlayContext.js'
 import type { PromptInputHelpers } from '../types/promptInputHelpers.js'
 import { findCommand } from '../commands.js'
 import type { Command } from '../commands.js'
-import { unbuilt } from '../pi/holes.js'
 
 const COMMAND_PREFIX = 'command:'
 
-const inertHelpers: PromptInputHelpers = unbuilt('src/hooks/useCommandKeybindings.tsx:12')
+const inertHelpers: PromptInputHelpers = {
+  setCursorOffset: () => {},
+  clearBuffer: () => {},
+  resetHistory: () => {},
+}
 
 export function CommandKeybindingHandlers({
   onSubmit,
