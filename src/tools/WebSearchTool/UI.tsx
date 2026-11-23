@@ -5,13 +5,12 @@ import { MessageResponse } from '../../components/MessageResponse.js'
 import { ToolCardMarker, ToolCardMeta, toolCardCountColor } from '../../components/mercury-ui/toolCardMeta.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
 import { TOOL_SUMMARY_MAX_LENGTH } from '../../constants/toolLimits.js'
-import { viaChip, type SearchBackendId } from '../../services/search/searchContract.js'
+import { viaChip } from '../../services/search/searchContract.js'
 import type { ProgressMessage } from '../../types/message.js'
 import type { WebSearchProgress } from '../../types/tools.js'
 import { truncate } from '../../utils/format.js'
 import { plural } from '../../utils/stringUtils.js'
 import type { Output } from './WebSearchTool.js'
-import { notBuilt } from '../../pi/holes.js'
 
 type Input = { query?: string; allowed_domains?: string[]; blocked_domains?: string[] }
 
@@ -53,8 +52,48 @@ function formatDuration(seconds: number): string {
   return seconds >= 1 ? `${Math.round(seconds)}s` : `${Math.round(seconds * 1000)}ms`
 }
 
-function SearchResultLine(arg0: { output: Output }): React.ReactElement {
-  return notBuilt('src/tools/WebSearchTool/UI.tsx:55')
+function SearchResultLine({ output }: { output: Output }): React.ReactElement {
+  const tokens = useMercuryTokens()
+  let searchCount = 0
+  let hitCount = 0
+  for (const entry of output.results) {
+    if (entry != null && typeof entry !== 'string') {
+      searchCount += 1
+      hitCount += entry.content.length
+    }
+  }
+  const metaParts: string[] = [formatDuration(output.durationSeconds)]
+  if (hitCount > 0) {
+    metaParts.push(`${hitCount} ${plural(hitCount, 'result')}`)
+  }
+  if (output.via && output.tier) {
+    metaParts.push(viaChip(output.via, output.tier))
+  }
+  if (output.cached) {
+    metaParts.push('from the session cache')
+  }
+  const summary = (
+    <MessageResponse height={1}>
+      <Text>
+        <ToolCardMarker />
+        Did{' '}
+        <Text bold color={toolCardCountColor()}>
+          {searchCount}
+        </Text>{' '}
+        {plural(searchCount, 'search', 'searches')}
+        <ToolCardMeta text={metaParts.join(' · ')} />
+      </Text>
+    </MessageResponse>
+  )
+  if (!output.hint) return summary
+  return (
+    <Box flexDirection="column">
+      {summary}
+      <MessageResponse height={1}>
+        <Text color={tokens.textMuted}>{output.hint}</Text>
+      </MessageResponse>
+    </Box>
+  )
 }
 
 export function renderToolResultMessage(output: Output): React.ReactNode {
