@@ -260,7 +260,7 @@ export async function maybeResizeAndDownsampleImageBuffer(
       return { buffer: imageBuffer, mediaType: sourceSubtype }
     }
     throw new ImageResizeError(
-      `Image (${formatFileSize(originalSize)}, ${formatFileSize(base64LengthOf(originalSize))} as base64), over ${limitWords(caps, role)}, and its format could not be decoded here to shrink it.`,
+      `The image is ${formatFileSize(originalSize)} (${formatFileSize(base64LengthOf(originalSize))} as base64), over ${limitWords(caps, role)}, and its format could not be decoded here to shrink it.`,
     )
   }
   const fitted = fitDimensions(dims.width, dims.height, caps)
@@ -312,10 +312,16 @@ export async function maybeResizeAndDownsampleImageBuffer(
   })
   let firstError: unknown = null
   let lastProduced: Buffer | null = null
+  let lastTried = { width: dims.width, height: dims.height, kind: 'PNG' }
   for (const candidate of candidates) {
     try {
       const produced = await attempt(sharp, imageBuffer, sourceSubtype, candidate.target, candidate.encoding)
       lastProduced = produced
+      lastTried = {
+        width: candidate.target?.width ?? dims.width,
+        height: candidate.target?.height ?? dims.height,
+        kind: candidate.encoding.kind === 'jpeg' ? 'JPEG' : 'PNG',
+      }
       if (produced.length <= caps.rawBytes) {
         const outHeader = imageDimensionsFromHeader(produced)
         const displayWidth = outHeader?.width ?? candidate.target?.width ?? dims.width
@@ -336,14 +342,15 @@ export async function maybeResizeAndDownsampleImageBuffer(
       passedOver(error)
     }
   }
+  const sizeWords = `${dims.width}x${dims.height} px, ${formatFileSize(imageBuffer.length)} (${formatFileSize(base64LengthOf(imageBuffer.length))} as base64)`
   if (lastProduced === null) {
-    const reason = firstError instanceof Error ? firstError.message : String(firstError)
+    const reason = firstError === null ? '' : firstError instanceof Error ? firstError.message : String(firstError)
     throw new ImageResizeError(
-      `Image (${dims.width}x${dims.height} px, ${formatFileSize(imageBuffer.length)}, ${formatFileSize(base64LengthOf(imageBuffer.length))} as base64), over ${limitWords(caps, role)}, and it could not be re-encoded here. ${reason}`,
+      `The image is ${sizeWords}, over ${limitWords(caps, role)}, and it could not be re-encoded here.${reason === '' ? '' : ` ${reason}.`}`,
     )
   }
   throw new ImageResizeError(
-    `Image (${dims.width}x${dims.height} px, ${formatFileSize(imageBuffer.length)}, ${formatFileSize(base64LengthOf(imageBuffer.length))} as base64), over ${limitWords(caps, role)}; even the smallest encoding tried (${formatFileSize(lastProduced.length)} ${subtypeOf(lastProduced)}) was ${formatFileSize(base64LengthOf(lastProduced.length))} as base64.`,
+    `The image is ${sizeWords}; even the smallest encoding tried (${lastTried.width}x${lastTried.height} px ${lastTried.kind}) is over ${limitWords(caps, role)}.`,
   )
 }
 
