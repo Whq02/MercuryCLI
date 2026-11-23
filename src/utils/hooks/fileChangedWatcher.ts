@@ -17,7 +17,8 @@ let currentCwd = ''
 let watcher: chokidar.FSWatcher | null = null
 let watchedPaths = new Set<string>()
 let dynamicWatchPaths: string[] = []
-let lastDynamicSorted: string[] = []
+let dynamicWatchPathsSorted: string[] = []
+let restarting: Promise<void> = Promise.resolve()
 
 function scope(): { sessionId: string } {
   return { sessionId: String(getSessionId()) }
@@ -83,9 +84,6 @@ async function startWatching(): Promise<void> {
       logForDebugging(`file.changed watcher error: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
     })
 }
-
-let restarting: Promise<void> = Promise.resolve()
-
 function restartWatching(): Promise<void> {
   const step = async (): Promise<void> => {
     if (watcher) {
@@ -107,7 +105,7 @@ async function disposeFileChangedWatcher(): Promise<void> {
   currentCwd = ''
   watchedPaths.clear()
   dynamicWatchPaths = []
-  lastDynamicSorted = []
+  dynamicWatchPathsSorted = []
 }
 
 function queueRestart(): void {
@@ -131,12 +129,12 @@ export function updateWatchPaths(paths: string[]): void {
   if (!initialized) return
   const nextSorted = [...paths].sort()
   if (
-    nextSorted.length === lastDynamicSorted.length &&
-    nextSorted.every((value, index) => value === lastDynamicSorted[index])
+    nextSorted.length === dynamicWatchPathsSorted.length &&
+    nextSorted.every((value, index) => value === dynamicWatchPathsSorted[index])
   ) {
     return
   }
   dynamicWatchPaths = [...paths]
-  lastDynamicSorted = nextSorted
+  dynamicWatchPathsSorted = nextSorted
   queueRestart()
 }
