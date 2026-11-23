@@ -2,7 +2,6 @@ import type { ToolPermissionContext } from '../../Tool.js'
 import { logForDebugging } from '../debug.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { isFlowGateEnabled, transitionPermissionMode } from './permissionSetup.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 function bypassAvailable(context: ToolPermissionContext): boolean {
@@ -17,11 +16,37 @@ function canCycleToFlow(_context: ToolPermissionContext): boolean {
 export function getNextPermissionMode(
   toolPermissionContext: ToolPermissionContext,
 ): PermissionMode {
-  return notBuilt('src/utils/permissions/getNextPermissionMode.ts:16')
+  switch (toolPermissionContext.mode) {
+    case 'default':
+      return 'implement'
+    case 'implement':
+      return 'apollo'
+    case 'apollo':
+      if (canCycleToFlow(toolPermissionContext)) return 'flow'
+      if (bypassAvailable(toolPermissionContext)) return 'sovereign'
+      return 'default'
+    case 'flow':
+      if (bypassAvailable(toolPermissionContext)) return 'sovereign'
+      return 'default'
+    case 'sovereign':
+    case 'dontAsk':
+    default:
+      return 'default'
+  }
 }
 
 export function cyclePermissionMode(
   context: ToolPermissionContext,
 ): { nextMode: PermissionMode; context: ToolPermissionContext } {
-  return notBuilt('src/utils/permissions/getNextPermissionMode.ts:40')
+  const nextMode = getNextPermissionMode(context)
+  let nextContext = context
+  try {
+    nextContext = transitionPermissionMode(context.mode, nextMode, context)
+  } catch (error) {
+    logForDebugging(
+      `Failed to transition permission mode from ${context.mode} to ${nextMode}: ${error instanceof Error ? error.message : String(error)}`,
+      { level: 'error' },
+    )
+  }
+  return { nextMode, context: nextContext }
 }
