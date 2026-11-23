@@ -3,10 +3,27 @@ import { usePublish } from '../effects.js'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { useNotifications } from '../../context/notifications.js'
 import { getModelDeprecationWarning } from '../../utils/model/deprecation.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const NOTIFICATION_KEY = 'model-deprecation-warning'
 
 export function useDeprecationWarningNotification(model: string): void {
-  return notBuilt('src/hooks/notifs/useDeprecationWarningNotification.tsx:10')
+  const { addNotification } = useNotifications()
+  const lastWarningRef = useRef<string | null>(null)
+
+  usePublish(() => {
+    if (getIsRemoteMode()) return
+    const warning = getModelDeprecationWarning(model)
+    if (!warning) {
+      lastWarningRef.current = null
+      return
+    }
+    if (warning === lastWarningRef.current) return
+    lastWarningRef.current = warning
+    addNotification({
+      key: NOTIFICATION_KEY,
+      text: warning,
+      color: 'warning',
+      priority: 'high',
+    })
+  }, [model, addNotification])
 }
