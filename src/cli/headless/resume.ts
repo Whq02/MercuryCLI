@@ -32,6 +32,7 @@ import { recordContentReplacement, listProjectSessions, sessionIdOfListing } fro
 import { sessionFilePath } from '../../utils/sessionStorage/loading.js'
 import { claimSessionWriter } from '../../utils/sessionStorage/sessionWriter.js'
 import { resumeMissMessage } from '../../utils/sessionStorage/resumeMiss.js'
+import type { UUID } from 'node:crypto'
 
 export function emitLoadError(
   message: string,
@@ -123,7 +124,7 @@ export async function loadInitialMessages(
   if (options.continue) {
     let loaded: LoadedConversation
     try {
-      const listings = await listProjectSessions(1)
+      const listings = await listProjectSessions()
       const latest = listings[0]
       const latestId = latest ? sessionIdOfListing(latest) : undefined
       if (!latest || !latestId) {
