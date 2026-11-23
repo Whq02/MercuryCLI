@@ -351,7 +351,7 @@ async function runInlineSkill(
   const model: string | undefined = processed.model
   const effort = command.effort
   const commandOpenTag = `<${COMMAND_MESSAGE_TAG}>`
-  const filtered: Message[] = (processed.messages as Message[]).filter(msg => {
+  const filtered: Message[] = processed.messages.filter(msg => {
     if (msg.type === 'progress') return false
     if (
       msg.type === 'user' &&
