@@ -236,7 +236,6 @@ function MessagesInner({
           param={{ type: 'thinking', thinking: streamingThinking.thinking }}
           addMargin
           verbose={verbose}
-          isTranscriptMode={isTranscriptMode}
         />
       ) : null}
       <FoldStatusRow rows={collapsed} conversationId={conversationId} />
