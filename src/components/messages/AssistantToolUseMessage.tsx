@@ -31,7 +31,6 @@ import { HookProgressMessage } from './HookProgressMessage.js'
 import { ToolRowLead, toolRowStateOf } from './ToolRowLead.js'
 import { TranscriptNameplate } from './TranscriptNameplate.js'
 import { useSelectedMessageBg } from '../messageActions.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const EDIT_META_TOOLS = new Set(['Edit', 'Write', 'MultiEdit'])
 const NAME_MIN_COLUMNS = 12
@@ -131,7 +130,22 @@ function editMetaCounts(
 }
 
 
-export function AssistantToolUseMessage(arg0: {
+const HEAD_RESERVATION_CELLS = 38
+
+export function AssistantToolUseMessage({
+  param,
+  addMargin = false,
+  tools,
+  verbose = false,
+  inProgressToolUseIDs,
+  progressMessagesForMessage = [],
+  shouldAnimate = false,
+  shouldShowDot = false,
+  inProgressToolCallCount = 1,
+  lookups,
+  isTranscriptMode = false,
+  startedAtMs = null,
+}: {
   param: ToolUseBlockParam
   addMargin?: boolean
   tools: Tools
@@ -146,7 +160,238 @@ export function AssistantToolUseMessage(arg0: {
   isTranscriptMode?: boolean
   startedAtMs?: number | null
 }): React.ReactNode {
-  return notBuilt('src/components/messages/AssistantToolUseMessage.tsx:134')
+  useFluxMountMark(`tool-row:${param.id}`)
+  const { columns, rows } = useTerminalSize()
+  const selectedBg = useSelectedMessageBg()
+
+  if (tools.length === 0) {
+    logError(new Error('AssistantToolUseMessage rendered with no tools'))
+    return null
+  }
+
+  const tool = findToolForRender(tools, param.name)
+  const resolved = lookups.resolvedToolUseIDs.has(param.id)
+  const errored = lookups.erroredToolUseIDs.has(param.id)
+  const denied = lookups.deniedToolUseIDs.has(param.id)
+  const isInProgress = inProgressToolUseIDs.has(param.id)
+  const isQueued = !resolved && !isInProgress
+  const isRunning = isInProgress && !resolved
+  if (!isRunning) {
+    toolStartStamps.delete(param.id)
+  }
+
+  const displayName = safeUserFacingName(tool, param.input)
+  if (displayName === '') {
+    return null
+  }
+
+  const renderProgressBlock = (): React.ReactNode => {
+    const hookNode = (
+      <HookProgressMessage
+        hookEvent="tool.before"
+        toolUseID={param.id}
+        lookups={lookups}
+        progress={progressMessagesForMessage}
+        isTranscriptMode={isTranscriptMode}
+      />
+    )
+    let toolProgress: React.ReactNode = null
+    if (tool.renderToolUseProgressMessage) {
+      try {
+        const filtered = filterToolProgressMessages(progressMessagesForMessage)
+        toolProgress = tool.renderToolUseProgressMessage(filtered, {
+          tools,
+          verbose,
+          terminalSize: { columns, rows },
+          inProgressToolCallCount,
+          isTranscriptMode,
+          toolUseID: param.id,
+        })
+      } catch (error) {
+        logError(error)
+        toolProgress = null
+      }
+    }
+    const wrappedProgress =
+      toolProgress === null || toolProgress === undefined || toolProgress === false
+        ? null
+        : React.isValidElement(toolProgress)
+          ? toolProgress
+          : <Text>{toolProgress}</Text>
+    return (
+      <>
+        {hookNode}
+        {wrappedProgress}
+      </>
+    )
+  }
+
+  if (tool.isTransparentWrapper?.()) {
+    if (!isRunning) return null
+    return (
+      <Box flexDirection="column" marginTop={addMargin ? 1 : 0}>
+        {renderProgressBlock()}
+      </Box>
+    )
+  }
+
+  let parsedInput: unknown = param.input
+  if (tool.inputSchema?.safeParse) {
+    const parsed = tool.inputSchema.safeParse(param.input)
+    if (!parsed.success) {
+      return null
+    }
+    parsedInput = parsed.data
+  }
+
+  let toolUseMessage: React.ReactNode | string | null = null
+  try {
+    toolUseMessage = tool.renderToolUseMessage(parsedInput, {
+      verbose,
+      theme: undefined,
+    })
+  } catch (error) {
+    logError(error)
+    toolUseMessage = ''
+  }
+  if (toolUseMessage === null || toolUseMessage === undefined) {
+    return null
+  }
+
+  let toolUseTag: React.ReactNode | string | null = null
+  if (tool.renderToolUseTag) {
+    try {
+      toolUseTag = tool.renderToolUseTag(parsedInput, { verbose })
+    } catch (error) {
+      logError(error)
+      toolUseTag = null
+    }
+  }
+
+  let nameBgColor: string | undefined
+  if (tool.userFacingNameBackgroundColor) {
+    try {
+      nameBgColor = tool.userFacingNameBackgroundColor(parsedInput)
+    } catch (error) {
+      logError(error)
+      nameBgColor = undefined
+    }
+  }
+
+  const rowState = toolRowStateOf({ resolved, errored, denied })
+  const resultRow = lookups.toolResultByToolUseID.get(param.id)
+  const rawResult =
+    resultRow && resultRow.type === 'user' ? resultRow.toolUseResult : undefined
+  const showCompactMeta =
+    resolved && !errored && !verbose && !isTranscriptMode && rawResult !== undefined
+
+  const editCounts =
+    showCompactMeta && EDIT_META_TOOLS.has(tool.name)
+      ? editMetaCounts(rawResult)
+      : null
+  const editMetaText =
+    editCounts !== null ? ` · +${editCounts.added}/-${editCounts.removed}` : null
+  const showEditMeta =
+    editMetaText !== null &&
+    HEAD_RESERVATION_CELLS + stringWidth(editMetaText) <= columns
+
+  const resultSummary = showCompactMeta
+    ? summarizeToolResult(tool.name, rawResult)
+    : null
+  const summaryWidth = resultSummary !== null ? stringWidth(resultSummary) : 0
+  const showInlineSummary =
+    resultSummary !== null &&
+    summaryWidth <= INLINE_SUMMARY_MAX_CELLS &&
+    HEAD_RESERVATION_CELLS + 1 + summaryWidth <= columns
+  const showBlockSummary = resultSummary !== null && !showInlineSummary
+
+  let queuedNode: React.ReactNode = null
+  if (isQueued && tool.renderToolUseQueuedMessage) {
+    try {
+      queuedNode = tool.renderToolUseQueuedMessage(parsedInput, { verbose })
+    } catch (error) {
+      logError(error)
+      queuedNode = null
+    }
+  }
+
+  const nameWidth = stringWidth(displayName)
+  const paddedName =
+    nameBgColor === undefined && nameWidth < NAME_MIN_COLUMNS
+      ? `${displayName}${' '.repeat(NAME_MIN_COLUMNS - nameWidth)}`
+      : displayName
+
+  const hasTarget =
+    toolUseMessage !== '' &&
+    toolUseMessage !== false
+  const hasTag =
+    toolUseTag !== null &&
+    toolUseTag !== undefined &&
+    toolUseTag !== '' &&
+    toolUseTag !== false
+
+  return (
+    <Box
+      flexDirection="column"
+      marginTop={addMargin ? 1 : 0}
+      backgroundColor={selectedBg}
+    >
+      <Box flexDirection="row">
+        {shouldShowDot ? (
+          <Box flexShrink={0}>
+            <TranscriptNameplate />
+          </Box>
+        ) : null}
+        <Text wrap="truncate-middle">
+          <ToolRowLead family={toolFamilyFor(tool.name)} state={rowState} />
+          {nameBgColor !== undefined ? (
+            <Text bold backgroundColor={nameBgColor} color="inverseText">
+              {displayName}
+            </Text>
+          ) : (
+            <Text bold>{paddedName}</Text>
+          )}
+          {hasTarget ? <Text color="subtle"> {toolUseMessage}</Text> : null}
+          {isRunning && shouldAnimate ? (
+            <RunningToolElapsed
+              id={param.id}
+              running={true}
+              startedAtMs={startedAtMs}
+            />
+          ) : null}
+          {showEditMeta && editCounts !== null ? (
+            <Text>
+              <Text dimColor> · </Text>
+              <Text color="success">+{editCounts.added}</Text>
+              <Text dimColor>/</Text>
+              <Text color="error">-{editCounts.removed}</Text>
+            </Text>
+          ) : null}
+          {showInlineSummary && resultSummary !== null ? (
+            <Text dimColor> {resultSummary}</Text>
+          ) : null}
+          {hasTag ? <Text> {toolUseTag}</Text> : null}
+        </Text>
+      </Box>
+      {showBlockSummary && resultSummary !== null ? (
+        <MessageResponse height={1}>
+          <Text dimColor wrap="truncate">
+            {resultSummary}
+          </Text>
+        </MessageResponse>
+      ) : null}
+      {isRunning ? renderProgressBlock() : null}
+      {isRunning &&
+      shouldAnimate &&
+      !isTranscriptMode &&
+      tool.name === BASH_TOOL_NAME ? (
+        <RunningShellBackgroundHint id={param.id} />
+      ) : null}
+      {queuedNode !== null && queuedNode !== undefined && queuedNode !== false ? (
+        <MessageResponse height={1}>{queuedNode}</MessageResponse>
+      ) : null}
+    </Box>
+  )
 }
 
 export default AssistantToolUseMessage
