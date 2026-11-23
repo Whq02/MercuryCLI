@@ -273,10 +273,7 @@ export function parseAgentFromJson(
   }
   const data = parsed.data
   const tools = withMemoryVerbs(data.tools, data.memory)
-  const mcpServers =
-    data.mcpServers !== undefined && data.mcpServers.length > 0
-      ? (data.mcpServers as AgentMcpServerSpec[])
-      : undefined
+  const mcpServers = validateMcpServers(data.mcpServers, `json:${name}`)
   const hooks = validateHooks(data.hooks, `json:${name}`)
   const standingRule = readStandingRule(data)
 
