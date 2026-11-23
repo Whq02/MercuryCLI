@@ -25,32 +25,29 @@ import type { CallState, StreamPass } from './state.js'
 type CallLedger = ReturnType<typeof createCallLedger>
 
 export function preEventReissueRow(call: CallState, streamingError: unknown, preEventSilenceWords: () => string, STREAM_IDLE_TIMEOUT_MS: number): SystemAPIErrorMessage {
-  const words = `${preEventSilenceWords()}; reissuing the stream`
-  logForDebugging(
-    `Pre-first-event stream silence; reissuing the stream on a fresh connection: ${errorMessage(streamingError)}`,
-    { level: 'warn' },
-  )
-  logForDiagnosticsNoPII('info', 'cli_stream_pre_event_reissue')
-  resetApiConnectionPool()
+  const silence = preEventSilenceWords()
   call.preFirstEventStreamRetryUsed = true
-  const noticeError = Object.assign(new Error(words), { cause: streamingError })
+  resetApiConnectionPool()
+  logForDiagnosticsNoPII('info', 'cli_stream_preevent_streaming_retry')
+  logForDebugging(`watchdog: ${silence} — reissuing the stream (pass 2)`, { level: 'warn' })
+  const noticeError = Object.assign(new Error(`${silence}; reissuing the stream`), { cause: streamingError })
   return createSystemAPIErrorMessage(noticeError, 0, 1, 2, {
     recoveryTimeoutMs: STREAM_IDLE_TIMEOUT_MS,
   })
 }
 
 export function streamCutReissueRow(call: CallState, options: Options, cut: NonNullable<ReturnType<typeof transportCutOf>>): SystemStreamCutMessage {
-  const words = `${transportCutWords('Anthropic', cut)} — reissuing the stream on a fresh connection (pass 2)`
-  logForDebugging(words, { level: 'warn' })
-  logForDiagnosticsNoPII('info', 'cli_stream_cut_reissue')
-  resetApiConnectionPool()
+  const cutWords = transportCutWords('Anthropic', cut)
   call.streamCutRetryUsed = true
+  resetApiConnectionPool()
   if (options.onStreamingFallback) {
     options.onStreamingFallback()
   }
+  logForDiagnosticsNoPII('warn', 'cli_stream_cut_streaming_retry')
+  logForDebugging(`${cutWords} — reissuing the stream on a fresh connection (pass 2)`, { level: 'warn' })
   return createStreamCutMessage({
     count: 1,
-    content: words,
+    content: `${cutWords}; the request was sent again on a fresh connection (reissue 1 of 1)`,
     road: 'Anthropic',
     sent: cut.words,
     code: cut.code,
@@ -102,10 +99,7 @@ export function oneShotAnswerOf(call: CallState, result: BetaMessage, noteServed
 }
 
 export function streamCreation404Row(call: CallState, options: Options, originalError: APIError): SystemAPIErrorMessage {
-  logForDebugging(
-    `Stream creation failed with 404; retrying as one shot: ${errorMessage(originalError)}`,
-    { level: 'warn' },
-  )
+  logForDebugging('The streaming endpoint answered 404; the request is retried as one shot', { level: 'warn' })
   call.didFallBackToNonStreaming = true
   if (options.onStreamingFallback) {
     options.onStreamingFallback()
