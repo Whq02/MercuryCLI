@@ -121,8 +121,9 @@ export async function checkCommandOperatorPermissions<I extends { command: strin
   )
   const anyAsk = [...reasons.values()].some(result => result.behavior === 'ask')
   const message = createPermissionRequestMessage('Bash', decisionReason)
+  const offered = suggestions.length > 0 ? { suggestions } : {}
   if (anyAsk) {
-    return { behavior: 'ask', message, decisionReason, suggestions }
+    return { behavior: 'ask', message, decisionReason, ...offered }
   }
-  return { behavior: 'passthrough', message, decisionReason, suggestions }
+  return { behavior: 'passthrough', message, decisionReason, ...offered }
 }
