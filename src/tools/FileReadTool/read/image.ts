@@ -9,7 +9,6 @@ import type { Output, CropBox, LaneResult } from './schema.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { createChildAbortController } from '../../../utils/abortController.js'
 import { withDeadline } from '../../../utils/deadline.js'
-import { getImageProcessor } from '../../../utils/imageProcessor/imageProcessor.js'
 
 const IMAGE_TOKEN_BUDGET_DEFAULT = 25000
 const IMAGE_CAPTION_OCR_CEILING_MS = 3_000
@@ -69,7 +68,6 @@ export async function readImageWithTokenBudget(
   if (rawBuffer.length === 0) {
     throw new Error(`Empty image file (zero bytes): ${filePath}`)
   }
-  const originalSize = rawBuffer.length
   let buffer = rawBuffer
   let cropped: { box: CropBox; asked?: CropBox; full: { width: number; height: number } } | undefined
   if (crop !== undefined) {
@@ -86,6 +84,7 @@ export async function readImageWithTokenBudget(
       full: cut.full,
     }
   }
+  const originalSize = buffer.length
   const detected = detectImageFormatFromBuffer(buffer)
   const ext = detected.slice('image/'.length)
   let resized: { buffer: Buffer; mediaType: string; dimensions?: ImageDimensions }
@@ -114,12 +113,8 @@ export async function readImageWithTokenBudget(
       ...(cropped !== undefined ? { cropped } : {}),
     }
   }
-  const effectiveMaxTokens =
-    maxBytes !== undefined
-      ? Math.min(tokenBudget, Math.floor(Math.ceil(maxBytes / 3) * 4 * 0.125))
-      : tokenBudget
   try {
-    const compressed = await compressImageBufferWithTokenLimit(resized.buffer, effectiveMaxTokens, resizedMime)
+    const compressed = await compressImageBufferWithTokenLimit(resized.buffer, tokenBudget, resizedMime)
     return {
       type: 'image',
       file: {
@@ -130,9 +125,10 @@ export async function readImageWithTokenBudget(
       ...(cropped !== undefined ? { cropped } : {}),
     }
   } catch (error) {
-    passedOver(error)
+    logError(error)
   }
   try {
+    const { getImageProcessor } = await import('../../../utils/imageProcessor/imageProcessor.js')
     const sharp = await getImageProcessor()
     const fallback = await sharp(buffer)
       .resize(400, 400, { fit: 'inside', withoutEnlargement: true })
@@ -148,14 +144,13 @@ export async function readImageWithTokenBudget(
       ...(cropped !== undefined ? { cropped } : {}),
     }
   } catch (fallbackError) {
-    passedOver(fallbackError)
+    logError(fallbackError)
     return {
       type: 'image',
       file: {
         base64,
         type: resizedMime,
         originalSize,
-        ...(resized.dimensions !== undefined ? { dimensions: resized.dimensions } : {}),
       },
       ...(cropped !== undefined ? { cropped } : {}),
     }
