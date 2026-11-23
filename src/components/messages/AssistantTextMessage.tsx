@@ -40,7 +40,6 @@ import { ENVELOPE_TAG, type DeclaredEnvelope } from '../../services/agentResults
 import { parseDeclaration } from '../../services/agentResults/normalize.js'
 import { withoutMissionMetSentinel } from '../../services/mission/sentinel.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const subscribeFocusedRowModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
 const getFocusedRowModel = (): string => getFocusedSessionConnector().modelFacts().main
@@ -140,7 +139,14 @@ export function crewmateCloseNoteOf(declared: DeclaredEnvelope): string {
   return `close note — ${parts.length > 0 ? parts.join(' · ') : 'nothing declared'}`
 }
 
-export function AssistantTextMessage(arg0: {
+export function AssistantTextMessage({
+  param,
+  addMargin = false,
+  shouldShowDot = false,
+  verbose = false,
+  streamFaultRecovered = false,
+  width,
+}: {
   param: TextBlockParam
   addMargin?: boolean
   shouldShowDot?: boolean
@@ -148,7 +154,196 @@ export function AssistantTextMessage(arg0: {
   streamFaultRecovered?: boolean
   width?: number | string
 }): React.ReactNode {
-  return notBuilt('src/components/messages/AssistantTextMessage.tsx:143')
+  const mainModel = useSyncExternalStore(
+    subscribeFocusedRowModel,
+    getFocusedRowModel,
+    getFocusedRowModel,
+  )
+  const crewmatePlate = React.useContext(CrewmatePlateContext)
+  const { text } = param
+
+  if (!text || text.trim() === '' || text === NO_RESPONSE_REQUESTED) {
+    return null
+  }
+
+  if (isRateLimitErrorMessage(text)) {
+    return <RateLimitMessage addMargin={addMargin} text={text} />
+  }
+
+  if (text === PROMPT_TOO_LONG_ERROR_MESSAGE) {
+    const upgrade = getUpgradeMessage(mainModel)
+    return (
+      <Box flexDirection="column" marginTop={addMargin ? 1 : 0}>
+        <Text color="error">
+          Context limit reached · /compact or /clear to continue
+        </Text>
+        {upgrade ? <Text dimColor>{upgrade.tip}</Text> : null}
+      </Box>
+    )
+  }
+
+  if (text === CREDIT_BALANCE_TOO_LOW_ERROR_MESSAGE) {
+    return (
+      <Box flexDirection="column" marginTop={addMargin ? 1 : 0}>
+        <Text color="error">
+          Anthropic says this account&apos;s credit balance is too low · Add funds at {BILLING_SETTINGS_URL}
+        </Text>
+      </Box>
+    )
+  }
+
+  if (text === INVALID_API_KEY_ERROR_MESSAGE) {
+    const keychainLocked = isMacOsKeychainLocked()
+    const otherProviders: string[] = []
+    try {
+      const seen = new Set<string>()
+      for (const entry of walletEntries()) {
+        if (entry.provider === 'anthropic') continue
+        const display = providerDisplayName(entry.provider)
+        if (!seen.has(display)) {
+          seen.add(display)
+          otherProviders.push(display)
+        }
+      }
+    } catch (error) {
+      passedOver(error)
+      otherProviders.length = 0
+    }
+
+    let switchTarget = 'their models'
+    if (otherProviders.length > 0) {
+      try {
+        const decision = computedDefault()
+        if (decision.provider !== null && decision.provider !== 'anthropic' && decision.row !== '') {
+          switchTarget = decision.row
+        }
+      } catch (error) {
+        passedOver(error)
+      }
+    }
+
+    const keychainWarning = keychainLocked ? (
+      <Text dimColor>
+        macOS Keychain is locked · Run &quot;security unlock-keychain&quot; in your terminal to unlock it.
+      </Text>
+    ) : null
+
+    if (otherProviders.length === 0) {
+      return (
+        <Box flexDirection="column" marginTop={addMargin ? 1 : 0}>
+          <Text color="error">Not logged in · Run /logins</Text>
+          {keychainWarning}
+        </Box>
+      )
+    }
+
+    const joinedProviders = otherProviders.join(' · ')
+    const verb = otherProviders.length > 1 ? 'are' : 'is'
+    return (
+      <Box flexDirection="column" marginTop={addMargin ? 1 : 0}>
+        <Text color="error">
+          No {providerDisplayName('anthropic')} account for this model
+        </Text>
+        <Text dimColor>
+          {joinedProviders} {verb} connected — /model switches to {switchTarget}, or {familyRouteWords('anthropic')} adds one.
+        </Text>
+        {keychainWarning}
+      </Box>
+    )
+  }
+
+  if (isInvalidCredentialWords(text) || text === CHOOSE_A_MODEL_DOOR) {
+    return (
+      <Box flexDirection="column" marginTop={addMargin ? 1 : 0}>
+        <Text color="error">{text}</Text>
+      </Box>
+    )
+  }
+
+  if (text === API_TIMEOUT_ERROR_MESSAGE) {
+    const configuredTimeout = flagEnv('MERCURY_API_TIMEOUT_MS')
+    const parsedTimeout = apiTimeoutMsOverride(configuredTimeout)
+    const hint = configuredTimeout
+      ? parsedTimeout === null
+        ? `MERCURY_API_TIMEOUT_MS is set to ${configuredTimeout}, which is not a whole number of milliseconds — the default applied; unset it or set e.g. 120000.`
+        : `MERCURY_API_TIMEOUT_MS is set to ${configuredTimeout} — increase it to allow slower responses.`
+      : `Set the MERCURY_API_TIMEOUT_MS environment variable to raise the request budget (current default: ${DEFAULT_API_TIMEOUT_MS} ms).`
+    return (
+      <Box flexDirection="column" marginTop={addMargin ? 1 : 0}>
+        <Text color="error">{text}</Text>
+        <Text dimColor>{hint}</Text>
+      </Box>
+    )
+  }
+
+  if (text === CUSTOM_OFF_SWITCH_MESSAGE) {
+    return (
+      <Box flexDirection="column" marginTop={addMargin ? 1 : 0}>
+        <Text color="warning">{text}</Text>
+      </Box>
+    )
+  }
+
+  if (text === INTERRUPT_MESSAGE || text === INTERRUPT_MESSAGE_FOR_TOOL_USE) {
+    return (
+      <Box marginTop={addMargin ? 1 : 0}>
+        <InterruptedByUser />
+      </Box>
+    )
+  }
+
+  if (startsWithApiErrorPrefix(text)) {
+    if (streamFaultRecovered && !verbose && isContinuableStreamFaultText(text)) {
+      return null
+    }
+    return (
+      <Box flexDirection="column" marginTop={addMargin ? 1 : 0}>
+        <ErrorCard text={text} verbose={verbose} recovered={streamFaultRecovered} />
+      </Box>
+    )
+  }
+
+  const hasEnvelope = crewmatePlate !== null && text.includes(`<${ENVELOPE_TAG}>`)
+  let proseText = text
+  let closeNote: string | null = null
+  if (hasEnvelope) {
+    const parsed = parseDeclaration(text)
+    proseText = parsed.prose
+    if (parsed.declared !== null) {
+      closeNote = crewmateCloseNoteOf(parsed.declared)
+    } else if (parsed.malformedRaw !== null) {
+      closeNote = `close note (unreadable) — ${parsed.malformedRaw}`
+    }
+  }
+
+  const cleanProse = withoutMissionMetSentinel(proseText)
+  const hasProse = cleanProse.trim() !== ''
+  if (!hasProse && closeNote === null) {
+    return null
+  }
+
+  const leadingPlate = shouldShowDot ? <TranscriptNameplate /> : undefined
+  const color = param.phase === 'commentary' ? 'subtle' : undefined
+
+  if (!hasProse && closeNote !== null) {
+    return (
+      <Box flexDirection="column" marginTop={addMargin ? 1 : 0} width={width}>
+        <Text dimColor>
+          {leadingPlate}
+          {closeNote}
+        </Text>
+      </Box>
+    )
+  }
+
+  return (
+    <Box flexDirection="column" marginTop={addMargin ? 1 : 0} width={width}>
+      <Markdown color={color} leadingInline={leadingPlate}>
+        {cleanProse}
+      </Markdown>
+      {closeNote !== null ? <Text dimColor>{closeNote}</Text> : null}
+    </Box>
+  )
 }
 
 export default AssistantTextMessage
