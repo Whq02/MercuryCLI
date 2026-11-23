@@ -6,7 +6,7 @@ import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { PeerClosed, PeerDeadline } from '../../runner/wire/peer.js'
-import { RPC_METHOD_NOT_FOUND } from '../../runner/wire/errors.js'
+import { isRpcError, RPC_METHOD_NOT_FOUND } from '../../runner/wire/errors.js'
 import {
   latchScheduleRow,
   scheduleEditDoor,
@@ -56,6 +56,7 @@ const outputSchema = lazySchema(() =>
 type OutputSchema = ReturnType<typeof outputSchema>
 export type CreateOutput = z.infer<OutputSchema>
 const CRON_CREATE_ANSWER_DEADLINE_MS = 10_000
+const methodNotFoundErrorSchema = z.object({ code: z.literal(RPC_METHOD_NOT_FOUND) })
 
 function refuse(message: string, errorCode = 1): ValidationResult {
   return { result: false, message, errorCode }
@@ -181,8 +182,10 @@ export const CronCreateTool: Tool<InputSchema, CreateOutput> = buildTool({
       answer = await askSchedule(edit, signal)
     } catch (error) {
       if (signal?.aborted) throw error
-      const code = typeof error === 'object' && error !== null ? (error as { code?: unknown }).code : undefined
-      if (code === RPC_METHOD_NOT_FOUND) {
+      if (
+        (isRpcError(error) && error.code === RPC_METHOD_NOT_FOUND) ||
+        methodNotFoundErrorSchema.safeParse(error).success
+      ) {
         return submitLegacy(true)
       }
       const reason =
