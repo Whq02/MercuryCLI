@@ -14,7 +14,6 @@ const wrapLines = (text: string, width: number): string[] =>
 type LineObject = {
   code: string
   type: 'add' | 'remove' | 'nochange'
-  originalCode: string
   wordDiff: boolean
   matchedLine?: LineObject
 }
@@ -37,7 +36,6 @@ function transformLinesToObjects(lines: string[]): LineObject[] {
     return {
       code: line.slice(1),
       type,
-      originalCode: line,
       wordDiff: false,
     }
   })
