@@ -405,14 +405,9 @@ export function shellCommandSegments(command: string): { words: string[]; piped:
     if (quote === '"') {
       if (ch === '"') {
         quote = null
-      } else if ((ch === '\\' || ch === '`') && i + 1 < command.length) {
-        const next = command[i + 1]!
-        if (ch === '`' || next === '"' || next === '\\') {
-          current += next
-          i++
-        } else {
-          current += ch
-        }
+      } else if (ch === '`' && i + 1 < command.length) {
+        current += command[i + 1]!
+        i++
       } else {
         current += ch
       }
