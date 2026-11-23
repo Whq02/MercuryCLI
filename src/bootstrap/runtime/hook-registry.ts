@@ -1,3 +1,4 @@
+import { entriesOf } from '../../utils/entriesOf.js'
 import type { HookEvent } from '../../utils/hooks/contract.js'
 import type { ExtensionHookMatcher } from 'src/utils/settings/types.js'
 
@@ -10,9 +11,8 @@ export class HookRegistryOwner {
     if (!this.registeredHooks) {
       this.registeredHooks = {}
     }
-    for (const [key, matchers] of Object.entries(hooks)) {
+    for (const [event, matchers] of entriesOf(hooks)) {
       if (!matchers) continue
-      const event = key as HookEvent
       let list = this.registeredHooks[event]
       if (!list) {
         list = []
