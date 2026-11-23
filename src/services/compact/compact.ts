@@ -338,7 +338,7 @@ async function finishCommittedFold(params: {
   isAutoCompact: boolean
   overflow: OverflowSignal | undefined
   preCompactTokenCount: number
-  truePostCompactTokenCount: number
+  tokensAfter: number
   prose: string
   proseSkippedReceipt: string | undefined
   rawSummary: string
@@ -357,7 +357,7 @@ async function finishCommittedFold(params: {
     isAutoCompact,
     overflow,
     preCompactTokenCount,
-    truePostCompactTokenCount,
+    tokensAfter,
     prose,
     proseSkippedReceipt,
     rawSummary,
@@ -368,7 +368,7 @@ async function finishCommittedFold(params: {
     method: 'summary',
     trigger: boundaryTrigger,
     tokensBefore: preCompactTokenCount,
-    tokensAfter: landed.truePostCompactTokenCount,
+    tokensAfter,
     summary: prose,
   })
   const hookResults: Message[] = [...beforeHookRows, ...afterHookRows]
@@ -385,7 +385,7 @@ async function finishCommittedFold(params: {
   const finalResult: CompactionResult = {
     ...landed.partial,
     hookResults,
-    truePostCompactTokenCount,
+    truePostCompactTokenCount: tokensAfter,
   }
   restoreBoundPrefixFromMessages(buildPostCompactMessages(finalResult), { fold: true })
 
@@ -393,7 +393,7 @@ async function finishCommittedFold(params: {
     kind: isAutoCompact ? 'auto-compact' : 'manual-compact',
     reason: overflow !== undefined ? `overflow:${overflow.shape}` : trigger,
     tokensBefore: preCompactTokenCount,
-    tokensAfter: landed.truePostCompactTokenCount,
+    tokensAfter,
     preservedTailCount: landed.messagesToKeep?.length ?? 0,
     capsule: resolveCapsuleState(proseSkippedReceipt, rawSummary, capsule),
   })
@@ -646,7 +646,8 @@ export async function compactConversation(
       throw new APIUserAbortError()
     }
     const after = meter.after(landed.truePostCompactTokenCount)
-    boundaryMarker.compactMetadata.postTokens = after.tokens
+    const tokensAfter = recompactionInfo?.mustShrink ? after.tokens : landed.truePostCompactTokenCount
+    boundaryMarker.compactMetadata.postTokens = tokensAfter
     if (recompactionInfo?.mustShrink) {
       boundaryMarker.compactMetadata.postEstimate = {
         model: context.options.engineModel,
@@ -668,7 +669,7 @@ export async function compactConversation(
       isAutoCompact,
       overflow,
       preCompactTokenCount,
-      truePostCompactTokenCount: recompactionInfo?.mustShrink ? after.tokens : landed.truePostCompactTokenCount,
+      tokensAfter,
       prose,
       proseSkippedReceipt,
       rawSummary,
