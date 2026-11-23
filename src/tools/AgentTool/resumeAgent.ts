@@ -224,7 +224,7 @@ export async function resumeAgentBackground(args: {
     boundKey !== null ? recordedRequestContexts(transcript.messages, boundKey) : null
   if (restoredContexts !== null) {
     logForDebugging(
-      `resumeAgent: ${agentId} resumes with the contexts its first exchange recorded (${Object.keys(restoredContexts).join(', ')}), so its signed prefix holds`,
+      `resumeAgent: crewmate ${agentId} resumes with the contexts its first exchange recorded (${Object.keys(restoredContexts).join(', ')}), so its signed prefix holds`,
     )
   }
   try {
@@ -319,7 +319,7 @@ export async function resumeAgentBackground(args: {
       : undefined
   if (compactRequested === true) {
     logForDebugging(
-      `resumeAgent: ${agentId} compacts first — the operator asked for it from the crew view`,
+      `resumeAgent: crewmate ${agentId} compacts first — the operator asked for it from the crew view`,
     )
   }
 
