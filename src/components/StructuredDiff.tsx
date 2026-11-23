@@ -81,9 +81,7 @@ function renderNativeDiff(
   if (existing) return existing
 
   const ColorDiffCtor = expectColorDiff()
-  if (!ColorDiffCtor || typeof ColorDiffCtor.prototype?.render !== 'function') {
-    return null
-  }
+  if (!ColorDiffCtor) return null
 
   try {
     const renderer = new ColorDiffCtor(
