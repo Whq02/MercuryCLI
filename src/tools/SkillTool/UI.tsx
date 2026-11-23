@@ -15,8 +15,6 @@ import type { ToolResultBlockParam } from '../../types/wire.js'
 import { buildSubagentLookups } from '../../services/messages.js'
 import { plural } from '../../utils/stringUtils.js'
 import type { Output } from './SkillTool.js'
-import { notBuilt } from '../../pi/holes.js'
-
 
 const VISIBLE_PROGRESS_TAIL = 3
 const EMPTY_SET: Set<string> = new Set()
@@ -49,12 +47,56 @@ export function renderToolResultMessage(output: Output): React.ReactNode {
   )
 }
 
-function ProgressRows(arg0: {
+function ProgressRows({
+  progressMessages,
+  tools,
+  verbose,
+}: {
   progressMessages: readonly ProgressMessage<SkillToolProgress>[]
   tools: Tools
   verbose: boolean
 }): React.ReactNode {
-  return notBuilt('src/tools/SkillTool/UI.tsx:51')
+  const rows = progressMessages.filter(row => Boolean(row.data?.message))
+  if (rows.length === 0) {
+    return (
+      <MessageResponse height={1}>
+        <Text dimColor>Initializing skill…</Text>
+      </MessageResponse>
+    )
+  }
+  const visible = verbose ? rows : rows.slice(-VISIBLE_PROGRESS_TAIL)
+  const hidden = rows.length - visible.length
+  const { lookups } = buildSubagentLookups(rows.map(row => ({ message: row.data.message })))
+  return (
+    <SubAgentProvider>
+      <MessageResponse>
+        <Box flexDirection="column">
+          {hidden > 0 ? (
+            <Text dimColor>{`+${hidden} more ${plural(hidden, 'tool use')}`}</Text>
+          ) : null}
+          {visible.map((row, index) => (
+            <Box key={row.uuid ?? index} height={1} overflow="hidden">
+              <MessageComponent
+                message={row.data.message}
+                tools={tools}
+                commands={[]}
+                verbose={verbose}
+                addMargin={false}
+                shouldAnimate={false}
+                shouldShowDot={false}
+                isTranscriptMode={false}
+                isStatic={true}
+                style="condensed"
+                inProgressToolUseIDs={EMPTY_SET}
+                progressMessagesForMessage={[]}
+                lookups={lookups}
+              />
+            </Box>
+          ))}
+        </Box>
+      </MessageResponse>
+    </SubAgentProvider>
+  )
 }
 
 export function renderToolUseProgressMessage(
