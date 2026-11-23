@@ -137,7 +137,7 @@ export function validatePermissionRule(rule: string): PermissionRuleValidation {
     }
 
     if (isBashPrefixTool(toolName)) {
-      if (ruleContent.endsWith(':*')) {
+      if (/:\*$/.test(ruleContent)) {
         const prefix = ruleContent.slice(0, -2).trim()
         const suggestedPrefix = prefix || 'npm run'
         return {
