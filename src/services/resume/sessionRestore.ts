@@ -103,7 +103,7 @@ export function restoreAgentFromSession(
   const matched = agentDefinitions.activeAgents.find(agent => agent.agentType === agentSetting)
   if (!matched) {
     setMainThreadAgentType(undefined)
-    logForDebugging(`resume: agent '${agentSetting}' not found in active agents`)
+    logForDebugging(`Resumed session's agent "${agentSetting}" is no longer available; using default behavior`)
     return { agentDefinition: undefined, agentType: undefined }
   }
   setMainThreadAgentType(matched.agentType)

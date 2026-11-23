@@ -1,6 +1,6 @@
 import type { ContextData } from './analyzeContext.js'
 import { getDisplayPath } from '../../utils/file.js'
-import { formatNumber } from '../../utils/format.js'
+import { formatTokens } from '../../utils/format.js'
 
 export type ContextSuggestion = {
   severity: 'warning' | 'info'
@@ -43,11 +43,12 @@ export function generateContextSuggestions(data: ContextData): ContextSuggestion
       const share = total / windowTokens
       if (total < TOOL_MIN_TOKENS || share < TOOL_MIN_SHARE) continue
       const pct = Math.round(share * 100)
-      const formatted = formatNumber(total)
+      const formatted = formatTokens(total)
+      const title = `${entry.name} is using ${formatted} tokens (${pct}%)`
       if (entry.name === 'Bash') {
         suggestions.push({
           severity: 'warning',
-          title: `Bash tool uses ${formatted} tokens (${pct}%)`,
+          title,
           detail: 'Pipe command output through head/tail/grep and avoid dumping whole files; use the Read tool with offset and limit instead.',
           savingsTokens: Math.round(total * 0.5),
         })
@@ -55,29 +56,29 @@ export function generateContextSuggestions(data: ContextData): ContextSuggestion
         reportedRead = true
         suggestions.push({
           severity: 'info',
-          title: `Read tool uses ${formatted} tokens (${pct}%)`,
+          title,
           detail: 'Use offset and limit to read only the needed part of a file, and avoid re-reading whole files.',
           savingsTokens: Math.round(total * 0.3),
         })
       } else if (entry.name === 'Grep') {
         suggestions.push({
           severity: 'info',
-          title: `Grep tool uses ${formatted} tokens (${pct}%)`,
+          title,
           detail: 'Use more specific patterns and the glob/type narrowing parameters; for pure file discovery, prefer the Glob tool.',
           savingsTokens: Math.round(total * 0.3),
         })
       } else if (entry.name === 'WebFetch') {
         suggestions.push({
           severity: 'info',
-          title: `WebFetch tool uses ${formatted} tokens (${pct}%)`,
+          title,
           detail: 'Fetched page content can be very large; extract only what is needed from each page.',
           savingsTokens: Math.round(total * 0.4),
         })
       } else if (share >= OTHER_TOOL_MIN_SHARE) {
         suggestions.push({
           severity: 'info',
-          title: `${entry.name} tool uses ${formatted} tokens (${pct}%)`,
-          detail: `Consider narrowing ${entry.name} calls or compacting older tool outputs to free context space.`,
+          title,
+          detail: `${entry.name} is consuming a significant share of the context window.`,
           savingsTokens: Math.round(total * 0.2),
         })
       }
@@ -93,7 +94,7 @@ export function generateContextSuggestions(data: ContextData): ContextSuggestion
         const pct = Math.round((readEntry.resultTokens / windowTokens) * 100)
         suggestions.push({
           severity: 'info',
-          title: `Read tool results use ${formatNumber(readEntry.resultTokens)} tokens (${pct}%)`,
+          title: `File reads are using ${formatTokens(readEntry.resultTokens)} tokens (${pct}%)`,
           detail: 'Reference earlier reads instead of re-reading files, and use offset and limit for large files.',
           savingsTokens: Math.round(readEntry.resultTokens * 0.3),
         })
@@ -108,12 +109,12 @@ export function generateContextSuggestions(data: ContextData): ContextSuggestion
       const topFiles = [...data.memoryFiles]
         .sort((a, b) => b.tokens - a.tokens)
         .slice(0, 3)
-        .map(file => `${getDisplayPath(file.path)} (${formatNumber(file.tokens)})`)
+        .map(file => `${getDisplayPath(file.path)} (${formatTokens(file.tokens)})`)
         .join(', ')
       suggestions.push({
         severity: 'info',
-        title: `Memory files use ${formatNumber(totalMemory)} tokens (${pct}%)`,
-        detail: `Top files: ${topFiles}. Trim unused instructions with /memory.`,
+        title: `Memory files are using ${formatTokens(totalMemory)} tokens (${pct}%)`,
+        detail: `Largest: ${topFiles}. Review and prune them through /memory.`,
         savingsTokens: Math.round(totalMemory * 0.3),
       })
     }

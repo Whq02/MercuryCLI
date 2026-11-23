@@ -488,10 +488,9 @@ export async function processRuleFile(
     diagnostics?.push({
       kind: 'unreadable-rule-header',
       path: filePath,
-      detail:
-        reading === null
-          ? 'the header between the --- lines is not YAML: the rule is not loaded'
-          : 'the header between the --- lines is not YAML: the rule loads whole, as its tool loads it',
+      detail: `the header between the --- lines is not YAML: the rule ${
+        reading === null ? 'is not loaded' : 'loads whole, as its tool loads it'
+      }`,
     })
   } else if (reading?.kind === 'unsupported') {
     diagnostics?.push({
