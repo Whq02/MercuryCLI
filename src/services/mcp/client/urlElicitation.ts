@@ -2,31 +2,24 @@ import type { AppState } from '../../../state/AppState.js'
 
 export type UrlElicitation = { mode: 'url'; url: string; elicitationId: string; message: string }
 
+function isUrlElicitation(item: unknown): item is UrlElicitation {
+  if (!item || typeof item !== 'object') return false
+  const rec = item as Record<string, unknown>
+  return (
+    rec.mode === 'url' &&
+    typeof rec.url === 'string' &&
+    typeof rec.elicitationId === 'string' &&
+    typeof rec.message === 'string'
+  )
+}
+
 export function parseUrlElicitations(error: unknown): UrlElicitation[] {
   if (!error || typeof error !== 'object') return []
   const data = (error as { data?: unknown }).data
   if (!data || typeof data !== 'object') return []
   const raw = (data as { elicitations?: unknown }).elicitations
   if (!Array.isArray(raw)) return []
-  const out: UrlElicitation[] = []
-  for (const item of raw) {
-    if (!item || typeof item !== 'object') continue
-    const rec = item as Record<string, unknown>
-    if (
-      rec.mode === 'url' &&
-      typeof rec.url === 'string' &&
-      typeof rec.elicitationId === 'string' &&
-      typeof rec.message === 'string'
-    ) {
-      out.push({
-        mode: 'url',
-        url: rec.url,
-        elicitationId: rec.elicitationId,
-        message: rec.message,
-      })
-    }
-  }
-  return out
+  return raw.filter(isUrlElicitation)
 }
 
 export function queueUrlElicitation(
@@ -46,23 +39,24 @@ export function queueUrlElicitation(
     }
     const event: AppState['elicitation']['queue'][number] = {
       serverName,
+      requestId: elicitation.elicitationId,
+      elicitationId: elicitation.elicitationId,
       params: {
         mode: 'url',
-        message: elicitation.message,
         url: elicitation.url,
-        elicitationId: elicitation.elicitationId,
+        message: elicitation.message,
       },
       signal,
       waitingState: {
-        actionLabel: 'Retry tool call',
+        actionLabel: 'Open the URL, then return here',
         showCancel: true,
       },
       respond: (result: { action: 'accept' | 'decline' | 'cancel' }) => {
         if (result.action === 'accept') return
-        finish(result.action)
+        finish(result.action === 'decline' ? 'decline' : 'cancel')
       },
       onWaitingDismiss: (action: 'cancel' | 'retry' | 'dismiss') => {
-        finish(action === 'cancel' ? 'cancel' : 'accept')
+        finish(action === 'retry' ? 'accept' : 'cancel')
       },
     }
     const onAbort = (): void => {
