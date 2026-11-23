@@ -28,6 +28,7 @@ import {
   type FindType,
   type Operator,
 } from './types.js'
+import { isOneOf } from '../utils/isOneOf.js'
 
 export type TransitionContext = OperatorContext & {
   onDotRepeat?: () => void
@@ -42,12 +43,9 @@ type TransitionResult = {
 const IDLE: CommandState = { type: 'idle' }
 
 const isDigit = (input: string): boolean => /^[0-9]$/.test(input)
-const isSimpleMotion = (input: string): boolean =>
-  SIMPLE_MOTIONS.some(key => key === input)
-const isFindKey = (input: string): input is FindType =>
-  FIND_KEYS.some(key => key === input)
-const isTextObjType = (input: string): boolean =>
-  TEXT_OBJ_TYPES.some(key => key === input)
+const isSimpleMotion = (input: string): boolean => isOneOf(SIMPLE_MOTIONS, input)
+const isFindKey = (input: string): input is FindType => isOneOf(FIND_KEYS, input)
+const isTextObjType = (input: string): boolean => isOneOf(TEXT_OBJ_TYPES, input)
 const clampCount = (count: number): number => Math.min(count, MAX_VIM_COUNT)
 
 const REVERSE_FIND: Record<FindType, FindType> = { f: 'F', F: 'f', t: 'T', T: 't' }

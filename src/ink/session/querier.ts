@@ -187,7 +187,7 @@ export class TerminalQuerier {
       const index = batch.queries.findIndex(query => query.match(r))
       if (index !== -1) {
         const [matched] = batch.queries.splice(index, 1)
-        matched!.resolve(r)
+        matched.resolve(r)
         return
       }
     }

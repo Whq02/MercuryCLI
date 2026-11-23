@@ -2,6 +2,7 @@ import { chordToString, parseBindings } from './parser.js'
 import { getReservedShortcuts, normalizeKeyForComparison } from './reservedShortcuts.js'
 import type { KeybindingBlock, ParsedBinding } from './types.js'
 import { isRecord } from '../utils/isRecord.js'
+import { isOneOf } from '../utils/isOneOf.js'
 
 export type KeybindingWarning = {
   type: 'parse_error' | 'duplicate' | 'reserved' | 'invalid_context' | 'invalid_action'
@@ -38,7 +39,7 @@ const VALID_CONTEXTS = [
 const COMMAND_BINDING_RE = /^command:[a-zA-Z0-9:\-_]+$/
 
 function isValidContext(context: string): boolean {
-  return VALID_CONTEXTS.some(valid => valid === context)
+  return isOneOf(VALID_CONTEXTS, context)
 }
 
 export function isUserConfigContext(context: string): boolean {
@@ -198,7 +199,8 @@ function readJsonString(src: string, start: number): { value: string; end: numbe
       const raw = src.slice(start, i + 1)
       let value: string
       try {
-        value = JSON.parse(raw) as string
+        const parsed: unknown = JSON.parse(raw)
+        value = typeof parsed === 'string' ? parsed : src.slice(start + 1, i)
       } catch {
         value = src.slice(start + 1, i)
       }
@@ -224,7 +226,8 @@ function findPrecedingContext(prefix: string): string {
   const last = matches.at(-1)
   if (!last) return '(unknown context)'
   try {
-    return JSON.parse(`"${last[1]}"`) as string
+    const parsed: unknown = JSON.parse(`"${last[1]}"`)
+    return typeof parsed === 'string' ? parsed : (last[1] ?? '(unknown context)')
   } catch {
     return last[1] ?? '(unknown context)'
   }
