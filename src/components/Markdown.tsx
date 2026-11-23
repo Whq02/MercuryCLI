@@ -6,7 +6,7 @@ import { Box, Text } from '../ink.js'
 import { useLoad } from '../hooks/effects.js'
 import { useTheme } from './design-system/ThemeProvider.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
-import { useAppState } from '../state/AppState.js'
+import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
 import {
   configureMarked,
   formatToken,
@@ -55,8 +55,9 @@ function useCliHighlight(disabled: boolean): CliHighlight | null {
   return disabled ? null : highlight
 }
 
-type Rendered = { elements: React.ReactNode[]; firstIsProse: boolean }
-
+function stripControls(text: string): string {
+  return stripAnsi(text).replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '')
+}
 type MarkdownBlock =
   | { kind: 'prose'; text: string }
   | { kind: 'table'; token: Tokens.Table }
@@ -97,7 +98,7 @@ function renderBlocks(
   highlight: CliHighlight | null,
   leadingInline: React.ReactNode,
   trailingInline: React.ReactNode,
-): Rendered {
+): React.ReactNode[] {
   const firstIsProse = blocks.length > 0 && blocks[0]!.kind === 'prose'
   const lastIsProse =
     blocks.length > 0 && blocks[blocks.length - 1]!.kind === 'prose'
@@ -141,7 +142,7 @@ function renderBlocks(
       </Text>,
     )
   }
-  return { elements, firstIsProse }
+  return elements
 }
 
 export function Markdown({
@@ -159,15 +160,13 @@ export function Markdown({
 }): React.ReactNode {
   const [theme] = useTheme()
   const accent = useSessionAccent()
-  const syntaxOff = useAppState(s => s.settings.view?.syntaxOff) === true
+  const syntaxOff =
+    useAppStateMaybeOutsideOfProvider(s => s.settings.view?.syntaxOff) === true
   const highlight = useCliHighlight(syntaxOff)
   const textColor = color ?? 'text'
 
   const cleaned = useMemo(
-    () =>
-      stripPromptXMLTags(
-        stripAnsi(children).replace(/[\x00-\x08\x0b-\x1f\x7f]/g, ''),
-      ),
+    () => stripPromptXMLTags(stripControls(children)),
     [children],
   )
 
@@ -191,7 +190,7 @@ export function Markdown({
     return null
   }
 
-  const { elements } = renderBlocks(
+  const elements = renderBlocks(
     blocks,
     textColor,
     dimColor,
@@ -277,7 +276,7 @@ export function StreamingMarkdown({
   color?: string
 }): React.ReactNode {
   const [theme] = useTheme()
-  const stripped = stripPromptXMLTagsKeepEdges(children)
+  const stripped = stripPromptXMLTagsKeepEdges(stripControls(children))
   const progressRef = useRef<{ stable: string; seam: number }>({
     stable: '',
     seam: 0,
