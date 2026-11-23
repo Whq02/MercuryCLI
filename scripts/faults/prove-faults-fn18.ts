@@ -72,7 +72,7 @@ console.log('\ntensorfoldHelper — failed served read and failed stop reject an
   const r = runScenario(`
     const path = await import('node:path')
     const { mock } = await import('bun:test')
-    const helper = await import(path.join(SRC, 'services/providers/local/tensorfoldHelper.ts'))
+    const helper = await import(path.join(SRC, 'models/roads/local/tensorfoldHelper.ts'))
     let serveFails = true
     let stop2bCalls = 0
     let stop2bFails = true
@@ -96,7 +96,7 @@ console.log('\ntensorfoldHelper — failed served read and failed stop reject an
     out.stop2bRetry = await helper.stopHelperServing().then(() => null, e => String(e?.message ?? e))
     out.stop2bCalls = stop2bCalls
 
-    mock.module(path.join(SRC, 'services/projectServices/serviceManager.js'), () => ({
+    mock.module(path.join(SRC, 'tools/engines/project-services/serviceManager.js'), () => ({
       liveServiceChildren: () => [{ pid: 77777 }],
     }))
     let stop4bCalls = 0
@@ -126,7 +126,7 @@ console.log('\ntensorfoldHosts — writers refuse to overwrite an unreadable or 
   const r = runScenario(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const hosts = await import(path.join(SRC, 'services/providers/local/tensorfoldHosts.ts'))
+    const hosts = await import(path.join(SRC, 'models/roads/local/tensorfoldHosts.ts'))
     const store = path.join(HOME, 'local-setup', 'tensorfold-hosts.json')
     fs.mkdirSync(path.dirname(store), { recursive: true })
     const torn = '{ torn-json'
@@ -158,14 +158,14 @@ console.log('\ntensorfoldState — failed served/discovery/presence reads reject
   const r = runScenario(`
     const path = await import('node:path')
     const { mock } = await import('bun:test')
-    mock.module(path.join(SRC, 'services/tensorfold/serve.js'), () => ({
+    mock.module(path.join(SRC, 'models/tensorfold/serve.js'), () => ({
       servedTensorFold: () => { throw new Error('serve-read-boom') },
     }))
-    mock.module(path.join(SRC, 'services/providers/local/localDiscovery.js'), () => ({
+    mock.module(path.join(SRC, 'models/roads/local/localDiscovery.js'), () => ({
       getCachedLocalDiscovery: () => null,
       refreshLocalDiscovery: async () => { throw new Error('discovery-refresh-boom') },
     }))
-    const state = await import(path.join(SRC, 'services/providers/local/tensorfoldState.ts'))
+    const state = await import(path.join(SRC, 'models/roads/local/tensorfoldState.ts'))
     out.servedReject = await state.readTensorFoldState({
       engine: async () => null,
       snapshot: async () => ({ probedAtMs: 1, targetCount: 0, servers: [] }),
@@ -194,7 +194,7 @@ console.log('\ntensorfoldUsage — failed served or hosts read answers undefined
 {
   const r = runScenario(`
     const path = await import('node:path')
-    const usage = await import(path.join(SRC, 'services/providers/local/tensorfoldUsage.ts'))
+    const usage = await import(path.join(SRC, 'models/roads/local/tensorfoldUsage.ts'))
     const empty = () => ({ probedAtMs: 1, targetCount: 0, servers: [] })
     out.servedFailed = (() => {
       try {
@@ -220,7 +220,7 @@ console.log('\nlocalLiveness — failed pace store rename cleans up its temp fil
   const r = runScenario(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const live = await import(path.join(SRC, 'services/providers/localLiveness.ts'))
+    const live = await import(path.join(SRC, 'models/roads/localLiveness.ts'))
     const storePath = live.localPaceStorePath()
     fs.mkdirSync(storePath, { recursive: true })
     live.recordLocalIngestPace({ wireModel: 'qwen3-8b', promptTokens: 5000, ingestMs: 10000 })
@@ -236,10 +236,10 @@ console.log('\nmetaAccounts — corrupt or unreadable .meta-auth.json is reporte
     const path = await import('node:path')
     const { mock } = await import('bun:test')
     const logged = []
-    mock.module(path.join(SRC, 'utils/log.js'), () => ({
+    mock.module(path.join(SRC, 'platform/logs/errorLog.js'), () => ({
       logError: e => logged.push(e instanceof Error ? e.message : String(e)),
     }))
-    const meta = await import(path.join(SRC, 'services/providers/meta/metaAccounts.ts'))
+    const meta = await import(path.join(SRC, 'models/roads/meta/metaAccounts.ts'))
     const authFile = meta.metaAuthPathForDisplay()
     out.absentGrant = meta.readMetaMuseCodeGrant() ?? null
     out.absentLogged = logged.length
@@ -267,7 +267,7 @@ console.log('\nminimaxUsageState — non-JSON HTTP 200 plan read reports invalid
 {
   const r = runScenario(`
     const path = await import('node:path')
-    const usage = await import(path.join(SRC, 'services/providers/minimax/minimaxUsageState.ts'))
+    const usage = await import(path.join(SRC, 'models/roads/minimax/minimaxUsageState.ts'))
     usage.__resetMinimaxUsageForTest()
     const probe = await usage.fetchMinimaxPlanUsage('sk-minimax-fixture', {
       env: { MINIMAX_API_KEY: 'sk-minimax-fixture' },
@@ -284,13 +284,13 @@ console.log('\nmoonshotUsageState — refreshKimiManagedUsage records error when
   const r = runScenario(`
     const path = await import('node:path')
     const { mock } = await import('bun:test')
-    const real = await import(path.join(SRC, 'services/providers/moonshot/moonshotAccounts.ts'))
-    mock.module(path.join(SRC, 'services/providers/moonshot/moonshotAccounts.js'), () => ({
+    const real = await import(path.join(SRC, 'models/roads/moonshot/moonshotAccounts.ts'))
+    mock.module(path.join(SRC, 'models/roads/moonshot/moonshotAccounts.js'), () => ({
       ...real,
       moonshotStoredTokens: () => ({ accessToken: 'at-fixture', refreshToken: 'rt-fixture' }),
       resolveMoonshotDispatchCredential: async () => { throw new Error('token-refresh-boom') },
     }))
-    const usage = await import(path.join(SRC, 'services/providers/moonshot/moonshotUsageState.ts'))
+    const usage = await import(path.join(SRC, 'models/roads/moonshot/moonshotUsageState.ts'))
     usage.__resetMoonshotUsageForTest()
     await usage.refreshKimiManagedUsage({ force: true })
     out.error = usage.kimiManagedUsageError() ?? null
@@ -303,16 +303,16 @@ console.log('\nnousCallModel — resolveCredential rejects when credential read 
   const r = runScenario(`
     const path = await import('node:path')
     const { mock } = await import('bun:test')
-    const real = await import(path.join(SRC, 'services/providers/nous/nousAccounts.ts'))
+    const real = await import(path.join(SRC, 'models/roads/nous/nousAccounts.ts'))
     let mode = 'throw'
-    mock.module(path.join(SRC, 'services/providers/nous/nousAccounts.js'), () => ({
+    mock.module(path.join(SRC, 'models/roads/nous/nousAccounts.js'), () => ({
       ...real,
       resolveNousCredential: async () => {
         if (mode === 'throw') throw new Error('nous-cred-boom')
         return undefined
       },
     }))
-    const mod = await import(path.join(SRC, 'services/providers/nous/nousCallModel.ts'))
+    const mod = await import(path.join(SRC, 'models/roads/nous/nousCallModel.ts'))
     out.rejected = await Promise.resolve(mod.nousLaneProfile.resolveCredential()).then(() => null, e => String(e?.message ?? e))
     mode = 'absent'
     out.absent = (await Promise.resolve(mod.nousLaneProfile.resolveCredential())) ?? null
@@ -325,7 +325,7 @@ console.log('\nnousClientContract — unreadable file is not overwritten, torn c
   const r = runScenario(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const contract = await import(path.join(SRC, 'services/providers/nous/nousClientContract.ts'))
+    const contract = await import(path.join(SRC, 'models/roads/nous/nousClientContract.ts'))
     const file = contract.nousClientContractPath()
     const env = { ...process.env, MERCURY_NOUS_CLIENT_SOURCE_BASE: 'http://127.0.0.1:9999' }
     const fakeFetch = async url => {
@@ -369,13 +369,13 @@ console.log('\nnousUsageState — refreshNousAccount records failure when creden
   const r = runScenario(`
     const path = await import('node:path')
     const { mock } = await import('bun:test')
-    const real = await import(path.join(SRC, 'services/providers/nous/nousAccounts.ts'))
-    mock.module(path.join(SRC, 'services/providers/nous/nousAccounts.js'), () => ({
+    const real = await import(path.join(SRC, 'models/roads/nous/nousAccounts.ts'))
+    mock.module(path.join(SRC, 'models/roads/nous/nousAccounts.js'), () => ({
       ...real,
       nousAccountIdentity: () => 'fixture-nous-id',
       resolveNousCredential: async () => { throw new Error('nous-usage-cred-boom') },
     }))
-    const usage = await import(path.join(SRC, 'services/providers/nous/nousUsageState.ts'))
+    const usage = await import(path.join(SRC, 'models/roads/nous/nousUsageState.ts'))
     usage.__resetNousUsageForTest()
     await usage.refreshNousAccount({ force: true })
     out.failure = usage.nousAccountFailure()

@@ -62,7 +62,7 @@ if (!POSIX_MODES) {
   skip('hosts-unreadable-include-dir', 'needs non-root POSIX')
 } else {
   const r1 = runSub(`
-    const { remoteHostNames, renderRemoteHosts } = await import(path.join(SRC, 'services/remoteFiles/hosts.ts'))
+    const { remoteHostNames, renderRemoteHosts } = await import(path.join(SRC, 'platform/remote-files/hosts.ts'))
     const sshDir = path.join(HOME, '.ssh')
     const incDir = path.join(sshDir, 'conf.d')
     fs.mkdirSync(incDir, { recursive: true })
@@ -88,7 +88,7 @@ if (!POSIX_MODES) {
   check('hosts-unreadable-config-said', String(r1.content ?? '').includes('Not read, so its hosts are not listed: ') && String(r1.content ?? '').includes('shut.conf') && String(r1.content ?? '').includes('EACCES'), JSON.stringify(r1))
 
   const r2 = runSub(`
-    const { remoteHostNames } = await import(path.join(SRC, 'services/remoteFiles/hosts.ts'))
+    const { remoteHostNames } = await import(path.join(SRC, 'platform/remote-files/hosts.ts'))
     const sshDir = path.join(HOME, '.ssh')
     const incDir = path.join(sshDir, 'conf.d')
     fs.mkdirSync(incDir, { recursive: true })
@@ -108,7 +108,7 @@ if (!POSIX_MODES) {
   check('hosts-unreadable-include-dir', r2.code === undefined && ((r2.hosts ?? []) as string[]).includes('web1') && ((r2.unread ?? []) as string[]).length === 1, JSON.stringify(r2))
 
   const r3 = runSub(`
-    const { remoteHostNames, renderRemoteHosts } = await import(path.join(SRC, 'services/remoteFiles/hosts.ts'))
+    const { remoteHostNames, renderRemoteHosts } = await import(path.join(SRC, 'platform/remote-files/hosts.ts'))
     const unread = []
     out.hosts = remoteHostNames(() => true, unread)
     out.unread = unread.length
@@ -121,7 +121,7 @@ console.log('\nremoteFiles/ops.ts — a probe file that cannot be placed does no
 {
   const r = runSub(`
     const { mock } = await import('bun:test')
-    const connPath = path.join(SRC, 'services/remoteFiles/connection.ts')
+    const connPath = path.join(SRC, 'platform/remote-files/connection.ts')
     const realConn = await import(connPath)
     const scripts = []
     mock.module(connPath, () => ({
@@ -131,7 +131,7 @@ console.log('\nremoteFiles/ops.ts — a probe file that cannot be placed does no
         return { status: 0, stdout: Buffer.from('/home/u\\0Linux\\0' + '0' + '\\0ripgrep 14.1.0'), stderr: Buffer.from('') }
       },
     }))
-    const { remoteIsThisMachine } = await import(path.join(SRC, 'services/remoteFiles/ops.ts'))
+    const { remoteIsThisMachine } = await import(path.join(SRC, 'platform/remote-files/ops.ts'))
     try {
       out.here = await remoteIsThisMachine({ host: 'example.invalid' })
     } catch (e) {
@@ -145,8 +145,8 @@ console.log('\nremoteFiles/ops.ts — a probe file that cannot be placed does no
 console.log('\nrepoHost/repoHost.ts — corrupt or unreadable latest.json throws instead of returning null')
 {
   const r = runSub(`
-    const { latestReview } = await import(path.join(SRC, 'services/repoHost/repoHost.ts'))
-    const { projectHomeStore } = await import(path.join(SRC, 'utils/projectHomeStores.ts'))
+    const { latestReview } = await import(path.join(SRC, 'platform/repo-host/repoHost.ts'))
+    const { projectHomeStore } = await import(path.join(SRC, 'platform/storage/projectHomeStores.ts'))
     out.absent = latestReview(PROJECT)
     const dir = projectHomeStore(PROJECT, 'reviews')
     fs.mkdirSync(dir, { recursive: true })
@@ -179,8 +179,8 @@ if (!POSIX_MODES) {
   skip('file-adapter-stat-eacces-not-absent', 'needs non-root POSIX')
 } else {
   const r = runSub(`
-    const { resolveResource } = await import(path.join(SRC, 'services/resources/registry.ts'))
-    const { processMainOwner } = await import(path.join(SRC, 'utils/run/resolveOwner.ts'))
+    const { resolveResource } = await import(path.join(SRC, 'integrations/resources/registry.ts'))
+    const { processMainOwner } = await import(path.join(SRC, 'engine/run-owner/resolveOwner.ts'))
     const locked = path.join(PROJECT, 'locked')
     fs.mkdirSync(locked, { recursive: true })
     const target = path.join(locked, 'secret.txt')
@@ -202,9 +202,9 @@ if (!POSIX_MODES) {
 console.log('\nresources/adapters/health.ts — corrupt gate/cert files throw instead of claiming none written')
 {
   const r = runSub(`
-    const { resolveResource } = await import(path.join(SRC, 'services/resources/registry.ts'))
-    const { processMainOwner } = await import(path.join(SRC, 'utils/run/resolveOwner.ts'))
-    const { gateVerdictPath, lastCertPath } = await import(path.join(SRC, 'services/health/healthReport.ts'))
+    const { resolveResource } = await import(path.join(SRC, 'integrations/resources/registry.ts'))
+    const { processMainOwner } = await import(path.join(SRC, 'engine/run-owner/resolveOwner.ts'))
+    const { gateVerdictPath, lastCertPath } = await import(path.join(SRC, 'platform/health/healthReport.ts'))
     const ctx = { owner: processMainOwner(), cwd: PROJECT }
     out.gateAbsent = await resolveResource('mercury://health/gate', ctx)
     out.certAbsent = await resolveResource('mercury://health/cert', ctx)
@@ -230,10 +230,10 @@ if (!POSIX_MODES) {
   skip('transcript-adapter-unreadable-subagents-dir-fails', 'needs non-root POSIX')
 } else {
   const r = runSub(`
-    const { jsonlConciseRows } = await import(path.join(SRC, 'services/resources/adapters/transcript.ts'))
-    const { listResourceKind } = await import(path.join(SRC, 'services/resources/registry.ts'))
-    const { makeOwnerKey, MAIN_LANE } = await import(path.join(SRC, 'utils/run/ownerKey.ts'))
-    const { getTranscriptPathForSession } = await import(path.join(SRC, 'utils/sessionStorage/paths.ts'))
+    const { jsonlConciseRows } = await import(path.join(SRC, 'integrations/resources/adapters/transcript.ts'))
+    const { listResourceKind } = await import(path.join(SRC, 'integrations/resources/registry.ts'))
+    const { makeOwnerKey, MAIN_LANE } = await import(path.join(SRC, 'engine/run-owner/ownerKey.ts'))
+    const { getTranscriptPathForSession } = await import(path.join(SRC, 'sessions/transcripts/paths.ts'))
     const file = path.join(PROJECT, 'locked.jsonl')
     fs.writeFileSync(file, '{"type":"user","message":{"content":"hi"}}\\n', { mode: 0o600 })
     fs.chmodSync(file, 0o000)
@@ -266,8 +266,8 @@ console.log('\nresources/adapters/artifact.ts — computeWorkingTreeDigest throw
 {
   const r = runSub(`
     const { mock } = await import('bun:test')
-    const verPath = path.join(SRC, 'utils/verification/verificationState.ts')
-    const storePath = path.join(SRC, 'services/artifacts/reviewStore.ts')
+    const verPath = path.join(SRC, 'platform/verification/verificationState.ts')
+    const storePath = path.join(SRC, 'sessions/artifact-reviews/reviewStore.ts')
     const realVer = await import(verPath)
     const realStore = await import(storePath)
     mock.module(verPath, () => ({ ...realVer, computeWorkingTreeDigest: () => { throw new Error('digest boom') } }))
@@ -293,8 +293,8 @@ console.log('\nresources/adapters/artifact.ts — computeWorkingTreeDigest throw
         }],
       }),
     }))
-    const { resolveResource } = await import(path.join(SRC, 'services/resources/registry.ts'))
-    const { processMainOwner } = await import(path.join(SRC, 'utils/run/resolveOwner.ts'))
+    const { resolveResource } = await import(path.join(SRC, 'integrations/resources/registry.ts'))
+    const { processMainOwner } = await import(path.join(SRC, 'engine/run-owner/resolveOwner.ts'))
     out.res = await resolveResource('mercury://artifact/ra-test1', { owner: processMainOwner(), cwd: PROJECT })
   `)
   const res = r.res as { state?: string; note?: string }
@@ -305,11 +305,11 @@ console.log('\nresources/adapters/execution.ts — owner and DAP tree bugs propa
 {
   const r1 = runSub(`
     const { mock } = await import('bun:test')
-    const resolveOwnerPath = path.join(SRC, 'utils/run/resolveOwner.ts')
+    const resolveOwnerPath = path.join(SRC, 'engine/run-owner/resolveOwner.ts')
     const realOwner = await import(resolveOwnerPath)
     const owner = realOwner.processMainOwner()
     mock.module(resolveOwnerPath, () => ({ ...realOwner, processMainOwner: () => { throw new Error('owner boom') } }))
-    const { listResourceKind } = await import(path.join(SRC, 'services/resources/registry.ts'))
+    const { listResourceKind } = await import(path.join(SRC, 'integrations/resources/registry.ts'))
     out.res = await listResourceKind('execution', { owner, cwd: PROJECT })
   `)
   const res1 = r1.res as { state?: string; note?: string }
@@ -317,12 +317,12 @@ console.log('\nresources/adapters/execution.ts — owner and DAP tree bugs propa
 
   const r2 = runSub(`
     const { mock } = await import('bun:test')
-    const dapPath = path.join(SRC, 'services/dap/dapClient.ts')
+    const dapPath = path.join(SRC, 'integrations/debugger/dapClient.ts')
     const realDap = await import(dapPath)
     mock.module(dapPath, () => ({ ...realDap, getDapSession: () => { throw new Error('dap boom') } }))
-    const { registerExecution } = await import(path.join(SRC, 'utils/primitives/executionPlane.ts'))
-    const { resolveResource } = await import(path.join(SRC, 'services/resources/registry.ts'))
-    const { processMainOwner } = await import(path.join(SRC, 'utils/run/resolveOwner.ts'))
+    const { registerExecution } = await import(path.join(SRC, 'engine/execution-plane/executionPlane.ts'))
+    const { resolveResource } = await import(path.join(SRC, 'integrations/resources/registry.ts'))
+    const { processMainOwner } = await import(path.join(SRC, 'engine/run-owner/resolveOwner.ts'))
     const owner = processMainOwner()
     registerExecution({
       owner,
@@ -344,7 +344,7 @@ console.log('\nresources/adapters/execution.ts — owner and DAP tree bugs propa
 console.log('\nresources/adapters/project.ts — context marks/owner bug propagates instead of building empty pins')
 {
   const r = runSub(`
-    const { resolveResource } = await import(path.join(SRC, 'services/resources/registry.ts'))
+    const { resolveResource } = await import(path.join(SRC, 'integrations/resources/registry.ts'))
     out.res = await resolveResource('mercury://project/current?child=context&q=fix+bug', { owner: 'not-canonical', cwd: PROJECT })
   `)
   const res = r.res as { state?: string; note?: string }
@@ -355,11 +355,11 @@ console.log('\nrun/runCoordinator.ts — syncVerification drops verified state w
 {
   const r = runSub(`
     const { mock } = await import('bun:test')
-    const verPath = path.join(SRC, 'utils/verification/verificationState.ts')
+    const verPath = path.join(SRC, 'platform/verification/verificationState.ts')
     const realVer = await import(verPath)
     mock.module(verPath, () => ({ ...realVer, verificationSummary: () => { throw new Error('verify boom') } }))
-    const coord = await import(path.join(SRC, 'services/run/runCoordinator.ts'))
-    const { makeOwnerKey, MAIN_LANE } = await import(path.join(SRC, 'utils/run/ownerKey.ts'))
+    const coord = await import(path.join(SRC, 'engine/run/runCoordinator.ts'))
+    const { makeOwnerKey, MAIN_LANE } = await import(path.join(SRC, 'engine/run-owner/ownerKey.ts'))
     const owner = makeOwnerKey({ workspace: PROJECT, sessionId: 'sync-ver-test', lane: MAIN_LANE })
     coord.acceptUserRequest(owner, { objective: 'test', rootMessageId: 'u1' })
     coord.noteRunEvent(owner, { type: 'evidence', at: 1, state: 'verified', detail: 'tests green' })
@@ -376,9 +376,9 @@ if (!POSIX_MODES) {
   skip('runSidecar-delete-unwritable-dir-throws', 'needs non-root POSIX')
 } else {
   const r = runSub(`
-    const { saveRunSidecar, deleteRunSidecar, runSidecarPath } = await import(path.join(SRC, 'services/run/runSidecar.ts'))
-    const { emptyRunSnapshot } = await import(path.join(SRC, 'services/run/runKernel.ts'))
-    const { makeOwnerKey, MAIN_LANE } = await import(path.join(SRC, 'utils/run/ownerKey.ts'))
+    const { saveRunSidecar, deleteRunSidecar, runSidecarPath } = await import(path.join(SRC, 'engine/run/runSidecar.ts'))
+    const { emptyRunSnapshot } = await import(path.join(SRC, 'engine/run/runKernel.ts'))
+    const { makeOwnerKey, MAIN_LANE } = await import(path.join(SRC, 'engine/run-owner/ownerKey.ts'))
     const owner = makeOwnerKey({ workspace: PROJECT, sessionId: '22222222-2222-2222-2222-222222222222', lane: MAIN_LANE })
     const file = runSidecarPath(owner)
     const dir = path.dirname(file)

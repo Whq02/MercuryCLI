@@ -116,17 +116,17 @@ console.log('\npicker/select — catalogue refresh rejections keep the error det
 {
   const r = runCase(`
     const { mock } = await import('bun:test')
-    const nousPath = path.join(SRC, 'services/providers/nous/nousCatalogue.ts')
-    const openaiCatPath = path.join(SRC, 'services/providers/openai/openaiCatalogue.ts')
-    const openaiAcctPath = path.join(SRC, 'services/providers/openai/openaiAccounts.ts')
-    const orCatPath = path.join(SRC, 'services/providers/openrouter/openrouterCatalogue.ts')
-    const orAcctPath = path.join(SRC, 'services/providers/openrouter/openrouterAccounts.ts')
-    const gemCatPath = path.join(SRC, 'services/providers/gemini/geminiCatalogue.ts')
-    const gemAcctPath = path.join(SRC, 'services/providers/gemini/geminiAccounts.ts')
-    const hfCatPath = path.join(SRC, 'services/providers/huggingface/huggingfaceCatalogue.ts')
-    const moonAcctPath = path.join(SRC, 'services/providers/moonshot/moonshotAccounts.ts')
-    const moonCatPath = path.join(SRC, 'services/providers/moonshot/moonshotCatalogue.ts')
-    const optsPath = path.join(SRC, 'services/model/modelOptions.ts')
+    const nousPath = path.join(SRC, 'models/roads/nous/nousCatalogue.ts')
+    const openaiCatPath = path.join(SRC, 'models/roads/openai/openaiCatalogue.ts')
+    const openaiAcctPath = path.join(SRC, 'models/roads/openai/openaiAccounts.ts')
+    const orCatPath = path.join(SRC, 'models/roads/openrouter/openrouterCatalogue.ts')
+    const orAcctPath = path.join(SRC, 'models/roads/openrouter/openrouterAccounts.ts')
+    const gemCatPath = path.join(SRC, 'models/roads/gemini/geminiCatalogue.ts')
+    const gemAcctPath = path.join(SRC, 'models/roads/gemini/geminiAccounts.ts')
+    const hfCatPath = path.join(SRC, 'models/roads/huggingface/huggingfaceCatalogue.ts')
+    const moonAcctPath = path.join(SRC, 'models/roads/moonshot/moonshotAccounts.ts')
+    const moonCatPath = path.join(SRC, 'models/roads/moonshot/moonshotCatalogue.ts')
+    const optsPath = path.join(SRC, 'models/catalogue/modelOptions.ts')
     const [realNous, realOaiCat, realOaiAcct, realOrCat, realOrAcct, realGemCat, realGemAcct, realHfCat, realMoonAcct, realMoonCat, realOpts] = await Promise.all([
       import(nousPath), import(openaiCatPath), import(openaiAcctPath), import(orCatPath), import(orAcctPath),
       import(gemCatPath), import(gemAcctPath), import(hfCatPath), import(moonAcctPath), import(moonCatPath), import(optsPath),
@@ -185,9 +185,9 @@ console.log('\nBootSaturnScreen — model/preset/project listing failures surfac
 {
   const r = runCase(`
     const { mock } = await import('bun:test')
-    const optsPath = path.join(SRC, 'services/model/modelOptions.ts')
-    const presetPath = path.join(SRC, 'services/mcp/presetStore.ts')
-    const factsPath = path.join(SRC, 'utils/bootCardFacts.ts')
+    const optsPath = path.join(SRC, 'models/catalogue/modelOptions.ts')
+    const presetPath = path.join(SRC, 'integrations/mcp/presetStore.ts')
+    const factsPath = path.join(SRC, 'screen/boot-face/bootCardFacts.ts')
     const [realOpts, realPresets, realFacts] = await Promise.all([import(optsPath), import(presetPath), import(factsPath)])
     mock.module(optsPath, () => ({ ...realOpts, getModelOptions: () => { throw new Error('model options unreadable') } }))
     mock.module(presetPath, () => ({ ...realPresets, listKitPresets: () => { throw new Error('presets config unreadable') } }))
@@ -271,8 +271,8 @@ console.log('\nFeedback — failed getIsGit records undefined + error instead of
 {
   const r = runCase(`
     const { mock } = await import('bun:test')
-    const gitPath = path.join(SRC, 'utils/git.ts')
-    const storagePath = path.join(SRC, 'utils/sessionStorage.ts')
+    const gitPath = path.join(SRC, 'platform/git/git.ts')
+    const storagePath = path.join(SRC, 'sessions/transcripts/sessionStorage.ts')
     const [realGit, realStorage] = await Promise.all([import(gitPath), import(storagePath)])
     const transcriptFile = path.join(HOME, 'unreadable-transcript.jsonl')
     fs.writeFileSync(transcriptFile, '{"type":"user"}\\n', { mode: 0o600 })
@@ -393,8 +393,8 @@ console.log('\npicker/headings — failed slot derivation reports unread account
 {
   const r = runCase(`
     const { mock } = await import('bun:test')
-    const slotsPath = path.join(SRC, 'services/providers/accountSlots.ts')
-    const usabilityPath = path.join(SRC, 'services/providers/providerUsability.ts')
+    const slotsPath = path.join(SRC, 'models/roads/accountSlots.ts')
+    const usabilityPath = path.join(SRC, 'models/roads/providerUsability.ts')
     const [realSlots, realUsability] = await Promise.all([import(slotsPath), import(usabilityPath)])
     const baseUsability = realUsability.resolveProviderUsability()
     mock.module(slotsPath, () => ({ ...realSlots, deriveFamilySlotGroups: () => { throw new Error('auth file EACCES') } }))
@@ -418,7 +418,7 @@ console.log('\nrename — failed name generation reports the failure instead of 
 {
   const r = runCase(`
     const { mock } = await import('bun:test')
-    const streamPath = path.join(SRC, 'services/providers/anthropic/streamCore.ts')
+    const streamPath = path.join(SRC, 'models/roads/anthropic/streamCore.ts')
     const realStream = await import(streamPath)
     mock.module(streamPath, () => ({
       ...realStream,
@@ -458,7 +458,7 @@ console.log('\nBootSaturnScreen — unreadable receipt file surfaces fire-histor
 {
   const r = runCase(`
     const { mock } = await import('bun:test')
-    const receiptsPath = path.join(SRC, 'services/switchboard/sessionReceipts.ts')
+    const receiptsPath = path.join(SRC, 'daemon/switchboard/sessionReceipts.ts')
     const realReceipts = await import(receiptsPath)
     mock.module(receiptsPath, () => ({
       ...realReceipts,

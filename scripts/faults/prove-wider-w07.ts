@@ -74,16 +74,16 @@ else {
     process.env.MERCURY_LIVE_CLOCK = '0'
     process.env.MERCURY_REDUCED_MOTION = '1'
     process.env.MERCURY_FULLSCREEN = '0'
-    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    const { enableConfigs } = await import(path.join(SRC, 'platform/config/globalConfig.ts'))
     enableConfigs()
-    const { Box, Text } = await import(path.join(SRC, 'ink.ts'))
-    const { AppStateProvider, getDefaultAppState } = await import(path.join(SRC, 'state/AppState.tsx'))
-    const { ThemeProvider } = await import(path.join(SRC, 'components/design-system/ThemeProvider.tsx'))
-    const { TerminalSizeContext } = await import(path.join(SRC, 'ink/components/TerminalSizeContext.tsx'))
-    const { TranscriptSwap } = await import(path.join(SRC, 'components/CrewmateTranscript.tsx'))
-    const { crewmateTranscriptFile, CREWMATE_TRANSCRIPT_EMPTY, CREWMATE_TRANSCRIPT_READING } = await import(path.join(SRC, 'components/tasks/useCrewmateTranscript.ts'))
-    const { noSessionConnector } = await import(path.join(SRC, 'services/engine-connector/noSessionConnector.ts'))
-    const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import(path.join(SRC, 'services/engine-connector/focusedConnector.ts'))
+    const { Box, Text } = await import(path.join(SRC, 'screen/themedRenderer.ts'))
+    const { AppStateProvider, getDefaultAppState } = await import(path.join(SRC, 'screen/app-state/AppState.tsx'))
+    const { ThemeProvider } = await import(path.join(SRC, 'screen/theme/ThemeProvider.tsx'))
+    const { TerminalSizeContext } = await import(path.join(SRC, 'screen/renderer/elements/TerminalSizeContext.tsx'))
+    const { TranscriptSwap } = await import(path.join(SRC, 'screen/chat/CrewmateTranscript.tsx'))
+    const { crewmateTranscriptFile, CREWMATE_TRANSCRIPT_EMPTY, CREWMATE_TRANSCRIPT_READING } = await import(path.join(SRC, 'screen/tasks/useCrewmateTranscript.ts'))
+    const { noSessionConnector } = await import(path.join(SRC, 'engine/connector/noSessionConnector.ts'))
+    const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import(path.join(SRC, 'engine/connector/focusedConnector.ts'))
     const h = React.createElement
     const hosted = { sessionId: 'w07-6-session', originalCwd: PROJECT }
     const resting = noSessionConnector()
@@ -174,10 +174,10 @@ console.log('\nw07-3 · clearedSessions + hopIntoSession — failed clear mark r
     const fs = await import('node:fs')
     const path = await import('node:path')
     const { mock } = await import('bun:test')
-    const cleared = await import(path.join(SRC, 'utils/sessionStorage/clearedSessions.ts'))
-    const receipts = await import(path.join(SRC, 'utils/model/seatReceipts.ts'))
-    const focused = await import(path.join(SRC, 'services/engine-connector/focusedConnector.ts'))
-    const { noSessionConnector } = await import(path.join(SRC, 'services/engine-connector/noSessionConnector.ts'))
+    const cleared = await import(path.join(SRC, 'sessions/transcripts/clearedSessions.ts'))
+    const receipts = await import(path.join(SRC, 'models/facts/seatReceipts.ts'))
+    const focused = await import(path.join(SRC, 'engine/connector/focusedConnector.ts'))
+    const { noSessionConnector } = await import(path.join(SRC, 'engine/connector/noSessionConnector.ts'))
 
     const file = path.join(HOME, 'cleared-sessions.json')
     out.okMark = cleared.markSessionCleared('sess-ok-1')
@@ -189,7 +189,7 @@ console.log('\nw07-3 · clearedSessions + hopIntoSession — failed clear mark r
 
     const seen = []
     const unsub = receipts.subscribeSeatReceipts(r => seen.push(r))
-    const bornPath = path.join(SRC, 'services/switchboard/bornSession.ts')
+    const bornPath = path.join(SRC, 'daemon/switchboard/bornSession.ts')
     mock.module(bornPath, () => ({ bornSession: async () => ({ ok: true }) }))
     const resting = noSessionConnector()
     focused.setFocusedSessionConnector(new Proxy(resting, {
@@ -203,7 +203,7 @@ console.log('\nw07-3 · clearedSessions + hopIntoSession — failed clear mark r
       },
     }))
     try {
-      const hop = await import(path.join(SRC, 'services/switchboard/hopIntoSession.ts'))
+      const hop = await import(path.join(SRC, 'daemon/switchboard/hopIntoSession.ts'))
       out.clearOutcome = await hop.clearFocusedSession()
       out.receipts = seen
     } finally {
@@ -233,8 +233,8 @@ else {
   const r1 = runSubprocess(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const portable = await import(path.join(SRC, 'utils/sessionStoragePortable.ts'))
-    const health = await import(path.join(SRC, 'utils/sessionStorage/writer/storeHealth.ts'))
+    const portable = await import(path.join(SRC, 'sessions/transcripts/sessionStoragePortable.ts'))
+    const health = await import(path.join(SRC, 'sessions/transcripts/writer/storeHealth.ts'))
     const p1 = path.join(PROJECT, 'fresh-proj')
     fs.mkdirSync(p1, { recursive: true })
     out.freshDir = portable.getProjectDir(p1)
@@ -270,8 +270,8 @@ else {
   const r2 = runSubprocess(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const portable = await import(path.join(SRC, 'utils/sessionStoragePortable.ts'))
-    const health = await import(path.join(SRC, 'utils/sessionStorage/writer/storeHealth.ts'))
+    const portable = await import(path.join(SRC, 'sessions/transcripts/sessionStoragePortable.ts'))
+    const health = await import(path.join(SRC, 'sessions/transcripts/writer/storeHealth.ts'))
     const projectsDir = portable.getProjectsDir()
     const olderStore = path.join(projectsDir, '-old-spelling-12345678')
     fs.mkdirSync(olderStore, { recursive: true })
@@ -301,8 +301,8 @@ else {
   const r3 = runSubprocess(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const portable = await import(path.join(SRC, 'utils/sessionStoragePortable.ts'))
-    const health = await import(path.join(SRC, 'utils/sessionStorage/writer/storeHealth.ts'))
+    const portable = await import(path.join(SRC, 'sessions/transcripts/sessionStoragePortable.ts'))
+    const health = await import(path.join(SRC, 'sessions/transcripts/writer/storeHealth.ts'))
     const projectsDir = portable.getProjectsDir()
     const olderStore = path.join(projectsDir, '-old-head-12345678')
     fs.mkdirSync(olderStore, { recursive: true })
@@ -338,7 +338,7 @@ console.log('\nw07-4 · json.ts parseJSONL + fabric/transcriptDecode.ts — skip
     runSubprocess(`
       const path = await import('node:path')
       ${disableNative ? 'if (globalThis.Bun) { try { Object.defineProperty(globalThis.Bun, "JSONL", { value: undefined, configurable: true }) } catch {} }' : ''}
-      const { parseJSONL } = await import(path.join(SRC, 'utils/json.ts'))
+      const { parseJSONL } = await import(path.join(SRC, 'platform/storage/json.ts'))
       const probe = input => {
         let skipped = 0
         let calls = 0
@@ -373,9 +373,9 @@ console.log('\nw07-4 · json.ts parseJSONL + fabric/transcriptDecode.ts — skip
   const rDecode = runSubprocess(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const { encodeTranscriptLine } = await import(path.join(SRC, 'utils/sessionStorage/vnext.ts'))
-    const { decodeTranscriptBuffer } = await import(path.join(SRC, 'fabric/transcriptDecode.ts'))
-    const loading = await import(path.join(SRC, 'utils/sessionStorage/loading.ts'))
+    const { encodeTranscriptLine } = await import(path.join(SRC, 'sessions/transcripts/vnext.ts'))
+    const { decodeTranscriptBuffer } = await import(path.join(SRC, 'sessions/fabric/transcriptDecode.ts'))
+    const loading = await import(path.join(SRC, 'sessions/transcripts/loading.ts'))
     const sid = '00000000-dddd-eeee-ffff-000000000d07'
     const file = path.join(PROJECT, sid + '.jsonl')
     const meta = (uuid, parent) => ({
@@ -435,7 +435,7 @@ console.log('\nw07-5 · promptDraft — autosave refuses unreadable draft/scoped
         return realReadFile(p, ...rest)
       },
     }))
-    const drafts = await import(path.join(SRC, 'utils/promptDraft.ts'))
+    const drafts = await import(path.join(SRC, 'screen/composer/input-core/promptDraft.ts'))
     drafts.saveDraftDebounced(s1, { text: 'important draft 1', cursorOffset: 5, mode: 'prompt', pastedContents: {} })
     await drafts.flushDraftSaves()
     await drafts.saveScopedDoc(s1, { v: 1, scope: 'main', body: 'scoped body 1', items: [] })
@@ -465,8 +465,8 @@ console.log('\nw07-5 · promptDraft — autosave refuses unreadable draft/scoped
     const rRetry = runSubprocess(`
       const fs = await import('node:fs')
       const path = await import('node:path')
-      const drafts = await import(path.join(SRC, 'utils/promptDraft.ts'))
-      const pendingInput = await import(path.join(SRC, 'input-core/pending-input.ts'))
+      const drafts = await import(path.join(SRC, 'screen/composer/input-core/promptDraft.ts'))
+      const pendingInput = await import(path.join(SRC, 'screen/composer/input-core/pending-input.ts'))
       const s1 = '11111111-1111-4111-8111-111111111101'
       const s2 = '11111111-1111-4111-8111-111111111102'
 
@@ -509,9 +509,9 @@ else {
     const fs = await import('node:fs')
     const path = await import('node:path')
     const { encodeSeedTranscript } = await import(path.join(LIB, 'seedTranscript.ts'))
-    const portable = await import(path.join(SRC, 'utils/sessionStoragePortable.ts'))
-    const logs = await import(path.join(SRC, 'utils/sessionStorage/logs.ts'))
-    const { listSessionsImpl } = await import(path.join(SRC, 'utils/listSessionsImpl.ts'))
+    const portable = await import(path.join(SRC, 'sessions/transcripts/sessionStoragePortable.ts'))
+    const logs = await import(path.join(SRC, 'sessions/transcripts/sessionListings.ts'))
+    const { listSessionsImpl } = await import(path.join(SRC, 'sessions/transcripts/listSessions.ts'))
 
     const projectsDir = portable.getProjectsDir()
     const absentPage = await logs.listSessionsAcrossProjectsProgressive()
@@ -605,18 +605,18 @@ else {
     process.env.MERCURY_LIVE_CLOCK = '0'
     process.env.MERCURY_REDUCED_MOTION = '1'
     process.env.MERCURY_FULLSCREEN = '0'
-    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    const { enableConfigs } = await import(path.join(SRC, 'platform/config/globalConfig.ts'))
     enableConfigs()
-    const { Box } = await import(path.join(SRC, 'ink.ts'))
-    const { AppStateProvider, getDefaultAppState } = await import(path.join(SRC, 'state/AppState.tsx'))
-    const { ThemeProvider } = await import(path.join(SRC, 'components/design-system/ThemeProvider.tsx'))
-    const { TerminalSizeContext } = await import(path.join(SRC, 'ink/components/TerminalSizeContext.tsx'))
-    const { KeybindingSetup } = await import(path.join(SRC, 'keybindings/KeybindingProviderSetup.tsx'))
-    const { BootResumeScreen } = await import(path.join(SRC, 'components/BootResumeScreen.tsx'))
-    const { sessionListView } = await import(path.join(SRC, 'components/mercury-ui/screens/sessionManager/views.tsx'))
-    const { ResumeConversation } = await import(path.join(SRC, 'screens/ResumeConversation.tsx'))
-    const { useMercuryTokens } = await import(path.join(SRC, 'components/mercury-ui/useMercuryTokens.ts'))
-    const portable = await import(path.join(SRC, 'utils/sessionStoragePortable.ts'))
+    const { Box } = await import(path.join(SRC, 'screen/themedRenderer.ts'))
+    const { AppStateProvider, getDefaultAppState } = await import(path.join(SRC, 'screen/app-state/AppState.tsx'))
+    const { ThemeProvider } = await import(path.join(SRC, 'screen/theme/ThemeProvider.tsx'))
+    const { TerminalSizeContext } = await import(path.join(SRC, 'screen/renderer/elements/TerminalSizeContext.tsx'))
+    const { KeybindingSetup } = await import(path.join(SRC, 'screen/keys/KeybindingProviderSetup.tsx'))
+    const { BootResumeScreen } = await import(path.join(SRC, 'screen/boot-face/BootResumeScreen.tsx'))
+    const { sessionListView } = await import(path.join(SRC, 'screen/widgets/faces/session-manager/views.tsx'))
+    const { ResumeConversation } = await import(path.join(SRC, 'screen/chat/ResumeSession.tsx'))
+    const { useMercuryTokens } = await import(path.join(SRC, 'screen/widgets/useMercuryTokens.ts'))
+    const portable = await import(path.join(SRC, 'sessions/transcripts/sessionStoragePortable.ts'))
     const h = React.createElement
 
     const projectsDir = portable.getProjectsDir()

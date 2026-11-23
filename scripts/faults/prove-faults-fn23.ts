@@ -144,7 +144,7 @@ async function caughtAsync(fn: () => Promise<unknown>): Promise<{ code: string |
     import { mock } from 'bun:test'
     import { join } from 'node:path'
     const src = ${JSON.stringify(SRC)}
-    const coord = join(src, 'services/run/runCoordinator.ts')
+    const coord = join(src, 'engine/run/runCoordinator.ts')
     mock.module(coord, () => ({
       getRunSnapshot: (owner: string) => {
         if (String(owner).includes('lane-agent-1')) throw new TypeError('lane run snapshot bug')
@@ -152,7 +152,7 @@ async function caughtAsync(fn: () => Promise<unknown>): Promise<{ code: string |
       },
       subscribeRuns: () => () => {},
     }))
-    const { gatherWorkbenchInputs } = await import(join(src, 'services/workbench/projection.ts'))
+    const { gatherWorkbenchInputs } = await import(join(src, 'screen/workbench/projection.ts'))
     try {
       await gatherWorkbenchInputs({
         getAppState: () => ({ tasks: { t1: { type: 'agent', agentId: 'lane-agent-1' } } }),
@@ -186,11 +186,11 @@ async function caughtAsync(fn: () => Promise<unknown>): Promise<{ code: string |
       const readScript = `
         import { join } from 'node:path'
         const src = ${JSON.stringify(SRC)}
-        const { setSessionTrustAccepted } = await import(join(src, 'bootstrap/state.ts'))
+        const { setSessionTrustAccepted } = await import(join(src, 'boot/process-state/processState.ts'))
         setSessionTrustAccepted(true)
-        const { enableConfigs } = await import(join(src, 'utils/config/globalConfig.ts'))
+        const { enableConfigs } = await import(join(src, 'platform/config/globalConfig.ts'))
         enableConfigs()
-        const skills = await import(join(src, 'skills/loadSkillsDir.ts'))
+        const skills = await import(join(src, 'integrations/skills/loadSkillsDir.ts'))
         skills.clearSkillCaches()
         await skills.getSkillDirCommands(${JSON.stringify(proj)})
         process.stdout.write(JSON.stringify(skills.getSkillLoadRefusals()))
@@ -213,17 +213,17 @@ async function caughtAsync(fn: () => Promise<unknown>): Promise<{ code: string |
       import { mock } from 'bun:test'
       import { join } from 'node:path'
       const src = ${JSON.stringify(SRC)}
-      const fmPath = join(src, 'utils/frontmatterParser.ts')
+      const fmPath = join(src, 'platform/text/frontmatterParser.ts')
       const actualFm = await import(fmPath)
       mock.module(fmPath, () => ({
         ...actualFm,
         parseFrontmatter: () => { throw new Error('frontmatter boom') },
       }))
-      const { setSessionTrustAccepted } = await import(join(src, 'bootstrap/state.ts'))
+      const { setSessionTrustAccepted } = await import(join(src, 'boot/process-state/processState.ts'))
       setSessionTrustAccepted(true)
-      const { enableConfigs } = await import(join(src, 'utils/config/globalConfig.ts'))
+      const { enableConfigs } = await import(join(src, 'platform/config/globalConfig.ts'))
       enableConfigs()
-      const skills = await import(join(src, 'skills/loadSkillsDir.ts'))
+      const skills = await import(join(src, 'integrations/skills/loadSkillsDir.ts'))
       skills.clearSkillCaches()
       await skills.getSkillDirCommands(${JSON.stringify(proj)})
       process.stdout.write(JSON.stringify(skills.getSkillLoadRefusals()))
@@ -283,7 +283,7 @@ async function caughtAsync(fn: () => Promise<unknown>): Promise<{ code: string |
         import { readFileSync, writeFileSync, chmodSync } from 'node:fs'
         import { join } from 'node:path'
         const src = ${JSON.stringify(SRC)}
-        const inv = await import(join(src, 'substrate/invocationRecord.ts'))
+        const inv = await import(join(src, 'platform/substrate/invocationRecord.ts'))
         const file = join(${JSON.stringify(home)}, 'invocation-record.json')
         const attempt = (fn: () => unknown) => {
           try { return { ok: true, value: fn() } }

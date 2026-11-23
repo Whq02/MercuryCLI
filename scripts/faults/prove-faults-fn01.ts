@@ -117,7 +117,7 @@ else {
     const { mock } = await import('bun:test')
     const paths = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/paths.ts'))})
     const relaunchedIds = []
-    mock.module(path.join(SRC, 'tools/AgentTool/resumeAgent.js'), () => ({
+    mock.module(path.join(SRC, 'tools/crewmate/resumeCrewmate.js'), () => ({
       resumeAgentBackground: async ({ agentId }) => {
         relaunchedIds.push(agentId)
         if (agentId === 'a12345678') throw new Error('cannot open worktree')
@@ -221,13 +221,13 @@ console.log('\nclaimSession.ts — loadConversationForResume error reports resum
     fs.writeFileSync(file, '{"type":"user"}\\n')
     const shutdownCodes = []
     const emitted = []
-    mock.module(path.join(SRC, 'services/resume/conversationRecovery.js'), () => ({
+    mock.module(path.join(SRC, 'sessions/resume/conversationRecovery.js'), () => ({
       loadConversationForResume: async () => { throw new Error('disk read fault') },
     }))
-    mock.module(path.join(SRC, 'utils/gracefulShutdown.js'), () => ({
+    mock.module(path.join(SRC, 'platform/processes/gracefulShutdown.js'), () => ({
       gracefulShutdownSync: code => { shutdownCodes.push(code) },
     }))
-    mock.module(path.join(SRC, 'cli/headless/resume.js'), () => ({
+    mock.module(path.join(SRC, 'daemon/runner/resume.js'), () => ({
       emitLoadError: message => { emitted.push(message) },
     }))
     const { claimSession } = await import(${JSON.stringify(join(SRC, 'daemon/runner/claimSession.ts'))})
@@ -267,11 +267,11 @@ console.log('\nhealthJson.ts — serialization failure emits cert-failed error a
   const r = runSubprocess(`
     const path = await import('node:path')
     const { mock } = await import('bun:test')
-    mock.module(path.join(SRC, 'services/health/healthReport.js'), () => ({
+    mock.module(path.join(SRC, 'platform/health/healthReport.js'), () => ({
       healthCertEnabled: () => true,
       runAndRecordHealthReport: async () => ({ verdict: 'sound', broken: 1n }),
     }))
-    mock.module(path.join(SRC, 'services/health/readiness.js'), () => ({
+    mock.module(path.join(SRC, 'platform/health/readiness.js'), () => ({
       collectReadiness: () => ({ records: [] }),
     }))
     const { runHealthJsonCli } = await import(${JSON.stringify(join(SRC, 'commands/verbs/healthJson.ts'))})
@@ -310,8 +310,8 @@ console.log('\nmodels.ts — non-EPIPE stdout write failure rejects instead of b
       ...fs,
       writeSync: () => { throw Object.assign(new Error('no space'), { code: 'ENOSPC' }) },
     }))
-    mock.module(path.join(SRC, 'services/resources/registry.js'), () => ({}))
-    mock.module(path.join(SRC, 'services/resources/adapters/models.js'), () => ({
+    mock.module(path.join(SRC, 'integrations/resources/registry.js'), () => ({}))
+    mock.module(path.join(SRC, 'integrations/resources/adapters/models.js'), () => ({
       liveModelsReference: async () => ({ models: [] }),
       liveModelsReferenceText: () => 'models',
     }))
@@ -331,8 +331,8 @@ console.log('\nmodels.ts — non-EPIPE stdout write failure rejects instead of b
       ...fs,
       writeSync: () => { throw Object.assign(new Error('broken pipe'), { code: 'EPIPE' }) },
     }))
-    mock.module(path.join(SRC, 'services/resources/registry.js'), () => ({}))
-    mock.module(path.join(SRC, 'services/resources/adapters/models.js'), () => ({
+    mock.module(path.join(SRC, 'integrations/resources/registry.js'), () => ({}))
+    mock.module(path.join(SRC, 'integrations/resources/adapters/models.js'), () => ({
       liveModelsReference: async () => ({ models: [] }),
       liveModelsReferenceText: () => 'models',
     }))
@@ -374,30 +374,30 @@ console.log('\nchatLauncher.tsx — rejecting boot recovery or resume fold relea
     let started = 0
     let stopped = 0
     const logged = []
-    mock.module(path.join(SRC, 'utils/timers.js'), () => ({
+    mock.module(path.join(SRC, 'platform/async/timers.js'), () => ({
       ...timers,
       startTimeout: (fn, ms) => { started++; return realStart(fn, ms) },
       stopTimeout: handle => { stopped++; return realStop(handle) },
     }))
     const logMod = await import(${JSON.stringify(join(SRC, 'platform/logs/errorLog.js'))})
-    mock.module(path.join(SRC, 'utils/log.js'), () => ({
+    mock.module(path.join(SRC, 'platform/logs/errorLog.js'), () => ({
       ...logMod,
       logError: err => { logged.push(String(err instanceof Error ? err.message : err)) },
     }))
-    mock.module(path.join(SRC, 'substrate/recoveryOrchestrator.js'), () => ({
+    mock.module(path.join(SRC, 'platform/substrate/recoveryOrchestrator.js'), () => ({
       runBootRecovery: async () => { throw new Error('recovery boom') },
     }))
-    mock.module(path.join(SRC, 'services/run/runCoordinator.js'), () => ({
+    mock.module(path.join(SRC, 'engine/run/runCoordinator.js'), () => ({
       foldResumedRunForBoot: async () => { throw new Error('fold boom') },
     }))
-    mock.module(path.join(SRC, 'context/surfaceRoute.js'), () => ({
+    mock.module(path.join(SRC, 'screen/routes/surfaceRoute.js'), () => ({
       resolveInitialSurface: async () => ({ effective: 'chat' }),
       initializeSurfaceRoute: () => {},
     }))
-    mock.module(path.join(SRC, 'components/App.js'), () => ({ App: () => null }))
-    mock.module(path.join(SRC, 'components/SurfaceRouter.js'), () => ({ SurfaceRouter: () => null }))
-    mock.module(path.join(SRC, 'screens/Chat.js'), () => ({ Chat: () => null }))
-    mock.module(path.join(SRC, 'services/mcp/dynamicMcpSeed.js'), () => ({ seedDynamicMcpConfig: () => {} }))
+    mock.module(path.join(SRC, 'boot/App.js'), () => ({ App: () => null }))
+    mock.module(path.join(SRC, 'screen/routes/SurfaceRouter.js'), () => ({ SurfaceRouter: () => null }))
+    mock.module(path.join(SRC, 'screen/chat/Chat.js'), () => ({ Chat: () => null }))
+    mock.module(path.join(SRC, 'integrations/mcp/dynamicMcpSeed.js'), () => ({ seedDynamicMcpConfig: () => {} }))
     const { launchChat } = await import(${JSON.stringify(join(SRC, 'boot/chatLauncher.tsx'))})
     let rendered = false
     await launchChat({}, { getFpsMetrics: () => undefined, initialState: {} }, {}, async () => { rendered = true })
@@ -417,7 +417,7 @@ console.log('\nprintTurn.ts — failed elicitation registration does not mark se
     const { mock } = await import('bun:test')
     const logged = []
     const logMod = await import(${JSON.stringify(join(SRC, 'platform/logs/errorLog.js'))})
-    mock.module(path.join(SRC, 'utils/log.js'), () => ({
+    mock.module(path.join(SRC, 'platform/logs/errorLog.js'), () => ({
       ...logMod,
       logError: err => { logged.push(String(err instanceof Error ? err.message : err)) },
     }))

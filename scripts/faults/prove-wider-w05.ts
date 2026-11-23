@@ -120,13 +120,13 @@ esac
     const path = await import('node:path')
     const { mock } = await import('bun:test')
     const debugLogs = []
-    mock.module(path.join(SRC, 'utils/debug.js'), () => ({
+    mock.module(path.join(SRC, 'platform/logs/debugLog.js'), () => ({
       logForDebugging: (msg) => { debugLogs.push(String(msg)) },
       isDebugMode: () => false,
       getDebugLogPath: () => '',
     }))
-    const ss = await import(path.join(SRC, 'utils/secureStorage/index.ts'))
-    const auth = { ...(await import(path.join(SRC, 'utils/auth.ts'))), ...(await import(path.join(SRC, 'services/auth/oauthLifecycle.ts'))) }
+    const ss = await import(path.join(SRC, 'platform/secure-storage/index.ts'))
+    const auth = { ...(await import(path.join(SRC, 'models/sign-in/credentials/auth.ts'))), ...(await import(path.join(SRC, 'models/sign-in/lifecycle/oauthLifecycle.ts'))) }
     const modeFile = path.join(HOME, 'sec-mode')
 
     fs.writeFileSync(modeFile, 'absent')
@@ -192,9 +192,9 @@ esac
   const r = runScenario(`
     const path = await import('node:path')
     const { mock } = await import('bun:test')
-    const real = await import(path.join(SRC, 'utils/secureStorage/index.ts'))
+    const real = await import(path.join(SRC, 'platform/secure-storage/index.ts'))
     let shouldThrow = true
-    mock.module(path.join(SRC, 'utils/secureStorage/index.js'), () => ({
+    mock.module(path.join(SRC, 'platform/secure-storage/index.js'), () => ({
       ...real,
       getSecureStorage: () => ({
         name: 'throwing-mock',
@@ -210,7 +210,7 @@ esac
         delete() { return false },
       }),
     }))
-    const auth = { ...(await import(path.join(SRC, 'utils/auth.ts'))), ...(await import(path.join(SRC, 'services/auth/oauthLifecycle.ts'))) }
+    const auth = { ...(await import(path.join(SRC, 'models/sign-in/credentials/auth.ts'))), ...(await import(path.join(SRC, 'models/sign-in/lifecycle/oauthLifecycle.ts'))) }
     out.syncNull = auth.getClaudeAIOAuthTokens()
     out.unreadAfterSyncThrow = real.credentialStoreUnread()
     auth.clearOAuthTokenCache()
@@ -249,7 +249,7 @@ if (!POSIX_MODES) {
   const r = runScenario(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const ss = await import(path.join(SRC, 'utils/secureStorage/index.ts'))
+    const ss = await import(path.join(SRC, 'platform/secure-storage/index.ts'))
     const file = ss.credentialsPath()
     fs.writeFileSync(file, JSON.stringify({ trustedDeviceToken: 'fake-dev' }), { mode: 0o600 })
     fs.chmodSync(file, 0o200)
@@ -268,12 +268,12 @@ if (!POSIX_MODES) {
   const r = runScenario(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const ss = await import(path.join(SRC, 'utils/secureStorage/index.ts'))
-    const { scanAccountScopes } = await import(path.join(SRC, 'utils/accounts/scopeScan.ts'))
-    const { resolveLiveScopeIdentity, _resetIdentityCacheForTesting } = await import(path.join(SRC, 'utils/accounts/accountIdentity.ts'))
-    const { anthropicSlots } = await import(path.join(SRC, 'services/providers/accountSlots/anthropic.ts'))
-    const { walletEntries, activeWalletEntry, resetWalletEntriesMemo } = await import(path.join(SRC, 'services/wallet/wallet.ts'))
-    const { deriveScheduleAccountForModel } = await import(path.join(SRC, 'daemon/saturnAccount.ts'))
+    const ss = await import(path.join(SRC, 'platform/secure-storage/index.ts'))
+    const { scanAccountScopes } = await import(path.join(SRC, 'models/sign-in/account-ledger/scopeScan.ts'))
+    const { resolveLiveScopeIdentity, _resetIdentityCacheForTesting } = await import(path.join(SRC, 'models/sign-in/account-ledger/accountIdentity.ts'))
+    const { anthropicSlots } = await import(path.join(SRC, 'models/roads/account-slots/anthropic.ts'))
+    const { walletEntries, activeWalletEntry, resetWalletEntriesMemo } = await import(path.join(SRC, 'models/wallet/wallet.ts'))
+    const { deriveScheduleAccountForModel } = await import(path.join(SRC, 'daemon/saturn/saturnAccount.ts'))
 
     const file = ss.credentialsPath()
     fs.writeFileSync(file, JSON.stringify({ claudeAiOauth: { accessToken: 'fake-at-2', refreshToken: 'fake-rt-2', expiresAt: 4102444800000, scopes: ['user:inference'] } }), { mode: 0o600 })
@@ -319,11 +319,11 @@ if (!POSIX_MODES) {
   const r = runScenario(`
     const path = await import('node:path')
     const { mock } = await import('bun:test')
-    const po = await import(path.join(SRC, 'utils/passedOver.ts'))
-    mock.module(path.join(SRC, 'services/providers/accountSlots.js'), () => ({
+    const po = await import(path.join(SRC, 'platform/errors/passedOver.ts'))
+    mock.module(path.join(SRC, 'models/roads/accountSlots.js'), () => ({
       deriveFamilySlotGroups: () => { throw new Error('slots-boom') },
     }))
-    const { providerIdentityLine } = await import(path.join(SRC, 'services/providers/providerIdentityLine.ts'))
+    const { providerIdentityLine } = await import(path.join(SRC, 'models/roads/providerIdentityLine.ts'))
     const before1 = po.passedOverSoFar().count
     out.idLine = providerIdentityLine('anthropic')
     const after1 = po.passedOverSoFar()
@@ -336,13 +336,13 @@ if (!POSIX_MODES) {
   const r = runScenario(`
     const path = await import('node:path')
     const { mock } = await import('bun:test')
-    const po = await import(path.join(SRC, 'utils/passedOver.ts'))
-    const realAuth = await import(path.join(SRC, 'utils/auth.ts'))
-    mock.module(path.join(SRC, 'utils/auth.js'), () => ({
+    const po = await import(path.join(SRC, 'platform/errors/passedOver.ts'))
+    const realAuth = await import(path.join(SRC, 'models/sign-in/credentials/auth.ts'))
+    mock.module(path.join(SRC, 'models/sign-in/credentials/auth.js'), () => ({
       ...realAuth,
       getAuthTokenSource: () => { throw new Error('bearer-boom') },
     }))
-    const { anthropicCredentialPresence } = await import(path.join(SRC, 'services/providers/providerUsage.ts'))
+    const { anthropicCredentialPresence } = await import(path.join(SRC, 'models/roads/providerUsage.ts'))
     const before = po.passedOverSoFar().count
     out.presence = anthropicCredentialPresence()
     const after = po.passedOverSoFar()
@@ -356,14 +356,14 @@ console.log('\nw05-6 — useSessionSignInGate stays open on throw and records er
   const r = runScenario(`
     const path = await import('node:path')
     const { mock } = await import('bun:test')
-    const po = await import(path.join(SRC, 'utils/passedOver.ts'))
+    const po = await import(path.join(SRC, 'platform/errors/passedOver.ts'))
     mock.module('react', () => ({ useMemo: (fn) => fn() }))
-    mock.module(path.join(SRC, 'utils/accounts/useSignInEpoch.js'), () => ({ useSignInEpoch: () => 0 }))
-    mock.module(path.join(SRC, 'hooks/useCatalogueEpoch.js'), () => ({ useCatalogueEpoch: () => 0 }))
-    mock.module(path.join(SRC, 'services/accounts/sessionSignIn.js'), () => ({
+    mock.module(path.join(SRC, 'models/sign-in/account-ledger/useSignInEpoch.js'), () => ({ useSignInEpoch: () => 0 }))
+    mock.module(path.join(SRC, 'screen/model-picker/useCatalogueEpoch.js'), () => ({ useCatalogueEpoch: () => 0 }))
+    mock.module(path.join(SRC, 'models/sign-in/accounts/sessionSignIn.js'), () => ({
       sessionSignInGate: () => { throw new Error('gate-boom') },
     }))
-    const { useSessionSignInGate } = await import(path.join(SRC, 'hooks/useSessionSignInGate.ts'))
+    const { useSessionSignInGate } = await import(path.join(SRC, 'screen/focused-session/useSessionSignInGate.ts'))
     const before = po.passedOverSoFar().count
     out.gate = useSessionSignInGate('claude-sonnet-4-6')
     const after = po.passedOverSoFar()
@@ -393,13 +393,13 @@ exit 44
     `
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const cfg = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    const cfg = await import(path.join(SRC, 'platform/config/globalConfig.ts'))
     cfg.enableConfigs()
-    const auth = { ...(await import(path.join(SRC, 'utils/auth.ts'))), ...(await import(path.join(SRC, 'services/auth/oauthLifecycle.ts'))) }
-    const portable = await import(path.join(SRC, 'utils/authPortable.ts'))
+    const auth = { ...(await import(path.join(SRC, 'models/sign-in/credentials/auth.ts'))), ...(await import(path.join(SRC, 'models/sign-in/lifecycle/oauthLifecycle.ts'))) }
+    const portable = await import(path.join(SRC, 'models/sign-in/credentials/authPortable.ts'))
     const logout = await import(path.join(SRC, 'commands/logout/logout.tsx'))
-    const removal = await import(path.join(SRC, 'services/providers/accountSlots/removal.ts'))
-    const ps = await import(path.join(SRC, 'utils/accounts/providerSecrets.ts'))
+    const removal = await import(path.join(SRC, 'models/roads/account-slots/removal.ts'))
+    const ps = await import(path.join(SRC, 'models/sign-in/account-ledger/providerSecrets.ts'))
     const modeFile = path.join(HOME, 'del-mode')
 
     fs.writeFileSync(modeFile, 'absent')
@@ -471,18 +471,18 @@ console.log('\nw05-4 — storeOAuthAccountInfo keeps daemon restart failure for 
   const r = runScenario(`
     const path = await import('node:path')
     const { mock } = await import('bun:test')
-    const cfg = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    const cfg = await import(path.join(SRC, 'platform/config/globalConfig.ts'))
     cfg.enableConfigs()
     let failRestart = true
-    mock.module(path.join(SRC, 'daemon/ownedDaemon.js'), () => ({
+    mock.module(path.join(SRC, 'daemon/control/ownedDaemon.js'), () => ({
       restartOwnedDaemonForFreshSignin: async () => {
         if (failRestart) throw new Error('daemon-socket-gone')
         return 'asked'
       },
     }))
-    const refresh = await import(path.join(SRC, 'services/oauth/refresh.ts'))
-    const authCli = await import(path.join(SRC, 'cli/handlers/auth.ts'))
-    const { createAnthropicLoginMachine } = await import(path.join(SRC, 'components/mercury-ui/screens/anthropicLoginModel.ts'))
+    const refresh = await import(path.join(SRC, 'models/sign-in/oauth/refresh.ts'))
+    const authCli = await import(path.join(SRC, 'commands/verbs/auth.ts'))
+    const { createAnthropicLoginMachine } = await import(path.join(SRC, 'screen/widgets/faces/anthropicLoginModel.ts'))
 
     out.hasAwaitExport = typeof refresh.awaitStoredOAuthDaemonRestart === 'function'
     const ret = refresh.storeOAuthAccountInfo({ accountUuid: 'u-1', emailAddress: 'fake1@example.com' })
@@ -561,8 +561,8 @@ console.log('\nw05-5 — unreadable MERCURY_CLIENT_CERT / MERCURY_CLIENT_KEY war
   const r = runScenario(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const mtls = await import(path.join(SRC, 'utils/mtls.ts'))
-    const status = await import(path.join(SRC, 'components/status.tsx'))
+    const mtls = await import(path.join(SRC, 'platform/network/mtls.ts'))
+    const status = await import(path.join(SRC, 'commands/verbs/status.tsx'))
 
     const missingCert = path.join(SCRATCH, 'missing-cert.pem')
     const missingKey = path.join(SCRATCH, 'missing-key.pem')

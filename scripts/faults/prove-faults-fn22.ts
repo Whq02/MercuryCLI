@@ -63,7 +63,7 @@ type Attempt = { ok: boolean; value?: unknown; code?: string | null; name?: stri
 console.log('\n1. unity/bridgeInstaller.ts — readProjectBridgePort throws on corrupt or unreadable settings')
 {
   const r = runSubprocess(`
-    const m = await import(path.join(SRC, 'services/unity/bridgeInstaller.ts'))
+    const m = await import(path.join(SRC, 'integrations/unity/bridgeInstaller.ts'))
     const settingsDir = path.join(PROJECT, 'ProjectSettings')
     const settingsFile = path.join(settingsDir, 'MercuryUnityBridge.json')
     out.absent = await attempt(() => m.readProjectBridgePort(PROJECT))
@@ -96,7 +96,7 @@ console.log('\n2. voice/capture.ts + voice/voiceSession.ts — failed cancelCapt
 {
   const r = runSubprocess(`
     const { mock } = await import('bun:test')
-    const realPack = await import(path.join(SRC, 'utils/voice/voicePack.ts'))
+    const realPack = await import(path.join(SRC, 'integrations/voice-pack/voicePack.ts'))
     let cancelCalls = 0
     const addon = {
       packVersion: () => '1.0.0',
@@ -118,12 +118,12 @@ console.log('\n2. voice/capture.ts + voice/voiceSession.ts — failed cancelCapt
       name: 'mercury-voice', version: '1.0.0', platform: 'test', addon: 'a.node',
       addonSha256: '0'.repeat(64), sourceTreeDigest: '0'.repeat(64), cargo: '1', crates: [], fileCount: 1, treeDigest: '0'.repeat(64),
     }
-    mock.module(path.join(SRC, 'utils/voice/voicePack.ts'), () => ({
+    mock.module(path.join(SRC, 'integrations/voice-pack/voicePack.ts'), () => ({
       ...realPack,
       resolveVoicePackDir: () => ({ state: 'ok', dir: PROJECT, addonPath: path.join(PROJECT, 'a.node'), manifest, source: 'override' }),
       loadVoiceAddon: () => ({ state: 'ok', addon, dir: PROJECT, manifest, source: 'override' }),
     }))
-    const capture = await import(path.join(SRC, 'services/voice/capture.ts'))
+    const capture = await import(path.join(SRC, 'integrations/voice/capture.ts'))
     const h = await capture.startCapture({ backend: { state: 'ok', kind: 'vendored', detail: 'stub', pinned: true } })
     out.firstCancel = await attempt(() => h.cancel())
     out.settledAfterFail = h.settled
@@ -141,8 +141,8 @@ console.log('\n3. voice/voiceSession.ts — cancelVoiceCapture keeps active hand
 {
   const r = runSubprocess(`
     const { mock } = await import('bun:test')
-    const realPack = await import(path.join(SRC, 'utils/voice/voicePack.ts'))
-    const realTranscribe = await import(path.join(SRC, 'services/voice/transcribe.ts'))
+    const realPack = await import(path.join(SRC, 'integrations/voice-pack/voicePack.ts'))
+    const realTranscribe = await import(path.join(SRC, 'integrations/voice/transcribe.ts'))
     let cancelCalls = 0
     const addon = {
       packVersion: () => '1.0.0',
@@ -164,12 +164,12 @@ console.log('\n3. voice/voiceSession.ts — cancelVoiceCapture keeps active hand
       name: 'mercury-voice', version: '1.0.0', platform: 'test', addon: 'a.node',
       addonSha256: '0'.repeat(64), sourceTreeDigest: '0'.repeat(64), cargo: '1', crates: [], fileCount: 1, treeDigest: '0'.repeat(64),
     }
-    mock.module(path.join(SRC, 'utils/voice/voicePack.ts'), () => ({
+    mock.module(path.join(SRC, 'integrations/voice-pack/voicePack.ts'), () => ({
       ...realPack,
       resolveVoicePackDir: () => ({ state: 'ok', dir: PROJECT, addonPath: path.join(PROJECT, 'a.node'), manifest, source: 'override' }),
       loadVoiceAddon: () => ({ state: 'ok', addon, dir: PROJECT, manifest, source: 'override' }),
     }))
-    mock.module(path.join(SRC, 'services/voice/transcribe.ts'), () => ({
+    mock.module(path.join(SRC, 'integrations/voice/transcribe.ts'), () => ({
       ...realTranscribe,
       resolveTranscriber: () => ({
         state: 'ok',
@@ -179,7 +179,7 @@ console.log('\n3. voice/voiceSession.ts — cancelVoiceCapture keeps active hand
       localDecodesInFlight: () => 0,
       warmLocalTranscriber: () => {},
     }))
-    const session = await import(path.join(SRC, 'services/voice/voiceSession.ts'))
+    const session = await import(path.join(SRC, 'integrations/voice/voiceSession.ts'))
     session.setVoiceInputEnabled(true)
     const started = await session.startVoiceCapture({ road: 'command' })
     out.started = started.kind
@@ -201,7 +201,7 @@ console.log('\n4. vulcan/addonInstaller.ts — unreadable project.godot is never
 if (!POSIX_MODES) skip('addonInstaller-projectGodot', 'needs non-root POSIX')
 else {
   const r = runSubprocess(`
-    const m = await import(path.join(SRC, 'services/vulcan/addonInstaller.ts'))
+    const m = await import(path.join(SRC, 'integrations/vulcan/addonInstaller.ts'))
     const file = path.join(PROJECT, 'project.godot')
     out.absentAutoload = await attempt(() => m.readRuntimeAutoloadEntry(PROJECT))
     const original = 'config_version=5\\n\\n[application]\\n\\nconfig/name="KeepMe"\\n'
@@ -225,7 +225,7 @@ console.log('\n5. vulcan/engine/compileGate.ts — unreadable project.godot thro
 if (!POSIX_MODES) skip('compileGate', 'needs non-root POSIX')
 else {
   const r = runSubprocess(`
-    const m = await import(path.join(SRC, 'services/vulcan/engine/compileGate.ts'))
+    const m = await import(path.join(SRC, 'integrations/vulcan/engine/compileGate.ts'))
     out.absentAutoloads = await attempt(() => m.projectAutoloads(path.join(PROJECT, 'missing')))
     const godotFile = path.join(PROJECT, 'project.godot')
     fs.writeFileSync(godotFile, '[autoload]\\nEvents="*res://events.gd"\\n', { mode: 0o600 })
@@ -254,7 +254,7 @@ console.log('\n6. vulcan/engine/frozenTree.ts — unreadable files throw in mate
 if (!POSIX_MODES) skip('frozenTree', 'needs non-root POSIX')
 else {
   const r = runSubprocess(`
-    const m = await import(path.join(SRC, 'services/vulcan/engine/frozenTree.ts'))
+    const m = await import(path.join(SRC, 'integrations/vulcan/engine/frozenTree.ts'))
     const aPath = path.join(PROJECT, 'a.gd')
     fs.writeFileSync(aPath, 'class_name Foo\\n', { mode: 0o600 })
     fs.chmodSync(aPath, 0o200)
@@ -306,7 +306,7 @@ if (process.platform === 'win32') {
         return origStatSync(p, ...rest)
       },
     }))
-    const m = await import(path.join(SRC, 'services/vulcan/engine/leases.ts'))
+    const m = await import(path.join(SRC, 'integrations/vulcan/engine/leases.ts'))
     const holder = { sessionId: 's1', agentId: 'main', pid: process.pid }
     out.eio = await attempt(() => m.takeProjectLeases(PROJECT, ['Foo.gd'], holder))
     mode = 'enoent'
@@ -324,8 +324,8 @@ console.log('\n8. vulcan/engine/liveness.ts — unreadable stamp fails safe as a
 if (!POSIX_MODES) skip('liveness', 'needs non-root POSIX')
 else {
   const r = runSubprocess(`
-    const m = await import(path.join(SRC, 'services/vulcan/engine/liveness.ts'))
-    const paths = await import(path.join(SRC, 'services/vulcan/engine/paths.ts'))
+    const m = await import(path.join(SRC, 'integrations/vulcan/engine/liveness.ts'))
+    const paths = await import(path.join(SRC, 'integrations/vulcan/engine/paths.ts'))
     const treesDir = paths.engineTreesDir(PROJECT)
     const jobTree = path.join(treesDir, '1234-ab12')
     fs.mkdirSync(jobTree, { recursive: true })
@@ -351,8 +351,8 @@ console.log('\n9. vulcan/engine/service.ts — record/list reads throw on non-EN
 if (!POSIX_MODES) skip('service', 'needs non-root POSIX')
 else {
   const r = runSubprocess(`
-    const m = await import(path.join(SRC, 'services/vulcan/engine/service.ts'))
-    const paths = await import(path.join(SRC, 'services/vulcan/engine/paths.ts'))
+    const m = await import(path.join(SRC, 'integrations/vulcan/engine/service.ts'))
+    const paths = await import(path.join(SRC, 'integrations/vulcan/engine/paths.ts'))
     const svc = new m.EngineJobService(PROJECT, {
       census: async () => { throw new Error('ps blocked') },
     })
@@ -412,12 +412,12 @@ else {
   check('service-runOne-logWrite: unwritable suite log sets row.ok false and records spawnError', r.runOneOk === false && typeof r.runOneSpawnError === 'string' && r.runOneSpawnError.includes('could not be written'), JSON.stringify({ ok: r.runOneOk, spawnError: r.runOneSpawnError }))
   const rExe = runSubprocess(`
     const { mock } = await import('bun:test')
-    const realHealth = await import(path.join(SRC, 'services/vulcan/portabilityHealth.ts'))
-    mock.module(path.join(SRC, 'services/vulcan/portabilityHealth.ts'), () => ({
+    const realHealth = await import(path.join(SRC, 'integrations/vulcan/portabilityHealth.ts'))
+    mock.module(path.join(SRC, 'integrations/vulcan/portabilityHealth.ts'), () => ({
       ...realHealth,
       resolveGodotExecutable: async () => ({ source: 'not-found', note: 'no godot executable on PATH, under 0 well-known root(s), or running', probed: [] }),
     }))
-    const m = await import(path.join(SRC, 'services/vulcan/engine/service.ts'))
+    const m = await import(path.join(SRC, 'integrations/vulcan/engine/service.ts'))
     const svc = new m.EngineJobService(PROJECT, { census: async () => { throw new Error('ps blocked') } })
     out.exeNoGodot = await svc.executable()
   `)

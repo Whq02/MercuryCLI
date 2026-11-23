@@ -5,7 +5,7 @@ import { join, relative } from 'node:path'
 import ts from 'typescript'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const SCAN = ['src/components', 'src/commands', 'src/screens', 'src/screen/renderer/elements'].map(p =>
+const SCAN = ['src'].map(p =>
   join(ROOT, p),
 )
 

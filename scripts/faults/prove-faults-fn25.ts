@@ -100,7 +100,7 @@ const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
   const r = runSub(`
     const { mock } = await import('bun:test')
     const path = await import('node:path')
-    const storagePath = path.join(SRC, 'utils/sessionStorage.ts')
+    const storagePath = path.join(SRC, 'sessions/transcripts/sessionStorage.ts')
     const realStorage = await import(storagePath)
     let readCalls = 0
     let writeCalls = 0
@@ -119,14 +119,14 @@ const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
         writeCalls++
       },
     }))
-    const runAgentPath = path.join(SRC, 'tools/AgentTool/runAgent.ts')
+    const runAgentPath = path.join(SRC, 'tools/crewmate/runCrewmate.ts')
     const realRunAgent = await import(runAgentPath)
     mock.module(runAgentPath, () => ({
       ...realRunAgent,
       runAgent: async function* () {},
     }))
-    const { resumeAgentBackground } = await import(path.join(SRC, 'tools/AgentTool/resumeAgent.ts'))
-    const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'Tool.ts'))
+    const { resumeAgentBackground } = await import(path.join(SRC, 'tools/crewmate/resumeCrewmate.ts'))
+    const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'tools/kit/tool.ts'))
     const state = { toolPermissionContext: getEmptyToolPermissionContext(), tasks: {}, mcp: { tools: [], clients: [] } }
     const ctx = {
       getAppState: () => state,
@@ -153,9 +153,9 @@ const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
   const r = runSub(`
     const { mock } = await import('bun:test')
     const path = await import('node:path')
-    const firePath = path.join(SRC, 'utils/hooks/fire.ts')
+    const firePath = path.join(SRC, 'integrations/event-hooks/fire.ts')
     mock.module(firePath, () => ({ fireHooks: async () => ({ outcomes: [], answer: { contexts: [] } }) }))
-    const storagePath = path.join(SRC, 'utils/sessionStorage.ts')
+    const storagePath = path.join(SRC, 'sessions/transcripts/sessionStorage.ts')
     const realStorage = await import(storagePath)
     let mode = 'register-fail'
     let writeCalls = 0
@@ -173,9 +173,9 @@ const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
         if (mode === 'write-fail') throw Object.assign(new Error('EACCES: cannot write sidecar'), { code: 'EACCES' })
       },
     }))
-    const { prepareAgentRun } = await import(path.join(SRC, 'tools/AgentTool/runAgent/prepare.ts'))
-    const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'Tool.ts'))
-    const { createFileStateCacheWithSizeLimit } = await import(path.join(SRC, 'utils/fileStateCache.ts'))
+    const { prepareAgentRun } = await import(path.join(SRC, 'tools/crewmate/run/prepare.ts'))
+    const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'tools/kit/tool.ts'))
+    const { createFileStateCacheWithSizeLimit } = await import(path.join(SRC, 'platform/files/fileStateCache.ts'))
     const state = { toolPermissionContext: getEmptyToolPermissionContext(), tasks: {}, mcp: { tools: [], clients: [] }, sessionHooks: new Map() }
     const ctx = {
       getAppState: () => state,
@@ -400,7 +400,7 @@ const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
   const r = runSub(`
     const { mock } = await import('bun:test')
     const path = await import('node:path')
-    const sessionPath = path.join(SRC, 'services/browser/browserSession.ts')
+    const sessionPath = path.join(SRC, 'integrations/browser/browserSession.ts')
     const realSession = await import(sessionPath)
     mock.module(sessionPath, () => ({
       ...realSession,
@@ -413,8 +413,8 @@ const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
         },
       }),
     }))
-    const { checkBrowserPermissions } = await import(path.join(SRC, 'tools/BrowserTool/browser/permissions.ts'))
-    const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'Tool.ts'))
+    const { checkBrowserPermissions } = await import(path.join(SRC, 'tools/browser/ops/permissions.ts'))
+    const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'tools/kit/tool.ts'))
     const ctx = { getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) }
     out.decision = await checkBrowserPermissions({ op: 'click', frame: 99, selector: 'button' }, ctx)
     const ruled = { ...getEmptyToolPermissionContext(), alwaysDenyRules: { userSettings: ['Browser(origin:https://blocked.test)'] } }
@@ -520,7 +520,7 @@ const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
   const r = runSub(`
     const { mock } = await import('bun:test')
     const path = await import('node:path')
-    const pauseCarryPath = path.join(SRC, 'tasks/LocalAgentTask/pauseCarry.ts')
+    const pauseCarryPath = path.join(SRC, 'engine/tasks/local-agent/pauseCarry.ts')
     const realPauseCarry = await import(pauseCarryPath)
     let writeErr = 'ENOSPC: disk full'
     mock.module(pauseCarryPath, () => ({
@@ -532,9 +532,9 @@ const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
         throw Object.assign(new Error(writeErr), { code: 'ENOSPC' })
       },
     }))
-    const { getCommandQueue, resetCommandQueue } = await import(path.join(SRC, 'input-core/command-queue.ts'))
-    const { cancelAutomaticResume, armBudgetCutResume, armOverloadProbe } = await import(path.join(SRC, 'tools/AgentTool/agentToolUtils.ts'))
-    const { getDefaultAppState } = await import(path.join(SRC, 'state/AppStateStore.ts'))
+    const { getCommandQueue, resetCommandQueue } = await import(path.join(SRC, 'screen/composer/input-core/command-queue.ts'))
+    const { cancelAutomaticResume, armBudgetCutResume, armOverloadProbe } = await import(path.join(SRC, 'tools/crewmate/crewmateLifecycle.ts'))
+    const { getDefaultAppState } = await import(path.join(SRC, 'screen/app-state/AppStateStore.ts'))
     const notes = () => getCommandQueue().filter(c => c.mode === 'task-notification').map(c => String(c.value))
 
     resetCommandQueue()

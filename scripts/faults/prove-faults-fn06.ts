@@ -349,7 +349,7 @@ if (!POSIX_MODES) {
 {
   const r = runCase(`
     const { mock } = await import('bun:test')
-    const dpPath = path.join(SRC, 'substrate/durablePublish.ts')
+    const dpPath = path.join(SRC, 'platform/substrate/durablePublish.ts')
     const realDp = await import(dpPath)
     mock.module(dpPath, () => ({
       ...realDp,
@@ -377,12 +377,12 @@ console.log('\nsrc/boot/main/runLaunch.ts')
 {
   const r = runCase(`
     const { mock } = await import('bun:test')
-    mock.module(path.join(SRC, 'utils/permissions/bypassPermissionsKillswitch.ts'), () => ({
+    mock.module(path.join(SRC, 'permissions/rules/bypassPermissionsKillswitch.ts'), () => ({
       checkAndDisableSovereignIfNeeded: async () => {
         throw new Error('killswitch policy check failed')
       },
     }))
-    mock.module(path.join(SRC, 'cli/run.ts'), () => ({
+    mock.module(path.join(SRC, 'daemon/runner/runHeadless.ts'), () => ({
       runHeadless: async (_prompt, getAppState) => {
         const ctx = getAppState().toolPermissionContext
         out.mode = ctx.mode
@@ -432,13 +432,13 @@ console.log('\nsrc/boot/main/interactiveLaunch.ts')
 {
   const r = runCase(`
     const { mock } = await import('bun:test')
-    const inkPath = path.join(SRC, 'ink.ts')
+    const inkPath = path.join(SRC, 'screen/themedRenderer.ts')
     const realInk = await import(inkPath)
     mock.module(inkPath, () => ({
       ...realInk,
       createRoot: async () => ({ render() {}, unmount() {}, waitUntilExit: async () => {} }),
     }))
-    const ihPath = path.join(SRC, 'interactiveHelpers.tsx')
+    const ihPath = path.join(SRC, 'boot/setupScreens.tsx')
     const realIh = await import(ihPath)
     mock.module(ihPath, () => ({
       ...realIh,
@@ -447,7 +447,7 @@ console.log('\nsrc/boot/main/interactiveLaunch.ts')
         out.exitMessage = msg
       },
     }))
-    const ssPath = path.join(SRC, 'utils/sessionStorage.ts')
+    const ssPath = path.join(SRC, 'sessions/transcripts/sessionStorage.ts')
     const realSs = await import(ssPath)
     mock.module(ssPath, () => ({
       ...realSs,
@@ -495,7 +495,7 @@ console.log('\nsrc/boot/main/sessionChoices.ts')
 {
   const r = runCase(`
     const { mock } = await import('bun:test')
-    const cliPath = path.join(SRC, 'main/cli.ts')
+    const cliPath = path.join(SRC, 'boot/main/cli.ts')
     const realCli = await import(cliPath)
     mock.module(cliPath, () => ({
       ...realCli,
@@ -524,7 +524,7 @@ for (const [label, awaitsRawRead] of [
 ] as const) {
   const r = runCase(`
     const { mock } = await import('bun:test')
-    const mdmPath = path.join(SRC, 'utils/settings/mdm/settings.ts')
+    const mdmPath = path.join(SRC, 'platform/settings/mdm/settings.ts')
     const realMdm = await import(mdmPath)
     mock.module(mdmPath, () => ({
       ...realMdm,
@@ -533,7 +533,7 @@ for (const [label, awaitsRawRead] of [
         throw new Error('mdm plist unreadable')
       },
     }))
-    const extCliPath = path.join(SRC, 'extensions/cli.ts')
+    const extCliPath = path.join(SRC, 'integrations/extensions/cli.ts')
     const realExtCli = await import(extCliPath)
     mock.module(extCliPath, () => ({
       ...realExtCli,

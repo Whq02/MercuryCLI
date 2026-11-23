@@ -53,7 +53,7 @@ console.log('\nSessionManagerView — ownSessionRecord catches malformed worker 
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const workersMod = path.join(SRC, 'daemon/concourseWorkers.ts')
+    const workersMod = path.join(SRC, 'daemon/concourse-workers/concourseWorkers.ts')
     const real = await import(workersMod)
     mock.module(workersMod, () => ({
       ...real,
@@ -114,7 +114,7 @@ console.log('\nmcp — buildServePermissionContext refuses to drop deny rules wh
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const loaderMod = path.join(SRC, 'utils/permissions/permissionsLoader.ts')
+    const loaderMod = path.join(SRC, 'permissions/rules/permissionsLoader.ts')
     const real = await import(loaderMod)
     mock.module(loaderMod, () => ({
       ...real,
@@ -249,7 +249,7 @@ console.log('\nPaletteView — failed command load reports the error instead of 
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const cmdsMod = path.join(SRC, 'commands.ts')
+    const cmdsMod = path.join(SRC, 'commands/catalogue/commands.ts')
     const real = await import(cmdsMod)
     mock.module(cmdsMod, () => ({
       ...real,

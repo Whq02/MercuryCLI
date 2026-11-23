@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const TREES = ['src/components', 'src/screens', 'src/commands']
+const TREES = ['src']
 
 const EMOJI = /[\u{1F300}-\u{1FAFF}]|\u{FE0F}/u
 

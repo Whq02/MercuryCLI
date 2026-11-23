@@ -57,7 +57,7 @@ function runSub(body: string, extraEnv: Record<string, string> = {}): Record<str
     mock.module('node:os', () => ({ ...realOs, homedir: () => { throw new Error('homedir unavailable') } }))
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const paths = await import(path.join(SRC, 'utils/projectLocal/paths.ts'))
+    const paths = await import(path.join(SRC, 'platform/project-local/paths.ts'))
     const target = path.join(WORK, 'maybe-home')
     fs.mkdirSync(target, { recursive: true })
     let threw = null
@@ -96,7 +96,7 @@ function runSub(body: string, extraEnv: Record<string, string> = {}): Record<str
         },
       }))
       process.env.MERCURY_GH_CMD = '{bad json'
-      const ghMod = await import(path.join(SRC, 'services/privateChannel/ghRelease.ts'))
+      const ghMod = await import(path.join(SRC, 'platform/update-channel/ghRelease.ts'))
       out.badJson = await ghMod.gh(['--version'])
       process.env.MERCURY_GH_CMD = '[]'
       out.emptyArray = await ghMod.gh(['--version'])
@@ -110,7 +110,7 @@ function runSub(body: string, extraEnv: Record<string, string> = {}): Record<str
       fs.chmodSync(fakeGh, 0o755)
       process.env.PATH = binDir + ':' + (process.env.PATH ?? '')
       process.env.MERCURY_GH_CMD = '{bad json'
-      const ghMod = await import(path.join(SRC, 'services/privateChannel/ghRelease.ts'))
+      const ghMod = await import(path.join(SRC, 'platform/update-channel/ghRelease.ts'))
       out.badJson = await ghMod.gh(['--version'])
       process.env.MERCURY_GH_CMD = '[]'
       out.emptyArray = await ghMod.gh(['--version'])
@@ -131,7 +131,7 @@ function runSub(body: string, extraEnv: Record<string, string> = {}): Record<str
   const r = runSub(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const installPath = await import(path.join(SRC, 'services/privateChannel/installPath.ts'))
+    const installPath = await import(path.join(SRC, 'platform/update-channel/installPath.ts'))
     const roots = {
       versionsDir: path.join(WORK, 'versions'),
       binDir: path.join(WORK, 'bin'),
@@ -186,8 +186,8 @@ function runSub(body: string, extraEnv: Record<string, string> = {}): Record<str
   console.log('\nexecutionProjection.ts — failed service stop settles execution instead of staying stopping')
   const r = runSub(`
     const path = await import('node:path')
-    const proj = await import(path.join(SRC, 'services/projectServices/executionProjection.ts'))
-    const plane = await import(path.join(SRC, 'utils/primitives/executionPlane.ts'))
+    const proj = await import(path.join(SRC, 'tools/engines/project-services/executionProjection.ts'))
+    const plane = await import(path.join(SRC, 'engine/execution-plane/executionPlane.ts'))
     const owner = proj.serviceExecutionOwner(WORK)
     const id1 = proj.serviceExecutionId('svc-reject')
     const id2 = proj.serviceExecutionId('svc-err')
@@ -224,7 +224,7 @@ if (POSIX_MODES) {
   const r = runSub(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const layout = await import(path.join(SRC, 'services/privateChannel/installLayout.ts'))
+    const layout = await import(path.join(SRC, 'platform/update-channel/installLayout.ts'))
 
     const vDir = path.join(WORK, 'unreadable-versions')
     fs.mkdirSync(vDir, { recursive: true })
@@ -336,9 +336,9 @@ if (POSIX_MODES) {
   const r = runSub(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const mgr = await import(path.join(SRC, 'services/projectServices/serviceManager.ts'))
-    const lifecycle = await import(path.join(SRC, 'utils/run/ownerLifecycle.ts'))
-    const { projectOwner } = await import(path.join(SRC, 'utils/primitives/owner.ts'))
+    const mgr = await import(path.join(SRC, 'tools/engines/project-services/serviceManager.ts'))
+    const lifecycle = await import(path.join(SRC, 'engine/run-owner/ownerLifecycle.ts'))
+    const { projectOwner } = await import(path.join(SRC, 'engine/execution-plane/owner.ts'))
 
     const svcDir = mgr.servicesDir(WORK)
     fs.mkdirSync(svcDir, { recursive: true })
@@ -464,7 +464,7 @@ if (POSIX_MODES) {
   const r = runSub(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const upd = await import(path.join(SRC, 'services/privateChannel/updateService.ts'))
+    const upd = await import(path.join(SRC, 'platform/update-channel/updateService.ts'))
     const vDir = path.join(WORK, 'ro-update-versions')
     const prevDir = path.join(vDir, '1.0.0')
     fs.mkdirSync(path.join(prevDir, 'vendor', 'ripgrep'), { recursive: true })

@@ -59,7 +59,7 @@ console.log('\nw06-1: VerbsPart.leave and ExitHandoff — failed abort interrupt
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const socketPath = path.join(SRC, 'daemon/controlSocket.ts')
+    const socketPath = path.join(SRC, 'daemon/control/controlSocket.ts')
     const realSocket = await import(socketPath)
     let releaseLeave = null
     mock.module(socketPath, () => ({
@@ -68,7 +68,7 @@ console.log('\nw06-1: VerbsPart.leave and ExitHandoff — failed abort interrupt
         releaseLeave = resolve
       }),
     }))
-    const { VerbsPart } = await import(path.join(SRC, 'services/engine-connector/daemon/verbs.ts'))
+    const { VerbsPart } = await import(path.join(SRC, 'engine/connector/daemon/verbs.ts'))
     let failInterrupt = true
     const verbs = new VerbsPart({
       record: () => ({ sessionId: 'sess-leave-w06' }),
@@ -106,9 +106,9 @@ console.log('\nw06-1: VerbsPart.leave and ExitHandoff — failed abort interrupt
     c2.abort(new Error('ctrl-c'))
     out.okReceipt = await p2
 
-    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    const { enableConfigs } = await import(path.join(SRC, 'platform/config/globalConfig.ts'))
     enableConfigs()
-    const gsPath = path.join(SRC, 'utils/gracefulShutdown.ts')
+    const gsPath = path.join(SRC, 'platform/processes/gracefulShutdown.ts')
     const realGs = await import(gsPath)
     const shutdownMessages = []
     mock.module(gsPath, () => ({
@@ -118,13 +118,13 @@ console.log('\nw06-1: VerbsPart.leave and ExitHandoff — failed abort interrupt
       },
     }))
     const React = await import('react')
-    const { Box } = await import(path.join(SRC, 'ink.ts'))
-    const { ThemeProvider } = await import(path.join(SRC, 'components/design-system/ThemeProvider.tsx'))
-    const { leaveNoteAtExit } = await import(path.join(SRC, 'components/ExitHandoff.tsx'))
+    const { Box } = await import(path.join(SRC, 'screen/themedRenderer.ts'))
+    const { ThemeProvider } = await import(path.join(SRC, 'screen/theme/ThemeProvider.tsx'))
+    const { leaveNoteAtExit } = await import(path.join(SRC, 'commands/exit/ExitHandoff.tsx'))
     const { call: exitCall } = await import(path.join(SRC, 'commands/exit/exit.tsx'))
-    const { ExitFlow } = await import(path.join(SRC, 'components/ExitFlow.tsx'))
-    const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import(path.join(SRC, 'services/engine-connector/focusedConnector.ts'))
-    const { noSessionConnector } = await import(path.join(SRC, 'services/engine-connector/noSessionConnector.ts'))
+    const { ExitFlow } = await import(path.join(SRC, 'commands/exit/ExitFlow.tsx'))
+    const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import(path.join(SRC, 'engine/connector/focusedConnector.ts'))
+    const { noSessionConnector } = await import(path.join(SRC, 'engine/connector/noSessionConnector.ts'))
     const { mountOffscreen, waitFor } = await import(path.join(REPO, 'scripts/lib/settingsPopupHarness.ts'))
     const detailSentence = 'the handoff could not be interrupted (ECONNREFUSED) — the turn may still be running'
     setFocusedSessionConnector({
@@ -180,7 +180,7 @@ console.log('\nw06-2: daemonConnector.sendWords and sessionSend — unreadable o
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const oblPath = path.join(SRC, 'services/crew/obligations.ts')
+    const oblPath = path.join(SRC, 'crew/crewmates/obligations.ts')
     const realObl = await import(oblPath)
     let failRead = true
     mock.module(oblPath, () => ({
@@ -190,13 +190,13 @@ console.log('\nw06-2: daemonConnector.sendWords and sessionSend — unreadable o
         return []
       },
     }))
-    const ensurePath = path.join(SRC, 'services/switchboard/ensureDaemon.ts')
+    const ensurePath = path.join(SRC, 'daemon/switchboard/ensureDaemon.ts')
     const realEnsure = await import(ensurePath)
     mock.module(ensurePath, () => ({
       ...realEnsure,
       ensureOwnedDaemon: async () => true,
     }))
-    const { DaemonSessionConnector } = await import(path.join(SRC, 'services/engine-connector/daemonConnector.ts'))
+    const { DaemonSessionConnector } = await import(path.join(SRC, 'engine/connector/daemonConnector.ts'))
     const rpcCalls = []
     const connector = new DaemonSessionConnector(
       {
@@ -219,7 +219,7 @@ console.log('\nw06-2: daemonConnector.sendWords and sessionSend — unreadable o
     out.recovered = await connector.sendWords('third reply')
     out.rpcCount = rpcCalls.length
 
-    const { sendToSession } = await import(path.join(SRC, 'screens/chat/submit/sessionSend.ts'))
+    const { sendToSession } = await import(path.join(SRC, 'screen/chat/submit/sessionSend.ts'))
     const notices = []
     const makeDeps = () => ({
       addNotification: (n) => notices.push(n),
@@ -265,7 +265,7 @@ console.log('\nw06-3: mcp/client.clearServerCache and runLaunch — failed dupli
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const mcpClient = await import(path.join(SRC, 'services/mcp/client.ts'))
+    const mcpClient = await import(path.join(SRC, 'integrations/mcp/client.ts'))
     const dupConfig = { type: 'http', url: 'https://example.invalid/mcp-dup', scope: 'dynamic' }
     const directKey = mcpClient.getServerCacheKey('ext:direct', dupConfig)
     mcpClient.connectToServer.cache.set(directKey, Promise.resolve({
@@ -288,10 +288,10 @@ console.log('\nw06-3: mcp/client.clearServerCache and runLaunch — failed dupli
     }))
     out.directOk = await mcpClient.clearServerCache('ext:clean', dupConfig)
 
-    mock.module(path.join(SRC, 'services/mcp/anthropicConnectors.ts'), () => ({
+    mock.module(path.join(SRC, 'integrations/mcp/anthropicConnectors.ts'), () => ({
       fetchAnthropicConnectorsIfEligible: async () => ({ 'claudeai:dup': dupConfig }),
     }))
-    mock.module(path.join(SRC, 'cli/run.ts'), () => ({
+    mock.module(path.join(SRC, 'daemon/runner/runHeadless.ts'), () => ({
       runHeadless: async () => {},
     }))
     mcpClient.connectToServer.cache.set(mcpClient.getServerCacheKey('ext:dup', dupConfig), Promise.resolve({
@@ -318,8 +318,8 @@ console.log('\nw06-3: mcp/client.clearServerCache and runLaunch — failed dupli
     const stderrLines = []
     const realStderrWrite = process.stderr.write.bind(process.stderr)
     process.stderr.write = (chunk) => { stderrLines.push(String(chunk)); return true }
-    const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'Tool.ts'))
-    const { runLaunch } = await import(path.join(SRC, 'main/runLaunch.ts'))
+    const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'tools/kit/tool.ts'))
+    const { runLaunch } = await import(path.join(SRC, 'boot/main/runLaunch.ts'))
     await runLaunch({
       opts: { continue: true, onlyMcp: true },
       commands: [],
@@ -354,10 +354,10 @@ console.log('\nw06-3: mcp/client.clearServerCache and runLaunch — failed dupli
 console.log('\nw06-4: agents/store.listAgentDrafts and studioEditorModel — unreadable drafts folder surfaces notice instead of offering none')
 {
   const r = runScenario(`
-    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    const { enableConfigs } = await import(path.join(SRC, 'platform/config/globalConfig.ts'))
     enableConfigs()
-    const store = await import(path.join(SRC, 'services/agents/store.ts'))
-    const { createStudioEditorMachine } = await import(path.join(SRC, 'components/agents/studio/studioEditorModel.ts'))
+    const store = await import(path.join(SRC, 'crew/agents/store.ts'))
+    const { createStudioEditorMachine } = await import(path.join(SRC, 'screen/agents/studio/studioEditorModel.ts'))
 
     const makeMachine = () => createStudioEditorMachine(
       {
@@ -391,10 +391,10 @@ console.log('\nw06-4: agents/store.listAgentDrafts and studioEditorModel — unr
 console.log('\nw06-5: agents/store.discardAgentDraft and studioEditorModel — failed draft removal returns error and surfaces notice')
 {
   const r = runScenario(`
-    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    const { enableConfigs } = await import(path.join(SRC, 'platform/config/globalConfig.ts'))
     enableConfigs()
-    const store = await import(path.join(SRC, 'services/agents/store.ts'))
-    const { createStudioEditorMachine } = await import(path.join(SRC, 'components/agents/studio/studioEditorModel.ts'))
+    const store = await import(path.join(SRC, 'crew/agents/store.ts'))
+    const { createStudioEditorMachine } = await import(path.join(SRC, 'screen/agents/studio/studioEditorModel.ts'))
 
     const absentPath = path.join(SCRATCH, 'missing-draft.json')
     out.absentDiscard = store.discardAgentDraft(absentPath)
@@ -403,7 +403,7 @@ console.log('\nw06-5: agents/store.discardAgentDraft and studioEditorModel — f
     fs.mkdirSync(dirPath)
     out.dirDiscard = store.discardAgentDraft(dirPath)
 
-    const { serializeAgentMarkdown } = await import(path.join(SRC, 'services/agents/codec.ts'))
+    const { serializeAgentMarkdown } = await import(path.join(SRC, 'crew/agents/codec.ts'))
     const draftPath = '/drafts/new.json'
     const draftRaw = serializeAgentMarkdown({ name: 'scout-one', description: 'Use when testing draft removal.' }, 'You are scout-one, a careful verification agent.')
     const machine1 = createStudioEditorMachine(
@@ -460,18 +460,18 @@ console.log('\nw06-5: agents/store.discardAgentDraft and studioEditorModel — f
 console.log('\nw06-6: extensions/load/servers and reload — failed dataDir mkdir and media server env surface in reload receipt')
 {
   const r = runScenario(`
-    const { setCwdState, setOriginalCwd, setProjectRoot } = await import(path.join(SRC, 'bootstrap/state.ts'))
+    const { setCwdState, setOriginalCwd, setProjectRoot } = await import(path.join(SRC, 'boot/process-state/processState.ts'))
     setCwdState(SCRATCH)
     setOriginalCwd(SCRATCH)
     setProjectRoot(SCRATCH)
-    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    const { enableConfigs } = await import(path.join(SRC, 'platform/config/globalConfig.ts'))
     enableConfigs()
-    const { updateSettingsForSource } = await import(path.join(SRC, 'utils/settings/settings.ts'))
-    const { MEDIA_EXTENSION_ID } = await import(path.join(SRC, 'services/media/settings.ts'))
-    const { setSwitch } = await import(path.join(SRC, 'extensions/install.ts'))
-    const { getExtensionDataDir } = await import(path.join(SRC, 'extensions/paths.ts'))
-    const { reloadExtensions } = await import(path.join(SRC, 'extensions/reload.ts'))
-    const { getExtensionMcpServers } = await import(path.join(SRC, 'extensions/load/servers.ts'))
+    const { updateSettingsForSource } = await import(path.join(SRC, 'platform/settings/settings.ts'))
+    const { MEDIA_EXTENSION_ID } = await import(path.join(SRC, 'integrations/media/settings.ts'))
+    const { setSwitch } = await import(path.join(SRC, 'integrations/extensions/install.ts'))
+    const { getExtensionDataDir } = await import(path.join(SRC, 'integrations/extensions/paths.ts'))
+    const { reloadExtensions } = await import(path.join(SRC, 'integrations/extensions/reload.ts'))
+    const { getExtensionMcpServers } = await import(path.join(SRC, 'integrations/extensions/load/servers.ts'))
 
     setSwitch(MEDIA_EXTENSION_ID, true)
     updateSettingsForSource('userSettings', { media: { serverPath: 'relative/not-absolute.js' } })
@@ -509,9 +509,9 @@ console.log('\nw06-7: useDiffData and DiffDialog — failed git diff fetch carri
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    const { enableConfigs } = await import(path.join(SRC, 'platform/config/globalConfig.ts'))
     enableConfigs()
-    const gitDiffPath = path.join(SRC, 'utils/gitDiff.ts')
+    const gitDiffPath = path.join(SRC, 'screen/diff/gitDiff.ts')
     const realGitDiff = await import(gitDiffPath)
     let mode = 'throw'
     mock.module(gitDiffPath, () => ({
@@ -528,12 +528,12 @@ console.log('\nw06-7: useDiffData and DiffDialog — failed git diff fetch carri
       fetchGitDiffHunksFor: async () => new Map(),
     }))
     const React = await import('react')
-    const { Box } = await import(path.join(SRC, 'ink.ts'))
-    const { AppStateProvider } = await import(path.join(SRC, 'state/AppState.tsx'))
-    const { getDefaultAppState } = await import(path.join(SRC, 'state/AppStateStore.ts'))
-    const { ThemeProvider } = await import(path.join(SRC, 'components/design-system/ThemeProvider.tsx'))
-    const { KeybindingSetup } = await import(path.join(SRC, 'keybindings/KeybindingProviderSetup.tsx'))
-    const { DiffDialog } = await import(path.join(SRC, 'components/diff/DiffDialog.tsx'))
+    const { Box } = await import(path.join(SRC, 'screen/themedRenderer.ts'))
+    const { AppStateProvider } = await import(path.join(SRC, 'screen/app-state/AppState.tsx'))
+    const { getDefaultAppState } = await import(path.join(SRC, 'screen/app-state/AppStateStore.ts'))
+    const { ThemeProvider } = await import(path.join(SRC, 'screen/theme/ThemeProvider.tsx'))
+    const { KeybindingSetup } = await import(path.join(SRC, 'screen/keys/KeybindingProviderSetup.tsx'))
+    const { DiffDialog } = await import(path.join(SRC, 'screen/diff/DiffDialog.tsx'))
     const { mountOffscreen, waitFor } = await import(path.join(REPO, 'scripts/lib/settingsPopupHarness.ts'))
 
     const renderDiff = async () => {
@@ -575,12 +575,12 @@ console.log('\nw06-8: acpServer/mercuryRequests — _mercury/crew surfaces readE
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    const { enableConfigs } = await import(path.join(SRC, 'platform/config/globalConfig.ts'))
     enableConfigs()
-    const convPath = path.join(SRC, 'services/crew/conversations.ts')
-    const descPath = path.join(SRC, 'services/crew/descriptor.ts')
-    const graphPath = path.join(SRC, 'services/crew/graph.ts')
-    const projPath = path.join(SRC, 'services/crew/projection.ts')
+    const convPath = path.join(SRC, 'crew/crewmates/conversations.ts')
+    const descPath = path.join(SRC, 'crew/crewmates/descriptor.ts')
+    const graphPath = path.join(SRC, 'crew/crewmates/graph.ts')
+    const projPath = path.join(SRC, 'crew/crewmates/projection.ts')
     const [realConv, realDesc, realGraph, realProj] = await Promise.all([
       import(convPath),
       import(descPath),
@@ -618,7 +618,7 @@ console.log('\nw06-8: acpServer/mercuryRequests — _mercury/crew surfaces readE
       resolveCrewSnapshot: async () => ({ members: [], sources: null }),
     }))
 
-    const { mercuryRequests } = await import(path.join(SRC, 'services/acp/acpServer/mercuryRequests.ts'))
+    const { mercuryRequests } = await import(path.join(SRC, 'integrations/acp/server/mercuryRequests.ts'))
     const handlers = new Map()
     const fakeApp = {
       onRequest(method, _validate, handler) {
@@ -643,17 +643,17 @@ console.log('\nw06-8: acpServer/mercuryRequests — _mercury/crew surfaces readE
 console.log('\nw06-9: MercuryExitConfirm — leave dialog reads live running work as it paints')
 {
   const r = runScenario(`
-    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    const { enableConfigs } = await import(path.join(SRC, 'platform/config/globalConfig.ts'))
     enableConfigs()
     const React = await import('react')
-    const { Box } = await import(path.join(SRC, 'ink.ts'))
-    const { ThemeProvider } = await import(path.join(SRC, 'components/design-system/ThemeProvider.tsx'))
-    const { AppStoreContext } = await import(path.join(SRC, 'state/AppState.tsx'))
-    const { createStore } = await import(path.join(SRC, 'state/store.ts'))
-    const { getDefaultAppState } = await import(path.join(SRC, 'state/AppStateStore.ts'))
+    const { Box } = await import(path.join(SRC, 'screen/themedRenderer.ts'))
+    const { ThemeProvider } = await import(path.join(SRC, 'screen/theme/ThemeProvider.tsx'))
+    const { AppStoreContext } = await import(path.join(SRC, 'screen/app-state/AppState.tsx'))
+    const { createStore } = await import(path.join(SRC, 'platform/primitives/store.ts'))
+    const { getDefaultAppState } = await import(path.join(SRC, 'screen/app-state/AppStateStore.ts'))
     const { call: exitCall } = await import(path.join(SRC, 'commands/exit/exit.tsx'))
-    const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import(path.join(SRC, 'services/engine-connector/focusedConnector.ts'))
-    const { noSessionConnector } = await import(path.join(SRC, 'services/engine-connector/noSessionConnector.ts'))
+    const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import(path.join(SRC, 'engine/connector/focusedConnector.ts'))
+    const { noSessionConnector } = await import(path.join(SRC, 'engine/connector/noSessionConnector.ts'))
     const { mountOffscreen, settle } = await import(path.join(REPO, 'scripts/lib/settingsPopupHarness.ts'))
 
     const workListeners = new Set()

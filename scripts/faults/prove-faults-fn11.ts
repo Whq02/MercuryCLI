@@ -55,7 +55,7 @@ function runScenario(body: string, extraEnv: Record<string, string> = {}): Recor
 console.log('\ncomputerGrant.clearComputerGrant — non-ENOENT unlink failure throws')
 {
   const r = runScenario(`
-    const cg = await import(path.join(SRC, 'services/desktop/computerGrant.ts'))
+    const cg = await import(path.join(SRC, 'integrations/desktop/computerGrant.ts'))
     const grantFile = cg.computerGrantPath('sess-1', HOME)
     cg.writeComputerGrant('sess-1', cg.sessionComputerGrant(1000), HOME)
     const dir = path.dirname(grantFile)
@@ -102,15 +102,15 @@ console.log('\ndesktopClaim.readDesktopClaimFile — non-ENOENT read error throw
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const focused = await import(path.join(SRC, 'services/engine-connector/focusedConnector.ts'))
+    const focused = await import(path.join(SRC, 'engine/connector/focusedConnector.ts'))
     const owner = focused.conversationIdHere() + ':' + process.pid
-    const pidLockPath = path.join(SRC, 'substrate/pidLock.ts')
+    const pidLockPath = path.join(SRC, 'platform/substrate/pidLock.ts')
     const realPidLock = await import(pidLockPath)
     mock.module(pidLockPath, () => ({
       ...realPidLock,
       probePidLock: async () => ({ owner, pid: process.pid, acquiredAt: Date.now() }),
     }))
-    const claim = await import(path.join(SRC, 'services/desktop/desktopClaim.ts'))
+    const claim = await import(path.join(SRC, 'integrations/desktop/desktopClaim.ts'))
     const lockFile = claim.desktopClaimPath()
     fs.mkdirSync(path.dirname(lockFile), { recursive: true })
     if (${JSON.stringify(POSIX_MODES)}) {
@@ -143,7 +143,7 @@ console.log('\ndesktopClaim.readDesktopClaimFile — non-ENOENT read error throw
 console.log('\nfakeDesktopDriver.readFakeActLog — non-ENOENT read error throws instead of returning empty list')
 {
   const r = runScenario(`
-    const fake = await import(path.join(SRC, 'services/desktop/fakeDesktopDriver.ts'))
+    const fake = await import(path.join(SRC, 'integrations/desktop/fakeDesktopDriver.ts'))
     const logDir = path.join(SCRATCH, 'not-a-file')
     fs.mkdirSync(logDir)
     try {
@@ -160,8 +160,8 @@ console.log('\nfakeDesktopDriver.readFakeActLog — non-ENOENT read error throws
 console.log('\nnativeDriver.keyboardIdleMs — an addon that throws answers null as before, so no act is held on it')
 {
   const r = runScenario(`
-    const { voicePackPlatform } = await import(path.join(SRC, 'utils/voice/voicePack.ts'))
-    const pack = await import(path.join(SRC, 'services/desktop/pack.ts'))
+    const { voicePackPlatform } = await import(path.join(SRC, 'integrations/voice-pack/voicePack.ts'))
+    const pack = await import(path.join(SRC, 'integrations/desktop/pack.ts'))
     const packDir = path.join(SCRATCH, 'desktop-pack')
     fs.mkdirSync(packDir, { recursive: true })
     const stubLines = pack.DESKTOP_ADDON_EXPORTS.map(fn => '  ' + fn + ': () => ({}),').join('\\n')
@@ -182,7 +182,7 @@ console.log('\nnativeDriver.keyboardIdleMs — an addon that throws answers null
       treeDigest: hex,
     }))
     process.env.MERCURY_DESKTOP_PACK_DIR = packDir
-    const native = await import(path.join(SRC, 'services/desktop/nativeDriver.ts'))
+    const native = await import(path.join(SRC, 'integrations/desktop/nativeDriver.ts'))
     const loaded = native.resolveNativeDesktopDriver()
     out.state = loaded.state
     if (loaded.state === 'ok') {
@@ -203,7 +203,7 @@ console.log('\nkernelManager.recoverEvalKernels — failed reap does not claim a
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const pgPath = path.join(SRC, 'utils/processGroup.ts')
+    const pgPath = path.join(SRC, 'platform/processes/processGroup.ts')
     const realPg = await import(pgPath)
     let mode = 'eperm'
     mock.module(pgPath, () => ({
@@ -218,8 +218,8 @@ console.log('\nkernelManager.recoverEvalKernels — failed reap does not claim a
         return { ended: 0, survivors: [] }
       },
     }))
-    const journal = await import(path.join(SRC, 'substrate/operationJournal.ts'))
-    const km = await import(path.join(SRC, 'services/eval/kernelManager.ts'))
+    const journal = await import(path.join(SRC, 'platform/substrate/operationJournal.ts'))
+    const km = await import(path.join(SRC, 'tools/engines/eval-kernels/kernelManager.ts'))
     const dir = km.evalJournalDir()
     fs.mkdirSync(dir, { recursive: true })
     const now = new Date().toISOString()
@@ -259,7 +259,7 @@ console.log('\nkernelManager.recoverEvalKernels — failed reap does not claim a
 console.log('\nprocKernel.interrupt — non-ESRCH kill failure throws instead of dropping interrupt')
 {
   const r = runScenario(`
-    const { ProcKernel } = await import(path.join(SRC, 'services/eval/procKernel.ts'))
+    const { ProcKernel } = await import(path.join(SRC, 'tools/engines/eval-kernels/procKernel.ts'))
     const kernel = await ProcKernel.launch({
       command: process.execPath,
       args: ['-e', 'setInterval(() => {}, 1000)'],
@@ -313,7 +313,7 @@ console.log('\nrunnerCache.ensureCached — failed rename throws when target fil
         throw Object.assign(new Error('rename blocked'), { code: 'EPERM' })
       },
     }))
-    const rc = await import(path.join(SRC, 'services/eval/runnerCache.ts'))
+    const rc = await import(path.join(SRC, 'tools/engines/eval-kernels/runnerCache.ts'))
     try {
       out.missingPath = rc.ensureCached('test-missing', '.mjs', 'console.log(1)')
     } catch (e) {
@@ -333,7 +333,7 @@ console.log('\ndaemonConnector.openQuestion — open questions that cannot be re
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const oblPath = path.join(SRC, 'services/crew/obligations.ts')
+    const oblPath = path.join(SRC, 'crew/crewmates/obligations.ts')
     const realObl = await import(oblPath)
     let failRead = true
     mock.module(oblPath, () => ({
@@ -343,13 +343,13 @@ console.log('\ndaemonConnector.openQuestion — open questions that cannot be re
         return []
       },
     }))
-    const ensurePath = path.join(SRC, 'services/switchboard/ensureDaemon.ts')
+    const ensurePath = path.join(SRC, 'daemon/switchboard/ensureDaemon.ts')
     const realEnsure = await import(ensurePath)
     mock.module(ensurePath, () => ({
       ...realEnsure,
       ensureOwnedDaemon: async () => true,
     }))
-    const { DaemonSessionConnector } = await import(path.join(SRC, 'services/engine-connector/daemonConnector.ts'))
+    const { DaemonSessionConnector } = await import(path.join(SRC, 'engine/connector/daemonConnector.ts'))
     const rpcCalls = []
     const connector = new DaemonSessionConnector(
       {

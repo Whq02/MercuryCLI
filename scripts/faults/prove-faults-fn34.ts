@@ -57,8 +57,8 @@ function runScenario(body: string): Record<string, unknown> {
 {
   if (POSIX_MODES) {
     const r = runScenario(`
-      const writer = await import(path.join(SRC, 'utils/sessionStorage/writer.ts'))
-      const { getSessionId } = await import(path.join(SRC, 'bootstrap/state.ts'))
+      const writer = await import(path.join(SRC, 'sessions/transcripts/writer.ts'))
+      const { getSessionId } = await import(path.join(SRC, 'boot/process-state/processState.ts'))
       const sessionId = getSessionId()
       const file = path.join(HOME, 'session.jsonl')
       const target = '00000000-0000-4000-8000-000000000011'
@@ -94,8 +94,8 @@ function runScenario(body: string): Record<string, unknown> {
 {
   if (POSIX_MODES) {
     const r = runScenario(`
-      const { encodeTranscriptLine, resetTranscriptFormatCacheForTesting } = await import(path.join(SRC, 'utils/sessionStorage/vnext.ts'))
-      const { setStoreHealth, subscribeTranscriptStoreHealth, transcriptStoreHealth } = await import(path.join(SRC, 'utils/sessionStorage/writer/storeHealth.ts'))
+      const { encodeTranscriptLine, resetTranscriptFormatCacheForTesting } = await import(path.join(SRC, 'sessions/transcripts/vnext.ts'))
+      const { setStoreHealth, subscribeTranscriptStoreHealth, transcriptStoreHealth } = await import(path.join(SRC, 'sessions/transcripts/writer/storeHealth.ts'))
       const existing = path.join(HOME, 'existing.jsonl')
       fs.writeFileSync(existing, '{"schemaVersion":1,"creationOrdinal":"5"}\\n', { mode: 0o600 })
       fs.chmodSync(existing, 0o000)
@@ -135,9 +135,9 @@ function runScenario(body: string): Record<string, unknown> {
 {
   if (POSIX_MODES) {
     const r = runScenario(`
-      const writer = await import(path.join(SRC, 'utils/sessionStorage/writer.ts'))
-      const { setStoreHealth, subscribeTranscriptStoreHealth, transcriptStoreHealth } = await import(path.join(SRC, 'utils/sessionStorage/writer/storeHealth.ts'))
-      const { getSessionId } = await import(path.join(SRC, 'bootstrap/state.ts'))
+      const writer = await import(path.join(SRC, 'sessions/transcripts/writer.ts'))
+      const { setStoreHealth, subscribeTranscriptStoreHealth, transcriptStoreHealth } = await import(path.join(SRC, 'sessions/transcripts/writer/storeHealth.ts'))
+      const { getSessionId } = await import(path.join(SRC, 'boot/process-state/processState.ts'))
       const sessionId = getSessionId()
       const sessionFile = path.join(HOME, 'main.jsonl')
       const agentFile = path.join(HOME, 'agent-a1.jsonl')
@@ -216,15 +216,15 @@ function runScenario(body: string): Record<string, unknown> {
       const managedRoot = path.join(HOME, 'managed')
       const dropInDir = path.join(managedRoot, 'managed-settings.d')
       fs.mkdirSync(dropInDir, { recursive: true })
-      const managedPathMod = path.join(SRC, 'utils/settings/managedPath.ts')
+      const managedPathMod = path.join(SRC, 'platform/settings/managedPath.ts')
       const realManaged = await import(managedPathMod)
       mock.module(managedPathMod, () => ({
         ...realManaged,
         getManagedFilePath: () => managedRoot,
         getManagedSettingsDropInDir: () => dropInDir,
       }))
-      const rawRead = await import(path.join(SRC, 'utils/settings/mdm/rawRead.ts'))
-      const mdm = await import(path.join(SRC, 'utils/settings/mdm/settings.ts'))
+      const rawRead = await import(path.join(SRC, 'platform/settings/mdm/rawRead.ts'))
+      const mdm = await import(path.join(SRC, 'platform/settings/mdm/settings.ts'))
       const hkcuStdout = '    Settings    REG_SZ    {"display":{"theme":"dark"}}\\r\\n'
 
       fs.chmodSync(dropInDir, 0o000)
@@ -269,15 +269,15 @@ function runScenario(body: string): Record<string, unknown> {
       const managedRoot = path.join(HOME, 'managed2')
       const dropInDir = path.join(managedRoot, 'managed-settings.d')
       fs.mkdirSync(dropInDir, { recursive: true })
-      const managedPathMod = path.join(SRC, 'utils/settings/managedPath.ts')
+      const managedPathMod = path.join(SRC, 'platform/settings/managedPath.ts')
       const realManaged = await import(managedPathMod)
       mock.module(managedPathMod, () => ({
         ...realManaged,
         getManagedFilePath: () => managedRoot,
         getManagedSettingsDropInDir: () => dropInDir,
       }))
-      const settingsMod = await import(path.join(SRC, 'utils/settings/settings.ts'))
-      const cacheMod = await import(path.join(SRC, 'utils/settings/settingsCache.ts'))
+      const settingsMod = await import(path.join(SRC, 'platform/settings/settings.ts'))
+      const cacheMod = await import(path.join(SRC, 'platform/settings/settingsCache.ts'))
       fs.chmodSync(dropInDir, 0o000)
       try {
         cacheMod.resetSettingsCache()
@@ -302,7 +302,7 @@ function runScenario(body: string): Record<string, unknown> {
 {
   if (POSIX_MODES) {
     const r = runScenario(`
-      const tasks = await import(path.join(SRC, 'utils/tasks.ts'))
+      const tasks = await import(path.join(SRC, 'engine/task-framework/tasks.ts'))
       const tasksRoot = path.join(HOME, 'tasks')
 
       fs.writeFileSync(tasksRoot, 'not-a-directory', { mode: 0o600 })

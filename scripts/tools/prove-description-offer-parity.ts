@@ -45,7 +45,6 @@ function walk(dir: string, out: string[]): void {
 }
 const sources: string[] = []
 walk(join(ROOT, 'src', 'tools'), sources)
-walk(join(ROOT, 'src', 'constants'), sources)
 const universe = new Set<string>()
 for (const file of sources) {
   for (const match of readFileSync(file, 'utf8').matchAll(/export const [A-Z_]+_TOOL_NAME = '([A-Za-z_]+)'/g)) universe.add(match[1]!)
