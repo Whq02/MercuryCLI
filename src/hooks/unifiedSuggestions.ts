@@ -86,9 +86,13 @@ function agentItems(
 
 function fileScore(item: SuggestionItem): number {
   const metadata = item.metadata
-  if (typeof metadata === 'object' && metadata !== null) {
-    const score = (metadata as { score?: unknown }).score
-    if (typeof score === 'number') return score
+  if (
+    typeof metadata === 'object' &&
+    metadata !== null &&
+    'score' in metadata &&
+    typeof metadata.score === 'number'
+  ) {
+    return metadata.score
   }
   return MID_SCORE
 }
