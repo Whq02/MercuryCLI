@@ -23,10 +23,15 @@ import { qwenRegionalPrice, qwenResolvedPricing } from '../providers/qwen/qwenPr
 import { getCanonicalName, getDefaultEngineModelSetting, type ModelShortName } from '../model/model.js'
 import { ALL_MODEL_CONFIGS, familyHeadOf } from '../../utils/model/configs.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-export type ModelCosts = Unbuilt
+export type ModelCosts = {
+  inputTokens: number
+  outputTokens: number
+  promptCacheWriteTokens: number
+  promptCacheReadTokens: number
+  webSearchRequests: number
+}
 
 export type PricingBasis = 'recorded' | 'floor' | 'family-estimate' | 'unpriced'
 
@@ -64,8 +69,14 @@ export const COST_OPUS_5_5: ModelCosts = {
   ...tierFromInputOutput(4, 20),
   promptCacheReadTokens: 0.2,
 }
-const COST_SONNET_5_5: ModelCosts = unbuilt('src/services/usage/modelCost.ts:72')
-const COST_HAIKU_35: ModelCosts = unbuilt('src/services/usage/modelCost.ts:76')
+const COST_SONNET_5_5: ModelCosts = { ...COST_TIER_2_10, promptCacheReadTokens: 0.1 }
+const COST_HAIKU_35: ModelCosts = {
+  inputTokens: 0.8,
+  outputTokens: 4,
+  promptCacheWriteTokens: 1,
+  promptCacheReadTokens: 0.08,
+  webSearchRequests: WEB_SEARCH_PER_REQUEST,
+}
 const COST_HAIKU_45: ModelCosts = tierFromInputOutput(1, 5)
 const COST_HAIKU_55: ModelCosts = tierFromInputOutput(0.1, 0.5)
 const COST_HAIKU_55_LONG: ModelCosts = tierFromInputOutput(0.5, 2.5)
@@ -346,20 +357,45 @@ export function getModelCosts(model: string, opts?: { promptTokens?: number; sta
 }
 
 export function calculateUSDCost(resolvedModel: string, usage: UsageLike): number {
-  return notBuilt('src/services/usage/modelCost.ts:362')
+  const input = usageCount(usage.input_tokens)
+  const output = usageCount(usage.output_tokens)
+  const reads = usageCount(usage.cache_read_input_tokens)
+  const writes = usageCount(usage.cache_creation_input_tokens)
+  const hour = Math.min(writes, usageCount(usage.cache_creation?.ephemeral_1h_input_tokens))
+  const searches = usageCount(usage.server_tool_use?.web_search_requests)
+  const costs = getModelCosts(resolvedModel, { promptTokens: input + reads + writes, startedAtMs: usage.request_started_at_ms })
+  const hourPrice = operatorModelFacts(resolvedModel)?.prices?.cacheWrite ?? 2 * costs.inputTokens
+  return input * costs.inputTokens / 1_000_000 +
+    output * costs.outputTokens / 1_000_000 +
+    reads * costs.promptCacheReadTokens / 1_000_000 +
+    (writes - hour) * costs.promptCacheWriteTokens / 1_000_000 +
+    hour * hourPrice / 1_000_000 + searches * costs.webSearchRequests
 }
 
 export function calculateCostFromTokens(
   model: string,
   tokens: { inputTokens: number; outputTokens: number; cacheReadInputTokens: number; cacheCreationInputTokens: number },
 ): number {
-  return notBuilt('src/services/usage/modelCost.ts:380')
+  return calculateUSDCost(model, {
+    input_tokens: tokens.inputTokens,
+    output_tokens: tokens.outputTokens,
+    cache_read_input_tokens: tokens.cacheReadInputTokens,
+    cache_creation_input_tokens: tokens.cacheCreationInputTokens,
+  })
 }
 
 export function formatModelPricing(costs: ModelCosts): string {
-  return notBuilt('src/services/usage/modelCost.ts:396')
+  const price = (n: number) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`
+  return `${price(costs.inputTokens)}/${price(costs.outputTokens)} per Mtok`
 }
 
 export function getModelPricingString(model: string): string | undefined {
-  return notBuilt('src/services/usage/modelCost.ts:401')
+  const route = declaredRouteOf(model)
+  if (route === 'melious') {
+    const { meliousPricingString } = require('../providers/melious/meliousCatalogue.js') as typeof import('../providers/melious/meliousCatalogue.js')
+    return meliousPricingString(model)
+  }
+  if (route === 'qwen' && qwenRegionalPrice(model)) return formatModelPricing(resolveModelPricing(model).costs)
+  const pricing = resolveModelPricing(model)
+  return pricing.basis === 'recorded' || pricing.basis === 'floor' ? formatModelPricing(pricing.costs) : undefined
 }
