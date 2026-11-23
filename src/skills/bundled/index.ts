@@ -13,8 +13,21 @@ import { registerSkillForgeSkill } from './skill-forge.js'
 import { registerLoopSkill } from './loop.js'
 import { registerScheduleRemoteAgentsSkill } from './scheduleRemoteAgents.js'
 import { registerResearchSkill } from './research.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export function initBundledSkills(): void {
-  return notBuilt('src/skills/bundled/index.ts:17')
+  registerUpdateConfigSkill()
+  registerKeybindingsSkill()
+  registerDebugSkill()
+  registerSkillifySkill()
+  registerMercuryDocsSkill()
+  registerCodeReviewSkill()
+  registerDeepResearchSkill()
+  registerExtensionMakerSkill()
+  registerImageGenerationSkill()
+  registerMcpSmithySkill()
+  registerProviderApisSkill()
+  registerSkillForgeSkill()
+  registerLoopSkill()
+  registerScheduleRemoteAgentsSkill()
+  registerResearchSkill()
 }
