@@ -47,7 +47,8 @@ export function isCheckoutSourceHeldForTrust(source: SettingSource): boolean {
 }
 
 export function getEnabledSettingSources(): SettingSource[] {
-  return getLaunchSettingSources().filter(source => !isCheckoutSourceHeldForTrust(source))
+  const launch = getLaunchSettingSources()
+  return untrustedWorkspaceHeadless() ? launch.filter(source => !CHECKOUT_SOURCES.has(source)) : launch
 }
 
 export function isSettingSourceEnabled(source: SettingSource): boolean {
