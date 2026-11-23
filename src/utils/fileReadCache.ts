@@ -11,12 +11,12 @@ type CachedFileEntry = {
   size: number
 }
 
-export type FileReadCacheStats = {
+type FileReadCacheStats = {
   size: number
   keys: string[]
 }
 
-export type FileReadCache = {
+type FileReadCache = {
   readFile(filePath: string): { content: string; encoding: BufferEncoding }
   clear(): void
   invalidate(filePath: string): void

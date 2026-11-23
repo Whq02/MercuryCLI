@@ -2,7 +2,7 @@ import { randomUUID, type UUID } from 'node:crypto'
 
 import { validateUuid } from './uuid.js'
 
-export type ParsedSessionIdentifier = {
+type ParsedSessionIdentifier = {
   sessionId: UUID
   jsonlFile: string | null
   isJsonlFile: boolean

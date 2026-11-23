@@ -18,7 +18,7 @@ export type GitDiffStats = {
   linesRemoved: number
 }
 
-export type GitDiffPerFileStats = {
+type GitDiffPerFileStats = {
   linesAdded: number
   linesRemoved: number
   isBinary: boolean
