@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import escapeRegExp from 'lodash-es/escapeRegExp.js'
+
 import { logForDebugging } from '../../debug.js'
 import { logForDiagnosticsNoPII } from '../../diagLogs.js'
 import { getErrnoCode } from '../../errors.js'
@@ -19,7 +21,6 @@ import type { RawReadResult } from './rawRead.js'
 import { fireRawRead, getMdmRawReadPromise } from './rawRead.js'
 import { recordMdmProbeOutcome } from './probeMemo.js'
 import { passedOver } from '../../passedOver.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 export { mdmBootAwaitsRawRead } from './probeMemo.js'
 
@@ -31,8 +32,22 @@ const EMPTY_TIER: MdmTierResult = Object.freeze({
   errors: Object.freeze([]),
 })
 
+function registryValueOf(stdout: string): string | null {
+  const valueLine = new RegExp(`^\\s+${escapeRegExp(WINDOWS_REGISTRY_VALUE_NAME)}\\s+REG_(?:EXPAND_)?SZ\\s+(.*)$`, 'i')
+  for (const line of stdout.split(/\r?\n/)) {
+    const payload = valueLine.exec(line)?.[1]?.trimEnd()
+    if (payload) return payload
+  }
+  return null
+}
+
 export function parseCommandOutputAsSettings(stdout: string, sourcePath: string): MdmTierResult {
-  return notBuilt('src/utils/settings/mdm/settings.ts:53')
+  const parsed = safeParseJSON(stdout)
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return { settings: {} as SettingsJson, errors: [] }
+  const warnings = filterInvalidPermissionRules(parsed, sourcePath)
+  const result = SettingsSchema().safeParse(parsed)
+  if (!result.success) return { settings: {} as SettingsJson, errors: [...formatZodError(result.error, sourcePath), ...warnings] }
+  return { settings: result.data as SettingsJson, errors: warnings }
 }
 
 function managedFileSettingsExist(): boolean {
@@ -62,27 +77,69 @@ function managedFileSettingsExist(): boolean {
 }
 
 function parseTiers(raw: RawReadResult): { mdm: MdmTierResult; hkcu: MdmTierResult } {
-  return notBuilt('src/utils/settings/mdm/settings.ts:92')
+  for (const { stdout, label } of raw.plistStdouts ?? []) {
+    const tier = parseCommandOutputAsSettings(stdout, label)
+    if (Object.keys(tier.settings).length > 0) return { mdm: tier, hkcu: EMPTY_TIER }
+  }
+  const machineValue = raw.hklmStdout === null ? null : registryValueOf(raw.hklmStdout)
+  if (machineValue !== null) {
+    const tier = parseCommandOutputAsSettings(machineValue, `${WINDOWS_REGISTRY_KEY_PATH_HKLM}\\${WINDOWS_REGISTRY_VALUE_NAME}`)
+    if (Object.keys(tier.settings).length > 0) return { mdm: tier, hkcu: EMPTY_TIER }
+  }
+  if (managedFileSettingsExist()) return { mdm: EMPTY_TIER, hkcu: EMPTY_TIER }
+  const userValue = raw.hkcuStdout === null ? null : registryValueOf(raw.hkcuStdout)
+  if (userValue === null) return { mdm: EMPTY_TIER, hkcu: EMPTY_TIER }
+  return {
+    mdm: EMPTY_TIER,
+    hkcu: parseCommandOutputAsSettings(userValue, `${WINDOWS_REGISTRY_KEY_PATH_HKCU}\\${WINDOWS_REGISTRY_VALUE_NAME}`),
+  }
+}
+
+let mdmCache: MdmTierResult | null = null
+let hkcuCache: MdmTierResult | null = null
+let loadInFlight: Promise<void> | null = null
+
+async function loadMdmSettings(): Promise<void> {
+  const startedAt = Date.now()
+  const raw = await (getMdmRawReadPromise() ?? fireRawRead())
+  const { mdm, hkcu } = parseTiers(raw)
+  mdmCache = mdm
+  hkcuCache = hkcu
+  recordMdmProbeOutcome(raw)
+  const durationMs = Date.now() - startedAt
+  logForDebugging(`MDM settings load completed in ${durationMs}ms`)
+  const keys = Object.keys(mdm.settings)
+  if (keys.length === 0) return
+  logForDebugging(`MDM policy keys: ${keys.join(', ')}`)
+  try {
+    logForDiagnosticsNoPII('info', 'mdm_settings_loaded', { durationMs, keyCount: keys.length, errorCount: mdm.errors.length })
+  } catch (error) {
+    passedOver(error)
+  }
 }
 
 export async function ensureMdmSettingsLoaded(): Promise<void> {
-  return notBuilt('src/utils/settings/mdm/settings.ts:155')
+  loadInFlight ??= loadMdmSettings()
+  await loadInFlight
 }
 
 export function getMdmSettings(): MdmTierResult {
-  return notBuilt('src/utils/settings/mdm/settings.ts:160')
+  return mdmCache ?? EMPTY_TIER
 }
 
 export function getHkcuSettings(): MdmTierResult {
-  return notBuilt('src/utils/settings/mdm/settings.ts:164')
+  return hkcuCache ?? EMPTY_TIER
 }
 
 export function clearMdmSettingsCache(): void {
-  return notBuilt('src/utils/settings/mdm/settings.ts:168')
+  mdmCache = null
+  hkcuCache = null
+  loadInFlight = null
 }
 
 export function setMdmSettingsCache(mdm: MdmTierResult, hkcu: MdmTierResult): void {
-  return notBuilt('src/utils/settings/mdm/settings.ts:174')
+  mdmCache = mdm
+  hkcuCache = hkcu
 }
 
 export async function refreshMdmSettings(): Promise<{ mdm: MdmTierResult; hkcu: MdmTierResult }> {
