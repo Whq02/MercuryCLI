@@ -7,7 +7,6 @@ import { isThinkingBlock } from '../../utils/messages/thinkingBlock.js'
 import { createUserMessage } from '../../utils/messages/factories.js'
 import { mergeUserMessages } from './merge.js'
 import { ENDED_RUN_TOOL_RESULT } from '../../utils/messages/rejectionText.js'
-import { notBuilt } from '../../pi/holes.js'
 
 type ConversationRow = UserMessage | AssistantMessage
 type AssistantContent = AssistantMessage['message']['content']
@@ -41,7 +40,7 @@ function withoutThinking<M extends Message>(row: M, emptyText?: string): M {
 }
 
 export function stripSignatureBlocks(messages: Message[]): Message[] {
-  return notBuilt('src/services/messages/apiFilters.ts:42')
+  return stripThinkingFromIndex(messages, 0)
 }
 
 export function stripThinkingFromIndex<M extends Message>(messages: M[], fromIndex: number): M[] {
@@ -87,7 +86,14 @@ export function stripThinkingFromOtherModels<M extends Message>(
 }
 
 export function filterTrailingThinkingFromLastAssistant(messages: ConversationRow[]): ConversationRow[] {
-  return notBuilt('src/services/messages/apiFilters.ts:88')
+  const last = messages.at(-1)
+  if (last?.type !== 'assistant' || !Array.isArray(last.message.content)) return messages
+  const content = last.message.content
+  let end = content.length
+  while (end > 0 && isThinkingBlock(content[end - 1]!)) end--
+  if (end === content.length) return messages
+  const next = end === 0 ? placeholder(DEAD_THINKING_PLACEHOLDER) : content.slice(0, end)
+  return [...messages.slice(0, -1), withAssistantContent(last, next)]
 }
 
 export function dropEmptyTextBlocks<M extends Message>(messages: M[]): M[] {
@@ -107,23 +113,68 @@ export function dropEmptyTextBlocks<M extends Message>(messages: M[]): M[] {
 }
 
 export function ensureNonEmptyAssistantContent(messages: ConversationRow[]): ConversationRow[] {
-  return notBuilt('src/services/messages/apiFilters.ts:115')
+  const lastIndex = messages.length - 1
+  return reviseRows(messages, (row, index) =>
+    index < lastIndex && row.type === 'assistant' && Array.isArray(row.message.content) && row.message.content.length === 0
+      ? withAssistantContent(row, placeholder(NO_CONTENT_MESSAGE))
+      : row,
+  )
 }
 
 export function filterWhitespaceOnlyAssistantMessages(messages: ConversationRow[]): ConversationRow[]
 export function filterWhitespaceOnlyAssistantMessages(messages: Message[]): Message[]
 export function filterWhitespaceOnlyAssistantMessages(messages: Message[]): Message[] {
-  return notBuilt('src/services/messages/apiFilters.ts:130')
+  const kept = messages.filter(row => {
+    if (row.type !== 'assistant' || !Array.isArray(row.message.content) || row.message.content.length === 0) return true
+    return !row.message.content.every(block => block.type === 'text' && (!block.text || block.text.trim() === ''))
+  })
+  if (kept.length === messages.length) return messages
+  const merged: Message[] = []
+  for (const row of kept) {
+    const prev = merged.at(-1)
+    if (row.type === 'user' && prev?.type === 'user') merged[merged.length - 1] = mergeUserMessages(prev, row)
+    else merged.push(row)
+  }
+  return merged
 }
 
 export function filterOrphanedThinkingOnlyMessages(messages: ConversationRow[]): ConversationRow[]
 export function filterOrphanedThinkingOnlyMessages(messages: Message[]): Message[]
 export function filterOrphanedThinkingOnlyMessages(messages: Message[]): Message[] {
-  return notBuilt('src/services/messages/apiFilters.ts:143')
+  const completeIds = new Set<string>()
+  for (const row of messages) {
+    if (row.type !== 'assistant' || !Array.isArray(row.message.content) || !row.message.id) continue
+    if (contentItemsOf(row.message.content).some(item => item.type !== 'reasoning')) completeIds.add(row.message.id)
+  }
+  return messages.filter(row => {
+    if (row.type !== 'assistant' || !Array.isArray(row.message.content) || row.message.content.length === 0) return true
+    if (contentItemsOf(row.message.content).some(item => item.type !== 'reasoning')) return true
+    return Boolean(row.message.id && completeIds.has(row.message.id))
+  })
 }
 
 export function filterUnresolvedToolUses(messages: Message[]): Message[] {
-  return notBuilt('src/services/messages/apiFilters.ts:157')
+  const called = new Set<string>()
+  const answered = new Set<string>()
+  for (const row of messages) {
+    if ((row.type !== 'user' && row.type !== 'assistant') || !Array.isArray(row.message.content)) continue
+    for (const item of clientCallItemsOf(row.message.content)) called.add(item.call_id)
+    for (const item of resultItemsOf(row.message.content)) answered.add(item.call_id)
+  }
+  let hasUnanswered = false
+  for (const id of called) {
+    if (!answered.has(id)) {
+      hasUnanswered = true
+      break
+    }
+  }
+  if (!hasUnanswered) return messages
+  return messages.filter(row => {
+    if (row.type !== 'assistant' || !Array.isArray(row.message.content)) return true
+    const calls = clientCallItemsOf(row.message.content)
+    if (calls.length === 0) return true
+    return calls.some(item => answered.has(item.call_id))
+  })
 }
 
 export function settleToolUsesOfEndedRun(messages: Message[]): Message[] {
@@ -160,5 +211,15 @@ const isMixedErrorResult = (block: ContentBlockParam): block is ToolResultBlockP
   block.content.some(item => item.type !== 'text')
 
 export function sanitizeErrorToolResultContent(messages: ConversationRow[]): ConversationRow[] {
-  return notBuilt('src/services/messages/apiFilters.ts:213')
+  return messages.map(row => {
+    if (row.type !== 'user' || !Array.isArray(row.message.content)) return row
+    if (!row.message.content.some(isMixedErrorResult)) return row
+    const content = row.message.content.map(block => {
+      if (!isMixedErrorResult(block)) return block
+      const items = Array.isArray(block.content) ? block.content : []
+      const textParts = items.filter((item): item is TextBlockParam => item.type === 'text').map(item => item.text ?? '')
+      return { ...block, content: textParts.length > 0 ? [{ type: 'text' as const, text: textParts.join('\n\n') }] : [] }
+    })
+    return { ...row, message: { ...row.message, content } }
+  })
 }
