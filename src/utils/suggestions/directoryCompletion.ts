@@ -83,7 +83,7 @@ async function listDirectoryEntries(
     pathCache.set(cacheKey, entries)
     return entries
   } catch (error) {
-    logForDebugging(`directoryCompletion: failed to read ${dirPath}: ${String(error)}`)
+    logForDebugging(`path scan failed for ${dirPath}: ${String(error)}`)
     return []
   }
 }
@@ -103,7 +103,7 @@ export async function getPathCompletions(
     const normalizedRawDir = rawDir.startsWith('~\\') ? rawDir.replace(/\\/g, '/') : rawDir
     resolvedDir = expandPath(normalizedRawDir, basePath)
   } catch (error) {
-    logForDebugging(`directoryCompletion: failed to expand ${partialPath}: ${String(error)}`)
+    logForDebugging(`path scan failed for ${partialPath}: ${String(error)}`)
     return []
   }
 

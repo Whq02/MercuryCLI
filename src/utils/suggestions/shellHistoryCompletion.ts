@@ -30,7 +30,7 @@ async function getCorpus(): Promise<string[]> {
     }
     corpusCache = { commands, cachedAt: Date.now() }
   } catch (error) {
-    logForDebugging(`shellHistoryCompletion: failed to load history: ${String(error)}`)
+    logForDebugging(`shell history read failed: ${String(error)}`)
     return []
   }
   return commands
