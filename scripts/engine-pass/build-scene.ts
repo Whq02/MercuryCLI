@@ -7,6 +7,15 @@ const DEPARTED_DEPENDENCIES: Record<string, string> = {
   '@anthropic-ai/sdk/error': resolve(import.meta.dir, 'base-stubs/anthropic-sdk.ts'),
   '@anthropic-ai/sandbox-runtime': resolve(import.meta.dir, 'base-stubs/sandbox-runtime.ts'),
 }
+const BASE_LAYOUT: Record<string, string> = {
+  'platform/native/color-diff/index.ts': 'native-ts/color-diff/index.ts',
+  'screen/renderer/root.js': 'ink/root.js',
+  'screen/renderer/elements/Box.js': 'ink/components/Box.js',
+  'screen/renderer/elements/Text.js': 'ink/components/Text.js',
+  'screen/renderer/elements/AlternateScreen.js': 'ink/components/AlternateScreen.js',
+  'screen/renderer/bindings/use-input.js': 'ink/hooks/use-input.js',
+  'screen/renderer/bindings/use-app.js': 'ink/hooks/use-app.js',
+}
 
 export async function buildScene(sourceRoot: string, outdir: string, entry = 'scripts/engine-pass/scene.tsx'): Promise<string> {
   const src = resolve(sourceRoot, 'src')
@@ -20,6 +29,7 @@ export async function buildScene(sourceRoot: string, outdir: string, entry = 'sc
     }
     return null
   }
+  const placed = (path: string): string | null => probe(resolve(src, path)) ?? (BASE_LAYOUT[path] === undefined ? null : probe(resolve(src, BASE_LAYOUT[path])))
   mkdirSync(outdir, { recursive: true })
   const result = await Bun.build({
     entrypoints: [resolve(ROOT, entry)],
@@ -32,10 +42,10 @@ export async function buildScene(sourceRoot: string, outdir: string, entry = 'sc
       name: 'scene-product-resolves',
       setup(build) {
         build.onResolve({ filter: /^(src\/|\.\.\/\.\.\/src\/)/ }, args => {
-          const found = probe(resolve(src, args.path.replace(/^(src\/|\.\.\/\.\.\/src\/)/, '')))
+          const found = placed(args.path.replace(/^(src\/|\.\.\/\.\.\/src\/)/, ''))
           return found ? { path: found } : undefined
         })
-        build.onResolve({ filter: /^color-diff-napi$/ }, () => ({ path: resolve(src, 'platform/native/color-diff/index.ts') }))
+        build.onResolve({ filter: /^color-diff-napi$/ }, () => ({ path: placed('platform/native/color-diff/index.ts') ?? resolve(src, 'platform/native/color-diff/index.ts') }))
         build.onResolve({ filter: /^@anthropic-ai\/(?:sdk|sdk\/error|sandbox-runtime)$/ }, args => ({ path: DEPARTED_DEPENDENCIES[args.path]! }))
         build.onResolve({ filter: /\.node$/ }, args => ({ path: args.path, external: true }))
         build.onResolve({ filter: /^jsonc-parser$/ }, () => ({ path: resolve(ROOT, 'node_modules/jsonc-parser/lib/esm/main.js') }))
