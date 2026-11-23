@@ -137,17 +137,15 @@ export function proxyTransportFor(name: string, config: RemoteConfig): Transport
   if (!accessToken) {
     throw new Error(`claude.ai proxy server ${name} requires a claude.ai OAuth token`)
   }
-  const oauth = getOauthConfig() as { MCP_PROXY_URL?: string; MCP_PROXY_PATH?: string; BASE_API_URL?: string }
+  const oauth = getOauthConfig()
   const serverId = (config as { id?: string }).id ?? ''
-  const baseUrl = (oauth.MCP_PROXY_URL ?? oauth.BASE_API_URL ?? '').replace(/\/+$/, '')
-  const rawPath = (oauth.MCP_PROXY_PATH ?? '/v1/mcp/{server_id}').replace('{server_id}', serverId)
-  const path = rawPath.startsWith('/') ? rawPath : `/${rawPath}`
+  const path = oauth.MCP_PROXY_PATH.replace('{server_id}', serverId)
   const wrappedFetch = wrapFetchWithTimeout(createAnthropicProxyFetch(getApiFetch()))
   const headers: Record<string, string> = {
     'User-Agent': getMCPUserAgent(),
     'X-Mcp-Client-Session-Id': getSessionId(),
   }
-  return new StreamableHTTPClientTransport(new URL(`${baseUrl}${path}`), {
+  return new StreamableHTTPClientTransport(new URL(`${oauth.MCP_PROXY_URL}${path}`), {
     fetch: wrappedFetch,
     requestInit: { headers, ...getProxyFetchOptions() } as RequestInit,
   })
