@@ -53,7 +53,6 @@ import {
 import { isHuggingfaceModelId } from './pins/huggingfacePins.js'
 import { isFirstPartyAnthropicBaseUrl } from './providers.js'
 import { tellWhatClearsTheBetas } from './betasClearing.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const isCarrierShapedId = (model: string): boolean => providerCapabilities()?.isCarrierShapedId(model) ?? false
 const declaredRouteOf = (model: string): CallModelRoute | null => providerCapabilities()?.declaredRouteOf(model) ?? null
@@ -135,11 +134,79 @@ function baseModelSupportsThinking(model: string): boolean {
 }
 
 export function modelSupportsAdaptiveThinking(model: string): boolean {
-  return notBuilt('src/utils/model/capabilities.ts:136')
+  if (
+    isOrcarouterModelId(model) ||
+    isXaiModelId(model) ||
+    isMetaModelId(model) ||
+    isMistralModelId(model) ||
+    isMinimaxModelId(model) ||
+    isTogetherModelId(model) ||
+    isCohereModelId(model) ||
+    isGroqModelId(model) ||
+    isMeliousModelId(model) ||
+    isCerebrasModelId(model) ||
+    isFireworksModelId(model) ||
+    isQwenModelId(model)
+  ) {
+    return false
+  }
+  const canonical = getCanonicalName(familyDefaultsModel(model))
+  if (
+    canonical === 'claude-haiku-5-5' ||
+    canonical.includes('sonnet-5') ||
+    canonical.includes('opus-5') ||
+    canonical.includes('fable-5') ||
+    canonical.includes('mythos-5') ||
+    canonical.includes('opus-4-6') ||
+    canonical.includes('sonnet-4-6')
+  ) {
+    return true
+  }
+  if (
+    canonical.includes('opus') ||
+    canonical.includes('sonnet') ||
+    canonical.includes('haiku')
+  ) {
+    return false
+  }
+  return true
 }
 
 export function modelThinkingAlwaysOn(model: string): boolean {
-  return notBuilt('src/utils/model/capabilities.ts:162')
+  if (isXaiModelId(model)) {
+    return modelSupportsThinking(model) && !(xaiModelFacts(model)?.efforts?.includes('none') ?? false)
+  }
+  if (isMetaModelId(model)) return metaDisplayPin(model) !== undefined
+  if (isMistralModelId(model)) return false
+  if (isGroqModelId(model)) {
+    const pin = groqDisplayPin(model)
+    return pin !== undefined && pin.reasoning !== 'none' && !pin.efforts.includes('none')
+  }
+  if (isCerebrasModelId(model)) {
+    const pin = cerebrasDisplayPin(model)
+    return pin !== undefined && pin.reasoning !== 'none' && !pin.efforts.includes('none')
+  }
+  if (isFireworksModelId(model)) {
+    const pin = fireworksDisplayPin(model)
+    return pin !== undefined && pin.reasoning !== 'none' && !pin.efforts.includes('none')
+  }
+  if (isMeliousModelId(model)) return meliousListedModel(model)?.reasoningType === 'reasoning'
+  if (isZenModelId(model)) {
+    const pin = zenDisplayPin(model)
+    return pin !== undefined && pin.thinkingToggle !== true && !(pin.efforts?.includes('none') ?? false)
+  }
+  if (isMinimaxModelId(model)) return minimaxDisplayPin(model)?.thinking !== 'toggle'
+  if (isQwenModelId(model)) return false
+  if (isTogetherModelId(model)) return togetherThinkingDial(model) === 'effort'
+  if (isCohereModelId(model)) return false
+  if (isCarrierShapedId(model)) return false
+  const canonical = getCanonicalName(familyDefaultsModel(model))
+  return (
+    canonical.includes('fable-5') ||
+    canonical.includes('mythos-5') ||
+    canonical === 'claude-opus-5-5' ||
+    canonical === 'claude-sonnet-5-5'
+  )
 }
 
 export function modelThinkingOffIsBetweenTools(model: string, outputConfig: { effort?: string | null; format?: unknown }): boolean {
@@ -181,7 +248,20 @@ export function foldToolChoiceForModel<T extends { type: string }>(
 
 
 export function modelSupportsStructuredOutputs(model: string): boolean {
-  return notBuilt('src/utils/model/capabilities.ts:233')
+  if (declaredRouteOf(model) !== 'anthropic') return false
+  const canonical = getCanonicalName(familyDefaultsModel(model))
+  return (
+    canonical === 'claude-haiku-5-5' ||
+    canonical.includes('claude-sonnet-5') ||
+    canonical.includes('claude-opus-5') ||
+    canonical.includes('claude-fable-5') ||
+    canonical.includes('claude-sonnet-4-6') ||
+    canonical.includes('claude-sonnet-4-5') ||
+    canonical.includes('claude-opus-4-1') ||
+    canonical.includes('claude-opus-4-5') ||
+    canonical.includes('claude-opus-4-6') ||
+    canonical.includes('claude-haiku-4-5')
+  )
 }
 
 
@@ -503,7 +583,17 @@ export function has1mContext(model: string): boolean {
 }
 
 function modelIsNatively1M(model: string): boolean {
-  return notBuilt('src/utils/model/capabilities.ts:568')
+  if (isCarrierShapedId(model)) return false
+  const family = familyDefaultsModel(model).toLowerCase()
+  const canonical = getCanonicalName(family)
+  return (
+    canonical === 'claude-haiku-5-5' ||
+    canonical.includes('sonnet-5') ||
+    canonical.includes('opus-5') ||
+    canonical.includes('fable-5') ||
+    family.includes('opus-4-7') ||
+    family.includes('opus-4-8')
+  )
 }
 
 function modelNeeds1MHeader(model: string): boolean {
@@ -943,17 +1033,26 @@ export function getMaxThinkingTokensForModel(model: string): number {
 
 
 export function getToolSearchBetaHeader(): string {
-  return notBuilt('src/utils/model/capabilities.ts:1018')
+  return TOOL_SEARCH_BETA_HEADER_1P
 }
 
 
-const ALLOWED_SDK_BETAS: Unbuilt = unbuilt('src/utils/model/capabilities.ts:1023')
+const ALLOWED_SDK_BETAS: readonly string[] = [CONTEXT_1M_BETA_HEADER]
 
 function partitionBetasByAllowlist(betas: string[]): {
   allowed: string[]
   disallowed: string[]
 } {
-  return notBuilt('src/utils/model/capabilities.ts:1027')
+  const allowed: string[] = []
+  const disallowed: string[] = []
+  for (const beta of betas) {
+    if (ALLOWED_SDK_BETAS.includes(beta)) {
+      allowed.push(beta)
+    } else {
+      disallowed.push(beta)
+    }
+  }
+  return { allowed, disallowed }
 }
 
 function vetSdkBetas(betas: string[]): { kept: string[]; warnings: string[] } {
@@ -992,12 +1091,50 @@ function betasEnvFingerprint(): string {
 const betasMemoKey = (model: string): string =>
   model + KEY_SEP + betasEnvFingerprint()
 
-export const getAllModelBetas: Unbuilt = unbuilt('src/utils/model/capabilities.ts:1073')
+export const getAllModelBetas = memoize((model: string): string[] => {
+  const betas: string[] = []
+  if (!getCanonicalName(model).includes('haiku')) {
+    betas.push(CODING_20250219_BETA_HEADER)
+  }
+  const subscriber = isClaudeAISubscriber()
+  if (subscriber) {
+    betas.push(OAUTH_BETA_HEADER)
+  }
+  if (
+    has1mContext(model) &&
+    modelSupports1M(model) &&
+    !modelIsNatively1M(model) &&
+    !context1mNeedsUnsentHeader(model) &&
+    !subscriber
+  ) {
+    betas.push(CONTEXT_1M_BETA_HEADER)
+  }
+  const extra = flagEnv('MERCURY_PROVIDER_BETAS')
+  if (extra) {
+    for (const part of extra.split(',')) {
+      const trimmed = part.trim()
+      if (trimmed) betas.push(trimmed)
+    }
+  }
+  return betas
+}, betasMemoKey)
 
-export const getModelBetas: Unbuilt = unbuilt('src/utils/model/capabilities.ts:1099')
+export const getModelBetas = memoize(
+  (model: string): string[] => getAllModelBetas(model),
+  betasMemoKey,
+)
 
 export function getMergedBetas(model: string, options?: { isAgenticQuery?: boolean }): string[] {
-  return notBuilt('src/utils/model/capabilities.ts:1103')
+  const baseBetas = getModelBetas(model)
+  const result = [...baseBetas]
+  const sdkBetas = getSdkBetas()
+  if (sdkBetas?.length) {
+    result.push(...sdkBetas.filter(beta => !baseBetas.includes(beta)))
+  }
+  if (options?.isAgenticQuery && !result.includes(CODING_20250219_BETA_HEADER)) {
+    result.push(CODING_20250219_BETA_HEADER)
+  }
+  return result
 }
 
 export function clearBetasCaches(): void {
