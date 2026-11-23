@@ -14,7 +14,6 @@ import {
   type PermissionRuleFromEditableSettings,
 } from './permissionsLoader.js'
 import { tellHooksHowAToolIsPermitted } from '../hooks/toolPermission.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const diskRuleSources = ['userSettings', 'projectSettings', 'localSettings'] as const
 const deletionPolicy: Partial<Record<PermissionRuleSource, 'disk' | 'locked'>> = {
@@ -47,7 +46,7 @@ function* emptyRuleSources(sources: readonly PermissionRuleSource[]): Generator<
 }
 
 export function applyPermissionRulesToPermissionContext(context: ToolPermissionContext, rules: PermissionRule[]): ToolPermissionContext {
-  return notBuilt('src/utils/permissions/permissions.ts:48')
+  return applyPermissionUpdates(context, collectRuleChanges(rules, 'addRules'))
 }
 
 function withoutRulesSetAsideFrom(context: ToolPermissionContext, sources: readonly PermissionRuleSource[]): ToolPermissionContext {
@@ -58,15 +57,38 @@ function withoutRulesSetAsideFrom(context: ToolPermissionContext, sources: reado
 }
 
 export function syncPermissionRulesFromDisk(context: ToolPermissionContext, rules: PermissionRule[]): ToolPermissionContext {
-  return notBuilt('src/utils/permissions/permissions.ts:60')
+  const sources: readonly PermissionRuleSource[] = shouldAllowManagedPermissionRulesOnly()
+    ? [...diskRuleSources, 'cliArg', 'session', ...diskRuleSources]
+    : diskRuleSources
+  const base = withoutRulesSetAsideFrom(context, sources)
+  const next = applyPermissionUpdates(base, [...emptyRuleSources(sources), ...collectRuleChanges(rules, 'replaceRules')])
+  noteAllowRulesOfSettingsChange(context, next)
+  return next
 }
 
-export async function deletePermissionRule(arg0: {
+export async function deletePermissionRule({
+  rule,
+  initialContext,
+  setToolPermissionContext,
+}: {
   rule: PermissionRule
   initialContext: ToolPermissionContext
   setToolPermissionContext: (context: ToolPermissionContext) => void
 }): Promise<void> {
-  return notBuilt('src/utils/permissions/permissions.ts:70')
+  const policy = deletionPolicy[rule.source]
+  if (policy === 'locked') {
+    throw new Error('Rules from read-only settings cannot be deleted.')
+  }
+  const next = applyPermissionUpdate(initialContext, {
+    type: 'removeRules',
+    rules: [rule.ruleValue],
+    behavior: rule.ruleBehavior,
+    destination: rule.source,
+  } as PermissionUpdate)
+  if (policy === 'disk') {
+    deletePermissionRuleFromSettings(rule as PermissionRuleFromEditableSettings)
+  }
+  setToolPermissionContext(next)
 }
 
 export async function hasPermissionsToUseTool(
@@ -76,15 +98,28 @@ export async function hasPermissionsToUseTool(
   assistantMessage: AssistantMessage,
   toolUseID: string,
 ): Promise<PermissionDecision> {
-  return notBuilt('src/utils/permissions/permissions.ts:90')
+  const { decision, engineTrace, wrapper } = await decideToolPermissionWithModes(
+    tool,
+    input,
+    context,
+    assistantMessage,
+    toolUseID,
+  )
+  logForDebugging(
+    `permission decision for ${tool.name}: ${decision.behavior} — ${JSON.stringify({ engine: engineTrace, wrapper })}`,
+  )
+  return decision
 }
+
+tellHooksHowAToolIsPermitted(hasPermissionsToUseTool)
 
 export async function checkRuleBasedPermissions(
   tool: Tool,
   input: Record<string, unknown>,
   context: ToolUseContext,
 ): Promise<PermissionAskDecision | PermissionDenyDecision | null> {
-  return notBuilt('src/utils/permissions/permissions.ts:103')
+  const { decision } = await decideRuleBasedPermissions(tool, input, context)
+  return decision
 }
 
 export { addPermissionRulesToSettings } from './permissionsLoader.js'
