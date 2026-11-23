@@ -212,17 +212,15 @@ function RejectedWritePreview({
     remote ? { kind: 'create' } : { kind: 'loading' },
   )
 
-  useLoad(() => {
+  useLoad(signal => {
     if (remote) {
       setState({ kind: 'create' })
       return
     }
-    let cancelled = false
-    const controller = new AbortController()
     setState({ kind: 'loading' })
-    void readFileInRange(filePath, 0, undefined, MAX_REJECTED_DIFF_BYTES, controller.signal).then(
+    void readFileInRange(filePath, 0, undefined, MAX_REJECTED_DIFF_BYTES, signal).then(
       result => {
-        if (cancelled) return
+        if (signal.aborted) return
         const originalContent = result.content
         const patch = getPatchForDisplay({
           filePath,
@@ -232,7 +230,7 @@ function RejectedWritePreview({
         setState({ kind: 'update', originalContent, patch })
       },
       error => {
-        if (cancelled) return
+        if (signal.aborted) return
         if (isENOENT(error) || error instanceof FileTooLargeError) {
           setState({ kind: 'create' })
         } else {
@@ -240,10 +238,6 @@ function RejectedWritePreview({
         }
       },
     )
-    return () => {
-      cancelled = true
-      controller.abort()
-    }
   }, [filePath, content, remote])
 
   if (state.kind === 'error') {
