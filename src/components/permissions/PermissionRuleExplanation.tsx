@@ -10,9 +10,10 @@ import type { PermissionDecision } from '../../utils/permissions/PermissionResul
 import { reasonForRule, ruleSourceWords } from '../../utils/permissions/ruleReason.js'
 import { truncatePathMiddle, truncateStartToWidth, truncateToWidth } from '../../utils/truncate.js'
 import { consentContentWidth } from './consentBodyBudget.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-type PermissionRuleExplanationProps = Unbuilt
+type PermissionRuleExplanationProps = {
+  permissionResult: PermissionDecision
+}
 
 const RULES_HINT = 'Rules live in /permissions'
 const HOOKS_HINT = 'Hooks can be changed in /hooks'
@@ -48,6 +49,112 @@ function fitFlowSentence(text: string, width: number): string {
   return `${lead}${command}${why.join('')}`
 }
 
-export function PermissionRuleExplanation(arg0: PermissionRuleExplanationProps): React.ReactNode {
-  return notBuilt('src/components/permissions/PermissionRuleExplanation.tsx:52')
+export function PermissionRuleExplanation({
+  permissionResult,
+}: PermissionRuleExplanationProps): React.ReactNode {
+  const mode = useAppState(state => state.toolPermissionContext.mode)
+  const ruleReasons = useAppState(state => state.toolPermissionContext.ruleReasons)
+  const { columns } = useTerminalSize()
+
+  const decisionReason = permissionResult.decisionReason
+  if (!decisionReason) return null
+
+  switch (decisionReason.type) {
+    case 'rule': {
+      const rule = decisionReason.rule
+      const formatted = permissionRuleValueToString(rule.ruleValue)
+      const sourceWords = ruleSourceWords(rule.source)
+      const reason = reasonForRule({ ruleReasons }, rule)
+      return (
+        <Box flexDirection="column">
+          <Text wrap="truncate-middle">
+            The rule <Text bold>{formatted}</Text> {sourceWords} asks first.
+          </Text>
+          {reason ? <Text wrap="truncate-middle">{reason}</Text> : null}
+          {rule.source !== 'policySettings' ? (
+            <Text dimColor wrap="truncate-middle">
+              {RULES_HINT}
+            </Text>
+          ) : null}
+        </Box>
+      )
+    }
+
+    case 'hook': {
+      if (mode === 'flow') {
+        return (
+          <Box flexDirection="column">
+            <ThemedText color="warning" wrap="truncate-middle">
+              The hook {decisionReason.hookName} required confirmation
+              {decisionReason.hookSource ? ` ${decisionReason.hookSource}` : ''}
+            </ThemedText>
+            {decisionReason.reason ? (
+              <ThemedText color="warning" wrap="truncate-middle">
+                {decisionReason.reason}
+              </ThemedText>
+            ) : null}
+            <Text dimColor wrap="truncate-middle">
+              {HOOKS_HINT}
+            </Text>
+          </Box>
+        )
+      }
+      return (
+        <Box flexDirection="column">
+          <Box gap={1}>
+            <Text wrap="truncate-middle">
+              The hook <Text bold>{decisionReason.hookName}</Text> required confirmation
+            </Text>
+            {decisionReason.hookSource ? (
+              <Text dimColor wrap="truncate-middle">
+                {decisionReason.hookSource}
+              </Text>
+            ) : null}
+          </Box>
+          {decisionReason.reason ? (
+            <Text wrap="truncate-middle">
+              <Ansi>{decisionReason.reason}</Ansi>
+            </Text>
+          ) : null}
+          <Text dimColor wrap="truncate-middle">
+            {HOOKS_HINT}
+          </Text>
+        </Box>
+      )
+    }
+
+    case 'workingDir':
+      return (
+        <Box flexDirection="column">
+          <Text wrap="truncate-middle">
+            <Ansi>{decisionReason.reason}</Ansi>
+          </Text>
+          <Text dimColor wrap="truncate-middle">
+            {RULES_HINT}
+          </Text>
+        </Box>
+      )
+
+    case 'safetyCheck':
+    case 'guard':
+    case 'other': {
+      const message =
+        permissionResult.behavior !== 'allow' ? permissionResult.message : undefined
+      const text = message ?? decisionReason.reason
+      if (!text) return null
+      const fitted = fitFlowSentence(text, consentContentWidth(columns))
+      const wrap =
+        decisionReason.type === 'safetyCheck' && decisionReason.operatorOnly
+          ? 'wrap'
+          : 'truncate-middle'
+      return (
+        <Text wrap={wrap}>
+          <Ansi>{fitted}</Ansi>
+        </Text>
+      )
+    }
+
+    default:
+      return null
+  }
 }
