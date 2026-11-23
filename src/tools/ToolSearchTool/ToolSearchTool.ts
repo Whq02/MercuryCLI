@@ -1,7 +1,15 @@
 import { memoize } from 'lodash-es'
 import { z } from 'zod'
 
-import { buildTool, closestToolByName, findToolByName, getEmptyToolPermissionContext, type Tool, type Tools, type ToolUseContext } from '../../Tool.js'
+import {
+  buildTool,
+  closestToolByName,
+  findToolByName,
+  getEmptyToolPermissionContext,
+  type Tool,
+  type Tools,
+  type ToolUseContext,
+} from '../../Tool.js'
 import { deferralWireFormFor } from '../../services/providers/deferralWire.js'
 import { getEngineModel } from '../../services/model/model.js'
 import { getToolManualAttachments } from '../../services/attachments/toolManuals.js'
@@ -14,8 +22,6 @@ import { isToolSearchEnabledOptimistic } from '../../services/messages/toolSearc
 import { cooccurBoostFor, recordToolDiscovery, toolSearchCooccurEnabled } from './cooccurPrior.js'
 import { getPrompt, isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from './prompt.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
-
 
 const inputSchema = z.object({
   query: z
@@ -28,7 +34,16 @@ const inputSchema = z.object({
 
 type Input = z.infer<typeof inputSchema>
 
-const outputSchema: Unbuilt = unbuilt('src/tools/ToolSearchTool/ToolSearchTool.ts:30')
+const outputSchema = z.object({
+  matches: z.array(z.string()),
+  query: z.string(),
+  total_deferred_tools: z.number(),
+  pending_mcp_servers: z.array(z.string()).optional(),
+  match_lines: z.array(z.string()).optional(),
+  unresolved: z.array(z.string()).optional(),
+  resolved: z.array(z.string()).optional(),
+  suggestions: z.array(z.string()).optional(),
+})
 
 type Output = z.infer<typeof outputSchema>
 
@@ -45,6 +60,21 @@ function isMcpToolLike(tool: Tool): boolean {
 }
 
 type NameParts = { parts: string[]; full: string }
+
+function parseToolName(name: string): NameParts {
+  if (name.startsWith(MCP_PREFIX)) {
+    const rest = name.slice(MCP_PREFIX.length).toLowerCase()
+    const parts = rest.split(/__|_/).filter(Boolean)
+    const full = rest.replace(/__/g, ' ').replace(/_/g, ' ')
+    return { parts, full }
+  }
+  const parts = name
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .toLowerCase()
+    .split(/[_\s]+/)
+    .filter(Boolean)
+  return { parts, full: parts.join(' ') }
+}
 
 function wordBoundaryPattern(term: string): RegExp {
   return new RegExp(`\\b${escapeRegExp(term)}\\b`)
@@ -90,14 +120,44 @@ function probeEnabled(tool: Tool): boolean {
   }
 }
 
-export const getToolDescriptionMemoized: Unbuilt = unbuilt('src/tools/ToolSearchTool/ToolSearchTool.ts:117')
+export const getToolDescriptionMemoized = memoize(
+  async (toolName: string, tools: Tools): Promise<string> => {
+    const tool = tools.find(t => t.name === toolName)
+    if (!tool) return ''
+    const prompt = await tool.prompt({
+      getToolPermissionContext: async () => getEmptyToolPermissionContext(),
+      tools,
+      agents: [],
+    })
+    let card = ''
+    try {
+      card = compileToolCapabilityCard(tool)
+    } catch (error) {
+      passedOver(error)
+    }
+    if (card && prompt) return `${card}\n\n${prompt}`
+    return card || prompt
+  },
+  (toolName: string) => toolName,
+)
+
+let deferredSetCacheKey: string | null = null
 
 export function maybeInvalidateCache(deferredTools: Tools): void {
-  return notBuilt('src/tools/ToolSearchTool/ToolSearchTool.ts:140')
+  const key = deferredTools
+    .map(tool => tool.name)
+    .sort()
+    .join(',')
+  if (key !== deferredSetCacheKey) {
+    deferredSetCacheKey = key
+    getToolDescriptionMemoized.cache.clear?.()
+    logForDebugging('tool search: deferred set changed, description cache cleared')
+  }
 }
 
 export function clearToolSearchDescriptionCache(): void {
-  return notBuilt('src/tools/ToolSearchTool/ToolSearchTool.ts:151')
+  deferredSetCacheKey = null
+  getToolDescriptionMemoized.cache.clear?.()
 }
 
 export async function searchToolsWithKeywords(
@@ -106,7 +166,94 @@ export async function searchToolsWithKeywords(
   allTools: Tools,
   maxResults: number,
 ): Promise<string[]> {
-  return notBuilt('src/tools/ToolSearchTool/ToolSearchTool.ts:156')
+  const queryLower = query.trim().toLowerCase()
+  const exactMatch =
+    deferredTools.find(tool => tool.name.toLowerCase() === queryLower) ??
+    allTools.find(tool => tool.name.toLowerCase() === queryLower)
+  if (exactMatch && queryLower !== 'launch') {
+    return [exactMatch.name]
+  }
+  if (queryLower.startsWith(MCP_PREFIX) && queryLower.length > MCP_PREFIX.length) {
+    const prefixMatches = deferredTools
+      .filter(tool => tool.name.toLowerCase().startsWith(queryLower))
+      .slice(0, maxResults)
+      .map(tool => tool.name)
+    if (prefixMatches.length > 0) return prefixMatches
+  }
+  maybeInvalidateCache(deferredTools)
+  const rawTerms = queryLower.split(/\s+/).filter(Boolean)
+  const requiredTerms: string[] = []
+  const optionalTerms: string[] = []
+  for (const term of rawTerms) {
+    if (term.startsWith('+') && term.length > 1) {
+      requiredTerms.push(term.slice(1))
+    } else {
+      optionalTerms.push(term)
+    }
+  }
+  const termsToScore = [...requiredTerms, ...optionalTerms]
+  const queryTokens = [...new Set(tokeniseForIntents(queryLower))]
+  const cooccurActive = toolSearchCooccurEnabled()
+  const scored: Array<{ name: string; score: number; enabled: boolean; index: number }> = []
+  for (let index = 0; index < deferredTools.length; index++) {
+    const tool = deferredTools[index]!
+    const nameParts = parseToolName(tool.name)
+    const isMcp = isMcpToolLike(tool)
+    const hintLower = (tool.searchHint ?? '').toLowerCase()
+    const keywordsLower = (tool.searchKeywords ?? []).map(keyword => keyword.toLowerCase())
+    const descriptionLower = (await getToolDescriptionMemoized(tool.name, allTools)).toLowerCase()
+    let requiredOk = true
+    for (const req of requiredTerms) {
+      const inName = nameParts.parts.some(part => part.includes(req))
+      if (inName) continue
+      const pattern = wordBoundaryPattern(req)
+      const inHintOrKeyword =
+        (hintLower.length > 0 && pattern.test(hintLower)) ||
+        keywordsLower.some(keyword => pattern.test(keyword))
+      if (inHintOrKeyword) continue
+      if (descriptionLower.length > 0 && pattern.test(descriptionLower)) continue
+      requiredOk = false
+      break
+    }
+    if (!requiredOk) continue
+    let score = 0
+    for (const term of termsToScore) {
+      if (nameParts.parts.some(part => part === term)) {
+        score += isMcp ? 12 : 10
+      } else if (nameParts.parts.some(part => part.includes(term))) {
+        score += isMcp ? 6 : 5
+      } else if (score === 0 && nameParts.full.includes(term)) {
+        score += 3
+      }
+      const pattern = wordBoundaryPattern(term)
+      if (
+        (hintLower.length > 0 && pattern.test(hintLower)) ||
+        keywordsLower.some(keyword => pattern.test(keyword))
+      ) {
+        score += 4
+      }
+      if (descriptionLower.length > 0 && pattern.test(descriptionLower)) {
+        score += 2
+      }
+    }
+    score += intentBoost(tool, queryTokens)
+    if (score > 0 && cooccurActive) {
+      score += cooccurBoostFor(tool.name)
+    }
+    if (score > 0) {
+      scored.push({ name: tool.name, score, enabled: probeEnabled(tool), index })
+    }
+  }
+  scored.sort((a, b) => {
+    if (a.enabled !== b.enabled) return a.enabled ? -1 : 1
+    if (b.score !== a.score) return b.score - a.score
+    return a.index - b.index
+  })
+  const ranked = scored.map(item => item.name)
+  if (exactMatch) {
+    return [exactMatch.name, ...ranked.filter(name => name !== exactMatch.name)].slice(0, maxResults)
+  }
+  return ranked.slice(0, maxResults)
 }
 
 function pendingMcpServerNames(context: ToolUseContext): string[] {
@@ -146,4 +293,143 @@ function matchLinesFor(names: string[], allTools: Tools): string[] {
   })
 }
 
-export const ToolSearchTool: Unbuilt = unbuilt('src/tools/ToolSearchTool/ToolSearchTool.ts:367')
+async function runSearch(input: Input, context: ToolUseContext): Promise<Output> {
+  const allTools = context.options?.tools ?? []
+  const model = context.options?.engineModel ?? getEngineModel()
+  const permissionMode = context.getAppState().toolPermissionContext?.mode
+  const messages = context.messages ?? []
+  const deferredTools = allTools.filter(tool => isDeferredToolFor(tool, model, permissionMode, messages))
+  const totalDeferred = deferredTools.length
+  const selectMatch = SELECT_FORM.exec(input.query)
+  if (selectMatch !== null) {
+    const requested = selectMatch[1]!
+      .split(',')
+      .map(name => name.trim())
+      .filter(Boolean)
+    const resolved: string[] = []
+    const seenResolved = new Set<string>()
+    const unresolved: string[] = []
+    for (const name of requested) {
+      const found = findToolByName(deferredTools, name) ?? findToolByName(allTools, name)
+      if (found) {
+        if (!seenResolved.has(found.name)) {
+          seenResolved.add(found.name)
+          resolved.push(found.name)
+        }
+      } else {
+        unresolved.push(name)
+      }
+    }
+    if (unresolved.length > 0) {
+      const closest = unresolved.map(name => closestToolByName(allTools, name)?.name)
+      const suggestions = closest.every((name): name is string => name !== undefined) ? closest : undefined
+      const pending = pendingMcpServerNames(context)
+      logForDebugging(
+        `tool search: select miss for ${unresolved.join(', ')} (resolved: ${resolved.join(', ') || 'none'})`,
+      )
+      return {
+        matches: [],
+        query: input.query,
+        total_deferred_tools: totalDeferred,
+        unresolved,
+        ...(resolved.length > 0 ? { resolved } : {}),
+        ...(suggestions !== undefined ? { suggestions } : {}),
+        ...(pending.length > 0 ? { pending_mcp_servers: pending } : {}),
+      }
+    }
+    if (resolved.length === 0) {
+      const pending = pendingMcpServerNames(context)
+      return {
+        matches: [],
+        query: input.query,
+        total_deferred_tools: totalDeferred,
+        ...(pending.length > 0 ? { pending_mcp_servers: pending } : {}),
+      }
+    }
+    recordToolDiscovery(resolved)
+    logForDebugging(`tool search: select resolved ${resolved.join(', ')}`)
+    return {
+      matches: resolved,
+      query: input.query,
+      total_deferred_tools: totalDeferred,
+    }
+  }
+  const maxResults = input.max_results ?? 5
+  const matches = await searchToolsWithKeywords(input.query, deferredTools, allTools, maxResults)
+  recordToolDiscovery(matches)
+  logForDebugging(`tool search: keyword "${input.query}" matched ${matches.length} tool(s)`)
+  if (matches.length === 0) {
+    const pending = pendingMcpServerNames(context)
+    return {
+      matches: [],
+      query: input.query,
+      total_deferred_tools: totalDeferred,
+      ...(pending.length > 0 ? { pending_mcp_servers: pending } : {}),
+    }
+  }
+  return {
+    matches,
+    query: input.query,
+    total_deferred_tools: totalDeferred,
+    match_lines: matchLinesFor(matches, allTools),
+  }
+}
+
+export const ToolSearchTool = buildTool({
+  name: TOOL_SEARCH_TOOL_NAME,
+  userFacingName: () => '',
+  strict: false,
+  isReadOnly: () => true,
+  isConcurrencySafe: () => true,
+  maxResultSizeChars: 100_000,
+  isEnabled: () => isToolSearchEnabledOptimistic(),
+  inputSchema,
+  outputSchema,
+  async description() {
+    return getPrompt(deferralWireFormFor(getEngineModel()).form)
+  },
+  async prompt({ model }) {
+    return getPrompt(deferralWireFormFor(model ?? getEngineModel()).form)
+  },
+  async call(input: Input, context: ToolUseContext) {
+    const data = await runSearch(input, context)
+    const attachments = await getToolManualAttachments(context, data.matches)
+    if (attachments.length === 0) return { data }
+    return {
+      data,
+      newMessages: attachments.map(attachment => createAttachmentMessage(attachment)),
+    }
+  },
+  mapToolResultToToolResultBlockParam(output: Output, toolUseID: string) {
+    if (output.matches.length > 0) {
+      return {
+        tool_use_id: toolUseID,
+        type: 'tool_result' as const,
+        content: output.matches.map(tool_name => ({
+          type: 'tool_reference' as const,
+          tool_name,
+        })),
+      }
+    }
+    const base =
+      output.unresolved !== undefined && output.unresolved.length > 0
+        ? selectMissText(output)
+        : noMatchText(output.query)
+    const pending = output.pending_mcp_servers
+    const suffix =
+      pending && pending.length > 0
+        ? ` MCP servers still connecting: ${pending.join(', ')} — their tools will become available shortly; the search may be retried.`
+        : ''
+    return {
+      tool_use_id: toolUseID,
+      type: 'tool_result' as const,
+      content: `${base}${suffix}`,
+    }
+  },
+  renderToolUseMessage: () => null,
+  renderToolUseProgressMessage: () => null,
+  renderToolUseQueuedMessage: () => null,
+  renderToolUseRejectedMessage: () => null,
+  renderToolUseErrorMessage: () => null,
+  renderToolResultMessage: () => null,
+})
