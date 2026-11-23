@@ -10,15 +10,38 @@ const PARSE_DOOR = 'src/permissions/rules/decision/commandAnalysis.ts'
 const PROBE = 'src/tools/shell/bashPermissions.ts'
 
 const SHELL_DIRS = [
-  'src/utils/shell/',
-  'src/platform/shell/bash/',
-  'src/permissions/rules/decision/command-analysis/',
-  'src/tools/shell/',
-  'src/tools/powershell/',
-  'src/utils/powershell/',
   'src/engine/tasks/local-shell/',
+  'src/permissions/rules/decision/command-analysis/',
+  'src/permissions/rules/shell-commands/',
+  'src/platform/shell/bash/',
+  'src/platform/shell/powershell/',
+  'src/tools/powershell/',
+  'src/tools/shell/',
 ]
-const SHELL_FILES = ['src/platform/shell/shellExec.ts', 'src/platform/shell/shellProcess.ts']
+const SHELL_FILES = [
+  'src/platform/shell/bashPack.ts',
+  'src/platform/shell/bashProvider.ts',
+  'src/platform/shell/brushPack.ts',
+  'src/platform/shell/engineSession.ts',
+  'src/platform/shell/globPreamble.ts',
+  'src/platform/shell/msysArgv.ts',
+  'src/platform/shell/outputFilter.ts',
+  'src/platform/shell/outputLimits.ts',
+  'src/platform/shell/parentGuard.ts',
+  'src/platform/shell/powershellDetection.ts',
+  'src/platform/shell/powershellProvider.ts',
+  'src/platform/shell/resolveDefaultShell.ts',
+  'src/platform/shell/shellEngineArm.ts',
+  'src/platform/shell/shellExec.ts',
+  'src/platform/shell/shellOutput.ts',
+  'src/platform/shell/shellProcess.ts',
+  'src/platform/shell/shellProvider.ts',
+  'src/platform/shell/shellRecord.ts',
+  'src/platform/shell/windowsBatchInvocation.ts',
+  'src/platform/shell/windowsBatchLine.ts',
+  'src/platform/shell/windowsShellRoad.ts',
+  'src/tools/kit/shellTools.ts',
+]
 
 const IMPORTERS = [
   'src/boot/entrypoints/cli.tsx',

@@ -237,9 +237,9 @@ console.log('\nS7 withFoldStatus owns the stamps')
     const full = join(dir, name)
     return statSync(full).isDirectory() ? walk(full) : /\.(ts|tsx)$/.test(name) ? [full] : []
   })
-  const files = [...walk(join(ROOT, 'src/services/compact')), ...walk(join(ROOT, 'src/commands/compact'))]
+  const files = [...walk(join(ROOT, 'src/engine/compaction')), ...walk(join(ROOT, 'src/commands/compact'))]
   const american = files.filter(f => /\bcanceled\b/i.test(readFileSync(f, 'utf8')))
-  check("the fold's exit word has one spelling under src/services/compact and src/commands/compact ('cancelled'; no 'canceled')", american.length === 0, american.map(f => f.slice(ROOT.length + 1)).join(', '))
+  check("the fold's exit word has one spelling under src/engine/compaction and src/commands/compact ('cancelled'; no 'canceled')", american.length === 0, american.map(f => f.slice(ROOT.length + 1)).join(', '))
   const { ERROR_MESSAGE_USER_ABORT } = await import('../../src/engine/compaction/foldConversation.ts')
   const { FOLD_EXIT_WORDS } = await import('../../src/engine/compaction/foldStatus.ts')
   check("the user's esc line carries the fold row's own exit word", ERROR_MESSAGE_USER_ABORT.includes(FOLD_EXIT_WORDS.cancelled))

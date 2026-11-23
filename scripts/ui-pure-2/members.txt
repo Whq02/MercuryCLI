@@ -102,3 +102,4 @@ prove-chat-session-part.ts
 prove-chat-selector-part.ts
 prove-chat-status-part.ts
 prove-chat-boot-part.ts
+prove-use-shimmer-animation-behaviour.ts

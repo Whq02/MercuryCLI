@@ -196,7 +196,7 @@ function settingsViolation(path: string, line: string): string | null {
   }
   return null
 }
-const CONCOURSE_HOME = new RegExp('^src/(components|services)/concourse/')
+const CONCOURSE_HOME = new RegExp('^src/screen/concourse(-model)?/')
 const crumbUpperRe = new RegExp('[Mm]ain[- ]' + J('RE', 'PL'))
 const crumbSpacedRe = new RegExp(J('main', '[ ]', 'repl'), 'i')
 const isCommentLine = (line: string): boolean => /^\s*(\/\/|\*|\/\*)/.test(line)
