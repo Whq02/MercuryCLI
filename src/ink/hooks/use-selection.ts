@@ -2,9 +2,18 @@ import { useContext, useMemo, useSyncExternalStore } from 'react'
 import { InkInstanceContext } from '../components/InkInstanceContext.js'
 import { type FocusMove, type SelectionState } from '../geometry/selection.js'
 import type Ink from '../ink.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-export type SelectionApi = Unbuilt
+export type SelectionApi = {
+  copySelection: () => string
+  copySelectionNoClear: () => string
+  copyText: (text: string) => void
+  clearSelection: () => void
+  hasSelection: () => boolean
+  getState: () => SelectionState | null
+  subscribe: (callback: () => void) => () => void
+  moveFocus: (move: FocusMove) => void
+  setSelectionBgColor: (color: string) => void
+}
 
 const noop = (): void => {}
 const noopUnsubscribe = (): (() => void) => noop
@@ -26,7 +35,17 @@ function inertApi(): SelectionApi {
 }
 
 function instanceApi(ink: Ink): SelectionApi {
-  return notBuilt('src/ink/hooks/use-selection.ts:38')
+  return {
+    copySelection: () => ink.copySelection(),
+    copySelectionNoClear: () => ink.copySelectionNoClear(),
+    copyText: text => ink.copyText(text),
+    clearSelection: () => ink.clearTextSelection(),
+    hasSelection: () => ink.hasTextSelection(),
+    getState: () => ink.selection,
+    subscribe: callback => ink.subscribeToSelectionChange(callback),
+    moveFocus: move => ink.moveSelectionFocus(move),
+    setSelectionBgColor: color => ink.setSelectionBgColor(color),
+  }
 }
 
 export function useSelection(): SelectionApi {
@@ -35,5 +54,6 @@ export function useSelection(): SelectionApi {
 }
 
 export function useHasSelection(): boolean {
-  return notBuilt('src/ink/hooks/use-selection.ts:57')
+  const api = useSelection()
+  return useSyncExternalStore(api.subscribe, api.hasSelection, api.hasSelection)
 }
