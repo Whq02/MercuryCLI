@@ -1,13 +1,14 @@
-import { notBuilt } from '../pi/holes.js'
+const taggedBlock = /<([a-z][A-Za-z0-9_-]*)(?:\s[^>]*)?(?<!\/)>[\s\S]*?<\/\1>\n?/g
+const ideBlock = /<(ide_opened_file|ide_selection)(?:\s[^>]*)?(?<!\/)>[\s\S]*?<\/\1>\n?/g
 
 export function stripDisplayTags(text: string): string {
-  return notBuilt('src/utils/displayTags.ts:5')
+  return stripDisplayTagsAllowEmpty(text) || text
 }
 
 export function stripDisplayTagsAllowEmpty(text: string): string {
-  return notBuilt('src/utils/displayTags.ts:10')
+  return text.replace(taggedBlock, '').trim()
 }
 
 export function stripIdeContextTags(text: string): string {
-  return notBuilt('src/utils/displayTags.ts:14')
+  return text.replace(ideBlock, '').trim()
 }
