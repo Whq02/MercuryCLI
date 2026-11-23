@@ -1,7 +1,6 @@
 import { MERCURY_SCOUT_AGENT_TYPE } from '../../constants/tools/agent.js'
 import type { AgentDefinition } from '../../types/agent.js'
 import { SCOUT_TOOLS_DESCRIPTION } from './scoutPolicy.js'
-import { notBuilt } from '../../pi/holes.js'
 
 function describeTools(agent: AgentDefinition): string {
   if (agent.source === 'built-in' && agent.agentType === MERCURY_SCOUT_AGENT_TYPE) return SCOUT_TOOLS_DESCRIPTION
@@ -38,13 +37,37 @@ export function withoutAgentRoster(fullPrompt: string): string {
   return roster === '' ? fullPrompt : fullPrompt.replace(roster, '').replace(/^\n+/, '').replace(/\n{3,}/g, '\n\n')
 }
 
+const EXECUTION_TEXT =
+  "Launches in one message run concurrently; foreground launches in separate messages run sequentially and wait for the report (returned to you, not directly to the user). Tool access follows the selected agent definition and the session's permissions. Foreground and background launches have the same tool access. With swarm on, a new crewmate is enrolled on the live crew board and told its name, its team and the seats already there; posts arrive as [name] [team] [kind] rows between turns."
+const CLEANUP_TEXT =
+  'The seven-day janitor removes only a clean worktree whose commits are reachable.'
+const REVIEW_TEXT =
+  'review_receipt confines verification to bun/bash under scripts and bun run typecheck with read-only sources. The report ends with REVIEW: CLEAN or REVIEW: FINDINGS <count>.'
+
 export async function getPrompt(
   agentDefinitions: readonly AgentDefinition[],
-  isCoordinator?: boolean,
+  isCoordinator = false,
   allowedAgentTypes?: readonly string[],
-  offered?: ReadonlySet<string>,
+  _offered?: ReadonlySet<string>,
   refusals?: ReadonlyMap<string, string>,
-  swarmOn?: boolean,
+  swarmOn = false,
 ): Promise<string> {
-  return notBuilt('src/tools/AgentTool/prompt.ts:41')
+  const visible =
+    allowedAgentTypes !== undefined
+      ? agentDefinitions.filter(agent => allowedAgentTypes.includes(agent.agentType))
+      : agentDefinitions
+  const listing = visible
+    .map(agent => formatAgentLine(agent, refusals?.get(agent.agentType)))
+    .join('\n')
+  const rosterBlock = listing !== '' ? `${AGENT_ROSTER_HEAD}\n${listing}` : ''
+  if (isCoordinator) return rosterBlock
+
+  const executionBody = swarmOn ? `${EXECUTION_TEXT} ${SEATS_TALK_DIRECTLY}` : EXECUTION_TEXT
+  const sections = [
+    ...(rosterBlock !== '' ? [rosterBlock] : []),
+    `## Execution\n${executionBody}`,
+    `## Worktree cleanup\n${CLEANUP_TEXT}`,
+    `## Review mode\n${REVIEW_TEXT}`,
+  ]
+  return sections.join('\n\n')
 }
