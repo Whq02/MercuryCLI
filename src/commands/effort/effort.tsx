@@ -88,8 +88,7 @@ function appliedTruth(
 }
 
 export function executeEffort(args: string, model: string): EffortCommandResult {
-  const trimmed = args.trim()
-  const lower = trimmed.toLowerCase()
+  const lower = args.toLowerCase()
   if (lower === 'auto' || lower === 'unset') {
     const cleared = updateSettingsForSource('userSettings', { engine: { effort: undefined } })
     if (cleared.error !== null) {
@@ -107,10 +106,10 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
     }
   }
 
-  const level = normalizeEffortLevelString(trimmed)
+  const level = normalizeEffortLevelString(lower)
   if (level === undefined) {
     return {
-      message: `Valid options: ${OPTION_LIST} — not "${trimmed}".`,
+      message: `Valid options: ${OPTION_LIST} — "${args}" is not an effort option.`,
     }
   }
 
