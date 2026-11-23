@@ -5,7 +5,6 @@ import instances from './instances.js'
 import type { Color, TextStyles } from './styles.js'
 import { passedOver } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 export type ColorType = 'foreground' | 'background'
 
@@ -69,16 +68,30 @@ function clampChalkLevelForMercury(): boolean {
   if (chalk.level > 2) chalk.level = 2
   return true
 }
-export const CHALK_CLAMPED_FOR_MERCURY: Unbuilt = unbuilt('src/ink/colorize.ts:72')
-export const CHALK_BOOSTED_FOR_MERCURY: Unbuilt = unbuilt('src/ink/colorize.ts:79')
-export const CHALK_CLAMPED_FOR_TMUX: Unbuilt = unbuilt('src/ink/colorize.ts:89')
+export const CHALK_CLAMPED_FOR_MERCURY: boolean = clampChalkLevelForMercury()
 
-export const DETECTED_CHALK_LEVEL: Unbuilt = unbuilt('src/ink/colorize.ts:91')
+function boostChalkLevelForMercury(): boolean {
+  if (CHALK_CLAMPED_FOR_MERCURY || chalk.level !== 2) return false
+  if (!isEnvTruthy(readTruecolorFlag())) return false
+  chalk.level = 3
+  return true
+}
+export const CHALK_BOOSTED_FOR_MERCURY: boolean = boostChalkLevelForMercury()
 
-let monochromeTheme: boolean = unbuilt('src/ink/colorize.ts:93')
+function clampChalkLevelForTmux(): boolean {
+  if (isEnvTruthy(readTruecolorFlag())) return false
+  if (!hostEnv().TMUX || chalk.level <= 2) return false
+  chalk.level = 2
+  return true
+}
+export const CHALK_CLAMPED_FOR_TMUX: boolean = clampChalkLevelForTmux()
+
+export const DETECTED_CHALK_LEVEL: number = chalk.level
+
+let monochromeTheme = false
 
 export function monochromeThemeActive(): boolean {
-  return notBuilt('src/ink/colorize.ts:95')
+  return monochromeTheme
 }
 
 export function setMonochromeTheme(on: boolean): boolean {
@@ -141,16 +154,60 @@ const NAMED_PAINTERS: Record<string, Painter> = {
   whiteBright: { fg: chalk.whiteBright, bg: chalk.bgWhiteBright },
 }
 
+const ANSI256_RE = /^ansi256\((\d+)\)$/
+const RGB_RE = /^rgb\( ?(\d+), ?(\d+), ?(\d+) ?\)$/
+
 export function colorize(
   str: string,
   color: Color | string | undefined,
   type: ColorType,
 ): string {
-  return notBuilt('src/ink/colorize.ts:162')
+  if (MERCURY_HONORS_NO_COLOR || monochromeTheme) return str
+  if (!color) return str
+
+  if (color.startsWith('ansi:')) {
+    const name = color.slice(5)
+    if (Object.hasOwn(NAMED_PAINTERS, name)) {
+      const painter = NAMED_PAINTERS[name]!
+      return type === 'foreground' ? painter.fg(str) : painter.bg(str)
+    }
+    return str
+  }
+
+  if (color.startsWith('#')) {
+    return type === 'foreground' ? chalk.hex(color)(str) : chalk.bgHex(color)(str)
+  }
+
+  if (color.startsWith('ansi256(')) {
+    const match = ANSI256_RE.exec(color)
+    if (!match) return str
+    const value = Number(match[1])
+    return type === 'foreground' ? chalk.ansi256(value)(str) : chalk.bgAnsi256(value)(str)
+  }
+
+  if (color.startsWith('rgb(')) {
+    const match = RGB_RE.exec(color)
+    if (!match) return str
+    const r = Number(match[1])
+    const g = Number(match[2])
+    const b = Number(match[3])
+    return type === 'foreground' ? chalk.rgb(r, g, b)(str) : chalk.bgRgb(r, g, b)(str)
+  }
+
+  return str
 }
 
 export function applyTextStyles(text: string, styles: TextStyles): string {
-  return notBuilt('src/ink/colorize.ts:199')
+  let result = text
+  if (styles.inverse) result = chalk.inverse(result)
+  if (styles.strikethrough) result = chalk.strikethrough(result)
+  if (styles.underline) result = chalk.underline(result)
+  if (styles.italic) result = chalk.italic(result)
+  if (styles.bold) result = chalk.bold(result)
+  if (styles.dim) result = chalk.dim(result)
+  if (styles.color) result = colorize(result, styles.color, 'foreground')
+  if (styles.backgroundColor) result = colorize(result, styles.backgroundColor, 'background')
+  return result
 }
 
 export function applyColor(text: string, color?: Color | string): string {
