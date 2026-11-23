@@ -100,7 +100,7 @@ function receiptRowText(e: SessionReceiptEntry): string {
           ? `schedule: ${flat}`
           : e.kind === 'runner-restart' || e.kind === 'build-behind'
             ? `build: ${flat}`
-            : `contract: ${flat}`
+            : flat
 }
 
 

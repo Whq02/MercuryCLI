@@ -7,7 +7,6 @@ import { useSessionAccent } from '../../mercury-ui/sessionAccent.js'
 import { type ControlNoteState, controlNoteOf, concourseWaitCopy } from '../contracts.js'
 import { clampCaret, draftWindow, type LineDraft } from '../lineDraft.js'
 import { OLDER_CHATS_ROW_PREFIX } from '../../../services/concourse/concourseSnapshot.js'
-import { ContractOfferCard } from '../ContractOfferCard.js'
 import { SessionMirror } from '../SessionMirror.js'
 import { GLYPH } from '../../../utils/glyphs.js'
 import { ConcourseComposer } from '../ConcourseStrips.js'
@@ -15,9 +14,9 @@ import type { CompactFootNote } from '../CompactConcourse.js'
 import { COMPACT_DOOR_REST_HINT } from '../compactBoard.js'
 import { NL } from './useConcourseDraft.js'
 import { broadcastFaceOf, liveComposerPaintOf } from './composerGate.js'
-import type { Asks, Draft, Filter, Frame, Geometry, Marks, Panes, RowLine, ScreenDoors, ScreenProps, Selection } from './state.js'
+import type { Draft, Filter, Frame, Geometry, Marks, Panes, RowLine, ScreenDoors, ScreenProps, Selection } from './state.js'
 
-export function useConcourseFaces({ snapshot, controlNotes, reducedStage, answerContractAsk, boardSel, broadcastArmed, compact, compactGeo, compactParkNote, composeContext, contractAsk, editLiveDraft, enterSession, geo, isCompact, liveComposerGate, liveDraft, liveDraftRef, liveNote, markedRows, note, region, rowControlNote, sessionRows, setRegion, splitGeo }: Pick<ScreenProps, 'snapshot' | 'controlNotes' | 'reducedStage'> & Pick<Asks, 'answerContractAsk' | 'contractAsk'> & Pick<Selection, 'boardSel' | 'compactParkNote'> & Pick<Draft, 'broadcastArmed' | 'composeContext' | 'editLiveDraft' | 'liveComposerGate' | 'liveDraft' | 'liveDraftRef' | 'liveNote' | 'note'> & Pick<Frame, 'compact' | 'isCompact' | 'splitGeo'> & Pick<Geometry, 'compactGeo' | 'geo'> & Pick<ScreenDoors, 'enterSession'> & Pick<Marks, 'markedRows'> & Pick<Panes, 'region' | 'setRegion'> & Pick<RowLine, 'rowControlNote'> & Pick<Filter, 'sessionRows'>) {
+export function useConcourseFaces({ snapshot, controlNotes, reducedStage, boardSel, broadcastArmed, compact, compactGeo, compactParkNote, composeContext, editLiveDraft, enterSession, geo, isCompact, liveComposerGate, liveDraft, liveDraftRef, liveNote, markedRows, note, region, rowControlNote, sessionRows, setRegion, splitGeo }: Pick<ScreenProps, 'snapshot' | 'controlNotes' | 'reducedStage'> & Pick<Selection, 'boardSel' | 'compactParkNote'> & Pick<Draft, 'broadcastArmed' | 'composeContext' | 'editLiveDraft' | 'liveComposerGate' | 'liveDraft' | 'liveDraftRef' | 'liveNote' | 'note'> & Pick<Frame, 'compact' | 'isCompact' | 'splitGeo'> & Pick<Geometry, 'compactGeo' | 'geo'> & Pick<ScreenDoors, 'enterSession'> & Pick<Marks, 'markedRows'> & Pick<Panes, 'region' | 'setRegion'> & Pick<RowLine, 'rowControlNote'> & Pick<Filter, 'sessionRows'>) {
   const t = useMercuryTokens()
   const residentAccent = useSessionAccent()
   const residentDef = React.useMemo(
@@ -29,13 +28,6 @@ export function useConcourseFaces({ snapshot, controlNotes, reducedStage, answer
     [residentAccent.key, residentAccent.accent, residentAccent.accentDeep],
   )
   const mirrorSlot = (rows: number, width: number, bare = false): React.ReactNode => {
-    if (contractAsk) {
-      return (
-        <Box flexDirection="column" flexGrow={1} paddingX={1} overflow="hidden">
-          <ContractOfferCard onAnswer={answerContractAsk} width={width} rows={rows} />
-        </Box>
-      )
-    }
     const anySessions = sessionRows.length > 0 || snapshot.counts.live > 0
     if (!anySessions) {
       return (

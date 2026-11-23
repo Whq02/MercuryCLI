@@ -12,7 +12,7 @@ import { keyHintLabel } from '../../mercury-ui/keyHintLabel.js'
 import { broadcastFaceOf } from './composerGate.js'
 import type { Asks, CloseChord, Draft, Filter, Marks, Panes, ScreenDoors, ScreenProps, Selection } from './state.js'
 
-export function useConcourseRowLine({ callbacks, controlNotes, boardArmed, boardSel, capacityAsk, closeChordStage, contractAsk, filtering, gitOffer, groundPickerOpen, helpOpen, liveComposerGate, liveDraft, markedRows, modelDefaultOpen, rowPeekOpen, rowPick, sessionRows, trustAsk }: Pick<ScreenProps, 'callbacks' | 'controlNotes'> & Pick<Marks, 'boardArmed' | 'markedRows' | 'modelDefaultOpen' | 'rowPick'> & Pick<Selection, 'boardSel' | 'rowPeekOpen'> & Pick<Asks, 'capacityAsk' | 'contractAsk' | 'trustAsk'> & Pick<CloseChord, 'closeChordStage'> & Pick<Filter, 'filtering' | 'sessionRows'> & Pick<ScreenDoors, 'gitOffer'> & Pick<Panes, 'groundPickerOpen' | 'helpOpen'> & Pick<Draft, 'liveComposerGate' | 'liveDraft'>) {
+export function useConcourseRowLine({ callbacks, controlNotes, boardArmed, boardSel, capacityAsk, closeChordStage, filtering, gitOffer, groundPickerOpen, helpOpen, liveComposerGate, liveDraft, markedRows, modelDefaultOpen, rowPeekOpen, rowPick, sessionRows, trustAsk }: Pick<ScreenProps, 'callbacks' | 'controlNotes'> & Pick<Marks, 'boardArmed' | 'markedRows' | 'modelDefaultOpen' | 'rowPick'> & Pick<Selection, 'boardSel' | 'rowPeekOpen'> & Pick<Asks, 'capacityAsk' | 'trustAsk'> & Pick<CloseChord, 'closeChordStage'> & Pick<Filter, 'filtering' | 'sessionRows'> & Pick<ScreenDoors, 'gitOffer'> & Pick<Panes, 'groundPickerOpen' | 'helpOpen'> & Pick<Draft, 'liveComposerGate' | 'liveDraft'>) {
   const pastGate = useOpenEventGate()
   const peekSelRow = sessionRows.find(r => r.sessionId === boardSel)
   const peekRowLive =
@@ -44,7 +44,6 @@ export function useConcourseRowLine({ callbacks, controlNotes, boardArmed, board
         rowPick: rowPick !== null,
         modelDefault: modelDefaultOpen,
         gitOffer: gitOffer !== undefined,
-        contractAsk,
       }) === null
     if (!boardOwned) return null
     const hint = closeChordHintOf(closeChordRungOf(boardSelectionClassOf(peekSelRow), closeChordStaged), peekSelRow?.newborn === true)

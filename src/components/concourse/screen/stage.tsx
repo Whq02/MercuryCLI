@@ -20,13 +20,12 @@ import { armSignInPickerReturn, consumeSignInPickerReturn } from './signInPicker
 import { TrustAskModal, CapacityAskModal, ConcourseKeyAtlas, gitOfferCardRows } from './modals.js'
 import type { Asks, Draft, Faces, Filter, Frame, Geometry, Marks, Panes, ScreenDoors, ScreenProps, Selection } from './state.js'
 
-export function concourseStage({ snapshot, callbacks, reducedStage, answerCapacityAsk, answerTrustAsk, armContractAsk, boardSel, capacityAsk, cols, compactCardRows, compactNote, compactProfile, compactSteerOrEnter, contractAsk, doorNote, filter, filtering, fullTree, geo, gitOffer, groundPickerOpen, helpOpen, liveComposerFace, liveDraft, liveDraftDesired, mirrorSlot, modelDefaultOpen, pickGround, region, rowPick, selectSession, sessionRows, setGroundPickerOpen, setModelDefaultOpen, setRegion, setRowPick, splitActive, splitGeo, t, termCols, termRows, trustAsk }: Pick<ScreenProps, 'snapshot' | 'callbacks' | 'reducedStage'> & Pick<Asks, 'answerCapacityAsk' | 'answerTrustAsk' | 'armContractAsk' | 'capacityAsk' | 'compactCardRows' | 'contractAsk' | 'pickGround' | 'trustAsk'> & Pick<Selection, 'boardSel'> & Pick<Frame, 'cols' | 'compactProfile' | 'splitActive' | 'splitGeo' | 'termCols' | 'termRows'> & Pick<Faces, 'compactNote' | 'liveComposerFace' | 'mirrorSlot' | 't'> & Pick<ScreenDoors, 'compactSteerOrEnter' | 'fullTree' | 'gitOffer' | 'selectSession'> & Pick<Marks, 'doorNote' | 'modelDefaultOpen' | 'rowPick' | 'setModelDefaultOpen' | 'setRowPick'> & Pick<Filter, 'filter' | 'filtering' | 'sessionRows'> & Pick<Geometry, 'geo' | 'liveDraftDesired'> & Pick<Panes, 'groundPickerOpen' | 'helpOpen' | 'region' | 'setGroundPickerOpen' | 'setRegion'> & Pick<Draft, 'liveDraft'>) {
+export function concourseStage({ snapshot, callbacks, reducedStage, answerCapacityAsk, answerTrustAsk, boardSel, capacityAsk, cols, compactNote, compactProfile, compactSteerOrEnter, doorNote, filter, filtering, fullTree, geo, gitOffer, groundPickerOpen, helpOpen, liveComposerFace, liveDraft, liveDraftDesired, mirrorSlot, modelDefaultOpen, pickGround, region, rowPick, selectSession, sessionRows, setGroundPickerOpen, setModelDefaultOpen, setRegion, setRowPick, splitActive, splitGeo, t, termCols, termRows, trustAsk }: Pick<ScreenProps, 'snapshot' | 'callbacks' | 'reducedStage'> & Pick<Asks, 'answerCapacityAsk' | 'answerTrustAsk' | 'capacityAsk' | 'pickGround' | 'trustAsk'> & Pick<Selection, 'boardSel'> & Pick<Frame, 'cols' | 'compactProfile' | 'splitActive' | 'splitGeo' | 'termCols' | 'termRows'> & Pick<Faces, 'compactNote' | 'liveComposerFace' | 'mirrorSlot' | 't'> & Pick<ScreenDoors, 'compactSteerOrEnter' | 'fullTree' | 'gitOffer' | 'selectSession'> & Pick<Marks, 'doorNote' | 'modelDefaultOpen' | 'rowPick' | 'setModelDefaultOpen' | 'setRowPick'> & Pick<Filter, 'filter' | 'filtering' | 'sessionRows'> & Pick<Geometry, 'geo' | 'liveDraftDesired'> & Pick<Panes, 'groundPickerOpen' | 'helpOpen' | 'region' | 'setGroundPickerOpen' | 'setRegion'> & Pick<Draft, 'liveDraft'>) {
   const boardTree =
     compactProfile !== null ? (
       <CompactConcourse
         cols={termCols}
         rows={termRows}
-        cardRows={compactCardRows}
         region={region === 'live' ? 'live' : 'list'}
         sessionRows={sessionRows}
         selectedId={boardSel}
@@ -37,7 +36,6 @@ export function concourseStage({ snapshot, callbacks, reducedStage, answerCapaci
         liveDraftRows={liveDraftDesired}
         liveDraftHeld={liveDraft.text.trim().length > 0}
         verbsFire={region !== 'live' || liveDraft.text.length === 0}
-        showLive={region === 'live' || contractAsk}
         note={compactNote}
         composerNote={doorNote ? COMPACT_DOOR_NOTE : null}
         mirrorNode={(rows, width) => mirrorSlot(rows, width, true)}
@@ -53,7 +51,7 @@ export function concourseStage({ snapshot, callbacks, reducedStage, answerCapaci
           },
           focusList: () => setRegion('list'),
           focusLive: () => setRegion('live'),
-          ...(reducedStage || callbacks.newSession === undefined ? {} : { newSession: () => armContractAsk() }),
+          ...(reducedStage || callbacks.newSession === undefined ? {} : { newSession: () => callbacks.newSession?.() }),
         }}
       />
     ) : (
@@ -144,7 +142,6 @@ export function concourseStage({ snapshot, callbacks, reducedStage, answerCapaci
         />
       ) : null}
       {gitOffer !== undefined &&
-      !contractAsk &&
       gitOfferOwnsTheKeys({
         capacityAsk,
         trustAsk: trustAsk !== null,
@@ -152,7 +149,6 @@ export function concourseStage({ snapshot, callbacks, reducedStage, answerCapaci
         rowPick: rowPick !== null,
         modelDefault: modelDefaultOpen,
         gitOffer: true,
-        contractAsk,
         helpOpen,
       }) ? (
         <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows: geo.mainBand[1] + 1 }} width={geo.interior} top={geo.mainBand[1] - gitOfferCardRows(gitOffer.folder, geo.interior, gitOffer.folderHeld === true)}>

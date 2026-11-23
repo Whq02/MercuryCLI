@@ -204,7 +204,7 @@ function LiveConcourse(): React.ReactNode {
         void applySeedProjectGround(patch.projectDir, noteControl)
       }
     },
-    newSession: (opts?: { contractText?: string }) => newSession(launch, opts),
+    newSession: () => newSession(launch),
     submitSessionDraft: (text: string) => {
       if (text.trim().length > 0) submitDraft(text)
     },

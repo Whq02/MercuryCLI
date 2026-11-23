@@ -5,12 +5,12 @@ import { NL } from '../useConcourseDraft.js'
 import type { InputEvent, Key } from '../../../../ink.js'
 import type { KeysArgs } from '../state.js'
 
-export function chatChordKeys(input: string, key: Key, event: InputEvent, { callbacks, armContractAsk, boardSelRef, compact, enterSession, helpOpenRef, liveDraftRef, moveBoardSelection, pastGate, region, rowPauseToggle, rowStop, selectedIsDoor, sendLive, sessionRows, setHelpOpen, showDoorNote, termCols, termRows }: KeysArgs, olderNavConsumed: (key: { upArrow: boolean; downArrow: boolean }, event: { stopImmediatePropagation: () => void }) => boolean): boolean {
+export function chatChordKeys(input: string, key: Key, event: InputEvent, { callbacks, boardSelRef, compact, enterSession, helpOpenRef, liveDraftRef, moveBoardSelection, pastGate, region, rowPauseToggle, rowStop, selectedIsDoor, sendLive, sessionRows, setHelpOpen, showDoorNote, termCols, termRows }: KeysArgs, olderNavConsumed: (key: { upArrow: boolean; downArrow: boolean }, event: { stopImmediatePropagation: () => void }) => boolean): boolean {
   if (region === 'chat') {
     if (key.return && pastGate()) {
       event.stopImmediatePropagation()
       if (hasFocusedSession()) callbacks.exitToChat()
-      else if (!landingInFlight()) armContractAsk()
+      else if (!landingInFlight()) callbacks.newSession?.()
       return true
     }
     if (input === 's' && !key.ctrl && !key.meta && pastGate()) {

@@ -14,7 +14,7 @@ type LaunchControls = {
   snapshotRef: { current: ConcourseSnapshotV1 | null }
 }
 
-export function newSession({ noteControl, splitFrameStands, birthInFlightRef, seedWriteChain }: LaunchControls, opts?: { contractText?: string }): void {
+export function newSession({ noteControl, splitFrameStands, birthInFlightRef, seedWriteChain }: LaunchControls): void {
   if (birthInFlightRef.current) return
   birthInFlightRef.current = true
   const gen = surfaceGeneration()
@@ -30,27 +30,11 @@ export function newSession({ noteControl, splitFrameStands, birthInFlightRef, se
         noteControl('board:new-session', { state: 'refused', reason: born.reason, next: 'n retries' })
         return
       }
-      let contractNote = ''
-      const contractText = opts?.contractText?.trim() ?? ''
-      if (contractText.length > 0) {
-        try {
-          const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
-          const reply = await daemonControlRpc(
-            { op: 'sessionControl', action: 'contract', sessionId: born.sessionId, by: 'operator', contract: { op: 'set', text: contractText } },
-            { timeoutMs: 10_000 },
-          )
-          if (reply.ok !== true || reply.outcome !== 'applied') {
-            contractNote = ` — the contract was not set (${(reply.ok ? reply.detail : undefined) ?? 'the daemon refused it'}); /contract retries`
-          }
-        } catch {
-          contractNote = ' — the contract was not set (the daemon was unreachable); /contract retries'
-        }
-      }
       if (surfaceGeneration() === gen) {
         if (splitFrameStands()) {
-          noteControl('board:new-session', { state: 'applied', reason: `${born.title} — in the chat pane${contractNote}${groundNote}` })
+          noteControl('board:new-session', { state: 'applied', reason: `${born.title} — in the chat pane${groundNote}` })
         } else {
-          noteControl('board:new-session', { state: 'applied', reason: `entering ${born.title}${contractNote}${groundNote}` })
+          noteControl('board:new-session', { state: 'applied', reason: `entering ${born.title}${groundNote}` })
           enterRootChat()
         }
       }

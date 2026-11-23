@@ -2,7 +2,7 @@ import { boardModalOwner } from '../../boardModalOwner.js'
 import type { InputEvent, Key } from '../../../../ink.js'
 import type { KeysArgs } from '../state.js'
 
-export function modalKeys(input: string, key: Key, event: InputEvent, { callbacks, answerCapacityAsk, answerTrustAsk, capacityAskRef, clearDoorNote, contractAskRef, doorNoteRef, gitOfferRef, groundPickerOpenRef, helpOpenRef, modelDefaultOpenRef, rowPickRef, setHelpOpen, trustAskRef }: KeysArgs): boolean {
+export function modalKeys(input: string, key: Key, event: InputEvent, { callbacks, answerCapacityAsk, answerTrustAsk, capacityAskRef, clearDoorNote, doorNoteRef, gitOfferRef, groundPickerOpenRef, helpOpenRef, modelDefaultOpenRef, rowPickRef, setHelpOpen, trustAskRef }: KeysArgs): boolean {
   if (doorNoteRef.current) clearDoorNote()
   const modalOwner = boardModalOwner({
     capacityAsk: capacityAskRef.current,
@@ -11,7 +11,6 @@ export function modalKeys(input: string, key: Key, event: InputEvent, { callback
     rowPick: rowPickRef.current !== null,
     modelDefault: modelDefaultOpenRef.current,
     gitOffer: gitOfferRef.current !== undefined,
-    contractAsk: contractAskRef.current,
     helpOpen: helpOpenRef.current,
   })
   const plainConsent = !key.ctrl && !key.meta && !key.super

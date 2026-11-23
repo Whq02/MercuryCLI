@@ -198,7 +198,7 @@ interface LaunchPreviewV1 {
 export interface ConcourseCallbacks {
   enterSession: (sessionId: string) => void
   resumeOlderChat?: (sessionId: string, transcriptPath: string, title: string) => void
-  newSession?: (opts?: { contractText?: string }) => void
+  newSession?: () => void
   openQueuedRoom?: (sessionId: string) => void
   daemonOfferArmed?: () => boolean
   answerDaemonOffer?: (yes: boolean) => void

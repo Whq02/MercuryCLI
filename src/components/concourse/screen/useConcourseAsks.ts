@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react'
-import { CONTRACT_CARD_MIN_ROWS } from '../ContractOfferCard.js'
 import { useLoad } from '../../../hooks/effects.js'
 import { isPathTrusted, setPathTrusted } from '../../../utils/config.js'
 import { getCwd } from '../../../utils/cwd.js'
@@ -10,22 +9,6 @@ import type { Draft, Panes, ScreenProps } from './state.js'
 import { passedOver } from '../../../utils/passedOver.js'
 
 export function useConcourseAsks({ callbacks, setGroundPickerOpen, setNote }: Pick<ScreenProps, 'callbacks'> & Pick<Panes, 'setGroundPickerOpen'> & Pick<Draft, 'setNote'>) {
-  const [contractAsk, setContractAsk] = useState(false)
-  const contractAskRef = useRef(contractAsk)
-  contractAskRef.current = contractAsk
-  const compactCardRows = contractAsk ? CONTRACT_CARD_MIN_ROWS : 0
-  const armContractAsk = (): void => {
-    setContractAsk(true)
-  }
-  const answerContractAsk = (contractText: string | null): void => {
-    setContractAsk(false)
-    if (contractText === null) {
-      callbacks.newSession?.()
-      return
-    }
-    callbacks.newSession?.({ contractText })
-  }
-
   const [capacityAsk, setCapacityAsk] = useState(false)
   const capacityAskRef = useRef(false)
   useLoad(signal => {
@@ -94,5 +77,5 @@ export function useConcourseAsks({ callbacks, setGroundPickerOpen, setNote }: Pi
         })
       })
   }
-  return { contractAsk, contractAskRef, compactCardRows, armContractAsk, answerContractAsk, capacityAsk, capacityAskRef, trustAsk, trustAskRef, applyGround, pickGround, answerTrustAsk, answerCapacityAsk }
+  return { capacityAsk, capacityAskRef, trustAsk, trustAskRef, applyGround, pickGround, answerTrustAsk, answerCapacityAsk }
 }

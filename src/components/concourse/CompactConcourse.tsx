@@ -150,7 +150,6 @@ function stateGlyphOf(row: ConcourseRowV1, ink: string): React.ReactNode {
 export function CompactConcourse({
   cols,
   rows,
-  cardRows,
   region,
   sessionRows,
   selectedId,
@@ -161,7 +160,6 @@ export function CompactConcourse({
   liveDraftRows,
   liveDraftHeld,
   verbsFire,
-  showLive,
   note,
   composerNote,
   mirrorNode,
@@ -170,7 +168,6 @@ export function CompactConcourse({
 }: {
   cols: number
   rows: number
-  cardRows: number
   region: 'list' | 'live'
   sessionRows: ConcourseRowV1[]
   selectedId: string | null
@@ -181,7 +178,6 @@ export function CompactConcourse({
   liveDraftRows: number
   liveDraftHeld: boolean
   verbsFire: boolean
-  showLive: boolean
   note: CompactFootNote | null
   composerNote: string | null
   mirrorNode: (rows: number, width: number) => React.ReactNode
@@ -193,7 +189,6 @@ export function CompactConcourse({
     sessionCount: sessionRows.length,
     newSessionDoor: wiring.newSession !== undefined,
     composerBand: reduced || liveComposerNode === undefined ? 0 : Math.max(1, liveDraftRows),
-    cardRows,
   })
   const selectedIndex = Math.max(0, sessionRows.findIndex(r => r.sessionId === selectedId))
   const selected = sessionRows[selectedIndex]
@@ -327,13 +322,13 @@ export function CompactConcourse({
   const liveTitle = compactLiveTitle(selected !== undefined ? { title: selected.title, stateWord: stateWordOf(selected), ageLabel: selected.ageLabel } : undefined)
 
   if (geo.profile === 'single') {
-    if (showLive) {
+    if (region === 'live') {
       return (
         <Box flexDirection="column" width={cols} height={rows} overflow="hidden">
           <Frame span={geo.live} rows={rows} inner={geo.inner} title={liveTitle} focused={region === 'live'} onFocus={wiring.focusLive} id="concourse:compact:live-title">
             {liveBody()}
             {geo.liveFootRows > 0 ? (
-              <FootRow text={cardRows > 0 ? '' : compactOpenedFoot({ reduced, verbsFire, draftHeld: liveDraftHeld })} note={note} filtering={false} filterText="" filterCaret={0} />
+              <FootRow text={compactOpenedFoot({ reduced, verbsFire, draftHeld: liveDraftHeld })} note={note} filtering={false} filterText="" filterCaret={0} />
             ) : null}
           </Frame>
         </Box>
@@ -362,7 +357,7 @@ export function CompactConcourse({
       <Frame span={geo.live} rows={geo.live.y1 - geo.live.y0 + 1} inner={geo.live.innerRows} title={liveTitle} focused={region === 'live'} onFocus={wiring.focusLive} id="concourse:compact:live-title">
         {liveBody()}
         {geo.liveFootRows > 0 ? (
-          <FootRow text={cardRows > 0 ? '' : compactLiveFoot({ verbsFire })} note={note} filtering={false} filterText="" filterCaret={0} />
+          <FootRow text={compactLiveFoot({ verbsFire })} note={note} filtering={false} filterText="" filterCaret={0} />
         ) : null}
       </Frame>
       <Frame span={geo.list} rows={geo.list.y1 - geo.list.y0 + 1} inner={geo.list.innerRows} title={compactListTitle(sessionRows.length, filterText)} focused={region === 'list'} onFocus={wiring.focusList} id="concourse:compact:list-title">

@@ -1,10 +1,10 @@
 import type { InputEvent, Key } from '../../../../ink.js'
 import type { Draft, KeysArgs } from '../state.js'
 
-export function wheelEscapeKeys(input: string, key: Key, event: InputEvent, { callbacks, boardArmedRef, boardSelRef, broadcastArmedRef, compact, compactGeo, contractAskRef, filterRef, geo, markedIdsRef, olderListRef, region, rowPeekOpenRef, sessionRows, setBoardArmed, setBoardScroll, setBroadcastArmed, setComposeContext, setFilter, setGroundPickerOpen, setMarkedIds, setOlderList, setRegion, setRowPeekOpen }: KeysArgs, ctx: Draft['composeContext']): boolean {
+export function wheelEscapeKeys(input: string, key: Key, event: InputEvent, { callbacks, boardArmedRef, boardSelRef, broadcastArmedRef, compact, compactGeo, filterRef, geo, markedIdsRef, olderListRef, region, rowPeekOpenRef, sessionRows, setBoardArmed, setBoardScroll, setBroadcastArmed, setComposeContext, setFilter, setGroundPickerOpen, setMarkedIds, setOlderList, setRegion, setRowPeekOpen }: KeysArgs, ctx: Draft['composeContext']): boolean {
   if (key.wheelUp || key.wheelDown) {
     const kp = event.keypress as { x?: number; y?: number }
-    const compactListPainted = compactGeo?.profile === 'split' || (compactGeo?.profile === 'single' && region === 'list' && !contractAskRef.current)
+    const compactListPainted = compactGeo?.profile === 'split' || (compactGeo?.profile === 'single' && region === 'list')
     const overList =
       kp.x !== undefined && kp.y !== undefined
         ? compactGeo !== null

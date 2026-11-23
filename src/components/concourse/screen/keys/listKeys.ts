@@ -4,7 +4,7 @@ import { nudgeSplitRatio, toggleSplitView } from '../../splitView.js'
 import type { InputEvent, Key } from '../../../../ink.js'
 import type { KeysArgs } from '../state.js'
 
-export function listKeys(input: string, key: Key, event: InputEvent, { snapshot, callbacks, reducedStage, armContractAsk, boardArmedRef, boardSelRef, compact, compactSteerOrEnter, enterSession, filterRef, geo, liveDraftRef, moveBoardSelection, newSessionLineNow, olderListRef, pastGate, region, rowArchive, rowControlRefused, rowControlSel, rowPauseToggle, rowStop, sendLive, sessionRows, setBoardScroll, setComposeContext, setFilter, setFiltering, setModelDefaultOpen, setNote, setOlderList, setRegion, setRowPeekOpen, setRowPick, splitActive, termCols, termRows, toggleMark, unfoldOlderList }: KeysArgs, olderNavConsumed: (key: { upArrow: boolean; downArrow: boolean }, event: { stopImmediatePropagation: () => void }) => boolean): boolean {
+export function listKeys(input: string, key: Key, event: InputEvent, { snapshot, callbacks, reducedStage, boardArmedRef, boardSelRef, compact, compactSteerOrEnter, enterSession, filterRef, geo, liveDraftRef, moveBoardSelection, newSessionLineNow, olderListRef, pastGate, region, rowArchive, rowControlRefused, rowControlSel, rowPauseToggle, rowStop, sendLive, sessionRows, setBoardScroll, setComposeContext, setFilter, setFiltering, setModelDefaultOpen, setNote, setOlderList, setRegion, setRowPeekOpen, setRowPick, splitActive, termCols, termRows, toggleMark, unfoldOlderList }: KeysArgs, olderNavConsumed: (key: { upArrow: boolean; downArrow: boolean }, event: { stopImmediatePropagation: () => void }) => boolean): boolean {
   if (region === 'list') {
     if (input === '/' && !key.ctrl && !key.meta) {
       event.stopImmediatePropagation()
@@ -25,7 +25,7 @@ export function listKeys(input: string, key: Key, event: InputEvent, { snapshot,
         return true
       }
       if (boardSelRef.current === NEW_SESSION_ROW_ID && newSessionLineNow()) {
-        armContractAsk()
+        callbacks.newSession?.()
         return true
       }
       if (sessionRows.length === 0) return true
@@ -125,7 +125,7 @@ export function listKeys(input: string, key: Key, event: InputEvent, { snapshot,
     }
     if (input === 'n' && !key.ctrl && !key.meta && !reducedStage && callbacks.newSession !== undefined && pastGate()) {
       event.stopImmediatePropagation()
-      armContractAsk()
+      callbacks.newSession?.()
       return true
     }
     if (input === 's' && !key.ctrl && !key.meta && !reducedStage && pastGate()) {

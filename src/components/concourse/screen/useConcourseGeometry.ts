@@ -3,9 +3,9 @@ import { ROW_LINE_INSET, rowLineRows, rowNowCellWidth } from '../rowLine.js'
 import { draftWindow } from '../lineDraft.js'
 import { REDUCED_NOTICE_ROWS, ROW_PEEK_DESIRED_ROWS, switchboardGeometry } from '../ConcourseLayout.js'
 import { compactConcourseGeometry } from '../compactBoard.js'
-import type { Asks, Draft, Filter, Frame, Panes, RowLine, ScreenProps, Selection } from './state.js'
+import type { Draft, Filter, Frame, Panes, RowLine, ScreenProps, Selection } from './state.js'
 
-export function useConcourseGeometry({ snapshot, callbacks, reducedStage, boardGroups, cols, compactCardRows, compactProfile, liveDraft, newSessionLine, olderList, region, rowPeekOpen, selectedRowLineOf, sessionRows, termCols, termRows }: Pick<ScreenProps, 'snapshot' | 'callbacks' | 'reducedStage'> & Pick<Filter, 'boardGroups' | 'newSessionLine' | 'sessionRows'> & Pick<Frame, 'cols' | 'compactProfile' | 'termCols' | 'termRows'> & Pick<Asks, 'compactCardRows'> & Pick<Draft, 'liveDraft'> & Pick<Selection, 'olderList' | 'rowPeekOpen'> & Pick<Panes, 'region'> & Pick<RowLine, 'selectedRowLineOf'>) {
+export function useConcourseGeometry({ snapshot, callbacks, reducedStage, boardGroups, cols, compactProfile, liveDraft, newSessionLine, olderList, region, rowPeekOpen, selectedRowLineOf, sessionRows, termCols, termRows }: Pick<ScreenProps, 'snapshot' | 'callbacks' | 'reducedStage'> & Pick<Filter, 'boardGroups' | 'newSessionLine' | 'sessionRows'> & Pick<Frame, 'cols' | 'compactProfile' | 'termCols' | 'termRows'> & Pick<Draft, 'liveDraft'> & Pick<Selection, 'olderList' | 'rowPeekOpen'> & Pick<Panes, 'region'> & Pick<RowLine, 'selectedRowLineOf'>) {
   const olderRows = olderList !== null ? Math.max(2, Math.min(ROW_PEEK_DESIRED_ROWS, olderList.entries.length + 1)) : 0
   const thirdPaneRows = reducedStage ? REDUCED_NOTICE_ROWS : 0
   const liveDraftDesired = reducedStage ? 0 : draftWindow(liveDraft, 3).bandRows
@@ -41,9 +41,8 @@ export function useConcourseGeometry({ snapshot, callbacks, reducedStage, boardG
             sessionCount: sessionRows.length,
             newSessionDoor: !reducedStage && callbacks.newSession !== undefined,
             composerBand: reducedStage ? 0 : Math.max(1, liveDraftDesired),
-            cardRows: compactCardRows,
           }),
-    [compactProfile, termCols, termRows, sessionRows.length, reducedStage, callbacks.newSession, liveDraftDesired, compactCardRows],
+    [compactProfile, termCols, termRows, sessionRows.length, reducedStage, callbacks.newSession, liveDraftDesired],
   )
   return { olderRows, thirdPaneRows, liveDraftDesired, boardGroupCount, rowLineWidth, selectedRowLine, chipRows, geo, compactGeo }
 }

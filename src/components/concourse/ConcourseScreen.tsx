@@ -127,7 +127,6 @@ export function ConcourseScreen({
       rowPick: rowPickRef.current !== null,
       modelDefault: modelDefaultOpenRef.current,
       gitOffer: gitOfferRef.current !== undefined,
-      contractAsk: contractAskRef.current,
     }) !== null
 
   const modalFactsNow = (): BoardModalFactsV1 => ({
@@ -136,7 +135,6 @@ export function ConcourseScreen({
     groundPickerOpen: groundPickerOpenRef.current,
     rowPick: rowPickRef.current !== null,
     gitOffer: gitOfferRef.current !== undefined,
-    contractAsk: contractAskRef.current,
     helpOpen: helpOpenRef.current,
   })
 
@@ -244,9 +242,9 @@ export function ConcourseScreen({
     setRegion('live')
   }
 
-  const { contractAsk, contractAskRef, compactCardRows, armContractAsk, answerContractAsk, capacityAsk, capacityAskRef, trustAsk, trustAskRef, applyGround, pickGround, answerTrustAsk, answerCapacityAsk } = useConcourseAsks({ callbacks, setGroundPickerOpen, setNote })
-  const { pastGate, peekSelRow, peekLive, rowControlNote, closeChordStaged, selectedRowLineOf } = useConcourseRowLine({ callbacks, controlNotes, boardArmed, boardSel, capacityAsk, closeChordStage, contractAsk, filtering, gitOffer, groundPickerOpen, helpOpen, liveComposerGate, liveDraft, markedRows, modelDefaultOpen, rowPeekOpen, rowPick, sessionRows, trustAsk })
-  const { olderRows, thirdPaneRows, liveDraftDesired, boardGroupCount, rowLineWidth, selectedRowLine, chipRows, geo, compactGeo } = useConcourseGeometry({ snapshot, callbacks, reducedStage, boardGroups, cols, compactCardRows, compactProfile, liveDraft, newSessionLine, olderList, region, rowPeekOpen, selectedRowLineOf, sessionRows, termCols, termRows })
+  const { capacityAsk, capacityAskRef, trustAsk, trustAskRef, applyGround, pickGround, answerTrustAsk, answerCapacityAsk } = useConcourseAsks({ callbacks, setGroundPickerOpen, setNote })
+  const { pastGate, peekSelRow, peekLive, rowControlNote, closeChordStaged, selectedRowLineOf } = useConcourseRowLine({ callbacks, controlNotes, boardArmed, boardSel, capacityAsk, closeChordStage, filtering, gitOffer, groundPickerOpen, helpOpen, liveComposerGate, liveDraft, markedRows, modelDefaultOpen, rowPeekOpen, rowPick, sessionRows, trustAsk })
+  const { olderRows, thirdPaneRows, liveDraftDesired, boardGroupCount, rowLineWidth, selectedRowLine, chipRows, geo, compactGeo } = useConcourseGeometry({ snapshot, callbacks, reducedStage, boardGroups, cols, compactProfile, liveDraft, newSessionLine, olderList, region, rowPeekOpen, selectedRowLineOf, sessionRows, termCols, termRows })
   const { regionsInOrder } = useConcourseRegions({ snapshot, reducedStage, compact, geo, olderList, region, setNote, setOlderList, setRegion, splitActive, termCols, termRows })
   const capsuleRef = useRef<ConcourseCapsuleV2 | null>(null)
   capsuleRef.current = { region, filtering, filter, boardSel, railSel, boardScroll }
@@ -257,8 +255,8 @@ export function ConcourseScreen({
     }
   }, [])
 
-  useConcourseKeys({ snapshot, callbacks, degraded, reducedStage, answerCapacityAsk, answerTrustAsk, armContractAsk, beginAnswer, boardArmedRef, boardSelRef, broadcastArmedRef, capacityAskRef, clearDoorNote, compact, compactGeo, compactSteerOrEnter, composeContextRef, contractAskRef, doorNoteRef, editFilter, editLiveDraft, enterSession, filterRef, filtering, geo, gitOfferRef, groundPickerOpenRef, helpOpenRef, liveComposerGate, liveDraftRef, liveUndoRef, markedIdsRef, markedRowsOf, modelDefaultOpenRef, moveBoardSelection, newSessionLineNow, olderListRef, openObligationOrDoor, pastGate, railSelRef, region, regionsInOrder, rowArchive, rowControlRefused, rowControlSel, rowPauseToggle, rowPeekOpenRef, rowPickRef, rowStop, selectedIsDoor, sendLive, sessionRows, setBoardArmed, setBoardScroll, setBroadcastArmed, setComposeContext, setFilter, setFiltering, setGroundPickerOpen, setHelpOpen, setLiveDraft, setLiveNote, setMarkedIds, setModelDefaultOpen, setNote, setOlderList, setRailSel, setRegion, setRowPeekOpen, setRowPick, showDoorNote, splitActive, termCols, termRows, toggleMark, trustAskRef, unfoldOlderList })
-  const { t, mirrorSlot, liveComposerFace, compactNote } = useConcourseFaces({ snapshot, controlNotes, reducedStage, answerContractAsk, boardSel, broadcastArmed, compact, compactGeo, compactParkNote, composeContext, contractAsk, editLiveDraft, enterSession, geo, isCompact, liveComposerGate, liveDraft, liveDraftRef, liveNote, markedRows, note, region, rowControlNote, sessionRows, setRegion, splitGeo })
-  const fullTree = concourseFullTree({ snapshot, callbacks, degraded, controlNotes, reducedStage, armContractAsk, beginAnswer, boardArmed, boardGroups, boardScroll, boardSel, chipRows, closeChordStaged, enterSession, filter, filtering, geo, groundPickerOpen, keyMapHint, liveComposerFace, liveDraft, liveDraftDesired, markedIds, mirrorSlot, modalFactsNow, olderList, olderRows, openObligationOrDoor, peekLive, peekSelRow, railIndex, railSelRef, region, rowLineWidth, rowPeekOpen, selectSession, selectedRowLine, setGroundPickerOpen, setOlderList, setRailSel, setRegion, splitGeo, t, thirdPaneRows })
-  return concourseStage({ snapshot, callbacks, reducedStage, answerCapacityAsk, answerTrustAsk, armContractAsk, boardSel, capacityAsk, cols, compactCardRows, compactNote, compactProfile, compactSteerOrEnter, contractAsk, doorNote, filter, filtering, fullTree, geo, gitOffer, groundPickerOpen, helpOpen, liveComposerFace, liveDraft, liveDraftDesired, mirrorSlot, modelDefaultOpen, pickGround, region, rowPick, selectSession, sessionRows, setGroundPickerOpen, setModelDefaultOpen, setRegion, setRowPick, splitActive, splitGeo, t, termCols, termRows, trustAsk })
+  useConcourseKeys({ snapshot, callbacks, degraded, reducedStage, answerCapacityAsk, answerTrustAsk, beginAnswer, boardArmedRef, boardSelRef, broadcastArmedRef, capacityAskRef, clearDoorNote, compact, compactGeo, compactSteerOrEnter, composeContextRef, doorNoteRef, editFilter, editLiveDraft, enterSession, filterRef, filtering, geo, gitOfferRef, groundPickerOpenRef, helpOpenRef, liveComposerGate, liveDraftRef, liveUndoRef, markedIdsRef, markedRowsOf, modelDefaultOpenRef, moveBoardSelection, newSessionLineNow, olderListRef, openObligationOrDoor, pastGate, railSelRef, region, regionsInOrder, rowArchive, rowControlRefused, rowControlSel, rowPauseToggle, rowPeekOpenRef, rowPickRef, rowStop, selectedIsDoor, sendLive, sessionRows, setBoardArmed, setBoardScroll, setBroadcastArmed, setComposeContext, setFilter, setFiltering, setGroundPickerOpen, setHelpOpen, setLiveDraft, setLiveNote, setMarkedIds, setModelDefaultOpen, setNote, setOlderList, setRailSel, setRegion, setRowPeekOpen, setRowPick, showDoorNote, splitActive, termCols, termRows, toggleMark, trustAskRef, unfoldOlderList })
+  const { t, mirrorSlot, liveComposerFace, compactNote } = useConcourseFaces({ snapshot, controlNotes, reducedStage, boardSel, broadcastArmed, compact, compactGeo, compactParkNote, composeContext, editLiveDraft, enterSession, geo, isCompact, liveComposerGate, liveDraft, liveDraftRef, liveNote, markedRows, note, region, rowControlNote, sessionRows, setRegion, splitGeo })
+  const fullTree = concourseFullTree({ snapshot, callbacks, degraded, controlNotes, reducedStage, beginAnswer, boardArmed, boardGroups, boardScroll, boardSel, chipRows, closeChordStaged, enterSession, filter, filtering, geo, groundPickerOpen, keyMapHint, liveComposerFace, liveDraft, liveDraftDesired, markedIds, mirrorSlot, modalFactsNow, olderList, olderRows, openObligationOrDoor, peekLive, peekSelRow, railIndex, railSelRef, region, rowLineWidth, rowPeekOpen, selectSession, selectedRowLine, setGroundPickerOpen, setOlderList, setRailSel, setRegion, splitGeo, t, thirdPaneRows })
+  return concourseStage({ snapshot, callbacks, reducedStage, answerCapacityAsk, answerTrustAsk, boardSel, capacityAsk, cols, compactNote, compactProfile, compactSteerOrEnter, doorNote, filter, filtering, fullTree, geo, gitOffer, groundPickerOpen, helpOpen, liveComposerFace, liveDraft, liveDraftDesired, mirrorSlot, modelDefaultOpen, pickGround, region, rowPick, selectSession, sessionRows, setGroundPickerOpen, setModelDefaultOpen, setRegion, setRowPick, splitActive, splitGeo, t, termCols, termRows, trustAsk })
 }
