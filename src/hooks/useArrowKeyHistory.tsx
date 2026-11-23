@@ -57,7 +57,7 @@ async function loadHistoryEntries(
     return loadedEntries
   }
 
-  if (pendingLoad !== null) {
+  while (pendingLoad !== null) {
     if (
       pendingLoad.filter === filter &&
       pendingLoad.generation === loadGeneration &&
