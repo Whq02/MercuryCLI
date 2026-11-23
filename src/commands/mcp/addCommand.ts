@@ -78,7 +78,7 @@ export function registerMcpAddCommand(mcp: CommanderCommand): void {
         const scope = ensureConfigScope(options.scope)
         const transport = ensureTransport(options.transport)
 
-        if (options.transport === undefined && resemblesUrl(commandOrUrl)) {
+        if (!options.transport && resemblesUrl(commandOrUrl)) {
           process.stderr.write(
             `Warning: "${describeUrlRedacted(commandOrUrl)}" looks like a URL, but transport defaults to stdio. To add a remote server, pass --transport http or --transport sse:\n  ${cmd} mcp add --transport http ${name} ${describeUrlRedacted(commandOrUrl)}\n  ${cmd} mcp add --transport sse ${name} ${describeUrlRedacted(commandOrUrl)}\n`,
           )

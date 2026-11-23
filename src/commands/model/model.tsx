@@ -60,10 +60,10 @@ function effortParenthetical(
   if (!truth.supportsEffort) {
     return ` (effort: ${truth.requested} — model takes no effort)`
   }
-  if (truth.applied === undefined) {
+  if (truth.wire === undefined) {
     return ` (effort: ${truth.requested} — provider default applies)`
   }
-  if (truth.adjustedFrom !== undefined) {
+  if (truth.adjustedFrom !== undefined || truth.wire !== String(truth.requested)) {
     return ` (effort: ${truth.requested}, runs at ${truth.label})`
   }
   return ` (effort: ${truth.requested})`
