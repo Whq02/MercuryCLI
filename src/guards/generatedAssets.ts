@@ -2,7 +2,6 @@ import picomatch from 'picomatch'
 import { hasMalformedTokens, hasShellQuoteSingleQuoteBug, tryParseShellCommand } from '../utils/bash/shellQuote.js'
 import { basename } from 'node:path'
 import { errorMessage } from '../utils/errors.js'
-import { notBuilt } from '../pi/holes.js'
 
 export const GENERATED_ASSETS_MAP = 'scripts/gate/generated-assets.tsv'
 
@@ -108,7 +107,13 @@ export function generatedAssetsOwed(input: AssetVerdictInput): OwedAsset[] {
 }
 
 export function commandWords(command: string): string[] | null {
-  return notBuilt('src/guards/generatedAssets.ts:109')
+  const parsed = tryParseShellCommand(command, key => `$${key}`)
+  if (!parsed.success || hasMalformedTokens(command, parsed.tokens) || hasShellQuoteSingleQuoteBug(command)) return null
+  const tokens = parsed.tokens.filter(token => typeof token !== 'object' || !('comment' in token))
+  if (tokens.some(token => typeof token !== 'string')) return null
+  const words = tokens as string[]
+  if (words.some(word => /[$`]/.test(word))) return null
+  return words
 }
 
 export function checkChained(check: string, chainedVerifies: readonly string[]): boolean {

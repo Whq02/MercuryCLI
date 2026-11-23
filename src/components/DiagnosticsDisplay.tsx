@@ -7,7 +7,6 @@ import { plural } from '../utils/stringUtils.js'
 import { CtrlOToExpand } from './CtrlOToExpand.js'
 import { MessageResponse } from './MessageResponse.js'
 import { GLYPH } from '../utils/glyphs.js'
-import { notBuilt } from '../pi/holes.js'
 
 function splitUri(uri: string): { path: string; scheme: string } {
   if (uri.startsWith('file://')) {
@@ -24,11 +23,68 @@ const SEVERITY_SYMBOLS: Record<string, { glyph: string; color?: string }> = {
   Hint: { glyph: '·' },
 }
 
-export function DiagnosticsDisplay(arg0: {
+export function DiagnosticsDisplay({
+  attachment,
+  verbose,
+}: {
   attachment: { files: DiagnosticFile[]; isNew: boolean }
   verbose: boolean
 }): React.ReactNode {
-  return notBuilt('src/components/DiagnosticsDisplay.tsx:27')
+  const files = attachment.files
+  if (files.length === 0) return null
+  const total = files.reduce((sum, file) => sum + file.diagnostics.length, 0)
+
+  if (!verbose) {
+    return (
+      <MessageResponse height={1}>
+        <Text dimColor wrap="wrap">
+          Found <Text bold>{total}</Text> new {plural(total, 'diagnostic')} in{' '}
+          {files.length} {plural(files.length, 'file')} <CtrlOToExpand />
+        </Text>
+      </MessageResponse>
+    )
+  }
+
+  return (
+    <Box flexDirection="column">
+      {files.map(file => {
+        const { path, scheme } = splitUri(file.uri)
+        const rel = relative(getCwd(), path)
+        const display = rel.startsWith('..') ? path : rel
+        return (
+          <Box key={file.uri} flexDirection="column">
+            <MessageResponse height={1}>
+              <Text wrap="wrap">
+                <Text bold>{display}</Text>
+                <Text dimColor> ({scheme})</Text>
+              </Text>
+            </MessageResponse>
+            {file.diagnostics.map((diagnostic, index) => {
+              const severity =
+                SEVERITY_SYMBOLS[diagnostic.severity] ?? SEVERITY_SYMBOLS.Hint!
+              return (
+                <MessageResponse key={index} height={1}>
+                  <Text wrap="wrap">
+                    {'  '}
+                    <Text color={severity.color}>{severity.glyph}</Text>{' '}
+                    <Text dimColor>
+                      [Line {diagnostic.range.start.line + 1}:
+                      {diagnostic.range.start.character + 1}]
+                    </Text>{' '}
+                    {diagnostic.message}
+                    {diagnostic.code ? <Text dimColor> [{diagnostic.code}]</Text> : null}
+                    {diagnostic.source ? (
+                      <Text dimColor> ({diagnostic.source})</Text>
+                    ) : null}
+                  </Text>
+                </MessageResponse>
+              )
+            })}
+          </Box>
+        )
+      })}
+    </Box>
+  )
 }
 
 export default DiagnosticsDisplay

@@ -7,7 +7,6 @@ import { expandShellConstants, walkShellCommands } from './walk.js'
 import { GLOB_PART, floorsWorld, mercuryHomes, readForFloors } from './homes.js'
 import { foldersAfter, oldFolderPlaces } from './folders.js'
 import { POWERSHELL_LISTERS, powershellListing, sharesEarlierStage } from './listings.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 const NET_WRITER = /\[(?:System\.)?IO\.(File|Directory|StreamWriter|FileStream)\]::(\w+)\s*\(/gi
 const NET_WRITTEN: Record<string, readonly number[]> = { writealltext: [0], writeallbytes: [0], writealllines: [0], appendalltext: [0], appendalllines: [0], appendtext: [0], createtext: [0], create: [0], openwrite: [0], delete: [0], copy: [1], move: [0, 1], replace: [0, 1, 2] }
@@ -75,11 +74,124 @@ function credentialWriteWalked(command: string, powershell: boolean, cwd: string
 }
 
 async function credentialWritePowerShell(command: string, cwd: string): Promise<string | null> {
-  return notBuilt('src/utils/permissions/shellProtectedPaths/credentialWrite.ts:76')
+  const walked = await credentialWriteWalked(command, true, cwd)
+  if (walked !== null) return walked
+  const read = await readForFloors(command, true, cwd)
+  if (read !== null) {
+    for (const [at, simple] of read.commands.entries()) {
+      const after = foldersAfter(read, at, cwd)
+      if (after.lost) continue
+      if (simple.cwd !== undefined && !GLOB_PART.test(simple.cwd) && !/^[A-Za-z]:\//.test(simple.cwd) && after.folders.length === 1) continue
+      const written = simple.redirects.flatMap(redirect => (['>', '>>', '>|', '&>', '&>>'].includes(redirect.op) ? ['>', '', redirect.target] : []))
+      for (const layer of layersOf(simple.argv)) {
+        for (const path of writeOperands([...layer.argv, ...written], simple.dialect === 'powershell')) {
+          if (/^(?:[/~]|[A-Za-z]:)/.test(path)) continue
+          for (const here of after.folders) {
+            const full = posix.join(here, path)
+            if (credentialStorePath(full, here) !== null) return full
+          }
+        }
+      }
+    }
+    const words = unreadWords(read, command, true)
+    if (words.some(word => WRITERS.has(verb(word)) || OTHER_WRITERS.has(verb(word))) || (words.length > 0 && (WRITE_REDIRECT.test(command) || netWrites(command).length > 0))) {
+      for (const word of words) if (pathLike(word) && credentialStorePath(word, cwd) !== null) return `${word} (${UNREAD_ADVICE})`
+    }
+  }
+  for (const text of new Set([expandShellConstants(command, true), command])) {
+    const blockRead = text === command ? read : await readForFloors(text, true, cwd)
+    if (blockRead === null) continue
+    for (const [at, simple] of blockRead.commands.entries()) {
+      const ps = simple.dialect === 'powershell'
+      const after = foldersAfter(blockRead, at, cwd)
+      const written = simple.redirects.flatMap(redirect => ((ps ? ['>', '>>'] : ['>', '>>', '>|', '&>', '&>>']).includes(redirect.op) ? ['>', '', redirect.target] : []))
+      const removes = ps && layersOf(simple.argv).some(layer => TREE_REMOVERS.has(layer.program) && !layer.argv.some(word => /^-whatif$/i.test(word)))
+      const listed = removes ? blockRead.commands.filter(earlier => sharesEarlierStage(earlier, simple)).flatMap(earlier => layersOf(earlier.argv).flatMap(layer => (POWERSHELL_LISTERS.has(layer.program) ? powershellListing(layer.argv).roots : []))) : []
+      for (const path of [...layersOf(simple.argv).flatMap(layer => writeOperands([...layer.argv, ...written], ps)), ...(ps ? netWrites(simple.text) : []), ...listed]) {
+        if (/^(?:[/~$%]|[A-Za-z]:)/.test(path)) {
+          if (credentialStorePath(path, cwd) !== null) return path
+        } else if (!after.lost) {
+          for (const here of after.folders) {
+            const full = posix.join(here, path)
+            if (credentialStorePath(full, here) !== null) return full
+          }
+        }
+      }
+    }
+  }
+  return null
 }
 
 function credentialWriteFromRead(read: CommandReading, cwd: string): string | null {
-  return notBuilt('src/utils/permissions/shellProtectedPaths/credentialWrite.ts:125')
+  const anchored = (path: string): boolean => /^(?:[/~$%]|[A-Za-z]:)/.test(path)
+  const checkPath = (path: string, after: { folders: string[]; lost: boolean }, argv?: readonly string[], written?: readonly string[]): string | null => {
+    if (anchored(path)) {
+      if (credentialStorePath(path, cwd) === null) return null
+      return argv !== undefined ? spelledTargetWord(path, argv, written, candidate => credentialStorePath(candidate, cwd) !== null) : path
+    }
+    if (!after.lost) {
+      for (const here of after.folders) {
+        const full = posix.join(here, path)
+        if (credentialStorePath(full, here) !== null) return full
+      }
+    }
+    return null
+  }
+  for (const [at, simple] of read.commands.entries()) {
+    const ps = simple.dialect === 'powershell'
+    const after = foldersAfter(read, at, cwd)
+    const writtenRedirects = simple.redirects.flatMap(redirect => ((ps ? ['>', '>>'] : ['>', '>>', '>|', '&>', '&>>']).includes(redirect.op) ? ['>', '', redirect.target] : []))
+    const layers = layersOf(simple.argv)
+    if (writtenRedirects.length > 0 && layers.length === 0) {
+      for (const path of writeOperands(writtenRedirects, ps)) {
+        const hit = checkPath(path, after)
+        if (hit !== null) return hit
+      }
+    }
+    for (const layer of layers) {
+      const written = writtenLayerArgv(simple, layer)
+      const argvs = expandedLayerArgvs(layer)
+      if (layer.wrappers.includes('xargs')) {
+        const earlier = read.commands.filter(other => sharesEarlierStage(other, simple))
+        const words = pipedPrinterOperands(earlier)
+        if (words.length > 0) argvs.push([...layer.argv, ...words])
+      }
+      for (const argv of argvs) {
+        const displayWritten = argv === layer.argv ? written : undefined
+        for (const path of writeOperands([...argv, ...writtenRedirects], ps)) {
+          const hit = checkPath(path, after, argv, displayWritten)
+          if (hit !== null) return hit
+        }
+      }
+      const writtenScript = written !== undefined ? inlineScriptOfArgv(layer.program, written) : null
+      const script = inlineScriptOf(layer)
+      for (const code of writtenScript !== null && writtenScript !== script ? [writtenScript, script] : [script]) {
+        if (code === null) continue
+        for (const target of inlineScriptWrites(code)) {
+          const hit = checkPath(target, after)
+          if (hit !== null) return hit
+        }
+      }
+    }
+    const removes = ps && layers.some(layer => TREE_REMOVERS.has(layer.program) && !layer.argv.some(word => /^-whatif$/i.test(word)))
+    const listed = removes ? read.commands.filter(earlier => sharesEarlierStage(earlier, simple)).flatMap(earlier => layersOf(earlier.argv).flatMap(layer => (POWERSHELL_LISTERS.has(layer.program) ? powershellListing(layer.argv).roots : []))) : []
+    for (const path of [...(ps ? netWrites(simple.text) : []), ...listed]) {
+      const hit = checkPath(path, after)
+      if (hit !== null) return hit
+    }
+  }
+  if (read.exact.kind === 'simple') {
+    for (const simple of read.exact.commands) {
+      const writtenRedirects = simple.redirects.flatMap(redirect => (['>', '>>', '>|', '&>', '&>>'].includes(redirect.op) ? ['>', '', redirect.target] : []))
+      for (const layer of layersOf(simple.argv)) {
+        for (const path of writeOperands([...layer.argv, ...writtenRedirects], false)) {
+          const hit = credentialStorePath(path, cwd)
+          if (hit !== null) return path.includes('/') || path.includes('\\') ? path : hit
+        }
+      }
+    }
+  }
+  return null
 }
 
 export async function readCredentialWrite(command: string, powershell: boolean, cwd: string): Promise<string | null> {

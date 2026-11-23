@@ -67,7 +67,7 @@ import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
 import { posix as posixPath } from 'node:path'
 import { stripLeadingSafeEnvVars, stripSafeWrappers } from '../../utils/permissions/safeWrappers.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
+import { refusalWithReason } from '../../utils/permissions/ruleReason.js'
 
 export { matchWildcardPattern, permissionRuleExtractPrefix, readBashRuleVerdict, stripAllLeadingEnvVars, stripSafeWrappers }
 
@@ -531,10 +531,200 @@ export async function startedCommandVerdict(
 async function decideBashPermission(
   input: BashInput,
   context: ToolPermissionContext,
-  depth?: number,
-  inheritedHasCd?: boolean,
+  depth = 0,
+  inheritedHasCd = false,
 ): Promise<PermissionResult> {
-  return notBuilt('src/tools/BashTool/bashPermissions.ts:467')
+  const command = input.command
+  const cwd = resolveShellCwd(input.cwd)
+  const selfProtection = await shellSelfProtectionReason(command, false, cwd)
+  if (selfProtection !== null) return { behavior: 'deny', message: selfProtection, decisionReason: { type: 'other', reason: selfProtection } }
+  const hidden = hiddenCommandCharacterReason(command)
+  if (hidden !== null) return { behavior: 'deny', message: hidden, decisionReason: { type: 'safetyCheck', reason: hidden, operatorOnly: true } }
+  const upload = credentialUploadReason(command)
+  const uploadAsk: PermissionResult | null = upload === null ? null : { behavior: 'ask', message: upload, decisionReason: { type: 'safetyCheck', reason: upload, operatorOnly: true } }
+  const astRoot = await pinnedCommandAnalysis.parseCommandRaw(command) ?? undefined
+  const secretRead = await shellMercurySecretPath(command, false, cwd)
+  if (secretRead !== null) {
+    const message = 'Reading ' + secretRead + " is refused: it holds Mercury's own credentials; use the product's sign-in and account surfaces instead."
+    return { behavior: 'deny', message, decisionReason: { type: 'other', reason: message } }
+  }
+  const protectedWrite = await shellCredentialWritePath(command, false, cwd)
+  if (protectedWrite !== null) {
+    const denied = astRoot === undefined ? earlyExitDenyCheck(input, context) : astDenyCheck(input, context, astRoot)
+    if (denied) return denied
+    const refusal = credentialStoreWriteRefusal(protectedWrite, cwd, context)
+    if (refusal !== null) return { behavior: 'deny', message: refusal, decisionReason: { type: 'other', reason: refusal } }
+  }
+  const remote = uncPathRisk(command, { command: true })
+  if (remote.risky) {
+    const denied = earlyExitDenyCheck(input, context)
+    if (denied) return denied
+    if (!matchRules(command.trim(), context, 'allow', 'exact', false)) {
+      const message = uncPathMessage(command, remote)
+      return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true } }
+    }
+  }
+  let compoundHasCd = inheritedHasCd
+
+  let astCommands: SimpleCommand[] | null = null
+  if (command.length > 10_000) {
+    return earlyExitDenyCheck(input, context) ?? unprovenAsk('the command exceeds the parser’s 10,000-character limit; split it into shorter commands, or approve')
+  }
+  if (astRoot !== undefined) {
+    const parsed = await parseForSecurity(command)
+    await prepareShellCScripts(parsed, depth)
+    const denied = astDenyCheck(input, context, astRoot)
+    if (denied) return denied
+    if (parsed.kind === 'too-complex') return uploadAsk ?? unprovenAsk(parsed.reason)
+    if (parsed.kind === 'simple') {
+      const early = semanticsDenyCheck(input, context, parsed.commands)
+      if (early) return early
+      for (const written of shellCCommands(parsed.commands).flatMap(simple => optionNamedWrites(simple.argv))) {
+        if (credentialStorePath(written, cwd) === null) continue
+        const refusal = credentialStoreWriteRefusal(written, cwd, context)
+        if (refusal !== null) return { behavior: 'deny', message: refusal, decisionReason: { type: 'other', reason: refusal } }
+      }
+      if (uploadAsk !== null) return uploadAsk
+      const semantic = pinnedCommandAnalysis.checkSemantics(parsed.commands)
+      if (!semantic.ok) return unprovenAsk(semantic.reason)
+      astCommands = parsed.commands
+      compoundHasCd ||= shellCCommands(astCommands).some(simple =>
+        isNormalizedCdCommand(simple.text) && !isCurrentDirectoryCommand(simple, cwd))
+    }
+  } else {
+    return earlyExitDenyCheck(input, context) ?? uploadAsk ?? unprovenAsk('the shell parser is unavailable for this command; retry it, or approve')
+  }
+
+  if (astCommands === null) return unprovenAsk('the shell parser could not establish the commands; simplify the command, or approve')
+  if (astCommands.some(simple => simple.globOperand === true && !wildcardAnswered(simple, context, compoundHasCd))) return unprovenAsk(WILDCARD_REASON)
+
+  const exact = bashToolCheckExactMatchPermission(input, context)
+  if (exact.behavior === 'deny') return exact
+
+  const operator = await checkCommandOperatorPermissions(
+    input,
+    segmentInput => decideBashPermission(segmentInput, context, depth, inheritedHasCd),
+    compoundHasCd ? identityCheckers : { ...identityCheckers, isDirectoryChange: () => false },
+    astRoot,
+  )
+  if (operator.behavior !== 'passthrough') {
+    if (operator.behavior === 'deny') return operator
+    const path = checkPathConstraints(input, cwd, context, compoundHasCd, astCommands.flatMap(simple => simple.redirects), astCommands)
+    if (path.behavior === 'deny') return path
+    if (exact.behavior === 'ask') return exact
+    if (operator.behavior === 'allow') return path.behavior !== 'passthrough' ? path : operator
+    return operator
+  }
+
+  const subcommands = astCommands.map(simple => simple.text)
+  const parsedSubcommands = astCommands
+
+  if (compoundHasCd && subcommands.filter(sub => isNormalizedCdCommand(sub)).length > 1) {
+    return { behavior: 'ask', message: MULTIPLE_CD_REASON, decisionReason: { type: 'other', reason: MULTIPLE_CD_REASON } }
+  }
+
+  if (compoundHasCd && subcommands.some(isNormalizedCdCommand) && subcommands.some(isNormalizedGitCommand)) {
+    return { behavior: 'ask', message: CD_GIT_BARE_REPO_REASON, decisionReason: { type: 'other', reason: CD_GIT_BARE_REPO_REASON } }
+  }
+
+  const decisions = await Promise.all(subcommands.map(async (sub, i) => {
+    const simple = parsedSubcommands[i]
+    const outer = bashToolCheckPermission({ ...input, command: sub }, context, compoundHasCd, simple)
+    const script = simple && depth < SHELL_C_MAX_DEPTH ? extractShellCScript(simple) : null
+    if (script === null || outer.behavior === 'deny') return outer
+    const inner = await decideBashPermission({ ...input, command: script }, context, depth + 1, compoundHasCd)
+    if (inner.behavior === 'deny') return inner
+    if (outer.behavior === 'ask' || inner.behavior === 'ask') return outer.behavior === 'ask' ? outer : inner
+    return outer.behavior === 'allow' ? outer : inner
+  }))
+
+  const denied = decisions.find(d => d.behavior === 'deny')
+  if (denied) {
+    const deniedReason = 'decisionReason' in denied ? denied.decisionReason : undefined
+    const words = deniedReason?.type === 'rule' ? deniedReason.rule.ruleValue.reason : undefined
+    const sentence = deniedReason?.type === 'rule' ? denied.message : refusalWithReason('A subcommand was denied.', words)
+    return { behavior: 'deny', message: sentence, decisionReason: subcommandResultsReason(subcommands, decisions) }
+  }
+
+  const originalPath = checkPathConstraints(
+    input,
+    cwd,
+    context,
+    compoundHasCd,
+    astCommands ? astCommands.flatMap(c => c.redirects) : undefined,
+    astCommands ?? undefined,
+  )
+  if (originalPath.behavior === 'deny') return originalPath
+  if (exact.behavior === 'ask') return exact
+
+  const anySubcommandAsked = decisions.some(d => d.behavior === 'ask')
+  if (originalPath.behavior === 'ask' && !anySubcommandAsked) return originalPath
+
+  const nonAllow = decisions.filter(d => d.behavior !== 'allow')
+  if (nonAllow.length === 1 && (nonAllow[0] as PermissionResult).behavior === 'ask') {
+    return nonAllow[0] as PermissionResult
+  }
+
+  if (exact.behavior === 'allow' && !anySubcommandAsked) return exact
+
+  if (decisions.every(d => d.behavior === 'allow')) {
+    return { behavior: 'allow', updatedInput: input, decisionReason: subcommandResultsReason(subcommands, decisions) }
+  }
+
+  const substantiveIndices = subcommands.flatMap((_, index) =>
+    decisions[index]!.behavior === 'allow' && isCurrentDirectoryCommand(parsedSubcommands[index]!, cwd) ? [] : [index])
+  if (substantiveIndices.length === 1) {
+    const index = substantiveIndices[0]!
+    const subcommand = subcommands[index] as string
+    const single = await checkCommandAndSuggestRules(
+      { ...input, command: subcommand },
+      context,
+      compoundHasCd,
+      asWrittenSingle(command, subcommand, cwd),
+      parsedSubcommands[index],
+    )
+    return single
+  }
+
+  const merged = await Promise.all(
+    subcommands.map((sub, index) =>
+      decisions[index]!.behavior !== 'passthrough' ? decisions[index]! : checkCommandAndSuggestRules(
+        { ...input, command: sub },
+        context,
+        compoundHasCd,
+        undefined,
+        parsedSubcommands[index],
+      ),
+    ),
+  )
+  if (merged.every(r => r.behavior === 'allow')) {
+    return { behavior: 'allow', updatedInput: input, decisionReason: subcommandResultsReason(subcommands, merged) }
+  }
+  const collected: ReturnType<typeof suggestionForExactCommand> = []
+  const seen = new Set<string>()
+  subcommands.forEach((sub, i) => {
+    const result = merged[i] as PermissionResult
+    if (result.behavior === 'allow') return
+    let rules = ('suggestions' in result && result.suggestions) || []
+    if (result.behavior === 'ask' && rules.length === 0 && result.decisionReason?.type !== 'rule') {
+      rules = suggestionForExactCommand(TOOL_NAME, sub)
+    }
+    for (const rule of rules) {
+      const key = JSON.stringify(rule)
+      if (!seen.has(key) && collected.length < MAX_SUGGESTED_RULES_FOR_COMPOUND) {
+        seen.add(key)
+        collected.push(rule)
+      }
+    }
+  })
+  const reason = subcommandResultsReason(subcommands, decisions)
+  const behavior = anySubcommandAsked ? 'ask' : 'passthrough'
+  return {
+    behavior,
+    message: createPermissionRequestMessage(TOOL_NAME, reason),
+    decisionReason: reason,
+    ...(collected.length > 0 ? { suggestions: collected } : {}),
+  } as PermissionResult
 }
 
 function subcommandResultsReason(subcommands: string[], results: PermissionResult[]): PermissionDecisionReason {
@@ -562,6 +752,29 @@ function wildcardAnswered(command: SimpleCommand, context: ToolPermissionContext
   const text = command.text.trim()
   if (matchRules(text, context, 'allow', 'exact', true) !== null || matchRules(text, context, 'allow', 'prefix', true) !== null) return true
   return context.mode === 'flow' && checkPreparedReadOnlyConstraints({ command: text }, compoundHasCd, { ...command, redirects: [] }).behavior === 'allow'
+}
+
+function astDenyCheck(input: BashInput, context: ToolPermissionContext, root: unknown): PermissionResult | null {
+  const early = earlyExitDenyCheck(input, context)
+  if (early) return early
+  for (const node of commandSpans(root, 'lastFirst')) {
+    const candidates = [node.text]
+    if (/\\\r?\n/.test(node.text)) candidates.push(node.text.replace(/\\\r?\n/g, ''))
+    const parsed = node.exact()
+    if (parsed.kind === 'simple') candidates.push(...parsed.commands.flatMap(simple => restrictedCommandCandidates(simple)))
+    const name = node.name
+    if (name) {
+      const named = name.word()
+      if (named) candidates.push(named + name.rest)
+      const decoded = name.ansiC ? decodeAnsiCString(name.text) : null
+      if (decoded !== null && decoded !== '') candidates.push(decoded + name.rest)
+    }
+    for (const candidate of candidates) {
+      const deny = matchRules(candidate, context, 'deny', 'prefix', true)
+      if (deny !== null) return denyByRule(context, input.command, deny, () => matchAllRules(candidate, context, 'deny', 'prefix', true))
+    }
+  }
+  return null
 }
 
 const PRIVILEGE_VALUE_LETTERS = 'ugCDhprtTURa'

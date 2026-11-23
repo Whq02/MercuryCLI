@@ -2,7 +2,6 @@ import { PARSE_ABORTED, commandSubstitutionTexts, commandViewTexts, extractHered
 import { expandPath, hasNulByte } from '../../path.js'
 import { spelling } from './paths.js'
 import { groups, unwrapCommand, verb } from './words.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 export function expandShellConstants(text: string, powershell: boolean): string {
   const values = new Map<string, string>()
@@ -105,5 +104,63 @@ export async function walkShellCommands(
   visitor: (state: { argv: string[]; commands: string[][]; operandEnds: ReadonlyMap<string[], number>; cwd: string; text: string; powershell: boolean }) => Promise<string | null> | string | null,
   cwd: string,
 ): Promise<string | null> {
-  return notBuilt('src/utils/permissions/shellProtectedPaths/walk.ts:101')
+  const pending = [{ text: command, cwd, powershell }]
+  while (pending.length) {
+    const current = pending.pop()!
+    current.text = expandShellConstants(current.text, current.powershell)
+    const extracted = extractHeredocs(current.text)
+    const text = extracted.processedCommand
+    const views: string[] = []
+    const root = current.powershell ? null : await pinnedCommandAnalysis.parseCommandRaw(text)
+    if (root !== null && root !== PARSE_ABORTED) views.push(...commandViewTexts(root))
+    else views.push(text)
+    if (!current.powershell && extracted.heredocs.size > 0) {
+      const original = await pinnedCommandAnalysis.parseCommandRaw(current.text)
+      if (original !== null && original !== PARSE_ABORTED) views.push(...commandSubstitutionTexts(original))
+    }
+    if (!current.powershell && root !== null && root !== PARSE_ABORTED) {
+      const parsed = pinnedCommandAnalysis.parseForSecurityFromAst(text, root)
+      if (parsed.kind === 'simple') {
+        let cwd = current.cwd
+        for (const simple of parsed.commands) {
+          const argv = unwrapCommand([...simple.argv, ...simple.redirects.flatMap(redirect => ['>', '>>', '>|', '&>', '&>>'].includes(redirect.op) ? ['>', '', redirect.target] : redirect.op === '<' ? ['<', '', redirect.target] : [])])
+          cwd = updateTrackedCwd(argv, cwd)
+          const operandEnds = new Map([[argv, unwrapCommand(simple.argv).length]])
+          const hit = await visitor({ argv, commands: [argv], operandEnds, cwd, text: current.text, powershell: current.powershell })
+          if (hit !== null) return hit
+        }
+      }
+    }
+    let cwd = current.cwd
+    for (const view of views) {
+      const operandEnds = new Map<string[], number>()
+      const rawCommands = groups(view, current.powershell, operandEnds).map(group => {
+        const argv = unwrapCommand(group)
+        const end = operandEnds.get(group)
+        if (end !== undefined) operandEnds.set(argv, unwrapCommand(group.slice(0, end)).length)
+        return argv
+      })
+      const commands = expandSubcommands(rawCommands, operandEnds)
+      for (const argv of commands) {
+        cwd = updateTrackedCwd(argv, cwd)
+        const hit = await visitor({ argv, commands, operandEnds, cwd, text: current.text, powershell: current.powershell })
+        if (hit !== null) return hit
+        const name = verb(argv[0] ?? '')
+        if (/^(?:bash|sh|zsh|dash|ksh|pwsh|powershell|cmd)$/.test(name)) {
+          const flag = argv.findIndex((word, i) => i > 0 && /^(?:-(?:[a-z]*c|command)|\/[ck])$/i.test(word))
+          if (flag >= 0 && argv[flag + 1] && argv[flag + 1]!.length < current.text.length) {
+            pending.push({ text: argv[flag + 1]!, cwd, powershell: /^(?:pwsh|powershell|cmd)$/.test(name) })
+          }
+          for (const [placeholder, heredoc] of extracted.heredocs) {
+            if (view.includes(placeholder)) pending.push({ text: current.text.slice(heredoc.contentStartIndex, heredoc.contentEndIndex), cwd, powershell: false })
+          }
+        }
+        if (['eval', 'iex', 'invoke-expression'].includes(name)) {
+          const script = argv.slice(1).join(' ')
+          if (script.length < current.text.length) pending.push({ text: script, cwd, powershell: current.powershell })
+        }
+      }
+    }
+  }
+  return null
 }

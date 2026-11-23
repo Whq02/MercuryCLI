@@ -1,7 +1,6 @@
 import { posix } from 'node:path'
 import { peelWrappers } from './wrappers.js'
 import { UNREAD_PART, type Layer, type ReadCommand, type ReadWorld } from './reading.js'
-import { notBuilt } from '../../../../pi/holes.js'
 
 const PRODUCT_WRAPPERS = new Set(['nohup', 'timeout', 'nice', 'env', 'stdbuf'])
 const PLAIN_WRAPPERS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
@@ -158,9 +157,39 @@ const MOVE_SWITCHES = ['passthru', 'verbose', 'debug', 'usetransaction']
 const MOVE_ALIASES = new Map([['pspath', 'literalpath'], ['lp', 'literalpath'], ['ea', 'erroraction'], ['wa', 'warningaction'], ['infa', 'informationaction'], ['proga', 'progressaction'], ['ev', 'errorvariable'], ['wv', 'warningvariable'], ['iv', 'informationvariable'], ['ov', 'outvariable'], ['ob', 'outbuffer'], ['pv', 'pipelinevariable'], ['vb', 'verbose'], ['db', 'debug'], ['usetx', 'usetransaction']])
 
 export function inSameShell(layer: Layer): boolean {
-  return notBuilt('src/utils/permissions/decision/commandAnalysis/layers.ts:159')
+  return layer.wrappers.every(name => SAME_SHELL.has(name))
 }
 
 export function moveOf(command: Pick<ReadCommand, 'argv' | 'dialect'>): { program: string; operands: string[] } | undefined {
-  return notBuilt('src/utils/permissions/decision/commandAnalysis/layers.ts:163')
+  const layer = layersOf(command.argv).find(found => MOVES.has(found.program))
+  if (layer === undefined || layer.wrappers.some(name => !SAME_SHELL.has(name))) return undefined
+  const words = layer.argv.slice(1)
+  if (command.dialect === 'posix') {
+    const ends = words.indexOf('--')
+    return { program: layer.program, operands: words.filter((word, at) => (ends >= 0 && at > ends) || (at !== ends && !/^-[A-Za-z]+$/.test(word))) }
+  }
+  const named: string[] = []
+  const loose: string[] = []
+  const unknown: string[] = []
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i]!
+    if (word === '--') {
+      loose.push(...words.slice(i + 1))
+      break
+    }
+    if (!/^-[A-Za-z]/.test(word)) {
+      loose.push(word)
+      continue
+    }
+    const colon = word.indexOf(':')
+    const name = (colon < 0 ? word.slice(1) : word.slice(1, colon)).toLowerCase()
+    const meant = [...MOVE_VALUED, ...MOVE_SWITCHES].filter(full => full.startsWith(name))
+    const full = MOVE_ALIASES.get(name) ?? (meant.includes(name) ? name : meant.length === 1 ? meant[0] : undefined)
+    if (full === undefined) unknown.push(word)
+    else if (MOVE_VALUED.includes(full)) {
+      const value = colon < 0 ? words[++i] : word.slice(colon + 1)
+      if (value !== undefined && (full === 'path' || full === 'literalpath')) named.push(value)
+    }
+  }
+  return { program: layer.program, operands: named.length + loose.length === 0 && unknown.length > 0 ? ['.', ...unknown] : [...named, ...loose, ...unknown] }
 }

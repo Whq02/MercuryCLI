@@ -53,7 +53,6 @@ import {
 import { isHuggingfaceModelId } from './pins/huggingfacePins.js'
 import { isFirstPartyAnthropicBaseUrl } from './providers.js'
 import { tellWhatClearsTheBetas } from './betasClearing.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const isCarrierShapedId = (model: string): boolean => providerCapabilities()?.isCarrierShapedId(model) ?? false
 const declaredRouteOf = (model: string): CallModelRoute | null => providerCapabilities()?.declaredRouteOf(model) ?? null
@@ -1126,7 +1125,14 @@ export const getModelBetas = memoize(
 )
 
 export function getMergedBetas(model: string, options?: { isAgenticQuery?: boolean }): string[] {
-  return notBuilt('src/utils/model/capabilities.ts:1103')
+  const merged = Array.from(getModelBetas(model))
+  const appendNew = (headers: readonly string[]): void => {
+    const present = new Set(merged)
+    headers.forEach(header => { if (!present.has(header)) merged.push(header) })
+  }
+  if (options?.isAgenticQuery) appendNew([CODING_20250219_BETA_HEADER])
+  appendNew(getSdkBetas() ?? [])
+  return merged
 }
 
 export function clearBetasCaches(): void {

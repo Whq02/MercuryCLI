@@ -12,7 +12,6 @@ import {
   parsePowerShellCommand,
   stripModulePrefix,
 } from '../../powershell/parser.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 const bashLane = {
   parseCommandRaw,
@@ -83,7 +82,11 @@ export async function readCommand(text: string, dialect: ShellDialect, world: Re
 export const SHELL_C_MAX_DEPTH = 4
 
 export function extractShellCScript(command: SimpleCommand): string | null {
-  return notBuilt('src/utils/permissions/decision/commandAnalysis.ts:84')
+  const [shell, flag, script] = command.argv
+  if (command.argv.length !== 3 || command.envVars.length !== 0 || command.globOperand) return null
+  if (!/^(?:\/(?:usr\/)?bin\/)?(?:sh|bash)$/.test(shell ?? '') || (flag !== '-c' && flag !== '-lc')) return null
+  if (command.redirects.some(redirect => redirect.op !== '<' && redirect.op !== '<&')) return null
+  return script ?? null
 }
 
 export async function prepareShellCScripts(parsed: ParseForSecurityResult, depth = 0): Promise<void> {

@@ -1,13 +1,14 @@
 import { shellTextOutsideFileHeredocs } from '../../wards/wards.js'
 import { type Layer, type ReadCommand, type ShellRead, layersOf, pinnedCommandAnalysis, wordsAsWritten } from '../decision/commandAnalysis.js'
 import { fileUrlPaths } from './homes.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 const PIPED_PRINTERS = new Set(['echo', 'printf', 'write-output'])
 const WRITTEN_USER_VAR = /^\$(?:USER|LOGNAME|USERNAME|UID|EUID)$/
 
 export function expandedLayerArgvs(layer: Layer): string[][] {
-  return notBuilt('src/utils/permissions/shellProtectedPaths/words.ts:8')
+  if (layer.findRoots === undefined || layer.program === 'find') return [layer.argv]
+  const roots = layer.findRoots.length > 0 ? layer.findRoots : ['.']
+  return roots.map(root => layer.argv.map(word => (word === '{}' ? root : word.replace(/\{\}/g, root))))
 }
 
 export function pipedPrinterOperands(feeders: readonly ReadCommand[]): string[] {
@@ -71,7 +72,13 @@ export function spelledTargetWord(value: string, argv: readonly string[], writte
 }
 
 function words(text: string, powershell: boolean): Array<string | { op?: string }> {
-  return notBuilt('src/utils/permissions/shellProtectedPaths/words.ts:74')
+  const prepared = powershell ? text.replace(/`\r?\n/g, '').replace(/`([^\r\n])/g, '$1').replace(/\\/g, '\\\\') : text
+  const parsed = pinnedCommandAnalysis.tryParseShellCommand(prepared, name => `$${name}`)
+  return parsed.success ? parsed.tokens.flatMap<string | { op?: string }>(token => {
+    if (typeof token === 'string') return [token]
+    if ('op' in token && token.op === 'glob' && 'pattern' in token) return [token.pattern]
+    return 'op' in token ? [token] : []
+  }) : []
 }
 
 export function groups(text: string, powershell: boolean, operandEnds?: Map<string[], number>): string[][] {

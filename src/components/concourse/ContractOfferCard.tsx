@@ -7,7 +7,6 @@ import { PermissionDialog } from '../permissions/PermissionDialog.js'
 import { PermissionPrompt, type PermissionPromptOption } from '../permissions/PermissionPrompt.js'
 import wrapText from '../../ink/wrap-text.js'
 import { truncateToWidth } from '../../utils/truncate.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 type ContractOfferAnswer = 'yes' | 'no'
@@ -61,10 +60,110 @@ export function contractCardFit(rows: number, textColumns: number): ContractCard
   return { askBlurbRows, liftMargin, askGap, fieldBlurbRows, fieldLines, fieldGaps, fieldLift }
 }
 
-export function ContractOfferCard(arg0: {
+export function ContractOfferCard({
+  onAnswer,
+  width,
+  rows,
+}: {
   onAnswer: (contractText: string | null) => void
   width: number
   rows: number
 }): React.ReactNode {
-  return notBuilt('src/components/concourse/ContractOfferCard.tsx:63')
+  const t = useMercuryTokens()
+  const [face, setFace] = useState<'ask' | 'field'>('ask')
+  const [text, setText] = useState('')
+  const [cursorOffset, setCursorOffset] = useState(0)
+  const [note, setNote] = useState<string | null>(null)
+  const options = useMemo<PermissionPromptOption<ContractOfferAnswer>[]>(
+    () => [
+      { label: 'Yes — write it here', value: 'yes' },
+      { label: 'No, start it plain (esc)', value: 'no' },
+    ],
+    [],
+  )
+  const columns = Math.max(16, width - 6)
+  const textColumns = contractCardTextColumns(width)
+  const fit = contractCardFit(rows, textColumns)
+  const visibleLines = fit.fieldLines
+
+  const submit = (raw: string): void => {
+    const words = raw.trim()
+    if (words.length === 0) {
+      setNote('type the contract first — or esc starts the session plain')
+      return
+    }
+    onAnswer(words)
+  }
+
+  return (
+    <Box flexDirection="column" flexShrink={0} marginTop={(face === 'ask' ? fit.liftMargin : fit.fieldLift) ? -1 : 0}>
+      <PermissionDialog title="Start with a contract?">
+        <Box flexDirection="column" flexShrink={0}>
+          {face === 'ask' ? (
+            <>
+              {fit.askBlurbRows === 0 ? null : (
+                <Box flexShrink={0} {...(fit.askBlurbRows === null ? {} : { height: fit.askBlurbRows, overflow: 'hidden' as const })}>
+                  <Text dimColor wrap="wrap">{cappedBlurb(CONTRACT_ASK_BLURB, textColumns, fit.askBlurbRows)}</Text>
+                </Box>
+              )}
+              <PermissionPrompt
+                options={options}
+                onSelect={value => (value === 'yes' ? setFace('field') : onAnswer(null))}
+                onCancel={() => onAnswer(null)}
+                escapeHint="esc starts it plain"
+                hintGap={fit.askGap}
+              />
+            </>
+          ) : (
+            <>
+              <Box flexShrink={0}>
+                <Text bold wrap="wrap">
+                  What is the contract?
+                </Text>
+              </Box>
+              {fit.fieldBlurbRows === 0 ? null : (
+                <Box flexShrink={0} {...(fit.fieldBlurbRows === null ? {} : { height: fit.fieldBlurbRows, overflow: 'hidden' as const })}>
+                  <Text dimColor wrap="wrap">{cappedBlurb(CONTRACT_FIELD_BLURB, textColumns, fit.fieldBlurbRows)}</Text>
+                </Box>
+              )}
+              <Box flexDirection="column" flexShrink={0} marginTop={fit.fieldGaps ? 1 : 0}>
+                <TextInput
+                  value={text}
+                  onChange={value => {
+                    setText(value)
+                    if (note !== null) setNote(null)
+                  }}
+                  onSubmit={submit}
+                  onEscape={() => onAnswer(null)}
+                  cursorOffset={cursorOffset}
+                  onChangeCursorOffset={setCursorOffset}
+                  columns={columns}
+                  multiline
+                  maxVisibleLines={visibleLines}
+                  placeholder="what this session is for…"
+                  focus
+                />
+              </Box>
+              {note !== null ? (
+                <Box flexShrink={0} marginTop={1}>
+                  <Text color={t.warning} wrap="truncate-end">
+                    {note}
+                  </Text>
+                </Box>
+              ) : null}
+              {}
+              <Box flexDirection="column" flexShrink={0} marginTop={fit.fieldGaps ? 1 : 0}>
+                <Text color="subtle" wrap="truncate-end">
+                  {keyHintLabel('↵ starts the session under it · ⇧↵ newline')}
+                </Text>
+                <Text color="subtle" wrap="truncate-end">
+                  {'esc starts it plain — /contract can add one later'}
+                </Text>
+              </Box>
+            </>
+          )}
+        </Box>
+      </PermissionDialog>
+    </Box>
+  )
 }

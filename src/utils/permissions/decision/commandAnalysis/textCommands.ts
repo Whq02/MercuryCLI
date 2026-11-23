@@ -5,7 +5,6 @@ import { commentStart, dropHeredocBodies, foldContinuations, lexShellUnit } from
 import type { Frame, Reading } from './total.js'
 import { READING_CAP } from './totalPosix.js'
 import { keepWordsAsWritten } from './written.js'
-import { notBuilt } from '../../../../pi/holes.js'
 
 const PASSTHROUGH = new Set(['cat', 'tee'])
 const MAX_NEST = 64
@@ -277,7 +276,16 @@ function splitPipelineStages(text: string, start: number, end: number): Array<{ 
 }
 
 function userPrintedBy(reading: Reading, inner: number[]): string | undefined {
-  return notBuilt('src/utils/permissions/decision/commandAnalysis/textCommands.ts:278')
+  if (inner.length !== 1) return undefined
+  const argv = reading.commands[inner[0]!]?.argv ?? []
+  const program = programOf(argv[0] ?? '')
+  const { user, uid } = reading.world
+  if (program === 'pwd' && argv.slice(1).every(word => /^-[LP]+$/.test(word))) return reading.commands[inner[0]!]?.cwd
+  if ((program === 'whoami' || program === 'logname') && argv.length === 1) return user
+  if (program !== 'id') return undefined
+  const flags = argv.slice(1).join('')
+  if (flags === '-un' || flags === '-nu' || flags === '-u-n' || flags === '-n-u') return user
+  return flags === '-u' || flags === '-ru' || flags === '-ur' ? uid : undefined
 }
 
 function feedPipeline(reading: Reading, pipeline: number, size: number): void {

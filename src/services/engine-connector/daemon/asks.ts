@@ -15,7 +15,6 @@ import type { AskAnswerV1, AskReceiptV1, SendReceiptV1, SessionAskV1, WorkRowV1 
 import { emitAll, type Listeners } from './shared.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { controlFrame } from './controlCarrier.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 interface AsksNeeds {
   record(): { readonly sessionId: string; readonly modelKey?: string }
@@ -142,7 +141,73 @@ export class AsksPart {
   }
 
   private buildConfirm(row: SessionAskProjectionV1): ToolUseConfirm {
-    return notBuilt('src/services/engine-connector/daemon/asks.ts:143')
+    const tool = toolFor(row.toolName)
+    const decisionReason =
+      decodeDecisionReasonFromWire(row.decisionReasonDetail) ??
+      (row.decisionReason !== undefined ? { type: 'other' as const, reason: row.decisionReason } : undefined)
+    const permissionResult = {
+      behavior: 'ask' as const,
+      message: `${row.toolName} asks to run`,
+      ...(row.suggestions !== undefined ? { suggestions: row.suggestions } : {}),
+      ...(row.blockedPath !== undefined ? { blockedPath: row.blockedPath } : {}),
+      ...(decisionReason !== undefined ? { decisionReason } : {}),
+    }
+    let description = row.description ?? tool.userFacingName(row.input) ?? row.toolName
+    const crewmateId = row.agentId !== undefined && row.agentId !== '' ? row.agentId : undefined
+    const needs = this.needs
+    const confirm: ToolUseConfirm = {
+      assistantMessage: this.assistantRecordFor(row.toolUseId, row.toolName, row.input),
+      tool,
+      get description() {
+        return description
+      },
+      input: row.input,
+      toolUseContext: this.standInToolUseContext(),
+      toolUseID: row.toolUseId,
+      permissionResult: permissionResult as ToolUseConfirm['permissionResult'],
+      permissionPromptStartTimeMs: row.askedAt,
+      ...(row.cwd !== undefined ? { cwd: row.cwd } : {}),
+      ...(crewmateId !== undefined
+        ? {
+            get crewmate() {
+              return formatCrewmateAskLine(crewmateId, needs.facts()?.work)
+            },
+          }
+        : {}),
+      onUserInteraction: () => {},
+      onAbort: () => {
+        void this.answerThroughDaemon(row.requestId, { kind: 'abort' })
+      },
+      onAllow: async (updatedInput, permissionUpdates, feedback, contentBlocks) => {
+        await this.answerThroughDaemon(row.requestId, {
+          kind: 'allow',
+          updatedInput: updatedInput as Record<string, unknown>,
+          permissionUpdates,
+          feedback,
+          contentBlocks,
+        })
+      },
+      onReject: async (feedback, contentBlocks) => {
+        await this.answerThroughDaemon(row.requestId, { kind: 'deny', feedback, contentBlocks })
+      },
+      recheckPermission: async () => {
+        this.readAsks()
+        this.needs.recheckAsks?.()
+      },
+    }
+    if (row.description !== undefined) return confirm
+    void Promise.resolve(
+      tool.description(row.input, {
+        isNonInteractiveSession: false,
+        toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: this.needs.permissionMode() ?? 'default' },
+        tools: getAllBaseTools(),
+      }),
+    )
+      .then(text => {
+        if (typeof text === 'string' && text.trim() !== '') description = text
+      })
+      .catch(passedOver)
+    return confirm
   }
 
   private async answerThroughDaemon(requestId: string, answer: AskAnswerV1): Promise<AskReceiptV1> {

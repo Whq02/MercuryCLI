@@ -1,6 +1,5 @@
 import { useRef } from 'react';
 import { createStore, type Store } from '../../state/store.js';
-import { notBuilt } from '../../pi/holes.js'
 
 type ChatScreenState = {
   readonly resolvedConsentCount: number;
@@ -41,5 +40,17 @@ export function recordChatConsentResolved(
   store: ChatScreenStore,
   currentToolUseIds: readonly string[],
 ): void {
-  return notBuilt('src/screens/chat/chatStore.ts:39')
+  store.setState(prev => {
+    const remainingIds = currentToolUseIds.slice(1);
+    if (remainingIds.length === 0) {
+      return prev === INITIAL_CHAT_SCREEN_STATE ? prev : INITIAL_CHAT_SCREEN_STATE;
+    }
+    const sameBatch =
+      prev.resolvedConsentCount > 0 &&
+      currentToolUseIds.some(id => prev.consentBatchIds.includes(id));
+    return {
+      resolvedConsentCount: (sameBatch ? prev.resolvedConsentCount : 0) + 1,
+      consentBatchIds: remainingIds,
+    };
+  });
 }

@@ -16,7 +16,6 @@ import type { ProcessTreeKillReceipt } from '../../utils/processGroup.js'
 import { getTaskOutputDir } from '../../utils/task/diskOutput.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
-import { notBuilt } from '../../pi/holes.js'
 
 interface IdeToolCapabilities {
   readTextFile: boolean
@@ -234,7 +233,21 @@ export async function writeTextViaIdeWithReadBack(
 }
 
 async function settleCapturedOutput(text: string): Promise<Pick<ExecResult, 'stdout' | 'outputFilePath' | 'outputFileSize' | 'outputTaskId'>> {
-  return notBuilt('src/services/acp/ideToolBridge.ts:235')
+  try {
+    const outputTaskId = generateTaskId('local_bash')
+    const output = new TaskOutput(outputTaskId, null, true)
+    await getFsImplementation().mkdir(getTaskOutputDir())
+    const noFollow = typeof fsConstants.O_NOFOLLOW === 'number' ? fsConstants.O_NOFOLLOW : 0
+    await writeFile(output.path, text, { flag: fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_TRUNC | noFollow })
+    const stdout = await output.getStdout()
+    if (output.outputFileRedundant) {
+      await output.deleteOutputFile()
+      return { stdout }
+    }
+    return { stdout, outputFilePath: output.path, outputFileSize: output.outputFileSize, outputTaskId }
+  } catch {
+    return { stdout: text }
+  }
 }
 
 type EditorTerminalShell = {

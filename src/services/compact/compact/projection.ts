@@ -20,7 +20,6 @@ import { DEGRADED_SUMMARY_LENGTH, type NothingToCompactReason } from './limits.j
 import { foldedWorkOf, type CompactionResult } from './result.js'
 import { assembleAttachments } from './attachments.js'
 import { composeFoldSummaryText, createFoldMeter, isRestoredFileAttachment, withoutRestoredFiles } from './foldMeasure.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 export type ManualFoldProjection = {
   context: number
@@ -56,5 +55,85 @@ export async function projectManualFold(
   cacheSafeParams: CacheSafeParams,
   ceiling: number | undefined,
 ): Promise<ManualFoldProjection | null> {
-  return notBuilt('src/services/compact/compact/projection.ts:52')
+  if (messages.length === 0) return null
+  const meter = createFoldMeter(messages, context.options.engineModel, cacheSafeParams.postFoldCarry)
+  const owner = ownerFromToolUseContext(context)
+  const ledger = buildFoldLedger(messages, owner, getContextEpoch(owner).epoch + 1)
+  const landing = ceiling === undefined ? undefined : foldLandingCeiling(ceiling, messages, meter.gauge?.density.ratio ?? 1, meter.gauge?.density.residuals, getTurnReserveTokens(context.options.engineModel))
+  const newestMessageFollows = (cacheSafeParams.postFoldCarry ?? []).some(row => operatorTextOf(row) !== null)
+  const previousSummaries = messages.filter(row => row.type === 'user' && row.isCompactSummary === true)
+  const standIn = 'summary '.repeat(Math.ceil(Math.max(DEGRADED_SUMMARY_LENGTH / 4, roughTokenCountEstimationForMessages(previousSummaries)) / 2))
+  const marker = createCompactBoundaryMessage('manual', meter.context)
+  const capsule = buildRunContinuationCapsule(owner, [...context.readFileState.keys()])
+  const memoryText = previewFoldMemoryText({
+    messages,
+    owner,
+    epoch: ledger.epoch,
+    records: ledger.totals.records,
+    ...(context.agentId === undefined ? {} : { agent: String(context.agentId) }),
+  })
+  const summaryOf = (keep: Message[]): UserMessage => {
+    const work = renderFoldedWork(foldedWorkOf(messages, keep, marker.uuid))
+    const text = composeFoldSummaryText({
+      prose: standIn,
+      capsule,
+      work,
+      memoryText,
+      ledger,
+      suppressFollowUpQuestions: false,
+      keptTail: keep.length > 0,
+      newestMessageFollows,
+    })
+    return createUserMessage({ content: text, isCompactSummary: true })
+  }
+  const operatorBlock = (keep: Message[]) => {
+    const operator = selectOperatorMessages(messages, { keptUuids: new Set(keep.map(row => row.uuid)) })
+    return operator ? createAttachmentMessage(operator) : undefined
+  }
+  const allFolded = (keep: Message[]): Message[] => withFoldedResults(keep, new Map(foldableResults(keep).map(result => [result.toolUseId, foldedResultPlaceholder(result)])))
+  const fits = (limit: number | undefined, resultsFolded: boolean) => (keep: Message[]): boolean => {
+    if (limit === undefined) return true
+    const operator = operatorBlock(keep)
+    return meter.count([marker, ...(operator ? [operator] : []), summaryOf(keep), ...stripThinkingFromIndex(resultsFolded ? allFolded(keep) : keep, 0)]) < limit
+  }
+  let keep: Message[] = []
+  if (isMercuryCompactKeepTailEnabled()) {
+    let tail: ReturnType<typeof computeVerbatimRecentTail> | undefined
+    for (const [limit, resultsFolded] of [[landing, false], [ceiling, false], [landing, true], [ceiling, true]] as const) {
+      try {
+        tail = computeVerbatimRecentTail(messages, { fits: fits(limit, resultsFolded) })
+        break
+      } catch {
+        tail = undefined
+      }
+    }
+    if (tail === undefined) return null
+    if (tail !== null) keep = stripThinkingFromIndex(tail.keep, 0)
+  }
+  const keptUuids = new Set(keep.map(row => row.uuid))
+  const head = messages.filter(row => !keptUuids.has(row.uuid))
+  const totalRounds = groupMessagesByApiRound(messages).filter(group => group.some(row => row.type === 'assistant')).length
+  const workingRoundsFolded = groupMessagesByApiRound(head).filter(group => group.some(row => row.type === 'assistant')).length
+  const keptTokens = estimateContextTokens(keep, context.options.engineModel)
+  const snapshot: Record<string, { content: string; timestamp: number }> = {}
+  for (const [path, state] of context.readFileState.entries()) snapshot[path] = { content: state.content, timestamp: state.timestamp }
+  const attachments = await assembleAttachments(snapshot, context, keep, 'compact_full', [...context.readFileState.entries()], { userContext: cacheSafeParams.userContext })
+  const projectedResult = (rows: typeof attachments): CompactionResult => ({
+    boundaryMarker: marker,
+    operatorMessages: operatorBlock(keep),
+    summaryMessages: [summaryOf(keep)],
+    messagesToKeep: keep.length > 0 ? keep : undefined,
+    attachments: rows,
+    hookResults: [],
+    preCompactTokenCount: meter.context,
+    postCompactTokenCount: 0,
+  })
+  const afterWithFiles = meter.measureResult(projectedResult(attachments))
+  let after = afterWithFiles
+  let restoreFiles = true
+  if (afterWithFiles >= meter.before && attachments.some(isRestoredFileAttachment)) {
+    after = meter.measureResult(projectedResult(withoutRestoredFiles(attachments)))
+    restoreFiles = false
+  }
+  return { context: meter.context, before: meter.before, after, afterWithFiles, restoreFiles, kept: keep.length, keptTokens, folds: head.length, totalRounds, workingRoundsFolded }
 }

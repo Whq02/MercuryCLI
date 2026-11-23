@@ -16,7 +16,6 @@ import {
 } from './utils/pasteStore.js'
 import { sleep } from './utils/sleep.js'
 import { passedOver } from './utils/passedOver.js'
-import { notBuilt } from './pi/holes.js'
 
 
 export type HistoryRecord = {
@@ -447,7 +446,14 @@ export async function resolvePastedContents(
 }
 
 export async function historyPasteHashes(): Promise<Set<string>> {
-  return notBuilt('src/history.ts:446')
+  const hashes = new Set<string>()
+  const corpus = await loadHistoryCorpus()
+  for (const record of corpus) {
+    for (const stored of Object.values(record.pastedContents ?? {})) {
+      if (typeof stored.contentHash === 'string' && stored.contentHash !== '') hashes.add(stored.contentHash)
+    }
+  }
+  return hashes
 }
 
 export function expandPastedTextRefs(

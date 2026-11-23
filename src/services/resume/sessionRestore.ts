@@ -12,7 +12,6 @@ import { rearmMissionFromCard } from '../../guards/mission.js'
 import { migrateOrphanedMissionCard } from '../../utils/mission/missionCard.js'
 import { billingSafeRetainedForm, servedModelOfAssistantRow } from '../model/retainedModel.js'
 import type { ContentReplacementRecord } from '../../utils/toolResultStorage.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 export type ResumedConversationLog = {
@@ -83,7 +82,10 @@ export function restoreMissionContinuity(
 }
 
 function adoptedSessionIdOf(result: Pick<ResumedConversationLog, 'messages' | 'sessionId'>): string {
-  return notBuilt('src/services/resume/sessionRestore.ts:85')
+  const fromMessages = result.messages.find(
+    (m): m is Message & { sessionId: string } => typeof (m as { sessionId?: unknown }).sessionId === 'string',
+  ) as { sessionId?: string } | undefined
+  return String(result.sessionId ?? fromMessages?.sessionId ?? getSessionId())
 }
 
 export function restoreAgentFromSession(

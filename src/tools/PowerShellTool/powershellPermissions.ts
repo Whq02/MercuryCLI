@@ -490,6 +490,28 @@ function providerUncScan(parsed: ParsedPowerShellCommand, uncGranted: boolean): 
   return null
 }
 
+function gitInternalWrite(parsed: ParsedPowerShellCommand, subcommands: ParsedCommandElement[]): boolean {
+  for (const command of subcommands) {
+    if (GIT_WRITER.has(resolveToCanonical(command.name))) {
+      for (const arg of command.args.flatMap(a => a.split(','))) if (isGitInternalPathPS(arg)) return true
+    }
+    for (const redirect of command.redirections ?? []) if (isGitInternalPathPS(redirect.target)) return true
+  }
+  for (const redirect of pinnedCommandAnalysis.getFileRedirections(parsed)) if (isGitInternalPathPS(redirect.target)) return true
+  return false
+}
+
+function dotGitWrite(parsed: ParsedPowerShellCommand, subcommands: ParsedCommandElement[]): boolean {
+  for (const command of subcommands) {
+    if (GIT_WRITER.has(resolveToCanonical(command.name))) {
+      for (const arg of command.args.flatMap(a => a.split(','))) if (isDotGitPathPS(arg)) return true
+    }
+    for (const redirect of command.redirections ?? []) if (isDotGitPathPS(redirect.target)) return true
+  }
+  for (const redirect of pinnedCommandAnalysis.getFileRedirections(parsed)) if (isDotGitPathPS(redirect.target)) return true
+  return false
+}
+
 function fragmentDenyScan(command: string, context: ToolPermissionContext): PermissionResult | null {
   const collapsed = command.replace(/`\n\s*/g, '').replace(/`/g, '')
   for (const raw of collapsed.split(/[;|\n\r{}()&]/)) {

@@ -1,6 +1,5 @@
 import type { MercuryLspOpOutput, OpEnv } from './types.js'
 import { displayPathFor, syncFileFromDisk } from './shared.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 const RAW_RESULT_CHAR_CAP = 20_000
 
@@ -53,5 +52,65 @@ export async function opCapabilities(env: OpEnv): Promise<MercuryLspOpOutput> {
 }
 
 export async function opRawRequest(env: OpEnv): Promise<MercuryLspOpOutput> {
-  return notBuilt('src/tools/LSPTool/mercuryOps/rawRequest.ts:54')
+  const input = env.input
+  const display = displayPathFor(env.cwd, env.absolutePath)
+  const method = input.method ?? ''
+  const editClassReason = RAW_REQUEST_EDIT_CLASS[method]
+  if (editClassReason !== undefined) {
+    return {
+      result: `LspRequest refused: '${method}' is an edit-class method — ${editClassReason}. Nothing was sent.`,
+      resultCount: 0,
+      fileCount: 0,
+      effect: { outcome: 'failed', changedPaths: [], evidence: `edit-class method refused (${method})` },
+    }
+  }
+  let params: unknown = undefined
+  if (input.params !== undefined && input.params !== '') {
+    try {
+      params = JSON.parse(input.params)
+    } catch (error) {
+      return {
+        result: `LspRequest failed: params is not valid JSON (${error instanceof Error ? error.message : String(error)}). Nothing was sent.`,
+        resultCount: 0,
+        fileCount: 0,
+        effect: { outcome: 'failed', changedPaths: [], evidence: 'params JSON parse failed' },
+      }
+    }
+  }
+  const server = env.manager.getServerForFile(env.absolutePath)
+  if (!server) {
+    return {
+      result: `No language server claims ${display} — LspRequest has no target.`,
+      resultCount: 0,
+      fileCount: 0,
+      effect: { outcome: 'failed', changedPaths: [], evidence: 'no claimant' },
+    }
+  }
+  await syncFileFromDisk(env.manager, env.absolutePath)
+  try {
+    const response = await server.sendRequest<unknown>(method, params ?? {})
+    const text = JSON.stringify(response, null, 2) ?? 'null'
+    const clipped = text.length > RAW_RESULT_CHAR_CAP
+    return {
+      result:
+        `${server.name} · ${method}:\n` +
+        (clipped ? `${text.slice(0, RAW_RESULT_CHAR_CAP)}\n… (${text.length - RAW_RESULT_CHAR_CAP} more chars)` : text) +
+        `\n\nRaw protocol response — nothing was applied. Edit-returning behaviour lives in the typed operations.`,
+      resultCount: 1,
+      fileCount: 1,
+      effect: {
+        outcome: 'succeeded',
+        changedPaths: [],
+        evidence: `raw ${method} answered by ${server.name}`,
+        details: { method, server: server.name },
+      },
+    }
+  } catch (error) {
+    return {
+      result: `LspRequest ${method} failed: ${error instanceof Error ? error.message : String(error)}`,
+      resultCount: 0,
+      fileCount: 0,
+      effect: { outcome: 'failed', changedPaths: [], evidence: `raw ${method} failed` },
+    }
+  }
 }

@@ -30,7 +30,6 @@ import { toolDialectSystemText } from './toolDialect.js'
 import { tellWhoHearsALocalTurn } from './localTurn.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../../utils/timers.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 export const LOCAL_WARM_SETTLE_MS = 750
 export const LOCAL_WARM_LIVE_WAITS = 8
@@ -179,8 +178,79 @@ export function conversationServedBy(messages: readonly Message[], modelId: stri
   return messages.some(message => message.type === 'assistant' && message.message.model === modelId)
 }
 
-export async function composeLocalWarm(record: LocalModelRecord, model: string, context: CacheSafeParams, served?: boolean): Promise<LocalWarmBody | { skipped: string }> {
-  return notBuilt('src/services/providers/local/localWarm.ts:181')
+export async function composeLocalWarm(record: LocalModelRecord, model: string, context: CacheSafeParams, served = false): Promise<LocalWarmBody | { skipped: string }> {
+  const modelId = compatDispatchModelId(model)
+  const toolUseContext = context.toolUseContext
+  const tools: Tools = toolUseContext.options.tools
+  const history: Message[] = context.forkContextMessages
+  if (conversationHasRows(history) && (served || conversationServedBy(history, modelId))) return { skipped: 'the model has served this conversation; a prefix-only warm would truncate the cache the server may hold for it' }
+  const appState = toolUseContext.getAppState()
+  const getToolPermissionContext = async () => toolUseContext.getAppState().toolPermissionContext
+  const agents = toolUseContext.options.agentDefinitions.activeAgents
+  const allowedAgentTypes = toolUseContext.options.agentDefinitions.allowedAgentTypes
+  const plan = await planToolPayloadUnseeded({
+    model: modelId,
+    tools,
+    messages: history,
+    getToolPermissionContext,
+    agents,
+    latchKey: String(rosterOwnerFromToolUseContext(toolUseContext)),
+    hasPendingMcpServers: appState.mcp.clients.some(client => client.type === 'pending'),
+    source: 'warm',
+  })
+  const schemas = await Promise.all(
+    plan.roster.map(tool =>
+      toolToAPISchema(tool, {
+        getToolPermissionContext,
+        tools: plan.roster,
+        agents,
+        allowedAgentTypes,
+        model: modelId,
+        conversationKey: plan.conversationKey,
+      }),
+    ),
+  )
+  const apiTools: ApiShapedTool[] = []
+  for (const schema of schemas) {
+    const shaped = schema as { name?: string; description?: string; input_schema?: unknown }
+    if (typeof shaped.name === 'string' && shaped.input_schema !== undefined) {
+      apiTools.push({ name: shaped.name, ...(shaped.description ? { description: shaped.description } : {}), input_schema: shaped.input_schema })
+    }
+  }
+  const fullSystemPrompt = asSystemPrompt(appendSystemContext(context.systemPrompt, context.systemContext, modelId))
+  const systemText = renderGenericInstructions(resolveBehaviourContract([...fullSystemPrompt]))
+  const profile = localLaneProfileFor(record)
+  const wireModel = profile.wireModelId(modelId)
+  const toolsInPrompt = apiTools.length > 0 && profile.toolsInPrompt?.(wireModel) === true
+  if (apiTools.length > 0 && !toolsInPrompt && profile.toolCapabilityRefusal?.(wireModel) !== undefined) return { skipped: 'the model declares no tool support; the first turn refuses before sending' }
+  const thinkingConfig = toolUseContext.options.thinkingConfig as { type?: string } | undefined
+  const thinkingEnabled = thinkingConfig?.type !== 'disabled'
+  const effortValue = resolveWireRequestedEffort(modelId, appState.effortValue, {})
+  const extra = profile.buildExtras({ wireModel, effortValue, thinkingEnabled, maxOutputTokensOverride: undefined })
+  const request: CompatChatRequest = {
+    model: wireModel,
+    messages: [
+      ...mapMessagesToZai(toolsInPrompt ? toolDialectSystemText(systemText, mapToolsToZai(apiTools)) : systemText, [], {
+        keepReasoningHistory: profile.keepsReasoningHistory?.(wireModel) ?? false,
+        imagesSupported: imagesSupportedForCompatModel(modelId),
+      }),
+      { role: 'user', content: LOCAL_WARM_USER_SEED },
+    ],
+    ...(apiTools.length > 0 && !toolsInPrompt ? { tools: mapToolsToZai(apiTools) } : {}),
+    extra: { ...extra, max_tokens: LOCAL_WARM_NUM_PREDICT },
+  }
+  const estimateMessages = latestUserContextBody(history) === null ? prependUserContext(history, await firstTurnUserContext(context.userContext, context.systemContext, modelId)) : history
+  const estTokens = localPreComposeEstimate({ messages: estimateMessages, systemPrompt: fullSystemPrompt, tools, model: modelId })
+  const window = await localWarmKnobsFor(record, estTokens)
+  const requestTokens = estimateRequestTokens(request, modelId)
+  const guard = window.numCtx ?? localGuardWindow(record)?.tokens
+  if (guard !== undefined && requestTokens + LOCAL_WARM_OUTPUT_FLOOR > guard) return { skipped: `the prefix (~${requestTokens} tokens) does not fit the window (${guard}); the first turn refuses before sending` }
+  const knobs: OllamaChatKnobs = {
+    ...(window.numCtx !== undefined ? { numCtx: window.numCtx } : {}),
+    numBatch: window.numBatch,
+    ...(record.thinkingDeclared === true ? { think: !localThinkingOff({ server: record.server, acceptsEffort: localModelAcceptsEffort(record), thinkingEnabled }) } : {}),
+  }
+  return { request, knobs, estTokens, toolCount: apiTools.length, cold: coldPrefixOf(history, modelId) }
 }
 
 function cancelInFlight(reason: string): void {

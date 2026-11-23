@@ -17,7 +17,6 @@ import {
 } from '../../utils/shell/readOnlyCommandValidation.js'
 import { COMMON_PARAMETERS } from './commonParameters.js'
 import { getPlatform } from '../../utils/platform.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const PS_DASH_RE = /[-–—―]/
 
@@ -74,7 +73,9 @@ function rejectsPositional(_command: string, element?: ParsedCommandElement): bo
 }
 
 function routeRequiresPrint(_command: string, element?: ParsedCommandElement): boolean {
-  return notBuilt('src/tools/PowerShellTool/readOnlyValidation.ts:70')
+  if (!element) return true
+  const firstPositional = element.args.find(a => !PS_DASH_RE.test(a[0] ?? '') && a[0] !== '/')
+  return (firstPositional ?? '').toLowerCase() !== 'print'
 }
 
 const CMDLET_ALLOWLIST: Record<string, CommandConfig> = Object.assign(Object.create(null), {

@@ -61,7 +61,6 @@ import { TerminalFocusProvider } from './TerminalFocusContext.js'
 import { LiveTerminalSizeContext, TerminalSizeContext, type TerminalSize } from './TerminalSizeContext.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const MULTI_CLICK_WINDOW_MS = 500
 const MULTI_CLICK_TOLERANCE_CELLS = 1
@@ -305,7 +304,80 @@ export default class App extends PureComponent<Props, State> {
   }
 
   private async probeTerminalIdentity(): Promise<void> {
-    return notBuilt('src/ink/components/App.tsx:289')
+    let finishWidthProbe: (() => void) | null = null
+    try {
+      const versionQuery = isExtendedCsiSafe() ? this.querier.send(xtversion()) : Promise.resolve(undefined)
+      let backgroundQuery: Promise<{ type: 'osc'; code: number; data: string } | undefined> =
+        Promise.resolve(undefined)
+      const warmBackground = isWarmBackgroundEnabled()
+      if (warmBackground) {
+        markOriginalGroundQuerySent()
+        backgroundQuery = this.querier.send(oscColor(OSC_BACKGROUND_COLOR))
+      }
+      if (isDecrqmProbeSafe()) markSyncProbeOutstanding(true)
+      const syncQuery = isDecrqmProbeSafe() ? this.querier.send(decrqm(2026)) : Promise.resolve(undefined)
+      const kittyQuery = isExtendedCsiSafe() ? this.querier.send(kittyKeyboard()) : Promise.resolve(undefined)
+      const ink = instances.get(this.props.stdout)
+      const queueWidthProbe = (): (() => void) | null =>
+        queueTerminalWidthProbe(this.querier, this.props.stdout, () => {
+          instances.get(this.props.stdout)?.forceRedraw()
+        }, instances.get(this.props.stdout)?.isAltScreenActive === true)
+      if (ink?.isAltEntryPending() === true) {
+        const stop = ink.subscribeFrame(() => {
+          if (ink.isAltEntryPending()) return
+          stop()
+          if (this.rawModeEnabledCount === 0) return
+          const finish = queueWidthProbe()
+          if (finish !== null) void this.querier.flush().then(finish, finish)
+        })
+      } else {
+        finishWidthProbe = queueWidthProbe()
+      }
+      const [version, background, sync, kitty] = await Promise.all([
+        versionQuery,
+        backgroundQuery,
+        syncQuery,
+        kittyQuery,
+        this.querier.flush(),
+      ])
+      if (version) {
+        setXtversionName(version.name)
+        logForDebugging(`Terminal identified via XTVERSION: ${version.name}`)
+      } else {
+        logForDebugging('XTVERSION query ignored by the terminal')
+      }
+      if (warmBackground) {
+        if (background && background.type === 'osc' && typeof background.data === 'string') {
+          applyWarmBackground(background.data, this.props.stdout)
+        } else {
+          logForDebugging('Warm background enabled but the OSC 11 query got no reply — canvas not painted')
+        }
+      }
+      if (
+        sync &&
+        (sync.status === DECRPM_STATUS.SET || sync.status === DECRPM_STATUS.RESET)
+      ) {
+        upgradeSyncOutputSupport()
+        logForDebugging('Synchronized output (DEC 2026) recognised by the terminal probe')
+      }
+      markSyncProbeOutstanding(false)
+      if (kitty !== undefined) {
+        const wasActive = extendedKeysSupportedNow()
+        upgradeExtendedKeysSupport()
+        if (!wasActive && this.rawModeEnabledCount > 0) {
+          termWrite(this.props.stdout, extendedKeysReenable(true))
+          noteModeAcquired(RAW_MODE_LEDGER_OWNER, 'kitty-kbd')
+        }
+        logForDebugging(
+          `Kitty keyboard protocol proved by the terminal probe (flags=${kitty.flags})${wasActive ? '' : ' — extended keys pushed'}`,
+        )
+      }
+    } catch (error) {
+      markSyncProbeOutstanding(false)
+      logError(error)
+    } finally {
+      finishWidthProbe?.()
+    }
   }
 
   pressEscape(): void {

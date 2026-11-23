@@ -1,6 +1,5 @@
 import { misreadWordList, type Node, type WordListFault } from '../../../bash/parser.js'
 import type { Redirect } from './reading.js'
-import { notBuilt } from '../../../../pi/holes.js'
 
 export const WILDCARD_REASON = 'an unquoted wildcard expands to paths at runtime; quote it as text or spell out the paths, or approve'
 
@@ -68,7 +67,7 @@ const SHELL_VARIABLES: ReadonlySet<string> = new Set([
 const SPECIAL_VARIABLES: ReadonlySet<string> = new Set(['?', '$', '!', '#', '0', '-'])
 
 export function childOfKind(node: Node, kind: string): Node | undefined {
-  return notBuilt('src/utils/permissions/decision/commandAnalysis/exactWords.ts:69')
+  return node.children.find(child => child.type === kind)
 }
 
 const BRACE_EXPANSION_RE = /\{[^{}\s]*(?:,|\.\.)[^{}\s]*\}/
@@ -245,7 +244,7 @@ export function heredocBody(node: Node): string {
 }
 
 export function substitutionStatements(node: Node): Node[] {
-  return notBuilt('src/utils/permissions/decision/commandAnalysis/exactWords.ts:206')
+  return node.children.filter(child => child.type !== '$(' && child.type !== ')' && child.type !== '`')
 }
 
 const REDIRECT_OPERATORS: ReadonlySet<string> = new Set(['>', '>>', '<', '>&', '<&', '>|', '&>', '&>>', '<<<'])

@@ -1,11 +1,11 @@
 import { preparedSecurityParse } from './ast.js'
 import { isOutputWriteOperator, pipeSpans, splitCommandWithOperators, splitListSegments, withoutRedirects } from '../permissions/decision/commandAnalysis/sequence.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export { pipeSpans, splitCommandWithOperators, splitListSegments }
 
 export function splitCommand(command: string): string[] {
-  return notBuilt('src/utils/bash/commands.ts:6')
+  const parsed = preparedSecurityParse(command)
+  return parsed.kind === 'simple' ? parsed.commands.map(simple => simple.text) : command.trim() === '' ? [] : [command]
 }
 
 type OutputRedirectionCapture = { target: string; operator: '>' | '>>' }

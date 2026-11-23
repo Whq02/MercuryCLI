@@ -22,7 +22,6 @@ import { getOriginalCwd } from '../../bootstrap/state.js'
 import { getPlatform } from '../../utils/platform.js'
 import { uncPathRisk, uncPathMessage } from '../../utils/permissions/uncPath.js'
 import { containsWindowsDevicePath, WINDOWS_DEVICE_PATH_MESSAGE } from '../../utils/permissions/windowsPath.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const GIT_INTERNAL_CREATORS = new Set<PathCommand>(['mkdir', 'touch', 'mv', 'cp', 'tee', 'dd'])
 const OUTPUT_OPERATORS = new Set(['>', '>>', '>|', '&>', '&>>', '>&'])
@@ -45,7 +44,23 @@ const reclaimedReads = new FinalizationRegistry<{ command: string; reference: We
 })
 
 export async function prepareBashReadOnly(input: { command: string; cwd?: string }): Promise<void> {
-  return notBuilt('src/tools/BashTool/readOnlyValidation.ts:46')
+  return withBashParseScope(async () => {
+    const command = input.command
+    const parsed = await parseForSecurity(command)
+    await prepareShellCScripts(parsed)
+    const root = retainPreparedCommand(command)
+    const cwd = resolveShellCwd(input.cwd)
+    const snapshot = { root, cwd, originalCwd: getOriginalCwd(), platform: getPlatform(), bare: isCurrentDirectoryBareGitRepo(cwd) }
+    const remember = (text: string, verdict: ReadOnlyVerdict, children: PreparedRead[] = []): PreparedRead => {
+      const prepared = { ...snapshot, command: text, verdict, children }
+      const reference = new WeakRef(prepared)
+      preparedReads.set(text, reference)
+      reclaimedReads.register(prepared, { command: text, reference })
+      return prepared
+    }
+    const children = parsed.kind === 'simple' ? parsed.commands.map(simple => remember(simple.text, readOnlyFromParse({ ...input, command: simple.text }, false, preparedSecurityParse(simple.text)))) : []
+    inputReads.set(input, remember(command, readOnlyFromParse(input, false, parsed), children))
+  })
 }
 
 export function preparedBashReadsOnly(input: { command: string; cwd?: string }): boolean {
@@ -86,7 +101,12 @@ function isGitInternalPath(path: string): boolean {
 }
 
 function writesToGitInternalPath(commands: SimpleCommand[]): boolean {
-  return notBuilt('src/tools/BashTool/readOnlyValidation.ts:103')
+  return commands.some(command => {
+    const word = command.argv[0] as PathCommand
+    const paths = command.redirects.filter(isOutput).map(redirect => redirect.target)
+    if (word in COMMAND_OPERATION_TYPE && GIT_INTERNAL_CREATORS.has(word)) paths.push(...PATH_EXTRACTORS[word](command.argv.slice(1)))
+    return paths.some(isGitInternalPath)
+  })
 }
 
 function gitGuard(commands: SimpleCommand[], compoundHasCd: boolean, cwd: string): string | null {
@@ -102,8 +122,52 @@ function listedWord(word: string): boolean {
   return !(walkedRuleFor([word])?.unixOnly && getPlatform() === 'windows')
 }
 
-function readOnlyFromParse(input: { command: string; cwd?: string }, compoundHasCd: boolean, parsed: ParseForSecurityResult, depth?: number): ReadOnlyVerdict {
-  return notBuilt('src/tools/BashTool/readOnlyValidation.ts:142')
+function readsOnly(command: SimpleCommand): boolean {
+  if (command.envVars.length > 0 || command.argv.length === 0) return false
+  const { argv } = command
+  const text = shellCommandText(argv)
+  const rule = walkedRuleFor(argv)
+  if (rule !== undefined && !(rule.unixOnly && getPlatform() === 'windows')) {
+    if (walkFlags(argv, rule.words.length, rule) &&
+      (rule.whole === undefined || rule.whole.test(text)) &&
+      (!rule.noNewline || !/[\r\n]/.test(text)) &&
+      (rule.readsOnly === undefined || rule.readsOnly(argv.slice(rule.words.length), text))) return true
+  }
+  const form = formRuleFor(argv[0]!)
+  const formText = argv[0] === 'find' ? argv.map(word => word === '(' || word === ')' ? `\\${word}` : shellCommandText([word])).join(' ') : text
+  if (form?.form === undefined || !(form.form(formText) || argv[0] === 'echo' && form.form(command.text))) return false
+  return argv[0] !== 'git' || !argv.some(word => /^(?:-c|--exec-path|--config-env)(?:=|$)/.test(word))
+}
+
+function readOnlyFromParse(input: { command: string; cwd?: string }, compoundHasCd: boolean, parsed: ParseForSecurityResult, depth = 0): ReadOnlyVerdict {
+  const part = cutPart(input.command)
+  if (parsed.kind === 'parse-unavailable') return refuse({ kind: 'unparseable', part, detail: 'the shell parser has not produced a tree; retry the command, or approve it in a session that can write' })
+  if (parsed.kind === 'too-complex') return refuse({ kind: 'screen', part, detail: parsed.reason })
+  if (parsed.commands.some(command => command.globOperand === true && !readsOnly(command))) return refuse({ kind: 'screen', part, detail: WILDCARD_REASON })
+  const semantic = checkSemantics(parsed.commands)
+  if (!semantic.ok) return refuse({ kind: 'screen', part, detail: semantic.reason })
+  const remote = uncPathRisk(input.command, { command: true })
+  if (remote.risky) return { behavior: 'ask', message: uncPathMessage(input.command, remote), notReadOnly: { kind: 'screen', part, detail: uncPathMessage(input.command, remote) } }
+  if (containsWindowsDevicePath(input.command)) return { behavior: 'ask', message: WINDOWS_DEVICE_PATH_MESSAGE, notReadOnly: { kind: 'screen', part, detail: WINDOWS_DEVICE_PATH_MESSAGE } }
+  const commands = shellCCommands(parsed.commands, depth)
+  const hasCd = compoundHasCd || commands.some(command => ['cd', 'pushd', 'popd'].includes(command.argv[0] ?? ''))
+  const guard = gitGuard(commands, hasCd, resolveShellCwd(input.cwd))
+  if (guard !== null) return refuse({ kind: 'git-guard', part, detail: guard }, guard)
+  for (const command of parsed.commands) {
+    const target = command.redirects.find(redirect => isOutput(redirect) && redirect.target !== '/dev/null')?.target
+    if (target !== undefined) return refuse({ kind: 'writes', part: cutPart(command.text), target })
+    const script = depth < SHELL_C_MAX_DEPTH ? extractShellCScript(command) : null
+    if (script !== null) {
+      const inner = readOnlyFromParse({ ...input, command: script }, hasCd, preparedSecurityParse(script), depth + 1)
+      if (inner.behavior !== 'allow') return inner
+      continue
+    }
+    if (readsOnly(command)) continue
+    const word = command.argv[0] ?? ''
+    if (!listedWord(word)) return refuse({ kind: 'not-on-list', part: cutPart(command.text), word })
+    return refuse({ kind: 'form', part: cutPart(command.text), word })
+  }
+  return { behavior: 'allow', updatedInput: input }
 }
 
 export function checkPreparedReadOnlyConstraints(input: { command: string; cwd?: string }, compoundHasCd = false, command?: SimpleCommand, depth = 0): ReadOnlyVerdict {

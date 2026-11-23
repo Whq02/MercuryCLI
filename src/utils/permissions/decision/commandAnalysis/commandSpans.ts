@@ -1,7 +1,6 @@
 import { preparedCommandRoot, type Node } from '../../../bash/parser.js'
 import { parseForSecurityFromAst } from './exact.js'
 import type { ParseForSecurityResult } from './reading.js'
-import { notBuilt } from '../../../../pi/holes.js'
 
 export type CommandSpan = {
   declaration: boolean
@@ -20,7 +19,26 @@ function asNode(value: unknown): Node | null {
 }
 
 function spanOf(node: Node): CommandSpan {
-  return notBuilt('src/utils/permissions/decision/commandAnalysis/commandSpans.ts:21')
+  const name = node.children.find(child => child.type === 'command_name')
+  return {
+    declaration: node.type === 'declaration_command',
+    start: node.startIndex,
+    end: node.endIndex,
+    text: node.text,
+    exact: () => parseForSecurityFromAst(node.text, node),
+    name:
+      name === undefined
+        ? undefined
+        : {
+            text: name.text,
+            rest: node.text.slice(name.endIndex - node.startIndex),
+            ansiC: name.children[0]?.type === 'ansi_c_string',
+            word: () => {
+              const named = parseForSecurityFromAst(name.text, { ...node, children: [name] })
+              return named.kind === 'simple' ? named.commands[0]?.argv[0] : undefined
+            },
+          },
+  }
 }
 
 export function commandSpans(rootNode: unknown, order: 'written' | 'lastFirst' = 'written'): CommandSpan[] {

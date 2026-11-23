@@ -227,6 +227,72 @@ function isPromptCommand(command: Command): command is Command & PromptCommand {
   return command.type === 'prompt'
 }
 
+async function preloadSkills(
+  definition: AgentDefinition,
+  toolUseContext: ToolUseContext,
+): Promise<Message[]> {
+  const skillNames = definition.skills
+  if (!skillNames || skillNames.length === 0) return []
+  const commands = await getSkillToolCommands(getProjectRoot())
+  const { formatSkillLoadingMetadata } = await import(
+    '../../services/processUserInput/processSlashCommand.js'
+  )
+  const extensionPrefix =
+    definition.source === 'extension' && 'extensionName' in definition
+      ? String((definition as { extensionName?: string }).extensionName ?? '')
+      : ''
+  const loads: Promise<Message | null>[] = []
+  for (const skillName of skillNames) {
+    const command =
+      commands.find(c => c.name === skillName) ??
+      (extensionPrefix
+        ? commands.find(c => c.name === `${extensionPrefix}:${skillName}`)
+        : undefined) ??
+      commands.find(c => c.name.endsWith(`:${skillName}`))
+    if (!command) {
+      logForDebugging(
+        `runAgent: skill '${skillName}' declared by ${definition.agentType} is not a registered skill command — skipped`,
+      )
+      continue
+    }
+    if (!isPromptCommand(command)) {
+      logForDebugging(
+        `runAgent: skill '${skillName}' resolves to a non-prompt command — skipped`,
+      )
+      continue
+    }
+    loads.push(
+      (async () => {
+        try {
+          const blocks = await command.getPromptForCommand('', toolUseContext)
+          const message = createUserMessage({
+            content: [
+              {
+                type: 'text' as const,
+                text: formatSkillLoadingMetadata(
+                  command.name,
+                  command.progressMessage,
+                ),
+              },
+              ...blocks,
+            ],
+            isMeta: true,
+          })
+          logForDebugging(`runAgent: skill '${skillName}' preloaded`)
+          return message
+        } catch (error) {
+          logForDebugging(
+            `runAgent: skill '${skillName}' failed to load: ${errorMessage(error)}`,
+          )
+          return null
+        }
+      })(),
+    )
+  }
+  const loaded = await Promise.all(loads)
+  return loaded.filter((message): message is Message => message !== null)
+}
+
 async function buildAgentSystemPrompt(
   definition: AgentDefinition,
   toolUseContext: ToolUseContext,

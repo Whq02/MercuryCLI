@@ -38,7 +38,7 @@ import { expandEnvVarsInString } from './envExpansion.js'
 import { mcpStdioCommandRefusal } from './stdioCommandSafety.js'
 import { fetchAnthropicConnectorsIfEligible } from './anthropicConnectors.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
+import { noteGlobalConfigRefusalSaid } from '../../utils/config/globalConfig.js'
 
 
 type McpConfigError = {
@@ -95,6 +95,72 @@ function readConfigFile(filePath: string): ConfigFileRead {
       excerpt: raw.slice(0, 80),
     }
   }
+}
+
+function expandServerConfig(
+  config: McpServerConfig,
+): { config: McpServerConfig; missingVars: string[]; unexpanded?: McpUnexpandedStrings } {
+  const missing = new Set<string>()
+  const expand = (value: string): string => {
+    const { expanded, missingVars } = expandEnvVarsInString(value)
+    for (const name of missingVars) missing.add(name)
+    return expanded
+  }
+  const type = (config as { type?: string }).type
+  if (type === undefined || type === 'stdio') {
+    const stdio = config as Extract<McpServerConfig, { command: string }>
+    const expandedEnv =
+      stdio.env === undefined
+        ? undefined
+        : Object.fromEntries(Object.entries(stdio.env).map(([key, value]) => [key, expand(value)]))
+    const command = expand(stdio.command)
+    const args = (stdio.args ?? []).map(expand)
+    const writtenCode = Object.fromEntries(Object.entries(stdio.env ?? {}).filter(([key, value]) => mcpVariableCarriesCode(key) && expandedEnv?.[key] !== value))
+    const unexpanded: McpUnexpandedStrings = {
+      ...(command === stdio.command ? {} : { command: stdio.command }),
+      ...(args.every((value, index) => value === stdio.args?.[index]) ? {} : { args: [...(stdio.args ?? [])] }),
+      ...(Object.keys(writtenCode).length === 0 ? {} : { env: writtenCode }),
+    }
+    return {
+      config: {
+        ...stdio,
+        command,
+        args,
+        ...(expandedEnv === undefined ? {} : { env: expandedEnv }),
+      },
+      missingVars: [...missing],
+      ...(Object.keys(unexpanded).length === 0 ? {} : { unexpanded }),
+    }
+  }
+  if (type === 'sse' || type === 'http' || type === 'ws') {
+    const remote = config as { url: string; headers?: Record<string, string>; oauth?: { clientId?: string; authServerMetadataUrl?: string } }
+    const expandedHeaders =
+      remote.headers === undefined
+        ? undefined
+        : Object.fromEntries(
+            Object.entries(remote.headers).map(([key, value]) => [key, expand(value)]),
+          )
+    const expandedOauth =
+      remote.oauth === undefined
+        ? undefined
+        : {
+            ...remote.oauth,
+            ...(remote.oauth.clientId === undefined ? {} : { clientId: expand(remote.oauth.clientId) }),
+            ...(remote.oauth.authServerMetadataUrl === undefined ? {} : { authServerMetadataUrl: expand(remote.oauth.authServerMetadataUrl) }),
+          }
+    const url = expand(remote.url)
+    return {
+      config: {
+        ...(config as object),
+        url,
+        ...(expandedHeaders === undefined ? {} : { headers: expandedHeaders }),
+        ...(expandedOauth === undefined ? {} : { oauth: expandedOauth }),
+      } as McpServerConfig,
+      missingVars: [...missing],
+      ...(url === remote.url ? {} : { unexpanded: { url: remote.url } }),
+    }
+  }
+  return { config, missingVars: [] }
 }
 
 const SCHEMA_MISMATCH = 'does not match the MCP server configuration schema'
@@ -962,7 +1028,99 @@ export async function addMcpConfig(
   config: unknown,
   scope: ConfigScope,
 ): Promise<void> {
-  return notBuilt('src/services/mcp/config.ts:903')
+  if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+    throw new Error(
+      `Invalid MCP server name "${name}": names may only contain letters, numbers, hyphens and underscores`,
+    )
+  }
+  if (name === '__proto__') {
+    throw new Error(`Invalid MCP server name "${name}": this name cannot be stored — choose another`)
+  }
+
+  const mercury = await import('./mercuryServer.js')
+  if (mercury.isMercuryServerEnabled() && mercury.isMercuryServer(name)) {
+    throw new Error(
+      `"${name}" is reserved for Mercury's in-process MCP server (disable with MERCURY_COORDINATION_MCP=0)`,
+    )
+  }
+
+
+  if (doesEnterpriseMcpConfigExist()) {
+    throw new Error(
+      `Cannot add MCP server: the managed MCP configuration file (${getEnterpriseMcpFilePath()}) is in force and alone decides which MCP servers exist`,
+    )
+  }
+
+  const validated = McpServerConfigSchema().safeParse(config)
+  if (!validated.success) {
+    const details = validated.error.issues
+      .map(issue => `${issue.path.join('.')}: ${issue.message}`)
+      .join('; ')
+    throw new Error(`Invalid MCP server configuration: ${details}`)
+  }
+  const effective = validated.data
+  const refusal = mcpStdioCommandRefusal(name, effective) ?? mcpStdioCommandRefusal(name, expandServerConfig(effective).config)
+  if (refusal !== null) throw new Error(refusal)
+
+  if (isServerDenied(name, effective)) {
+    throw new Error(`MCP server "${name}" is explicitly blocked by enterprise policy`)
+  }
+  if (!isServerAllowed(name, effective)) {
+    throw new Error(`MCP server "${name}" is not allowed by enterprise policy`)
+  }
+
+  switch (scope) {
+    case 'project': {
+      const mcpJsonPath = lockedProjectMcpFile()
+      const { runExclusiveOnFileSync } = await import('../../utils/config/globalConfig.js')
+      await runExclusiveOnFileSync(mcpJsonPath, async () => {
+        const document = readProjectMcpDocument(mcpJsonPath)
+        if (Object.hasOwn(document.mcpServers, name)) {
+          throw new Error(`MCP server "${name}" already exists in ${mcpJsonPath}`)
+        }
+        await writeProjectMcpFile({ ...document, mcpServers: { ...document.mcpServers, [name]: stripScope(effective) } }, `add MCP server ${name}`)
+      })
+      return
+    }
+    case 'user': {
+      if (Object.hasOwn(getGlobalConfig().mcpServers ?? {}, name)) {
+        throw new Error(`MCP server "${name}" already exists in the user config`)
+      }
+      try {
+        saveGlobalConfig(current => ({
+          ...current,
+          mcpServers: { ...(current.mcpServers ?? {}), [name]: effective },
+        }))
+      } catch (error) {
+        const held = heldWriteFailure(error)
+        if (held !== null) {
+          noteGlobalConfigRefusalSaid()
+          logForDebugging(`Failed to save MCP server ${name} to ${held.path}: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
+          throw new Error(
+            `Could not add MCP server ${name}: ${held.path} could not be written (${held.code}); nothing was written. Close what holds the file, then try again.`,
+          )
+        }
+        throw error
+      }
+      return
+    }
+    case 'local': {
+      if (Object.hasOwn(getCurrentProjectConfig().mcpServers ?? {}, name)) {
+        throw new Error(`MCP server "${name}" already exists in the local config`)
+      }
+      saveCurrentProjectConfig(current => ({
+        ...current,
+        mcpServers: { ...(current.mcpServers ?? {}), [name]: effective },
+      }))
+      return
+    }
+    case 'dynamic':
+    case 'enterprise':
+    case 'claudeai':
+      throw new Error(`Cannot add an MCP server to the ${scope} scope`)
+    default:
+      throw new Error(`Cannot add an MCP server to the ${String(scope)} scope`)
+  }
 }
 
 export async function removeMcpConfig(name: string, scope: ConfigScope, beforeRemoval?: () => void): Promise<void> {

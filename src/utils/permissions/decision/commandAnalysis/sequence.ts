@@ -1,5 +1,4 @@
 import { parseCommandRaw, PARSE_ABORTED, preparedCommandRoot, type Node } from '../../../bash/parser.js'
-import { notBuilt } from '../../../../pi/holes.js'
 
 const SEPARATORS = new Set(['&&', '||', ';', '&', '|', '|&', '\n'])
 const CONTAINERS = new Set(['program', 'list', 'pipeline'])
@@ -51,7 +50,29 @@ export function pipeSpans(rootNode: unknown): Array<{ start: number; end: number
 }
 
 export function withoutRedirects(command: string, input: boolean): string {
-  return notBuilt('src/utils/permissions/decision/commandAnalysis/sequence.ts:52')
+  const root = preparedCommandRoot(command)
+  if (!root) return command
+  const spans: Node[] = []
+  const visit = (node: Node): void => {
+    if (node.type === 'file_redirect') {
+      const operator = node.children.find(child => child.type === '<' || WRITES.has(child.type))
+      const descriptor = node.children.find(child => child.type === 'file_descriptor')
+      const target = node.children.find(child => ['word', 'number', 'raw_string', 'string', 'concatenation'].includes(child.type))
+      if (operator && target && (input ? operator.type === '<' : WRITES.has(operator.type))) {
+        const duplicate = operator.type === '>&' && /^[0-9]+$/.test(target.text)
+        if (!duplicate && (input || descriptor === undefined || descriptor.text === '1')) spans.push(node)
+      }
+      return
+    }
+    if (node.type === 'command_substitution' || node.type === 'process_substitution' || node.type === 'heredoc_body') return
+    for (const child of node.children) visit(child)
+  }
+  visit(root)
+  let text = root.text
+  for (const span of spans.sort((a, b) => b.startIndex - a.startIndex)) {
+    text = text.slice(0, span.startIndex - root.startIndex) + text.slice(span.endIndex - root.startIndex)
+  }
+  return text.trim() || command
 }
 
 export async function parseValidCommandRoot(command: string): Promise<unknown> {

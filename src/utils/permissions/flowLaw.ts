@@ -23,7 +23,6 @@ import { oldFolderPlaces, placesCertain } from './shellProtectedPaths/folders.js
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
 import { readWorldUsesWindowsForms } from '../platform/commandForms.js'
-import { notBuilt } from '../../pi/holes.js'
 
 type FlowItem = 1 | 2 | 3 | 4
 export type FlowAsk = { item: FlowItem; subject: string; why: string }
@@ -296,7 +295,50 @@ function operandsOf(args: readonly string[], valued: ReadonlySet<string> = new S
 }
 
 function peel(argv: readonly string[]): { name: string; args: string[]; fromStdin: boolean } | null {
-  return notBuilt('src/utils/permissions/flowLaw.ts:297')
+  let words = [...argv]
+  let fromStdin = false
+  for (let guard = 0; guard < 8 && words.length > 0; ) {
+    const head = basename(words[0]!).replace(/\.exe$/i, '')
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(words[0]!)) {
+      words = words.slice(1)
+      guard++
+      continue
+    }
+    if (SKIP_KEYWORDS.has(head)) {
+      words = words.slice(1)
+      guard++
+      continue
+    }
+    const layers = layersOf(words)
+    const direct = [...layers].reverse().find(layer => !layer.wrappers.includes('find') && layer.wrappers.length <= 8 - guard && layer.wrappers.every(wrapper => FLOW_WRAPPERS.has(wrapper)))
+    if (direct !== undefined && direct.argv.length < words.length) {
+      if (direct.wrappers.includes('xargs')) fromStdin = true
+      words = direct.argv
+      guard += Math.max(1, direct.wrappers.length)
+      continue
+    }
+    if (/^python[\d.]*$/.test(head) && words[1] === '-m' && words[2] !== undefined) {
+      words = words.slice(2)
+      guard++
+      continue
+    }
+    if (RUNNERS.has(head) || ((head === 'pnpm' || head === 'yarn' || head === 'npm' || head === 'bun') && (words[1] === 'dlx' || words[1] === 'exec' || words[1] === 'x')) || (head === 'pipx' && words[1] === 'run')) {
+      let i = RUNNERS.has(head) ? 1 : 2
+      while (i < words.length && words[i]!.startsWith('-')) {
+        if (/^(?:-p|--package|-c|--call)$/.test(words[i]!)) i++
+        i++
+      }
+      const spec = words[i]
+      if (spec === undefined) return null
+      const tail = spec.startsWith('@') ? spec.split('/').pop() ?? spec : spec
+      words = [tail.replace(/@[^@]*$/, ''), ...words.slice(i + 1)]
+      guard++
+      continue
+    }
+    break
+  }
+  if (words.length === 0) return null
+  return { name: basename(words[0]!).replace(/\.exe$/i, ''), args: words.slice(1), fromStdin }
 }
 
 function subcommandOf(args: readonly string[], valued: RegExp): { sub: string; rest: string[] } | null {
@@ -686,8 +728,92 @@ function redirectShown(simple: ReadCommand, commands: readonly ReadCommand[], op
   return `${head} ${parts.join(' ')}`
 }
 
-async function scanReading(command: string, cwd: string | null, scan: Scan, parent?: Scan, windows?: boolean): Promise<void> {
-  return notBuilt('src/utils/permissions/flowLaw.ts:731')
+async function scanReading(command: string, cwd: string | null, scan: Scan, parent?: Scan, windows = false): Promise<void> {
+  const home = homedir().replace(/\\/g, '/')
+  const read = await readCommand(command, 'posix', { cwd: cwd?.replace(/\\/g, '/'), home, homesRoot: home.slice(0, Math.max(0, home.lastIndexOf('/'))) || '/', ownNames: [], windows })
+  if (read.unread !== undefined && read.unread.text === command) {
+    await scanTokens(command, scan)
+    if (scan.asks.length > 0) {
+      if (parent !== undefined) {
+        parent.asks.push(...scan.asks)
+        parent.cwd = scan.cwd
+      }
+      return
+    }
+  }
+  const places: Array<string | null> | null =
+    read.unread === undefined && !placesCertain(read, command)
+      ? [...new Set<string | null>([cwd, ...oldFolderPlaces(read, command, cwd, () => home), ...read.commands.map(one => one.cwd).filter((folder): folder is string => folder !== undefined)])].slice(0, 8)
+      : null
+  for (const simple of commandOrder(read.commands)) {
+    if (scan.asks.length > 0) break
+    const primary = simple.cwd ?? scan.cwd
+    const folders = places === null ? [primary] : [...new Set<string | null>([primary, ...places])]
+    const around = simple.around ?? simple.text
+    const found = (ask: FlowAsk): void => {
+      if (!preAuthorised(around, scan.rules)) scan.asks.push(ask)
+    }
+    const shown = shownOf(simple)
+    for (let at = 0; at < folders.length; at++) {
+      if (scan.asks.length > 0) break
+      const place = folders[at]!
+      const here: Scan = { ...scan, cwd: place }
+      if (!shown.some(word => /^~\+(?=\/|$)/.test(word))) {
+        await checkCommand(shown, here, simple.text, false, shown)
+      }
+      if (here.asks.length === 0 && !sameWords(shown, simple.argv)) {
+        here.cwd = place
+        await checkCommand(simple.argv, here, simple.text, false, simple.argv)
+      }
+      if (at === 0 && parent !== undefined && !simple.substituted && simple.stages.length === 0 && simple.body === undefined) scan.cwd = here.cwd
+      scan.asks.push(...here.asks.filter(ask => !scan.asks.includes(ask)))
+      scan.aliases = here.aliases ?? scan.aliases
+      if (scan.asks.length > 0) break
+      for (const redirect of simple.redirects) checkRedirect(redirect.op, redirect.target, here, cut(read.unread === undefined ? redirectShown(simple, read.commands, redirect.op, redirect.target, here) : around, 60))
+      scan.asks.push(...here.asks.filter(ask => !scan.asks.includes(ask)))
+      for (const layer of layersOf(simple.argv)) {
+        if (scan.asks.length > 0) break
+        const fed = layer.wrappers.includes('xargs')
+        const computed = layer.argv.some(word => word.includes(UNREAD_PART))
+        if (FLOW_DELETERS.has(layer.program) && (fed || computed)) {
+          const sources: ReadCommand[] = []
+          const seen = new Set<number>()
+          const inner = (indexes: readonly number[]): void => {
+            for (const index of indexes) {
+              const one = read.commands[index]
+              if (one === undefined || seen.has(index)) continue
+              seen.add(index)
+              sources.push(one)
+              inner(one.inner.flat())
+            }
+          }
+          inner(simple.inner.flat())
+          if (fed) for (const earlier of read.commands) if (sharesEarlierStage(earlier, simple)) sources.push(earlier)
+          const words = [...(fed && simple.input !== undefined ? simple.input.split(/\s+/) : []), ...sources.flatMap(source => [...source.argv.slice(1), ...(printedBy(source)?.split(/\s+/) ?? [])])].filter(word => word !== '' && !word.startsWith('-') && !word.includes(UNREAD_PART))
+          for (const source of sources.length > 0 ? sources : [simple]) {
+            const ask = outsideAsk('it deletes', words, { ...here, cwd: at === 0 ? (source.cwd ?? here.cwd) : here.cwd }, [cut(around, 60)])
+            if (ask !== null) {
+              found(ask)
+              break
+            }
+          }
+        }
+        const flag = FLOW_SCRIPT_LANGUAGES.test(layer.program) ? layer.argv.findIndex((word, index) => index > 0 && /^-(?:e|c|p|E|r)$/.test(word)) : -1
+        if (flag >= 0 && scan.asks.length === 0) {
+          const ask = outsideAsk('it deletes or overwrites', inlineScriptWriteTargets(layer.argv.slice(flag + 1).join(' ')), here, [cut(around, 60)])
+          if (ask !== null) found(ask)
+        }
+      }
+    }
+  }
+  if (!windows && scan.asks.length === 0 && readWorldUsesWindowsForms() && /^[A-Za-z]:\//.test(home)) {
+    const entersHome = (word: string): boolean => word === '~' || word.startsWith('~/') || word === home || word.startsWith(`${home}/`)
+    if (read.commands.some(one => moveOf(one)?.operands.some(entersHome))) await scanReading(command, cwd, { ...scan, cwd, aliases: new Map(scan.aliases) }, undefined, true)
+  }
+  if (parent !== undefined) {
+    parent.asks.push(...scan.asks)
+    parent.cwd = scan.cwd
+  }
 }
 
 export async function flowShellAsk(command: string, cwd: string, shell: 'bash' | 'powershell' = 'bash', rules?: ToolPermissionContext): Promise<FlowAsk | null> {

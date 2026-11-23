@@ -32,7 +32,6 @@ import { FOLDED_RESULT_KEY } from '../verbatimTail.js'
 import { POST_COMPACT_MAX_FILES_TO_RESTORE, POST_COMPACT_TOKEN_BUDGET, POST_COMPACT_MAX_TOKENS_PER_FILE, POST_COMPACT_MAX_TOKENS_PER_SKILL, POST_COMPACT_SKILLS_TOKEN_BUDGET, ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } from './limits.js'
 import { type CompactionResult, buildPostCompactMessages } from './result.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
-import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
 
 export function collectPreservedReadPaths(preserved: Message[], resultIds?: ReadonlySet<string>): Set<string> {
   const stubs = new Set<string>()
@@ -227,8 +226,30 @@ function describeAttachment(message: AttachmentMessage): string {
   return attachment.type
 }
 
-export function fitPostCompactUnderThreshold(result: CompactionResult, threshold: number, count?: Unbuilt): PostCompactFit {
-  return notBuilt('src/services/compact/compact/attachments.ts:227')
+export function fitPostCompactUnderThreshold(result: CompactionResult, threshold: number, count = estimateContextTokens): PostCompactFit {
+  let current = result
+  let estimate = count(buildPostCompactMessages(current))
+  const shed: string[] = []
+  for (const kind of POST_COMPACT_SHEDDABLE_ATTACHMENT_TYPES) {
+    while (estimate >= threshold) {
+      let victim = -1
+      let victimSize = -1
+      current.attachments.forEach((message, index) => {
+        if (message.attachment.type !== kind) return
+        const size = estimateContextTokens([message])
+        if (size > victimSize) {
+          victim = index
+          victimSize = size
+        }
+      })
+      if (victim < 0) break
+      shed.push(describeAttachment(current.attachments[victim] as AttachmentMessage))
+      current = { ...current, attachments: current.attachments.filter((_, index) => index !== victim) }
+      estimate = count(buildPostCompactMessages(current))
+    }
+    if (estimate < threshold) break
+  }
+  return { result: current, estimate, shed }
 }
 
 export function obligationsOverThresholdMessage(estimate: number, threshold: number): string {

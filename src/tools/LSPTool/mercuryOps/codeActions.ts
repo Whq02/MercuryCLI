@@ -10,7 +10,6 @@ import { pullFileDiagnostics } from './pull.js'
 import { prepareApply } from './prepare.js'
 import { previewOf } from './preview.js'
 import { applyPrepared } from './apply.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 export type WireCodeAction = {
   title: string
@@ -37,14 +36,52 @@ async function fetchCodeActions(
   contextDiagnostics: LspWireDiagnostic[],
   only?: string[],
 ): Promise<WireCodeAction[]> {
-  return notBuilt('src/tools/LSPTool/mercuryOps/codeActions.ts:33')
+  const uri = pathToFileURL(resolve(env.absolutePath)).href
+  const response = await env.manager.sendRequest<Array<WireCodeAction | null> | null>(
+    env.absolutePath,
+    'textDocument/codeAction',
+    {
+      textDocument: { uri },
+      range,
+      context: {
+        diagnostics: contextDiagnostics,
+        ...(only !== undefined ? { only } : {}),
+      },
+    },
+  )
+  if (!Array.isArray(response)) return []
+  return response.filter(
+    (action): action is WireCodeAction =>
+      action !== null && typeof action === 'object' && typeof action.title === 'string',
+  )
 }
 
 async function resolveActionEdit(
   env: OpEnv,
   action: WireCodeAction,
 ): Promise<{ edit?: WorkspaceEditLike; resolveFailure?: string }> {
-  return notBuilt('src/tools/LSPTool/mercuryOps/codeActions.ts:59')
+  if (action.edit) return { edit: action.edit }
+  const claimant = env.manager.getServerForFile(env.absolutePath)
+  const capabilities = claimant?.capabilities as ServerCapabilities | undefined
+  const resolveProvider = Boolean(
+    (capabilities?.codeActionProvider as { resolveProvider?: boolean } | undefined)
+      ?.resolveProvider,
+  )
+  if (!resolveProvider) return {}
+  try {
+    const resolved = await env.manager.sendRequest<WireCodeAction | null>(
+      env.absolutePath,
+      'codeAction/resolve',
+      action,
+    )
+    return resolved?.edit ? { edit: resolved.edit } : {}
+  } catch (error) {
+    const failure = error instanceof Error ? error.message : String(error)
+    logForDebugging(
+      `lsp ops: codeAction/resolve failed for "${action.title}": ${failure}`,
+    )
+    return { resolveFailure: failure }
+  }
 }
 
 export function inputRange(input: MercuryLspOpInput): LspRangeLike {

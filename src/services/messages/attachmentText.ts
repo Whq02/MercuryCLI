@@ -26,7 +26,6 @@ import { samplesRoadText } from '../../utils/attachments/samplesRoad.js'
 import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
 import { mapResultToBlock } from '../../tools/BashTool/resultBlock.js'
 import { mapToolResultToToolResultBlockParam } from '../../tools/FileReadTool/read/resultBlock.js'
-import { notBuilt } from '../../pi/holes.js'
 
 type Kind = Attachment['type']
 type Of<K extends Kind> = Extract<Attachment, { type: K }>
@@ -117,7 +116,31 @@ const workingSetGuidance = 'These are evidence-ranked STARTING POINTS (exact tas
 const protectReminder = (body: string): string => body.replace(/<(\/?)system-reminder/g, '<\u200b$1system-reminder')
 
 function capsuleRows(capsule: Of<'context_capsule'>): UserMessage[] {
-  return notBuilt('src/services/messages/attachmentText.ts:102')
+  if (!capsule.sections) {
+    return reminders(`${capsule.markdown}\n\n${workingSetGuidance}\ncapsule-digest:${capsule.digest}${capsule.delta ? `\nWorking-set delta vs the previous capsule: ${capsule.delta}` : ''}`)
+  }
+  const sequence: Array<string | ContentBlockParam> = ['<system-reminder>\n', protectReminder(capsule.markdown || '# Working set')]
+  if (capsule.markdown) sequence.push('\n\n' + workingSetGuidance)
+  if (capsule.workingSet?.length) sequence.push('\n\n' + capsule.workingSet.map(item => protectReminder(`- ${item.ref} — ${item.reason}`)).join('\n'))
+  for (const section of capsule.sections) {
+    sequence.push('\n\n## ' + protectReminder(section.name))
+    sequence.push(...section.content.map(block => block.type === 'text' ? '\n\n' + protectReminder(block.text) : block))
+  }
+  sequence.push('\n\ncapsule-digest:' + protectReminder(capsule.digest))
+  if (capsule.delta) sequence.push('\nWorking-set delta vs the previous capsule: ' + protectReminder(capsule.delta))
+  sequence.push('\n</system-reminder>')
+  const content: ContentBlockParam[] = []
+  let pending = ''
+  for (const part of sequence) {
+    if (typeof part === 'string') pending += part
+    else {
+      if (pending) content.push(text(pending))
+      pending = ''
+      content.push(part)
+    }
+  }
+  if (pending) content.push(text(pending))
+  return [meta(content)]
 }
 
 function skillListing(listing: Of<'skill_listing'>): UserMessage[] {
@@ -147,7 +170,21 @@ function taskRows(tasks: Of<'task_reminder'>): UserMessage[] {
 }
 
 function rosterLine(row: Of<'agent_roster'>['rows'][number]): string {
-  return notBuilt('src/services/messages/attachmentText.ts:155')
+  const address = row.address === null
+    ? `reach it: ${TASK_STOP_TOOL_NAME} by its id`
+    : row.status === 'running' ? `reach it: ${SEND_MESSAGE_TOOL_NAME} to "${row.address}"` : `resume it: ${RESUME_AGENT_TOOL_NAME} to "${row.address}"`
+  const fields = [
+    `${row.taskType} "${row.name}" [${row.taskId}]: ${row.status}`,
+    row.wait,
+    row.phase ? `phase: ${row.phase}` : '',
+    row.agents?.length ? `crewmates: ${row.agents.map(agent => `${agent.label} — ${agent.state}`).join(', ')}` : '',
+    row.description && row.description !== row.name ? `asked: ${row.description}` : '',
+    row.error ? `error: ${row.error}` : '',
+    row.owed ? `owed: ${row.owed}` : '',
+    address,
+    row.outputFilePath ? `output: ${row.outputFilePath}` : '',
+  ]
+  return '- ' + fields.filter(Boolean).join(' · ')
 }
 
 function rosterRows(roster: Of<'agent_roster'>): UserMessage[] {

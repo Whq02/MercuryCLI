@@ -52,6 +52,10 @@ type IsEqual<A, B> =
 type Assert<T extends true> = T
 
 
+type EveryTaskTypeClassified = Assert<IsEqual<TaskType, ClassifiedTaskType>>
+
+void (true satisfies EveryTaskTypeClassified)
+
 type ViewedAgent = {
   kind: 'local_agent'
   taskId: string

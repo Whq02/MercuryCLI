@@ -55,7 +55,6 @@ import { taskRow } from '../../rows/project.js'
 import { NOTIFICATION_RESULT_CAP_CHARS } from '../../services/agentResults/summaryRoom.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
-import { notBuilt, unbuilt } from '../../pi/holes.js'
 
 
 const DEFAULT_AGENT_TYPE = 'mercury-crew'
@@ -658,7 +657,11 @@ export function registerAgentForeground(args: {
 }
 
 export function registerAgentName(name: string, agentId: string, setAppState: SetAppState): void {
-  return notBuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:641')
+  setAppState(prev => {
+    const next = new Map(prev.agentNameRegistry)
+    next.set(name, asAgentId(agentId))
+    return { ...prev, agentNameRegistry: next }
+  })
 }
 
 export function backgroundAgentTask(
@@ -691,7 +694,18 @@ export function handOverForegroundAgentsToQueuedMessage(
 }
 
 export function unregisterAgentForeground(taskId: string, setAppState: SetAppState): void {
-  return notBuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:678')
+  let cleanupToRun: (() => void) | undefined
+  setAppState(prevState => {
+    const task = prevState.tasks?.[taskId]
+    if (!task || !isLocalAgentTask(task)) return prevState
+    if (task.isBackgrounded) return prevState
+    cleanupToRun = task.cleanup
+    const tasks = { ...prevState.tasks }
+    delete tasks[taskId]
+    return { ...prevState, tasks }
+  })
+  backgroundSignalResolvers.delete(taskId)
+  cleanupToRun?.()
 }
 
 export function settleAgentForeground(
@@ -1165,4 +1179,11 @@ export function enqueueAgentNotification(args: {
 }
 
 
-export const LocalAgentTask: Task = unbuilt('src/tasks/LocalAgentTask/LocalAgentTask.tsx:1164')
+export const LocalAgentTask: Task = {
+  name: 'LocalAgentTask',
+  type: 'local_agent',
+  async kill(taskId, setAppState) {
+    logForDebugging(`killing agent task ${taskId}`)
+    killAsyncAgent(taskId, setAppState)
+  },
+}

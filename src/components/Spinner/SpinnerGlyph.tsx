@@ -29,6 +29,14 @@ const glyphAt = (frame: number, cadence: Cadence): string => {
   return FRAMES[index % FRAMES.length]!
 }
 
+function attentionColor(theme: Theme, messageColor: keyof Theme, intensity: number): string {
+  const base = theme[messageColor]
+  const baseRGB = base ? parseRGB(base) : null
+  const warningRGB = parseRGB(theme.warning)
+  if (baseRGB && warningRGB) return toRGBColor(interpolateColor(baseRGB, warningRGB, intensity))
+  return intensity >= STILL_WAITING_MAX_INTENSITY / 2 ? 'warning' : messageColor
+}
+
 function Cell({ color, dim = false, children }: { color: string; dim?: boolean; children: string }): React.ReactNode {
   return (
     <Box flexWrap="wrap" height={1} width={2}>

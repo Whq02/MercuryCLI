@@ -7,7 +7,6 @@ import { LRUCache } from 'lru-cache'
 import { logForDebugging } from '../../utils/debug.js'
 import type { Diagnostic, DiagnosticFile } from '../../utils/diagnosticTracking.js'
 import { MAIN_LANE, parseOwnerKey, type OwnerKey } from '../../utils/run/ownerKey.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 type Lane = OwnerKey | null
@@ -155,7 +154,35 @@ function boundRootClaims(): void {
 }
 
 export function releaseDiagnosticsWriter(owner: OwnerKey, worktree?: string): void {
-  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:156')
+  const lane = laneOf(owner)
+  if (lane === null) return
+  const root = worktree !== undefined ? normaliseRoot(worktree) : roots.get(lane)
+  let dropped = 0
+  let handed = 0
+  for (const [pendingId, entry] of pending) {
+    if (entry.owner !== lane) continue
+    const kept = root === undefined ? entry.files : entry.files.filter(file => !underRoot(plainPathKey(file.uri), root))
+    dropped += entry.files.length - kept.length
+    if (kept.length === 0) {
+      pending.delete(pendingId)
+      continue
+    }
+    entry.files = kept
+    entry.owner = null
+    handed += kept.length
+  }
+  for (const [fileKey, writer] of writers.entries()) if (writer === lane) writers.delete(fileKey)
+  for (const [fileKey, entry] of awaitingWrites) if (entry.owner === lane) awaitingWrites.delete(fileKey)
+  if (root !== undefined) {
+    roots.delete(lane)
+    roots.set(lane, root)
+    ended.add(lane)
+    boundRootClaims()
+  } else {
+    roots.delete(lane)
+    ended.delete(lane)
+  }
+  logForDebugging(`LSP diagnostics: lane ${lane} handed back — ${dropped} worktree file publish${dropped === 1 ? '' : 'es'} dropped, ${handed} shared-tree file publish${handed === 1 ? '' : 'es'} returned to the main lane${root !== undefined ? ` (root ${root} sunk)` : ''}`)
 }
 
 function armAwaitingWrite(lane: Lane, fileKey: string, docVersion: number | undefined): void {
@@ -347,11 +374,65 @@ function staleAgainstWriteBaseline(serverName: string, uri: string, version: num
 }
 
 export function snapshotDiagnosticsBeforeWrite(path: string, before: string | null, after: string, docVersion: number | undefined, owner?: OwnerKey): void {
-  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:379')
+  const fileKey = plainPathKey(path)
+  const lane = laneOf(owner)
+  claimWriter(lane, fileKey)
+  armAwaitingWrite(lane, fileKey, docVersion)
+  for (const [pendingId, entry] of pending) {
+    const kept = entry.files.filter(file => plainPathKey(file.uri) !== fileKey)
+    if (kept.length === entry.files.length) continue
+    if (kept.length === 0) pending.delete(pendingId)
+    else entry.files = kept
+    logForDebugging(`LSP diagnostics: ${entry.serverName}'s publish for ${fileKey} predates the write — no data until it publishes again`)
+  }
+  let step: LineShiftStep | null = null
+  try {
+    step = before === null ? null : lineShiftStepBetween(before, after)
+  } catch (err) {
+    logForDebugging(`LSP diagnostics: no line map for ${fileKey}, the write reports as a first write: ${String(err).slice(0, 100)}`)
+  }
+  if (step === null) {
+    writeBaselines.delete(fileKey)
+    return
+  }
+  const previous = writeBaselines.peek(fileKey)
+  const next = new Map<string, WriteBaseline>()
+  for (const suffix of [`::${fileKey}`, `::file://${fileKey}`]) {
+    for (const [ledgerKey, report] of lastReports.entries()) {
+      if (!ledgerKey.endsWith(suffix)) continue
+      const serverName = ledgerKey.slice(0, ledgerKey.length - suffix.length)
+      const earlier = previous?.get(serverName)
+      next.set(serverName, earlier !== undefined && earlier.report === report ? { report, steps: [...earlier.steps, step], docVersion } : { report, steps: [step], docVersion })
+    }
+  }
+  if (next.size === 0) {
+    writeBaselines.delete(fileKey)
+    return
+  }
+  writeBaselines.set(fileKey, next)
+  logForDebugging(`LSP diagnostics: baseline for ${fileKey} snapshotted before the write (${[...next.keys()].join(', ')}; document version ${docVersion ?? 'unknown'})`)
 }
 
 export function noteOutOfBandWrite(path: string, versions: ReadonlyArray<{ serverName: string; docVersion: number }>): void {
-  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:419')
+  const fileKey = plainPathKey(path)
+  for (const [pendingId, entry] of pending) {
+    const kept = entry.files.filter(file => plainPathKey(file.uri) !== fileKey)
+    if (kept.length === entry.files.length) continue
+    if (kept.length === 0) pending.delete(pendingId)
+    else entry.files = kept
+    logForDebugging(`LSP diagnostics: ${entry.serverName}'s publish for ${fileKey} predates a write outside the tools — no data until it publishes the re-synced text`)
+  }
+  const previous = writeBaselines.peek(fileKey)
+  const next = new Map<string, WriteBaseline>(previous ?? [])
+  for (const { serverName, docVersion } of versions) {
+    const report = lastReports.get(`${serverName}::${fileKey}`) ?? lastReports.get(`${serverName}::file://${fileKey}`)
+    if (report === undefined) continue
+    const earlier = previous?.get(serverName)
+    next.set(serverName, earlier !== undefined && earlier.report === report ? { ...earlier, docVersion } : { report, steps: [], docVersion })
+  }
+  if (next.size === 0) return
+  writeBaselines.set(fileKey, next)
+  logForDebugging(`LSP diagnostics: baseline for ${fileKey} pinned at a write outside the tools (${[...next.keys()].join(', ')}; document version ${versions.map(row => row.docVersion).join('/')})`)
 }
 
 export function _writeBaselineForTesting(path: string): Array<{ serverName: string; steps: number; docVersion: number | undefined }> {
@@ -361,7 +442,7 @@ export function _writeBaselineForTesting(path: string): Array<{ serverName: stri
 }
 
 export function _pendingForTesting(): Array<{ serverName: string; uris: string[]; owner: OwnerKey | null }> {
-  return notBuilt('src/services/lsp/LSPDiagnosticRegistry.ts:447')
+  return [...pending.values()].filter(entry => !entry.attachmentSent).map(entry => ({ serverName: entry.serverName, uris: entry.files.map(file => file.uri), owner: entry.owner }))
 }
 
 export function _writerForTesting(path: string): OwnerKey | null {

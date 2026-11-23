@@ -39,7 +39,6 @@ import {
 } from '../../services/engine-connector/crewFacts.js'
 import type { AgentToolOutput } from './AgentTool.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
 
 function ExpandHint({ parens }: { parens?: boolean }): React.ReactNode {
   return (
@@ -186,7 +185,9 @@ export function userFacingName(input?: AgentUiInput): string {
 export function userFacingNameBackgroundColor(
   input?: AgentUiInput,
 ): string | undefined {
-  return notBuilt('src/tools/AgentTool/UI.tsx:186')
+  const type = input?.crewmate_type
+  if (!type) return undefined
+  return getAgentColor(type)
 }
 
 export function renderToolUseMessage(

@@ -20,7 +20,6 @@ import { POWERSHELL_TOOL_NAME } from '../../constants/tools/powershell.js'
 import { resolveShellCwd } from '../../utils/Shell.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export const DOOR_CLOSED_CAUSE = 'the host closed the runner door while the ask was pending'
 
@@ -126,7 +125,132 @@ export function decisionOfAnswer(
 }
 
 function createHostCanUseTool(channel: AskChannel): CanUseToolFn {
-  return notBuilt('src/cli/headless/runnerAsks.ts:127')
+  const canUseTool: CanUseToolFn = async (tool, input, toolUseContext, assistantMessage, toolUseID, forceDecision) => {
+    const key = randomUUID()
+    const parentSignal = toolUseContext.abortController.signal
+    const requestController = new AbortController()
+    let awayTimer: ReturnType<typeof setTimeout> | undefined
+    let away = false
+    let askLimit = 0
+    const forwardParentAbort = (): void => requestController.abort()
+    parentSignal.addEventListener('abort', forwardParentAbort, { once: true })
+    try {
+      const engineResult = (forceDecision ?? (await hasPermissionsToUseTool(tool, input, toolUseContext, assistantMessage, toolUseID))) as PermissionDecision
+      if (engineResult.behavior === 'allow' || engineResult.behavior === 'deny') return engineResult
+
+      const permissionMode = (toolUseContext.getAppState() as { toolPermissionContext: { mode: string } }).toolPermissionContext.mode
+      const wireMode = (PERMISSION_MODES as readonly string[]).includes(permissionMode) ? (permissionMode as PermissionMode) : undefined
+      askLimit = askLimitMs({ mode: permissionMode, crewmate: toolUseContext.agentId !== undefined })
+      const askResult = engineResult as { suggestions?: PermissionUpdate[]; blockedPath?: string; decisionReason?: PermissionDecisionReason }
+
+      const hookDecisionPromise = (async (): Promise<HookFireResult | null> => {
+        const asked = await fireHooks(
+          'permission.ask',
+          { tool: tool.name, input, call_id: toolUseID, ...(askResult.suggestions !== undefined ? { suggestions: askResult.suggestions } : {}) },
+          { scope: { sessionId: String(getSessionId()), ...(toolUseContext.agentId !== undefined ? { crewmateId: toolUseContext.agentId } : {}) }, signal: parentSignal, toolUseContext, permissionMode },
+        )
+        return asked.answer.block !== undefined || asked.answer.permission === 'allow' || asked.answer.stop !== undefined ? asked : null
+      })()
+
+      const reason = serializeDecisionReason(askResult.decisionReason)
+      const reasonDetail = encodeDecisionReasonForWire(askResult.decisionReason)
+      const description = tool.isMcp === true
+        ? await tool.description(input, {
+            isNonInteractiveSession: toolUseContext.options.isNonInteractiveSession,
+            toolPermissionContext: toolUseContext.getAppState().toolPermissionContext,
+            tools: toolUseContext.options.tools,
+          })
+        : undefined
+      const params: ToolAskParams = {
+        kind: 'tool',
+        tool_use_id: toolUseID,
+        tool_name: tool.name,
+        title: describeToolAction(tool as Tool, input),
+        ...(description !== undefined ? { description } : {}),
+        input,
+        ...(askResult.suggestions !== undefined && askResult.suggestions.length > 0 ? { suggestions: askResult.suggestions } : {}),
+        ...(askResult.blockedPath !== undefined ? { blocked_path: askResult.blockedPath } : {}),
+        ...(tool.name === BASH_TOOL_NAME || tool.name === POWERSHELL_TOOL_NAME ? { cwd: resolveShellCwd(typeof input.cwd === 'string' ? input.cwd : undefined) } : {}),
+        ...(reason !== undefined ? { reason } : {}),
+        ...(reasonDetail !== undefined ? { reason_detail: reasonDetail } : {}),
+        ...(toolUseContext.agentId !== undefined ? { agent_id: toolUseContext.agentId } : {}),
+        ...(wireMode !== undefined ? { mode: wireMode } : {}),
+      }
+      const requestPromise = channel.askPermission(params, {
+        signal: requestController.signal,
+        key,
+        recheck: async () => {
+          const context = toolUseContext.getAppState().toolPermissionContext
+          const fresh = await hasPermissionsToUseTool(tool, input, toolUseContext, assistantMessage, toolUseID)
+          return toolUseContext.getAppState().toolPermissionContext === context ? fresh : undefined
+        },
+      })
+      if (askLimit > 0) {
+        awayTimer = startTimeout(() => {
+          away = true
+          requestController.abort(askExpiredCause(askLimit))
+        }, askLimit)
+      }
+
+      const raceOutcome = await Promise.race([
+        hookDecisionPromise.then(decision => ({ source: 'hook' as const, decision })),
+        requestPromise.then(answer => ({ source: 'host' as const, answer })),
+      ])
+
+      if (away) return decisionOfAnswer({ outcome: 'deny', message: unansweredAskRefusal(tool.name, askLimit), unanswered: true }, tool as Tool, input, toolUseContext)
+      if (raceOutcome.source === 'hook' && raceOutcome.decision) {
+        const asked = raceOutcome.decision
+        const hookNames = asked.outcomes.map(outcome => outcome.name).join(', ')
+        requestController.abort()
+        requestPromise.catch(passedOver)
+        if (asked.answer.stop !== undefined) toolUseContext.abortController.abort()
+        if (asked.answer.block === undefined && asked.answer.stop === undefined) {
+          if (asked.answer.rules?.length) {
+            persistPermissionUpdates(asked.answer.rules)
+            let changed = false
+            toolUseContext.setAppState(previous => {
+              const updated = applyPermissionUpdates(previous.toolPermissionContext, asked.answer.rules ?? [])
+              if (updated === previous.toolPermissionContext) return previous
+              changed = true
+              return { ...previous, toolPermissionContext: updated }
+            })
+            if (changed) void channel.recheckPendingPermissionRequests()
+          }
+          return {
+            behavior: 'allow',
+            updatedInput: asked.answer.input ?? input,
+            userModified: false,
+            decisionReason: { type: 'hook', hookName: hookNames },
+          }
+        }
+        return {
+          behavior: 'deny',
+          message: asked.answer.block ?? asked.answer.stop ?? `a hook (${hookNames}) denied this ${tool.name} call`,
+          decisionReason: { type: 'hook', hookName: hookNames, reason: asked.answer.block ?? asked.answer.stop },
+        }
+      }
+
+      const answer = raceOutcome.source === 'host' ? raceOutcome.answer : await requestPromise
+      return answer.rechecked ?? decisionOfAnswer(answer, tool as Tool, input, toolUseContext, () => {
+        void channel.recheckPendingPermissionRequests()
+      })
+    } catch (error) {
+      if (away) return decisionOfAnswer({ outcome: 'deny', message: unansweredAskRefusal(tool.name, askLimit), unanswered: true }, tool as Tool, input, toolUseContext)
+      const unanswered = parentSignal.aborted ? unansweredAskCause(parentSignal.reason) : undefined
+      if (unanswered !== undefined) {
+        return decisionOfAnswer({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(tool.name, unanswered), unanswered: true }, tool as Tool, input, toolUseContext)
+      }
+      return {
+        behavior: 'deny',
+        message: `Tool permission request failed: ${error instanceof Error ? error.message : String(error)}`,
+        decisionReason: { type: 'other', reason: 'permission request failed' },
+      }
+    } finally {
+      if (awayTimer !== undefined) stopTimeout(awayTimer)
+      parentSignal.removeEventListener('abort', forwardParentAbort)
+    }
+  }
+  return canUseTool
 }
 
 type ParkedAsk = {

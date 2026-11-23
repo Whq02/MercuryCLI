@@ -9,7 +9,6 @@ import { logForDebugging } from '../../../utils/debug.js'
 import type { LspWireDiagnostic } from './shared.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../../../utils/timers.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 type DiagnosticsBaseline = {
   generationKey: string
@@ -152,7 +151,97 @@ export async function pullFileDiagnostics(
   manager: LSPServerManager,
   absolutePath: string,
 ): Promise<PullDiagnosticsOutcome> {
-  return notBuilt('src/tools/LSPTool/mercuryOps/pull.ts:150')
+  const claimants = manager.getServersForFile(absolutePath)
+  if (claimants.length === 0) {
+    return { kind: 'no-claimant' }
+  }
+  const uri = pathToFileURL(resolve(absolutePath)).href
+  const docVersion = manager.getDocumentVersion(absolutePath)
+  const pulledItems: LspWireDiagnostic[] = []
+  const pulledFrom: string[] = []
+  const pushOnlyNames: string[] = []
+  const failed: ClaimantFailure[] = []
+  let anyFresh = false
+  let violation: string | null = null
+  for (const server of claimants) {
+    if (server.state === 'stopped' || server.state === 'error') {
+      try {
+        await server.start()
+      } catch (err) {
+        failed.push({ server, stage: 'start', cause: isLspStartFailure(err) ? err.lspCause : startFailureCause(server.name, err), ...(isLspStartFailure(err) ? { startFailure: err } : {}) })
+        continue
+      }
+    }
+    const capabilities = server.capabilities as ServerCapabilities | undefined
+    if (!capabilities?.diagnosticProvider) {
+      pushOnlyNames.push(server.name)
+      continue
+    }
+    const generationKey = `${server.name}#${server.generation}`
+    const baselineKey = `${server.name}::${uri}`
+    const baseline = diagnosticsBaselines.get(baselineKey)
+    const baselineUsable =
+      baseline !== undefined &&
+      baseline.generationKey === generationKey &&
+      baseline.docVersion === docVersion &&
+      baseline.resultId !== undefined
+    const params: Record<string, unknown> = { textDocument: { uri } }
+    if (baselineUsable) params.previousResultId = baseline.resultId
+    let response: { kind?: string; resultId?: string; items?: LspWireDiagnostic[] } | undefined | null
+    try {
+      response = await server.sendRequest<{
+        kind?: string
+        resultId?: string
+        items?: LspWireDiagnostic[]
+      }>('textDocument/diagnostic', params)
+    } catch (err) {
+      logForDebugging(`lsp ops: pull from ${server.name} failed: ${String(err)}`)
+      failed.push({ server, stage: 'pull', cause: requestFailureCause(server, 'textDocument/diagnostic', err) })
+      continue
+    }
+    if (response === undefined || response === null) continue
+    if (response.kind === 'unchanged') {
+      if (!baselineUsable) {
+        violation = `${server.name} answered 'unchanged' without a baseline to be unchanged against (protocol violation)`
+        continue
+      }
+      pulledItems.push(...baseline.items)
+      pulledFrom.push(server.name)
+      continue
+    }
+    const items = Array.isArray(response.items) ? response.items : []
+    diagnosticsBaselines.set(baselineKey, {
+      generationKey,
+      docVersion,
+      resultId: response.resultId,
+      items,
+    })
+    pulledItems.push(...items)
+    pulledFrom.push(server.name)
+    anyFresh = true
+  }
+  const pushed = await harvestPublishedReports(
+    absolutePath,
+    pushOnlyNames,
+    pulledFrom.length > 0 ? 1_500 : 5_000,
+  )
+  const pushedNames = pushed.map(p =>
+    p.ageMs > 5_000 ? `${p.serverName} (${Math.round(p.ageMs / 1000)}s ago)` : p.serverName,
+  )
+  for (const p of pushed) pulledItems.push(...p.items)
+  if (pulledFrom.length === 0 && pushed.length === 0) {
+    if (violation) return { kind: 'protocol-violation', detail: violation }
+    if (failed.length > 0) return { kind: 'unavailable', failed }
+    return { kind: 'unsupported', pushOnly: pushOnlyNames }
+  }
+  return {
+    kind: anyFresh || pushed.length > 0 ? 'fresh' : 'unchanged',
+    items: pulledItems,
+    docVersion,
+    ...(pulledFrom.length > 0 ? { pulledFrom } : {}),
+    ...(pushedNames.length > 0 ? { pushed: pushedNames } : {}),
+    ...(failed.length > 0 ? { failed } : {}),
+  }
 }
 
 export function unavailableWords(failed: ClaimantFailure[], path: string, cwd: string): { what: string; remedy: string; servers: Array<{ server: string; cause: string }> } {

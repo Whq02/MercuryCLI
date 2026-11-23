@@ -6,7 +6,6 @@ import type { HooksSettings } from '../settings/types.js'
 import { logForDebugging } from '../debug.js'
 import { HOOK_EVENTS, type HookEvent } from './contract.js'
 import type { HookSource, LayeredHook } from './hooksConfigSnapshot.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export type HookScope = { sessionId: string; crewmateId?: string; cwd?: string }
 
@@ -47,11 +46,35 @@ export function addSessionHooks(
   map: HooksSettings,
   source: SessionHookSource,
 ): number {
-  return notBuilt('src/utils/hooks/sessionHooks.ts:43')
+  const hooks: LayeredHook[] = []
+  for (const event of HOOK_EVENTS) {
+    for (const entry of map[event] ?? []) hooks.push({ event, entry, source })
+  }
+  if (hooks.length === 0) return 0
+  const key = hookScopeKey(scope)
+  setAppState(prevState => {
+    const store = ensureStore(prevState, key)
+    store.sets = store.sets.filter(set => !sameSource(set.source, source))
+    store.sets.push({ source, hooks })
+    logForDebugging(`session hooks added: ${hooks.length} from ${sourceLabel(source)} (${key})`)
+    return prevState
+  })
+  return hooks.length
 }
 
 export function removeSessionHooks(setAppState: SetAppState, scope: HookScope, source?: SessionHookSource): void {
-  return notBuilt('src/utils/hooks/sessionHooks.ts:65')
+  const key = hookScopeKey(scope)
+  setAppState(prevState => {
+    if (source === undefined) {
+      prevState.sessionHooks.delete(key)
+      return prevState
+    }
+    const store = prevState.sessionHooks.get(key)
+    if (store === undefined) return prevState
+    store.sets = store.sets.filter(set => !sameSource(set.source, source))
+    if (store.sets.length === 0) prevState.sessionHooks.delete(key)
+    return prevState
+  })
 }
 
 function setIsLive(set: SessionHookSet): boolean {
@@ -70,7 +93,22 @@ export function sessionHooksFor(appState: AppState, scope: HookScope, event?: Ho
 }
 
 export function pruneSkillSessionHooks(setAppState: SetAppState, sessionId: string, liveSkillRoots: ReadonlySet<string>): string[] {
-  return notBuilt('src/utils/hooks/sessionHooks.ts:95')
+  const removed = new Set<string>()
+  setAppState(prevState => {
+    const store = prevState.sessionHooks.get(sessionId)
+    if (store === undefined) return prevState
+    store.sets = store.sets.filter(set => {
+      if (set.source.kind !== 'skill' || liveSkillRoots.has(set.source.root)) return true
+      removed.add(set.source.root)
+      return false
+    })
+    if (store.sets.length === 0) prevState.sessionHooks.delete(sessionId)
+    if (removed.size > 0) {
+      logForDebugging(`session hooks of ${removed.size} de-applied skill(s) removed (${sessionId}): ${[...removed].join(', ')}`)
+    }
+    return prevState
+  })
+  return [...removed]
 }
 
 export function liveSkillRootsOf(commands: ReadonlyArray<{ name: string; skillRoot?: string }>): Set<string> {

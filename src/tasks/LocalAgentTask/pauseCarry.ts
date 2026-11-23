@@ -15,7 +15,6 @@ import { notifyTasksUpdated } from '../../utils/tasks.js'
 import { decodeAgentPause, type AgentPauseV1 } from './agentPause.js'
 import { AGENT_RESUME_DOOR, AGENT_WINDOW_RESUME_NOTE, enqueueAgentReceiptRow, isLocalAgentTask, type LocalAgentTaskState } from './LocalAgentTask.js'
 import { passedOverAs } from '../../utils/passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
 
 type AgentPauseRecordFacts = {
   description: string
@@ -124,5 +123,70 @@ type PauseCarryPorts = {
 }
 
 export async function carryPausedCrewmatesOnResume(ports: PauseCarryPorts): Promise<string[]> {
-  return notBuilt('src/tasks/LocalAgentTask/pauseCarry.ts:125')
+  const records = await listAgentPauseRecords()
+  if (records.length === 0) return []
+  const now = ports.now ?? Date.now()
+  const { armBudgetCutResume, armOverloadProbe, windowPauseResumeDelayMs } = await import('../../tools/AgentTool/agentToolUtils.js')
+  const carried: string[] = []
+  let context: ToolUseContext | undefined
+  for (const { agentId, record } of records) {
+    const standing = ports.getAppState().tasks?.[agentId]
+    if (isLocalAgentTask(standing) && standing.status === 'running') {
+      await clearAgentPauseRecord(agentId).catch(passedOverAs(undefined))
+      continue
+    }
+    const metadata = await readAgentMetadata(agentId).catch(passedOverAs(null))
+    const registration = new AbortController()
+    ports.setAppState(prev => {
+      const previous = prev.tasks[agentId]
+      const base = isLocalAgentTask(previous)
+        ? previous
+        : {
+            ...createTaskStateBase({ task_id: agentId, task_type: 'local_agent', description: record.description, call_id: record.toolUseId ?? '' }),
+            type: 'local_agent' as const,
+            agentId,
+            prompt: '',
+            agentType: metadata?.agentType ?? 'mercury-crew',
+            startTime: metadata?.launchedAt ?? record.armedAt,
+            isBackgrounded: true,
+            retain: false,
+          }
+      const row: LocalAgentTaskState = {
+        ...base,
+        status: 'failed',
+        endTime: record.armedAt,
+        error: record.pause.words,
+        registration,
+        notified: true,
+        paused: record.pause,
+        abortController: undefined,
+      }
+      return { ...prev, tasks: { ...prev.tasks, [agentId]: row } }
+    })
+    try {
+      context ??= await ports.relaunchContext()
+      if ('model' in record) {
+        const probing = armOverloadProbe({ taskId: agentId, description: record.description, registration, toolUseContext: { ...context, abortController: registration }, rootSetAppState: ports.setAppState, canUseTool: ports.canUseTool, model: record.model, pause: record.pause, afterDeath: true, recorded: true })
+        if (probing !== null) carried.push(agentId)
+        continue
+      }
+      const armed = armBudgetCutResume({
+        taskId: agentId,
+        description: record.description,
+        registration,
+        toolUseContext: { ...context, abortController: registration },
+        rootSetAppState: ports.setAppState,
+        canUseTool: ports.canUseTool,
+        delayMs: windowPauseResumeDelayMs(record.pause.resumesAtMs, now),
+        pause: record.pause,
+        prompt: AGENT_WINDOW_RESUME_NOTE,
+        summary: `Crewmate "${record.description}" resumed by itself — the usage window reset; its partial work carried forward`,
+      })
+      if (armed !== null) carried.push(agentId)
+    } catch (error) {
+      logForDebugging(`[session-runner] resume: the pause of crewmate ${agentId} could not be re-armed — ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+  if (carried.length > 0) notifyTasksUpdated()
+  return carried
 }

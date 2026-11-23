@@ -305,9 +305,20 @@ export async function exec(
   command: string,
   abortSignal: AbortSignal,
   shellType: ShellType,
-  options?: ExecOptions,
+  options: ExecOptions = {},
 ): Promise<ShellCommand> {
-  return notBuilt('src/utils/Shell.ts:318')
+  const notes: string[] = []
+  if (options.cwd === undefined) {
+    const left = leaveKeptDirectoryThatFails()
+    if (left !== null) notes.push(left)
+  }
+  const ran = await execOnARoad(command, abortSignal, shellType, options, notes)
+  if (notes.length > 0) {
+    void ran.result.then(result => {
+      for (const note of notes) tellInResult(result, shellType, note)
+    })
+  }
+  return ran
 }
 
 async function execOnARoad(

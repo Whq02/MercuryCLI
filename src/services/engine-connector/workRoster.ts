@@ -6,7 +6,6 @@ import type { WorkRowV1 } from './types.js'
 import { unreadNoticeCount } from '../notices/unreadLedger.js'
 import { crewStartOf } from '../../utils/crew/crewStart.js'
 import { clipWithEllipsis } from '../../utils/stringUtils.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 const MAX_NAME = 120
@@ -110,5 +109,43 @@ function agentCounters(task: TaskState): Partial<WorkRowV1> {
 }
 
 export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
-  return notBuilt('src/services/engine-connector/workRoster.ts:111')
+  const rows: WorkRowV1[] = []
+  for (const task of Object.values(tasks ?? {})) {
+    if (isLocalAgentTask(task)) {
+      if (task.agentType === 'main-session') continue
+      rows.push({
+        ...plainRow(task, 'agent', task.description || task.agentType),
+        agentId: task.agentId,
+        ...(task.agentType !== undefined ? { agentType: task.agentType } : {}),
+        ...startFoldersOf(task),
+        ...agentCounters(task),
+        ...unreadNoticesOf(task.id, String(task.agentId)),
+        ...(typeof task.wait === 'string' && task.wait !== '' ? { wait: task.wait } : {}),
+        ...(typeof task.pendingAsks === 'number' && task.pendingAsks > 0 ? { pendingAsks: task.pendingAsks } : {}),
+        ...(task.paused !== undefined
+          ? {
+              paused: {
+                why: task.paused.why,
+                words: clipWithEllipsis(task.paused.words, MAX_ERROR),
+                ...(task.paused.resumesAtMs !== undefined ? { resumesAtMs: task.paused.resumesAtMs } : {}),
+              },
+            }
+          : {}),
+      })
+    } else if (isLocalShellTask(task)) {
+      rows.push({
+        ...plainRow(task, task.kind === 'monitor' ? 'monitor' : 'shell', task.command),
+        command: clipWithEllipsis(task.command, MAX_COMMAND),
+        ...(task.description ? { description: clipWithEllipsis(task.description, MAX_NAME) } : {}),
+        ...(task.verifyCwd !== undefined ? { cwd: task.verifyCwd } : {}),
+        ...(task.result !== undefined ? { exitCode: task.result.code } : {}),
+        outputFile: task.outputFile,
+        ...(task.isBackgrounded === false && task.status === 'running' ? { foreground: true as const } : {}),
+      })
+    } else {
+      rows.push(plainRow(task, 'monitor', task.description))
+    }
+  }
+  rows.sort((a, b) => b.startTime - a.startTime || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+  return rows
 }

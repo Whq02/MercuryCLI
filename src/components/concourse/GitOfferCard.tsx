@@ -3,7 +3,6 @@ import { Box, Text } from '../../ink.js'
 import { PermissionDialog } from '../permissions/PermissionDialog.js'
 import { PermissionPrompt, type PermissionPromptOption } from '../permissions/PermissionPrompt.js'
 import type { ConcourseSnapshotV1 } from './contracts.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 export interface GitOfferV1 {
@@ -52,9 +51,43 @@ export function deriveGitOffer(
 
 type GitOfferAnswer = 'yes' | 'no'
 
-export function GitOfferCard(arg0: {
+export function GitOfferCard({
+  offer,
+  onAnswer,
+}: {
   offer: GitOfferV1
   onAnswer: (requestId: string, allow: boolean, obligationId: string) => void
 }): React.ReactNode {
-  return notBuilt('src/components/concourse/GitOfferCard.tsx:54')
+  const folderHeld = offer.folderHeld === true
+  const options = useMemo<PermissionPromptOption<GitOfferAnswer>[]>(
+    () => [
+      { label: 'Yes', value: 'yes' },
+      { label: gitOfferNoLabel(folderHeld), value: 'no' },
+    ],
+    [folderHeld],
+  )
+  const answer = (allow: boolean): void => onAnswer(offer.requestId, allow, offer.obligationId)
+  return (
+    <Box flexDirection="column" flexShrink={0}>
+      <PermissionDialog title="Start a git repository">
+        <Box flexDirection="column" flexShrink={0}>
+          <Box flexShrink={0}>
+            <Text wrap="wrap">
+              git init(<Text bold>{offer.folder}</Text>)
+            </Text>
+          </Box>
+          <Box flexShrink={0}>
+            <Text dimColor wrap="wrap">
+              {gitOfferDescription(offer.folder, folderHeld)}
+            </Text>
+          </Box>
+          <PermissionPrompt
+            options={options}
+            onSelect={value => answer(value === 'yes')}
+            onCancel={() => answer(false)}
+          />
+        </Box>
+      </PermissionDialog>
+    </Box>
+  )
 }

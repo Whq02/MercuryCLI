@@ -22,7 +22,6 @@ import type {
   InterviewQuestionId,
   InterviewSessionState,
 } from './contracts.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export interface InterviewBoundary {
   onAllow: (updatedInput: Record<string, unknown>) => void
@@ -42,7 +41,26 @@ export function encodeAnswerValue(value: InterviewAnswerValue, question: Intervi
 }
 
 export function adoptQuestions(questions: Question[]): InterviewQuestion[] {
-  return notBuilt('src/services/interview/controller.ts:44')
+  return questions.map(q => {
+    const declared = q as Question & { id?: string; decisionId?: string }
+    const id = declared.id ?? mintInterviewId('iq')
+    return {
+      id,
+      decisionId: declared.decisionId ?? `id_${id.slice(3)}`,
+      text: q.question,
+      header: q.header,
+      multiSelect: q.multiSelect ?? false,
+      options: q.options.map((o): InterviewOption => {
+        const opt = o as typeof o & { id?: string }
+        return {
+          id: opt.id ?? mintInterviewId('io'),
+          label: o.label,
+          description: o.description,
+          ...(o.preview ? { preview: o.preview } : {}),
+        }
+      }),
+    }
+  })
 }
 
 export function presentToolCall(init: {

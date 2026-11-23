@@ -16,7 +16,6 @@ import { railPanelInnerWidth } from '../../components/mercury-ui/RailPanel.js'
 import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'
 import { crewSection, workSection, runsSection, recentSection, missionSection, workbenchSection, nextSection, filesSection, saturnSection, glanceSection } from './helmLanesModel/sections.js'
 import type { CrewEntry, CrewRow, LanesInput, LanesSectionSpec, RunKind, RunRow, WorkDigest, WorkLedgerRow } from './helmLanesModel/types.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export { recentLaneLabel } from './helmLanesModel/sections.js'
 export type { LanesInput, LanesRowSpec, LanesSectionSpec } from './helmLanesModel/types.js'
@@ -89,6 +88,18 @@ export function fitPointerRows(text: string, width: number, maxRows: number): st
   return lines.map(line => truncatePointerLine(line, width))
 }
 
+function runKindOf(t: TaskState): RunKind {
+  if (isLocalShellTask(t)) return t.kind === 'monitor' ? 'monitor' : 'shell'
+  switch (t.type) {
+    case 'remote_agent':
+      return 'cloud'
+    case 'monitor_mcp':
+      return 'monitor'
+    default:
+      return 'run'
+  }
+}
+
 function crewRowsOf(sessionCrew: readonly CrewLedgerRow[]): CrewRow[] {
   return sessionCrew.map(row => ({
     id: row.facts.id,
@@ -109,7 +120,29 @@ function orderCrew(crewRows: readonly CrewRow[], keptIds: readonly string[]): Cr
 }
 
 function runsOf(tasks: Record<string, TaskState>, roster: Pick<WorkRosterV1, 'rows'>): RunRow[] {
-  return notBuilt('src/services/cockpit/helmLanesModel.ts:122')
+  const localRuns: RunRow[] = Object.values(tasks)
+    .filter(t => !isLocalAgentTask(t))
+    .filter(t => !isTerminalTaskStatus(t.status))
+    .map(t => ({
+      id: t.id,
+      title: t.description || (isLocalShellTask(t) ? t.command : t.type),
+      status: t.status,
+      kind: runKindOf(t),
+      startedAtMs: t.startTime,
+    }))
+  const localRunIds = new Set(localRuns.map(r => r.id))
+  const hostedRuns: RunRow[] = roster.rows
+    .filter(row => !localRunIds.has(row.id) && (row.kind === 'shell' || row.kind === 'monitor') && workRowRuns(row))
+    .map(row => ({
+      id: row.id,
+      title: row.name,
+      status: row.status === 'pending' ? 'pending' : 'running',
+      kind: row.kind === 'monitor' ? 'monitor' : 'shell',
+      startedAtMs: row.startTime,
+    }))
+  return [...localRuns, ...hostedRuns].sort(
+    (a, b) => (a.status === 'running' ? 0 : 1) - (b.status === 'running' ? 0 : 1) || a.startedAtMs - b.startedAtMs,
+  )
 }
 
 function planningObjectiveOf(snap: RunSnapshot | null): string | null {

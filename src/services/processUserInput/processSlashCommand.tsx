@@ -179,6 +179,217 @@ export async function processPromptSlashCommand(
 }
 
 
+async function executePromptCommand(
+  command: Command & { type: 'prompt' },
+  commandName: string,
+  args: string,
+  context: ToolUseContext,
+  imageContentBlocks: ContentBlockParam[],
+  attachmentMessages: AttachmentMessage[],
+  uuid?: UUID,
+  setToolJSXForFork: SetToolJSXFn = () => {},
+  canUseToolForFork?: CanUseToolFn,
+): Promise<ProcessUserInputBaseResult> {
+  try {
+    featureReached('command', command.name)
+    const hookMessages: Message[] = []
+
+    if (command.context === 'fork') {
+      return await runForkedPromptCommand(
+        command,
+        commandName,
+        args,
+        context,
+        hookMessages,
+        setToolJSXForFork,
+        canUseToolForFork,
+      )
+    }
+
+    const expansion = await command.getPromptForCommand(args, context)
+
+    const declaredHooks = command.hooks
+    if (declaredHooks && !isRestrictedToExtensionsOnly('hooks') && context.setAppState && command.skillRoot !== undefined) {
+      try {
+        registerSkillHooks(context.setAppState, { sessionId: String(getSessionId()), ...(context.agentId !== undefined ? { crewmateId: context.agentId } : {}) }, declaredHooks, { name: command.name, root: command.skillRoot })
+      } catch (error) {
+        logError(error)
+      }
+    }
+
+    const expansionText = expansion
+      .map(block => (block.type === 'text' ? (block as { text: string }).text : ''))
+      .join('\n')
+    addInvokedSkill(
+      command.name,
+      command.source ?? command.name,
+      expansionText,
+      getAgentContext()?.agentId,
+    )
+
+    const isUserInvocable = command.userInvocable !== false
+    if (isUserInvocable) {
+      recordSkillUsage(command.name)
+    }
+    const metadata = isUserInvocable
+      ? formatCommandLoadingMetadata(getCommandName(command), args)
+      : formatSkillLoadingMetadata(command.name, command.progressMessage)
+
+    const allowedTools = parseSlashCommandToolsFromFrontmatter(command.allowedTools)
+    const model = command.model
+    const effort = command.effort
+
+    const contentBlocks: ContentBlockParam[] = [
+      ...imageContentBlocks,
+      ...expansion,
+    ] as ContentBlockParam[]
+    const extraAttachments: AttachmentMessage[] = []
+    for await (const attachment of getAttachmentMessages(
+      expansionText,
+      context,
+      [],
+    )) {
+      extraAttachments.push(attachment)
+    }
+
+    const metadataMessage = createUserMessage({
+      content: metadata,
+      ...(uuid ? { uuid } : {}),
+    })
+    const contentMessage = createUserMessage({ content: contentBlocks, isMeta: true })
+    const permissionsAttachment = createAttachmentMessage({
+      type: 'command_permissions',
+      allowedTools,
+      ...(model !== undefined ? { model } : {}),
+    })
+
+    return {
+      messages: [
+        metadataMessage,
+        contentMessage,
+        ...attachmentMessages,
+        ...extraAttachments,
+        ...hookMessages,
+        permissionsAttachment,
+      ],
+      shouldQuery: true,
+      allowedTools,
+      ...(model !== undefined ? { model } : {}),
+      ...(effort !== undefined ? { effort } : {}),
+    }
+  } catch (error) {
+    const echoed = createUserMessage({
+      content: formatCommandLoadingMetadata(commandName, args),
+      ...(uuid ? { uuid } : {}),
+    })
+    if ((error as { name?: string } | null)?.name === 'AbortError') {
+      return {
+        messages: [echoed, createUserMessage({ content: INTERRUPT_MESSAGE })],
+        shouldQuery: false,
+      }
+    }
+    logError(error)
+    return {
+      messages: [
+        echoed,
+        createUserMessage({ content: stderrWrapped(String(error)) }),
+      ],
+      shouldQuery: false,
+    }
+  }
+}
+
+async function runForkedPromptCommand(
+  command: Command & { type: 'prompt' },
+  commandName: string,
+  args: string,
+  context: ToolUseContext,
+  hookMessages: Message[],
+  setToolJSX: SetToolJSXFn,
+  canUseTool: CanUseToolFn | undefined,
+): Promise<ProcessUserInputBaseResult> {
+  const {
+    extractResultText,
+    getLastCacheSafeParams,
+    prepareForkedCommandContext,
+    runForkedAgent,
+  } = await import('../agents/forkedAgent.js')
+  const echoed = createUserMessage({
+    content: formatCommandLoadingMetadata(getCommandName(command), args),
+  })
+  try {
+    const prepared = await prepareForkedCommandContext(command, args, context)
+    const cacheSafeParams = getLastCacheSafeParams()
+    if (!cacheSafeParams) {
+      throw new Error('No cache-safe turn parameters are available yet for a forked command.')
+    }
+    const baseAgent = command.effort !== undefined
+      ? { ...prepared.baseAgent, effort: command.effort }
+      : prepared.baseAgent
+    const promptMessages = [...prepared.promptMessages, ...hookMessages]
+
+    let emitted = 0
+    let responseLength = 0
+    const renderProgress = (): void => {
+      setToolJSX({
+        jsx: (
+          <Box flexDirection="column">
+            <Text dimColor>{`/${commandName} running in a crewmate (${emitted} message${emitted === 1 ? '' : 's'}, ${responseLength} chars)`}</Text>
+          </Box>
+        ),
+        shouldHidePromptInput: true,
+        shouldContinueAnimation: true,
+        showSpinner: true,
+      })
+    }
+    renderProgress()
+    try {
+      const result = await runForkedAgent({
+        promptMessages,
+        cacheSafeParams,
+        canUseTool:
+          canUseTool ?? (async () => ({ behavior: 'allow' as const, updatedInput: {} })),
+        querySource: 'main_thread',
+        forkLabel: command.name,
+        overrides: {
+          getAppState: prepared.modifiedGetAppState,
+          agentType: baseAgent.agentType,
+        },
+        onMessage: message => {
+          if (message.type === 'assistant' || message.type === 'user') {
+            emitted += 1
+            if (message.type === 'assistant') {
+              const content = message.message.content
+              if (Array.isArray(content)) {
+                for (const block of content) {
+                  if ((block as { type?: string }).type === 'text') {
+                    responseLength += ((block as { text?: string }).text ?? '').length
+                  }
+                }
+              }
+            }
+            renderProgress()
+          }
+        },
+      })
+      const resultText = extractResultText(result.messages)
+      return {
+        messages: [echoed, createUserMessage({ content: stdoutWrapped(resultText) })],
+        shouldQuery: false,
+        resultText,
+      }
+    } finally {
+      setToolJSX(null)
+    }
+  } catch (error) {
+    logError(error)
+    return {
+      messages: [echoed, createUserMessage({ content: stderrWrapped(String(error)) })],
+      shouldQuery: false,
+    }
+  }
+}
+
 export async function processSlashCommand(
   inputString: string,
   precedingInputBlocks: ContentBlockParam[],

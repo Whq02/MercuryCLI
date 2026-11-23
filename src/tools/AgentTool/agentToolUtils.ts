@@ -91,7 +91,6 @@ import { STRUCTURED_TAG } from '../../constants/xml.js'
 import type { AgentDefinition } from '../../types/agent.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const MCP_TOOL_PREFIX = 'mcp__'
 
@@ -818,7 +817,74 @@ export function armBudgetCutResume(args: {
     automatic: true
   }) => Promise<{ note?: string } | void>
 }): ReturnType<typeof setTimeout> | null {
-  return notBuilt('src/tools/AgentTool/agentToolUtils.ts:808')
+  if (args.automaticResume === true) return null
+  if (pendingAutomaticResumes.has(args.taskId)) return null
+  if (cutsAlreadyResumed.has(args.registration)) return null
+  if (args.pause !== undefined) pauseAgentTask(args.taskId, args.pause, args.rootSetAppState, args.registration)
+  let unsubscribeAccount: (() => void) | undefined
+  const resumeNow = async (accountChanged: boolean): Promise<void> => {
+    unsubscribeAccount?.()
+    unsubscribeAccount = undefined
+    const armed = pendingAutomaticResumes.get(args.taskId)
+    if (armed !== undefined) stopTimeout(armed)
+    pendingAutomaticResumes.delete(args.taskId)
+    cutsAlreadyResumed.add(args.registration)
+    dropPauseRecord(args.taskId, args.description)
+    let tasksNow: Record<string, unknown> | undefined
+    args.rootSetAppState(prev => {
+      tasksNow = prev.tasks
+      return prev
+    })
+    const row = tasksNow?.[args.taskId]
+    if (!isLocalAgentTask(row) || row.status !== 'failed' || row.registration !== args.registration) return
+    const { liveAgentOwner, resumeAgentBackground } = await import('./resumeAgent.js')
+    if (liveAgentOwner(args.taskId, tasksNow) !== null) return
+    const resume = args.resume ?? resumeAgentBackground
+    let resumed: { note?: string } | void
+    try {
+      resumed = await resume({
+        agentId: args.taskId,
+        prompt: accountChanged ? CREW_ACCOUNT_RESUME_NOTE : (args.prompt ?? AGENT_BUDGET_RESUME_NOTE),
+        toolUseContext: { ...args.toolUseContext, abortController: new AbortController() },
+        canUseTool: args.canUseTool,
+        invokingRequestId: args.invokingRequestId,
+        automatic: true,
+      })
+    } catch (error) {
+      logForDebugging(`agent lifecycle: the automatic resume of ${args.taskId} did not start: ${errorMessage(error)}`)
+      unpauseAgentTask(args.taskId, args.rootSetAppState, args.registration)
+      return
+    }
+    enqueueAgentReceiptRow({
+      taskId: args.taskId,
+      description: args.description,
+      summary: (accountChanged
+        ? crewAccountResumeSummary(`Crewmate "${args.description}"`)
+        : args.summary ??
+          `Crewmate "${args.description}" resumed by itself — the recovery budget's allowance is back after it was spent waiting on the provider; its partial work carried forward`) + (resumed?.note ?? ''),
+    })
+  }
+  const fire = (accountChanged = false): Promise<void> => whileFiring(args.taskId, () => resumeNow(accountChanged))
+  const timer = startTimeout(() => {
+    void runWithCwdOverride(getCwdState(), () => fire())
+  }, args.delayMs ?? recoveryBudgetMs())
+  timer.unref?.()
+  pendingAutomaticResumes.set(args.taskId, timer)
+  if (args.pause !== undefined && args.pause.why !== 'provider overloaded' && args.pause.resumesAtMs !== undefined) {
+    const toolUseId = args.toolUseContext.toolUseId
+    savePauseRecord(args.taskId, args.description, { pause: { ...args.pause, resumesAtMs: args.pause.resumesAtMs }, description: args.description, armedAt: Date.now(), ...(toolUseId !== undefined && toolUseId !== '' ? { toolUseId } : {}) })
+  }
+  if (args.pause !== undefined && args.pause.why !== 'provider overloaded') {
+    unsubscribeAccount = subscribeCrewAccountChange(() => {
+      if (pendingAutomaticResumes.get(args.taskId) !== timer) {
+        unsubscribeAccount?.()
+        unsubscribeAccount = undefined
+        return
+      }
+      void runWithCwdOverride(getCwdState(), () => fire(true))
+    })
+  }
+  return timer
 }
 
 const overloadEpisodes = new Map<string, OverloadEpisode>()
@@ -901,7 +967,72 @@ export function armOverloadProbe(args: {
     automatic: true
   }) => Promise<{ note?: string } | void>
 }): ReturnType<typeof setTimeout> | null {
-  return notBuilt('src/tools/AgentTool/agentToolUtils.ts:958')
+  if (pendingAutomaticResumes.has(args.taskId)) return null
+  const nowMs = Date.now()
+  const episode = overloadEpisodeStanding(args.taskId, nowMs)
+  const delayMs = nextOverloadProbeDelayMs(episode, nowMs, args.afterDeath)
+  if (delayMs === null) {
+    unpauseAgentTask(args.taskId, args.rootSetAppState, args.registration)
+    closeOverloadEpisode(args.taskId)
+    dropPauseRecord(args.taskId, args.description)
+    return null
+  }
+  pauseAgentTask(args.taskId, args.pause, args.rootSetAppState, args.registration)
+  const stillThisRow = (): boolean => {
+    let tasksNow: Record<string, unknown> | undefined
+    args.rootSetAppState(prev => {
+      tasksNow = prev.tasks
+      return prev
+    })
+    const row = tasksNow?.[args.taskId]
+    return isLocalAgentTask(row) && row.status === 'failed' && row.registration === args.registration && row.paused !== undefined
+  }
+  const probeNow = async (): Promise<void> => {
+    pendingAutomaticResumes.delete(args.taskId)
+    if (!stillThisRow()) return
+    episode.probes += 1
+    const answered = await (args.probe ?? probeProviderAnswers)(args.model)
+    if (!stillThisRow()) return
+    if (!answered) {
+      armOverloadProbe({ ...args, afterDeath: false, recorded: true })
+      return
+    }
+    dropPauseRecord(args.taskId, args.description)
+    const { liveAgentOwner, resumeAgentBackground } = await import('./resumeAgent.js')
+    let tasksNow: Record<string, unknown> | undefined
+    args.rootSetAppState(prev => {
+      tasksNow = prev.tasks
+      return prev
+    })
+    if (liveAgentOwner(args.taskId, tasksNow) !== null) return
+    const resume = args.resume ?? resumeAgentBackground
+    try {
+      const resumed = await resume({
+        agentId: args.taskId,
+        prompt: AGENT_OVERLOAD_RESUME_NOTE,
+        toolUseContext: { ...args.toolUseContext, abortController: new AbortController() },
+        canUseTool: args.canUseTool,
+        invokingRequestId: args.invokingRequestId,
+        automatic: true,
+      })
+      if (resumed?.note) enqueueAgentReceiptRow({ taskId: args.taskId, description: args.description, summary: resumed.note.trimStart() })
+    } catch (error) {
+      logForDebugging(`agent lifecycle: the resume of ${args.taskId} after the provider answered did not start: ${errorMessage(error)}`)
+      unpauseAgentTask(args.taskId, args.rootSetAppState, args.registration)
+      closeOverloadEpisode(args.taskId)
+    }
+  }
+  const fire = (): Promise<void> => whileFiring(args.taskId, probeNow)
+  const timer = startTimeout(() => {
+    void runWithCwdOverride(getCwdState(), fire)
+  }, delayMs)
+  timer.unref?.()
+  pendingAutomaticResumes.set(args.taskId, timer)
+  if (args.recorded !== true) {
+    const toolUseId = args.toolUseContext.toolUseId
+    savePauseRecord(args.taskId, args.description, { pause: { why: 'provider overloaded', words: args.pause.words }, model: args.model, description: args.description, armedAt: nowMs, ...(toolUseId !== undefined && toolUseId !== '' ? { toolUseId } : {}) })
+  }
+  return timer
 }
 
 export async function deliverOperatorMessagesAfterStop(
@@ -911,7 +1042,34 @@ export async function deliverOperatorMessagesAfterStop(
   rootSetAppState: SetAppState,
   canUseTool?: CanUseToolFn,
 ): Promise<boolean> {
-  return notBuilt('src/tools/AgentTool/agentToolUtils.ts:1048')
+  const stateReader =
+    toolUseContext.getAppState ??
+    ((): ReturnType<NonNullable<ToolUseContext['getAppState']>> => {
+      let captured: unknown
+      rootSetAppState(prev => {
+        captured = prev
+        return prev
+      })
+      return captured as ReturnType<NonNullable<ToolUseContext['getAppState']>>
+    })
+  const queued = peekOperatorMessages(stateReader().tasks[taskId])
+  if (queued.length === 0) return false
+  try {
+    const { resumeAgentBackground } = await import('./resumeAgent.js')
+    const resumed = await resumeAgentBackground({
+      agentId: taskId,
+      prompt: queued.join('\n\n'),
+      replyTarget: 'operator',
+      toolUseContext: { ...toolUseContext, abortController: new AbortController() },
+      canUseTool,
+    })
+    if (resumed.note) enqueueAgentReceiptRow({ taskId, description, summary: resumed.note.trimStart() })
+    takeOperatorMessages(taskId, stateReader, rootSetAppState)
+    return true
+  } catch (error) {
+    logForDebugging(`agent lifecycle: the operator's queued lines did not deliver after the stop: ${errorMessage(error)}`)
+    return false
+  }
 }
 
 const noticesOwed = new Set<object>()

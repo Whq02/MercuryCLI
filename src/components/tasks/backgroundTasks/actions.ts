@@ -9,7 +9,6 @@ import { workRowRuns } from '../../../services/engine-connector/workCounts.js'
 import { pressCrewStop } from '../../mercury-ui/screens/crewStopChord.js'
 import type { BoardItem } from './rows.js'
 import type { BoardContext } from './context.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 export function openDetailOf(ctx: BoardContext, item: BoardItem): void {
   const { onDone, setAppState, setDetailTaskId } = ctx
@@ -31,7 +30,35 @@ export function openDetailOf(ctx: BoardContext, item: BoardItem): void {
 }
 
 export function stopSelectedOf(ctx: BoardContext, item: BoardItem): void {
-  return notBuilt('src/components/tasks/backgroundTasks/actions.ts:32')
+  const { setAppState, setStopArm, stopArm } = ctx
+    const task = item.task
+    if (task === undefined) {
+      const work = item.work
+      if (work === undefined || !workRowRuns(work)) return
+      const press = pressCrewStop(stopArm, work.id, Date.now())
+      if (!press.fire) {
+        setStopArm(press.arm)
+        return
+      }
+      setStopArm(null)
+      void getFocusedSessionConnector().stopAgent(work.id)
+      return
+    }
+    if (task.status !== 'running') return
+    if (isLocalShellTask(task)) { void killTask(task.id, setAppState); return }
+    switch (item.kind) {
+      case 'shell':
+        void killTask(task.id, setAppState)
+        return
+      case 'agent':
+        killAsyncAgent(task.id, setAppState)
+        return
+      case 'monitor':
+        ;(task as { abortController?: AbortController }).abortController?.abort()
+        return
+      default:
+        return
+    }
 }
 
 export function boardKeyDownOf(ctx: BoardContext, e: KeyboardEvent): void {

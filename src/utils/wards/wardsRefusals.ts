@@ -17,7 +17,6 @@ import {
   wardWindowsHomeEnv,
   wardWordIsWindowsShaped,
 } from '../platform/wards.js'
-import { notBuilt } from '../../pi/holes.js'
 
 type RefusalWorld = ReadWorld & {
   platform: NodeJS.Platform
@@ -281,6 +280,46 @@ function otherUserNamed(word: string, command: ReadCommand, world: RefusalWorld)
 
 type Delete = { recursive: boolean; preview: boolean; operands: string[] }
 
+function deleteOf(layer: Layer, command: ReadCommand, commands: readonly ReadCommand[]): Delete | null {
+  if (!DELETE_PROGRAMS.has(layer.program)) return null
+  const slashed = SLASH_DELETES.has(layer.program)
+  const offset = command.argv.length - layer.argv.length
+  const operands: string[] = []
+  let recursive = false
+  let preview = false
+  let ended = false
+  for (let i = 1; i < layer.argv.length; i++) {
+    const word = layer.argv[i]!
+    if (!ended && word === '--') {
+      ended = true
+      continue
+    }
+    if (!ended && word.startsWith('-') && word !== '-') {
+      if (RECURSIVE_LONG.test(word) || RECURSE_PARAMETER.test(word) || /^-(?:rf|fr|rfo)$/i.test(word) || (POSIX_RM_CLUSTER.test(word) && /[rR]/.test(word))) recursive = true
+      if (/^-whatif(?::\$true)?$/i.test(word)) preview = true
+      continue
+    }
+    if (slashed && /^\/[a-zA-Z]$/.test(word)) {
+      if (/^\/s$/i.test(word)) recursive = true
+      continue
+    }
+    if (word === '{}' && layer.findRoots !== undefined) {
+      operands.push(...(layer.findRoots.length > 0 ? layer.findRoots : ['.']))
+      continue
+    }
+    if (word === UNREAD_PART && layer.argv === command.argv) {
+      for (const at of command.inner[i + offset] ?? []) {
+        const joined = commands[at]
+        if (joined !== undefined && programOf(joined.argv[0] ?? '') === 'join-path') operands.push(joined.argv.slice(1).filter(part => !/^-[A-Za-z]+$/.test(part)).join('/'))
+      }
+      continue
+    }
+    operands.push(word)
+  }
+  if (command.dialect === 'powershell' && command.handed !== undefined && layer.argv === command.argv) operands.push(command.handed)
+  return { recursive, preview, operands }
+}
+
 function operandsOf(argv: string[], valued: ReadonlySet<string> = new Set()): string[] {
   const out: string[] = []
   let ended = false
@@ -303,6 +342,57 @@ function optionValue(argv: string[], short: string | undefined, long: string): s
     else if (short !== undefined && word.startsWith(short) && word.length > short.length && !word.startsWith('--')) out.push(word.slice(short.length))
   }
   return out
+}
+
+function writtenBy(layer: Layer): string[] {
+  const { program, argv } = layer
+  switch (program) {
+    case 'cp':
+    case 'mv':
+    case 'install':
+    case 'ln':
+    case 'rsync':
+    case 'scp':
+    case 'ditto':
+    case 'copy-item':
+    case 'cpi':
+    case 'copy':
+    case 'move-item':
+    case 'mi':
+    case 'move': {
+      const named = [...optionValue(argv, '-t', '--target-directory'), ...optionValue(argv, undefined, '-Destination')]
+      if (named.length > 0) return named
+      const operands = operandsOf(argv)
+      return operands.length >= 2 ? [operands[operands.length - 1]!] : []
+    }
+    case 'tee':
+    case 'sponge':
+    case 'shred':
+    case 'touch':
+    case 'truncate':
+    case 'set-content':
+    case 'add-content':
+    case 'out-file':
+    case 'new-item':
+    case 'ni':
+    case 'tee-object':
+      return operandsOf(argv)
+    case 'dd':
+      return argv.filter(word => word.startsWith('of=')).map(word => word.slice(3))
+    case 'curl': {
+      const named = [...optionValue(argv, '-o', '--output'), ...optionValue(argv, undefined, '--output-dir')]
+      return named.length > 0 ? named : argv.some(word => word === '--remote-name' || /^-[A-Za-z]*O/.test(word)) ? ['.'] : []
+    }
+    case 'wget': {
+      const named = [...optionValue(argv, '-O', '--output-document'), ...optionValue(argv, '-P', '--directory-prefix')]
+      return named.length > 0 ? named : ['.']
+    }
+    case 'sed':
+    case 'perl':
+      return argv.some(word => word === '--in-place' || word.startsWith('--in-place=') || /^-[A-Za-z]*i/.test(word)) ? operandsOf(argv) : []
+    default:
+      return []
+  }
 }
 
 function pair(segments: string[], first: string, second: string, world: RefusalWorld): boolean {
@@ -430,11 +520,71 @@ function localBinary(name: string, cwd: string | undefined): boolean {
   return false
 }
 
+function remoteExecWard(layer: Layer, command: ReadCommand, read: ShellRead, work: WardWork | undefined): boolean {
+  const { program, argv } = layer
+  const assigned = (name: string): string | undefined => [...command.env, ...layer.env].find(entry => entry.name.toLowerCase() === name)?.value ?? read.exported.get(name)?.[0] ?? read.exported.get(name.toUpperCase())?.[0]
+  const confirmed = (from: number): boolean => {
+    if (truthy(assigned('npm_config_yes'))) return true
+    for (let i = from; i < argv.length; i++) {
+      const word = argv[i]!
+      if (word === '--' || !word.startsWith('-')) return false
+      if (word === '-y' || word === '--yes' || word === '--yes=true') return true
+      if (NPX_VALUED.has(word)) i++
+    }
+    return false
+  }
+  if (program === 'npx') return confirmed(1)
+  if (program === 'npm') {
+    const at = argv.findIndex((word, i) => i > 0 && !word.startsWith('-'))
+    return at > 0 && (argv[at] === 'exec' || argv[at] === 'x') && (confirmed(at + 1) || argv.slice(1, at).some(word => word === '-y' || word === '--yes'))
+  }
+  if (program === 'pnpm' || program === 'yarn') return operandsOf(argv)[0] === 'dlx'
+  if (program === 'bunx' || (program === 'bun' && operandsOf(argv)[0] === 'x')) {
+    const name = operandsOf(argv)[program === 'bun' ? 1 : 0]
+    if (name === undefined) return false
+    if (work) countWardWork(work, 'existsCalls')
+    return !localBinary(name, command.cwd)
+  }
+  return false
+}
+
+function pinnedInstall(layer: Layer): boolean {
+  const { program, argv } = layer
+  const operands = operandsOf(argv)
+  const verb = operands[0] ?? ''
+  const pinned = (): boolean => argv.some(word => PINNED_AT.test(word) || PINNED_HASH.test(word))
+  if (/^pip(?:x|\d[\d.]*)?$/.test(program) || program === 'pipenv') return verb === 'install' && pinned()
+  if (/^python[\d.]*$/.test(program)) return argv.includes('pip') && argv.includes('install') && pinned()
+  if (program === 'uv') return (verb === 'add' || (verb === 'pip' && operands[1] === 'install') || (verb === 'tool' && operands[1] === 'install')) && pinned()
+  if (program === 'poetry') return verb === 'add' && pinned()
+  if (program === 'npm' || program === 'pnpm' || program === 'yarn' || program === 'bun') return ['install', 'i', 'add'].includes(verb) && pinned()
+  if (program === 'cargo') return verb === 'install' && argv.includes('--git') && [...optionValue(argv, undefined, '--rev')].some(rev => /^[0-9a-f]{7,40}$/i.test(rev))
+  return false
+}
+
 function firstVerb(argv: string[], valued: ReadonlySet<string>): string {
   return operandsOf(argv, valued)[0]?.toLowerCase() ?? ''
 }
 
 const SYSTEMCTL_VALUED = new Set(['-t', '--type', '-H', '--host', '-M', '--machine', '-p', '--property', '-s', '--signal', '-n', '--lines', '-o', '--output', '--root', '--state', '--job-mode'])
+
+function formatWard(layer: Layer): boolean {
+  const { program, argv } = layer
+  if (/^mkfs(?:\.[a-z0-9]+)?$/.test(program) || /^newfs(?:_[a-z0-9]+)?$/.test(program)) return true
+  if (['mke2fs', 'mkswap', 'wipefs', 'cfdisk', 'sgdisk', 'diskpart', 'format-volume', 'clear-disk', 'initialize-disk', 'remove-partition', 'new-partition', 'resize-partition'].includes(program)) return true
+  if (program === 'fdisk' || program === 'sfdisk' || program === 'gdisk') return !argv.some(word => word === '-l' || word === '--list')
+  if (program === 'parted') {
+    if (argv.some(word => ['-l', '--list', '-v', '--version', '-h', '--help'].includes(word))) return false
+    const words = operandsOf(argv).map(word => word.toLowerCase())
+    return !words.includes('print') || words.some(word => ['mklabel', 'mktable', 'mkpart', 'mkpartfs', 'rm', 'resizepart', 'resize', 'move', 'set', 'name', 'rescue', 'toggle', 'disk_set'].includes(word))
+  }
+  if (program === 'diskutil') {
+    const verb = argv[1]?.toLowerCase() ?? ''
+    if (/^erase/.test(verb) || ['partitiondisk', 'zerodisk', 'randomdisk', 'secureerase', 'reformat'].includes(verb)) return true
+    return (verb === 'apfs' || verb === 'ap') && ['deletecontainer', 'erasevolume', 'deletevolume'].includes(argv[2]?.toLowerCase() ?? '')
+  }
+  return program === 'format' && argv.slice(1).some(word => /^[A-Za-z]:$/.test(word))
+}
 
 function haltWard(layer: Layer): boolean {
   const { program, argv } = layer
@@ -457,6 +607,27 @@ function sharesEarlier(earlier: ReadCommand, later: ReadCommand): boolean {
   return false
 }
 
+function forkBomb(read: ShellRead): number | undefined {
+  const calls = new Map<string, Array<{ to: string; concurrent: boolean; at: number }>>()
+  for (const command of read.commands) if (command.body !== undefined && !calls.has(command.body)) calls.set(command.body, [])
+  for (const [at, command] of read.commands.entries()) {
+    const callee = command.argv[0]
+    if (command.body === undefined || callee === undefined || !calls.has(callee)) continue
+    calls.get(command.body)!.push({ to: callee, concurrent: command.background || command.stages.some(stage => (read.pipelineSizes[stage.pipeline] ?? 1) > 1), at })
+  }
+  const reaches = (from: string, to: string, seen: Set<string>): boolean => {
+    if (from === to) return true
+    if (seen.has(from)) return false
+    seen.add(from)
+    return (calls.get(from) ?? []).some(call => reaches(call.to, to, seen))
+  }
+  for (const [name, made] of calls) {
+    const forking = made.filter(call => call.concurrent && reaches(call.to, name, new Set()))
+    if (forking.length >= 2) return forking[0]!.at
+  }
+  return undefined
+}
+
 function innerCommands(command: ReadCommand, commands: readonly ReadCommand[]): ReadCommand[] {
   const out: ReadCommand[] = []
   const seen = new Set<number>()
@@ -476,7 +647,126 @@ function innerCommands(command: ReadCommand, commands: readonly ReadCommand[]): 
 }
 
 function judgeShellRead(read: ShellRead, world: RefusalWorld, textReading: (text: string) => WardVerdict, work?: WardWork): Hit | undefined {
-  return notBuilt('src/utils/wards/wardsRefusals.ts:649')
+  const hits: Hit[] = []
+  const layered = read.commands.map(command => layersOf(command.argv))
+  const hit = (ward: string, at: number, unread?: string): void => {
+    const command = read.commands[at]!
+    hits.push({ ward, at, excerpt: command.text.replace(/\s+/g, ' ').slice(0, 80), line: command.line, ...(unread === undefined ? {} : { unread }) })
+  }
+  const fetches = (at: number): boolean => layered[at]!.some(layer => FETCHERS.has(layer.program)) || /\.Download(?:String|File)\(/i.test(read.commands[at]!.text)
+  const fetchers = read.commands.map((_command, at) => at).filter(fetches)
+  const confirmers = read.commands.map((_command, at) => at).filter(at => layered[at]!.some(layer => layer.program === 'yes'))
+
+  for (const [at, command] of read.commands.entries()) {
+    if (work) countWardWork(work, 'steps')
+    const layers = layered[at]!
+    const unnamed = layers.find(layer => layer.argv[0] !== undefined && !wordKnown(layer.argv[0]))
+    if (unnamed !== undefined) {
+      const byText = textReading(command.around ?? command.text)
+      const named = mention(command.text)
+      const swept = unnamed.argv.slice(1).some(word => RECURSIVE_LONG.test(word) || RECURSE_PARAMETER.test(word) || (POSIX_RM_CLUSTER.test(word) && /[rR]/.test(word)))
+        ? unnamed.argv.slice(1).find(word => !word.startsWith('-') && rootNamed(word, command, world) !== null)
+        : undefined
+      const theirs = /(?<![\w.-])(?:rm|unlink|rmdir|rd|ri|del|erase|remove-item)(?![\w-])/i.test(command.text) ? unnamed.argv.slice(1).find(word => !word.startsWith('-') && otherUserNamed(word, command, world)) : undefined
+      if (!byText.allow) hits.push({ ward: byText.rule.name, at, excerpt: byText.excerpt, line: command.line })
+      else if (named !== undefined) hit(named.ward, at, `its program is set at run time, and it mentions "${named.word}"`)
+      else if (swept !== undefined) hit('no-root-recursive-delete', at, `its program is set at run time, and its arguments are those of a recursive delete of "${swept}"`)
+      else if (theirs !== undefined) hit('no-other-user-delete', at, `its program is set at run time, it mentions a delete, and "${theirs}" lies in another user's home`)
+    }
+    for (const redirect of command.redirects) {
+      if (!WRITE_REDIRECTS.has(redirect.op) || /^\d+$/.test(redirect.target) || redirect.target === '-') continue
+      const ward = wardOfWrite(redirect.target, command, world)
+      if (ward !== undefined) hit(ward, at)
+    }
+    let narrowed = false
+    for (const layer of layers) {
+      if (work) countWardWork(work, 'steps')
+      const { program, argv } = layer
+      if (layer.opaque !== undefined) {
+        const byText = textReading(command.around ?? command.text)
+        const named = mention(command.text)
+        if (!byText.allow) hits.push({ ward: byText.rule.name, at, excerpt: byText.excerpt, line: command.line })
+        else if (named !== undefined) hit(named.ward, at, `${layer.opaque}, and it mentions "${named.word}"`)
+      }
+      if (program === 'sudo' || program === 'doas' || program === 'pkexec') hit('no-sudo', at)
+      if (haltWard(layer)) hit('no-system-halt', at)
+      if (formatWard(layer)) hit('no-disk-format', at)
+      if (remoteExecWard(layer, command, read, work)) hit('npm-exec-yes', at)
+      if ((program === 'npx' || (program === 'npm' && ['exec', 'x'].includes(operandsOf(argv)[0] ?? ''))) && confirmers.some(earlier => sharesEarlier(read.commands[earlier]!, command))) hit('npm-exec-yes', at)
+      if (pinnedInstall(layer)) hit('git-install-sha', at)
+      if (program === 'disown' || (program === 'setsid' && argv.slice(1).some(word => word === '-f' || word === '--fork'))) hit('self-daemonize', at)
+      if (command.background && (program === 'nohup' || program === 'setsid' || layer.wrappers.includes('nohup') || layer.wrappers.includes('setsid'))) hit('self-daemonize', at)
+      if (program === 'crontab' && !(argv.includes('-l') && operandsOf(argv, new Set(['-u'])).length === 0)) hit('cron-persist', at)
+      if (program === 'systemctl' && ['enable', 'reenable', 'link'].includes(firstVerb(argv, SYSTEMCTL_VALUED))) hit('systemd-persist', at)
+      if (program === 'launchctl' && ['load', 'bootstrap', 'submit'].includes(argv[1]?.toLowerCase() ?? '')) hit('autostart-persist', at)
+      if ((program === 'perl' || program === 'ruby') && argv.some(word => /\bfork\s+while\s+fork\b/.test(word))) hit('no-fork-bomb', at)
+      if (program === 'git') {
+        const ward = gitConfigWard(layer, command, world)
+        if (ward !== undefined) hit(ward, at)
+      }
+      if (program === 'dd') {
+        for (const target of argv.filter(word => word.startsWith('of='))) {
+          const path = posixPath(target.slice(3), command.cwd, world)
+          if (path !== undefined && path.startsWith('/dev/') && !SAFE_NODE.test(path)) hit('no-device-write', at)
+        }
+      }
+      for (const target of writtenBy(layer)) {
+        const ward = wardOfWrite(target, command, world)
+        if (ward !== undefined) hit(ward, at)
+      }
+      if (program === 'find') {
+        narrowed = argv.some(word => FIND_NARROWING.has(word))
+        const roots = layer.findRoots === undefined || layer.findRoots.length === 0 ? ['.'] : layer.findRoots
+        if (argv.includes('-delete')) {
+          if (!narrowed && roots.some(root => rootNamed(root, command, world) !== null)) hit('no-root-recursive-delete', at)
+          if (roots.some(root => otherUserNamed(root, command, world))) hit('no-other-user-delete', at)
+        }
+      }
+      if (program === 'rsync' && argv.some(word => /^--del(?:ete(?:-[a-z]+)?)?$/.test(word))) {
+        const operands = operandsOf(argv)
+        const target = operands[operands.length - 1]
+        if (operands.length >= 2 && target !== undefined && rootNamed(target, command, world) !== null) hit('no-root-recursive-delete', at)
+      }
+      const removal = deleteOf(layer, command, read.commands)
+      if (removal !== null && layer.wrappers.includes('xargs')) {
+        const fed = [command.input, ...read.commands.filter(earlier => sharesEarlier(earlier, command)).map(earlier => printedBy(earlier))]
+        for (const text of fed) if (text !== undefined) removal.operands.push(...text.split(/\s+/).filter(word => word !== '' && !word.startsWith('-')))
+      }
+      if (removal !== null && !removal.preview) {
+        const found = layer.findRoots !== undefined && layer.argv !== command.argv
+        if (removal.recursive && !(found && narrowed) && removal.operands.some(word => rootNamed(word, command, world) !== null)) hit('no-root-recursive-delete', at)
+        if (removal.operands.some(word => otherUserNamed(word, command, world))) hit('no-other-user-delete', at)
+        for (const [earlier, lister] of read.commands.entries()) {
+          if (!sharesEarlier(lister, command)) continue
+          const listing = layered[earlier]!.find(listed => LISTERS.has(listed.program) || listed.program === 'find')
+          if (listing === undefined) continue
+          const deep = removal.recursive || listing.argv.some(word => RECURSE_PARAMETER.test(word) || (POSIX_RM_CLUSTER.test(word) && word.includes('R')))
+          const named = listing.program === 'find' ? (listing.findRoots ?? []) : operandsOf(listing.argv)
+          const listed = deep && listing.program !== 'find' && named.length === 0 ? ['.'] : named
+          if (deep && listing.program !== 'find' && listed.some(word => rootNamed(word, lister, world, true) !== null)) hit('no-root-recursive-delete', at)
+          if (listed.some(word => otherUserNamed(word, lister, world))) hit('no-other-user-delete', at)
+        }
+      }
+      const runsInput = stdinProgram(layer) || (command.dialect === 'powershell' && (program === 'invoke-expression' || program === 'iex'))
+      if (runsInput && fetchers.some(earlier => sharesEarlier(read.commands[earlier]!, command))) hit('curl-pipe-shell', at)
+      if (SCRIPT_RUNNERS.has(program) && innerCommands(command, read.commands).some(inner => layersOf(inner.argv).some(found => FETCHERS.has(found.program)) || /\.Download(?:String|File)\(/i.test(inner.text))) hit('curl-pipe-shell', at)
+    }
+    if (command.dialect === 'powershell') {
+      const call = /\[(?:System\.)?IO\.(File|Directory)\]::Delete\(\s*(?:'([^']*)'|"([^"]*)")\s*(,\s*\$true)?/i.exec(command.text)
+      const target = call?.[2] ?? call?.[3]
+      if (call !== null && target !== undefined) {
+        if (call[1]!.toLowerCase() === 'directory' && call[4] !== undefined && rootNamed(target, command, world) !== null) hit('no-root-recursive-delete', at)
+        if (otherUserNamed(target, command, world)) hit('no-other-user-delete', at)
+      }
+    }
+  }
+  const bomb = forkBomb(read)
+  if (bomb !== undefined) hit('no-fork-bomb', bomb)
+  let first: Hit | undefined
+  for (const found of hits) {
+    if (first === undefined || WARD_ORDER.indexOf(found.ward) < WARD_ORDER.indexOf(first.ward) || (found.ward === first.ward && found.at < first.at)) first = found
+  }
+  return first
 }
 
 function verdictOf(found: Hit | undefined, toolName: string): WardVerdict {
