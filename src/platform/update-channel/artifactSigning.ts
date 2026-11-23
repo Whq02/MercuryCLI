@@ -1,6 +1,5 @@
 import { createHash, createPrivateKey, createPublicKey, sign as edSign, verify as edVerify, type KeyObject } from 'node:crypto'
 import type { TrustedSigningKey } from './signingTrust.js'
-import { isOneOf } from '../primitives/isOneOf.js'
 
 export interface SigningStatementV1 {
   schema: 1
@@ -34,7 +33,7 @@ export function parseStatement(value: unknown): { state: 'ok'; statement: Signin
   if (typeof value !== 'object' || value === null) return { state: 'malformed', note: 'statement is not an object' }
   const v = value as Record<string, unknown>
   for (const key of Object.keys(v)) {
-    if (!isOneOf(STATEMENT_KEYS, key)) {
+    if (!STATEMENT_KEYS.some(known => known === key)) {
       return { state: 'malformed', note: `statement carries an unknown key "${key}" outside the signed grammar` }
     }
   }

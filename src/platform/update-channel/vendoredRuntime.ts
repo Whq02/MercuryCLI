@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { dirname, join, win32 as pathWin32 } from 'node:path'
-import { isOneOf } from '../primitives/isOneOf.js'
 
 export const RUNTIME_PACK_PATH = 'vendor/node'
 
@@ -61,7 +60,7 @@ export function readRuntimeRecord(manifest: unknown): RuntimeRecord | null {
     }
   }
   if (r.vendored !== true) return null
-  const platform = typeof r.platform === 'string' && isOneOf(NODE_PACK_PLATFORMS, r.platform) ? r.platform : null
+  const platform = NODE_PACK_PLATFORMS.find(known => known === r.platform) ?? null
   if (
     platform === null ||
     r.name !== 'node' ||

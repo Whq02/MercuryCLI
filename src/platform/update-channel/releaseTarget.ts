@@ -1,4 +1,3 @@
-import { isOneOf } from '../primitives/isOneOf.js'
 
 export const RELEASE_TARGETS = ['linux-x64', 'linux-arm64', 'macos-arm64', 'macos-x64', 'windows-x64', 'windows-arm64'] as const
 export type ReleaseTarget = (typeof RELEASE_TARGETS)[number]
@@ -18,7 +17,7 @@ const PLATFORM_OF: Record<ReleaseTarget, BuildPlatform> = {
 }
 
 export function isReleaseTarget(value: string): value is ReleaseTarget {
-  return isOneOf(RELEASE_TARGETS, value)
+  return RELEASE_TARGETS.some(target => target === value)
 }
 
 export function releaseTargetFor(platform: string, arch: string): ReleaseTarget | null {
