@@ -37,7 +37,7 @@ export function TagTabs({
   const labelWidth = stringWidth(label)
   const rightReserve = Math.max(
     stringWidth('(tab to switch)'),
-    stringWidth('→ 99 (tab to switch)'),
+    stringWidth('→ 99 ') + stringWidth('(tab to switch)'),
   )
   const budget = availableWidth - (labelWidth + 1) - rightReserve - 2
   const cap = Math.max(20, Math.floor(budget / 2))

@@ -417,7 +417,7 @@ export function DiffDialog({
     if (viewMode === 'detail') {
       setViewMode('list')
     } else {
-      onDone('Diff dialog dismissed', { display: 'system' })
+      onDone(undefined, { display: 'skip' })
     }
   }
 

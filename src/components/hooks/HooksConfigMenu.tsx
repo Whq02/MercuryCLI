@@ -86,14 +86,14 @@ export function HooksConfigMenu({
         ? ` ${totalCount} configured ${plural(totalCount, 'hook')} ${totalCount === 1 ? 'is' : 'are'} not running.`
         : ''
     return (
-      <Dialog title="Hooks" subtitle="disabled" onCancel={close}>
+      <Dialog title="Hooks are disabled" onCancel={close}>
         <Box flexDirection="column" gap={1}>
           <Text>
-            Hooks are disabled{disabledSuffix}.{countSentence}
+            Hooks are currently disabled{disabledSuffix}.{countSentence}
           </Text>
           <Box flexDirection="column">
             <Text dimColor>· No hook runs.</Text>
-            <Text dimColor>· Every moment proceeds without a hook&apos;s word.</Text>
+            <Text dimColor>· Every moment proceeds without a hook's word.</Text>
           </Box>
           {!policy.policyDisablesAll ? (
             <Text dimColor>
@@ -108,7 +108,7 @@ export function HooksConfigMenu({
   if (mode.id === 'select-event') {
     const userSettingsPath = getSettingsFilePathForSource('userSettings')
     const blockedPaths = [
-      ...(userSettingsPath ? [toTildePath(userSettingsPath)] : []),
+      userSettingsPath ? toTildePath(userSettingsPath) : 'user settings.json',
       getRelativeSettingsFilePathForSource('projectSettings'),
       getRelativeSettingsFilePathForSource('localSettings'),
     ]
@@ -117,7 +117,7 @@ export function HooksConfigMenu({
         {policy.managedOnly ? (
           <Box flexDirection="column" marginBottom={1}>
             <Text color="warning">Only hooks from managed settings can run right now.</Text>
-            <Text dimColor>Blocked: {blockedPaths.join(', ')}</Text>
+            <Text dimColor>Hooks from these sources are blocked: {blockedPaths.join(', ')}</Text>
           </Box>
         ) : null}
         <SelectEventMode

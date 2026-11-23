@@ -300,7 +300,7 @@ export function ToolSelector({
               <Box key="advanced-toggle" marginTop={1}>
                 <Text color={focused ? 'suggestion' : undefined} bold={focused}>
                   {pointer}
-                  {showAdvanced ? 'Hide advanced options' : 'Show advanced options'}
+                  {showAdvanced ? 'Hide' : 'Show'} advanced options
                 </Text>
               </Box>
             )

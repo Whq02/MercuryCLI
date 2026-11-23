@@ -65,7 +65,9 @@ export function ThinkingToggle({
           {pendingValue !== null ? (
             <Box flexDirection="column" marginTop={1} gap={1}>
               <Text color="warning">
-                Changing extended thinking mid-conversation adds latency and can reduce answer quality — the start of a session is the moment to set it.
+                Changing extended thinking mid-conversation adds latency and can
+                reduce answer quality — the start of a session is the moment to
+                set it.
               </Text>
               <Text>Proceed with the change?</Text>
             </Box>
