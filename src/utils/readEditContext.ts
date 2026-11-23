@@ -88,11 +88,7 @@ function trimTrailingIncompleteUtf8(buf: Buffer): Buffer {
   return buf.length - pos < expected ? buf.subarray(0, pos) : buf
 }
 
-export async function scanForContext(
-  handle: FileHandle,
-  needle: string,
-  contextLines: number,
-): Promise<EditContext> {
+export async function scanForContext(handle: FileHandle, needle: string, contextLines: number): Promise<EditContext> {
   if (needle.length === 0) return { content: '', lineOffset: 1, truncated: false }
   const lfBuf = Buffer.from(needle, 'utf8')
   const crlfNeedle = needle.includes('\n') ? needle.replace(/(?<!\r)\n/g, '\r\n') : needle
@@ -200,10 +196,24 @@ export async function scanForContext(
     }
   }
 
-  const content = Buffer.concat([beforeSlice, matchedBuf, afterSlice])
-    .toString('utf8')
-    .replace(/\r\n/g, '\n')
+  const raw = Buffer.concat([beforeSlice, matchedBuf, afterSlice])
+  const decoded = raw.toString('utf8')
+  const content = decoded.slice(0, bytesToChars(decoded, raw.length)).replace(/\r\n/g, '\n')
   return { content, lineOffset, truncated: false }
+}
+
+function bytesToChars(text: string, bytes: number): number {
+  if (bytes <= 0) return 0
+  let count = 0
+  let index = 0
+  while (index < text.length && count < bytes) {
+    const code = text.codePointAt(index) as number
+    const width = code < 0x80 ? 1 : code < 0x800 ? 2 : code < 0x10000 ? 3 : 4
+    if (count + width > bytes) break
+    count += width
+    index += code >= 0x10000 ? 2 : 1
+  }
+  return index
 }
 
 export async function readCapped(handle: FileHandle): Promise<string | null> {

@@ -23,10 +23,15 @@ type RenderableAgent = {
 const INVENTORY_HOSTILE = /[\x00-\x1f\x7f]/g
 
 export function renderAgentLine(entry: RenderableAgent): string {
-  const { definition, shadowedBy } = entry
+  const definition = entry.definition as AgentDefinition & {
+    model?: string | null
+    memory?: string
+    disabled?: boolean
+    operatorOverride?: { from?: string }
+  }
   const parts: string[] = [definition.agentType]
   if (definition.model && definition.model !== 'inherit') {
-    parts.push(definition.model)
+    parts.push(String(definition.model))
   }
   if (definition.operatorOverride?.from) {
     parts.push(`override: ${definition.operatorOverride.from}`)
@@ -38,10 +43,10 @@ export function renderAgentLine(entry: RenderableAgent): string {
     parts.push('disabled')
   }
   const line = parts.join(SEPARATOR)
-  const composed = shadowedBy !== undefined
-    ? `[shadowed by ${shadowedBy}] ${line}`
+  const composed = entry.shadowedBy !== undefined
+    ? `[shadowed by ${entry.shadowedBy}] ${line}`
     : line
-  return composed.replace(INVENTORY_HOSTILE, '\uFFFD')
+  return composed.replace(INVENTORY_HOSTILE, '�')
 }
 
 function winnerLabel(winner: AgentDefinition, shadowed: AgentDefinition): string {

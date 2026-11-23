@@ -1,9 +1,8 @@
 import type { Message } from '../types/message.js'
-import type { ApiToolUnion, ContentBlock, ContentBlockParam, MessageParam, TextBlockParam } from '../types/wire.js'
+import type { ApiToolUnion, ContentBlockParam, MessageParam, TextBlockParam } from '../types/wire.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logError } from '../utils/log.js'
 import { isRecord } from '../utils/isRecord.js'
-import { createAssistantMessage, createUserMessage } from '../utils/messages/factories.js'
 import { normalizeMessagesForAPI } from './messages.js'
 import { getDefaultSonnetModel, getEngineModel, normalizeModelStringForAPI } from './model/model.js'
 import { utilityCallFor } from './model/utilityModel.js'
@@ -41,7 +40,7 @@ function countProbeCall(): { model: string; effort: string | undefined } {
 }
 
 function refusalWords(error: unknown): string {
-  const record = isRecord(error) ? error : null
+  const record = error as { status?: unknown; message?: unknown } | null
   const status = typeof record?.status === 'number' ? `HTTP ${record.status}` : 'no status'
   const message = typeof record?.message === 'string' ? record.message.replace(/\s+/g, ' ').trim().slice(0, 200) : ''
   return message === '' ? status : `${status}: ${message}`
@@ -84,11 +83,11 @@ async function countWithBusyRetry<T>(road: string, run: () => Promise<T>): Promi
   }
 }
 
-function hasThinkingBlocks(messages: readonly MessageParam[]): boolean {
+function hasThinkingBlocks(messages: ReadonlyArray<{ role?: string; content?: unknown }>): boolean {
   for (const message of messages) {
     if (message.role !== 'assistant' || !Array.isArray(message.content)) continue
     for (const block of message.content) {
-      if (block.type === 'thinking' || block.type === 'redacted_thinking') return true
+      if (isRecord(block) && (block.type === 'thinking' || block.type === 'redacted_thinking')) return true
     }
   }
   return false
@@ -101,29 +100,14 @@ function apiMessagesFor(messages: Message[]): MessageParam[] {
   }))
 }
 
-type CountableMessage = { role: 'user' | 'assistant'; content: unknown }
-
-function isBlockArray<T>(value: unknown): value is T[] {
-  return Array.isArray(value)
-}
+type CountableMessage = Message | { role: string; content: unknown }
 
 function toProductMessage(message: CountableMessage): Message {
-  if (message.role === 'assistant') {
-    const content =
-      typeof message.content === 'string'
-        ? message.content
-        : isBlockArray<ContentBlock>(message.content)
-          ? message.content
-          : []
-    return createAssistantMessage({ content })
-  }
-  const content =
-    typeof message.content === 'string'
-      ? message.content
-      : isBlockArray<ContentBlockParam>(message.content)
-        ? message.content
-        : []
-  return createUserMessage({ content })
+  if ('type' in message) return message
+  return {
+    type: message.role === 'assistant' ? 'assistant' : 'user',
+    message: { role: message.role, content: message.content },
+  } as unknown as Message
 }
 
 export async function countMessagesTokensWithAPI(
