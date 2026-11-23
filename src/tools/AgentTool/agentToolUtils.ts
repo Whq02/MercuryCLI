@@ -7,7 +7,6 @@ import {
   RULE_INHERITS,
 } from '../../constants/tools.js'
 import type { Message } from '../../types/message.js'
-import type { AppState } from '../../state/AppState.js'
 import type { SetAppState } from '../../Task.js'
 import {
   AGENT_BUDGET_RESUME_NOTE,
@@ -29,7 +28,6 @@ import {
   enqueueAgentReceiptRow,
   failAgentTask,
   foldResponseIntoLedger,
-  getProgressUpdate,
   getTokenCountFromTracker,
   isLocalAgentTask,
   killAsyncAgent,
