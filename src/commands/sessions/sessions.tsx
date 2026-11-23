@@ -115,8 +115,7 @@ function SessionsLogPicker({
   const [resuming, setResuming] = useState(false)
   const worktreePathsRef = useRef<string[]>([])
 
-  useLoad(() => {
-    let cancelled = false
+  useLoad(signal => {
     void (async () => {
       try {
         const worktreePaths = await getWorktreePathsPortable(getOriginalCwd())
@@ -124,7 +123,7 @@ function SessionsLogPicker({
         const loaded = showAllProjects
           ? await listSessionsAcrossProjects()
           : await listRepoSessions(worktreePaths)
-        if (cancelled) return
+        if (signal.aborted) return
         const resumable = filterResumableSessions(loaded, conversationIdHere())
         if (resumable.length === 0) {
           onDone('No conversations found to resume.')
@@ -132,14 +131,11 @@ function SessionsLogPicker({
         }
         setLogs(resumable)
       } catch (thrown) {
-        if (cancelled) return
+        if (signal.aborted) return
         logError(thrown)
         onDone(`Failed to load conversations: ${errorMessage(thrown)}`)
       }
     })()
-    return () => {
-      cancelled = true
-    }
   }, [showAllProjects, reloadNonce])
 
   const handleSelect = (log: SessionListing): void => {

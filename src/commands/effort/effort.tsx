@@ -5,7 +5,6 @@ import { LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { tensorFoldEffortApplied } from '../../services/providers/local/localCallModel.js'
 import type { AppState } from '../../state/AppState.js'
-import type { Message } from '../../types/message.js'
 import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
@@ -262,8 +261,8 @@ function receiptOnStatusRow(receipt: EffortReceipt): boolean {
 
 function receiptInChat(receipt: EffortReceipt, args: string): boolean {
   if (!receipt.seat) return false
-  const chat = getFocusedSessionConnector() as { addDisplayRow?: (row: Message) => void }
-  if (typeof chat.addDisplayRow !== 'function') return false
+  const chat = getFocusedSessionConnector()
+  if (chat.addDisplayRow === undefined) return false
   chat.addDisplayRow(createUserMessage({ content: formatCommandLoadingMetadata('effort', args) }))
   chat.addDisplayRow(createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${receipt.text}</${LOCAL_COMMAND_STDOUT_TAG}>`))
   return true

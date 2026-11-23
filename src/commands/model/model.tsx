@@ -233,10 +233,9 @@ function ModelDirectSet({
     onDone(`Model set to ${label}${saved}${cross}${lossNote}${effortNote}`)
   }
 
-  useLoad(() => {
+  useLoad(signal => {
     if (startedRef.current) return
     startedRef.current = true
-    let cancelled = false
     void (async () => {
       try {
         if (target !== null) {
@@ -261,14 +260,14 @@ function ModelDirectSet({
           }
           if (!isModelAlias(lowerTarget)) {
             const verdict = await validateModel(target)
-            if (cancelled) return
+            if (signal.aborted) return
             if (!verdict.valid) {
               onDone(verdict.error ?? `Model "${typed}" could not be validated.`, { display: 'system' })
               return
             }
           }
         }
-        if (cancelled) return
+        if (signal.aborted) return
         const daemonPreview = previewDaemonModelSelection(target)
         if (daemonPreview !== null) {
           if ('reason' in daemonPreview) {
@@ -313,13 +312,10 @@ function ModelDirectSet({
         }
         applySwitch()
       } catch (thrown) {
-        if (cancelled) return
+        if (signal.aborted) return
         onDone(`Failed to validate model: ${errorMessage(thrown)}`, { display: 'system' })
       }
     })()
-    return () => {
-      cancelled = true
-    }
   }, [])
 
   if (confirm !== null) {
