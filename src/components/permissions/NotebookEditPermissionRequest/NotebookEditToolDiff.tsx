@@ -22,7 +22,6 @@ import { getPatchForDisplay } from '../../../utils/diff.js'
 import { parseCellId } from '../../../utils/notebook.js'
 import { safeParseJSON } from '../../../utils/json.js'
 import type { StructuredPatchHunk } from 'diff'
-import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
 
 type NotebookCell = {
   id?: string
@@ -30,7 +29,14 @@ type NotebookCell = {
   source?: string | string[]
 }
 
-type Props = Unbuilt
+type Props = {
+  notebook_path: string
+  cell_id?: string
+  new_source: string
+  cell_type?: string
+  edit_mode?: string
+  verbose?: boolean
+}
 
 const FRAME_COLUMNS = 4
 
@@ -39,6 +45,137 @@ function cellSourceText(cell: NotebookCell | undefined): string {
   return typeof cell.source === 'string' ? cell.source : cell.source.join('')
 }
 
-export function NotebookEditToolDiff(arg0: Props): React.ReactNode {
-  return notBuilt('src/components/permissions/NotebookEditPermissionRequest/NotebookEditToolDiff.tsx:48')
+export function NotebookEditToolDiff({
+  notebook_path,
+  cell_id,
+  new_source,
+  cell_type,
+  edit_mode,
+  verbose = false,
+}: Props): React.ReactNode {
+  const { columns, rows } = useTerminalSize()
+  const [expanded, setExpanded] = useState(false)
+  const [notebook, setNotebook] = useState<{ cells?: NotebookCell[] } | null>(null)
+
+  useKeybinding('confirm:toggleFullPreview', () => setExpanded(prev => !prev), {
+    context: 'Confirmation',
+  })
+
+  useLoad(() => {
+    let cancelled = false
+    fs.readFile(notebook_path, 'utf8')
+      .then(raw => {
+        if (cancelled) return
+        const parsed = safeParseJSON(raw, false)
+        if (parsed && typeof parsed === 'object') {
+          setNotebook(parsed as { cells?: NotebookCell[] })
+        } else {
+          setNotebook(null)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setNotebook(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [notebook_path])
+
+  const targetCell = useMemo((): NotebookCell | undefined => {
+    const cells = notebook?.cells
+    if (!Array.isArray(cells) || !cell_id) return undefined
+    const exact = cells.find(cell => cell.id === cell_id)
+    if (exact) return exact
+    const index = parseCellId(cell_id)
+    return index !== undefined ? cells[index] : undefined
+  }, [notebook, cell_id])
+
+  const oldSource = cellSourceText(targetCell)
+  const mode = edit_mode ?? 'replace'
+  const isMarkdown = (cell_type ?? targetCell?.cell_type) === 'markdown'
+  const highlightPath = isMarkdown ? `${notebook_path}.md` : notebook_path
+  const width = Math.max(1, consentContentWidth(columns) - FRAME_COLUMNS)
+  const budget = expanded ? null : consentBodyBudget(rows)
+
+  const hunks = useMemo<StructuredPatchHunk[]>(() => {
+    if (mode !== 'replace' || notebook === null) return []
+    return getPatchForDisplay({
+      filePath: highlightPath,
+      fileContents: oldSource,
+      edits: [{ old_string: oldSource, new_string: new_source }],
+    })
+  }, [mode, notebook, highlightPath, oldSource, new_source])
+
+  const displayPath = verbose
+    ? notebook_path
+    : relative(getFocusedSessionConnector().workspace().cwd, notebook_path)
+  const actionLabel =
+    mode === 'insert'
+      ? 'Insert new cell'
+      : mode === 'delete'
+        ? 'Delete cell'
+        : 'Replace cell contents'
+  const subtitle = `${actionLabel}${cell_id ? ` ${cell_id}` : ''}${cell_type ? ` (${cell_type})` : ''}`
+
+  const useDiff = mode === 'replace' && notebook !== null && hunks.length > 0
+  const boundedDiff = useMemo(
+    () => (useDiff ? boundHunks(hunks, diffPaintWidth(width, hunks), budget) : null),
+    [useDiff, hunks, width, budget],
+  )
+
+  const codeSource = mode === 'delete' ? oldSource : new_source
+  const boundedCode = useMemo(() => {
+    if (useDiff) return null
+    const lines = codeSource.split('\n')
+    return boundLines(lines, filePaintWidth(width, lines.length), budget)
+  }, [useDiff, codeSource, width, budget])
+
+  const hiddenLines = boundedDiff ? boundedDiff.hiddenLines : (boundedCode?.hiddenLines ?? 0)
+
+  return (
+    <Box flexDirection="column" borderStyle="round" borderColor="subtle" paddingX={1}>
+      <Box flexDirection="column" marginBottom={1}>
+        <Text bold>{displayPath}</Text>
+        <Text dimColor>{subtitle}</Text>
+      </Box>
+      {boundedDiff ? (
+        <Box flexDirection="column">
+          {intersperse<React.ReactNode>(
+            boundedDiff.hunks.map((hunk, i) => (
+              <StructuredDiff
+                key={`${hunk.oldStart}-${hunk.newStart}-${i}`}
+                patch={hunk}
+                dim={false}
+                width={width}
+                filePath={highlightPath}
+              />
+            )),
+            i => (
+              <NoSelect key={`ellipsis-${i}`}>
+                <Text dimColor>...</Text>
+              </NoSelect>
+            ),
+          )}
+        </Box>
+      ) : (
+        <HighlightedCode
+          code={(boundedCode?.lines ?? []).join('\n')}
+          filePath={highlightPath}
+          width={width}
+        />
+      )}
+      {hiddenLines > 0 ? (
+        <NoSelect>
+          <Text dimColor>
+            … +{hiddenLines} more line{hiddenLines === 1 ? '' : 's'} · ctrl+f expands (the whole edit applies)
+          </Text>
+        </NoSelect>
+      ) : null}
+      {expanded ? (
+        <NoSelect>
+          <Text dimColor>ctrl+f collapses the preview</Text>
+        </NoSelect>
+      ) : null}
+    </Box>
+  )
 }
