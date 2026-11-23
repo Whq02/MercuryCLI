@@ -10,6 +10,7 @@ import {
 import { OAUTH_BETA_HEADER } from '../../constants/oauth.js'
 import { isClaudeAISubscriber } from '../auth.js'
 import { isEnvTruthy } from '../envUtils.js'
+import { isOneOf } from '../isOneOf.js'
 import { getCanonicalName } from './modelNames.js'
 import { isChooseAModel } from './chooseAModel.js'
 import { familyDefaultsModel, familyHeadOf } from './configs.js'
@@ -523,13 +524,13 @@ function vocabularyOffers(view: EffortVocabularyView, level: EffortLevel): boole
       return true
     case 'ladder':
     case 'provider':
-      return (view.vocabulary as readonly string[]).includes(level)
+      return isOneOf(view.vocabulary, level)
   }
 }
 
 export function gptModelDefaultEffort(model: string): EffortLevel | undefined {
   const live = gptModelDefaultEffortRaw(model)
-  return live !== undefined && (EFFORT_LEVELS as readonly string[]).includes(live) ? (live as EffortLevel) : undefined
+  return live !== undefined && isOneOf(EFFORT_LEVELS, live) ? live : undefined
 }
 
 function gptModelDefaultEffortRaw(model: string): string | undefined {

@@ -4,6 +4,7 @@ import { getProjectPathForConfig } from '../../utils/config.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getGlobalMercuryFile } from '../../utils/env.js'
 import { errorMessage, errorMessageWithCause, getErrnoCode } from '../../utils/errors.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 import { getEnabledSettingsForSource, getSettingsForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
 import { getMcpPrefix } from '../../utils/mcp/mcpStringUtils.js'
 import { normalizeNameForMCP } from '../../utils/mcp/normalization.js'
@@ -124,7 +125,7 @@ const OPERATOR_CONFIG_SCOPES: readonly ConfigScope[] = ['local', 'user', 'projec
 
 export function ensureConfigScope(scope?: string): ConfigScope {
   if (scope === undefined || scope === '') return 'local'
-  if ((OPERATOR_CONFIG_SCOPES as readonly string[]).includes(scope)) return scope as ConfigScope
+  if (isOneOf(OPERATOR_CONFIG_SCOPES, scope)) return scope
   throw new Error(`Invalid scope: ${scope}. Valid scopes are: ${OPERATOR_CONFIG_SCOPES.join(', ')}`)
 }
 

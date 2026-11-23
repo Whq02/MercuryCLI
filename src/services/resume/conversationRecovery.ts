@@ -14,6 +14,7 @@ import type { SessionListing, SerializedMessage, TranscriptMessage, TurnEnded } 
 import { PERMISSION_MODES } from '../../types/permissions.js'
 import { suppressNextSkillListing } from '../../utils/attachments/skillListing.js'
 import { getCwd } from '../../utils/cwd.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 import { copyFileHistoryForResume } from '../changeTransaction/fileHistory.js'
 import { logError } from '../../utils/log.js'
 import { parseUserSpecifiedModel } from '../model/model.js'
@@ -120,7 +121,7 @@ function scrubPermissionMode(message: Message): Message {
   if (message.type !== 'user') return message
   const mode = (message as UserMessage).permissionMode
   if (mode === undefined) return message
-  if ((PERMISSION_MODES as readonly string[]).includes(mode)) return message
+  if (isOneOf(PERMISSION_MODES, mode)) return message
   if (!noticedPermissionModes.has(mode)) {
     noticedPermissionModes.add(mode)
     mintImmediateReceipt(

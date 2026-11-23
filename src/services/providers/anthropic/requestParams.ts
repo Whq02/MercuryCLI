@@ -19,6 +19,7 @@ import { modelSupportsEffort, type EffortValue } from 'src/utils/effort.js'
 import type { EffortWireFact } from 'src/utils/effortStamp.js'
 import { errorMessage } from '../../../utils/errors.js'
 import { returnValue } from 'src/utils/generators.js'
+import { isOneOf } from '../../../utils/isOneOf.js'
 import { safeParseJSON } from '../../../utils/json.js'
 import { logError } from '../../../utils/log.js'
 import {
@@ -113,7 +114,7 @@ function should1hCacheTTL(): boolean {
 const FIRST_PARTY_WIRE_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const satisfies readonly NonNullable<BetaOutputConfig['effort']>[]
 type FirstPartyWireEffort = (typeof FIRST_PARTY_WIRE_EFFORTS)[number]
 function isFirstPartyWireEffort(level: string): level is FirstPartyWireEffort {
-  return (FIRST_PARTY_WIRE_EFFORTS as readonly string[]).includes(level)
+  return isOneOf(FIRST_PARTY_WIRE_EFFORTS, level)
 }
 
 export function configureEffortParams(
