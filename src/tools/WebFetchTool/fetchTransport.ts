@@ -15,7 +15,7 @@ import { robotsAllows } from './robots.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 export type RedirectResult = { type: 'redirect'; originalUrl: string; redirectUrl: string; statusCode: number }
-export type RawResponse = { url: string; status: number; statusText: string; headers: Record<string, unknown>; data: ArrayBuffer }
+export type RawResponse = { url: string; status: number; statusText: string; headers: Record<string, unknown>; data: ArrayBuffer; type?: never }
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
 const robotsCache = new LRUCache<string, string>({ max: 128, ttl: 15 * 60_000, ttlAutopurge: true })
 const sessions = new OwnerScopedStore<Map<string, FetchPacing>>({ name: 'webfetch-host-pacing', live: true, create: () => new Map(), dispose: sites => sites.clear() })
@@ -61,7 +61,7 @@ async function checkRobots(url: string, signal: AbortSignal): Promise<void> {
       if (!(error instanceof FetchRefusedError)) throw error
       throw new FetchRefusedError(error.code, `${error.message} Mercury cannot verify robots.txt, so the page was not fetched.`)
     }
-    if ('type' in response) throw new FetchRefusedError(response.statusCode, `robots.txt redirects to another host; Mercury cannot verify robots.txt, so the page was not fetched. ${readerDecision(url)}`)
+    if (response.type === 'redirect') throw new FetchRefusedError(response.statusCode, `robots.txt redirects to another host; Mercury cannot verify robots.txt, so the page was not fetched. ${readerDecision(url)}`)
     if (response.status === 404 || response.status === 410) rules = ''
     else {
       rules = Buffer.from(response.data).toString('utf8')
