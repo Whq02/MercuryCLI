@@ -1,15 +1,24 @@
-import { notBuilt } from '../pi/holes.js'
+let graphemeSegmenter: Intl.Segmenter | undefined
+let wordSegmenter: Intl.Segmenter | undefined
+const relativeTimeFormats = new Map<string, Intl.RelativeTimeFormat>()
+let timeZone: string | undefined
 
 export function getGraphemeSegmenter(): Intl.Segmenter {
-  return notBuilt('src/utils/intl.ts:7')
+  return graphemeSegmenter ??= new Intl.Segmenter(undefined, { granularity: 'grapheme' })
 }
 
 export function getWordSegmenter(): Intl.Segmenter {
-  return notBuilt('src/utils/intl.ts:12')
+  return wordSegmenter ??= new Intl.Segmenter(undefined, { granularity: 'word' })
 }
 
 export function wordStartBefore(text: string, at: number): number {
-  return notBuilt('src/utils/intl.ts:17')
+  if (at <= 0) return 0
+  let start = 0
+  for (const seg of getWordSegmenter().segment(text)) {
+    if (seg.index >= at) break
+    if (seg.isWordLike) start = seg.index
+  }
+  return start
 }
 
 export function wordStartAfter(text: string, at: number): number {
@@ -51,20 +60,26 @@ export function sliceTailAtGrapheme(text: string, maxUnits: number): string {
 }
 
 export function firstGrapheme(text: string): string {
-  return notBuilt('src/utils/intl.ts:69')
+  return getGraphemeSegmenter().segment(text).containing(0)?.segment ?? ''
 }
 
 export function lastGrapheme(text: string): string {
-  return notBuilt('src/utils/intl.ts:75')
+  return getGraphemeSegmenter().segment(text).containing(text.length - 1)?.segment ?? ''
 }
 
 export function getRelativeTimeFormat(
   style: 'long' | 'short' | 'narrow',
   numeric: 'always' | 'auto',
 ): Intl.RelativeTimeFormat {
-  return notBuilt('src/utils/intl.ts:82')
+  const key = `${style}:${numeric}`
+  let format = relativeTimeFormats.get(key)
+  if (!format) {
+    format = new Intl.RelativeTimeFormat('en', { style, numeric })
+    relativeTimeFormats.set(key, format)
+  }
+  return format
 }
 
 export function getTimeZone(): string {
-  return notBuilt('src/utils/intl.ts:95')
+  return timeZone ??= new Intl.DateTimeFormat().resolvedOptions().timeZone
 }
