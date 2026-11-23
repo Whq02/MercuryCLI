@@ -57,7 +57,6 @@ import {
   renderToolUseMessage,
 } from './UI.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 const DEFAULT_HEAD_LIMIT = 250
@@ -67,7 +66,44 @@ const RANKED_CLOCK_REASON = 'the search timed out after 20 seconds — the walk 
 
 const VCS_EXCLUDED_DIRECTORIES = ['.git', '.svn', '.hg', '.bzr', '.jj', '.sl']
 
-const inputSchema: Unbuilt = unbuilt('src/tools/GrepTool/GrepTool.ts:69')
+const inputSchema = z.strictObject({
+  pattern: z
+    .string()
+    .describe('The ripgrep regular expression to search for; lookaround and backreferences fall back to PCRE2'),
+  path: z
+    .string()
+    .optional()
+    .describe('The file or directory to search; the current working directory when omitted.'),
+  glob: z
+    .string()
+    .optional()
+    .describe('Search only files matching this glob (rg --glob)'),
+  output_mode: z
+    .enum(['content', 'files_with_matches', 'count'])
+    .optional()
+    .describe(
+      'What comes back: "files_with_matches" (the default) lists the paths that match, declarations and documents among them; "content" prints each matching line with its path — the mode for reading or counting call sites; "count" tallies matches per file.',
+    ),
+  '-B': semanticNumber(z.number().optional()).describe('Context lines printed before each hit (rg -B; "content" mode only).'),
+  '-A': semanticNumber(z.number().optional()).describe('Context lines printed after each hit (rg -A; "content" mode only).'),
+  '-C': semanticNumber(z.number().optional()).describe('Context lines printed both sides of each hit (rg -C; "content" mode only).'),
+  context: semanticNumber(z.number().optional()).describe('Same as -C.'),
+  '-n': semanticBoolean(z.boolean().optional()).describe('Prefix output with line numbers (rg -n; "content" mode only). On by default.'),
+  '-i': semanticBoolean(z.boolean().optional()).describe('Match case-insensitively (rg -i)'),
+  type: z.string().optional().describe('Search only one file type (rg --type): js, py, rust, go and the like.'),
+  head_limit: semanticNumber(z.number().optional()).describe(
+    'Cap the output at the first N lines/entries (default 250); applies in every output mode; 0 lifts the cap.',
+  ),
+  offset: semanticNumber(z.number().optional()).describe(
+    'Skip this many lines/entries before the head_limit window applies (paging). Default 0.',
+  ),
+  multiline: semanticBoolean(z.boolean().optional()).describe(
+    'Let patterns span line boundaries, with . matching newlines (rg -U --multiline-dotall). Off by default.',
+  ),
+  literal: semanticBoolean(z.boolean().optional()).describe(
+    'Match the pattern as exact text, not a regex (rg -F). Off by default.',
+  ),
+})
 
 const rankedInputSchema = inputSchema.extend({
   output_mode: z
@@ -96,7 +132,20 @@ type Output = {
   cappedFiles?: string[]
 }
 
-const outputSchema: Unbuilt = unbuilt('src/tools/GrepTool/GrepTool.ts:150')
+const outputSchema = z.object({
+  mode: z.enum(['content', 'files_with_matches', 'count']).optional(),
+  numFiles: z.number(),
+  filenames: z.array(z.string()),
+  content: z.string().optional(),
+  numLines: z.number().optional(),
+  numMatches: z.number().optional(),
+  appliedLimit: z.number().optional(),
+  appliedOffset: z.number().optional(),
+  incomplete: z.string().optional(),
+  engine: z.string().optional(),
+  withheld: z.string().optional(),
+  cappedFiles: z.array(z.string()).optional(),
+})
 
 const rankedOutputSchema = outputSchema.extend({ ranked: z.string().optional() })
 
@@ -523,4 +572,499 @@ async function searchElsewhere(
   }
 }
 
-export const GrepTool: Unbuilt = unbuilt('src/tools/GrepTool/GrepTool.ts:635')
+type PageResult<T> = {
+  items: T[]
+  start: number
+  appliedLimit?: number
+  appliedOffset?: number
+}
+
+function paginate<T>(items: readonly T[], headLimit: number | undefined, offset: number | undefined): PageResult<T> {
+  const limit = effectiveLimit(headLimit)
+  const rawOffset = offset !== undefined && offset > 0 ? offset : 0
+  const start = Math.min(rawOffset, items.length)
+  const appliedOffset = rawOffset > 0 ? rawOffset : undefined
+  const rest = items.slice(start)
+  if (limit !== undefined && rest.length > limit) {
+    return {
+      items: rest.slice(0, limit),
+      start,
+      appliedLimit: limit,
+      ...(appliedOffset !== undefined ? { appliedOffset } : {}),
+    }
+  }
+  return {
+    items: rest,
+    start,
+    ...(appliedOffset !== undefined ? { appliedOffset } : {}),
+  }
+}
+
+function capContentMatches(
+  lines: readonly string[],
+  afterSpan: number,
+  cap: number,
+): { lines: string[]; capped: Set<string> } {
+  const kept: string[] = []
+  const matchesByFile = new Map<string, number>()
+  const lastShownMatchLine = new Map<string, number>()
+  const capped = new Set<string>()
+  let pendingSeparator = false
+  const push = (line: string): void => {
+    if (pendingSeparator) {
+      kept.push('--')
+      pendingSeparator = false
+    }
+    kept.push(line)
+  }
+  for (const line of lines) {
+    if (line === '--') {
+      if (kept.length > 0) pendingSeparator = true
+      continue
+    }
+    const nul = line.indexOf('\0')
+    if (nul === -1) {
+      push(line)
+      continue
+    }
+    const file = line.slice(0, nul)
+    const rest = line.slice(nul + 1)
+    const parsed = /^(\d+)([:-])/.exec(rest)
+    if (!parsed) {
+      push(line)
+      continue
+    }
+    const lineNum = Number(parsed[1])
+    const kind = parsed[2]
+    if (kind === ':') {
+      const count = (matchesByFile.get(file) ?? 0) + 1
+      matchesByFile.set(file, count)
+      if (count <= cap) {
+        lastShownMatchLine.set(file, lineNum)
+        push(line)
+      } else {
+        capped.add(file)
+      }
+      continue
+    }
+    const count = matchesByFile.get(file) ?? 0
+    if (count < cap) {
+      push(line)
+      continue
+    }
+    const last = lastShownMatchLine.get(file)
+    if (last !== undefined && lineNum > last && lineNum <= last + afterSpan) {
+      push(line)
+    }
+  }
+  return { lines: kept, capped }
+}
+
+function recordVisibleMatches(
+  pageItems: readonly string[],
+  rawFiles: readonly (string | null)[],
+  pageStart: number,
+  context: ToolUseContext,
+): void {
+  try {
+    const owner = ownerFromToolUseContext(context)
+    const generations = new Map<string, string | null>()
+    for (let index = 0; index < pageItems.length; index++) {
+      const line = pageItems[index]!
+      const rawFile = rawFiles[pageStart + index] ?? null
+      let file: string
+      let rest: string
+      if (rawFile !== null && line.startsWith(`${rawFile}:`)) {
+        file = rawFile
+        rest = line.slice(rawFile.length)
+      } else {
+        const split = prefixSplitIndex(line, 'first')
+        if (split <= 0) continue
+        file = line.slice(0, split)
+        rest = line.slice(split)
+      }
+      if (isSearchableDocument(file)) continue
+      const match = /^:(\d+):([\s\S]*)$/.exec(rest)
+      if (!match) continue
+      const lineNum = Number(match[1])
+      if (lineNum < 1) continue
+      let generation = generations.get(file)
+      if (generation === undefined) {
+        generation = fileGeneration(file)
+        generations.set(file, generation)
+        if (generation !== null) {
+          context.nestedMemoryAttachmentTriggers?.add(file)
+        }
+      }
+      if (generation === null) continue
+      const text = match[2]!
+      const omitted = text === '[Omitted long matching line]' || text === '[Omitted long context line]'
+      recordSeenLines(owner, file, generation, lineNum, 1, omitted ? [{ line: lineNum, visibleChars: 0 }] : undefined)
+    }
+  } catch (error) {
+    passedOver(error)
+  }
+}
+
+export const GrepTool = buildTool({
+  name: GREP_TOOL_NAME,
+  userFacingName: () => 'Search',
+  strict: true,
+  isReadOnly: () => true,
+  isConcurrencySafe: () => true,
+  maxResultSizeChars: 20_000,
+  straightQuoteInputs: ['pattern', 'path', 'glob'],
+  get inputSchema() {
+    return rankedModeEnabled() ? rankedInputSchema : inputSchema
+  },
+  get outputSchema() {
+    return rankedModeEnabled() ? rankedOutputSchema : outputSchema
+  },
+  isSearchOrReadCommand: () => ({ isSearch: true, isRead: false }),
+  getToolUseSummary,
+  isResultTruncated,
+  renderToolUseMessage,
+  renderToolResultMessage,
+  renderToolUseErrorMessage,
+  getActivityDescription(input?: Partial<Input>) {
+    return input?.pattern ? `Searching for ${input.pattern}` : 'Searching'
+  },
+  getPath(input?: Partial<Input>) {
+    return input?.path || getCwd()
+  },
+  preparePermissionMatcher(input: Input) {
+    return (rulePattern: string) => matchWildcardPattern(rulePattern, input.pattern)
+  },
+  async description() {
+    return getDescription()
+  },
+  async prompt(options?: { tools?: readonly Tool[] }) {
+    return getDescription(options?.tools ? new Set(options.tools.map(tool => tool.name)) : null)
+  },
+  async checkPermissions(input: Input, context: ToolUseContext) {
+    if (input.path && isRemotePath(input.path)) {
+      const { remotePermission } = await import('../../services/remoteFiles/bridge.js')
+      return remotePermission(GREP_TOOL_NAME, input.path, null, input, context, 'read')
+    }
+    const permissionContext = context.getAppState().toolPermissionContext
+    const base = input.path ? expandPath(input.path) : getCwd()
+    if (input.glob) {
+      const literalTarget = expandPath(input.glob, base)
+      const literalDecision = checkReadPermissionForTool(
+        { name: GREP_TOOL_NAME, getPath: () => literalTarget },
+        input,
+        permissionContext,
+      )
+      if (literalDecision.behavior === 'deny') return literalDecision
+      const envTargets = envFileTargetsInGlobField(input.glob)
+      let firstNonAllow: ReturnType<typeof checkReadPermissionForTool> | null = null
+      for (const target of envTargets) {
+        const resolved = expandPath(target, base)
+        const decision = checkReadPermissionForTool(
+          { name: GREP_TOOL_NAME, getPath: () => resolved },
+          input,
+          permissionContext,
+        )
+        if (decision.behavior === 'deny') return decision
+        if (decision.behavior !== 'allow' && firstNonAllow === null) {
+          firstNonAllow = decision
+        }
+      }
+      if (firstNonAllow !== null) return firstNonAllow
+    }
+    return checkReadPermissionForTool(grepToolItself(), input, permissionContext)
+  },
+  async validateInput(input: Input, context: ToolUseContext) {
+    if (input.output_mode === 'ranked') {
+      const targetPath = input.path ? (isRemotePath(input.path) ? input.path : expandPath(input.path)) : getCwd()
+      const refusal = isSearchableDocument(targetPath)
+        ? rankedDocumentRefusal(input.path ?? targetPath)
+        : rankedRefusal(input.pattern)
+      if (refusal !== null) {
+        return { result: false, message: refusal, errorCode: 1 }
+      }
+    }
+    if (input.path) {
+      const control = controlCharacterPathRefusal(input.path)
+      if (control !== null) {
+        return { result: false, message: control, errorCode: 1 }
+      }
+      if (isRemotePath(input.path)) {
+        const { remoteValidation } = await import('../../services/remoteFiles/bridge.js')
+        return remoteValidation(input.path, null, 'read', 'Searching', context)
+      }
+      if (windowsPathNeedsPermission(input.path)) {
+        return { result: true }
+      }
+      const expanded = expandPath(input.path)
+      try {
+        await stat(expanded)
+      } catch (error) {
+        if (isENOENT(error)) {
+          let suggestion: string | undefined
+          try {
+            suggestion = await suggestPathUnderCwd(input.path)
+          } catch {
+            suggestion = undefined
+          }
+          if (!suggestion) {
+            suggestion = findSimilarFile(expanded)
+          }
+          const hint = suggestion ? ` Did you mean ${suggestion}?` : ''
+          return {
+            result: false,
+            message: `Path does not exist: ${input.path}. ${FILE_NOT_FOUND_CWD_NOTE} ${getCwd()}.${hint}`,
+            errorCode: 1,
+          }
+        }
+        throw error
+      }
+    }
+    return { result: true }
+  },
+  async call(
+    input: Input,
+    context: ToolUseContext,
+    canUseTool?: CanUseToolFn,
+    parentMessage?: AssistantMessage,
+  ): Promise<{ data: Output }> {
+    if (input.path && isRemotePath(input.path)) {
+      return searchElsewhere(input, context, canUseTool, parentMessage)
+    }
+    const givenRoot = input.path ? expandPath(input.path) : getCwd()
+    const searchRoot = realSearchRoot(givenRoot)
+    const mode = input.output_mode ?? 'files_with_matches'
+    const permission = context.getAppState().toolPermissionContext
+    const withholding = envFilesWithheld(input, permission, givenRoot)
+    if (mode === 'ranked') {
+      return { data: await rankedCall(input, context, searchRoot, givenRoot, withholding) }
+    }
+    const signal = context.abortController.signal
+    const args = await buildArgs(input, context, searchRoot, withholding)
+    const searchPattern = input.literal ? input.pattern : quoteTolerantPattern(input.pattern)
+    const directDocument = isSearchableDocument(searchRoot)
+    const nativeArgs = [...args, ...SEARCHABLE_DOCUMENT_EXTENSIONS.flatMap(ext => ['--iglob', `!*.${ext}`])]
+    const native = directDocument
+      ? { answer: { lines: [] as string[], complete: true } as RipgrepAnswer, engine: undefined as string | undefined }
+      : await answerWithPcre2Fallback(input.pattern, nativeArgs, searchRoot, signal)
+    let engine = native.engine
+    const docs = await searchDocuments({
+      root: searchRoot,
+      args,
+      pattern: searchPattern,
+      mode,
+      permission,
+      signal,
+      search: async (docArgs, docPath) => {
+        const result = await answerWithPcre2Fallback(input.pattern, docArgs, docPath, signal)
+        if (engine === undefined && result.engine !== undefined) engine = result.engine
+        return result
+      },
+    })
+    const incomplete = native.answer.complete ? undefined : (native.answer.reason ?? 'the search did not finish')
+    const combined = [...native.answer.lines, ...docs.lines]
+    const denied = readDenialFilter(permission, searchRoot)
+    const readable = withoutDeniedFiles(combined, mode, denied)
+    const numbered = input['-n'] !== false
+    let lines: string[]
+    let envWithheld: string | undefined
+    if (withholding) {
+      const filtered = withholdEnvFileLines(
+        readable,
+        mode,
+        numbered,
+        permission,
+        envFileCoverage(input.glob, searchRoot),
+        mode === 'content',
+      )
+      lines = filtered.lines
+      envWithheld = filtered.withheld
+    } else {
+      lines = readable
+    }
+    const noticeParts = [envWithheld, docs.note].filter((part): part is string => part !== undefined && part !== '')
+    const withheld = noticeParts.length > 0 ? noticeParts.join(' ') : undefined
+    if (searchRoot !== givenRoot) {
+      lines = lines.map(line => respellRoot(line, searchRoot, givenRoot))
+    }
+    const tail = {
+      ...(incomplete !== undefined ? { incomplete } : {}),
+      ...(engine !== undefined ? { engine } : {}),
+      ...(withheld !== undefined ? { withheld } : {}),
+    }
+    if (mode === 'content') {
+      const isDirectory = (await stat(searchRoot)).isDirectory()
+      const afterSpan = input.context ?? input['-C'] ?? input['-A'] ?? 0
+      const cappedResult =
+        input.head_limit === undefined && isDirectory
+          ? capContentMatches(lines, afterSpan, DEFAULT_PER_FILE_MATCHES)
+          : { lines, capped: new Set<string>() }
+      const rawFiles: (string | null)[] = []
+      const formattedLines: string[] = []
+      for (const line of cappedResult.lines) {
+        const nul = line.indexOf('\0')
+        if (nul === -1) {
+          rawFiles.push(null)
+          formattedLines.push(line)
+        } else {
+          const file = line.slice(0, nul)
+          rawFiles.push(file)
+          formattedLines.push(restoreSeparator(file, line.slice(nul + 1), numbered))
+        }
+      }
+      const page = paginate(formattedLines, input.head_limit, input.offset)
+      const contextSpan = input.context ?? input['-C'] ?? Math.max(input['-B'] ?? 0, input['-A'] ?? 0)
+      const visibleLines =
+        contextSpan > 0
+          ? relativizeContentLines(formattedLines, page.start, page.items.length)
+          : page.items.map(line => relativizePrefixed(line, 'first'))
+      const cappedFiles: string[] = []
+      if (cappedResult.capped.size > 0) {
+        const seen = new Set<string>()
+        for (let index = page.start; index < page.start + page.items.length; index++) {
+          const file = rawFiles[index]
+          if (file !== null && cappedResult.capped.has(file) && !seen.has(file)) {
+            seen.add(file)
+            cappedFiles.push(toRelativePath(file))
+          }
+        }
+      }
+      if (numbered && (anchorPatchEnabled() || staleEditRecoveryEnabled())) {
+        recordVisibleMatches(page.items, rawFiles, page.start, context)
+      }
+      return {
+        data: {
+          mode: 'content',
+          numFiles: 0,
+          filenames: [],
+          content: visibleLines.join('\n'),
+          numLines: visibleLines.length,
+          ...(cappedFiles.length > 0 ? { cappedFiles } : {}),
+          ...(page.appliedLimit !== undefined ? { appliedLimit: page.appliedLimit } : {}),
+          ...(page.appliedOffset !== undefined ? { appliedOffset: page.appliedOffset } : {}),
+          ...tail,
+        },
+      }
+    }
+    if (mode === 'count') {
+      const page = paginate(lines, input.head_limit, input.offset)
+      let numMatches = 0
+      let numFiles = 0
+      const rendered: string[] = []
+      for (const line of page.items) {
+        if (/^\d+$/.test(line)) {
+          numMatches += Number(line)
+          numFiles++
+          rendered.push(line)
+          continue
+        }
+        const split = prefixSplitIndex(line, 'last')
+        if (split !== -1) {
+          const countText = line.slice(split + 1)
+          if (/^\d+$/.test(countText)) {
+            numMatches += Number(countText)
+            numFiles++
+            rendered.push(`${toRelativePath(line.slice(0, split))}:${countText}`)
+            continue
+          }
+        }
+        rendered.push(line)
+      }
+      return {
+        data: {
+          mode: 'count',
+          numFiles,
+          filenames: [],
+          content: rendered.join('\n'),
+          numMatches,
+          ...(page.appliedLimit !== undefined ? { appliedLimit: page.appliedLimit } : {}),
+          ...(page.appliedOffset !== undefined ? { appliedOffset: page.appliedOffset } : {}),
+          ...tail,
+        },
+      }
+    }
+    let sorted: string[]
+    if (process.env.NODE_ENV === 'test') {
+      sorted = [...lines].sort()
+    } else {
+      const withTimes = await mapWithConcurrency(lines, discoveryPoolWidth(), async file => {
+        try {
+          const info = await stat(file)
+          return { file, mtimeMs: info.mtimeMs }
+        } catch {
+          return { file, mtimeMs: 0 }
+        }
+      })
+      withTimes.sort((a, b) => (b.mtimeMs - a.mtimeMs) || (a.file < b.file ? -1 : a.file > b.file ? 1 : 0))
+      sorted = withTimes.map(entry => entry.file)
+    }
+    const page = paginate(sorted, input.head_limit, input.offset)
+    const filenames = page.items.map(file => toRelativePath(file))
+    return {
+      data: {
+        mode: 'files_with_matches',
+        numFiles: filenames.length,
+        filenames,
+        ...(page.appliedLimit !== undefined ? { appliedLimit: page.appliedLimit } : {}),
+        ...(page.appliedOffset !== undefined ? { appliedOffset: page.appliedOffset } : {}),
+        ...tail,
+      },
+    }
+  },
+  extractSearchText(output: Output) {
+    if (output.mode === 'content') return output.content ?? ''
+    return output.filenames.join('\n')
+  },
+  mapToolResultToToolResultBlockParam(output: Output, toolUseID: string) {
+    const note = paginationNote(output.appliedLimit, output.appliedOffset)
+    let text: string
+    if (output.ranked !== undefined) {
+      text = output.ranked
+    } else if (output.mode === 'content') {
+      const trimmed = note.trim()
+      text = output.content ? (trimmed ? `${output.content}\n${trimmed}` : output.content) : 'No matches found'
+      if (output.cappedFiles && output.cappedFiles.length > 0) {
+        text += `\nMore than ${DEFAULT_PER_FILE_MATCHES} matches in ${output.cappedFiles.join(', ')}; pass path: ${JSON.stringify(output.cappedFiles[0])} to see that file, or head_limit: 0 for all matches.`
+      }
+    } else if (output.mode === 'count') {
+      const body = output.content || 'No matches found'
+      const matches = output.numMatches ?? 0
+      const files = output.numFiles
+      const summary = `${matches} ${plural(matches, 'match', 'matches')} across ${files} ${plural(files, 'file')}`
+      const countLine =
+        output.appliedLimit !== undefined
+          ? `${pageWord(output.appliedOffset)}: ${summary}; more exist${note}`
+          : `${summary}${note}`
+      text = `${body}\n${countLine}`
+    } else {
+      if (output.numFiles === 0) {
+        text = 'No files found'
+      } else {
+        const files = output.numFiles
+        const header =
+          output.appliedLimit !== undefined
+            ? `${pageWord(output.appliedOffset)}: ${files} ${plural(files, 'file')}; more exist${note}`
+            : `Found ${files} ${plural(files, 'file')}${note}`
+        text = `${header}\n${output.filenames.join('\n')}`
+      }
+    }
+    if (output.engine !== undefined) {
+      text += `\n(${output.engine})`
+    }
+    if (output.withheld !== undefined) {
+      text += `\n(${output.withheld})`
+    }
+    const remote = readElsewhere.get(output)
+    if (remote !== undefined) {
+      text += `\n(${remote})`
+    }
+    if (output.incomplete !== undefined) {
+      text += `\n(INCOMPLETE SEARCH — ${output.incomplete})`
+    }
+    return {
+      tool_use_id: toolUseID,
+      type: 'tool_result' as const,
+      content: text,
+    }
+  },
+})
