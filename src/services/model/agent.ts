@@ -14,7 +14,7 @@ export function getDefaultSubagentModel(): string {
 const FIRST_PARTY_TIER_WORDS = new Set([...FIRST_PARTY_FAMILY_WORDS, 'mythos'])
 
 function firstPartyFamilyToken(canonical: string): string | null {
-  const match = canonical.match(/claude-(opus|sonnet|haiku|fable)/)
+  const match = canonical.match(/claude-(?:3-\d+-)?(opus|sonnet|haiku|fable)/)
   return match ? match[1] : null
 }
 
