@@ -2,7 +2,7 @@ import React, { createContext, useState, useSyncExternalStore } from 'react'
 import { usePublish } from '../../hooks/effects.js'
 import { clockPeriodMs, subscribeIdleMotion } from '../../utils/cockpit/motionGovernor.js'
 import { useTerminalFocus } from '../hooks/use-terminal-focus.js'
-import { startInterval, stopInterval } from '../../utils/timers.js'
+import { startInterval, stopInterval, type TimerHandle } from '../../utils/timers.js'
 
 type Clock = {
   now: () => number
@@ -12,8 +12,8 @@ type Clock = {
 
 export type ClockTimers = {
   now: () => number
-  setInterval: (fn: () => void, ms: number) => unknown
-  clearInterval: (handle: unknown) => void
+  setInterval: (fn: () => void, ms: number) => TimerHandle
+  clearInterval: (handle: TimerHandle) => void
 }
 
 const FRAME_INTERVAL_MS = 16
@@ -21,7 +21,7 @@ const FRAME_INTERVAL_MS = 16
 const REAL_CLOCK_TIMERS: ClockTimers = {
   now: () => performance.now(),
   setInterval: (fn, ms) => startInterval(fn, ms),
-  clearInterval: handle => stopInterval(handle as ReturnType<typeof startInterval>),
+  clearInterval: stopInterval,
 }
 
 export function createClock(
@@ -30,8 +30,7 @@ export function createClock(
 ): Clock {
   const subscribers = new Map<() => void, boolean>()
   let period = intervalMs
-  let hasTimer = false
-  let timer: unknown = undefined
+  let timer: TimerHandle | undefined = undefined
   let origin: number | null = null
   let latestTickTime = 0
 
@@ -60,21 +59,19 @@ export function createClock(
   }
 
   const settle = (): void => {
-    if (hasTimer) {
+    if (timer !== undefined) {
       timers.clearInterval(timer)
-      hasTimer = false
       timer = undefined
     }
     if (hasKeepAlive()) {
       ensureOrigin()
       timer = timers.setInterval(tick, period)
-      hasTimer = true
     }
   }
 
   return {
     now() {
-      if (hasTimer && latestTickTime !== 0) return latestTickTime
+      if (timer !== undefined && latestTickTime !== 0) return latestTickTime
       return elapsed()
     },
     subscribe(listener, keepAlive) {
