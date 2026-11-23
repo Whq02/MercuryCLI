@@ -6,7 +6,6 @@ const ISO_PREFIX_PATTERN = /^\d{4}-\d{2}-\d{2}(?:T|$)/
 const LEADING_YEAR_PATTERN = /^\d{4}/
 const PARSE_FAILURE_MESSAGE = 'Could not parse a date/time from that input'
 const PARSE_ERROR_MESSAGE = 'Date parsing failed — enter the value in ISO 8601 format'
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
 
 type DateTimeParseResult = { success: true; value: string } | { success: false; error: string }
 
@@ -29,27 +28,36 @@ export async function parseNaturalLanguageDateTime(
   signal: AbortSignal,
 ): Promise<DateTimeParseResult> {
   const now = new Date()
-  const utcNow = now.toISOString()
-  const tzOffset = formatTimezoneOffset(now)
-  const weekday = WEEKDAYS[now.getDay()] ?? 'Sunday'
-  const precision = format === 'date' ? 'date (YYYY-MM-DD)' : `date-time (YYYY-MM-DDTHH:MM:SS${tzOffset})`
+  const offset = formatTimezoneOffset(now)
+  const weekday = now.toLocaleDateString('en-US', { weekday: 'long' })
+  const expected = format === 'date' ? 'a day-precision date in YYYY-MM-DD form' : `a full date-time with the timezone offset ${offset}`
 
   try {
     const response = await queryUtility({
       systemPrompt: asSystemPrompt([
-        `Convert the user's date/time input into an ISO 8601 ${precision} string. ` +
-          `Current UTC time: ${utcNow}. Local UTC offset: ${tzOffset}. Today is ${weekday}. ` +
-          'Reply with ONLY the ISO 8601 value, or INVALID if the input cannot be parsed.',
+        'You are a date/time parser. Convert natural-language date/time input into ISO 8601. ' +
+          'Respond with ONLY the formatted string — no explanation. ' +
+          'When the input is ambiguous, prefer future dates over past dates. ' +
+          "A time without a date uses today's date. A date without a time omits the time component. " +
+          'If the input is unparseable or incomplete, respond with exactly the token INVALID.',
+        'Invalid examples: "March" (partial date), "42" (a lone number), "asdfgh" (gibberish).',
+        'Valid examples: "tomorrow at 3pm", "next Monday", "in two weeks", "June 5th".',
       ]),
-      userPrompt: input,
+      userPrompt:
+        `Current date/time (UTC): ${now.toISOString()}\n` +
+        `Local timezone offset: ${offset}\n` +
+        `Current weekday: ${weekday}\n` +
+        `Input: "${input}"\n` +
+        `Expected output: ${expected}.\n` +
+        'Return only the formatted string, or INVALID.',
       signal,
       options: {
         querySource: 'mcp_datetime_parse',
-        enablePromptCaching: false,
         isNonInteractiveSession: false,
         hasAppendSystemPrompt: false,
         agents: [],
         mcpTools: [],
+        enablePromptCaching: false,
       },
     })
     const candidate = extractTextContent(response.message.content, '\n').trim()
