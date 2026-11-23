@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { exitChordNoticeText } from '../../PromptInput/ExitChordNotice.js'
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import chalk from 'chalk'
 import { Box, Text, useInput } from '../../../ink.js'
 import { usePopupListNavigation } from '../../CustomSelect/popup-list.js'
@@ -35,7 +35,6 @@ import type { UnreachableRule } from '../../../utils/permissions/shadowedRuleDet
 import { AddPermissionRules } from './AddPermissionRules.js'
 import { PermissionRuleDescription } from './PermissionRuleDescription.js'
 import { PermissionRuleInput } from './PermissionRuleInput.js'
-import { notBuilt, unbuilt } from '../../../pi/holes.js'
 
 type TabId = 'allow' | 'ask' | 'deny'
 const RULE_TABS: Record<'allow' | 'ask' | 'deny', PermissionBehavior> = {
@@ -61,7 +60,11 @@ const BEHAVIOR_ADJECTIVE: Record<PermissionBehavior, string> = {
   ask: 'ask',
 }
 
-const TAB_SUBTITLE: Record<'allow' | 'ask' | 'deny', string> = unbuilt('src/components/permissions/rules/PermissionRuleList.tsx:63')
+const TAB_SUBTITLE: Record<'allow' | 'ask' | 'deny', string> = {
+  allow: "Mercury won't ask before using allowed tools.",
+  ask: 'Mercury will always ask for confirmation before using these tools.',
+  deny: 'Mercury will always reject requests to use denied tools.',
+}
 
 function ruleKey(rule: PermissionRule): string {
   return JSON.stringify([
@@ -167,6 +170,332 @@ function RulesTabContent({
   )
 }
 
-export function PermissionRuleList(arg0: PermissionRuleListProps): React.ReactNode {
-  return notBuilt('src/components/permissions/rules/PermissionRuleList.tsx:226')
+function RuleDetailDialog({
+  rule,
+  onDelete,
+  onCancel,
+}: {
+  rule: PermissionRule
+  onDelete: () => void
+  onCancel: () => void
+}): React.ReactNode {
+  const exitState = useExitOnCtrlCDWithKeybindings()
+  const isManaged = rule.source === 'policySettings'
+  const ruleStr = permissionRuleValueToString(rule.ruleValue)
+  const sourceDisplay = permissionRuleSourceDisplayString(rule.source)
+
+  useKeybinding('confirm:no', onCancel, { context: 'Settings', isActive: isManaged })
+
+  if (isManaged) {
+    return (
+      <Box flexDirection="column">
+        <Box
+          flexDirection="column"
+          borderStyle="round"
+          borderColor="permission"
+          paddingX={1}
+          marginTop={1}
+          gap={1}
+        >
+          <Text bold color="permission">
+            Rule details
+          </Text>
+          <Box flexDirection="column">
+            <Text bold>{ruleStr}</Text>
+            <PermissionRuleDescription ruleValue={rule.ruleValue} />
+            <Text dimColor>From {sourceDisplay}</Text>
+          </Box>
+          <Text italic>
+            This rule is configured by managed settings and cannot be modified. Contact your
+            administrator to change it.
+          </Text>
+        </Box>
+        <Box marginLeft={2}>
+          <Text dimColor>
+            {exitState.pending ? exitChordNoticeText(exitState.keyName) : 'esc back'}
+          </Text>
+        </Box>
+      </Box>
+    )
+  }
+
+  return (
+    <Box flexDirection="column">
+      <Box
+        flexDirection="column"
+        borderStyle="round"
+        borderColor="error"
+        paddingX={1}
+        marginTop={1}
+        gap={1}
+      >
+        <Text bold color="error">
+          Delete {BEHAVIOR_ADJECTIVE[rule.ruleBehavior]} rule?
+        </Text>
+        <Box flexDirection="column">
+          <Text bold>{ruleStr}</Text>
+          <PermissionRuleDescription ruleValue={rule.ruleValue} />
+          <Text dimColor>From {sourceDisplay}</Text>
+        </Box>
+        <Select
+          options={[
+            { label: 'Yes', value: 'yes' },
+            { label: 'No', value: 'no' },
+          ]}
+          onChange={value => {
+            if (value === 'yes') {
+              onDelete()
+            } else {
+              onCancel()
+            }
+          }}
+          onCancel={onCancel}
+        />
+      </Box>
+      <Box marginLeft={2}>
+        <Text dimColor>
+          {exitState.pending ? exitChordNoticeText(exitState.keyName) : 'esc back'}
+        </Text>
+      </Box>
+    </Box>
+  )
+}
+
+export function PermissionRuleList({
+  onExit,
+  initialTab = 'allow',
+}: PermissionRuleListProps): React.ReactNode {
+  const toolPermissionContext = useAppState(s => s.toolPermissionContext)
+  const setAppState = useSetAppState()
+  const isTerminalFocused = useTerminalFocus()
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab)
+  const [subDialog, setSubDialog] = useState<SubDialog | null>(null)
+  const [searchMode, setSearchMode] = useState(false)
+  const [headerFocused, setHeaderFocused] = useState(true)
+  const [changeLog, setChangeLog] = useState<string[]>([])
+  const focusHeaderRef = useRef<() => void>(() => {})
+  const queryRef = useRef('')
+  const exitedRef = useRef(false)
+
+  const exitState = useExitOnCtrlCDWithKeybindings(undefined, undefined, subDialog === null)
+
+  const setToolPermissionContext = useCallback(
+    (next: ToolPermissionContext) => {
+      setAppState(prev => ({ ...prev, toolPermissionContext: next }))
+    },
+    [setAppState],
+  )
+
+  const handleExit = useCallback(() => {
+    if (exitedRef.current) return
+    exitedRef.current = true
+    if (changeLog.length > 0) {
+      onExit(changeLog.join('\n'))
+    } else {
+      onExit('Permissions dialog dismissed', { display: 'system' })
+    }
+  }, [changeLog, onExit])
+
+  const { query, setQuery, cursorOffset } = useSearchInput({
+    isActive: subDialog === null && searchMode,
+    onExit: () => setSearchMode(false),
+    onExitUp: () => {
+      setSearchMode(false)
+      focusHeaderRef.current()
+    },
+    onCancel: () => {
+      queryRef.current = ''
+      setQuery('')
+      setSearchMode(false)
+    },
+  })
+  queryRef.current = query
+
+  useInput(
+    (input, key) => {
+      if (
+        key.ctrl ||
+        key.meta ||
+        key.return ||
+        key.escape ||
+        key.tab ||
+        key.backspace ||
+        key.delete ||
+        key.upArrow ||
+        key.downArrow ||
+        key.leftArrow ||
+        key.rightArrow ||
+        key.pageUp ||
+        key.pageDown
+      ) {
+        return
+      }
+      if (input.length === 0 || input < ' ') return
+      queryRef.current = queryRef.current + input
+      setQuery(queryRef.current)
+      setSearchMode(true)
+    },
+    { isActive: subDialog === null && !searchMode },
+  )
+
+  useKeybinding('confirm:no', handleExit, {
+    context: 'Settings',
+    isActive: subDialog === null && !searchMode,
+  })
+
+  const handleHeaderFocusChange = useCallback((focused: boolean, focus: () => void) => {
+    setHeaderFocused(focused)
+    focusHeaderRef.current = focus
+  }, [])
+
+  const handleDeleteRule = useCallback(
+    (rule: PermissionRule) => {
+      const adj = BEHAVIOR_ADJECTIVE[rule.ruleBehavior]
+      const ruleStr = permissionRuleValueToString(rule.ruleValue)
+      void deletePermissionRule({
+        rule,
+        initialContext: toolPermissionContext,
+        setToolPermissionContext,
+      })
+        .then(() => {
+          setChangeLog(prev => [...prev, `Deleted ${adj} rule ${chalk.bold(ruleStr)}`])
+          setSubDialog(null)
+        })
+        .catch(err => {
+          logError(err)
+          setChangeLog(prev => [
+            ...prev,
+            `Could not delete ${adj} rule ${chalk.bold(ruleStr)}: ${errorMessage(err)}`,
+          ])
+          setSubDialog(null)
+        })
+    },
+    [toolPermissionContext, setToolPermissionContext],
+  )
+
+  const handleAddRulesComplete = useCallback(
+    (rules: PermissionRule[], unreachable?: UnreachableRule[]) => {
+      const entries: string[] = []
+      for (const rule of rules) {
+        const adj = BEHAVIOR_ADJECTIVE[rule.ruleBehavior]
+        const ruleStr = permissionRuleValueToString(rule.ruleValue)
+        entries.push(`Added ${adj} rule ${chalk.bold(ruleStr)}`)
+      }
+      if (unreachable) {
+        for (const item of unreachable) {
+          const ruleStr = permissionRuleValueToString(item.rule.ruleValue)
+          const kind = item.shadowType === 'deny' ? 'blocked' : 'shadowed'
+          entries.push(
+            `Warning: rule ${ruleStr} is ${kind}\n${chalk.dim(item.reason)}\n${chalk.dim(`Fix: ${item.fix}`)}`,
+          )
+        }
+      }
+      if (entries.length > 0) {
+        setChangeLog(prev => [...prev, ...entries])
+      }
+      setSubDialog(null)
+    },
+    [],
+  )
+
+  if (subDialog?.kind === 'detail') {
+    return (
+      <RuleDetailDialog
+        rule={subDialog.rule}
+        onDelete={() => handleDeleteRule(subDialog.rule)}
+        onCancel={() => setSubDialog(null)}
+      />
+    )
+  }
+
+  if (subDialog?.kind === 'add-input') {
+    return (
+      <PermissionRuleInput
+        ruleBehavior={subDialog.behavior}
+        onCancel={() => setSubDialog(null)}
+        onSubmit={(ruleValue: PermissionRuleValue) =>
+          setSubDialog({
+            kind: 'add-destination',
+            ruleValues: [ruleValue],
+            behavior: subDialog.behavior,
+          })
+        }
+      />
+    )
+  }
+
+  if (subDialog?.kind === 'add-destination') {
+    return (
+      <AddPermissionRules
+        ruleValues={subDialog.ruleValues}
+        ruleBehavior={subDialog.behavior}
+        initialContext={toolPermissionContext}
+        setToolPermissionContext={setToolPermissionContext}
+        onCancel={() => setSubDialog(null)}
+        onAddRules={handleAddRulesComplete}
+      />
+    )
+  }
+
+  const footer = exitState.pending
+    ? exitChordNoticeText(exitState.keyName)
+    : searchMode
+      ? 'type to filter · ↵/↓ select · ↑ tabs · esc clear'
+      : headerFocused
+        ? '←→ switch tabs · ↓ content · esc cancel'
+        : '↑↓ navigate · pgup/pgdn page · ↵ select · type to search · ←→ switch · esc cancel'
+
+  const tabs: ReadonlyArray<{ id: TabId; title: string }> = [
+    { id: 'allow', title: 'Allow' },
+    { id: 'ask', title: 'Ask' },
+    { id: 'deny', title: 'Deny' },
+  ]
+
+  return (
+    <Box flexDirection="column">
+      <Pane color="permission">
+        <Tabs
+          title="Permissions:"
+          color="permission"
+          selectedTab={activeTab}
+          onTabChange={(id: string) => {
+            if (id === 'allow' || id === 'ask' || id === 'deny') {
+              setActiveTab(id)
+            }
+          }}
+          disableNavigation={searchMode}
+          banner={
+            <SearchBox
+              query={query}
+              isFocused={searchMode}
+              isTerminalFocused={isTerminalFocused}
+              cursorOffset={cursorOffset}
+            />
+          }
+        >
+          {tabs.map(({ id, title }) => (
+            <Tab key={id} id={id} title={title}>
+              <RulesTabContent
+                behavior={RULE_TABS[id]}
+                context={toolPermissionContext}
+                query={query}
+                searchMode={searchMode}
+                onSelectRule={(rule, nextFocus) =>
+                  setSubDialog({ kind: 'detail', rule, nextFocus })
+                }
+                onAddRule={() =>
+                  setSubDialog({ kind: 'add-input', behavior: RULE_TABS[id] })
+                }
+                onCancel={handleExit}
+                onHeaderFocusChange={handleHeaderFocusChange}
+              />
+            </Tab>
+          ))}
+        </Tabs>
+      </Pane>
+      <Box marginLeft={2}>
+        <Text dimColor>{footer}</Text>
+      </Box>
+    </Box>
+  )
 }
