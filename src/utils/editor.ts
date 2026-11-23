@@ -166,7 +166,7 @@ export function openFileInExternalEditor(filePath: string, line?: number): boole
   const resolution = resolveExternalEditor()
   if (!resolution.ok) {
     if (resolution.reason !== 'none') {
-      logForDebugging(editorRefusalLine(resolution), { level: 'warn' })
+      logForDebugging(`editor refused before any spawn: ${editorRefusalLine(resolution)}`, { level: 'warn' })
     }
     return false
   }
@@ -192,12 +192,12 @@ export function openFileInExternalEditor(filePath: string, line?: number): boole
             env: subprocessEnv(),
           })
       child.on('error', err => {
-        logForDebugging(`External editor spawn error: ${String(err)}`, { level: 'warn' })
+        logForDebugging(`editor spawn failed: ${String(err)}`, { level: 'warn' })
       })
       child.unref()
       return true
     } catch (err) {
-      logForDebugging(`Failed to launch external editor: ${String(err)}`, { level: 'warn' })
+      logForDebugging(`editor spawn failed: ${String(err)}`, { level: 'warn' })
       return false
     }
   }
@@ -229,7 +229,7 @@ export function openFileInExternalEditor(filePath: string, line?: number): boole
           env: subprocessEnv(),
         })
     if (result.error !== undefined) {
-      logForDebugging(`External editor spawn error: ${String(result.error)}`, { level: 'warn' })
+      logForDebugging(`terminal editor failed: ${String(result.error)}`, { level: 'warn' })
       return false
     }
     return true

@@ -260,7 +260,7 @@ export async function maybeResizeAndDownsampleImageBuffer(
       return { buffer: imageBuffer, mediaType: sourceSubtype }
     }
     throw new ImageResizeError(
-      `Image (${formatFileSize(originalSize)}, ${formatFileSize(base64LengthOf(originalSize))} as base64) exceeds ${limitWords(caps, role)} and could not be decoded to shrink it.`,
+      `Image (${formatFileSize(originalSize)}, ${formatFileSize(base64LengthOf(originalSize))} as base64), over ${limitWords(caps, role)}, and its format could not be decoded here to shrink it.`,
     )
   }
   const fitted = fitDimensions(dims.width, dims.height, caps)
@@ -339,11 +339,11 @@ export async function maybeResizeAndDownsampleImageBuffer(
   if (lastProduced === null) {
     const reason = firstError instanceof Error ? firstError.message : String(firstError)
     throw new ImageResizeError(
-      `Image (${dims.width}x${dims.height} px, ${formatFileSize(imageBuffer.length)}, ${formatFileSize(base64LengthOf(imageBuffer.length))} as base64) exceeds ${limitWords(caps, role)} and could not be re-encoded: ${reason}`,
+      `Image (${dims.width}x${dims.height} px, ${formatFileSize(imageBuffer.length)}, ${formatFileSize(base64LengthOf(imageBuffer.length))} as base64), over ${limitWords(caps, role)}, and it could not be re-encoded here. ${reason}`,
     )
   }
   throw new ImageResizeError(
-    `Image (${dims.width}x${dims.height} px, ${formatFileSize(imageBuffer.length)}, ${formatFileSize(base64LengthOf(imageBuffer.length))} as base64) could not fit within ${limitWords(caps, role)}; even the smallest encoding (${formatFileSize(lastProduced.length)} ${subtypeOf(lastProduced)}, ${formatFileSize(base64LengthOf(lastProduced.length))} as base64) exceeds the limit.`,
+    `Image (${dims.width}x${dims.height} px, ${formatFileSize(imageBuffer.length)}, ${formatFileSize(base64LengthOf(imageBuffer.length))} as base64), over ${limitWords(caps, role)}; even the smallest encoding tried (${formatFileSize(lastProduced.length)} ${subtypeOf(lastProduced)}) was ${formatFileSize(base64LengthOf(lastProduced.length))} as base64.`,
   )
 }
 
@@ -745,7 +745,7 @@ async function compressImageBuffer(
     }
   }
   throw new ImageResizeError(
-    `Image (${formatFileSize(originalSize)}) could not be compressed to fit the Read tool budget of ${formatFileSize(maxBytes)} (this is the Read tool's own budget, separate from provider image limits); supply a smaller image or a larger budget.`,
+    `Image compression failed: the image is ${formatFileSize(originalSize)} and no encoding tried fit the ${formatFileSize(maxBytes)} read budget (the Read tool's token budget, not a provider limit). Supply a smaller image or a smaller budget.`,
   )
 }
 

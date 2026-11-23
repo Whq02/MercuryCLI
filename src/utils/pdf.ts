@@ -38,26 +38,26 @@ export async function readPDF(
   try {
     const info = await stat(filePath)
     if (info.size === 0) {
-      return fail('empty', `PDF file is empty: ${filePath}`)
+      return fail('empty', `The PDF file is empty: ${filePath}`)
     }
     if (info.size > PDF_TARGET_RAW_SIZE) {
       return fail(
         'too_large',
-        `PDF file is too large (${formatFileSize(info.size)}, max ${formatFileSize(PDF_TARGET_RAW_SIZE)}): ${filePath}`,
+        `PDF (${formatFileSize(info.size)}) exceeds the ${formatFileSize(PDF_TARGET_RAW_SIZE)} limit for inline reading.`,
       )
     }
     const buffer = await readRegularFile(filePath, undefined, info)
     if (buffer.length === 0) {
-      return fail('empty', `PDF file is empty: ${filePath}`)
+      return fail('empty', `The PDF file is empty: ${filePath}`)
     }
     if (buffer.length > PDF_TARGET_RAW_SIZE) {
       return fail(
         'too_large',
-        `PDF file is too large (${formatFileSize(buffer.length)}, max ${formatFileSize(PDF_TARGET_RAW_SIZE)}): ${filePath}`,
+        `PDF (${formatFileSize(buffer.length)}) exceeds the ${formatFileSize(PDF_TARGET_RAW_SIZE)} limit for inline reading.`,
       )
     }
     if (buffer.subarray(0, PDF_MAGIC.length).toString('ascii') !== PDF_MAGIC) {
-      return fail('corrupted', `File is not a valid PDF (missing ${PDF_MAGIC} header): ${filePath}`)
+      return fail('corrupted', `The file is not a valid PDF (missing the %PDF- header): ${filePath}`)
     }
     return {
       success: true,
@@ -115,18 +115,18 @@ export async function extractPDFPages(
   try {
     const info = await stat(filePath)
     if (info.size === 0) {
-      return fail('empty', `PDF file is empty: ${filePath}`)
+      return fail('empty', `The PDF file is empty: ${filePath}`)
     }
     if (info.size > PDF_MAX_EXTRACT_SIZE) {
       return fail(
         'too_large',
-        `PDF file is too large to extract (${formatFileSize(info.size)}, max ${formatFileSize(PDF_MAX_EXTRACT_SIZE)}): ${filePath}`,
+        `PDF (${formatFileSize(info.size)}) exceeds the ${formatFileSize(PDF_MAX_EXTRACT_SIZE)} limit for page extraction.`,
       )
     }
     if (!(await isPdftoppmAvailable())) {
       return fail(
         'unavailable',
-        'PDF page extraction requires `pdftoppm` (Poppler). Install Poppler (macOS: `brew install poppler`; Debian/Ubuntu: `sudo apt-get install poppler-utils`).',
+        'The pdftoppm utility is not installed. Install the poppler tool suite (macOS: `brew install poppler`; Debian/Ubuntu: `sudo apt-get install poppler-utils`) to read large PDFs page by page.',
       )
     }
     outputDir = pdfPageOutputDir()
@@ -143,17 +143,17 @@ export async function extractPDFPages(
       await removePDFPages(outputDir)
       const detail = result.stderr.trim()
       if (/password/i.test(detail)) {
-        return fail('password_protected', `PDF file is password-protected: ${filePath}`)
+        return fail('password_protected', 'The PDF is password protected. Provide an unprotected copy.')
       }
       if (/damage|corrupt|invalid/i.test(detail)) {
-        return fail('corrupted', detail || `PDF file appears to be corrupted: ${filePath}`)
+        return fail('corrupted', detail || `The PDF appears to be corrupted: ${filePath}`)
       }
       return fail('unknown', detail || 'pdftoppm failed')
     }
     const entries = (await readdir(outputDir)).filter(name => name.endsWith('.jpg'))
     if (entries.length === 0) {
       await removePDFPages(outputDir)
-      return fail('corrupted', `No pages were extracted from PDF: ${filePath}`)
+      return fail('corrupted', 'The PDF renderer produced no page images; the file may be malformed.')
     }
     return {
       success: true,

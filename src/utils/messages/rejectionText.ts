@@ -2,7 +2,8 @@ export * from './turnCut.js'
 import { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE, isInterruptedResultText } from './turnCut.js'
 
 export const DENIAL_WORKAROUND_GUIDANCE =
-  'Do not try to reach the same effect by another route. If the task cannot continue without this action, stop and say plainly what was not run and why the task needs it, then wait for the operator.'
+  'Do not try to reach the same effect by another route. ' +
+  'If the task cannot continue without this action, stop and say plainly what was not run and why the task needs it, then wait for the operator.'
 
 export const CANCEL_MESSAGE =
   'The operator stopped this action before it ran; nothing was changed. Stop what you are doing and wait for the operator to say how to proceed.'
@@ -26,7 +27,11 @@ const DENIAL_SENTENCES_ON_DISK = [
 ]
 
 export function AUTO_REJECT_MESSAGE(toolName: string): string {
-  return `Permission to use ${toolName} has been denied: this session cannot show the operator a consent card, so the action was not run. The operator can allow it with a permission rule for ${toolName}, or by running the session interactively and approving it there. ${DENIAL_WORKAROUND_GUIDANCE}`
+  return (
+    `Permission to use ${toolName} has been denied: this session cannot show the operator a consent card, so the action was not run. ` +
+    `The operator can allow it with a permission rule for ${toolName}, or by running the session interactively and approving it there. ` +
+    DENIAL_WORKAROUND_GUIDANCE
+  )
 }
 export function DONT_ASK_REJECT_MESSAGE(toolName: string): string {
   return `Permission to use ${toolName} has been denied because Mercury is running in don't ask mode: nothing that needs approval runs in this mode. ${DENIAL_WORKAROUND_GUIDANCE}`
