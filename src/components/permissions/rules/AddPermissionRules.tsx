@@ -13,7 +13,6 @@ import { Select } from '../../CustomSelect/select.js'
 import type { OptionWithDescription } from '../../CustomSelect/select.js'
 import { Dialog } from '../../design-system/Dialog.js'
 import { PermissionRuleDescription } from './PermissionRuleDescription.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 const DESTINATION_LABEL: Record<EditableSettingSource, string> = {
   userSettings: 'User settings',
@@ -43,7 +42,14 @@ function newlyUnreachable(context: ToolPermissionContext, added: PermissionRuleV
   return findings.length > 0 ? findings : undefined
 }
 
-export function AddPermissionRules(arg0: {
+export function AddPermissionRules({
+  onAddRules,
+  onCancel,
+  ruleValues,
+  ruleBehavior,
+  initialContext,
+  setToolPermissionContext,
+}: {
   onAddRules: (rules: PermissionRule[], unreachable?: UnreachableRule[]) => void
   onCancel: () => void
   ruleValues: PermissionRuleValue[]
@@ -51,5 +57,50 @@ export function AddPermissionRules(arg0: {
   initialContext: ToolPermissionContext
   setToolPermissionContext: (context: ToolPermissionContext) => void
 }): React.ReactNode {
-  return notBuilt('src/components/permissions/rules/AddPermissionRules.tsx:45')
+  const handleSelect = (destination: EditableSettingSource): void => {
+    const update: PermissionUpdate = {
+      type: 'addRules',
+      rules: ruleValues,
+      behavior: ruleBehavior,
+      destination,
+    }
+    const nextContext = applyPermissionUpdate(initialContext, update)
+    persistPermissionUpdate(update)
+    setToolPermissionContext(nextContext)
+    const created: PermissionRule[] = ruleValues.map(ruleValue => ({
+      source: destination,
+      ruleBehavior,
+      ruleValue,
+    }))
+    onAddRules(created, newlyUnreachable(nextContext, ruleValues))
+  }
+
+  return (
+    <Dialog
+      title={`Add ${plural(ruleValues.length, 'rule')}`}
+      color="permission"
+      onCancel={onCancel}
+    >
+      <Box flexDirection="column" gap={1}>
+        <Box flexDirection="column">
+          {ruleValues.map((ruleValue, index) => (
+            <Box key={index} flexDirection="column">
+              <Text bold>{permissionRuleValueToString(ruleValue)}</Text>
+              <PermissionRuleDescription ruleValue={ruleValue} />
+            </Box>
+          ))}
+        </Box>
+        <Text>
+          {ruleValues.length === 1
+            ? 'Where should this rule be saved?'
+            : 'Where should these rules be saved?'}
+        </Text>
+        <Select
+          options={SOURCES.map(destinationOption)}
+          onChange={handleSelect}
+          onCancel={onCancel}
+        />
+      </Box>
+    </Dialog>
+  )
 }
