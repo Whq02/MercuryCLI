@@ -20,7 +20,7 @@ import { ToolSearchTool } from '../../../tools/ToolSearchTool/ToolSearchTool.js'
 import { projectRewoundWindows } from '../checkpointRewind.js'
 import { ERROR_MESSAGE_INCOMPLETE_RESPONSE, KEEPALIVE_INTERVAL_MS } from './limits.js'
 import { isOverflowAnswer, malformedHistoryRefusalOf, foldRemedyIsHeadless, foldWindowRefusalText, CompactionRefusedForHistoryError } from './refusals.js'
-import { ERROR_MESSAGE_FOLD_TIMEOUT, armFoldBound, foldCutWords, shouldRideCacheSharingFork, recordFoldRoad } from './foldBound.js'
+import { ERROR_MESSAGE_FOLD_TIMEOUT, type FoldBound, armFoldBound, foldCutWords, shouldRideCacheSharingFork, recordFoldRoad } from './foldBound.js'
 import { createCompactCanUseTool } from './input.js'
 import { summaryAnswerFault, summaryRefusedByModel } from './summaryCheck.js'
 import { startInterval, stopInterval } from '../../../utils/timers.js'
@@ -137,6 +137,18 @@ async function summarizeViaCacheSharingFork(
   }
 }
 
+function throwIfDirectLaneCut(bound: FoldBound, model: string, startedAt: number): void {
+  if (bound.hitDeadline()) {
+    logForDebugging(`compact: direct lane cut for ${foldCutWords(bound)} after ${Date.now() - startedAt} ms — nothing folded`, { level: 'warn' })
+    recordFoldRoad(model, 'direct', startedAt, 'timeout', foldCutWords(bound))
+    throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
+  }
+  if (bound.signal.aborted) {
+    recordFoldRoad(model, 'direct', startedAt, 'aborted')
+    throw new APIUserAbortError()
+  }
+}
+
 async function summarizeDirect(
   messages: Message[],
   cacheSafeParams: CacheSafeParams,
@@ -236,27 +248,10 @@ async function summarizeDirect(
         }
       }
     } catch (error) {
-      if (bound.hitDeadline()) {
-        logForDebugging(`compact: direct lane cut for ${foldCutWords(bound)} after ${Date.now() - startedAt} ms — nothing folded`, { level: 'warn' })
-        recordFoldRoad(model, 'direct', startedAt, 'timeout', foldCutWords(bound))
-        throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
-      }
-      if (bound.signal.aborted) {
-        recordFoldRoad(model, 'direct', startedAt, 'aborted')
-        throw new APIUserAbortError()
-      }
+      throwIfDirectLaneCut(bound, model, startedAt)
       throw error
     }
-
-    if (bound.hitDeadline()) {
-      logForDebugging(`compact: direct lane cut for ${foldCutWords(bound)} after ${Date.now() - startedAt} ms — nothing folded`, { level: 'warn' })
-      recordFoldRoad(model, 'direct', startedAt, 'timeout', foldCutWords(bound))
-      throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
-    }
-    if (bound.signal.aborted) {
-      recordFoldRoad(model, 'direct', startedAt, 'aborted')
-      throw new APIUserAbortError()
-    }
+    throwIfDirectLaneCut(bound, model, startedAt)
 
     const captured = assistantMessages.at(-1)
     if (captured === undefined) {

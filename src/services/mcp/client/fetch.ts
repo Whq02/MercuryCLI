@@ -8,7 +8,7 @@ import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 const REQUEST_TIMEOUT_MS = 60_000
 const MAX_TIMER_MS = 2_147_483_647
 
-type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>
+export type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>
 
 
 function jsonRpcMethodOf(body: unknown): string | null {

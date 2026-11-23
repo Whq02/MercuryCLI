@@ -17,7 +17,7 @@ import { getMcpServerHeaders } from '../headersHelper.js'
 import type { ScopedMcpServerConfig } from '../../../utils/mcp/types.js'
 import { getLoggingSafeMcpBaseUrl } from '../utils.js'
 import { connectTimeoutMs, mcpStdioMaxMessageBytes } from './limits.js'
-import { wrapFetchWithTimeout, loggedHeadersOf, createAnthropicProxyFetch } from './fetch.js'
+import { type FetchLike, wrapFetchWithTimeout, loggedHeadersOf, createAnthropicProxyFetch } from './fetch.js'
 import { OwnedStdioClientTransport } from './protocolClient.js'
 import { createWsTransport } from './wsTransport.js'
 import { endProcessTree, endProcessTreeSurvivors } from '../../../utils/processGroup.js'
@@ -68,7 +68,7 @@ export async function sseTransportFor(name: string, config: RemoteConfig, provid
   const wrappedFetch = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(apiFetch, provider))
   const headers: Record<string, string> = { 'User-Agent': getMCPUserAgent(), ...serverHeaders }
   const proxyOptions = getProxyFetchOptions()
-  const eventSourceFetch = async (input: string | URL, init?: RequestInit): Promise<Response> => {
+  const eventSourceFetch: FetchLike = async (input, init) => {
     const tokens = await provider.tokens()
     const mergedHeaders = new Headers(init?.headers)
     mergedHeaders.set('User-Agent', getMCPUserAgent())

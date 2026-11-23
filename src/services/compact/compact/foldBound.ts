@@ -39,7 +39,7 @@ export function foldFirstByteAllowanceMs(estTokens: number, bounds: FoldBounds =
 
 export type FoldCut = 'silence'
 
-type FoldBound = {
+export type FoldBound = {
   controller: AbortController
   signal: AbortSignal
   touch(): void
