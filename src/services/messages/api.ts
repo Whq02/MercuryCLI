@@ -30,17 +30,38 @@ import type { Tool, Tools, ToolPermissionContext } from '../../Tool.js'
 import type { AgentDefinition } from '../../types/agent.js'
 import type { ApiTool, ApiToolUnion, ToolInputSchema } from '../../types/wire.js'
 import type { Message } from '../../types/message.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-type SystemPromptBlock = Unbuilt
+type SystemPromptBlock = { text: string; cached: boolean }
 
 function joinGroup(blocks: string[]): string {
   return blocks.filter(block => block).join('\n\n')
 }
 
 export function splitSystemPromptBlocks(systemPrompt: readonly string[]): SystemPromptBlock[] {
-  return notBuilt('src/services/messages/api.ts:43')
+  const billingPrefix = 'x-anthropic-billing-header'
+  if (isWholeRecordedComposition(systemPrompt)) {
+    return systemPrompt.map(text => ({ text, cached: !text.startsWith(billingPrefix) }))
+  }
+  let attribution: string | undefined
+  const others: string[] = []
+  for (const segment of systemPrompt) {
+    if (!segment) continue
+    if (segment.startsWith(billingPrefix)) {
+      attribution = segment
+    } else {
+      others.push(segment)
+    }
+  }
+  const blocks: SystemPromptBlock[] = []
+  if (attribution !== undefined) {
+    blocks.push({ text: attribution, cached: false })
+  }
+  const joined = joinGroup(others)
+  if (joined) {
+    blocks.push({ text: joined, cached: true })
+  }
+  return blocks
 }
 
 
@@ -49,7 +70,20 @@ export function appendSystemContext(
   context: Record<string, string>,
   model?: string,
 ): string[] {
-  return notBuilt('src/services/messages/api.ts:60')
+  if (isWholeRecordedComposition(systemPrompt)) {
+    return [...systemPrompt]
+  }
+  const localProfile = model !== undefined && localPromptProfileApplies(model)
+  const segments = localProfile
+    ? systemPrompt.filter(segment => !firstTurnSegment(segment))
+    : [...systemPrompt]
+  const contextLines: string[] = []
+  for (const [name, value] of Object.entries(context)) {
+    if (localProfile && name === 'gitStatus') continue
+    contextLines.push(`${name}: ${value}`)
+  }
+  const contextSegment = contextLines.join('\n')
+  return [...segments, contextSegment].filter(segment => segment !== '')
 }
 
 function firstTurnSegment(segment: string): boolean {
@@ -88,7 +122,10 @@ export function prependUserContext(
   messages: Message[],
   context: Record<string, string>,
 ): Message[] {
-  return notBuilt('src/services/messages/api.ts:107')
+  if (process.env.NODE_ENV === 'test') return messages
+  const body = userContextReminderBody(context)
+  if (body === null) return messages
+  return [createUserMessage({ content: body, isMeta: true }), ...messages]
 }
 
 
@@ -122,7 +159,116 @@ export async function toolToAPISchema(
     bound?: boolean
   },
 ): Promise<ApiToolUnion> {
-  return notBuilt('src/services/messages/api.ts:134')
+  const model = options.model ?? getEngineModel()
+  const conversationMap =
+    options.conversationKey !== undefined
+      ? getConversationToolSchemas(options.conversationKey)
+      : undefined
+  const initialStored = conversationMap?.get(tool.name)
+  if (
+    initialStored !== undefined &&
+    (typeof tool.prompt !== 'function' || options.bound !== false)
+  ) {
+    const parsed = JSON.parse(initialStored) as ApiTool
+    return options.cacheControl !== undefined
+      ? { ...parsed, cache_control: options.cacheControl }
+      : parsed
+  }
+
+  const route = declaredRouteOf(model)
+  const capabilities = resolveModelCapabilities(model)
+  const mediaPart = `${capabilities.media.pdf ? 'p' : ''}${capabilities.media.images ? 'i' : ''}`
+  const wireForm = deferralWireFormFor(model).form
+  const localPart = localPromptProfileApplies(model) ? ':local-profile' : ''
+  const editMark = editFormCacheMark()
+  const rosterPart = options.tools.map(entry => entry.name).sort().join(',')
+  const cacheKey = `${toolCacheKey(tool)}@${route ?? 'unrecognised'}:${mediaPart}:${wireForm}${localPart}${editMark}|${rosterPart}`
+
+  const cache = getToolSchemaCache()
+  let base = cache.get(cacheKey)
+  if (base === undefined) {
+    const promptText = await tool.prompt({
+      getToolPermissionContext: options.getToolPermissionContext,
+      tools: options.tools,
+      agents: options.agents,
+      allowedAgentTypes: options.allowedAgentTypes,
+      model,
+    })
+    const explicit = (tool as { inputJSONSchema?: Record<string, unknown> }).inputJSONSchema
+    let schema: ToolInputSchema
+    if (explicit !== undefined) {
+      const serialized =
+        typeof explicit === 'object' && explicit !== null ? serializedSchemaKeys.get(explicit) : undefined
+      const inlined = inlineLocalSchemaRefs(explicit, serialized)
+      const lane = schemaLaneFor(route)
+      const normalized = normalizeToolSchemaFor(
+        lane,
+        inlined,
+        inlined === explicit ? serialized : undefined,
+      )
+      if (lane === 'anthropic-strict') {
+        rememberRenamedArgumentKeys(tool.name, normalized.renamed)
+      }
+      schema = normalized.schema as ToolInputSchema
+    } else {
+      const fromZod = zodToJsonSchema(tool.inputSchema) as Record<string, unknown>
+      schema = inlineLocalSchemaRefs(fromZod) as ToolInputSchema
+    }
+    const rawDescription =
+      typeof tool.wireDescription === 'function' ? tool.wireDescription(promptText) : promptText
+    const { description, input_schema } = localToolForm(tool.name, model, rawDescription, schema)
+    base = {
+      name: tool.name,
+      description,
+      input_schema,
+      ...(fineGrainedToolStreamingEnabled() ? { eager_input_streaming: true } : {}),
+    }
+    cache.set(cacheKey, base)
+  }
+
+  let definition: ApiTool = {
+    name: base.name,
+    description: base.description,
+    input_schema: base.input_schema,
+    ...(base.eager_input_streaming !== undefined
+      ? { eager_input_streaming: base.eager_input_streaming }
+      : {}),
+    ...(options.deferLoading ? { defer_loading: true } : {}),
+    ...(options.cacheControl !== undefined ? { cache_control: options.cacheControl } : {}),
+  }
+
+  const allowEager = fineGrainedToolStreamingEnabled()
+  const allowDefer = toolDeferralEnabled() && toolReferenceWireAccepted()
+  const allowedFields = new Set<string>(['name', 'description', 'input_schema', 'cache_control'])
+  if (allowEager) allowedFields.add('eager_input_streaming')
+  if (allowDefer) allowedFields.add('defer_loading')
+  const stripped = Object.keys(definition).filter(key => !allowedFields.has(key))
+  if (stripped.length > 0) {
+    logStrippedFieldsOnce(stripped)
+    definition = {
+      name: definition.name,
+      description: definition.description,
+      input_schema: definition.input_schema,
+      ...(definition.cache_control !== undefined ? { cache_control: definition.cache_control } : {}),
+      ...(allowEager && definition.eager_input_streaming ? { eager_input_streaming: true } : {}),
+      ...(allowDefer && definition.defer_loading ? { defer_loading: true } : {}),
+    }
+  }
+
+  if (conversationMap !== undefined) {
+    const currentStored = conversationMap.get(tool.name)
+    if (currentStored === undefined || (options.bound === false && currentStored === initialStored)) {
+      const { cache_control: _cacheControl, ...withoutCacheControl } = definition
+      conversationMap.set(tool.name, jsonStringify(withoutCacheControl))
+    }
+    const finalStored = conversationMap.get(tool.name)!
+    const parsed = JSON.parse(finalStored) as ApiTool
+    return options.cacheControl !== undefined
+      ? { ...parsed, cache_control: options.cacheControl }
+      : parsed
+  }
+
+  return definition
 }
 
 let strippedFieldsLogged = false
@@ -226,5 +372,9 @@ export function normalizeToolInputForAPI(
   tool: Tool,
   input: Record<string, unknown>,
 ): Record<string, unknown> {
-  return notBuilt('src/services/messages/api.ts:328')
+  if (tool.name === FILE_EDIT_TOOL_NAME && Array.isArray(input.edits)) {
+    const { old_string: _old, new_string: _new, replace_all: _all, ...rest } = input
+    return rest
+  }
+  return input
 }
