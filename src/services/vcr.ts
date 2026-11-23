@@ -10,6 +10,7 @@ import type { AssistantMessage, Message, StreamEvent } from '../types/message.js
 import { getCwd } from '../utils/cwd.js'
 import { env } from '../utils/env.js'
 import { getMercuryHome } from '../utils/envUtils.js'
+import { isENOENT } from '../utils/errors.js'
 import { normalizeMessagesForAPI } from './messages.js'
 import { calculateUSDCost } from './usage/modelCost.js'
 import { jsonParse, jsonStringify } from '../utils/slowOperations.js'
@@ -108,10 +109,6 @@ function recordsFixtures(): boolean {
   return flagEnv('MERCURY_VCR_RECORD') === '1'
 }
 
-function isEnoent(err: unknown): boolean {
-  return typeof err === 'object' && err !== null && 'code' in err && err.code === 'ENOENT'
-}
-
 async function withFixture<T>(
   name: string,
   input: unknown,
@@ -126,7 +123,7 @@ async function withFixture<T>(
     const raw = readFileSync(path, 'utf8')
     return jsonParse(raw) as T
   } catch (err) {
-    if (!isEnoent(err)) throw err
+    if (!isENOENT(err)) throw err
   }
   if (isCiEnvironment()) {
     throw new Error(
@@ -251,7 +248,7 @@ export async function withVCR<T extends VcrMessage>(
     }
     return hydrated
   } catch (err) {
-    if (!isEnoent(err)) throw err
+    if (!isENOENT(err)) throw err
   }
   if (isCiEnvironment()) {
     throw new Error(
