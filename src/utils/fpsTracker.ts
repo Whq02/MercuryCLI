@@ -1,17 +1,26 @@
-import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
-
-export type FpsMetrics = Unbuilt
+export type FpsMetrics = { averageFps: number; low1PctFps: number }
 
 export class FpsTracker {
-  private readonly durations: number[] = unbuilt('src/utils/fpsTracker.ts:7')
-  private firstRecordMs: number | null = unbuilt('src/utils/fpsTracker.ts:8')
-  private lastRecordMs: number | null = unbuilt('src/utils/fpsTracker.ts:9')
+  private readonly durations: number[] = []
+  private firstRecordMs: number | null = null
+  private lastRecordMs: number | null = null
 
   record(durationMs: number): void {
-    return notBuilt('src/utils/fpsTracker.ts:11')
+    const now = performance.now()
+    this.firstRecordMs ??= now
+    this.lastRecordMs = now
+    this.durations.push(durationMs)
   }
 
   getMetrics(): FpsMetrics | undefined {
-    return notBuilt('src/utils/fpsTracker.ts:18')
+    if (this.firstRecordMs === null || this.lastRecordMs === null) return undefined
+    const seconds = (this.lastRecordMs - this.firstRecordMs) / 1000
+    if (!(seconds > 0)) return undefined
+    const count = this.durations.length
+    const duration = this.durations.toSorted((a, b) => b - a)[Math.ceil(count / 100) - 1]!
+    return {
+      averageFps: Math.round((count / seconds) * 100) / 100,
+      low1PctFps: duration > 0 ? Math.round((1000 / duration) * 100) / 100 : 0,
+    }
   }
 }
