@@ -16,7 +16,6 @@ import {
 import { activeWalletEntry, walletEntries, type WalletEntry } from '../services/wallet/wallet.js'
 import { resolveProviderUsability } from '../services/providers/providerUsability.js'
 import { hostEnv } from '../utils/hostEnv.js'
-import { notBuilt } from '../pi/holes.js'
 
 
 type Property = {
@@ -112,9 +111,61 @@ export function buildProviderAccountBlocks(
 }
 
 export function buildAccountProperties(): Property[] {
-  return notBuilt('src/components/status.tsx:113')
+  const account = getAccountInformation()
+  if (!account) return []
+  const isDemo = Boolean(flagEnv('MERCURY_DEMO'))
+  const rows: Property[] = []
+  if (account.subscription) {
+    rows.push({ label: 'Login method', value: `${account.subscription} Account` })
+  }
+  if (account.tokenSource) {
+    rows.push({ label: 'Auth token', value: account.tokenSource })
+  }
+  if (account.apiKeySource) {
+    rows.push({ label: 'API key', value: account.apiKeySource })
+  }
+  if (account.organization && !isDemo) {
+    rows.push({ label: 'Organization', value: account.organization })
+  }
+  if (account.email && !isDemo) {
+    rows.push({ label: 'Email', value: account.email })
+  }
+  return rows
 }
 
 export function buildAPIProviderProperties(): Property[] {
-  return notBuilt('src/components/status.tsx:136')
+  const rows: Property[] = []
+  const baseUrl = hostEnv().ANTHROPIC_BASE_URL
+  if (baseUrl) {
+    rows.push({ label: 'Anthropic base URL', value: baseUrl })
+  }
+  const proxyUrl = getProxyUrl()
+  if (proxyUrl) {
+    rows.push({ label: 'Proxy', value: proxyUrl })
+  }
+  const extraCaPath = hostEnv().NODE_EXTRA_CA_CERTS
+  if (extraCaPath) {
+    rows.push({ label: 'Additional CA cert(s)', value: extraCaCertsStatusLine() ?? extraCaPath })
+  }
+  const mtlsConfig = getMTLSConfig()
+  const mtlsErrors = getMTLSReadErrors()
+  const certError = mtlsErrors.find(failure => failure.variable === 'MERCURY_CLIENT_CERT')
+  const keyError = mtlsErrors.find(failure => failure.variable === 'MERCURY_CLIENT_KEY')
+  if (certError) {
+    rows.push({ label: 'mTLS client cert', value: mtlsReadFailureSentence(certError) })
+  } else if (mtlsConfig?.cert) {
+    const certPath = flagEnv('MERCURY_CLIENT_CERT')
+    if (certPath) {
+      rows.push({ label: 'mTLS client cert', value: certPath })
+    }
+  }
+  if (keyError) {
+    rows.push({ label: 'mTLS client key', value: mtlsReadFailureSentence(keyError) })
+  } else if (mtlsConfig?.key) {
+    const keyPath = flagEnv('MERCURY_CLIENT_KEY')
+    if (keyPath) {
+      rows.push({ label: 'mTLS client key', value: keyPath })
+    }
+  }
+  return rows
 }
