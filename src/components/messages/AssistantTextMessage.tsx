@@ -260,14 +260,14 @@ export function AssistantTextMessage({
 
   if (text === API_TIMEOUT_ERROR_MESSAGE) {
     const configuredTimeout = flagEnv('MERCURY_API_TIMEOUT_MS')
-    const parsedTimeout = apiTimeoutMsOverride(configuredTimeout)
+    const parsedTimeout = apiTimeoutMsOverride()
     const hint = configuredTimeout
       ? parsedTimeout === null
         ? `MERCURY_API_TIMEOUT_MS is set to ${configuredTimeout}, which is not a whole number of milliseconds — the default applied; unset it or set e.g. 120000.`
         : `MERCURY_API_TIMEOUT_MS is set to ${configuredTimeout} — increase it to allow slower responses.`
       : `Set the MERCURY_API_TIMEOUT_MS environment variable to raise the request budget (current default: ${DEFAULT_API_TIMEOUT_MS} ms).`
     return (
-      <Box flexDirection="column" marginTop={addMargin ? 1 : 0}>
+      <Box flexDirection="column">
         <Text color="error">{text}</Text>
         <Text dimColor>{hint}</Text>
       </Box>
