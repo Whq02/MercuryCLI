@@ -48,23 +48,29 @@ export const KEYBINDING_CONTEXT_DESCRIPTIONS: Record<(typeof KEYBINDING_CONTEXTS
 
 export const KeybindingBlockSchema = lazySchema(() =>
   z.object({
-    context: z.enum(KEYBINDING_CONTEXTS),
-    bindings: z.record(
-      z.string(),
-      z.union([
-        z.enum(KEYBINDING_ACTIONS),
-        z.string().regex(/^command:[a-zA-Z0-9:\-_]+$/),
-        z.null(),
-      ]),
-    ),
+    context: z.enum(KEYBINDING_CONTEXTS).describe('The UI context in which these bindings apply'),
+    bindings: z
+      .record(
+        z.string().describe('A keystroke pattern such as "ctrl+k" or "ctrl+x p"'),
+        z
+          .union([
+            z.enum(KEYBINDING_ACTIONS),
+            z.string().regex(/^command:[a-zA-Z0-9:\-_]+$/),
+            z.null(),
+          ])
+          .describe(
+            'A built-in action id, a command:<name> binding that runs the slash command as if typed, or null to unbind a default shortcut',
+          ),
+      )
+      .describe('Keystroke pattern → action'),
   }),
 )
 
 const KeybindingsSchema = lazySchema(() =>
   z.object({
-    $schema: z.string().optional(),
-    $docs: z.string().optional(),
-    bindings: z.array(KeybindingBlockSchema()),
+    $schema: z.string().optional().describe('A JSON-Schema URL for editor validation'),
+    $docs: z.string().optional().describe('A documentation URL'),
+    bindings: z.array(KeybindingBlockSchema()).describe('The binding blocks, in override order'),
   }),
 )
 
