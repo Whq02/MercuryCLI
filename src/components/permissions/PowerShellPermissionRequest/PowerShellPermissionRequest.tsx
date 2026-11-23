@@ -33,7 +33,6 @@ export function PowerShellPermissionRequest({
   toolUseConfirm,
   onDone,
   onReject,
-  verbose,
   workerBadge,
 }: PermissionRequestProps): React.ReactNode {
   const { command }: PowerShellCardInput = PowerShellTool.inputSchema.parse(toolUseConfirm.input)
@@ -153,69 +152,73 @@ export function PowerShellPermissionRequest({
     }
   }
 
-  const toolUseMessage = !command
-    ? toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input, {
-        theme: resolveThemeName(),
-        verbose,
-      })
-    : null
-
+  const inputCommand = toolUseConfirm.input.command
   const canAmend =
-    !debugMode &&
-    ((feedback.focusedOption === 'yes' && !feedback.yesInputMode) ||
-      (feedback.focusedOption === 'no' && !feedback.noInputMode))
+    (feedback.focusedOption === 'yes' && !feedback.yesInputMode) ||
+    (feedback.focusedOption === 'no' && !feedback.noInputMode)
 
   return (
-    <PermissionDialog
-      title="PowerShell command"
-      crewmate={toolUseConfirm.crewmate}
-      workerBadge={workerBadge}
-    >
-      <Box flexDirection="column">
-        {command ? (
-          <ConsentBodyText
-            text={command}
-            tail=" (the whole command runs)"
-            dimColor={explainer.visible}
-          />
-        ) : typeof toolUseMessage === 'string' ? (
-          <Text dimColor={explainer.visible}>{toolUseMessage}</Text>
-        ) : (
-          toolUseMessage
-        )}
-        {!explainer.visible && description ? <Text dimColor>{description}</Text> : null}
-        <PermissionExplainerContent
-          visible={explainer.visible}
-          promise={explainer.promise}
-        />
-        {debugMode ? (
-          <PermissionDecisionDebugInfo
-            permissionResult={toolUseConfirm.permissionResult}
-            toolName="PowerShell"
-          />
-        ) : (
+    <Box flexDirection="column">
+      <PermissionDialog title="PowerShell command" workerBadge={workerBadge}>
+        <Box flexDirection="column">
           <Box flexDirection="column">
-            <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />
-            <Text bold>Do you want to proceed?</Text>
-            <Select
-              scrollMovesFocus={false}
-              options={options}
-              onChange={handleSelect}
-              onCancel={() => feedback.handleReject()}
-              onFocus={feedback.handleFocus}
-              onInputModeToggle={feedback.handleInputModeToggle}
-            />
+            {typeof inputCommand === 'string' ? (
+              <ConsentBodyText
+                text={inputCommand}
+                tail=" (the whole command runs)"
+                dimColor={explainer.visible}
+              />
+            ) : (
+              <Text dimColor={explainer.visible}>
+                {toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input, {
+                  theme: resolveThemeName(),
+                  verbose: true,
+                })}
+              </Text>
+            )}
+            {explainer.visible ? null : <Text dimColor>{description}</Text>}
+            {toolUseConfirm.crewmate ? (
+              <Text dimColor wrap="truncate-end">
+                {toolUseConfirm.crewmate}
+              </Text>
+            ) : null}
           </Box>
-        )}
-        <Box justifyContent="space-between" marginTop={1}>
-          <Text dimColor>
-            esc cancel
-            {canAmend ? ' · tab amend' : ''}
-            {explainer.enabled ? ` · ctrl+e ${explainer.visible ? 'hide' : 'explain'}` : ''}
-          </Text>
-          {debugMode ? <Text dimColor>ctrl+d debug</Text> : null}
+          <PermissionExplainerContent
+            visible={explainer.visible}
+            promise={explainer.promise}
+            fallback={<Text dimColor>{description}</Text>}
+          />
+          {debugMode ? (
+            <PermissionDecisionDebugInfo
+              permissionResult={toolUseConfirm.permissionResult}
+              toolName="PowerShell"
+            />
+          ) : (
+            <>
+              <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />
+              <Text bold>Do you want to proceed?</Text>
+              <Select
+                scrollMovesFocus={false}
+                options={options}
+                onChange={handleSelect}
+                onCancel={() => feedback.handleReject(undefined)}
+                onFocus={feedback.handleFocus}
+                onInputModeToggle={feedback.handleInputModeToggle}
+              />
+            </>
+          )}
         </Box>
+      </PermissionDialog>
+      <Box marginTop={1} justifyContent="space-between">
+        <Text color="subtle">
+          esc cancel
+          {canAmend ? ' · tab amend' : ''}
+          {explainer.enabled ? ` · ctrl+e ${explainer.visible ? 'hide' : 'explain'}` : ''}
+        </Text>
+        {toolUseConfirm.toolUseContext.options.debug ? (
+          <Text color="subtle">ctrl+d debug</Text>
+        ) : null}
       </Box>
-    </PermissionDialog>
+    </Box>
   )
 }
