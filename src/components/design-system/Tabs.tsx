@@ -72,7 +72,7 @@ function tabEntries(children: React.ReactNode): TabEntry[] {
 
 export function Tabs({
   title,
-  color,
+  color = 'permission',
   defaultTab,
   selectedTab,
   onTabChange,
@@ -180,45 +180,33 @@ export function Tabs({
     [activeTab.id, contentWidth, headerFocused, focusHeader, blurHeader, registerNavOptIn],
   )
 
-  const contentMarginTop = hidden ? 0 : 1
-
-  const panel = isInsideModal ? (
-    <ScrollBox
+  const content = (
+    <Box
       key={activeTab.id}
       flexDirection="column"
-      flexGrow={1}
-      flexShrink={1}
       width={contentWidth}
-      marginTop={contentMarginTop}
-    >
-      {activeTab.children}
-    </ScrollBox>
-  ) : contentHeight !== undefined ? (
-    <Box
-      flexDirection="column"
-      height={contentHeight}
-      overflowY="hidden"
-      width={contentWidth}
-      marginTop={contentMarginTop}
-    >
-      {activeTab.children}
-    </Box>
-  ) : (
-    <Box
-      flexDirection="column"
-      width={contentWidth}
-      marginTop={contentMarginTop}
+      flexShrink={isInsideModal ? 0 : 1}
     >
       {activeTab.children}
     </Box>
   )
 
+  const wrapped = isInsideModal ? (
+    <ScrollBox key={activeTab.id}>{content}</ScrollBox>
+  ) : contentHeight !== undefined ? (
+    <Box flexDirection="column" height={contentHeight} overflowY="hidden">
+      {content}
+    </Box>
+  ) : (
+    content
+  )
+
   return (
     <TabsContext.Provider value={contextValue}>
-      <Box flexDirection="column" width={contentWidth} onKeyDown={handleKeyDown}>
+      <Box flexDirection="column" tabIndex={-1} autoFocus onKeyDown={handleKeyDown}>
         {!hidden ? (
-          <Box gap={1} flexShrink={0}>
-            {title !== undefined ? (
+          <Box gap={1} width={useFullWidth ? columns : undefined}>
+            {title !== undefined && title !== '' ? (
               <Text bold color={color}>
                 {title}
               </Text>
@@ -237,10 +225,13 @@ export function Tabs({
                 </Text>
               )
             })}
+            {useFullWidth ? <Box flexGrow={1} /> : null}
           </Box>
         ) : null}
-        {banner !== undefined ? <Box flexShrink={0}>{banner}</Box> : null}
-        {panel}
+        {banner}
+        <Box flexDirection="column" marginTop={hidden ? 0 : 1}>
+          {wrapped}
+        </Box>
       </Box>
     </TabsContext.Provider>
   )
