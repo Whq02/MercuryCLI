@@ -104,45 +104,34 @@ export function PermissionExplainerContent({
   promise: Promise<PermissionExplanation | null> | null
   fallback?: React.ReactNode
 }): React.ReactNode {
-  const [status, setStatus] = useState<'pending' | 'done'>('pending')
-  const [result, setResult] = useState<PermissionExplanation | null>(null)
+  const [resolved, setResolved] = useState<PermissionExplanation | null | 'pending'>('pending')
 
   useLoad(signal => {
     if (!promise) return
-    setStatus('pending')
-    setResult(null)
-    promise.catch(passedOverAs(null)).then(value => {
+    setResolved('pending')
+    void promise.then(value => {
       if (signal.aborted) return
-      setResult(value)
-      setStatus('done')
+      setResolved(value)
     })
   }, [promise])
 
   if (!visible || !promise) return null
 
-  if (status === 'pending') {
-    return (
-      <Box marginTop={1}>
-        <ShimmerLine message="Loading explanation…" />
-      </Box>
-    )
+  if (resolved === 'pending') {
+    return <ShimmerLine message="Loading explanation…" />
   }
 
-  if (result === null) {
-    return (
-      <Box marginTop={1}>
-        {fallback ?? <Text dimColor>No explanation available</Text>}
-      </Box>
-    )
+  if (resolved === null) {
+    return fallback ?? <Text dimColor>No explanation available</Text>
   }
 
   return (
-    <Box flexDirection="column" marginTop={1}>
-      <Text>{result.explanation}</Text>
-      <Text dimColor>{result.reasoning}</Text>
+    <Box flexDirection="column" gap={1}>
+      <Text>{resolved.explanation}</Text>
+      <Text>{resolved.reasoning}</Text>
       <Text>
-        <Text color={RISK_COLOR[result.riskLevel]}>{RISK_LABEL[result.riskLevel]}</Text>
-        {`: ${result.risk}`}
+        <Text color={RISK_COLOR[resolved.riskLevel]}>{RISK_LABEL[resolved.riskLevel]}</Text>
+        {`: ${resolved.risk}`}
       </Text>
     </Box>
   )
