@@ -74,21 +74,22 @@ function modelRelevantRows(messages: Message[]): Message[] {
   return reorderAttachmentsForAPI(messages).filter(row => !((row.type === 'user' || row.type === 'assistant') && row.isVirtual))
 }
 
-function refusedBlockTypesOf(row: AssistantMessage, diagnosed: ReadonlyMap<string, readonly string[]>): readonly string[] | undefined {
+function refusedBlockTypesOf(row: AssistantMessage, diagnosed: Record<string, Set<string>>): Iterable<string> | undefined {
   const { content } = row.message
   const first = Array.isArray(content) ? content[0] : undefined
-  const named = first?.type === 'text' ? diagnosed.get(first.text) : undefined
-  return named ?? mediaRefusalOf(row)?.blockTypes
+  const text = first?.type === 'text' ? first.text : ''
+  const named = text ? diagnosed[text] : undefined
+  return named || mediaRefusalOf(row)?.blockTypes
 }
 
 function stripTargetsAmong(rows: readonly Message[]): Map<string, Set<string>> {
-  const diagnosed = new Map<string, readonly string[]>([
-    [getPdfTooLargeErrorMessage(), ['document']],
-    [getPdfPasswordProtectedErrorMessage(), ['document']],
-    [getPdfInvalidErrorMessage(), ['document']],
-    [getImageTooLargeErrorMessage(), ['image']],
-    [getRequestTooLargeErrorMessage(), ['document', 'image']],
-  ])
+  const diagnosed: Record<string, Set<string>> = {
+    [getPdfTooLargeErrorMessage()]: new Set(['document']),
+    [getPdfPasswordProtectedErrorMessage()]: new Set(['document']),
+    [getPdfInvalidErrorMessage()]: new Set(['document']),
+    [getImageTooLargeErrorMessage()]: new Set(['image']),
+    [getRequestTooLargeErrorMessage()]: new Set(['document', 'image']),
+  }
   const targets = new Map<string, Set<string>>()
   let eligible: UserMessage | undefined
   for (const row of rows) {
