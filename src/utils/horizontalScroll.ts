@@ -10,12 +10,14 @@ export function calculateHorizontalScrollWindow(
   availableWidth: number,
   arrowWidth: number,
   selectedIdx: number,
-  firstItemHasSeparator: boolean = false,
+  firstItemHasSeparator: boolean = true,
 ): HorizontalScrollWindow {
   const count = itemWidths.length
   if (count === 0) {
     return { startIndex: 0, endIndex: 0, showLeftArrow: false, showRightArrow: false }
   }
+
+  const selected = Math.max(0, Math.min(selectedIdx, count - 1))
 
   const prefix = new Array<number>(count + 1)
   prefix[0] = 0
@@ -23,34 +25,44 @@ export function calculateHorizontalScrollWindow(
     prefix[i + 1] = prefix[i]! + itemWidths[i]!
   }
 
-  const fits = (start: number, end: number): boolean => {
-    const items = end - start
-    const separators = items > 0 ? items - 1 + (firstItemHasSeparator ? 1 : 0) : 0
-    const arrows = (start > 0 ? arrowWidth : 0) + (end < count ? arrowWidth : 0)
-    return prefix[end]! - prefix[start]! + separators + arrows <= availableWidth
-  }
-
-  if (fits(0, count)) {
+  if (prefix[count]! <= availableWidth) {
     return { startIndex: 0, endIndex: count, showLeftArrow: false, showRightArrow: false }
   }
 
-  const selected = Math.max(0, Math.min(selectedIdx, count - 1))
-  let start = selected
-  let end = selected + 1
-  let preferRight = true
+  const fits = (start: number, end: number): boolean => {
+    const rawWidth = prefix[end]! - prefix[start]!
+    const adjustedWidth = start > 0 && firstItemHasSeparator ? rawWidth - 1 : rawWidth
+    const arrows = (start > 0 ? arrowWidth : 0) + (end < count ? arrowWidth : 0)
+    return adjustedWidth + arrows <= availableWidth
+  }
 
-  for (;;) {
-    const canRight = end < count && fits(start, end + 1)
-    const canLeft = start > 0 && fits(start - 1, end)
-    if (!canRight && !canLeft) break
-    if (preferRight) {
-      if (canRight) end++
-      else start--
-    } else {
-      if (canLeft) start--
-      else end++
+  let prefixEnd = 0
+  while (prefixEnd < count && fits(0, prefixEnd + 1)) {
+    prefixEnd++
+  }
+
+  if (selected < prefixEnd) {
+    return {
+      startIndex: 0,
+      endIndex: prefixEnd,
+      showLeftArrow: false,
+      showRightArrow: prefixEnd < count,
     }
-    preferRight = !preferRight
+  }
+
+  if (selected === 0) {
+    return {
+      startIndex: 0,
+      endIndex: 1,
+      showLeftArrow: false,
+      showRightArrow: count > 1,
+    }
+  }
+
+  const end = selected + 1
+  let start = selected
+  while (start > 0 && fits(start - 1, end)) {
+    start--
   }
 
   return {
