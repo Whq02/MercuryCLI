@@ -88,7 +88,7 @@ function wordingOf(issue: IssueLike, path: string): IssueWording {
     }
     case 'unrecognized_keys': {
       const keys = issue.keys ?? []
-      const message = keys.length === 1 ? `Unrecognized field: ${keys[0]}` : `Unrecognized fields: ${keys.join(', ')}`
+      const message = `Unrecognized ${keys.length === 1 ? 'field' : 'fields'}: ${keys.join(', ')}`
       return { message, unknownKeys: [...keys] }
     }
     case 'too_small': {

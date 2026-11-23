@@ -56,7 +56,7 @@ function findExecutableCandidates(name: string): string[] {
         if (entry === '') continue
         const resolvedEntry = resolve(entry).toLowerCase()
         if (resolvedEntry === resolvedCwd || resolvedEntry.startsWith(cwdPrefix)) {
-          logForDebugging(`Skipping ${name} ${entry} (inside the working directory)`)
+          logForDebugging(`windowsPaths: skipping ${name} ${entry} (inside the working directory)`)
           continue
         }
         candidates.push(entry)
