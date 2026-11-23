@@ -5,7 +5,7 @@ import { doorUnits } from '../lib/doorUnits.ts'
 import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor } from '../lib/settingsPopupHarness.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const TREES = ['src/components', 'src/screens', 'src/commands']
+const TREES = ['src']
 
 const ALLOW: Record<string, string> = {
   'src/screen/concourse/session-mirror/sessionMirrorView.tsx :: enter': "the live pane's empty-state note for a ready-to-review newborn — its ↵ is the live box's empty-draft verb (the composer beside it, same region) entering the selected row",

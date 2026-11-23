@@ -11,7 +11,7 @@ const argument = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
   return at < 0 ? undefined : process.argv[at + 1]
 }
-const ROOT = resolve(argument('--root') ?? join(import.meta.dir, '../../catalogue/commands'))
+const ROOT = resolve(argument('--root') ?? join(import.meta.dir, '../..'))
 const framesDir = argument('--frames')
 const compareDir = argument('--compare-shown')
 const surface = argument('--surface')
