@@ -10,7 +10,6 @@ import { reviewerRefusal } from '../reviewerPolicy.js'
 import { scoutRefusal } from '../scoutPolicy.js'
 import type { agentStalledError, declaredRecoveryWaitMs, RecoveryAccountant, RunAgentParams } from '../runAgent.js'
 import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../../utils/timers.js'
-import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
 
 export interface AgentRun {
   eventsSeen: number
@@ -85,8 +84,36 @@ export function touchThroughOf(run: AgentRun) {
   return touchThrough
 }
 
-export function askLivelyOf(run: AgentRun, canUseTool: NonNullable<RunAgentParams['canUseTool']>, arg2: { idleLimitMs: number; reviewReceipt: string | undefined; worktreePath: RunAgentParams['worktreePath']; readOnlyScout: boolean; onPendingAsks: RunAgentParams['onPendingAsks'] }): Unbuilt {
-  return notBuilt('src/tools/AgentTool/runAgent/watch.ts:87')
+export function askLivelyOf(run: AgentRun, canUseTool: NonNullable<RunAgentParams['canUseTool']>, { idleLimitMs, reviewReceipt, worktreePath, readOnlyScout, onPendingAsks }: { idleLimitMs: number; reviewReceipt: string | undefined; worktreePath: RunAgentParams['worktreePath']; readOnlyScout: boolean; onPendingAsks: RunAgentParams['onPendingAsks'] }) {
+  const askHeartbeatMs = Math.max(1_000, Math.min(30_000, Math.floor(idleLimitMs / 4)))
+  return (async (...args: Parameters<NonNullable<typeof canUseTool>>) => {
+    if (reviewReceipt !== undefined) {
+      const refusal = await reviewerRefusal(args[0], args[1], reviewReceipt, worktreePath!)
+      if (refusal !== null) return { behavior: 'deny', message: refusal }
+    }
+    if (readOnlyScout) {
+      const refusal = await scoutRefusal(args[0], args[1])
+      if (refusal !== null) return { behavior: 'deny', message: refusal }
+    }
+    run.pendingAsks++
+    onPendingAsks?.(run.pendingAsks)
+    run.watchdog.touch()
+    if (run.askHeartbeat === null) {
+      run.askHeartbeat = startInterval(() => run.watchdog.touch(), askHeartbeatMs)
+      run.askHeartbeat.unref?.()
+    }
+    try {
+      return await canUseTool(...args)
+    } finally {
+      run.pendingAsks--
+      onPendingAsks?.(run.pendingAsks)
+      if (run.pendingAsks === 0 && run.askHeartbeat !== null) {
+        stopInterval(run.askHeartbeat)
+        run.askHeartbeat = null
+      }
+      run.watchdog.touch()
+    }
+  }) as NonNullable<typeof canUseTool>
 }
 
 export function callModelOf(run: AgentRun, { deps, agentId }: { deps: ReturnType<typeof productionDeps>; agentId: AgentId }) {

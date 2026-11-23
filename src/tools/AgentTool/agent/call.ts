@@ -46,7 +46,6 @@ import { withDeadline } from '../../../utils/deadline.js'
 import { type Progress, BACKGROUND_TASKS_DISABLED, DEFAULT_AGENT_TYPE, type AgentToolInput, type AgentToolOutput } from './schema.js'
 import { resolveAgentCwd } from './cwd.js'
 import { toolPoolOfTheTable } from '../../toolTable.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 export function mcpServerNamesWithTools(tools: readonly ToolShape[]): string[] {
   const names = new Set<string>()
@@ -421,13 +420,40 @@ function metadataOf(input: AgentToolInput, plan: AgentLaunchPlan, agentDef: Agen
   }
 }
 
-function runAgentParamsOf(arg0: {
+function runAgentParamsOf({ agentDef, promptMessages, context, canUseTool, plan, querySource, structuredOutputSpec, effectiveSystemPromptOverride, modelForRunLoop, input, workerTools, worktreeInfo, launchDirectory, startTime, earlyAgentId, rootSetAppState }: {
   agentDef: AgentDefinition; promptMessages: Message[]; context: ToolUseContext; canUseTool: CanUseToolFn; plan: AgentLaunchPlan; querySource: ReturnType<typeof getQuerySourceForAgent>
   structuredOutputSpec: ReturnType<typeof structuredOutputSpecOf>; effectiveSystemPromptOverride: string[] | undefined; modelForRunLoop: string | undefined; input: AgentToolInput
   workerTools: ReturnType<typeof resolveWorkerTools>; worktreeInfo: Awaited<ReturnType<typeof createAgentWorktree>> | undefined; launchDirectory: string | undefined
   startTime: number; earlyAgentId: AgentId; rootSetAppState: ToolUseContext['setAppState']
 }): RunAgentParams {
-  return notBuilt('src/tools/AgentTool/agent/call.ts:423')
+  return {
+    agentDefinition: agentDef,
+    seat: CREWMATE_SEAT,
+    promptMessages,
+    toolUseContext: context,
+    canUseTool,
+    isAsync: plan.shouldRunAsync,
+    querySource,
+    ...(structuredOutputSpec ? { structuredOutputSpec } : {}),
+    override: {
+      ...(effectiveSystemPromptOverride
+        ? { systemPrompt: effectiveSystemPromptOverride }
+        : {}),
+    },
+    ...(modelForRunLoop !== undefined ? { model: modelForRunLoop } : {}),
+    ...(input.effort !== undefined ? { effortOverride: input.effort } : {}),
+    availableTools: workerTools,
+    ...(worktreeInfo ? { worktreePath: worktreeInfo.worktreePath } : {}),
+    ...(worktreeInfo === undefined && launchDirectory !== undefined ? { cwd: launchDirectory } : {}),
+    ...(input.review_receipt !== undefined ? { reviewReceipt: input.review_receipt } : {}),
+    description: input.description,
+    ...(input.name ? { name: input.name } : {}),
+    ...(input.team ? { team: input.team } : {}),
+    ...(input.captain !== undefined ? { captain: input.captain } : {}),
+    launchedAt: startTime,
+    onWait: line => setAgentWaitLine(earlyAgentId, line, rootSetAppState),
+    onPendingAsks: count => setAgentPendingAsks(earlyAgentId, count, rootSetAppState),
+  }
 }
 
 function agentContextOf(earlyAgentId: AgentId, agentDef: AgentDefinition, parentAssistantMessage: AssistantMessage): SubagentContext {
