@@ -433,25 +433,27 @@ function extractSedOperands(args: string[]): string[] {
         scriptSeen = true
         continue
       }
-      if (!arg.startsWith('--') && !arg.startsWith('-i')) {
-        for (let k = 1; k < arg.length; k++) {
-          const letter = arg[k]!
-          if (letter === 'f') {
-            scriptSeen = true
-            const attached = arg.slice(k + 1)
-            const file = attached.length > 0 ? attached : args[i + 1]
-            if (attached.length === 0 && args[i + 1] !== undefined) i++
-            if (file !== undefined && file !== '-') operands.push(file)
-            break
-          }
-          if (letter === 'e') {
-            scriptSeen = true
-            if (k === arg.length - 1 && args[i + 1] !== undefined) i++
-            break
+      if (!arg.startsWith('--')) {
+        if (!arg.startsWith('-i')) {
+          for (let k = 1; k < arg.length; k++) {
+            const letter = arg[k]!
+            if (letter === 'f') {
+              scriptSeen = true
+              const attached = arg.slice(k + 1)
+              const file = attached.length > 0 ? attached : args[i + 1]
+              if (attached.length === 0 && args[i + 1] !== undefined) i++
+              if (file !== undefined && file !== '-') operands.push(file)
+              break
+            }
+            if (letter === 'e') {
+              scriptSeen = true
+              if (k === arg.length - 1 && args[i + 1] !== undefined) i++
+              break
+            }
           }
         }
+        continue
       }
-      continue
     }
     if (!scriptSeen) {
       scriptSeen = true
