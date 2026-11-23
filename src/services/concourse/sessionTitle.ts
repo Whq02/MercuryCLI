@@ -16,10 +16,8 @@ export function extractConversationText(messages: Message[]): string {
   const parts: string[] = []
   for (const message of messages) {
     if (message.type !== 'user' && message.type !== 'assistant') continue
-    if (message.type === 'user') {
-      if (message.isMeta) continue
-      if (message.origin && message.origin.kind !== 'human') continue
-    }
+    if (message.isMeta) continue
+    if (message.type === 'user' && message.origin && message.origin.kind !== 'human') continue
     const content = message.message.content
     if (typeof content === 'string') {
       parts.push(content)
