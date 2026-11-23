@@ -1,5 +1,5 @@
 import type { CanUseToolFn } from '../../../Tool.js'
-import type { Message, UserMessage } from '../../../types/message.js'
+import type { Message } from '../../../types/message.js'
 import { boundHookContext } from '../../../utils/hooks/contextBound.js'
 import { createUserMessage, isCompactBoundaryMessage } from '../../messages.js'
 import { getPromptTooLongTokenGap } from '../../api/errors.js'
@@ -26,7 +26,7 @@ export function mergeHookInstructions(
 
 export function isPtlMarkerMessage(message: Message): boolean {
   if (message.type !== 'user') return false
-  const user = message as UserMessage
+  const user = message
   return (
     user.isMeta === true &&
     (user.message.content === PTL_TRUNCATION_MARKER || user.message.content === LEGACY_PTL_TRUNCATION_MARKER)
@@ -36,7 +36,7 @@ export function isPtlMarkerMessage(message: Message): boolean {
 export function isCompactCapsuleMessage(message: Message): boolean {
   return (
     isCompactBoundaryMessage(message) ||
-    (message.type === 'user' && (message as UserMessage).isCompactSummary === true)
+    (message.type === 'user' && message.isCompactSummary === true)
   )
 }
 
@@ -86,7 +86,7 @@ export function truncateHeadForPTLRetry(messages: Message[], ptlResponse: Messag
 export function stripImagesFromMessages(messages: Message[]): Message[] {
   return messages.map(message => {
     if (message.type !== 'user') return message
-    const content = (message as UserMessage).message.content
+    const content = message.message.content
     if (!Array.isArray(content)) return message
     let touched = false
     const mapBlock = (block: unknown): unknown => {
@@ -107,7 +107,7 @@ export function stripImagesFromMessages(messages: Message[]): Message[] {
     }
     const rebuilt = content.map(mapBlock)
     if (!touched) return message
-    return { ...message, message: { ...(message as UserMessage).message, content: rebuilt } } as Message
+    return { ...message, message: { ...message.message, content: rebuilt } } as Message
   })
 }
 

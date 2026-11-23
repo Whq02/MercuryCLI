@@ -1,6 +1,5 @@
 import { isThinkingBlock } from '../messages/apiFilters.js'
-import type { DeadThinkingMark } from '../../types/message.js'
-import type { Message } from '../../types/message.js'
+import type { AssistantMessage, DeadThinkingMark, Message } from '../../types/message.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { expandPath } from '../../utils/path.js'
 import type { FileStateCache } from '../../utils/fileStateCache.js'
@@ -80,15 +79,16 @@ function evaluateTimeBasedTrigger(
   if (querySource === undefined) return null
   if (!isMainThreadSource(querySource)) return null
 
-  let lastAssistant: Message | undefined
+  let lastAssistant: AssistantMessage | undefined
   for (let index = messages.length - 1; index >= 0; index--) {
-    if (messages[index]?.type === 'assistant') {
-      lastAssistant = messages[index]
+    const candidate = messages[index]
+    if (candidate?.type === 'assistant') {
+      lastAssistant = candidate
       break
     }
   }
   if (lastAssistant === undefined) return null
-  const timestamp = Date.parse((lastAssistant as { timestamp?: string }).timestamp ?? '')
+  const timestamp = Date.parse(lastAssistant.timestamp ?? '')
   const gapMinutes = (Date.now() - timestamp) / 60_000
   if (!Number.isFinite(gapMinutes)) return null
   if (gapMinutes < config.thresholdMinutes) return null

@@ -1,4 +1,4 @@
-import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
+import type { Message, UserMessage } from '../../types/message.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -55,37 +55,35 @@ export function shouldUseSessionMemoryCompaction(): boolean {
 
 function hasTextBlocks(message: Message): boolean {
   if (message.type === 'assistant') {
-    const content = (message as AssistantMessage).message.content
-    return Array.isArray(content) && content.some(block => (block as { type?: string }).type === 'text')
+    const content = message.message.content
+    return Array.isArray(content) && content.some(block => block.type === 'text')
   }
   if (message.type === 'user') {
-    const content = (message as UserMessage).message.content
+    const content = message.message.content
     if (typeof content === 'string') return content !== ''
-    return Array.isArray(content) && content.some(block => (block as { type?: string }).type === 'text')
+    return Array.isArray(content) && content.some(block => block.type === 'text')
   }
   return false
 }
 
 function toolResultIdsOf(message: Message): string[] {
   if (message.type !== 'user') return []
-  const content = (message as UserMessage).message.content
+  const content = message.message.content
   if (!Array.isArray(content)) return []
   const ids: string[] = []
   for (const block of content) {
-    const record = block as { type?: string; tool_use_id?: string }
-    if (record.type === 'tool_result' && typeof record.tool_use_id === 'string') ids.push(record.tool_use_id)
+    if (block.type === 'tool_result' && typeof block.tool_use_id === 'string') ids.push(block.tool_use_id)
   }
   return ids
 }
 
 function toolUseIdsOf(message: Message): string[] {
   if (message.type !== 'assistant') return []
-  const content = (message as AssistantMessage).message.content
+  const content = message.message.content
   if (!Array.isArray(content)) return []
   const ids: string[] = []
   for (const block of content) {
-    const record = block as { type?: string; id?: string }
-    if (record.type === 'tool_use' && typeof record.id === 'string') ids.push(record.id)
+    if (block.type === 'tool_use' && typeof block.id === 'string') ids.push(block.id)
   }
   return ids
 }
@@ -97,13 +95,13 @@ function adjustIndexToPreserveAPIInvariants(messages: Message[], startIndex: num
   const needed = new Set<string>()
   const present = new Set<string>()
   for (let i = index; i < messages.length; i++) {
-    for (const id of toolResultIdsOf(messages[i] as Message)) needed.add(id)
-    for (const id of toolUseIdsOf(messages[i] as Message)) present.add(id)
+    for (const id of toolResultIdsOf(messages[i]!)) needed.add(id)
+    for (const id of toolUseIdsOf(messages[i]!)) present.add(id)
   }
   for (const id of present) needed.delete(id)
   let cursor = index - 1
   while (needed.size > 0 && cursor >= 0) {
-    const message = messages[cursor] as Message
+    const message = messages[cursor]!
     const supplied = toolUseIdsOf(message).filter(id => needed.has(id))
     if (supplied.length > 0) {
       index = cursor
@@ -114,13 +112,13 @@ function adjustIndexToPreserveAPIInvariants(messages: Message[], startIndex: num
 
   const keptIds = new Set<string>()
   for (let i = index; i < messages.length; i++) {
-    const message = messages[i] as Message
-    if (message.type === 'assistant') keptIds.add((message as AssistantMessage).message.id)
+    const message = messages[i]!
+    if (message.type === 'assistant') keptIds.add(message.message.id)
   }
   cursor = index - 1
   while (cursor >= 0) {
-    const message = messages[cursor] as Message
-    if (message.type === 'assistant' && keptIds.has((message as AssistantMessage).message.id)) {
+    const message = messages[cursor]!
+    if (message.type === 'assistant' && keptIds.has(message.message.id)) {
       index = cursor
     }
     cursor--

@@ -2,7 +2,7 @@ import { closeSync, readSync } from 'node:fs'
 import { parse, relative } from 'node:path'
 import { getInvokedSkillsForAgent } from '../../../bootstrap/state.js'
 import type { ToolUseContext } from '../../../Tool.js'
-import type { AssistantMessage, AttachmentMessage, Message, UserMessage } from '../../../types/message.js'
+import type { AttachmentMessage, Message } from '../../../types/message.js'
 import { getAgentRosterAttachment, queuedNoticeTaskIds } from '../../attachments/agentRoster.js'
 import { getPlannedDeferredToolsAttachment, getMcpInstructionsDeltaAttachment } from '../../attachments/deltas.js'
 import { generateFileAttachment } from '../../attachments/fileAttachments.js'
@@ -38,7 +38,7 @@ export function collectPreservedReadPaths(preserved: Message[], resultIds?: Read
   const shown = new Set<string>()
   for (const message of preserved) {
     if (message.type !== 'user') continue
-    const content = (message as UserMessage).message.content
+    const content = message.message.content
     if (!Array.isArray(content)) continue
     for (const block of content) {
       if (block.type !== 'tool_result') continue
@@ -72,7 +72,7 @@ export function collectPreservedReadPaths(preserved: Message[], resultIds?: Read
   const paths = new Set<string>()
   for (const message of preserved) {
     if (message.type !== 'assistant') continue
-    const content = (message as AssistantMessage).message.content
+    const content = message.message.content
     if (!Array.isArray(content)) continue
     for (const block of content) {
       if (block.type !== 'tool_use' || block.name !== FILE_READ_TOOL_NAME) continue
@@ -220,7 +220,7 @@ export type PostCompactFit = {
 }
 
 function describeAttachment(message: AttachmentMessage): string {
-  const attachment = message.attachment as { type: string; filename?: string }
+  const attachment = message.attachment
   if (attachment.type === 'file' || attachment.type === 'compact_file_reference') return `file ${attachment.filename ?? '?'}`
   if (attachment.type === 'compact_operator_messages') return 'operator messages'
   return attachment.type
@@ -243,7 +243,7 @@ export function fitPostCompactUnderThreshold(result: CompactionResult, threshold
         }
       })
       if (victim < 0) break
-      shed.push(describeAttachment(current.attachments[victim] as AttachmentMessage))
+      shed.push(describeAttachment(current.attachments[victim]!))
       current = { ...current, attachments: current.attachments.filter((_, index) => index !== victim) }
       estimate = count(buildPostCompactMessages(current))
     }

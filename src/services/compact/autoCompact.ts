@@ -58,18 +58,16 @@ const RAPID_REFILL_LIMIT = 3
 
 export const COMPACTION_PAUSED_KEY = 'automatic compaction failed'
 
-type CompactableTask = { type?: string; compactRequested?: boolean; description?: string }
-
 export function operatorCompactionAsked(toolUseContext: Pick<ToolUseContext, 'agentId' | 'getAppState'>): boolean {
   const agentId = toolUseContext.agentId
   if (agentId === undefined) return false
-  const task = toolUseContext.getAppState().tasks?.[agentId] as CompactableTask | undefined
+  const task = toolUseContext.getAppState().tasks?.[agentId]
   return task?.type === 'local_agent' && task.compactRequested === true
 }
 
 function askingCrewmateName(toolUseContext: Pick<ToolUseContext, 'agentId' | 'getAppState'>): string {
   const agentId = toolUseContext.agentId
-  const task = agentId === undefined ? undefined : (toolUseContext.getAppState().tasks?.[agentId] as CompactableTask | undefined)
+  const task = agentId === undefined ? undefined : toolUseContext.getAppState().tasks?.[agentId]
   return task?.description !== undefined && task.description !== '' ? task.description : String(agentId ?? 'the crewmate')
 }
 
@@ -77,9 +75,9 @@ export function takeOperatorCompactionAsk(toolUseContext: Pick<ToolUseContext, '
   const agentId = toolUseContext.agentId
   if (agentId === undefined) return
   updateTaskState(agentId, toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState, task => {
-    if ((task as CompactableTask).compactRequested !== true) return task
-    const { compactRequested: _taken, ...rest } = task as typeof task & CompactableTask
-    return rest as typeof task
+    if (task.type !== 'local_agent' || task.compactRequested !== true) return task
+    const { compactRequested: _taken, ...rest } = task
+    return rest
   })
 }
 
