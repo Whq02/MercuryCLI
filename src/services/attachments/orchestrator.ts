@@ -186,7 +186,7 @@ export async function getAttachments(
       ),
       ...(isMain
         ? [
-            maybe('harness_map_delta', () => {
+            maybe<Attachment>('harness_map_delta', () => {
               const delta = getHarnessMapDelta(history)
               return delta ? [{ type: 'harness_map_delta', ...delta }] : []
             }),
