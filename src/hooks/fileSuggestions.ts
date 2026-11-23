@@ -33,11 +33,11 @@ export function displaySuggestionPath(path: string, separator: string = sep): st
   return separator === '\\' ? path.replaceAll('/', '\\') : path
 }
 
-let index: FileIndex | null = unbuilt('src/hooks/fileSuggestions.ts:37')
-let indexedFiles: string[] = unbuilt('src/hooks/fileSuggestions.ts:38')
-let trackedOnly: string[] | null = unbuilt('src/hooks/fileSuggestions.ts:39')
-let trackedSignature: string | null = unbuilt('src/hooks/fileSuggestions.ts:40')
-let mergedSignature: string | null = unbuilt('src/hooks/fileSuggestions.ts:41')
+let index: FileIndex | null = null
+let indexedFiles: string[] = []
+let trackedOnly: string[] | null = null
+let trackedSignature: string | null = null
+let mergedSignature: string | null = null
 let generation = 0
 let refreshInFlight = false
 let untrackedInFlight = false
@@ -235,7 +235,6 @@ function configFiles(): string[] {
 import { readdirSync, type Dirent } from 'node:fs'
 import { passedOver } from '../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../utils/timers.js'
-import { notBuilt, unbuilt } from '../pi/holes.js'
 function readdirSyncSafe(dir: string): Dirent[] {
   try {
     return readdirSync(dir, { withFileTypes: true })
@@ -309,22 +308,234 @@ function repositoryIndexMtime(gitRoot: string | null): number | null {
   }
 }
 
+function startUntrackedMerge(
+  gitRoot: string,
+  cwd: string,
+  scope: string[],
+  gen: number,
+  keyAtStart: string,
+): void {
+  if (untrackedInFlight) return
+  untrackedInFlight = true
+  void (async () => {
+    try {
+      const rawUntracked = await listUntracked(gitRoot, scope)
+      if (gen !== generation || index === null || trackedOnly === null) return
+      const canonical = rawUntracked.map(p => canonicalizeSuggestionPath(p))
+      const rel = relativise(canonical, gitRoot, cwd)
+      const ignored = ignoreMatcher(gitRoot, cwd)
+      const surviving = ignored ? rel.filter(p => !ignored(p)) : rel
+      if (surviving.length === 0) {
+        if (mergedSignature !== null) {
+          buildIndexFrom(trackedOnly, false, keyAtStart)
+        }
+        return
+      }
+      const seen = new Set(trackedOnly)
+      const merged = [...trackedOnly]
+      for (const p of surviving) {
+        if (!seen.has(p)) {
+          seen.add(p)
+          merged.push(p)
+        }
+      }
+      buildIndexFrom(merged, true, keyAtStart)
+    } catch (error) {
+      logForDebugging(`untracked merge failed: ${String(error)}`)
+    } finally {
+      if (gen === generation) untrackedInFlight = false
+    }
+  })()
+}
+
 export function startBackgroundCacheRefresh(): void {
-  return notBuilt('src/hooks/fileSuggestions.ts:399')
+  const key = fileSuggestionIndexKey()
+  if (indexKey !== null && indexKey !== key) {
+    clearFileSuggestionCaches()
+  }
+  if (refreshInFlight) return
+
+  const cwd = getCwd()
+  const gitRoot = findGitRoot(cwd)
+  const currentMtime = repositoryIndexMtime(gitRoot)
+  const now = Date.now()
+  const mtimeChanged = currentMtime !== lastIndexMtimeMs
+
+  if (index !== null && now - lastRefreshAt < REFRESH_FLOOR_MS && !mtimeChanged) {
+    return
+  }
+
+  if (gitRoot !== null && !mtimeChanged && trackedOnly !== null) {
+    lastRefreshAt = now
+    const scope = boundaryPathspec(gitRoot, cwd)
+    startUntrackedMerge(gitRoot, cwd, scope, generation, key)
+    return
+  }
+
+  refreshInFlight = true
+  const gen = generation
+  const controller = new AbortController()
+  const timer = startTimeout(() => controller.abort(), WALK_TIMEOUT_MS)
+
+  void (async () => {
+    try {
+      let tracked: string[] | null = null
+      const scope = gitRoot !== null ? boundaryPathspec(gitRoot, cwd) : []
+      if (gitRoot !== null) {
+        tracked = await listTracked(gitRoot, controller.signal, scope)
+      }
+      if (gen !== generation) return
+
+      const ignored = ignoreMatcher(gitRoot, cwd)
+      if (gitRoot !== null && tracked !== null) {
+        const canonicalTracked = tracked.map(p => canonicalizeSuggestionPath(p))
+        const relTracked = relativise(canonicalTracked, gitRoot, cwd)
+        const filteredTracked = ignored
+          ? relTracked.filter(p => !ignored(p))
+          : relTracked
+        if (gen !== generation) return
+        trackedOnly = filteredTracked
+        lastRefreshAt = Date.now()
+        lastIndexMtimeMs = currentMtime
+        buildIndexFrom(filteredTracked, false, key)
+        startUntrackedMerge(gitRoot, cwd, scope, gen, key)
+        return
+      }
+
+      const walked = await walkFiles(cwd, controller.signal)
+      if (gen !== generation) return
+      const filteredWalked = ignored ? walked.filter(p => !ignored(p)) : walked
+      trackedOnly = null
+      lastRefreshAt = Date.now()
+      lastIndexMtimeMs = currentMtime
+      buildIndexFrom(filteredWalked, false, key)
+    } catch (error) {
+      logForDebugging(`file-suggestion refresh failed: ${String(error)}`)
+    } finally {
+      stopTimeout(timer)
+      if (gen === generation) refreshInFlight = false
+    }
+  })()
 }
 
 const FILE_SUGGESTER_TIMEOUT_MS = 5000
 
-export async function generateFileSuggestions(
-  partialPath: string,
-  showOnEmpty?: boolean,
-): Promise<SuggestionItem[]> {
-  return notBuilt('src/hooks/fileSuggestions.ts:434')
+function activeFileSuggesterCommand(): string | null {
+  if (hooksDisabled()) return null
+  const suggester = managedHooksOnly()
+    ? getSettingsForSource('policySettings')?.files?.suggester
+    : getInitialSettings().files?.suggester
+  return suggester?.type === 'command' && suggester.command
+    ? suggester.command
+    : null
 }
 
+export async function generateFileSuggestions(
+  partialPath: string,
+  showOnEmpty = false,
+): Promise<SuggestionItem[]> {
+  if (!partialPath && !showOnEmpty) return []
+
+  const command = activeFileSuggesterCommand()
+  if (command !== null) {
+    const sessionId = getSessionId()
+    const payload: FileSuggestionCommandInput = {
+      session_id: sessionId,
+      transcript_path: getTranscriptPathForSession(sessionId),
+      cwd: getCwd(),
+      query: partialPath,
+    }
+    try {
+      const proc = await startCommandHook({
+        command,
+        shell: 'bash',
+        name: 'files.suggester',
+        event: 'files.suggester',
+        index: 0,
+        payloadJson: JSON.stringify(payload),
+        timeoutMs: FILE_SUGGESTER_TIMEOUT_MS,
+        source: { kind: 'settings' },
+        cwd: payload.cwd,
+      })
+      const end = await proc.result
+      if (end.kind !== 'exited' || end.code !== 0) {
+        return []
+      }
+      return end.stdout
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line !== '')
+        .slice(0, RESULT_CAP)
+        .map(path => ({
+          id: `file-${path}`,
+          displayText: path,
+        }))
+    } catch (error) {
+      logForDebugging(`files.suggester failed: ${String(error)}`, { level: 'error' })
+      return []
+    }
+  }
+
+  try {
+    const key = fileSuggestionIndexKey()
+    startBackgroundCacheRefresh()
+    if (index === null || indexKey !== key) return []
+
+    if (
+      partialPath === '' ||
+      partialPath === '.' ||
+      partialPath === './' ||
+      partialPath === '.\\'
+    ) {
+      const seen = new Set<string>()
+      const items: SuggestionItem[] = []
+      for (const file of indexedFiles) {
+        const slash = file.indexOf('/')
+        const top = slash === -1 ? file : file.slice(0, slash + 1)
+        if (seen.has(top)) continue
+        seen.add(top)
+        items.push({
+          id: `file-${top}`,
+          displayText: displaySuggestionPath(top),
+        })
+        if (items.length >= RESULT_CAP) break
+      }
+      return items
+    }
+
+    let query = canonicalizeSuggestionPath(partialPath)
+    if (query.startsWith('./')) {
+      query = query.slice(2)
+    }
+    if (query === '~' || query.startsWith('~/')) {
+      query = canonicalizeSuggestionPath(homedir()) + query.slice(1)
+    }
+    const results = index.search(query, RESULT_CAP)
+    return results.map(result => ({
+      id: `file-${result.path}`,
+      displayText: displaySuggestionPath(result.path),
+      metadata: { score: result.score },
+    }))
+  } catch (error) {
+    logForDebugging(`file suggestions failed: ${String(error)}`)
+    return []
+  }
+}
 
 export function findLongestCommonPrefix(
   suggestions: SuggestionItem[],
 ): string {
-  return notBuilt('src/hooks/fileSuggestions.ts:476')
+  if (suggestions.length === 0) return ''
+  let prefix = suggestions[0]!.displayText
+  for (let i = 1; i < suggestions.length; i++) {
+    const text = suggestions[i]!.displayText
+    let j = 0
+    const limit = Math.min(prefix.length, text.length)
+    while (j < limit && prefix.charCodeAt(j) === text.charCodeAt(j)) {
+      j++
+    }
+    prefix = prefix.slice(0, j)
+    if (prefix === '') return ''
+  }
+  return prefix
 }
