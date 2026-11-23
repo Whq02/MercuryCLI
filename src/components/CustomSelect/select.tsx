@@ -363,10 +363,10 @@ export function Select<T = string>({
     onDownFromLastItem,
     scrollMovesFocus,
     onInputModeToggle,
-    getInputText: value => inputValues.get(value) ?? '',
-    onInputSubmit: submitInputOption,
+    getInputValue: value => inputValues.get(value) ?? '',
+    submitInputOption: option => submitInputOption(optionValueOf(option)),
     isImageSelectionModeActive: isImageSelectionMode,
-    onEnterImageSelection: handleEnterImageSelection,
+    tryEnterImageSelectionMode: handleEnterImageSelection,
   })
 
   const ordinalsHidden = hideIndexes || layout === 'expanded'
