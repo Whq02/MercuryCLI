@@ -575,10 +575,6 @@ function saveConfigUnderLock<A extends object>(
   }
 }
 
-function stampedCopies(disk: ReturnType<typeof getFsImplementation>, directory: string, prefix: string): string[] {
-  return disk.readdirStringSync(directory).filter(name => name.startsWith(prefix)).sort().reverse()
-}
-
 export function saveConfigWithLock<A extends object>(
   file: string,
   createDefault: () => A,

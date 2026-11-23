@@ -6,7 +6,7 @@ import { getGlobalMercuryFile } from '../env.js'
 import { findCanonicalGitRoot } from '../git.js'
 import { safeParseJSON } from '../json.js'
 import { logForDebugging } from '../debug.js'
-import { ConfigReadError } from '../errors.js'
+import { ConfigReadError, getErrnoCode } from '../errors.js'
 import { normalizePathForConfigKey } from '../path.js'
 
 import {
@@ -130,7 +130,7 @@ function writeProjectSlice(absolutePath: string, updater: SliceUpdater): void {
       refuse(`saveCurrentProjectConfig: refusing the write — ${error.message}`)
       return
     }
-    if ((error as NodeJS.ErrnoException | null)?.code === 'ELOCKED') {
+    if (getErrnoCode(error) === 'ELOCKED') {
       noteConfigContentionRefusal('writeProjectSlice')
       return
     }
