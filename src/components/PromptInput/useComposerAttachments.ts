@@ -208,7 +208,7 @@ export function useComposerAttachments({
       },
       setInputWithCursor: (value: string, cursor: number) => {
         writeDraftRef.current(value)
-        const actualLength = pendingInput.text().length
+        const actualLength = pendingInput.sanitizeComposerText(value).length
         setCursorOffsetRef.current(Math.max(0, Math.min(cursor, actualLength)))
       },
       get cursorOffset(): number {
@@ -255,11 +255,15 @@ export function useComposerAttachments({
       void storeImage(record).catch(passedOver)
       setPastedContents(prev => ({ ...prev, [id]: record }))
       const live = readLiveState()
+      const range = inputSelectionRangeRef.current()
       const clampedOffset = Math.max(0, Math.min(live.offset, live.value.length))
       const headBefore = live.value.slice(0, clampedOffset)
       const imageRef = formatImageRef(id)
       const spacedRef =
-        hadDeferredSpace && headBefore.length > 0 && !/\s$/.test(headBefore)
+        hadDeferredSpace &&
+        range === null &&
+        headBefore.length > 0 &&
+        !/\s$/.test(headBefore)
           ? ` ${imageRef}`
           : imageRef
       insertAtomic(spacedRef)
@@ -278,6 +282,7 @@ export function useComposerAttachments({
       deferredSpaceArmedRef,
       setPastedContents,
       readLiveState,
+      inputSelectionRangeRef,
       insertAtomic,
       addNotification,
     ],
