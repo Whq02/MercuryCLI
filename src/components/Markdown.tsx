@@ -6,7 +6,7 @@ import { Box, Text } from '../ink.js'
 import { useLoad } from '../hooks/effects.js'
 import { useTheme } from './design-system/ThemeProvider.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
-import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
+import { useAppState } from '../state/AppState.js'
 import {
   configureMarked,
   formatToken,
@@ -156,8 +156,7 @@ export function Markdown({
 }): React.ReactNode {
   const [theme] = useTheme()
   const accent = useSessionAccent()
-  const syntaxOff =
-    useAppStateMaybeOutsideOfProvider(s => s.settings.view?.syntaxOff) === true
+  const syntaxOff = useAppState(s => s.settings.view?.syntaxOff) === true
   const highlight = useCliHighlight(syntaxOff)
   const textColor = color ?? 'text'
 
