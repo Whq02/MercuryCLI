@@ -10,6 +10,7 @@ import { useExitOnCtrlCD } from '../../hooks/useExitOnCtrlCD.js'
 import type { BashTaskKind, LocalShellTaskState } from '../../tasks/LocalShellTask/guards.js'
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import { formatFileSize } from '../../utils/format.js'
+import { isENOENT } from '../../utils/errors.js'
 import { tailFileSync } from '../../utils/fsOperations.js'
 import wrapText from '../../ink/wrap-text.js'
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
@@ -31,6 +32,7 @@ const OUTPUT_UNREPORTED = 'output not reported by the runner'
 const OUTPUT_ABSENT = 'output file not found on this box'
 
 type ShellCardFacts = {
+  id: string
   command: string
   description?: string
   status: string
@@ -45,6 +47,7 @@ type ShellCardFacts = {
 
 export function shellCardFactsOfTask(shell: LocalShellTaskState): ShellCardFacts {
   return {
+    id: shell.id,
     command: shell.command,
     ...(shell.description !== undefined ? { description: shell.description } : {}),
     status: shell.status,
@@ -60,6 +63,7 @@ export function shellCardFactsOfTask(shell: LocalShellTaskState): ShellCardFacts
 
 export function shellCardFactsOfRow(row: WorkRowV1): ShellCardFacts {
   return {
+    id: row.id,
     command: row.command ?? row.name,
     ...(row.description !== undefined ? { description: row.description } : {}),
     status: row.status,
@@ -117,8 +121,7 @@ function readTail(path: string | undefined, count: LineCount): Tail {
     const tail = tailFileSync(path, TAIL_BYTES)
     return { content: tail.content, totalBytes: tail.bytesTotal, totalLines: advanceLineCount(count, tail.bytesTotal), present: true }
   } catch (error) {
-    const missing = (error as { code?: string }).code === 'ENOENT'
-    return { content: '', totalBytes: 0, totalLines: 0, present: !missing }
+    return { content: '', totalBytes: 0, totalLines: 0, present: !isENOENT(error) }
   }
 }
 
