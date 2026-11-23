@@ -79,20 +79,16 @@ export async function nativeSearch(
   io: NativeSearchIo,
 ): Promise<SearchOutcome> {
   const via = nativeBackendIdFor(family)
-  const signal = request.signal ?? io.context.abortController.signal
-  if (signal.aborted) {
-    return searchFailure('aborted', via, 'Web search cancelled')
-  }
+  const signal = io.context.abortController.signal
 
   const model = io.context.options.engineModel || getEngineModel()
-  const thinkingConfig = io.context.options.thinkingConfig ?? { type: 'disabled' as const }
+  const thinkingConfig = io.context.options.thinkingConfig
   const appState = io.context.getAppState()
-  const allowedDomains = request.allowedDomains?.filter(domain => domain.trim() !== '')
-  const blockedDomains = request.blockedDomains?.filter(domain => domain.trim() !== '')
+  const { allowedDomains, blockedDomains } = request
   const nativeWebSearch = {
     maxUses: MAX_SEARCH_USES,
-    ...(allowedDomains && allowedDomains.length > 0 ? { allowedDomains } : {}),
-    ...(blockedDomains && blockedDomains.length > 0 ? { blockedDomains } : {}),
+    ...(allowedDomains !== undefined && allowedDomains.length > 0 ? { allowedDomains } : {}),
+    ...(blockedDomains !== undefined && blockedDomains.length > 0 ? { blockedDomains } : {}),
   }
 
   const activeSearchBlocks = new Map<number, { toolUseId: string; partialJson: string }>()
@@ -110,9 +106,7 @@ export async function nativeSearch(
   try {
     const stream = routedCallModel({
       messages: [createUserMessage({ content: `Perform a web search for the query: ${request.query}` })],
-      systemPrompt: asSystemPrompt([
-        'You are a web search assistant. Perform the requested web search and summarize the results clearly with citations.',
-      ]),
+      systemPrompt: asSystemPrompt(['You are an assistant performing a web-search tool use.']),
       thinkingConfig,
       tools: [],
       signal,
@@ -120,8 +114,7 @@ export async function nativeSearch(
         model,
         querySource: 'web_search_tool',
         isNonInteractiveSession: io.context.options.isNonInteractiveSession,
-        getToolPermissionContext: async (): Promise<ToolPermissionContext> =>
-          io.context.getAppState().toolPermissionContext,
+        getToolPermissionContext: async (): Promise<ToolPermissionContext> => appState.toolPermissionContext,
         agents: io.context.options.agentDefinitions.activeAgents,
         mcpTools: [],
         hasAppendSystemPrompt: Boolean(io.context.options.appendSystemPrompt),
@@ -162,21 +155,21 @@ export async function nativeSearch(
       } else if (row.type === 'assistant') {
         if (row.isApiErrorMessage) {
           const detail = collectAssistantText(row.message.content)
-          return searchFailure('provider-refused', via, detail || 'Unknown provider error')
+          return searchFailure('provider-refused', via, detail || 'unknown provider error')
         }
         assistantBlocks.push(...row.message.content)
       }
     }
   } catch (error) {
     if (signal.aborted) {
-      return searchFailure('aborted', via, 'Web search cancelled')
+      return searchFailure('aborted', via, 'cancelled')
     }
     logError(error)
     return searchFailure('provider-refused', via, error instanceof Error ? error.message : String(error))
   }
 
   if (signal.aborted) {
-    return searchFailure('aborted', via, 'Web search cancelled')
+    return searchFailure('aborted', via, 'cancelled')
   }
 
   const sequence: Array<string | { toolUseId: string; hits: SearchHit[] }> = []
