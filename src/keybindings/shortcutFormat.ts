@@ -1,10 +1,12 @@
 import type { KeybindingContextName } from './types.js'
-import { notBuilt } from '../pi/holes.js'
+import { getPlatform } from '../utils/platform.js'
+import { loadKeybindingsSync } from './loadUserBindings.js'
+import { getBindingDisplayText } from './resolver.js'
 
 export function getShortcutDisplay(
   action: string,
   context: KeybindingContextName,
   fallback: string,
 ): string {
-  return notBuilt('src/keybindings/shortcutFormat.ts:7')
+  return getBindingDisplayText(action, context, loadKeybindingsSync(), getPlatform()) ?? fallback
 }
