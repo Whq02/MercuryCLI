@@ -429,6 +429,63 @@ function surfaceTitle(form: IssueForm | null): string {
   }
 }
 
+const DRAFT_WRITE_FAILURE = {
+  note: 'the draft files could not be written under the config home (see the error log)',
+  remedy: 'free disk space or fix the permissions of the config home, then run the command again',
+}
+
+function keptMessage(
+  activeForm: IssueForm | null,
+  draftOut: { json: string; body: string } | null,
+): string {
+  const name = activeForm?.name ?? 'Report'
+  return draftOut !== null
+    ? `${name} drafted locally at ${draftOut.json} — nothing was filed.`
+    : `${name} drafted locally — the draft file could not be written (see the error log); nothing was filed.`
+}
+
+function buildFormValues(
+  activeForm: IssueForm,
+  finalAnswers: Record<string, string>,
+  healthText: string | null,
+): Record<string, string> {
+  const values: Record<string, string> = {}
+  for (const f of activeForm.fields) {
+    if (f.source === 'words' || f.source === 'ask') {
+      values[f.id] = redactSensitiveInfo(finalAnswers[f.id] ?? '')
+    } else if (f.source === 'health') {
+      values[f.id] = redactSensitiveInfo(healthText ?? '')
+    } else {
+      values[f.id] = autoFieldValue(f.id)
+    }
+  }
+  return values
+}
+
+function buildPrefilledUrl(
+  activeForm: IssueForm,
+  slug: string,
+  finalTitle: string,
+  values: Record<string, string>,
+  bodyPath: string,
+): string {
+  const urlValues: Record<string, string> = { ...values }
+  for (const f of activeForm.fields) {
+    if (f.source === 'health') {
+      urlValues[f.id] = healthPointer(redactSensitiveInfo(bodyPath))
+    }
+  }
+  return redactSensitiveInfo(issueFormUrl(activeForm, { slug, title: finalTitle, values: urlValues }))
+}
+
+function descriptionOf(activeForm: IssueForm, finalAnswers: Record<string, string>): string {
+  const wordsField = activeForm.fields.find(f => f.source === 'words')
+  return (
+    (wordsField ? finalAnswers[wordsField.id] : undefined) ??
+    Object.values(finalAnswers).filter(Boolean).join('\n\n')
+  )
+}
+
 export function Feedback({
   abortSignal,
   messages,
@@ -472,6 +529,7 @@ export function Feedback({
   const [formUrl, setFormUrl] = useState<string | null>(null)
 
   const draftRecordRef = useRef<Record<string, unknown> | null>(null)
+  const closingMessageRef = useRef('Report closed — nothing was filed.')
   const cancelledRef = useRef(false)
   const doneRef = useRef(false)
   const preparingRef = useRef(false)
@@ -494,97 +552,99 @@ export function Feedback({
     finishOnce(`${name} cancelled — nothing was filed.`)
   }, [finishOnce, form])
 
-  useKeybinding('confirm:no', cancel, {
-    context: 'Settings',
-    isActive: step === 'preparing' || step === 'review' || step === 'filing',
-  })
+  useKeybinding(
+    'confirm:no',
+    () => {
+      if (step === 'review' || step === 'done' || step === 'unavailable' || step === 'failed') {
+        finishOnce(closingMessageRef.current)
+      } else {
+        cancel()
+      }
+    },
+    {
+      context: 'Confirmation',
+      isActive: step !== 'preparing' && step !== 'filing',
+    },
+  )
 
   const prepare = useCallback(
     async (activeForm: IssueForm, finalAnswers: Record<string, string>) => {
       if (preparingRef.current) return
       preparingRef.current = true
-      const wordsField = activeForm.fields.find(f => f.source === 'words')
-      const description =
-        (wordsField ? finalAnswers[wordsField.id] : undefined) ??
-        Object.values(finalAnswers).filter(Boolean).join('\n\n')
-      const needsHealth = activeForm.fields.some(f => f.source === 'health')
+      try {
+        const description = descriptionOf(activeForm, finalAnswers)
+        const needsHealth = activeForm.fields.some(f => f.source === 'health')
 
-      const [{ report, errors }, draftedTitle, healthText, accessResult] = await Promise.all([
-        gatherReport(description, messages, backgroundTasks),
-        activeForm.kind === 'tester'
-          ? Promise.resolve(fallbackTitle(description, `${activeForm.name} from Mercury`))
-          : generateTitle(activeForm, description, abortSignal),
-        needsHealth ? gatherHealthSection({ signal: abortSignal }) : Promise.resolve<string | null>(null),
-        checkIssueAccess(slug),
-      ])
+        const [{ report, errors }, draftedTitle, healthText, accessResult] = await Promise.all([
+          gatherReport(description, messages, backgroundTasks),
+          activeForm.kind === 'tester'
+            ? Promise.resolve(fallbackTitle(description, `${activeForm.name} from Mercury`))
+            : generateTitle(activeForm, description, abortSignal),
+          needsHealth ? gatherHealthSection({ signal: abortSignal }) : Promise.resolve<string | null>(null),
+          checkIssueAccess(slug),
+        ])
 
-      if (cancelledRef.current || abortSignal.aborted) return
+        if (cancelledRef.current || abortSignal.aborted) return
 
-      const values: Record<string, string> = {}
-      for (const f of activeForm.fields) {
-        if (f.source === 'words' || f.source === 'ask') {
-          values[f.id] = redactSensitiveInfo(finalAnswers[f.id] ?? '')
-        } else if (f.source === 'health') {
-          values[f.id] = redactSensitiveInfo(healthText ?? '')
-        } else {
-          values[f.id] = autoFieldValue(f.id)
+        const values = buildFormValues(activeForm, finalAnswers, healthText)
+        const finalTitle = redactSensitiveInfo(fullIssueTitle(activeForm, draftedTitle))
+        const finalBody = redactSensitiveInfo(composeIssueBody(activeForm, { values, recentErrors: errors }))
+        const outPaths = draftPaths(activeForm.kind)
+        if (outPaths === null) {
+          setFailure(DRAFT_WRITE_FAILURE)
+          closingMessageRef.current = keptMessage(activeForm, null)
+          setStep('failed')
+          return
         }
-      }
 
-      const finalTitle = redactSensitiveInfo(fullIssueTitle(activeForm, draftedTitle))
-      const finalBody = redactSensitiveInfo(composeIssueBody(activeForm, { values, recentErrors: errors }))
-      const outPaths = draftPaths(activeForm.kind)
-      if (outPaths === null) {
-        setFailure({
-          note: 'the draft files could not be written under the config home (see the error log)',
-          remedy: 'free disk space or fix the permissions of the config home, then run the command again',
-        })
-        setStep('failed')
-        return
-      }
+        const prefilledUrl =
+          accessResult.state !== 'ok'
+            ? buildPrefilledUrl(activeForm, slug, finalTitle, values, outPaths.body)
+            : null
 
-      let prefilledUrl: string | null = null
-      if (accessResult.state !== 'ok') {
-        const urlValues: Record<string, string> = { ...values }
-        for (const f of activeForm.fields) {
-          if (f.source === 'health') {
-            urlValues[f.id] = healthPointer(redactSensitiveInfo(outPaths.body))
-          }
+        const draftRecord: Record<string, unknown> = {
+          ...report,
+          kind: activeForm.kind,
+          title: finalTitle,
+          issue_repo: slug,
+          body_path: outPaths.body,
+          ...(prefilledUrl !== null ? { issue_form_url: prefilledUrl } : {}),
         }
-        prefilledUrl = redactSensitiveInfo(
-          issueFormUrl(activeForm, { slug, title: finalTitle, values: urlValues }),
-        )
-      }
 
-      const draftRecord: Record<string, unknown> = {
-        ...report,
-        kind: activeForm.kind,
-        title: finalTitle,
-        issue_repo: slug,
-        body_path: outPaths.body,
-        ...(prefilledUrl !== null ? { issue_form_url: prefilledUrl } : {}),
-      }
+        const wroteBody = writeDraftFile(outPaths.body, finalBody)
+        const wroteJson = writeDraftFile(outPaths.json, draftJson(draftRecord))
+        if (!wroteBody || !wroteJson) {
+          setFailure(DRAFT_WRITE_FAILURE)
+          closingMessageRef.current = keptMessage(activeForm, null)
+          setStep('failed')
+          return
+        }
 
-      const wroteBody = writeDraftFile(outPaths.body, finalBody)
-      const wroteJson = writeDraftFile(outPaths.json, draftJson(draftRecord))
-      if (!wroteBody || !wroteJson) {
+        draftRecordRef.current = draftRecord
         setPaths(outPaths)
+        setTitle(finalTitle)
+        setBody(finalBody)
+        setScroll(0)
+        setAccess(accessResult)
+        setFormUrl(prefilledUrl)
+        if (accessResult.state !== 'ok' && prefilledUrl !== null) {
+          closingMessageRef.current = `${keptMessage(activeForm, outPaths)} The prefilled issue form (copy the link if no browser opened; it is also in the draft): ${prefilledUrl}`
+          setStep('unavailable')
+        } else {
+          closingMessageRef.current = keptMessage(activeForm, outPaths)
+          setStep('review')
+        }
+      } catch (err) {
+        logError(err)
+        if (cancelledRef.current || abortSignal.aborted) return
+        const detail = err instanceof Error ? err.message : String(err)
         setFailure({
-          note: 'the draft files could not be written under the config home (see the error log)',
-          remedy: 'free disk space or fix the permissions of the config home, then run the command again',
+          note: `preparing the report failed: ${detail}`,
+          remedy: 'run the command again',
         })
+        closingMessageRef.current = keptMessage(activeForm, null)
         setStep('failed')
-        return
       }
-
-      draftRecordRef.current = draftRecord
-      setPaths(outPaths)
-      setTitle(finalTitle)
-      setBody(finalBody)
-      setScroll(0)
-      setAccess(accessResult)
-      setFormUrl(prefilledUrl)
-      setStep(accessResult.state === 'ok' ? 'review' : 'unavailable')
     },
     [abortSignal, backgroundTasks, messages, slug],
   )
@@ -615,7 +675,7 @@ export function Feedback({
   )
 
   const submit = useCallback(async () => {
-    if (paths === null || title === null) return
+    if (paths === null || title === null || form === null) return
     setStep('filing')
     const result = await fileIssue({ slug, title, bodyFile: paths.body })
     if (cancelledRef.current) return
@@ -624,13 +684,15 @@ export function Feedback({
         draftRecordRef.current = { ...draftRecordRef.current, issue_url: result.url }
         writeDraftFile(paths.json, draftJson(draftRecordRef.current))
       }
+      closingMessageRef.current = `${form.name} filed at ${result.url} — the local draft is at ${paths.json}`
       setIssueUrl(result.url)
       setStep('done')
       return
     }
     setFailure({ note: result.note, remedy: result.remedy })
+    closingMessageRef.current = `${form.name} not filed — ${result.note}; the draft is at ${paths.json}`
     setStep('failed')
-  }, [paths, slug, title])
+  }, [form, paths, slug, title])
 
   const previewWidth = Math.max(30, columns - 10)
   const lines = bodyLines(body, previewWidth)
@@ -641,10 +703,6 @@ export function Feedback({
   useInput(
     (input, key) => {
       if (step === 'review') {
-        if (key.escape) {
-          cancel()
-          return
-        }
         if (key.return) {
           void submit()
           return
@@ -666,30 +724,27 @@ export function Feedback({
         }
         return
       }
-      if (step === 'done') {
-        finishOnce(issueUrl ? `Filed: ${issueUrl}` : 'Issue filed.')
-        return
-      }
-      if (step === 'failed') {
-        finishOnce(failure ? `Not filed: ${failure.note}` : 'Report closed — nothing was filed.')
+      if (step === 'done' || step === 'failed') {
+        finishOnce(closingMessageRef.current)
         return
       }
       if (step === 'unavailable') {
         if (key.return && formUrl !== null) {
           if (openingBrowserRef.current) return
           openingBrowserRef.current = true
-          void openBrowser(formUrl).then(() => {
+          let browserError: string | undefined
+          void openBrowser(formUrl, err => {
+            browserError = err
+          }).then(opened => {
             finishOnce(
-              `The prefilled issue form (copy the link if no browser opened; it is also in the draft): ${formUrl}`,
+              opened
+                ? closingMessageRef.current
+                : `${closingMessageRef.current}\n${formUrl} could not be opened (${browserError || 'could not open browser'}) — open it yourself`,
             )
           })
           return
         }
-        finishOnce(
-          formUrl !== null
-            ? `The prefilled issue form (copy the link if no browser opened; it is also in the draft): ${formUrl}`
-            : 'Report closed — nothing was filed.',
-        )
+        finishOnce(closingMessageRef.current)
       }
     },
     { isActive: step === 'review' || step === 'done' || step === 'unavailable' || step === 'failed' },
