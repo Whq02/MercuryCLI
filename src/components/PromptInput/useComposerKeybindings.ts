@@ -310,8 +310,8 @@ export function useComposerKeybindings({
         setOverlay(prev => (prev === 'thinking-toggle' ? null : 'thinking-toggle'))
       },
       'chat:cycleMode': () => {
-        const { context } = cyclePermissionMode(toolPermissionContext)
-        setToolPermissionContext(context)
+        const { nextMode, context } = cyclePermissionMode(toolPermissionContext)
+        setToolPermissionContext({ ...context, mode: nextMode })
         setHelpOpen(false)
       },
       'chat:imagePaste': () => {
