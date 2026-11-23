@@ -89,7 +89,7 @@ function matchRules(
 function canonicaliseRuleFirstToken(ruleContent: string): string {
   const match = ruleContent.match(/^(\S+)(\s+)([\s\S]*)$/)
   if (!match) return resolveToCanonical(stripModule(ruleContent))
-  return `${resolveToCanonical(stripModule(match[1] as string))} ${(match[3] as string).replace(/\s+/g, ' ')}`
+  return `${resolveToCanonical(stripModule(match[1]!))} ${match[3]!.replace(/\s+/g, ' ')}`
 }
 
 function ruleReason(context: ToolPermissionContext, ruleContent: string, behavior: 'deny' | 'ask' | 'allow'): PermissionDecisionReason {
@@ -319,24 +319,12 @@ function collectValidAstVerdicts(
   }
 
   const fileRedirs = pinnedCommandAnalysis.getFileRedirections(parsed)
-  for (const cmd of allCommands) {
-    if (!GIT_WRITER.has(resolveToCanonical(cmd.name))) continue
-    if (cmd.args.some(arg => isDotGitPathPS(arg))) {
-      const msg = 'Writing inside .git/ requires manual approval.'
-      collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
-    } else if (hasGit && cmd.args.some(arg => isGitInternalPathPS(arg))) {
-      const msg = 'Writing to git-internal paths alongside git requires manual approval.'
-      collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
-    }
-  }
-  for (const redir of fileRedirs) {
-    if (isDotGitPathPS(redir.target)) {
-      const msg = 'Redirecting output inside .git/ requires manual approval.'
-      collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
-    } else if (hasGit && isGitInternalPathPS(redir.target)) {
-      const msg = 'Redirecting output to git-internal paths alongside git requires manual approval.'
-      collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
-    }
+  if (dotGitWrite(parsed, allCommands)) {
+    const msg = 'Writing or redirecting output inside .git/ requires manual approval.'
+    collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
+  } else if (hasGit && gitInternalWrite(parsed, allCommands)) {
+    const msg = 'Writing or redirecting output to git-internal paths alongside git requires manual approval.'
+    collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
   }
 
   const firstArchiveIdx = allCommands.findIndex(

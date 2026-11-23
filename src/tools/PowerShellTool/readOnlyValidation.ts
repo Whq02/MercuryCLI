@@ -63,7 +63,7 @@ const argLeakCallback = (command: string, element?: ParsedCommandElement): boole
 function rejectsPositional(_command: string, element?: ParsedCommandElement): boolean {
   if (!element) return true
   for (let i = 0; i < element.args.length; i++) {
-    const arg = element.args[i] as string
+    const arg = element.args[i]!
     if (!PS_DASH_RE.test(arg[0] ?? '') && arg[0] !== '/') {
       if (argumentTypeAt(element, i) === 'Parameter') continue
       return true
@@ -146,9 +146,9 @@ const CMDLET_ALLOWLIST: Record<string, CommandConfig> = Object.assign(Object.cre
   file: { safeFlags: flags('-b --brief -i --mime -L --dereference --mime-type --mime-encoding -z --uncompress -p --preserve-date -k --keep-going -r --raw -v --version -0 --print0 -s --special-files -l -F --separator -e -P -N --no-pad -E --extension') },
   git: {}, gh: {}, docker: {}, dotnet: {},
   ...Object.fromEntries(
-    ['format-table', 'format-list', 'format-wide', 'format-custom', 'measure-object', 'select-object', 'sort-object', 'group-object', 'where-object', 'out-string', 'out-host'].map(name => [
-      name, { allowAllFlags: true, additionalDanger: argLeakCallback } as CommandConfig,
-    ]),
+    ['format-table', 'format-list', 'format-wide', 'format-custom', 'measure-object', 'select-object', 'sort-object', 'group-object', 'where-object', 'out-string', 'out-host'].map(
+      (name): [string, CommandConfig] => [name, { allowAllFlags: true, additionalDanger: argLeakCallback }],
+    ),
   ),
 })
 
@@ -326,7 +326,7 @@ export function isAllowlistedPipelineTail(element: ParsedCommandElement, origina
 
 export function isProvablySafeStatement(statement: ParsedStatement): boolean {
   return (
-    statement.statementType === 'PipelineAst' &&
+    (statement.statementType === 'PipelineAst' || statement.statementType === 'pipeline') &&
     statement.commands.length > 0 &&
     statement.nestedCommands.length === 0
   )

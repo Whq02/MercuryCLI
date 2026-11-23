@@ -190,8 +190,8 @@ function checkNewObject(cmd: ParsedCommandElement): Verdict | null {
         }
       } else if (
         inlineValue === undefined &&
-        ((name.startsWith('-a') && '-argumentlist'.startsWith(name)) ||
-          (name.startsWith('-p') && '-property'.startsWith(name)))
+        name.length >= 2 &&
+        ('-argumentlist'.startsWith(name) || '-property'.startsWith(name))
       ) {
         i++
       }
