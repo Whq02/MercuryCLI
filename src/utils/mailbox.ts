@@ -1,40 +1,66 @@
 import { createSignal } from './signal.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
-
 
 type MessageSource = 'user' | 'crewmate' | 'system' | 'tick' | 'task'
 
-type Message = Unbuilt
+type Message = {
+  id: string
+  source: MessageSource
+  content: string
+  timestamp: number
+  metadata?: Record<string, unknown>
+}
 
-type Predicate = (...args: Unbuilt[]) => Unbuilt
+type Predicate = (message: Message) => boolean
 
-type Waiter = Unbuilt
+type Waiter = {
+  predicate?: Predicate
+  resolve: (message: Message) => void
+}
 
 export class Mailbox {
-  private readonly queue: Message[] = unbuilt('src/utils/mailbox.ts:22')
-  private readonly waiters: Waiter[] = unbuilt('src/utils/mailbox.ts:23')
-  private readonly changed: Unbuilt = unbuilt('src/utils/mailbox.ts:24')
-  private sendCount: number = unbuilt('src/utils/mailbox.ts:25')
+  private readonly queue: Message[] = []
+  private readonly waiters: Waiter[] = []
+  private readonly changed = createSignal()
+  private sendCount = 0
 
   get length(): number {
-    return notBuilt('src/utils/mailbox.ts:27')
+    return this.queue.length
   }
 
   get revision(): number {
-    return notBuilt('src/utils/mailbox.ts:31')
+    return this.sendCount
   }
 
   send(message: Message): void {
-    return notBuilt('src/utils/mailbox.ts:35')
+    this.sendCount++
+    const waiterIdx = this.waiters.findIndex(
+      waiter => waiter.predicate === undefined || waiter.predicate(message),
+    )
+    if (waiterIdx !== -1) {
+      const [waiter] = this.waiters.splice(waiterIdx, 1)
+      waiter!.resolve(message)
+      this.changed.emit()
+      return
+    }
+    this.queue.push(message)
+    this.changed.emit()
   }
 
   poll(predicate?: Predicate): Message | undefined {
-    return notBuilt('src/utils/mailbox.ts:48')
+    const idx = predicate === undefined ? (this.queue.length > 0 ? 0 : -1) : this.queue.findIndex(predicate)
+    if (idx === -1) return undefined
+    const [message] = this.queue.splice(idx, 1)
+    this.changed.emit()
+    return message
   }
 
   receive(predicate?: Predicate): Promise<Message> {
-    return notBuilt('src/utils/mailbox.ts:55')
+    const existing = this.poll(predicate)
+    if (existing !== undefined) return Promise.resolve(existing)
+    return new Promise<Message>(resolve => {
+      this.waiters.push({ predicate, resolve })
+    })
   }
 
-  subscribe = (listener: () => void): (() => void) => notBuilt('src/utils/mailbox.ts:67')
+  subscribe = (listener: () => void): (() => void) => this.changed.subscribe(listener)
 }
