@@ -11,12 +11,15 @@ import { logError } from '../../utils/log.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
-import { EFFORT_LEVELS } from '../../utils/effort.js'
+import {
+  EFFORT_LEVELS,
+  type EffortLevel,
+} from '../../utils/effort.js'
 import {
   clearMarkdownFileCache,
   loadMarkdownFilesForSubdir,
 } from '../../utils/markdownConfigLoader.js'
-import { PERMISSION_MODES } from '../../utils/permissions/PermissionMode.js'
+import { PERMISSION_MODES, type PermissionMode } from '../../utils/permissions/PermissionMode.js'
 import { clearExtensionAgentCache, getExtensionAgents } from '../../extensions/load/agents.js'
 import { readHooksMap } from '../../schemas/hooks.js'
 import type { HooksSettings } from '../../utils/settings/types.js'
@@ -146,7 +149,7 @@ function parseAgentFromMarkdown(
 ): CustomAgentDefinition | null {
   try {
     const raw = rawContent ?? rebuildRawDocument(frontmatter, content)
-    const doc = decodeAgentDocument(raw)
+    const doc = decodeAgentDocument(raw, filePath)
     const errors = doc.diagnostics.filter(d => d.severity === 'error')
     for (const d of doc.diagnostics) {
       if (d.severity !== 'info') {

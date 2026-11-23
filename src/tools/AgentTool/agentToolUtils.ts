@@ -7,7 +7,6 @@ import {
   RULE_INHERITS,
 } from '../../constants/tools.js'
 import type { Message } from '../../types/message.js'
-import type { ToolResultBlockParam } from '../../types/wire.js'
 import type { SetAppState } from '../../Task.js'
 import {
   AGENT_BUDGET_RESUME_NOTE,
@@ -29,6 +28,7 @@ import {
   enqueueAgentReceiptRow,
   failAgentTask,
   foldResponseIntoLedger,
+  getProgressUpdate,
   getTokenCountFromTracker,
   isLocalAgentTask,
   killAsyncAgent,
@@ -514,12 +514,12 @@ export const FAILED_STRUCTURED_YIELD = `the last ${structuredOutputToolName()} c
 
 const SCHEMA_ISSUE_WORDS_CAP = 300
 
-function schemaIssueWordsOf(content: ToolResultBlockParam['content']): string {
+function schemaIssueWordsOf(content: unknown): string {
   const text =
     typeof content === 'string'
       ? content
       : Array.isArray(content)
-        ? content.map(block => (block.type === 'text' ? block.text : '')).join('\n')
+        ? content.map(block => (typeof (block as { text?: unknown }).text === 'string' ? (block as { text: string }).text : '')).join('\n')
         : ''
   const words = text
     .replace(/<\/?tool_use_error>/g, '')
@@ -538,17 +538,18 @@ function findLastStructuredYield(
     if (m.type !== 'assistant') continue
     const contentBlocks = Array.isArray(m.message.content) ? m.message.content : []
     for (const block of contentBlocks) {
-      if (block.type !== 'tool_use' || block.name !== structuredOutputToolName() || !block.id) continue
+      const use = block as { type?: string; id?: string; name?: string; input?: unknown }
+      if (use.type !== 'tool_use' || use.name !== structuredOutputToolName() || !use.id) continue
       for (let j = i + 1; j < messages.length; j++) {
         const candidate = messages[j]!
         if (candidate.type !== 'user') continue
         const rc = candidate.message.content
         if (!Array.isArray(rc)) continue
-        const result = rc.find(
-          (b): b is ToolResultBlockParam => b.type === 'tool_result' && b.tool_use_id === block.id,
+        const result = (rc as Array<{ type?: string; tool_use_id?: string; is_error?: boolean; content?: unknown }>).find(
+          b => b.type === 'tool_result' && b.tool_use_id === use.id,
         )
         if (result !== undefined) {
-          if (result.is_error !== true) return { valid: true, payload: block.input }
+          if (result.is_error !== true) return { valid: true, payload: use.input }
           const issues = schemaIssueWordsOf(result.content)
           return issues === '' ? { valid: false } : { valid: false, issues }
         }
@@ -599,14 +600,14 @@ export function emitTaskProgress(
   startTime: number,
   lastToolName: string,
 ): void {
-  const lastActivity = tracker.recentActivities[tracker.recentActivities.length - 1]
+  const progress = getProgressUpdate(tracker)
   emitSdkTaskProgress({
     taskId,
     toolUseId,
-    description: lastActivity?.activityDescription || description,
+    description: progress.lastActivity?.activityDescription ?? description,
     startTime,
     totalTokens: getTokenCountFromTracker(tracker),
-    toolUses: tracker.toolUseCount,
+    toolUses: progress.toolUseCount,
     lastToolName,
   })
 }
@@ -930,8 +931,9 @@ export async function probeProviderAnswers(model: string, deadlineMs: number = o
       },
     })
     for await (const message of stream) {
-      if (message.type === 'stream_event' && message.event?.type === 'message_start') return true
-      if (message.type === 'assistant' && message.isApiErrorMessage !== true) return true
+      const m = message as { type?: string; event?: { type?: string }; isApiErrorMessage?: boolean }
+      if (m.type === 'stream_event' && m.event?.type === 'message_start') return true
+      if (m.type === 'assistant' && m.isApiErrorMessage !== true) return true
     }
     return false
   } catch (error) {
@@ -1056,7 +1058,16 @@ export async function deliverOperatorMessagesAfterStop(
   rootSetAppState: SetAppState,
   canUseTool?: CanUseToolFn,
 ): Promise<boolean> {
-  const stateReader = taskStateReader(toolUseContext, rootSetAppState)
+  const stateReader =
+    toolUseContext.getAppState ??
+    ((): ReturnType<NonNullable<ToolUseContext['getAppState']>> => {
+      let captured: unknown
+      rootSetAppState(prev => {
+        captured = prev
+        return prev
+      })
+      return captured as ReturnType<NonNullable<ToolUseContext['getAppState']>>
+    })
   const queued = peekOperatorMessages(stateReader().tasks[taskId])
   if (queued.length === 0) return false
   try {

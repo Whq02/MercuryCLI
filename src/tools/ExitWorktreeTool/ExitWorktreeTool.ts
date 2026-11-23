@@ -34,6 +34,8 @@ const inputSchema = z.strictObject({
     ),
 })
 
+type Input = z.infer<typeof inputSchema>
+
 export type Output = {
   action: 'keep' | 'remove'
   originalCwd: string
@@ -65,16 +67,17 @@ type WorktreeChangeCounts = {
 }
 
 async function countWorktreeChanges(session: WorktreeSession): Promise<WorktreeChangeCounts | null> {
+  const statusResult = await execFileNoThrow('git', ['-C', session.worktreePath, 'status', '--porcelain'])
+  if (statusResult.code !== 0) return null
   if (!session.originalHeadCommit) return null
-  const [statusResult, commitsResult] = await Promise.all([
-    execFileNoThrow('git', ['-C', session.worktreePath, 'status', '--porcelain'], { useCwd: false }),
-    execFileNoThrow(
-      'git',
-      ['-C', session.worktreePath, 'rev-list', '--count', `${session.originalHeadCommit}..HEAD`],
-      { useCwd: false },
-    ),
+  const commitsResult = await execFileNoThrow('git', [
+    '-C',
+    session.worktreePath,
+    'rev-list',
+    '--count',
+    `${session.originalHeadCommit}..HEAD`,
   ])
-  if (statusResult.code !== 0 || commitsResult.code !== 0) return null
+  if (commitsResult.code !== 0) return null
   const uncommittedFiles = statusResult.stdout
     .split(/\r?\n/)
     .filter(line => line.trim() !== '').length
@@ -177,7 +180,7 @@ export const ExitWorktreeTool = buildTool({
     }
     const counts = (await countWorktreeChanges(session)) ?? { uncommittedFiles: 0, unmergedCommits: 0 }
     if (session.tmuxSessionName) {
-      await execFileNoThrow('tmux', ['kill-session', '-t', session.tmuxSessionName], { useCwd: false })
+      await execFileNoThrow('tmux', ['kill-session', '-t', session.tmuxSessionName])
     }
     await cleanupWorktree()
     restoreOriginalDirectory(session.originalCwd, projectRootWasOriginal)
