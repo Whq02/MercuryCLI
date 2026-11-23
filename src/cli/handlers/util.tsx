@@ -21,8 +21,10 @@ export async function setupTokenHandler(root: Root): Promise<void> {
               <Text dimColor>Long-lived token setup</Text>
             </Box>
             {warningOwed && (
-              <Text color="ansi:yellow">
-                This session already has credentials (via environment variable or API key helper). This flow mints a separate OAuth token you can use in their place.
+              <Text color="yellow">
+                This session already has credentials (via environment variable
+                or API key helper). This flow mints a separate OAuth token you
+                can use in their place.
               </Text>
             )}
             <ConsoleOAuthFlow
