@@ -60,7 +60,7 @@ export async function summariserFitFor(
   context: ToolUseContext,
   cacheSafeParams: CacheSafeParams,
   promptText: string,
-  gauge: ReturnType<typeof readRequestGauge>,
+  gauge?: ReturnType<typeof readRequestGauge>,
 ): Promise<SummariserFit> {
   const model = context.options.engineModel
   const { window } = resolveAutoCompactWindow(model)
