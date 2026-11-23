@@ -210,7 +210,8 @@ export function StructuredDiffFallback({
     1,
   )
   const gutterWidth = maxDigitWidth + 1
-  const contentWidth = Math.max(1, width - gutterWidth - 2)
+  const targetWidth = Math.max(1, Math.floor(width))
+  const contentWidth = Math.max(1, targetWidth - gutterWidth - 2)
   const continuationGutter = ' '.repeat(gutterWidth + 1)
 
   const rows: React.ReactNode[] = []
