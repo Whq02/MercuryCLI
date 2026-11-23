@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { marked, type Token, type Tokens } from 'marked'
+import { marked, type MarkedToken, type Token, type Tokens } from 'marked'
 import stripAnsi from 'strip-ansi'
 import { BLOCKQUOTE_BAR } from '../constants/figures.js'
 import { color } from './color.js'
@@ -11,10 +11,13 @@ import sliceAnsi from './sliceAnsi.js'
 import { logForDebugging } from './debug.js'
 import type { CliHighlight } from './cliHighlight.js'
 import type { ThemeName } from './theme.js'
-import { notBuilt } from '../pi/holes.js'
+
+let markedConfigured = false
 
 export function configureMarked(): void {
-  return notBuilt('src/utils/markdown.ts:18')
+  if (markedConfigured) return
+  markedConfigured = true
+  marked.use({ tokenizer: { del: () => undefined } })
 }
 
 
@@ -30,7 +33,14 @@ function linkifyIssueReferences(text: string): string {
 
 
 function bijectiveLetters(n: number): string {
-  return notBuilt('src/utils/markdown.ts:42')
+  let value = Number.isFinite(n) ? Math.max(1, Math.floor(n)) : 1
+  let letters = ''
+  do {
+    value--
+    letters = String.fromCharCode(97 + value % 26) + letters
+    value = Math.floor(value / 26)
+  } while (value > 0)
+  return letters
 }
 
 const ROMAN: Array<[number, string]> = [
@@ -63,7 +73,9 @@ function padAligned(
   targetWidth: number,
   align: 'left' | 'center' | 'right' | null | undefined,
 ): string {
-  return notBuilt('src/utils/markdown.ts:77')
+  const pad = Math.max(0, targetWidth - displayWidth)
+  const left = align === 'right' ? pad : align === 'center' ? Math.floor(pad / 2) : 0
+  return ' '.repeat(left) + content + ' '.repeat(pad - left)
 }
 
 
@@ -78,9 +90,10 @@ export function applyMarkdown(
   content: string,
   theme: ThemeName,
   highlight?: CliHighlight | null,
-  maxWidth?: number,
+  maxWidth = process.stdout.columns ?? Infinity,
 ): string {
-  return notBuilt('src/utils/markdown.ts:100')
+  configureMarked()
+  return marked.lexer(stripPromptXMLTags(content)).map(token => formatToken(token, theme, 0, null, null, highlight, maxWidth)).join('').trim()
 }
 
 
@@ -89,7 +102,7 @@ function renderChildren(
   theme: ThemeName,
   highlight?: CliHighlight | null,
 ): string {
-  return notBuilt('src/utils/markdown.ts:116')
+  return tokens?.map(token => formatToken(token, theme, 0, null, null, highlight)).join('') ?? ''
 }
 
 function listItemMarker(orderedListNumber: number | null, listDepth: number): string {
@@ -102,13 +115,70 @@ function listItemMarker(orderedListNumber: number | null, listDepth: number): st
 export function formatToken(
   token: Token,
   theme: ThemeName,
-  listDepth?: number,
-  orderedListNumber?: number | null,
+  listDepth = 0,
+  orderedListNumber: number | null = null,
   parent?: Token | null,
   highlight?: CliHighlight | null,
-  widthBudget?: number,
+  widthBudget = Infinity,
 ): string {
-  return notBuilt('src/utils/markdown.ts:132')
+  const current = token as MarkedToken
+  const childrenOf = (owner: { tokens?: Token[] }) => owner.tokens?.map(child => formatToken(child, theme, 0, null, current, highlight)).join('') ?? ''
+  switch (current.type) {
+    case 'blockquote':
+      return renderChildren(current.tokens, theme, highlight).split('\n').map(line =>
+        stripAnsi(line).trim() ? `${chalk.dim(BLOCKQUOTE_BAR)} ${chalk.italic(line)}` : line,
+      ).join('\n')
+    case 'code': {
+      if (!highlight) return linkifyCodeUrls(current.text) + '\n'
+      const requested = current.lang?.trim() ?? ''
+      let language = 'plaintext'
+      if (requested && highlight.supportsLanguage(requested)) language = requested
+      else if (requested) logForDebugging(`markdown: unsupported code fence language ${requested}`)
+      return linkifyCodeUrls(highlight.highlight(current.text, { language })) + '\n'
+    }
+    case 'codespan': return color('info', theme)(current.text)
+    case 'em': return chalk.italic(renderChildren(current.tokens, theme, highlight))
+    case 'strong': return chalk.bold(renderChildren(current.tokens, theme, highlight))
+    case 'heading': {
+      const body = renderChildren(current.tokens, theme, highlight)
+      return (current.depth === 1 ? chalk.bold.italic.underline(body) : chalk.bold(body)) + '\n\n'
+    }
+    case 'hr': return '---\n'
+    case 'image': return current.href
+    case 'link': {
+      if (current.href.startsWith('mailto:')) return current.href.slice(7)
+      const label = childrenOf(current)
+      return label && label !== current.href ? createHyperlink(current.href, label) : createHyperlink(current.href)
+    }
+    case 'list': {
+      const start = typeof current.start === 'number' ? current.start : 1
+      return current.items.map((item, i) => formatToken(item, theme, listDepth, current.ordered ? start + i : null, current, highlight)).join('')
+    }
+    case 'list_item': {
+      const indent = '  '.repeat(listDepth + 1)
+      return current.tokens.map((child, i) => {
+        const nested = child.type === 'list'
+        const body = formatToken(child, theme, nested ? listDepth + 1 : listDepth, i === 0 ? orderedListNumber : null, i === 0 ? current : null, highlight)
+        return i === 0 || nested ? body : body.split('\n').map(line => line && indent + line).join('\n')
+      }).join('')
+    }
+    case 'paragraph': {
+      const marker = parent?.type === 'list_item' ? listItemMarker(orderedListNumber, listDepth) : ''
+      return marker + childrenOf(current) + '\n'
+    }
+    case 'text': {
+      if (parent?.type === 'link') return current.text
+      const body = current.tokens?.length ? childrenOf(current) : linkifyIssueReferences(current.text)
+      if (parent?.type !== 'list_item') return body
+      const marker = listItemMarker(orderedListNumber, listDepth)
+      return marker + body.replaceAll('\n', '\n' + ' '.repeat(stringWidth(marker))) + '\n'
+    }
+    case 'table': return renderTable(current, theme, highlight, widthBudget)
+    case 'br':
+    case 'space': return '\n'
+    case 'escape': return current.text
+    default: return ''
+  }
 }
 
 
