@@ -17,6 +17,7 @@ type ExportOptions = {
   columns?: number
   verbose?: boolean
   chunkSize?: number
+  onProgress?: (renderedCount: number) => void
 }
 
 function MinimalKeybindingProvider({ children }: { children: React.ReactNode }): React.ReactNode {
@@ -66,10 +67,9 @@ async function renderChunk(
           inProgressToolUseIDs={new Set()}
           isMessageSelectorVisible={false}
           conversationId="export"
-          screen="transcript"
+          screen="prompt"
           streamingToolUses={[]}
           isLoading={false}
-          showAllInTranscript
           suppressLogo
           disableRenderCap
           renderRange={range}
@@ -87,25 +87,17 @@ export async function streamRenderedMessages(
   options?: ExportOptions,
 ): Promise<void> {
   const chunkSize = Math.max(1, options?.chunkSize ?? DEFAULT_CHUNK_SIZE)
-  const verbose = options?.verbose ?? true
+  const verbose = options?.verbose ?? false
   const columns = options?.columns
-  const total = normalizedUpperBound(messages)
-  if (total === 0) return
+  const upperBound = normalizedUpperBound(messages) + chunkSize
 
-  let wroteAny = false
-  let prevEndedWithNewline: boolean = true
-  for (let start = 0; start < total; start += chunkSize) {
-    const end = Math.min(total, start + chunkSize)
+  for (let start = 0; start < upperBound; start += chunkSize) {
+    const end = start + chunkSize
     const raw = await renderChunk(messages, tools, verbose, [start, end], columns)
     const cleaned = raw.replace(SYNC_MARKER_RE, '')
-    if (stripAnsi(cleaned).trim() === '') {
-      if (wroteAny) break
-      continue
-    }
-    const piece: string = wroteAny && !prevEndedWithNewline ? `\n${cleaned}` : cleaned
-    await sink(piece)
-    wroteAny = true
-    prevEndedWithNewline = piece.endsWith('\n')
+    if (stripAnsi(cleaned).trim() === '') break
+    await sink(cleaned)
+    options?.onProgress?.(end)
   }
 }
 
