@@ -1014,8 +1014,9 @@ async function enrichLog(
     },
   )
   if (readFailed) return null
-  if (facts.isSidechain) {
-    logForDebugging(`Session ${log.sessionId} filtered from /sessions: isSidechain=true`)
+  const reason = facts.isSidechain ? 'isSidechain=true' : null
+  if (reason !== null) {
+    logForDebugging(`Session ${log.sessionId} filtered from /sessions: ${reason}`)
     return null
   }
   const missionGoal = missionGoalBeside(log.fullPath)
