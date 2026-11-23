@@ -28,11 +28,11 @@ if (recording) {
   }
 }
 const source = async (path: string) => import(`${root}/src/${path}.ts`)
-const { enableConfigs } = await source('utils/config')
+const { enableConfigs } = await source('platform/settings/config')
 enableConfigs()
 const bootstrap = await source('boot/process-state/processState')
 bootstrap.setIsInteractive(false)
-const helpers = await source('services/messages')
+const helpers = await source('engine/messages/messages')
 const filters = await source('engine/messages/apiFilters')
 const params = await source('models/roads/anthropic/messageParams')
 const openai = await source('models/roads/openai/responsesBridge')

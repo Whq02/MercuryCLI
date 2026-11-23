@@ -177,7 +177,7 @@ section('§1 the door: 61 exports, their kinds, their modules and their source n
   check('at run time the door carries the 44 values and nothing else', same(live, values), `${live.length}: ${live.filter(n => !values.includes(n)).join(' ')} / ${values.filter(n => !live.includes(n)).join(' ')}`)
   const strangers: string[] = []
   for (const row of doorRows.filter(r => r.kind === 'value' && r.from !== '')) {
-    const owner = (await import(join(SRC, row.from))) as Record<string, unknown>
+    const owner = (await import(join(SRC, 'screen', row.from))) as Record<string, unknown>
     if ((door as Record<string, unknown>)[row.name] !== owner[row.source]) strangers.push(row.name)
   }
   check('every re-exported value is the very object its module exports', strangers.length === 0, strangers.join(' '))

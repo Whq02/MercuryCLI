@@ -108,7 +108,7 @@ writeFileSync(keyFile, pair.privateKey.export({ type: 'pkcs8', format: 'pem' }) 
 const spki = (pair.publicKey.export({ type: 'spki', format: 'der' }) as Buffer).toString('base64')
 const keyId = keyIdOf(spki)
 {
-  const rosterPath = join(snap, 'src', 'services', 'privateChannel', 'signingTrust.ts')
+  const rosterPath = join(snap, 'src', 'platform', 'update-channel', 'signingTrust.ts')
   const before = readFileSync(rosterPath, 'utf8')
   const after = before
     .replace(/keyId: '[0-9a-f]{16}'/, `keyId: '${keyId}'`)

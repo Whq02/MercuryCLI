@@ -158,10 +158,10 @@ try {
     plugin({ name: 'stub-color-diff-napi', setup(build) { build.module('color-diff-napi', () => ({ loader: 'object', exports: { ColorDiff: class {}, ColorFile: class {}, getSyntaxTheme: () => ({}) } })) } })
     globalThis.MACRO = { VERSION: '1.0.0' }
     const src = ${JSON.stringify(SRC)}
-    const { enableConfigs } = await import(src + '/utils/config.ts')
+    const { enableConfigs } = await import(src + '/platform/settings/config.ts')
     enableConfigs()
-    const { setCwd, getShellCwd, exec } = await import(src + '/utils/Shell.ts')
-    const { setOriginalCwd } = await import(src + '/bootstrap/state.ts')
+    const { setCwd, getShellCwd, exec } = await import(src + '/platform/shell/shellExec.ts')
+    const { setOriginalCwd } = await import(src + '/boot/process-state/processState.ts')
     setCwd(${JSON.stringify(project)})
     setOriginalCwd(${JSON.stringify(project)})
     const run = async (command, shell, options) => {
@@ -189,14 +189,14 @@ pwd -P
 if [ -n "$record" ]; then printf '%s' "MOVE_TO" > "$record"; fi
 `.replace('MOVE_TO', outside), { mode: 0o755 })
   const pwsh = child(`
-    const { getCachedPowerShellPath } = await import(src + '/utils/shell/powershellDetection.ts')
+    const { getCachedPowerShellPath } = await import(src + '/platform/shell/powershellDetection.ts')
     const found = await getCachedPowerShellPath()
     const control = await run('Get-Location', 'powershell', {})
     const resting = getShellCwd()
     const absolute = await run('Get-Location', 'powershell', { cwd: ${JSON.stringify(sub)} })
     const relative = await run('Get-Location', 'powershell', { cwd: 'packages/one' })
     const missing = await run('Get-Location', 'powershell', { cwd: 'packages/none' })
-    const { PowerShellTool } = await import(src + '/tools/PowerShellTool/PowerShellTool.tsx')
+    const { PowerShellTool } = await import(src + '/tools/powershell/PowerShellTool.tsx')
     const tool = await PowerShellTool.call({ command: 'Get-Location', cwd: 'packages/one' }, { abortController: new AbortController(), getAppState: () => ({}), setAppState: () => {}, toolUseId: 'pwsh-cwd', options: { tools: [] } })
     console.log(JSON.stringify({ found, control, resting, absolute, relative, missing, tool: { out: tool.data.stdout.trim(), shell: getShellCwd() } }))
     process.exit(0)
@@ -209,7 +209,7 @@ if [ -n "$record" ]; then printf '%s' "MOVE_TO" > "$record"; fi
   check('PowerShell tool: the per-call cwd reaches the spawn and the session directory stays', pwsh.tool?.out === sub && pwsh.tool?.shell === pwsh.resting, pwsh)
 
   const brush = child(`
-    const { resolveShellEngine, endEngineSession } = await import(src + '/utils/shell/engineSession.ts')
+    const { resolveShellEngine, endEngineSession } = await import(src + '/platform/shell/engineSession.ts')
     const engine = resolveShellEngine()
     if (engine.engine !== 'brush') {
       console.log(JSON.stringify({ skipped: String(engine.reason ?? engine.engine) }))

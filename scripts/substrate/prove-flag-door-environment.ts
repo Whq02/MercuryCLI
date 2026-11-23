@@ -33,7 +33,7 @@ section('§2 at the typecheck: an environment that may be undefined is refused, 
 {
   const planted = join(ROOT, 'src', 'planted-optional-holder.ts')
   const lines = [
-    `import { flagEnv } from './${J('sub', 'strate')}/${J('flag', 'Registry')}.js'`,
+    `import { flagEnv } from './platform/${J('sub', 'strate')}/${J('flag', 'Registry')}.js'`,
     'const spec: { extraEnv?: Record<string, string> } = {}',
     `export const atTheProcess = flagEnv('${NAME}')`,
     `export const holder = flagEnv('${NAME}', { PATH: '/usr/bin' })`,

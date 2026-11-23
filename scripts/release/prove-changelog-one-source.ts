@@ -84,20 +84,20 @@ try {
   for (const name of readdirSync(join(ROOT, 'vendor'))) {
     if (name.endsWith('.lock.json')) copyFileSync(join(ROOT, 'vendor', name), join(fixture, 'vendor', name))
   }
-  mkdirSync(join(fixture, 'src', 'main'), { recursive: true })
-  mkdirSync(join(fixture, 'src', 'entrypoints'), { recursive: true })
-  writeFileSync(join(fixture, 'src', 'main.tsx'), "program.command('health')\n")
-  writeFileSync(join(fixture, 'src', 'main', 'sessionDoors.ts'), '')
-  writeFileSync(join(fixture, 'src', 'main', 'subcommands.ts'), '')
-  writeFileSync(join(fixture, 'src', 'entrypoints', 'cli.tsx'), "if (args[0] === 'health') {}\n")
-  mkdirSync(join(fixture, 'src', 'constants'), { recursive: true })
-  writeFileSync(join(fixture, 'src', 'constants', 'changelog.ts'), 'export const MERCURY_CHANGELOG = `## 9.9.8\n- Duplicate only\n`\n')
+  mkdirSync(join(fixture, 'src', 'boot', 'main'), { recursive: true })
+  mkdirSync(join(fixture, 'src', 'boot', 'entrypoints'), { recursive: true })
+  writeFileSync(join(fixture, 'src', 'boot', 'main.tsx'), "program.command('health')\n")
+  writeFileSync(join(fixture, 'src', 'boot', 'main', 'sessionDoors.ts'), '')
+  writeFileSync(join(fixture, 'src', 'boot', 'main', 'subcommands.ts'), '')
+  writeFileSync(join(fixture, 'src', 'boot', 'entrypoints', 'cli.tsx'), "if (args[0] === 'health') {}\n")
+  mkdirSync(join(fixture, 'src', 'commands', 'update-notes'), { recursive: true })
+  writeFileSync(join(fixture, 'src', 'commands', 'update-notes', 'changelog.ts'), 'export const MERCURY_CHANGELOG = `## 9.9.8\n- Duplicate only\n`\n')
 
   const pkgArgs = [join(releaseScriptsDir, 'package.mjs'), '--target', 'windows-x64', '--allow-degraded', '--allow-stale-verify-receipts', ...(process.platform === 'win32' ? [] : ['--assemble-only'])]
   const pkgMissingDoc = spawnSync('node', pkgArgs, { encoding: 'utf8', timeout: 30_000 })
   check('package.mjs ignores a duplicate src/commands/update-notes/changelog.ts and fails naming docs/releases/9.9.8.md', pkgMissingDoc.status !== 0 && pkgMissingDoc.stderr.includes('docs/releases/9.9.8.md'), pkgMissingDoc.stderr.trim().slice(0, 200))
 
-  rmSync(join(fixture, 'src', 'constants'), { recursive: true, force: true })
+  rmSync(join(fixture, 'src', 'commands', 'update-notes'), { recursive: true, force: true })
   writeFileSync(join(releasesDir, '9.9.8.md'), '# 9.9.8 — ready for the tag\n\n## What changed\n\n- Packaged from docs\n')
   const pkgWithDoc = spawnSync('node', pkgArgs, { encoding: 'utf8', timeout: 30_000 })
   check('package.mjs accepts docs/releases/9.9.8.md without src/commands/update-notes/changelog.ts and advances to THIRD_PARTY_NOTICES.md', pkgWithDoc.status !== 0 && pkgWithDoc.stderr.includes('THIRD_PARTY_NOTICES.md'), pkgWithDoc.stderr.trim().slice(0, 200))
