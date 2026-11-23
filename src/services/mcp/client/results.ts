@@ -89,7 +89,7 @@ async function persistBlob(
   const persisted = await persistBinaryContent(bytes, mimeType, persistId(serverName, extra))
   const failure = (persisted as { error?: string }).error
   if (failure !== undefined) {
-    return `${sourceDescription}: binary content (${mimeType || 'unknown type'}, ${bytes.length} bytes) could not be saved: ${failure}`
+    return `${sourceDescription}: binary content could not be saved (${mimeType || 'unknown type'}, ${bytes.length} bytes): ${failure}`
   }
   const saved = persisted as { filepath: string; size: number }
   return getBinaryBlobSavedMessage(saved.filepath, mimeType, saved.size, sourceDescription)
@@ -274,11 +274,10 @@ export async function transformMCPResult(result: unknown, tool: string, name: st
     }
   }
 
-  const message = `Unexpected response format from MCP tool "${tool}" on server "${name}"`
-  logMCPError(name, message)
+  logMCPError(name, `unexpected response format from tool ${tool}`)
   throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-    message,
-    `Unexpected MCP tool result format from ${name}/${tool}`,
+    `Unexpected response format from MCP server "${name}" tool "${tool}"`,
+    'MCP unexpected response format',
   )
 }
 

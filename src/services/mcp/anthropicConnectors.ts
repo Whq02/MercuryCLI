@@ -45,7 +45,7 @@ export const fetchAnthropicConnectorsIfEligible = memoize(
     const scopes: string[] = tokens.scopes ?? []
     if (!scopes.includes(REQUIRED_SCOPE)) {
       const has = scopes.length > 0 ? scopes.join(', ') : 'none'
-      logForDebugging(`claudeai MCP: token lacks user:mcp_servers (has: ${has})`)
+      logForDebugging(`claudeai MCP: token lacks ${REQUIRED_SCOPE} (has: ${has})`)
       return {}
     }
 

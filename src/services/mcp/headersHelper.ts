@@ -72,7 +72,11 @@ async function getMcpHeadersFromHelper(
   })
   const verdict = judgeHelperRun(run)
   if (!verdict.ok) {
-    const message = `The headersHelper for MCP server "${serverName}" failed: ${verdict.cause}. The connection was not attempted without its auth headers. Fix the helper command or remove the headersHelper setting.`
+    const message = [
+      `The headersHelper for MCP server "${serverName}" failed: ${verdict.cause}.`,
+      'The connection was not attempted without its auth headers.',
+      'Fix the helper command or remove the headersHelper setting.',
+    ].join(' ')
     logMCPError(serverName, message)
     logError(message)
     throw new Error(message)
