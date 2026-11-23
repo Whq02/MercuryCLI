@@ -292,7 +292,7 @@ export function PermissionRuleList({
     if (changeLog.length > 0) {
       onExit(changeLog.join('\n'))
     } else {
-      onExit('Permissions dialog dismissed', { display: 'system' })
+      onExit('Permissions dialog dismissed.', { display: 'system' })
     }
   }, [changeLog, onExit])
 

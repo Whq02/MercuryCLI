@@ -80,7 +80,7 @@ function agentItems(
     }
     return out
   } catch (error) {
-    logForDebugging(`Failed to build agent suggestions: ${String(error)}`)
+    logForDebugging(`agent suggestions failed: ${String(error)}`)
     return []
   }
 }

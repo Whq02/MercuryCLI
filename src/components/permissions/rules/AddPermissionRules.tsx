@@ -91,9 +91,7 @@ export function AddPermissionRules({
           ))}
         </Box>
         <Text>
-          {ruleValues.length === 1
-            ? 'Where should this rule be saved?'
-            : 'Where should these rules be saved?'}
+          Where should {ruleValues.length === 1 ? 'this rule' : 'these rules'} be saved?
         </Text>
         <Select
           options={SOURCES.map(destinationOption)}

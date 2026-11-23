@@ -56,7 +56,8 @@ export function PermissionRuleInput({
           Add {ruleBehavior} permission rule
         </Text>
         <Text dimColor>
-          A rule is a tool name, optionally followed by a specifier in parentheses — for example{' '}
+          A rule is a tool name, optionally followed by a specifier in
+          parentheses — for example{' '}
           <Text bold>{webFetchExample}</Text> or <Text bold>{bashExample}</Text>
         </Text>
         <TextInput
