@@ -79,7 +79,7 @@ export function displayConfigHome(): string {
 }
 
 export function hasNodeOption(flag: string): boolean {
-  const options = hostEnv().NODE_OPTIONS
+  const options = hostEnv().NODE_OPTIONS?.trim()
   if (!options) return false
   return options.split(/\s+/).includes(flag)
 }

@@ -1,4 +1,5 @@
 import { APIUserAbortError } from './api/sdkErrors.js'
+import { isRecord } from './isRecord.js'
 
 
 class MercuryError extends Error {
@@ -111,14 +112,9 @@ export function errorMessageWithCause(value: unknown, maxDepth = 3): string {
 }
 
 
-function textMember(value: unknown, member: 'code' | 'path'): string | undefined {
-  if (typeof value !== 'object' || value === null) return undefined
-  const found = (value as { code?: unknown; path?: unknown })[member]
-  return typeof found === 'string' ? found : undefined
-}
-
 export function getErrnoCode(error: unknown): string | undefined {
-  return textMember(error, 'code')
+  if (!isRecord(error)) return undefined
+  return typeof error.code === 'string' ? error.code : undefined
 }
 
 export function isENOENT(error: unknown): boolean {
@@ -126,7 +122,8 @@ export function isENOENT(error: unknown): boolean {
 }
 
 export function getErrnoPath(error: unknown): string | undefined {
-  return textMember(error, 'path')
+  if (!isRecord(error)) return undefined
+  return typeof error.path === 'string' ? error.path : undefined
 }
 
 const FS_INACCESSIBLE_CODES = new Set(['ENOENT', 'EACCES', 'EPERM', 'ENOTDIR', 'ELOOP'])
