@@ -16,82 +16,76 @@ type RemoteWithHelper = {
   scope?: string
 }
 
+type HelperVerdict = { ok: true; headers: Record<string, string> } | { ok: false; cause: string }
+
+function judgeHelperRun(run: { code: number; stdout: string; stderr: string }): HelperVerdict {
+  if (run.code !== 0) {
+    return { ok: false, cause: `exited with code ${run.code}${run.stderr !== '' ? ` (${run.stderr.trim()})` : ''}` }
+  }
+  const output = run.stdout.trim()
+  if (output === '') return { ok: false, cause: 'produced no output' }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(output)
+  } catch (error) {
+    return { ok: false, cause: `output is not valid JSON (${error instanceof Error ? error.message : String(error)})` }
+  }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return { ok: false, cause: 'output must be a JSON object of header names to string values' }
+  }
+  const headers: Record<string, string> = {}
+  for (const [key, value] of Object.entries(parsed)) {
+    if (typeof value !== 'string') {
+      return { ok: false, cause: `header "${key}" has a non-string value (${typeof value})` }
+    }
+    headers[key] = value
+  }
+  return { ok: true, headers }
+}
+
+async function getMcpHeadersFromHelper(
+  serverName: string,
+  config: RemoteWithHelper,
+): Promise<Record<string, string> | undefined> {
+  const command = config.headersHelper
+  if (command === undefined || command === '') return undefined
+  if (
+    (config.scope === 'project' || config.scope === 'local') &&
+    !getIsNonInteractiveSession() &&
+    !checkHasTrustDialogAccepted()
+  ) {
+    logError(
+      `MCP server "${serverName}" configures a headersHelper that would have run before workspace trust was confirmed; it was not executed — ${MACRO.ISSUES_EXPLAINER}`,
+    )
+    return undefined
+  }
+  logMCPDebug(serverName, `running headersHelper: ${command}`)
+  const run = await execFileNoThrowWithCwd(command, [], {
+    cwd: getCwd(),
+    shell: commandShellOption(),
+    timeout: HELPER_TIMEOUT_MS,
+    env: {
+      ...subprocessEnv(),
+      MERCURY_MCP_SERVER_NAME: serverName,
+      MERCURY_MCP_SERVER_URL: config.url ?? '',
+    },
+  })
+  const verdict = judgeHelperRun(run)
+  if (!verdict.ok) {
+    const message = `The headersHelper for MCP server "${serverName}" failed: ${verdict.cause}. The connection was not attempted without its auth headers. Fix the helper command or remove the headersHelper setting.`
+    logMCPError(serverName, message)
+    logError(message)
+    throw new Error(message)
+  }
+  logMCPDebug(serverName, `headersHelper produced ${Object.keys(verdict.headers).length} header(s)`)
+  return verdict.headers
+}
+
 export async function getMcpServerHeaders(
   serverName: string,
   config: McpServerConfig | ScopedMcpServerConfig,
 ): Promise<Record<string, string>> {
-  const record = config as RemoteWithHelper
-  const staticHeaders: Record<string, string> = record.headers ? { ...record.headers } : {}
-  const helper = record.headersHelper
-  if (!helper) {
-    return staticHeaders
-  }
-
-  if (
-    (record.scope === 'project' || record.scope === 'local') &&
-    !getIsNonInteractiveSession() &&
-    !checkHasTrustDialogAccepted()
-  ) {
-    const refusal = new Error(
-      `headersHelper for MCP server "${serverName}" skipped because workspace trust has not been accepted`,
-    )
-    logMCPError(serverName, refusal)
-    return staticHeaders
-  }
-
-  logMCPDebug(serverName, 'Executing headersHelper command')
-  const result = await execFileNoThrowWithCwd(helper, [], {
-    shell: commandShellOption(),
-    timeout: HELPER_TIMEOUT_MS,
-    cwd: getCwd(),
-    env: {
-      ...subprocessEnv(),
-      MERCURY_MCP_SERVER_NAME: serverName,
-      ...(record.url !== undefined ? { MERCURY_MCP_SERVER_URL: record.url } : {}),
-    },
-  })
-
-  if (result.code !== 0) {
-    const detail = result.stderr.trim() || result.error || ''
-    const err = new Error(
-      `headersHelper for MCP server "${serverName}" failed with exit code ${result.code}${detail ? `: ${detail}` : ''}`,
-    )
-    logMCPError(serverName, err)
-    logError(err)
-    throw err
-  }
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(result.stdout.trim())
-  } catch (parseErr) {
-    const err = new Error(
-      `headersHelper for MCP server "${serverName}" returned invalid JSON: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`,
-    )
-    logMCPError(serverName, err)
-    throw err
-  }
-
-  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    const err = new Error(
-      `headersHelper for MCP server "${serverName}" must output a JSON object of string header values`,
-    )
-    logMCPError(serverName, err)
-    throw err
-  }
-
-  const helperHeaders: Record<string, string> = {}
-  for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
-    if (typeof value !== 'string') {
-      const err = new Error(
-        `headersHelper for MCP server "${serverName}" returned a non-string value for header "${key}"`,
-      )
-      logMCPError(serverName, err)
-      throw err
-    }
-    helperHeaders[key] = value
-  }
-
-  logMCPDebug(serverName, `headersHelper returned ${Object.keys(helperHeaders).length} header(s)`)
-  return { ...staticHeaders, ...helperHeaders }
+  const remote = config as RemoteWithHelper
+  const dynamicHeaders = await getMcpHeadersFromHelper(serverName, remote)
+  return { ...remote.headers, ...dynamicHeaders }
 }
