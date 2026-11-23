@@ -299,11 +299,11 @@ async function prepareQuery(
     betas,
     rosterOwnerKey,
     planned,
-    effortValue: appliedEffort,
     cachedMCEnabled: false,
     cacheEditingHeaderLatched,
-    newCacheEdits: null,
-    pinnedEdits: [],
+    effort: appliedEffort,
+    consumedCacheEdits: null,
+    consumedPinnedEdits: [],
   })
 
   const newMessages: AssistantMessage[] = []
