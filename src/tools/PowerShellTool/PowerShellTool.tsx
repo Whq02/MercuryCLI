@@ -165,7 +165,7 @@ function backgroundNoticeFor(output: Out): string {
 }
 
 
-const SLEEP_REFUSAL_HINT = 'Use the Sleep tool to wait without holding a shell, or pass run_in_background: true for a background command.'
+const SLEEP_REFUSAL_HINT = 'Blocked: use the Monitor tool with an until-loop to wait for a condition (Monitor runs bash), or run_in_background to wait on a command you already started. Do not chain shorter sleeps to defeat this block.'
 
 async function postProcessPowerShell(
   result: ExecResult,
@@ -203,7 +203,7 @@ async function postProcessPowerShell(
   const outputBudgetNotice = windowed ? clause : undefined
 
   if (result.preSpawnError) {
-    throw new ShellError('', result.stderr || result.preSpawnError, result.code, false, false)
+    throw new ShellError('', result.preSpawnError, result.code, false, false)
   }
 
   const interpretation = interpretCommandResult(input.command, result.code, trimmedStdout, trimmedStderr)
@@ -317,7 +317,7 @@ async function* executePowerShell(
       stderr: 'PowerShell is unavailable on this system.',
       code: 127,
       interrupted: false,
-      preSpawnError: 'unavailable',
+      preSpawnError: 'PowerShell is unavailable on this system. Install PowerShell 7 (pwsh) to enable PowerShell commands.',
     }
     return postProcessPowerShell(unavailable, input, context, undefined)
   }
@@ -355,7 +355,7 @@ async function* executePowerShell(
       stderr: `The PowerShell command failed to execute: ${msg}`,
       code: 127,
       interrupted: false,
-      preSpawnError: msg,
+      preSpawnError: `The PowerShell command failed to execute: ${msg}`,
     }
     return postProcessPowerShell(failed, input, context, undefined)
   }
