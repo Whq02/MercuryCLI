@@ -91,261 +91,160 @@ async function readExistingText(path: string): Promise<string | null> {
   }
 }
 
-async function backupExistingFile(
-  path: string,
-  paint: Paint,
-): Promise<{ ok: true; backupPath: string } | { ok: false; message: string }> {
+async function backupExistingFile(path: string, paint: Paint): Promise<string | null> {
   const backupPath = `${path}${backupSuffix()}`
   try {
     await copyFile(path, backupPath)
-    return { ok: true, backupPath }
-  } catch (error) {
-    logError(error)
-    return {
-      ok: false,
-      message: paint.fail(`Could not back up ${linkedPath(path)} — nothing was written.`),
-    }
+    return null
+  } catch {
+    return paint.warn(`Could not back up ${path} to ${backupPath} — nothing was written.`)
   }
 }
 
-function hasVscodeShiftEnterBinding(entries: unknown[]): boolean {
-  return entries.some(item => {
-    if (item === null || typeof item !== 'object') return false
-    const record = item as { key?: unknown; command?: unknown }
-    return (
-      typeof record.key === 'string' &&
-      record.key.toLowerCase() === 'shift+enter' &&
-      record.command === 'workbench.action.terminal.sendSequence'
-    )
-  })
+function isVscodeShiftEnterEntry(entry: unknown): boolean {
+  if (entry === null || typeof entry !== 'object') return false
+  const fields = new Map<string, unknown>(Object.entries(entry))
+  return (
+    fields.get('key') === 'shift+enter' &&
+    fields.get('command') === 'workbench.action.terminal.sendSequence' &&
+    fields.get('when') === 'terminalFocus'
+  )
 }
 
 async function setupVscodeFamily(terminal: string, paint: Paint): Promise<TerminalSetupResult> {
-  const productDir = VSCODE_FAMILY[terminal]
-  if (!productDir) {
-    return { installed: false, message: unsupportedTerminalMessage(terminal) }
-  }
-  const binding = {
-    key: 'shift+enter',
-    command: 'workbench.action.terminal.sendSequence',
-    args: { text: ESC_CR },
-    when: 'terminalFocus',
-  }
-  if (isRemoteVscodeSession()) {
-    return {
-      installed: false,
-      message: [
-        paint.warn(
-          'Keybindings cannot be installed from a remote session — they belong on the local machine.',
-        ),
-        'To add the binding manually:',
-        '1. Open the editor locally.',
-        '2. Open the keyboard-shortcuts JSON via the command palette ("Preferences: Open Keyboard Shortcuts (JSON)").',
-        '3. Add this entry (the file must be a JSON array):',
-        '{ "key": "shift+enter", "command": "workbench.action.terminal.sendSequence", "args": { "text": "\\u001b\\r" }, "when": "terminalFocus" }',
-      ].join('\n'),
-    }
-  }
-
-  const filePath = join(userConfigRoot(homedir()), productDir, 'User', 'keybindings.json')
-  const existing = await readExistingText(filePath)
-  if (existing !== null) {
-    const parsed = safeParseJSONC(existing)
-    if (!Array.isArray(parsed)) {
-      throw new Error(`Failed to install the ${productDir} Shift+Enter binding`)
-    }
-    if (hasVscodeShiftEnterBinding(parsed)) {
+  const folder = VSCODE_FAMILY[terminal] ?? 'Code'
+  try {
+    if (isRemoteVscodeSession()) {
       return {
-        installed: true,
-        message: paint.ok(
+        installed: false,
+        message: paint.warn(
+          [
+            'Keybindings cannot be installed from a remote session — they belong on the local machine.',
+            'To add the binding manually:',
+            '1. Open the editor locally.',
+            '2. Open the keyboard-shortcuts JSON via the command palette ("Preferences: Open Keyboard Shortcuts (JSON)").',
+            '3. Add this entry (the file must be a JSON array):',
+            '   { "key": "shift+enter", "command": "workbench.action.terminal.sendSequence", "args": { "text": "\\u001b\\r" }, "when": "terminalFocus" }',
+          ].join('\n'),
+        ),
+      }
+    }
+
+    const filePath = join(userConfigRoot(homedir()), folder, 'User', 'keybindings.json')
+    await mkdir(dirname(filePath), { recursive: true })
+    const raw = await readExistingText(filePath)
+    const existed = raw !== null
+    const content = raw ?? '[]'
+    const parsed = safeParseJSONC(content)
+    if (!Array.isArray(parsed)) {
+      throw new Error(`Failed to install the ${folder} Shift+Enter binding`)
+    }
+
+    if (existed) {
+      const backupError = await backupExistingFile(filePath, paint)
+      if (backupError !== null) {
+        return { installed: false, message: backupError }
+      }
+    }
+
+    if (parsed.some(isVscodeShiftEnterEntry)) {
+      return {
+        installed: false,
+        message: paint.warn(
           `A Shift+Enter terminal binding already exists in ${linkedPath(filePath)} — remove it first if you want it reinstalled.`,
         ),
       }
     }
-    const backup = await backupExistingFile(filePath, paint)
-    if (!backup.ok) {
-      return { installed: false, message: backup.message }
-    }
-    const updated = addItemToJSONCArray(existing, binding)
+
+    const updated = addItemToJSONCArray(content, {
+      key: 'shift+enter',
+      command: 'workbench.action.terminal.sendSequence',
+      args: { text: ESC_CR },
+      when: 'terminalFocus',
+    })
     await writeFile(filePath, updated, 'utf8')
     return {
       installed: true,
-      message: paint.ok('Installed the Shift+Enter binding for newlines.'),
+      message: [
+        paint.ok('Installed the Shift+Enter binding for newlines.'),
+        chalk.dim(linkedPath(filePath)),
+      ].join('\n'),
     }
-  }
-
-  await mkdir(dirname(filePath), { recursive: true })
-  await writeFile(filePath, JSON.stringify([binding], null, 2) + '\n', 'utf8')
-  return {
-    installed: true,
-    message: paint.ok('Installed the Shift+Enter binding for newlines.'),
-  }
-}
-
-function hasZedShiftEnterBinding(entries: unknown[]): boolean {
-  return entries.some(item => {
-    if (item === null || typeof item !== 'object') return false
-    const record = item as { context?: unknown; bindings?: unknown }
-    if (typeof record.context !== 'string' || !record.context.includes('Terminal')) return false
-    if (record.bindings === null || typeof record.bindings !== 'object') return false
-    const bindings = record.bindings as Record<string, unknown>
-    return Object.hasOwn(bindings, 'shift-enter')
-  })
-}
-
-async function setupZed(paint: Paint): Promise<TerminalSetupResult> {
-  const roots = xdgAndRoamingConfigRoots()
-  const baseRoot = roots[0] ?? join(homedir(), '.config')
-  const filePath = join(baseRoot, 'zed', 'keymap.json')
-  const binding = {
-    context: 'Terminal',
-    bindings: {
-      'shift-enter': ['terminal::SendText', ESC_CR],
-    },
-  }
-
-  const existing = await readExistingText(filePath)
-  if (existing !== null) {
-    const parsed = safeParseJSONC(existing)
-    if (!Array.isArray(parsed)) {
-      throw new Error('Failed to install the Zed shift-enter binding')
-    }
-    if (hasZedShiftEnterBinding(parsed)) {
-      return {
-        installed: true,
-        message: paint.ok(
-          `A shift-enter binding already exists in ${linkedPath(filePath)} — remove it first if you want it reinstalled.`,
-        ),
-      }
-    }
-    const backup = await backupExistingFile(filePath, paint)
-    if (!backup.ok) {
-      return { installed: false, message: backup.message }
-    }
-    const updated = addItemToJSONCArray(existing, binding)
-    await writeFile(filePath, updated, 'utf8')
-    return {
-      installed: true,
-      message: paint.ok('Installed the shift-enter binding for Zed.'),
-    }
-  }
-
-  await mkdir(dirname(filePath), { recursive: true })
-  await writeFile(filePath, JSON.stringify([binding], null, 2) + '\n', 'utf8')
-  return {
-    installed: true,
-    message: paint.ok('Installed the shift-enter binding for Zed.'),
+  } catch (error) {
+    logError(error)
+    throw new Error(`Failed to install the ${folder} Shift+Enter binding`)
   }
 }
 
-async function setupAlacritty(paint: Paint): Promise<TerminalSetupResult> {
-  const roots = xdgAndRoamingConfigRoots()
-  const baseRoot = roots[0] ?? join(homedir(), '.config')
-  const filePath = join(baseRoot, 'alacritty', 'alacritty.toml')
-  const existing = await readExistingText(filePath)
-  if (existing !== null) {
-    if (
-      existing.includes('key = "Return"') &&
-      existing.includes('mods = "Shift"') &&
-      existing.includes('\\u001b\\r')
-    ) {
-      return {
-        installed: true,
-        message: paint.ok(
-          `A Shift+Return binding already exists in ${linkedPath(filePath)} — remove it first if you want it reinstalled.`,
-        ),
-      }
-    }
-    const backup = await backupExistingFile(filePath, paint)
-    if (!backup.ok) {
-      return { installed: false, message: backup.message }
-    }
-    const separator = existing.endsWith('\n\n') ? '' : existing.endsWith('\n') ? '\n' : '\n\n'
-    await writeFile(filePath, `${existing}${separator}${ALACRITTY_TABLE}`, 'utf8')
-    return {
-      installed: true,
-      message: paint.ok(
-        'Installed the Shift+Enter binding for Alacritty.\nA restart of Alacritty may be needed.',
-      ),
-    }
+async function readTerminalPref(key: string): Promise<string> {
+  const res = await execFileNoThrow('defaults', ['read', 'com.apple.Terminal', key])
+  const value = res.stdout.trim()
+  if (res.code !== 0 || value === '') {
+    throw new Error(`Could not read the Terminal preference '${key}'`)
   }
-
-  await mkdir(dirname(filePath), { recursive: true })
-  await writeFile(filePath, ALACRITTY_TABLE, 'utf8')
-  return {
-    installed: true,
-    message: paint.ok(
-      'Installed the Shift+Enter binding for Alacritty.\nA restart of Alacritty may be needed.',
-    ),
-  }
+  return value
 }
 
-async function plistSetBool(
-  plistPath: string,
+async function setTerminalProfileBool(
   profile: string,
-  property: string,
+  key: string,
   value: boolean,
-): Promise<void> {
+): Promise<boolean> {
   const plistBuddy = '/usr/libexec/PlistBuddy'
-  const keyPath = `:"Window Settings":"${profile}":${property}`
-  const boolStr = value ? 'true' : 'false'
-  const setRes = await execFileNoThrow(plistBuddy, ['-c', `Set ${keyPath} ${boolStr}`, plistPath])
-  if (setRes.code === 0) return
-  const addRes = await execFileNoThrow(plistBuddy, ['-c', `Add ${keyPath} bool ${boolStr}`, plistPath])
-  if (addRes.code === 0) return
-  throw new Error(
-    addRes.stderr.trim() ||
-      setRes.stderr.trim() ||
-      `Could not update ${property} for Terminal profile ${profile}`,
-  )
+  const plistPath = getTerminalPlistPath()
+  const target = `:Window Settings:${profile}:${key}`
+  const boolValue = value ? 'true' : 'false'
+  const addRes = await execFileNoThrow(plistBuddy, [
+    '-c',
+    `Add '${target}' bool ${boolValue}`,
+    plistPath,
+  ])
+  if (addRes.code === 0) return true
+  const setRes = await execFileNoThrow(plistBuddy, [
+    '-c',
+    `Set '${target}' ${boolValue}`,
+    plistPath,
+  ])
+  if (setRes.code === 0) return true
+  logError(new Error(`Could not update ${key} for Terminal profile ${profile}`))
+  return false
 }
 
-async function setupAppleTerminal(paint: Paint): Promise<TerminalSetupResult> {
+async function setupAppleTerminal(paint: Paint): Promise<string> {
   const backupPath = await backupTerminalPreferences()
   if (!backupPath) {
     throw new Error('Backing up the Terminal preferences failed — bailing out.')
   }
-  const plistPath = getTerminalPlistPath()
   try {
-    const defaultRes = await execFileNoThrow('defaults', [
-      'read',
-      'com.apple.Terminal',
-      'Default Window Settings',
-    ])
-    const startupRes = await execFileNoThrow('defaults', [
-      'read',
-      'com.apple.Terminal',
-      'Startup Window Settings',
-    ])
-    const profileSet = new Set<string>()
-    if (defaultRes.code === 0 && defaultRes.stdout.trim()) profileSet.add(defaultRes.stdout.trim())
-    if (startupRes.code === 0 && startupRes.stdout.trim()) profileSet.add(startupRes.stdout.trim())
-    if (profileSet.size === 0) profileSet.add('Basic')
-
-    const profiles = [...profileSet]
+    const defaultProfile = await readTerminalPref('Default Window Settings')
+    const startupProfile = await readTerminalPref('Startup Window Settings')
+    const profiles =
+      startupProfile !== defaultProfile ? [defaultProfile, startupProfile] : [defaultProfile]
+    let allSet = true
     for (const profile of profiles) {
-      await plistSetBool(plistPath, profile, 'useOptionAsMetaKey', true)
-      await plistSetBool(plistPath, profile, 'Bell', false)
+      const metaSet = await setTerminalProfileBool(profile, 'useOptionAsMetaKey', true)
+      const bellSet = await setTerminalProfileBool(profile, 'Bell', false)
+      if (!metaSet || !bellSet) allSet = false
     }
-
+    if (!allSet) {
+      throw new Error('No Terminal profile property could be updated')
+    }
     await execFileNoThrow('killall', ['cfprefsd'])
     markTerminalSetupComplete()
-    return {
-      installed: true,
-      message: paint.ok(
-        [
-          'Configured Terminal:',
-          '- Option-as-Meta enabled',
-          "- Terminal's bell silenced",
-          'Option+Enter now inserts a newline.',
-          'Restart Terminal for the change to take effect.',
-        ].join('\n'),
-      ),
+    return [
+      paint.ok('Configured Terminal:'),
+      paint.ok(' - Option-as-Meta enabled'),
+      paint.ok(" - Terminal's bell silenced"),
+      chalk.dim('Option+Enter now inserts a newline.'),
+      chalk.dim('Restart Terminal for the change to take effect.'),
+    ].join('\n')
+  } catch (error) {
+    logError(error)
+    if (!backupPath) {
+      throw new Error('Terminal setup failed and no backup was available.')
     }
-  } catch {
     const restored = await execFileNoThrow('defaults', ['import', 'com.apple.Terminal', backupPath])
     if (restored.code === 0) {
-      await execFileNoThrow('killall', ['cfprefsd'])
       markTerminalSetupComplete()
       throw new Error('Terminal setup failed; your preferences were restored from backup.')
     }
@@ -355,37 +254,139 @@ async function setupAppleTerminal(paint: Paint): Promise<TerminalSetupResult> {
   }
 }
 
+async function setupAlacritty(paint: Paint): Promise<TerminalSetupResult> {
+  try {
+    const candidates = xdgAndRoamingConfigRoots().map(root =>
+      join(root, 'alacritty', 'alacritty.toml'),
+    )
+    const firstCandidate = candidates[0]
+    if (firstCandidate === undefined) {
+      throw new Error('No Alacritty config path could be produced')
+    }
+    let target = firstCandidate
+    let content = ''
+    let existed = false
+    for (const candidate of candidates) {
+      const raw = await readExistingText(candidate)
+      if (raw !== null) {
+        target = candidate
+        content = raw
+        existed = true
+        break
+      }
+    }
+    if (!existed) {
+      await mkdir(dirname(target), { recursive: true })
+    }
+    if (existed && content.includes('mods = "Shift"') && content.includes('key = "Return"')) {
+      return {
+        installed: false,
+        message: paint.warn(
+          `A Shift+Return binding already exists in ${linkedPath(target)} — remove it first if you want it reinstalled.`,
+        ),
+      }
+    }
+    if (existed) {
+      const backupError = await backupExistingFile(target, paint)
+      if (backupError !== null) {
+        return { installed: false, message: backupError }
+      }
+    }
+    const base = content !== '' && !content.endsWith('\n') ? `${content}\n` : content
+    await writeFile(target, `${base}\n${ALACRITTY_TABLE}`, 'utf8')
+    return {
+      installed: true,
+      message: [
+        paint.ok('Installed the Shift+Enter binding for Alacritty.'),
+        paint.ok('A restart of Alacritty may be needed.'),
+        chalk.dim(linkedPath(target)),
+      ].join('\n'),
+    }
+  } catch (error) {
+    logError(error)
+    throw new Error('Failed to install the Alacritty Shift+Enter binding')
+  }
+}
+
+async function setupZed(paint: Paint): Promise<TerminalSetupResult> {
+  try {
+    const filePath = join(homedir(), '.config', 'zed', 'keymap.json')
+    await mkdir(dirname(filePath), { recursive: true })
+    const raw = await readExistingText(filePath)
+    const existed = raw !== null
+    const content = raw ?? '[]'
+    if (existed && content.includes('shift-enter')) {
+      return {
+        installed: false,
+        message: paint.warn(
+          `A shift-enter binding already exists in ${linkedPath(filePath)} — remove it first if you want it reinstalled.`,
+        ),
+      }
+    }
+    if (existed) {
+      const backupError = await backupExistingFile(filePath, paint)
+      if (backupError !== null) {
+        return { installed: false, message: backupError }
+      }
+    }
+    const parsed = safeParseJSONC(content)
+    if (!Array.isArray(parsed)) {
+      throw new Error('Failed to install the Zed shift-enter binding')
+    }
+    const updated = [
+      ...parsed,
+      {
+        context: 'Terminal',
+        bindings: {
+          'shift-enter': ['terminal::SendText', ESC_CR],
+        },
+      },
+    ]
+    await writeFile(filePath, `${JSON.stringify(updated, null, 2)}\n`, 'utf8')
+    return {
+      installed: true,
+      message: [
+        paint.ok('Installed the shift-enter binding for Zed.'),
+        chalk.dim(linkedPath(filePath)),
+      ].join('\n'),
+    }
+  } catch (error) {
+    logError(error)
+    throw new Error('Failed to install the Zed shift-enter binding')
+  }
+}
+
 export async function setupTerminal(theme: ThemeName): Promise<string> {
   const terminal = env.terminal
   const paint = paintFor(theme)
-  if (terminal === null || !isSetupCapable(terminal)) {
-    return unsupportedTerminalMessage(terminal)
-  }
+  let result: TerminalSetupResult = { installed: false, message: '' }
 
-  let result: TerminalSetupResult
-  if (terminal === 'Apple_Terminal') {
-    result = await setupAppleTerminal(paint)
-    if (result.installed) {
-      saveGlobalConfig(current => ({ ...current, optionAsMetaKeyInstalled: true }))
-      maybeMarkProjectOnboardingComplete()
-    }
-    return result.message
-  }
-
-  if (Object.hasOwn(VSCODE_FAMILY, terminal)) {
+  if (terminal === 'vscode' || terminal === 'cursor' || terminal === 'windsurf') {
     result = await setupVscodeFamily(terminal, paint)
-  } else if (terminal === 'zed') {
-    result = await setupZed(paint)
+  } else if (terminal === 'Apple_Terminal') {
+    result = { installed: true, message: await setupAppleTerminal(paint) }
   } else if (terminal === 'alacritty') {
     result = await setupAlacritty(paint)
-  } else {
-    return unsupportedTerminalMessage(terminal)
+  } else if (terminal === 'zed') {
+    result = await setupZed(paint)
   }
 
-  if (result.installed) {
+  const config = getGlobalConfig()
+  if (
+    result.installed &&
+    (terminal === 'vscode' ||
+      terminal === 'cursor' ||
+      terminal === 'windsurf' ||
+      terminal === 'alacritty' ||
+      terminal === 'zed') &&
+    config.shiftEnterKeyBindingInstalled !== true
+  ) {
     saveGlobalConfig(current => ({ ...current, shiftEnterKeyBindingInstalled: true }))
-    maybeMarkProjectOnboardingComplete()
   }
+  if (result.installed && terminal === 'Apple_Terminal' && config.optionAsMetaKeyInstalled !== true) {
+    saveGlobalConfig(current => ({ ...current, optionAsMetaKeyInstalled: true }))
+  }
+  maybeMarkProjectOnboardingComplete()
   return result.message
 }
 
@@ -410,9 +411,13 @@ function unsupportedTerminalMessage(terminal: string | null): string {
 
 export const call: LocalJSXCommandCall = async (onDone, context) => {
   const terminal = env.terminal
-  if (terminal !== null && Object.hasOwn(NATIVE_TERMINALS, terminal)) {
+  const nativeName =
+    terminal !== null && Object.hasOwn(NATIVE_TERMINALS, terminal)
+      ? NATIVE_TERMINALS[terminal]
+      : undefined
+  if (nativeName !== undefined) {
     onDone(
-      `${NATIVE_TERMINALS[terminal]} supports the chord natively — no configuration is needed; Shift+Enter inserts newlines.`,
+      `${nativeName} supports the chord natively — no configuration is needed; Shift+Enter inserts newlines.`,
     )
     return null
   }
@@ -424,7 +429,6 @@ export const call: LocalJSXCommandCall = async (onDone, context) => {
     const message = await setupTerminal(context.options.theme)
     onDone(message)
   } catch (error) {
-    logError(error)
     const paint = paintFor(context.options.theme)
     onDone(paint.fail(error instanceof Error ? error.message : String(error)))
   }
@@ -432,11 +436,11 @@ export const call: LocalJSXCommandCall = async (onDone, context) => {
 }
 
 export function hasUsedBackslashReturn(): boolean {
-  return Boolean(getGlobalConfig().hasUsedBackslashReturn)
+  return getGlobalConfig().hasUsedBackslashReturn === true
 }
 
 export function markBackslashReturnUsed(): void {
-  if (getGlobalConfig().hasUsedBackslashReturn) return
+  if (getGlobalConfig().hasUsedBackslashReturn === true) return
   saveGlobalConfig(current => ({ ...current, hasUsedBackslashReturn: true }))
 }
 
@@ -445,10 +449,7 @@ export function shouldOfferTerminalSetup(): boolean {
   if (terminal === null || !isSetupCapable(terminal)) return false
   const config = getGlobalConfig()
   if (terminal === 'Apple_Terminal') {
-    return !config.optionAsMetaKeyInstalled
+    return config.optionAsMetaKeyInstalled !== true
   }
-  if (Object.hasOwn(VSCODE_FAMILY, terminal) && isRemoteVscodeSession()) {
-    return false
-  }
-  return !config.shiftEnterKeyBindingInstalled
+  return config.shiftEnterKeyBindingInstalled !== true
 }
