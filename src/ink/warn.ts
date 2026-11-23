@@ -1,8 +1,14 @@
-import { notBuilt } from '../pi/holes.js'
+import { logForDebugging } from '../utils/debug.js'
+
+const onceSeen = new Set<string>()
 
 export function ifNotInteger(value: number | undefined, name: string): void {
-  return notBuilt('src/ink/warn.ts:3')
+  if (value === undefined || Number.isInteger(value)) return
+  logForDebugging(`${name} should be an integer, got ${value}`, { level: 'warn' })
 }
+
 export function once(message: string): void {
-  return notBuilt('src/ink/warn.ts:12')
+  if (onceSeen.has(message)) return
+  onceSeen.add(message)
+  logForDebugging(message, { level: 'warn' })
 }
