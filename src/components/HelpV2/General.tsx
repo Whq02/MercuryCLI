@@ -8,12 +8,16 @@ export function General(): React.ReactNode {
   const { columns } = useModalOrTerminalSize(useTerminalSize())
   return (
     <Box flexDirection="column" paddingY={1} gap={1}>
-      <Text>
-        Mercury is a coding harness — it reads your codebase, edits with your consent, and runs commands, never leaving the terminal.
-      </Text>
+      <Box>
+        <Text>
+          Mercury is a coding harness — it reads your codebase, edits with your consent, and runs commands, never leaving the terminal.
+        </Text>
+      </Box>
       <Box flexDirection="column">
-        <Text bold>Shortcuts</Text>
-        <PromptInputHelpMenu availableColumns={columns} />
+        <Box>
+          <Text bold>Shortcuts</Text>
+        </Box>
+        <PromptInputHelpMenu gap={2} fixedWidth availableColumns={Math.max(20, columns - 4)} />
       </Box>
     </Box>
   )
