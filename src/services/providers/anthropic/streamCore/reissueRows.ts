@@ -34,13 +34,13 @@ export function preEventReissueRow(call: CallState, streamingError: unknown, pre
   resetApiConnectionPool()
   call.preFirstEventStreamRetryUsed = true
   const noticeError = Object.assign(new Error(words), { cause: streamingError })
-  return createSystemAPIErrorMessage(noticeError, 0, 1, 1, {
+  return createSystemAPIErrorMessage(noticeError, 0, 1, 2, {
     recoveryTimeoutMs: STREAM_IDLE_TIMEOUT_MS,
   })
 }
 
 export function streamCutReissueRow(call: CallState, options: Options, cut: NonNullable<ReturnType<typeof transportCutOf>>): SystemStreamCutMessage {
-  const words = `${transportCutWords('Anthropic', cut)} — reissuing the stream on a fresh connection`
+  const words = `${transportCutWords('Anthropic', cut)} — reissuing the stream on a fresh connection (1 of 1)`
   logForDebugging(words, { level: 'warn' })
   logForDiagnosticsNoPII('info', 'cli_stream_cut_reissue')
   resetApiConnectionPool()
@@ -104,9 +104,8 @@ export function oneShotAnswerOf(call: CallState, result: BetaMessage, noteServed
 export function streamCreation404Row(call: CallState, options: Options, originalError: APIError): SystemAPIErrorMessage {
   logForDebugging(
     `Stream creation failed with 404; retrying as one shot: ${errorMessage(originalError)}`,
-    { level: 'error' },
+    { level: 'warn' },
   )
-  logForDiagnosticsNoPII('info', 'cli_stream_creation_404_fallback')
   call.didFallBackToNonStreaming = true
   if (options.onStreamingFallback) {
     options.onStreamingFallback()
