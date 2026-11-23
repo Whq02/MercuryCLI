@@ -5,14 +5,46 @@ import { logForDebugging } from '../../utils/debug.js'
 import type { Message } from '../../types/message.js'
 import { getEngineModel } from '../model/model.js'
 import { sideQuery } from '../api/sideQuery.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
+export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH'
 
-export type RiskLevel = Unbuilt
+export type PermissionExplanation = {
+  explanation: string
+  reasoning: string
+  risk: string
+  riskLevel: RiskLevel
+}
 
-export type PermissionExplanation = Unbuilt
+const PermissionExplanationSchema = z.object({
+  explanation: z.string(),
+  reasoning: z.string(),
+  risk: z.string(),
+  riskLevel: z.enum(['LOW', 'MEDIUM', 'HIGH']),
+})
+
+const EXPLAINER_SYSTEM_PROMPT =
+  'Look at the shell command the agent wants to run and explain it clearly and concisely for a user deciding whether to approve it. Use the explain_command tool to provide what the command does (explanation), why the agent wants to run it (reasoning), any risks or side effects (risk), and the overall risk level (LOW, MEDIUM, or HIGH).'
+
+const EXPLAIN_COMMAND_TOOL = {
+  name: 'explain_command',
+  description: 'Return a structured explanation and risk assessment for the pending tool call.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      explanation: { type: 'string', description: 'What the command does.' },
+      reasoning: { type: 'string', description: 'Why the agent wants to run it.' },
+      risk: { type: 'string', description: 'Potential risks or side effects.' },
+      riskLevel: {
+        type: 'string',
+        enum: ['LOW', 'MEDIUM', 'HIGH'],
+        description: 'Overall risk level.',
+      },
+    },
+    required: ['explanation', 'reasoning', 'risk', 'riskLevel'],
+  },
+}
 
 export function isPermissionExplainerEnabled(): boolean {
-  return notBuilt('src/services/permissions/permissionExplainer.ts:20')
+  return getGlobalConfig().permissionExplainerEnabled !== false
 }
 
 function extractConversationContext(messages: Message[]): string {
@@ -53,5 +85,54 @@ export async function generatePermissionExplanation(args: {
   messages?: Message[]
   signal: AbortSignal
 }): Promise<PermissionExplanation | null> {
-  return notBuilt('src/services/permissions/permissionExplainer.ts:65')
+  if (!isPermissionExplainerEnabled() || args.signal.aborted) {
+    return null
+  }
+  const sections: string[] = [`Tool: ${args.toolName}`]
+  if (args.toolDescription) {
+    sections.push(`Description: ${args.toolDescription}`)
+  }
+  const serializedInput =
+    typeof args.toolInput === 'string'
+      ? args.toolInput
+      : JSON.stringify(args.toolInput, null, 2)
+  sections.push(`Input:\n${serializedInput}`)
+  if (args.messages && args.messages.length > 0) {
+    const context = extractConversationContext(args.messages)
+    if (context) {
+      sections.push(`Recent context:\n${context}`)
+    }
+  }
+  try {
+    const response = await sideQuery({
+      model: getEngineModel(),
+      system: EXPLAINER_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: sections.join('\n\n') }],
+      tools: [EXPLAIN_COMMAND_TOOL],
+      tool_choice: { type: 'tool', name: 'explain_command' },
+      max_tokens: 512,
+      thinking: false,
+      signal: args.signal,
+      querySource: 'permission_explainer',
+      source: 'permission_explainer',
+    })
+    if (args.signal.aborted) return null
+    const toolUse = response.content.find(
+      block => block.type === 'tool_use' && block.name === 'explain_command',
+    )
+    if (!toolUse || toolUse.type !== 'tool_use') {
+      logForDebugging('permissionExplainer: response did not contain explain_command tool_use block')
+      return null
+    }
+    const parsed = PermissionExplanationSchema.safeParse(toolUse.input)
+    if (!parsed.success) {
+      logForDebugging(`permissionExplainer: invalid explanation payload: ${parsed.error.message}`)
+      return null
+    }
+    return parsed.data
+  } catch (error) {
+    if (args.signal.aborted) return null
+    logError(error)
+    return null
+  }
 }
