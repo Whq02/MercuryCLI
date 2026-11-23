@@ -53,14 +53,10 @@ function expandField(field: string, range: FieldRange): number[] | null {
       if (start === null || end === null || start < range.min || end > range.max || start > end) return null
       for (let v = start; v <= end; v += step) addValue(v)
     } else {
+      if (slashParts.length === 2) return null
       const n = parseIntStrict(base)
       if (n === null || n < range.min || n > range.max) return null
-      if (slashParts.length === 2) {
-        if (n > starEnd) addValue(n)
-        else for (let v = n; v <= starEnd; v += step) addValue(v)
-      } else {
-        addValue(n)
-      }
+      addValue(n)
     }
   }
   if (values.size === 0) return null
@@ -174,11 +170,8 @@ function formatTime12(hour: number, minute: number): string {
 }
 
 export function cronToHuman(cron: string): string {
-  const trimmed = cron.trim()
-  const parts = trimmed.split(/\s+/)
+  const parts = cron.trim().split(/\s+/)
   if (parts.length !== 5) return cron
-  const fields = parseCronExpression(trimmed)
-  if (fields === null) return cron
   const [minPart, hourPart, domPart, monthPart, dowPart] = parts as [string, string, string, string, string]
   if (minPart === '*' && hourPart === '*' && domPart === '*' && monthPart === '*' && dowPart === '*') {
     return 'Every minute'
@@ -205,23 +198,17 @@ export function cronToHuman(cron: string): string {
       return `Every day at ${time}`
     }
     if (domPart === '*' && monthPart === '*' && dowPart !== '*') {
-      const dow = fields.dayOfWeek
-      if (dow.length === 5 && dow[0] === 1 && dow[4] === 5) return `Weekdays at ${time}`
-      if (dow.length === 2 && dow[0] === 0 && dow[1] === 6) return `Weekends at ${time}`
-      const names = dow.map(d => WEEKDAY_NAMES[d]!).join(', ')
-      return `Every ${names} at ${time}`
+      if (dowPart === '1-5') return `Weekdays at ${time}`
+      const singleDow = parseIntStrict(dowPart)
+      if (singleDow !== null && singleDow <= 7) {
+        return `Every ${WEEKDAY_NAMES[singleDow % 7]!} at ${time}`
+      }
     }
     if (domPart !== '*' && monthPart !== '*' && dowPart === '*') {
       const fixedDom = parseIntStrict(domPart)
       const fixedMonth = parseIntStrict(monthPart)
-      if (fixedDom !== null && fixedMonth !== null) {
-        return `At ${time} on ${fixedDom} ${MONTH_NAMES[fixedMonth - 1]!}`
-      }
-    }
-    if (domPart !== '*' && monthPart === '*' && dowPart === '*') {
-      const fixedDom = parseIntStrict(domPart)
-      if (fixedDom !== null) {
-        return `Day ${fixedDom} of every month at ${time}`
+      if (fixedDom !== null && fixedMonth !== null && fixedMonth >= 1 && fixedMonth <= 12) {
+        return `${time} on ${fixedDom} ${MONTH_NAMES[fixedMonth - 1]!}`
       }
     }
   }
