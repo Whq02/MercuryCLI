@@ -1,14 +1,36 @@
 import type { SearchQuery } from '../../utils/transcriptSearch.js'
-import type { Unbuilt } from '../../pi/holes.js'
 
 export const JUMP_HEADROOM_ROWS = 3
 export const PHANTOM_LIMIT = 20
 export const MOUNT_ATTEMPT_LIMIT = 3
 export const WARM_CHUNK = 500
 
-export type JumpHandle = Unbuilt
+export type JumpHandle = {
+  jumpToIndex: (index: number) => void
+  setSearchQuery: (query: string) => void
+  nextMatch: () => void
+  prevMatch: () => void
+  setAnchor: () => void
+  warmSearchIndex: () => Promise<number>
+  disarmSearch: () => void
+}
 
-export type SearchEngineState = Unbuilt
+export type SearchEngineState = {
+  query: SearchQuery | null
+  counts: number[]
+  prefix: number[]
+  total: number
+  messagePointer: number
+  ordinal: number
+  wrapStart: number
+  phantomRun: number
+  mountAttempts: number
+  seekInFlight: boolean
+  queuedStep: 1 | -1 | null
+  anchor: number | null
+  pendingTimer: ReturnType<typeof setTimeout> | null
+  warm: boolean
+}
 
 export function newEngineState(): SearchEngineState {
   return {
