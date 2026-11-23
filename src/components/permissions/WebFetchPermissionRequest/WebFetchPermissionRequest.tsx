@@ -73,7 +73,7 @@ export function WebFetchPermissionRequest({
             type: 'addRules',
             rules: [
               {
-                toolName: WebFetchTool.name,
+                toolName: toolUseConfirm.tool.name,
                 ruleContent: domainRuleContent(toolUseConfirm.input),
               },
             ],

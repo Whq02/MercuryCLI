@@ -106,7 +106,7 @@ export function SkillPermissionRequest({
             ? [
                 {
                   type: 'addRules',
-                  rules: [{ toolName: SKILL_TOOL_NAME, ruleContent: `${prefix} *` }],
+                  rules: [{ toolName: SKILL_TOOL_NAME, ruleContent: `${prefix}*` }],
                   behavior: 'allow',
                   destination: 'localSettings',
                 },

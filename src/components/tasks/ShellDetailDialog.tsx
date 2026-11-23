@@ -162,7 +162,7 @@ export function ShellDetailDialog({
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const { columns, rows } = useTerminalSize()
-  const running = shell.status === 'running'
+  const running = shell.status === 'running' || shell.status === 'pending'
   const isMonitor = shell.kind === 'monitor'
   const elapsed = useElapsedTime(shell.startTime, running, 1000, shell.totalPausedMs, shell.endTime)
   const exitState = useExitOnCtrlCD(useKeybindings)
