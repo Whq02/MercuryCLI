@@ -79,23 +79,27 @@ export function registerSkillifySkill(): void {
       const userTexts =
         collectUserMessages(context.messages) ||
         '(no user messages found after the last compaction)'
-      const text = `Capture the repeatable process from this session as a reusable Mercury skill.${descriptionLine}
+      const text = `Capture this session's repeatable process as a reusable skill.${descriptionLine}
 
-## Session memory
+<session_memory>
 ${memoryText}
+</session_memory>
 
-## User messages since last compaction
+<user_messages>
 ${userTexts}
+</user_messages>
 
-## Instructions
-1. Review the session memory and user messages above to identify the concrete repeatable workflow, its inputs, its steps, and how success is verified.
-2. Ask the user via ${ASK_USER_QUESTION_TOOL_NAME} to confirm the skill name, scope (project \`.mercury/skills/<name>/SKILL.md\` vs personal \`~/.mercury/skills/<name>/SKILL.md\`), arguments, and any ambiguous steps.
-3. Draft the \`SKILL.md\` file using this template:
+1. Analyse the session before asking anything: identify the repeatable process, inputs/parameters, ordered steps, per-step success artefacts, user corrections, tools/permissions used, and any crewmates used.
 
-\`\`\`markdown
-${TEMPLATE}\`\`\`
+2. Interview the user strictly via ${ASK_USER_QUESTION_TOOL_NAME} (never plain-text questions) in up to four rounds, stopping early for simple processes (omit "needs tweaking" options — freeform is built in):
+   - Round 1: skill name, description, goal, and success criteria.
+   - Round 2: numbered steps, proposed arguments, inline vs \`context: fork\`, and save location (\`.mercury/skills/<name>/SKILL.md\` for the repo or \`~/.mercury/skills/<name>/SKILL.md\` for personal use).
+   - Round 3: per-step artefacts, verification checks, confirmation gates before irreversible actions, parallelizable steps, execution mode (direct by default, crewmate, or human-performed), and hard constraints.
+   - Round 4: trigger phrases, exclusions, and gotchas.
 
-4. Confirm the final draft with the user via ${ASK_USER_QUESTION_TOOL_NAME} before writing, then create the skill directory and write \`SKILL.md\`.`
+3. Draft \`SKILL.md\` from this template (keep \`description\` <= 250 chars with trigger first; require a \`Success:\` check on every step; keep simple skills concise):
+${TEMPLATE}
+4. Show the complete \`SKILL.md\` in a fenced block and confirm via ${ASK_USER_QUESTION_TOOL_NAME} before writing. Afterwards, report the saved path, invocation syntax, and that the file is directly editable.`
       return [{ type: 'text', text }]
     },
   })

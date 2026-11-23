@@ -53,15 +53,18 @@ function buildActionTable(): string {
 
 function buildReservedSection(): string {
   const groups = [
-    ['Non-rebindable:', ...NON_REBINDABLE.map(s => `- ${s.key} — ${s.reason}`)],
+    ['Non-rebindable (a config entry is an ERROR):', ...NON_REBINDABLE.map(s => `- ${s.key} — ${s.reason}`)],
     [
-      'Terminal reserved:',
+      'Terminal-reserved:',
       ...TERMINAL_RESERVED.map(
         s => `- ${s.key} — ${s.reason}${s.severity === 'error' ? ' (will not work)' : ' (may conflict)'}`,
       ),
     ],
-    ['macOS reserved:', ...MACOS_RESERVED.map(s => `- ${s.key} — ${s.reason}`)],
-    ['Windows reserved:', ...WINDOWS_RESERVED.map(s => `- ${s.key} — ${s.reason}`)],
+    ['macOS-reserved (errors on macOS):', ...MACOS_RESERVED.map(s => `- ${s.key} — ${s.reason}`)],
+    [
+      'Windows-reserved (warnings on Windows; ctrl+z and ctrl+\\ swap out for these there):',
+      ...WINDOWS_RESERVED.map(s => `- ${s.key} — ${s.reason}`),
+    ],
   ]
   return groups.map(group => group.join('\n')).join('\n\n')
 }
@@ -91,29 +94,29 @@ export function registerKeybindingsSkill(): void {
     async getPromptForCommand(args: string) {
       const sections = [
         [
-          'User keybindings live in `~/.mercury/keybindings.json` (or `$MERCURY_CONFIG_DIR/keybindings.json`).',
-          'Project keybindings live in `.mercury/keybindings.json` in trusted workspaces and override user bindings; changes hot-reload.',
+          'Layers (lowest to highest; later appends, last binding on a chord wins): shipped defaults → <config-home>/keybindings.json (~/.mercury or `MERCURY_CONFIG_DIR`) → .mercury/keybindings.json. Edits hot-apply via file watcher. `/keybindings` seeds and opens the user file; `/keys` shows and edits the effective map.',
+          'Read the target file before editing. Keep at most one block per context (merge into an existing context block; include only contexts with changes) and write only overrides, never defaults.',
         ].join('\n'),
         [
           'File shape:',
           '```json',
           JSON.stringify(EXAMPLE, null, 2),
           '```',
-          'Each binding value is an action name from the table below, `"command:<slash-command>"` to invoke a slash command, or `null` to unbind a default.',
+          'Values: a built-in action id from the table below, `command:<name>` (runs `/<name>` in `Chat` or `Global`), or `null` (unbinds). Never add `$schema`: Mercury publishes none for this file, and foreign keybinding schemas reject Mercury action ids.',
         ].join('\n'),
         [
-          'Keystroke grammar:',
-          '- Modifiers: `ctrl`, `alt` (`opt`/`option`), `shift`, `meta`, `cmd` (`command`), joined with `+` (for example `ctrl+k`, `shift+tab`).',
-          '- Chords: space-separated keystrokes (for example `ctrl+x t` or `ctrl+x ctrl+k`).',
-          '- Named keys: `enter`, `escape`, `tab`, `space`, `backspace`, `delete`, `up`, `down`, `left`, `right`, `home`, `end`, `pageup`, `pagedown`.',
+          'Keystroke grammar (case-insensitive):',
+          '- Modifiers (`+`): `ctrl` (`control`), `alt` (`opt`, `option`), `shift`, `meta`, `cmd` (`command`, `super`, `win` — distinct from `meta`).',
+          '- Keys: `esc`/`escape`, `enter`/`return`, `tab`, `space`, `backspace`, `delete`, `up`, `down`, `left`, `right` (or arrow glyphs), `pageup`, `pagedown`, `home`, `end`.',
+          '- Chords: space-separated keystrokes (e.g. `"ctrl+x p"`). Pending chords wait 2s (plus a 2s grace window where a completing key finishes the chord while other keys type normally); `Escape` or a non-matching key cancels. Prefix chords shadow exact bindings on the prefix key, so never bind an action to a chord prefix.',
         ].join('\n'),
         [
-          'Editing rules:',
-          '- Read the existing `keybindings.json` first and merge into its `bindings` array without dropping unrelated entries.',
-          '- Keep valid JSON with a top-level `bindings` array and omit `$schema`.',
-          '- Warn the user before choosing a terminal or OS reserved shortcut.',
-          '- Unbind a default without replacing it by mapping the key to `null` in the matching context.',
-          '- Direct the user to `/keys` to inspect live effective bindings and `/health` to verify there are no keybinding warnings.',
+          'Editing & verification:',
+          '- Rebind = bind the new key to the action and set the old key to `null` in that context.',
+          '- `null` masks the action without leaking modifier/control chords to lower contexts; printable keys pass through.',
+          '- Broken layers warn and are skipped without breaking defaults or other layers.',
+          '- Check reserved shortcuts below; prefer `ctrl` chords or chord sequences for terminal portability (`/keys` shows what the active terminal delivers).',
+          '- `/health` reports Keybindings findings (`parse_error`, `duplicate`, `reserved`, `invalid_context`, `invalid_action`: errors cannot apply, warnings flag conflicts) and `/keys` shows the live map.',
         ].join('\n'),
         ['Reserved shortcuts:', buildReservedSection()].join('\n'),
         ['Available contexts:', buildContextTable()].join('\n'),
