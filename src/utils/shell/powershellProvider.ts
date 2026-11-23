@@ -73,7 +73,7 @@ export function createPowerShellProvider(shellPath: string): ShellProvider {
   return {
     type: 'powershell',
     shellPath,
-    detached: childGetsOwnProcessGroup(),
+    detached: childGetsOwnProcessGroup(rememberedPlatform()),
     async buildExecCommand(command: string, opts: BuildExecCommandOptions) {
       const cwdFilePath = posixPath.join(tmpdir(), cwdFileName(opts.id))
       const clearPrelude = needsLocationHistoryClear(command) ? CLEAR_LOCATION_HISTORY_PRELUDE : ''
@@ -83,8 +83,8 @@ export function createPowerShellProvider(shellPath: string): ShellProvider {
     getSpawnArgs(commandString: string): string[] {
       return buildPowerShellArgs(commandString)
     },
-    async getEnvironmentOverrides(_command: string): Promise<Record<string, string>> {
-      const overrides: Record<string, string> = { ...getSessionEnvVars() }
+    async getEnvironmentOverrides(): Promise<Record<string, string>> {
+      const overrides: Record<string, string> = Object.fromEntries(getSessionEnvVars())
       if (rememberedPlatform() === 'win32') {
         overrides.MSYS2_ARG_CONV_EXCL = '*'
         overrides.MSYS_NO_PATHCONV = '1'

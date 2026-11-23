@@ -57,7 +57,7 @@ import { checkPermissionMode } from './modeValidation.js'
 import { denyRuleReach, hiddenDenyRuleAsk, hiddenDenyRuleRefusal, type HiddenDenyRule, type ReachBudget } from './denyRuleReach.js'
 import { modeBypassesPermissions, permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
 import { checkPathConstraints, checkShellCwd } from './pathValidation.js'
-import { checkPreparedReadOnlyConstraints, checkReadOnlyConstraints, cutPart, notReadOnlyClause, type NotReadOnly } from './readOnlyValidation.js'
+import { checkPreparedReadOnlyConstraints, checkReadOnlyConstraints, cutPart, notReadOnlyClause } from './readOnlyValidation.js'
 import { checkSedConstraints } from '../../utils/shell/sedValidation.js'
 import { shellCredentialWritePath, shellMercurySecretPath, shellSelfProtectionReason } from '../../utils/permissions/shellProtectedPaths.js'
 import { credentialStoreWriteRefusal, isInstructionEstatePath } from '../../utils/permissions/filesystem.js'
@@ -415,6 +415,7 @@ async function decideWithDenyRuleReach(
 type RulesBySource = ToolPermissionContext['alwaysAllowRules']
 
 type RuleSourceKey = keyof RulesBySource
+type MutableRulesBySource = Partial<Record<RuleSourceKey, string[]>>
 type MutableRuleReasons = Partial<Record<RuleSourceKey, Record<string, string>>>
 
 function contentRulesReadAsBash(context: ToolPermissionContext, toolName: string): { context: ToolPermissionContext; own: Set<string> } {
@@ -426,7 +427,7 @@ function contentRulesReadAsBash(context: ToolPermissionContext, toolName: string
     if (nextReasons === undefined) {
       const cloned: MutableRuleReasons = {}
       if (context.ruleReasons) {
-        for (const [source, map] of Object.entries(context.ruleReasons) as Array<[RuleSourceKey, Record<string, string> | undefined]>) {
+        for (const [source, map] of Object.entries(context.ruleReasons) as Array<[RuleSourceKey, Readonly<Record<string, string>> | undefined]>) {
           if (map) cloned[source] = { ...map }
         }
       }
@@ -437,8 +438,8 @@ function contentRulesReadAsBash(context: ToolPermissionContext, toolName: string
 
   const projectMap = (map: RulesBySource): RulesBySource => {
     let changed = false
-    const out: RulesBySource = {}
-    for (const [source, rules] of Object.entries(map) as Array<[RuleSourceKey, string[] | undefined]>) {
+    const out: MutableRulesBySource = {}
+    for (const [source, rules] of Object.entries(map) as Array<[RuleSourceKey, readonly string[] | undefined]>) {
       if (!rules) continue
       const projected = [...rules]
       for (const raw of rules) {
