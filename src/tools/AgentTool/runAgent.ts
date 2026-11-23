@@ -572,6 +572,95 @@ function historyFromLatestCompactBoundary(rows: readonly Message[]): Message[] {
   return [...rows]
 }
 
+type PrepareRecord = Parameters<typeof prepareAgentRun>[0]
+
+type RunMade = Pick<
+  PrepareRecord,
+  | 'agentId'
+  | 'swarm'
+  | 'abortController'
+  | 'slimAgentGateOn'
+  | 'withoutInstructionBlob'
+  | 'readOnlyScout'
+  | 'resolveAgentEffort'
+  | 'hookScope'
+  | 'resolvedAgentModel'
+  | 'rootSetAppState'
+  | 'preloadSkills'
+  | 'connectAgentMcpServers'
+  | 'mcp'
+  | 'reviewReceipt'
+  | 'buildAgentSystemPrompt'
+  | 'seat'
+  | 'isFork'
+  | 'readFileState'
+  | 'childContextRef'
+  | 'agentKind'
+  | 'run'
+  | 'accountant'
+  | 'touchThrough'
+  | 'initialMessages'
+  | 'landAgentTranscriptRows'
+  | 'resolvedEffort'
+>
+
+function prepareRecordOf(params: RunAgentParams, made: RunMade): PrepareRecord {
+  return {
+    agentId: made.agentId,
+    name: params.name,
+    description: params.description,
+    swarm: made.swarm,
+    abortController: made.abortController,
+    override: params.override,
+    agentDefinition: params.agentDefinition,
+    slimAgentGateOn: made.slimAgentGateOn,
+    withoutInstructionBlob: made.withoutInstructionBlob,
+    instructionProfileOverride: params.instructionProfileOverride,
+    readOnlyScout: made.readOnlyScout,
+    toolUseContext: params.toolUseContext,
+    isAsync: params.isAsync,
+    canShowPermissionPrompts: params.canShowPermissionPrompts,
+    allowedTools: params.allowedTools,
+    effortOverride: params.effortOverride,
+    useExactTools: params.useExactTools,
+    resolveAgentEffort: made.resolveAgentEffort,
+    hookScope: made.hookScope,
+    promptMessages: params.promptMessages,
+    resolvedAgentModel: made.resolvedAgentModel,
+    cwd: params.cwd,
+    rootSetAppState: made.rootSetAppState,
+    preloadSkills: made.preloadSkills,
+    connectAgentMcpServers: made.connectAgentMcpServers,
+    mcp: made.mcp,
+    availableTools: params.availableTools,
+    structuredOutputSpec: params.structuredOutputSpec,
+    reviewReceipt: made.reviewReceipt,
+    worktreePath: params.worktreePath,
+    buildAgentSystemPrompt: made.buildAgentSystemPrompt,
+    seat: made.seat,
+    thinkingConfigOverride: params.thinkingConfigOverride,
+    isFork: made.isFork,
+    querySource: params.querySource,
+    readFileState: made.readFileState,
+    contentReplacementState: params.contentReplacementState,
+    childContextRef: made.childContextRef,
+    agentKind: made.agentKind,
+    seatHolder: params.seatHolder,
+    onWait: params.onWait,
+    preserveToolUseResults: params.preserveToolUseResults,
+    run: made.run,
+    onQueryProgress: params.onQueryProgress,
+    accountant: made.accountant,
+    touchThrough: made.touchThrough,
+    initialMessages: made.initialMessages,
+    onCacheSafeParams: params.onCacheSafeParams,
+    landAgentTranscriptRows: made.landAgentTranscriptRows,
+    model: params.model,
+    launchedAt: params.launchedAt,
+    resolvedEffort: made.resolvedEffort,
+  }
+}
+
 export async function* runAgent(
   params: RunAgentParams,
 ): AsyncGenerator<Message, void> {
@@ -702,60 +791,36 @@ export async function* runAgent(
       abortController.signal,
     )
 
-    const prepared = await prepareAgentRun({
-      agentId,
-      name,
-      description,
-      swarm,
-      abortController,
-      override,
-      agentDefinition,
-      slimAgentGateOn,
-      withoutInstructionBlob,
-      instructionProfileOverride: params.instructionProfileOverride,
-      readOnlyScout,
-      toolUseContext,
-      isAsync,
-      canShowPermissionPrompts: params.canShowPermissionPrompts,
-      allowedTools: params.allowedTools,
-      effortOverride,
-      useExactTools,
-      resolveAgentEffort,
-      hookScope,
-      promptMessages,
-      resolvedAgentModel,
-      cwd: params.cwd,
-      rootSetAppState,
-      preloadSkills,
-      connectAgentMcpServers,
-      mcp,
-      availableTools: params.availableTools,
-      structuredOutputSpec: params.structuredOutputSpec,
-      reviewReceipt,
-      worktreePath,
-      buildAgentSystemPrompt,
-      seat,
-      thinkingConfigOverride: params.thinkingConfigOverride,
-      isFork,
-      querySource,
-      readFileState,
-      contentReplacementState: params.contentReplacementState,
-      childContextRef,
-      agentKind,
-      seatHolder: params.seatHolder,
-      onWait,
-      preserveToolUseResults: params.preserveToolUseResults,
-      run,
-      onQueryProgress,
-      accountant,
-      touchThrough,
-      initialMessages,
-      onCacheSafeParams: params.onCacheSafeParams,
-      landAgentTranscriptRows,
-      model: params.model,
-      launchedAt: params.launchedAt,
-      resolvedEffort,
-    })
+    const prepared = await prepareAgentRun(
+      prepareRecordOf(params, {
+        agentId,
+        swarm,
+        abortController,
+        slimAgentGateOn,
+        withoutInstructionBlob,
+        readOnlyScout,
+        resolveAgentEffort,
+        hookScope,
+        resolvedAgentModel,
+        rootSetAppState,
+        preloadSkills,
+        connectAgentMcpServers,
+        mcp,
+        reviewReceipt,
+        buildAgentSystemPrompt,
+        seat,
+        isFork,
+        readFileState,
+        childContextRef,
+        agentKind,
+        run,
+        accountant,
+        touchThrough,
+        initialMessages,
+        landAgentTranscriptRows,
+        resolvedEffort,
+      }),
+    )
 
     const { userContext, systemContext, systemPrompt, childContext, messages: preparedMessages } =
       prepared
