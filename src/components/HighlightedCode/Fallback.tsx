@@ -1,4 +1,5 @@
 import React, { Suspense, use } from 'react'
+import { LRUCache } from 'lru-cache'
 import { Ansi } from '../../ink.js'
 import {
   getCliHighlightPromise,
@@ -7,9 +8,10 @@ import {
 import { logForDebugging } from '../../utils/debug.js'
 import { hashPair } from '../../utils/hash.js'
 import { linkifyCodeUrls } from '../../utils/hyperlink.js'
+import { passedOver } from '../../utils/passedOver.js'
 
-const highlightCache = new Map<string, string>()
 const HIGHLIGHT_CACHE_LIMIT = 500
+const highlightCache = new LRUCache<string, string>({ max: HIGHLIGHT_CACHE_LIMIT })
 
 function detabbed(code: string): string {
   return code.replace(/^\t+/gm, tabs => '  '.repeat(tabs.length))
@@ -26,12 +28,8 @@ function highlightText(
   prepared: string,
 ): string {
   const key = hashPair(language, prepared)
-  if (highlightCache.has(key)) {
-    const cached = highlightCache.get(key)!
-    highlightCache.delete(key)
-    highlightCache.set(key, cached)
-    return cached
-  }
+  const cached = highlightCache.get(key)
+  if (cached !== undefined) return cached
 
   let chosen = language
   if (!api.supportsLanguage(language)) {
@@ -45,11 +43,13 @@ function highlightText(
   try {
     result = api.highlight(prepared, { language: chosen })
   } catch (error) {
+    passedOver(error)
     const message = error instanceof Error ? error.message : String(error)
     if (/unknown language/i.test(message)) {
       try {
         result = api.highlight(prepared, { language: 'markdown' })
-      } catch {
+      } catch (retryError) {
+        passedOver(retryError)
         result = prepared
       }
     } else {
@@ -57,10 +57,6 @@ function highlightText(
     }
   }
 
-  if (highlightCache.size >= HIGHLIGHT_CACHE_LIMIT) {
-    const oldest = highlightCache.keys().next().value
-    if (oldest !== undefined) highlightCache.delete(oldest)
-  }
   highlightCache.set(key, result)
   return result
 }
@@ -100,5 +96,3 @@ export function HighlightedCodeFallback({
     </Suspense>
   )
 }
-
-export default HighlightedCodeFallback
