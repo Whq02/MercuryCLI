@@ -313,7 +313,7 @@ function MessagesInner({
         <React.Fragment key={itemKey(msg)}>
           {index === dividerIndex && unseenDivider !== undefined ? (
             <Text dimColor>
-              {`${dividerBar} ${unseenDivider.count} new ${dividerBar}`}
+              {dividerBar} {unseenDivider.count} new {dividerBar}
             </Text>
           ) : null}
           {renderRow(visible, msg, index)}

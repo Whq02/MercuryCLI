@@ -116,7 +116,7 @@ export function FileWriteToolDiff({
         {hiddenLines > 0 && (
           <NoSelect fromLeftEdge>
             <Text dimColor>
-              … +{hiddenLines} more {hiddenLines === 1 ? 'line' : 'lines'} · ctrl+f expands
+              … +{hiddenLines} more line{hiddenLines === 1 ? '' : 's'} · ctrl+f expands
             </Text>
           </NoSelect>
         )}
