@@ -183,8 +183,8 @@ export async function transformResultContent(content: unknown[], serverName: str
     }
 
     if (kind === 'resource_link') {
-      const name = typeof rec.name === 'string' && rec.name.length > 0 ? rec.name : 'unknown'
-      const uri = typeof rec.uri === 'string' && rec.uri.length > 0 ? rec.uri : 'unknown'
+      const name = typeof rec.name === 'string' ? rec.name : ''
+      const uri = typeof rec.uri === 'string' ? rec.uri : ''
       const description =
         typeof rec.description === 'string' && rec.description.length > 0 ? ` (${rec.description})` : ''
       blocks.push({ type: 'text', text: `Resource: ${name} (${uri})${description}` })
