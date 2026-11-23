@@ -71,7 +71,7 @@ function buildCompgenCommand(context: CompletionContext): string {
     return `compgen -v -- ${quote([name])} 2>/dev/null`
   }
   if (context.type === 'file') {
-    return `compgen -f -- ${quote([context.prefix])} 2>/dev/null | head -${RESULT_CAP} | while IFS= read -r f; do [ -d "$f" ] && printf '%s/\\n' "$f" || printf '%s \\n' "$f"; done`
+    return `compgen -f -- ${quote([context.prefix])} 2>/dev/null | head -${RESULT_CAP} | while IFS= read -r __c; do if [ -d "$__c" ]; then printf '%s/\\n' "$__c"; else printf '%s \\n' "$__c"; fi; done`
   }
   return `compgen -c -- ${quote([context.prefix])} 2>/dev/null`
 }
@@ -105,7 +105,7 @@ export async function getShellCompletions(
       handle.cleanup()
     }
   } catch (error) {
-    logForDebugging(`Shell completion error: ${error instanceof Error ? error.message : String(error)}`)
+    logForDebugging(`shell completion failed: ${error instanceof Error ? error.message : String(error)}`)
     return []
   }
 }

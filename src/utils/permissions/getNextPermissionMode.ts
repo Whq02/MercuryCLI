@@ -44,7 +44,7 @@ export function cyclePermissionMode(
     nextContext = transitionPermissionMode(context.mode, nextMode, context)
   } catch (error) {
     logForDebugging(
-      `Failed to transition permission mode from ${context.mode} to ${nextMode}: ${error instanceof Error ? error.message : String(error)}`,
+      `permission mode transition ${context.mode} -> ${nextMode}: ${error instanceof Error ? error.message : String(error)}`,
       { level: 'error' },
     )
   }

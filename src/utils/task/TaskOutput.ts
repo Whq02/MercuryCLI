@@ -264,8 +264,8 @@ export class TaskOutput {
           return ''
         }
         const detail = code ?? (error instanceof Error ? error.message : String(error))
-        logForDebugging(`TaskOutput: failed to read ${this.path}: ${detail}`)
-        return `[output unavailable: failed to read ${this.path} (${detail})]`
+        logForDebugging(`task output read failed: ${this.path} (${detail})`)
+        return `<command output unavailable: could not read ${this.path} (${detail}) — most likely another Mercury process working in this project deleted it during its startup cleanup>`
       }
     }
     if (this.spilled) {

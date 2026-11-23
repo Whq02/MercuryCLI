@@ -93,8 +93,11 @@ function policyNoticeFor(
     return `Background command killed: its output file exceeded the ${MAX_TASK_OUTPUT_BYTES_DISPLAY} output limit.`
   }
   if (killedByHardCap) {
-    const hardCapMs = timeout * HARD_CAP_MULTIPLIER
-    return `Background command killed: absolute deadline elapsed (${HARD_CAP_MULTIPLIER}x the original ${formatDuration(timeout)} timeout, ${formatDuration(hardCapMs)} total). Auto-backgrounding preserves the task's time bound; background service-style commands explicitly.`
+    return (
+      `Background command killed: the absolute deadline elapsed (${HARD_CAP_MULTIPLIER}x the original ${formatDuration(timeout)} timeout — auto-backgrounding preserves the task's ` +
+      'time bound). For a service-style command that should run indefinitely, background it ' +
+      'explicitly.'
+    )
   }
   if (killedByTimeout) {
     return `Command timed out after ${formatDuration(timeout)}.`
