@@ -141,7 +141,7 @@ export function createCallLedger(
     }
     if (error instanceof APIError) {
       extractQuotaStatusFromError(error)
-      observeSignInResponse(call.signInRequest, error.status, error.message)
+      observeSignInResponse(call.signInRequest, error.status)
     }
     logAPIError({
       error,
