@@ -277,11 +277,7 @@ lines.push('')
 lines.push('## Source attributions')
 lines.push('')
 lines.push(
-  '- Parts of the agent runtime (`src/pi/`: the turn loop, key reading and the editing core) derive from **Pi**, © 2025 Mario Zechner, MIT (https://github.com/earendil-works/pi), forked at v1.6.0 (`faac5858`) and changed by Mercury; the changes are listed in `src/pi/DIVERGENCE.tsv`.',
-)
-lines.push('')
-lines.push(
-  '- The input buffer among them (`src/pi/edit/stdin-buffer.ts`) is based on code from **OpenTUI**, © 2025 opentui, MIT (https://github.com/anomalyco/opentui), as its source in Pi states; the key reading names the OpenTUI key parser as its reference.',
+  '- Parts of the agent runtime (the turn loop in `src/pi/loop/`, `src/run-core/` and `src/services/tools/`, and the undo history of the typing box in `src/hooks/useInputBuffer.ts`) derive from **Pi**, © 2025 Mario Zechner, MIT (https://github.com/earendil-works/pi), forked at v1.6.0 (`faac5858`) and changed by Mercury; the changes are listed in `src/pi/DIVERGENCE.tsv`.',
 )
 lines.push('')
 lines.push(
