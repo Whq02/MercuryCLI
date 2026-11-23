@@ -11,20 +11,54 @@ import { exclusiveCreateNoFollowFlags } from '../utils/platform/files.js'
 import { logForDebugging } from '../utils/debug.js'
 import { baseDirLine } from './baseDirLine.js'
 import { passedOverAs } from '../utils/passedOver.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
-type BundledSkillDefinition = Unbuilt
-
-const skillFolders: Map<string, string> = unbuilt('src/skills/bundledSkills.ts:38')
-
-export function getBundledSkillExtractDir(skillName: string): string {
-  return notBuilt('src/skills/bundledSkills.ts:40')
+type BundledSkillDefinition = {
+  name: string
+  description: string | (() => string)
+  menuDescription?: string
+  aliases?: string[]
+  whenToUse?: string
+  argumentHint?: string | (() => string)
+  allowedTools?: string[]
+  model?: string
+  effort?: EffortValue
+  disableModelInvocation?: boolean
+  userInvocable?: boolean
+  isEnabled?: () => boolean
+  hooks?: HooksSettings
+  context?: 'inline' | 'fork'
+  agent?: string
+  files?: Readonly<Record<string, string>> | (() => Readonly<Record<string, string>>)
+  getPromptForCommand(args: string, context: ToolUseContext): Promise<ContentBlockParam[]>
 }
 
-type SkillFileTarget = Unbuilt
+const skillFolders = new Map<string, string>()
+
+export function getBundledSkillExtractDir(skillName: string): string {
+  return skillFolders.get(skillName) ?? join(getBundledSkillsRoot(), skillName)
+}
+
+type SkillFileTarget = {
+  path: string
+  content: string
+}
 
 function skillFileTargets(baseDir: string, files: Record<string, string>): SkillFileTarget[] {
-  return notBuilt('src/skills/bundledSkills.ts:46')
+  const targets: SkillFileTarget[] = []
+  for (const [relativePath, content] of Object.entries(files)) {
+    const normalized = normalize(relativePath)
+    if (
+      isAbsolute(relativePath) ||
+      isAbsolute(normalized) ||
+      normalized.split(sep).includes('..') ||
+      normalized.split('/').includes('..')
+    ) {
+      throw new Error(`bundled skill file path escapes the skill directory: ${relativePath}`)
+    }
+    if (typeof content !== 'string') continue
+    targets.push({ path: join(baseDir, normalized), content })
+  }
+  return targets
 }
 
 function foldersUnder(baseDir: string, targets: readonly SkillFileTarget[]): string[] {
@@ -130,9 +164,70 @@ function extractedSkillDir(definition: BundledSkillDefinition): Promise<string |
 const registry: Command[] = []
 
 export function registerBundledSkill(definition: BundledSkillDefinition): void {
-  return notBuilt('src/skills/bundledSkills.ts:165')
+  const userInvocable = definition.userInvocable !== false
+  const hasFiles =
+    typeof definition.files === 'function' ||
+    (definition.files !== undefined && Object.keys(definition.files).length > 0)
+  const getPromptForCommand = hasFiles
+    ? async (args: string, context: ToolUseContext): Promise<ContentBlockParam[]> => {
+        const baseDir = await extractedSkillDir(definition)
+        const blocks = await definition.getPromptForCommand(args, context)
+        if (baseDir === null) return blocks
+        const prefix = baseDirLine(baseDir)
+        const first = blocks[0]
+        if (first && first.type === 'text') {
+          return [{ ...first, text: `${prefix}${first.text}` }, ...blocks.slice(1)]
+        }
+        return [{ type: 'text', text: prefix }, ...blocks]
+      }
+    : definition.getPromptForCommand
+
+  const command: PromptCommand = {
+    type: 'prompt',
+    name: definition.name,
+    description: typeof definition.description === 'string' ? definition.description : '',
+    source: 'bundled',
+    loadedFrom: 'bundled',
+    progressMessage: 'running',
+    contentLength: 0,
+    hasUserSpecifiedDescription: true,
+    allowedTools: definition.allowedTools ?? [],
+    disableModelInvocation: definition.disableModelInvocation ?? false,
+    userInvocable,
+    isHidden: !userInvocable,
+    ...(definition.menuDescription !== undefined ? { menuDescription: definition.menuDescription } : {}),
+    ...(definition.aliases !== undefined ? { aliases: definition.aliases } : {}),
+    ...(definition.whenToUse !== undefined ? { whenToUse: definition.whenToUse } : {}),
+    ...(typeof definition.argumentHint === 'string' ? { argumentHint: definition.argumentHint } : {}),
+    ...(definition.model !== undefined ? { model: definition.model } : {}),
+    ...(definition.effort !== undefined ? { effort: definition.effort } : {}),
+    ...(definition.isEnabled !== undefined ? { isEnabled: definition.isEnabled } : {}),
+    ...(definition.hooks !== undefined ? { hooks: definition.hooks } : {}),
+    ...(definition.context !== undefined ? { context: definition.context } : {}),
+    ...(definition.agent !== undefined ? { agent: definition.agent } : {}),
+    getPromptForCommand,
+  }
+
+  if (typeof definition.description === 'function') {
+    const readDescription = definition.description
+    Object.defineProperty(command, 'description', {
+      get: readDescription,
+      enumerable: true,
+      configurable: true,
+    })
+  }
+  if (typeof definition.argumentHint === 'function') {
+    const readArgumentHint = definition.argumentHint
+    Object.defineProperty(command, 'argumentHint', {
+      get: readArgumentHint,
+      enumerable: true,
+      configurable: true,
+    })
+  }
+
+  registry.push(command)
 }
 
 export function getBundledSkills(): Command[] {
-  return notBuilt('src/skills/bundledSkills.ts:218')
+  return [...registry]
 }
