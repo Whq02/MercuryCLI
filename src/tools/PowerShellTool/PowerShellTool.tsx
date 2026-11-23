@@ -202,7 +202,7 @@ async function postProcessPowerShell(
   const outputBudgetNotice = windowed ? clause : undefined
 
   if (result.preSpawnError) {
-    throw new ShellError('', result.preSpawnError, result.code, false, false)
+    throw new ShellError('', result.preSpawnError, result.code, result.interrupted)
   }
 
   const interpretation = interpretCommandResult(input.command, result.code, trimmedStdout, trimmedStderr)
@@ -337,7 +337,7 @@ async function* executePowerShell(
   const firstWord = resolveToCanonical(firstCommandWord(firstSubcommand)).toLowerCase()
   const shouldAutoBackground = !BACKGROUND_TASKS_DISABLED && !NEVER_AUTO_BACKGROUND.has(firstWord)
   const explicitCwd = input.cwd !== undefined ? resolveShellCwd(input.cwd) : undefined
-  const launchedAt = Date.now()
+  const description = input.description ?? input.command
 
   const psPath = await getCachedPowerShellPath()
   if (!psPath) {
@@ -399,7 +399,6 @@ async function* executePowerShell(
     if (handoverPromise !== null) return handoverPromise
     handoverPromise = (async () => {
       if (backgroundId !== undefined) return backgroundId
-      const description = input.description || input.command
       if (foregroundTaskId !== undefined) {
         const ok = backgroundExistingForegroundTask(
           foregroundTaskId,
@@ -407,14 +406,6 @@ async function* executePowerShell(
           description,
           setTaskState,
           context.toolUseId,
-          {
-            command: input.command,
-            description,
-            agentId,
-            cwd: explicitCwd ?? resolveShellCwd(),
-            startTime: launchedAt,
-            toolUseId: context.toolUseId,
-          },
         )
         if (ok) {
           const accepted = foregroundTaskId
@@ -432,11 +423,9 @@ async function* executePowerShell(
         {
           command: input.command,
           description,
-          timeout: effectiveTimeout,
+          shellCommand,
           toolUseId: context.toolUseId,
           agentId,
-          shellCommand,
-          startTime: launchedAt,
         },
         {
           abortController: context.abortController,
@@ -563,11 +552,9 @@ async function* executePowerShell(
           foregroundTaskId = registerForeground(
             {
               command: input.command,
-              description: input.description || input.command,
-              timeout: effectiveTimeout,
-              toolUseId: context.toolUseId,
-              agentId,
+              description,
               shellCommand,
+              toolUseId: context.toolUseId,
             },
             setTaskState,
             context.toolUseId,

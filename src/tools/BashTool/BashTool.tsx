@@ -90,7 +90,6 @@ import { shellWebContentNotice } from './webContent.js'
 import { boxLockLineForCommand, commandNamesBoxLock, refreshBoxReading } from '../../utils/boxLock.js'
 import { mapResultToBlock } from './resultBlock.js'
 import { withDeadline } from '../../utils/deadline.js'
-import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 
@@ -488,10 +487,10 @@ function foregroundBackgroundedAnswer({ webNotice, foregroundTaskId, shellComman
 const EMPTY_COMMAND_REFUSAL = 'Nothing to run: the command is empty. Pass the command to execute.'
 
 function getBashInputJSONSchema(): ToolInputJSONSchema {
-  const converted = zodToJsonSchema(modelInputSchema())
+  const converted = z.toJSONSchema(modelInputSchema())
   if (!BACKGROUND_TASKS_DISABLED) return converted
   const properties = converted.properties
-  if (typeof properties !== 'object' || properties === null) return converted
+  if (properties === undefined) return converted
   const rest = Object.fromEntries(
     Object.entries(properties).filter(([key]) => key !== 'run_in_background'),
   )
@@ -744,10 +743,9 @@ async function* runShellCommand(
         {
           command: input.command,
           description,
-          timeout: effectiveTimeout,
+          shellCommand,
           toolUseId: context.toolUseId,
           agentId: context.agentId,
-          shellCommand,
           startTime: launchedAt,
         },
         {
@@ -922,10 +920,8 @@ async function* runForegroundCommand(args: ForegroundRunArgs): AsyncGenerator<Ba
       {
         command: input.command,
         description,
-        timeout: effectiveTimeout,
-        toolUseId: id,
-        agentId: context.agentId,
         shellCommand,
+        toolUseId: id,
       },
       setTaskState,
       id,
