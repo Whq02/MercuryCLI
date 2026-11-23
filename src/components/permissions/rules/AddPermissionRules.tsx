@@ -81,24 +81,20 @@ export function AddPermissionRules({
       color="permission"
       onCancel={onCancel}
     >
-      <Box flexDirection="column" gap={1}>
-        <Box flexDirection="column">
-          {ruleValues.map((ruleValue, index) => (
-            <Box key={index} flexDirection="column">
-              <Text bold>{permissionRuleValueToString(ruleValue)}</Text>
-              <PermissionRuleDescription ruleValue={ruleValue} />
-            </Box>
-          ))}
+      <Text>
+        {ruleValues.length === 1 ? 'Where should this rule be saved?' : 'Where should these rules be saved?'}
+      </Text>
+      {ruleValues.map((ruleValue, index) => (
+        <Box key={index} flexDirection="column">
+          <Text bold>{permissionRuleValueToString(ruleValue)}</Text>
+          <PermissionRuleDescription ruleValue={ruleValue} />
         </Box>
-        <Text>
-          Where should {ruleValues.length === 1 ? 'this rule' : 'these rules'} be saved?
-        </Text>
-        <Select
-          options={SOURCES.map(destinationOption)}
-          onChange={handleSelect}
-          onCancel={onCancel}
-        />
-      </Box>
+      ))}
+      <Select
+        options={SOURCES.map(destinationOption)}
+        onChange={handleSelect}
+        onCancel={onCancel}
+      />
     </Dialog>
   )
 }
