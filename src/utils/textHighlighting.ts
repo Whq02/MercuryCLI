@@ -7,15 +7,16 @@ import type { HexColor } from '../ink/styles.js'
 export type TextHighlight = {
   start: number
   end: number
-  color?: keyof Theme | HexColor
+  color?: keyof Theme | HexColor | null
   shimmerColor?: keyof Theme | HexColor
   dimColor?: boolean
   inverse?: boolean
-  priority?: number
+  priority: number
 }
 
 type TextSegment = {
   text: string
+  start: number
   highlight?: TextHighlight
 }
 
@@ -28,75 +29,64 @@ type HighlightRange = {
 type ClampedHighlight = {
   start: number
   end: number
-  priority: number
-  order: number
   highlight: TextHighlight
 }
 
 function buildRanges(plainLength: number, highlights: TextHighlight[]): HighlightRange[] {
-  const clamped: ClampedHighlight[] = []
-  for (let i = 0; i < highlights.length; i++) {
-    const highlight = highlights[i]!
+  const candidates: ClampedHighlight[] = []
+  for (const highlight of highlights) {
+    if (highlight.end <= highlight.start) continue
     const start = Math.max(0, Math.min(plainLength, highlight.start))
     const end = Math.max(0, Math.min(plainLength, highlight.end))
     if (start < end) {
-      clamped.push({
-        start,
-        end,
-        priority: highlight.priority ?? 0,
-        order: i,
-        highlight,
-      })
+      candidates.push({ start, end, highlight })
     }
   }
-  if (clamped.length === 0) return []
+  if (candidates.length === 0) return []
 
-  const pointSet = new Set<number>([0, plainLength])
-  for (const item of clamped) {
-    pointSet.add(item.start)
-    pointSet.add(item.end)
+  candidates.sort((a, b) => a.start - b.start || b.highlight.priority - a.highlight.priority)
+
+  const accepted: ClampedHighlight[] = []
+  let lastEnd = 0
+  for (const item of candidates) {
+    if (item.start >= lastEnd) {
+      accepted.push(item)
+      lastEnd = item.end
+    }
   }
-  const points = [...pointSet].sort((a, b) => a - b)
+  if (accepted.length === 0) return []
 
   const ranges: HighlightRange[] = []
-  for (let i = 0; i < points.length - 1; i++) {
-    const start = points[i]!
-    const end = points[i + 1]!
-    if (start >= end) continue
-    let winner: ClampedHighlight | undefined
-    for (const item of clamped) {
-      if (item.start <= start && item.end >= end) {
-        if (
-          winner === undefined ||
-          item.priority > winner.priority ||
-          (item.priority === winner.priority && item.order < winner.order)
-        ) {
-          winner = item
-        }
-      }
+  let cursor = 0
+  for (const item of accepted) {
+    if (item.start > cursor) {
+      ranges.push({ start: cursor, end: item.start })
     }
-    const prev = ranges[ranges.length - 1]
-    if (prev !== undefined && prev.highlight === winner?.highlight) {
-      prev.end = end
-    } else {
-      ranges.push(winner ? { start, end, highlight: winner.highlight } : { start, end })
-    }
+    ranges.push({ start: item.start, end: item.end, highlight: item.highlight })
+    cursor = item.end
+  }
+  if (cursor < plainLength) {
+    ranges.push({ start: cursor, end: plainLength })
   }
   return ranges
 }
 
+function openStyles(codes: AnsiCode[]): AnsiCode[] {
+  return reduceAnsiCodes(codes).filter(code => code.code !== code.endCode)
+}
+
 export function segmentTextByHighlights(text: string, highlights: TextHighlight[]): TextSegment[] {
   if (highlights.length === 0) {
-    return [{ text }]
+    return [{ text, start: 0 }]
   }
 
   if (!text.includes('\x1b') && !text.includes('\x9b')) {
     const ranges = buildRanges(text.length, highlights)
-    if (ranges.length === 0) return [{ text }]
+    if (ranges.length === 0) return [{ text, start: 0 }]
     return ranges.map(range =>
       range.highlight
-        ? { text: text.slice(range.start, range.end), highlight: range.highlight }
-        : { text: text.slice(range.start, range.end) },
+        ? { text: text.slice(range.start, range.end), start: range.start, highlight: range.highlight }
+        : { text: text.slice(range.start, range.end), start: range.start },
     )
   }
 
@@ -107,7 +97,7 @@ export function segmentTextByHighlights(text: string, highlights: TextHighlight[
   }
 
   const ranges = buildRanges(plainLength, highlights)
-  if (ranges.length === 0) return [{ text }]
+  if (ranges.length === 0) return [{ text, start: 0 }]
 
   const segments: TextSegment[] = []
   let activeCodes: AnsiCode[] = []
@@ -119,15 +109,19 @@ export function segmentTextByHighlights(text: string, highlights: TextHighlight[
 
   for (const token of tokens) {
     if (token.type === 'ansi') {
-      activeCodes = reduceAnsiCodes([...activeCodes, token])
+      activeCodes = openStyles([...activeCodes, token])
       if (segmentStarted) {
         buf += token.code
-        segmentActiveCodes = reduceAnsiCodes([...segmentActiveCodes, token])
+        segmentActiveCodes = openStyles([...segmentActiveCodes, token])
       }
       continue
     }
     if (token.type === 'control') {
-      buf += token.code
+      if (rangeIndex >= ranges.length && segments.length > 0) {
+        segments[segments.length - 1]!.text += token.code
+      } else {
+        buf += token.code
+      }
       continue
     }
     if (rangeIndex >= ranges.length) break
@@ -146,7 +140,11 @@ export function segmentTextByHighlights(text: string, highlights: TextHighlight[
       if (segmentActiveCodes.length > 0) {
         buf += undoAnsiCodes(segmentActiveCodes).map(code => code.code).join('')
       }
-      segments.push(current.highlight ? { text: buf, highlight: current.highlight } : { text: buf })
+      segments.push(
+        current.highlight
+          ? { text: buf, start: current.start, highlight: current.highlight }
+          : { text: buf, start: current.start },
+      )
       buf = ''
       segmentStarted = false
       segmentActiveCodes = []
@@ -162,8 +160,12 @@ export function segmentTextByHighlights(text: string, highlights: TextHighlight[
       buf += undoAnsiCodes(segmentActiveCodes).map(code => code.code).join('')
     }
     const current = ranges[rangeIndex]!
-    segments.push(current.highlight ? { text: buf, highlight: current.highlight } : { text: buf })
+    segments.push(
+      current.highlight
+        ? { text: buf, start: current.start, highlight: current.highlight }
+        : { text: buf, start: current.start },
+    )
   }
 
-  return segments.length > 0 ? segments : [{ text }]
+  return segments.length > 0 ? segments : [{ text, start: 0 }]
 }
