@@ -4,6 +4,7 @@ import type { Tools } from '../../../Tool.js'
 import type { NormalizedUserMessage, ProgressMessage } from '../../../types/message.js'
 import { type buildMessageLookups, CANCEL_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE, REJECT_MESSAGE } from '../../../services/messages.js'
 import type { HermesKillInfo } from '../../../utils/permissions/capabilityGate.js'
+import { isRecord } from '../../../utils/isRecord.js'
 import { UserToolCanceledMessage } from './UserToolCanceledMessage.js'
 import { UserToolErrorMessage } from './UserToolErrorMessage.js'
 import { UserToolRejectMessage } from './UserToolRejectMessage.js'
@@ -23,9 +24,16 @@ type Props = {
 }
 
 function extractHermesKill(rawResult: unknown): HermesKillInfo | undefined {
-  if (typeof rawResult !== 'object' || rawResult === null) return undefined
-  const kill = (rawResult as { hermesKill?: HermesKillInfo }).hermesKill
-  return kill !== undefined && typeof kill === 'object' && kill !== null ? kill : undefined
+  if (!isRecord(rawResult)) return undefined
+  const kill = rawResult.hermesKill
+  if (!isRecord(kill)) return undefined
+  if (typeof kill.kind !== 'string' || typeof kill.tool !== 'string') return undefined
+  return {
+    kind: kill.kind,
+    tool: kill.tool,
+    ...(typeof kill.killPattern === 'string' ? { killPattern: kill.killPattern } : {}),
+    ...(typeof kill.target === 'string' ? { target: kill.target } : {}),
+  }
 }
 
 export function UserToolResultMessage({
@@ -54,10 +62,7 @@ export function UserToolResultMessage({
     (content.startsWith(REJECT_MESSAGE) ||
       content === INTERRUPT_MESSAGE_FOR_TOOL_USE)
   ) {
-    const input =
-      typeof toolUse.input === 'object' && toolUse.input !== null
-        ? (toolUse.input as Record<string, unknown>)
-        : {}
+    const input = isRecord(toolUse.input) ? toolUse.input : {}
     return (
       <UserToolRejectMessage
         input={input}
