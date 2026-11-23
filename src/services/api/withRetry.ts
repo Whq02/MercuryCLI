@@ -38,29 +38,49 @@ import { APIError, APIUserAbortError } from '../../utils/api/sdkErrors.js'
 import { deepestErrorDetail, isStaleSocketCode, transportCutOf, transportCutWords } from '../../utils/api/transportEvidence.js'
 import { messageEffortRefusedBy } from '../providers/anthropic/messageEffort.js'
 import { passedOverAs } from '../../utils/passedOver.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
+const BASE_DELAY_MS = 500
+const MAX_DELAY_MS = 32_000
+const MAX_RETRY_AFTER_MS = 21_600_000
+const MAX_CONSECUTIVE_529_ERRORS = 3
 
+const OVERLOADED_TYPE_MARKER = '"type":"overloaded_error"'
 
-const BASE_DELAY_MS: Unbuilt = unbuilt('src/services/api/withRetry.ts:43')
-
-const MAX_DELAY_MS: Unbuilt = unbuilt('src/services/api/withRetry.ts:45')
-const MAX_RETRY_AFTER_MS: Unbuilt = unbuilt('src/services/api/withRetry.ts:46')
-
-const OVERLOADED_TYPE_MARKER: Unbuilt = unbuilt('src/services/api/withRetry.ts:49')
+const FOREGROUND_QUERY_SOURCES: ReadonlySet<string> = new Set([
+  'main_thread',
+  'sdk',
+  'agent:custom',
+  'agent:default',
+  'agent:builtin',
+  'compact',
+  'hook_agent',
+  'hook_prompt',
+  'verification_agent',
+  'side_question',
+])
 
 export function isForegroundQuerySource(source: string): boolean {
-  return notBuilt('src/services/api/withRetry.ts:64')
+  return FOREGROUND_QUERY_SOURCES.has(source) || source.startsWith('agent:')
 }
 
-export type RetryContext = Unbuilt
+export type RetryContext = {
+  model: string
+  thinkingConfig: ThinkingConfig
+  maxTokensOverride?: number
+}
 
 export class CannotRetryError extends Error {
   originalError: unknown
   retryContext: RetryContext
 
   constructor(originalError: unknown, retryContext: RetryContext) {
-    notBuilt('src/services/api/withRetry.ts:78')
-    super(...(notBuilt('src/services/api/withRetry.ts:78') as ConstructorParameters<typeof Error>))
+    const message = originalError instanceof Error ? originalError.message : String(originalError)
+    super(message)
+    this.name = 'RetryError'
+    this.originalError = originalError
+    this.retryContext = retryContext
+    if (originalError instanceof Error && originalError.stack) {
+      this.stack = originalError.stack
+    }
   }
 }
 
@@ -69,9 +89,12 @@ export class FallbackTriggeredError extends Error {
   fallbackModel: string
   trigger: FailoverCause
 
-  constructor(originalModel: string, fallbackModel: string, trigger?: FailoverCause) {
-    notBuilt('src/services/api/withRetry.ts:96')
-    super(...(notBuilt('src/services/api/withRetry.ts:96') as ConstructorParameters<typeof Error>))
+  constructor(originalModel: string, fallbackModel: string, trigger: FailoverCause = 'overloaded') {
+    super(`Model fallback triggered: ${originalModel} → ${fallbackModel}`)
+    this.name = 'FallbackTriggeredError'
+    this.originalModel = originalModel
+    this.fallbackModel = fallbackModel
+    this.trigger = trigger
   }
 }
 
@@ -168,14 +191,262 @@ export function getRetryDelay(
 }
 
 
-type WithRetryOptions = Unbuilt
+type WithRetryOptions = {
+  model: string
+  thinkingConfig: ThinkingConfig
+  maxRetries?: number
+  fallbackModel?: string
+  signal?: AbortSignal
+  querySource?: string
+  initialConsecutive529Errors?: number
+  onHeldWait?: (wait: HeldBusyRetryWait) => void
+  healClientContract?: boolean
+  reconnect?: boolean
+}
 
 export async function* withRetry<T>(
   getClient: () => Promise<Anthropic>,
   operation: (client: Anthropic, attempt: number, retryContext: RetryContext) => Promise<T>,
   options: WithRetryOptions,
 ): AsyncGenerator<SystemAPIErrorMessage, T> {
-  return notBuilt('src/services/api/withRetry.ts:211')
+  const retryContext: RetryContext = {
+    model: options.model,
+    thinkingConfig: options.thinkingConfig,
+  }
+  const maxRetries = options.maxRetries ?? getDefaultMaxRetries()
+  let client: Anthropic | undefined
+  let lastError: unknown
+  let previousError: unknown
+  let attempted = false
+  let consecutive529Errors = options.initialConsecutive529Errors ?? 0
+  let reconnectLadder: ReconnectLadder | undefined
+  let busyLadder: BusyRetryLadder | undefined
+  let authRecovered = false
+  let contractHealed = false
+  let lastContractHeal: ClientContractHeal | undefined
+
+  for (let attempt = 1; attempt <= maxRetries + 1 || busyLadder !== undefined; attempt++) {
+    if (options.signal?.aborted) {
+      throw new APIUserAbortError()
+    }
+
+    if (client === undefined || (previousError !== undefined && isStaleConnectionError(previousError))) {
+      if (previousError !== undefined && isStaleConnectionError(previousError)) {
+        disableKeepAlive()
+      }
+      client = await getClient()
+    }
+
+    const attemptAuthToken = client.authToken
+    const attemptApiKey = client.apiKey
+    const attemptHelperKey = getApiKeyFromApiKeyHelperCached()
+    attempted = true
+
+    try {
+      return await operation(client, attempt, retryContext)
+    } catch (error) {
+      lastError = error
+      previousError = error
+      const statusPrefix = error instanceof APIError && typeof error.status === 'number' ? `${error.status} ` : ''
+      logForDebugging(`API error (attempt ${attempt}): ${statusPrefix}${errorMessage(error)}`)
+
+      const status = statusOf(error)
+      const outage = maxRetries !== 0 && options.reconnect !== false ? outageCauseOf(error) : null
+      if (outage !== null) {
+        const now = Date.now()
+        const ladder = reconnectLadder ?? openReconnectLadder(now, outage)
+        reconnectLadder = ladder
+        const step = nextReconnect(ladder, outage, now)
+        const notice = createSystemAPIErrorMessage(
+          new NetworkOutageError(step, error),
+          step.waitMs,
+          step.reconnect,
+          step.of,
+        )
+        yield notice
+        if (step.waitMs <= 0) {
+          throw new CannotRetryError(new ReconnectBudgetSpentError(ladder, now, error), retryContext)
+        }
+        await sleep(step.waitMs, options.signal)
+        attempt--
+        continue
+      }
+      if (status !== undefined) {
+        reconnectLadder = undefined
+      }
+
+      if (status === 401 || isRevokedTokenError(error)) {
+        const helperFailed = apiKeyHelperFailedLast()
+        clearApiKeyHelperCache()
+        let recovered = false
+        if (!authRecovered && !helperFailed && attempt <= maxRetries) {
+          authRecovered = true
+          const rebuilt = await getClient()
+          const tokenChanged = Boolean(rebuilt.authToken) && rebuilt.authToken !== attemptAuthToken
+          const keyChanged = Boolean(rebuilt.apiKey) && rebuilt.apiKey !== attemptApiKey
+          if (tokenChanged || keyChanged) {
+            client = rebuilt
+            recovered = true
+          } else if (attemptAuthToken && getAuthTokenSource().source === 'claude.ai') {
+            const refreshed = await handleOAuth401Error(attemptAuthToken).catch(passedOverAs(false))
+            if (refreshed) {
+              const latestToken = getClaudeAIOAuthTokens()?.accessToken
+              if (latestToken && latestToken !== attemptAuthToken) {
+                const refreshedClient = await getClient()
+                if (refreshedClient.authToken && refreshedClient.authToken !== attemptAuthToken) {
+                  client = refreshedClient
+                  recovered = true
+                }
+              }
+            }
+          } else if (attemptHelperKey) {
+            const helperClient = await getClient()
+            const newHelperKey = getApiKeyFromApiKeyHelperCached()
+            if (newHelperKey && newHelperKey !== attemptHelperKey && !apiKeyHelperFailedLast()) {
+              client = helperClient
+              recovered = true
+            }
+          }
+        }
+        if (recovered) {
+          continue
+        }
+        if (options.signal?.aborted) {
+          throw new APIUserAbortError()
+        }
+        throw new CannotRetryError(error, retryContext)
+      }
+
+      const overloaded = is529Error(error)
+      if (overloaded) {
+        if (options.querySource !== undefined && !isForegroundQuerySource(options.querySource)) {
+          throw new CannotRetryError(error, retryContext)
+        }
+        if (
+          flagEnabled('MERCURY_FALLBACK_ALL_MODELS') ||
+          (!isClaudeAISubscriber() && isNonCustomOpusModel(retryContext.model))
+        ) {
+          consecutive529Errors++
+        }
+      } else {
+        consecutive529Errors = 0
+      }
+
+      if (cacheDiagnosticsRefusal() === null && isCacheDiagnosticsRefusal(error)) {
+        const detail = errorMessage(error)
+        refuseCacheDiagnostics(detail)
+        logForDebugging(
+          `cache diagnostics: the provider refused the diagnostics field (${detail}); this process sends it no more and the request goes out again without it`,
+          { level: 'warn' },
+        )
+        continue
+      }
+
+      if (messageEffortRefusedBy(error)) {
+        logForDebugging(
+          `per-message effort: the provider refused the request that carried it (${errorMessage(error)}); this process sends it no more and the request goes out again without it`,
+          { level: 'warn' },
+        )
+        attempt--
+        continue
+      }
+
+      if (options.healClientContract === true && isClientContractRefusalError(error)) {
+        if (!contractHealed && attempt <= maxRetries) {
+          contractHealed = true
+          const heal = await healClientContractRefusal(error, options.signal).catch(passedOverAs(undefined))
+          logForDebugging(`client contract: the too-old refusal met ${heal?.kind ?? 'no heal'}`)
+          if (options.signal?.aborted) {
+            throw new APIUserAbortError()
+          }
+          if (heal !== undefined) {
+            lastContractHeal = heal
+            if (heal.kind === 'retry') {
+              continue
+            }
+            noteClientContractHeal(error, heal)
+          }
+          throw new CannotRetryError(error, retryContext)
+        }
+        if (lastContractHeal !== undefined) {
+          noteClientContractHeal(error, lastContractHeal)
+        }
+        throw new CannotRetryError(error, retryContext)
+      }
+
+      if (overloaded && isRetryableError(error)) {
+        const now = Date.now()
+        const ladder = busyLadder ?? openBusyRetryLadder(now)
+        busyLadder = ladder
+        const step = nextBusyRetry(ladder, providerAskedWaitMs(error, now), now)
+        if (step === null) {
+          if (options.fallbackModel !== undefined) {
+            throw new FallbackTriggeredError(retryContext.model, options.fallbackModel, 'overloaded')
+          }
+          if (consecutive529Errors >= MAX_CONSECUTIVE_529_ERRORS) {
+            throw new CannotRetryError(new Error(REPEATED_529_ERROR_MESSAGE), retryContext)
+          }
+          throw new CannotRetryError(error, retryContext)
+        }
+        const notice = createSystemAPIErrorMessage(
+          error instanceof Error ? error : new Error(errorMessage(error)),
+          step.waitMs,
+          step.attempt,
+          step.of,
+        )
+        if (step.quiet) {
+          options.onHeldWait?.(heldBusyRetryWait(step, notice, now))
+        } else {
+          yield notice
+        }
+        await sleep(step.waitMs, options.signal)
+        continue
+      }
+
+      if (attempt > maxRetries || !isRetryableError(error)) {
+        throw new CannotRetryError(error, retryContext)
+      }
+
+      const overflow = parseMaxTokensContextOverflowError(error)
+      if (overflow !== undefined) {
+        const available = Math.max(0, overflow.contextLimit - overflow.inputTokens - OUTPUT_FIT_HEADWAY_TOKENS)
+        if (available < OUTPUT_FIT_FLOOR_TOKENS) {
+          logError(
+            new Error(
+              `max_tokens overflow unrecoverable: available context ${available} is under the ${OUTPUT_FIT_FLOOR_TOKENS} floor`,
+            ),
+          )
+          throw error
+        }
+        const minThinking =
+          retryContext.thinkingConfig.type === 'enabled' && retryContext.thinkingConfig.budgetTokens > 0
+            ? retryContext.thinkingConfig.budgetTokens + 1
+            : 1
+        retryContext.maxTokensOverride = Math.max(OUTPUT_FIT_FLOOR_TOKENS, available, minThinking)
+        continue
+      }
+
+      const delayMs = getRetryDelay(attempt, retryAfterOf(error))
+      const cut = transportCutOf(error)
+      const noticeError =
+        cut !== null
+          ? new Error(`${transportCutWords('The provider', cut)}; retrying on a fresh connection`, { cause: error })
+          : error instanceof Error
+            ? error
+            : new Error(errorMessage(error))
+      yield createSystemAPIErrorMessage(noticeError, delayMs, attempt, maxRetries)
+      await sleep(delayMs, options.signal)
+    }
+  }
+
+  if (!attempted) {
+    const rawEnv = flagEnv('MERCURY_MAX_RETRIES') ?? ''
+    throw new CannotRetryError(
+      new Error(`MERCURY_MAX_RETRIES=${rawEnv} is not a non-negative integer — no request was attempted; unset it or set a number`),
+      retryContext,
+    )
+  }
+  throw new CannotRetryError(lastError ?? new Error('retry attempts exhausted'), retryContext)
 }
 
 function paused(waitMs: number, signal: AbortSignal | undefined): Promise<boolean> {
