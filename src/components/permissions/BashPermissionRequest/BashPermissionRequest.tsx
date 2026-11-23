@@ -127,8 +127,11 @@ function BashCommandPermissionRequest(
 
   const decisionReason = toolUseConfirm.permissionResult.decisionReason
   const suggestions = useMemo(
-    () => (shouldShowAlwaysAllowOptions() ? (toolUseConfirm.permissionResult.suggestions ?? []) : []),
-    [toolUseConfirm.permissionResult.suggestions],
+    () =>
+      shouldShowAlwaysAllowOptions() && toolUseConfirm.permissionResult.behavior === 'ask'
+        ? (toolUseConfirm.permissionResult.suggestions ?? [])
+        : [],
+    [toolUseConfirm.permissionResult],
   )
 
   const initialSeed = useMemo(
@@ -228,7 +231,7 @@ function BashCommandPermissionRequest(
         return
       }
       case 'no': {
-        feedback.handleReject()
+        feedback.handleReject(feedback.rejectFeedback)
         return
       }
     }
