@@ -106,11 +106,14 @@ export const SYSTEM_CALL_RE = /\bsystem\s*\(/
 
 type Reference = { value: string; unknown: boolean }
 
-const ARITHMETIC_INTEGER_RE: RegExp = /^[+-]?(?:0[xX][0-9A-Fa-f]+|[0-9]+#[0-9A-Za-z@_]+|[0-9]+)$/
+const ARITHMETIC_INTEGER_RE: RegExp = /^(?:0[xX][0-9A-Fa-f]+|[0-9]+#[0-9A-Za-z@_]+|[0-9]+)$/
 
 const ARITHMETIC_OPERATORS: ReadonlySet<string> = new Set([
   '$((',
+  '((',
   '))',
+  '++',
+  '--',
   '(',
   ')',
   '+',
@@ -391,8 +394,6 @@ export abstract class WordWalk {
         refuseNode(child)
       }
       if (child.type === 'simple_expansion') {
-        const trimmed = child.text.trimStart()
-        value += child.text.slice(0, child.text.length - trimmed.length)
         const ref = reference(child, scope, true, operand)
         value += ref.value
         if (ref.unknown) sawUnknown = true
@@ -490,11 +491,10 @@ export abstract class WordWalk {
     let target: string
     switch (targetNode.type) {
       case 'word':
-        refuseBraceExpansion(targetNode)
-        if (unquotedRedirectExpansion(targetNode.text)) {
+        if (/[*?~]/.test(targetNode.text)) {
           refuse('the redirect target contains an unquoted path expansion; spell out the path, or approve', node.type)
         }
-        target = unescapeWord(targetNode.text)
+        target = this.argument(targetNode, scope)
         break
       case 'number':
         if (targetNode.children.length > 0) refuseNode(targetNode.children[0]!)
@@ -505,13 +505,12 @@ export abstract class WordWalk {
         target = this.argument(targetNode, scope)
         break
       case 'concatenation':
-        refuseBraceExpansion(targetNode)
+        target = this.argument(targetNode, scope)
         for (const part of targetNode.children) {
           if (part.type === 'word' && unquotedRedirectExpansion(part.text)) {
             refuse('the redirect target contains an unquoted path expansion; spell out the path, or approve', node.type)
           }
         }
-        target = this.argument(targetNode, scope)
         break
       default:
         refuseNode(targetNode)
