@@ -118,8 +118,8 @@ function admittedAssistant(row: AssistantMessage, admitted: Set<string>): { row:
     return true
   })
   const tookOut = kept.length !== blocks.length
+  if (!tookOut && Array.isArray(row.message.content)) return { row, calls, tookOut }
   if (kept.length === 0) kept.push({ type: 'text', text: '[Tool use interrupted]', citations: [] })
-  if (!tookOut && kept.length === blocks.length && blocks === row.message.content) return { row, calls, tookOut }
   return { row: { ...row, message: { ...row.message, content: kept as ContentBlock[] } }, calls, tookOut }
 }
 
@@ -297,8 +297,9 @@ export function orderToolResultsByUse(
     if (row.type !== 'user' || before?.type !== 'assistant') return row
     const { content } = row.message
     if (!Array.isArray(content)) return row
-    const called = clientCallItemsOf(before.message.content).map(item => item.call_id)
-    if (called.length === 0) return row
+    const places = new Map<string, number>()
+    for (const call of clientCallItemsOf(before.message.content)) places.set(call.call_id, places.size)
+    if (places.size === 0) return row
     const results: ToolResultBlockParam[] = []
     const others: ContentBlockParam[] = []
     for (const block of content) {
@@ -306,10 +307,7 @@ export function orderToolResultsByUse(
       else others.push(block)
     }
     if (results.length === 0) return row
-    const standing = (block: ToolResultBlockParam): number => {
-      const place = called.indexOf(block.tool_use_id)
-      return place === -1 ? called.length : place
-    }
+    const standing = (block: ToolResultBlockParam): number => places.get(block.tool_use_id) ?? Number.MAX_SAFE_INTEGER
     const ordered = [...results.sort((a, b) => standing(a) - standing(b)), ...others]
     if (ordered.every((block, place) => block === content[place])) return row
     changed = true
