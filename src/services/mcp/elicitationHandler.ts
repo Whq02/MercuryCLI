@@ -117,20 +117,15 @@ export function registerElicitationHandler(
     client.setRequestHandler('elicitation/create', async (request, ctx): Promise<ElicitResult> => {
       return withElicitationEntered(client, async () => {
         try {
+          logMCPDebug(serverName, `elicitation request: ${JSON.stringify(request)}`)
           const params: ElicitationRequestEvent['params'] = request.params ?? {}
           const isUrlMode = params.mode === 'url'
           let riskPosture: string | undefined
 
-          logMCPDebug(
-            serverName,
-            `Received elicitation request (${isUrlMode ? 'url' : 'form'}): ${params.message ?? ''}`,
-          )
-          logForDebugging(`MCP elicitation request from ${serverName} (${isUrlMode ? 'url' : 'form'})`)
-
           if (isUrlMode) {
             const verdict = urlElicitationVerdict(serverName)
             if (verdict.refuse) {
-              logMCPDebug(serverName, `Refused URL elicitation request: ${verdict.posture}`)
+              logMCPDebug(serverName, `URL elicitation auto-declined by risk policy (${verdict.posture})`)
               return { action: 'decline' }
             }
             if (verdict.posture) {
@@ -140,7 +135,6 @@ export function registerElicitationHandler(
 
           const signal = ctx.mcpReq.signal
           if (signal.aborted) {
-            logMCPDebug(serverName, 'Elicitation request already aborted')
             return { action: 'cancel' }
           }
 
@@ -181,10 +175,10 @@ export function registerElicitationHandler(
             }))
           })
 
-          logMCPDebug(serverName, `Elicitation response: ${result.action}`)
+          logForDebugging(`elicitation response for "${serverName}": ${JSON.stringify(result)}`)
           return result
         } catch (error) {
-          logMCPError(serverName, error)
+          logMCPError(serverName, `elicitation handling failed: ${String(error)}`)
           return { action: 'cancel' }
         }
       })
@@ -195,18 +189,24 @@ export function registerElicitationHandler(
 
   try {
     client.setNotificationHandler('notifications/elicitation/complete', notification => {
-      const elicitationId = notification.params?.elicitationId
-      if (typeof elicitationId !== 'string') return
-      logMCPDebug(serverName, `Received elicitation completion notification for ${elicitationId}`)
+      logForDebugging(`elicitation complete from "${serverName}": ${JSON.stringify(notification.params)}`)
+      const given = notification.params?.elicitationId
+      const elicitationId = typeof given === 'string' ? given : undefined
       setAppState(prev => {
         const queue = prev.elicitation.queue
-        const index = queue.findIndex(
-          event =>
-            event.serverName === serverName &&
-            event.params.mode === 'url' &&
-            event.params.elicitationId === elicitationId,
-        )
-        if (index === -1) return prev
+        const index =
+          elicitationId === undefined
+            ? -1
+            : queue.findIndex(
+                event =>
+                  event.serverName === serverName &&
+                  event.params.mode === 'url' &&
+                  event.params.elicitationId === elicitationId,
+              )
+        if (index === -1) {
+          logForDebugging(`elicitation completion for unknown elicitation ${elicitationId ?? '(unknown)'} ignored`)
+          return prev
+        }
         const nextQueue = [...queue]
         nextQueue[index] = { ...queue[index]!, completed: true }
         return {
