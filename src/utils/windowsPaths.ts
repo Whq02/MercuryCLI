@@ -11,12 +11,7 @@ import { releaseLauncherAltHoldNow } from '../ink/launcherAltHold.js'
 import { logForDebugging } from './debug.js'
 import { memoizeWithLRU } from './memoize.js'
 import { passedOver } from './passedOver.js'
-import {
-  nativeCwdFromRecordedShell,
-  posixToWin32Path,
-  stripExtendedLengthPrefixForPlatform,
-  win32ToPosixPath,
-} from './platform/paths.js'
+import { nativeCwdFromRecordedShell, posixToWin32Path, stripExtendedLengthPrefixForPlatform, win32ToPosixPath, type RecordedCwd } from './platform/paths.js'
 
 
 function pathExists(candidate: string): boolean {
@@ -154,7 +149,7 @@ export const windowsPathToPosixPath = memoizeWithLRU(
   500,
 )
 
-export function nativeCwdFromShellRecord(record: string): { path: string } | { refused: string } {
+export function nativeCwdFromShellRecord(record: string): RecordedCwd {
   return nativeCwdFromRecordedShell(record, true, 'windows')
 }
 
