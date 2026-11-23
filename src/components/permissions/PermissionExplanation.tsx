@@ -123,7 +123,7 @@ export function PermissionExplainerContent({
   if (status === 'pending') {
     return (
       <Box marginTop={1}>
-        <ShimmerLine message="Explaining…" />
+        <ShimmerLine message="Loading explanation…" />
       </Box>
     )
   }

@@ -86,7 +86,9 @@ function buildQuestionHelpLine(args: {
           : 'Enter to answer with your text'
         : 'Enter to select'
   const navHint =
-    args.questionCount === 1 ? '↑/↓ to navigate' : 'Tab/Arrow keys to navigate'
+    args.questionCount === 1
+      ? `${figures.arrowUp}/${figures.arrowDown} to navigate`
+      : 'Tab/Arrow keys to navigate'
   const editorHint =
     args.isFocusedOnOther && !args.isFooterFocused && args.editorKey && args.editorName
       ? ` · ${args.editorKey} to edit in ${args.editorName}`
