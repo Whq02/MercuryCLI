@@ -127,7 +127,10 @@ async function handleBinaryResponse(
     `webfetch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   )
   if ('error' in persisted) {
-    throw new FetchRefusedError(response.status, `Could not save fetched binary content: ${persisted.error}`)
+    throw new FetchRefusedError(
+      response.status,
+      'The binary document was received but could not be saved; no extracted text is available.',
+    )
   }
   let content = ''
   let notice: string | undefined
@@ -147,7 +150,7 @@ async function handleBinaryResponse(
         preview = renderPdfText(doc, 1, 1)
       }
       if (preview.length > PDF_PREVIEW_MAX_CHARS) {
-        preview = `${preview.slice(0, PDF_PREVIEW_MAX_CHARS)}\n\n[First-page preview cut at ${PDF_PREVIEW_MAX_CHARS} characters; Read the saved file for the rest.]`
+        preview = `${preview.slice(0, PDF_PREVIEW_MAX_CHARS)}\n\n[First-page preview cut at 4000 characters; Read the saved file for the rest.]`
       }
       content = preview
     } catch (error) {

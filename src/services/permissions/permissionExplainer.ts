@@ -24,21 +24,21 @@ const PermissionExplanationSchema = z.object({
 })
 
 const EXPLAINER_SYSTEM_PROMPT =
-  'Look at the shell command the agent wants to run and explain it clearly and concisely for a user deciding whether to approve it. Use the explain_command tool to provide what the command does (explanation), why the agent wants to run it (reasoning), any risks or side effects (risk), and the overall risk level (LOW, MEDIUM, or HIGH).'
+  'Look at the shell command the agent wants to run and account for it on three axes: what it does, why the caller is running it, and how it could go wrong.'
 
 const EXPLAIN_COMMAND_TOOL = {
   name: 'explain_command',
-  description: 'Return a structured explanation and risk assessment for the pending tool call.',
+  description: 'Reports an explanation of a shell command.',
   input_schema: {
     type: 'object' as const,
     properties: {
-      explanation: { type: 'string', description: 'What the command does.' },
-      reasoning: { type: 'string', description: 'Why the agent wants to run it.' },
-      risk: { type: 'string', description: 'Potential risks or side effects.' },
+      explanation: { type: 'string', description: 'What the command does, in 1-2 sentences.' },
+      reasoning: { type: 'string', description: 'Why I am running it, in the first person ("I need to …").' },
+      risk: { type: 'string', description: 'What could go wrong, under 15 words.' },
       riskLevel: {
         type: 'string',
         enum: ['LOW', 'MEDIUM', 'HIGH'],
-        description: 'Overall risk level.',
+        description: 'LOW: safe dev workflows. MEDIUM: recoverable changes. HIGH: dangerous or irreversible.',
       },
     },
     required: ['explanation', 'reasoning', 'risk', 'riskLevel'],
@@ -91,7 +91,7 @@ export async function generatePermissionExplanation(args: {
     return null
   }
   if (args.signal.aborted) {
-    logForDebugging('permissionExplainer: aborted before request')
+    logForDebugging('permission explainer aborted')
     return null
   }
   const sections: string[] = [`Tool: ${args.toolName}`]
@@ -112,9 +112,10 @@ export async function generatePermissionExplanation(args: {
   if (args.messages && args.messages.length > 0) {
     const context = extractConversationContext(args.messages)
     if (context) {
-      sections.push(`Recent context:\n${context}`)
+      sections.push(`Recent conversation context:\n${context}`)
     }
   }
+  sections.push('Explain this command in context.')
   try {
     const response = await sideQuery({
       model: getEngineModel(),
@@ -129,27 +130,25 @@ export async function generatePermissionExplanation(args: {
       source: 'permission_explainer',
     })
     if (args.signal.aborted) {
-      logForDebugging('permissionExplainer: aborted')
+      logForDebugging('permission explainer aborted')
       return null
     }
     const toolUse = response.content.find(block => block.type === 'tool_use')
     if (!toolUse || toolUse.type !== 'tool_use') {
-      logForDebugging('permissionExplainer: response did not contain a tool_use block')
       return null
     }
     const parsed = PermissionExplanationSchema.safeParse(toolUse.input)
     if (!parsed.success) {
-      logForDebugging(`permissionExplainer: invalid explanation payload: ${parsed.error.message}`)
       return null
     }
-    logForDebugging(`permissionExplainer: riskLevel=${parsed.data.riskLevel}`)
+    logForDebugging(`permission explainer risk level: ${parsed.data.riskLevel}`)
     return parsed.data
   } catch (error) {
     if (args.signal.aborted) {
-      logForDebugging('permissionExplainer: aborted')
+      logForDebugging('permission explainer aborted')
       return null
     }
-    logForDebugging(`permissionExplainer: failed: ${String(error)}`)
+    logForDebugging(`permission explainer failed: ${String(error)}`)
     logError(error)
     return null
   }

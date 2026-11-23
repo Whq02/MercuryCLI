@@ -69,9 +69,6 @@ function SearchResultLine({ output }: { output: Output }): React.ReactElement {
   if (output.via && output.tier) {
     metaParts.push(viaChip(output.via, output.tier))
   }
-  if (output.cached) {
-    metaParts.push('from the session cache')
-  }
   const summary = (
     <MessageResponse height={1}>
       <Text>
@@ -81,7 +78,9 @@ function SearchResultLine({ output }: { output: Output }): React.ReactElement {
           {searchCount}
         </Text>{' '}
         {plural(searchCount, 'search', 'searches')}
-        <ToolCardMeta text={metaParts.join(' · ')} />
+        <ToolCardMeta
+          text={`${metaParts.join(' · ')}${output.cached ? ' · from the session cache' : ''}`}
+        />
       </Text>
     </MessageResponse>
   )

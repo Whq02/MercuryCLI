@@ -84,7 +84,7 @@ async function runPromptShellCommand(
     )
     if (judgement.refused) {
       logForDebugging(
-        `Guard refused shell command "${trimmed}" in ${slashCommandName}: ${judgement.reason}`,
+        `promptShellExecution: a guard refused ${trimmed} in ${slashCommandName}: ${judgement.reason}`,
       )
       throw new MalformedCommandError(
         `Permission check failed for the matched pattern "${trimmed}": ${judgement.reason}`,
@@ -107,7 +107,7 @@ async function runPromptShellCommand(
     if (permission.behavior !== 'allow') {
       const reason = permission.message || 'permission denied'
       logForDebugging(
-        `Permission check failed for shell command "${trimmed}" in ${slashCommandName}: ${reason}`,
+        `promptShellExecution: permission check failed for ${trimmed} in ${slashCommandName}: ${reason}`,
       )
       throw new MalformedCommandError(
         `Permission check failed for the matched pattern "${trimmed}": ${reason}`,
