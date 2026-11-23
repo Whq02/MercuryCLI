@@ -93,45 +93,44 @@ export function BackgroundTaskStatus({
       {
         id: 'footer:tasks:pill:main',
         label: MAIN_PILL_LABEL,
-        color: undefined as keyof Theme | undefined,
+        color: undefined,
         busy: !isLeaderIdle,
         idle: isLeaderIdle,
         onActivate: () => exitCrewmateView(setAppState),
       },
     ]
-    const activeIndex = tasksSelected ? (crewmateFooterIndex ?? 0) : 0
-    const itemWidths = pills.map(pill => 2 + stringWidth(pill.label))
-    const availableWidth = Math.max(20, columns - 24)
+    const viewedIndex = 0
+    const selectedIndex = tasksSelected ? (crewmateFooterIndex ?? 0) : 0
     const win = calculateHorizontalScrollWindow(
-      itemWidths,
-      availableWidth,
+      pills.map(pill => stringWidth(pill.label) + 3),
+      Math.max(20, columns - 24),
       ARROW_WIDTH,
-      activeIndex,
+      selectedIndex,
+      true,
     )
     return (
-      <Box>
+      <Box flexDirection="row">
         {win.showLeftArrow ? <Text dimColor>‹ </Text> : null}
         {pills.slice(win.startIndex, win.endIndex).map((pill, offset) => {
           const index = win.startIndex + offset
           return (
-            <React.Fragment key={pill.id}>
-              {offset > 0 ? <Text> </Text> : null}
+            <Box key={pill.id} marginLeft={offset > 0 ? 1 : 0}>
               <Pill
                 id={pill.id}
                 label={pill.label}
                 color={pill.color}
                 busy={pill.busy}
                 idle={pill.idle}
-                viewed={index === 0}
-                selected={tasksSelected && index === (crewmateFooterIndex ?? 0)}
+                viewed={index === viewedIndex}
+                selected={tasksSelected && index === selectedIndex}
                 onActivate={pill.onActivate}
               />
-            </React.Fragment>
+            </Box>
           )
         })}
         {win.showRightArrow ? <Text dimColor> ›</Text> : null}
         <Text color={tokens.textMuted}>
-          {' '}
+          {'  '}
           <KeyboardShortcutHint shortcut={EXPAND_CHORD} action="expand" />
         </Text>
       </Box>
@@ -142,9 +141,14 @@ export function BackgroundTaskStatus({
   if (manageable.length === 0) return null
 
   const label = getPillLabel(manageable)
-  if (!onOpenDialog) {
-    return <Text dimColor>{label}</Text>
-  }
+  const body = (highlighted: boolean): React.ReactNode => (
+    <Text wrap="truncate-end">
+      <Text color="background" inverse={highlighted} dimColor={!highlighted}>
+        {label}
+      </Text>
+    </Text>
+  )
+  if (!onOpenDialog) return body(false)
 
   return (
     <InteractiveRow
@@ -153,11 +157,7 @@ export function BackgroundTaskStatus({
       directActivate={true}
       onActivate={onOpenDialog}
     >
-      {(hover: boolean) => (
-        <Text inverse={tasksSelected || hover} dimColor={!tasksSelected && !hover}>
-          {label}
-        </Text>
-      )}
+      {(hover: boolean) => body(tasksSelected || hover)}
     </InteractiveRow>
   )
 }
