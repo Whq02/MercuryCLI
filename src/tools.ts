@@ -17,7 +17,6 @@ import { BrowserTool, browserToolEnabled } from './tools/BrowserTool/BrowserTool
 import { ComputerTool, computerToolEnabled } from './tools/ComputerTool/ComputerTool.js'
 import { VideoTool } from './tools/VideoTool/VideoTool.js'
 import { videoToolEnabled } from './services/video/registry.js'
-import { ContractTool, contractToolHosted } from './tools/ContractTool/ContractTool.js'
 import { changeSetEnabled } from './services/changeTransaction/changeSetContracts.js'
 import { changeTransactionEnabled } from './services/changeTransaction/contracts.js'
 import { txAutoCaptureEnabled } from './services/ide/txAutoCapture.js'
@@ -190,7 +189,6 @@ export function getAllBaseTools(agentId?: string): Tools {
     ...(SCHEDULING_ENABLED_AT_LOAD ? [CronCreateTool, CronDeleteTool, CronListTool, ScheduleWakeupTool] : []),
     MONITOR_TOOL,
     ContextLeftTool,
-    contractToolHosted() && cycleTolerant(() => ContractTool),
     RECORD_CONVENTION_TOOL,
     ...(memoryVerbsEnabled() ? [RetainTool, RecallTool, ReflectTool, CorrectTool] : []),
     journalEnabled() && JournalTool,

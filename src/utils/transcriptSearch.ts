@@ -206,7 +206,6 @@ export const NON_INDEXING_TOOLS: ReadonlySet<string> = new Set([
   'TaskUpdate',
   'ToolSearch',
   'Workflow',
-  'Contract',
 ])
 
 export type TranscriptFacets = {

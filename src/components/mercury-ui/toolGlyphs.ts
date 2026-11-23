@@ -74,7 +74,6 @@ export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
   WebFetch: 'browser',
   WebSearch: 'browser',
   Crewmate: 'agent',
-  Contract: 'agent',
   SendMessage: 'agent',
   ResumeCrewmate: 'agent',
   Workflow: 'agent',

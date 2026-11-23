@@ -17,7 +17,7 @@ import { passedOver } from '../../utils/passedOver.js'
 export interface SessionReceiptEntry {
   readonly at: string
   readonly by: string
-  readonly kind: 'agent-close' | 'machine-floor' | 'contract-close' | 'kit-restamp' | 'kit-refused' | 'kit-dial' | 'schedule-set' | 'schedule-fire' | 'schedule-held' | 'runner-restart' | 'build-behind' | 'clear-origin' | 'clear-model'
+  readonly kind: 'agent-close' | 'machine-floor' | 'kit-restamp' | 'kit-refused' | 'kit-dial' | 'schedule-set' | 'schedule-fire' | 'schedule-held' | 'runner-restart' | 'build-behind' | 'clear-origin' | 'clear-model'
   readonly summary: string
   readonly details?: Readonly<Record<string, unknown>>
 }
