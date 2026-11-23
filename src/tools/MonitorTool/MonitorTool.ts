@@ -151,7 +151,6 @@ export const MonitorTool = buildTool({
     let stopped = false
     let admittedEvents = 0
     let expiryTimer: ReturnType<typeof startTimeout> | null = null
-    const mailboxTimers = new Map<unknown, ReturnType<typeof startTimeout>>()
 
     const mailbox = createWatchMailbox({
       now: () => Date.now(),
@@ -165,20 +164,12 @@ export const MonitorTool = buildTool({
         })
       },
       setTimer: (fn, ms) => {
-        const handle = startTimeout(() => {
-          mailboxTimers.delete(handle)
-          fn()
-        }, ms)
+        const handle = startTimeout(fn, ms)
         handle.unref?.()
-        mailboxTimers.set(handle, handle)
         return handle
       },
       clearTimer: handle => {
-        const timer = mailboxTimers.get(handle)
-        if (timer !== undefined) {
-          mailboxTimers.delete(handle)
-          stopTimeout(timer)
-        }
+        stopTimeout(handle as ReturnType<typeof startTimeout>)
       },
     })
 

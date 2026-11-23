@@ -6,7 +6,7 @@ import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { PeerClosed, PeerDeadline } from '../../runner/wire/peer.js'
-import { isRpcError, RPC_METHOD_NOT_FOUND } from '../../runner/wire/errors.js'
+import { RPC_METHOD_NOT_FOUND } from '../../runner/wire/errors.js'
 import {
   latchScheduleRow,
   scheduleEditDoor,
@@ -182,10 +182,7 @@ export const CronCreateTool: Tool<InputSchema, CreateOutput> = buildTool({
       answer = await askSchedule(edit, signal)
     } catch (error) {
       if (signal?.aborted) throw error
-      if (
-        (isRpcError(error) && error.code === RPC_METHOD_NOT_FOUND) ||
-        methodNotFoundErrorSchema.safeParse(error).success
-      ) {
+      if (methodNotFoundErrorSchema.safeParse(error).success) {
         return submitLegacy(true)
       }
       const reason =
