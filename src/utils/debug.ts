@@ -147,17 +147,21 @@ function appendToDebugLog(content: string): void {
   const path = getDebugLogPath()
   const directory = dirname(path)
   const fs = getFsImplementation()
-  try {
-    if (currentLogDirectory !== directory) {
-      currentLogDirectory = directory
+  if (currentLogDirectory !== directory) {
+    try {
       fs.mkdirSync(directory)
+    } catch (error) {
+      passedOver(error)
     }
+    currentLogDirectory = directory
+  }
+  try {
     fs.appendFileSync(path, content)
   } catch (error) {
     passedOver(error)
     return
   }
-  if (getDebugFilePath()) return
+  if (getDebugFilePath() !== null) return
   pendingMaintenance = maybeRotateDebugLog(path, content.length).then(() => refreshLatestSymlink(path, directory))
 }
 
