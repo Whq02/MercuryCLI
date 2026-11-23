@@ -151,40 +151,36 @@ export function TranscriptSearchBar({
   let rightNode: React.ReactNode = null;
   if (warming) {
     rightNode = <Text color={tokens.textSecondary}>indexing…</Text>;
+  } else if (warmNotice !== null) {
+    rightNode = <Text color={tokens.textSecondary}>{warmNotice}</Text>;
   } else if (query.length > 0 && matchCount === 0) {
     rightNode = <Text color={tokens.failure}>no matches</Text>;
   } else if (matchCount !== null && matchCount > 0) {
     rightNode = <Text color={tokens.textSecondary}>{`${matchCurrent}/${matchCount}`}</Text>;
-  } else if (warmNotice !== null) {
-    rightNode = <Text color={tokens.textSecondary}>{warmNotice}</Text>;
   }
 
   return (
     <Box
-      height={2}
+      justifyContent="space-between"
       borderStyle="single"
       borderTop
       borderBottom={false}
       borderLeft={false}
       borderRight={false}
-      borderTopColor={tokens.borderSubtle}
+      borderColor={tokens.borderSubtle}
       paddingX={1}
-      justifyContent="space-between"
+      height={2}
       noSelect
     >
-      <Box flexShrink={1}>
-        <Text color={tokens.textPrimary} wrap="truncate-end">
-          <Text color={tokens.textSecondary}>/</Text>
-          {before}
-          <Text inverse>{atCursor}</Text>
-          {after}
-        </Text>
+      <Box flexShrink={1} overflow="hidden">
+        <Text color={tokens.textSecondary}>/</Text>
+        <Text>{before}</Text>
+        <Text inverse>{atCursor}</Text>
+        <Text>{after}</Text>
       </Box>
-      {rightNode !== null ? (
-        <Box flexShrink={0} marginLeft={1}>
-          {rightNode}
-        </Box>
-      ) : null}
+      <Box flexShrink={0} marginLeft={1}>
+        {rightNode}
+      </Box>
     </Box>
   );
 }
@@ -229,29 +225,28 @@ export function TranscriptFooter({
 
   return (
     <Box
-      height={2}
+      justifyContent="space-between"
       borderStyle="single"
       borderTop
       borderBottom={false}
       borderLeft={false}
       borderRight={false}
-      borderTopColor={tokens.borderSubtle}
+      borderColor={tokens.borderSubtle}
       paddingX={1}
-      justifyContent="space-between"
-      noSelect
+      height={2}
     >
-      <Box flexShrink={1}>
-        <Text color={tokens.textMuted} wrap="truncate-end">
+      <Box flexShrink={1} overflow="hidden">
+        <Text color={tokens.textSecondary} wrap="truncate">
           {leftText}
         </Text>
       </Box>
-      {rightText !== '' ? (
-        <Box width={rightWidth} flexShrink={0} marginLeft={1}>
-          <Text color={tokens.textMuted} wrap="truncate-start">
+      <Box flexShrink={0} marginLeft={1} width={rightWidth}>
+        {rightText !== '' ? (
+          <Text color={tokens.textSecondary} wrap="truncate-start">
             {rightText}
           </Text>
-        </Box>
-      ) : null}
+        ) : null}
+      </Box>
     </Box>
   );
 }
