@@ -30,11 +30,6 @@ type ComposerKeybindingsInput = {
   buffer: ReturnType<typeof useInputBuffer>
   writeDraft: (text: string) => void
   setCursorOffset: (offset: number) => void
-  setPastedContents?: (
-    next:
-      | Record<number, PastedContent>
-      | ((previous: Record<number, PastedContent>) => Record<number, PastedContent>),
-  ) => void
   lastSelfWriteRef: React.MutableRefObject<string>
   setOverlay: React.Dispatch<React.SetStateAction<OverlaySurface>>
   helpOpen: boolean
@@ -109,7 +104,6 @@ export function useComposerKeybindings({
   buffer,
   writeDraft,
   setCursorOffset,
-  setPastedContents,
   lastSelfWriteRef,
   setOverlay,
   helpOpen,
@@ -143,11 +137,7 @@ export function useComposerKeybindings({
     if (restored === undefined) return
     writeDraft(restored.text)
     setCursorOffset(restored.cursorOffset)
-    if (setPastedContents !== undefined) {
-      setPastedContents(restored.pastedContents)
-    } else {
-      pendingInput.setPastedContents(restored.pastedContents)
-    }
+    pendingInput.setPastedContents(restored.pastedContents)
     addNotification({
       key: 'edit-history',
       text: 'undid the last edit',
@@ -155,7 +145,7 @@ export function useComposerKeybindings({
       timeoutMs: 2000,
       fold: (_current, incoming) => incoming,
     })
-  }, [buffer, cursorOffset, writeDraft, setCursorOffset, setPastedContents, addNotification])
+  }, [buffer, cursorOffset, writeDraft, setCursorOffset, addNotification])
 
   const performRedo = useCallback(() => {
     const restored = buffer.redo({
@@ -166,11 +156,7 @@ export function useComposerKeybindings({
     if (restored === undefined) return
     writeDraft(restored.text)
     setCursorOffset(restored.cursorOffset)
-    if (setPastedContents !== undefined) {
-      setPastedContents(restored.pastedContents)
-    } else {
-      pendingInput.setPastedContents(restored.pastedContents)
-    }
+    pendingInput.setPastedContents(restored.pastedContents)
     addNotification({
       key: 'edit-history',
       text: 'redid the last edit',
@@ -178,7 +164,7 @@ export function useComposerKeybindings({
       timeoutMs: 2000,
       fold: (_current, incoming) => incoming,
     })
-  }, [buffer, cursorOffset, writeDraft, setCursorOffset, setPastedContents, addNotification])
+  }, [buffer, cursorOffset, writeDraft, setCursorOffset, addNotification])
 
   const handleExternalEditor = useCallback(() => {
     if (input.trim() === '' && Object.keys(pastedContents).length === 0) {
@@ -195,7 +181,7 @@ export function useComposerKeybindings({
     void (async () => {
       try {
         const expanded = expandPastedTextRefs(input, pastedContents)
-        const result = await editPromptInEditor(expanded, pastedContents)
+        const result = await editPromptInEditor(expanded)
         if (result.error) {
           addNotification({
             key: 'external-editor-error',
@@ -203,7 +189,7 @@ export function useComposerKeybindings({
             color: 'warning',
             priority: 'high',
           })
-        } else if (result.content !== null && result.content !== input) {
+        } else if (typeof result.content === 'string' && result.content !== expanded) {
           buffer.pushAtomic(input, cursorOffset, pastedContents)
           pendingInput.edit(result.content)
           const actual = pendingInput.text()

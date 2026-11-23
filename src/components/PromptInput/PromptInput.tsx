@@ -12,7 +12,6 @@ import type { MCPServerConnection } from '../../utils/mcp/types.js'
 import type { AgentDefinition } from '../../types/agent.js'
 import * as pendingInput from '../../input-core/pending-input.js'
 import type { AppState } from '../../state/AppState.js'
-import type { PastedContent } from '../../utils/config.js'
 import type { Message } from '../../types/message.js'
 import type { VimMode } from '../../types/textInputTypes.js'
 import { usePromptInputPlaceholder } from './usePromptInputPlaceholder.js'
@@ -155,45 +154,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   })
 
   const historyRecallActiveRef = useRef(false)
-  const { history, recallQueuedSend, helpers } = useComposerHistory({
-    input, pastedContents, mode, onChange, setMode, setCursorOffset,
-    buffer, columns, isCompact, compactBudget, historyRecallActiveRef,
-    addNotification,
-  })
-
-  const submit = useComposerSubmit({
-    compactWork, appStateStore, setAppState, suggestionApi, commands, helpers,
-    buffer, history, onSubmit, onAgentSubmit, setCursorOffset, writeDraft,
-    addNotification, removeNotification, composerCrewmateRef,
-    commandCrewmateRef, suggestionsMirrorRef,
-  })
-
-  const { surfaceCovered, submitRef } = useComposerHelm({ submit, setAppState })
-
-  const handleAcceptHistory = useCallback(
-    (entry: { display: string; pastedContents: Record<number, PastedContent> }) => {
-      const pastes = entry.pastedContents ?? {}
-      pendingInput.setPastedContents(pastes)
-      setPastedContents(pastes)
-      void submitRef.current(entry.display, {})
-    },
-    [setPastedContents, submitRef],
-  )
-
-  const historySearch = useHistorySearch(
-    handleAcceptHistory,
-    input,
-    onChange,
-    setCursorOffset,
-    cursorOffset,
-    setMode,
-    mode,
-    isSearchingHistory,
-    setIsSearchingHistory,
-    setPastedContents,
-    pastedContents,
-  )
-
   const typeahead = useTypeahead({
     input,
     cursorOffset,
@@ -206,11 +166,38 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     onInputChange: onChange,
     setCursorOffset,
     onSubmit: (value: string, isSubmittingSlashCommand?: boolean) => {
-      void submitRef.current(value, { isSlashPick: isSubmittingSlashCommand })
+      void submit(value, { isSlashPick: isSubmittingSlashCommand === true })
     },
     onModeChange: setMode,
     markAccepted: suggestionApi.markAccepted,
   })
+
+  const { history, recallQueuedSend, helpers } = useComposerHistory({
+    input, pastedContents, mode, onChange, setMode, setCursorOffset,
+    buffer, columns, isCompact, compactBudget, historyRecallActiveRef,
+    addNotification,
+  })
+
+  const historySearch = useHistorySearch(
+    entry => {
+      pendingInput.setPastedContents(entry.pastedContents ?? {})
+      void submit(entry.display, {})
+    },
+    input,
+    value => {
+      writeDraft(value)
+    },
+    setCursorOffset,
+    cursorOffset,
+    setMode,
+    mode,
+    isSearchingHistory,
+    setIsSearchingHistory,
+    pastes => {
+      pendingInput.setPastedContents(pastes)
+    },
+    pastedContents,
+  )
 
   const historyNavAllowed = useCallback(
     (edge: 'first' | 'last'): boolean => {
@@ -223,9 +210,18 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     [input, cursorOffset, suggestionsMirrorRef],
   )
 
+  const submit = useComposerSubmit({
+    compactWork, appStateStore, setAppState, suggestionApi, commands, helpers,
+    buffer, history, onSubmit, onAgentSubmit, setCursorOffset, writeDraft,
+    addNotification, removeNotification, composerCrewmateRef,
+    commandCrewmateRef, suggestionsMirrorRef,
+  })
+
+  const { surfaceCovered, submitRef } = useComposerHelm({ submit, setAppState })
+
   const { performUndo, crewmateFooterIndex } = useComposerKeybindings({
     input, cursorOffset, pastedContents, buffer, writeDraft, setCursorOffset,
-    setPastedContents, lastSelfWriteRef, setOverlay, helpOpen, setHelpOpen,
+    lastSelfWriteRef, setOverlay, helpOpen, setHelpOpen,
     setExternalEditorActive, setShowCommandPalette, setShowFileOpen,
     setShowContentSearch, onMessageActionsEnter, isLoading, isSearchingHistory,
     speculationActive, modalOverlayUp, footerSelection, appStateStore,
