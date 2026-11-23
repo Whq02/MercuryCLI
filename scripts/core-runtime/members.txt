@@ -75,3 +75,4 @@ prove-hook-registry-behaviour.ts
 prove-generators-behaviour.ts
 prove-abort-controller-behaviour.ts
 prove-combined-abort-signal-behaviour.ts
+prove-gh-pr-status-behaviour.ts
