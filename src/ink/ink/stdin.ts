@@ -85,7 +85,7 @@ export function resumeStdin(this: ResumeStdinReads): void {
     this.reassertScreenState('resume-desync')
   }
   if (this.storedReadableListeners) {
-    for (const listener of this.storedReadableListeners) stdin.on('readable', listener)
+    for (const listener of this.storedReadableListeners) stdin.addListener('readable', listener)
     this.storedReadableListeners = null
   }
   markConsoleReturned()
