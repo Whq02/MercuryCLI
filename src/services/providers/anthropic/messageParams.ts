@@ -30,7 +30,7 @@ function contentWithCacheMarker(turn: RequestTurn, enablePromptCaching: boolean)
   return turn.items.map((item, index) => ({
     ...canonicalWireBlock(item.value as WireBlock),
     ...(index === turn.items.length - 1 && enablePromptCaching && (turn.role === 'user' || item.type !== 'reasoning') ? { cache_control: getCacheControl() } : {}),
-  }))
+  })) as WireContent
 }
 
 function encodeAnthropicTurn(turn: RequestTurn, addCache: boolean, enablePromptCaching: boolean): MessageParam {

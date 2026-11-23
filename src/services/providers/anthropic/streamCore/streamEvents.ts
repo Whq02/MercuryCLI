@@ -127,12 +127,11 @@ export function openContentBlock(contentBlocks: (BetaContentBlock | ConnectorTex
   }
 }
 
-export function applyBlockDelta(
-  contentBlocks: (BetaContentBlock | ConnectorTextBlock)[],
-  part:
-    | Extract<BetaRawMessageStreamEvent, { type: 'content_block_delta' }>
-    | { type: 'content_block_delta'; index: number; delta: ConnectorTextDelta },
-): void {
+function deltaOf(part: Extract<BetaRawMessageStreamEvent, { type: 'content_block_delta' }>): typeof part.delta | ConnectorTextDelta {
+  return part.delta
+}
+
+export function applyBlockDelta(contentBlocks: (BetaContentBlock | ConnectorTextBlock)[], part: Extract<BetaRawMessageStreamEvent, { type: 'content_block_delta' }>): void {
   if (!part.delta) {
     throw new Error(malformedStreamFrameText('content_block_delta', 'delta'))
   }
@@ -140,7 +139,7 @@ export function applyBlockDelta(
   if (!block) {
     throw new RangeError('Content block not found')
   }
-  const delta = part.delta
+  const delta = deltaOf(part)
   switch (delta.type) {
     case 'text_delta':
       if (block.type !== 'text') throw new Error('Content block is not a text block')
@@ -255,11 +254,8 @@ export function observeStreamEnd(call: CallState, pass: StreamPass, turnOwning: 
   }
 }
 
-export function noteWatchdogErrorExit(pass: StreamPass): void {
-  const exitDelayMs =
-    pass.streamWatchdogFiredAt !== null
-      ? Math.round(performance.now() - pass.streamWatchdogFiredAt)
-      : -1
+export function noteWatchdogErrorExit(pass: StreamPass & { streamWatchdogFiredAt: number }): void {
+  const exitDelayMs = Math.round(performance.now() - pass.streamWatchdogFiredAt)
   logForDiagnosticsNoPII(
     'info',
     'cli_stream_loop_exited_after_watchdog_error',
@@ -267,7 +263,6 @@ export function noteWatchdogErrorExit(pass: StreamPass): void {
   logForDebugging(
     `stream loop exited ${exitDelayMs}ms after watchdog abort (error exit)`,
   )
-  pass.streamWatchdogFiredAt = null
 }
 
 export function sdkAbortError(signal: AbortSignal, streamingError: APIUserAbortError): APIUserAbortError | APIConnectionTimeoutError {

@@ -157,6 +157,10 @@ export async function* queryModelWithStreaming({
 const NO_EVENTS_MESSAGE = 'Stream ended without receiving any events'
 const EMPTY_CLOSE_DETAIL = 'closed with no events'
 
+function watchdogFired(pass: StreamPass): pass is StreamPass & { streamWatchdogFiredAt: number } {
+  return pass.streamWatchdogFiredAt !== null
+}
+
 function spokenByProvider(error: unknown): boolean {
   return error instanceof APIError && !(error instanceof APIConnectionError)
 }
@@ -533,7 +537,7 @@ async function* runStreamPass(
       return 'done'
     } catch (streamingError) {
       watch.clearIdleTimers()
-      if (pass.streamWatchdogFiredAt !== null) {
+      if (watchdogFired(pass)) {
         noteWatchdogErrorExit(pass)
       }
       if (pass.streamIdleAborted && !ctx.signal.aborted && watch.settledTailStands()) {
@@ -829,7 +833,7 @@ export async function queryWithModel(question: OneShotQuestion): Promise<Assista
     return [settleAssistantTurn(replies, question.signal.aborted)]
   }
   const [reply] = await withVCR(recordedInput, answer)
-  return reply
+  return reply! as AssistantMessage
 }
 
 export { MAX_NON_STREAMING_TOKENS, adjustParamsForNonStreaming } from './streamCore/nonStreaming.js'
