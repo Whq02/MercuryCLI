@@ -1,16 +1,24 @@
 import React, { createContext, useContext } from 'react'
 import type { FpsMetrics } from '../utils/fpsTracker.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
-type FpsMetricsGetter = (...args: Unbuilt[]) => Unbuilt
+type FpsMetricsGetter = () => FpsMetrics | undefined
 
-export function FpsMetricsProvider(arg0: {
+const FpsMetricsContext = createContext<FpsMetricsGetter | undefined>(undefined)
+
+export function FpsMetricsProvider({
+  getFpsMetrics,
+  children,
+}: {
   getFpsMetrics: FpsMetricsGetter
   children: React.ReactNode
 }): React.ReactNode {
-  return notBuilt('src/context/fpsMetrics.tsx:9')
+  return (
+    <FpsMetricsContext.Provider value={getFpsMetrics}>
+      {children}
+    </FpsMetricsContext.Provider>
+  )
 }
 
 export function useFpsMetrics(): FpsMetricsGetter | undefined {
-  return notBuilt('src/context/fpsMetrics.tsx:23')
+  return useContext(FpsMetricsContext)
 }
