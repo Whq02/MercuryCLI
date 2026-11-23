@@ -377,42 +377,29 @@ async function runWorkspaceSymbolOp(
     if (response === undefined) {
       return unclaimedFileResult('workspaceSymbol', filePath, absolutePath, cwd, startedAt)
     }
-    let rawSymbols: SymbolInformation[]
-    let incompleteError: string | undefined
-    if (Array.isArray(response)) {
-      rawSymbols = response
-    } else if (response !== null && Array.isArray(response.symbols)) {
-      rawSymbols = response.symbols
-      incompleteError = response.incompleteError
-    } else {
-      rawSymbols = []
-    }
+    const rawSymbols = Array.isArray(response) ? response : response !== null && Array.isArray(response.symbols) ? response.symbols : []
+    const incompleteError =
+      response !== null && !Array.isArray(response) && typeof response.incompleteError === 'string' ? response.incompleteError : undefined
     const filtered = await filterGitignoredSymbols(rawSymbols, cwd, context.abortController.signal)
+    const limit = Math.min(input.limit ?? WORKSPACE_SYMBOL_DEFAULT_LIMIT, WORKSPACE_SYMBOL_MAX_LIMIT)
+    const { shown, total, truncated } = boundWorkspaceSymbols(filtered, limit)
+    const notes = [
+      ...(truncated ? [`Showing ${shown.length} of ${total} symbols. Raise \`limit\` (maximum ${WORKSPACE_SYMBOL_MAX_LIMIT}) or narrow \`query\` to see the rest.`] : []),
+      ...(incompleteError === undefined ? [] : [`Workspace symbols may be incomplete: one or more TypeScript projects failed to search (${incompleteError}).`]),
+    ]
+    const formatted = [formatWorkspaceSymbolResult(shown, cwd), ...notes].join('\n\n')
     if (filtered.length === 0) {
-      const base = formatWorkspaceSymbolResult([], cwd)
-      const result = incompleteError
-        ? `${base}\nNote: workspace search was incomplete (${incompleteError}).`
-        : base
       return {
         data: {
           operation: 'workspaceSymbol',
-          result,
+          result: formatted,
           filePath,
           resultCount: 0,
           fileCount: 0,
           outcome: 'no-change',
         },
-        effect: makeEffect('workspaceSymbol', 'no-change', result, startedAt),
+        effect: makeEffect('workspaceSymbol', 'no-change', formatted, startedAt),
       }
-    }
-    const limit = Math.min(input.limit ?? WORKSPACE_SYMBOL_DEFAULT_LIMIT, WORKSPACE_SYMBOL_MAX_LIMIT)
-    const { shown, total, truncated } = boundWorkspaceSymbols(filtered, limit)
-    let formatted = formatWorkspaceSymbolResult(shown, cwd)
-    if (truncated) {
-      formatted += `\nShowing ${shown.length} of ${total} symbols (narrow the query or pass limit up to ${WORKSPACE_SYMBOL_MAX_LIMIT}).`
-    }
-    if (incompleteError) {
-      formatted += `\nNote: workspace search was incomplete (${incompleteError}).`
     }
     const { resultCount, fileCount } = locationCounts(shown.map(sym => ({ uri: sym.location?.uri })))
     return {
