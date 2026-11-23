@@ -8,11 +8,20 @@ import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js'
 import { useElevatedSurface } from '../mercury-ui/useElevatedSurface.js'
 import Byline from './Byline.js'
 import Pane from './Pane.js'
-import { notBuilt } from '../../pi/holes.js'
 
 type DialogExitState = ReturnType<typeof useExitOnCtrlCDWithKeybindings>
 
-export function Dialog(arg0: {
+export function Dialog({
+  title,
+  subtitle,
+  children,
+  onCancel,
+  color = 'permission',
+  hideInputGuide = false,
+  hideBorder = false,
+  inputGuide,
+  isCancelActive = true,
+}: {
   title: React.ReactNode
   subtitle?: React.ReactNode
   children?: React.ReactNode
@@ -23,7 +32,59 @@ export function Dialog(arg0: {
   inputGuide?: (exitState: DialogExitState) => React.ReactNode
   isCancelActive?: boolean
 }): React.ReactNode {
-  return notBuilt('src/components/design-system/Dialog.tsx:15')
+  const elevatedRef = useElevatedSurface()
+  const exitState = useExitOnCtrlCDWithKeybindings(
+    undefined,
+    undefined,
+    isCancelActive,
+  )
+  useKeybinding('confirm:no', onCancel, {
+    context: 'Confirmation',
+    isActive: isCancelActive,
+  })
+  const cancelShortcut = useShortcutDisplay('confirm:no', 'Confirmation', 'esc')
+
+  const hasSubtitle =
+    subtitle !== undefined && subtitle !== null && subtitle !== ''
+
+  const guide = hideInputGuide ? null : (
+    <Box marginTop={1}>
+      <Text dimColor italic>
+        {exitState.pending ? (
+          exitChordNoticeText(exitState.keyName)
+        ) : inputGuide ? (
+          inputGuide(exitState)
+        ) : (
+          <Byline>
+            {'↑↓ move · pgup/pgdn page'}
+            <KeyboardShortcutHint shortcut="Enter" action="confirm" />
+            <KeyboardShortcutHint shortcut={cancelShortcut} action="cancel" />
+          </Byline>
+        )}
+      </Text>
+    </Box>
+  )
+
+  const content = (
+    <Box flexDirection="column">
+      <Text bold color={color}>
+        {title}
+      </Text>
+      {hasSubtitle ? <Text dimColor>{subtitle}</Text> : null}
+      <Box flexDirection="column" marginTop={1}>
+        {children}
+      </Box>
+      {guide}
+    </Box>
+  )
+
+  if (hideBorder) return content
+
+  return (
+    <Box ref={elevatedRef} flexDirection="column">
+      <Pane color={color}>{content}</Pane>
+    </Box>
+  )
 }
 
 export default Dialog
