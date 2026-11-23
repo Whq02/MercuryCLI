@@ -1,5 +1,4 @@
 import sumBy from 'lodash-es/sumBy.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export type ModelUsage = {
   inputTokens: number
@@ -13,84 +12,125 @@ export type ModelUsage = {
   lastUsedAtMs?: number
 }
 
-export type WorkloadUsage = Unbuilt
-export type WorkloadUnpricedTurns = Unbuilt
+export type WorkloadUsage = { [workload: string]: { [modelName: string]: ModelUsage } }
+export type WorkloadUnpricedTurns = { [workload: string]: { [modelName: string]: number } }
 
 export class UsageLedgerOwner {
-  totalCostUSD: number = unbuilt('src/bootstrap/runtime/usage-ledger.ts:19')
-  totalAPIDuration: number = unbuilt('src/bootstrap/runtime/usage-ledger.ts:20')
-  totalAPIDurationWithoutRetries: number = unbuilt('src/bootstrap/runtime/usage-ledger.ts:21')
-  totalToolDuration: number = unbuilt('src/bootstrap/runtime/usage-ledger.ts:22')
-  startTime: number = unbuilt('src/bootstrap/runtime/usage-ledger.ts:23')
-  totalLinesAdded: number = unbuilt('src/bootstrap/runtime/usage-ledger.ts:24')
-  totalLinesRemoved: number = unbuilt('src/bootstrap/runtime/usage-ledger.ts:25')
-  hasUnknownModelCost: boolean = unbuilt('src/bootstrap/runtime/usage-ledger.ts:26')
-  modelUsage: { [modelName: string]: ModelUsage } = unbuilt('src/bootstrap/runtime/usage-ledger.ts:27')
-  unpricedTurns: { [modelName: string]: number } = unbuilt('src/bootstrap/runtime/usage-ledger.ts:28')
-  workloadUsage: WorkloadUsage = unbuilt('src/bootstrap/runtime/usage-ledger.ts:29')
-  workloadUnpricedTurns: WorkloadUnpricedTurns = unbuilt('src/bootstrap/runtime/usage-ledger.ts:30')
+  totalCostUSD: number = 0
+  totalAPIDuration: number = 0
+  totalAPIDurationWithoutRetries: number = 0
+  totalToolDuration: number = 0
+  startTime: number = Date.now()
+  totalLinesAdded: number = 0
+  totalLinesRemoved: number = 0
+  hasUnknownModelCost: boolean = false
+  modelUsage: { [modelName: string]: ModelUsage } = {}
+  unpricedTurns: { [modelName: string]: number } = {}
+  workloadUsage: WorkloadUsage = {}
+  workloadUnpricedTurns: WorkloadUnpricedTurns = {}
 
   addToTotalDurationState(
     duration: number,
     durationWithoutRetries: number,
   ): void {
-    return notBuilt('src/bootstrap/runtime/usage-ledger.ts:32')
+    this.totalAPIDuration += duration
+    this.totalAPIDurationWithoutRetries += durationWithoutRetries
   }
 
   addToTotalCostState(cost: number, modelUsage: ModelUsage, model: string): void {
-    return notBuilt('src/bootstrap/runtime/usage-ledger.ts:40')
+    this.totalCostUSD += cost
+    this.modelUsage[model] = modelUsage
   }
 
   recordUnpricedTurn(model: string): void {
-    return notBuilt('src/bootstrap/runtime/usage-ledger.ts:45')
+    this.unpricedTurns[model] = (this.unpricedTurns[model] ?? 0) + 1
   }
 
   addToWorkloadUsageState(workload: string, delta: ModelUsage, model: string): void {
-    return notBuilt('src/bootstrap/runtime/usage-ledger.ts:49')
+    let byModel = this.workloadUsage[workload]
+    if (!byModel) {
+      byModel = {}
+      this.workloadUsage[workload] = byModel
+    }
+    let entry = byModel[model]
+    if (!entry) {
+      entry = {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 0,
+        webSearchRequests: 0,
+        costUSD: 0,
+      }
+      byModel[model] = entry
+    }
+    entry.inputTokens += delta.inputTokens
+    entry.outputTokens += delta.outputTokens
+    entry.cacheReadInputTokens += delta.cacheReadInputTokens
+    entry.cacheCreationInputTokens += delta.cacheCreationInputTokens
+    entry.webSearchRequests += delta.webSearchRequests
+    entry.costUSD += delta.costUSD
   }
 
   recordWorkloadUnpricedTurn(workload: string, model: string): void {
-    return notBuilt('src/bootstrap/runtime/usage-ledger.ts:68')
+    let byModel = this.workloadUnpricedTurns[workload]
+    if (!byModel) {
+      byModel = {}
+      this.workloadUnpricedTurns[workload] = byModel
+    }
+    byModel[model] = (byModel[model] ?? 0) + 1
   }
 
   getTotalUnpricedTurns(): number {
-    return notBuilt('src/bootstrap/runtime/usage-ledger.ts:73')
+    return Object.values(this.unpricedTurns).reduce((sum, count) => sum + count, 0)
   }
 
   addToolDuration(duration: number): void {
-    return notBuilt('src/bootstrap/runtime/usage-ledger.ts:77')
+    this.totalToolDuration += duration
   }
 
   addToTotalLinesChanged(added: number, removed: number): void {
-    return notBuilt('src/bootstrap/runtime/usage-ledger.ts:81')
+    this.totalLinesAdded += added
+    this.totalLinesRemoved += removed
   }
 
   getTotalDuration(): number {
-    return notBuilt('src/bootstrap/runtime/usage-ledger.ts:86')
+    return Date.now() - this.startTime
   }
 
   getTotalInputTokens(): number {
-    return notBuilt('src/bootstrap/runtime/usage-ledger.ts:90')
+    return sumBy(Object.values(this.modelUsage), 'inputTokens')
   }
 
   getTotalOutputTokens(): number {
-    return notBuilt('src/bootstrap/runtime/usage-ledger.ts:94')
+    return sumBy(Object.values(this.modelUsage), 'outputTokens')
   }
 
   getTotalCacheReadInputTokens(): number {
-    return notBuilt('src/bootstrap/runtime/usage-ledger.ts:98')
+    return sumBy(Object.values(this.modelUsage), 'cacheReadInputTokens')
   }
 
   getTotalCacheCreationInputTokens(): number {
-    return notBuilt('src/bootstrap/runtime/usage-ledger.ts:102')
+    return sumBy(Object.values(this.modelUsage), 'cacheCreationInputTokens')
   }
 
   getTotalWebSearchRequests(): number {
-    return notBuilt('src/bootstrap/runtime/usage-ledger.ts:106')
+    return sumBy(Object.values(this.modelUsage), 'webSearchRequests')
   }
 
   resetCostState(): void {
-    return notBuilt('src/bootstrap/runtime/usage-ledger.ts:110')
+    this.totalCostUSD = 0
+    this.totalAPIDuration = 0
+    this.totalAPIDurationWithoutRetries = 0
+    this.totalToolDuration = 0
+    this.startTime = Date.now()
+    this.totalLinesAdded = 0
+    this.totalLinesRemoved = 0
+    this.hasUnknownModelCost = false
+    this.modelUsage = {}
+    this.unpricedTurns = {}
+    this.workloadUsage = {}
+    this.workloadUnpricedTurns = {}
   }
 
   setCostStateForRestore(arg0: {
@@ -106,6 +146,26 @@ export class UsageLedgerOwner {
     workloadUsage?: WorkloadUsage | undefined
     workloadUnpricedTurns?: WorkloadUnpricedTurns | undefined
   }): void {
-    return notBuilt('src/bootstrap/runtime/usage-ledger.ts:125')
+    this.totalCostUSD = arg0.totalCostUSD
+    this.totalAPIDuration = arg0.totalAPIDuration
+    this.totalAPIDurationWithoutRetries = arg0.totalAPIDurationWithoutRetries
+    this.totalToolDuration = arg0.totalToolDuration
+    this.totalLinesAdded = arg0.totalLinesAdded
+    this.totalLinesRemoved = arg0.totalLinesRemoved
+    if (arg0.lastDuration !== undefined && arg0.lastDuration !== 0) {
+      this.startTime = Date.now() - arg0.lastDuration
+    }
+    if (arg0.modelUsage !== undefined) {
+      this.modelUsage = arg0.modelUsage
+    }
+    if (arg0.unpricedTurns !== undefined) {
+      this.unpricedTurns = arg0.unpricedTurns
+    }
+    if (arg0.workloadUsage !== undefined) {
+      this.workloadUsage = arg0.workloadUsage
+    }
+    if (arg0.workloadUnpricedTurns !== undefined) {
+      this.workloadUnpricedTurns = arg0.workloadUnpricedTurns
+    }
   }
 }
