@@ -11,24 +11,27 @@ import type { MemoryType } from '../memory/types.js'
 import { getManagedFilePath } from '../settings/managedPath.js'
 
 import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfigDeferred } from './globalConfig.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export function getRemoteControlAtStartup(): boolean {
-  return notBuilt('src/utils/config/derived.ts:15')
+  const saved = getGlobalConfig().remoteControlAtStartup
+  return saved !== undefined ? saved : false
 }
 
 export function getCustomApiKeyStatus(
   truncatedApiKey: string,
 ): 'approved' | 'rejected' | 'new' {
-  return notBuilt('src/utils/config/derived.ts:22')
+  const responses = getGlobalConfig().customApiKeyResponses
+  if (responses?.approved?.includes(truncatedApiKey)) return 'approved'
+  if (responses?.rejected?.includes(truncatedApiKey)) return 'rejected'
+  return 'new'
 }
 
 export function binaryName(): string {
-  return notBuilt('src/utils/config/derived.ts:31')
+  return 'mercury'
 }
 
 export function isCopyOnSelectEnabled(): boolean {
-  return notBuilt('src/utils/config/derived.ts:35')
+  return getGlobalConfig().copyOnSelect ?? true
 }
 
 export function isMouseCaptureEnabled(): boolean {
@@ -42,19 +45,28 @@ export function isMercurySubstrateProfileOn(): boolean {
 }
 
 export function recordFirstStartTime(): void {
-  return notBuilt('src/utils/config/derived.ts:49')
+  if (getGlobalConfig().firstStartTime) return
+  const firstStartTime = new Date().toISOString()
+  saveGlobalConfigDeferred(current => ({ ...current, firstStartTime: current.firstStartTime ?? firstStartTime }))
+}
+
+const MEMORY_HOME_FILE: Record<MemoryType, (originalCwd: string) => string> = {
+  User: () => join(getMercuryHome(), 'MERCURY.md'),
+  Local: originalCwd => join(originalCwd, 'MERCURY.local.md'),
+  Project: originalCwd => join(originalCwd, 'MERCURY.md'),
+  Managed: () => join(getManagedFilePath(), 'MERCURY.md'),
 }
 
 export function getMemoryPath(memoryType: MemoryType): string {
-  return notBuilt('src/utils/config/derived.ts:65')
+  return MEMORY_HOME_FILE[memoryType](getOriginalCwd())
 }
 
 export function getManagedRulesDir(): string {
-  return notBuilt('src/utils/config/derived.ts:69')
+  return join(getManagedFilePath(), '.mercury', 'rules')
 }
 
 export function getUserRulesDir(): string {
-  return notBuilt('src/utils/config/derived.ts:73')
+  return join(getMercuryHome(), 'rules')
 }
 
 export function getEffectivePermissionMode(sessionMode: PermissionMode): SessionPermissionModeResolution {
