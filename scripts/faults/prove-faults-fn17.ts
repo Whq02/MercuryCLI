@@ -46,7 +46,7 @@ console.log('modelRefusal — readModelRefusals throws on unreadable directory i
   const r = runScenario(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const mod = await import(SRC + '/services/providers/anthropic/modelRefusal.ts')
+    const mod = await import(SRC + '/models/roads/anthropic/modelRefusal.ts')
     out.absentStanding = mod.standingModelRefusals().length
     out.absentForget = mod.forgetModelRefusals(HOME)
     const dir = path.join(HOME, 'model-refusals')
@@ -78,7 +78,7 @@ console.log('prefixRecordStore — sweepPrefixRecords fails closed when getSessi
     const fs = await import('node:fs')
     const path = await import('node:path')
     const { mock } = await import('bun:test')
-    const statePath = SRC + '/bootstrap/state.ts'
+    const statePath = SRC + '/boot/process-state/processState.ts'
     const realState = await import(statePath)
     mock.module(statePath, () => ({
       ...realState,
@@ -90,7 +90,7 @@ console.log('prefixRecordStore — sweepPrefixRecords fails closed when getSessi
     fs.writeFileSync(ledger, '{}')
     const oldTime = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000)
     fs.utimesSync(ledger, oldTime, oldTime)
-    const store = await import(SRC + '/services/providers/anthropic/prefixRecordStore.ts')
+    const store = await import(SRC + '/models/roads/anthropic/prefixRecordStore.ts')
     try {
       await store.sweepPrefixRecords({ home: HOME })
       out.threw = null
@@ -109,7 +109,7 @@ console.log('prefixRecordStore — sweepPrefixRecords fails closed when getSessi
 console.log('faultUsageEstimate — non-JSON-serializable requests still estimate input tokens')
 {
   const r = runScenario(`
-    const mod = await import(SRC + '/services/providers/faultUsageEstimate.ts')
+    const mod = await import(SRC + '/models/roads/faultUsageEstimate.ts')
     const circular = { model: 'm', prompt: 'x'.repeat(400) }
     circular.self = circular
     const cUsage = mod.estimateFaultedRequestUsage({ lane: 'test', model: 'm', request: circular, minted: [], faultCode: 'cut' })
@@ -132,7 +132,7 @@ if (POSIX_MODES) {
   const r = runScenario(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const mod = await import(SRC + '/services/providers/gemini/antigravityClientContract.ts')
+    const mod = await import(SRC + '/models/roads/gemini/antigravityClientContract.ts')
     const file = mod.antigravityClientContractPath()
     const original = JSON.stringify({ version: 1, learned: { version: '9.9.9', learnedAtMs: 1, from: 'http://127.0.0.1' } }) + '\\n'
     fs.mkdirSync(path.dirname(file), { recursive: true })
@@ -160,7 +160,7 @@ if (POSIX_MODES) {
   const w = runScenario(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const mod = await import(SRC + '/services/providers/gemini/antigravityClientContract.ts')
+    const mod = await import(SRC + '/models/roads/gemini/antigravityClientContract.ts')
     const file = mod.antigravityClientContractPath()
     const dir = path.dirname(file)
     fs.mkdirSync(dir, { recursive: true })
@@ -187,7 +187,7 @@ if (POSIX_MODES) {
   const t = runScenario(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const mod = await import(SRC + '/services/providers/gemini/antigravityClientContract.ts')
+    const mod = await import(SRC + '/models/roads/gemini/antigravityClientContract.ts')
     const file = mod.antigravityClientContractPath()
     fs.mkdirSync(path.dirname(file), { recursive: true })
     fs.writeFileSync(file, 'torn-not-json {', { mode: 0o600 })
@@ -211,7 +211,7 @@ if (POSIX_MODES) {
   const r = runScenario(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const mod = await import(SRC + '/services/providers/deferralProbe.ts')
+    const mod = await import(SRC + '/models/roads/deferralProbe.ts')
     const file = path.join(HOME, 'tool-deferral-probe.json')
     const original = JSON.stringify({ version: 1, hosts: { 'a.example': { verdict: 'block', evidence: 'http 200', status: 200, probedAt: '2026-11-20T00:00:00.000Z' } } }, null, 2)
     fs.writeFileSync(file, original, { mode: 0o600 })
@@ -234,7 +234,7 @@ if (POSIX_MODES) {
   const t = runScenario(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const mod = await import(SRC + '/services/providers/deferralProbe.ts')
+    const mod = await import(SRC + '/models/roads/deferralProbe.ts')
     const file = path.join(HOME, 'tool-deferral-probe.json')
     fs.writeFileSync(file, 'torn-not-json {', { mode: 0o600 })
     mod.recordGatewayProbe('b.example', { verdict: 'text', evidence: 'http 400', status: 400, probedAt: '2026-11-20T00:00:00.000Z' })

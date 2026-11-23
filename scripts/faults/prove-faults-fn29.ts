@@ -55,7 +55,7 @@ function runIsolated(body: string): Record<string, unknown> {
 console.log('1. src/permissions/capability/manifest.ts — throwing isEnabled reads unavailable')
 {
   const r = runIsolated(`
-    const { compileToolCapabilityCard } = await import(SRC + '/utils/capability/manifest.ts')
+    const { compileToolCapabilityCard } = await import(SRC + '/permissions/capability/manifest.ts')
     const base = {
       name: 'ProbeTool',
       capability: {
@@ -91,8 +91,8 @@ else {
   const r = runIsolated(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const { recordingsUnderSweep } = await import(SRC + '/services/cleanup.ts')
-    const { getProjectsDir } = await import(SRC + '/utils/sessionStorage.ts')
+    const { recordingsUnderSweep } = await import(SRC + '/sessions/transcripts/retentionSweep.ts')
+    const { getProjectsDir } = await import(SRC + '/sessions/transcripts/sessionStorage.ts')
     const root = getProjectsDir()
     out.absent = await recordingsUnderSweep()
     const projA = path.join(root, 'proj-a')
@@ -140,8 +140,8 @@ console.log('3. src/screen/cockpit-gauges/daemonSnapshot.ts — EPERM on pid pro
   const r = runIsolated(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const { daemonStatePath } = await import(SRC + '/daemon/controlSocket.ts')
-    const { daemonSnapshot } = await import(SRC + '/services/cockpit/daemonSnapshot.ts')
+    const { daemonStatePath } = await import(SRC + '/daemon/control/controlSocket.ts')
+    const { daemonSnapshot } = await import(SRC + '/screen/cockpit-gauges/daemonSnapshot.ts')
     const recPath = daemonStatePath()
     fs.mkdirSync(path.dirname(recPath), { recursive: true })
     fs.writeFileSync(recPath, JSON.stringify({
@@ -185,9 +185,9 @@ console.log('4. src/screen/cockpit-gauges/harnessMap.ts — throwing DAP probe d
 {
   const r = runIsolated(`
     const { mock } = await import('bun:test')
-    const realDap = await import(SRC + '/services/dap/dapClient.ts')
+    const realDap = await import(SRC + '/integrations/debugger/dapClient.ts')
     let shouldThrow = true
-    mock.module(SRC + '/services/dap/dapClient.js', () => ({
+    mock.module(SRC + '/integrations/debugger/dapClient.js', () => ({
       ...realDap,
       mercuryDapEnabled: () => true,
       dapAdapterProbePending: () => false,
@@ -196,7 +196,7 @@ console.log('4. src/screen/cockpit-gauges/harnessMap.ts — throwing DAP probe d
         return []
       },
     }))
-    const { computeHarnessMapLines } = await import(SRC + '/services/cockpit/harnessMap.ts')
+    const { computeHarnessMapLines } = await import(SRC + '/screen/cockpit-gauges/harnessMap.ts')
     out.onThrow = computeHarnessMapLines().some(l => l.includes('The Debug tool is withheld'))
     shouldThrow = false
     out.onEmpty = computeHarnessMapLines().some(l => l.includes('The Debug tool is withheld'))
@@ -218,8 +218,8 @@ console.log('5. src/platform/health/healthCertSnapshot.ts — corrupt or unreada
   const r = runIsolated(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const { lastCertPath } = await import(SRC + '/services/health/healthReport.ts')
-    const { healthCertSnapshot } = await import(SRC + '/services/health/healthCertSnapshot.ts')
+    const { lastCertPath } = await import(SRC + '/platform/health/healthReport.ts')
+    const { healthCertSnapshot } = await import(SRC + '/platform/health/healthCertSnapshot.ts')
     out.absent = healthCertSnapshot()
     const certFile = lastCertPath()
     fs.mkdirSync(path.dirname(certFile), { recursive: true })
@@ -263,14 +263,14 @@ console.log('6. src/screen/cockpit-gauges/mcpGauge.ts — policy or project MCP 
 {
   const rPolicy = runIsolated(`
     const { mock } = await import('bun:test')
-    const realPolicy = await import(SRC + '/utils/mcp/toolPolicy.ts')
-    mock.module(SRC + '/utils/mcp/toolPolicy.js', () => ({
+    const realPolicy = await import(SRC + '/integrations/mcp-shapes/toolPolicy.ts')
+    mock.module(SRC + '/integrations/mcp-shapes/toolPolicy.js', () => ({
       ...realPolicy,
       getMaxExposedRisk: () => { throw new Error('policy read failed') },
     }))
-    const { enableConfigs } = await import(SRC + '/utils/config/globalConfig.ts')
+    const { enableConfigs } = await import(SRC + '/platform/config/globalConfig.ts')
     enableConfigs()
-    const { mcpGauge } = await import(SRC + '/services/cockpit/mcpGauge.ts')
+    const { mcpGauge } = await import(SRC + '/screen/cockpit-gauges/mcpGauge.ts')
     out.snap = mcpGauge()
   `)
   const snapPolicy = rPolicy.snap as { state?: string; reason?: string; data?: { mcpPolicyHint?: string } } | undefined
@@ -283,10 +283,10 @@ console.log('6. src/screen/cockpit-gauges/mcpGauge.ts — policy or project MCP 
   const rProj = runIsolated(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const { enableConfigs } = await import(SRC + '/utils/config/globalConfig.ts')
-    const { setCwd } = await import(SRC + '/utils/Shell.ts')
-    const { setIsInteractive, setSessionTrustAccepted, setOriginalCwd, setProjectRoot } = await import(SRC + '/bootstrap/state.ts')
-    const { resetTrustDialogAcceptedCacheForTesting } = await import(SRC + '/utils/config/trust.ts')
+    const { enableConfigs } = await import(SRC + '/platform/config/globalConfig.ts')
+    const { setCwd } = await import(SRC + '/platform/shell/shellExec.ts')
+    const { setIsInteractive, setSessionTrustAccepted, setOriginalCwd, setProjectRoot } = await import(SRC + '/boot/process-state/processState.ts')
+    const { resetTrustDialogAcceptedCacheForTesting } = await import(SRC + '/platform/config/trust.ts')
     enableConfigs()
     setCwd(PROJECT)
     setOriginalCwd(PROJECT)
@@ -296,7 +296,7 @@ console.log('6. src/screen/cockpit-gauges/mcpGauge.ts — policy or project MCP 
     resetTrustDialogAcceptedCacheForTesting()
     fs.mkdirSync(path.join(PROJECT, '.mercury'), { recursive: true })
     fs.writeFileSync(path.join(PROJECT, '.mercury', 'mcp.json'), '{ broken json')
-    const { mcpGauge } = await import(SRC + '/services/cockpit/mcpGauge.ts')
+    const { mcpGauge } = await import(SRC + '/screen/cockpit-gauges/mcpGauge.ts')
     out.corrupt = mcpGauge()
   `)
   const snapCorrupt = rProj.corrupt as { state?: string; reason?: string } | undefined
@@ -314,8 +314,8 @@ else {
     const fs = await import('node:fs')
     const path = await import('node:path')
     process.env.MERCURY_TRACE = '1'
-    const { getInvocationTracePath } = await import(SRC + '/utils/observability/invocationTrace.ts')
-    const { traceSnapshot } = await import(SRC + '/utils/cockpit/traceSnapshot.ts')
+    const { getInvocationTracePath } = await import(SRC + '/platform/observability/invocationTrace.ts')
+    const { traceSnapshot } = await import(SRC + '/screen/cockpit/traceSnapshot.ts')
     out.absent = await traceSnapshot()
     const traceFile = getInvocationTracePath()
     fs.mkdirSync(path.dirname(traceFile), { recursive: true })
@@ -345,14 +345,14 @@ console.log('8. src/screen/app-state/commitAttribution.ts — throwing git delet
 {
   const r = runIsolated(`
     const { mock } = await import('bun:test')
-    const realExec = await import(SRC + '/utils/execFileNoThrow.ts')
-    mock.module(SRC + '/utils/execFileNoThrow.js', () => ({
+    const realExec = await import(SRC + '/platform/processes/execFileNoThrow.ts')
+    mock.module(SRC + '/platform/processes/execFileNoThrow.js', () => ({
       ...realExec,
       execFileNoThrowWithCwd: async () => {
         throw new Error('git spawn exploded')
       },
     }))
-    const { calculateCommitAttribution, createEmptyAttributionState } = await import(SRC + '/utils/commitAttribution.ts')
+    const { calculateCommitAttribution, createEmptyAttributionState } = await import(SRC + '/screen/app-state/commitAttribution.ts')
     try {
       out.data = await calculateCommitAttribution([createEmptyAttributionState()], ['gone.ts'])
     } catch (e) {
@@ -376,8 +376,8 @@ else {
       enableConfigs,
       getConfig,
       getConfigBackupDir,
-    } = await import(SRC + '/utils/config/globalConfig.ts')
-    const { createDefaultGlobalConfig } = await import(SRC + '/utils/config/schema.ts')
+    } = await import(SRC + '/platform/config/globalConfig.ts')
+    const { createDefaultGlobalConfig } = await import(SRC + '/platform/config/schema.ts')
     enableConfigs()
     const target = path.join(HOME, 'corrupt-test.json')
     fs.writeFileSync(target, '{ broken json', { mode: 0o600 })
@@ -427,12 +427,12 @@ console.log('10. src/screen/cockpit-gauges/daemonSnapshot.ts — unexpected fail
 {
   const r = runIsolated(`
     const { mock } = await import('bun:test')
-    const realCtrl = await import(SRC + '/daemon/controlSocket.ts')
-    mock.module(SRC + '/daemon/controlSocket.js', () => ({
+    const realCtrl = await import(SRC + '/daemon/control/controlSocket.ts')
+    mock.module(SRC + '/daemon/control/controlSocket.js', () => ({
       ...realCtrl,
       daemonStatePath: () => { throw new Error('state path broke') },
     }))
-    const { daemonSnapshot } = await import(SRC + '/services/cockpit/daemonSnapshot.ts')
+    const { daemonSnapshot } = await import(SRC + '/screen/cockpit-gauges/daemonSnapshot.ts')
     out.snap = daemonSnapshot()
   `)
   const snap = r.snap as { state?: string; reason?: string } | undefined
@@ -447,12 +447,12 @@ console.log('11. src/screen/cockpit-gauges/fleetGauge.ts — worker or execution
 {
   const rConcourse = runIsolated(`
     const { mock } = await import('bun:test')
-    const realConcourse = await import(SRC + '/daemon/concourseWorkers.ts')
-    mock.module(SRC + '/daemon/concourseWorkers.js', () => ({
+    const realConcourse = await import(SRC + '/daemon/concourse-workers/concourseWorkers.ts')
+    mock.module(SRC + '/daemon/concourse-workers/concourseWorkers.js', () => ({
       ...realConcourse,
       listConcourseWorkers: () => { throw new Error('workers read failed') },
     }))
-    const { fleetGauge } = await import(SRC + '/services/cockpit/fleetGauge.ts')
+    const { fleetGauge } = await import(SRC + '/screen/cockpit-gauges/fleetGauge.ts')
     out.snap = await fleetGauge()
   `)
   const snapC = rConcourse.snap as { state?: string; reason?: string } | undefined
@@ -464,12 +464,12 @@ console.log('11. src/screen/cockpit-gauges/fleetGauge.ts — worker or execution
 
   const rExec = runIsolated(`
     const { mock } = await import('bun:test')
-    const realExec = await import(SRC + '/utils/primitives/executionPlane.ts')
-    mock.module(SRC + '/utils/primitives/executionPlane.js', () => ({
+    const realExec = await import(SRC + '/engine/execution-plane/executionPlane.ts')
+    mock.module(SRC + '/engine/execution-plane/executionPlane.js', () => ({
       ...realExec,
       listExecutions: () => { throw new Error('executions registry failed') },
     }))
-    const { fleetGauge } = await import(SRC + '/services/cockpit/fleetGauge.ts')
+    const { fleetGauge } = await import(SRC + '/screen/cockpit-gauges/fleetGauge.ts')
     out.snap = await fleetGauge()
   `)
   const snapE = rExec.snap as { state?: string; reason?: string } | undefined

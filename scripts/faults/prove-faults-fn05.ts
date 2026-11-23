@@ -255,10 +255,11 @@ function runIsolated(body: string): Record<string, unknown> {
     const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'faults-fn05-wards-')))
     try {
       fs.mkdirSync(path.join(repo, '.git'))
-      fs.mkdirSync(path.join(repo, 'src/components'), { recursive: true })
+      fs.mkdirSync(path.join(repo, 'src/screen/theme'), { recursive: true })
+      fs.mkdirSync(path.join(repo, 'src/screen/widgets'))
       fs.writeFileSync(path.join(repo, 'src/screen/theme/mercuryPalette.ts'), 'export const x = 1\\n')
       fs.writeFileSync(path.join(repo, 'package.json'), '{ corrupt json')
-      fs.writeFileSync(path.join(repo, 'src/components/a.tsx'), 'export const a = 1\\n')
+      fs.writeFileSync(path.join(repo, 'src/screen/widgets/a.tsx'), 'export const a = 1\\n')
       try {
         fs.symlinkSync(path.join(repo, 'loop-b'), path.join(repo, 'loop-a'))
         fs.symlinkSync(path.join(repo, 'loop-a'), path.join(repo, 'loop-b'))
@@ -277,21 +278,21 @@ function runIsolated(body: string): Record<string, unknown> {
       wardsGuard.registerWardsGuard(() => {}, 'wards-fn05')
       out.throwVerdict = await guardsMod.judgeToolCall('wards-fn05', {
         tool: 'Edit',
-        input: { file_path: path.join(repo, 'src/components/a.tsx'), old_string: '1', new_string: '2' },
+        input: { file_path: path.join(repo, 'src/screen/widgets/a.tsx'), old_string: '1', new_string: '2' },
         callId: 'w1',
         messages: [],
         toolRef: { name: 'Edit', shellCommandOf: () => { throw new Error('boom-in-ward') } },
       })
       out.throwAgain = await guardsMod.judgeToolCall('wards-fn05', {
         tool: 'Edit',
-        input: { file_path: path.join(repo, 'src/components/a.tsx'), old_string: '1', new_string: '2' },
+        input: { file_path: path.join(repo, 'src/screen/widgets/a.tsx'), old_string: '1', new_string: '2' },
         callId: 'w1b',
         messages: [],
         toolRef: { name: 'Edit', shellCommandOf: () => { throw new Error('boom-in-ward') } },
       })
       out.badPkgVerdict = await guardsMod.judgeToolCall('wards-fn05', {
         tool: 'Edit',
-        input: { file_path: path.join(repo, 'src/components/a.tsx'), old_string: '1', new_string: 'const c = "#ff0000"' },
+        input: { file_path: path.join(repo, 'src/screen/widgets/a.tsx'), old_string: '1', new_string: 'const c = "#ff0000"' },
         callId: 'w2',
         messages: [],
       })
@@ -301,7 +302,7 @@ function runIsolated(body: string): Record<string, unknown> {
         fs.chmodSync(path.join(repo, 'package.json'), 0o000)
         out.unreadPkgVerdict = await guardsMod.judgeToolCall('wards-fn05', {
           tool: 'Edit',
-          input: { file_path: path.join(repo, 'src/components/a.tsx'), old_string: '1', new_string: 'const c = "#ff0000"' },
+          input: { file_path: path.join(repo, 'src/screen/widgets/a.tsx'), old_string: '1', new_string: 'const c = "#ff0000"' },
           callId: 'w3',
           messages: [],
         })

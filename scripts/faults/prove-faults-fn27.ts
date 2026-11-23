@@ -97,7 +97,7 @@ try {
             return realFsp.stat(p, ...rest)
           },
         }))
-        const { prepareApply } = await import(SRC + '/tools/LSPTool/mercuryOps/prepare.ts')
+        const { prepareApply } = await import(SRC + '/tools/lsp/mercury-ops/prepare.ts')
         const env = { cwd: ${JSON.stringify(dir)}, absolutePath: blockedPath, manager: {}, input: {}, tool: {}, context: {} }
         out.res = await prepareApply(
           env,
@@ -146,9 +146,9 @@ try {
 
   {
     const r = runIsolated(`
-      const { ListMcpResourcesTool } = await import(SRC + '/tools/ListMcpResourcesTool/ListMcpResourcesTool.ts')
-      const { getEmptyToolPermissionContext } = await import(SRC + '/Tool.ts')
-      const { tellMcpToolsTheClient } = await import(SRC + '/services/mcp/client/forTools.ts')
+      const { ListMcpResourcesTool } = await import(SRC + '/tools/list-mcp-resources/ListMcpResourcesTool.ts')
+      const { getEmptyToolPermissionContext } = await import(SRC + '/tools/kit/tool.ts')
+      const { tellMcpToolsTheClient } = await import(SRC + '/integrations/mcp/client/forTools.ts')
       tellMcpToolsTheClient({
         ensureConnectedClient: async client => {
           if (client.name === 'broken') throw new Error('MCP server "broken" is not connected')
@@ -192,16 +192,16 @@ try {
   {
     const r = runIsolated(`
       const { mock } = await import('bun:test')
-      const stateMod = await import(SRC + '/bootstrap/state.ts')
-      mock.module(SRC + '/bootstrap/state.ts', () => ({
+      const stateMod = await import(SRC + '/boot/process-state/processState.ts')
+      mock.module(SRC + '/boot/process-state/processState.ts', () => ({
         ...stateMod,
         getSessionId: () => { throw new Error('broken-session-state') },
       }))
-      mock.module(SRC + '/bootstrap/state.js', () => ({
+      mock.module(SRC + '/boot/process-state/processState.js', () => ({
         ...stateMod,
         getSessionId: () => { throw new Error('broken-session-state') },
       }))
-      const { RetainTool } = await import(SRC + '/tools/MemoryTools/MemoryTools.ts')
+      const { RetainTool } = await import(SRC + '/tools/memory/MemoryTools.ts')
       const ctx = {
         messages: [{ type: 'user', message: { role: 'user', content: 'please remember that the build uses bun' } }],
         abortController: new AbortController(),
@@ -228,16 +228,16 @@ try {
       const fs = await import('node:fs')
       const path = await import('node:path')
       const { mock } = await import('bun:test')
-      const stopMod = await import(SRC + '/tasks/stopTask.ts')
-      mock.module(SRC + '/tasks/stopTask.ts', () => ({
+      const stopMod = await import(SRC + '/engine/tasks/stopTask.ts')
+      mock.module(SRC + '/engine/tasks/stopTask.ts', () => ({
         ...stopMod,
         stopTask: async () => { throw new Error('stopTask-refused') },
       }))
-      mock.module(SRC + '/tasks/stopTask.js', () => ({
+      mock.module(SRC + '/engine/tasks/stopTask.js', () => ({
         ...stopMod,
         stopTask: async () => { throw new Error('stopTask-refused') },
       }))
-      const { MonitorTool } = await import(SRC + '/tools/MonitorTool/MonitorTool.ts')
+      const { MonitorTool } = await import(SRC + '/tools/monitor/MonitorTool.ts')
       const pidFile = path.join(SCRATCH, 'mon.pid')
       let state = { tasks: {}, toolPermissionContext: { mode: 'default' } }
       const ctx = {
@@ -285,34 +285,34 @@ try {
   {
     const r = runIsolated(`
       const { mock } = await import('bun:test')
-      const pathsMod = await import(SRC + '/utils/sessionStorage/paths.ts')
-      const launchMod = await import(SRC + '/tasks/LocalAgentTask/launchReceipts.ts')
+      const pathsMod = await import(SRC + '/sessions/transcripts/paths.ts')
+      const launchMod = await import(SRC + '/engine/tasks/local-agent/launchReceipts.ts')
       let failPath = false
-      mock.module(SRC + '/utils/sessionStorage/paths.ts', () => ({
+      mock.module(SRC + '/sessions/transcripts/paths.ts', () => ({
         ...pathsMod,
         getAgentTranscriptPath: id => {
           if (failPath) throw new Error('bad-transcript-path')
           return pathsMod.getAgentTranscriptPath(id)
         },
       }))
-      mock.module(SRC + '/utils/sessionStorage/paths.js', () => ({
+      mock.module(SRC + '/sessions/transcripts/paths.js', () => ({
         ...pathsMod,
         getAgentTranscriptPath: id => {
           if (failPath) throw new Error('bad-transcript-path')
           return pathsMod.getAgentTranscriptPath(id)
         },
       }))
-      mock.module(SRC + '/tasks/LocalAgentTask/launchReceipts.ts', () => ({
+      mock.module(SRC + '/engine/tasks/local-agent/launchReceipts.ts', () => ({
         ...launchMod,
         recordedLaunchesNamed: async () => { throw new Error('launch-read-failed') },
         recordedNamedLaunches: async () => { throw new Error('launch-list-failed') },
       }))
-      mock.module(SRC + '/tasks/LocalAgentTask/launchReceipts.js', () => ({
+      mock.module(SRC + '/engine/tasks/local-agent/launchReceipts.js', () => ({
         ...launchMod,
         recordedLaunchesNamed: async () => { throw new Error('launch-read-failed') },
         recordedNamedLaunches: async () => { throw new Error('launch-list-failed') },
       }))
-      const { resolveCrewAddress, unknownAgentRefusal } = await import(SRC + '/tools/SendMessageTool/crewAddress.ts')
+      const { resolveCrewAddress, unknownAgentRefusal } = await import(SRC + '/tools/send-message/crewAddress.ts')
       const ctx = {
         messages: [],
         getAppState: () => ({ tasks: {}, agentNameRegistry: new Map() }),
@@ -360,7 +360,7 @@ try {
 
   {
     const r = runIsolated(`
-      const { ToolSearchTool } = await import(SRC + '/tools/ToolSearchTool/ToolSearchTool.ts')
+      const { ToolSearchTool } = await import(SRC + '/tools/tool-search/ToolSearchTool.ts')
       const makeTool = (name, hint, isEnabled) => ({
         name,
         shouldDefer: true,
@@ -395,7 +395,7 @@ try {
     const r = runIsolated(`
       const path = await import('node:path')
       process.env.MERCURY_MODEL = 'claude-opus-4-8'
-      const { VideoTool } = await import(SRC + '/tools/VideoTool/VideoTool.tsx')
+      const { VideoTool } = await import(SRC + '/tools/video/VideoTool.tsx')
       const mapped = VideoTool.mapToolResultToToolResultBlockParam(
         {
           outcome: 'succeeded',
@@ -439,7 +439,7 @@ try {
           ),
         }))
       }
-      const { exec } = await import(SRC + '/utils/Shell.ts')
+      const { exec } = await import(SRC + '/platform/shell/shellExec.ts')
       const enotdirCmd = await exec('echo hi', new AbortController().signal, 'bash', { cwd: notDirChild })
       const enotdirRes = await enotdirCmd.result
       out.enotdirErr = enotdirRes.preSpawnError ?? ''
@@ -492,10 +492,10 @@ try {
     const r = runIsolated(`
       const fs = await import('node:fs')
       const path = await import('node:path')
-      const state = await import(SRC + '/bootstrap/state.ts')
+      const state = await import(SRC + '/boot/process-state/processState.ts')
       state.setOriginalCwd(PROJECT)
       state.setCwdState(PROJECT)
-      const { exec, getShellCwd } = await import(SRC + '/utils/Shell.ts')
+      const { exec, getShellCwd } = await import(SRC + '/platform/shell/shellExec.ts')
       const run = async (command, options) => {
         const result = await (await exec(command, new AbortController().signal, 'bash', options ?? {})).result
         return { code: result.code, stdout: result.stdout, stderr: result.stderr, preSpawnError: result.preSpawnError ?? '' }
@@ -568,7 +568,7 @@ try {
   {
     const r = runIsolated(`
       const { mock } = await import('bun:test')
-      const storageMod = await import(SRC + '/utils/secureStorage/index.ts')
+      const storageMod = await import(SRC + '/platform/secure-storage/index.ts')
       let mode = 'throw'
       const fakeStorage = {
         ...storageMod,
@@ -583,9 +583,9 @@ try {
           delete: () => false,
         }),
       }
-      mock.module(SRC + '/utils/secureStorage/index.ts', () => fakeStorage)
-      mock.module(SRC + '/utils/secureStorage/index.js', () => fakeStorage)
-      const { readAccountOAuthCreds } = await import(SRC + '/utils/accounts/scopedCredentialRead.ts')
+      mock.module(SRC + '/platform/secure-storage/index.ts', () => fakeStorage)
+      mock.module(SRC + '/platform/secure-storage/index.js', () => fakeStorage)
+      const { readAccountOAuthCreds } = await import(SRC + '/models/sign-in/account-ledger/scopedCredentialRead.ts')
       try {
         readAccountOAuthCreds(HOME)
         out.threw = false
@@ -612,7 +612,7 @@ try {
     const r = runIsolated(`
       const fs = await import('node:fs')
       const path = await import('node:path')
-      const { resolveLiveScopeIdentity, _resetIdentityCacheForTesting } = await import(SRC + '/utils/accounts/accountIdentity.ts')
+      const { resolveLiveScopeIdentity, _resetIdentityCacheForTesting } = await import(SRC + '/models/sign-in/account-ledger/accountIdentity.ts')
       const scopeDir = path.join(SCRATCH, 'scope-a')
       fs.mkdirSync(scopeDir, { recursive: true })
       fs.writeFileSync(path.join(scopeDir, '.mercury.json'), JSON.stringify({ oauthAccount: { accountUuid: 'u-1', emailAddress: 'saved@example.com' } }))

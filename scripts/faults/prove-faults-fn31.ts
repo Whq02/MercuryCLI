@@ -65,13 +65,13 @@ console.log('\ngatewayTrust.ts — a failed TLS fingerprint probe says so once a
     await new Promise(resolve => srv.close(resolve))
     const { mock } = await import('bun:test')
     const logs = []
-    const realDebug = await import(SRC + '/utils/debug.ts')
-    mock.module(SRC + '/utils/debug.js', () => ({
+    const realDebug = await import(SRC + '/platform/logs/debugLog.ts')
+    mock.module(SRC + '/platform/logs/debugLog.js', () => ({
       ...realDebug,
       logForDebugging: (msg) => { logs.push(String(msg)) },
     }))
-    const realStorage = await import(SRC + '/utils/secureStorage/index.ts')
-    mock.module(SRC + '/utils/secureStorage/index.js', () => ({
+    const realStorage = await import(SRC + '/platform/secure-storage/index.ts')
+    mock.module(SRC + '/platform/secure-storage/index.js', () => ({
       ...realStorage,
       getSecureStorage: () => ({
         readAsync: async () => ({
@@ -81,15 +81,15 @@ console.log('\ngatewayTrust.ts — a failed TLS fingerprint probe says so once a
         update: () => ({ success: true }),
       }),
     }))
-    const realState = await import(SRC + '/bootstrap/state.ts')
-    mock.module(SRC + '/bootstrap/state.js', () => ({
+    const realState = await import(SRC + '/boot/process-state/processState.ts')
+    mock.module(SRC + '/boot/process-state/processState.js', () => ({
       ...realState,
       getIsNonInteractiveSession: () => false,
     }))
     const stderrLines = []
     const origStderrWrite = process.stderr.write
     process.stderr.write = ((chunk) => { stderrLines.push(String(chunk)); return true })
-    const { restoreGatewayAuth } = await import(SRC + '/utils/gatewayTrust.ts')
+    const { restoreGatewayAuth } = await import(SRC + '/boot/entrypoints/gatewayTrust.ts')
     try {
       await restoreGatewayAuth()
     } finally {
@@ -113,7 +113,7 @@ else {
   const r = runScenario(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const { parseGitConfigValue } = await import(SRC + '/utils/git/gitConfigParser.ts')
+    const { parseGitConfigValue } = await import(SRC + '/platform/git/gitConfigParser.ts')
     const emptyDir = path.join(PROJECT, 'empty-git')
     fs.mkdirSync(emptyDir, { recursive: true })
     out.absent = await parseGitConfigValue(emptyDir, 'remote', 'origin', 'url')
@@ -152,7 +152,7 @@ else {
     const packed = path.join(gitDir, 'packed-refs')
     fs.writeFileSync(packed, '0123456789abcdef0123456789abcdef01234567 refs/heads/main\\n')
     process.chdir(repo)
-    const gf = await import(SRC + '/utils/git/gitFilesystem.ts')
+    const gf = await import(SRC + '/platform/git/gitFilesystem.ts')
     out.absentWorktrees = await gf.getWorktreeCountFromFs()
     fs.chmodSync(packed, 0o000)
     gf.regroundGitWatch()
@@ -222,7 +222,7 @@ else {
     fs.writeFileSync(cfg, '[core]\\n\\trepositoryformatversion = 0\\n')
     fs.chmodSync(cfg, 0o000)
     process.chdir(repo)
-    const { getGitState, isCurrentDirectoryBareGitRepo } = await import(SRC + '/utils/git.ts')
+    const { getGitState, isCurrentDirectoryBareGitRepo } = await import(SRC + '/platform/git/git.ts')
     try {
       out.state = await getGitState()
       out.stateErr = null
@@ -261,7 +261,7 @@ else {
     execFileSync('git', ['add', 'a.txt'], { cwd: repo, env })
     execFileSync('git', ['commit', '-q', '-m', 'init'], { cwd: repo, env })
     fs.writeFileSync(path.join(repo, 'a.txt'), 'two\\n')
-    const { fetchGitDiffFor, fetchGitDiffHunksFor } = await import(SRC + '/utils/gitDiff.ts')
+    const { fetchGitDiffFor, fetchGitDiffHunksFor } = await import(SRC + '/screen/diff/gitDiff.ts')
     out.cleanDiffOk = (await fetchGitDiffFor({ args: ['HEAD'], cwd: repo })) !== null
     const gitDir = path.join(repo, '.git')
     const block = path.join(gitDir, 'MERGE_HEAD')
@@ -279,14 +279,14 @@ else {
     fs.mkdirSync(linkedRepo, { recursive: true })
     fs.writeFileSync(path.join(linkedRepo, '.git'), 'gitdir: ' + fakeGitDir + '\\n')
     const { mock } = await import('bun:test')
-    mock.module(SRC + '/utils/execFileNoThrow.js', () => ({
+    mock.module(SRC + '/platform/processes/execFileNoThrow.js', () => ({
       execFileNoThrow: async () => ({ stdout: '', stderr: '', code: 0 }),
       execFileNoThrowWithCwd: async (_cmd, args) => {
         if (args.includes('--git-dir')) return { stdout: fakeGitDir + '\\n', stderr: '', code: 0 }
         return { stdout: '1\\t1\\ta.txt\\n', stderr: '', code: 0 }
       },
     }))
-    const diffMod = await import(SRC + '/utils/gitDiff.ts?locked')
+    const diffMod = await import(SRC + '/screen/diff/gitDiff.ts?locked')
     fs.chmodSync(fakeGitDir, 0o000)
     try {
       await diffMod.fetchGitDiffFor({ args: ['HEAD'], cwd: linkedRepo })
@@ -312,30 +312,30 @@ console.log('\ngracefulShutdown.ts — background hooks end on fireHooks throw a
   const r1 = runScenario(`
     const { mock } = await import('bun:test')
     let backgroundEnded = false
-    const realFire = await import(SRC + '/utils/hooks/fire.ts')
-    mock.module(SRC + '/utils/hooks/fire.js', () => ({
+    const realFire = await import(SRC + '/integrations/event-hooks/fire.ts')
+    mock.module(SRC + '/integrations/event-hooks/fire.js', () => ({
       ...realFire,
       fireHooks: async () => { throw new Error('fire boom') },
     }))
-    const realBg = await import(SRC + '/utils/hooks/background.ts')
-    mock.module(SRC + '/utils/hooks/background.js', () => ({
+    const realBg = await import(SRC + '/integrations/event-hooks/background.ts')
+    mock.module(SRC + '/integrations/event-hooks/background.js', () => ({
       ...realBg,
       endBackgroundHooks: async () => { backgroundEnded = true },
     }))
-    const realLin = await import(SRC + '/mneme/lineageSession.ts')
-    mock.module(SRC + '/mneme/lineageSession.js', () => ({
+    const realLin = await import(SRC + '/sessions/mneme/lineageSession.ts')
+    mock.module(SRC + '/sessions/mneme/lineageSession.js', () => ({
       ...realLin,
       closeLineageSession: async () => {},
     }))
-    const realDrain = await import(SRC + '/utils/exitCliffDrain.ts')
-    mock.module(SRC + '/utils/exitCliffDrain.js', () => ({
+    const realDrain = await import(SRC + '/platform/processes/exitCliffDrain.ts')
+    mock.module(SRC + '/platform/processes/exitCliffDrain.js', () => ({
       ...realDrain,
       drainExitCliffSeams: async () => {},
     }))
     const origExit = process.exit
     let exitCodeSeen = null
     process.exit = ((code) => { exitCodeSeen = code; throw new Error('EXIT_SENTINEL') })
-    const { gracefulShutdown } = await import(SRC + '/utils/gracefulShutdown.ts')
+    const { gracefulShutdown } = await import(SRC + '/platform/processes/gracefulShutdown.ts')
     try {
       await gracefulShutdown(0)
     } catch (e) {
@@ -354,15 +354,15 @@ console.log('\ngracefulShutdown.ts — background hooks end on fireHooks throw a
 
   const r2 = runScenario(`
     const { mock } = await import('bun:test')
-    const realRestore = await import(SRC + '/utils/shutdownRestoration.ts')
-    mock.module(SRC + '/utils/shutdownRestoration.js', () => ({
+    const realRestore = await import(SRC + '/screen/renderer/terminal-session/shutdownRestoration.ts')
+    mock.module(SRC + '/screen/renderer/terminal-session/shutdownRestoration.js', () => ({
       ...realRestore,
       cleanupTerminalModes: () => { throw new Error('tty restore boom') },
       printResumeHint: () => {},
       drainStdinForExit: () => {},
     }))
-    const realInk = await import(SRC + '/ink/instances.ts')
-    mock.module(SRC + '/ink/instances.js', () => ({
+    const realInk = await import(SRC + '/screen/renderer/instances.ts')
+    mock.module(SRC + '/screen/renderer/instances.js', () => ({
       ...realInk,
       default: { get: () => ({ awaitTerminalQueries: async () => {} }) },
     }))
@@ -370,7 +370,7 @@ console.log('\ngracefulShutdown.ts — background hooks end on fireHooks throw a
     const origExit = process.exit
     let exitCodeSeen = null
     process.exit = ((code) => { exitCodeSeen = code })
-    const { gracefulShutdownSync } = await import(SRC + '/utils/gracefulShutdown.ts')
+    const { gracefulShutdownSync } = await import(SRC + '/platform/processes/gracefulShutdown.ts')
     gracefulShutdownSync(7)
     await new Promise(resolve => setTimeout(resolve, 100))
     process.exit = origExit
@@ -387,12 +387,12 @@ console.log('\nhaltAll.ts — thrown daemonControlRpc error is reported as the r
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const real = await import(SRC + '/daemon/controlSocket.ts')
-    mock.module(SRC + '/daemon/controlSocket.js', () => ({
+    const real = await import(SRC + '/daemon/control/controlSocket.ts')
+    mock.module(SRC + '/daemon/control/controlSocket.js', () => ({
       ...real,
       daemonControlRpc: async () => { throw new Error('control key unreadable') },
     }))
-    const { haltAll } = await import(SRC + '/daemon/haltAll.ts')
+    const { haltAll } = await import(SRC + '/daemon/control/haltAll.ts')
     out.result = await haltAll({ getAppState: () => ({ tasks: {} }), setAppState: () => {} })
   `)
   const daemon = (r.result as { daemon?: { ok?: boolean; reason?: string } } | undefined)?.daemon
@@ -407,8 +407,8 @@ console.log('\ndurability.ts — EPERM from process.kill(pid, 0) counts journal 
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const realJournal = await import(SRC + '/substrate/operationJournal.ts')
-    mock.module(SRC + '/substrate/operationJournal.js', () => ({
+    const realJournal = await import(SRC + '/platform/substrate/operationJournal.ts')
+    mock.module(SRC + '/platform/substrate/operationJournal.js', () => ({
       ...realJournal,
       listJournalOperations: async () => [{ state: 'applying', writerPid: 424242 }],
     }))
@@ -422,7 +422,7 @@ console.log('\ndurability.ts — EPERM from process.kill(pid, 0) counts journal 
       return origKill(pid, sig)
     })
     try {
-      const { durabilityChecks } = await import(SRC + '/services/health/sections/durability.ts')
+      const { durabilityChecks } = await import(SRC + '/platform/health/sections/durability.ts')
       const spec = durabilityChecks().find(c => c.id === 'durable-journals')
       out.row = await spec.run()
     } finally {
@@ -441,19 +441,19 @@ console.log('\nauth.ts — routing failure does not default to anthropic and usa
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const realModel = await import(SRC + '/services/model/model.ts')
-    mock.module(SRC + '/services/model/model.js', () => ({
+    const realModel = await import(SRC + '/models/catalogue/engineModel.ts')
+    mock.module(SRC + '/models/catalogue/engineModel.js', () => ({
       ...realModel,
       getUserSpecifiedModelSetting: () => 'broken',
       getEngineModel: () => { throw new Error('route read boom') },
     }))
-    const realUsage = await import(SRC + '/services/providers/providerUsage.ts')
-    mock.module(SRC + '/services/providers/providerUsage.js', () => ({
+    const realUsage = await import(SRC + '/models/roads/providerUsage.ts')
+    mock.module(SRC + '/models/roads/providerUsage.js', () => ({
       ...realUsage,
       anthropicCredentialPresence: () => ({ credentialed: false, expired: false }),
       providerFamilyPresences: () => { throw new Error('usage read boom') },
     }))
-    const { authChecks } = await import(SRC + '/services/health/sections/auth.ts')
+    const { authChecks } = await import(SRC + '/platform/health/sections/auth.ts')
     const specs = await authChecks()
     const anth = specs.find(c => c.id === 'auth-anthropic')
     try {
@@ -481,12 +481,12 @@ console.log('\nruntime.ts — editOutcomeLedgerEnabled throw emits a throwing Ed
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const real = await import(SRC + '/services/changeTransaction/editOutcomeLedger.ts')
-    mock.module(SRC + '/services/changeTransaction/editOutcomeLedger.js', () => ({
+    const real = await import(SRC + '/tools/engines/change-transaction/editOutcomeLedger.ts')
+    mock.module(SRC + '/tools/engines/change-transaction/editOutcomeLedger.js', () => ({
       ...real,
       editOutcomeLedgerEnabled: () => { throw new Error('ledger check boom') },
     }))
-    const { runtimeChecks } = await import(SRC + '/services/health/sections/runtime.ts')
+    const { runtimeChecks } = await import(SRC + '/platform/health/sections/runtime.ts')
     const row = runtimeChecks().find(c => c.id === 'edit-outcomes')
     out.present = Boolean(row)
     out.label = row?.label ?? null
@@ -510,12 +510,12 @@ console.log('\nruntime/services.ts — mcpCheck propagates getMcpPolicyRejects t
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const realPolicy = await import(SRC + '/utils/mcp/toolPolicy.ts')
-    mock.module(SRC + '/utils/mcp/toolPolicy.js', () => ({
+    const realPolicy = await import(SRC + '/integrations/mcp-shapes/toolPolicy.ts')
+    mock.module(SRC + '/integrations/mcp-shapes/toolPolicy.js', () => ({
       ...realPolicy,
       getMcpPolicyRejects: () => { throw new Error('policy parser boom') },
     }))
-    const { mcpCheck } = await import(SRC + '/services/health/sections/runtime/services.ts')
+    const { mcpCheck } = await import(SRC + '/platform/health/sections/runtime/services.ts')
     try {
       out.row = mcpCheck().run()
       out.err = null
@@ -530,13 +530,13 @@ console.log('\nhealthDeepProbes.ts — probeServiceLifecycle kills child PID if 
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const realContracts = await import(SRC + '/services/projectServices/contracts.ts')
-    mock.module(SRC + '/services/projectServices/contracts.js', () => ({
+    const realContracts = await import(SRC + '/tools/engines/project-services/contracts.ts')
+    mock.module(SRC + '/tools/engines/project-services/contracts.js', () => ({
       ...realContracts,
       servicesEnabled: () => true,
     }))
-    const realSvc = await import(SRC + '/services/projectServices/serviceManager.ts')
-    mock.module(SRC + '/services/projectServices/serviceManager.js', () => ({
+    const realSvc = await import(SRC + '/tools/engines/project-services/serviceManager.ts')
+    mock.module(SRC + '/tools/engines/project-services/serviceManager.js', () => ({
       ...realSvc,
       startService: async () => ({ record: { pid: 424243, state: 'running' } }),
       waitForReady: async () => { throw new Error('wait boom') },
@@ -544,12 +544,12 @@ console.log('\nhealthDeepProbes.ts — probeServiceLifecycle kills child PID if 
       stopService: async () => { throw new Error('stop boom') },
     }))
     const kills = []
-    const realPg = await import(SRC + '/utils/processGroup.ts')
-    mock.module(SRC + '/utils/processGroup.js', () => ({
+    const realPg = await import(SRC + '/platform/processes/processGroup.ts')
+    mock.module(SRC + '/platform/processes/processGroup.js', () => ({
       ...realPg,
       endProcessTree: async (pid, sig) => { kills.push({ pid, sig }); return { ended: 1, survivors: [] } },
     }))
-    const { probeServiceLifecycle } = await import(SRC + '/services/health/healthDeepProbes.ts')
+    const { probeServiceLifecycle } = await import(SRC + '/platform/health/healthDeepProbes.ts')
     try {
       await probeServiceLifecycle()
       out.err = null
@@ -570,12 +570,12 @@ console.log('\nsettings/model.ts — modelCheck propagates getSettingsWithAllErr
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const realAllErrors = await import(SRC + '/services/settings/allErrors.ts')
-    mock.module(SRC + '/services/settings/allErrors.js', () => ({
+    const realAllErrors = await import(SRC + '/platform/settings-faults/allErrors.ts')
+    mock.module(SRC + '/platform/settings-faults/allErrors.js', () => ({
       ...realAllErrors,
       getSettingsWithAllErrors: () => { throw new Error('settings read boom') },
     }))
-    const { modelCheck } = await import(SRC + '/services/health/sections/settings/model.ts')
+    const { modelCheck } = await import(SRC + '/platform/health/sections/settings/model.ts')
     try {
       out.row = modelCheck().run()
       out.err = null
@@ -590,12 +590,12 @@ console.log('\nsettings/prompt.ts — hiddenCharactersCheck propagates skill sca
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const realSkills = await import(SRC + '/skills/loadSkillsDir.ts')
-    mock.module(SRC + '/skills/loadSkillsDir.js', () => ({
+    const realSkills = await import(SRC + '/integrations/skills/loadSkillsDir.ts')
+    mock.module(SRC + '/integrations/skills/loadSkillsDir.js', () => ({
       ...realSkills,
       getSkillDirCommands: async () => { throw new Error('skills scan boom') },
     }))
-    const { hiddenCharactersCheck } = await import(SRC + '/services/health/sections/settings/prompt.ts')
+    const { hiddenCharactersCheck } = await import(SRC + '/platform/health/sections/settings/prompt.ts')
     try {
       out.row = await hiddenCharactersCheck().run()
       out.err = null
@@ -610,17 +610,17 @@ console.log('\nsettings/sources.ts — killsCheck propagates getAgentCapParseRej
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const realCap = await import(SRC + '/utils/permissions/capabilityGate.ts')
-    mock.module(SRC + '/utils/permissions/capabilityGate.js', () => ({
+    const realCap = await import(SRC + '/permissions/rules/capabilityGate.ts')
+    mock.module(SRC + '/permissions/rules/capabilityGate.js', () => ({
       ...realCap,
       getAgentCapParseRejects: () => { throw new Error('cap parser boom') },
     }))
-    const realSettings = await import(SRC + '/utils/settings/settings.ts')
-    mock.module(SRC + '/utils/settings/settings.js', () => ({
+    const realSettings = await import(SRC + '/platform/settings/settings.ts')
+    mock.module(SRC + '/platform/settings/settings.js', () => ({
       ...realSettings,
       getSettingsForSource: () => { throw new Error('policy read boom') },
     }))
-    const { killsCheck, settingsCheck } = await import(SRC + '/services/health/sections/settings/sources.ts')
+    const { killsCheck, settingsCheck } = await import(SRC + '/platform/health/sections/settings/sources.ts')
     out.settingsRow = settingsCheck().run()
     try {
       out.killsRow = await killsCheck().run()
@@ -643,13 +643,13 @@ console.log('\nproofs.ts — gate check rejects corrupt verdict JSON instead of 
   const r = runScenario(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const { gateVerdictPath } = await import(SRC + '/services/health/healthReport.ts')
+    const { gateVerdictPath } = await import(SRC + '/platform/health/healthReport.ts')
     const vp = gateVerdictPath()
     fs.mkdirSync(path.dirname(vp), { recursive: true })
     fs.writeFileSync(vp, '{not-json')
     fs.mkdirSync(path.join(PROJECT, 'scripts'), { recursive: true })
     fs.writeFileSync(path.join(PROJECT, 'scripts', 'run-all-suites.sh'), '#!/bin/sh\\n')
-    const { proofsChecks } = await import(SRC + '/services/health/sections/proofs.ts')
+    const { proofsChecks } = await import(SRC + '/platform/health/sections/proofs.ts')
     const gate = proofsChecks({ cwd: PROJECT, version: '1.0.0', git: { state: 'unavailable', data: { git: null } }, repo: null, head: { sha: null, branch: null, dirty: null } }).find(c => c.id === 'gate')
     try {
       out.row = await gate.run()
@@ -670,7 +670,7 @@ else {
     const projectsDir = path.join(HOME, 'projects')
     fs.mkdirSync(projectsDir, { recursive: true })
     fs.chmodSync(projectsDir, 0o300)
-    const { transcriptStoreCheck } = await import(SRC + '/services/health/sections/crew/home.ts')
+    const { transcriptStoreCheck } = await import(SRC + '/platform/health/sections/crew/home.ts')
     try {
       out.row = await transcriptStoreCheck().run()
       out.readdirErr = null
@@ -685,15 +685,15 @@ else {
       ...realFsP,
       rename: async () => { const err = new Error('permission denied'); err.code = 'EACCES'; throw err },
     }))
-    mock.module(SRC + '/utils/healthFix.js', () => ({ healthFixEnabled: () => true }))
-    mock.module(SRC + '/utils/knownAgentClis.js', () => ({
+    mock.module(SRC + '/platform/health/healthFix.js', () => ({ healthFixEnabled: () => true }))
+    mock.module(SRC + '/platform/environment/knownAgentClis.js', () => ({
       classifyHarnessHome: async () => ({
         foreign: [{ rel: 'foreign.json', evidence: 'foreign.json', tool: { displayName: 'Other' } }],
         oursStale: [],
       }),
       harnessArtifactPath: (home, rel) => path.join(home, rel),
     }))
-    const homeMod = await import(SRC + '/services/health/sections/crew/home.ts?iso')
+    const homeMod = await import(SRC + '/platform/health/sections/crew/home.ts?iso')
     const iso = await homeMod.isolationCheck().run()
     out.remedyRes = await iso.remedy.apply()
   `)
@@ -715,7 +715,7 @@ else {
     const lockedHome = path.join(PROJECT, 'locked-home')
     fs.mkdirSync(lockedHome, { recursive: true })
     process.env.MERCURY_CONFIG_DIR = lockedHome
-    const { historyCheck } = await import(SRC + '/services/health/sections/crew/appends.ts')
+    const { historyCheck } = await import(SRC + '/platform/health/sections/crew/appends.ts')
     fs.chmodSync(lockedHome, 0o000)
     try {
       out.row = historyCheck().run()
@@ -739,7 +739,7 @@ else {
     fs.mkdirSync(lockedHome, { recursive: true })
     process.env.MERCURY_CONFIG_DIR = lockedHome
     process.env.MERCURY_TRACE = '1'
-    const { invocationTraceCheck } = await import(SRC + '/services/health/sections/crew/boot.ts')
+    const { invocationTraceCheck } = await import(SRC + '/platform/health/sections/crew/boot.ts')
     fs.chmodSync(lockedHome, 0o000)
     try {
       out.row = await invocationTraceCheck().run()
@@ -760,7 +760,7 @@ else {
     const agentsDir = path.join(HOME, 'agents')
     fs.mkdirSync(agentsDir, { recursive: true })
     fs.chmodSync(agentsDir, 0o000)
-    const { agentDefinitionsCheck } = await import(SRC + '/services/health/sections/crew/crewmates.ts')
+    const { agentDefinitionsCheck } = await import(SRC + '/platform/health/sections/crew/crewmates.ts')
     try {
       out.row = await agentDefinitionsCheck().run()
     } finally {
@@ -780,7 +780,7 @@ else {
     const lockedSub = path.join(PROJECT, 'locked-cleanup-sub')
     fs.mkdirSync(lockedSub, { recursive: true })
     fs.symlinkSync(path.join(lockedSub, 'target'), path.join(HOME, '.last-cleanup'))
-    const { lifecycleCollectionCheck } = await import(SRC + '/services/health/sections/crew/scratch.ts')
+    const { lifecycleCollectionCheck } = await import(SRC + '/platform/health/sections/crew/scratch.ts')
     fs.chmodSync(lockedSub, 0o000)
     try {
       out.row = await lifecycleCollectionCheck().run()
@@ -802,12 +802,12 @@ else {
     const grammarDir = path.join(PROJECT, 'locked-grammars')
     fs.mkdirSync(grammarDir, { recursive: true })
     fs.chmodSync(grammarDir, 0o000)
-    const realGram = await import(SRC + '/utils/structure/grammarFacility.ts')
-    mock.module(SRC + '/utils/structure/grammarFacility.js', () => ({
+    const realGram = await import(SRC + '/platform/grammars/grammarFacility.ts')
+    mock.module(SRC + '/platform/grammars/grammarFacility.js', () => ({
       ...realGram,
       resolveGrammarEngineDir: () => ({ state: 'ok', source: 'vendored', dir: grammarDir }),
     }))
-    const { codingLoopFastChecks } = await import(SRC + '/services/health/sections/coding-loop-fast.ts')
+    const { codingLoopFastChecks } = await import(SRC + '/platform/health/sections/coding-loop-fast.ts')
     const spec = codingLoopFastChecks().find(c => c.id === 'anvil-workbench-fast')
     try {
       out.row = await spec.run()
