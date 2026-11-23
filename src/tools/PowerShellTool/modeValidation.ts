@@ -31,7 +31,7 @@ function checkCommandInImplementMode(
   isDirect: boolean,
   originalCommand: string,
 ): PermissionResult | null {
-  if (!cmd.name || cmd.elementType !== 'CommandAst') {
+  if (!cmd.name || (cmd.elementType !== 'CommandAst' && cmd.elementType !== 'command')) {
     return pass('Non-command or empty element cannot be auto-allowed in implement mode.')
   }
   if (cmd.nameType === 'application') {
