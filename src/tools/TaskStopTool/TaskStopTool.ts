@@ -1,5 +1,6 @@
 import { z } from 'zod/v4'
 
+import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isLocalShellTask, type LocalShellTaskState } from '../../tasks/LocalShellTask/guards.js'
 import { isTerminalTaskStatus, type TaskStateBase } from '../../Task.js'
 import {
@@ -89,12 +90,7 @@ function isFinishedShellRow(task: unknown): task is LocalShellTaskState {
 }
 
 function isFinishedAgentRow(task: unknown): task is TaskStateBase & { type: 'local_agent' } {
-  return (
-    typeof task === 'object' &&
-    task !== null &&
-    (task as { type?: unknown }).type === 'local_agent' &&
-    isTerminalTaskStatus((task as TaskStateBase).status)
-  )
+  return isLocalAgentTask(task) && isTerminalTaskStatus(task.status)
 }
 
 function alreadyFinishedOutput(shell: FinishedShell): Output {

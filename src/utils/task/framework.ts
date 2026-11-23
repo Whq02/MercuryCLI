@@ -1,5 +1,5 @@
 import type { AppState } from '../../state/AppState.js'
-import type { SetAppState, TaskStatus } from '../../Task.js'
+import type { SetAppState } from '../../Task.js'
 import { isTerminalTaskStatus } from '../../Task.js'
 import { isBackgroundTask, type TaskState } from '../../tasks/types.js'
 import { emitTaskStarted } from '../sdkEventQueue.js'
@@ -18,7 +18,7 @@ export function updateTaskState<T extends TaskState = TaskState>(
     projected = undefined
     const existing = prev.tasks[taskId]
     if (!existing) return prev
-    const updated: TaskState = updater(existing as T)
+    const updated = updater(existing as T)
     if (updated === existing) return prev
     if (updated.status !== existing.status) {
       projected = updated
@@ -42,15 +42,15 @@ export function registerTask(task: TaskState, setAppState: SetAppState): void {
     const existing = prev.tasks[task.id]
     isNew = existing === undefined
     const stored: TaskState =
-      existing !== undefined && 'retain' in existing
-        ? ({
+      existing?.type === 'local_agent' && task.type === 'local_agent' && Object.hasOwn(existing, 'retain')
+        ? {
             ...task,
             retain: existing.retain,
             startTime: existing.startTime,
             messages: existing.messages,
             diskLoaded: existing.diskLoaded,
             pendingMessages: existing.pendingMessages,
-          } as TaskState)
+          }
         : task
     return {
       ...prev,
@@ -62,7 +62,7 @@ export function registerTask(task: TaskState, setAppState: SetAppState): void {
   })
   projectTaskExecution(task)
   if (isNew) {
-    const prompt = 'prompt' in task && typeof task.prompt === 'string' ? task.prompt : undefined
+    const prompt = task.type === 'local_agent' ? task.prompt : undefined
     emitTaskStarted({
       taskId: task.id,
       ...(task.toolUseId !== undefined ? { callId: task.toolUseId } : {}),
@@ -74,10 +74,10 @@ export function registerTask(task: TaskState, setAppState: SetAppState): void {
 }
 
 function retainedEvictionDue(task: TaskState, now: number): boolean {
-  if ('paused' in task && task.paused !== undefined) return false
-  if (!('retain' in task)) return true
-  const deadline = task.evictAfter
-  return deadline !== undefined && deadline <= now
+  if (task.type !== 'local_agent') return true
+  if (task.paused !== undefined) return false
+  if (!Object.hasOwn(task, 'retain')) return true
+  return task.evictAfter !== undefined && task.evictAfter <= now
 }
 
 function pruneAgentNameRegistry(
@@ -98,13 +98,13 @@ function pruneAgentNameRegistry(
 export function taskOwnerGone(task: TaskState): string | null {
   if (task.status !== 'running') return null
   if (task.type === 'local_bash') {
-    const handle = (task as { shellCommand?: { status?: string } | null }).shellCommand
-    if (handle === null || handle === undefined) return 'its command handle is gone'
+    const handle = task.shellCommand
+    if (!handle) return 'its command handle is gone'
     if (handle.status !== 'running' && handle.status !== 'backgrounded') return `its command already ${handle.status}`
     return null
   }
   if (task.type === 'local_agent') {
-    const controller = (task as { abortController?: AbortController }).abortController
+    const controller = task.abortController
     if (controller === undefined) return 'its controller is gone'
     if (controller.signal.aborted) return 'its controller was stopped before the row settled'
     return null
@@ -122,7 +122,7 @@ export type LiveWorkCounts = {
 export function liveBackgroundCounts(tasks: Record<string, TaskState> | undefined): LiveWorkCounts {
   const counts: LiveWorkCounts = { total: 0, shells: 0, agents: 0, other: 0 }
   for (const task of Object.values(tasks ?? {})) {
-    if (!isBackgroundTask(task) || isTerminalTaskStatus(task.status as TaskStatus)) continue
+    if (!isBackgroundTask(task) || isTerminalTaskStatus(task.status)) continue
     if (taskOwnerGone(task) !== null) continue
     counts.total++
     if (task.type === 'local_bash') counts.shells++
@@ -176,7 +176,7 @@ export function evictTerminalTask(taskId: string, setAppState: SetAppState): voi
   setAppState(prev => {
     const task = prev.tasks[taskId]
     if (!task) return prev
-    if (!isTerminalTaskStatus(task.status as TaskStatus)) return prev
+    if (!isTerminalTaskStatus(task.status)) return prev
     if (!task.notified) return prev
     if (!retainedEvictionDue(task, Date.now())) return prev
     const { [taskId]: _removed, ...restTasks } = prev.tasks
@@ -199,7 +199,7 @@ export async function generateTaskAttachments(state: AppState): Promise<{
   const updatedTaskOffsets: Record<string, number> = {}
   const evictedTaskIds: string[] = []
   for (const [taskId, task] of Object.entries(state.tasks)) {
-    if (isTerminalTaskStatus(task.status as TaskStatus) && task.notified) {
+    if (isTerminalTaskStatus(task.status) && task.notified) {
       evictedTaskIds.push(taskId)
       continue
     }
@@ -236,7 +236,7 @@ export function applyTaskOffsetsAndEvictions(
       const currentTasks = nextTasks ?? prev.tasks
       const task = currentTasks[taskId]
       if (!task) continue
-      if (!isTerminalTaskStatus(task.status as TaskStatus)) continue
+      if (!isTerminalTaskStatus(task.status)) continue
       if (!task.notified) continue
       if (!retainedEvictionDue(task, now)) continue
       nextTasks ??= { ...prev.tasks }
