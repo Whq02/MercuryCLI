@@ -121,12 +121,13 @@ export function useUnseenDivider(
       y: pendingClearYRef.current ? null : dividerYRef.current,
     })
     prevViewRef.current = viewKey
+    prevCountRef.current = messageCount
     const restored = parkedRef.current.get(viewKey)
     const restoredIndex = restored?.index ?? null
     const nextIndex =
       restoredIndex !== null && messageCount < restoredIndex ? null : restoredIndex
     pendingClearYRef.current = false
-    dividerYRef.current = restored?.y ?? null
+    dividerYRef.current = nextIndex === null ? null : (restored?.y ?? null)
     pendingShrinkRef.current = false
     if (nextIndex !== dividerIndex) {
       setDividerIndex(nextIndex)
