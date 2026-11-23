@@ -86,7 +86,7 @@ export function PermissionRuleExplanation({
           <Box flexDirection="column">
             <ThemedText color="warning" wrap="truncate-middle">
               The hook {decisionReason.hookName} required confirmation
-              {decisionReason.hookSource ? ` ${decisionReason.hookSource}` : ''}
+              {decisionReason.hookSource ? ` [${decisionReason.hookSource}]` : ''}
             </ThemedText>
             {decisionReason.reason ? (
               <ThemedText color="warning" wrap="truncate-middle">
@@ -107,7 +107,7 @@ export function PermissionRuleExplanation({
             </Text>
             {decisionReason.hookSource ? (
               <Text dimColor wrap="truncate-middle">
-                {decisionReason.hookSource}
+                [{decisionReason.hookSource}]
               </Text>
             ) : null}
           </Box>
@@ -138,9 +138,8 @@ export function PermissionRuleExplanation({
     case 'safetyCheck':
     case 'guard':
     case 'other': {
-      const message =
-        permissionResult.behavior !== 'allow' ? permissionResult.message : undefined
-      const text = message ?? decisionReason.reason
+      const record: { message?: string | null; reason?: string } = decisionReason
+      const text = record.message ?? record.reason
       if (!text) return null
       const fitted = fitFlowSentence(text, consentContentWidth(columns))
       const wrap =
