@@ -417,17 +417,7 @@ function evaluatePerSubcommand(
     }
   }
 
-  const seenRules = new Set<string>()
-  const suggestions: ReturnType<typeof exactSuggestions> = []
-  for (const cmd of unapproved) {
-    for (const update of exactSuggestions(cmd.text.trim())) {
-      const key = JSON.stringify(update)
-      if (!seenRules.has(key)) {
-        seenRules.add(key)
-        suggestions.push(update)
-      }
-    }
-  }
+  const suggestions = unapproved.flatMap(cmd => exactSuggestions(cmd.text.trim()))
 
   return {
     behavior: 'passthrough',
