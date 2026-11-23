@@ -1,6 +1,10 @@
-import type { Unbuilt } from '../../pi/holes.js'
-
-export type TsNode = Unbuilt
+export type TsNode = {
+  type: string
+  text: string
+  startIndex: number
+  endIndex: number
+  children: TsNode[]
+}
 
 export const SHELL_KEYWORDS: Set<string> = new Set([
   'if',
