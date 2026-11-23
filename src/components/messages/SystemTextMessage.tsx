@@ -115,12 +115,12 @@ function MemorySavedRow({
           {verb} {count} {plural(count, 'memory', 'memories')}
         </Text>
       </Text>
-      {message.writtenPaths.map((filePath, index) => {
+      {message.writtenPaths.map(filePath => {
         const label = basename(filePath) || filePath
         return (
           <InteractiveRow
             key={filePath}
-            id={`memory-saved:${message.uuid}:${index}`}
+            id={`memory-saved:${message.uuid}:${filePath}`}
             directActivate
             selectionBand={false}
             onActivate={() => {

@@ -18,6 +18,7 @@ import {
   type SelectNavigation,
 } from './use-select-navigation.js'
 import { isWheelReport, letterOrdinalOf } from './use-select-input.js'
+import { startMicrotask } from '../../utils/timers.js'
 import { usePopupPageOwner } from './popup-list.js'
 
 type UseMultiSelectStateProps<T> = {
@@ -482,7 +483,7 @@ export function useMultiSelectState<T>({
     (value: T, via: 'enter' | 'click' = 'enter'): void => {
       if (via === 'enter') {
         childEnterRef.current = true
-        queueMicrotask(() => {
+        startMicrotask(() => {
           childEnterRef.current = false
         })
       }
