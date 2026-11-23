@@ -2,7 +2,7 @@ import { chdir } from 'node:process'
 import { z } from 'zod'
 import { getSessionId, setOriginalCwd } from '../../bootstrap/state.js'
 import { clearInstructionFileCaches } from '../../services/instructions/engine.js'
-import { buildTool, type Tool } from '../../Tool.js'
+import { buildTool } from '../../Tool.js'
 import { errorMessage } from '../../utils/errors.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getPlanSlug } from '../../utils/plans.js'
@@ -51,7 +51,7 @@ export type Output = {
   message: string
 }
 
-export const EnterWorktreeTool: Tool<Input, Output> = buildTool({
+export const EnterWorktreeTool = buildTool({
   name: ENTER_WORKTREE_TOOL_NAME,
   userFacingName: () => 'Creating worktree',
   shouldDefer: true,
@@ -67,7 +67,7 @@ export const EnterWorktreeTool: Tool<Input, Output> = buildTool({
   },
   renderToolUseMessage: UI.renderToolUseMessage,
   renderToolResultMessage: UI.renderToolResultMessage,
-  async call(input, context) {
+  async call(input: Input, context) {
     const existing = getCurrentWorktreeSession()
     if (existing) {
       throw new Error(
@@ -99,7 +99,7 @@ export const EnterWorktreeTool: Tool<Input, Output> = buildTool({
     }
     return { data }
   },
-  mapToolResultToToolResultBlockParam(output, toolUseID) {
+  mapToolResultToToolResultBlockParam(output: Output, toolUseID: string) {
     return {
       type: 'tool_result',
       tool_use_id: toolUseID,
