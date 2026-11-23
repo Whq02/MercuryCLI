@@ -277,26 +277,20 @@ export function ShellDetailDialog({
         ) : null}
 
         <Box>
-          <Box width={LABEL_WIDTH} flexShrink={0}>
-            <Text color={tokens.textMuted}>status</Text>
-          </Box>
-          <Box flexGrow={1} minWidth={0}>
-            {running ? (
-              <Text>
-                <WorkingGlyph color={tokens.success} active={true} />
-                <Text> running</Text>
-                <Text dimColor> · {elapsed}</Text>
+          {running ? (
+            <>
+              <WorkingGlyph color={tokens.success} active={true} />
+              <Text> running · {elapsed}</Text>
+            </>
+          ) : (
+            <>
+              <Text color={statusTone}>
+                {stateWord(shell)}
+                {shell.exitCode !== undefined ? ` (exit ${shell.exitCode})` : ''}
               </Text>
-            ) : (
-              <Text>
-                <Text color={statusTone}>{stateWord(shell)}</Text>
-                {shell.exitCode !== undefined ? (
-                  <Text dimColor> (exit {shell.exitCode})</Text>
-                ) : null}
-                <Text dimColor> · {elapsed}</Text>
-              </Text>
-            )}
-          </Box>
+              <Text dimColor> · {elapsed}</Text>
+            </>
+          )}
         </Box>
 
         <SectionHeader>Output</SectionHeader>
