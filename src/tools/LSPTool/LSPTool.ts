@@ -171,10 +171,6 @@ function hasAbortCode(err: unknown): boolean {
   return withCode.code === 'ABORT_ERR'
 }
 
-function isAbortError(err: unknown): boolean {
-  return hasAbortCode(err) || (err instanceof Error && err.name === 'AbortError')
-}
-
 function locationUri(loc: Locationish): string | undefined {
   const entry: { uri?: string; targetUri?: string } = loc
   return entry.targetUri ?? entry.uri
@@ -311,15 +307,30 @@ function formatStartFailure(
   pathOverride?: string,
 ): Settled | null {
   if (!isLspStartFailure(err)) return null
-  const server =
-    serverOverride ??
-    manager.getAllServers().get(err.server) ??
-    (absolutePath ? manager.getServerForFile(absolutePath) : undefined)
+  const server = serverOverride ?? manager.getAllServers().get(err.server)
   const targetPath = pathOverride ?? absolutePath
-  const title = server ? serverTitle(server, targetPath) : 'the language server'
+  const title = server ? serverTitle(server, targetPath) : `the language server ${err.server}`
   const remedy = server ? remedyForLanguageServer(server, targetPath, err.lspCause, cwd) : ''
-  const attempted = `${operation} operation was not run: ${title} did not start — ${err.lspCause}.${remedy ? ` What helps: ${remedy}.` : ''}`
+  const attempted = `The ${operation} operation was not run: ${title} did not start — ${err.lspCause}.${remedy ? ` What helps: ${remedy}.` : ''}`
   const result = lspStartFailureWords(err, title, remedy, attempted)
+  return {
+    data: { operation, result, filePath, outcome: 'failed' },
+    effect: makeEffect(operation, 'failed', result, startedAt),
+  }
+}
+
+function operationFailure(
+  err: unknown,
+  manager: NonNullable<ReturnType<typeof getLspServerManager>>,
+  operation: string,
+  filePath: string,
+  absolutePath: string,
+  cwd: string,
+  startedAt: number,
+): Settled {
+  const startFail = formatStartFailure(err, manager, operation, filePath, absolutePath, cwd, startedAt)
+  if (startFail) return startFail
+  const result = `The ${operation} operation failed: ${err instanceof Error ? err.message : String(err)}`
   return {
     data: { operation, result, filePath, outcome: 'failed' },
     effect: makeEffect(operation, 'failed', result, startedAt),
@@ -524,15 +535,9 @@ async function runLspOperation(
         }),
       }
     } catch (err) {
-      if (isAbortError(err) || context.abortController.signal.aborted) throw err
-      const startFail = formatStartFailure(err, manager, input.operation, filePath, absolutePath, cwd, startedAt)
-      if (startFail) return startFail
+      if (hasAbortCode(err) && context.abortController.signal.aborted) throw err
       logError(err)
-      const result = `Error performing ${input.operation}: ${err instanceof Error ? err.message : String(err)}`
-      return {
-        data: { operation: input.operation, result, filePath, outcome: 'failed' },
-        effect: makeEffect(input.operation, 'failed', result, startedAt),
-      }
+      return operationFailure(err, manager, input.operation, filePath, absolutePath, cwd, startedAt)
     }
   }
 
@@ -686,15 +691,9 @@ async function runLspOperation(
       effect: makeEffect(input.operation, 'failed', result, startedAt),
     }
   } catch (err) {
-    if (isAbortError(err) || context.abortController.signal.aborted) throw err
-    const startFail = formatStartFailure(err, manager, input.operation, filePath, absolutePath, cwd, startedAt)
-    if (startFail) return startFail
+    if (hasAbortCode(err) && context.abortController.signal.aborted) throw err
     logError(err)
-    const result = `Error performing ${input.operation}: ${err instanceof Error ? err.message : String(err)}`
-    return {
-      data: { operation: input.operation, result, filePath, outcome: 'failed' },
-      effect: makeEffect(input.operation, 'failed', result, startedAt),
-    }
+    return operationFailure(err, manager, input.operation, filePath, absolutePath, cwd, startedAt)
   }
 }
 
