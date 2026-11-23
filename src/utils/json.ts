@@ -5,7 +5,6 @@ import { logError } from './log.js'
 import { memoizeWithLRU } from './memoize.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
 import { passedOver } from './passedOver.js'
-import { notBuilt } from '../pi/holes.js'
 
 export { stripBOM }
 
@@ -63,7 +62,17 @@ export function safeParseJSONC(json: string | null | undefined): unknown {
 }
 
 export function addItemToJSONCArray(content: string, newItem: unknown): string {
-  return notBuilt('src/utils/json.ts:64')
+  const clean = stripBOM(content)
+  if (clean.trim() === '') return jsonStringify([newItem], null, 4)
+  const parsed: unknown = parseJsonc(clean, undefined, { allowTrailingComma: true })
+  if (!Array.isArray(parsed)) return jsonStringify([newItem], null, 4)
+  const insertIndex = parsed.length === 0 ? 0 : -1
+  const edits = modify(clean, [insertIndex], newItem, {
+    formattingOptions: { tabSize: 4, insertSpaces: true },
+    isArrayInsertion: true,
+  })
+  if (edits.length > 0) return applyEdits(clean, edits)
+  return jsonStringify([...parsed, newItem], null, 4)
 }
 
 
