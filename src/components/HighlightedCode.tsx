@@ -7,7 +7,7 @@ import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import { linkifyCodeUrls } from '../utils/hyperlink.js'
 import { HighlightedCodeFallback } from './HighlightedCode/Fallback.js'
 
-export type HighlightedCodeProps = {
+type HighlightedCodeProps = {
   code: string
   filePath: string
   width?: number

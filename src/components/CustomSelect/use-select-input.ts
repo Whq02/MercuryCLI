@@ -35,7 +35,7 @@ export function isWheelReport(key: Key, event: InputEvent): boolean {
   return (key.wheelUp || key.wheelDown) && event.keypress.x !== undefined && event.keypress.y !== undefined
 }
 
-export type UseSelectProps<T> = {
+type UseSelectProps<T> = {
   isDisabled?: boolean
   disableSelection?: boolean | 'numeric'
   isMultiSelect?: boolean
