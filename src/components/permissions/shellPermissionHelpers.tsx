@@ -6,7 +6,6 @@ import { getFocusedSessionConnector } from '../../services/engine-connector/focu
 import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
 import { permissionRuleExtractPrefix } from '../../utils/permissions/shellRuleMatching.js'
 import type { PermissionUpdate } from '../../types/permissions.js'
-import { notBuilt } from '../../pi/holes.js'
 
 type FolderSpelling = 'windows' | 'posix'
 
@@ -85,7 +84,24 @@ function formatPathList(rulePaths: string[], namesOnly = false): React.ReactNode
 }
 
 function formatCommandList(commands: string[]): React.ReactNode | 'similar' {
-  return notBuilt('src/components/permissions/shellPermissionHelpers.tsx:86')
+  if (commands.join(', ').length > 50) return 'similar'
+  if (commands.length === 1) {
+    return <Text bold>{commands[0]}</Text>
+  }
+  if (commands.length === 2) {
+    return (
+      <>
+        <Text bold>{commands[0]}</Text> and <Text bold>{commands[1]}</Text>
+      </>
+    )
+  }
+  const init = commands.slice(0, -1).join(', ')
+  const last = commands[commands.length - 1]
+  return (
+    <>
+      <Text bold>{init}</Text>, and <Text bold>{last}</Text>
+    </>
+  )
 }
 
 function commandsPhrase(commands: string[]): React.ReactNode {
@@ -99,7 +115,76 @@ export function generateShellSuggestionsLabel(
   shellToolName: string,
   commandTransform?: (command: string) => string,
 ): React.ReactNode | null {
-  return notBuilt('src/components/permissions/shellPermissionHelpers.tsx:110')
+  const readPaths: string[] = []
+  const directories: string[] = []
+  const commands: string[] = []
+
+  for (const update of suggestions) {
+    if (update.type !== 'addRules') continue
+    for (const rule of update.rules) {
+      if (!rule.ruleContent) continue
+      if (rule.toolName === 'Read') {
+        const cleaned = rule.ruleContent.replace('/**', '')
+        if (cleaned && !readPaths.includes(cleaned)) {
+          readPaths.push(cleaned)
+        }
+      } else if (rule.toolName === 'Edit') {
+        const cleaned = rule.ruleContent.replace(/\/\*\*$/, '').replace(/^\/\//, '/')
+        if (cleaned && !directories.includes(cleaned)) {
+          directories.push(cleaned)
+        }
+      } else if (rule.toolName === shellToolName) {
+        const raw = permissionRuleExtractPrefix(rule.ruleContent) ?? rule.ruleContent
+        const cmd = commandTransform ? commandTransform(raw) : raw
+        if (cmd && !commands.includes(cmd)) {
+          commands.push(cmd)
+        }
+      }
+    }
+  }
+
+  const pathCount = directories.length + readPaths.length
+  if (pathCount === 0 && commands.length === 0) return null
+
+  const originalCwd = getFocusedSessionConnector().workspace().originalCwd
+
+  if (pathCount === 0) {
+    return (
+      <>
+        Yes, and don&apos;t ask again for {commandsPhrase(commands)} in{' '}
+        <Text bold>{originalCwd}</Text>
+      </>
+    )
+  }
+
+  if (commands.length === 0) {
+    const spelling = folderSpelling()
+    const allInProject = [...directories, ...readPaths].every(folder =>
+      pathInWorkingPath(displayFolderOfRule(folder, spelling), originalCwd),
+    )
+    return (
+      <>
+        Yes, and allow {grantPhrase(directories, readPaths)}
+        {allInProject ? ' in this project' : ''}
+      </>
+    )
+  }
+
+  if (pathCount === 1 && commands.length === 1) {
+    return (
+      <>
+        Yes, and allow {grantPhrase(directories, readPaths)} plus {commandsPhrase(commands)} in{' '}
+        <Text bold>{originalCwd}</Text>
+      </>
+    )
+  }
+
+  return (
+    <>
+      Yes, and allow {grantPhrase(directories, readPaths)} and don&apos;t ask again for{' '}
+      {commandsPhrase(commands)} in <Text bold>{originalCwd}</Text>
+    </>
+  )
 }
 
 function grantPhrase(directories: string[], readPaths: string[]): React.ReactNode {
