@@ -32,8 +32,9 @@ import { jsonStringify } from '../../../utils/slowOperations.js'
 import { currentLimits } from '../../anthropicLimits.js'
 import { getAnthropicClient } from '../../api/client.js'
 import { CannotRetryError, withRetry } from '../../api/withRetry.js'
-import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
-type JsonObject = Unbuilt
+
+type JsonValue = string | number | boolean | null | JsonObject | JsonValue[]
+type JsonObject = { [key: string]: JsonValue }
 
 function extraObject(name: 'MERCURY_EXTRA_BODY' | 'MERCURY_EXTRA_METADATA', logParseError: boolean): JsonObject {
   const raw = flagEnv(name)
@@ -76,7 +77,10 @@ export function getCacheControl(): {
   type: 'ephemeral'
   ttl?: '1h'
 } {
-  return notBuilt('src/services/providers/anthropic/requestParams.ts:76')
+  return {
+    type: 'ephemeral',
+    ...(should1hCacheTTL() ? { ttl: '1h' as const } : {}),
+  }
 }
 
 export function promptCache1hEligibility(): { eligible: boolean; reason: string | null } {
@@ -115,23 +119,107 @@ function isFirstPartyWireEffort(level: string): level is FirstPartyWireEffort {
 export function configureEffortParams(
   effortValue: EffortValue | undefined,
   outputConfig: BetaOutputConfig,
-  extraBodyParams: Record<string, unknown>,
+  _extraBodyParams: Record<string, unknown>,
   model: string,
 ): void {
-  return notBuilt('src/services/providers/anthropic/requestParams.ts:119')
+  if (!modelSupportsEffort(model)) return
+  if ('effort' in outputConfig) return
+  if (effortValue === undefined) return
+  if (typeof effortValue === 'string' && isFirstPartyWireEffort(effortValue)) {
+    outputConfig.effort = effortValue
+  } else {
+    logForDebugging(
+      `configureEffortParams: effort ${String(effortValue)} has no first-party wire encoding — sending without effort`,
+      { level: 'warn' },
+    )
+  }
 }
 
 export function anthropicEffortWireFact(
   params: { output_config?: { effort?: string | undefined } | undefined },
   supported: boolean,
 ): EffortWireFact {
-  return notBuilt('src/services/providers/anthropic/requestParams.ts:142')
+  const effort = params.output_config?.effort
+  if (effort !== undefined) {
+    return {
+      kind: 'sent',
+      parameter: 'output_config.effort',
+      value: effort,
+    }
+  }
+  return supported ? { kind: 'omitted' } : { kind: 'unsupported' }
 }
 
-export function getAPIMetadata(): Unbuilt {
-  return notBuilt('src/services/providers/anthropic/requestParams.ts:151')
+export function getAPIMetadata(): { user_id: string } {
+  const extra = extraObject('MERCURY_EXTRA_METADATA', false)
+  return {
+    user_id: jsonStringify({
+      ...extra,
+      account_uuid: getOauthAccountInfo()?.accountUuid ?? '',
+      session_id: getSessionId(),
+    }),
+  }
 }
 
 export async function verifyApiKey(apiKey: string, isNonInteractiveSession: boolean): Promise<boolean> {
-  return notBuilt('src/services/providers/anthropic/requestParams.ts:190')
+  if (isNonInteractiveSession) return true
+  const util = utilityCallFor()
+  const chosenModel = declaredRouteOf(util.model) === 'anthropic' ? util.model : getDefaultSonnetModel()
+  const model = normalizeModelStringForAPI(chosenModel)
+  const betas = getModelBetas(model)
+  const messages: MessageParam[] = [{ role: 'user', content: 'test' }]
+  const extraBody = getExtraBodyParams()
+  const rawExtraOutputConfig = extraBody.output_config
+  const outputConfig: BetaOutputConfig =
+    rawExtraOutputConfig && typeof rawExtraOutputConfig === 'object' && !Array.isArray(rawExtraOutputConfig)
+      ? { ...(rawExtraOutputConfig as BetaOutputConfig) }
+      : {}
+  const probeEffort = utilityCallFor(model, { named: true }).effortValue
+  if (
+    !('effort' in outputConfig) &&
+    typeof probeEffort === 'string' &&
+    isFirstPartyWireEffort(probeEffort)
+  ) {
+    outputConfig.effort = probeEffort
+  }
+
+  try {
+    return await returnValue(
+      withRetry(
+        () => getAnthropicClient({ apiKey, maxRetries: 3, source: 'verify_api_key' }),
+        async client => {
+          await client.beta.messages.create({
+            model,
+            max_tokens: 1,
+            messages,
+            metadata: getAPIMetadata(),
+            ...(modelSupportsTemperature(model) ? { temperature: 1 } : {}),
+            ...(betas.length > 0 ? { betas } : {}),
+            ...(modelThinkingAlwaysOn(model) ? {} : { thinking: { type: 'disabled' as const } }),
+            ...extraBody,
+            ...(Object.keys(outputConfig).length > 0 ? { output_config: outputConfig } : {}),
+          })
+          return true
+        },
+        {
+          maxRetries: 2,
+          model,
+          thinkingConfig: { type: 'disabled' },
+          reconnect: false,
+        },
+      ),
+    )
+  } catch (error) {
+    const unwrapped = error instanceof CannotRetryError ? error.originalError : error
+    logError(unwrapped)
+    if (
+      unwrapped instanceof Error &&
+      unwrapped.message.includes(
+        '{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}',
+      )
+    ) {
+      return false
+    }
+    throw unwrapped
+  }
 }
