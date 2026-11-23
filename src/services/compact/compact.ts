@@ -254,27 +254,23 @@ function buildBoundaryAndSummary(params: {
     boundaryMarker.compactMetadata.preCompactDiscoveredTools = preCompactDiscoveredTools
   }
 
-  const workPlaceholderSummary = createUserMessage({
-    content: '',
+  const summaryMessage = createUserMessage({
+    content: composeFoldSummaryText({
+      prose,
+      capsule,
+      work: renderFoldedWork(foldedWorkOf(messages, messagesToKeep ?? [], boundaryMarker.uuid)),
+      memoryText,
+      ledger,
+      suppressFollowUpQuestions,
+      keptTail: (messagesToKeep?.length ?? 0) > 0,
+      newestMessageFollows,
+    }),
     isCompactSummary: true,
     isVisibleInTranscriptOnly: true,
   })
-  const work = foldedWorkOf(messages, messagesToKeep ?? [], workPlaceholderSummary.uuid)
-  const summaryText = composeFoldSummaryText({
-    prose,
-    capsule,
-    work: renderFoldedWork(work),
-    memoryText,
-    ledger,
-    suppressFollowUpQuestions,
-    keptTail: (messagesToKeep?.length ?? 0) > 0,
-    newestMessageFollows,
-  })
-  const summaryMessage: UserMessage = {
-    ...workPlaceholderSummary,
-    message: { ...workPlaceholderSummary.message, content: summaryText },
+  if (messagesToKeep !== undefined) {
+    annotateBoundaryWithPreservedSegment(boundaryMarker, summaryMessage.uuid, messagesToKeep)
   }
-  annotateBoundaryWithPreservedSegment(boundaryMarker, summaryMessage.uuid, messagesToKeep ?? [])
   annotateBoundaryWithWork(boundaryMarker, messages, messagesToKeep ?? [], summaryMessage.uuid)
   return { boundaryMarker, summaryMessage }
 }
