@@ -1,3 +1,4 @@
+import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isWholeRecordedComposition } from '../../prompt/recordedComposition.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
@@ -95,7 +96,7 @@ function firstUserPrompt(messages: readonly Message[] | undefined): string | und
     if (message.type !== 'user' || message.isMeta === true) continue
     const content = message.message.content
     if (typeof content === 'string') return content
-    const text = content.filter(block => block.type === 'text').map(block => block.text).join('\n')
+    const text = content.filter(block => block.type === 'text').map(block => (block as { text: string }).text).join('\n')
     if (text !== '') return text
   }
   return undefined
@@ -131,7 +132,7 @@ export function prependUserContext(
 const serializedSchemaKeys = new WeakMap<object, string>()
 
 function toolCacheKey(tool: Tool): string {
-  const explicit = tool.inputJSONSchema
+  const explicit = (tool as { inputJSONSchema?: unknown }).inputJSONSchema
   if (explicit === undefined) return tool.name
   if (typeof explicit !== 'object' || explicit === null) {
     return `${tool.name}:${jsonStringify(explicit)}`

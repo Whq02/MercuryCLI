@@ -10,7 +10,7 @@ import type { Message } from '../../types/message.js'
 import { getMergedBetas } from '../../utils/betas.js'
 import { getContextWindowForModel } from '../../utils/context.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
+import { isEnvDefinedFalsy, isEnvTruthy } from '../../utils/envUtils.js'
 import { toolDeferralEnabled } from '../../utils/model/capabilities.js'
 import { deferralWireFormFor, type DeferralWireForm } from '../providers/deferralWire.js'
 import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
@@ -105,9 +105,9 @@ function characterHeuristic(deferrableTools: Tool[]): number {
   let total = 0
   for (const tool of deferrableTools) {
     total += tool.name.length
-    const description: unknown = tool.description
+    const description = (tool as { description?: unknown }).description
     if (typeof description === 'string') total += description.length
-    const preRendered = tool.inputJSONSchema
+    const preRendered = (tool as { inputJSONSchema?: unknown }).inputJSONSchema
     if (preRendered !== undefined) {
       total += JSON.stringify(preRendered).length
     } else {
@@ -211,13 +211,15 @@ function hostedSearchLoadedNames(items: readonly unknown[]): string[] {
   const walk = (tools: unknown): void => {
     if (!Array.isArray(tools)) return
     for (const raw of tools) {
-      if (!isRecord(raw)) continue
-      if (raw.type === 'namespace') walk(raw.tools)
-      else if (typeof raw.name === 'string') names.push(raw.name)
+      const tool = raw as { type?: unknown; name?: unknown; tools?: unknown } | null
+      if (tool === null || typeof tool !== 'object') continue
+      if (tool.type === 'namespace') walk(tool.tools)
+      else if (typeof tool.name === 'string') names.push(tool.name)
     }
   }
   for (const item of items) {
-    if (isRecord(item) && item.type === 'tool_search_output') walk(item.tools)
+    const record = item as { type?: unknown; tools?: unknown } | null
+    if (record !== null && typeof record === 'object' && record.type === 'tool_search_output') walk(record.tools)
   }
   return names
 }
