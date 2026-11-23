@@ -55,7 +55,7 @@ export async function generateSessionName(
     return null
   } catch (error) {
     logForDebugging(
-      `[rename] generateSessionName failed: ${error instanceof Error ? error.message : String(error)}`,
+      `generateSessionName failed: ${error instanceof Error ? error.message : String(error)}`,
     )
     throw error
   }

@@ -118,7 +118,7 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
   if (persistable !== undefined) {
     const saved = updateSettingsForSource('userSettings', { engine: { effort: persistable } })
     if (saved.error !== null) {
-      return { message: `${level} was not applied: ${saved.error.message}` }
+      return { message: `Could not save the effort level: ${saved.error.message}` }
     }
     persisted = true
   }
@@ -128,12 +128,12 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
   if (envOverride !== undefined && envOverride !== level) {
     if (persisted) {
       return {
-        message: `Saved ${level} as your default, but ${EFFORT_ENV_VAR}=${rawOverrideValue()} still controls this session.`,
+        message: `Saved ${level} as your default, but ${EFFORT_ENV_VAR}=${rawOverrideValue()} overrides this session — clear it to let ${level} take over.`,
         effortUpdate: { value: level },
       }
     }
     return {
-      message: `${EFFORT_ENV_VAR}=${rawOverrideValue()} controls this session, and ${level} is session-only, so nothing was saved.`,
+      message: `${level} was not applied: ${EFFORT_ENV_VAR}=${rawOverrideValue()} controls this session, and ${level} is session-only, so nothing was saved.`,
       effortUpdate: { value: level },
     }
   }
