@@ -22,20 +22,19 @@ import { resolveBareFamilyWord } from './bareFamilyWords.js'
 import { firstPartyString, getCanonicalName, getDefaultFableModel, getDefaultHaikuModel, getDefaultOpusModel, getDefaultSonnetModel, normalizeModelStringForAPI } from '../../utils/model/modelNames.js'
 import { tellHowAModelSettingResolves } from '../../utils/model/settingResolution.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export { firstPartyNameToCanonical, getCanonicalName, getDefaultFableModel, getDefaultHaikuModel, getDefaultOpusModel, getDefaultSonnetModel, isOpus1mMergeEnabled, normalizeModelStringForAPI } from '../../utils/model/modelNames.js'
 export { isDefaultOpusNatively1M, newestPermittedFallback } from './frontierPolicy.js'
 
-export type ModelShortName = Unbuilt
-export type ModelName = Unbuilt
-export type ModelSetting = Unbuilt
+export type ModelShortName = string
+export type ModelName = string
+export type ModelSetting = string | null
 
 
-const TRAILING_1M_RE: Unbuilt = unbuilt('src/services/model/model.ts:34')
+const TRAILING_1M_RE = /\[1m\]$/i
 
 function hasContext1mSuffix(model: string): boolean {
-  return notBuilt('src/services/model/model.ts:36')
+  return TRAILING_1M_RE.test(model.trim())
 }
 
 
@@ -69,10 +68,15 @@ function providerNameOf(): (family: string) => string {
 }
 
 
-const RETIRED_LARGE_IDS: Unbuilt = unbuilt('src/services/model/model.ts:71')
+const RETIRED_LARGE_IDS: ReadonlySet<string> = new Set([
+  'claude-opus-4-20250514',
+  'claude-opus-4-1-20250805',
+  'claude-opus-4-0',
+  'claude-opus-4-1',
+])
 
 export function parseUserSpecifiedModel(input: string): string {
-  return notBuilt('src/services/model/model.ts:78')
+  return parseUserSpecifiedModelCore(input, true)
 }
 tellHowAModelSettingResolves(parseUserSpecifiedModel)
 
@@ -175,7 +179,7 @@ export function getEngineModel(): string {
 }
 
 export function isNonCustomOpusModel(model: string): boolean {
-  return notBuilt('src/services/model/model.ts:181')
+  return getCanonicalName(model).includes('opus')
 }
 
 
@@ -278,7 +282,7 @@ export function getPublicModelDisplayName(model: string): string | null {
 }
 
 export function renderModelName(model: string): string {
-  return notBuilt('src/services/model/model.ts:284')
+  return getPublicModelDisplayName(model) ?? model
 }
 
 export function renderModelChip(model: string): string {
@@ -294,15 +298,24 @@ function capitalizeFirst(value: string): string {
 }
 
 export function renderModelSetting(setting: string): string {
-  return notBuilt('src/services/model/model.ts:300')
+  const trimmed = setting.trim()
+  const bare = trimmed.replace(TRAILING_1M_RE, '').toLowerCase()
+  if (CAPITALIZED_ALIASES.has(bare)) {
+    return capitalizeFirst(trimmed)
+  }
+  return renderModelName(setting)
 }
 
 export function renderDefaultModelSetting(setting: ModelSetting): string {
-  return notBuilt('src/services/model/model.ts:306')
+  if (setting === null) {
+    return computedDefault().row
+  }
+  return renderModelName(parseUserSpecifiedModel(setting))
 }
 
 export function getPublicModelName(model: string): string {
-  return notBuilt('src/services/model/model.ts:313')
+  const display = getPublicModelDisplayName(model)
+  return display !== null ? `Claude ${display}` : `Claude (${model})`
 }
 
 export function renderDefaultModelLabel(): string {
@@ -310,7 +323,12 @@ export function renderDefaultModelLabel(): string {
 }
 
 export function modelDisplayString(setting: ModelSetting): string {
-  return notBuilt('src/services/model/model.ts:322')
+  if (setting === null) {
+    return describeComputedDefaultRow(computedDefault(), providerNameOf())
+  }
+  const resolved = parseUserSpecifiedModel(setting)
+  const rendered = renderModelName(resolved)
+  return resolved === setting ? rendered : `${setting} (${rendered})`
 }
 
 
@@ -322,7 +340,17 @@ const MARKETING_NAMES: Record<string, string> = {
 }
 
 export function getMarketingNameForModel(id: string): string | null {
-  return notBuilt('src/services/model/model.ts:339')
+  const bare = normalizeModelStringForAPI(id)
+  const key = resolvedStringToKey().get(bare)
+  if (key !== undefined) {
+    const name = MARKETING_NAMES[key]
+    if (name !== undefined) {
+      return hasContext1mSuffix(id) && ONE_M_TWIN_KEYS.has(key) && !context1mNeedsUnsentHeader(id)
+        ? `${name} (with 1M context)`
+        : name
+    }
+  }
+  return gptDisplayName(bare) ?? null
 }
 
 
@@ -334,6 +362,13 @@ export function resolveSkillModelOverride(
   skillModel: string,
   currentModel: string,
 ): string {
-  return notBuilt('src/services/model/model.ts:361')
+  if (!hasContext1mSuffix(currentModel) || hasContext1mSuffix(skillModel)) {
+    return skillModel
+  }
+  const resolved = parseUserSpecifiedModel(skillModel)
+  if (!has1mContext(resolved)) {
+    return skillModel
+  }
+  return `${normalizeModelStringForAPI(skillModel)}[1m]`
 }
 
