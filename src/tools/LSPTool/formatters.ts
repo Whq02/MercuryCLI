@@ -9,7 +9,6 @@ import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import { getCwd } from '../../utils/cwd.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 type Position = { line: number; character: number }
@@ -192,12 +191,33 @@ export async function readLocationSourceLines(locations: Locationish[], tool: Pi
   return snippets
 }
 
+const MAX_DISPLAY_ENTRIES = 50
+
 export function formatGoToDefinitionResult(
   result: Locationish | Locationish[] | null,
   workingDirectory?: string,
   sourceLines?: ReadonlyMap<Locationish, string>,
 ): string {
-  return notBuilt('src/tools/LSPTool/formatters.ts:195')
+  const list = result === null ? [] : Array.isArray(result) ? result : [result]
+  const valid = validLocations(list)
+  if (valid.length === 0) {
+    return 'No definition found. The cursor may not be on a symbol, or the definition may be in an external library that is not indexed.'
+  }
+  if (valid.length === 1) {
+    const loc = valid[0]!
+    const snippet = sourceLines?.get(loc)
+    return `Defined in ${formatLocation(loc, workingDirectory)}${snippet ? `\n    ${snippet}` : ''}`
+  }
+  const lines: string[] = [`Found ${valid.length} definitions:`]
+  for (const loc of valid.slice(0, MAX_DISPLAY_ENTRIES)) {
+    lines.push(`  ${formatLocation(loc, workingDirectory)}`)
+    const snippet = sourceLines?.get(loc)
+    if (snippet) lines.push(`    ${snippet}`)
+  }
+  if (valid.length > MAX_DISPLAY_ENTRIES) {
+    lines.push(`${valid.length - MAX_DISPLAY_ENTRIES} more definitions.`)
+  }
+  return lines.join('\n')
 }
 
 export function formatFindReferencesResult(
@@ -205,37 +225,189 @@ export function formatFindReferencesResult(
   workingDirectory?: string,
   sourceLines?: ReadonlyMap<Locationish, string>,
 ): string {
-  return notBuilt('src/tools/LSPTool/formatters.ts:217')
+  const valid = validLocations(result ?? []) as Location[]
+  if (valid.length === 0) {
+    return 'No references found. The symbol may have no usages, or the workspace may not be fully indexed yet.'
+  }
+  if (valid.length === 1) {
+    const loc = valid[0]!
+    const snippet = sourceLines?.get(loc)
+    return `Found 1 reference:\n  ${formatLocation(loc, workingDirectory)}${snippet ? `\n    ${snippet}` : ''}`
+  }
+  const uniqueFiles = new Set(valid.map(loc => displayPath(uriToPath(loc.uri), workingDirectory)))
+  const grouped = new Map<string, Location[]>()
+  for (const loc of valid.slice(0, MAX_DISPLAY_ENTRIES)) {
+    const file = displayPath(uriToPath(loc.uri), workingDirectory)
+    const entries = grouped.get(file)
+    if (entries) entries.push(loc)
+    else grouped.set(file, [loc])
+  }
+  const lines: string[] = [
+    `Found ${valid.length} references in ${uniqueFiles.size} ${uniqueFiles.size === 1 ? 'file' : 'files'}:`,
+  ]
+  for (const [file, locs] of grouped) {
+    lines.push('')
+    lines.push(`${file}:`)
+    for (const loc of locs) {
+      lines.push(`  Line ${loc.range.start.line + 1}:${loc.range.start.character + 1}`)
+      const snippet = sourceLines?.get(loc)
+      if (snippet) lines.push(`    ${snippet}`)
+    }
+  }
+  if (valid.length > MAX_DISPLAY_ENTRIES) {
+    lines.push(`${valid.length - MAX_DISPLAY_ENTRIES} more references.`)
+  }
+  return lines.join('\n')
+}
+
+function extractHoverContents(contents: HoverResult['contents']): string {
+  if (typeof contents === 'string') return contents.trim()
+  if (Array.isArray(contents)) {
+    return contents
+      .map(item => (typeof item === 'string' ? item : item.value).trim())
+      .filter(part => part.length > 0)
+      .join('\n\n')
+  }
+  return contents.value.trim()
 }
 
 export function formatHoverResult(result: HoverResult | null, _workingDirectory?: string): string {
-  return notBuilt('src/tools/LSPTool/formatters.ts:260')
+  const text = result ? extractHoverContents(result.contents) : ''
+  if (!result || text === '') {
+    return 'No hover information available. The cursor may not be on a symbol, or the server may not provide hover for this position.'
+  }
+  if (result.range) {
+    return `Hover information at line ${result.range.start.line + 1}, character ${result.range.start.character + 1}:\n\n${text}`
+  }
+  return text
 }
 
 export function formatDocumentSymbolResult(
   result: Array<DocumentSymbol | SymbolInformation> | null,
   workingDirectory?: string,
 ): string {
-  return notBuilt('src/tools/LSPTool/formatters.ts:286')
+  if (!result || result.length === 0) {
+    return 'No symbols found. The file may be empty, the server may not support document symbols, or the file may not be indexed yet.'
+  }
+  const first: { name: string; location?: Location } = result[0]!
+  if (first.location !== undefined) {
+    return formatWorkspaceSymbolResult(result as SymbolInformation[], workingDirectory)
+  }
+  const lines: string[] = ['Document symbols:']
+  const appendTree = (nodes: DocumentSymbol[], depth: number): void => {
+    const indent = '  '.repeat(depth)
+    for (const node of nodes) {
+      const kind = symbolKindName(node.kind)
+      const detail = node.detail ? ` ${node.detail}` : ''
+      const line = (node.selectionRange ?? node.range).start.line + 1
+      lines.push(`${indent}${node.name} (${kind})${detail} - line ${line}`)
+      if (node.children && node.children.length > 0) {
+        appendTree(node.children, depth + 1)
+      }
+    }
+  }
+  appendTree(result as DocumentSymbol[], 1)
+  return lines.join('\n')
 }
 
 export function formatWorkspaceSymbolResult(
   result: SymbolInformation[] | null,
   workingDirectory?: string,
 ): string {
-  return notBuilt('src/tools/LSPTool/formatters.ts:302')
+  const valid = (result ?? []).filter(
+    (sym): sym is SymbolInformation & { location: Location } => Boolean(sym.location?.uri),
+  )
+  if (valid.length === 0) {
+    return 'No symbols found in the workspace. The workspace may be empty or indexing may not have completed.'
+  }
+  const grouped = new Map<string, Array<SymbolInformation & { location: Location }>>()
+  for (const sym of valid) {
+    const file = displayPath(uriToPath(sym.location.uri), workingDirectory)
+    const entries = grouped.get(file)
+    if (entries) entries.push(sym)
+    else grouped.set(file, [sym])
+  }
+  const lines: string[] = [`Found ${valid.length} ${valid.length === 1 ? 'symbol' : 'symbols'}:`]
+  for (const [file, syms] of grouped) {
+    lines.push('')
+    lines.push(`${file}:`)
+    for (const sym of syms) {
+      const kind = symbolKindName(sym.kind)
+      const container = sym.containerName ? ` in ${sym.containerName}` : ''
+      const line = sym.location.range.start.line + 1
+      lines.push(`  ${sym.name} (${kind})${container} - line ${line}`)
+    }
+  }
+  return lines.join('\n')
+}
+
+function formatCallList(
+  entries: Array<{ item: CallHierarchyItem; fromRanges?: Range[] }>,
+  emptyMessage: string,
+  singularLabel: string,
+  pluralLabel: string,
+  rangePrefix: string,
+  workingDirectory?: string,
+): string {
+  if (entries.length === 0) return emptyMessage
+  const grouped = new Map<string, Array<{ item: CallHierarchyItem; fromRanges?: Range[] }>>()
+  for (const entry of entries) {
+    const file = entry.item.uri
+      ? displayPath(uriToPath(entry.item.uri), workingDirectory)
+      : UNKNOWN_LOCATION
+    const list = grouped.get(file)
+    if (list) list.push(entry)
+    else grouped.set(file, [entry])
+  }
+  const lines: string[] = [
+    `Found ${entries.length} ${entries.length === 1 ? singularLabel : pluralLabel}:`,
+  ]
+  for (const [file, group] of grouped) {
+    lines.push('')
+    lines.push(`${file}:`)
+    for (const { item, fromRanges } of group) {
+      const kind = symbolKindName(item.kind)
+      const line = (item.selectionRange ?? item.range).start.line + 1
+      const callSites =
+        fromRanges && fromRanges.length > 0
+          ? ` (${rangePrefix} ${fromRanges.map(r => `${r.start.line + 1}:${r.start.character + 1}`).join(', ')})`
+          : ''
+      lines.push(`  ${item.name} (${kind}) - line ${line}${callSites}`)
+    }
+  }
+  return lines.join('\n')
 }
 
 export function formatIncomingCallsResult(
   result: IncomingCall[] | null,
   workingDirectory?: string,
 ): string {
-  return notBuilt('src/tools/LSPTool/formatters.ts:383')
+  const entries = (result ?? [])
+    .filter((call): call is IncomingCall & { from: CallHierarchyItem } => call.from !== undefined)
+    .map(call => ({ item: call.from, fromRanges: call.fromRanges }))
+  return formatCallList(
+    entries,
+    'No incoming calls: nothing in the indexed workspace calls this symbol.',
+    'caller',
+    'callers',
+    'calls at',
+    workingDirectory,
+  )
 }
 
 export function formatOutgoingCallsResult(
   result: OutgoingCall[] | null,
   workingDirectory?: string,
 ): string {
-  return notBuilt('src/tools/LSPTool/formatters.ts:390')
+  const entries = (result ?? [])
+    .filter((call): call is OutgoingCall & { to: CallHierarchyItem } => call.to !== undefined)
+    .map(call => ({ item: call.to, fromRanges: call.fromRanges }))
+  return formatCallList(
+    entries,
+    'No outgoing calls: this symbol calls nothing the server can resolve.',
+    'callee',
+    'callees',
+    'called from',
+    workingDirectory,
+  )
 }
