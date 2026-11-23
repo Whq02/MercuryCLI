@@ -1304,7 +1304,7 @@ export function pruneStaleMcpResourceTools(
   clients: readonly MCPServerConnection[],
   tools: Tool[],
 ): Tool[] {
-  if (clients.some(client => client.type === 'connected' && Boolean(client.capabilities.resources))) {
+  if (clients.some(client => client.type === 'connected' && Boolean(client.capabilities?.resources))) {
     return tools
   }
   return tools.filter(
