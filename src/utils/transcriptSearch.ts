@@ -1,4 +1,5 @@
 import type { RenderableMessage } from '../types/message.js'
+import { isRecord } from './isRecord.js'
 import { isTurnCutText } from './messages/rejectionText.js'
 import { passedOver } from './passedOver.js'
 
@@ -16,9 +17,7 @@ function isInterruptionSentinel(text: string): boolean {
   return isTurnCutText(text)
 }
 
-type BlockLike = {
-  type?: string
-  text?: string
+type ToolUseLike = {
   name?: string
   input?: unknown
 }
@@ -39,20 +38,18 @@ function ownSearchText(tool: SearchTextTool | undefined, result: unknown): strin
 function extractTextBlocks(blocks: readonly unknown[]): string {
   const parts: string[] = []
   for (const rawBlock of blocks) {
-    if (typeof rawBlock !== 'object' || rawBlock === null) continue
-    const block = rawBlock as BlockLike
-    if (block.type === 'text' && typeof block.text === 'string' && block.text !== '') {
-      parts.push(block.text)
+    if (!isRecord(rawBlock)) continue
+    if (rawBlock.type === 'text' && typeof rawBlock.text === 'string' && rawBlock.text !== '') {
+      parts.push(rawBlock.text)
     }
   }
   return parts.join('\n')
 }
 
-function extractToolInputSearchText(block: BlockLike): string {
+function extractToolInputSearchText(block: ToolUseLike): string {
   const parts: string[] = []
   if (typeof block.name === 'string' && block.name !== '') parts.push(block.name)
-  if (typeof block.input === 'object' && block.input !== null) {
-    const input = block.input as Record<string, unknown>
+  if (isRecord(block.input)) {
     for (const key of [
       'command',
       'description',
@@ -68,11 +65,11 @@ function extractToolInputSearchText(block: BlockLike): string {
       'new_string',
       'content',
     ] as const) {
-      const value = input[key]
+      const value = block.input[key]
       if (typeof value === 'string' && value !== '') parts.push(value)
     }
-    if (Array.isArray(input.files)) {
-      for (const entry of input.files) {
+    if (Array.isArray(block.input.files)) {
+      for (const entry of block.input.files) {
         if (typeof entry === 'string' && entry !== '') parts.push(entry)
       }
     }
@@ -83,26 +80,24 @@ function extractToolInputSearchText(block: BlockLike): string {
 function extractToolResultSearchText(result: unknown): string {
   if (typeof result === 'string') return result
   if (Array.isArray(result)) return extractTextBlocks(result)
-  if (typeof result !== 'object' || result === null) return ''
-  const record = result as Record<string, unknown>
+  if (!isRecord(result)) return ''
   const parts: string[] = []
   for (const key of ['stdout', 'stderr', 'result', 'filePath', 'oldString', 'newString'] as const) {
-    const value = record[key]
+    const value = result[key]
     if (typeof value === 'string' && value !== '') parts.push(value)
   }
-  if (typeof record.content === 'string' && record.content !== '') {
-    parts.push(record.content)
-  } else if (Array.isArray(record.content)) {
-    const nested = extractTextBlocks(record.content)
+  if (typeof result.content === 'string' && result.content !== '') {
+    parts.push(result.content)
+  } else if (Array.isArray(result.content)) {
+    const nested = extractTextBlocks(result.content)
     if (nested !== '') parts.push(nested)
   }
-  if (typeof record.file === 'object' && record.file !== null) {
-    const file = record.file as Record<string, unknown>
-    if (typeof file.filePath === 'string' && file.filePath !== '') parts.push(file.filePath)
-    if (typeof file.content === 'string' && file.content !== '') parts.push(file.content)
+  if (isRecord(result.file)) {
+    if (typeof result.file.filePath === 'string' && result.file.filePath !== '') parts.push(result.file.filePath)
+    if (typeof result.file.content === 'string' && result.file.content !== '') parts.push(result.file.content)
   }
-  if (Array.isArray(record.filenames)) {
-    for (const name of record.filenames) {
+  if (Array.isArray(result.filenames)) {
+    for (const name of result.filenames) {
       if (typeof name === 'string' && name !== '') parts.push(name)
     }
   }
@@ -118,15 +113,11 @@ function computeSearchText(message: RenderableMessage, resolveTool?: ResolveSear
       }
       if (!Array.isArray(content)) return ''
       const parts: string[] = []
-      for (const rawBlock of content) {
-        const block = rawBlock as BlockLike & { tool_use_id?: string }
-        if (block.type === 'text' && typeof block.text === 'string') {
+      for (const block of content) {
+        if (block.type === 'text') {
           if (!isInterruptionSentinel(block.text)) parts.push(block.text)
         } else if (block.type === 'tool_result') {
-          const tool =
-            typeof block.tool_use_id === 'string' && resolveTool !== undefined
-              ? resolveTool(block.tool_use_id)
-              : undefined
+          const tool = resolveTool !== undefined ? resolveTool(block.tool_use_id) : undefined
           const own = ownSearchText(tool, message.toolUseResult)
           const text = own !== undefined ? own : extractToolResultSearchText(message.toolUseResult)
           if (text !== '') parts.push(text)
@@ -138,9 +129,8 @@ function computeSearchText(message: RenderableMessage, resolveTool?: ResolveSear
       const content = message.message.content
       if (!Array.isArray(content)) return ''
       const parts: string[] = []
-      for (const rawBlock of content) {
-        const block = rawBlock as BlockLike
-        if (block.type === 'text' && typeof block.text === 'string') {
+      for (const block of content) {
+        if (block.type === 'text') {
           if (block.text !== '') parts.push(block.text)
         } else if (block.type === 'tool_use') {
           const text = extractToolInputSearchText(block)
@@ -156,9 +146,8 @@ function computeSearchText(message: RenderableMessage, resolveTool?: ResolveSear
       if (typeof attachment.prompt === 'string') return attachment.prompt
       if (!Array.isArray(attachment.prompt)) return ''
       const parts: string[] = []
-      for (const rawBlock of attachment.prompt) {
-        const block = rawBlock as BlockLike
-        if (block.type === 'text' && typeof block.text === 'string') parts.push(block.text)
+      for (const block of attachment.prompt) {
+        if (block.type === 'text') parts.push(block.text)
       }
       return parts.join('\n')
     }
@@ -175,10 +164,10 @@ function computeSearchText(message: RenderableMessage, resolveTool?: ResolveSear
 }
 
 export function renderableSearchText(msg: RenderableMessage, resolveTool?: ResolveSearchTool): string {
-  const cached = searchTextCache.get(msg as object)
+  const cached = searchTextCache.get(msg)
   if (cached !== undefined) return cached
   const text = stripSystemReminders(computeSearchText(msg, resolveTool)).toLowerCase()
-  searchTextCache.set(msg as object, text)
+  searchTextCache.set(msg, text)
   return text
 }
 
@@ -227,15 +216,14 @@ export type TranscriptFacets = {
 export const EMPTY_FACETS: TranscriptFacets = { tools: [], files: [], failed: false }
 
 export function toolInputFiles(input: unknown): string[] {
-  if (typeof input !== 'object' || input === null) return []
-  const record = input as Record<string, unknown>
+  if (!isRecord(input)) return []
   const files: string[] = []
   for (const key of ['file_path', 'path', 'notebook_path', 'filePath'] as const) {
-    const value = record[key]
+    const value = input[key]
     if (typeof value === 'string' && value.length > 0) files.push(value)
   }
-  if (Array.isArray(record.files)) {
-    for (const entry of record.files) {
+  if (Array.isArray(input.files)) {
+    for (const entry of input.files) {
       if (typeof entry === 'string' && entry.length > 0) files.push(entry)
     }
   }

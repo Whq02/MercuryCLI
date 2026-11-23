@@ -1,17 +1,64 @@
+import { z } from 'zod'
 import { BASH_TOOL_NAME } from '../constants/tools/bash.js'
 import { formatOutput } from './shell/utils.js'
 import type {
-  NotebookCell,
-  NotebookCellOutput,
   NotebookCellSource,
   NotebookCellSourceOutput,
-  NotebookContent,
-  NotebookMimeBundle,
   NotebookOutputImage,
 } from '../types/notebook.js'
 import type { ImageBlockParam, TextBlockParam, ToolResultBlockParam } from '../types/wire.js'
 import { expandPath } from './path.js'
 import { readRegularFile } from './regularFile.js'
+
+const StringOrLinesSchema = z.union([z.string(), z.array(z.string())])
+
+const MimeBundleSchema = z.object({
+  'text/plain': StringOrLinesSchema.optional().catch(undefined),
+  'image/png': StringOrLinesSchema.optional().catch(undefined),
+  'image/jpeg': StringOrLinesSchema.optional().catch(undefined),
+})
+
+const CellOutputSchema = z.discriminatedUnion('output_type', [
+  z.object({
+    output_type: z.literal('stream'),
+    text: StringOrLinesSchema.optional(),
+  }),
+  z.object({
+    output_type: z.literal('display_data'),
+    data: MimeBundleSchema.optional(),
+  }),
+  z.object({
+    output_type: z.literal('execute_result'),
+    data: MimeBundleSchema.optional(),
+  }),
+  z.object({
+    output_type: z.literal('error'),
+    ename: z.string().optional(),
+    evalue: z.string().optional(),
+    traceback: z.array(z.string()).optional(),
+  }),
+])
+
+const NotebookCellSchema = z.object({
+  cell_type: z.enum(['code', 'markdown', 'raw']),
+  id: z.string().optional(),
+  source: StringOrLinesSchema.optional(),
+  execution_count: z.number().nullable().optional(),
+  outputs: z.array(CellOutputSchema).optional(),
+})
+
+const NotebookSchema = z.object({
+  cells: z.array(NotebookCellSchema).optional(),
+  metadata: z.object({
+    language_info: z.object({
+      name: z.string().optional(),
+    }).optional(),
+  }).optional(),
+})
+
+type ParsedMimeBundle = z.infer<typeof MimeBundleSchema>
+type ParsedNotebookOutput = z.infer<typeof CellOutputSchema>
+type ParsedNotebookCell = z.infer<typeof NotebookCellSchema>
 
 
 const LARGE_OUTPUT_THRESHOLD = 10_000
@@ -31,7 +78,7 @@ function processText(text: string | string[] | undefined): string {
 const outputWeight = (output: NotebookCellSourceOutput | undefined): number =>
   output ? (output.text?.length ?? 0) + (output.image?.image_data.length ?? 0) : 0
 
-function extractImage(data: NotebookMimeBundle): NotebookOutputImage | undefined {
+function extractImage(data: ParsedMimeBundle): NotebookOutputImage | undefined {
   const png = data['image/png']
   if (png !== undefined) {
     return { image_data: joinSource(png).replace(/\s/g, ''), media_type: 'image/png' }
@@ -43,7 +90,7 @@ function extractImage(data: NotebookMimeBundle): NotebookOutputImage | undefined
   return undefined
 }
 
-function processOutput(output: NotebookCellOutput): NotebookCellSourceOutput {
+function processOutput(output: ParsedNotebookOutput): NotebookCellSourceOutput {
   switch (output.output_type) {
     case 'stream':
       return { output_type: output.output_type, text: processText(output.text) }
@@ -67,7 +114,7 @@ function processOutput(output: NotebookCellOutput): NotebookCellSourceOutput {
   }
 }
 
-function processCell(cell: NotebookCell, index: number, language: string, includeLargeOutputs: boolean): NotebookCellSource {
+function processCell(cell: ParsedNotebookCell, index: number, language: string, includeLargeOutputs: boolean): NotebookCellSource {
   const cellSource: NotebookCellSource = {
     cellType: cell.cell_type,
     source: joinSource(cell.source),
@@ -96,7 +143,7 @@ function processCell(cell: NotebookCell, index: number, language: string, includ
 export async function readNotebook(notebookPath: string, cellId?: string): Promise<NotebookCellSource[]> {
   const absolute = expandPath(notebookPath)
   const bytes = await readRegularFile(absolute)
-  const notebook = JSON.parse(bytes.toString('utf8')) as NotebookContent
+  const notebook = NotebookSchema.parse(JSON.parse(bytes.toString('utf8')))
   const language = notebook.metadata?.language_info?.name ?? DEFAULT_LANGUAGE
   const cells = notebook.cells ?? []
   if (cellId !== undefined) {

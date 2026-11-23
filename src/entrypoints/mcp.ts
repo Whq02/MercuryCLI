@@ -18,6 +18,7 @@ import { randomUUID } from 'node:crypto'
 import { zodToJsonSchema } from '../utils/zodToJsonSchema.js'
 import { createAssistantMessage } from '../services/messages.js'
 import { repairToolInput } from '../services/providers/toolCallGate.js'
+import { isRecord } from '../utils/isRecord.js'
 import { formatZodValidationError } from '../utils/toolErrors.js'
 
 export function describeToolError(error: unknown): string {
@@ -86,7 +87,7 @@ export async function startMCPServer(
         const convertedOutput = tool.outputSchema ? zodToJsonSchema(tool.outputSchema, 'output') : undefined
         const outputSchema =
           convertedOutput !== undefined && convertedOutput.type === 'object'
-            ? (convertedOutput as McpTool['outputSchema'])
+            ? convertedOutput
             : undefined
         return {
           name: tool.name,
@@ -108,11 +109,11 @@ export async function startMCPServer(
     }
 
     const rawArgs: unknown = request.params.arguments
-    if (rawArgs !== undefined && (typeof rawArgs !== 'object' || rawArgs === null || Array.isArray(rawArgs))) {
+    if (rawArgs !== undefined && !isRecord(rawArgs)) {
       throw new ProtocolError(ProtocolErrorCode.InvalidParams, `Tool ${tool.name} takes an object of arguments`)
     }
 
-    const repaired = repairToolInput(tool, (rawArgs ?? {}) as Record<string, unknown>)
+    const repaired = repairToolInput(tool, rawArgs ?? {})
     const parsed = tool.inputSchema.safeParse(repaired)
     if (!parsed.success) {
       throw new ProtocolError(
@@ -120,8 +121,10 @@ export async function startMCPServer(
         formatZodValidationError(tool.name, parsed.error, tool.inputSchema),
       )
     }
-    const parsedArgs = parsed.data as Record<string, unknown>
-
+    if (!isRecord(parsed.data)) {
+      throw new ProtocolError(ProtocolErrorCode.InvalidParams, `Tool ${tool.name} takes an object of arguments`)
+    }
+    const parsedArgs = parsed.data
     const abortController = new AbortController()
     const toolUseContext: ToolUseContext = {
       abortController,
