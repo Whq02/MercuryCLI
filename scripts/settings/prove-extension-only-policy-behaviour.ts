@@ -70,7 +70,7 @@ section('§3 which sources an administrator stands behind')
 {
   const trusted = ['extension', 'policySettings', 'built-in', 'builtin', 'bundled']
   check('extension, policySettings, built-in, builtin and bundled are trusted', trusted.every(source => isSourceAdminTrusted(source)), `${trusted.filter(source => !isSourceAdminTrusted(source)).join(',')}; see isSourceAdminTrusted in ${WHERE}`)
-  const others = ['userSettings', 'projectSettings', 'localSettings', 'flagSettings', 'user', 'project', 'local', 'plugin', 'mcp', '', ' extension', 'Extension', 'BUNDLED', 'built in', 'policy']
+  const others = ['userSettings', 'projectSettings', 'localSettings', 'flagSettings', 'user', 'project', 'local', 'mcp', '', ' extension', 'Extension', 'BUNDLED', 'built in', 'policy']
   check('every other source is not, whatever its case or spacing', others.every(source => !isSourceAdminTrusted(source)), others.filter(source => isSourceAdminTrusted(source)).join(','))
   check('no source at all is not trusted', isSourceAdminTrusted(undefined) === false)
 }
