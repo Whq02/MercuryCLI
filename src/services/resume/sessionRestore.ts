@@ -4,7 +4,7 @@ import type { AppState } from '../../state/AppStateStore.js'
 
 import type { AgentDefinition, AgentDefinitionsResult } from '../../types/agent.js'
 import type { PersistedWorktreeSession } from '../../types/logs.js'
-import type { AssistantMessage, Message } from '../../types/message.js'
+import type { Message } from '../../types/message.js'
 import { logForDebugging } from '../../utils/debug.js'
 import type { FileHistorySnapshot } from '../../types/fileHistory.js'
 import { fileHistoryRestoreStateFromLog } from '../changeTransaction/fileHistory.js'
@@ -82,10 +82,14 @@ export function restoreMissionContinuity(
 }
 
 function adoptedSessionIdOf(result: Pick<ResumedConversationLog, 'messages' | 'sessionId'>): string {
-  const fromMessages = result.messages.find(
-    (m): m is Message & { sessionId: string } => typeof (m as { sessionId?: unknown }).sessionId === 'string',
-  ) as { sessionId?: string } | undefined
-  return String(result.sessionId ?? fromMessages?.sessionId ?? getSessionId())
+  let fromMessages: string | undefined
+  for (const message of result.messages) {
+    if ('sessionId' in message && typeof message.sessionId === 'string') {
+      fromMessages = message.sessionId
+      break
+    }
+  }
+  return String(result.sessionId ?? fromMessages ?? getSessionId())
 }
 
 export function restoreAgentFromSession(
@@ -120,8 +124,8 @@ export function restoreConversationModelFromMessages(messages?: Message[]): stri
   let servedModel: string | undefined
   for (let index = messages.length - 1; index >= 0; index--) {
     const message = messages[index]
-    if (message === undefined) continue
-    const served = servedModelOfAssistantRow(message as AssistantMessage)
+    if (message === undefined || message.type !== 'assistant') continue
+    const served = servedModelOfAssistantRow(message)
     if (served !== undefined) {
       servedModel = served
       break

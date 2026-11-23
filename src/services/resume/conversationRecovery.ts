@@ -212,7 +212,7 @@ function runEndedLastTurn(chain: Message[], turnEnd: TurnEnded | undefined): boo
 function isOwnCutToolResult(message: UserMessage): boolean {
   const content = message.message.content
   if (!Array.isArray(content)) return false
-  const first = content[0] as { type?: string; is_error?: unknown; content?: unknown } | undefined
+  const first = content[0]
   return (
     first !== undefined &&
     first.type === 'tool_result' &&
@@ -569,7 +569,7 @@ function listingFactsOf(listing: SessionListing): ResumeFacts {
 
 export async function loadConversationForResume(
   source: string | SessionListing | undefined,
-  sourceJsonlFile: string | undefined,
+  sourceJsonlFile?: string,
 ): Promise<ResumeResult | null> {
   try {
     let rawMessages: Message[]
