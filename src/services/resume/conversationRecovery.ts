@@ -54,12 +54,15 @@ import {
 } from '../../utils/sessionStorage.js'
 import { PERSISTED_OUTPUT_TAG } from '../../utils/toolResultStorage.js'
 import { asSessionId, type SessionId } from '../../types/ids.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-export type TurnInterruptionState = Unbuilt
+export type TurnInterruptionState =
+  | { kind: 'none' }
+  | { kind: 'interrupted_prompt'; message: NormalizedUserMessage }
 
-type InternalInterruptionState = Unbuilt
+type InternalInterruptionState =
+  | TurnInterruptionState
+  | { kind: 'interrupted_turn' }
 
 export function getResumePrompt(): string {
   return 'The previous run ended before its turn finished — stopped from outside or crashed; continue from where you left off.'
@@ -75,10 +78,44 @@ type LegacyAttachmentRecord = {
 }
 
 function migrateLegacyAttachment(message: Message): Message {
-  return notBuilt('src/services/resume/conversationRecovery.ts:83')
+  if (message.type !== 'attachment') return message
+  const raw = message.attachment as LegacyAttachmentRecord
+  if (raw.type === 'new_file' && typeof raw.filename === 'string') {
+    return {
+      ...message,
+      attachment: {
+        ...message.attachment,
+        type: 'file',
+        displayPath: relative(getCwd(), raw.filename),
+      },
+    } as AttachmentMessage
+  }
+  if (raw.type === 'new_directory' && typeof raw.path === 'string') {
+    return {
+      ...message,
+      attachment: {
+        ...message.attachment,
+        type: 'directory',
+        displayPath: relative(getCwd(), raw.path),
+      },
+    } as AttachmentMessage
+  }
+  if (raw.displayPath === undefined) {
+    const candidate = raw.filename ?? raw.path ?? raw.skillDir
+    if (typeof candidate === 'string') {
+      return {
+        ...message,
+        attachment: {
+          ...message.attachment,
+          displayPath: relative(getCwd(), candidate),
+        },
+      } as AttachmentMessage
+    }
+  }
+  return message
 }
 
-const noticedPermissionModes: Set<string> = unbuilt('src/services/resume/conversationRecovery.ts:101')
+const noticedPermissionModes: Set<string> = new Set()
 function scrubPermissionMode(message: Message): Message {
   if (message.type !== 'user') return message
   const mode = (message as UserMessage).permissionMode
@@ -172,8 +209,128 @@ function runEndedLastTurn(chain: Message[], turnEnd: TurnEnded | undefined): boo
   return !chain.some(row => trailing.has(row.uuid) && !asksNoReply(row))
 }
 
+function isOwnCutToolResult(message: UserMessage): boolean {
+  const content = message.message.content
+  if (!Array.isArray(content)) return false
+  const first = content[0] as { type?: string; is_error?: unknown; content?: unknown } | undefined
+  return (
+    first !== undefined &&
+    first.type === 'tool_result' &&
+    first.is_error === true &&
+    typeof first.content === 'string' &&
+    isCutResultText(first.content)
+  )
+}
+
+function detectInterruption(
+  messages: Message[],
+  stops: ReadonlyMap<string, string>,
+  turnOpen: boolean,
+): InternalInterruptionState {
+  if (messages.length === 0) return { kind: 'none' }
+  let ended = false
+  let lastIndex = messages.length - 1
+  while (lastIndex >= 0) {
+    const row = messages[lastIndex]!
+    if (saysRunEndedTurn(row)) ended = true
+    if (row.type === 'system' || row.type === 'progress' || isSyntheticApiErrorAssistant(row)) {
+      lastIndex--
+      continue
+    }
+    break
+  }
+  if (lastIndex < 0) return { kind: 'none' }
+  const last = messages[lastIndex]!
+  if (last.type === 'assistant') {
+    return turnOfLastReply(last, stops, ended, false)
+  }
+  if (last.type === 'user') {
+    if (last.isCompactSummary) return { kind: 'none' }
+    if (last.isMeta) return turnOpen ? { kind: 'interrupted_turn' } : { kind: 'none' }
+    if (isToolUseResultMessage(last)) {
+      if (isTurnTerminatingToolResult(messages, lastIndex) || isOwnCutToolResult(last)) {
+        return { kind: 'none' }
+      }
+      return { kind: 'interrupted_turn' }
+    }
+    return { kind: 'interrupted_prompt', message: last as NormalizedUserMessage }
+  }
+  if (last.type === 'attachment') {
+    for (let i = lastIndex; i >= 0; i--) {
+      const row = messages[i]!
+      if (isLoopGuardStop(row)) return { kind: 'none' }
+      if (saysRunEndedTurn(row)) ended = true
+      if (asksNoReply(row)) continue
+      if (row.type === 'assistant') {
+        return turnOfLastReply(row, stops, ended, true)
+      }
+      if (row.type === 'user' && isOwnCutToolResult(row)) {
+        return { kind: 'none' }
+      }
+      return { kind: 'interrupted_turn' }
+    }
+    return { kind: 'interrupted_turn' }
+  }
+  return { kind: 'none' }
+}
+
+function deserializeMessagesWithInterruptDetection(
+  serialized: Message[],
+  turnEnd?: TurnEnded,
+  turnOpen = false,
+): { messages: Message[]; turnInterruptionState: TurnInterruptionState } {
+  try {
+    let messages = withoutRetractedReplies(
+      rehydrateScreenshots(
+        serialized.map(migrateLegacyAttachment).map(scrubPermissionMode),
+      ),
+    )
+    const ended = runEndedLastTurn(messages, turnEnd)
+    const stops = replyStops(messages)
+    messages = settleToolUsesOfEndedRun(messages)
+    messages = filterOrphanedThinkingOnlyMessages(messages)
+    messages = filterWhitespaceOnlyAssistantMessages(messages)
+
+    const detected: InternalInterruptionState = ended
+      ? { kind: 'none' }
+      : detectInterruption(messages, stops, turnOpen)
+
+    let turnInterruptionState: TurnInterruptionState
+    if (detected.kind === 'interrupted_turn') {
+      const resumePrompt = normalizeMessages([
+        createUserMessage({ content: getResumePrompt(), isMeta: true }),
+      ])[0]!
+      messages = [...messages, resumePrompt]
+      turnInterruptionState = { kind: 'interrupted_prompt', message: resumePrompt }
+    } else {
+      turnInterruptionState = detected
+    }
+
+    let lastNonMetaIdx = messages.length - 1
+    while (
+      lastNonMetaIdx >= 0 &&
+      (messages[lastNonMetaIdx]!.type === 'system' || messages[lastNonMetaIdx]!.type === 'progress')
+    ) {
+      lastNonMetaIdx--
+    }
+    if (lastNonMetaIdx >= 0 && messages[lastNonMetaIdx]!.type === 'user') {
+      const sentinel = createAssistantMessage({ content: NO_RESPONSE_REQUESTED })
+      messages = [
+        ...messages.slice(0, lastNonMetaIdx + 1),
+        sentinel,
+        ...messages.slice(lastNonMetaIdx + 1),
+      ]
+    }
+
+    return { messages, turnInterruptionState }
+  } catch (error) {
+    logError(error)
+    throw error
+  }
+}
+
 export function deserializeMessages(serialized: Message[]): Message[] {
-  return notBuilt('src/services/resume/conversationRecovery.ts:281')
+  return deserializeMessagesWithInterruptDetection(serialized).messages
 }
 
 export function deserializeLiveMessages(serialized: readonly Message[]): Message[] {
@@ -337,7 +494,11 @@ function filterDuplicateSessionStartHooks(incoming: Message[], transcript: Messa
 }
 
 
-type WalkedTranscript = Unbuilt
+type WalkedTranscript = {
+  messages: SerializedMessage[]
+  sessionId: UUID | undefined
+  facts: ResumeFacts
+}
 
 async function walkTranscriptFile(path: string): Promise<WalkedTranscript> {
   const loaded = await loadTranscriptFile(path)
@@ -368,15 +529,146 @@ async function walkTranscriptFile(path: string): Promise<WalkedTranscript> {
   }
 }
 
-type ResumeResult = Unbuilt
+type ResumeResult = ResumeFacts & {
+  messages: Message[]
+  turnInterruptionState: TurnInterruptionState
+  sessionId: SessionId | undefined
+  fullPath?: string
+}
 
 export function hasConversationTurn(messages: readonly { type: string }[]): boolean {
   return messages.some(m => m.type === 'user' || m.type === 'assistant')
+}
+
+function listingFactsOf(listing: SessionListing): ResumeFacts {
+  return {
+    fileHistorySnapshots: listing.fileHistorySnapshots,
+    attributionSnapshots: listing.attributionSnapshots,
+    contentReplacements: listing.contentReplacements,
+    contextCollapseCommits: listing.contextCollapseCommits,
+    contextCollapseSnapshot: listing.contextCollapseSnapshot,
+    agentName: listing.agentName,
+    agentColor: listing.agentColor,
+    agentSetting: listing.agentSetting,
+    brief: listing.brief,
+    briefAdd: listing.briefAdd,
+    customTitle: listing.customTitle,
+    tag: listing.tag,
+    mode: listing.mode,
+    advisor: listing.advisor,
+    swarm: listing.swarm,
+    model: listing.model,
+    worktreeSession: listing.worktreeSession,
+    prNumber: listing.prNumber,
+    prUrl: listing.prUrl,
+    prRepository: listing.prRepository,
+    turnEnd: listing.turnEnd,
+    ...(listing.turnOpen === true ? { turnOpen: true } : {}),
+  }
 }
 
 export async function loadConversationForResume(
   source: string | SessionListing | undefined,
   sourceJsonlFile: string | undefined,
 ): Promise<ResumeResult | null> {
-  return notBuilt('src/services/resume/conversationRecovery.ts:513')
+  try {
+    let rawMessages: Message[]
+    let sessionId: UUID | undefined
+    let facts: ResumeFacts
+    let fullPath: string | undefined
+
+    if (source === undefined) {
+      const listings = await listProjectSessions()
+      const listing = listings[0]
+      if (!listing) return null
+      const hydrated = isLiteListing(listing) ? await fillSessionListing(listing) : listing
+      sessionId = sessionIdOfListing(hydrated)
+      void copyFileHistoryForResume(hydrated)
+      rawMessages = hydrated.messages
+      checkResumeConsistency(rawMessages)
+      fullPath = hydrated.fullPath
+      facts = listingFactsOf(hydrated)
+    } else if (sourceJsonlFile !== undefined) {
+      const walked = await walkTranscriptFile(sourceJsonlFile)
+      rawMessages = walked.messages
+      sessionId = walked.sessionId
+      facts = walked.facts
+    } else {
+      let listing: SessionListing | null
+      let suppliedId: UUID | undefined
+      if (typeof source === 'string') {
+        suppliedId = source as UUID
+        listing = await lastSession(suppliedId)
+      } else {
+        listing = source
+      }
+      if (!listing) return null
+      const hydrated = isLiteListing(listing) ? await fillSessionListing(listing) : listing
+      sessionId = suppliedId ?? sessionIdOfListing(hydrated)
+      void copyFileHistoryForResume(hydrated)
+      rawMessages = hydrated.messages
+      checkResumeConsistency(rawMessages)
+      fullPath = hydrated.fullPath
+      facts = listingFactsOf(hydrated)
+    }
+
+    if (!hasConversationTurn(rawMessages)) return null
+
+    for (const message of rawMessages) {
+      if (message.type !== 'attachment') continue
+      if (message.attachment.type === 'invoked_skills') {
+        const skills = message.attachment.skills
+        if (Array.isArray(skills)) {
+          for (const skill of skills) {
+            if (skill.name && skill.path && skill.content) {
+              addInvokedSkill(skill.name, skill.path, skill.content)
+            }
+          }
+        }
+      } else if (message.attachment.type === 'skill_listing') {
+        suppressNextSkillListing()
+      }
+    }
+
+    restoreBoundPrefixFromMessages(rawMessages)
+
+    try {
+      const owner = sessionId ? mainOwnerOfSession(sessionId) : processMainOwner()
+      const rebuilt = rebuildSeenLinesFromTranscript(owner, rawMessages)
+      if (rebuilt.files > 0) {
+        logForDebugging(
+          `read ledger: ${rebuilt.lines} line(s) of ${rebuilt.files} file(s) this session read or wrote before the restart still read the same and count as read`,
+        )
+      }
+    } catch (error) {
+      logForDebugging(
+        `read ledger: the transcript could not be read back for the seen lines (${String(error)})`,
+      )
+    }
+
+    const { messages: deserialized, turnInterruptionState } =
+      deserializeMessagesWithInterruptDetection(rawMessages, facts.turnEnd, facts.turnOpen === true)
+
+    const recordedModel =
+      getEngineModelOverride() === undefined && facts.model
+        ? parseUserSpecifiedModel(facts.model)
+        : undefined
+    const incomingHooks = await runSessionStartHooks('resumed', {
+      sessionId,
+      ...(recordedModel !== undefined ? { model: recordedModel } : {}),
+    })
+    const filteredHooks = filterDuplicateSessionStartHooks(incomingHooks, deserialized)
+    const messages = filteredHooks.length > 0 ? [...deserialized, ...filteredHooks] : deserialized
+
+    return {
+      messages,
+      turnInterruptionState,
+      sessionId: sessionId !== undefined ? asSessionId(sessionId) : undefined,
+      ...facts,
+      fullPath,
+    }
+  } catch (error) {
+    logError(error)
+    throw error
+  }
 }
