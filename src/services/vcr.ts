@@ -108,6 +108,10 @@ function recordsFixtures(): boolean {
   return flagEnv('MERCURY_VCR_RECORD') === '1'
 }
 
+function isEnoent(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && 'code' in err && err.code === 'ENOENT'
+}
+
 async function withFixture<T>(
   name: string,
   input: unknown,
@@ -122,7 +126,7 @@ async function withFixture<T>(
     const raw = readFileSync(path, 'utf8')
     return jsonParse(raw) as T
   } catch (err) {
-    if ((err as { code?: string }).code !== 'ENOENT') throw err
+    if (!isEnoent(err)) throw err
   }
   if (isCiEnvironment()) {
     throw new Error(
@@ -247,7 +251,7 @@ export async function withVCR<T extends VcrMessage>(
     }
     return hydrated
   } catch (err) {
-    if ((err as { code?: string }).code !== 'ENOENT') throw err
+    if (!isEnoent(err)) throw err
   }
   if (isCiEnvironment()) {
     throw new Error(

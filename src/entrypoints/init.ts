@@ -113,8 +113,8 @@ export const init: () => Promise<void> = memoize(async (): Promise<void> => {
           let backup: string | null = null
           try {
             backup = findMostRecentBackup(error.filePath)
-          } catch {
-            backup = null
+          } catch (backupError) {
+            passedOver(backupError)
           }
           if (backup) {
             lines.push(
