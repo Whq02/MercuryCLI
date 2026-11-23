@@ -33,6 +33,8 @@ const SEARCH_WARMUP_QUIET_MS = 20;
 const SEARCH_WARMUP_SHOW_MS = 2000;
 const EDITOR_STATUS_MS = 4000;
 
+type FrozenTranscriptState = { messageCount: number; streamingToolUseCount: number };
+
 type UseChatSearchProps = {
   fullscreen: boolean;
   virtualScrollEnabled: boolean;
@@ -329,7 +331,7 @@ export function useChatSearch({
   const [committedSearchQuery, setCommittedSearchQuery] = useState('');
   const [searchMatchCount, setSearchMatchCount] = useState<number | null>(null);
   const [searchMatchCurrent, setSearchMatchCurrent] = useState(0);
-  const [frozenMessageCount, setFrozenMessageCount] = useState<number | null>(null);
+  const [frozenTranscript, setFrozenTranscript] = useState<FrozenTranscriptState | null>(null);
 
   const jumpRef = useRef<JumpHandle | null>(null);
   const transcriptVisitRef = useRef(0);
@@ -352,20 +354,20 @@ export function useChatSearch({
   const legacyTranscript = inTranscript && !inVirtualTranscriptMode;
 
   const transcriptMessages = useMemo(
-    () => (frozenMessageCount === null ? messages : messages.slice(0, frozenMessageCount)),
-    [messages, frozenMessageCount],
+    () => (frozenTranscript === null ? messages : messages.slice(0, frozenTranscript.messageCount)),
+    [messages, frozenTranscript],
   );
 
   const handleEnterTranscript = useCallback(() => {
     captureScrollForFlip();
     const messageCount = getFocusedSessionConnector().records().length;
-    setFrozenMessageCount(messageCount);
+    setFrozenTranscript({ messageCount, streamingToolUseCount: 0 });
     setFlipGeneration(g => g + 1);
   }, [captureScrollForFlip, setFlipGeneration]);
 
   const handleExitTranscript = useCallback(() => {
     captureScrollForFlip();
-    setFrozenMessageCount(null);
+    setFrozenTranscript(null);
     setSearchBarOpen(false);
     setCommittedSearchQuery('');
     setSearchMatchCount(null);
