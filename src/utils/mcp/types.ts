@@ -1,7 +1,6 @@
 import type { Client, Implementation, Resource, ServerCapabilities, Tool } from './sdk.js'
 import { z } from 'zod'
 import { passedOver } from '../passedOver.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export type McpBootstrapManifest = {
   serverInfo: Implementation
@@ -18,10 +17,12 @@ function once<T>(build: () => T): () => T {
   }
 }
 
-export const ConfigScopeSchema: Unbuilt = unbuilt('src/utils/mcp/types.ts:20')
-export const TransportSchema: Unbuilt = unbuilt('src/utils/mcp/types.ts:21')
-export type ConfigScope = Unbuilt
-export type Transport = Unbuilt
+export const ConfigScopeSchema = once(() =>
+  z.enum(['local', 'user', 'project', 'dynamic', 'enterprise', 'claudeai', 'managed']),
+)
+export const TransportSchema = once(() => z.enum(['stdio', 'sse', 'http', 'ws']))
+export type ConfigScope = z.infer<ReturnType<typeof ConfigScopeSchema>>
+export type Transport = z.infer<ReturnType<typeof TransportSchema>>
 
 function secureMetadataUrl(value: string | undefined): boolean {
   if (value === undefined) return true
@@ -42,16 +43,105 @@ const everyKeyKept = (value: Record<string, string>): Record<string, string> => 
   for (const [key, item] of Object.entries(value)) Object.defineProperty(out, key, { value: item, enumerable: true, writable: true, configurable: true })
   return out
 }
-export const McpServerConfigSchema: Unbuilt = unbuilt('src/utils/mcp/types.ts:61')
-export const McpJsonConfigSchema: Unbuilt = unbuilt('src/utils/mcp/types.ts:65')
+export const McpServerConfigSchema = once(() => {
+  const toolPermissions = z
+    .custom<Record<string, string>>(isStringRecord, 'expected tool names mapped to permission words')
+    .transform(everyKeyKept)
+  const oauth = z.object({
+    clientId: z.string().optional(),
+    callbackPort: z.number().int().positive().optional(),
+    authServerMetadataUrl: z
+      .string()
+      .optional()
+      .refine(secureMetadataUrl, { message: 'authServerMetadataUrl must be a valid https:// URL' }),
+  })
+  const stdio = z.object({
+    type: z.literal('stdio').optional(),
+    command: z.string().min(1, 'Command cannot be empty'),
+    args: z.array(z.string()).default([]),
+    env: strings().optional(),
+  })
+  const sse = z.object({
+    type: z.literal('sse'),
+    url: z.string(),
+    headers: strings().optional(),
+    headersHelper: z.string().optional(),
+    oauth: oauth.optional(),
+    toolPermissions: toolPermissions.optional(),
+  })
+  const http = z.object({
+    type: z.literal('http'),
+    url: z.string(),
+    headers: strings().optional(),
+    headersHelper: z.string().optional(),
+    oauth: oauth.optional(),
+    toolPermissions: toolPermissions.optional(),
+  })
+  const ws = z.object({
+    type: z.literal('ws'),
+    url: z.string(),
+    headers: strings().optional(),
+    headersHelper: z.string().optional(),
+  })
+  const proxy = z.object({
+    type: z.literal('claudeai-proxy'),
+    url: z.string(),
+    id: z.string(),
+    toolPermissions: toolPermissions.optional(),
+  })
+  return z.union([stdio, sse, http, ws, proxy])
+})
+export const McpJsonConfigSchema = once(() =>
+  z.object({
+    mcpServers: z.record(z.string(), McpServerConfigSchema()),
+  }),
+)
 
-export type McpServerConfig = Unbuilt
-export type McpUnexpandedStrings = Unbuilt
-export type ScopedMcpServerConfig = Unbuilt
+export type McpServerConfig = z.infer<ReturnType<typeof McpServerConfigSchema>>
 
-type ServerIdentity = Unbuilt
-type ConnectionFacts = Unbuilt
+export type McpUnexpandedStrings = {
+  command?: string
+  args?: string[]
+  url?: string
+  env?: Record<string, string>
+}
+
+export type ScopedMcpServerConfig = McpServerConfig & {
+  scope: ConfigScope
+  extensionSource?: string
+  unexpanded?: McpUnexpandedStrings
+  bundledBootstrap?: McpBootstrapManifest
+  inlineDispatchId?: string
+}
+
+type ServerIdentity = {
+  name: string
+  config: ScopedMcpServerConfig
+}
+type ConnectionFacts = {
+  connected: {
+    client: Client
+    capabilities: ServerCapabilities
+    cleanup: () => Promise<void>
+    serverInfo?: Implementation
+    instructions?: string
+  }
+  failed: {
+    error?: string
+  }
+  pending: {
+    reconnectAttempt?: number
+    maxReconnectAttempts?: number
+  }
+  disabled: Record<never, never>
+  'needs-auth': Record<never, never>
+}
 type Connection<State extends keyof ConnectionFacts> = ServerIdentity & { type: State } & ConnectionFacts[State]
 export type ConnectedMCPServer = Connection<'connected'>
-export type MCPServerConnection = Unbuilt
+export type MCPServerConnection =
+  | Connection<'connected'>
+  | Connection<'failed'>
+  | Connection<'pending'>
+  | Connection<'disabled'>
+  | Connection<'needs-auth'>
 export type ServerResource = Resource & { server: string }
