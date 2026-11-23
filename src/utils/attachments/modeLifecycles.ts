@@ -13,14 +13,18 @@ import { notBuilt } from '../../pi/holes.js'
 export function getDateChangeAttachments(
   messages: Message[] | undefined,
 ): Attachment[] {
-  return notBuilt('src/utils/attachments/modeLifecycles.ts:13')
+  return getCapsuleDateChange({}, messages)
 }
 
 export function getCapsuleDateChange(
   context: Pick<ToolUseContext, 'owner' | 'agentId'>,
   messages: Message[] | undefined,
 ): Attachment[] {
-  return notBuilt('src/utils/attachments/modeLifecycles.ts:19')
+  const state = capsuleStateFor(context, messages)
+  const today = getLocalISODate()
+  const lastDate = state.lastDate
+  state.lastDate = today
+  return lastDate !== null && lastDate !== today ? [{ type: 'date_change', newDate: today }] : []
 }
 
 
