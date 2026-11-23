@@ -180,8 +180,7 @@ type PersistedProgressEntry = {
 
 export function isPersistedProgressEntry(entry: unknown): entry is PersistedProgressEntry {
   if (typeof entry !== 'object' || entry === null) return false
-  const record = entry as Record<string, unknown>
-  return record.type === 'progress' && typeof record.uuid === 'string'
+  return 'type' in entry && entry.type === 'progress' && 'uuid' in entry && typeof entry.uuid === 'string'
 }
 
 export function isEphemeralToolProgress(dataType: unknown): boolean {
