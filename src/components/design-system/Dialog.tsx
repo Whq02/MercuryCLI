@@ -33,12 +33,8 @@ export function Dialog({
   isCancelActive?: boolean
 }): React.ReactNode {
   const elevatedRef = useElevatedSurface()
-  const exitState = useExitOnCtrlCDWithKeybindings(
-    undefined,
-    undefined,
-    isCancelActive,
-  )
-  useKeybinding('confirm:no', onCancel, {
+  const exitState = useExitOnCtrlCDWithKeybindings(undefined, () => isCancelActive)
+  useKeybinding('confirm:no', () => onCancel(), {
     context: 'Confirmation',
     isActive: isCancelActive,
   })
@@ -71,9 +67,8 @@ export function Dialog({
         {title}
       </Text>
       {hasSubtitle ? <Text dimColor>{subtitle}</Text> : null}
-      <Box flexDirection="column" marginTop={1}>
-        {children}
-      </Box>
+      <Box height={1} />
+      {children}
       {guide}
     </Box>
   )
