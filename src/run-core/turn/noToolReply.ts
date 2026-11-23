@@ -65,6 +65,7 @@ import { createCacheSafeParams } from '../../services/agents/forkedAgent.js'
 import { askForHandoff, assistantText, handoffAskDue, handoffNotice } from '../../mneme/handoffAsk.js'
 import { finishMemorySignal } from '../../mneme/mnemeSignal.js'
 import { emptyReplyEndedLine, emptyReplyKindOf, emptyReplyNoteOf, emptyReplyNoticeLine, type EmptyReplyKind } from '../../services/providers/emptyReply.js'
+import { overflowSignalOf } from '../../services/api/overflowSignal.js'
 import type { Terminal } from '../../query/transitions.js'
 import { isWithheldMaxOutputTokens } from '../model-lane.js'
 import type { RunEvent } from '../events.js'
@@ -263,11 +264,11 @@ async function* overflowRecovery(run: RunCtx, iter: IterationState, reply: NoToo
   const { emit, querySource } = run
   const { state, toolUseContext, messagesForQuery, tracking, overflowEpisode, assistantMessages } = iter
   const { maxOutputTokensRecoveryCount, maxOutputTokensOverride, streamFaultRecoveryCount, toolCallRefusalRecoveryCount, turnCount } = iter.state
-  const overflow = reply.lastMessage?.overflowSignal
-  if (overflow === undefined || !overflowLadderArmed(querySource)) return undefined
+  const overflow = overflowSignalOf(reply.lastMessage)
+  if (overflow === null || !overflowLadderArmed(querySource)) return undefined
 
   const candidate: Message[] = [...messagesForQuery, ...assistantMessages.filter(m => m.isApiErrorMessage !== true)]
-  const signal = measureOverflow(overflow, candidate, iter.currentModel)
+  const signal = measureOverflow(overflow, candidate, toolUseContext.options.engineModel)
   const decision = decideOverflowRecovery({
     episode: overflowEpisode,
     gapTokens: overflowGapFor(signal),
@@ -289,7 +290,7 @@ async function* overflowRecovery(run: RunCtx, iter: IterationState, reply: NoToo
       toolCallRefusalRecoveryCount,
       stopHookActive: undefined,
       turnCount,
-      overflowEpisode: rung === 'fold' ? { ...overflowEpisode, folded: true } : { ...overflowEpisode, pruned: true },
+      overflowEpisode: { pruned: overflowEpisode.pruned || rung === 'prune', folded: overflowEpisode.folded || rung === 'fold' },
       pendingOverflow: { signal, rung },
       transition: { reason: 'overflow_recovery', rung, source: signal.source },
     }
@@ -314,7 +315,7 @@ async function* overflowRecovery(run: RunCtx, iter: IterationState, reply: NoToo
 async function* pauseTurnContinuation(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
   const { emit } = run
   const { maxTurns } = run.params
-  const { state, toolUseContext, messagesForQuery, tracking, overflowEpisode, assistantMessages } = iter
+  const { state, messagesForQuery, tracking, assistantMessages } = iter
   if (pausedReplyOf(assistantMessages) === null) return undefined
   const continuations = state.pauseTurnContinuations ?? 0
   const decision = decidePauseTurnContinuation({ continuations })
@@ -341,13 +342,11 @@ async function* pauseTurnContinuation(run: RunCtx, iter: IterationState, reply: 
   const next: NextTurn = {
     ...state,
     messages: [...messagesForQuery, ...assistantMessages.filter(m => m.isApiErrorMessage !== true)],
-    toolUseContext,
     autoCompactTracking: tracking,
-    stopHookActive: undefined,
     turnCount,
-    overflowEpisode,
-    pendingOverflow: undefined,
     pauseTurnContinuations: continuations + 1,
+    stopHookActive: undefined,
+    pendingOverflow: undefined,
     transition: { reason: 'pause_turn_continuation', attempt: decision.attempt },
   }
   return { kind: 'hand_over', next }
@@ -362,13 +361,13 @@ async function* reasoningOnlyRecovery(run: RunCtx, iter: IterationState, reply: 
   const capped = reasoningOnly.maxTokens
   const recoveryCount = state.reasoningOnlyRecoveryCount ?? 0
   const decision = decideReasoningOnlyRecovery({ recoveryCount, maxTokens: capped })
-  const ceiling = reasoningOnly.reply.outputLimit ?? iter.maxOutputTokensOverride ?? getModelMaxOutputTokens(iter.currentModel).default
-  const limitWords = capped ? outputLimitWords(ceiling) : null
-  const noticeOf = (action: string): RunEvent =>
-    emit({ kind: 'notice', message: createSystemMessage(reasoningOnlyNoticeLine(limitWords, recoveryCount > 0, action), 'warning') })
+  const limitWords = capped ? outputLimitWords(reasoningOnly.reply.outputLimit ?? maxOutputTokensOverride ?? getModelMaxOutputTokens(iter.currentModel).default) : null
+  const noticeOf = (again: boolean, action: string): RunEvent =>
+    emit({ kind: 'notice', message: createSystemMessage(reasoningOnlyNoticeLine(limitWords, again, action), 'warning') })
   if (decision.kind === 'continue') {
     const fewerWords = capped && decision.attempt === REASONING_CUT_RECOVERY_LIMIT
-    yield noticeOf(!capped ? 'asked it once to say its reply or call the tool it meant' : fewerWords ? 'continuing, asking for fewer words' : 'continuing')
+    const action = !capped ? 'asked it once to say its reply or call the tool it meant' : fewerWords ? 'continuing, asking for fewer words' : 'continuing'
+    yield noticeOf(decision.attempt > 1, action)
     const replies = assistantMessages
       .filter(m => m.isApiErrorMessage !== true)
       .map(m => (capped && m === reasoningOnly.reply ? withReasoningCutMarker(m) : m))
@@ -393,7 +392,7 @@ async function* reasoningOnlyRecovery(run: RunCtx, iter: IterationState, reply: 
     }
     return { kind: 'hand_over', next }
   }
-  yield noticeOf(capped ? `the turn ends here after ${recoveryCount} continuations; the next step is yours` : 'the turn ends here')
+  yield noticeOf(true, capped ? `the turn ends here after ${recoveryCount} continuations; the next step is yours` : 'the turn ends here')
   if (isWithheldMaxOutputTokens(lastMessage)) yield emit({ kind: 'withheld_surfaced', message: lastMessage })
   return undefined
 }
@@ -408,7 +407,7 @@ async function* maxOutputTokensRecovery(run: RunCtx, iter: IterationState, reply
   const { maxBudgetUsd } = toolUseContext.options
   const decision = decideMaxOutputTokensRecovery({
     added: continuationAdded(state.lastOutputLimitReply, replyText),
-    budgetAllows: !toolUseContext.abortController.signal.aborted && (typeof maxBudgetUsd !== 'number' || getTotalCostUSD() < maxBudgetUsd),
+    budgetAllows: !toolUseContext.abortController.signal.aborted && (maxBudgetUsd === undefined || getTotalCostUSD() < maxBudgetUsd),
     recoveryCount: maxOutputTokensRecoveryCount,
   })
   if (decision.kind === 'nudge') {
@@ -545,10 +544,10 @@ async function* emptyReplyRetry(run: RunCtx, iter: IterationState, reply: NoTool
 
 async function* toolCallRefusalRecovery(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
   const { emit, memoryWriteLostEvent } = run
-  const { toolUseContext, messagesForQuery, tracking, overflowEpisode, assistantMessages, refusedToolCalls } = iter
+  const { state, toolUseContext, messagesForQuery, tracking, overflowEpisode, assistantMessages, refusedToolCalls } = iter
   const { maxOutputTokensRecoveryCount, maxOutputTokensOverride, streamFaultRecoveryCount, toolCallRefusalRecoveryCount, turnCount } = iter.state
   if (refusedToolCalls.length === 0) return undefined
-  const tools = [...new Set(refusedToolCalls.map(refusal => (refusal.name === '' ? 'unnamed' : refusal.name)))]
+  const tools = [...new Set(refusedToolCalls.map(refusal => refusal.name || 'unnamed'))]
   const names = tools.join(', ')
   const decision = decideToolCallRefusalRecovery({ refusals: refusedToolCalls.length, recoveryCount: toolCallRefusalRecoveryCount })
   if (decision.kind === 'continue') {
@@ -566,6 +565,7 @@ async function* toolCallRefusalRecovery(run: RunCtx, iter: IterationState, reply
       toolUseContext,
       autoCompactTracking: tracking,
       maxOutputTokensRecoveryCount,
+      lastOutputLimitReply: state.lastOutputLimitReply,
       maxOutputTokensOverride,
       streamFaultRecoveryCount,
       toolCallRefusalRecoveryCount: toolCallRefusalRecoveryCount + 1,
