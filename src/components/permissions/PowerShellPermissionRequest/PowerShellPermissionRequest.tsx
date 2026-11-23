@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useLoad } from '../../../hooks/effects.js'
 import { Box, Text } from '../../../ink.js'
 import { ConsentBodyText } from '../ConsentBodyText.js'
@@ -28,6 +28,7 @@ import {
 } from './powershellToolUseOptions.js'
 import { passedOver } from '../../../utils/passedOver.js'
 
+type PowerShellCardInput = { command: string }
 export function PowerShellPermissionRequest({
   toolUseConfirm,
   onDone,
@@ -35,7 +36,7 @@ export function PowerShellPermissionRequest({
   verbose,
   workerBadge,
 }: PermissionRequestProps): React.ReactNode {
-  const { command } = PowerShellTool.inputSchema.parse(toolUseConfirm.input)
+  const { command }: PowerShellCardInput = PowerShellTool.inputSchema.parse(toolUseConfirm.input)
   const description = toolUseConfirm.description
 
   usePermissionRequestLogging(toolUseConfirm)
@@ -85,7 +86,7 @@ export function PowerShellPermissionRequest({
       .catch(passedOver)
   }, [command, isSingleLine])
 
-  const handleEditablePrefixChange = useCallback((next: string): void => {
+  const handleEditablePrefixChange = React.useCallback((next: string): void => {
     userEditedRef.current = true
     setEditablePrefix(next)
   }, [])

@@ -94,7 +94,9 @@ function hasMeaningfulEntry(log: SessionListing): boolean {
   if (log.firstPrompt && log.firstPrompt.trim() !== '') return true
   return log.messages.some(
     message =>
-      message.type === 'user' && typeof message.message.content === 'string',
+      (message as { type?: string }).type === 'user' &&
+      typeof (message as { message?: { content?: unknown } }).message
+        ?.content === 'string',
   )
 }
 
