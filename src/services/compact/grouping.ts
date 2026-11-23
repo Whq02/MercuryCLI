@@ -1,6 +1,25 @@
 import type { Message } from '../../types/message.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export function groupMessagesByApiRound(messages: Message[]): Message[][] {
-  return notBuilt('src/services/compact/grouping.ts:3')
+  const groups: Message[][] = []
+  let currentGroup: Message[] = []
+  let lastAssistantId: string | undefined
+
+  for (const message of messages) {
+    if (message.type === 'assistant') {
+      const msgId = message.message.id
+      if (msgId !== lastAssistantId && currentGroup.length > 0) {
+        groups.push(currentGroup)
+        currentGroup = []
+      }
+      lastAssistantId = msgId
+    }
+    currentGroup.push(message)
+  }
+
+  if (currentGroup.length > 0) {
+    groups.push(currentGroup)
+  }
+
+  return groups
 }
