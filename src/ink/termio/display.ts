@@ -12,7 +12,6 @@ import type {
   UnderlineStyle,
 } from './display-types.js'
 import { defaultStyle } from './display-types.js'
-import { notBuilt, unbuilt } from '../../pi/holes.js'
 
 
 const WIDE_RANGES: readonly number[] = [
@@ -41,7 +40,17 @@ function onlyHebrewArabicMarksAfterBase(grapheme: string, baseUnits: number): bo
 }
 
 function graphemeWidth(grapheme: string): 1 | 2 {
-  return notBuilt('src/ink/termio/display.ts:43')
+  const cp = grapheme.codePointAt(0)
+  if (cp === undefined) return 1
+  const baseUnits = cp > 0xffff ? 2 : 1
+  if (grapheme.length > baseUnits && !onlyHebrewArabicMarksAfterBase(grapheme, baseUnits)) {
+    return 2
+  }
+  if (cp < 0x1100) return 1
+  for (let i = 0; i < WIDE_RANGES.length; i += 2) {
+    if (cp >= WIDE_RANGES[i]! && cp <= WIDE_RANGES[i + 1]!) return 2
+  }
+  return 1
 }
 
 function batchGraphemes(text: string): Grapheme[] {
@@ -269,7 +278,118 @@ type CsiParts = {
   finalByte: number
 }
 
+function splitCsi(rawSequence: string): CsiParts | null {
+  if (rawSequence.length <= 2) return null
+  const finalByte = rawSequence.charCodeAt(rawSequence.length - 1)
+  let body = rawSequence.slice(2, -1)
+  let privateMode = ''
+  if (body.length > 0 && (body[0] === '?' || body[0] === '>' || body[0] === '=')) {
+    privateMode = body[0]
+    body = body.slice(1)
+  }
+  let cut = body.length
+  while (cut > 0) {
+    const ch = body.charCodeAt(cut - 1)
+    if ((ch >= 0x30 && ch <= 0x39) || ch === 0x3b || ch === 0x3a) break
+    cut--
+  }
+  return {
+    privateMode,
+    paramStr: body.slice(0, cut),
+    intermediate: body.slice(cut),
+    finalByte,
+  }
+}
 
+function interpretDecMode(mode: number, enabled: boolean): Action | null {
+  switch (mode) {
+    case DEC.CURSOR_VISIBLE:
+      return { type: 'cursor', action: { type: enabled ? 'show' : 'hide' } }
+    case DEC.ALT_SCREEN:
+    case DEC.ALT_SCREEN_CLEAR:
+      return { type: 'mode', action: { type: 'alternateScreen', enabled } }
+    case DEC.BRACKETED_PASTE:
+      return { type: 'mode', action: { type: 'bracketedPaste', enabled } }
+    case DEC.FOCUS_EVENTS:
+      return { type: 'mode', action: { type: 'focusEvents', enabled } }
+    case DEC.MOUSE_NORMAL:
+      return { type: 'mode', action: { type: 'mouseTracking', mode: enabled ? 'normal' : 'off' } }
+    case DEC.MOUSE_BUTTON:
+      return { type: 'mode', action: { type: 'mouseTracking', mode: enabled ? 'button' : 'off' } }
+    case DEC.MOUSE_ANY:
+      return { type: 'mode', action: { type: 'mouseTracking', mode: enabled ? 'any' : 'off' } }
+    default:
+      return null
+  }
+}
+
+function interpretCsiAction(parts: CsiParts, rawSequence: string): Action {
+  const params = csiParams(parts.paramStr)
+  const p0 = params[0] ?? 1
+  const p1 = params[1] ?? 1
+  switch (parts.finalByte) {
+    case CSI.CUU:
+      return { type: 'cursor', action: { type: 'move', direction: 'up', count: p0 } }
+    case CSI.CUD:
+      return { type: 'cursor', action: { type: 'move', direction: 'down', count: p0 } }
+    case CSI.CUF:
+      return { type: 'cursor', action: { type: 'move', direction: 'forward', count: p0 } }
+    case CSI.CUB:
+      return { type: 'cursor', action: { type: 'move', direction: 'back', count: p0 } }
+    case CSI.CNL:
+      return { type: 'cursor', action: { type: 'nextLine', count: p0 } }
+    case CSI.CPL:
+      return { type: 'cursor', action: { type: 'prevLine', count: p0 } }
+    case CSI.CHA:
+      return { type: 'cursor', action: { type: 'column', col: p0 } }
+    case CSI.VPA:
+      return { type: 'cursor', action: { type: 'row', row: p0 } }
+    case CSI.CUP:
+    case CSI.HVP:
+      return { type: 'cursor', action: { type: 'position', row: p0, col: p1 } }
+    case CSI.ED:
+      return { type: 'erase', action: { type: 'display', region: ERASE_DISPLAY[params[0] ?? 0] ?? 'toEnd' } }
+    case CSI.EL:
+      return { type: 'erase', action: { type: 'line', region: ERASE_LINE_REGION[params[0] ?? 0] ?? 'toEnd' } }
+    case CSI.ECH:
+      return { type: 'erase', action: { type: 'chars', count: p0 } }
+    case CSI.SU:
+      return { type: 'scroll', action: { type: 'up', count: p0 } }
+    case CSI.SD:
+      return { type: 'scroll', action: { type: 'down', count: p0 } }
+    case CSI.DECSTBM:
+      return { type: 'scroll', action: { type: 'setRegion', top: p0, bottom: p1 } }
+    case CSI.SCOSC:
+      return { type: 'cursor', action: { type: 'save' } }
+    case CSI.SCORC:
+      return { type: 'cursor', action: { type: 'restore' } }
+    case CSI.DECSCUSR:
+      if (parts.intermediate === ' ') {
+        const entry = CURSOR_STYLES[p0] ?? CURSOR_STYLES[0]!
+        return { type: 'cursor', action: { type: 'style', ...entry } }
+      }
+      return { type: 'unknown', sequence: rawSequence }
+    case CSI.SM:
+    case CSI.RM:
+      if (parts.privateMode === '?') {
+        const modeAction = interpretDecMode(p0, parts.finalByte === CSI.SM)
+        if (modeAction !== null) return modeAction
+      }
+      return { type: 'unknown', sequence: rawSequence }
+    default:
+      return { type: 'unknown', sequence: rawSequence }
+  }
+}
+
+function unwrapOsc(rawSequence: string): string {
+  let content = rawSequence.slice(2)
+  if (content.endsWith('\x07')) {
+    content = content.slice(0, -1)
+  } else if (content.endsWith('\x1b\\')) {
+    content = content.slice(0, -2)
+  }
+  return content
+}
 const ESC_ACTIONS: Readonly<Record<string, Action | null>> = {
   c: { type: 'reset' },
   '7': { type: 'cursor', action: { type: 'save' } },
@@ -291,25 +411,92 @@ function interpretEsc(rawSequence: string): Action | null {
 
 
 export class Parser {
-  private scanner: Scanner = unbuilt('src/ink/termio/display.ts:429')
+  private scanner: Scanner = createScanner()
 
-  style: TextStyle = unbuilt('src/ink/termio/display.ts:431')
-  inLink: boolean = unbuilt('src/ink/termio/display.ts:432')
+  style: TextStyle = defaultStyle()
+  inLink = false
   linkUrl: string | undefined
 
   reset(): void {
-    return notBuilt('src/ink/termio/display.ts:435')
+    this.scanner.reset()
+    this.style = defaultStyle()
+    this.inLink = false
+    this.linkUrl = undefined
   }
 
   feed(input: string): Action[] {
-    return notBuilt('src/ink/termio/display.ts:442')
+    if (input.length === 0) return []
+    const out: Action[] = []
+    for (const token of this.scanner.feed(input)) {
+      this.interpret(token.kind, token.value, out)
+    }
+    return out
   }
 
   private interpret(kind: TokenKind, value: string, out: Action[]): void {
-    return notBuilt('src/ink/termio/display.ts:450')
+    switch (kind) {
+      case 'text':
+        this.emitText(value, out)
+        break
+      case 'csi': {
+        const parts = splitCsi(value)
+        if (parts === null) break
+        if (parts.finalByte === CSI.SGR && parts.privateMode === '') {
+          this.style = foldSgr(parts.paramStr, this.style)
+          break
+        }
+        out.push(interpretCsiAction(parts, value))
+        break
+      }
+      case 'osc': {
+        const action = parseOSC(unwrapOsc(value))
+        if (action !== null) {
+          if (action.type === 'link') {
+            if (action.action.type === 'start') {
+              this.inLink = true
+              this.linkUrl = action.action.url
+            } else {
+              this.inLink = false
+              this.linkUrl = undefined
+            }
+          }
+          out.push(action)
+        }
+        break
+      }
+      case 'esc': {
+        if (value.length === 1) {
+          out.push({ type: 'unknown', sequence: value })
+        } else {
+          const action = interpretEsc(value)
+          if (action !== null) out.push(action)
+        }
+        break
+      }
+      default:
+        out.push({ type: 'unknown', sequence: value })
+        break
+    }
   }
 
   private emitText(text: string, out: Action[]): void {
-    return notBuilt('src/ink/termio/display.ts:495')
+    if (!text.includes('\x07')) {
+      const graphemes = batchGraphemes(text)
+      if (graphemes.length > 0) {
+        out.push({ type: 'text', graphemes, style: { ...this.style } })
+      }
+      return
+    }
+    const parts = text.split('\x07')
+    for (let i = 0; i < parts.length; i++) {
+      if (i > 0) out.push({ type: 'bell' })
+      const part = parts[i]!
+      if (part.length > 0) {
+        const graphemes = batchGraphemes(part)
+        if (graphemes.length > 0) {
+          out.push({ type: 'text', graphemes, style: { ...this.style } })
+        }
+      }
+    }
   }
 }
