@@ -20,9 +20,20 @@ import { intersperse } from '../../../utils/array.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
 import { getPatchForDisplay } from '../../../utils/diff.js'
 import { parseCellId } from '../../../utils/notebook.js'
+import { safeParseJSON } from '../../../utils/json.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import type { StructuredPatchHunk } from 'diff'
 import { z } from 'zod/v4'
+
+type NotebookCell = {
+  id?: string
+  cell_type?: string
+  source?: string | string[]
+}
+
+type NotebookDocument = {
+  cells?: NotebookCell[]
+}
 
 const notebookCellSchema = z.object({
   id: z.string().optional(),
@@ -33,10 +44,6 @@ const notebookCellSchema = z.object({
 const notebookSchema = z.object({
   cells: z.array(notebookCellSchema).optional(),
 })
-
-type NotebookCell = z.infer<typeof notebookCellSchema>
-type NotebookDocument = z.infer<typeof notebookSchema>
-
 type Props = {
   notebook_path: string
   cell_id?: string
@@ -74,14 +81,7 @@ export function NotebookEditToolDiff({
     fs.readFile(notebook_path, 'utf8')
       .then(raw => {
         if (signal.aborted) return
-        let parsed: unknown
-        try {
-          parsed = JSON.parse(raw)
-        } catch (error) {
-          passedOver(error)
-          setLoaded(null)
-          return
-        }
+        const parsed = safeParseJSON(raw, false)
         const result = notebookSchema.safeParse(parsed)
         if (result.success) {
           setLoaded({ path: notebook_path, data: result.data })

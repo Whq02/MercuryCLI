@@ -21,7 +21,7 @@ import { StructuredDiffList } from './StructuredDiffList.js'
 import { passedOver } from '../utils/passedOver.js'
 
 const SCAN_CONTEXT_LINES = 3
-const FRAME_COLUMNS = 2
+const FRAME_COLUMNS = 4
 
 type Edit = { old_string?: string; new_string?: string; replace_all?: boolean }
 type CompleteEdit = { old_string: string; new_string: string; replace_all?: boolean }
@@ -185,7 +185,9 @@ export function FileEditToolDiff({
 
   const outerWidth = Math.max(1, availableWidth ?? columns - 2)
   const wide = columns > 80
-  const diffWidth = wide ? Math.max(1, outerWidth - FRAME_COLUMNS) : outerWidth
+  const diffWidth = wide
+    ? Math.max(1, (availableWidth ?? columns) - FRAME_COLUMNS)
+    : outerWidth
   const bounded =
     consentBudget !== undefined
       ? boundHunks(loaded.hunks, diffPaintWidth(diffWidth, loaded.hunks), consentBudget)

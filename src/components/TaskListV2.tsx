@@ -1,4 +1,5 @@
-import React, { useContext, useRef, useState, useSyncExternalStore } from 'react'
+import figures from 'figures'
+import React, { useRef, useState } from 'react'
 import { GLYPH } from '../utils/glyphs.js'
 import { Box, Text } from '../ink.js'
 import { stringWidth } from '../ink/stringWidth.js'
@@ -12,14 +13,7 @@ import { truncateToWidth } from '../utils/truncate.js'
 import { startTimeout, stopTimeout } from '../utils/timers.js'
 import { useFocusedWorkRoster } from './tasks/useFocusedWork.js'
 
-type TaskRowV2 = {
-  id: string
-  status: 'pending' | 'in_progress' | 'completed'
-  subject: string
-  activeForm?: string
-  blockedBy?: readonly string[]
-  owner?: string
-}
+type TaskRowV2 = { id: string; status: 'pending' | 'in_progress' | 'completed'; subject: string; blockedBy?: readonly string[]; owner?: string }
 
 const RECENT_COMPLETION_MS = 30_000
 const noopSubscribe = (): (() => void) => () => {}
@@ -99,13 +93,13 @@ export function TaskListV2({
   isStandalone?: boolean
 }): React.ReactNode {
   const { columns, rows } = useTerminalSize()
-  const store = useContext(AppStoreContext)
-  const appTasks = useSyncExternalStore(
+  const store = React.useContext(AppStoreContext)
+  const appTasks = React.useSyncExternalStore(
     store ? store.subscribe : noopSubscribe,
     () => store?.getState().tasks,
     () => store?.getState().tasks,
   )
-  const agentNameRegistry = useSyncExternalStore(
+  const agentNameRegistry = React.useSyncExternalStore(
     store ? store.subscribe : noopSubscribe,
     () => store?.getState().agentNameRegistry,
     () => store?.getState().agentNameRegistry,
