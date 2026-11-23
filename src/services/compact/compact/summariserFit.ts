@@ -1,5 +1,6 @@
 import type { ToolUseContext } from '../../../Tool.js'
 import type { Message } from '../../../types/message.js'
+import type { ToolResultBlockParam } from '../../../types/wire.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import type { CacheSafeParams } from '../../agents/forkedAgent.js'
 import { appendSystemContext, toolToAPISchema } from '../../messages/api.js'
@@ -77,12 +78,15 @@ export async function summariserFitFor(
   return { budgetTokens, limitTokens, fixedTokens, promptTokens, reserveTokens, window, blockingLimit, ratio }
 }
 
-function resultTextOf(content: unknown): string | null {
+function resultTextOf(content: ToolResultBlockParam['content']): string | null {
   if (typeof content === 'string') return content
   if (!Array.isArray(content)) return null
-  const blocks = content as Array<{ type?: string; text?: string }>
-  if (!blocks.every(block => block.type === 'text' && typeof block.text === 'string')) return null
-  return blocks.map(block => block.text ?? '').join('\n')
+  const texts: string[] = []
+  for (const block of content) {
+    if (block.type !== 'text') return null
+    texts.push(block.text)
+  }
+  return texts.join('\n')
 }
 
 function shapedResultPreview(text: string, previewChars: number): string {
@@ -121,7 +125,9 @@ async function foldOldestIntoParts(
     let take = 0
     let size = 0
     while (take < groups.length - 1) {
-      const next = measure(workingOf(groups[take] as Message[]))
+      const group = groups[take]
+      if (group === undefined) break
+      const next = measure(workingOf(group))
       if (take > 0 && size + next > budgetTokens) break
       size += next
       take++
@@ -147,8 +153,8 @@ function capOlderToolResults(messages: Message[]): Message[] {
     const content = message.message.content
     if (!Array.isArray(content)) continue
     for (let blockIndex = content.length - 1; blockIndex >= 0; blockIndex--) {
-      const block = content[blockIndex] as { type?: string; content?: unknown }
-      if (block.type !== 'tool_result') continue
+      const block = content[blockIndex]
+      if (block === undefined || block.type !== 'tool_result') continue
       const text = resultTextOf(block.content)
       if (text === null) continue
       if (
@@ -181,7 +187,7 @@ function capOlderToolResults(messages: Message[]): Message[] {
     }
     const content = message.message.content.map((block, blockIndex) => {
       const preview = perMessage.get(blockIndex)
-      if (preview === undefined) return block
+      if (preview === undefined || block.type !== 'tool_result') return block
       return { ...block, content: preview }
     })
     return { ...message, message: { ...message.message, content } }

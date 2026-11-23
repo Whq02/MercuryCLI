@@ -1,4 +1,4 @@
-import type { ToolUseContext } from '../../../Tool.js'
+import type { Tool, ToolUseContext } from '../../../Tool.js'
 import type { AssistantMessage, Message, UserMessage } from '../../../types/message.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { continuationOfSentRequest, lastSentRequestFor, runForkedAgent, type CacheSafeParams } from '../../agents/forkedAgent.js'
@@ -49,10 +49,10 @@ async function summarizeViaCacheSharingFork(
       }
     }
     const setSDKStatus = (status: unknown): void => {
-      if (typeof status === 'object' && status !== null && (status as { streamActivity?: unknown }).streamActivity !== undefined) {
+      if (typeof status === 'object' && status !== null && 'streamActivity' in status && status.streamActivity !== undefined) {
         bound.touch()
-        context.setSDKStatus?.(status)
       }
+      context.setSDKStatus?.(status)
     }
     const result = await runForkedAgent({
       promptMessages: [promptMessage],
@@ -69,13 +69,27 @@ async function summarizeViaCacheSharingFork(
       onStreamEvent: event => {
         bound.content()
         const raw =
-          typeof event === 'object' && event !== null && (event as { event?: unknown }).event !== undefined
-            ? (event as { event: unknown }).event
+          typeof event === 'object' && event !== null && 'event' in event && event.event !== undefined
+            ? event.event
             : event
-        if (typeof raw === 'object' && raw !== null) {
-          const ev = raw as { type?: string; delta?: { type?: string; text?: string } }
-          if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta' && typeof ev.delta.text === 'string') {
-            context.setResponseLength?.(prev => prev + ev.delta.text.length)
+        if (
+          typeof raw === 'object' &&
+          raw !== null &&
+          'type' in raw &&
+          raw.type === 'content_block_delta' &&
+          'delta' in raw
+        ) {
+          const delta = raw.delta
+          if (
+            typeof delta === 'object' &&
+            delta !== null &&
+            'type' in delta &&
+            delta.type === 'text_delta' &&
+            'text' in delta &&
+            typeof delta.text === 'string'
+          ) {
+            const len = delta.text.length
+            context.setResponseLength?.(prev => prev + len)
           }
         }
       },
@@ -169,7 +183,7 @@ async function summarizeDirect(
       'compact',
     )
     const seenTools = new Set<string>()
-    const dedupedTools: typeof context.options.tools = []
+    const dedupedTools: Tool[] = []
     for (const tool of context.options.tools) {
       if (seenTools.has(tool.name)) continue
       seenTools.add(tool.name)
@@ -233,9 +247,11 @@ async function summarizeDirect(
             context.setStreamMode?.('responding')
           } else if (item.event.type === 'content_block_delta') {
             if (item.event.delta.type === 'text_delta') {
-              context.setResponseLength?.(prev => prev + item.event.delta.text.length)
+              const len = item.event.delta.text.length
+              context.setResponseLength?.(prev => prev + len)
             } else if (item.event.delta.type === 'thinking_delta') {
-              context.setResponseLength?.(prev => prev + item.event.delta.thinking.length)
+              const len = item.event.delta.thinking.length
+              context.setResponseLength?.(prev => prev + len)
             }
           }
         } else if (item.type === 'assistant') {
