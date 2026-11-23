@@ -1,6 +1,5 @@
 import { isEqualWith } from 'lodash-es'
 import type React from 'react'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 export type OptionValue<T> = T | (string & {})
 
@@ -52,14 +51,50 @@ export function optionsEquivalent<T>(
   )
 }
 
-export type OptionMapItem<T> = Unbuilt
+export type OptionMapItem<T> = {
+  label: React.ReactNode
+  value: OptionValue<T>
+  description?: string
+  disabled?: boolean
+  previous: OptionMapItem<T> | undefined
+  next: OptionMapItem<T> | undefined
+  index: number
+  option: OptionWithDescription<T>
+}
 
 export default class OptionMap<T> extends Map<OptionValue<T>, OptionMapItem<T>> {
   readonly first: OptionMapItem<T> | undefined
   readonly last: OptionMapItem<T> | undefined
 
   constructor(options: readonly OptionWithDescription<T>[]) {
-    notBuilt('src/components/CustomSelect/option-map.ts:70')
-    super(notBuilt('src/components/CustomSelect/option-map.ts:70'))
+    const entries: Array<[OptionValue<T>, OptionMapItem<T>]> = []
+    let firstItem: OptionMapItem<T> | undefined
+    let previousItem: OptionMapItem<T> | undefined
+
+    for (let index = 0; index < options.length; index++) {
+      const option = options[index]!
+      const item: OptionMapItem<T> = {
+        label: option.label,
+        value: option.value,
+        description: option.description,
+        disabled: option.disabled,
+        previous: previousItem,
+        next: undefined,
+        index,
+        option,
+      }
+      if (previousItem) {
+        previousItem.next = item
+      }
+      if (!firstItem) {
+        firstItem = item
+      }
+      entries.push([option.value, item])
+      previousItem = item
+    }
+
+    super(entries)
+    this.first = firstItem
+    this.last = previousItem
   }
 }
