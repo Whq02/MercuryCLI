@@ -52,6 +52,7 @@ const SINGLE: Array<[file: string, checks: number, reason: string]> = [
   ['src/platform/environment/sessionEnvironment.ts', 1, 'the Windows bash road exists on Windows only'],
   ['src/platform/files/fileEncoding.ts', 1, 'Windows PowerShell 5.1 needs a byte order mark on its scripts'],
   ['src/platform/git/git.ts', 2, 'a Windows path met in a git redirect off Windows is refused'],
+  ['src/platform/git/worktree/worktree.ts', 1, 'the tmux worktree road does not exist on Windows'],
   ['src/platform/health/sections/proofs.ts', 1, 'the POSIX render pipeline does not run from a Windows source checkout'],
   ['src/platform/node-runtime/compileCachePath.ts', 1, 'the compile cache folder has a length limit on Windows only'],
   ['src/platform/processes/gracefulShutdown.ts', 1, 'the orphaned-terminal check runs off Windows only'],
@@ -94,7 +95,6 @@ const SINGLE: Array<[file: string, checks: number, reason: string]> = [
   ['src/tools/read/readQueryTarget.ts', 1, 'a question mark cannot stand in a file name on Windows'],
   ['src/tools/shell/pathValidation.ts', 1, 'a rule of a command reader for the commands of one platform'],
   ['src/tools/shell/readOnlyValidation.ts', 2, 'a rule of a command reader for the commands of one platform'],
-  ['src/utils/worktree.ts', 1, 'the tmux worktree road does not exist on Windows'],
 ]
 
 function walk(dir: string, out: string[]): void {

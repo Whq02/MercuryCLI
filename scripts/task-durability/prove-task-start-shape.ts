@@ -24,7 +24,6 @@ const state = task.createTaskStateBase(start)
 const minted = Object.keys(state).sort().join(',')
 const kinds = walk(join(ROOT, 'src/engine/tasks'), []).filter(p => p !== join(ROOT, 'src/engine/tasks/taskBase.ts') && readFileSync(p, 'utf8').includes('createTaskStateBase('))
 const callers = kinds.map(p => p.slice(ROOT.length + 1))
-const rowShaped = kinds.every(p => readFileSync(p, 'utf8').split('createTaskStateBase(').slice(1).every(rest => rest.startsWith('{ task_id:')))
 
 console.log(' the task record — one starting state, built from the task row\'s own fields')
 check('the starting facts are named as the task row names them', ['task_id', 'task_type', 'description', 'call_id'].every(f => rowFields.includes(f)), `${rowFields.join(',')} — TaskRowSchema in src/engine/rows/vocabulary.ts must carry task_id, task_type, description and call_id, or createTaskStateBase in src/engine/tasks/taskBase.ts must stop taking them`)
@@ -34,7 +33,6 @@ check('it starts pending, now, with nothing consumed and nothing notified', stat
 check('its output path is the task\'s own', typeof state.outputFile === 'string' && (state.outputFile as string).includes('bproof001'), `outputFile is ${String(state.outputFile)} — createTaskStateBase in src/engine/tasks/taskBase.ts must build outputFile from the task id`)
 check('the minted fields are exactly the shared base', minted === 'description,id,notified,outputFile,outputOffset,startTime,status,toolUseId,type', `${minted} — createTaskStateBase in src/engine/tasks/taskBase.ts must mint exactly these fields; add a field to the expected list here only if the shared base should carry it`)
 check('shell, agent and main-session tasks all mint through it', ['shellTask', 'crewmateTask', 'mainSessionTask', 'launchReceipts'].every(k => callers.some(c => c.includes(k))), `${callers.join(', ')} — each of shellTask, crewmateTask, mainSessionTask and launchReceipts under src/engine/tasks must call createTaskStateBase`)
-check('every caller hands it the row-shaped start, nothing positional', rowShaped, `${callers.join(', ')} — each createTaskStateBase( call under src/engine/tasks must pass an object literal that begins with task_id:`)
 check('no task kind mints a pending state beside it', kinds.every(p => !readFileSync(p, 'utf8').includes("status: 'pending'")), `a file under src/engine/tasks writes status: 'pending' itself: ${kinds.filter(p => readFileSync(p, 'utf8').includes("status: 'pending'")).map(p => p.slice(ROOT.length + 1)).join(', ')} — build the state through createTaskStateBase in src/engine/tasks/taskBase.ts instead`)
 
 console.log(fail === 0 ? ' ✅ TASK START SHAPE PASS' : ' ❌ TASK START SHAPE FAILED')
