@@ -88,7 +88,7 @@ export function FilePermissionDialog<T extends ToolInput>({
 
   const rawFilePath =
     typeof toolUseConfirm.input === 'object' && toolUseConfirm.input !== null
-      ? (toolUseConfirm.input as { file_path?: unknown }).file_path
+      ? toolUseConfirm.input.file_path
       : undefined
   const showSqliteNote =
     operationType === 'write' &&
@@ -136,13 +136,11 @@ export function FilePermissionDialog<T extends ToolInput>({
       {content}
       {showSqliteNote ? <Text dimColor>{SQLITE_ROW_NOT_CHECKPOINTED}</Text> : null}
       {symlinkTarget !== undefined ? (
-        symlinkOutside ? (
-          <Text color="warning">
-            This operation will modify {symlinkTarget} — outside the working directory via a symlink
-          </Text>
-        ) : (
-          <Text dimColor>Symlink target: {symlinkTarget}</Text>
-        )
+        <Text color="warning">
+          {symlinkOutside
+            ? `This operation will modify ${symlinkTarget} — outside the working directory via a symlink`
+            : `Symlink target: ${symlinkTarget}`}
+        </Text>
       ) : null}
       <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />
       {typeof question === 'string' ? <Text bold>{question}</Text> : question}
@@ -155,7 +153,7 @@ export function FilePermissionDialog<T extends ToolInput>({
         onInputModeToggle={handleInputModeToggle}
       />
       <Box marginTop={1}>
-        <Text dimColor>{footerText}</Text>
+        <Text color="subtle">{footerText}</Text>
       </Box>
     </PermissionDialog>
   )
