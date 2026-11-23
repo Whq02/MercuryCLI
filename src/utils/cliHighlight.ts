@@ -1,7 +1,7 @@
 import { colorStripped } from '../ink/colorize.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
+import { passedOverAs } from './passedOver.js'
 
-export type CliHighlight = Unbuilt
+export type CliHighlight = Pick<typeof import('cli-highlight'), 'highlight' | 'supportsLanguage'>
 
 type LoadedBundle = {
   api: CliHighlight | null
@@ -24,7 +24,12 @@ export function shouldSkipHighlight(code: string): boolean {
 let sharedLoadPromise: Promise<LoadedBundle> | null = null
 
 function loadBundle(): Promise<LoadedBundle> {
-  return notBuilt('src/utils/cliHighlight.ts:29')
+  return sharedLoadPromise ??= import('cli-highlight').then(({ highlight, supportsLanguage }): LoadedBundle => ({
+    api: {
+      highlight: (code, options) => shouldSkipHighlight(code) || colorStripped() ? code : highlight(code, options),
+      supportsLanguage,
+    },
+  })).catch(passedOverAs({ api: null }))
 }
 
 let sharedApiPromise: Promise<CliHighlight | null> | null = null
