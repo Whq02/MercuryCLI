@@ -4,6 +4,7 @@ import { truecolorActive } from '../../ink/colorize.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import { expandTabs } from '../../ink/tabstops.js'
 import { logError } from '../../utils/log.js'
+import { isRecord } from '../../utils/isRecord.js'
 
 function charWidth(char: string): number {
   return stringWidth(char)
@@ -33,57 +34,60 @@ const CHANNEL_THRESHOLDS = [48, 115, 155, 195, 235]
 
 const CUBE_LEVELS = [0, 95, 135, 175, 215, 255]
 
-function cubeIndex(channel: number): number {
-  for (let i = 0; i < CHANNEL_THRESHOLDS.length; i++) {
-    if (channel < CHANNEL_THRESHOLDS[i]!) return i
+function quantizeChannel(channel: number): number {
+  let level = 0
+  for (const threshold of CHANNEL_THRESHOLDS) {
+    if (channel >= threshold) level++
   }
-  return 5
+  return level
 }
 
 function quantizeToAnsi256(r: number, g: number, b: number): number {
-  const ri = cubeIndex(r)
-  const gi = cubeIndex(g)
-  const bi = cubeIndex(b)
+  const ri = quantizeChannel(r)
+  const gi = quantizeChannel(g)
+  const bi = quantizeChannel(b)
+  const cubeCode = 16 + 36 * ri + 6 * gi + bi
+  const mean = (r + g + b) / 3
+  if (mean < 5) return 16
+  if (mean > 244 && ri === gi && gi === bi) return cubeCode
+  const step = Math.max(0, Math.min(23, Math.round((mean - 8) / 10)))
+  const grayLevel = 8 + 10 * step
   const cr = CUBE_LEVELS[ri]!
   const cg = CUBE_LEVELS[gi]!
   const cb = CUBE_LEVELS[bi]!
-  const cubeCode = 16 + 36 * ri + 6 * gi + bi
   const cubeDist = (r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2
-
-  const mean = (r + g + b) / 3
-  if (mean > 244) return cubeCode
-  let grayCode: number
-  let grayLevel: number
-  if (mean < 5) {
-    grayCode = 16
-    grayLevel = 0
-  } else {
-    const step = Math.max(0, Math.min(23, Math.round((mean - 8) / 10)))
-    grayCode = 232 + step
-    grayLevel = 8 + step * 10
-  }
   const grayDist = (r - grayLevel) ** 2 + (g - grayLevel) ** 2 + (b - grayLevel) ** 2
-  return grayDist < cubeDist ? grayCode : cubeCode
+  return cubeDist <= grayDist ? cubeCode : 232 + step
 }
 
+const RESET = '\x1b[0m'
 const DIM = '\x1b[2m'
 const UNDIM = '\x1b[22m'
 
 type StyledBlock = { text: string; fg: Color; bg: Color }
 
-function colorSgr(color: Color, isBg: boolean, mode: ColorMode): string {
-  if (color.a === 1) return isBg ? '49' : '39'
+function fgEscape(color: Color, mode: ColorMode): string {
   if (color.a === 0) {
     const idx = color.r
-    if (idx >= 0 && idx <= 7) return String((isBg ? 40 : 30) + idx)
-    if (idx >= 8 && idx <= 15) return String((isBg ? 100 : 90) + (idx - 8))
-    return `${isBg ? 48 : 38};5;${idx}`
+    if (idx < 8) return `\x1b[${30 + idx}m`
+    if (idx < 16) return `\x1b[${90 + (idx - 8)}m`
+    return `\x1b[38;5;${idx}m`
   }
-  if (mode === 'truecolor') {
-    return `${isBg ? 48 : 38};2;${color.r};${color.g};${color.b}`
+  if (color.a === 1) return '\x1b[39m'
+  if (mode === 'truecolor') return `\x1b[38;2;${color.r};${color.g};${color.b}m`
+  return `\x1b[38;5;${quantizeToAnsi256(color.r, color.g, color.b)}m`
+}
+
+function bgEscape(color: Color, mode: ColorMode): string {
+  if (color.a === 0) {
+    const idx = color.r
+    if (idx < 8) return `\x1b[${40 + idx}m`
+    if (idx < 16) return `\x1b[${100 + (idx - 8)}m`
+    return `\x1b[48;5;${idx}m`
   }
-  const idx = quantizeToAnsi256(color.r, color.g, color.b)
-  return `${isBg ? 48 : 38};5;${idx}`
+  if (color.a === 1) return '\x1b[49m'
+  if (mode === 'truecolor') return `\x1b[48;2;${color.r};${color.g};${color.b}m`
+  return `\x1b[48;5;${quantizeToAnsi256(color.r, color.g, color.b)}m`
 }
 
 function emitBlocks(
@@ -92,28 +96,14 @@ function emitBlocks(
   dim: boolean,
   skipBackgrounds: boolean,
 ): string {
-  let out = dim ? '\x1b[0m\x1b[2m' : '\x1b[0m'
-  let lastFg = '39'
-  let lastBg = '49'
+  let out = RESET
+  if (dim) out += DIM
   for (const block of blocks) {
-    if (block.text === '') continue
-    const fg = colorSgr(block.fg, false, mode)
-    const bg = skipBackgrounds ? lastBg : colorSgr(block.bg, true, mode)
-    const codes: string[] = []
-    if (fg !== lastFg) {
-      codes.push(fg)
-      lastFg = fg
-    }
-    if (!skipBackgrounds && bg !== lastBg) {
-      codes.push(bg)
-      lastBg = bg
-    }
-    if (codes.length > 0) {
-      out += `\x1b[${codes.join(';')}m`
-    }
+    out += fgEscape(block.fg, mode)
+    if (!skipBackgrounds) out += bgEscape(block.bg, mode)
     out += block.text
   }
-  out += '\x1b[0m'
+  out += RESET
   return out
 }
 
@@ -260,11 +250,22 @@ type HighlightApi = {
 
 let highlighter: HighlightApi | null = null
 
+function isHighlightApi(value: unknown): value is HighlightApi {
+  return isRecord(value) && typeof value.highlight === 'function' && typeof value.getLanguage === 'function'
+}
+
 function getHighlighter(): HighlightApi {
   if (highlighter) return highlighter
-  const loaded = require('highlight.js') as { default?: HighlightApi } & HighlightApi
-  highlighter = typeof loaded.highlight === 'function' ? loaded : (loaded.default as HighlightApi)
-  return highlighter
+  const loaded: unknown = require('highlight.js')
+  if (isHighlightApi(loaded)) {
+    highlighter = loaded
+    return highlighter
+  }
+  if (isRecord(loaded) && isHighlightApi(loaded.default)) {
+    highlighter = loaded.default
+    return highlighter
+  }
+  throw new Error('color-diff: highlight.js module missing highlight API')
 }
 
 
@@ -315,42 +316,20 @@ function detectLanguage(filePath: string, firstLine?: string): string | undefine
 }
 
 
-type EmitterNode = {
-  scope?: string
-  kind?: string
-  children?: Array<EmitterNode | string>
-}
-
 let emitterShapeErrorLogged = false
 
 function highlightLine(line: string, language: string | undefined, theme: DiffTheme): StyledBlock[] {
   const fallback: StyledBlock[] = [{ text: line, fg: theme.foreground, bg: theme.background }]
   if (!language) return fallback
   if (shouldSkipHighlight(line)) return fallback
-  let result: unknown
-  try {
-    result = getHighlighter().highlight(`${line}\n`, { language, ignoreIllegals: true })
-  } catch {
-    return fallback
-  }
-  const emitter =
-    (result as { _emitter?: unknown })._emitter ?? (result as { emitter?: unknown }).emitter
-  const root =
-    typeof emitter === 'object' && emitter !== null
-      ? ((emitter as { rootNode?: unknown; root?: unknown }).rootNode ??
-        (emitter as { root?: unknown }).root)
-      : undefined
-  const rootOk =
-    typeof root === 'object' &&
-    root !== null &&
-    Array.isArray((root as { children?: unknown }).children)
-  if (!rootOk) {
+  const result = getHighlighter().highlight(`${line}\n`, { language, ignoreIllegals: true })
+  const emitter = isRecord(result) ? (result._emitter ?? result.emitter) : undefined
+  const root = isRecord(emitter) ? (emitter.rootNode ?? emitter.root) : undefined
+  const rootChildren = isRecord(root) && Array.isArray(root.children) ? root.children : null
+  if (rootChildren === null) {
     if (!emitterShapeErrorLogged) {
       emitterShapeErrorLogged = true
-      const keys =
-        typeof emitter === 'object' && emitter !== null
-          ? Object.keys(emitter).join(', ')
-          : String(emitter)
+      const keys = isRecord(emitter) ? Object.keys(emitter).join(', ') : String(emitter)
       logError(
         `color-diff: highlighter emitter shape mismatched (keys: ${keys}); syntax highlighting is disabled`,
       )
@@ -358,17 +337,22 @@ function highlightLine(line: string, language: string | undefined, theme: DiffTh
     return fallback
   }
   const blocks: StyledBlock[] = []
-  const visit = (node: EmitterNode | string, scope: string | undefined): void => {
+  const visit = (node: unknown, scope: string | undefined): void => {
     if (typeof node === 'string') {
       if (node !== '') {
         blocks.push({ text: node, fg: colorForScope(scope, node, theme), bg: theme.background })
       }
       return
     }
-    const ownScope = node.scope ?? node.kind ?? scope
-    for (const child of node.children ?? []) visit(child, ownScope)
+    if (!isRecord(node)) return
+    const nodeScope = typeof node.scope === 'string' ? node.scope : undefined
+    const nodeKind = typeof node.kind === 'string' ? node.kind : undefined
+    const ownScope = nodeScope ?? nodeKind ?? scope
+    if (Array.isArray(node.children)) {
+      for (const child of node.children) visit(child, ownScope)
+    }
   }
-  for (const child of (root as EmitterNode).children ?? []) visit(child, undefined)
+  for (const child of rootChildren) visit(child, undefined)
   return blocks.length > 0 ? blocks : fallback
 }
 
@@ -486,19 +470,22 @@ function applyBackgrounds(
   lineBg: Color,
   wordBg: Color,
 ): StyledBlock[] {
-  if ((marker !== '+' && marker !== '-') || ranges.length === 0) {
-    return blocks.map(block => ({ ...block, bg: lineBg }))
-  }
+  if (marker === null) return blocks
   const out: StyledBlock[] = []
   let offset = 0
   let rangeIdx = 0
   for (const block of blocks) {
     const blockStart = offset
     const blockEnd = offset + block.text.length
-    let pos = blockStart
     while (rangeIdx < ranges.length && ranges[rangeIdx]!.end <= blockStart) {
       rangeIdx++
     }
+    if (rangeIdx >= ranges.length || ranges[rangeIdx]!.start >= blockEnd) {
+      out.push({ ...block, bg: lineBg })
+      offset = blockEnd
+      continue
+    }
+    let pos = blockStart
     let idx = rangeIdx
     while (idx < ranges.length && ranges[idx]!.start < blockEnd) {
       const range = ranges[idx]!
@@ -538,42 +525,55 @@ function applyBackgrounds(
 }
 
 function wrapBlocks(blocks: StyledBlock[], width: number): StyledBlock[][] {
-  const maxWidth = Math.max(1, width)
   const rows: StyledBlock[][] = []
   let currentRow: StyledBlock[] = []
   let currentWidth = 0
 
-  for (const block of blocks) {
-    if (block.text === '') continue
-    const blockWidth = stringWidth(block.text)
-    if (currentWidth + blockWidth <= maxWidth) {
-      currentRow.push(block)
-      currentWidth += blockWidth
-      continue
-    }
-    let chunk = ''
-    for (const ch of block.text) {
-      const w = charWidth(ch)
-      if (currentWidth + w > maxWidth && (currentWidth > 0 || chunk !== '')) {
-        if (chunk !== '') {
-          currentRow.push({ ...block, text: chunk })
-          chunk = ''
-        }
+  for (const initialBlock of blocks) {
+    let block: StyledBlock = initialBlock
+    for (;;) {
+      const remaining = width - currentWidth
+      const blockWidth = stringWidth(block.text)
+      if (blockWidth <= remaining) {
+        currentRow.push(block)
+        currentWidth += blockWidth
+        break
+      }
+      const chars: string[] = Array.from(block.text)
+      if (chars.length === 0) {
+        currentRow.push(block)
+        break
+      }
+      let take = 0
+      let takeWidth = 0
+      while (take < chars.length) {
+        const w = charWidth(chars[take]!)
+        if (takeWidth + w > remaining) break
+        takeWidth += w
+        take++
+      }
+      if (take > 0) {
+        currentRow.push({ ...block, text: chars.slice(0, take).join('') })
         rows.push(currentRow)
         currentRow = []
         currentWidth = 0
+        const rest: string = chars.slice(take).join('')
+        if (rest.length === 0) break
+        block = { ...block, text: rest }
+      } else if (currentRow.length > 0) {
+        rows.push(currentRow)
+        currentRow = []
+        currentWidth = 0
+      } else {
+        rows.push([{ ...block, text: chars[0]! }])
+        const rest: string = chars.slice(1).join('')
+        if (rest.length === 0) break
+        block = { ...block, text: rest }
       }
-      chunk += ch
-      currentWidth += w
-    }
-    if (chunk !== '') {
-      currentRow.push({ ...block, text: chunk })
     }
   }
 
-  if (currentRow.length > 0 || rows.length === 0) {
-    rows.push(currentRow)
-  }
+  rows.push(currentRow)
   return rows
 }
 
@@ -688,7 +688,7 @@ export class ColorDiff {
 
   render(themeName: string, width: number, dim: boolean): string[] | null {
     const maxLine = Math.max(
-      1,
+      0,
       this.hunk.oldStart + this.hunk.oldLines - 1,
       this.hunk.newStart + this.hunk.newLines - 1,
     )
@@ -698,14 +698,13 @@ export class ColorDiff {
     const lines: RenderLine[] = []
     for (const rawLine of this.hunk.lines) {
       if (rawLine.startsWith('+')) {
-        lines.push({ marker: '+', lineNumber: newLine++, code: expandTabs(rawLine.slice(1)) })
+        lines.push({ marker: '+', lineNumber: newLine++, code: rawLine.slice(1) })
       } else if (rawLine.startsWith('-')) {
-        lines.push({ marker: '-', lineNumber: oldLine++, code: expandTabs(rawLine.slice(1)) })
-      } else if (rawLine.startsWith(' ')) {
-        lines.push({ marker: ' ', lineNumber: newLine++, code: expandTabs(rawLine.slice(1)) })
-        oldLine++
+        lines.push({ marker: '-', lineNumber: oldLine++, code: rawLine.slice(1) })
       } else {
-        lines.push({ marker: null, lineNumber: null, code: expandTabs(rawLine) })
+        const code = rawLine.startsWith(' ') ? rawLine.slice(1) : rawLine
+        lines.push({ marker: ' ', lineNumber: newLine++, code })
+        oldLine++
       }
     }
     const wordRanges = new Map<number, CharRange[]>()
@@ -713,8 +712,8 @@ export class ColorDiff {
       const markers = lines.map(line => line.marker ?? ' ')
       for (const pair of pairChangedLines(markers)) {
         const { removed, added } = wordDiff(lines[pair.deleted]!.code, lines[pair.added]!.code)
-        if (removed.length > 0) wordRanges.set(pair.deleted, removed)
-        if (added.length > 0) wordRanges.set(pair.added, added)
+        wordRanges.set(pair.deleted, removed)
+        wordRanges.set(pair.added, added)
       }
     }
     return renderLines(
@@ -723,7 +722,7 @@ export class ColorDiff {
       width,
       dim,
       this.filePath,
-      this.firstLine ?? lines[0]?.code,
+      this.firstLine,
       gutterWidth,
       true,
       wordRanges,
