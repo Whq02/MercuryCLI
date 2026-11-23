@@ -1,5 +1,10 @@
-import { notBuilt } from '../../pi/holes.js'
+import { useSyncExternalStore } from 'react'
+import { compactWarningStore } from './compactWarningState.js'
 
 export function useCompactWarningSuppression(): boolean {
-  return notBuilt('src/services/compact/compactWarningHook.ts:5')
+  return useSyncExternalStore(
+    compactWarningStore.subscribe,
+    compactWarningStore.getSnapshot,
+    compactWarningStore.getSnapshot,
+  )
 }
