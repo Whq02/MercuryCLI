@@ -5,16 +5,41 @@ import { hookWaitLineOf } from '../../utils/hooks/wait.js'
 import type { MessageLookups } from '../../services/messages/lookups.js'
 import type { ProgressMessage } from '../../types/message.js'
 import { plural } from '../../utils/stringUtils.js'
-import { notBuilt } from '../../pi/holes.js'
 
-export function HookProgressMessage(arg0: {
+export function HookProgressMessage({
+  hookEvent,
+  toolUseID,
+  lookups,
+  progress = [],
+  isTranscriptMode = false,
+}: {
   hookEvent: HookEvent
   toolUseID: string
   lookups: MessageLookups
   progress?: readonly ProgressMessage[]
   isTranscriptMode?: boolean
 }): React.ReactNode {
-  return notBuilt('src/components/messages/HookProgressMessage.tsx:9')
+  const waitLine = hookWaitLineOf(progress)
+  if (waitLine !== null) {
+    return <Text dimColor>{waitLine}</Text>
+  }
+  const started = lookups.inProgressHookCounts.get(toolUseID)?.get(hookEvent) ?? 0
+  const resolved = lookups.resolvedHookCounts.get(toolUseID)?.get(hookEvent) ?? 0
+  if (started > resolved) {
+    return (
+      <Text dimColor>
+        running {started} <Text bold>{hookEvent}</Text> {plural(started, 'hook')}…
+      </Text>
+    )
+  }
+  if (isTranscriptMode && resolved > 0) {
+    return (
+      <Text dimColor>
+        ran {resolved} <Text bold>{hookEvent}</Text> {plural(resolved, 'hook')}
+      </Text>
+    )
+  }
+  return null
 }
 
 export default HookProgressMessage
