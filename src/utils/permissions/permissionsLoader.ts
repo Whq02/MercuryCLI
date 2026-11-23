@@ -21,7 +21,6 @@ import type { EditableSettingSource, SettingSource } from '../settings/constants
 import type { SettingsJson } from '../settings/types.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
 import { normaliseRuleReasons, ruleSpelling } from './ruleReason.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export const MAX_PERSISTED_ALLOW_RULE_LENGTH = 256
 
@@ -34,15 +33,36 @@ function isEditableSource(source: PermissionRuleSource): source is EditableSetti
 }
 
 export function shouldAllowManagedPermissionRulesOnly(): boolean {
-  return notBuilt('src/utils/permissions/permissionsLoader.ts:35')
+  const settings = getSettingsForSource('policySettings')
+  return settings?.guardrails?.managedOnly === true
 }
 
 export function shouldShowAlwaysAllowOptions(): boolean {
-  return notBuilt('src/utils/permissions/permissionsLoader.ts:39')
+  return !shouldAllowManagedPermissionRulesOnly()
 }
 
 function getPermissionRulesForSource(source: SettingSource): PermissionRule[] {
-  return notBuilt('src/utils/permissions/permissionsLoader.ts:43')
+  const settings = getSettingsForSource(source)
+  const guardrails = settings?.guardrails
+  if (!guardrails) return []
+  const held = isCheckoutSourceHeldForTrust(source)
+  const reasons = held ? {} : normaliseRuleReasons(guardrails.reasons)
+  const rules: PermissionRule[] = []
+  for (const behavior of BEHAVIORS) {
+    if (held && behavior === 'allow') continue
+    const entries = guardrails[behavior]
+    if (!Array.isArray(entries)) continue
+    for (const entry of entries) {
+      const parsed = permissionRuleValueFromString(entry)
+      const reason = reasons[ruleSpelling(parsed)]
+      rules.push({
+        source,
+        ruleBehavior: behavior,
+        ruleValue: reason !== undefined ? { ...parsed, reason } : parsed,
+      })
+    }
+  }
+  return rules
 }
 
 export function loadAllPermissionRulesFromDisk(): PermissionRule[] {
@@ -80,14 +100,80 @@ function guardrailsArray(settings: SettingsJson, behavior: PermissionBehavior): 
 }
 
 export function addPermissionRulesToSettings(
-  arg0: { ruleValues: PermissionRuleValue[]; ruleBehavior: PermissionBehavior },
+  { ruleValues, ruleBehavior }: { ruleValues: PermissionRuleValue[]; ruleBehavior: PermissionBehavior },
   source: EditableSettingSource,
 ): boolean {
-  return notBuilt('src/utils/permissions/permissionsLoader.ts:95')
+  if (shouldAllowManagedPermissionRulesOnly()) return false
+  if (ruleValues.length === 0) return true
+  const rawStrings = ruleValues.map(permissionRuleValueToString)
+  let strings = rawStrings
+  if (ruleBehavior === 'allow') {
+    const kept: string[] = []
+    const dropped: string[] = []
+    for (const entry of rawStrings) {
+      if (entry.length > MAX_PERSISTED_ALLOW_RULE_LENGTH) {
+        dropped.push(entry)
+      } else {
+        kept.push(entry)
+      }
+    }
+    if (dropped.length > 0) {
+      const snippets = dropped.map(entry => `${entry.slice(0, 40)}… (${entry.length} chars)`).join('; ')
+      logForDebugging(`dropped ${dropped.length} oversized allow rule(s) from disk (session-only): ${snippets}`)
+    }
+    if (kept.length === 0) return true
+    strings = kept
+  }
+  try {
+    const currentSettings = loadSettingsLenient(source)
+    const existing = guardrailsArray(currentSettings, ruleBehavior)
+    const existingNormalized = new Set(existing.map(entry => ruleSpelling(permissionRuleValueFromString(entry))))
+    const newRules = strings.filter(entry => !existingNormalized.has(ruleSpelling(permissionRuleValueFromString(entry))))
+    if (newRules.length === 0) return true
+    const currentGuardrails =
+      typeof currentSettings.guardrails === 'object' && currentSettings.guardrails !== null
+        ? currentSettings.guardrails
+        : {}
+    const { error } = updateSettingsForSource(source, {
+      ...currentSettings,
+      guardrails: {
+        ...currentGuardrails,
+        [ruleBehavior]: [...existing, ...newRules],
+      },
+    })
+    if (error) {
+      logError(error)
+      return false
+    }
+    return true
+  } catch (error) {
+    logError(error)
+    return false
+  }
 }
 
 export function deletePermissionRuleFromSettings(rule: PermissionRuleFromEditableSettings): boolean {
-  return notBuilt('src/utils/permissions/permissionsLoader.ts:147')
+  if (!isEditableSource(rule.source)) return false
+  const settings = getSettingsForSource(rule.source)
+  const guardrails = settings?.guardrails
+  if (!guardrails) return false
+  const existing = guardrails[rule.ruleBehavior]
+  if (!Array.isArray(existing)) return false
+  const target = ruleSpelling(permissionRuleValueFromString(ruleSpelling(rule.ruleValue)))
+  const updated = existing.filter(entry => ruleSpelling(permissionRuleValueFromString(entry)) !== target)
+  if (updated.length === existing.length) return false
+  const { error } = updateSettingsForSource(rule.source, {
+    ...settings,
+    guardrails: {
+      ...guardrails,
+      [rule.ruleBehavior]: updated,
+    },
+  })
+  if (error) {
+    logError(error)
+    return false
+  }
+  return true
 }
 
 export { SETTING_SOURCES }
