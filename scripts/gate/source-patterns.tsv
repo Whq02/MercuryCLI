@@ -36,13 +36,10 @@ useInsertionEffect	src/ink/components/AlternateScreen.tsx	1
 useImperativeHandle	src/components/VirtualMessageList.tsx	2
 useImperativeHandle	src/ink/components/ScrollBox.tsx	1
 lifecycle-method	src/ink/components/App.tsx	3
-as-unknown-as	src/entrypoints/mcp.ts	1
-as-unknown-as	src/ink/reconciler.ts	1
 as-unknown-as	src/services/lsp/webSidecar/sidecar.ts	1
 as-unknown-as	src/services/run/runSidecar.ts	1
 as-unknown-as	src/services/tokenEstimation.ts	1
 as-unknown-as	src/utils/proxy.ts	1
-as-unknown-as	src/utils/staticRender.tsx	2
 as-never	src/components/concourse/route/useConcourseAdmissionPump.ts	1
 as-never	src/services/engine-connector/daemonConnector.ts	1
 as-never	src/services/providers/openai/openaiSocketTransport.ts	1
@@ -59,7 +56,6 @@ env-read	src/ink/reconciler.ts	1
 env-read	src/interactiveHelpers.tsx	1
 env-read	src/services/auth/oauthLifecycle.ts	1
 env-read	src/services/messages/api.ts	1
-env-read	src/services/vcr.ts	1
 env-read	src/tools.ts	1
 env-read	src/tools/GrepTool/GrepTool.ts	1
 env-read	src/tools/testing/TestingPermissionTool.tsx	1
@@ -81,10 +77,9 @@ Promise.race	src/services/host/door.ts	1	events 1
 Promise.race	src/services/lsp/LSPClient.ts	1	events 1
 Promise.race	src/services/oauth/index.ts	1	events 1
 Promise.race	src/tools/AgentTool/foregroundExecution.tsx	1	events 1
-Promise.race	src/tools/BashTool/BashTool.tsx	2	events 2
+Promise.race	src/tools/BashTool/BashTool.tsx	1	events 1
 Promise.race	src/tools/McpAuthTool/McpAuthTool.ts	1	events 1
 Promise.race	src/tools/PowerShellTool/PowerShellTool.tsx	1	events 1
-Promise.race	src/utils/generators.ts	1	events 1
 startInterval	src/cli/headless/boot/watchBuildBehind.ts	1	periodic 1
 startInterval	src/cli/headless/boot/wireProcess.ts	1	periodic 1
 startInterval	src/cli/headless/hostAskLiveness.ts	1	heartbeat 1
