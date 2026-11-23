@@ -120,7 +120,7 @@ export async function httpTransportFor(name: string, config: RemoteConfig, provi
     name,
     `HTTP request options: ${JSON.stringify({
       headers: loggedHeadersOf(headers),
-      tls: 'tls' in requestInit,
+      tls: proxyOptions.tls !== undefined,
       proxy: Boolean(proxyUrl),
     })}`,
   )

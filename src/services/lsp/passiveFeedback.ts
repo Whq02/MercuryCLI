@@ -5,6 +5,7 @@ import type { PublishDiagnosticsParams } from 'vscode-languageserver-protocol'
 
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
+import { isRecord } from '../../utils/isRecord.js'
 import type { Diagnostic, DiagnosticFile } from '../../utils/diagnosticTracking.js'
 import { recordPublishedReport, registerPendingLSPDiagnostic } from './LSPDiagnosticRegistry.js'
 import type { LSPServerManager } from './LSPServerManager.js'
@@ -19,10 +20,8 @@ type HandlerRegistrationResult = {
 
 function formatDiagnosticMessage(raw: unknown): string {
   if (typeof raw === 'string') return raw
-  if (raw !== null && typeof raw === 'object' && 'value' in raw) {
-    return raw.value === undefined || raw.value === null ? '' : String(raw.value)
-  }
-  return ''
+  if (!isRecord(raw)) return ''
+  return raw.value === undefined || raw.value === null ? '' : String(raw.value)
 }
 
 function formatSeverity(severity: number | undefined): Diagnostic['severity'] {

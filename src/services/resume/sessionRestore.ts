@@ -9,6 +9,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import type { FileHistorySnapshot } from '../../types/fileHistory.js'
 import { fileHistoryRestoreStateFromLog } from '../changeTransaction/fileHistory.js'
 import { rearmMissionFromCard } from '../../guards/mission.js'
+import { isRecord } from '../../utils/isRecord.js'
 import { migrateOrphanedMissionCard } from '../../utils/mission/missionCard.js'
 import { billingSafeRetainedForm, servedModelOfAssistantRow } from '../model/retainedModel.js'
 import type { ContentReplacementRecord } from '../../utils/toolResultStorage.js'
@@ -82,10 +83,11 @@ export function restoreMissionContinuity(
 }
 
 function adoptedSessionIdOf(result: Pick<ResumedConversationLog, 'messages' | 'sessionId'>): string {
+  const rows: readonly unknown[] = result.messages
   let fromMessages: string | undefined
-  for (const message of result.messages) {
-    if ('sessionId' in message && typeof message.sessionId === 'string') {
-      fromMessages = message.sessionId
+  for (const row of rows) {
+    if (isRecord(row) && typeof row.sessionId === 'string') {
+      fromMessages = row.sessionId
       break
     }
   }

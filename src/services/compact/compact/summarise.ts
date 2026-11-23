@@ -5,6 +5,7 @@ import { continuationOfSentRequest, lastSentRequestFor, runForkedAgent, type Cac
 import { appendSystemContext } from '../../messages/api.js'
 import { asSystemPrompt } from '../../../utils/systemPromptType.js'
 import { logError } from '../../../utils/log.js'
+import { isRecord } from '../../../utils/isRecord.js'
 import { findLastCompactBoundaryIndex, getAssistantMessageText } from '../../messages.js'
 import { isSessionActivityTrackingActive, sendSessionActivitySignal } from '../../../utils/sessionActivity.js'
 import { tokenCountWithEstimation } from '../../context/tokens.js'
@@ -55,9 +56,7 @@ async function summarizeViaCacheSharingFork(
       }
     }
     const setSDKStatus = (status: unknown): void => {
-      if (typeof status === 'object' && status !== null && 'streamActivity' in status && status.streamActivity !== undefined) {
-        bound.touch()
-      }
+      if (isRecord(status) && status.streamActivity !== undefined) bound.touch()
       context.setSDKStatus?.(status)
     }
     const result = await runForkedAgent({
