@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { HooksConfigMenu } from '../../screen/event-hooks-menu/HooksConfigMenu.js'
 import { getTools } from '../../tools/kit/toolList.js'
 import type { LocalJSXCommandCall } from '../catalogue/command.js'

@@ -10,21 +10,6 @@ import { chromeModeLive } from '../fullscreen-layout/useLayoutTier.js'
 import { railPlan } from '../fullscreen-layout/helmGeometry.js'
 import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
 
-function ExitAfterCommit({ children }: { children: React.ReactNode }): React.ReactNode {
-  const { exit } = useApp()
-  useLayoutTimer(() => {
-    let inner: ReturnType<typeof setTimeout> | undefined
-    const outer = startTimeout(() => {
-      inner = startTimeout(() => exit(), 0)
-    }, 0)
-    return () => {
-      stopTimeout(outer)
-      if (inner !== undefined) stopTimeout(inner)
-    }
-  }, [exit])
-  return children
-}
-
 export function staticPrintColumns(): number {
   const cols = process.stdout.columns ?? 80
   const rows = process.stdout.rows

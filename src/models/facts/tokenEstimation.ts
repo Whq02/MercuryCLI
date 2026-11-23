@@ -1,5 +1,5 @@
 import type { Message } from '../../engine/message-shapes/message.js'
-import type { ApiToolUnion, ContentBlockParam, MessageParam, TextBlockParam } from '../../engine/message-shapes/wire.js'
+import type { ApiToolUnion, MessageParam, TextBlockParam } from '../../engine/message-shapes/wire.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { logError } from '../../platform/logs/errorLog.js'
 import { isRecord } from '../../platform/primitives/isRecord.js'
