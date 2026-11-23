@@ -151,7 +151,7 @@ export function ToolSelector({
   )
 
   const completeSelection = (): void => {
-    if (selected.size === candidateNames.length && !explicitSelection) {
+    if (candidateNames.every(name => selected.has(name)) && !explicitSelection) {
       onComplete(undefined)
       return
     }
@@ -181,14 +181,17 @@ export function ToolSelector({
   }
 
   const moveFocus = (delta: -1 | 1): void => {
-    let next = focusIndex + delta
-    while (next >= 0 && next < items.length) {
-      if (isSelectable(items[next]!)) {
-        setFocusIndex(next)
-        return
+    setFocusIndex(prev => {
+      let next = prev + delta
+      while (next >= 0 && next < items.length) {
+        const candidate = items[next]
+        if (candidate && isSelectable(candidate)) {
+          return next
+        }
+        next += delta
       }
-      next += delta
-    }
+      return prev
+    })
   }
 
   const activateItem = (item: Item): void => {
@@ -248,7 +251,7 @@ export function ToolSelector({
   }
 
   const allSelected =
-    candidateNames.length > 0 && selected.size === candidateNames.length
+    candidateNames.length > 0 && candidateNames.every(name => selected.has(name))
   const summaryText = allSelected
     ? 'All tools selected'
     : `${selected.size} of ${candidateNames.length} tools selected`
