@@ -60,7 +60,7 @@ export async function summariserFitFor(
   context: ToolUseContext,
   cacheSafeParams: CacheSafeParams,
   promptText: string,
-  gauge?: ReturnType<typeof readRequestGauge>,
+  gauge: ReturnType<typeof readRequestGauge>,
 ): Promise<SummariserFit> {
   const model = context.options.engineModel
   const { window } = resolveAutoCompactWindow(model)
@@ -78,15 +78,12 @@ export async function summariserFitFor(
   return { budgetTokens, limitTokens, fixedTokens, promptTokens, reserveTokens, window, blockingLimit, ratio }
 }
 
-function resultTextOf(content: ToolResultBlockParam['content']): string | null {
+function resultTextOf(content: unknown): string | null {
   if (typeof content === 'string') return content
   if (!Array.isArray(content)) return null
-  const texts: string[] = []
-  for (const block of content) {
-    if (block.type !== 'text') return null
-    texts.push(block.text)
-  }
-  return texts.join('\n')
+  const blocks = content as Array<{ type?: string; text?: string }>
+  if (!blocks.every(block => block.type === 'text' && typeof block.text === 'string')) return null
+  return blocks.map(block => block.text ?? '').join('\n')
 }
 
 function shapedResultPreview(text: string, previewChars: number): string {
@@ -125,9 +122,7 @@ async function foldOldestIntoParts(
     let take = 0
     let size = 0
     while (take < groups.length - 1) {
-      const group = groups[take]
-      if (group === undefined) break
-      const next = measure(workingOf(group))
+      const next = measure(workingOf(groups[take] as Message[]))
       if (take > 0 && size + next > budgetTokens) break
       size += next
       take++

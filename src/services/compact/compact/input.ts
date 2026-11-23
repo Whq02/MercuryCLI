@@ -1,7 +1,6 @@
 import type { CanUseToolFn } from '../../../Tool.js'
-import type { Message } from '../../../types/message.js'
+import type { Message, UserMessage } from '../../../types/message.js'
 import { boundHookContext } from '../../../utils/hooks/contextBound.js'
-import { isRecord } from '../../../utils/isRecord.js'
 import { createUserMessage, isCompactBoundaryMessage } from '../../messages.js'
 import { getPromptTooLongTokenGap } from '../../api/errors.js'
 import { overflowGapTokens, overflowSignalOf } from '../../api/overflowSignal.js'
@@ -87,28 +86,28 @@ export function truncateHeadForPTLRetry(messages: Message[], ptlResponse: Messag
 export function stripImagesFromMessages(messages: Message[]): Message[] {
   return messages.map(message => {
     if (message.type !== 'user') return message
-    const content = message.message.content
+    const content = (message as UserMessage).message.content
     if (!Array.isArray(content)) return message
     let touched = false
     const mapBlock = (block: unknown): unknown => {
-      if (!isRecord(block)) return block
-      if (block.type === 'image') {
+      const record = block as { type?: string; content?: unknown }
+      if (record.type === 'image') {
         touched = true
         return { type: 'text', text: '[image]' }
       }
-      if (block.type === 'document') {
+      if (record.type === 'document') {
         touched = true
         return { type: 'text', text: '[document]' }
       }
-      if (block.type === 'tool_result' && Array.isArray(block.content)) {
-        const inner = block.content.map(mapBlock)
-        return touched ? { ...block, content: inner } : block
+      if (record.type === 'tool_result' && Array.isArray(record.content)) {
+        const inner = record.content.map(mapBlock)
+        return touched ? { ...record, content: inner } : block
       }
       return block
     }
     const rebuilt = content.map(mapBlock)
     if (!touched) return message
-    return { ...message, message: { ...message.message, content: rebuilt } } as Message
+    return { ...message, message: { ...(message as UserMessage).message, content: rebuilt } } as Message
   })
 }
 

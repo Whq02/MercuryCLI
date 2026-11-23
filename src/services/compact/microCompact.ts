@@ -1,5 +1,6 @@
 import { isThinkingBlock } from '../messages/apiFilters.js'
-import type { AssistantMessage, DeadThinkingMark, Message } from '../../types/message.js'
+import type { DeadThinkingMark } from '../../types/message.js'
+import type { Message } from '../../types/message.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { expandPath } from '../../utils/path.js'
 import { isRecord } from '../../utils/isRecord.js'
@@ -67,23 +68,28 @@ export function estimateContextTokens(messages: Message[], model?: string): numb
 
 const MAIN_THREAD_PREFIX = 'main_thread'
 
+function isMainThreadSource(querySource: string | undefined): boolean {
+  return querySource === undefined || querySource.startsWith(MAIN_THREAD_PREFIX)
+}
+
 function evaluateTimeBasedTrigger(
   messages: Message[],
   querySource: string | undefined,
 ): { gapMinutes: number; config: ReturnType<typeof getTimeBasedMCConfig> } | null {
   const config = getTimeBasedMCConfig()
   if (!config.enabled) return null
-  if (querySource === undefined || !querySource.startsWith(MAIN_THREAD_PREFIX)) return null
-  let lastAssistant: AssistantMessage | undefined
+  if (querySource === undefined) return null
+  if (!isMainThreadSource(querySource)) return null
+
+  let lastAssistant: Message | undefined
   for (let index = messages.length - 1; index >= 0; index--) {
-    const candidate = messages[index]
-    if (candidate?.type === 'assistant') {
-      lastAssistant = candidate
+    if (messages[index]?.type === 'assistant') {
+      lastAssistant = messages[index]
       break
     }
   }
   if (lastAssistant === undefined) return null
-  const timestamp = Date.parse(lastAssistant.timestamp ?? '')
+  const timestamp = Date.parse((lastAssistant as { timestamp?: string }).timestamp ?? '')
   const gapMinutes = (Date.now() - timestamp) / 60_000
   if (!Number.isFinite(gapMinutes)) return null
   if (gapMinutes < config.thresholdMinutes) return null
@@ -97,7 +103,7 @@ function persistedReferenceOf(content: unknown): string | undefined {
     typeof content === 'string'
       ? content
       : Array.isArray(content)
-        ? content.map(item => (isRecord(item) && item.type === 'text' ? String(item.text ?? '') : '')).join('\n')
+        ? content.map(item => ((item as { type?: string }).type === 'text' ? String((item as { text?: unknown }).text ?? '') : '')).join('\n')
         : ''
   const at = text.indexOf(PERSISTED_PATH_PHRASE)
   if (at === -1) return undefined
@@ -120,7 +126,7 @@ function containsRepeatedResultTag(content: unknown): boolean {
 
 export function projectTimeBasedMicrocompact(
   messages: Message[],
-  querySource?: string,
+  querySource: string | undefined,
   trigger?: MicrocompactTrigger,
 ): {
   messages: Message[]

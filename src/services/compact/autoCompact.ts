@@ -45,7 +45,6 @@ import { trySessionMemoryCompaction, shouldUseSessionMemoryCompaction } from './
 import { APIUserAbortError } from '../../utils/api/sdkErrors.js'
 import { calculateTokenWarningState, getAutoCompactThreshold, getAutoCompactThresholdWithFixed, getBlockingLimit, getEffectiveContextWindowSize, isAutoCompactEnabled, SUMMARY_RESERVE_MAX_WINDOW_DIVISOR, thresholdOverridden } from '../../utils/compact/autoCompactWindow.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { isRecord } from '../../utils/isRecord.js'
 export { MIN_AUTOCOMPACT_WINDOW, MAX_AUTOCOMPACT_WINDOW, WARNING_THRESHOLD_BUFFER_TOKENS, MANUAL_COMPACT_BUFFER_TOKENS, AUTOCOMPACT_BUFFER_TOKENS, autoCompactWindowIsInputLimit, resolveAutoCompactWindow, getEffectiveContextWindowSize, getTurnReserveTokens, getAutoCompactThreshold, getAutoCompactThresholdWithFixed, autoCompactDisabledReason, isAutoCompactEnabled, compactionSettingsText, getBlockingLimit, calculateTokenWarningState } from '../../utils/compact/autoCompactWindow.js'
 export type { AutoCompactWindowSource, TokenWarningLevel } from '../../utils/compact/autoCompactWindow.js'
 
@@ -59,16 +58,18 @@ const RAPID_REFILL_LIMIT = 3
 
 export const COMPACTION_PAUSED_KEY = 'automatic compaction failed'
 
+type CompactableTask = { type?: string; compactRequested?: boolean; description?: string }
+
 export function operatorCompactionAsked(toolUseContext: Pick<ToolUseContext, 'agentId' | 'getAppState'>): boolean {
   const agentId = toolUseContext.agentId
   if (agentId === undefined) return false
-  const task = toolUseContext.getAppState().tasks?.[agentId]
+  const task = toolUseContext.getAppState().tasks?.[agentId] as CompactableTask | undefined
   return task?.type === 'local_agent' && task.compactRequested === true
 }
 
 function askingCrewmateName(toolUseContext: Pick<ToolUseContext, 'agentId' | 'getAppState'>): string {
   const agentId = toolUseContext.agentId
-  const task = agentId === undefined ? undefined : toolUseContext.getAppState().tasks?.[agentId]
+  const task = agentId === undefined ? undefined : (toolUseContext.getAppState().tasks?.[agentId] as CompactableTask | undefined)
   return task?.description !== undefined && task.description !== '' ? task.description : String(agentId ?? 'the crewmate')
 }
 
@@ -192,10 +193,10 @@ export function detectFixedPrefixOverflow(
   let imageBlockCount = 0
   const countBlocks = (blocks: unknown[]): void => {
     for (const block of blocks) {
-      if (!isRecord(block)) continue
-      if (block.type === 'document') documentBlockCount++
-      else if (block.type === 'image') imageBlockCount++
-      else if (block.type === 'tool_result' && Array.isArray(block.content)) countBlocks(block.content)
+      const record = block as { type?: string; content?: unknown }
+      if (record.type === 'document') documentBlockCount++
+      else if (record.type === 'image') imageBlockCount++
+      else if (record.type === 'tool_result' && Array.isArray(record.content)) countBlocks(record.content)
     }
   }
   for (const message of messages) {
@@ -355,17 +356,7 @@ async function runFoldAttempt(opts: {
     },
   )
 }
-type AutoCompactResult = {
-  wasCompacted: boolean
-  compactionResult?: CompactionResult
-  consecutiveFailures?: number
-  consecutiveRapidRefills?: number
-  rapidRefillBreakerTripped?: boolean
-  measuredRawTokenCount?: number | null
-  refusal?: string
-  paused?: true
-  declined?: true
-}
+type AutoCompactResult = Awaited<ReturnType<typeof autoCompactIfNeeded>>
 
 function settleFoldError(opts: {
   error: unknown
@@ -452,7 +443,17 @@ export async function autoCompactIfNeeded(
   tracking?: AutoCompactTrackingState,
   snipTokensFreed: number = 0,
   overflowSignal?: OverflowSignal,
-): Promise<AutoCompactResult> {
+): Promise<{
+  wasCompacted: boolean
+  compactionResult?: CompactionResult
+  consecutiveFailures?: number
+  consecutiveRapidRefills?: number
+  rapidRefillBreakerTripped?: boolean
+  measuredRawTokenCount?: number | null
+  refusal?: string
+  paused?: true
+  declined?: true
+}> {
   const priorFailures = tracking?.consecutiveFailures
   const forced = overflowSignal !== undefined
   const nonInteractive = () => foldRemedyIsHeadless(toolUseContext.options?.isNonInteractiveSession)

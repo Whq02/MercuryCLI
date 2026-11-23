@@ -2,7 +2,7 @@ import { closeSync, readSync } from 'node:fs'
 import { parse, relative } from 'node:path'
 import { getInvokedSkillsForAgent } from '../../../bootstrap/state.js'
 import type { ToolUseContext } from '../../../Tool.js'
-import type { AttachmentMessage, Message } from '../../../types/message.js'
+import type { AssistantMessage, AttachmentMessage, Message, UserMessage } from '../../../types/message.js'
 import { getAgentRosterAttachment, queuedNoticeTaskIds } from '../../attachments/agentRoster.js'
 import { getPlannedDeferredToolsAttachment, getMcpInstructionsDeltaAttachment } from '../../attachments/deltas.js'
 import { generateFileAttachment } from '../../attachments/fileAttachments.js'
@@ -220,7 +220,7 @@ export type PostCompactFit = {
 }
 
 function describeAttachment(message: AttachmentMessage): string {
-  const attachment = message.attachment
+  const attachment = message.attachment as { type: string; filename?: string }
   if (attachment.type === 'file' || attachment.type === 'compact_file_reference') return `file ${attachment.filename ?? '?'}`
   if (attachment.type === 'compact_operator_messages') return 'operator messages'
   return attachment.type
@@ -243,7 +243,7 @@ export function fitPostCompactUnderThreshold(result: CompactionResult, threshold
         }
       })
       if (victim < 0) break
-      shed.push(describeAttachment(current.attachments[victim]!))
+      shed.push(describeAttachment(current.attachments[victim] as AttachmentMessage))
       current = { ...current, attachments: current.attachments.filter((_, index) => index !== victim) }
       estimate = count(buildPostCompactMessages(current))
     }
