@@ -1,6 +1,6 @@
 import { z } from 'zod/v4'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { buildTool, stringInputField, type ToolUseContext, type ToolResult } from '../../Tool.js'
+import { buildTool, stringInputField, type Tool, type ToolDef, type ToolUseContext, type ToolResult } from '../../Tool.js'
 import { POWERSHELL_TOOL_NAME } from '../../constants/tools/powershell.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
@@ -67,7 +67,7 @@ import { pinnedGitBash } from '../../utils/windowsPaths.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 import { withDeadline } from '../../utils/deadline.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
+import type { ShellCommand } from '../../utils/ShellCommand.js'
 
 
 const SLEEP_THRESHOLD_SECONDS = 2
@@ -165,7 +165,536 @@ function backgroundNoticeFor(output: Out): string {
 }
 
 
-export const PowerShellTool: Unbuilt = unbuilt('src/tools/PowerShellTool/PowerShellTool.tsx:438')
+const SLEEP_REFUSAL_HINT = 'Use the Sleep tool to wait without holding a shell, or pass run_in_background: true for a background command.'
+
+async function postProcessPowerShell(
+  result: ExecResult,
+  input: PowerShellToolInput,
+  context: ToolUseContext,
+  shellCommand: ShellCommand | undefined,
+): Promise<Out> {
+  let prLinkNote: string | undefined
+  let gitOperation: unknown
+  if (result.backgroundTaskId === undefined && !result.preSpawnError) {
+    prLinkNote = await trackGitOperations(input.command, result.code, result.stdout)
+    if (result.code === 0) {
+      gitOperation = detectGitOperation(input.command, result.stdout)
+    }
+  }
+
+  const trimmedStdout = result.stdout.trimEnd()
+  const trimmedStderr = result.stderr.trimEnd()
+  const accumulator = new EndTruncatingAccumulator()
+  if (trimmedStdout !== '') accumulator.append(trimmedStdout)
+  if (trimmedStderr !== '') accumulator.append((accumulator.length > 0 ? '\n' : '') + trimmedStderr)
+  if (prLinkNote) accumulator.append((accumulator.length > 0 ? '\n' : '') + prLinkNote)
+
+  const redact = createShellResultRedactor()
+  let out = redact(accumulator.toString())
+  if (shellCommand !== undefined) {
+    out = await applyShellOutputFilter(out, {
+      taskId: shellCommand.taskOutput.taskId,
+      spilledPath: result.outputFilePath,
+    })
+  }
+  const budget = resolveOutputBudget(readMaxOutputChars(input.max_output_chars))
+  const windowed = result.outputFilePath === undefined
+  const clause = outputBudgetClause(budget)
+  const outputBudgetNotice = windowed ? clause : undefined
+
+  if (result.preSpawnError) {
+    throw new ShellError('', result.stderr || result.preSpawnError, result.code, false, false)
+  }
+
+  const interpretation = interpretCommandResult(input.command, result.code, trimmedStdout, trimmedStderr)
+  const interruptedByUser = result.interrupted && context.abortController.signal.reason === 'interrupt'
+  if (interpretation.isError && !interruptedByUser) {
+    const thrown =
+      budget.requested === undefined
+        ? out
+        : windowed
+          ? formatOutput(out, { maxLength: budget.effective }).truncatedContent
+          : formatExcerpt(out, budget.effective)
+    const notice = sessionEnvNoticeForResult({
+      scrubbed: shellCommand?.scrubbedSessionEnv,
+      commandText: input.command,
+    })
+    const error = new ShellError(
+      '',
+      [thrown, clause].filter(Boolean).join('\n'),
+      result.code,
+      result.interrupted,
+      true,
+      notice,
+    )
+    throw budget.requested === undefined ? error : windowedError(error)
+  }
+
+  let persistedOutputPath: string | undefined
+  let persistedOutputSize: number | undefined
+  let outputCopyNotice: string | undefined
+  if (result.outputFilePath && result.outputTaskId) {
+    try {
+      const stats = await stat(result.outputFilePath)
+      persistedOutputSize = stats.size
+      const destination = join(getScratchpadDir(), `${result.outputTaskId}.output`)
+      if (stats.size > MAX_OUTPUT_BYTES) await truncate(result.outputFilePath, MAX_OUTPUT_BYTES)
+      await redactedCopy(result.outputFilePath, destination, redact)
+      persistedOutputPath = destination
+    } catch (error) {
+      outputCopyNotice = `[the full output could not be kept for reading (${errorMessage(error)}); only the excerpt above is shown — send the output to a file to read all of it]`
+    }
+  }
+
+  out = stripEmptyLines(out)
+
+  let isImage = isImageOutput(out)
+  if (isImage) {
+    const resized = await resizeShellImageOutput(out, result.outputFilePath, persistedOutputSize)
+    if (resized === null) {
+      isImage = false
+    } else {
+      out = resized
+    }
+  }
+
+  const formatted = formatOutput(out, {
+    preExcerpted: result.outputFilePath !== undefined,
+    maxLength: budget.effective,
+  })
+  return {
+    stdout: formatted.truncatedContent,
+    stderr: '',
+    interrupted: result.interrupted,
+    isImage,
+    ...(interpretation.message !== undefined ? { returnCodeInterpretation: interpretation.message } : {}),
+    ...(gitOperation !== undefined ? { gitOperation } : {}),
+    ...(outputBudgetNotice !== undefined ? { outputBudgetNotice } : {}),
+    ...(outputCopyNotice !== undefined ? { outputCopyNotice } : {}),
+    ...(persistedOutputPath !== undefined ? { persistedOutputPath } : {}),
+    ...(persistedOutputSize !== undefined ? { persistedOutputSize } : {}),
+    ...(shellCommand?.scrubbedSessionEnv && shellCommand.scrubbedSessionEnv.length > 0
+      ? { scrubbedSessionEnv: shellCommand.scrubbedSessionEnv }
+      : {}),
+  }
+}
+
+function buildBackgroundOut(
+  backgroundTaskId: string,
+  scrubbed: readonly string[] | undefined,
+  opts?: { stdout?: string; backgroundedByUser?: boolean; timeoutAutoBackgroundedAfterMs?: number },
+): Out {
+  return {
+    stdout: opts?.stdout ?? '',
+    stderr: '',
+    interrupted: false,
+    backgroundTaskId,
+    ...(opts?.backgroundedByUser ? { backgroundedByUser: true } : {}),
+    ...(opts?.timeoutAutoBackgroundedAfterMs !== undefined ? { timeoutAutoBackgroundedAfterMs: opts.timeoutAutoBackgroundedAfterMs } : {}),
+    ...(scrubbed && scrubbed.length > 0 ? { scrubbedSessionEnv: scrubbed } : {}),
+  }
+}
+
+async function* executePowerShell(
+  input: PowerShellToolInput,
+  context: ToolUseContext,
+  agentId?: string,
+): AsyncGenerator<PowerShellProgress, Out> {
+  const setTaskState = context.setAppStateForTasks ?? context.setAppState
+  const setToolJSX = context.setToolJSX
+  const requestedTimeout = input.timeout
+  const effectiveTimeout = Math.min(requestedTimeout || getDefaultTimeoutMs(), getMaxTimeoutMs())
+  const firstSubcommand = pinnedCommandAnalysis.splitCommand(input.command)[0]?.trim() ?? input.command.trim()
+  const firstWord = resolveToCanonical(firstCommandWord(firstSubcommand)).toLowerCase()
+  const shouldAutoBackground = !BACKGROUND_TASKS_DISABLED && !NEVER_AUTO_BACKGROUND.has(firstWord)
+  const explicitCwd = input.cwd !== undefined ? resolveShellCwd(input.cwd) : undefined
+  const launchedAt = Date.now()
+
+  const psPath = await getCachedPowerShellPath()
+  if (!psPath) {
+    const unavailable: ExecResult = {
+      stdout: '',
+      stderr: 'PowerShell is unavailable on this system.',
+      code: 127,
+      interrupted: false,
+      preSpawnError: 'unavailable',
+    }
+    return postProcessPowerShell(unavailable, input, context, undefined)
+  }
+
+  let latest = { recent: '', all: '', lines: 0, bytes: 0, incomplete: false }
+  let notifyWake: (() => void) | null = null
+  const wakeProgress = (): void => {
+    const fn = notifyWake
+    notifyWake = null
+    fn?.()
+  }
+  const waitForWake = (): Promise<void> =>
+    new Promise<void>(resolve => {
+      notifyWake = resolve
+    })
+
+  let shellCommand: ShellCommand
+  try {
+    shellCommand = await exec(input.command, context.abortController.signal, 'powershell', {
+      timeout: effectiveTimeout,
+      shouldAutoBackground,
+      backgroundIntent: !BACKGROUND_TASKS_DISABLED && Boolean(input.run_in_background),
+      ...(explicitCwd !== undefined ? { cwd: explicitCwd } : {}),
+      preventCwdChanges: explicitCwd !== undefined || agentId !== undefined,
+      inheritSessionEnv: input.inherit_session_env === true,
+      onProgress: (recentLines, allLines, numLines, numBytes, incomplete) => {
+        latest = { recent: recentLines, all: allLines, lines: numLines, bytes: numBytes, incomplete }
+        wakeProgress()
+      },
+    })
+  } catch (error) {
+    const msg = errorMessage(error)
+    const failed: ExecResult = {
+      stdout: '',
+      stderr: `The PowerShell command failed to execute: ${msg}`,
+      code: 127,
+      interrupted: false,
+      preSpawnError: msg,
+    }
+    return postProcessPowerShell(failed, input, context, undefined)
+  }
+
+  const scrubbed = shellCommand.scrubbedSessionEnv
+  let backgroundId: string | undefined
+  let foregroundTaskId: string | undefined
+  let timeoutAutoBackgroundedAfterMs: number | undefined
+  let interruptHandled = false
+  let hintShown = false
+
+  const tryBackground = async (onAccepted?: (taskId: string) => void): Promise<string | undefined> => {
+    if (backgroundId !== undefined) return backgroundId
+    const description = input.description || input.command
+    if (foregroundTaskId !== undefined) {
+      const ok = backgroundExistingForegroundTask(
+        foregroundTaskId,
+        shellCommand,
+        description,
+        setTaskState,
+        context.toolUseId,
+        {
+          command: input.command,
+          description,
+          agentId,
+          cwd: explicitCwd ?? resolveShellCwd(),
+          startTime: launchedAt,
+          toolUseId: context.toolUseId,
+        },
+      )
+      if (ok) {
+        const accepted = foregroundTaskId
+        backgroundId = accepted
+        foregroundTaskId = undefined
+        onAccepted?.(accepted)
+        wakeProgress()
+        return accepted
+      }
+    }
+    const handle = await spawnShellTask(
+      {
+        command: input.command,
+        description,
+        timeout: effectiveTimeout,
+        toolUseId: context.toolUseId,
+        agentId,
+        shellCommand,
+        startTime: launchedAt,
+      },
+      {
+        abortController: context.abortController,
+        getAppState: context.getAppState,
+        setAppState: setTaskState,
+      },
+    )
+    if (handle.accepted !== false) {
+      const accepted: string = handle.taskId
+      backgroundId = accepted
+      onAccepted?.(accepted)
+      wakeProgress()
+      return accepted
+    }
+    return undefined
+  }
+
+  shellCommand.onTimeout?.((bg: (taskId: string) => boolean) => {
+    timeoutAutoBackgroundedAfterMs = effectiveTimeout
+    void tryBackground(taskId => {
+      bg(taskId)
+    })
+  })
+
+  if (!BACKGROUND_TASKS_DISABLED && input.run_in_background) {
+    const acceptedId = await tryBackground()
+    if (acceptedId !== undefined) return buildBackgroundOut(acceptedId, scrubbed)
+    const res = await shellCommand.result
+    shellCommand.cleanup()
+    return postProcessPowerShell(res, input, context, shellCommand)
+  }
+
+  const onAbort = (): void => {
+    wakeProgress()
+  }
+  context.abortController.signal.addEventListener('abort', onAbort, { once: true })
+
+  let settledResult: ExecResult | undefined
+  void shellCommand.result.then((res: ExecResult) => {
+    settledResult = res
+    wakeProgress()
+  })
+
+  const quietTag = Symbol('quiet')
+  const quietResult = await withDeadline<ExecResult, typeof quietTag>(
+    shellCommand.result,
+    QUIET_WINDOW_MS,
+    () => quietTag,
+    { unref: true },
+  )
+  if (quietResult !== quietTag) {
+    context.abortController.signal.removeEventListener('abort', onAbort)
+    if (quietResult.backgroundTaskId) {
+      markTaskNotified(quietResult.backgroundTaskId, setTaskState)
+      quietResult.backgroundTaskId = undefined
+    }
+    shellCommand.cleanup()
+    return postProcessPowerShell(quietResult, input, context, shellCommand)
+  }
+  if (backgroundId !== undefined) {
+    context.abortController.signal.removeEventListener('abort', onAbort)
+    return buildBackgroundOut(backgroundId, scrubbed, { timeoutAutoBackgroundedAfterMs })
+  }
+
+  const pollStart = Date.now()
+  const pollTaskId = shellCommand.taskOutput.taskId
+  TaskOutput.startPolling(pollTaskId)
+  try {
+    for (;;) {
+      if (settledResult !== undefined) {
+        let finalResult = settledResult
+        if (finalResult.backgroundTaskId) {
+          markTaskNotified(finalResult.backgroundTaskId, setTaskState)
+          finalResult = { ...finalResult, backgroundTaskId: undefined }
+        } else if (foregroundTaskId !== undefined) {
+          unregisterForeground(foregroundTaskId, setTaskState)
+          foregroundTaskId = undefined
+        }
+        shellCommand.cleanup()
+        return postProcessPowerShell(finalResult, input, context, shellCommand)
+      }
+
+      if (context.abortController.signal.aborted && context.abortController.signal.reason === 'interrupt' && !interruptHandled) {
+        interruptHandled = true
+        if (BACKGROUND_TASKS_DISABLED) {
+          shellCommand.kill()
+        } else {
+          const accepted = await tryBackground()
+          if (accepted !== undefined) return buildBackgroundOut(accepted, scrubbed, { stdout: latest.all })
+          shellCommand.kill()
+        }
+      }
+
+      if (backgroundId !== undefined) {
+        return buildBackgroundOut(backgroundId, scrubbed, { timeoutAutoBackgroundedAfterMs })
+      }
+
+      if (foregroundTaskId !== undefined && shellCommand.status === 'backgrounded') {
+        const movedId = foregroundTaskId
+        foregroundTaskId = undefined
+        return buildBackgroundOut(movedId, scrubbed, { backgroundedByUser: true })
+      }
+
+      const elapsedMs = Date.now() - pollStart
+      if (!hintShown && !BACKGROUND_TASKS_DISABLED && elapsedMs >= QUIET_WINDOW_MS && setToolJSX) {
+        hintShown = true
+        if (foregroundTaskId === undefined) {
+          foregroundTaskId = registerForeground(
+            {
+              command: input.command,
+              description: input.description || input.command,
+              timeout: effectiveTimeout,
+              toolUseId: context.toolUseId,
+              agentId,
+              shellCommand,
+            },
+            setTaskState,
+            context.toolUseId,
+          )
+        }
+        setToolJSX({
+          jsx: <BackgroundHint />,
+          shouldHidePromptInput: false,
+          shouldContinueAnimation: true,
+          showSpinner: true,
+        })
+      }
+
+      const elapsedTimeSeconds = Math.floor(elapsedMs / 1000)
+      let output = latest.recent
+      if (elapsedMs >= SOFT_TIMEOUT_MS) {
+        const timeoutPart = requestedTimeout ? `, timing out at ${Math.round(effectiveTimeout / 1000)}s` : ''
+        const banner = `[still running after ${elapsedTimeSeconds}s${timeoutPart}]`
+        output = `${banner}\n${output}`
+      }
+      yield {
+        type: 'powershell_progress',
+        output,
+        fullOutput: latest.all,
+        elapsedTimeSeconds,
+        totalLines: latest.lines,
+        totalBytes: latest.incomplete ? latest.bytes : 0,
+        taskId: foregroundTaskId ?? pollTaskId,
+        ...(requestedTimeout ? { timeoutMs: requestedTimeout } : {}),
+        budgetMs: effectiveTimeout,
+      }
+
+      await waitForWake()
+    }
+  } finally {
+    TaskOutput.stopPolling(pollTaskId)
+    context.abortController.signal.removeEventListener('abort', onAbort)
+    if (foregroundTaskId !== undefined && shellCommand.status !== 'backgrounded') {
+      unregisterForeground(foregroundTaskId, setTaskState)
+    }
+  }
+}
+
+export const PowerShellTool: Tool<PowerShellToolInput, Out, PowerShellProgress> = buildTool({
+  name: POWERSHELL_TOOL_NAME,
+  strict: true,
+  searchHint: 'Executes PowerShell commands.',
+  maxResultSizeChars: PERSIST_THRESHOLD_CHARS,
+  straightQuoteInputs: ['command'],
+  get inputSchema() {
+    return modelInputSchema()
+  },
+  async description(input: Partial<PowerShellToolInput> | undefined) {
+    return input?.description ?? 'Run a PowerShell command'
+  },
+  async prompt() {
+    return getPrompt()
+  },
+  shellCommandOf(input: unknown) {
+    return stringInputField(input, 'command')
+  },
+  isConcurrencySafe(input: unknown) {
+    const command = stringInputField(input, 'command')
+    if (!command) return false
+    if (hasSyncSecurityConcerns(command)) return false
+    return isReadOnlyCommand(command)
+  },
+  isReadOnly(input: unknown) {
+    const command = stringInputField(input, 'command')
+    if (!command) return false
+    if (hasSyncSecurityConcerns(command)) return false
+    return isReadOnlyCommand(command)
+  },
+  isSearchOrReadCommand(input: unknown) {
+    const command = stringInputField(input, 'command')
+    if (!command) return { isSearch: false, isRead: false }
+    return isSearchOrRead(command)
+  },
+  checkPermissions(input: PowerShellToolInput, context: ToolUseContext) {
+    return powershellToolHasPermission(input, context)
+  },
+  async validateInput(input: PowerShellToolInput) {
+    const cwdRefusal = controlCharacterPathRefusal(input.cwd)
+    if (cwdRefusal !== null) {
+      return { result: false, message: cwdRefusal, errorCode: 1 }
+    }
+    if (sleepGatePreconditions(input)) {
+      const blocked = detectSleep(input.command)
+      if (blocked !== null) {
+        return { result: false, message: `${blocked}\n${SLEEP_REFUSAL_HINT}`, errorCode: 10 }
+      }
+    }
+    const maxOutputRefusal = refuseMaxOutputChars(input.max_output_chars)
+    if (maxOutputRefusal !== undefined) {
+      return { result: false, message: maxOutputRefusal, errorCode: 2 }
+    }
+    return { result: true }
+  },
+  async call(input, context, _canUseTool, _parentAssistantMessage, onProgress): Promise<ToolResult<Out>> {
+    const setToolJSX = context.setToolJSX
+    try {
+      const generator = executePowerShell(input, context, context.agentId)
+      let progressCount = 0
+      for (;;) {
+        const step = await generator.next()
+        if (step.done) {
+          const data = step.value
+          const envNotice = sessionEnvNoticeForResult({
+            scrubbed: data.scrubbedSessionEnv,
+            commandText: input.command,
+          })
+          if (envNotice !== '') {
+            data.sessionEnvNotice = envNotice
+          }
+          return { data }
+        }
+        progressCount += 1
+        onProgress?.({
+          toolUseID: `${context.toolUseId || 'pwsh'}-${progressCount}`,
+          data: step.value,
+        })
+      }
+    } finally {
+      setToolJSX?.(null)
+    }
+  },
+  mapToolResultToToolResultBlockParam(output: Out, toolUseID: string): ToolResultBlockParam {
+    if (output.isImage) {
+      const image = buildImageToolResult(output.stdout, toolUseID)
+      if (image) return image
+    }
+    let stdout = output.stdout.replace(/^\s*\n/g, '').trimEnd()
+    if (output.persistedOutputPath) {
+      const { preview, hasMore } = generatePreview(stdout, PREVIEW_SIZE_CHARS, output.persistedOutputSize)
+      stdout = buildLargeToolResultMessage({
+        filepath: output.persistedOutputPath,
+        originalSize: output.persistedOutputSize ?? 0,
+        isJson: false,
+        preview,
+        hasMore,
+      })
+    }
+    let errorText = output.stderr.trimEnd()
+    if (output.interrupted) {
+      errorText += '\n<error>The command was cut short before it finished.</error>'
+    }
+    const backgroundNotice = output.backgroundTaskId ? backgroundNoticeFor(output) : ''
+    const content = [
+      stdout,
+      errorText,
+      output.outputBudgetNotice ?? '',
+      output.outputCopyNotice ?? '',
+      backgroundNotice,
+      output.sessionEnvNotice ?? '',
+    ]
+      .filter(part => part !== '')
+      .join('\n')
+    return {
+      tool_use_id: toolUseID,
+      type: 'tool_result',
+      content,
+      is_error: output.interrupted,
+    }
+  },
+  extractSearchText(output: Out): string {
+    return output.stderr ? `${output.stdout}\n${output.stderr}` : output.stdout
+  },
+  isResultTruncated(output: Out): boolean {
+    return isOutputLineTruncated(output.stdout) || isOutputLineTruncated(output.stderr)
+  },
+  renderToolUseMessage,
+  renderToolUseProgressMessage,
+  renderToolUseQueuedMessage,
+  renderToolResultMessage,
+  renderToolUseErrorMessage,
+} satisfies ToolDef<ReturnType<typeof buildModelSchema>, Out, PowerShellProgress>)
 
 function sleepGatePreconditions(input: PowerShellToolInput): boolean {
   if (BACKGROUND_TASKS_DISABLED || input.run_in_background) return false
