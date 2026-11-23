@@ -59,15 +59,16 @@ const NOT_COLLAPSIBLE: SearchOrReadResult = {
 }
 
 function inputPath(toolInput: unknown): string | undefined {
-  if (!isRecord(toolInput)) return undefined
-  if (typeof toolInput.file_path === 'string') return toolInput.file_path
-  if (typeof toolInput.path === 'string') return toolInput.path
+  if (typeof toolInput !== 'object' || toolInput === null) return undefined
+  const record = toolInput as { file_path?: unknown; path?: unknown }
+  if (typeof record.file_path === 'string') return record.file_path
+  if (typeof record.path === 'string') return record.path
   return undefined
 }
 
 function inputField(toolInput: unknown, field: string): string | undefined {
-  if (!isRecord(toolInput)) return undefined
-  const value = toolInput[field]
+  if (typeof toolInput !== 'object' || toolInput === null) return undefined
+  const value = (toolInput as Record<string, unknown>)[field]
   return typeof value === 'string' ? value : undefined
 }
 
@@ -111,9 +112,14 @@ export function getToolSearchOrReadInfo(
 
 type ToolUseMember = { toolUseId: string; input: unknown }
 
+function firstAssistantBlock(message: NormalizedAssistantMessage): { type?: string } | undefined {
+  return message.message.content[0] as { type?: string } | undefined
+}
+
 function toolUseFromAssistant(message: NormalizedAssistantMessage): ToolUseBlock | null {
-  const block = message.message.content[0]
-  return block !== undefined && block.type === 'tool_use' ? block : null
+  const block = firstAssistantBlock(message)
+  if (block && block.type === 'tool_use') return block as ToolUseBlock
+  return null
 }
 
 function describeToolUse(
@@ -137,7 +143,14 @@ function describeToolUse(
 function toolResultBlocks(message: NormalizedUserMessage): Array<{ tool_use_id: string }> {
   const blocks: Array<{ tool_use_id: string }> = []
   for (const block of message.message.content) {
-    if (block.type === 'tool_result') blocks.push(block)
+    if (
+      typeof block === 'object' &&
+      block !== null &&
+      (block as { type?: unknown }).type === 'tool_result' &&
+      typeof (block as { tool_use_id?: unknown }).tool_use_id === 'string'
+    ) {
+      blocks.push(block as { tool_use_id: string })
+    }
   }
   return blocks
 }
@@ -359,14 +372,18 @@ function buildCollapsedRow(group: OpenGroup): CollapsedReadSearchGroup {
   return row
 }
 
-function toolUseIdsOfAssistant(message: NormalizedAssistantMessage): string[] {
-  return message.message.content.flatMap(block => (block.type === 'tool_use' ? [block.id] : []))
+function toolUseIdsOfAssistant(message: RenderableMessage): string[] {
+  const content = (message as { message?: { content?: unknown } }).message?.content
+  if (!Array.isArray(content)) return []
+  return content
+    .filter((block): block is { type: 'tool_use'; id: string } => (block as { type?: string })?.type === 'tool_use' && typeof (block as { id?: unknown }).id === 'string')
+    .map(block => block.id)
 }
 
 function isSkippable(message: RenderableMessage): boolean {
   if (message.type === 'attachment' || message.type === 'system') return true
   if (message.type === 'assistant') {
-    const block = message.message.content[0]
+    const block = firstAssistantBlock(message)
     return block?.type === 'thinking' || block?.type === 'redacted_thinking'
   }
   return false
