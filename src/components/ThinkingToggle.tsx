@@ -40,9 +40,13 @@ export function ThinkingToggle({
   useKeybinding(
     'confirm:no',
     () => {
-      setPendingValue(null)
+      if (pendingValue !== null) {
+        setPendingValue(null)
+        return
+      }
+      onCancel?.()
     },
-    { context: 'Confirmation', isActive: pendingValue !== null },
+    { context: 'Confirmation' },
   )
 
   const initialValue = currentValue ? OPTION_VALUES.enabled : OPTION_VALUES.disabled
@@ -57,57 +61,57 @@ export function ThinkingToggle({
   }
 
   return (
-    <Box flexDirection="column">
-      <Pane>
-        <Box flexDirection="column">
-          <Text bold>Extended thinking</Text>
-          <Text dimColor>Toggle extended thinking for this session.</Text>
-          {pendingValue !== null ? (
-            <Box flexDirection="column" marginTop={1} gap={1}>
-              <Text color="warning">
-                Changing extended thinking mid-conversation adds latency and can
-                reduce answer quality — the start of a session is the moment to
-                set it.
-              </Text>
-              <Text>Proceed with the change?</Text>
-            </Box>
+    <Pane color="permission">
+      <Box flexDirection="column">
+        <Text bold color="remember">
+          Extended thinking
+        </Text>
+        <Text dimColor>Toggle extended thinking for this session.</Text>
+        <Box height={1} />
+        {pendingValue !== null ? (
+          <Box flexDirection="column">
+            <Text color="warning">
+              Changing extended thinking mid-conversation adds latency and can
+              reduce answer quality — the start of a session is the moment to
+              set it.
+            </Text>
+            <Text color="warning">Proceed with the change?</Text>
+          </Box>
+        ) : (
+          <Select
+            options={[
+              {
+                label: 'Enabled',
+                value: OPTION_VALUES.enabled,
+                description: 'Think before responding',
+              },
+              {
+                label: 'Disabled',
+                value: OPTION_VALUES.disabled,
+                description: 'Respond without extended thinking',
+              },
+            ]}
+            defaultValue={initialValue}
+            defaultFocusValue={initialValue}
+            visibleOptionCount={2}
+            onChange={handleSelect}
+            onCancel={onCancel ?? (() => {})}
+          />
+        )}
+        <Box marginTop={1}>
+          {exitState.pending ? (
+            <Text dimColor>{exitChordNoticeText(exitState.keyName)}</Text>
           ) : (
-            <Box marginTop={1}>
-              <Select
-                options={[
-                  {
-                    label: 'Enabled',
-                    value: OPTION_VALUES.enabled,
-                    description: 'Think before responding',
-                  },
-                  {
-                    label: 'Disabled',
-                    value: OPTION_VALUES.disabled,
-                    description: 'Respond without extended thinking',
-                  },
-                ]}
-                defaultValue={initialValue}
-                defaultFocusValue={initialValue}
-                onChange={handleSelect}
-                onCancel={onCancel}
-              />
-            </Box>
+            <Text dimColor>
+              <Byline>
+                <Text dimColor>enter to confirm</Text>
+                <Text dimColor>{`${cancelKey} to ${pendingValue !== null ? 'cancel' : 'exit'}`}</Text>
+              </Byline>
+            </Text>
           )}
         </Box>
-      </Pane>
-      <Box marginTop={1} paddingLeft={1}>
-        {exitState.pending ? (
-          <Text dimColor>{exitChordNoticeText(exitState.keyName)}</Text>
-        ) : (
-          <Text dimColor>
-            <Byline>
-              <Text>enter to confirm</Text>
-              <Text>{`${cancelKey} to ${pendingValue !== null ? 'cancel' : 'exit'}`}</Text>
-            </Byline>
-          </Text>
-        )}
       </Box>
-    </Box>
+    </Pane>
   )
 }
 
