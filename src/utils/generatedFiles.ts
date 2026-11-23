@@ -8,15 +8,15 @@ const GENERATED_FILE_NAMES = new Set([
   'shrinkwrap.yaml',
   'bun.lock',
   'bun.lockb',
-  'Cargo.lock',
-  'Gemfile.lock',
+  'cargo.lock',
+  'gemfile.lock',
   'poetry.lock',
-  'Pipfile.lock',
+  'pipfile.lock',
   'composer.lock',
   'go.sum',
   'flake.lock',
-  'Package.resolved',
-  'Podfile.lock',
+  'package.resolved',
+  'podfile.lock',
   'pubspec.lock',
   'mix.lock',
   'uv.lock',
@@ -62,39 +62,74 @@ const GENERATED_EXTENSIONS = new Set([
   '.lock',
   '.lockb',
   '.snap',
+  '.min.js',
+  '.min.mjs',
+  '.min.cjs',
+  '.min.css',
+  '.bundle.js',
+  '.bundle.mjs',
+  '.bundle.cjs',
+  '.bundle.css',
+  '.chunk.js',
+  '.chunk.css',
+  '.pb.go',
+  '.pb.ts',
+  '.pb.js',
+  '.pb.py',
+  '.pb.cc',
+  '.pb.h',
+  '.g.dart',
+  '.g.cs',
+  '.freezed.dart',
+  '.designer.cs',
+  '.generated.ts',
+  '.generated.tsx',
+  '.generated.js',
+  '.generated.jsx',
+  '.generated.go',
+  '.generated.py',
+  '.generated.cs',
+  '.auto.ts',
+  '.auto.js',
+  '.auto.go',
+  '.auto.py',
 ])
 
 const GENERATED_NAME_PATTERNS: readonly RegExp[] = [
-  /\.min\.(?:js|mjs|cjs|css)$/i,
-  /\.bundle\.(?:js|mjs|cjs|css)$/i,
-  /\.chunk\.(?:js|mjs|cjs|css)$/i,
-  /\.pb\.(?:go|ts|js|py|cc|h|java|rb|cs)$/i,
-  /_pb2\.py$/i,
-  /\.generated\.[^/]+$/i,
+  /\.min\.[^/]+$/i,
+  /\.bundle\.[^/]+$/i,
+  /\.chunk\.[^/]+$/i,
+  /\.pb\.[^/]+$/i,
+  /_pb2(?:_grpc)?\.py$/i,
+  /[._-]generated\.[^/]+$/i,
+  /\.auto\.[^/]+$/i,
   /\.g\.(?:dart|cs)$/i,
   /\.freezed\.dart$/i,
   /\.designer\.cs$/i,
+  /(?:^|[._-])(?:openapi|swagger)[._-].*$/i,
 ]
 
 export function isGeneratedFile(filePath: string): boolean {
   const slashPath = (sep === '/' ? filePath : filePath.split(sep).join('/')).replaceAll('\\', '/')
   const normalized = posix.normalize(slashPath).replace(/^\.\//, '')
-  const base = posix.basename(normalized)
-  if (GENERATED_FILE_NAMES.has(base)) return true
-  const lowerNormalized = normalized.toLowerCase()
+  const lowerBase = posix.basename(normalized).toLowerCase()
+  if (GENERATED_FILE_NAMES.has(lowerBase)) return true
   for (const dir of GENERATED_DIRECTORIES) {
-    if (
-      lowerNormalized === dir ||
-      lowerNormalized.startsWith(`${dir}/`) ||
-      lowerNormalized.includes(`/${dir}/`)
-    ) {
+    if (normalized.startsWith(`${dir}/`) || normalized.includes(`/${dir}/`)) {
       return true
     }
   }
-  const ext = posix.extname(base).toLowerCase()
-  if (ext !== '' && GENERATED_EXTENSIONS.has(ext)) return true
+  const parts = lowerBase.split('.')
+  if (parts.length >= 2 && parts[0] !== '') {
+    const simpleExt = `.${parts[parts.length - 1]}`
+    if (GENERATED_EXTENSIONS.has(simpleExt)) return true
+    if (parts.length >= 3) {
+      const twoPartExt = `.${parts[parts.length - 2]}.${parts[parts.length - 1]}`
+      if (GENERATED_EXTENSIONS.has(twoPartExt)) return true
+    }
+  }
   for (const pattern of GENERATED_NAME_PATTERNS) {
-    if (pattern.test(base)) return true
+    if (pattern.test(lowerBase)) return true
   }
   return false
 }
