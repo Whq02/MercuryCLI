@@ -249,6 +249,9 @@ export function AssistantToolUseMessage({
     parsedInput = parsed.data
   }
 
+  if (typeof tool.renderToolUseMessage !== 'function') {
+    return null
+  }
   let toolUseMessage: React.ReactNode | string | null = null
   try {
     toolUseMessage = tool.renderToolUseMessage(parsedInput, {
