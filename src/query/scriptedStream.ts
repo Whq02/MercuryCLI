@@ -55,7 +55,7 @@ const scriptedHammerBreaker: CallModel = async function* scriptedHammerBreaker(p
 }
 
 export const ONE_TOOL_SCRIPTS = ['tool-read', 'tool-glob', 'tool-bash', 'tool-bash-write'] as const
-export const WRITE_TOOL_SCRIPT = 'tool-write'
+const WRITE_TOOL_SCRIPT = 'tool-write'
 type OneToolScript = (typeof ONE_TOOL_SCRIPTS)[number] | typeof WRITE_TOOL_SCRIPT
 export const ANSWER_TEXT_SCRIPT = 'answer-text'
 export const CHATTY_BASH_SCRIPT = 'tool-bash-chatty'
@@ -64,8 +64,8 @@ const CHATTY_BASH_COMMAND = `i=1; while [ $i -le ${CHATTY_BASH_LINES} ]; do echo
 export const ONE_TOOL_READ_FILE = 'one-tool-read-fixture.md'
 export const ONE_TOOL_SETTLED_TEXT = 'VERDICT-TURN-DONE'
 export const ONE_TOOL_WRITE_WITNESS = 'exit-cliff-write-witness.txt'
-export const WRITE_TOOL_WITNESS = 'one-tool-write-witness.txt'
-export const WRITE_TOOL_CONTENT = 'written by the scripted write tool\n'
+const WRITE_TOOL_WITNESS = 'one-tool-write-witness.txt'
+const WRITE_TOOL_CONTENT = 'written by the scripted write tool\n'
 
 const oneToolCalls = new Map<OneToolScript, number>()
 

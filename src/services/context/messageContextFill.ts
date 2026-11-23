@@ -18,7 +18,7 @@ function usageAnchorForeign(anchor: Message, model: string | undefined): boolean
   return stampedFamily !== null && seatedFamily !== null && stampedFamily !== seatedFamily
 }
 
-export type ContentBlockLike = {
+type ContentBlockLike = {
   type?: string
   text?: string
   thinking?: string
