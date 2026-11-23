@@ -6,20 +6,18 @@ type RunTerminal = Extract<RunEvent, { kind: "run_terminal" }>["terminal"];
 
 type TurnTransition = Extract<RunEvent, { kind: "turn_settled" }>["transition"];
 
-export type FollowingTurn<TTurn> = TTurn & { transition: TurnTransition };
+type FollowingTurn<TTurn> = TTurn & { transition: TurnTransition };
 
-export type TurnOutcome<TTurn> =
+type TurnOutcome<TTurn> =
 	| { kind: "hand_over"; next: FollowingTurn<TTurn> }
 	| { kind: "end"; terminal: RunTerminal };
 
-export interface AgentLoopConfig<TTurn> {
+interface AgentLoopConfig<TTurn> {
 	emit: RunEventMint;
 	querySource: string;
 	agentId: string | undefined;
 	firstTurn: TTurn;
 	runTurn: (turn: TTurn, ordinal: number) => AsyncGenerator<RunEvent, TurnOutcome<TTurn>>;
-	drainSteering: (turn: TTurn) => AsyncGenerator<RunEvent, TTurn>;
-	drainFollowUps: (terminal: RunTerminal) => AsyncGenerator<RunEvent, FollowingTurn<TTurn> | null>;
 }
 
 export async function* runAgentLoop<TTurn>(config: AgentLoopConfig<TTurn>): AsyncGenerator<RunEvent, RunTerminal> {
@@ -28,23 +26,17 @@ export async function* runAgentLoop<TTurn>(config: AgentLoopConfig<TTurn>): Asyn
 }
 
 async function* runLoop<TTurn>(config: AgentLoopConfig<TTurn>): AsyncGenerator<RunEvent, RunTerminal> {
-	let turn = yield* config.drainSteering(config.firstTurn);
+	let turn = config.firstTurn;
 
 	for (let ordinal = 1; ; ordinal++) {
 		const outcome = yield* config.runTurn(turn, ordinal);
 
-		let next: FollowingTurn<TTurn> | null;
-		if (outcome.kind === "hand_over") {
-			next = outcome.next;
-		} else {
-			next = yield* config.drainFollowUps(outcome.terminal);
-			if (next === null) {
-				yield config.emit({ kind: "run_terminal", terminal: outcome.terminal });
-				return outcome.terminal;
-			}
+		if (outcome.kind === "end") {
+			yield config.emit({ kind: "run_terminal", terminal: outcome.terminal });
+			return outcome.terminal;
 		}
 
-		yield config.emit({ kind: "turn_settled", transition: next.transition });
-		turn = yield* config.drainSteering(next);
+		yield config.emit({ kind: "turn_settled", transition: outcome.next.transition });
+		turn = outcome.next;
 	}
 }

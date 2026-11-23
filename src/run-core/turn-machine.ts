@@ -22,7 +22,7 @@ import { makeRequest } from './turn/makeRequest.js'
 import { modelReply } from './turn/modelReply.js'
 import { noToolReply } from './turn/noToolReply.js'
 import { runToolCalls } from './turn/runToolCalls.js'
-import type { IterationState, NextTurn, RunCtx, SettledDecision, TurnState, TurnStep } from './turn/state.js'
+import type { IterationState, RunCtx, SettledDecision, TurnState, TurnStep } from './turn/state.js'
 import { runAgentLoop } from '../pi/loop/agent-loop.js'
 
 export {
@@ -127,14 +127,6 @@ async function* runTurn(run: RunCtx, state: TurnState, ordinal: number): AsyncGe
   return request.kind === 'go_on' ? yield* settleTurn(run, request.iter) : request
 }
 
-async function* steeringDrainsInsideTheTurn(turn: TurnState): AsyncGenerator<RunEvent, TurnState> {
-  return turn
-}
-
-async function* followUpsDrainInsideTheTurn(): AsyncGenerator<RunEvent, NextTurn | null> {
-  return null
-}
-
 async function* runTurns(params: QueryParams, consumedCommandUuids: string[]): AsyncGenerator<RunEvent, Terminal> {
   const run = createRunCtx(params, consumedCommandUuids)
   return yield* runAgentLoop({
@@ -143,7 +135,5 @@ async function* runTurns(params: QueryParams, consumedCommandUuids: string[]): A
     agentId: params.toolUseContext.agentId,
     firstTurn: firstTurnOf(params),
     runTurn: (state: TurnState, ordinal) => runTurn(run, state, ordinal),
-    drainSteering: steeringDrainsInsideTheTurn,
-    drainFollowUps: followUpsDrainInsideTheTurn,
   })
 }
