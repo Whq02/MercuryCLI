@@ -140,7 +140,7 @@ export function matchesInstructionExcludes(
   const normalizedPatterns = patterns.map(normalizeExcludePattern).filter(p => p !== '')
   if (normalizedPatterns.length === 0) return false
 
-  const opts = picomatchPathOptions(rememberedPlatform())
+  const opts = picomatchPathOptions()
   const lexical = filePath.replaceAll('\\', '/')
   if (picomatch.isMatch(lexical, normalizedPatterns, opts)) return true
 
