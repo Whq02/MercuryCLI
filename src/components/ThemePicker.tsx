@@ -151,7 +151,7 @@ export function ThemePicker({
     { context: 'ThemePicker', isActive: colorDiffAvailable },
   )
 
-  const initial = initialTheme ?? savedThemeSetting
+  const initial = toThemeSetting(initialTheme ?? savedThemeSetting)
   const previewWidth =
     measuredWidth !== null && measuredWidth > 0 ? measuredWidth : columns
 
