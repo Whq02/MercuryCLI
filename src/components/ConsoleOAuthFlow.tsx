@@ -245,7 +245,6 @@ export function ConsoleOAuthFlow({
         borderStyle="round"
         borderColor={tokens.borderSubtle}
         paddingX={1}
-        paddingY={compact ? 0 : 1}
       >
         {content}
       </Box>
