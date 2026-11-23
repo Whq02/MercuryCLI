@@ -2,7 +2,6 @@ import type { ToolUseBlock } from '../../types/wire.js'
 import type { SpinnerMode } from '../../types/spinner.js'
 import type { Message, RequestStartEvent, StreamEvent, TombstoneMessage } from '../../types/message.js'
 import { fluxCount, fluxMark } from '../flux/fluxProbe.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export type StreamingThinking = { thinking: string; isStreaming: boolean; streamingEndedAt?: number }
 export type StreamingToolUseUpdateOpts = { silent?: boolean; flushSilent?: boolean }
@@ -83,5 +82,47 @@ export function handleMessageFromStream(
   onApiMetrics?: (metrics: { ttftMs: number }) => void,
   onStreamingText?: UpdateText,
 ): void {
-  return notBuilt('src/utils/messages/streaming.ts:74')
+  if (message.type === 'tombstone') {
+    onTombstone?.(message.message)
+    return
+  }
+  if (message.type === 'stream_request_start') {
+    onSetStreamMode('requesting')
+    return
+  }
+  if (message.type !== 'stream_event') {
+    publishSettled(message, onMessage, onStreamingText, onStreamingThinking)
+    return
+  }
+  const event = message.event
+  switch (event.type) {
+    case 'content_block_delta':
+      publishDelta(event, onUpdateLength, onStreamingToolUses, onStreamingText)
+      return
+    case 'content_block_stop':
+      onStreamingToolUses(keepTools, { flushSilent: true })
+      return
+    case 'content_block_start': {
+      onStreamingText?.(clearText)
+      const block = event.content_block
+      const mode = openingModes[block.type]
+      if (mode !== undefined) onSetStreamMode(mode)
+      if (block.type === 'tool_use') {
+        const index = event.index
+        onStreamingToolUses(current => [...current, { index, contentBlock: block, unparsedToolInput: '' }])
+      }
+      return
+    }
+    case 'message_stop':
+      onSetStreamMode('tool-use')
+      onStreamingToolUses(clearTools)
+      return
+    case 'message_start':
+      if (message.ttftMs != null) onApiMetrics?.({ ttftMs: message.ttftMs })
+      onSetStreamMode('responding')
+      return
+    default:
+      onSetStreamMode('responding')
+      return
+  }
 }
