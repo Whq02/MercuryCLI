@@ -108,7 +108,7 @@ function resolveCapsuleState(
     return { state: 'degraded', reason: `semantic summary under ${DEGRADED_SUMMARY_LENGTH} chars` }
   }
   if (capsule !== null) {
-    return { state: 'installed', reason: 'run continuation capsule installed' }
+    return { state: 'installed', reason: 'summary + capsule' }
   }
   return { state: 'none', reason: 'no substantive run' }
 }
@@ -330,9 +330,7 @@ async function finishCommittedFold(params: {
   landed: ReturnType<typeof landFold>
   beforeHookRows: Message[]
   boundaryTrigger: CompactMetadata['trigger']
-  trigger: 'auto' | 'manual'
   isAutoCompact: boolean
-  overflow: OverflowSignal | undefined
   preCompactTokenCount: number
   tokensAfter: number
   prose: string
@@ -349,9 +347,7 @@ async function finishCommittedFold(params: {
     landed,
     beforeHookRows,
     boundaryTrigger,
-    trigger,
     isAutoCompact,
-    overflow,
     preCompactTokenCount,
     tokensAfter,
     prose,
@@ -387,7 +383,7 @@ async function finishCommittedFold(params: {
 
   advanceContextEpoch(owner, {
     kind: isAutoCompact ? 'auto-compact' : 'manual-compact',
-    reason: overflow !== undefined ? `overflow:${overflow.shape}` : trigger,
+    reason: isAutoCompact ? 'auto-compact threshold' : 'operator /compact',
     tokensBefore: preCompactTokenCount,
     tokensAfter,
     preservedTailCount: landed.messagesToKeep?.length ?? 0,
@@ -538,6 +534,10 @@ export async function compactConversation(
     const keptUuids = messagesToKeep !== undefined ? new Set(messagesToKeep.map(row => row.uuid)) : undefined
     const operatorAttachment = selectOperatorMessages(messages, keptUuids !== undefined ? { keptUuids } : undefined)
     const operatorMessages = operatorAttachment !== null ? createAttachmentMessage(operatorAttachment) : undefined
+    if (operatorAttachment !== null) {
+      const kept = operatorAttachment.messages.length
+      logForDebugging(`compact: operator messages block carries ${kept} of ${kept + operatorAttachment.omitted} prompts verbatim`)
+    }
 
     const ledgerBeforeFold = [...context.readFileState.entries()]
     const nestedMemoryBeforeFold = context.loadedNestedMemoryPaths ? [...context.loadedNestedMemoryPaths] : undefined
@@ -631,9 +631,9 @@ export async function compactConversation(
     if (recompactionInfo?.mustShrink && landed.truePostCompactTokenCount >= meter.before) {
       restoreReadState(context, ledgerBeforeFold, nestedMemoryBeforeFold)
       logForDebugging(
-        `compact: manual fold would not shrink context (${landed.truePostCompactTokenCount} >= ${meter.before}); keeping original context`,
+        `compact: aborted after summariser — folded context ${landed.truePostCompactTokenCount} >= ${meter.before} (pre ${preCompactTokenCount}); original context kept`,
       )
-      throw new Error(nothingToCompactLine(meter.context, 'would-not-shrink'))
+      throw new Error(nothingToCompactLine(preCompactTokenCount, 'would-not-shrink'))
     }
 
     pruneReadFileState(context, landed.partial, landed.messagesToKeep)
@@ -661,9 +661,7 @@ export async function compactConversation(
       landed,
       beforeHookRows,
       boundaryTrigger,
-      trigger,
       isAutoCompact,
-      overflow,
       preCompactTokenCount,
       tokensAfter,
       prose,
@@ -674,7 +672,10 @@ export async function compactConversation(
     })
   } catch (error) {
     if (writtenMemoryId !== undefined) {
-      withdrawFoldMemory(writtenMemoryId)
+      const stays = withdrawFoldMemory(writtenMemoryId)
+      if (stays !== null) {
+        logForDebugging(`compact: the memory row ${writtenMemoryId} of a fold that did not land stays — ${stays}`, { level: 'warn' })
+      }
     }
     if (!isAutoCompact) {
       notifyCompactionError(context, error)
