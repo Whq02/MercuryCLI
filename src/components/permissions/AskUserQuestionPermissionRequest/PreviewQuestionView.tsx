@@ -34,6 +34,7 @@ type Props = {
   onUpdateQuestionState: (
     questionText: string,
     updates: Partial<QuestionState>,
+    isMultiSelect?: boolean,
   ) => void
   onAnswer: (
     questionText: string,
@@ -261,20 +262,12 @@ export function PreviewQuestionView({
   })
 
   const focusedOption = question.options[clampedFocusedIndex]
-  const previewMaxWidth = layout.previewContentWidth + 4
   const previewBox = (
     <PreviewBox
       content={focusedOption?.preview ?? 'No preview available'}
-      minHeight={
-        layout.mode === 'side-by-side' && minContentHeight !== undefined
-          ? Math.min(minContentHeight, layout.previewMaxLines)
-          : undefined
-      }
-      minWidth={
-        minContentWidth !== undefined ? Math.min(minContentWidth, previewMaxWidth) : undefined
-      }
-      maxWidth={previewMaxWidth}
       maxLines={layout.previewMaxLines}
+      minWidth={Math.min(minContentWidth ?? 40, layout.previewContentWidth)}
+      maxWidth={layout.previewContentWidth + 4}
     />
   )
 
@@ -282,17 +275,10 @@ export function PreviewQuestionView({
     notes,
     isInNotesInput,
     cursorOffset,
+    notesInline: layout.notesInline,
     notesInputWidth: layout.notesInputWidth,
-    onFocusNotes: () => {
-      if (!isInNotesInput) {
-        setIsFooterFocused(false)
-        setIsInNotesInput(true)
-        setCursorOffset(notesRef.current.length)
-        onTextInputFocus(true)
-      }
-    },
-    onChangeNotes: val => onUpdateQuestionState(question.question, { textInputValue: val }),
-    onSubmitNotes: exitNotes,
+    onChangeNotes: val => onUpdateQuestionState(question.question, { textInputValue: val }, false),
+    onExitNotes: exitNotes,
     onPasteNotes: handleNotesPaste,
     onChangeCursorOffset: setCursorOffset,
   })
@@ -334,29 +320,26 @@ function renderPreviewOptionRows({
   onSelect: (idx: number, label: string) => void
 }): React.ReactNode {
   return (
-    <Box flexDirection="column">
+    <>
       {options.map((opt, idx) => {
         const isFocused = !isFooterFocused && !isInNotesInput && focusedIndex === idx
         const isSelected = selectedValue === opt.label
-        const prefix =
-          isApolloMode && idx < APOLLO_OPTION_LETTERS.length
-            ? `${APOLLO_OPTION_LETTERS[idx]}.`
-            : `${idx + 1}.`
+        const ordinal = (isApolloMode ? APOLLO_OPTION_LETTERS[idx] : undefined) ?? idx + 1
         return (
-          <Box key={opt.label} onClick={() => onSelect(idx, opt.label)}>
+          <Box key={opt.label} flexDirection="row" onClick={() => onSelect(idx, opt.label)}>
+            {isFocused ? <Text color="suggestion">{figures.pointer}</Text> : <Text> </Text>}
+            <Text dimColor>{` ${ordinal}.`}</Text>
             <Text
-              color={isFocused ? 'suggestion' : isSelected ? 'success' : undefined}
+              color={isSelected ? 'success' : isFocused ? 'suggestion' : undefined}
               bold={isFocused}
             >
-              {isFocused ? `${figures.pointer} ` : '  '}
-              <Text dimColor>{prefix} </Text>
-              {opt.label}
-              {isSelected ? <Text color="success"> {GLYPH.check}</Text> : null}
+              {` ${opt.label}`}
             </Text>
+            {isSelected ? <Text color="success">{` ${GLYPH.check}`}</Text> : null}
           </Box>
         )
       })}
-    </Box>
+    </>
   )
 }
 
@@ -364,42 +347,45 @@ function renderPreviewNotesRow({
   notes,
   isInNotesInput,
   cursorOffset,
+  notesInline,
   notesInputWidth,
-  onFocusNotes,
   onChangeNotes,
-  onSubmitNotes,
+  onExitNotes,
   onPasteNotes,
   onChangeCursorOffset,
 }: {
   notes: string
   isInNotesInput: boolean
   cursorOffset: number
+  notesInline: boolean
   notesInputWidth: number
-  onFocusNotes: () => void
   onChangeNotes: (val: string) => void
-  onSubmitNotes: () => void
+  onExitNotes: () => void
   onPasteNotes: (text: string) => void
   onChangeCursorOffset: (offset: number) => void
 }): React.ReactNode {
   return (
-    <Box marginTop={1} onClick={onFocusNotes}>
-      <Text dimColor={!isInNotesInput}>Notes: </Text>
+    <Box marginTop={notesInline ? 1 : 0} flexDirection="row" gap={1}>
+      <Text color="suggestion">Notes:</Text>
       {isInNotesInput ? (
         <TextInput
           value={notes}
-          onChange={onChangeNotes}
-          onSubmit={onSubmitNotes}
-          onPaste={onPasteNotes}
-          cursorOffset={cursorOffset}
-          onChangeCursorOffset={onChangeCursorOffset}
-          columns={notesInputWidth}
           placeholder="Add notes on this design…"
-          focus={isInNotesInput}
+          onChange={onChangeNotes}
+          onSubmit={onExitNotes}
+          onExit={onExitNotes}
+          onPaste={onPasteNotes}
+          focus
           showCursor
           disableEscapeDoublePress
+          columns={notesInputWidth}
+          cursorOffset={cursorOffset}
+          onChangeCursorOffset={onChangeCursorOffset}
         />
       ) : notes ? (
-        <Text>{notes}</Text>
+        <Text dimColor italic>
+          {notes}
+        </Text>
       ) : (
         <Text dimColor italic>
           press n to add notes
