@@ -32,6 +32,7 @@ import {
   TASK_NOTIFICATION_TAG,
 } from '../constants/xml.js'
 import { interruptCrewmate } from '../components/tasks/crewmateInterrupt.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const KILL_CONFIRM_WINDOW_MS = 3000
 const NONE_RUNNING_TIMEOUT_MS = 2000
@@ -91,7 +92,6 @@ export function CancelRequestHandler({
   isSearchingHistory = false,
   isHelpOpen = false,
   isInputDialogFocused = false,
-  streamMode,
 }: {
   focusedTurnActive?: boolean
   compactWork?: CompactWorkControls
@@ -108,7 +108,6 @@ export function CancelRequestHandler({
   isInputDialogFocused?: boolean
   streamMode?: string
 }): null {
-  void streamMode
   const { addNotification, removeNotification } = useNotifications()
   const isOverlayActive = useIsOverlayActive()
   const appStateStore = useAppStateStore()
@@ -177,7 +176,7 @@ export function CancelRequestHandler({
           const notice = backgroundShellNotice(receipt)
           if (notice !== null) addNotification(notice)
         },
-        () => {},
+        passedOver,
       )
       return
     }
