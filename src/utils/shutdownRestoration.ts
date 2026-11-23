@@ -4,7 +4,6 @@ import chalk from 'chalk'
 
 import { getIsInteractive, getSessionId, isSessionPersistenceDisabled } from '../bootstrap/state.js'
 import instances from '../ink/instances.js'
-import { drainStdin } from '../ink/ink.js'
 import { noteModeSettledEverywhere, shutdownReleaseObligations } from '../ink/root/terminalModeLedger.js'
 import { isExtendedCsiSafe } from '../ink/session/capabilities.js'
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js'
@@ -70,14 +69,6 @@ export function cleanupTerminalModes(): void {
     if (remainingInstance && !remainingInstance.isUnmounted) {
       try {
         remainingInstance.detachForShutdown()
-      } catch (error) {
-        passedOver(error)
-      }
-    }
-
-    if (process.stdin.isTTY && process.stdin.isRaw) {
-      try {
-        process.stdin.setRawMode(false)
       } catch (error) {
         passedOver(error)
       }
@@ -187,12 +178,7 @@ export function printResumeHint(): void {
 
 export function drainStdinForExit(): void {
   try {
-    const instance = instances.get(process.stdout)
-    if (instance) {
-      instance.drainStdin()
-    } else {
-      drainStdin(process.stdin)
-    }
+    instances.get(process.stdout)?.drainStdin()
   } catch (error) {
     passedOver(error)
   }
