@@ -23,7 +23,6 @@ import { env } from '../../utils/env.js'
 import { getPlatform } from '../../utils/platform.js'
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import { BackgroundTaskStatus } from '../tasks/BackgroundTaskStatus.js'
 import { CompactFooterNoticeContext } from '../../context/layoutChromeContext.js'
 import { useEscapeOwned } from '../../hooks/useEscapeOwned.js'
 import { useFocusedShellRunning } from '../../services/engine-connector/shellRunning.js'
@@ -39,11 +38,22 @@ import type { PromptInputMode } from '../../types/textInputTypes.js'
 import { LEAD_ROW_NAME } from '../../utils/cockpit/crewmateWords.js'
 import { crewmateLive, useViewedCrewmate } from '../tasks/useCrewmateView.js'
 import { footerClusterOf } from './footerLeftSideView.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const XTERMJS_HOSTS = new Set(['vscode', 'cursor', 'windsurf', 'codium', 'antigravity'])
 
-export function PromptInputFooterLeftSide(arg0: {
+export function PromptInputFooterLeftSide({
+  exitPending,
+  exitKeyName,
+  isPasting,
+  searchField,
+  vimInsert = false,
+  mode,
+  isLoading,
+  hintsEnabled = true,
+  crewmateFooterIndex,
+  onOpenTasksDialog,
+  compact = false,
+}: {
   exitPending: boolean
   exitKeyName: string | null
   isPasting: boolean
@@ -56,5 +66,247 @@ export function PromptInputFooterLeftSide(arg0: {
   onOpenTasksDialog?: () => void
   compact?: boolean
 }): React.ReactNode {
-  return notBuilt('src/components/PromptInput/PromptInputFooterLeftSide.tsx:46')
+  const tokens = useMercuryTokens()
+  const { columns } = useTerminalSize()
+  const tasks = useAppState((s: AppState) => s.tasks)
+  const footerSelection = useAppState((s: AppState) => s.footerSelection)
+  const toolPermissionContext = useAppState((s: AppState) => s.toolPermissionContext)
+  const viewingAgentTaskId = useAppState((s: AppState) => s.viewingAgentTaskId)
+  const currentNotice = useAppState((s: AppState) => s.notifications.current)
+  const viewedCrewmate = useViewedCrewmate()
+  const selection = useSelection()
+  const hasPaintedSelection = useHasSelection()
+  const ownSelectionVersion = useSyncExternalStore(
+    subscribeOwnInputSelection,
+    ownInputSelectionVersion,
+    ownInputSelectionVersion,
+  )
+  void ownSelectionVersion
+  const hasOwnSelection = peekOwnInputSelection() !== null
+  const hasSelection = hasPaintedSelection || hasOwnSelection
+  const shellRunning = useFocusedShellRunning()
+  useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
+  const voice = useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
+  const desktopInProcess = useSyncExternalStore(subscribeDesktop, desktopSnapshot, desktopSnapshot)
+  const desktopFile = useSyncExternalStore(
+    subscribeDesktopClaimFile,
+    desktopClaimFileSnapshot,
+    desktopClaimFileSnapshot,
+  )
+  const desktop = desktopInProcess.phase === 'driving' ? desktopInProcess : desktopFile
+  useClaim(() => {
+    armDesktopClaimPoll(isLoading)
+    return () => armDesktopClaimPoll(false)
+  }, [isLoading])
+
+  const prConfigEnabled = getGlobalConfig().prStatusFooterEnabled !== false
+  const prStatus = usePrStatus(isLoading, !compact && prConfigEnabled)
+
+  const cancelChord = useShortcutDisplay('chat:cancel', 'Chat', 'esc')
+  const killChord = useShortcutDisplay('chat:killAgents', 'Chat', 'ctrl+x k')
+  const copyChord = useShortcutDisplay('selection:copy', 'Scroll', 'ctrl+shift+c')
+  const paletteChord = useShortcutDisplay('app:commandPalette', 'Global', 'ctrl+k')
+
+  const escapeOwned = useEscapeOwned()
+  const killConfirmPending = currentNotice?.key === 'kill-agents-confirm'
+  const noticeText = noticeRowText(currentNotice)
+  const noticeDetail = noticeText !== null ? noticeRowDetail(currentNotice) : null
+  const noticeWayOut = noticeText !== null ? noticeRowWayOut(currentNotice) : null
+  const noticeBlock = noticeRowBlock(currentNotice)
+  const blockRows = noticeBlockRows(currentNotice)
+
+  const setCompactFooterRows = useContext(CompactFooterNoticeContext)
+  const drivingActive = isLoading && desktop.phase === 'driving'
+  const compactNoticeRows =
+    exitPending ||
+    isPasting ||
+    voice.phase === 'recording' ||
+    voice.phase === 'transcribing' ||
+    drivingActive ||
+    (compact && searchField !== undefined)
+      ? 1
+      : compact
+        ? blockRows
+        : 0
+
+  useClaim(() => {
+    if (setCompactFooterRows === null) return undefined
+    setCompactFooterRows(compactNoticeRows)
+    return () => setCompactFooterRows(0)
+  }, [setCompactFooterRows, compactNoticeRows])
+
+  if (exitPending) {
+    return <ExitChordNotice keyName={exitKeyName} />
+  }
+
+  if (isPasting) {
+    return <Text dimColor>pasting text…</Text>
+  }
+
+  const fullscreen = isFullscreenActive()
+
+  if (voice.phase === 'recording') {
+    return (
+      <Box height={fullscreen ? 1 : undefined} overflow="hidden">
+        <Text wrap="truncate-end">
+          <Text color={tokens.failure}>●</Text> {RECORDING_FOOTER}
+        </Text>
+      </Box>
+    )
+  }
+
+  if (voice.phase === 'transcribing') {
+    return (
+      <Box height={fullscreen ? 1 : undefined} overflow="hidden">
+        <Text dimColor wrap="truncate-end">
+          {TRANSCRIBING_FOOTER}
+        </Text>
+      </Box>
+    )
+  }
+
+  if (drivingActive) {
+    return (
+      <Box height={fullscreen ? 1 : undefined} overflow="hidden">
+        <Text wrap="truncate-end">
+          <Text color={tokens.warning}>●</Text> {drivingFooter(desktop.app)}
+        </Text>
+      </Box>
+    )
+  }
+
+  if (compact) {
+    if (searchField !== undefined) {
+      return (
+        <Box height={1} overflow="hidden">
+          {searchField}
+        </Box>
+      )
+    }
+    if (noticeBlock !== null) {
+      return (
+        <Box height={blockRows} overflow="hidden">
+          {noticeBlock}
+        </Box>
+      )
+    }
+    return null
+  }
+
+  if (mode === 'bash') {
+    return (
+      <Box height={fullscreen ? 1 : undefined} overflow="hidden">
+        {searchField ?? <Text dimColor>{BASH_MODE_CHARACTER} for shell mode</Text>}
+      </Box>
+    )
+  }
+
+  const parts: React.ReactNode[] = []
+  const viewingCrewmate = viewingAgentTaskId !== undefined
+  const viewedLocalTask = viewingAgentTaskId !== undefined ? tasks[viewingAgentTaskId] : undefined
+
+  if (viewingCrewmate) {
+    const viewedFinished =
+      (viewedLocalTask !== undefined &&
+        viewedLocalTask.status !== 'running' &&
+        viewedLocalTask.status !== 'pending') ||
+      !crewmateLive(viewedCrewmate)
+    if (!escapeOwned) {
+      if (viewedFinished) {
+        parts.push(<KeyboardShortcutHint shortcut="esc" action={`back to ${LEAD_ROW_NAME}`} />)
+      } else {
+        parts.push(
+          <KeyboardShortcutHint
+            shortcut="esc"
+            action={`interrupt ${viewedCrewmate?.name ?? 'the crewmate'}`}
+          />,
+        )
+      }
+    }
+  } else if (isLoading) {
+    if (!escapeOwned) {
+      parts.push(<KeyboardShortcutHint shortcut={cancelChord} action="interrupt" />)
+    }
+    if (shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false) {
+      parts.push(
+        <KeyboardShortcutHint
+          shortcut={keyHintLabel('⇧b')}
+          action="background the command"
+        />,
+      )
+    }
+  } else {
+    const hasRunningLocalCrewmates = Object.values(tasks).some(
+      task => isLocalAgentTask(task) && task.status === 'running',
+    )
+    if (hasRunningLocalCrewmates && !killConfirmPending) {
+      parts.push(<KeyboardShortcutHint shortcut={killChord} action="stop crewmates" />)
+    }
+  }
+
+  if (fullscreen && hasSelection) {
+    if (!isCopyOnSelectEnabled()) {
+      parts.push(<KeyboardShortcutHint shortcut={copyChord} action="copy" />)
+    }
+    if (env.terminal !== null && XTERMJS_HOSTS.has(env.terminal)) {
+      const nativeHint =
+        getPlatform() === 'macos'
+          ? selection.getState()?.lastPressHadAlt === true
+            ? 'enable macOptionClickForcesSelection for native selection'
+            : 'option+click for native selection'
+          : 'shift+click for native selection'
+      parts.push(<Text dimColor>{nativeHint}</Text>)
+    }
+  }
+
+  const showTasksPill = Object.values(tasks).some(isManageableTask) || viewingCrewmate
+  const primaryBits =
+    (!isDefaultMode(toolPermissionContext.mode) ? 1 : 0) + (showTasksPill ? 1 : 0)
+  const showPrBadge =
+    prConfigEnabled &&
+    prStatus.number !== null &&
+    prStatus.reviewState !== null &&
+    prStatus.url !== null &&
+    primaryBits < 2 &&
+    (primaryBits === 0 || columns >= 80)
+
+  const hasNotice = noticeText !== null || noticeBlock !== null
+  const isStandingNotice = currentNotice !== null && standsUntilRemoved(currentNotice)
+  const noticeStands = hasNotice && !(isStandingNotice && !vimInsert && parts.length > 0)
+  const hintsShow = !vimInsert && parts.length > 0 && !noticeStands
+  const idleHintShows =
+    !vimInsert &&
+    parts.length === 0 &&
+    !showTasksPill &&
+    !showPrBadge &&
+    hintsEnabled &&
+    !noticeStands
+  const rowHasContent =
+    searchField !== undefined || vimInsert || showTasksPill || showPrBadge
+
+  return footerClusterOf({
+    tokens,
+    columns,
+    footerSelection,
+    paletteChord,
+    noticeText,
+    noticeDetail,
+    noticeWayOut,
+    noticeBlock,
+    blockRows,
+    prStatus,
+    viewingCrewmate,
+    showPrBadge,
+    showTasksPill,
+    parts,
+    noticeStands,
+    hintsShow,
+    idleHintShows,
+    rowHasContent,
+    searchField,
+    vimInsert,
+    isLoading,
+    crewmateFooterIndex,
+    onOpenTasksDialog,
+  })
 }
