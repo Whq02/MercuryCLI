@@ -178,6 +178,46 @@ function waitWithCallerAbort(flight: Promise<void>): Promise<void> {
   return withDeadline(flight, Number.POSITIVE_INFINITY, () => undefined, { signal })
 }
 
+function assertStartAllowed(name: string, config: ScopedLspServerConfig, server: LspServerRecord): void {
+  const lastFailure = server.lastError
+  const isMissingComponent =
+    lastFailure !== undefined &&
+    isLspStartFailure(lastFailure) &&
+    missingRustAnalyzerComponent(lastFailure.lspCause)
+
+  if (isMissingComponent) {
+    const call = currentLspCall()
+    if (call !== undefined && server.missingComponentCall === call) {
+      throw lastFailure
+    }
+  } else if (server.initFailures > 0) {
+    const retryAt = server.lastInitFailureAt + initBackoffMs(server.initFailures)
+    if (lspLedgerNow() < retryAt) {
+      const refused = startFailure(name, server.initFailures, server.lastError ?? 'previous start failed')
+      refused.refused = true
+      refused.retryAt = retryAt
+      throw refused
+    }
+  }
+
+  if (server.state === 'error' && server.crashRecoveries > 0) {
+    if (config.restartOnCrash === false) {
+      const error = new Error(
+        `LSP server ${name} crashed and will not respawn (restartOnCrash is false): ${server.lastError?.message ?? 'no error recorded'}`,
+      )
+      server.lastError = error
+      logError(error)
+      throw error
+    }
+    const maxRestarts = config.maxRestarts ?? DEFAULT_MAX_RESTARTS
+    if (server.crashRecoveries > maxRestarts) {
+      const error = new Error(`LSP server ${name} exceeded the crash-restart cap (${maxRestarts})`)
+      logError(error)
+      throw error
+    }
+  }
+}
+
 export function createLSPServerInstance(name: string, config: ScopedLspServerConfig): LSPServerInstance {
   const server: LspServerRecord = {
     state: 'stopped',
@@ -234,12 +274,15 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
       if (server.state !== 'running') return
       const limit = config.idleTimeoutMs
       if (limit === undefined || limit <= 0) return
-      if (Date.now() - server.lastActivityAt < limit) {
+      const idleElapsed = Date.now() - server.lastActivityAt
+      if (idleElapsed < limit) {
         armIdleTimer()
         return
       }
-      logForDebugging(`LSP server ${name} idle for ${limit}ms; stopping`)
-      void stop().catch(passedOver)
+      logForDebugging(`LSP ${name}: idle for ${idleElapsed}ms — stopping (lazy restart on next use)`)
+      void stop().catch((err: unknown) => {
+        logForDebugging(`LSP ${name}: idle stop failed: ${err instanceof Error ? err.message : String(err)}`)
+      })
     }, idleMs)
     server.idleTimer.unref?.()
   }
@@ -264,45 +307,11 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
     if (server.state === 'running') return
     if (server.inFlightStart !== null) return waitWithCallerAbort(server.inFlightStart)
 
-    const lastFailure = server.lastError
-    const isMissingComponent =
-      lastFailure !== undefined &&
-      isLspStartFailure(lastFailure) &&
-      missingRustAnalyzerComponent(lastFailure.lspCause)
+    assertStartAllowed(name, config, server)
 
-    if (isMissingComponent) {
-      const call = currentLspCall()
-      if (call !== undefined && server.missingComponentCall === call) {
-        throw lastFailure
-      }
-    } else if (server.initFailures > 0) {
-      const retryAt = server.lastInitFailureAt + initBackoffMs(server.initFailures)
-      if (lspLedgerNow() < retryAt) {
-        const refused = startFailure(name, server.initFailures, server.lastError ?? 'previous start failed')
-        refused.refused = true
-        refused.retryAt = retryAt
-        throw refused
-      }
-    }
-
-    if (server.state === 'error' && server.crashRecoveries > 0) {
-      if (config.restartOnCrash === false) {
-        const error = new Error(
-          `LSP server ${name} crashed and will not respawn (restartOnCrash is false): ${server.lastError?.message ?? 'no error recorded'}`,
-        )
-        server.lastError = error
-        logError(error)
-        throw error
-      }
-      const maxRestarts = config.maxRestarts ?? DEFAULT_MAX_RESTARTS
-      if (server.crashRecoveries > maxRestarts) {
-        const error = new Error(`LSP server ${name} exceeded the crash-restart cap (${maxRestarts})`)
-        logError(error)
-        throw error
-      }
-    }
-
-    const flight = (async () => {
+    let settled = false
+    let flight: Promise<void> | undefined
+    flight = (async () => {
       setState('starting')
       try {
         const client = await ensureClient()
@@ -353,11 +362,12 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
           throw wrapped
         }
       } finally {
-        if (server.inFlightStart === flight) server.inFlightStart = null
+        settled = true
+        if (flight !== undefined && server.inFlightStart === flight) server.inFlightStart = null
       }
     })()
 
-    server.inFlightStart = flight
+    if (!settled) server.inFlightStart = flight
     flight.catch(passedOver)
     return waitWithCallerAbort(flight)
   }
@@ -367,7 +377,9 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
     if (server.inFlightStop !== null) return server.inFlightStop
     clearIdleTimer()
     setState('stopping')
-    const stopFlight = (async (): Promise<LSPStopResult | undefined> => {
+    let settled = false
+    let stopFlight: Promise<LSPStopResult | undefined> | undefined
+    stopFlight = (async (): Promise<LSPStopResult | undefined> => {
       try {
         const stopOpts =
           config.shutdownTimeout !== undefined ? { gracefulTimeoutMs: config.shutdownTimeout } : undefined
@@ -380,10 +392,11 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
         setState('error')
         throw error
       } finally {
-        if (server.inFlightStop === stopFlight) server.inFlightStop = null
+        settled = true
+        if (stopFlight !== undefined && server.inFlightStop === stopFlight) server.inFlightStop = null
       }
     })()
-    server.inFlightStop = stopFlight
+    if (!settled) server.inFlightStop = stopFlight
     return stopFlight
   }
 
