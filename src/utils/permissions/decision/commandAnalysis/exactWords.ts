@@ -533,6 +533,7 @@ export abstract class WordWalk {
       } else if (!seenOp) {
         refuseNode(child)
       } else {
+        if (child.type === 'ERROR') refuseNode(child)
         valueNode = child
       }
     }
