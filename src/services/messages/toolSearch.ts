@@ -10,7 +10,7 @@ import type { Message } from '../../types/message.js'
 import { getMergedBetas } from '../../utils/betas.js'
 import { getContextWindowForModel } from '../../utils/context.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { isEnvDefinedFalsy, isEnvTruthy } from '../../utils/envUtils.js'
+import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import { toolDeferralEnabled } from '../../utils/model/capabilities.js'
 import { deferralWireFormFor, type DeferralWireForm } from '../providers/deferralWire.js'
 import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
@@ -54,7 +54,6 @@ export function getToolSearchMode(): ToolSearchMode {
     return 'tst-auto'
   }
   if (isEnvDefinedFalsy(value)) return 'standard'
-  if (isEnvTruthy(value)) return 'tst'
   return 'tst'
 }
 
@@ -124,7 +123,7 @@ function characterHeuristic(deferrableTools: Tool[]): number {
   return total
 }
 
-const countDeferredTools = memoize(
+const memoizedDeferredToolTokens = memoize(
   async (
     deferrableTools: Tool[],
     getToolPermissionContext: () => Promise<ToolPermissionContext>,
@@ -183,7 +182,7 @@ export async function isToolSearchEnabled(
       ? 0
       : toolDefinitionCount === undefined
         ? null
-        : await countDeferredTools(deferrableTools, getToolPermissionContext, agents, model)
+        : await memoizedDeferredToolTokens(deferrableTools, getToolPermissionContext, agents, model)
 
   if (measuredTokens !== null) {
     const enabled = measuredTokens >= tokenThreshold
