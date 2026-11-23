@@ -8,7 +8,6 @@ import { safeParseJSON } from '../../utils/json.js'
 import { logError } from '../../utils/log.js'
 import { contentBlocksOf } from '../../utils/messages/normalize.js'
 import { requestConversationPlan } from './apiPlan.js'
-import { notBuilt } from '../../pi/holes.js'
 export { isSystemLocalCommandMessage, reorderAttachmentsForAPI, stripToolReferenceBlocksFromUserMessage, stripUnavailableToolReferencesFromUserMessage, withToolReferenceTurnBoundary } from './apiViewRows.js'
 
 type AnswerBlock = ApiMessage['content'][number]
@@ -23,8 +22,31 @@ export function normalizeContentFromAPI(contentBlocks: ApiMessage['content'], to
   return (contentBlocksOf(present) as ApiMessage['content']).map(block => decodeAnswerBlock(block, tools))
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function correctToolInput(block: ToolAnswer, tools: Tools): unknown {
+  const parsed = parseToolInput(block)
+  if (!isRecord(parsed)) return parsed
+  const tool = findToolByName(tools, block.name)
+  if (!tool) return parsed
+  try {
+    return normalizeToolInput(tool, parsed)
+  } catch (error) {
+    logError(new Error(`Error normalizing tool input: ${error}`))
+    return parsed
+  }
+}
+
 function decodeAnswerBlock(block: AnswerBlock, tools: Tools): AnswerBlock {
-  return notBuilt('src/services/messages/apiView.ts:25')
+  if (block.type === 'tool_use') {
+    return { ...block, input: correctToolInput(block, tools) }
+  }
+  if (block.type === 'server_tool_use' && typeof block.input === 'string') {
+    return { ...block, input: safeParseJSON(block.input) ?? {} }
+  }
+  return block
 }
 
 function parseToolInput(block: ToolAnswer): unknown {
@@ -40,10 +62,19 @@ function parseToolInput(block: ToolAnswer): unknown {
   return parsed ?? {}
 }
 
-export function normalizeMessagesForAPI(messages: Message[], tools?: Tools): (UserMessage | AssistantMessage)[] {
-  return notBuilt('src/services/messages/apiView.ts:57')
+export function normalizeMessagesForAPI(messages: Message[], tools: Tools = []): (UserMessage | AssistantMessage)[] {
+  return requestConversationPlan(messages, tools).messages
+}
+
+function plainToolCall(block: ToolAnswer): ToolAnswer {
+  return { type: 'tool_use', id: block.id, name: block.name, input: block.input }
 }
 
 export function stripCallerFieldFromAssistantMessage(message: AssistantMessage): AssistantMessage {
-  return notBuilt('src/services/messages/apiView.ts:68')
+  const blocks = message.message.content
+  if (!Array.isArray(blocks) || !blocks.some(block => block.type === 'tool_use' && block.caller != null)) {
+    return message
+  }
+  const content: ContentBlock[] = blocks.map(block => (block.type === 'tool_use' ? plainToolCall(block) : block))
+  return { ...message, message: { ...message.message, content } }
 }
