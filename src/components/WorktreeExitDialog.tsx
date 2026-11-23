@@ -168,7 +168,7 @@ export function WorktreeExitDialog({
     return null
   }
 
-  const handleKeep = async (tmuxAction: 'none' | 'leave' | 'kill'): Promise<void> => {
+  const handleKeep = async (tmuxAction: 'none' | 'keep' | 'kill'): Promise<void> => {
     if (busyRef.current) return
     busyRef.current = true
     setPhase({ kind: 'keeping' })
@@ -182,7 +182,7 @@ export function WorktreeExitDialog({
       if (signalRef.current?.aborted) return
       const branchPart = session.worktreeBranch ? ` on ${session.worktreeBranch}` : ''
       let summary = `Work saved at ${session.worktreePath}${branchPart}.`
-      if (tmuxAction === 'leave' && session.tmuxSessionName) {
+      if (tmuxAction === 'keep' && session.tmuxSessionName) {
         summary += ` Reattach with: tmux attach -t ${session.tmuxSessionName}`
       } else if (tmuxAction === 'kill') {
         summary += ' The tmux session was terminated.'
@@ -304,7 +304,7 @@ export function WorktreeExitDialog({
     if (choice === 'keep') {
       void handleKeep('none')
     } else if (choice === 'keep-with-tmux') {
-      void handleKeep('leave')
+      void handleKeep('keep')
     } else if (choice === 'keep-kill-tmux') {
       void handleKeep('kill')
     } else if (choice === 'remove') {
@@ -318,7 +318,7 @@ export function WorktreeExitDialog({
     if (onCancel) {
       onCancel()
     } else {
-      void handleKeep(session.tmuxSessionName ? 'leave' : 'none')
+      void handleKeep(session.tmuxSessionName ? 'keep' : 'none')
     }
   }
 
