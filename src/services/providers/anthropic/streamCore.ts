@@ -189,7 +189,7 @@ async function prepareQuery(
   const effortRides = options.effortPinned === true || options.ridesSessionEffort !== false
   const initialEffortOnWire = effortStampOf(
     effortRides ? effortTruth.requested : undefined,
-    effortTruth.supported ? { kind: 'omitted' } : { kind: 'unsupported' },
+    effortTruth.supportsEffort ? { kind: 'omitted' } : { kind: 'unsupported' },
   )
   const call: CallState = {
     signInRequest: undefined,
@@ -219,9 +219,12 @@ async function prepareQuery(
   const modelRefusalRequest: { current?: ModelRefusalRequest } = {}
   const captureModelRequest = (params: BetaMessageStreamParams): void => {
     modelRefusalRequest.current = captureModelRefusalRequest(params.model)
+    const wireOutputConfig = params.output_config
+      ? { effort: params.output_config.effort ?? undefined }
+      : undefined
     call.effortOnWire = effortStampOf(
       effortRides ? effortTruth.requested : undefined,
-      anthropicEffortWireFact(params, effortTruth.supported),
+      anthropicEffortWireFact({ output_config: wireOutputConfig }, effortTruth.supportsEffort),
     )
     call.signInRequest = captureSignInRequest('anthropic')
     captureAPIRequest(params, options.querySource)
@@ -490,9 +493,9 @@ async function* runStreamPass(
         noteWatchdogCleanExit(pass)
         if (watch.settledTailStands()) {
           yield* watch.settleTypedEnd({
-            kind: 'silent-after-last-item',
+            reason: 'silent-after-last-item',
             provider: 'Anthropic',
-            quietMs: watch.streamIdleWatchdog.fired()?.silentMs ?? watch.STREAM_IDLE_TIMEOUT_MS,
+            silentMs: watch.streamIdleWatchdog.fired()?.silentMs ?? watch.STREAM_IDLE_TIMEOUT_MS,
           })
         } else {
           throw new Error('Stream idle timeout - no chunks received')
@@ -511,10 +514,10 @@ async function* runStreamPass(
 
       if (call.stopReason === null) {
         if (watch.settledTailStands()) {
-          yield* watch.settleTypedEnd({ kind: 'closed-after-last-item', provider: 'Anthropic' })
+          yield* watch.settleTypedEnd({ reason: 'closed-after-last-item', provider: 'Anthropic' })
         } else if (watch.settledToolUseTailStands()) {
           yield* watch.settleTypedEnd(
-            { kind: 'closed-after-last-item', provider: 'Anthropic' },
+            { reason: 'closed-after-last-item', provider: 'Anthropic' },
             'tool_use',
           )
         } else {
@@ -531,13 +534,13 @@ async function* runStreamPass(
     } catch (streamingError) {
       watch.clearIdleTimers()
       if (pass.streamWatchdogFiredAt !== null) {
-        noteWatchdogErrorExit(pass as StreamPass & { streamWatchdogFiredAt: number })
+        noteWatchdogErrorExit(pass)
       }
       if (pass.streamIdleAborted && !ctx.signal.aborted && watch.settledTailStands()) {
         yield* watch.settleTypedEnd({
-          kind: 'silent-after-last-item',
+          reason: 'silent-after-last-item',
           provider: 'Anthropic',
-          quietMs: watch.streamIdleWatchdog.fired()?.silentMs ?? watch.STREAM_IDLE_TIMEOUT_MS,
+          silentMs: watch.streamIdleWatchdog.fired()?.silentMs ?? watch.STREAM_IDLE_TIMEOUT_MS,
         })
         return 'done'
       }
