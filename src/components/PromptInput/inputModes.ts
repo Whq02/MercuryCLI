@@ -1,16 +1,15 @@
 import type { HistoryMode } from '../../hooks/useArrowKeyHistory.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
-export const BASH_MODE_CHARACTER: Unbuilt = unbuilt('src/components/PromptInput/inputModes.ts:4')
+export const BASH_MODE_CHARACTER = '!'
 
 export function getModeFromInput(text: string): HistoryMode {
-  return notBuilt('src/components/PromptInput/inputModes.ts:6')
+  return text.startsWith(BASH_MODE_CHARACTER) ? 'bash' : 'prompt'
 }
 
 export function getValueFromInput(text: string): string {
-  return notBuilt('src/components/PromptInput/inputModes.ts:11')
+  return text.startsWith(BASH_MODE_CHARACTER) ? text.slice(1) : text
 }
 
 export function isInputModeCharacter(char: string): boolean {
-  return notBuilt('src/components/PromptInput/inputModes.ts:16')
+  return char === BASH_MODE_CHARACTER
 }
