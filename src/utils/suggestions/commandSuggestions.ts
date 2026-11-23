@@ -35,26 +35,21 @@ function formatCommand(name: string): string {
   return `/${name} `
 }
 
-type CommandLike = Command & {
-  isHidden?: boolean
-  aliases?: string[]
-  argNames?: string[]
-  kind?: string
-  source?: string
-  type: string
+function isCommandMetadata(value: unknown): value is Command {
+  return typeof value === 'object' && value !== null && 'type' in value && typeof value.type === 'string'
 }
 
-function suggestionIdentifier(command: CommandLike): string {
+function suggestionIdentifier(command: Command): string {
   const name = getCommandName(command)
   if (command.type === 'prompt') {
-    const repository = (command as { extensionInfo?: { id?: string } }).extensionInfo?.id
+    const repository = command.extensionInfo?.id
     return `${name}-${command.source ?? 'unknown'}${repository !== undefined ? `-${repository}` : ''}`
   }
   return `${name}-${command.type}`
 }
 
 function toSuggestionItem(
-  command: CommandLike,
+  command: Command,
   typedQuery: string,
 ): CommandSuggestionItem {
   const name = getCommandName(command)
@@ -89,7 +84,7 @@ function toSuggestionItem(
 const MAX_RECENTLY_USED = 5
 
 type IndexedCommand = {
-  command: CommandLike
+  command: Command
   name: string
   nameParts: string[]
   aliases: string[]
@@ -102,8 +97,7 @@ let fuseIndex: Fuse<IndexedCommand> | null = null
 function getCommandIndex(commands: Command[]): Fuse<IndexedCommand> {
   if (indexedFor === commands && fuseIndex !== null) return fuseIndex
   const indexed: IndexedCommand[] = []
-  for (const raw of commands) {
-    const command = raw as CommandLike
+  for (const command of commands) {
     if (command.isHidden) continue
     const name = getCommandName(command)
     const rawParts = name.split(/[:_-]/).filter(Boolean)
@@ -144,7 +138,7 @@ function matchTier(entry: IndexedCommand, query: string): number {
 function rankResults(
   results: ReadonlyArray<{ item: IndexedCommand; score?: number }>,
   query: string,
-): CommandLike[] {
+): Command[] {
   return [...results]
     .sort((a, b) => {
       const tierDiff = matchTier(a.item, query) - matchTier(b.item, query)
@@ -156,10 +150,9 @@ function rankResults(
     .map(result => result.item.command)
 }
 
-function sortByName(commands: CommandLike[]): CommandLike[] {
+function sortByName(commands: Command[]): Command[] {
   return [...commands].sort((a, b) => getCommandName(a).localeCompare(getCommandName(b)))
 }
-
 export function generateCommandSuggestions(
   input: string,
   commands: Command[],
@@ -168,7 +161,7 @@ export function generateCommandSuggestions(
   const query = input.slice(1).toLowerCase().trim()
 
   if (query === '') {
-    const visible = (commands as CommandLike[]).filter(cmd => !cmd.isHidden)
+    const visible = commands.filter(cmd => !cmd.isHidden)
     const recentScored = visible
       .map((cmd, index) => ({
         cmd,
@@ -181,8 +174,8 @@ export function generateCommandSuggestions(
       .map(entry => entry.cmd)
 
     const claimed = new Set<string>()
-    const ordered: CommandLike[] = []
-    const take = (group: CommandLike[]): void => {
+    const ordered: Command[] = []
+    const take = (group: Command[]): void => {
       for (const cmd of group) {
         const id = suggestionIdentifier(cmd)
         if (claimed.has(id)) continue
@@ -192,7 +185,7 @@ export function generateCommandSuggestions(
     }
 
     take(recentScored)
-    const remaining = (): CommandLike[] => visible.filter(cmd => !claimed.has(suggestionIdentifier(cmd)))
+    const remaining = (): Command[] => visible.filter(cmd => !claimed.has(suggestionIdentifier(cmd)))
     take(sortByName(remaining().filter(cmd => cmd.type !== 'prompt')))
     take(sortByName(remaining().filter(cmd => cmd.type === 'prompt' && (cmd.source === 'userSettings' || cmd.source === 'localSettings'))))
     take(sortByName(remaining().filter(cmd => cmd.type === 'prompt' && cmd.source === 'projectSettings')))
@@ -207,7 +200,7 @@ export function generateCommandSuggestions(
   const hasVisibleExact = ranked.some(cmd => getCommandName(cmd).toLowerCase() === query)
   if (!hasVisibleExact) {
     const shownIds = new Set(ranked.map(suggestionIdentifier))
-    const hiddenExact = (commands as CommandLike[]).find(
+    const hiddenExact = commands.find(
       cmd => cmd.isHidden && getCommandName(cmd).toLowerCase() === query && !shownIds.has(suggestionIdentifier(cmd)),
     )
     if (hiddenExact !== undefined) {
@@ -238,9 +231,8 @@ export function getBestCommandMatch(
   const suggestions = generateCommandSuggestions(`/${partialCommand}`, commands)
   const lowerPartial = partialCommand.toLowerCase()
   for (const suggestion of suggestions) {
-    const cmd = suggestion.metadata as CommandLike | undefined
-    if (cmd === undefined || typeof cmd !== 'object' || typeof cmd.type !== 'string') continue
-    const fullCommand = getCommandName(cmd)
+    if (!isCommandMetadata(suggestion.metadata)) continue
+    const fullCommand = getCommandName(suggestion.metadata)
     if (fullCommand.toLowerCase().startsWith(lowerPartial) && fullCommand.length > partialCommand.length) {
       return {
         suffix: fullCommand.slice(partialCommand.length),
@@ -255,8 +247,8 @@ export function isNameAnchoredSuggestion(input: string, suggestion: CommandSugge
   if (!input.startsWith('/')) return true
   const fragment = input.slice(1).toLowerCase().trim()
   if (fragment === '') return true
-  const cmd = suggestion.metadata as CommandLike | undefined
-  if (cmd === undefined || typeof cmd !== 'object' || typeof cmd.type !== 'string') return false
+  if (!isCommandMetadata(suggestion.metadata)) return false
+  const cmd = suggestion.metadata
   const name = getCommandName(cmd).toLowerCase()
   if (name.startsWith(fragment)) return true
   if (name.split(/[:_-]/).some(part => part.startsWith(fragment))) return true
@@ -271,14 +263,11 @@ export function applyCommandSuggestion(
   setCursorOffset: (offset: number) => void,
   onSubmit: (value: string, isSubmittingSlashCommand?: boolean) => void,
 ): void {
-  let command: CommandLike | undefined
+  let command: Command | undefined
   if (typeof suggestion === 'string') {
-    command = (commands as CommandLike[]).find(cmd => getCommandName(cmd) === suggestion)
-  } else {
-    const meta = suggestion.metadata as CommandLike | undefined
-    if (meta !== undefined && typeof meta === 'object' && typeof meta.type === 'string') {
-      command = meta
-    }
+    command = commands.find(cmd => getCommandName(cmd) === suggestion)
+  } else if (isCommandMetadata(suggestion.metadata)) {
+    command = suggestion.metadata
   }
   if (command === undefined) return
   const formatted = formatCommand(getCommandName(command))
