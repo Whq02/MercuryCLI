@@ -1,5 +1,12 @@
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
+import type { Command } from '../../commands.js'
 
-const rename: Unbuilt = unbuilt('src/commands/rename/index.ts:3')
+const rename: Command = {
+  type: 'local-jsx',
+  name: 'rename',
+  description: 'Retitle this session',
+  immediate: true,
+  argumentHint: '[name]',
+  load: () => import('./rename.js'),
+}
 
 export default rename
