@@ -19,9 +19,6 @@ type RewindFilesResult = {
   files_changed?: string[]
   insertions?: number
   deletions?: number
-  restored_files?: number
-  deleted_files?: number
-  dry_run?: boolean
   error?: string
 }
 
@@ -78,7 +75,7 @@ type RewindSessionContext = {
   messages: Message[]
   getAppState: () => AppState
   setAppState?: (updater: (prev: AppState) => AppState) => void
-  drift?: RestoreDriftOracle
+  drift: RestoreDriftOracle
   turnActive: boolean
 }
 
@@ -207,7 +204,7 @@ function decidePermissionModeTransition(
   mode: InternalPermissionMode,
   toolPermissionContext: ToolPermissionContext,
 ): { ok: true; context: ToolPermissionContext } | { ok: false; error: string } {
-  if (!(PERMISSION_MODES as readonly string[]).includes(mode)) {
+  if (!PERMISSION_MODES.some(valid => valid === mode)) {
     return {
       ok: false,
       error: `'${mode}' is not a permission mode; the modes are ${PERMISSION_MODES.join(', ')}`,

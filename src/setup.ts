@@ -3,7 +3,7 @@ import { getIsInteractive, getIsNonInteractiveSession, getProjectRoot, getSessio
 import { getCommands } from './commands.js'
 import { MERCURY_VERSION } from './constants/product.js'
 import type { ToolPermissionContext } from './Tool.js'
-import type { SessionId } from './types/ids.js'
+import { asSessionId } from './types/ids.js'
 import { checkAndRestoreTerminalBackup } from './utils/appleTerminalBackup.js'
 import { checkHasTrustDialogAccepted, getGlobalConfig } from './utils/config.js'
 import { logForDiagnosticsNoPII } from './utils/diagLogs.js'
@@ -34,6 +34,7 @@ import {
 import { noteRootSovereign } from './utils/permissions/rootNotice.js'
 
 const TERMINAL_APP = 'Terminal.app'
+const TERMINAL_DEFAULTS_DOMAIN = 'com.apple.Terminal'
 
 async function recoverTerminalBackup(): Promise<void> {
   try {
@@ -41,13 +42,13 @@ async function recoverTerminalBackup(): Promise<void> {
     if (outcome.status === 'restored') {
       console.log(
         chalk.yellow(
-          `Detected an incomplete ${TERMINAL_APP} setup and restored your terminal preferences from backup.`,
+          `Detected an interrupted ${TERMINAL_APP} setup from a previous run; your original terminal settings were restored. A terminal restart may be needed for them to take effect.`,
         ),
       )
     } else if (outcome.status === 'failed') {
       console.error(
         chalk.red(
-          `Detected an incomplete ${TERMINAL_APP} setup, but failed to restore your backup automatically. Restore manually with: defaults import com.apple.Terminal ${outcome.backupPath}`,
+          `An interrupted ${TERMINAL_APP} setup was detected but the settings could not be restored automatically. Restore them manually with: defaults import ${TERMINAL_DEFAULTS_DOMAIN} ${outcome.backupPath}`,
         ),
       )
     }
@@ -151,7 +152,7 @@ export async function setup(
 ): Promise<void> {
   logForDiagnosticsNoPII('info', 'setup_started')
   if (customSessionId) {
-    switchSession(customSessionId as SessionId, consumeSessionHomePin())
+    switchSession(asSessionId(customSessionId), consumeSessionHomePin())
   }
   if (getIsInteractive()) {
     await recoverTerminalBackup()
