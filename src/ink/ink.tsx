@@ -140,13 +140,13 @@ export default class Ink {
     if (options.patchConsole) this.restoreConsole = this.patchConsole()
     this.cachedColumns = options.stdout.columns || DEFAULT_COLUMNS
     this.cachedRows = options.stdout.rows || DEFAULT_ROWS
+    this.parkPatch = buildParkPatch.call(this)
     this.frontFrame = newEmptyFrame.call(this)
     this.backFrame = newEmptyFrame.call(this)
-    this.parkPatch = buildParkPatch.call(this)
-    this.writer = new FrameWriter({ isTTY: this.isTTY, stylePool: this.stylePool })
-    this.scheduler = new RenderScheduler(this.onRender, undefined, shouldHoldFirstPaintForSyncProbe)
     this.mouseTracking = mouseTrackingEnabledByEnvironment()
     this.mouseTrackingPref = this.mouseTracking && isMouseCaptureEnabled()
+    this.writer = new FrameWriter({ isTTY: this.isTTY, stylePool: this.stylePool })
+    this.scheduler = new RenderScheduler(this.onRender, undefined, shouldHoldFirstPaintForSyncProbe)
     this.unsubscribeExit = onExit(this.unmount)
     if (this.isTTY) {
       options.stdout.on('resize', this.handleResize)
