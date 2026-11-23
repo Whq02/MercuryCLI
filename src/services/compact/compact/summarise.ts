@@ -259,59 +259,50 @@ async function summarizeDirect(
       throw new APIUserAbortError()
     }
 
-    const settled = assistantMessages.filter(message => message.isApiErrorMessage !== true)
-    const apiError = assistantMessages.findLast(message => message.isApiErrorMessage === true)
-    if (
-      apiError !== undefined &&
-      (settled.length === 0 ||
-        summaryAnswerFault(apiError) !== null ||
-        isOverflowAnswer(apiError) ||
-        summaryRefusedByModel(apiError))
-    ) {
-      if (isOverflowAnswer(apiError)) {
-        recordFoldRoad(model, 'direct', startedAt, 'overflow')
-        return apiError
-      }
-      if (summaryRefusedByModel(apiError)) {
-        recordFoldRoad(model, 'direct', startedAt, 'refused')
-        return apiError
-      }
-      if (summaryAnswerFault(apiError) !== null) {
-        recordFoldRoad(model, 'direct', startedAt, 'incomplete')
-        return apiError
-      }
-      const malformed = malformedHistoryRefusalOf(apiError)
-      if (malformed !== null) {
-        recordFoldRoad(model, 'direct', startedAt, 'refused')
-        throw new CompactionRefusedForHistoryError(malformed, {
-          nonInteractive: foldRemedyIsHeadless(context.options.isNonInteractiveSession),
-        })
-      }
-      const text = getAssistantMessageText(apiError) ?? ''
-      const fitFacts = localFitRefusalFacts(text)
-      if (fitFacts !== null) {
-        recordFoldRoad(model, 'direct', startedAt, 'refused')
-        throw new Error(
-          foldWindowRefusalText({
-            window: fitFacts.window,
-            sourceWords: fitFacts.sourceWords,
-            estTokens: fitFacts.estTokens,
-            remedy: LOCAL_WINDOW_REMEDY,
-          }),
-        )
-      }
-      recordFoldRoad(model, 'direct', startedAt, 'refused')
-      throw new Error(text !== '' ? text : ERROR_MESSAGE_INCOMPLETE_RESPONSE)
+    const captured = assistantMessages.at(-1)
+    if (captured === undefined) {
+      logError(new Error('compact: direct summarization returned no assistant message'))
+      recordFoldRoad(model, 'direct', startedAt, 'incomplete')
+      throw new Error(ERROR_MESSAGE_INCOMPLETE_RESPONSE)
     }
-
-    if (settled.length > 0) {
+    if (captured.isApiErrorMessage !== true) {
       recordFoldRoad(model, 'direct', startedAt, 'summary')
       return settleAssistantTurn(assistantMessages, false)
     }
-
-    logError(new Error('compact: direct summarization returned no assistant message'))
-    recordFoldRoad(model, 'direct', startedAt, 'incomplete')
-    throw new Error(ERROR_MESSAGE_INCOMPLETE_RESPONSE)
+    if (isOverflowAnswer(captured)) {
+      recordFoldRoad(model, 'direct', startedAt, 'overflow')
+      return captured
+    }
+    if (summaryRefusedByModel(captured)) {
+      recordFoldRoad(model, 'direct', startedAt, 'refused')
+      return captured
+    }
+    if (summaryAnswerFault(captured) !== null) {
+      recordFoldRoad(model, 'direct', startedAt, 'incomplete')
+      return captured
+    }
+    const malformed = malformedHistoryRefusalOf(captured)
+    if (malformed !== null) {
+      recordFoldRoad(model, 'direct', startedAt, 'refused')
+      throw new CompactionRefusedForHistoryError(malformed, {
+        nonInteractive: foldRemedyIsHeadless(context.options.isNonInteractiveSession),
+      })
+    }
+    const text = getAssistantMessageText(captured) ?? ''
+    const fitFacts = localFitRefusalFacts(text)
+    if (fitFacts !== null) {
+      recordFoldRoad(model, 'direct', startedAt, 'refused')
+      throw new Error(
+        foldWindowRefusalText({
+          window: fitFacts.window,
+          sourceWords: fitFacts.sourceWords,
+          estTokens: fitFacts.estTokens,
+          remedy: LOCAL_WINDOW_REMEDY,
+        }),
+      )
+    }
+    recordFoldRoad(model, 'direct', startedAt, 'refused')
+    throw new Error(text !== '' ? text : ERROR_MESSAGE_INCOMPLETE_RESPONSE)
   } finally {
     bound.dispose()
   }
