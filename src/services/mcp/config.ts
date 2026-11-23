@@ -25,11 +25,19 @@ import { settingsFaultLine } from '../../utils/settings/validation.js'
 import { getExtensionMcpServers } from '../../extensions/load/servers.js'
 import { parseServerRuntimeName } from '../../extensions/manifest.js'
 import { isMcpServerDisabledIn, withMcpServerEnabled } from './disabledRecord.js'
-import type { ConfigScope, McpServerConfig, ScopedMcpServerConfig } from '../../utils/mcp/types.js'
-import { getProjectMcpServerStatus, mcpVariableCarriesCode } from './utils.js'
+import {
+  McpServerConfigSchema,
+  type ConfigScope,
+  type McpServerConfig,
+  type McpUnexpandedStrings,
+  type ScopedMcpServerConfig,
+} from '../../utils/mcp/types.js'
+import { describeMcpConfigIssues, getProjectMcpServerStatus, mcpVariableCarriesCode } from './utils.js'
 import { PROJECT_MCP_FILE, getEnterpriseMcpFilePath, projectMcpFilePath } from './configPaths.js'
+import { expandEnvVarsInString } from './envExpansion.js'
+import { mcpStdioCommandRefusal } from './stdioCommandSafety.js'
+import { fetchAnthropicConnectorsIfEligible } from './anthropicConnectors.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 type McpConfigError = {
@@ -88,24 +96,282 @@ function readConfigFile(filePath: string): ConfigFileRead {
   }
 }
 
-const SCHEMA_MISMATCH: Unbuilt = unbuilt('src/services/mcp/config.ts:189')
-export const MCP_SERVERS_MAX_PER_DOCUMENT: Unbuilt = unbuilt('src/services/mcp/config.ts:192')
+const SCHEMA_MISMATCH = 'does not match the MCP server configuration schema'
+export const MCP_SERVERS_MAX_PER_DOCUMENT = 64
 
-export function parseMcpConfig(arg0: {
+function expandServerEntry(entry: McpServerConfig): {
+  config: McpServerConfig
+  unexpanded?: McpUnexpandedStrings
+  missingVars: string[]
+} {
+  const missingVars: string[] = []
+  const noteMissing = (names: string[]): void => {
+    for (const varName of names) {
+      if (!missingVars.includes(varName)) missingVars.push(varName)
+    }
+  }
+  const expandStr = (raw: string): string => {
+    const { expanded, missingVars: missing } = expandEnvVarsInString(raw)
+    noteMissing(missing)
+    return expanded
+  }
+  const record = entry as {
+    type?: string
+    command?: string
+    args?: string[]
+    env?: Record<string, string>
+    url?: string
+    headers?: Record<string, string>
+    oauth?: { clientId?: string; callbackPort?: number; authServerMetadataUrl?: string }
+  }
+  const type = record.type ?? 'stdio'
+  if (type === 'stdio' && typeof record.command === 'string') {
+    const unexpanded: { command?: string; args?: string[]; env?: Record<string, string> } = {}
+    const expandedCommand = expandStr(record.command)
+    if (expandedCommand !== record.command) unexpanded.command = record.command
+    const rawArgs = record.args ?? []
+    let argsChanged = false
+    const expandedArgs = rawArgs.map(arg => {
+      const next = expandStr(arg)
+      if (next !== arg) argsChanged = true
+      return next
+    })
+    if (argsChanged) unexpanded.args = [...rawArgs]
+    let expandedEnv: Record<string, string> | undefined
+    if (record.env !== undefined) {
+      expandedEnv = {}
+      const unexpandedCodeEnv: Record<string, string> = {}
+      for (const [key, value] of Object.entries(record.env)) {
+        const next = expandStr(value)
+        expandedEnv[key] = next
+        if (next !== value && mcpVariableCarriesCode(key)) {
+          unexpandedCodeEnv[key] = value
+        }
+      }
+      if (Object.keys(unexpandedCodeEnv).length > 0) unexpanded.env = unexpandedCodeEnv
+    }
+    const hasUnexpanded = Object.keys(unexpanded).length > 0
+    return {
+      config: {
+        ...entry,
+        command: expandedCommand,
+        args: expandedArgs,
+        ...(expandedEnv !== undefined ? { env: expandedEnv } : {}),
+      } as McpServerConfig,
+      ...(hasUnexpanded ? { unexpanded } : {}),
+      missingVars,
+    }
+  }
+  if ((type === 'sse' || type === 'http' || type === 'ws') && typeof record.url === 'string') {
+    const unexpanded: { url?: string } = {}
+    const expandedUrl = expandStr(record.url)
+    if (expandedUrl !== record.url) unexpanded.url = record.url
+    let expandedHeaders: Record<string, string> | undefined
+    if (record.headers !== undefined) {
+      expandedHeaders = {}
+      for (const [key, value] of Object.entries(record.headers)) {
+        expandedHeaders[key] = expandStr(value)
+      }
+    }
+    let expandedOauth = record.oauth
+    if (record.oauth !== undefined) {
+      expandedOauth = {
+        ...record.oauth,
+        ...(record.oauth.clientId !== undefined ? { clientId: expandStr(record.oauth.clientId) } : {}),
+        ...(record.oauth.authServerMetadataUrl !== undefined
+          ? { authServerMetadataUrl: expandStr(record.oauth.authServerMetadataUrl) }
+          : {}),
+      }
+    }
+    const hasUnexpanded = Object.keys(unexpanded).length > 0
+    return {
+      config: {
+        ...entry,
+        url: expandedUrl,
+        ...(expandedHeaders !== undefined ? { headers: expandedHeaders } : {}),
+        ...(expandedOauth !== undefined ? { oauth: expandedOauth } : {}),
+      } as McpServerConfig,
+      ...(hasUnexpanded ? { unexpanded } : {}),
+      missingVars,
+    }
+  }
+  return { config: entry, missingVars }
+}
+
+export function parseMcpConfig({
+  configObject,
+  expandVars,
+  scope,
+  filePath,
+}: {
   configObject: unknown
   expandVars: boolean
   scope: ConfigScope
   filePath?: string
 }): ParseResult {
-  return notBuilt('src/services/mcp/config.ts:194')
+  const pathText = filePath ?? ''
+  const documentSchema = z.object({
+    mcpServers: z.record(z.string(), z.unknown()),
+  })
+  const docResult = documentSchema.safeParse(configObject)
+  if (!docResult.success) {
+    return {
+      config: null,
+      errors: docResult.error.issues.map(issue => ({
+        filePath: pathText,
+        path: issue.path.map(String).join('.'),
+        message: SCHEMA_MISMATCH,
+        scope,
+        severity: 'fatal' as const,
+      })),
+      notices: [],
+    }
+  }
+
+  const servers = Object.create(null) as Record<string, ScopedMcpServerConfig>
+  const errors: McpConfigError[] = []
+  const notices: string[] = []
+
+  const allEntries = Object.entries(docResult.data.mcpServers)
+  let entries = allEntries
+  if (filePath !== undefined && filePath !== '' && allEntries.length > MCP_SERVERS_MAX_PER_DOCUMENT) {
+    entries = allEntries.slice(0, MCP_SERVERS_MAX_PER_DOCUMENT)
+    notices.push(
+      `MCP file ${filePath}: ${allEntries.length.toLocaleString('en-US')} servers, the first ${MCP_SERVERS_MAX_PER_DOCUMENT} loaded`,
+    )
+  }
+
+  const entrySchema = McpServerConfigSchema()
+  for (const [serverName, rawEntry] of entries) {
+    const parsedEntry = entrySchema.safeParse(rawEntry)
+    if (!parsedEntry.success) {
+      errors.push({
+        filePath: pathText,
+        path: `mcpServers.${serverName}`,
+        message: SCHEMA_MISMATCH,
+        scope,
+        serverName,
+        severity: 'warning',
+      })
+      continue
+    }
+
+    let effectiveConfig: McpServerConfig = parsedEntry.data
+    let unexpanded: McpUnexpandedStrings | undefined
+    if (expandVars) {
+      const expanded = expandServerEntry(parsedEntry.data)
+      effectiveConfig = expanded.config
+      unexpanded = expanded.unexpanded
+      if (expanded.missingVars.length > 0) {
+        const names = expanded.missingVars.join(', ')
+        errors.push({
+          filePath: pathText,
+          path: serverName,
+          message: `MCP server "${serverName}" references unresolved environment variable(s): ${names}`,
+          suggestion: `Set the environment variable(s) ${names} before starting`,
+          scope,
+          serverName,
+          severity: 'warning',
+        })
+      }
+    }
+
+    const refusal = mcpStdioCommandRefusal(
+      serverName,
+      effectiveConfig as { type?: string; command?: string; args?: string[] },
+    )
+    if (refusal !== null) {
+      errors.push({
+        filePath: pathText,
+        path: `mcpServers.${serverName}`,
+        message: refusal,
+        scope,
+        serverName,
+        severity: 'warning',
+      })
+      continue
+    }
+
+    const effectiveRecord = effectiveConfig as { type?: string; command?: string }
+    if (
+      process.platform === 'win32' &&
+      (effectiveRecord.type === undefined || effectiveRecord.type === 'stdio') &&
+      typeof effectiveRecord.command === 'string' &&
+      (effectiveRecord.command === 'npx' ||
+        effectiveRecord.command.endsWith('/npx') ||
+        effectiveRecord.command.endsWith('\\npx'))
+    ) {
+      errors.push({
+        filePath: pathText,
+        path: serverName,
+        message: `MCP server "${serverName}" invokes "npx" directly — on some Windows setups this fails to start without a shell wrapper`,
+        suggestion: `If the server fails to start, change the command to "cmd" and prepend ["/c", "${effectiveRecord.command}"] to the arguments`,
+        scope,
+        serverName,
+        severity: 'warning',
+      })
+    }
+
+    servers[serverName] = {
+      ...effectiveConfig,
+      scope,
+      ...(unexpanded !== undefined ? { unexpanded } : {}),
+    } as ScopedMcpServerConfig
+  }
+
+  return { config: { mcpServers: servers }, errors, notices }
 }
 
-export function parseMcpConfigFromFilePath(arg0: {
+export function parseMcpConfigFromFilePath({
+  filePath,
+  expandVars,
+  scope,
+}: {
   filePath: string
   expandVars: boolean
   scope: ConfigScope
 }): ParseResult {
-  return notBuilt('src/services/mcp/config.ts:270')
+  const read = readConfigFile(filePath)
+  if (read.kind === 'absent') {
+    return { config: null, errors: [], notices: [] }
+  }
+  if (read.kind === 'unreadable') {
+    logError(`Failed to read MCP config file ${filePath}: ${read.message}`)
+    return {
+      config: null,
+      errors: [
+        {
+          filePath,
+          path: '',
+          message: `Failed to read MCP configuration file: ${read.message}`,
+          suggestion: 'Check the file permissions and try again',
+          scope,
+          severity: 'fatal',
+        },
+      ],
+      notices: [],
+    }
+  }
+  if (read.kind === 'invalid-json') {
+    logError(
+      `MCP config file ${filePath} is not valid JSON (${read.contentLength} bytes, starts with: ${read.excerpt}): ${read.message}`,
+    )
+    return {
+      config: null,
+      errors: [
+        {
+          filePath,
+          path: '',
+          message: `MCP configuration file is not valid JSON: ${read.message}`,
+          suggestion: 'Fix the JSON syntax in the file',
+          scope,
+          severity: 'fatal',
+        },
+      ],
+      notices: [],
+    }
+  }
+  return parseMcpConfig({ configObject: read.value, expandVars, scope, filePath })
 }
 
 
@@ -433,14 +699,60 @@ export function dedupExtensionMcpServers(
   extensionServers: Record<string, ScopedMcpServerConfig>,
   manualServers: Record<string, McpServerConfig | ScopedMcpServerConfig>,
 ): DedupResult {
-  return notBuilt('src/services/mcp/config.ts:643')
+  const claimed = indexBySignature(narrowToConnectable(manualServers))
+  const servers: Record<string, ScopedMcpServerConfig> = {}
+  const heldAside: Array<[string, ScopedMcpServerConfig]> = []
+  const suppressed: Array<{ name: string; duplicateOf: string }> = []
+  for (const [name, config] of Object.entries(extensionServers)) {
+    if (isMcpServerDisabled(name) || isServerDenied(name, config) || !isServerAllowed(name, config)) {
+      heldAside.push([name, config])
+      continue
+    }
+    const signature = getMcpServerSignature(config)
+    if (signature === undefined) {
+      servers[name] = config
+      continue
+    }
+    const existing = claimed.get(signature)
+    if (existing !== undefined) {
+      logForDebugging(`MCP dedup: extension server "${name}" duplicates "${existing}", suppressed`)
+      suppressed.push({ name, duplicateOf: existing })
+      continue
+    }
+    claimed.set(signature, name)
+    servers[name] = config
+  }
+  for (const [name, config] of heldAside) {
+    if (!Object.hasOwn(servers, name)) {
+      servers[name] = config
+    }
+  }
+  return { servers, suppressed }
 }
 
 export function dedupAnthropicConnectors(
   connectorServers: Record<string, ScopedMcpServerConfig>,
   manualServers: Record<string, McpServerConfig | ScopedMcpServerConfig>,
 ): DedupResult {
-  return notBuilt('src/services/mcp/config.ts:676')
+  const claimed = indexBySignature(narrowToConnectable(manualServers))
+  const servers: Record<string, ScopedMcpServerConfig> = {}
+  const suppressed: Array<{ name: string; duplicateOf: string }> = []
+  for (const [name, config] of Object.entries(connectorServers)) {
+    const signature = getMcpServerSignature(config)
+    if (signature === undefined) {
+      servers[name] = config
+      continue
+    }
+    const existing = claimed.get(signature)
+    if (existing !== undefined) {
+      logForDebugging(`MCP dedup: claude.ai connector "${name}" duplicates "${existing}", suppressed`)
+      suppressed.push({ name, duplicateOf: existing })
+      continue
+    }
+    claimed.set(signature, name)
+    servers[name] = config
+  }
+  return { servers, suppressed }
 }
 
 
@@ -561,7 +873,21 @@ export async function getAllMcpConfigs(): Promise<{
   servers: Record<string, ScopedMcpServerConfig>
   errors: McpResolutionNotice[]
 }> {
-  return notBuilt('src/services/mcp/config.ts:815')
+  if (doesEnterpriseMcpConfigExist()) {
+    return getMercuryMcpConfigs()
+  }
+  const connectorsPromise = fetchAnthropicConnectorsIfEligible()
+  const resolved = await getMercuryMcpConfigs()
+  const connectors = await connectorsPromise
+  if (Object.keys(connectors).length === 0) {
+    return resolved
+  }
+  const { allowed } = filterMcpServersByPolicy(connectors)
+  const { servers: dedupedConnectors } = dedupAnthropicConnectors(allowed, resolved.servers)
+  return {
+    servers: { ...dedupedConnectors, ...resolved.servers },
+    errors: resolved.errors,
+  }
 }
 
 export function getMcpConfigByName(name: string): ScopedMcpServerConfig | null {
@@ -630,12 +956,81 @@ async function writeProjectMcpFile(document: ProjectMcpDocument, action = 'updat
   }
 }
 
+function setOwnEntry<T>(record: Record<string, T>, key: string, value: T): Record<string, T> {
+  const next = { ...record }
+  Object.defineProperty(next, key, {
+    value,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  })
+  return next
+}
+
 export async function addMcpConfig(
   name: string,
   config: unknown,
   scope: ConfigScope,
 ): Promise<void> {
-  return notBuilt('src/services/mcp/config.ts:903')
+  if (name === '__proto__') {
+    throw new Error('Invalid MCP server name "__proto__": choose another name')
+  }
+  const candidate =
+    config !== null && typeof config === 'object' && !Array.isArray(config)
+      ? stripScope(config as McpServerConfig)
+      : config
+  const parsed = McpServerConfigSchema().safeParse(candidate)
+  if (!parsed.success) {
+    throw new Error(describeMcpConfigIssues(parsed.error.issues, candidate))
+  }
+  const refusal = mcpStdioCommandRefusal(
+    name,
+    parsed.data as { type?: string; command?: string; args?: string[] },
+  )
+  if (refusal !== null) {
+    throw new Error(refusal)
+  }
+  switch (scope) {
+    case 'project': {
+      const mcpJsonPath = lockedProjectMcpFile()
+      const { runExclusiveOnFileSync } = await import('../../utils/config/globalConfig.js')
+      await runExclusiveOnFileSync(mcpJsonPath, async () => {
+        const document = readProjectMcpDocument(mcpJsonPath)
+        if (Object.hasOwn(document.mcpServers, name)) {
+          throw new Error(`MCP server "${name}" already exists in ${mcpJsonPath}`)
+        }
+        await writeProjectMcpFile(
+          { ...document, mcpServers: setOwnEntry(document.mcpServers, name, parsed.data) },
+          `add MCP server ${name}`,
+        )
+      })
+      return
+    }
+    case 'user': {
+      const existing = getGlobalConfig().mcpServers ?? {}
+      if (Object.hasOwn(existing, name)) {
+        throw new Error(`MCP server "${name}" already exists in user config`)
+      }
+      saveGlobalConfig(current => ({
+        ...current,
+        mcpServers: setOwnEntry(current.mcpServers ?? {}, name, parsed.data),
+      }))
+      return
+    }
+    case 'local': {
+      const existing = getCurrentProjectConfig().mcpServers ?? {}
+      if (Object.hasOwn(existing, name)) {
+        throw new Error(`MCP server "${name}" already exists in project-local config`)
+      }
+      saveCurrentProjectConfig(current => ({
+        ...current,
+        mcpServers: setOwnEntry(current.mcpServers ?? {}, name, parsed.data),
+      }))
+      return
+    }
+    default:
+      throw new Error(`Cannot add an MCP server to the ${String(scope)} scope`)
+  }
 }
 
 export async function removeMcpConfig(name: string, scope: ConfigScope, beforeRemoval?: () => void): Promise<void> {
