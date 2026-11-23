@@ -173,7 +173,6 @@ export function TranscriptSearchBar({
       borderRight={false}
       borderTopColor={tokens.borderSubtle}
       paddingX={1}
-      flexDirection="row"
       justifyContent="space-between"
       noSelect
     >
@@ -242,7 +241,6 @@ export function TranscriptFooter({
       borderRight={false}
       borderTopColor={tokens.borderSubtle}
       paddingX={1}
-      flexDirection="row"
       justifyContent="space-between"
       noSelect
     >

@@ -293,7 +293,7 @@ export function SpinnerWithVerb({
   return (
     <Box flexDirection="column" width="100%">
       {showRail ? (
-        <Box flexDirection="row" width="100%">
+        <Box width="100%">
           <Box width={2} flexShrink={0} marginTop={1}>
             <Text color="claude">▎</Text>
           </Box>
