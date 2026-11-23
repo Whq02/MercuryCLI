@@ -96,8 +96,8 @@ export async function wsTransportFor(name: string, config: RemoteConfig): Promis
     name,
     `WebSocket connection options: ${JSON.stringify({
       headers: loggedHeadersOf(headers),
-      hasTLS: Boolean(getWebSocketTLSOptions()),
-      hasProxy: Boolean(getProxyUrl()),
+      tls: Boolean(getWebSocketTLSOptions()),
+      proxy: Boolean(getProxyUrl()),
     })}`,
   )
   return createWsTransport(config.url!, headers)
@@ -109,25 +109,26 @@ export async function httpTransportFor(name: string, config: RemoteConfig, provi
   const wrappedFetch = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(apiFetch, provider))
   const headers: Record<string, string> = { 'User-Agent': getMCPUserAgent(), ...serverHeaders }
   const proxyOptions = getProxyFetchOptions()
+  const requestInit = { headers, ...proxyOptions } as RequestInit
   const runtime = typeof (globalThis as { Bun?: unknown }).Bun !== 'undefined' ? 'bun' : 'node'
   const proxyUrl = getProxyUrl()
   const safeProxy = proxyUrl
-    ? (getLoggingSafeMcpBaseUrl({ type: 'http', url: proxyUrl, scope: 'dynamic' }) ?? '[redacted]')
+    ? (getLoggingSafeMcpBaseUrl({ type: 'http', url: proxyUrl, scope: 'dynamic' }) ?? '[REDACTED]')
     : 'none'
   logMCPDebug(name, `runtime ${runtime}, proxy ${safeProxy}`)
   logMCPDebug(
     name,
     `HTTP request options: ${JSON.stringify({
       headers: loggedHeadersOf(headers),
-      hasTLS: Boolean(proxyOptions.tls),
-      hasProxy: Boolean(proxyUrl),
+      tls: 'tls' in requestInit,
+      proxy: Boolean(proxyUrl),
     })}`,
   )
   await provider.tokens()
   return new StreamableHTTPClientTransport(new URL(config.url!), {
     authProvider: provider,
     fetch: wrappedFetch,
-    requestInit: { headers, ...proxyOptions } as RequestInit,
+    requestInit,
   })
 }
 

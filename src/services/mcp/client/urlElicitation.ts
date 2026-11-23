@@ -60,12 +60,6 @@ export function queueUrlElicitation(
       },
     }
     const onAbort = (): void => {
-      setAppState(prev => ({
-        ...prev,
-        elicitation: {
-          queue: prev.elicitation.queue.filter(entry => entry !== event),
-        },
-      }))
       finish('cancel')
     }
     signal.addEventListener('abort', onAbort, { once: true })
