@@ -4,7 +4,6 @@ import type { KeyboardEvent } from './keyboard-event.js'
 import type { PasteEvent } from './paste-event.js'
 import type { ResizeEvent } from './resize-event.js'
 import type { TextGestureHandler } from './text-gesture.js'
-import type { Unbuilt } from '../../pi/holes.js'
 
 export const HANDLER_FOR_EVENT: Record<
   string,
@@ -18,7 +17,21 @@ export const HANDLER_FOR_EVENT: Record<
   click: { bubble: 'onClick', bubbles: false },
 }
 
-export type EventHandlerProps = Unbuilt
+export type EventHandlerProps = {
+  onKeyDown?: (event: KeyboardEvent) => void
+  onKeyDownCapture?: (event: KeyboardEvent) => void
+  onFocus?: (event: FocusEvent) => void
+  onFocusCapture?: (event: FocusEvent) => void
+  onBlur?: (event: FocusEvent) => void
+  onBlurCapture?: (event: FocusEvent) => void
+  onPaste?: (event: PasteEvent) => void
+  onPasteCapture?: (event: PasteEvent) => void
+  onResize?: (event: ResizeEvent) => void
+  onClick?: (event: ClickEvent) => void
+  onMouseEnter?: () => void
+  onMouseLeave?: () => void
+  onTextGesture?: TextGestureHandler
+}
 
 export const EVENT_HANDLER_PROPS = new Set([
   'onKeyDown',
