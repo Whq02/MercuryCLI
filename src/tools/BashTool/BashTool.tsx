@@ -1,7 +1,7 @@
 import * as React from 'react'
 import type { UUID } from 'node:crypto'
 import { z } from 'zod/v4'
-import { buildTool, stringInputField, type Tool, type ToolInputJSONSchema, type ToolUseContext, type ToolResult, type ToolPermissionContext } from '../../Tool.js'
+import { buildTool, stringInputField, type ToolInputJSONSchema, type ToolUseContext, type ToolResult, type ToolPermissionContext } from '../../Tool.js'
 import { loginFilesLineOnce, settleShellRecord } from '../../utils/shell/shellRecord.js'
 import { bashToolAvailable } from '../../utils/shell/windowsShellRoad.js'
 import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
@@ -1112,7 +1112,7 @@ async function* runForegroundCommand(args: ForegroundRunArgs): AsyncGenerator<Ba
   }
 }
 
-export const BashTool: Tool<BashToolInput, Out, BashProgress> = buildTool({
+export const BashTool = buildTool({
   name: BASH_TOOL_NAME,
   strict: true,
   maxResultSizeChars: PERSIST_THRESHOLD_CHARS,
@@ -1136,19 +1136,19 @@ export const BashTool: Tool<BashToolInput, Out, BashProgress> = buildTool({
     if (!command) return { isSearch: false, isRead: false, isList: false }
     return classifyCommand(command)
   },
-  async prepare(input) {
+  async prepare(input: BashToolInput) {
     await prepareBashReadOnly(input)
   },
-  isReadOnly(input) {
+  isReadOnly(input: BashToolInput) {
     return isBashReadOnly(input)
   },
-  isConcurrencySafe(input) {
+  isConcurrencySafe(input: BashToolInput) {
     return isBashReadOnly(input)
   },
-  async checkPermissions(input, context) {
+  async checkPermissions(input: BashToolInput, context: ToolUseContext) {
     return bashToolHasPermission(input, context.getAppState().toolPermissionContext)
   },
-  async preparePermissionMatcher(input) {
+  async preparePermissionMatcher(input: BashToolInput) {
     const parsed = await parseForSecurity(input.command)
     if (parsed.kind === 'simple') {
       const texts = parsed.commands.map(command => command.argv.join(' '))
@@ -1156,25 +1156,25 @@ export const BashTool: Tool<BashToolInput, Out, BashProgress> = buildTool({
     }
     return () => true
   },
-  async description(input) {
+  async description(input?: Partial<BashToolInput>) {
     return input?.description ?? 'Run a shell command'
   },
   async prompt(options) {
     await Promise.all([settleShellRecord(), settleLoginFiles()])
     return getSimplePrompt(new Set((options?.tools ?? []).map(tool => tool.name)))
   },
-  getToolUseSummary(input) {
+  getToolUseSummary(input?: Partial<BashToolInput>) {
     const command = stringInputField(input, 'command')
     if (!command) return null
     return input?.description ?? truncateForSummary(command)
   },
-  getActivityDescription(input) {
+  getActivityDescription(input?: Partial<BashToolInput>) {
     const command = stringInputField(input, 'command')
     if (!command) return 'Running a shell command'
     const summary = input?.description ?? truncateForSummary(command)
     return `Running ${summary}`
   },
-  async validateInput(input) {
+  async validateInput(input: BashToolInput) {
     const cwdRefusal = controlCharacterPathRefusal(input.cwd)
     if (cwdRefusal !== null) {
       return { result: false, message: cwdRefusal, errorCode: 1 }
@@ -1194,13 +1194,13 @@ export const BashTool: Tool<BashToolInput, Out, BashProgress> = buildTool({
   renderToolResultMessage,
   renderToolUseErrorMessage,
   mapToolResultToToolResultBlockParam: mapResultToBlock,
-  extractSearchText(output) {
+  extractSearchText(output: Out) {
     return output.stderr ? `${output.stdout}\n${output.stderr}` : output.stdout
   },
-  isResultTruncated(output) {
+  isResultTruncated(output: Out) {
     return isOutputLineTruncated(output.stdout) || isOutputLineTruncated(output.stderr)
   },
-  async call(input, context, _canUseTool, parentAssistantMessage, onProgress) {
+  async call(input: BashToolInput, context: ToolUseContext, _canUseTool: CanUseToolFn, parentAssistantMessage: AssistantMessage, onProgress) {
     try {
       if (input._simulatedSedEdit !== undefined) {
         return await runSimulatedSedEdit(input, context, parentAssistantMessage)
