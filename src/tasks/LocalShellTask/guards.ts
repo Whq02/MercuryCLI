@@ -29,6 +29,7 @@ export function isLocalShellTask(task: unknown): task is LocalShellTaskState {
   return (
     typeof task === 'object' &&
     task !== null &&
-    (task as { type?: unknown }).type === 'local_bash'
+    'type' in task &&
+    task.type === 'local_bash'
   )
 }

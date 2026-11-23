@@ -85,11 +85,6 @@ export async function killTask(
     } catch (error) {
       logError(error)
     }
-    try {
-      handle.cleanup()
-    } catch (error) {
-      logError(error)
-    }
   }
 
   if (captured.unregisterCleanup) {
@@ -108,7 +103,17 @@ export async function killTask(
     }
   }
 
+  const cleanupHandle = (): void => {
+    if (!handle) return
+    try {
+      handle.cleanup()
+    } catch (error) {
+      logError(error)
+    }
+  }
+
   if (!resultPromise) {
+    cleanupHandle()
     return { settled: true, exitCode: undefined, reason: 'not-running' }
   }
 
@@ -120,10 +125,12 @@ export async function killTask(
       () => null,
       { unref: true },
     )
-  } catch {
+  } catch (error) {
+    logError(error)
     result = null
+  } finally {
+    cleanupHandle()
   }
-
   if (result === null) {
     return { settled: false, reason: 'settlement-grace-expired' }
   }
