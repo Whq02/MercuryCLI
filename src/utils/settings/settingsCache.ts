@@ -1,51 +1,57 @@
 import type { SettingSource } from './constants.js'
 import type { SettingsJson } from './types.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-type SessionSettingsCacheValue = Unbuilt
+type SessionSettingsCacheValue = { settings: SettingsJson; errors: unknown[] }
+
+let sessionSettingsCache: SessionSettingsCacheValue | null = null
+const perSourceCache = new Map<SettingSource, SettingsJson | null>()
+const parsedFileCache = new Map<string, { settings: SettingsJson | null; errors: unknown[] }>()
+const lastGoodParsedFile = new Map<string, SettingsJson>()
 
 export function getSessionSettingsCache(): SessionSettingsCacheValue | null {
-  return notBuilt('src/utils/settings/settingsCache.ts:12')
+  return sessionSettingsCache
 }
 
 export function setSessionSettingsCache(value: SessionSettingsCacheValue | null): void {
-  return notBuilt('src/utils/settings/settingsCache.ts:16')
+  sessionSettingsCache = value
 }
 
 export function getCachedSettingsForSource(source: SettingSource): SettingsJson | null | undefined {
-  return notBuilt('src/utils/settings/settingsCache.ts:20')
+  return perSourceCache.get(source)
 }
 
 export function setCachedSettingsForSource(source: SettingSource, value: SettingsJson | null): void {
-  return notBuilt('src/utils/settings/settingsCache.ts:24')
+  perSourceCache.set(source, value)
 }
 
 export function getCachedParsedFile(
   path: string,
 ): { settings: SettingsJson | null; errors: unknown[] } | undefined {
-  return notBuilt('src/utils/settings/settingsCache.ts:28')
+  return parsedFileCache.get(path)
 }
 
 export function setCachedParsedFile(
   path: string,
   value: { settings: SettingsJson | null; errors: unknown[] },
 ): void {
-  return notBuilt('src/utils/settings/settingsCache.ts:34')
+  parsedFileCache.set(path, value)
 }
 
 export function getLastGoodParsedFile(path: string): SettingsJson | undefined {
-  return notBuilt('src/utils/settings/settingsCache.ts:41')
+  return lastGoodParsedFile.get(path)
 }
 
 export function setLastGoodParsedFile(path: string, settings: SettingsJson): void {
-  return notBuilt('src/utils/settings/settingsCache.ts:45')
+  lastGoodParsedFile.set(path, settings)
 }
 
 export function forgetLastGoodParsedFile(path: string): void {
-  return notBuilt('src/utils/settings/settingsCache.ts:49')
+  lastGoodParsedFile.delete(path)
 }
 
 export function resetSettingsCache(): void {
-  return notBuilt('src/utils/settings/settingsCache.ts:53')
+  sessionSettingsCache = null
+  perSourceCache.clear()
+  parsedFileCache.clear()
 }
