@@ -96,7 +96,7 @@ async function buildRegistry(label: string, wrappers: string[]): Promise<BuiltRe
         name: 'bundled-skill-runtime',
         setup(build) {
           build.onResolve({ filter: /^\.\.\/bundledSkills\.js$/ }, () => ({ path: RUNTIME }))
-          build.onResolve({ filter: /^\.\.\/\.\.\/utils\/frontmatterParser\.js$/ }, () => ({ path: FRONTMATTER }))
+          build.onResolve({ filter: /^\.\.\/\.\.\/\.\.\/platform\/text\/frontmatterParser\.js$/ }, () => ({ path: FRONTMATTER }))
         },
       },
     ],
