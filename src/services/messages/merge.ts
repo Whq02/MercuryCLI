@@ -33,7 +33,11 @@ export function mergeUserContentBlocks(left: ContentBlockParam[], right: Content
   const last = left.at(-1)
   if (last?.type === 'tool_result' && typeof last.content === 'string' && right.every(isTextBlock)) {
     const folded = smooshIntoToolResult(last, right)
-    if (folded !== null) return [...left.slice(0, -1), folded]
+    if (folded !== null) {
+      const merged = left.slice(0, -1)
+      merged.push(folded)
+      return merged
+    }
   }
   return [...left, ...right]
 }
