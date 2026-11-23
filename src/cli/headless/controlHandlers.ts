@@ -1,4 +1,5 @@
 import { errorMessage } from '../../utils/errors.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 import { type UUID } from 'crypto'
 import { type ToolPermissionContext } from 'src/Tool.js'
 import type { ParamsOf } from 'src/runner/wire/methods.js'
@@ -204,7 +205,7 @@ function decidePermissionModeTransition(
   mode: InternalPermissionMode,
   toolPermissionContext: ToolPermissionContext,
 ): { ok: true; context: ToolPermissionContext } | { ok: false; error: string } {
-  if (!PERMISSION_MODES.some(valid => valid === mode)) {
+  if (!isOneOf(PERMISSION_MODES, mode)) {
     return {
       ok: false,
       error: `'${mode}' is not a permission mode; the modes are ${PERMISSION_MODES.join(', ')}`,
