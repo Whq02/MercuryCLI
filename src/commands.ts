@@ -110,11 +110,100 @@ export { getCommandName } from './types/command.js'
 export { commandOffInPlainWorld, isCommandEnabled } from './commands/enablement.js'
 import { tellSessionStorageTheBuiltInCommands } from './utils/sessionStorage/builtInCommands.js'
 import { passedOver } from './utils/passedOver.js'
-import { notBuilt, unbuilt, type Unbuilt } from './pi/holes.js'
-
 const require = createRequire(import.meta.url)
 
-const COMMANDS: Unbuilt = unbuilt('src/commands.ts:128')
+const clearSkillIndexCache: (() => void) | undefined = (() => {
+  try {
+    const mod = require('./services/skillSearch/localSearch.js') as { clearSkillIndexCache?: unknown }
+    return typeof mod.clearSkillIndexCache === 'function' ? (mod.clearSkillIndexCache as () => void) : undefined
+  } catch (error) {
+    passedOver(error)
+    return undefined
+  }
+})()
+
+const COMMANDS = memoize((): Command[] => [
+  verify,
+  advise,
+  swarm,
+  swarmchat,
+  general,
+  team,
+  whisper,
+  agents,
+  clear,
+  compact,
+  config,
+  contractCommand,
+  copy,
+  context,
+  contextNonInteractive,
+  mission,
+  missionNonInteractive,
+  crew,
+  critter,
+  bootmenu,
+  concourse,
+  run,
+  browser,
+  samples,
+  sessions,
+  trace,
+  kill,
+  unkill,
+  diff,
+  health,
+  lsp,
+  effort,
+  zen,
+  browse,
+  exit,
+  help,
+  keybindings,
+  keys,
+  mcp,
+  memory,
+  model,
+  extensions,
+  updateNotes,
+  rename,
+  skills,
+  title,
+  feedback,
+  review,
+  rewind,
+  audit,
+  keysetup,
+  usage,
+  jev,
+  localsetup,
+  imagesetup,
+  llmhost,
+  tensorfold,
+  defaultprovider,
+  vim,
+  permissions,
+  hooks,
+  exportCommand,
+  logout,
+  loginFactory(),
+  tasks,
+  appearance,
+  mouse,
+  capabilities,
+  caching,
+  workbench,
+  daemon,
+  saturn,
+  seats,
+  accounts,
+  crewmates,
+  submodels,
+  palette,
+  orient,
+  voice,
+  restart,
+])
 
 export function commandSeat(command: Command): CommandSeat {
   if (command.type === 'local-jsx') return 'screen'
@@ -128,7 +217,11 @@ export function commandSeat(command: Command): CommandSeat {
 }
 
 export function sessionSeatCommandTable(commands: readonly Command[]): Command[] {
-  return notBuilt('src/commands.ts:222')
+  return commands.filter(
+    command =>
+      commandSeat(command) === 'session' ||
+      (command.type === 'local-jsx' && (command.headlessVerbs?.length ?? 0) > 0),
+  )
 }
 
 export function builtinCommands(): readonly Command[] {
@@ -148,7 +241,19 @@ export const builtInCommandNames = memoize((): Set<string> => {
 tellSessionStorageTheBuiltInCommands(builtInCommandNames)
 
 export function meetsAvailabilityRequirement(cmd: Command): boolean {
-  return notBuilt('src/commands.ts:242')
+  if (!cmd.availability || cmd.availability.length === 0) return true
+  return cmd.availability.some(req => {
+    switch (req) {
+      case 'claude-ai':
+        return isClaudeAISubscriber()
+      case 'console':
+        return !isClaudeAISubscriber() && isFirstPartyAnthropicBaseUrl()
+      case 'any-provider-credential':
+        return anyProviderCredentialed()
+      default:
+        return false
+    }
+  })
 }
 
 const loadAllCommands = memoize(async (cwd: string): Promise<Command[]> => {
@@ -220,34 +325,118 @@ function dedupeCommandsByName(commands: Command[]): Command[] {
 }
 
 export async function getCommands(cwd: string): Promise<Command[]> {
-  return notBuilt('src/commands.ts:332')
+  const allCommands = await loadAllCommands(cwd)
+  const kit = sessionKitOf()
+  if (kit !== undefined) {
+    noteBootSkillRoster(allCommands.filter(isKitGovernedSkillCommand).map(command => command.name))
+  }
+  const base = dedupeCommandsByName(
+    allCommands
+      .filter(
+        command =>
+          meetsAvailabilityRequirement(command) &&
+          isCommandEnabled(command) &&
+          !kitDropsCommand(kit, command),
+      )
+      .map(command => withKitSkillMark(kit, command)),
+  )
+  const dynamicSkills = getDynamicSkills()
+  if (dynamicSkills.length === 0) return base
+  const baseNames = new Set(base.map(command => command.name))
+  const builtinNames = builtInCommandNames()
+  const survivors = dynamicSkills
+    .filter(
+      command =>
+        !baseNames.has(command.name) &&
+        !builtinNames.has(command.name) &&
+        meetsAvailabilityRequirement(command) &&
+        isCommandEnabled(command) &&
+        !kitDropsCommand(kit, command),
+    )
+    .map(command => withKitSkillMark(kit, command))
+  if (survivors.length === 0) return base
+  const firstBuiltinIndex = base.findIndex(command => command.source === 'builtin')
+  if (firstBuiltinIndex === -1) return [...base, ...survivors]
+  return [...base.slice(0, firstBuiltinIndex), ...survivors, ...base.slice(firstBuiltinIndex)]
 }
 
 export function clearCommandMemoizationCaches(): void {
-  return notBuilt('src/commands.ts:376')
+  loadAllCommands.cache.clear?.()
+  getSkillToolCommands.cache.clear?.()
+  getSlashCommandToolSkills.cache.clear?.()
+  clearSkillIndexCache?.()
 }
 
 export function clearCommandsCache(): void {
-  return notBuilt('src/commands.ts:383')
+  clearCommandMemoizationCaches()
+  clearExtensionCommandCaches()
+  clearSkillCaches()
 }
 
 export function getMcpSkillCommands(
-  mcpCommands: readonly Command[],
+  _mcpCommands: readonly Command[],
 ): readonly Command[] {
-  return notBuilt('src/commands.ts:389')
+  return []
 }
 
-export const getSkillToolCommands: Unbuilt = unbuilt('src/commands.ts:396')
+export const getSkillToolCommands = memoize(
+  async (cwd: string): Promise<Command[]> => {
+    const commands = await getCommands(cwd)
+    return commands.filter(
+      command =>
+        command.type === 'prompt' &&
+        command.source !== 'builtin' &&
+        !command.disableModelInvocation &&
+        (command.loadedFrom === 'bundled' ||
+          command.loadedFrom === 'skills' ||
+          command.hasUserSpecifiedDescription === true ||
+          Boolean(command.whenToUse)),
+    )
+  },
+)
 
-export const getSlashCommandToolSkills: Unbuilt = unbuilt('src/commands.ts:412')
+export const getSlashCommandToolSkills = memoize(
+  async (cwd: string): Promise<Command[]> => {
+    try {
+      const commands = await getCommands(cwd)
+      return commands.filter(
+        command =>
+          command.type === 'prompt' &&
+          command.source !== 'builtin' &&
+          (command.hasUserSpecifiedDescription === true || Boolean(command.whenToUse)) &&
+          (command.loadedFrom === 'skills' ||
+            command.loadedFrom === 'extension' ||
+            command.loadedFrom === 'bundled' ||
+            command.disableModelInvocation === true),
+      )
+    } catch (error) {
+      logError(error)
+      logForDebugging('slash-command tool skill listing failed; returning none')
+      return []
+    }
+  },
+)
 
 export function findCommand(
   name: string,
   commands: Command[],
 ): Command | undefined {
-  return notBuilt('src/commands.ts:435')
+  return commands.find(
+    command =>
+      command.name === name ||
+      getCommandName(command) === name ||
+      command.aliases?.includes(name),
+  )
 }
 
 export function formatDescriptionWithSource(cmd: Command): string {
-  return notBuilt('src/commands.ts:447')
+  if (cmd.type !== 'prompt') return cmd.description
+  const base = cmd.menuDescription ?? cmd.description
+  if (cmd.source === 'extension') {
+    const owner = cmd.extensionInfo?.manifest.name
+    return owner ? `(${owner}) ${base}` : `${base} (extension)`
+  }
+  if (cmd.source === 'builtin' || cmd.source === 'mcp') return base
+  if (cmd.source === 'bundled') return `${base} (built-in)`
+  return `${base} (${getSourceDisplayName(cmd.source)})`
 }
