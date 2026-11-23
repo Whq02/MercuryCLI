@@ -71,7 +71,8 @@ type ComposerRawKeysInput = {
   submitRef: React.MutableRefObject<ComposerSubmit>
   suggestionsMirrorRef: React.MutableRefObject<SuggestionsState>
   viewedCrewmateRef: React.MutableRefObject<ReturnType<typeof useViewedCrewmate>>
-} & ({ voicePhase: VoicePhase } | { voice: { phase: VoicePhase } })
+  voicePhase: VoicePhase
+}
 
 function isPrintableRun(rawInput: string, key: Key): boolean {
   return (
@@ -123,8 +124,8 @@ export function useComposerRawKeys(params: ComposerRawKeysInput): void {
     addNotification,
     suggestionsMirrorRef,
     viewedCrewmateRef,
+    voicePhase,
   } = params
-  const voicePhase = 'voicePhase' in params ? params.voicePhase : params.voice.phase
   const noopSetPending = useCallback(() => {}, [])
   const handleDoubleEsc = useDoublePress(noopSetPending, onShowMessageSelector, undefined, 800)
 

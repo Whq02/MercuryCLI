@@ -237,7 +237,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   useComposerRawKeys({
     modalOverlayUp, compactWork, input, cursorOffset, mode, footerSelection,
     helpOpen, isSearchingHistory, messages, isLoading, speculationActive,
-    appStateStore, setAppState, engineModel, cockpitActive, voice,
+    appStateStore, setAppState, engineModel, cockpitActive, voicePhase: voice.phase,
     getToolUseContext, insertAtCursor, setMode, setHelpOpen, setCursorOffset,
     onShowMessageSelector, addNotification, submitRef, suggestionsMirrorRef,
     viewedCrewmateRef,
