@@ -1,5 +1,14 @@
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
+import type { Command } from '../../commands.js'
 
-const rewind: Unbuilt = unbuilt('src/commands/rewind/index.ts:3')
+const rewind: Command = {
+  description: 'Wind back to a saved point — the files, the conversation, or both',
+  name: 'rewind',
+  aliases: ['checkpoint'],
+  argumentHint: '',
+  type: 'local',
+  supportsNonInteractive: false,
+  seat: 'screen',
+  load: () => import('./rewind.js'),
+}
 
 export default rewind
