@@ -96,6 +96,159 @@ function memberResultText(lookups: MessageLookups, id: string): string {
   return ''
 }
 
+function buildFragments(args: {
+  active: boolean
+  commits: NonNullable<CollapsedReadSearchGroup['commits']>
+  pushes: NonNullable<CollapsedReadSearchGroup['pushes']>
+  branches: NonNullable<CollapsedReadSearchGroup['branches']>
+  prs: NonNullable<CollapsedReadSearchGroup['prs']>
+  searchCount: number
+  readCount: number
+  listCount: number
+  mcpCallCount: number
+  mcpServerNames: string[] | undefined
+  bashRan: number
+  bashBlocked: number
+  bashInterrupted: number
+  memoryReadCount: number
+  memorySearchCount: number
+  memoryWriteCount: number
+}): Fragment[] {
+  const {
+    active,
+    commits,
+    pushes,
+    branches,
+    prs,
+    searchCount,
+    readCount,
+    listCount,
+    mcpCallCount,
+    mcpServerNames,
+    bashRan,
+    bashBlocked,
+    bashInterrupted,
+    memoryReadCount,
+    memorySearchCount,
+    memoryWriteCount,
+  } = args
+  const fragments: Fragment[] = []
+
+  for (const commit of commits) {
+    fragments.push({
+      verb: commitVerb(commit.kind, active),
+      family: 'shell',
+      rest: (
+        <>
+          {' '}
+          <Text bold>{commit.sha.slice(0, 7)}</Text>
+        </>
+      ),
+    })
+  }
+  for (const push of pushes) {
+    fragments.push({
+      verb: active ? 'pushing' : 'pushed',
+      family: 'shell',
+      rest: (
+        <>
+          {' '}
+          <Text bold>{push.branch}</Text>
+        </>
+      ),
+    })
+  }
+  for (const branch of branches) {
+    fragments.push({
+      verb: branchVerb(branch.action, active),
+      family: 'shell',
+      rest: (
+        <>
+          {' '}
+          <Text bold>{branch.ref}</Text>
+        </>
+      ),
+    })
+  }
+  for (const pr of prs) {
+    fragments.push({
+      verb: prActionVerb(pr.action, active),
+      family: 'shell',
+      rest: (
+        <>
+          {' PR '}
+          <Text bold>{`#${pr.number}`}</Text>
+        </>
+      ),
+    })
+  }
+
+  if (searchCount > 0) {
+    fragments.push(counted(active ? 'searching for' : 'searched for', searchCount, 'pattern', 'search'))
+  }
+  if (readCount > 0) {
+    fragments.push(counted(active ? 'reading' : 'read', readCount, 'file', 'read'))
+  }
+  if (listCount > 0) {
+    fragments.push(counted(active ? 'listing' : 'listed', listCount, 'directory', 'search'))
+  }
+
+  if (mcpCallCount > 0) {
+    const cleanedServers = [
+      ...new Set(
+        (mcpServerNames ?? [])
+          .map(name => name.replace(/^claude\.ai /, '').trim())
+          .filter(Boolean),
+      ),
+    ]
+    const serverLabel = cleanedServers.length > 0 ? cleanedServers.join(', ') : 'MCP'
+    fragments.push({
+      verb: active ? 'querying' : 'queried',
+      family: 'external',
+      rest: (
+        <>
+          {' '}
+          {serverLabel}
+          {mcpCallCount > 1 ? (
+            <>
+              {' '}
+              <Text bold>{`${mcpCallCount}×`}</Text>
+            </>
+          ) : null}
+        </>
+      ),
+    })
+  }
+
+  if (bashRan > 0) {
+    fragments.push(counted(active ? 'running' : 'ran', bashRan, 'bash command', 'shell'))
+  }
+  if (bashBlocked > 0) {
+    fragments.push(counted('blocked', bashBlocked, 'bash command', 'shell'))
+  }
+  if (bashInterrupted > 0) {
+    fragments.push(counted('interrupted', bashInterrupted, 'bash command', 'shell'))
+  }
+
+  if (memoryReadCount > 0) {
+    fragments.push(counted(active ? 'recalling' : 'recalled', memoryReadCount, 'memory', 'memory'))
+  }
+  if (memorySearchCount > 0) {
+    fragments.push({
+      verb: active ? 'searching memory' : 'searched memory',
+      family: 'memory',
+      rest: null,
+    })
+  }
+  if (memoryWriteCount > 0) {
+    fragments.push(
+      counted(active ? 'noting' : 'noted', memoryWriteCount, 'memory update', 'memory'),
+    )
+  }
+
+  return fragments
+}
+
 export function CollapsedReadSearchContent({
   message,
   inProgressToolUseIDs,
@@ -215,121 +368,24 @@ export function CollapsedReadSearchContent({
   }
   const bashRan = Math.max(0, bashCount - gitOpBashCount - bashDenied)
 
-  const fragments: Fragment[] = []
-
-  for (const commit of commits) {
-    fragments.push({
-      verb: commitVerb(commit.kind, active),
-      family: 'shell',
-      rest: (
-        <>
-          {' '}
-          <Text bold>{commit.sha.slice(0, 7)}</Text>
-        </>
-      ),
-    })
-  }
-  for (const push of pushes) {
-    fragments.push({
-      verb: active ? 'pushing' : 'pushed',
-      family: 'shell',
-      rest: (
-        <>
-          {' '}
-          <Text bold>{push.branch}</Text>
-        </>
-      ),
-    })
-  }
-  for (const branch of branches) {
-    fragments.push({
-      verb: branchVerb(branch.action, active),
-      family: 'shell',
-      rest: (
-        <>
-          {' '}
-          <Text bold>{branch.ref}</Text>
-        </>
-      ),
-    })
-  }
-  for (const pr of prs) {
-    fragments.push({
-      verb: prActionVerb(pr.action, active),
-      family: 'shell',
-      rest: (
-        <>
-          {' PR '}
-          <Text bold>{`#${pr.number}`}</Text>
-        </>
-      ),
-    })
-  }
-
-  if (searchCount > 0) {
-    fragments.push(counted(active ? 'searching for' : 'searched for', searchCount, 'pattern', 'search'))
-  }
-  if (readCount > 0) {
-    fragments.push(counted(active ? 'reading' : 'read', readCount, 'file', 'read'))
-  }
-  if (listCount > 0) {
-    fragments.push(counted(active ? 'listing' : 'listed', listCount, 'directory', 'search'))
-  }
-
-  if (mcpCallCount > 0) {
-    const cleanedServers = [
-      ...new Set(
-        (message.mcpServerNames ?? [])
-          .map(name => name.replace(/^claude\.ai /, '').trim())
-          .filter(Boolean),
-      ),
-    ]
-    const serverLabel = cleanedServers.length > 0 ? cleanedServers.join(', ') : 'MCP'
-    fragments.push({
-      verb: active ? 'querying' : 'queried',
-      family: 'external',
-      rest: (
-        <>
-          {' '}
-          {serverLabel}
-          {mcpCallCount > 1 ? (
-            <>
-              {' '}
-              <Text bold>{`${mcpCallCount}×`}</Text>
-            </>
-          ) : null}
-        </>
-      ),
-    })
-  }
-
-  if (bashRan > 0) {
-    fragments.push(counted(active ? 'running' : 'ran', bashRan, 'bash command', 'shell'))
-  }
-  if (bashBlocked > 0) {
-    fragments.push(counted('blocked', bashBlocked, 'bash command', 'shell'))
-  }
-  if (bashInterrupted > 0) {
-    fragments.push(counted('interrupted', bashInterrupted, 'bash command', 'shell'))
-  }
-
-  if (message.memoryReadCount > 0) {
-    fragments.push(
-      counted(active ? 'recalling' : 'recalled', message.memoryReadCount, 'memory', 'memory'),
-    )
-  }
-  if (message.memorySearchCount > 0) {
-    fragments.push({
-      verb: active ? 'searching memory' : 'searched memory',
-      family: 'memory',
-      rest: null,
-    })
-  }
-  if (message.memoryWriteCount > 0) {
-    fragments.push(
-      counted(active ? 'noting' : 'noted', message.memoryWriteCount, 'memory update', 'memory'),
-    )
-  }
+  const fragments = buildFragments({
+    active,
+    commits,
+    pushes,
+    branches,
+    prs,
+    searchCount,
+    readCount,
+    listCount,
+    mcpCallCount,
+    mcpServerNames: message.mcpServerNames,
+    bashRan,
+    bashBlocked,
+    bashInterrupted,
+    memoryReadCount: message.memoryReadCount,
+    memorySearchCount: message.memorySearchCount,
+    memoryWriteCount: message.memoryWriteCount,
+  })
 
   const sentence: React.ReactNode[] = fragments.map((fragment, index) => {
     const verb =
