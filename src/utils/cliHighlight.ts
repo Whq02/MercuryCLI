@@ -26,7 +26,7 @@ let sharedLoadPromise: Promise<LoadedBundle> | null = null
 function loadBundle(): Promise<LoadedBundle> {
   return sharedLoadPromise ??= import('cli-highlight').then(({ highlight, supportsLanguage }): LoadedBundle => ({
     api: {
-      highlight: (code, options) => shouldSkipHighlight(code) || colorStripped() ? code : highlight(code, options),
+      highlight: (code: string, options?: Parameters<CliHighlight['highlight']>[1]) => shouldSkipHighlight(code) || colorStripped() ? code : highlight(code, options),
       supportsLanguage,
     },
   })).catch(passedOverAs({ api: null }))
