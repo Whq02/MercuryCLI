@@ -39,9 +39,10 @@ export function modeBypassesPermissions(mode: PermissionMode): boolean {
 }
 
 export function permissionModeFromString(str: string): PermissionMode {
-  return (PERMISSION_MODES as readonly string[]).includes(str)
-    ? (str as PermissionMode)
-    : 'default'
+  for (const mode of PERMISSION_MODES) {
+    if (mode === str) return mode
+  }
+  return 'default'
 }
 
 export function isDefaultMode(mode: PermissionMode | undefined): boolean {

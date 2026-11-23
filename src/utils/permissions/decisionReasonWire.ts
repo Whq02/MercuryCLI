@@ -98,7 +98,7 @@ export function decodeDecisionReasonFromWire(value: unknown): PermissionDecision
         if (resultRecord === undefined) continue
         const { decisionReason, ...rest } = resultRecord
         const decoded = decodeDecisionReasonFromWire(decisionReason)
-        const next: unknown = decoded !== undefined ? { ...rest, decisionReason: decoded } : rest
+        const next: object = decoded !== undefined ? { ...rest, decisionReason: decoded } : rest
         reasons.set(command, next as PermissionResult)
       }
       return { type: 'subcommandResults', reasons }
