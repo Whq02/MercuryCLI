@@ -4,7 +4,6 @@ import type { Command } from '../../commands.js'
 import { formatDescriptionWithSource, getCommandName } from '../../commands.js'
 import { requiresArgument } from '../../skills/argumentHint.js'
 import { getSkillUsageScore } from './skillUsageTracking.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 type MidInputSlashCommand = {
@@ -89,13 +88,133 @@ function toSuggestionItem(
 
 const MAX_RECENTLY_USED = 5
 
-type IndexedCommand = Unbuilt
+type IndexedCommand = {
+  command: CommandLike
+  name: string
+  nameParts: string[]
+  aliases: string[]
+  descriptionWords: string[]
+}
+
+let indexedFor: Command[] | null = null
+let fuseIndex: Fuse<IndexedCommand> | null = null
+
+function getCommandIndex(commands: Command[]): Fuse<IndexedCommand> {
+  if (indexedFor === commands && fuseIndex !== null) return fuseIndex
+  const indexed: IndexedCommand[] = []
+  for (const raw of commands) {
+    const command = raw as CommandLike
+    if (command.isHidden) continue
+    const name = getCommandName(command)
+    const rawParts = name.split(/[:_-]/).filter(Boolean)
+    const nameParts = rawParts.length > 1 ? rawParts : []
+    const aliases = command.aliases ?? []
+    const descriptionWords = (command.description ?? '')
+      .split(/\s+/)
+      .map(word => word.toLowerCase().replace(/[^a-z0-9]/g, ''))
+      .filter(Boolean)
+    indexed.push({ command, name, nameParts, aliases, descriptionWords })
+  }
+  indexedFor = commands
+  fuseIndex = new Fuse(indexed, {
+    keys: [
+      { name: 'name', weight: 3 },
+      { name: 'nameParts', weight: 2 },
+      { name: 'aliases', weight: 2 },
+      { name: 'descriptionWords', weight: 0.5 },
+    ],
+    threshold: 0.3,
+    location: 0,
+    distance: 100,
+    includeScore: true,
+  })
+  return fuseIndex
+}
+
+function matchTier(entry: IndexedCommand, query: string): number {
+  const nameLower = entry.name.toLowerCase()
+  if (nameLower === query) return 0
+  if (entry.aliases.some(alias => alias.toLowerCase() === query)) return 1
+  if (nameLower.startsWith(query)) return 2
+  if (entry.nameParts.some(part => part.toLowerCase().startsWith(query))) return 3
+  if (entry.aliases.some(alias => alias.toLowerCase().startsWith(query))) return 4
+  return 5
+}
+
+function rankResults(
+  results: ReadonlyArray<{ item: IndexedCommand; score?: number }>,
+  query: string,
+): CommandLike[] {
+  return [...results]
+    .sort((a, b) => {
+      const tierDiff = matchTier(a.item, query) - matchTier(b.item, query)
+      if (tierDiff !== 0) return tierDiff
+      const scoreDiff = (a.score ?? 1) - (b.score ?? 1)
+      if (scoreDiff !== 0) return scoreDiff
+      return a.item.name.length - b.item.name.length || a.item.name.localeCompare(b.item.name)
+    })
+    .map(result => result.item.command)
+}
+
+function sortByName(commands: CommandLike[]): CommandLike[] {
+  return [...commands].sort((a, b) => getCommandName(a).localeCompare(getCommandName(b)))
+}
 
 export function generateCommandSuggestions(
   input: string,
   commands: Command[],
 ): CommandSuggestionItem[] {
-  return notBuilt('src/utils/suggestions/commandSuggestions.ts:209')
+  if (!isCommandInput(input) || hasCommandArgs(input)) return []
+  const query = input.slice(1).toLowerCase().trim()
+
+  if (query === '') {
+    const visible = (commands as CommandLike[]).filter(cmd => !cmd.isHidden)
+    const recentScored = visible
+      .map((cmd, index) => ({
+        cmd,
+        index,
+        score: cmd.type === 'prompt' ? getSkillUsageScore(getCommandName(cmd)) : 0,
+      }))
+      .filter(entry => entry.score > 0)
+      .sort((a, b) => b.score - a.score || a.index - b.index)
+      .slice(0, MAX_RECENTLY_USED)
+      .map(entry => entry.cmd)
+
+    const claimed = new Set<string>()
+    const ordered: CommandLike[] = []
+    const take = (group: CommandLike[]): void => {
+      for (const cmd of group) {
+        const id = suggestionIdentifier(cmd)
+        if (claimed.has(id)) continue
+        claimed.add(id)
+        ordered.push(cmd)
+      }
+    }
+
+    take(recentScored)
+    const remaining = (): CommandLike[] => visible.filter(cmd => !claimed.has(suggestionIdentifier(cmd)))
+    take(sortByName(remaining().filter(cmd => cmd.type !== 'prompt')))
+    take(sortByName(remaining().filter(cmd => cmd.type === 'prompt' && (cmd.source === 'userSettings' || cmd.source === 'localSettings'))))
+    take(sortByName(remaining().filter(cmd => cmd.type === 'prompt' && cmd.source === 'projectSettings')))
+    take(sortByName(remaining().filter(cmd => cmd.type === 'prompt' && cmd.source === 'policySettings')))
+    take(sortByName(remaining()))
+
+    return ordered.map(cmd => toSuggestionItem(cmd, ''))
+  }
+
+  const index = getCommandIndex(commands)
+  const ranked = rankResults(index.search(query), query)
+  const hasVisibleExact = ranked.some(cmd => getCommandName(cmd).toLowerCase() === query)
+  if (!hasVisibleExact) {
+    const shownIds = new Set(ranked.map(suggestionIdentifier))
+    const hiddenExact = (commands as CommandLike[]).find(
+      cmd => cmd.isHidden && getCommandName(cmd).toLowerCase() === query && !shownIds.has(suggestionIdentifier(cmd)),
+    )
+    if (hiddenExact !== undefined) {
+      ranked.unshift(hiddenExact)
+    }
+  }
+  return ranked.map(cmd => toSuggestionItem(cmd, query))
 }
 
 export function findMidInputSlashCommand(input: string, cursorOffset: number): MidInputSlashCommand | null {
@@ -115,7 +234,21 @@ export function getBestCommandMatch(
   partialCommand: string,
   commands: Command[],
 ): { suffix: string; fullCommand: string } | null {
-  return notBuilt('src/utils/suggestions/commandSuggestions.ts:249')
+  if (partialCommand === '') return null
+  const suggestions = generateCommandSuggestions(`/${partialCommand}`, commands)
+  const lowerPartial = partialCommand.toLowerCase()
+  for (const suggestion of suggestions) {
+    const cmd = suggestion.metadata as CommandLike | undefined
+    if (cmd === undefined || typeof cmd !== 'object' || typeof cmd.type !== 'string') continue
+    const fullCommand = getCommandName(cmd)
+    if (fullCommand.toLowerCase().startsWith(lowerPartial) && fullCommand.length > partialCommand.length) {
+      return {
+        suffix: fullCommand.slice(partialCommand.length),
+        fullCommand,
+      }
+    }
+  }
+  return null
 }
 
 export function isNameAnchoredSuggestion(input: string, suggestion: CommandSuggestionItem): boolean {
@@ -138,7 +271,26 @@ export function applyCommandSuggestion(
   setCursorOffset: (offset: number) => void,
   onSubmit: (value: string, isSubmittingSlashCommand?: boolean) => void,
 ): void {
-  return notBuilt('src/utils/suggestions/commandSuggestions.ts:278')
+  let command: CommandLike | undefined
+  if (typeof suggestion === 'string') {
+    command = (commands as CommandLike[]).find(cmd => getCommandName(cmd) === suggestion)
+  } else {
+    const meta = suggestion.metadata as CommandLike | undefined
+    if (meta !== undefined && typeof meta === 'object' && typeof meta.type === 'string') {
+      command = meta
+    }
+  }
+  if (command === undefined) return
+  const formatted = formatCommand(getCommandName(command))
+  onInputChange(formatted)
+  setCursorOffset(formatted.length)
+  if (!shouldExecute) return
+  const needsArgs =
+    (command.type === 'prompt' && command.argNames !== undefined && command.argNames.length > 0) ||
+    requiresArgument(command)
+  if (!needsArgs) {
+    onSubmit(formatted, true)
+  }
 }
 
 type ChannelTargetQuery = { kind: 'seat' | 'team'; start: number; query: string }
@@ -207,5 +359,11 @@ export function rankChannelTargets(query: string, candidates: readonly ChannelTa
 }
 
 export function findSlashCommandPositions(text: string): Array<{ start: number; end: number }> {
-  return notBuilt('src/utils/suggestions/commandSuggestions.ts:373')
+  const positions: Array<{ start: number; end: number }> = []
+  const regex = /(?<=^|\s)\/[A-Za-z][A-Za-z0-9:_-]*/g
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(text)) !== null) {
+    positions.push({ start: match.index, end: match.index + match[0].length })
+  }
+  return positions
 }
