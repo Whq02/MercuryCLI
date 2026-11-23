@@ -17,7 +17,6 @@ import type {
 } from '../../utils/mcp/types.js'
 import { getEnterpriseMcpFilePath, projectMcpFilePath } from './configPaths.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 type NamedTool = { name: string; mcpInfo?: { serverName?: string } }
@@ -42,14 +41,24 @@ export function excludeCommandsByServer<T extends NamedCommand>(
   commands: T[],
   serverName: string,
 ): T[] {
-  return notBuilt('src/services/mcp/utils.ts:48')
+  const mcpPrefix = getMcpPrefix(serverName)
+  const colonPrefix = `${normalizeNameForMCP(serverName)}:`
+  return commands.filter(
+    command => !command.name.startsWith(mcpPrefix) && !command.name.startsWith(colonPrefix),
+  )
 }
 
 export function excludeResourcesByServer(
   resources: Record<string, ServerResource[]>,
   serverName: string,
 ): Record<string, ServerResource[]> {
-  return notBuilt('src/services/mcp/utils.ts:55')
+  const result: Record<string, ServerResource[]> = {}
+  for (const [key, value] of Object.entries(resources)) {
+    if (key !== serverName) {
+      result[key] = value
+    }
+  }
+  return result
 }
 
 export function isMcpTool(tool: { name: string; isMcp?: boolean }): boolean {
@@ -71,7 +80,22 @@ function sortKeysDeep(value: unknown): unknown {
 }
 
 export function describeMcpConfigFilePath(scope: ConfigScope | string): string {
-  return notBuilt('src/services/mcp/utils.ts:81')
+  switch (scope) {
+    case 'user':
+      return getGlobalMercuryConfigPath()
+    case 'project':
+      return projectMcpFilePath(getCwd())
+    case 'local':
+      return `${getGlobalMercuryConfigPath()} [project: ${getProjectPathForConfig()}]`
+    case 'enterprise':
+      return getEnterpriseMcpFilePath()
+    case 'dynamic':
+      return 'supplied at process start'
+    case 'claudeai':
+      return 'the claude.ai web account'
+    default:
+      return String(scope)
+  }
 }
 
 function getGlobalMercuryConfigPath(): string {
@@ -79,7 +103,22 @@ function getGlobalMercuryConfigPath(): string {
 }
 
 export function getScopeLabel(scope: ConfigScope | string): string {
-  return notBuilt('src/services/mcp/utils.ts:104')
+  switch (scope) {
+    case 'user':
+      return 'User (available in all your projects)'
+    case 'project':
+      return 'Project (shared with collaborators via .mercury/mcp.json)'
+    case 'local':
+      return 'Local (visible only to you in this project)'
+    case 'enterprise':
+      return 'Enterprise (administered by your organization)'
+    case 'dynamic':
+      return 'Dynamic (provided on the command line)'
+    case 'claudeai':
+      return 'claude.ai (connected through your web account)'
+    default:
+      return String(scope)
+  }
 }
 
 const OPERATOR_CONFIG_SCOPES: readonly ConfigScope[] = ['local', 'user', 'project']
@@ -216,7 +255,20 @@ export function ensureTransport(type?: string): Transport {
 }
 
 export function parseHeaders(headerArray: string[]): Record<string, string> {
-  return notBuilt('src/services/mcp/utils.ts:256')
+  const headers: Record<string, string> = {}
+  for (const header of headerArray) {
+    const colonIndex = header.indexOf(':')
+    if (colonIndex === -1) {
+      throw new Error(`Invalid header format: "${header}". Expected "Header-Name: value"`)
+    }
+    const name = header.slice(0, colonIndex).trim()
+    if (name === '') {
+      throw new Error(`Invalid header format: "${header}". Header name cannot be empty`)
+    }
+    const value = header.slice(colonIndex + 1).trim()
+    headers[name] = value
+  }
+  return headers
 }
 
 
@@ -362,5 +414,18 @@ export function getProjectMcpServerStatus(
 export function getLoggingSafeMcpBaseUrl(
   config: McpServerConfig | ScopedMcpServerConfig,
 ): string | undefined {
-  return notBuilt('src/services/mcp/utils.ts:413')
+  const rawUrl = mcpConfigAsWritten(config).url
+  if (typeof rawUrl !== 'string') return undefined
+  let parsed: URL
+  try {
+    parsed = new URL(rawUrl)
+  } catch (error) {
+    passedOver(error)
+    return undefined
+  }
+  parsed.username = ''
+  parsed.password = ''
+  parsed.search = ''
+  parsed.hash = ''
+  return parsed.toString().replace(/\/$/, '')
 }
