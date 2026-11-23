@@ -1251,11 +1251,11 @@ async function tryQueuedGuidance(args: AsyncAgentLifecycleArgs): Promise<boolean
     const nextReplyTarget: 'parent' | 'operator' = pendingParent.length > 0 ? 'parent' : 'operator'
     const { resumeAgentBackground } = await import('./resumeAgent.js')
     const resumed = await resumeAgentBackground({ agentId: taskId, prompt: combined.join('\n\n'), toolUseContext, canUseTool, replyTarget: nextReplyTarget })
+    if (resumed.note) {
+      enqueueAgentReceiptRow({ taskId, description, summary: resumed.note.trimStart() })
+    }
     if (pendingParent.length > 0) drainPendingMessages(taskId, toolUseContext.getAppState, rootSetAppState, pendingParent.length)
     if (pendingOperator.length > 0) takeOperatorMessages(taskId, toolUseContext.getAppState, rootSetAppState, pendingOperator.length)
-    if (resumed.note && resumed.note.trim() !== '') {
-      enqueueAgentReceiptRow({ taskId, description, status: 'resumed', summary: resumed.note.replace(/^\s+/, '') })
-    }
     return nextReplyTarget === 'parent'
   } catch (error) {
     logForDebugging(`agent lifecycle: queued-guidance drain failed: ${errorMessage(error)}`)
