@@ -268,8 +268,8 @@ function useSelectorActions({
       if (!isUndo && target === null) return
       setError(null)
       setBusy(true)
-      onPreRestore()
       try {
+        onPreRestore()
         const receipt = await onRestore(
           isUndo ? undefined : (target ?? undefined),
           what,
@@ -278,8 +278,8 @@ function useSelectorActions({
         if (!mountedRef.current) return
         if (receipt.outcome === 'refused') {
           const detail =
-            receipt.detail ??
-            receipt.refusal ??
+            receipt.detail ||
+            receipt.refusal ||
             'the session refused the rewind'
           setBusy(false)
           setError(`Not restored — ${detail}`)
@@ -328,7 +328,7 @@ function useSelectorActions({
         forkOrdinal: idx + 1,
         boundaryKind: 'fork',
         cwd,
-        providerOrigin: providerOrigin ?? cwd,
+        providerOrigin: providerOrigin || cwd,
       })
       if (!mountedRef.current) return
       if (!result.ok) {
@@ -525,7 +525,7 @@ export function MessageSelector({
     },
     {
       context: 'MessageSelector',
-      isActive: claimed && phase === 'pick' && !busy && error === null,
+      isActive: claimed && phase === 'pick' && !busy && error === null && entries.length > 0,
     },
   )
 
