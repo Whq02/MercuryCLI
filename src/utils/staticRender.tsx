@@ -9,7 +9,6 @@ import { render, useApp } from '../ink.js'
 import { chromeModeLive } from '../hooks/useLayoutTier.js'
 import { railPlan } from './helmGeometry.js'
 import { startTimeout, stopTimeout } from './timers.js'
-import { notBuilt } from '../pi/holes.js'
 
 export function staticPrintColumns(): number {
   const cols = process.stdout.columns ?? 80
@@ -20,10 +19,78 @@ export function staticPrintColumns(): number {
   return cols
 }
 
+function createOffscreenStdout(columns?: number): NodeJS.WriteStream {
+  const stream = new PassThrough()
+  stream.resume()
+  const writable: NodeJS.WritableStream = Object.assign(stream, {
+    columns: columns ?? 80,
+    rows: 24,
+    isTTY: false,
+  })
+  return writable as NodeJS.WriteStream
+}
+
+function createOffscreenStdin(): NodeJS.ReadStream {
+  const emitter: EventEmitter = Object.assign(new EventEmitter(), {
+    isTTY: false,
+    isRaw: false,
+    setRawMode() {
+      return this
+    },
+    setEncoding() {
+      return this
+    },
+    read() {
+      return null
+    },
+    unref() {
+      return this
+    },
+    ref() {
+      return this
+    },
+    pause() {
+      return this
+    },
+    resume() {
+      return this
+    },
+  })
+  return emitter as NodeJS.ReadStream
+}
+
+function StaticRenderHost({ children }: { children: React.ReactNode }): React.ReactNode {
+  const { exit } = useApp()
+  useLayoutTimer(() => {
+    const timer = startTimeout(() => {
+      exit()
+    }, 0)
+    return () => {
+      stopTimeout(timer)
+    }
+  }, [exit])
+  return <>{children}</>
+}
+
 export async function renderToAnsiString(node: React.ReactNode, columns?: number): Promise<string> {
-  return notBuilt('src/utils/staticRender.tsx:38')
+  const stdout = createOffscreenStdout(columns)
+  const stderr = createOffscreenStdout(columns)
+  const stdin = createOffscreenStdin()
+  const instance = await render(<StaticRenderHost>{node}</StaticRenderHost>, {
+    stdout,
+    stderr,
+    stdin,
+    patchConsole: false,
+    exitOnCtrlC: false,
+  })
+  try {
+    await instance.waitUntilExit()
+    return instance.lastFrame()
+  } finally {
+    instance.cleanup()
+  }
 }
 
 export async function renderToString(node: React.ReactNode, columns?: number): Promise<string> {
-  return notBuilt('src/utils/staticRender.tsx:65')
+  return stripAnsi(await renderToAnsiString(node, columns))
 }
