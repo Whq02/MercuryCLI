@@ -12,7 +12,7 @@ import {
   describeComputedDefaultRow,
   isChooseAModel,
 } from './computedDefault.js'
-import { context1mNeedsUnsentHeader, modelSupports1M } from '../../utils/model/capabilities.js'
+import { context1mNeedsUnsentHeader, has1mContext } from '../../utils/model/capabilities.js'
 import { gptDisplayName } from '../../utils/model/pins/gptPins.js'
 import { isMistralModelId } from '../../utils/model/pins/mistralPins.js'
 import { getModelStrings } from '../../utils/model/modelStrings.js'
@@ -366,7 +366,7 @@ export function resolveSkillModelOverride(
     return skillModel
   }
   const resolved = parseUserSpecifiedModel(skillModel)
-  if (!modelSupports1M(resolved)) {
+  if (!has1mContext(resolved)) {
     return skillModel
   }
   return `${normalizeModelStringForAPI(skillModel)}[1m]`
