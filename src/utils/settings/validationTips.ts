@@ -80,7 +80,7 @@ export function getValidationTip(context: TipContext): ValidationTip | null {
 
   if (code === 'unrecognized_keys') {
     return {
-      suggestion: 'Check the field name spelling and remove any unsupported keys',
+      suggestion: 'Check for typos, or consult the settings documentation for the supported fields',
     }
   }
 
