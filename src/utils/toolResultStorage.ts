@@ -245,9 +245,6 @@ async function applySizePersistence(
   }) }
 }
 
-function isStorageId(id: unknown): id is string {
-  return typeof id === 'string' && id.length > 0 && id !== '.' && id !== '..' && !/[/\\\0]/.test(id)
-}
 export async function processToolResultBlock<T>(
   tool: Tool,
   toolUseResult: T,
@@ -255,7 +252,6 @@ export async function processToolResultBlock<T>(
   model?: string,
 ): Promise<ToolResultBlockParam> {
   const block = tool.mapToolResultToToolResultBlockParam(toolUseResult, toolUseID)
-  if (!isStorageId(toolUseID) || !isStorageId(block.tool_use_id)) return block
   const threshold = getPersistenceThreshold(tool.maxResultSizeChars ?? DEFAULT_MAX_RESULT_SIZE_CHARS, model)
   return applySizePersistence(block, tool.name, threshold)
 }
@@ -267,7 +263,6 @@ export async function processPreMappedToolResultBlock(
   room?: ResultRoomShare,
   model?: string,
 ): Promise<ToolResultBlockParam> {
-  if (!isStorageId(block.tool_use_id)) return block
   return applySizePersistence(block, toolName, getPersistenceThreshold(maxResultSizeChars, model), room)
 }
 
@@ -285,7 +280,7 @@ function candidatesOf(row: Message): BudgetCandidate[] {
   if (row.type !== 'user' || !Array.isArray(row.message.content)) return []
   const candidates: BudgetCandidate[] = []
   for (const block of row.message.content) {
-    if (block.type !== 'tool_result' || !isStorageId(block.tool_use_id)) continue
+    if (block.type !== 'tool_result' || typeof block.tool_use_id !== 'string') continue
     const content = block.content
     if (content == null || hasImageBlock(content)) continue
     if (typeof content === 'string' && content.startsWith(TOOL_RESULT_CLEARED_MESSAGE)) continue
