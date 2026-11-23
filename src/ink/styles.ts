@@ -1,6 +1,5 @@
 import type { BorderStyle } from './render-border.js'
 import { LayoutAlign, LayoutDisplay, LayoutEdge, LayoutFlexDirection, LayoutGutter, LayoutJustify, LayoutOverflow, LayoutPositionType, LayoutWrap, type LayoutNode } from './layout/node.js'
-import type { Unbuilt } from '../pi/holes.js'
 
 type RGBColor = `rgb(${string})`
 type Hash = '#'
@@ -14,7 +13,89 @@ export type TextStyles = { color?: Color; backgroundColor?: Color
   underline?: boolean; strikethrough?: boolean; inverse?: boolean
 }
 
-export type Styles = Unbuilt
+export type Styles = {
+  readonly textWrap?:
+    | 'wrap'
+    | 'wrap-trim'
+    | 'end'
+    | 'middle'
+    | 'truncate-end'
+    | 'truncate'
+    | 'truncate-middle'
+    | 'truncate-start'
+  readonly position?: 'absolute' | 'relative'
+  readonly top?: number | string
+  readonly bottom?: number | string
+  readonly left?: number | string
+  readonly right?: number | string
+  readonly gap?: number
+  readonly columnGap?: number
+  readonly rowGap?: number
+  readonly margin?: number
+  readonly marginX?: number
+  readonly marginY?: number
+  readonly marginTop?: number
+  readonly marginBottom?: number
+  readonly marginLeft?: number
+  readonly marginRight?: number
+  readonly padding?: number
+  readonly paddingX?: number
+  readonly paddingY?: number
+  readonly paddingTop?: number
+  readonly paddingBottom?: number
+  readonly paddingLeft?: number
+  readonly paddingRight?: number
+  readonly flexGrow?: number
+  readonly flexShrink?: number
+  readonly flexDirection?: 'row' | 'column' | 'row-reverse' | 'column-reverse'
+  readonly flexBasis?: number | string
+  readonly flexWrap?: 'nowrap' | 'wrap' | 'wrap-reverse'
+  readonly alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch'
+  readonly alignSelf?: 'flex-start' | 'center' | 'flex-end' | 'auto'
+  readonly justifyContent?:
+    | 'flex-start'
+    | 'flex-end'
+    | 'space-between'
+    | 'space-around'
+    | 'space-evenly'
+    | 'center'
+  readonly width?: number | string
+  readonly height?: number | string
+  readonly minWidth?: number | string
+  readonly minHeight?: number | string
+  readonly maxWidth?: number | string
+  readonly maxHeight?: number | string
+  readonly display?: 'flex' | 'none'
+  readonly borderStyle?: BorderStyle
+  readonly borderTop?: boolean
+  readonly borderBottom?: boolean
+  readonly borderLeft?: boolean
+  readonly borderRight?: boolean
+  readonly borderColor?: Color
+  readonly borderTopColor?: Color
+  readonly borderBottomColor?: Color
+  readonly borderLeftColor?: Color
+  readonly borderRightColor?: Color
+  readonly borderDimColor?: boolean
+  readonly borderTopDimColor?: boolean
+  readonly borderBottomDimColor?: boolean
+  readonly borderLeftDimColor?: boolean
+  readonly borderRightDimColor?: boolean
+  readonly borderText?: {
+    readonly content: string
+    readonly position: 'top' | 'bottom'
+    readonly align: 'start' | 'end' | 'center'
+    readonly offset?: number
+  }
+  readonly borderRowBg?: (row: number) => string | undefined
+  readonly backgroundColor?: Color
+  readonly fillRowBg?: (row: number) => string | undefined
+  readonly opaque?: boolean
+  readonly overflow?: 'visible' | 'hidden' | 'scroll'
+  readonly overflowX?: 'visible' | 'hidden' | 'scroll'
+  readonly overflowY?: 'visible' | 'hidden' | 'scroll'
+  readonly noSelect?: boolean | 'from-left-edge'
+}
 
 type ExtentKey = 'width' | 'height' | 'minWidth' | 'minHeight' | 'maxWidth' | 'maxHeight'
 type Measure = number | string
