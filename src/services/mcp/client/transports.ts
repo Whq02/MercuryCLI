@@ -20,7 +20,7 @@ import { connectTimeoutMs, mcpStdioMaxMessageBytes } from './limits.js'
 import { type FetchLike, wrapFetchWithTimeout, loggedHeadersOf, createAnthropicProxyFetch } from './fetch.js'
 import { OwnedStdioClientTransport } from './protocolClient.js'
 import { createWsTransport } from './wsTransport.js'
-import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
+import { endProcessTree, endProcessTreeSurvivors } from '../../../utils/processGroup.js'
 
 export type RemoteConfig = ScopedMcpServerConfig & { url?: string; headers?: Record<string, string> }
 
@@ -63,25 +63,127 @@ export function buildStdioTransport(name: string, serverRef: ScopedMcpServerConf
 }
 
 export async function sseTransportFor(name: string, config: RemoteConfig, provider: MercuryMcpAuthProvider): Promise<Transport> {
-  return notBuilt('src/services/mcp/client/transports.ts:64')
+  const serverHeaders = await getMcpServerHeaders(name, config)
+  const apiFetch = getApiFetch() as FetchLike
+  const wrappedFetch = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(apiFetch, provider))
+  const headers: Record<string, string> = { 'User-Agent': getMCPUserAgent(), ...serverHeaders }
+  const proxyOptions = getProxyFetchOptions()
+  const eventSourceFetch = async (input: string | URL, init?: RequestInit): Promise<Response> => {
+    const tokens = await provider.tokens()
+    const mergedHeaders = new Headers(init?.headers)
+    mergedHeaders.set('User-Agent', getMCPUserAgent())
+    if (tokens?.access_token) {
+      mergedHeaders.set('Authorization', `Bearer ${tokens.access_token}`)
+    }
+    for (const [key, value] of Object.entries(serverHeaders)) {
+      mergedHeaders.set(key, value)
+    }
+    mergedHeaders.set('Accept', 'text/event-stream')
+    return apiFetch(input, { ...init, headers: mergedHeaders, ...proxyOptions } as RequestInit)
+  }
+  return new SSEClientTransport(new URL(config.url!), {
+    authProvider: provider,
+    fetch: wrappedFetch,
+    requestInit: { headers, ...proxyOptions } as RequestInit,
+    eventSourceInit: { fetch: eventSourceFetch },
+  })
 }
 
 export async function wsTransportFor(name: string, config: RemoteConfig): Promise<Transport> {
-  return notBuilt('src/services/mcp/client/transports.ts:85')
+  const serverHeaders = await getMcpServerHeaders(name, config)
+  const headers: Record<string, string> = { 'User-Agent': getMCPUserAgent(), ...serverHeaders }
+  logMCPDebug(
+    name,
+    `WebSocket connection options: ${JSON.stringify({
+      headers: loggedHeadersOf(headers),
+      hasTLS: Boolean(getWebSocketTLSOptions()),
+      hasProxy: Boolean(getProxyUrl()),
+    })}`,
+  )
+  return createWsTransport(config.url!, headers)
 }
 
 export async function httpTransportFor(name: string, config: RemoteConfig, provider: MercuryMcpAuthProvider): Promise<Transport> {
-  return notBuilt('src/services/mcp/client/transports.ts:92')
+  const serverHeaders = await getMcpServerHeaders(name, config)
+  const apiFetch = getApiFetch() as FetchLike
+  const wrappedFetch = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(apiFetch, provider))
+  const headers: Record<string, string> = { 'User-Agent': getMCPUserAgent(), ...serverHeaders }
+  const proxyOptions = getProxyFetchOptions()
+  const runtime = typeof (globalThis as { Bun?: unknown }).Bun !== 'undefined' ? 'bun' : 'node'
+  const proxyUrl = getProxyUrl()
+  const safeProxy = proxyUrl
+    ? (getLoggingSafeMcpBaseUrl({ type: 'http', url: proxyUrl, scope: 'dynamic' }) ?? '[redacted]')
+    : 'none'
+  logMCPDebug(name, `runtime ${runtime}, proxy ${safeProxy}`)
+  logMCPDebug(
+    name,
+    `HTTP request options: ${JSON.stringify({
+      headers: loggedHeadersOf(headers),
+      hasTLS: Boolean(proxyOptions.tls),
+      hasProxy: Boolean(proxyUrl),
+    })}`,
+  )
+  await provider.tokens()
+  return new StreamableHTTPClientTransport(new URL(config.url!), {
+    authProvider: provider,
+    fetch: wrappedFetch,
+    requestInit: { headers, ...proxyOptions } as RequestInit,
+  })
 }
 
 export function proxyTransportFor(name: string, config: RemoteConfig): Transport {
-  return notBuilt('src/services/mcp/client/transports.ts:107')
+  const accessToken = getClaudeAIOAuthTokens()?.accessToken
+  if (!accessToken) {
+    throw new Error(`claude.ai proxy server ${name} requires a claude.ai OAuth token`)
+  }
+  const oauth = getOauthConfig() as { MCP_PROXY_URL?: string; MCP_PROXY_PATH?: string; BASE_API_URL?: string }
+  const serverId = (config as { id?: string }).id ?? ''
+  const baseUrl = (oauth.MCP_PROXY_URL ?? oauth.BASE_API_URL ?? '').replace(/\/+$/, '')
+  const rawPath = (oauth.MCP_PROXY_PATH ?? '/v1/mcp/{server_id}').replace('{server_id}', serverId)
+  const path = rawPath.startsWith('/') ? rawPath : `/${rawPath}`
+  const wrappedFetch = wrapFetchWithTimeout(createAnthropicProxyFetch(getApiFetch() as FetchLike))
+  const headers: Record<string, string> = {
+    'User-Agent': getMCPUserAgent(),
+    'X-Mcp-Client-Session-Id': getSessionId(),
+  }
+  return new StreamableHTTPClientTransport(new URL(`${baseUrl}${path}`), {
+    fetch: wrappedFetch,
+    requestInit: { headers, ...getProxyFetchOptions() } as RequestInit,
+  })
 }
 
-export async function inProcessTransportFor(): Promise<Unbuilt> {
-  return notBuilt('src/services/mcp/client/transports.ts:118')
+export async function inProcessTransportFor(): Promise<{
+  server: { connect: (transport: Transport) => Promise<void>; close: () => Promise<void> }
+  clientSide: Transport
+}> {
+  const [{ createMercuryServer }, { createLinkedTransportPair }] = await Promise.all([
+    import('../mercuryServer.js'),
+    import('../InProcessTransport.js'),
+  ])
+  const server = await createMercuryServer()
+  const [clientSide, serverSide] = createLinkedTransportPair()
+  await server.connect(serverSide)
+  return { server, clientSide }
 }
 
 export async function endStdioTree(name: string, stdioTransport: StdioClientTransport | null): Promise<void> {
-  return notBuilt('src/services/mcp/client/transports.ts:129')
+  const pid = stdioTransport?.pid
+  if (!pid) return
+  try {
+    const first = await endProcessTree(pid, 'SIGINT')
+    let ended = first.ended
+    let survivors = first.survivors
+    if (survivors.length > 0) {
+      const second = await endProcessTreeSurvivors(pid, survivors, 'SIGKILL')
+      ended += second.ended
+      survivors = second.survivors
+    }
+    if (survivors.length > 0) {
+      logMCPDebug(name, `process tree still present after kill (${survivors.length} pid(s) unconfirmed)`)
+    } else {
+      logMCPDebug(name, `process tree exited (${ended} process(es) ended)`)
+    }
+  } catch (err) {
+    logMCPError(name, err)
+  }
 }
