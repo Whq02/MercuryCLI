@@ -15,13 +15,12 @@ import { calculateUSDCost } from './usage/modelCost.js'
 import { jsonParse, jsonStringify } from '../utils/slowOperations.js'
 import { passedOver } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 
 type VcrMessage = AssistantMessage | BetaRawMessageStreamEvent | Message | StreamEvent
 
 function isTestEnvironment(): boolean {
-  return notBuilt('src/services/vcr.ts:22')
+  return hostEnv().NODE_ENV === 'test'
 }
 
 function fixturesRoot(): string {
@@ -109,8 +108,35 @@ function recordsFixtures(): boolean {
   return flagEnv('MERCURY_VCR_RECORD') === '1'
 }
 
-
-type LooseBlock = Unbuilt
+async function withFixture<T>(
+  name: string,
+  input: unknown,
+  produce: () => Promise<T>,
+): Promise<T> {
+  const hash = createHash('sha1')
+    .update(jsonStringify(input) ?? '')
+    .digest('hex')
+    .slice(0, 12)
+  const path = fixturePath(`${name}-${hash}`)
+  try {
+    const raw = readFileSync(path, 'utf8')
+    return jsonParse(raw) as T
+  } catch (err) {
+    if ((err as { code?: string }).code !== 'ENOENT') throw err
+  }
+  if (isCiEnvironment()) {
+    throw new Error(
+      `Missing VCR fixture ${path}. this build does not record fixtures.`,
+    )
+  }
+  const result = await produce()
+  if (recordsFixtures()) {
+    mkdirSync(dirname(path), { recursive: true })
+    writeFileSync(path, jsonStringify(result, null, 2))
+  }
+  return result
+}
+type LooseBlock = Record<string, unknown>
 
 function mapInputContent(content: unknown): unknown {
   if (typeof content === 'string') return dehydrateString(content)
@@ -147,7 +173,17 @@ function mapInputContent(content: unknown): unknown {
 }
 
 function fixtureNameFor(messages: Message[]): string {
-  return notBuilt('src/services/vcr.ts:169')
+  const visible = messages.filter(message => !(message.type === 'user' && message.isMeta))
+  const normalized = normalizeMessagesForAPI(visible)
+  return normalized
+    .map(message => {
+      const mapped = mapInputContent(message.message.content)
+      return createHash('sha1')
+        .update(jsonStringify(mapped) ?? '')
+        .digest('hex')
+        .slice(0, 6)
+    })
+    .join('-')
 }
 
 const REQUEST_ID_PLACEHOLDER = '[REQUEST_ID]'
@@ -232,7 +268,38 @@ export async function* withStreamingVCR<T extends VcrMessage>(
   messages: Message[],
   produce: () => AsyncGenerator<T>,
 ): AsyncGenerator<T> {
-  return notBuilt('src/services/vcr.ts:260')
+  if (!isTestEnvironment()) {
+    yield* produce()
+    return
+  }
+  const collected: T[] = []
+  const cached = await withVCR(messages, async () => {
+    for await (const event of produce()) {
+      collected.push(event)
+    }
+    return collected
+  })
+  const toYield = cached.length > 0 ? cached : collected
+  for (const event of toYield) {
+    yield event
+  }
+}
+
+function normalizeTokenCountInput(text: string): string {
+  let out = dehydrateString(text)
+  const cwdSlug = getCwd().replace(/[^a-zA-Z0-9]/g, '-')
+  if (cwdSlug) {
+    out = out.replace(new RegExp(escapeForRegExp(cwdSlug), 'g'), '[CWD_SLUG]')
+  }
+  out = out.replace(
+    /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
+    '[UUID]',
+  )
+  out = out.replace(
+    /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/g,
+    '[TIMESTAMP]',
+  )
+  return out
 }
 
 export async function withTokenCountVCR(
@@ -241,5 +308,12 @@ export async function withTokenCountVCR(
   system: readonly unknown[] | undefined,
   produce: () => Promise<number | null>,
 ): Promise<number | null> {
-  return notBuilt('src/services/vcr.ts:290')
+  if (!isTestEnvironment()) return produce()
+  const payload = system !== undefined ? { messages, tools, system } : { messages, tools }
+  const serialized = jsonStringify(payload) ?? ''
+  const normalized = normalizeTokenCountInput(serialized)
+  const result = await withFixture('token-count', normalized, async () => ({
+    count: await produce(),
+  }))
+  return result.count
 }
