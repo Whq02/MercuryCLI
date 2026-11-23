@@ -4,7 +4,6 @@ import { join } from 'path'
 import { flagEnv } from './substrate/flagRegistry.js'
 import { getProjectRoot, getSessionId } from './bootstrap/state.js'
 import { durableAtomicPublish } from './substrate/durablePublish.js'
-import { CHIP_PATTERN } from './utils/inputRange.js'
 import { registerCleanup } from './utils/cleanupRegistry.js'
 import type { HistoryEntry, PastedContent } from './utils/config.js'
 import { getMercuryHome, isEnvTruthy } from './utils/envUtils.js'
@@ -17,14 +16,26 @@ import {
 } from './utils/pasteStore.js'
 import { sleep } from './utils/sleep.js'
 import { passedOver } from './utils/passedOver.js'
-import { notBuilt, unbuilt, type Unbuilt } from './pi/holes.js'
 
 
-export type HistoryRecord = Unbuilt
+export type HistoryRecord = {
+  display: string
+  pastedContents: Record<number, StoredPaste>
+  timestamp: number
+  project: string
+  sessionId?: string
+}
 
-export type HistoryCorpus = readonly Unbuilt[]
+export type HistoryCorpus = readonly HistoryRecord[]
 
-type StoredPaste = Unbuilt
+type StoredPaste = {
+  id: number
+  type: 'text' | 'image'
+  content?: string
+  contentHash?: string
+  mediaType?: string
+  filename?: string
+}
 
 const INLINE_PASTE_MAX_CHARS = 1024
 const READ_WINDOW = 100
@@ -48,8 +59,9 @@ function historyDisabled(): boolean {
 
 let pendingEntries: HistoryRecord[] = []
 let lastAppended: HistoryRecord | null = null
-const retractedRecords: Set<string> = unbuilt('src/history.ts:64')
-let inFlightFlush: Promise<void> | null = unbuilt('src/history.ts:66')
+const retractedRecords: Set<string> = new Set()
+let inFlightFlush: Promise<void> | null = null
+let cleanupRegistered = false
 let retryFlushRunning = false
 let flushFailureStreak = 0
 let everFlushed = false
@@ -193,11 +205,43 @@ export function queuedCommandHistoryEntry(command: {
 }
 
 export function addToHistory(command: HistoryEntry | string): void {
-  return notBuilt('src/history.ts:209')
+  if (historyDisabled()) return
+  const display = typeof command === 'string' ? command : command.display
+  const pastedContents =
+    typeof command === 'string'
+      ? {}
+      : toStoredPastes(command.pastedContents ?? {})
+  const record: HistoryRecord = {
+    display,
+    pastedContents,
+    timestamp: Date.now(),
+    project: getProjectRoot(),
+    sessionId: getSessionId(),
+  }
+  pendingEntries.push(record)
+  lastAppended = record
+  if (!cleanupRegistered) {
+    cleanupRegistered = true
+    registerCleanup(async () => {
+      if (inFlightFlush) {
+        await inFlightFlush.catch(passedOver)
+      }
+      await flushOnce().catch(passedOver)
+    })
+  }
+  void flushWithRetries()
 }
 
 export function removeLastFromHistory(): void {
-  return notBuilt('src/history.ts:238')
+  const target = lastAppended
+  lastAppended = null
+  if (!target) return
+  const index = pendingEntries.indexOf(target)
+  if (index !== -1) {
+    pendingEntries.splice(index, 1)
+    return
+  }
+  retractedRecords.add(recordKey(target))
 }
 
 function recordKey(record: HistoryRecord): string {
@@ -259,11 +303,45 @@ async function compactHistoryIfOversized(): Promise<void> {
 }
 
 async function resolveRecord(record: HistoryRecord): Promise<HistoryEntry> {
-  return notBuilt('src/history.ts:308')
+  const pastedContents: Record<number, PastedContent> = {}
+  for (const [key, paste] of Object.entries(record.pastedContents ?? {})) {
+    const id = Number(key)
+    if (paste.content) {
+      pastedContents[id] = {
+        id: paste.id,
+        type: paste.type,
+        content: paste.content,
+        ...(paste.mediaType !== undefined ? { mediaType: paste.mediaType } : {}),
+        ...(paste.filename !== undefined ? { filename: paste.filename } : {}),
+      }
+      continue
+    }
+    if (paste.contentHash) {
+      const content = await retrievePastedText(paste.contentHash)
+      if (content === null) continue
+      pastedContents[id] = {
+        id: paste.id,
+        type: paste.type,
+        content,
+        contentHash: paste.contentHash,
+        ...(paste.mediaType !== undefined ? { mediaType: paste.mediaType } : {}),
+        ...(paste.filename !== undefined ? { filename: paste.filename } : {}),
+      }
+    }
+  }
+  return { display: record.display, pastedContents }
 }
 
 export async function loadHistoryCorpus(): Promise<HistoryCorpus> {
-  return notBuilt('src/history.ts:338')
+  const records: HistoryRecord[] = []
+  for (let i = pendingEntries.length - 1; i >= 0; i--) {
+    records.push(pendingEntries[i]!)
+  }
+  for await (const record of diskRecordsReversed()) {
+    if (isRetracted(record)) continue
+    records.push(record)
+  }
+  return records
 }
 
 export async function* makeHistoryReaderOver(corpus: HistoryCorpus): AsyncGenerator<HistoryEntry> {
@@ -300,28 +378,48 @@ export async function* getHistory(): AsyncGenerator<HistoryEntry> {
 
 
 export function getPastedTextRefNumLines(text: string): number {
-  return notBuilt('src/history.ts:381')
+  const matches = text.match(/\r\n|\r|\n/g)
+  return matches ? matches.length : 0
 }
 
 export function formatPastedTextRef(id: number, numLines: number): string {
-  return notBuilt('src/history.ts:385')
+  return numLines > 0
+    ? `[Pasted text #${id} +${numLines} lines]`
+    : `[Pasted text #${id}]`
 }
 
 export function formatImageRef(id: number): string {
-  return notBuilt('src/history.ts:391')
+  return `[Image #${id}]`
 }
 
 export function parseReferences(
   input: string,
 ): Array<{ id: number; match: string; index: number }> {
-  return notBuilt('src/history.ts:400')
+  const results: Array<{ id: number; match: string; index: number }> = []
+  const pattern =
+    /\[(?:\.\.\.)?(?:Pasted text|Image|Truncated text) #(\d+)(?: \+\d+ lines)?\.*\]/g
+  for (const m of input.matchAll(pattern)) {
+    const id = Number(m[1])
+    if (id > 0) {
+      results.push({ id, match: m[0], index: m.index })
+    }
+  }
+  return results
 }
 
 export function danglingReferences(
   input: string,
   pastedContents: Record<number, PastedContent>,
 ): Array<{ id: number; match: string; index: number }> {
-  return notBuilt('src/history.ts:412')
+  const dangling: Array<{ id: number; match: string; index: number }> = []
+  for (const ref of parseReferences(input)) {
+    const paste = pastedContents[ref.id]
+    const expectedType = ref.match.startsWith('[Image') ? 'image' : 'text'
+    if (!paste || paste.type !== expectedType) {
+      dangling.push(ref)
+    }
+  }
+  return dangling
 }
 
 export function pasteUnavailableLine(reference: string): string {
@@ -348,12 +446,49 @@ export async function resolvePastedContents(
 }
 
 export async function historyPasteHashes(): Promise<Set<string>> {
-  return notBuilt('src/history.ts:446')
+  const hashes = new Set<string>()
+  const collect = (record: HistoryRecord): void => {
+    for (const paste of Object.values(record.pastedContents ?? {})) {
+      if (paste.contentHash) {
+        hashes.add(paste.contentHash)
+      }
+    }
+  }
+  for (const record of pendingEntries) {
+    collect(record)
+  }
+  for await (const record of diskRecordsReversed()) {
+    collect(record)
+  }
+  return hashes
 }
 
 export function expandPastedTextRefs(
   input: string,
   pastedContents: Record<number, PastedContent>,
 ): string {
-  return notBuilt('src/history.ts:457')
+  const refs = parseReferences(input)
+  if (refs.length === 0) return input
+  let out = ''
+  let cursor = 0
+  for (const ref of refs) {
+    out += input.slice(cursor, ref.index)
+    cursor = ref.index + ref.match.length
+    if (ref.match.startsWith('[Image')) {
+      out += ref.match
+      continue
+    }
+    const paste = pastedContents[ref.id]
+    if (
+      !paste ||
+      paste.type !== 'text' ||
+      (paste.content === '' && paste.contentHash !== undefined)
+    ) {
+      out += ref.match
+      continue
+    }
+    out += paste.content
+  }
+  out += input.slice(cursor)
+  return out
 }
