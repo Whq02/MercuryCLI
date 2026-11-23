@@ -72,16 +72,27 @@ function replay(change: RecordedChange, ctx: TransitionContext): void {
 
 export function useVimInput(props: UseVimInputProps): VimInputState {
   const { onModeChange, onUndo, initialMode, inputFilter, ...textInputProps } = props
-  const base: TextInputState = useTextInput(textInputProps)
-
-  const [mode, setModeState] = useState<VimMode>(initialMode ?? 'INSERT')
-  const modeRef = useRef<VimMode>(mode)
-  const prevInitialModeRef = useRef<VimMode | undefined>(initialMode)
+  const [mode, setModeState] = useState<VimMode>('INSERT')
+  const modeRef = useRef<VimMode>('INSERT')
+  const pendingFollowRef = useRef<VimMode | undefined>(undefined)
   const onModeChangeRef = useRef(onModeChange)
   onModeChangeRef.current = onModeChange
-
   const commandStateRef = useRef<CommandState>({ type: 'idle' })
   const insertedTextRef = useRef<string>('')
+
+  if (initialMode !== undefined && initialMode !== modeRef.current) {
+    if (initialMode === 'INSERT') {
+      insertedTextRef.current = ''
+    } else {
+      commandStateRef.current = { type: 'idle' }
+    }
+    modeRef.current = initialMode
+    pendingFollowRef.current = initialMode
+    setModeState(initialMode)
+  }
+
+  const base: TextInputState = useTextInput(textInputProps)
+
   const replayingRef = useRef<boolean>(false)
   const persistent: PersistentState = getSessionVimPersistentState()
 
@@ -93,20 +104,11 @@ export function useVimInput(props: UseVimInputProps): VimInputState {
   }
 
   usePublish(() => {
-    const prev = prevInitialModeRef.current
-    prevInitialModeRef.current = initialMode
-    if (initialMode === undefined || initialMode === prev) return
-    if (initialMode === 'INSERT') {
-      insertedTextRef.current = ''
-    } else {
-      commandStateRef.current = { type: 'idle' }
-    }
-    if (initialMode !== modeRef.current) {
-      modeRef.current = initialMode
-      setModeState(initialMode)
-      onModeChangeRef.current?.(initialMode)
-    }
-  }, [initialMode])
+    const followed = pendingFollowRef.current
+    if (followed === undefined) return
+    pendingFollowRef.current = undefined
+    onModeChangeRef.current?.(followed)
+  }, [mode])
 
   const recordChange = (change: RecordedChange): void => {
     if (replayingRef.current) return
