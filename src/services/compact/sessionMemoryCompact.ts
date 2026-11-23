@@ -33,15 +33,21 @@ import {
 import type { ToolUseContext } from '../../Tool.js'
 import { estimateContextTokens, estimateMessageTokens } from './microCompact.js'
 import { getCompactUserSummaryMessage } from './prompt.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-type SessionMemoryCompactConfig = Unbuilt
+type SessionMemoryCompactConfig = {
+  minTokensToPreserve: number
+  minTextBlockMessages: number
+  maxTokensToPreserve: number
+}
 
-const DEFAULT_SM_COMPACT_CONFIG: SessionMemoryCompactConfig = unbuilt('src/services/compact/sessionMemoryCompact.ts:44')
+const DEFAULT_SM_COMPACT_CONFIG: SessionMemoryCompactConfig = {
+  minTokensToPreserve: 10_000,
+  minTextBlockMessages: 5,
+  maxTokensToPreserve: 40_000,
+}
 
 let config: SessionMemoryCompactConfig = { ...DEFAULT_SM_COMPACT_CONFIG }
-
 export function shouldUseSessionMemoryCompaction(): boolean {
   return isEnvTruthy(flagEnv('MERCURY_SM_COMPACT'))
 }
@@ -121,7 +127,34 @@ function adjustIndexToPreserveAPIInvariants(messages: Message[], startIndex: num
   }
   return index
 }
+function calculateMessagesToKeepIndex(messages: Message[], lastSummarizedIndex: number): number {
+  if (messages.length === 0) return 0
+  let startIndex = lastSummarizedIndex >= 0 ? Math.min(lastSummarizedIndex + 1, messages.length) : messages.length
 
+  let tokens = 0
+  let textMessages = 0
+  for (let i = startIndex; i < messages.length; i++) {
+    const message = messages[i]!
+    tokens += estimateMessageTokens([message])
+    if (hasTextBlocks(message)) textMessages++
+  }
+
+  const lastBoundary = findLastCompactBoundaryIndex(messages)
+  const minIndex = lastBoundary >= 0 ? lastBoundary + 1 : 0
+
+  while (
+    startIndex > minIndex &&
+    tokens < config.maxTokensToPreserve &&
+    !(tokens >= config.minTokensToPreserve && textMessages >= config.minTextBlockMessages)
+  ) {
+    startIndex--
+    const message = messages[startIndex]!
+    tokens += estimateMessageTokens([message])
+    if (hasTextBlocks(message)) textMessages++
+  }
+
+  return adjustIndexToPreserveAPIInvariants(messages, startIndex)
+}
 
 export async function trySessionMemoryCompaction(
   messages: Message[],
@@ -130,5 +163,136 @@ export async function trySessionMemoryCompaction(
   rosterContext?: Pick<ToolUseContext, 'getAppState' | 'agentId' | 'options'>,
   trigger?: 'auto' | 'manual',
 ): Promise<CompactionResult | null> {
-  return notBuilt('src/services/compact/sessionMemoryCompact.ts:164')
+  void agentId
+  if (!shouldUseSessionMemoryCompaction()) return null
+
+  try {
+    await waitForSessionMemoryExtraction()
+    const sessionMemory = await getSessionMemoryContent()
+    if (sessionMemory === null || (await isSessionMemoryEmpty(sessionMemory))) {
+      return null
+    }
+
+    const lastSummarizedId = getLastSummarizedMessageId()
+    let lastSummarizedIndex: number
+    if (lastSummarizedId !== undefined) {
+      lastSummarizedIndex = messages.findIndex(message => message.uuid === lastSummarizedId)
+      if (lastSummarizedIndex === -1) return null
+    } else {
+      lastSummarizedIndex = messages.length - 1
+    }
+
+    const keepIndex = calculateMessagesToKeepIndex(messages, lastSummarizedIndex)
+    const messagesToKeep = messages.slice(keepIndex).filter(message => !isCompactBoundaryMessage(message))
+
+    const effectiveTrigger: 'auto' | 'manual' = trigger ?? 'auto'
+    const preCompactTokenCount = tokenCountFromLastAPIResponse(messages)
+    const lastMessageUuid = messages.at(-1)?.uuid
+    const boundaryMarker = createCompactBoundaryMessage(
+      effectiveTrigger,
+      preCompactTokenCount,
+      lastMessageUuid,
+    )
+
+    const discoveredTools = [...extractDiscoveredToolNames(messages)].sort()
+    if (discoveredTools.length > 0) {
+      boundaryMarker.compactMetadata.preCompactDiscoveredTools = discoveredTools
+    }
+
+    const { truncatedContent, wasTruncated } = truncateSessionMemoryForCompact(sessionMemory)
+    let summaryText = getCompactUserSummaryMessage(
+      truncatedContent,
+      true,
+      getTranscriptPath(),
+      messagesToKeep.length > 0,
+    )
+    if (wasTruncated) {
+      summaryText += `\n\nThe session memory was truncated for compaction; the full text is on disk at ${getSessionMemoryPath()}.`
+    }
+
+    const summaryMessage = createUserMessage({
+      content: summaryText,
+      isCompactSummary: true,
+      isVisibleInTranscriptOnly: true,
+    })
+    const summaryMessages: UserMessage[] = [summaryMessage]
+
+    const attachments = rosterContext
+      ? await createAsyncAgentAttachmentsIfNeeded(rosterContext as ToolUseContext)
+      : []
+
+    const annotatedBoundary = annotateBoundaryWithPreservedSegment(
+      boundaryMarker,
+      summaryMessage.uuid,
+      messagesToKeep,
+    )
+    annotateBoundaryWithWork(annotatedBoundary, messages, messagesToKeep, summaryMessage.uuid)
+
+    const model = rosterContext?.options.engineModel
+    const summaryTokens = estimateMessageTokens(summaryMessages)
+    const proposedBeforeHooks: Message[] = [
+      annotatedBoundary,
+      ...summaryMessages,
+      ...messagesToKeep,
+      ...attachments,
+    ]
+    const preHookEstimate = estimateContextTokens(proposedBeforeHooks, model)
+    if (autoCompactThreshold !== undefined && preHookEstimate >= autoCompactThreshold) {
+      return null
+    }
+
+    const afterHook = await fireHooks(
+      'compaction.after',
+      {
+        method: 'notes',
+        trigger: effectiveTrigger,
+        tokens_before: preCompactTokenCount,
+        tokens_after: preHookEstimate,
+      },
+      {
+        scope: {
+          sessionId: getSessionId(),
+          ...(rosterContext?.agentId !== undefined ? { crewmateId: rosterContext.agentId } : {}),
+        },
+      },
+    )
+    const hookResults: Message[] = [
+      ...hookRowsOfResult(afterHook).map(row => createAttachmentMessage(row)),
+      ...afterHook.answer.contexts.map(text => createUserMessage({ content: text, isMeta: true })),
+    ]
+
+    const result: CompactionResult = {
+      boundaryMarker: annotatedBoundary,
+      summaryMessages,
+      messagesToKeep,
+      attachments,
+      hookResults,
+      preCompactTokenCount,
+      postCompactTokenCount: summaryTokens,
+      truePostCompactTokenCount: preHookEstimate,
+      compactionUsage: undefined,
+    }
+
+    const finalEstimate = estimateContextTokens(buildPostCompactMessages(result), model)
+    if (autoCompactThreshold !== undefined && finalEstimate >= autoCompactThreshold) {
+      return null
+    }
+    result.postCompactTokenCount = finalEstimate
+    result.truePostCompactTokenCount = finalEstimate
+
+    if (effectiveTrigger === 'manual') {
+      const sizes = foldSizes(messages, model, preCompactTokenCount, rows => estimateContextTokens(rows, model))
+      if (finalEstimate >= sizes.before) {
+        return null
+      }
+      if (preCompactTokenCount > 0) {
+        result.truePostCompactTokenCount = sizes.after(finalEstimate).tokens
+      }
+    }
+
+    return result
+  } catch (error) {
+    logForDebugging(`sessionMemoryCompact: attempt failed: ${String(error)}`)
+    return null
+  }
 }
