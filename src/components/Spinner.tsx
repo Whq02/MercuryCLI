@@ -283,7 +283,7 @@ export function SpinnerWithVerb({
       elapsedMs > LONG_TURN_TIP_MS && !tipsDisabled ? LONG_TURN_TIP : spinnerTip
     if (effectiveTip) {
       tail = (
-        <Text dimColor wrap="truncate-end">
+        <Text dimColor wrap="wrap">
           {effectiveTip}
         </Text>
       )
