@@ -19,7 +19,11 @@ export const MAX_SANITIZED_LENGTH = 200
 export const SKIP_PRECOMPACT_THRESHOLD = 5 * 1024 * 1024
 
 export function validateUuid(maybeUuid: unknown): UUID | null {
-  return typeof maybeUuid === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(maybeUuid) ? maybeUuid as UUID : null
+  if (typeof maybeUuid !== 'string') return null
+  const match = /^([0-9a-f]{8})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{12})$/i.exec(maybeUuid)
+  if (!match) return null
+  const [, a, b, c, d, e] = match
+  return a && b && c && d && e ? `${a}-${b}-${c}-${d}-${e}` : null
 }
 
 export function isTranscriptFileName(name: string): boolean {
