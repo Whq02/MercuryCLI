@@ -3,7 +3,6 @@ import { getIsInteractive, getIsNonInteractiveSession, getProjectRoot, getSessio
 import { getCommands } from '../commands/catalogue/commands.js'
 import { MERCURY_VERSION } from '../platform/product/product.js'
 import type { ToolPermissionContext } from '../tools/kit/tool.js'
-import type { SessionId } from '../sessions/transcripts/ids.js'
 import { asSessionId } from '../sessions/transcripts/ids.js'
 import { checkAndRestoreTerminalBackup } from '../commands/keysetup/appleTerminalBackup.js'
 import { checkHasTrustDialogAccepted, getGlobalConfig } from '../platform/settings/config.js'

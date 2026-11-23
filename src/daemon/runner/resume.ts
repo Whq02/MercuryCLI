@@ -32,7 +32,6 @@ import { recordContentReplacement, listProjectSessions, sessionIdOfListing } fro
 import { sessionFilePath } from '../../sessions/transcripts/loading.js'
 import { claimSessionWriter } from '../../sessions/transcripts/sessionWriter.js'
 import { resumeMissMessage } from '../../sessions/transcripts/resumeMiss.js'
-import type { UUID } from 'node:crypto'
 
 export function emitLoadError(
   message: string,

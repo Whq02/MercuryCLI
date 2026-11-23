@@ -495,18 +495,12 @@ function backUpOutgoingConfig(file: string): void {
     const directory = prepareConfigBackupHome(disk)
     const stamp = '.backup.'
     const prefix = `${basename(file)}${stamp}`
-    const copiesOnHand = (): string[] =>
-      disk
-        .readdirStringSync(directory)
-        .filter((name: string) => name.startsWith(prefix))
-        .sort()
-        .reverse()
-    let copies = copiesOnHand()
+    let copies = stampedCopies(disk, directory, prefix)
     const newest = copies[0]
     const newestAt = newest === undefined ? Number.NaN : Number(newest.slice(newest.lastIndexOf(stamp) + stamp.length))
     if (Number.isNaN(newestAt) || Date.now() - newestAt >= 60_000) {
       copyFileSync(file, join(directory, `${prefix}${Date.now()}`))
-      copies = copiesOnHand()
+      copies = stampedCopies(disk, directory, prefix)
     }
     for (const old of copies.slice(5)) {
       try {
