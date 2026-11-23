@@ -658,7 +658,7 @@ function composeAssistantMessageFromError(
     const helperFailure = getApiKeyHelperFailure()
     if (
       helperFailure !== null &&
-      getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true }).source === 'credentials.keyCommand'
+      getAnthropicApiKeyWithSource().source === 'credentials.keyCommand'
     ) {
       return createAssistantAPIErrorMessage({
         content: `${API_ERROR_MESSAGE_PREFIX}: the configured credentials.keyCommand failed (${helperFailure.message}) — no credential was sent; fix the helper and retry`,
